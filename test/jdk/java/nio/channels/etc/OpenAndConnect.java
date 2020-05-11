@@ -52,11 +52,9 @@ import static jdk.test.lib.net.IPSupport.*;
  *          and the system properties preferIPv4Stack and preferIPv6Addresses.
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
- * @run testng OpenAndConnect
+ * @run testng/othervm OpenAndConnect
  */
 
-// * @run testng -Djava.net.preferIPv6Addresses=true OpenAndConnect
-// * @run testng -Djava.net.preferIPv4Stack=true OpenAndConnect
 
 public class OpenAndConnect {
     static final boolean PREFERIPV4 = preferIPv4Stack();
@@ -119,8 +117,9 @@ public class OpenAndConnect {
     @DataProvider(name = "openConnect")
     public Object[][] openConnect() {
         return new Object[][]{
-            //                                                                       Should pass
-            //  {   sfam,   saddr,         cfam,    caddr,         ipv4,    ipv6,    DG    SC     }
+            //                                                        Run if set      Should
+            //                                                     ipv4     ipv6      pass on
+            //  {   sfam,   saddr,         cfam,    caddr,         only,    addrs,   DG    SC     }
 
                 {   INET,   null,          INET,    null,          false,   false,   ML,   ALL    },
                 {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   false,   false,   ML,   ALL    },
@@ -282,13 +281,13 @@ public class OpenAndConnect {
     }
 
     @Test(dataProvider = "openConnect")
-    public void scOpenConnect(ProtocolFamily sfam,
-                              InetAddress saddr,
-                              ProtocolFamily cfam,
-                              InetAddress caddr,
-                              boolean ipv4,
-                              boolean ipv6,
-                              int dgMask, int scMask) {
+    public void scOpenAndConnect(ProtocolFamily sfam,
+                                 InetAddress saddr,
+                                 ProtocolFamily cfam,
+                                 InetAddress caddr,
+                                 boolean ipv4,
+                                 boolean ipv6,
+                                 int dgMask, int scMask) {
         if (ipv4 != PREFERIPV4 || ipv6 != PREFERIPV6) {
             return;
         }
@@ -298,7 +297,7 @@ public class OpenAndConnect {
             throw new SkipException("can't run due to configuration");
 
         boolean scPass = passOnThisPlatform(scMask);
-        out.printf("scOpenConnect: server bind: %s client bind: %s\n", saddr, caddr);
+        out.printf("scOpenAndConnect: server bind: %s client bind: %s\n", saddr, caddr);
         try (ServerSocketChannel ssc = openSSC(sfam)) {
             ssc.bind(getSocketAddress(saddr));
             InetSocketAddress ssa = (InetSocketAddress)ssc.getLocalAddress();
@@ -332,13 +331,13 @@ public class OpenAndConnect {
     }
 
     @Test(dataProvider = "openConnect")
-    public void dcOpenConnect(ProtocolFamily sfam,
-                              InetAddress saddr,
-                              ProtocolFamily cfam,
-                              InetAddress caddr,
-                              boolean ipv4,
-                              boolean ipv6,
-                              int dgMask, int scMask) {
+    public void dcOpenAndConnect(ProtocolFamily sfam,
+                                 InetAddress saddr,
+                                 ProtocolFamily cfam,
+                                 InetAddress caddr,
+                                 boolean ipv4,
+                                 boolean ipv6,
+                                 int dgMask, int scMask) {
         if (ipv4 != PREFERIPV4 || ipv6 != PREFERIPV6) {
             return;
         }
