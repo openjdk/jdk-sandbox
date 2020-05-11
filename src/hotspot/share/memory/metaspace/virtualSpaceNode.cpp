@@ -252,8 +252,8 @@ VirtualSpaceNode::VirtualSpaceNode(int node_id,
   // Update reserved counter in vslist
   _total_reserved_words_counter->increment_by(_word_size);
 
-  assert_is_aligned(_base, chklvl::MAX_CHUNK_BYTE_SIZE);
-  assert_is_aligned(_word_size, chklvl::MAX_CHUNK_WORD_SIZE);
+  assert_is_aligned(_base, chunklevel::MAX_CHUNK_BYTE_SIZE);
+  assert_is_aligned(_word_size, chunklevel::MAX_CHUNK_WORD_SIZE);
 
 }
 
@@ -265,10 +265,10 @@ VirtualSpaceNode* VirtualSpaceNode::create_node(int node_id,
                                                 SizeCounter* commit_words_counter)
 {
 
-  DEBUG_ONLY(assert_is_aligned(word_size, chklvl::MAX_CHUNK_WORD_SIZE);)
+  DEBUG_ONLY(assert_is_aligned(word_size, chunklevel::MAX_CHUNK_WORD_SIZE);)
 
 #ifdef ASSERT
-  size_t alignment = chklvl::MAX_CHUNK_BYTE_SIZE;
+  size_t alignment = chunklevel::MAX_CHUNK_BYTE_SIZE;
 #endif
 
   ReservedSpace rs(word_size * BytesPerWord,
@@ -280,7 +280,7 @@ VirtualSpaceNode* VirtualSpaceNode::create_node(int node_id,
     vm_exit_out_of_memory(word_size * BytesPerWord, OOM_MMAP_ERROR, "Failed to reserve memory for metaspace");
   }
 
-  assert_is_aligned(rs.base(), chklvl::MAX_CHUNK_BYTE_SIZE);
+  assert_is_aligned(rs.base(), chunklevel::MAX_CHUNK_BYTE_SIZE);
 
   return create_node(node_id, rs, limiter, reserve_words_counter, commit_words_counter);
 
@@ -324,12 +324,12 @@ Metachunk* VirtualSpaceNode::allocate_root_chunk() {
 
   assert_lock_strong(MetaspaceExpand_lock);
 
-  assert_is_aligned(free_words(), chklvl::MAX_CHUNK_WORD_SIZE);
+  assert_is_aligned(free_words(), chunklevel::MAX_CHUNK_WORD_SIZE);
 
-  if (free_words() >= chklvl::MAX_CHUNK_WORD_SIZE) {
+  if (free_words() >= chunklevel::MAX_CHUNK_WORD_SIZE) {
 
     MetaWord* loc = _base + _used_words;
-    _used_words += chklvl::MAX_CHUNK_WORD_SIZE;
+    _used_words += chunklevel::MAX_CHUNK_WORD_SIZE;
 
     RootChunkArea* rca = _root_chunk_area_lut.get_area_by_address(loc);
 
@@ -368,7 +368,7 @@ Metachunk* VirtualSpaceNode::allocate_root_chunk() {
 //  free chunks to the freelists.
 //
 // Returns NULL if chunk cannot be split at least once.
-Metachunk* VirtualSpaceNode::split(chklvl_t target_level, Metachunk* c, MetachunkListVector* freelists) {
+Metachunk* VirtualSpaceNode::split(chunklevel_t target_level, Metachunk* c, MetachunkListVector* freelists) {
 
   assert_lock_strong(MetaspaceExpand_lock);
 
@@ -512,12 +512,12 @@ void VirtualSpaceNode::verify(bool slow) const {
   assert(base() == (MetaWord*)_rs.base() &&
          word_size() == _rs.size() / BytesPerWord,
          "Sanity");
-  assert_is_aligned(base(), chklvl::MAX_CHUNK_BYTE_SIZE);
+  assert_is_aligned(base(), chunklevel::MAX_CHUNK_BYTE_SIZE);
   assert(used_words() <= word_size(), "Sanity");
 
   // Since we only ever hand out root chunks from a vsnode, top should always be aligned
   // to root chunk size.
-  assert_is_aligned(used_words(), chklvl::MAX_CHUNK_WORD_SIZE);
+  assert_is_aligned(used_words(), chunklevel::MAX_CHUNK_WORD_SIZE);
 
   _commit_mask.verify(slow);
   assert(committed_words() <= word_size(), "Sanity");

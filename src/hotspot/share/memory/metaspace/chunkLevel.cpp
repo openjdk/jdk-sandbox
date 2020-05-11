@@ -32,24 +32,24 @@
 
 namespace metaspace {
 
-chklvl_t chklvl::level_fitting_word_size(size_t word_size) {
+chunklevel_t chunklevel::level_fitting_word_size(size_t word_size) {
 
-  assert(chklvl::MAX_CHUNK_WORD_SIZE >= word_size,
+  assert(chunklevel::MAX_CHUNK_WORD_SIZE >= word_size,
          "too large allocation size (" SIZE_FORMAT ")", word_size * BytesPerWord);
 
   // TODO: This can be done much better.
-  chklvl_t l = chklvl::HIGHEST_CHUNK_LEVEL;
-  while (l >= chklvl::LOWEST_CHUNK_LEVEL &&
-         word_size > chklvl::word_size_for_level(l)) {
+  chunklevel_t l = chunklevel::HIGHEST_CHUNK_LEVEL;
+  while (l >= chunklevel::LOWEST_CHUNK_LEVEL &&
+         word_size > chunklevel::word_size_for_level(l)) {
     l --;
   }
 
   return l;
 }
 
-void chklvl::print_chunk_size(outputStream* st, chklvl_t lvl) {
-  if (chklvl::is_valid_level(lvl)) {
-    const size_t s = chklvl::word_size_for_level(lvl) * BytesPerWord;
+void chunklevel::print_chunk_size(outputStream* st, chunklevel_t lvl) {
+  if (chunklevel::is_valid_level(lvl)) {
+    const size_t s = chunklevel::word_size_for_level(lvl) * BytesPerWord;
     if (s < 1 * M) {
       st->print("%3uk", (unsigned)(s / K));
     } else {

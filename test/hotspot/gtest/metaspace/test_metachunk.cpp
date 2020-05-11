@@ -33,7 +33,7 @@ class MetachunkTest {
   VirtualSpaceList _vs_list;
   ChunkManager _cm;
 
-  Metachunk* alloc_chunk(chklvl_t lvl) {
+  Metachunk* alloc_chunk(chunklevel_t lvl) {
 
     Metachunk* c = _cm.get_chunk(lvl, lvl);
     EXPECT_NOT_NULL(c);
@@ -52,7 +52,7 @@ class MetachunkTest {
     EXPECT_TRUE(_vs_list.contains(c->base()));
     EXPECT_TRUE(is_aligned(c->base(), MAX_CHUNK_BYTE_SIZE));
     EXPECT_TRUE(is_aligned(c->word_size(), MIN_CHUNK_WORD_SIZE));
-    EXPECT_TRUE(metaspace::chklvl::is_valid_level(c->level()));
+    EXPECT_TRUE(metaspace::chunklevel::is_valid_level(c->level()));
 
     if (c->next() != NULL) EXPECT_EQ(c->next()->prev(), c);
     if (c->prev() != NULL) EXPECT_EQ(c->prev()->next(), c);
@@ -146,8 +146,8 @@ public:
 
   // Test that allocating the full MetaChunk works and leaves no space.
   void test_full_chunk() {
-    for (chklvl_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl ++) {
-      const size_t word_size = metaspace::chklvl::word_size_for_level(lvl);
+    for (chunklevel_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl ++) {
+      const size_t word_size = metaspace::chunklevel::word_size_for_level(lvl);
       Metachunk* c = alloc_chunk(lvl);
       ASSERT_NOT_NULL(c);
       ASSERT_EQ(c->used_words(), (size_t)0);

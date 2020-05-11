@@ -46,7 +46,7 @@ class VirtualSpaceNodeTest {
 
   void verify() const {
 
-    ASSERT_EQ(_root_chunks.count() * metaspace::chklvl::MAX_CHUNK_WORD_SIZE,
+    ASSERT_EQ(_root_chunks.count() * metaspace::chunklevel::MAX_CHUNK_WORD_SIZE,
               _node->used_words());
 
     ASSERT_GE(_commit_limit,                      _counter_committed_words.get());
@@ -92,7 +92,7 @@ class VirtualSpaceNodeTest {
       EXPECT_NOT_NULL(c);
       EXPECT_TRUE(c->is_root_chunk());
       EXPECT_TRUE(c->is_free());
-      EXPECT_EQ(c->word_size(), metaspace::chklvl::MAX_CHUNK_WORD_SIZE);
+      EXPECT_EQ(c->word_size(), metaspace::chunklevel::MAX_CHUNK_WORD_SIZE);
 
       if (!may_hit_commit_limit) {
         if (Settings::newborn_root_chunks_are_fully_committed()) {
@@ -193,13 +193,13 @@ class VirtualSpaceNodeTest {
 
   } // uncommit_chunk
 
-  Metachunk* split_chunk_with_checks(Metachunk* c, chklvl_t target_level, MetachunkListVector* freelist) {
+  Metachunk* split_chunk_with_checks(Metachunk* c, chunklevel_t target_level, MetachunkListVector* freelist) {
 
     DEBUG_ONLY(c->verify(true);)
 
-    const chklvl_t orig_level = c->level();
+    const chunklevel_t orig_level = c->level();
     assert(orig_level < target_level, "Sanity");
-    DEBUG_ONLY(metaspace::chklvl::check_valid_level(target_level);)
+    DEBUG_ONLY(metaspace::chunklevel::check_valid_level(target_level);)
 
     const int total_num_chunks_in_freelist_before = freelist->total_num_chunks();
     const size_t total_word_size_in_freelist_before = freelist->total_word_size();
@@ -223,8 +223,8 @@ class VirtualSpaceNodeTest {
     // buddy chunk to appear of level + 1 (aka, half size).
     size_t expected_wordsize_increase = 0;
     int expected_num_chunks_increase = 0;
-    for (chklvl_t l = orig_level + 1; l <= target_level; l ++) {
-      expected_wordsize_increase += metaspace::chklvl::word_size_for_level(l);
+    for (chunklevel_t l = orig_level + 1; l <= target_level; l ++) {
+      expected_wordsize_increase += metaspace::chunklevel::word_size_for_level(l);
       expected_num_chunks_increase ++;
     }
 
@@ -239,9 +239,9 @@ class VirtualSpaceNodeTest {
   } // end: split_chunk_with_checks
 
 
-  Metachunk* merge_chunk_with_checks(Metachunk* c, chklvl_t expected_target_level, MetachunkListVector* freelist) {
+  Metachunk* merge_chunk_with_checks(Metachunk* c, chunklevel_t expected_target_level, MetachunkListVector* freelist) {
 
-    const chklvl_t orig_level = c->level();
+    const chunklevel_t orig_level = c->level();
     assert(expected_target_level < orig_level, "Sanity");
 
     const int total_num_chunks_in_freelist_before = freelist->total_num_chunks();
@@ -263,8 +263,8 @@ class VirtualSpaceNodeTest {
     // of the original chunk (each size doubling) we should see one buddy chunk swallowed up.
     size_t expected_wordsize_decrease = 0;
     int expected_num_chunks_decrease = 0;
-    for (chklvl_t l = orig_level; l > expected_target_level; l --) {
-      expected_wordsize_decrease += metaspace::chklvl::word_size_for_level(l);
+    for (chunklevel_t l = orig_level; l > expected_target_level; l --) {
+      expected_wordsize_decrease += metaspace::chunklevel::word_size_for_level(l);
       expected_num_chunks_decrease ++;
     }
 
@@ -426,7 +426,7 @@ public:
 
       verify();
 
-      for (chklvl_t target_level = LOWEST_CHUNK_LEVEL + 1;
+      for (chunklevel_t target_level = LOWEST_CHUNK_LEVEL + 1;
            target_level <= HIGHEST_CHUNK_LEVEL; target_level ++) {
 
         // Split:
@@ -474,7 +474,7 @@ TEST_VM(metaspace, virtual_space_node_test_basics) {
 
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
 
-  const size_t word_size = metaspace::chklvl::MAX_CHUNK_WORD_SIZE * 10;
+  const size_t word_size = metaspace::chunklevel::MAX_CHUNK_WORD_SIZE * 10;
 
   SizeCounter scomm;
   SizeCounter sres;
@@ -520,38 +520,38 @@ TEST_VM(metaspace, virtual_space_node_test_basics) {
 // should be pretty independent since we need things like os::vm_page_size()
 // which in turn need OS layer initialization.
 TEST_VM(metaspace, virtual_space_node_test_1) {
-  VirtualSpaceNodeTest test(metaspace::chklvl::MAX_CHUNK_WORD_SIZE,
-      metaspace::chklvl::MAX_CHUNK_WORD_SIZE);
+  VirtualSpaceNodeTest test(metaspace::chunklevel::MAX_CHUNK_WORD_SIZE,
+      metaspace::chunklevel::MAX_CHUNK_WORD_SIZE);
   test.test_simple();
 }
 
 TEST_VM(metaspace, virtual_space_node_test_2) {
   // Should not hit commit limit
-  VirtualSpaceNodeTest test(3 * metaspace::chklvl::MAX_CHUNK_WORD_SIZE,
-      3 * metaspace::chklvl::MAX_CHUNK_WORD_SIZE);
+  VirtualSpaceNodeTest test(3 * metaspace::chunklevel::MAX_CHUNK_WORD_SIZE,
+      3 * metaspace::chunklevel::MAX_CHUNK_WORD_SIZE);
   test.test_simple();
   test.test_exhaust_node();
 }
 
 TEST_VM(metaspace, virtual_space_node_test_3) {
   // Should hit commit limit
-  VirtualSpaceNodeTest test(10 * metaspace::chklvl::MAX_CHUNK_WORD_SIZE,
-      3 * metaspace::chklvl::MAX_CHUNK_WORD_SIZE);
+  VirtualSpaceNodeTest test(10 * metaspace::chunklevel::MAX_CHUNK_WORD_SIZE,
+      3 * metaspace::chunklevel::MAX_CHUNK_WORD_SIZE);
   test.test_exhaust_node();
 }
 
 TEST_VM(metaspace, virtual_space_node_test_4) {
   // Test committing uncommitting arbitrary ranges
-  VirtualSpaceNodeTest test(metaspace::chklvl::MAX_CHUNK_WORD_SIZE,
-      metaspace::chklvl::MAX_CHUNK_WORD_SIZE);
+  VirtualSpaceNodeTest test(metaspace::chunklevel::MAX_CHUNK_WORD_SIZE,
+      metaspace::chunklevel::MAX_CHUNK_WORD_SIZE);
   test.test_arbitrary_commits();
 }
 
 TEST_VM(metaspace, virtual_space_node_test_5) {
   // Test committing uncommitting arbitrary ranges
   for (int run = 0; run < 100; run ++) {
-    VirtualSpaceNodeTest test(metaspace::chklvl::MAX_CHUNK_WORD_SIZE,
-        metaspace::chklvl::MAX_CHUNK_WORD_SIZE);
+    VirtualSpaceNodeTest test(metaspace::chunklevel::MAX_CHUNK_WORD_SIZE,
+        metaspace::chunklevel::MAX_CHUNK_WORD_SIZE);
     test.test_split_and_merge_chunks();
   }
 }
@@ -559,13 +559,13 @@ TEST_VM(metaspace, virtual_space_node_test_5) {
 TEST_VM(metaspace, virtual_space_node_test_7) {
   // Test large allocation and freeing.
   {
-    VirtualSpaceNodeTest test(metaspace::chklvl::MAX_CHUNK_WORD_SIZE * 100,
-        metaspace::chklvl::MAX_CHUNK_WORD_SIZE * 100);
+    VirtualSpaceNodeTest test(metaspace::chunklevel::MAX_CHUNK_WORD_SIZE * 100,
+        metaspace::chunklevel::MAX_CHUNK_WORD_SIZE * 100);
     test.test_exhaust_node();
   }
   {
-    VirtualSpaceNodeTest test(metaspace::chklvl::MAX_CHUNK_WORD_SIZE * 100,
-        metaspace::chklvl::MAX_CHUNK_WORD_SIZE * 100);
+    VirtualSpaceNodeTest test(metaspace::chunklevel::MAX_CHUNK_WORD_SIZE * 100,
+        metaspace::chunklevel::MAX_CHUNK_WORD_SIZE * 100);
     test.test_exhaust_node();
   }
 

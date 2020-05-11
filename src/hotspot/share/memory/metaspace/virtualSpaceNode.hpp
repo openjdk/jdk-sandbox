@@ -166,7 +166,7 @@ public:
   //  free chunks to the freelists.
   //
   // Returns NULL if chunk cannot be split at least once.
-  Metachunk* split(chklvl_t target_level, Metachunk* c, MetachunkListVector* freelists);
+  Metachunk* split(chunklevel_t target_level, Metachunk* c, MetachunkListVector* freelists);
 
   // Given a chunk, attempt to merge it recursively with its neighboring chunks.
   //

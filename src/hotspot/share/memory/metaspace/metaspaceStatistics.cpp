@@ -39,7 +39,7 @@ namespace metaspace {
 
 // Returns total word size of all chunks in this manager.
 void cm_stats_t::add(const cm_stats_t& other) {
-  for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     num_chunks[l] += other.num_chunks[l];
     committed_word_size[l] += other.committed_word_size[l];
   }
@@ -48,8 +48,8 @@ void cm_stats_t::add(const cm_stats_t& other) {
 // Returns total word size of all chunks in this manager.
 size_t cm_stats_t::total_word_size() const {
   size_t s = 0;
-  for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
-    s += num_chunks[l] * chklvl::word_size_for_level(l);
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+    s += num_chunks[l] * chunklevel::word_size_for_level(l);
   }
   return s;
 }
@@ -57,7 +57,7 @@ size_t cm_stats_t::total_word_size() const {
 // Returns total committed word size of all chunks in this manager.
 size_t cm_stats_t::total_committed_word_size() const {
   size_t s = 0;
-  for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     s += committed_word_size[l];
   }
   return s;
@@ -68,12 +68,12 @@ void cm_stats_t::print_on(outputStream* st, size_t scale) const {
   // Note: used as part of MetaspaceReport so formatting matters.
   size_t total_size = 0;
   size_t total_committed_size = 0;
-  for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     st->cr();
-    chklvl::print_chunk_size(st, l);
+    chunklevel::print_chunk_size(st, l);
     st->print(": ");
     if (num_chunks[l] > 0) {
-      const size_t word_size = num_chunks[l] * chklvl::word_size_for_level(l);
+      const size_t word_size = num_chunks[l] * chunklevel::word_size_for_level(l);
 
       st->print("%4d, capacity=", num_chunks[l]);
       print_scaled_words(st, word_size, scale);
@@ -144,7 +144,7 @@ void in_use_chunk_stats_t::verify() const {
 // SpaceManagerStatistics methods
 
 void sm_stats_t::add(const sm_stats_t& other) {
-  for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     stats[l].add(other.stats[l]);
   }
   free_blocks_num += other.free_blocks_num;
@@ -155,7 +155,7 @@ void sm_stats_t::add(const sm_stats_t& other) {
 // Returns total chunk statistics over all chunk types.
 in_use_chunk_stats_t sm_stats_t::totals() const {
   in_use_chunk_stats_t out;
-  for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     out.add(stats[l]);
   }
   return out;
@@ -168,9 +168,9 @@ void sm_stats_t::print_on(outputStream* st, size_t scale,  bool detailed) const 
     st->print("Usage by chunk level:");
     {
       streamIndentor sti2(st);
-      for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+      for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
         st->cr_indent();
-        chklvl::print_chunk_size(st, l);
+        chunklevel::print_chunk_size(st, l);
         st->print(" chunks: ");
         if (stats[l].num == 0) {
           st->print(" (none)");
@@ -200,7 +200,7 @@ void sm_stats_t::print_on(outputStream* st, size_t scale,  bool detailed) const 
 
 void sm_stats_t::verify() const {
   size_t total_used = 0;
-  for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     stats[l].verify();
     total_used += stats[l].used_words;
   }

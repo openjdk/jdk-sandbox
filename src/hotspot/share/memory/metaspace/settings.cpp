@@ -64,7 +64,7 @@ void Settings::ergo_initialize() {
 
     _newborn_root_chunks_are_fully_committed = true;
 
-    _committed_words_on_fresh_chunks = chklvl::MAX_CHUNK_WORD_SIZE;
+    _committed_words_on_fresh_chunks = chunklevel::MAX_CHUNK_WORD_SIZE;
 
     _uncommit_on_return = false;
     _uncommit_on_return_min_word_size = 3; // does not matter; should not be used resp. assert when used.
@@ -124,7 +124,7 @@ void Settings::ergo_initialize() {
   }
 
   // Sanity checks.
-  guarantee(commit_granule_words() <= chklvl::MAX_CHUNK_WORD_SIZE, "Too large granule size");
+  guarantee(commit_granule_words() <= chunklevel::MAX_CHUNK_WORD_SIZE, "Too large granule size");
   guarantee(is_power_of_2(commit_granule_words()), "granule size must be a power of 2");
 
 #ifdef ASSERT

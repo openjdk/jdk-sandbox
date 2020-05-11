@@ -39,10 +39,10 @@ namespace metaspace {
 struct cm_stats_t {
 
   // How many chunks per level are checked in.
-  int num_chunks[chklvl::NUM_CHUNK_LEVELS];
+  int num_chunks[chunklevel::NUM_CHUNK_LEVELS];
 
   // Size, in words, of the sum of all committed areas in this chunk manager, per level.
-  size_t committed_word_size[chklvl::NUM_CHUNK_LEVELS];
+  size_t committed_word_size[chunklevel::NUM_CHUNK_LEVELS];
 
   cm_stats_t() : num_chunks(), committed_word_size() {}
 
@@ -111,7 +111,7 @@ struct in_use_chunk_stats_t {
 struct  sm_stats_t {
 
   // chunk statistics by chunk level
-  in_use_chunk_stats_t stats[chklvl::NUM_CHUNK_LEVELS];
+  in_use_chunk_stats_t stats[chunklevel::NUM_CHUNK_LEVELS];
   uintx free_blocks_num;
   size_t free_blocks_word_size;
 

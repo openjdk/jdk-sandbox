@@ -43,7 +43,7 @@ namespace metaspace {
 class ChunkAllocSequence {
 public:
 
-  virtual chklvl_t get_next_chunk_level(int num_allocated) const = 0;
+  virtual chunklevel_t get_next_chunk_level(int num_allocated) const = 0;
 
   // Given a space type, return the correct allocation sequence to use.
   // The returned object is static and read only.

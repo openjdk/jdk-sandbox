@@ -62,11 +62,11 @@ namespace metaspace {
 // 1K      12
 
 // Metachunk level (must be signed)
-typedef signed char chklvl_t;
+typedef signed char chunklevel_t;
 
 #define CHKLVL_FORMAT "lv%.2d"
 
-namespace chklvl {
+namespace chunklevel {
 
 static const size_t   MAX_CHUNK_BYTE_SIZE    = 4 * M;
 static const int      NUM_CHUNK_LEVELS       = 13;
@@ -75,24 +75,24 @@ static const size_t   MIN_CHUNK_BYTE_SIZE    = (MAX_CHUNK_BYTE_SIZE >> (size_t)N
 static const size_t   MIN_CHUNK_WORD_SIZE    = MIN_CHUNK_BYTE_SIZE / sizeof(MetaWord);
 static const size_t   MAX_CHUNK_WORD_SIZE    = MAX_CHUNK_BYTE_SIZE / sizeof(MetaWord);
 
-static const chklvl_t ROOT_CHUNK_LEVEL       = 0;
+static const chunklevel_t ROOT_CHUNK_LEVEL       = 0;
 
-static const chklvl_t HIGHEST_CHUNK_LEVEL    = NUM_CHUNK_LEVELS - 1;
-static const chklvl_t LOWEST_CHUNK_LEVEL     = 0;
+static const chunklevel_t HIGHEST_CHUNK_LEVEL    = NUM_CHUNK_LEVELS - 1;
+static const chunklevel_t LOWEST_CHUNK_LEVEL     = 0;
 
-static const chklvl_t INVALID_CHUNK_LEVEL    = (chklvl_t) -1;
+static const chunklevel_t INVALID_CHUNK_LEVEL    = (chunklevel_t) -1;
 
-inline bool is_valid_level(chklvl_t level) {
+inline bool is_valid_level(chunklevel_t level) {
   return level >= LOWEST_CHUNK_LEVEL &&
          level <= HIGHEST_CHUNK_LEVEL;
 }
 
-inline void check_valid_level(chklvl_t lvl) {
+inline void check_valid_level(chunklevel_t lvl) {
   assert(is_valid_level(lvl), "invalid level (%d)", (int)lvl);
 }
 
 // Given a level return the chunk size, in words.
-inline size_t word_size_for_level(chklvl_t level) {
+inline size_t word_size_for_level(chunklevel_t level) {
   check_valid_level(level);
   return (MAX_CHUNK_BYTE_SIZE >> level) / BytesPerWord;
 }
@@ -100,31 +100,31 @@ inline size_t word_size_for_level(chklvl_t level) {
 // Given an arbitrary word size smaller than the highest chunk size,
 // return the highest chunk level able to hold this size.
 // Returns INVALID_CHUNK_LEVEL if no fitting level can be found.
-chklvl_t level_fitting_word_size(size_t word_size);
+chunklevel_t level_fitting_word_size(size_t word_size);
 
 // Shorthands to refer to exact sizes
-static const chklvl_t CHUNK_LEVEL_4M =     ROOT_CHUNK_LEVEL;
-static const chklvl_t CHUNK_LEVEL_2M =    (ROOT_CHUNK_LEVEL + 1);
-static const chklvl_t CHUNK_LEVEL_1M =    (ROOT_CHUNK_LEVEL + 2);
-static const chklvl_t CHUNK_LEVEL_512K =  (ROOT_CHUNK_LEVEL + 3);
-static const chklvl_t CHUNK_LEVEL_256K =  (ROOT_CHUNK_LEVEL + 4);
-static const chklvl_t CHUNK_LEVEL_128K =  (ROOT_CHUNK_LEVEL + 5);
-static const chklvl_t CHUNK_LEVEL_64K =   (ROOT_CHUNK_LEVEL + 6);
-static const chklvl_t CHUNK_LEVEL_32K =   (ROOT_CHUNK_LEVEL + 7);
-static const chklvl_t CHUNK_LEVEL_16K =   (ROOT_CHUNK_LEVEL + 8);
-static const chklvl_t CHUNK_LEVEL_8K =    (ROOT_CHUNK_LEVEL + 9);
-static const chklvl_t CHUNK_LEVEL_4K =    (ROOT_CHUNK_LEVEL + 10);
-static const chklvl_t CHUNK_LEVEL_2K =    (ROOT_CHUNK_LEVEL + 11);
-static const chklvl_t CHUNK_LEVEL_1K =    (ROOT_CHUNK_LEVEL + 12);
+static const chunklevel_t CHUNK_LEVEL_4M =     ROOT_CHUNK_LEVEL;
+static const chunklevel_t CHUNK_LEVEL_2M =    (ROOT_CHUNK_LEVEL + 1);
+static const chunklevel_t CHUNK_LEVEL_1M =    (ROOT_CHUNK_LEVEL + 2);
+static const chunklevel_t CHUNK_LEVEL_512K =  (ROOT_CHUNK_LEVEL + 3);
+static const chunklevel_t CHUNK_LEVEL_256K =  (ROOT_CHUNK_LEVEL + 4);
+static const chunklevel_t CHUNK_LEVEL_128K =  (ROOT_CHUNK_LEVEL + 5);
+static const chunklevel_t CHUNK_LEVEL_64K =   (ROOT_CHUNK_LEVEL + 6);
+static const chunklevel_t CHUNK_LEVEL_32K =   (ROOT_CHUNK_LEVEL + 7);
+static const chunklevel_t CHUNK_LEVEL_16K =   (ROOT_CHUNK_LEVEL + 8);
+static const chunklevel_t CHUNK_LEVEL_8K =    (ROOT_CHUNK_LEVEL + 9);
+static const chunklevel_t CHUNK_LEVEL_4K =    (ROOT_CHUNK_LEVEL + 10);
+static const chunklevel_t CHUNK_LEVEL_2K =    (ROOT_CHUNK_LEVEL + 11);
+static const chunklevel_t CHUNK_LEVEL_1K =    (ROOT_CHUNK_LEVEL + 12);
 
 STATIC_ASSERT(CHUNK_LEVEL_1K == HIGHEST_CHUNK_LEVEL);
 
 /////////////////////////////////////////////////////////
 // print helpers
-void print_chunk_size(outputStream* st, chklvl_t lvl);
+void print_chunk_size(outputStream* st, chunklevel_t lvl);
 
 
-} // namespace chklvl
+} // namespace chunklevel
 
 } // namespace metaspace
 

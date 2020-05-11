@@ -83,14 +83,14 @@ using metaspace::SpaceManager;
 using metaspace::VirtualSpaceList;
 using metaspace::VirtualSpaceNode;
 
-using metaspace::chklvl_t;
-using metaspace::chklvl::HIGHEST_CHUNK_LEVEL;
-using metaspace::chklvl::MAX_CHUNK_WORD_SIZE;
-using metaspace::chklvl::MAX_CHUNK_BYTE_SIZE;
-using metaspace::chklvl::MIN_CHUNK_WORD_SIZE;
-using metaspace::chklvl::MIN_CHUNK_BYTE_SIZE;
-using metaspace::chklvl::LOWEST_CHUNK_LEVEL;
-using metaspace::chklvl::NUM_CHUNK_LEVELS;
+using metaspace::chunklevel_t;
+using metaspace::chunklevel::HIGHEST_CHUNK_LEVEL;
+using metaspace::chunklevel::MAX_CHUNK_WORD_SIZE;
+using metaspace::chunklevel::MAX_CHUNK_BYTE_SIZE;
+using metaspace::chunklevel::MIN_CHUNK_WORD_SIZE;
+using metaspace::chunklevel::MIN_CHUNK_BYTE_SIZE;
+using metaspace::chunklevel::LOWEST_CHUNK_LEVEL;
+using metaspace::chunklevel::NUM_CHUNK_LEVELS;
 
 
 /////////////////////////////////////////////////////////////////////

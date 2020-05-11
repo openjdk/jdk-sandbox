@@ -71,7 +71,7 @@ public:
   //  free chunks to the freelists.
   //
   // Returns NULL if chunk cannot be split at least once.
-  Metachunk* split(chklvl_t target_level, Metachunk* c, MetachunkListVector* freelists);
+  Metachunk* split(chunklevel_t target_level, Metachunk* c, MetachunkListVector* freelists);
 
   // Given a chunk, attempt to merge it recursively with its neighboring chunks.
   //
@@ -101,7 +101,7 @@ public:
   /// range ///
 
   const MetaWord* base() const  { return _base; }
-  size_t word_size() const      { return chklvl::MAX_CHUNK_WORD_SIZE; }
+  size_t word_size() const      { return chunklevel::MAX_CHUNK_WORD_SIZE; }
   const MetaWord* end() const   { return _base + word_size(); }
 
   // Direct access to the first chunk (use with care)
@@ -155,7 +155,7 @@ class RootChunkAreaLUT {
   // area this address falls into.
   int index_by_address(const MetaWord* p) const {
     DEBUG_ONLY(check_pointer(p);)
-    int idx = (int)((p - base()) / chklvl::MAX_CHUNK_WORD_SIZE);
+    int idx = (int)((p - base()) / chunklevel::MAX_CHUNK_WORD_SIZE);
     assert(idx >= 0 && idx < _num, "Sanity");
     return idx;
   }
@@ -183,7 +183,7 @@ public:
   /// range ///
 
   const MetaWord* base() const  { return _base; }
-  size_t word_size() const      { return _num * chklvl::MAX_CHUNK_WORD_SIZE; }
+  size_t word_size() const      { return _num * chunklevel::MAX_CHUNK_WORD_SIZE; }
   const MetaWord* end() const   { return _base + word_size(); }
 
   DEBUG_ONLY(void verify(bool slow) const;)

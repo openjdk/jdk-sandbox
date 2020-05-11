@@ -48,13 +48,13 @@ class Settings : public AllStatic {
   // Size in words. Will be rounded up to the nearest multiple of commit_granule_words.
   // (Note: 0 is possible but inefficient, since it will cause the ClassLoaderMetaspace
   //        to commit the first granule right away anyway, so nothing is saved.
-  //        chklvl::MAX_CHUNK_WORD_SIZE pretty much means every chunk is committed thru
+  //        chunklevel::MAX_CHUNK_WORD_SIZE pretty much means every chunk is committed thru
   //        from the start.
   static size_t _committed_words_on_fresh_chunks;
 
   // The default size of a non-class VirtualSpaceNode (unless created differently).
   // Must be a multiple of the root chunk size.
-  static const size_t _virtual_space_node_default_word_size = chklvl::MAX_CHUNK_WORD_SIZE * 2; // lets go with 8mb virt size. Seems a good compromise betw. virt and mapping fragmentation.
+  static const size_t _virtual_space_node_default_word_size = chunklevel::MAX_CHUNK_WORD_SIZE * 2; // lets go with 8mb virt size. Seems a good compromise betw. virt and mapping fragmentation.
 
   static const size_t _allocation_from_dictionary_limit = 4 * K;
 

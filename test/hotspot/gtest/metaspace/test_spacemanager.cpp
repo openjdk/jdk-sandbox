@@ -506,7 +506,7 @@ public:
     SpaceManagerTestBed* bed = testbed_at(0); // new bed
 
     const int num_loops = 5;
-    const size_t max_alloc_size = metaspace::chklvl::MIN_CHUNK_WORD_SIZE / num_loops * 2;
+    const size_t max_alloc_size = metaspace::chunklevel::MIN_CHUNK_WORD_SIZE / num_loops * 2;
 
     // Doing this multiple times should work too as long as we keep the
     // reverse allocation order.

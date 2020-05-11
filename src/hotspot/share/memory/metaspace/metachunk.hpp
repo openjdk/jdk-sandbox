@@ -73,7 +73,7 @@ class Metachunk {
   //  in Metachunk::allocate().)
   size_t _committed_words;
 
-  chklvl_t _level; // aka size.
+  chunklevel_t _level; // aka size.
 
   // state_free:    free, owned by ChunkManager
   // state_in_use:  in-use, owned by SpaceManager
@@ -121,7 +121,7 @@ public:
     : _base(NULL),
       _used_words(0),
       _committed_words(0),
-      _level(chklvl::ROOT_CHUNK_LEVEL),
+      _level(chunklevel::ROOT_CHUNK_LEVEL),
       _state(state_free),
       _vsnode(NULL),
       _prev(NULL), _next(NULL),
@@ -132,7 +132,7 @@ public:
    _base = NULL;
    _used_words = 0;
    _committed_words = 0;
-   _level = chklvl::ROOT_CHUNK_LEVEL;
+   _level = chunklevel::ROOT_CHUNK_LEVEL;
    _state = state_free;
    _vsnode = NULL;
    _prev = NULL;
@@ -142,7 +142,7 @@ public:
   }
 
 
-  size_t word_size() const        { return chklvl::word_size_for_level(_level); }
+  size_t word_size() const        { return chunklevel::word_size_for_level(_level); }
 
   MetaWord* base() const          { return _base; }
   MetaWord* top() const           { return base() + _used_words; }
@@ -172,17 +172,15 @@ public:
   // Return a single char presentation of the state ('f', 'u', 'd')
   char get_state_char() const;
 
-  void inc_level()                { _level ++; DEBUG_ONLY(chklvl::is_valid_level(_level);) }
-  void dec_level()                { _level --; DEBUG_ONLY(chklvl::is_valid_level(_level);) }
-//  void set_level(chklvl_t v)      { _level = v; DEBUG_ONLY(chklvl::is_valid_level(_level);) }
-  chklvl_t level() const          { return _level; }
+  void inc_level()                { _level ++; DEBUG_ONLY(chunklevel::is_valid_level(_level);) }
+  void dec_level()                { _level --; DEBUG_ONLY(chunklevel::is_valid_level(_level);) }
+  chunklevel_t level() const          { return _level; }
 
   // Convenience functions for extreme levels.
-  bool is_root_chunk() const      { return chklvl::ROOT_CHUNK_LEVEL == _level; }
-  bool is_leaf_chunk() const      { return chklvl::HIGHEST_CHUNK_LEVEL == _level; }
+  bool is_root_chunk() const      { return chunklevel::ROOT_CHUNK_LEVEL == _level; }
+  bool is_leaf_chunk() const      { return chunklevel::HIGHEST_CHUNK_LEVEL == _level; }
 
   VirtualSpaceNode* vsnode() const        { return _vsnode; }
-//  void set_vsnode(VirtualSpaceNode* n)    { _vsnode = n; }
 
   size_t used_words() const                   { return _used_words; }
   size_t free_words() const                   { return word_size() - used_words(); }
@@ -226,7 +224,7 @@ public:
   bool attempt_rollback_allocation(MetaWord* p, size_t word_size);
 
   // Initialize structure for reuse.
-  void initialize(VirtualSpaceNode* node, MetaWord* base, chklvl_t lvl) {
+  void initialize(VirtualSpaceNode* node, MetaWord* base, chunklevel_t lvl) {
     _vsnode = node; _base = base; _level = lvl;
     _used_words = _committed_words = 0; _state = state_free;
     _next = _prev = _next_in_vs = _prev_in_vs = NULL;
@@ -237,7 +235,7 @@ public:
   bool is_leader() const {
     assert(!is_root_chunk(), "Root chunks have no buddy.");
     // I am sure this can be done smarter...
-    return is_aligned(base(), chklvl::word_size_for_level(level() - 1) * BytesPerWord);
+    return is_aligned(base(), chunklevel::word_size_for_level(level() - 1) * BytesPerWord);
   }
 
   //// Debug stuff ////
@@ -358,19 +356,19 @@ public:
 //
 class MetachunkListVector {
 
-  MetachunkList _lists[chklvl::NUM_CHUNK_LEVELS];
+  MetachunkList _lists[chunklevel::NUM_CHUNK_LEVELS];
   MemRangeCounter _counter;
 
-  const MetachunkList* list_for_level(chklvl_t lvl) const         { DEBUG_ONLY(chklvl::check_valid_level(lvl)); return _lists + lvl; }
-  MetachunkList* list_for_level(chklvl_t lvl)                     { DEBUG_ONLY(chklvl::check_valid_level(lvl)); return _lists + lvl; }
+  const MetachunkList* list_for_level(chunklevel_t lvl) const         { DEBUG_ONLY(chunklevel::check_valid_level(lvl)); return _lists + lvl; }
+  MetachunkList* list_for_level(chunklevel_t lvl)                     { DEBUG_ONLY(chunklevel::check_valid_level(lvl)); return _lists + lvl; }
 
   const MetachunkList* list_for_chunk(const Metachunk* c) const   { return list_for_level(c->level()); }
   MetachunkList* list_for_chunk(const Metachunk* c)               { return list_for_level(c->level()); }
 
 public:
 
-  const Metachunk* first_at_level(chklvl_t lvl) const   { return list_for_level(lvl)->first(); }
-  Metachunk* first_at_level(chklvl_t lvl)               { return list_for_level(lvl)->first(); }
+  const Metachunk* first_at_level(chunklevel_t lvl) const   { return list_for_level(lvl)->first(); }
+  Metachunk* first_at_level(chunklevel_t lvl)               { return list_for_level(lvl)->first(); }
 
   // Remove given chunk from its list. List must contain that chunk.
   void remove(Metachunk* c) {
@@ -379,7 +377,7 @@ public:
   }
 
   // Remove first node unless empty. Returns node or NULL.
-  Metachunk* remove_first(chklvl_t lvl) {
+  Metachunk* remove_first(chunklevel_t lvl) {
     Metachunk* c = list_for_level(lvl)->remove_first();
     if (c != NULL) {
       _counter.sub(c->word_size());
@@ -393,12 +391,12 @@ public:
   }
 
   // Returns number of chunks for a given level.
-  int num_chunks_at_level(chklvl_t lvl) const {
+  int num_chunks_at_level(chunklevel_t lvl) const {
     return list_for_level(lvl)->count();
   }
 
   // Returns number of chunks for a given level.
-  size_t committed_word_size_at_level(chklvl_t lvl) const {
+  size_t committed_word_size_at_level(chunklevel_t lvl) const {
     return list_for_level(lvl)->committed_word_size();
   }
 
@@ -412,7 +410,7 @@ public:
   // Note: walks lists.
   size_t total_committed_word_size() const {
     size_t sum = 0;
-    for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+    for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
       sum += list_for_level(l)->committed_word_size();
     }
     return sum;

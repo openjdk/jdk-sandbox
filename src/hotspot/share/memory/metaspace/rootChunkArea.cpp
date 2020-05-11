@@ -61,7 +61,7 @@ Metachunk* RootChunkArea::alloc_root_chunk_header(VirtualSpaceNode* node) {
   assert(_first_chunk == 0, "already have a root");
 
   Metachunk* c = ChunkHeaderPool::pool().allocate_chunk_header();
-  c->initialize(node, const_cast<MetaWord*>(_base), chklvl::ROOT_CHUNK_LEVEL);
+  c->initialize(node, const_cast<MetaWord*>(_base), chunklevel::ROOT_CHUNK_LEVEL);
 
   _first_chunk = c;
 
@@ -79,7 +79,7 @@ Metachunk* RootChunkArea::alloc_root_chunk_header(VirtualSpaceNode* node) {
 //  free chunks to the freelists.
 //
 // Returns NULL if chunk cannot be split at least once.
-Metachunk* RootChunkArea::split(chklvl_t target_level, Metachunk* c, MetachunkListVector* freelists) {
+Metachunk* RootChunkArea::split(chunklevel_t target_level, Metachunk* c, MetachunkListVector* freelists) {
 
   // Splitting a chunk once works like this:
   //
@@ -114,10 +114,10 @@ Metachunk* RootChunkArea::split(chklvl_t target_level, Metachunk* c, MetachunkLi
   DEBUG_ONLY(check_pointer(c->base());)
   assert(c->is_free(), "Can only split free chunks.");
 
-  DEBUG_ONLY(chklvl::check_valid_level(target_level));
+  DEBUG_ONLY(chunklevel::check_valid_level(target_level));
   assert(target_level > c->level(), "Wrong target level");
 
-  const chklvl_t starting_level = c->level();
+  const chunklevel_t starting_level = c->level();
 
   Metachunk* result = c;
 
@@ -226,7 +226,7 @@ Metachunk* RootChunkArea::merge(Metachunk* c, MetachunkListVector* freelists) {
 
   log_trace(metaspace)("Attempting to merge chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
 
-  const chklvl_t starting_level = c->level();
+  const chunklevel_t starting_level = c->level();
 
   bool stop = false;
   Metachunk* result = NULL;
@@ -421,7 +421,7 @@ void RootChunkArea::verify(bool slow) const {
 
 
   assert_lock_strong(MetaspaceExpand_lock);
-  assert_is_aligned(_base, chklvl::MAX_CHUNK_BYTE_SIZE);
+  assert_is_aligned(_base, chunklevel::MAX_CHUNK_BYTE_SIZE);
 
   // Iterate thru all chunks in this area. They must be ordered correctly,
   // being adjacent to each other, and cover the complete area
@@ -493,7 +493,7 @@ void RootChunkArea::print_on(outputStream* st) const {
     const char* letters_for_levels_cap = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const char* letters_for_levels =     "abcdefghijklmnopqrstuvwxyz";
     while (c != NULL) {
-      const chklvl_t l = c->level();
+      const chunklevel_t l = c->level();
       if (l >= 0 && (size_t)l < strlen(letters_for_levels)) {
 //        c->print_on(st); st->cr();
         st->print("%c", c->is_free() ? letters_for_levels[c->level()] : letters_for_levels_cap[c->level()]);
@@ -515,16 +515,16 @@ void RootChunkArea::print_on(outputStream* st) const {
 // a given memory range. Memory range must be a multiple of root chunk size.
 RootChunkAreaLUT::RootChunkAreaLUT(const MetaWord* base, size_t word_size)
   : _base(base),
-    _num((int)(word_size / chklvl::MAX_CHUNK_WORD_SIZE)),
+    _num((int)(word_size / chunklevel::MAX_CHUNK_WORD_SIZE)),
     _arr(NULL)
 {
-  assert_is_aligned(word_size, chklvl::MAX_CHUNK_WORD_SIZE);
+  assert_is_aligned(word_size, chunklevel::MAX_CHUNK_WORD_SIZE);
   _arr = NEW_C_HEAP_ARRAY(RootChunkArea, _num, mtClass);
   const MetaWord* this_base = _base;
   for (int i = 0; i < _num; i ++) {
     RootChunkArea* rca = new(_arr + i) RootChunkArea(this_base);
     assert(rca == _arr + i, "Sanity");
-    this_base += chklvl::MAX_CHUNK_WORD_SIZE;
+    this_base += chunklevel::MAX_CHUNK_WORD_SIZE;
   }
 }
 

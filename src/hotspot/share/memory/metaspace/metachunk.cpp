@@ -379,7 +379,7 @@ void Metachunk::verify(bool slow) const {
   assert(!is_dead(), "Do not call on dead chunks.");
 
   // Note: only call this on a life Metachunk.
-  chklvl::check_valid_level(level());
+  chunklevel::check_valid_level(level());
 
   assert(base() != NULL, "No base ptr");
 
@@ -418,7 +418,7 @@ void Metachunk::print_on(outputStream* st) const {
             "level " CHKLVL_FORMAT " (" SIZE_FORMAT " words), "
             "used " SIZE_FORMAT " words, committed " SIZE_FORMAT " words.",
             p2i(this), get_state_char(), p2i(base()), level(),
-            (chklvl::is_valid_level(level()) ? chklvl::word_size_for_level(level()) : 0),
+            (chunklevel::is_valid_level(level()) ? chunklevel::word_size_for_level(level()) : 0),
             used_words(), committed_words());
 
 }
@@ -475,7 +475,7 @@ void MetachunkList::print_on(outputStream* st) const {
 #ifdef ASSERT
 
 bool MetachunkListVector::contains(const Metachunk* c) const {
-  for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     if (list_for_level(l)->contains(c)) {
       return true;
     }
@@ -487,7 +487,7 @@ void MetachunkListVector::verify(bool slow) const {
 
   MemRangeCounter local_count;
 
-  for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
 
     // Check, for each chunk in this list, exclusivity.
     for (const Metachunk* c = first_at_level(l); c != NULL; c = c->next()) {
@@ -499,7 +499,7 @@ void MetachunkListVector::verify(bool slow) const {
 
     unsigned count = list_for_level(l)->count();
     if (count > 0) {
-      local_count.add_multiple(count, count * chklvl::word_size_for_level(l));
+      local_count.add_multiple(count, count * chunklevel::word_size_for_level(l));
     }
 
   }
@@ -511,7 +511,7 @@ void MetachunkListVector::verify(bool slow) const {
 
 void MetachunkListVector::print_on(outputStream* st) const {
 
-  for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     st->print("-- List[" CHKLVL_FORMAT "]: ", l);
     list_for_level(l)->print_on(st);
     st->cr();

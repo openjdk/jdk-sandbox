@@ -51,7 +51,7 @@ void ChunkManager::return_chunk_simple(Metachunk* c) {
 
   DEBUG_ONLY(c->verify(false));
 
-  const chklvl_t lvl = c->level();
+  const chunklevel_t lvl = c->level();
   _chunks.add(c);
   c->reset_used_words();
 
@@ -63,10 +63,10 @@ void ChunkManager::return_chunk_simple(Metachunk* c) {
 
 // Take a single chunk from the given freelist and adjust counters. Returns NULL
 // if there is no fitting chunk for this level.
-Metachunk* ChunkManager::remove_first_chunk_at_level(chklvl_t l) {
+Metachunk* ChunkManager::remove_first_chunk_at_level(chunklevel_t l) {
 
   assert_lock_strong(MetaspaceExpand_lock);
-  DEBUG_ONLY(chklvl::check_valid_level(l);)
+  DEBUG_ONLY(chunklevel::check_valid_level(l);)
 
   Metachunk* c = _chunks.remove_first(l);
 
@@ -102,12 +102,12 @@ bool ChunkManager::commit_chunk_before_handout(Metachunk* c) {
 
 // Given a chunk which must be outside of a freelist and must be free, split it to
 // meet a target level and return it. Splinters are added to the freelist.
-Metachunk* ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chklvl_t target_level) {
+Metachunk* ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chunklevel_t target_level) {
 
   assert_lock_strong(MetaspaceExpand_lock);
 
   assert(c->is_free() && c->level() < target_level, "Invalid chunk for splitting");
-  DEBUG_ONLY(chklvl::check_valid_level(target_level);)
+  DEBUG_ONLY(chunklevel::check_valid_level(target_level);)
 
   DEBUG_ONLY(c->verify(true);)
 
@@ -117,7 +117,7 @@ Metachunk* ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chklvl_t ta
   log_debug(metaspace)("ChunkManager %s: will split chunk " METACHUNK_FORMAT " to " CHKLVL_FORMAT ".",
                        _name, METACHUNK_FORMAT_ARGS(c), target_level);
 
-  const chklvl_t orig_level = c->level();
+  const chunklevel_t orig_level = c->level();
   c = c->vsnode()->split(target_level, c, &_chunks);
 
   // Splitting should never fail.
@@ -144,14 +144,14 @@ Metachunk* ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chklvl_t ta
 //   but this may fail if we hit a commit limit. In that case, a partly uncommit chunk
 //   will be returned, and the commit is attempted again when we allocate from the chunk's
 //   uncommitted area. See also Metachunk::allocate.
-Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
+Metachunk* ChunkManager::get_chunk(chunklevel_t max_level, chunklevel_t pref_level) {
 
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
 
   DEBUG_ONLY(verify_locked(false);)
 
-  DEBUG_ONLY(chklvl::check_valid_level(max_level);)
-  DEBUG_ONLY(chklvl::check_valid_level(pref_level);)
+  DEBUG_ONLY(chunklevel::check_valid_level(max_level);)
+  DEBUG_ONLY(chunklevel::check_valid_level(pref_level);)
   assert(max_level >= pref_level, "invalid level.");
 
   Metachunk* c = NULL;
@@ -159,8 +159,8 @@ Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
   // Tracing
   log_debug(metaspace)("ChunkManager %s: get chunk: max " CHKLVL_FORMAT " (" SIZE_FORMAT "),"
                        "preferred " CHKLVL_FORMAT " (" SIZE_FORMAT ").",
-                       _name, max_level, chklvl::word_size_for_level(max_level),
-                       pref_level, chklvl::word_size_for_level(pref_level));
+                       _name, max_level, chunklevel::word_size_for_level(max_level),
+                       pref_level, chunklevel::word_size_for_level(pref_level));
 
   // When handing a new chunk to the caller, we must balance the need to not let free space go to waste
   // with the need to keep fragmentation low.
@@ -186,7 +186,7 @@ Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
 
   // 3) Failing that, attempt to find a free chunk of larger size and split it to the preferred size...
   if (c == NULL) {
-    for (chklvl_t lvl = pref_level - 1; lvl >= chklvl::ROOT_CHUNK_LEVEL; lvl --) {
+    for (chunklevel_t lvl = pref_level - 1; lvl >= chunklevel::ROOT_CHUNK_LEVEL; lvl --) {
       c = remove_first_chunk_at_level(lvl);
       if (c != NULL) {
         // Split chunk; add splinters to freelist
@@ -199,7 +199,7 @@ Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
   // 4) Failing that, before we give up and get a new root chunk, lets really scrape the barrel. Any
   //    smaller chunk is acceptable now...
   if (c == NULL) {
-    for (chklvl_t lvl = pref_level + 2; lvl <= max_level; lvl ++) {
+    for (chunklevel_t lvl = pref_level + 2; lvl <= max_level; lvl ++) {
       c = remove_first_chunk_at_level(lvl);
       if (c != NULL) {
         break;
@@ -221,7 +221,7 @@ Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
       return NULL;
     }
 
-    assert(c->level() == chklvl::LOWEST_CHUNK_LEVEL, "Not a root chunk?");
+    assert(c->level() == chunklevel::LOWEST_CHUNK_LEVEL, "Not a root chunk?");
 
     // Split this root chunk to the desired chunk size. Splinters are added to freelist.
     if (pref_level > c->level()) {
@@ -279,7 +279,7 @@ void ChunkManager::return_chunk(Metachunk* c) {
   c->set_free();
   c->reset_used_words();
 
-  const chklvl_t orig_lvl = c->level();
+  const chunklevel_t orig_lvl = c->level();
 
   Metachunk* merged = NULL;
   if (!c->is_root_chunk()) {
@@ -375,9 +375,9 @@ void ChunkManager::wholesale_reclaim() {
   }
 
   if (Settings::uncommit_on_purge()) {
-    const chklvl_t max_level =
-        chklvl::level_fitting_word_size(Settings::uncommit_on_purge_min_word_size());
-    for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL;
+    const chunklevel_t max_level =
+        chunklevel::level_fitting_word_size(Settings::uncommit_on_purge_min_word_size());
+    for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL;
          l <= max_level;
          l ++)
     {
@@ -438,7 +438,7 @@ void ChunkManager::add_to_statistics(cm_stats_t* out) const {
 
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
 
-  for (chklvl_t l = chklvl::ROOT_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::ROOT_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     out->num_chunks[l] += _chunks.num_chunks_at_level(l);
     out->committed_word_size[l] += _chunks.committed_word_size_at_level(l);
   }
@@ -465,7 +465,7 @@ void ChunkManager::verify_locked(bool slow) const {
   _chunks.verify(true);
 
   // Need to check that each chunk is free..._size = 0;
-  for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     for (const Metachunk* c = _chunks.first_at_level(l); c != NULL; c = c->next()) {
       assert(c->is_free(), "Chunk is not free.");
       assert(c->used_words() == 0, "Chunk should have not used words.");

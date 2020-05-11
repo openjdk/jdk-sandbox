@@ -77,7 +77,7 @@ inline MetaWord* establish_prefix(MetaWord* p_raw, size_t raw_word_size) {
 
 inline void check_prefix(const prefix_t* pp) {
   assert(pp->mark == EYECATCHER, "corrupt block at " PTR_FORMAT ".", p2i(pp));
-  assert(pp->word_size > 0 && pp->word_size < chklvl::MAX_CHUNK_WORD_SIZE,
+  assert(pp->word_size > 0 && pp->word_size < chunklevel::MAX_CHUNK_WORD_SIZE,
          "Invalid size " SIZE_FORMAT " in block at " PTR_FORMAT ".", pp->word_size, p2i(pp));
 }
 

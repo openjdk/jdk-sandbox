@@ -89,17 +89,17 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
 
   assert_lock_strong(lock());
 
-  guarantee(requested_word_size <= chklvl::MAX_CHUNK_WORD_SIZE,
+  guarantee(requested_word_size <= chunklevel::MAX_CHUNK_WORD_SIZE,
             "Requested size too large (" SIZE_FORMAT ") - max allowed size per allocation is " SIZE_FORMAT ".",
-            requested_word_size, chklvl::MAX_CHUNK_WORD_SIZE);
+            requested_word_size, chunklevel::MAX_CHUNK_WORD_SIZE);
 
   // If we have a current chunk, we should have retired it beforehand, unless we do not handle
   //  deallocations, or unless we are a micro loader (see: retire_current_chunk(), deallocate_locked()).
   assert(current_chunk() == NULL || Settings::handle_deallocations() == false || _is_micro_loader ||
          current_chunk()->free_below_committed_words() <= 10, "Must retire chunk beforehand");
 
-  const chklvl_t min_level = chklvl::level_fitting_word_size(requested_word_size);
-  chklvl_t pref_level = _chunk_alloc_sequence->get_next_chunk_level(_chunks.count());
+  const chunklevel_t min_level = chunklevel::level_fitting_word_size(requested_word_size);
+  chunklevel_t pref_level = _chunk_alloc_sequence->get_next_chunk_level(_chunks.count());
 
   if (pref_level > min_level) {
     pref_level = min_level;

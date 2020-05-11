@@ -707,7 +707,7 @@ void Metaspace::ergo_initialize() {
   _commit_alignment  = metaspace::Settings::commit_granule_bytes();
 
   // Reserve alignment: all Metaspace memory mappings are to be aligned to the size of a root chunk.
-  _reserve_alignment = MAX2((size_t)os::vm_allocation_granularity(), metaspace::chklvl::MAX_CHUNK_BYTE_SIZE);
+  _reserve_alignment = MAX2((size_t)os::vm_allocation_granularity(), metaspace::chunklevel::MAX_CHUNK_BYTE_SIZE);
 
 
   // MaxMetaspaceSize and CompressedClassSpaceSize:
@@ -820,8 +820,8 @@ void Metaspace::global_initialize() {
   if (using_class_space()) {
     // The simplest way to fix this is to allocate a tiny chunk right at the start of ccs
     // and do not use it for anything.
-    ChunkManager::chunkmanager_class()->get_chunk(metaspace::chklvl::HIGHEST_CHUNK_LEVEL,
-                                                  metaspace::chklvl::HIGHEST_CHUNK_LEVEL); // smallest chunk possible.
+    ChunkManager::chunkmanager_class()->get_chunk(metaspace::chunklevel::HIGHEST_CHUNK_LEVEL,
+                                                  metaspace::chunklevel::HIGHEST_CHUNK_LEVEL); // smallest chunk possible.
   }
 #endif
 

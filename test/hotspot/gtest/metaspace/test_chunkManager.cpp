@@ -41,20 +41,20 @@ class ChunkManagerTest {
   MemRangeCounter _counter;
 
   // Note: [min_level ... max_level] (inclusive max)
-  static chklvl_t get_random_level(chklvl_t min_level, chklvl_t max_level) {
+  static chunklevel_t get_random_level(chunklevel_t min_level, chunklevel_t max_level) {
     int range = max_level - min_level + 1; // [ ]
-    chklvl_t l = min_level + (os::random() % range);
+    chunklevel_t l = min_level + (os::random() % range);
     return l;
   }
 
-  struct chklvl_range_t { chklvl_t from; chklvl_t to; };
+  struct chunklevel_range_t { chunklevel_t from; chunklevel_t to; };
 
   // Note: [min_level ... max_level] (inclusive max)
-  static void get_random_level_range(chklvl_t min_level, chklvl_t max_level, chklvl_range_t* out) {
-    chklvl_t l1 = get_random_level(min_level, max_level);
-    chklvl_t l2 = get_random_level(min_level, max_level);
+  static void get_random_level_range(chunklevel_t min_level, chunklevel_t max_level, chunklevel_range_t* out) {
+    chunklevel_t l1 = get_random_level(min_level, max_level);
+    chunklevel_t l2 = get_random_level(min_level, max_level);
     if (l1 > l2) {
-      chklvl_t l = l2;
+      chunklevel_t l = l2;
       l1 = l2;
       l2 = l;
     }
@@ -83,9 +83,9 @@ class ChunkManagerTest {
     return true;
   }
 
-  bool attempt_allocate_at(size_t index, chklvl_t max_level, chklvl_t pref_level, bool fully_commit = false) {
+  bool attempt_allocate_at(size_t index, chunklevel_t max_level, chunklevel_t pref_level, bool fully_commit = false) {
 
-    LOG("attempt_allocate_at " SIZE_FORMAT ". (" CHKLVL_FORMAT "-" CHKLVL_FORMAT ")", index, max_level, pref_level);
+    LOG("attempt_allocate_at " SIZE_FORMAT ". (" chunklevel_FORMAT "-" chunklevel_FORMAT ")", index, max_level, pref_level);
 
     if (_elems[index] != NULL) {
       return false;
@@ -114,12 +114,12 @@ class ChunkManagerTest {
   }
 
   // Note: [min_level ... max_level] (inclusive max)
-  void allocate_n_random_chunks(int n, chklvl_t min_level, chklvl_t max_level) {
+  void allocate_n_random_chunks(int n, chunklevel_t min_level, chunklevel_t max_level) {
 
     assert(n <= max_num_chunks, "Sanity");
 
     for (int i = 0; i < n; i ++) {
-      chklvl_range_t r;
+      chunklevel_range_t r;
       get_random_level_range(min_level, max_level, &r);
       attempt_allocate_at(i, r.to, r.from);
     }
@@ -133,7 +133,7 @@ class ChunkManagerTest {
     assert(_counter.zero(), "Sanity");
   }
 
-  void random_alloc_free(int iterations, chklvl_t min_level, chklvl_t max_level) {
+  void random_alloc_free(int iterations, chunklevel_t min_level, chunklevel_t max_level) {
     for (int i = 0; i < iterations; i ++) {
       int index = os::random() % max_num_chunks;
       if ((os::random() % 100) > 50) {
@@ -154,7 +154,7 @@ public:
     memset(_elems, 0, sizeof(_elems));
   }
 
-  void test(int iterations, chklvl_t min_level, chklvl_t max_level) {
+  void test(int iterations, chunklevel_t min_level, chunklevel_t max_level) {
     for (int run = 0; run < iterations; run ++) {
       allocate_n_random_chunks(max_num_chunks, min_level, max_level);
       random_alloc_free(iterations, min_level, max_level);
@@ -177,7 +177,7 @@ public:
     ASSERT_EQ(num_splinter_chunks, NUM_CHUNK_LEVELS - 1);
 
     // Now enlarge n-1 times until c is of root chunk level size again.
-    for (chklvl_t l = HIGHEST_CHUNK_LEVEL; l > LOWEST_CHUNK_LEVEL; l --) {
+    for (chunklevel_t l = HIGHEST_CHUNK_LEVEL; l > LOWEST_CHUNK_LEVEL; l --) {
       bool rc = _cm->attempt_enlarge_chunk(c);
       ASSERT_TRUE(rc);
       ASSERT_EQ(c->level(), l - 1);
@@ -190,7 +190,7 @@ public:
 
     // test that if a chunk is committed again, already committed content stays.
     assert(_cm->total_num_chunks() == 0, "Call this on an empty cm.");
-    const chklvl_t lvl = metaspace::chklvl::level_fitting_word_size(Settings::commit_granule_words());
+    const chunklevel_t lvl = metaspace::chunklevel::level_fitting_word_size(Settings::commit_granule_words());
     Metachunk* c = _cm->get_chunk(lvl, lvl);
     ASSERT_NOT_NULL(c);
     ASSERT_EQ(c->level(), lvl);
@@ -230,7 +230,7 @@ public:
 
     while (_counter.count() < max_num_chunks &&
            _counter.total_size() < min_words_to_allocate) {
-      const chklvl_t lvl = LOWEST_CHUNK_LEVEL + os::random() % 4;
+      const chunklevel_t lvl = LOWEST_CHUNK_LEVEL + os::random() % 4;
       attempt_allocate_at(_counter.count(), lvl, lvl, true); // < fully committed please
     }
 

@@ -65,14 +65,14 @@ class ChunkManager : public CHeapObj<mtMetaspace> {
 
   // Take a single chunk from the given freelist and adjust counters. Returns NULL
   // if there is no fitting chunk for this level.
-  Metachunk* remove_first_chunk_at_level(chklvl_t l);
+  Metachunk* remove_first_chunk_at_level(chunklevel_t l);
 
   // Given a chunk which must be outside of a freelist and must be free, split it to
   // meet a target level and return it. Splinters are added to the freelist.
-  Metachunk* split_chunk_and_add_splinters(Metachunk* c, chklvl_t target_level);
+  Metachunk* split_chunk_and_add_splinters(Metachunk* c, chunklevel_t target_level);
 
   // Uncommit all chunks equal or below the given level.
-  void uncommit_free_chunks(chklvl_t max_level);
+  void uncommit_free_chunks(chunklevel_t max_level);
 
 public:
 
@@ -92,7 +92,7 @@ public:
   //   but this may fail if we hit a commit limit. In that case, a partly uncommitted chunk
   //   will be returned, and the commit is attempted again when we allocate from the chunk's
   //   uncommitted area. See also Metachunk::allocate.
-  Metachunk* get_chunk(chklvl_t max_level, chklvl_t pref_level);
+  Metachunk* get_chunk(chunklevel_t max_level, chunklevel_t pref_level);
 
   // Return a single chunk to the ChunkManager and adjust accounting. May merge chunk
   //  with neighbors.

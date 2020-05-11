@@ -39,19 +39,19 @@ class ConstantChunkAllocSequence : public ChunkAllocSequence {
 
   // integer array specifying chunk level allocation progression.
   // Last chunk is to be an endlessly repeated allocation.
-  const chklvl_t* const _entries;
+  const chunklevel_t* const _entries;
   const int _num_entries;
 
 public:
 
-  ConstantChunkAllocSequence(const chklvl_t* array, int num_entries)
+  ConstantChunkAllocSequence(const chunklevel_t* array, int num_entries)
     : _entries(array)
     , _num_entries(num_entries)
   {
     assert(_num_entries > 0, "must not be empty.");
   }
 
-  chklvl_t get_next_chunk_level(int num_allocated) const {
+  chunklevel_t get_next_chunk_level(int num_allocated) const {
     if (num_allocated >= _num_entries) {
       // Caller shall repeat last allocation
       return _entries[_num_entries - 1];
@@ -63,62 +63,62 @@ public:
 
 // hard-coded chunk allocation sequences for various space types
 
-static const chklvl_t g_sequ_standard_non_class[] = {
-    chklvl::CHUNK_LEVEL_4K,
-    chklvl::CHUNK_LEVEL_4K,
-    chklvl::CHUNK_LEVEL_4K,
-    chklvl::CHUNK_LEVEL_4K,
-    chklvl::CHUNK_LEVEL_16K
+static const chunklevel_t g_sequ_standard_non_class[] = {
+    chunklevel::CHUNK_LEVEL_4K,
+    chunklevel::CHUNK_LEVEL_4K,
+    chunklevel::CHUNK_LEVEL_4K,
+    chunklevel::CHUNK_LEVEL_4K,
+    chunklevel::CHUNK_LEVEL_16K
     // .. repeat last
 };
 
-static const chklvl_t g_sequ_standard_class[] = {
-    chklvl::CHUNK_LEVEL_2K,
-    chklvl::CHUNK_LEVEL_2K,
-    chklvl::CHUNK_LEVEL_2K,
-    chklvl::CHUNK_LEVEL_2K,
-    chklvl::CHUNK_LEVEL_16K
+static const chunklevel_t g_sequ_standard_class[] = {
+    chunklevel::CHUNK_LEVEL_2K,
+    chunklevel::CHUNK_LEVEL_2K,
+    chunklevel::CHUNK_LEVEL_2K,
+    chunklevel::CHUNK_LEVEL_2K,
+    chunklevel::CHUNK_LEVEL_16K
     // .. repeat last
 };
 
-static const chklvl_t g_sequ_anon_non_class[] = {
-    chklvl::CHUNK_LEVEL_1K,
+static const chunklevel_t g_sequ_anon_non_class[] = {
+    chunklevel::CHUNK_LEVEL_1K,
     // .. repeat last
 };
 
-static const chklvl_t g_sequ_anon_class[] = {
-    chklvl::CHUNK_LEVEL_1K,
+static const chunklevel_t g_sequ_anon_class[] = {
+    chunklevel::CHUNK_LEVEL_1K,
     // .. repeat last
 };
 
-static const chklvl_t g_sequ_refl_non_class[] = {
-    chklvl::CHUNK_LEVEL_2K,
-    chklvl::CHUNK_LEVEL_1K
+static const chunklevel_t g_sequ_refl_non_class[] = {
+    chunklevel::CHUNK_LEVEL_2K,
+    chunklevel::CHUNK_LEVEL_1K
     // .. repeat last
 };
 
-static const chklvl_t g_sequ_refl_class[] = {
-    chklvl::CHUNK_LEVEL_1K,
+static const chunklevel_t g_sequ_refl_class[] = {
+    chunklevel::CHUNK_LEVEL_1K,
     // .. repeat last
 };
 
 // Boot class loader: give it large chunks: beyond commit granule size
 // (typically 64K) the costs for large chunks largely diminishes since
 // they are committed on the fly.
-static const chklvl_t g_sequ_boot_non_class[] = {
-    chklvl::CHUNK_LEVEL_4M,
-    chklvl::CHUNK_LEVEL_1M
+static const chunklevel_t g_sequ_boot_non_class[] = {
+    chunklevel::CHUNK_LEVEL_4M,
+    chunklevel::CHUNK_LEVEL_1M
     // .. repeat last
 };
 
-static const chklvl_t g_sequ_boot_class[] = {
-    chklvl::CHUNK_LEVEL_1M,
-    chklvl::CHUNK_LEVEL_256K
+static const chunklevel_t g_sequ_boot_class[] = {
+    chunklevel::CHUNK_LEVEL_1M,
+    chunklevel::CHUNK_LEVEL_256K
     // .. repeat last
 };
 
 #define DEFINE_CLASS_FOR_ARRAY(what) \
-  static ConstantChunkAllocSequence g_chunk_alloc_sequence_##what (g_sequ_##what, sizeof(g_sequ_##what)/sizeof(chklvl_t));
+  static ConstantChunkAllocSequence g_chunk_alloc_sequence_##what (g_sequ_##what, sizeof(g_sequ_##what)/sizeof(chunklevel_t));
 
 DEFINE_CLASS_FOR_ARRAY(standard_non_class)
 DEFINE_CLASS_FOR_ARRAY(standard_class)
