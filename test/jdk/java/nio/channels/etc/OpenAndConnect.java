@@ -230,13 +230,13 @@ public class OpenAndConnect {
                 {   null,   IA6LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   ML,   M      },
                 {   null,   null,          INET6,   IA6LOOPBACK,   false,   false,   ML,   ALL    },
 
-                {   null,   IA4ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   M,    M      },
+                {   null,   IA4ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   ML,   M      },
                 {   null,   IA4LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   M,    ~ALL   }, // *
                 {   null,   IA4LOCAL,      INET6,   IA6LOCAL,      false,   false,   M,    ~ALL   }, // *
-                {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   M,    M      },
-                {   null,   IA6LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   M,    M      },
+                {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   ML,   M      },
+                {   null,   IA6LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   ML,   M      },
                 {   null,   IA6LOCAL,      INET6,   IA6LOCAL,      false,   false,   ALL,  ALL    },
-                {   null,   null,          INET6,   IA6LOCAL,      false,   false,   M,    M      },
+                {   null,   null,          INET6,   IA6LOCAL,      false,   false,   ML,   M      },
 
                 {   null,   IA4ANYLOCAL,   INET6,   null,          false,   false,   ML,   ALL    },
                 {   null,   IA4LOOPBACK,   INET6,   null,          false,   false,   ALL,  ALL    },
@@ -262,13 +262,13 @@ public class OpenAndConnect {
                 {   null,   IA6LOCAL,      null,    IA6LOOPBACK,   false,   false,   ML,   M      }, // hangs L
                 {   null,   null,          null,    IA6LOOPBACK,   false,   false,   ML,   ALL    },
 
-                {   null,   IA4ANYLOCAL,   null,    IA6LOCAL,      false,   false,   M,    M     },
+                {   null,   IA4ANYLOCAL,   null,    IA6LOCAL,      false,   false,   ML,   M      },
                 {   null,   IA4LOOPBACK,   null,    IA6LOCAL,      false,   false,   M,    ~ALL   }, //*
                 {   null,   IA4LOCAL,      null,    IA6LOCAL,      false,   false,   M,    ~ALL   }, //*
-                {   null,   IA6ANYLOCAL,   null,    IA6LOCAL,      false,   false,   M,    M      },
-                {   null,   IA6LOOPBACK,   null,    IA6LOCAL,      false,   false,   M,    M      },
+                {   null,   IA6ANYLOCAL,   null,    IA6LOCAL,      false,   false,   ML,   M      },
+                {   null,   IA6LOOPBACK,   null,    IA6LOCAL,      false,   false,   ML,   M      },
                 {   null,   IA6LOCAL,      null,    IA6LOCAL,      false,   false,   ALL,  ALL    },
-                {   null,   null,          null,    IA6LOCAL,      false,   false,   M,    M      },
+                {   null,   null,          null,    IA6LOCAL,      false,   false,   ML,   M      },
 
                 {   null,   IA4ANYLOCAL,   null,    null,          false,   false,   ML,   ALL    },
                 {   null,   IA4LOOPBACK,   null,    null,          false,   false,   ALL,  ALL    },
@@ -408,6 +408,7 @@ public class OpenAndConnect {
 
         IA4LOCAL = (Inet4Address) iface.inetAddresses()
                 .filter(a -> a instanceof Inet4Address)
+                //.filter(a -> !s.isLoopbackAddress())
                 .findFirst()
                 .orElse(null);
     }
