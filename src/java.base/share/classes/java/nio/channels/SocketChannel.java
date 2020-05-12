@@ -40,9 +40,9 @@ import static java.util.Objects.requireNonNull;
 /**
  * A selectable channel for stream-oriented connecting sockets that are either
  * <i>Internet protocol</i> or <i>Unix domain</i> sockets.
- * Internet protocol sockets make network connections addressed by IP address and TCP port number.
+ * <i>Internet protoco</i>l sockets make network connections addressed by IP address and TCP port number.
  * They use {@link InetSocketAddress} for local and remote addresses.
- * <a href="package-summary.html#unixdomain">Unix domain</a> channels are used for
+ * <a href="package-summary.html#unixdomain"><i>Unix domain</i></a> channels are used for
  * inter-process communication to other processes on the same host and use
  * {@link UnixDomainSocketAddress} for their local and remote addresses.
  *
@@ -77,13 +77,10 @@ import static java.util.Objects.requireNonNull;
  * is not specified directly or indirectly in the creation method.
  * They are created using {@link #open()}, or {@link #open(ProtocolFamily)}
  * with the family parameter set to {@link StandardProtocolFamily#INET INET} or
- * {@link StandardProtocolFamily#INET6 INET6}. Internet protocol channels use {@link
- * InetSocketAddress} addresses and support both IPv4 and IPv6 TCP/IP.
+ * {@link StandardProtocolFamily#INET6 INET6}.
  *
  * <p> <i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
  * with the family parameter set to {@link StandardProtocolFamily#UNIX UNIX}.
- * They use {@link UnixDomainSocketAddress} for local and remote addresses
- * and are used for inter-process communication within the same system.
  * The behavior of both channel types is the same except where specified differently
  * below. The two biggest differences are: <i>Unix domain</i> channels do not support the
  * {@link #socket()} method and they also only support a subset of the socket options
@@ -135,7 +132,8 @@ import static java.util.Objects.requireNonNull;
  * </blockquote>
  * Additional (implementation specific) options may also be supported.
  *
- * <p><i>Unix Domain</i> channels support a subset of the options listed above.
+ * <p><i>Unix Domain</i> channels support a subset of the options listed above and also
+ * additional (implementation specific) options may be supported.
  *
  * <p> Socket channels are safe for use by multiple concurrent threads.  They
  * support concurrent reading and writing, though at most one thread may be
@@ -322,7 +320,8 @@ public abstract class SocketChannel
      *          {@link SecurityManager#checkListen checkListen} method denies
      *          the operation for <i>Internet protocol</i> channels; or for <i>Unix Domain</i>
      *          channels, if the security manager denies the "write" action for
-     *          {@link java.io.FilePermission} for the parent directory of local's path.
+     *          {@link java.io.FilePermission} for the parent directory of the {@code local}
+     *          parameter's path.
      *
      * @since 1.7
      */

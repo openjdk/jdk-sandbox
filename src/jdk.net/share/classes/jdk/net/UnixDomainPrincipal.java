@@ -59,7 +59,7 @@ public final class UnixDomainPrincipal {
     }
 
     /**
-     * Returns true iff {@code obj} is a {@code UnixDomainPrincipal}
+     * Returns true if {@code obj} is a {@code UnixDomainPrincipal}
      * and its user and group are equal to this user and group.
      *
      * @param obj the object to compare with

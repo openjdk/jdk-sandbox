@@ -59,10 +59,9 @@ import static java.util.Objects.requireNonNull;
  *
  * <p><i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
  * with the family parameter set to {@link StandardProtocolFamily#UNIX UNIX}.
- * They use {@link UnixDomainSocketAddress} for local and remote addresses
- * and are used for inter-process communication within the same system.
- * The behavior of both channel types is the same except where specified differently
- * below. The two biggest differences are: <i>Unix domain</i> channels do not support the
+ *
+ * <p>The behavior of both channel types is the same except where specified differently
+ * below. The two main differences are: <i>Unix domain</i> channels do not support the
  * {@link #socket()} method and they also only support a subset of the socket options
  * supported by <i>IP</i> channels.
  *
@@ -206,7 +205,8 @@ public abstract class ServerSocketChannel
      *          {@link SecurityManager#checkListen checkListen} method denies
      *          the operation for <i>Internet protocol</i> channels; or for <i>Unix Domain</i>
      *          channels, if the security manager denies the "write" action for
-     *          {@link java.io.FilePermission} for the parent directory of local's path.
+     *          {@link java.io.FilePermission} for the parent directory of the {@code local}
+     *          parameter's path.
      *
      * @since 1.7
      */
@@ -261,7 +261,8 @@ public abstract class ServerSocketChannel
      *          {@link SecurityManager#checkListen checkListen} method denies
      *          the operation for <i>Internet protocol</i> channels; or in the case of <i>Unix Domain</i>
      *          channels, if the security manager denies the "write" action for
-     *          {@link java.io.FilePermission} for the parent directory of local's path.
+     *          {@link java.io.FilePermission} for the parent directory of the {@code local}
+     *          parameter's path.
      *
      * @since 1.7
      */
@@ -311,8 +312,8 @@ public abstract class ServerSocketChannel
      * permitted by the security manager's {@link
      * java.lang.SecurityManager#checkAccept checkAccept} method.  </p>
      *
-     * <p> For <i>Unix Domain</i> channels, this method performs a security
-     * manager {@link SecurityManager#checkPermission(Permission)} using
+     * <p> For <i>Unix Domain</i> channels, this method performs a
+     * {@link SecurityManager#checkPermission(Permission)} using
      * a {@link java.io.FilePermission} constructed with the path from the
      * remote address and {@code "read, write"} as the actions. Note, in the
      * case where the remote socket is bound to the unnamed address,
