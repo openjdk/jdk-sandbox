@@ -185,6 +185,13 @@ public class OpenAndConnect {
                                      || addr2 == NO_IA6LOCAL);
     }
 
+    static InetSocketAddress getConnectAddress(InetSocketAddress server, InetAddress alternate) {
+        if (server.getAddress().isAnyLocalAddress())
+            return new InetSocketAddress(alternate, server.getPort());
+        else
+            return server;
+    }
+
     @Test(dataProvider = "openConnect")
     public void scOpenAndConnect(ProtocolFamily sfam,
                                  InetAddress saddr,
@@ -198,7 +205,7 @@ public class OpenAndConnect {
         out.printf("scOpenAndConnect: server bind: %s client bind: %s\n", saddr, caddr);
         try (ServerSocketChannel ssc = openSSC(sfam)) {
             ssc.bind(getSocketAddress(saddr));
-            InetSocketAddress ssa = (InetSocketAddress)ssc.getLocalAddress();
+            InetSocketAddress ssa = getConnectAddress((InetSocketAddress)ssc.getLocalAddress(), caddr);
             out.println(ssa);
             try (SocketChannel csc = openSC(cfam)) {
                 InetSocketAddress csa = (InetSocketAddress)getSocketAddress(caddr);
@@ -239,7 +246,7 @@ public class OpenAndConnect {
 
         try (DatagramChannel sdc = openDC(sfam)) {
             sdc.bind(getSocketAddress(saddr));
-            SocketAddress ssa = sdc.getLocalAddress();
+            SocketAddress ssa = getConnectAddress((InetSocketAddress)sdc.socket().getLocalSocketAddress(), caddr);
             out.println(ssa);
             try (DatagramChannel dc = openDC(cfam)) {
                 SocketAddress csa = getSocketAddress(caddr);
