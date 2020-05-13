@@ -331,8 +331,6 @@ public class OpenAndConnect {
         if (iface6 != null) {
             IA6LOCAL = (Inet6Address)iface6.inetAddresses()
                 .filter(a -> a instanceof Inet6Address)
-                .filter(a -> !a.isLoopbackAddress())
-                .filter(a -> !a.isLinkLocalAddress())
                 .findFirst()
                 .orElse(NO_IA6LOCAL);
         } else {
@@ -342,7 +340,6 @@ public class OpenAndConnect {
         if (iface4 != null) {
             IA4LOCAL = (Inet4Address)iface4.inetAddresses()
                 .filter(a -> a instanceof Inet4Address)
-                .filter(a -> !a.isLoopbackAddress())
                 .findFirst()
                 .orElse(NO_IA4LOCAL);
         } else {
