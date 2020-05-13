@@ -97,7 +97,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
   UTIL_PATH_PROGS(NICE, nice)
 
   UTIL_PATH_PROGS(LSB_RELEASE, lsb_release)
-  UTIL_PATH_PROGS(CMD, [cmd.exe /mnt/c/Windows/System32/cmd.exe])
+  UTIL_PATH_PROGS(CMD, cmd.exe, /mnt/c/Windows/System32)
 ])
 
 ###############################################################################
@@ -220,7 +220,10 @@ AC_DEFUN([BASIC_CHECK_GNU_MAKE],
     # If MAKE was set by user, verify the version
     BASIC_CHECK_MAKE_VERSION("$MAKE", [user supplied MAKE=$MAKE])
     if test "x$FOUND_MAKE" = x; then
-      AC_MSG_ERROR([The specified make (by MAKE=$MAKE) is not GNU make $MAKE_REQUIRED_VERSION or newer.])
+      BASIC_CHECK_MAKE_VERSION("$MAKE.exe", [user supplied MAKE=$MAKE])
+      if test "x$FOUND_MAKE" = x; then
+        AC_MSG_ERROR([The specified make (by MAKE=$MAKE) is not GNU make $MAKE_REQUIRED_VERSION or newer.])
+      fi
     fi
   ])
 
