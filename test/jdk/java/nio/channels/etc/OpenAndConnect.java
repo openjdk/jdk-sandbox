@@ -66,6 +66,7 @@ public class OpenAndConnect {
     static Inet6Address IA6LOCAL;
     static Inet4Address NO_IA4LOCAL;
     static Inet6Address NO_IA6LOCAL;
+    static InetAddress DONT_BIND;
 
     static {
         try {
@@ -75,9 +76,13 @@ public class OpenAndConnect {
             IA6LOOPBACK = (Inet6Address) InetAddress.getByName("::1");
 
             // Special values used as placeholders when local IPv4/IPv6 address
-            // cannot be found
+            // cannot be found (addresses are not used)
             NO_IA4LOCAL = (Inet4Address) InetAddress.getByName("127.0.0.2");
             NO_IA6LOCAL = (Inet6Address) InetAddress.getByName("ff00::");
+
+            // Special value to tell test not to call bind (address is not used)
+            DONT_BIND = (Inet4Address) InetAddress.getByName("127.0.0.3");
+
             initAddrs();
         } catch (Exception e) {
             throw new RuntimeException("Could not initialize addresses", e);
@@ -105,78 +110,96 @@ public class OpenAndConnect {
     @DataProvider(name = "openConnect")
     public Object[][] openConnect() {
         return new Object[][]{
-            //
-            //
-            //  {   sfam,   saddr,         cfam,    caddr,       }
+            //       +----- sfam is server/first socket family
+            //       |
+            //       |       +------ saddr is bind address for server/first socket
+            //       |       |
+            //       |       |              +---- cfam is family for client/second socket
+            //       |       |              |
+            //       |       |              |        +---- caddr is address client/second
+            //       |       |              |        |     socket binds to
+            //       |       |              |        |
+            //       |       |              |        |            +--- if saddr is wildcard
+            //       |       |              |        |            |    and test is datagram
+            //       |       |              |        |            |    channel, then client
+            //       |       |              |        |            |    connects to this.
+            //       |       |              |        |            |    Otherwise, client
+            //       |       |              |        |            |    connects to saddr.
+            //       +       +              +        +            +
+            //  {   sfam,   saddr,         cfam,    caddr,        alternate }
 
-                {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK  },
-                {   INET,   IA4LOCAL,      INET,    IA4LOCAL     },
-                {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK  },
-                {   INET,   IA4LOCAL,      null,    IA4LOCAL     },
+                {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK  , null        },
+                {   INET,   IA4LOCAL,      INET,    IA4LOCAL     , null        },
+                {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK  , null        },
+                {   INET,   IA4LOCAL,      null,    IA4LOCAL     , null        },
+                {   INET,   IA4LOCAL,      null,    DONT_BIND    , null        },
 
-                {   INET,   IA4ANYLOCAL,   null,    IA4LOCAL     },
-                {   INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK  },
-                {   INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK  },
-                {   INET,   IA4ANYLOCAL,   INET,    IA4LOCAL     },
-                {   INET,   IA4ANYLOCAL,   INET,    IA4LOOPBACK  },
+                {   INET,   IA4ANYLOCAL,   null,    IA4LOCAL     , IA4LOCAL    },
+                {   INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK  , IA4LOOPBACK },
+                {   INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK  , IA4LOCAL    },
+                {   INET,   IA4ANYLOCAL,   INET,    IA4LOCAL     , IA4LOOPBACK },
+                {   INET,   IA4ANYLOCAL,   INET,    IA4LOOPBACK  , IA4LOCAL    },
 
-                {   INET6,  IA6ANYLOCAL,   null,    IA6LOCAL     },
-                {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK  },
-                {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK  },
-                {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOCAL     },
-                {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOOPBACK  },
+                {   INET6,  IA6ANYLOCAL,   null,    IA6LOCAL     , IA6LOCAL    },
+                {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK  , IA4LOOPBACK },
+                {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK  , IA6LOCAL    },
+                {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOCAL     , IA6LOCAL    },
+                {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOOPBACK  , IA4LOOPBACK },
 
-                {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK },
-                {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL    },
-                {   INET6,   IA6LOCAL,      null,    IA6LOCAL    },
+                {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK , null        },
+                {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL    , null        },
+                {   INET6,   IA6LOCAL,      null,    IA6LOCAL    , null        },
+                {   INET6,   IA6LOCAL,      null,    DONT_BIND   , null        },
 
-                {   null,   IA4LOOPBACK,   INET,    IA4ANYLOCAL  },
-                {   null,   IA4LOCAL,      INET,    IA4ANYLOCAL  },
+                {   null,   IA4LOOPBACK,   INET,    IA4ANYLOCAL  , null        },
+                {   null,   IA4LOCAL,      INET,    IA4ANYLOCAL  , null        },
 
-                {   null,   IA4LOOPBACK,   INET,    IA4LOOPBACK  },
+                {   null,   IA4LOOPBACK,   INET,    IA4LOOPBACK  , null        },
 
-                {   null,   IA4LOCAL,      INET,    IA4LOCAL     },
+                {   null,   IA4LOCAL,      INET,    IA4LOCAL     , null        },
 
-                {   null,   IA4LOOPBACK,   INET,    null         },
-                {   null,   IA4LOCAL,      INET,    null         },
+                {   null,   IA4LOOPBACK,   INET,    null         , null        },
+                {   null,   IA4LOCAL,      INET,    null         , null        },
 
 
-                {   null,   IA4LOOPBACK,   INET6,   IA6ANYLOCAL  },
-                {   null,   IA4LOCAL,      INET6,   IA6ANYLOCAL  },
-                {   null,   IA6LOOPBACK,   INET6,   IA6ANYLOCAL  },
-                {   null,   IA6LOCAL,      INET6,   IA6ANYLOCAL  },
+                {   null,   IA4LOOPBACK,   INET6,   IA6ANYLOCAL  , null        },
+                {   null,   IA4LOCAL,      INET6,   IA6ANYLOCAL  , null        },
+                {   null,   IA6LOOPBACK,   INET6,   IA6ANYLOCAL  , null        },
+                {   null,   IA6LOCAL,      INET6,   IA6ANYLOCAL  , null        },
 
-                {   null,   IA6LOOPBACK,   INET6,   IA6LOOPBACK  },
+                {   null,   IA6LOOPBACK,   INET6,   IA6LOOPBACK  , null        },
+                {   null,   IA6LOOPBACK,   INET6,   DONT_BIND    , null        },
+                {   null,   IA4LOOPBACK,   INET6,   DONT_BIND    , null        },
 
-                {   null,   IA6LOCAL,      INET6,   IA6LOCAL     },
+                {   null,   IA6LOCAL,      INET6,   IA6LOCAL     , null        },
 
-                {   null,   IA4LOOPBACK,   INET6,   null         },
-                {   null,   IA4LOCAL,      INET6,   null         },
-                {   null,   IA6LOOPBACK,   INET6,   null         },
-                {   null,   IA6LOCAL,      INET6,   null         },
+                {   null,   IA4LOOPBACK,   INET6,   null         , null        },
+                {   null,   IA4LOCAL,      INET6,   null         , null        },
+                {   null,   IA6LOOPBACK,   INET6,   null         , null        },
+                {   null,   IA6LOCAL,      INET6,   null         , null        },
 
-                {   null,   IA4LOOPBACK,   null,    IA6ANYLOCAL  },
-                {   null,   IA4LOCAL,      null,    IA6ANYLOCAL  },
-                {   null,   IA6LOOPBACK,   null,    IA6ANYLOCAL  },
-                {   null,   IA6LOCAL,      null,    IA6ANYLOCAL  },
+                {   null,   IA4LOOPBACK,   null,    IA6ANYLOCAL  , null        },
+                {   null,   IA4LOCAL,      null,    IA6ANYLOCAL  , null        },
+                {   null,   IA6LOOPBACK,   null,    IA6ANYLOCAL  , null        },
+                {   null,   IA6LOCAL,      null,    IA6ANYLOCAL  , null        },
 
-                {   null,   IA6LOOPBACK,   null,    IA6LOOPBACK  },
+                {   null,   IA6LOOPBACK,   null,    IA6LOOPBACK  , null        },
 
-                {   null,   IA6LOCAL,      null,    IA6LOCAL     },
+                {   null,   IA6LOCAL,      null,    IA6LOCAL     , null        },
 
-                {   null,   IA4LOOPBACK,   null,    null         },
-                {   null,   IA4LOCAL,      null,    null         },
-                {   null,   IA6LOOPBACK,   null,    null         },
-                {   null,   IA6LOCAL,      null,    null         },
+                {   null,   IA4LOOPBACK,   null,    null         , null        },
+                {   null,   IA4LOCAL,      null,    null         , null        },
+                {   null,   IA6LOOPBACK,   null,    null         , null        },
+                {   null,   IA6LOCAL,      null,    null         , null        },
 
-                {   null,   IA6ANYLOCAL,   null,    IA6LOCAL     },
-                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK  },
-                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK  },
-                {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL     },
-                {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK  },
+                {   null,   IA6ANYLOCAL,   null,    IA6LOCAL     , IA6LOOPBACK },
+                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK  , IA6LOOPBACK },
+                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK  , IA6LOCAL    },
+                {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL     , IA6LOCAL    },
+                {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK  , IA6LOCAL    },
 
-                {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK },
-                {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL    }
+                {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK , null        },
+                {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL    , null     }
         };
     }
 
@@ -185,18 +208,25 @@ public class OpenAndConnect {
                                      || addr2 == NO_IA6LOCAL);
     }
 
-    static InetSocketAddress getConnectAddress(InetSocketAddress server, InetAddress alternate) {
-        if (server.getAddress().isAnyLocalAddress())
-            return new InetSocketAddress(alternate, server.getPort());
+    /**
+     * If the destination address is the wildcard, it is replaced by the alternate
+     * using the port number from destination. Otherwise destination is returned.
+     * Only used by dcOpenAndConnect
+     */
+    static InetSocketAddress getDestinationAddress(SocketAddress destination, InetAddress alternate) {
+        InetSocketAddress isa = (InetSocketAddress)destination;
+        if (isa.getAddress().isAnyLocalAddress())
+            return new InetSocketAddress(alternate, isa.getPort());
         else
-            return server;
+            return isa;
     }
 
     @Test(dataProvider = "openConnect")
     public void scOpenAndConnect(ProtocolFamily sfam,
                                  InetAddress saddr,
                                  ProtocolFamily cfam,
-                                 InetAddress caddr)
+                                 InetAddress caddr,
+                                 InetAddress ignored)
     {
         if (ignoreTest(saddr, caddr))
             // mark test as skipped
@@ -205,13 +235,15 @@ public class OpenAndConnect {
         out.printf("scOpenAndConnect: server bind: %s client bind: %s\n", saddr, caddr);
         try (ServerSocketChannel ssc = openSSC(sfam)) {
             ssc.bind(getSocketAddress(saddr));
-            InetSocketAddress ssa = getConnectAddress((InetSocketAddress)ssc.getLocalAddress(), caddr);
+            InetSocketAddress ssa = (InetSocketAddress)ssc.getLocalAddress();
             out.println(ssa);
             try (SocketChannel csc = openSC(cfam)) {
                 InetSocketAddress csa = (InetSocketAddress)getSocketAddress(caddr);
                 out.printf("Connecting to:  %s/port: %d\n", ssa.getAddress(), ssa.getPort());
-                csc.bind(csa);
-                connectNonBlocking(csc, ssa, Duration.ofSeconds(3));
+                if (caddr != DONT_BIND) {
+                    csc.bind(csa);
+                }
+                csc.connect(ssa);
             } catch (UnsupportedAddressTypeException
                     | UnsupportedOperationException e) {
                 error(e);
@@ -221,24 +253,12 @@ public class OpenAndConnect {
         }
     }
 
-    static void connectNonBlocking(SocketChannel chan,
-                                   SocketAddress dest,
-                                   Duration duration) throws IOException {
-        Selector sel = Selector.open();
-        chan.configureBlocking(false);
-        if (!chan.connect(dest)) {  // connect operation still in progress
-            chan.register(sel, SelectionKey.OP_CONNECT);
-            sel.select(duration.toMillis());
-        }
-        if (!chan.finishConnect())
-            throw new IOException("connection not made");
-    }
-
     @Test(dataProvider = "openConnect")
     public void dcOpenAndConnect(ProtocolFamily sfam,
                                  InetAddress saddr,
                                  ProtocolFamily cfam,
-                                 InetAddress caddr)
+                                 InetAddress caddr,
+                                 InetAddress alternate)
     {
         if (ignoreTest(saddr, caddr))
             // mark test as skipped
@@ -246,11 +266,14 @@ public class OpenAndConnect {
 
         try (DatagramChannel sdc = openDC(sfam)) {
             sdc.bind(getSocketAddress(saddr));
-            SocketAddress ssa = getConnectAddress((InetSocketAddress)sdc.socket().getLocalSocketAddress(), caddr);
+            SocketAddress ssa = sdc.socket().getLocalSocketAddress();
+            ssa = getDestinationAddress(ssa, alternate);
             out.println(ssa);
             try (DatagramChannel dc = openDC(cfam)) {
                 SocketAddress csa = getSocketAddress(caddr);
-                dc.bind(csa);
+                if (caddr != DONT_BIND) {
+                    dc.bind(csa);
+                }
                 dc.connect(ssa);
             } catch (UnsupportedAddressTypeException
                     | UnsupportedOperationException e) {
