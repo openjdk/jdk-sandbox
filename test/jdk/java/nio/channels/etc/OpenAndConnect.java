@@ -117,89 +117,88 @@ public class OpenAndConnect {
             //       |       |              +---- cfam is family for client/second socket
             //       |       |              |
             //       |       |              |        +---- caddr is address client/second
-            //       |       |              |        |     socket binds to
+            //       |       |              |        |     socket binds to. When the server
+            //       |       |              |        |     has bound to a wildcard address
+            //       |       |              |        |     this is address used for connect
+            //       |       |              |        |     also.
             //       |       |              |        |
-            //       |       |              |        |            +--- if saddr is wildcard
-            //       |       |              |        |            |    and test is datagram
-            //       |       |              |        |            |    channel, then client
-            //       |       |              |        |            |    connects to this.
-            //       |       |              |        |            |    Otherwise, client
-            //       |       |              |        |            |    connects to saddr.
-            //       +       +              +        +            +
-            //  {   sfam,   saddr,         cfam,    caddr,        alternate }
+            //       |       |              |        |
+            //       |       |              |        |
+            //       |       |              |        |
+            //       +       +              +        +
+            //  {   sfam,   saddr,         cfam,    caddr,       }
 
-                {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK  , null        },
-                {   INET,   IA4LOCAL,      INET,    IA4LOCAL     , null        },
-                {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK  , null        },
-                {   INET,   IA4LOCAL,      null,    IA4LOCAL     , null        },
-                {   INET,   IA4LOCAL,      null,    DONT_BIND    , null        },
+                {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK },
+                {   INET,   IA4LOCAL,      INET,    IA4LOCAL    },
+                {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK },
+                {   INET,   IA4LOCAL,      null,    IA4LOCAL    },
+                {   INET,   IA4LOCAL,      null,    DONT_BIND   },
 
-                {   INET,   IA4ANYLOCAL,   null,    IA4LOCAL     , IA4LOCAL    },
-                {   INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK  , IA4LOOPBACK },
-                {   INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK  , IA4LOCAL    },
-                {   INET,   IA4ANYLOCAL,   INET,    IA4LOCAL     , IA4LOOPBACK },
-                {   INET,   IA4ANYLOCAL,   INET,    IA4LOOPBACK  , IA4LOCAL    },
+                {   INET,   IA4ANYLOCAL,   null,    IA4LOCAL    },
+                {   INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK },
+                {   INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK },
+                {   INET,   IA4ANYLOCAL,   INET,    IA4LOCAL    },
+                {   INET,   IA4ANYLOCAL,   INET,    IA4LOOPBACK },
 
-                {   INET6,  IA6ANYLOCAL,   null,    IA6LOCAL     , IA6LOCAL    },
-                {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK  , IA4LOOPBACK },
-                {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK  , IA6LOCAL    },
-                {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOCAL     , IA6LOCAL    },
-                {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOOPBACK  , IA4LOOPBACK },
+                {   INET6,  IA6ANYLOCAL,   null,    IA6LOCAL    },
+                {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK },
+                {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK },
+                {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOCAL    },
+                {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOOPBACK },
 
-                {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK , null        },
-                {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL    , null        },
-                {   INET6,   IA6LOCAL,      null,    IA6LOCAL    , null        },
-                {   INET6,   IA6LOCAL,      null,    DONT_BIND   , null        },
+                {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK},
+                {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL   },
+                {   INET6,   IA6LOCAL,      null,    IA6LOCAL   },
+                {   INET6,   IA6LOCAL,      null,    DONT_BIND  },
 
-                {   null,   IA4LOOPBACK,   INET,    IA4ANYLOCAL  , null        },
-                {   null,   IA4LOCAL,      INET,    IA4ANYLOCAL  , null        },
+                {   null,   IA4LOOPBACK,   INET,    IA4ANYLOCAL },
+                {   null,   IA4LOCAL,      INET,    IA4ANYLOCAL },
 
-                {   null,   IA4LOOPBACK,   INET,    IA4LOOPBACK  , null        },
+                {   null,   IA4LOOPBACK,   INET,    IA4LOOPBACK },
 
-                {   null,   IA4LOCAL,      INET,    IA4LOCAL     , null        },
+                {   null,   IA4LOCAL,      INET,    IA4LOCAL    },
 
-                {   null,   IA4LOOPBACK,   INET,    null         , null        },
-                {   null,   IA4LOCAL,      INET,    null         , null        },
+                {   null,   IA4LOOPBACK,   INET,    null        },
+                {   null,   IA4LOCAL,      INET,    null        },
 
+                {   null,   IA4LOOPBACK,   INET6,   IA6ANYLOCAL },
+                {   null,   IA4LOCAL,      INET6,   IA6ANYLOCAL },
+                {   null,   IA6LOOPBACK,   INET6,   IA6ANYLOCAL },
+                {   null,   IA6LOCAL,      INET6,   IA6ANYLOCAL },
 
-                {   null,   IA4LOOPBACK,   INET6,   IA6ANYLOCAL  , null        },
-                {   null,   IA4LOCAL,      INET6,   IA6ANYLOCAL  , null        },
-                {   null,   IA6LOOPBACK,   INET6,   IA6ANYLOCAL  , null        },
-                {   null,   IA6LOCAL,      INET6,   IA6ANYLOCAL  , null        },
+                {   null,   IA6LOOPBACK,   INET6,   IA6LOOPBACK },
+                {   null,   IA6LOOPBACK,   INET6,   DONT_BIND   },
+                {   null,   IA4LOOPBACK,   INET6,   DONT_BIND   },
 
-                {   null,   IA6LOOPBACK,   INET6,   IA6LOOPBACK  , null        },
-                {   null,   IA6LOOPBACK,   INET6,   DONT_BIND    , null        },
-                {   null,   IA4LOOPBACK,   INET6,   DONT_BIND    , null        },
+                {   null,   IA6LOCAL,      INET6,   IA6LOCAL    },
 
-                {   null,   IA6LOCAL,      INET6,   IA6LOCAL     , null        },
+                {   null,   IA4LOOPBACK,   INET6,   null        },
+                {   null,   IA4LOCAL,      INET6,   null        },
+                {   null,   IA6LOOPBACK,   INET6,   null        },
+                {   null,   IA6LOCAL,      INET6,   null        },
 
-                {   null,   IA4LOOPBACK,   INET6,   null         , null        },
-                {   null,   IA4LOCAL,      INET6,   null         , null        },
-                {   null,   IA6LOOPBACK,   INET6,   null         , null        },
-                {   null,   IA6LOCAL,      INET6,   null         , null        },
+                {   null,   IA4LOOPBACK,   null,    IA6ANYLOCAL },
+                {   null,   IA4LOCAL,      null,    IA6ANYLOCAL },
+                {   null,   IA6LOOPBACK,   null,    IA6ANYLOCAL },
+                {   null,   IA6LOCAL,      null,    IA6ANYLOCAL },
 
-                {   null,   IA4LOOPBACK,   null,    IA6ANYLOCAL  , null        },
-                {   null,   IA4LOCAL,      null,    IA6ANYLOCAL  , null        },
-                {   null,   IA6LOOPBACK,   null,    IA6ANYLOCAL  , null        },
-                {   null,   IA6LOCAL,      null,    IA6ANYLOCAL  , null        },
+                {   null,   IA6LOOPBACK,   null,    IA6LOOPBACK },
 
-                {   null,   IA6LOOPBACK,   null,    IA6LOOPBACK  , null        },
+                {   null,   IA6LOCAL,      null,    IA6LOCAL    },
 
-                {   null,   IA6LOCAL,      null,    IA6LOCAL     , null        },
+                {   null,   IA4LOOPBACK,   null,    null        },
+                {   null,   IA4LOCAL,      null,    null        },
+                {   null,   IA6LOOPBACK,   null,    null        },
+                {   null,   IA6LOCAL,      null,    null        },
 
-                {   null,   IA4LOOPBACK,   null,    null         , null        },
-                {   null,   IA4LOCAL,      null,    null         , null        },
-                {   null,   IA6LOOPBACK,   null,    null         , null        },
-                {   null,   IA6LOCAL,      null,    null         , null        },
+                {   null,   IA6ANYLOCAL,   null,    IA6LOCAL    },
+                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK },
+                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK },
+                {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL    },
+                {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK },
 
-                {   null,   IA6ANYLOCAL,   null,    IA6LOCAL     , IA6LOOPBACK },
-                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK  , IA6LOOPBACK },
-                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK  , IA6LOCAL    },
-                {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL     , IA6LOCAL    },
-                {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK  , IA6LOCAL    },
-
-                {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK , null        },
-                {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL    , null     }
+                {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK},
+                {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL   },
         };
     }
 
@@ -225,8 +224,7 @@ public class OpenAndConnect {
     public void scOpenAndConnect(ProtocolFamily sfam,
                                  InetAddress saddr,
                                  ProtocolFamily cfam,
-                                 InetAddress caddr,
-                                 InetAddress ignored)
+                                 InetAddress caddr)
     {
         if (ignoreTest(saddr, caddr))
             // mark test as skipped
@@ -236,6 +234,7 @@ public class OpenAndConnect {
         try (ServerSocketChannel ssc = openSSC(sfam)) {
             ssc.bind(getSocketAddress(saddr));
             InetSocketAddress ssa = (InetSocketAddress)ssc.getLocalAddress();
+            ssa = getDestinationAddress(ssa, caddr);
             out.println(ssa);
             try (SocketChannel csc = openSC(cfam)) {
                 InetSocketAddress csa = (InetSocketAddress)getSocketAddress(caddr);
@@ -257,17 +256,17 @@ public class OpenAndConnect {
     public void dcOpenAndConnect(ProtocolFamily sfam,
                                  InetAddress saddr,
                                  ProtocolFamily cfam,
-                                 InetAddress caddr,
-                                 InetAddress alternate)
+                                 InetAddress caddr)
     {
         if (ignoreTest(saddr, caddr))
             // mark test as skipped
             throw new SkipException("can't run due to configuration");
+            SocketAddress ssa= null;
 
         try (DatagramChannel sdc = openDC(sfam)) {
             sdc.bind(getSocketAddress(saddr));
-            SocketAddress ssa = sdc.socket().getLocalSocketAddress();
-            ssa = getDestinationAddress(ssa, alternate);
+            ssa = sdc.socket().getLocalSocketAddress();
+            ssa = getDestinationAddress(ssa, caddr);
             out.println(ssa);
             try (DatagramChannel dc = openDC(cfam)) {
                 SocketAddress csa = getSocketAddress(caddr);
@@ -331,8 +330,6 @@ public class OpenAndConnect {
         if (iface6 != null) {
             IA6LOCAL = (Inet6Address)iface6.inetAddresses()
                 .filter(a -> a instanceof Inet6Address)
-                .filter(a -> !a.isLoopbackAddress())
-                .filter(a -> !a.isLinkLocalAddress())
                 .findFirst()
                 .orElse(NO_IA6LOCAL);
         } else {
@@ -342,7 +339,7 @@ public class OpenAndConnect {
         if (iface4 != null) {
             IA4LOCAL = (Inet4Address)iface4.inetAddresses()
                 .filter(a -> a instanceof Inet4Address)
-                .filter(a -> !a.isLoopbackAddress())
+                .filter(a -> !a.isLinkLocalAddress())
                 .findFirst()
                 .orElse(NO_IA4LOCAL);
         } else {
