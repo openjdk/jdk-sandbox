@@ -47,9 +47,8 @@ import static org.testng.Assert.assertThrows;
  *          with various ProtocolFamily combinations
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
- * @run testng/othervm ProtocolFamilies
+ * @run testng ProtocolFamilies
  * @run testng/othervm -Djava.net.preferIPv4Stack=true ProtocolFamilies
- * @run testng/othervm -Djava.net.preferIPv6Addresses=true ProtocolFamilies
  */
 
 
@@ -57,8 +56,6 @@ public class ProtocolFamilies {
     static final boolean isWindows = Platform.isWindows();
     static final boolean hasIPv6 = hasIPv6();
     static final boolean preferIPv4 = preferIPv4Stack();
-    static final boolean preferIPv6 =
-            parseBoolean(getProperty("java.net.preferIPv6Addresses", "false"));
     static Inet4Address ia4;
     static Inet6Address ia6;
 
@@ -66,11 +63,10 @@ public class ProtocolFamilies {
     public void setup() throws Exception {
         NetworkConfiguration.printSystemConfiguration(out);
         IPSupport.printPlatformSupport(out);
-        out.println("preferIPv6Addresses: " + preferIPv6);
         throwSkippedExceptionIfNonOperational();
 
-        ia4 = getFirstLinkLocalIPv4Address();
-        ia6 = getFirstLinkLocalIPv6Address();
+        ia4 = getLocalIPv4Address();
+        ia6 = getLocalIPv6Address();
         out.println("ia4: " + ia4);
         out.println("ia6: " + ia6 + "\n");
     }
@@ -94,38 +90,62 @@ public class ProtocolFamilies {
     }
 
     @Test(dataProvider = "open")
-    public void scOpen(StandardProtocolFamily fam,
-                       Class<? extends Exception> expExType)
+    public void scOpen(StandardProtocolFamily family,
+                       Class<? extends Exception> expectedException)
         throws Throwable
     {
-        if (expExType == UOE) {
-            assertThrows(UOE, () -> openSC(fam));
-        } else {
-            openSC(fam);
+        SocketChannel sc = null;
+        try {
+            if (expectedException == UOE) {
+                try {
+                    sc = openSC(family);
+                } catch (UnsupportedOperationException e) {}
+            } else {
+                sc = openSC(family);
+            }
+        } finally {
+            if (sc != null)
+                sc.close();
         }
     }
 
     @Test(dataProvider = "open")
-    public void sscOpen(StandardProtocolFamily fam,
-                        Class<? extends Exception> expExType)
+    public void sscOpen(StandardProtocolFamily family,
+                        Class<? extends Exception> expectedException)
         throws Throwable
     {
-        if (expExType == UOE) {
-            assertThrows(UOE, () -> openSSC(fam));
-        } else {
-            openSSC(fam);
+        ServerSocketChannel ssc = null;
+        try {
+            if (expectedException == UOE) {
+                try {
+                    ssc = openSSC(family);
+                } catch (UnsupportedOperationException e) {}
+            } else {
+                openSSC(family);
+            }
+        } finally {
+            if (ssc != null)
+                ssc.close();
         }
     }
 
     @Test(dataProvider = "open")
-    public void dcOpen(StandardProtocolFamily sfam,
-                       Class<? extends Exception> expExType)
+    public void dcOpen(StandardProtocolFamily sfamily,
+                       Class<? extends Exception> expectedException)
         throws Throwable
     {
-        if (expExType == UOE) {
-            assertThrows(UOE, () -> openDC(sfam));
-        } else {
-            openDC(sfam);
+        DatagramChannel dc = null;
+        try {
+            if (expectedException == UOE) {
+                try {
+                    dc = openDC(sfamily);
+                } catch (UnsupportedOperationException e) {}
+            } else {
+                openDC(sfamily);
+            }
+        } finally {
+            if (dc != null)
+                dc.close();
         }
     }
 
@@ -162,22 +182,30 @@ public class ProtocolFamilies {
     // SocketChannel bind - INET, INET6, null
 
     @Test(dataProvider = "openBind")
-    public void scOpenBind(StandardProtocolFamily ofam,
-                           StandardProtocolFamily bfam,
-                           Class<? extends Exception> expExType)
+    public void scOpenBind(StandardProtocolFamily ofamily,
+                           StandardProtocolFamily bfamily,
+                           Class<? extends Exception> expectedException)
         throws Throwable
     {
-        if (expExType == UOE) {
-            assertThrows(UOE, () -> openSC(ofam));
-        } else {
-            try (SocketChannel sc = openSC(ofam)) {
-                SocketAddress addr = getSocketAddress(bfam);
-                ThrowingRunnable bindOp = () -> sc.bind(addr);
-                if (expExType == null)
-                    bindOp.run();
-                else
-                    assertThrows(expExType, bindOp);
+        SocketChannel sc = null;
+        try {
+            if (expectedException == UOE) {
+                try {
+                    sc = openSC(ofamily);
+                } catch (UnsupportedOperationException e) {}
+            } else {
+                try (SocketChannel sc1 = openSC(ofamily)) {
+                    SocketAddress addr = getSocketAddress(bfamily);
+                    ThrowingRunnable bindOp = () -> sc1.bind(addr);
+                        if (expectedException == null)
+                        bindOp.run();
+                    else
+                        assertThrows(expectedException, bindOp);
+                }
             }
+        } finally {
+            if (sc != null)
+                sc.close();
         }
     }
 
@@ -185,22 +213,30 @@ public class ProtocolFamilies {
     //  ServerSocketChannel bind - INET, INET6, null
 
     @Test(dataProvider = "openBind")
-    public void sscOpenBind(StandardProtocolFamily ofam,
-                            StandardProtocolFamily bfam,
-                            Class<? extends Exception> expExType)
+    public void sscOpenBind(StandardProtocolFamily ofamily,
+                            StandardProtocolFamily bfamily,
+                            Class<? extends Exception> expectedException)
         throws Throwable
     {
-        if (expExType == UOE) {
-            assertThrows(UOE, () -> openSSC(ofam));
-        } else {
-            try (ServerSocketChannel ssc = openSSC(ofam)) {
-                SocketAddress addr = getSocketAddress(bfam);
-                ThrowingRunnable bindOp = () -> ssc.bind(addr);
-                if (expExType == null)
-                    bindOp.run();
-                else
-                    assertThrows(expExType, bindOp);
+        ServerSocketChannel ssc = null;
+        try {
+            if (expectedException == UOE) {
+                try {
+                    ssc = openSSC(ofamily);
+                } catch (UnsupportedOperationException e) {}
+            } else {
+                try (ServerSocketChannel ssc1 = openSSC(ofamily)) {
+                    SocketAddress addr = getSocketAddress(bfamily);
+                    ThrowingRunnable bindOp = () -> ssc1.bind(addr);
+                    if (expectedException == null)
+                        bindOp.run();
+                    else
+                        assertThrows(expectedException, bindOp);
+                }
             }
+        } finally {
+            if (ssc != null)
+                ssc.close();
         }
     }
 
@@ -208,22 +244,30 @@ public class ProtocolFamilies {
     //  DatagramChannel bind - INET, INET6, null
 
     @Test(dataProvider = "openBind")
-    public void dcOpenBind(StandardProtocolFamily ofam,
-                           StandardProtocolFamily bfam,
-                           Class<? extends Exception> expExType)
+    public void dcOpenBind(StandardProtocolFamily ofamily,
+                           StandardProtocolFamily bfamily,
+                           Class<? extends Exception> expectedException)
         throws Throwable
     {
-        if (expExType == UOE) {
-            assertThrows(() -> openDC(ofam));
-        } else {
-            try (DatagramChannel dc = openDC(ofam)) {
-                SocketAddress addr = getSocketAddress(bfam);
-                ThrowingRunnable bindOp = () -> dc.bind(addr);
-                if (expExType == null)
-                    bindOp.run();
-                else
-                    assertThrows(expExType, bindOp);
+        DatagramChannel dc = null;
+        try {
+            if (expectedException == UOE) {
+                try {
+                    dc = openDC(ofamily);
+                } catch (UnsupportedOperationException e) {}
+            } else {
+                try (DatagramChannel dc1 = openDC(ofamily)) {
+                    SocketAddress addr = getSocketAddress(bfamily);
+                    ThrowingRunnable bindOp = () -> dc1.bind(addr);
+                    if (expectedException == null)
+                        bindOp.run();
+                    else
+                        assertThrows(expectedException, bindOp);
+                }
             }
+        } finally {
+            if (dc != null)
+                dc.close();
         }
     }
 
@@ -261,49 +305,20 @@ public class ProtocolFamilies {
     }
 
     @Test(dataProvider = "openConnect")
-    public void scOpenConnect(StandardProtocolFamily sfam,
-                              StandardProtocolFamily cfam,
-                              Class<? extends Exception> expExType)
+    public void scOpenConnect(StandardProtocolFamily sfamily,
+                              StandardProtocolFamily cfamily,
+                              Class<? extends Exception> expectedException)
         throws Throwable
     {
-        try (ServerSocketChannel ssc = openSSC(sfam)) {
+        try (ServerSocketChannel ssc = openSSC(sfamily)) {
             ssc.bind(null);
             SocketAddress saddr = ssc.getLocalAddress();
-            try (SocketChannel sc = openSC(cfam)) {
+            try (SocketChannel sc = openSC(cfamily)) {
                 ThrowingRunnable connectOp = () -> sc.connect(saddr);
-                if (expExType == null)
+                if (expectedException == null)
                     connectOp.run();
                 else
-                    assertThrows(expExType, connectOp);
-            }
-        }
-    }
-
-    //  DatagramChannel open    - INET, INET6, default
-    //  DatagramChannel connect - INET, INET6, default
-
-    @Test(dataProvider = "openConnect")
-    public void dcOpenConnect(StandardProtocolFamily sfam,
-                              StandardProtocolFamily cfam,
-                              Class<? extends Exception> expExType)
-         throws Throwable
-    {
-        try (DatagramChannel sdc = openDC(sfam)) {
-            sdc.bind(null);
-            InetSocketAddress saddr = (InetSocketAddress) sdc.getLocalAddress();
-            try (DatagramChannel dc = openDC(cfam)) {
-                ThrowingRunnable connectOp;
-                // Cannot connect to any local address on Windows
-                // use loopback address in this case
-                if (isWindows) {
-                    connectOp = () -> dc.connect(getLoopback(sfam, saddr.getPort()));
-                } else {
-                    connectOp = () -> dc.connect(saddr);
-                }
-                if (expExType == null)
-                    connectOp.run();
-                else
-                    assertThrows(expExType, connectOp);
+                    assertThrows(expectedException, connectOp);
             }
         }
     }
@@ -312,7 +327,7 @@ public class ProtocolFamilies {
 
     // Tests null handling
     @Test
-    public void nulls() {
+    public void testNulls() {
         assertThrows(NPE, () -> SocketChannel.open((ProtocolFamily)null));
         assertThrows(NPE, () -> ServerSocketChannel.open(null));
         assertThrows(NPE, () -> DatagramChannel.open(null));
@@ -322,22 +337,22 @@ public class ProtocolFamilies {
         assertThrows(NPE, () -> SelectorProvider.provider().openDatagramChannel(null));
     }
 
-    static final ProtocolFamily STITCH = () -> "STITCH";
+    static final ProtocolFamily BAD_PF = () -> "BAD_PROTOCOL_FAMILY";
 
     // Tests UOE handling
     @Test
-    public void uoe() {
-        assertThrows(UOE, () -> SocketChannel.open(STITCH));
-        assertThrows(UOE, () -> ServerSocketChannel.open(STITCH));
-        assertThrows(UOE, () -> DatagramChannel.open(STITCH));
+    public void testUoe() {
+        assertThrows(UOE, () -> SocketChannel.open(BAD_PF));
+        assertThrows(UOE, () -> ServerSocketChannel.open(BAD_PF));
+        assertThrows(UOE, () -> DatagramChannel.open(BAD_PF));
 
-        assertThrows(UOE, () -> SelectorProvider.provider().openSocketChannel(STITCH));
-        assertThrows(UOE, () -> SelectorProvider.provider().openServerSocketChannel(STITCH));
-        assertThrows(UOE, () -> SelectorProvider.provider().openDatagramChannel(STITCH));
+        assertThrows(UOE, () -> SelectorProvider.provider().openSocketChannel(BAD_PF));
+        assertThrows(UOE, () -> SelectorProvider.provider().openServerSocketChannel(BAD_PF));
+        assertThrows(UOE, () -> SelectorProvider.provider().openDatagramChannel(BAD_PF));
     }
 
     // A concrete subclass of SelectorProvider, in order to test implSpec
-    static final SelectorProvider SELECTOR_PROVIDER = new SelectorProvider() {
+    static final SelectorProvider customerSelectorProvider = new SelectorProvider() {
         @Override public DatagramChannel openDatagramChannel() { return null; }
         @Override public DatagramChannel openDatagramChannel(ProtocolFamily family) { return null; }
         @Override public Pipe openPipe() { return null; }
@@ -348,65 +363,64 @@ public class ProtocolFamilies {
 
     // Tests the specified default implementation of SelectorProvider
     @Test
-    public void defaultImpl() {
-        assertThrows(NPE, () -> SELECTOR_PROVIDER.openSocketChannel(null));
-        assertThrows(NPE, () -> SELECTOR_PROVIDER.openServerSocketChannel(null));
+    public void testCustomProvider() {
+        assertThrows(NPE, () -> customerSelectorProvider.openSocketChannel(null));
+        assertThrows(NPE, () -> customerSelectorProvider.openServerSocketChannel(null));
 
-        assertThrows(UOE, () -> SELECTOR_PROVIDER.openSocketChannel(STITCH));
-        assertThrows(UOE, () -> SELECTOR_PROVIDER.openServerSocketChannel(STITCH));
+        assertThrows(UOE, () -> customerSelectorProvider.openSocketChannel(BAD_PF));
+        assertThrows(UOE, () -> customerSelectorProvider.openServerSocketChannel(BAD_PF));
     }
 
     // Helper methods
 
-    private static SocketChannel openSC(StandardProtocolFamily fam)
+    private static SocketChannel openSC(StandardProtocolFamily family)
             throws IOException {
-        return fam == null ? SocketChannel.open()
-                : SocketChannel.open(fam);
+        return family == null ? SocketChannel.open()
+                : SocketChannel.open(family);
     }
 
-    private static ServerSocketChannel openSSC(StandardProtocolFamily fam)
+    private static ServerSocketChannel openSSC(StandardProtocolFamily family)
             throws IOException {
-        return fam == null ? ServerSocketChannel.open()
-                : ServerSocketChannel.open(fam);
+        return family == null ? ServerSocketChannel.open()
+                : ServerSocketChannel.open(family);
     }
 
-    private static DatagramChannel openDC(StandardProtocolFamily fam)
+    private static DatagramChannel openDC(StandardProtocolFamily family)
             throws IOException {
-        return fam == null ? DatagramChannel.open()
-                : DatagramChannel.open(fam);
+        return family == null ? DatagramChannel.open()
+                : DatagramChannel.open(family);
     }
 
-    private static SocketAddress getSocketAddress(StandardProtocolFamily fam) {
-        return fam == null ? null : switch (fam) {
+    private static SocketAddress getSocketAddress(StandardProtocolFamily family) {
+        return family == null ? null : switch (family) {
             case INET -> new InetSocketAddress(ia4, 0);
             case INET6 -> new InetSocketAddress(ia6, 0);
         };
     }
 
-    private static SocketAddress getLoopback(StandardProtocolFamily fam, int port)
+    private static SocketAddress getLoopback(StandardProtocolFamily family, int port)
             throws UnknownHostException {
-        if ((fam == null || fam == INET6) && hasIPv6) {
+        if ((family == null || family == INET6) && hasIPv6) {
             return new InetSocketAddress(InetAddress.getByName("::1"), port);
         } else {
             return new InetSocketAddress(InetAddress.getByName("127.0.0.1"), port);
         }
     }
 
-    private static Inet4Address getFirstLinkLocalIPv4Address()
+    private static Inet4Address getLocalIPv4Address()
             throws Exception {
         return NetworkConfiguration.probe()
                 .ip4Addresses()
                 .filter(a -> !a.isLoopbackAddress())
                 .findFirst()
-                .orElse(null);
+                .orElse((Inet4Address)InetAddress.getByName("0.0.0.0"));
     }
 
-    private static Inet6Address getFirstLinkLocalIPv6Address()
+    private static Inet6Address getLocalIPv6Address()
             throws Exception {
         return NetworkConfiguration.probe()
                 .ip6Addresses()
-                .filter(Inet6Address::isLinkLocalAddress)
                 .findFirst()
-                .orElse((Inet6Address) InetAddress.getByName("::0"));
+                 .orElse((Inet6Address) InetAddress.getByName("::0"));
     }
 }
