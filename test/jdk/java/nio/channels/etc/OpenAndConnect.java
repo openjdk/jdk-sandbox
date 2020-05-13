@@ -141,10 +141,10 @@ public class OpenAndConnect {
                 {   INET,   IA4ANYLOCAL,   INET,    IA4LOOPBACK  , IA4LOCAL    },
 
                 {   INET6,  IA6ANYLOCAL,   null,    IA6LOCAL     , IA6LOCAL    },
-                {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK  , IA4LOOPBACK },
+                {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK  , IA6LOOPBACK },
                 {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK  , IA6LOCAL    },
                 {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOCAL     , IA6LOCAL    },
-                {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOOPBACK  , IA4LOOPBACK },
+                {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOOPBACK  , IA6LOOPBACK },
 
                 {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK , null        },
                 {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL    , null        },
