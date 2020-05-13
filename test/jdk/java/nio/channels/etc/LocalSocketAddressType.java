@@ -65,24 +65,14 @@ public class LocalSocketAddressType {
 
     @DataProvider(name = "addresses")
     public static Iterator<Object[]> addresses() throws Exception {
-        return Stream.concat(
-                Stream.of(
-                        new Object[]{new InetSocketAddress(InetAddress.getLoopbackAddress(), 0)},
-                        new Object[]{new InetSocketAddress(InetAddress.getLocalHost(), 0)}),
-                Stream.concat(
-                        NetworkConfiguration.probe()
-                                .ip4Addresses()
-                                .map(a -> new Object[]{new InetSocketAddress(a, 0)}),
-                        NetworkConfiguration.probe()
-                                .ip6Addresses()
-                                .map(a -> new Object[]{new InetSocketAddress(a, 0)})))
-                .collect(Collectors.toUnmodifiableList())
+        NetworkConfiguration nc = NetworkConfiguration.probe();
+        return Stream.concat(nc.ip4Addresses(), nc.ip6Addresses())
+                .map(ia -> new Object[] { new InetSocketAddress(ia, 0) })
                 .iterator();
     }
 
     @Test(dataProvider = "addresses")
-    public static void testSocketChannel(InetSocketAddress addr)
-            throws Exception {
+    public static void testSocketChannel(InetSocketAddress addr) throws Exception {
         try (var c = SocketChannel.open()) {
             Class<? extends InetAddress> cls = addr.getAddress().getClass();
             InetAddress ia = ((InetSocketAddress)c.bind(addr).getLocalAddress()).getAddress();
@@ -93,8 +83,7 @@ public class LocalSocketAddressType {
     }
 
     @Test(dataProvider = "addresses")
-    public static void testServerSocketChannel(InetSocketAddress addr)
-            throws Exception {
+    public static void testServerSocketChannel(InetSocketAddress addr) throws Exception {
         try (var c = ServerSocketChannel.open()) {
             Class<? extends InetAddress> cls = addr.getAddress().getClass();
             InetAddress ia = ((InetSocketAddress)c.bind(addr).getLocalAddress()).getAddress();
@@ -105,8 +94,7 @@ public class LocalSocketAddressType {
     }
 
     @Test(dataProvider = "addresses")
-    public static void testDatagramChannel(InetSocketAddress addr)
-            throws Exception {
+    public static void testDatagramChannel(InetSocketAddress addr) throws Exception {
         try (var c = DatagramChannel.open()) {
             Class<? extends InetAddress> cls = addr.getAddress().getClass();
             InetAddress ia = ((InetSocketAddress)c.bind(addr).getLocalAddress()).getAddress();
