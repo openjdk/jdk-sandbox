@@ -30,9 +30,12 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.StandardProtocolFamily;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.UnixDomainSocketAddress;
+import java.nio.file.Files;
 
 import static java.net.StandardProtocolFamily.UNIX;
 
@@ -74,11 +77,12 @@ public class Launcher {
     public static SocketChannel launchWithUnixSocketChannel(String className)
             throws IOException {
         ServerSocketChannel ssc = ServerSocketChannel.open(UNIX);
-        SocketAddress addr = ssc.bind(null).getLocalAddress();
+        var addr = (UnixDomainSocketAddress)ssc.bind(null).getLocalAddress();
         SocketChannel sc1 = SocketChannel.open(addr);
         SocketChannel sc2 = ssc.accept();
         launch(className, null, null, Util.getFD(sc2));
         sc2.close();
+        Files.delete(addr.getPath());
         ssc.close();
         return sc1;
     }
@@ -88,7 +92,7 @@ public class Launcher {
      * The launched process will inherit a connected TCP socket. The remote endpoint
      * will be the SocketChannel returned by this method.
      */
-    public static SocketChannel launchWithSocketChannel(String className,
+    public static SocketChannel launchWithInetSocketChannel(String className,
                                                         String options[],
                                                         String... args)
             throws IOException {
@@ -120,7 +124,7 @@ public class Launcher {
      * Once launched this method tries to connect to service. If a connection
      * can be established a SocketChannel, connected to the service, is returned.
      */
-    public static SocketChannel launchWithServerSocketChannel(String className,
+    public static SocketChannel launchWithInetServerSocketChannel(String className,
                                                               String[] options,
                                                               String... args)
             throws IOException {
@@ -131,6 +135,15 @@ public class Launcher {
         ssc.close();
         InetSocketAddress isa = new InetSocketAddress(InetAddress.getLocalHost(), port);
         return SocketChannel.open(isa);
+    }
+
+    public static SocketChannel launchWithUnixServerSocketChannel(String className) throws IOException {
+        ServerSocketChannel ssc = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+        ssc.bind(null);
+        var addr = ssc.getLocalAddress();
+        launch(className, null, null, Util.getFD(ssc));
+        ssc.close();
+        return SocketChannel.open(addr);
     }
 
     /**

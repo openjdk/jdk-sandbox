@@ -21,17 +21,14 @@
  * questions.
  */
 
-/*
- * If the platform has IPv6 we spawn a child process simulating the
- * effect of being launched from node.js. We check that IPv6 is available in the child
- * and report back as appropriate.
- */
-
 import java.net.InetAddress;
 import java.net.Inet6Address;
 import java.net.NetworkInterface;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.UnixDomainSocketAddress;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.Enumeration;
 
@@ -39,37 +36,48 @@ import static java.net.StandardProtocolFamily.UNIX;
 
 public class UnixSocketTest {
 
-    static boolean hasIPv6() throws Exception {
-        Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
-        for (NetworkInterface netint : Collections.list(nets)) {
-            Enumeration<InetAddress> inetAddresses = netint.getInetAddresses();
-            for (InetAddress inetAddress : Collections.list(inetAddresses)) {
-                if (inetAddress instanceof Inet6Address) {
-                    return true;
-                }
-            }
+    public static class Child1 {
+        public static void main(String[] args) throws Exception {
+            SocketChannel chan = (SocketChannel)System.inheritedChannel();
+            ByteBuffer bb = ByteBuffer.allocate(2);
+            bb.put((byte)'X');
+            bb.put((byte)'Y');
+            bb.flip();
+            chan.write(bb);
+            chan.close();
         }
-        return false;
     }
 
-    public static class Child {
+    public static class Child2 {
         public static void main(String[] args) throws Exception {
-            System.out.write('X');
-            if (hasIPv6()) {
-                System.out.write('Y'); // GOOD
-            } else {
-                System.out.write('N'); // BAD
-            }
-            System.out.flush();
+            ServerSocketChannel server = (ServerSocketChannel)System.inheritedChannel();
+            SocketChannel chan = server.accept();
+            UnixDomainSocketAddress sa = (UnixDomainSocketAddress)server.getLocalAddress();
+            Files.delete(sa.getPath());
+            server.close();
+            ByteBuffer bb = ByteBuffer.allocate(2);
+            bb.put((byte)'X');
+            bb.put((byte)'Y');
+            bb.flip();
+            chan.write(bb);
+            chan.close();
         }
     }
 
     public static void main(String args[]) throws Exception {
-        if (!hasIPv6()) {
-            return; // can only test if IPv6 is present
-        }
-        SocketChannel sc = Launcher.launchWithUnixSocketChannel("UnixSocketTest$Child");
+        SocketChannel sc = Launcher.launchWithUnixSocketChannel("UnixSocketTest$Child1");
         ByteBuffer bb = ByteBuffer.allocate(10);
+        sc.read(bb);
+        if (bb.get(0) != 'X') {
+            System.exit(-2);
+        }
+        if (bb.get(1) != 'Y') {
+            System.exit(-2);
+        }
+        sc.close();
+
+        sc = Launcher.launchWithUnixServerSocketChannel("UnixSocketTest$Child2");
+        bb.clear();
         sc.read(bb);
         if (bb.get(0) != 'X') {
             System.exit(-2);
