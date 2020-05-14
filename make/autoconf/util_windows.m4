@@ -127,10 +127,15 @@ AC_DEFUN([UTIL_MAKE_WINDOWS_SPACE_SAFE_WSL],
     UTIL_REWRITE_AS_WINDOWS_MIXED_PATH([TOPDIR_windows])
     # First convert to Windows path to make input valid for cmd
     UTIL_REWRITE_AS_WINDOWS_MIXED_PATH([input_path])
+    # Reset PATH since it can contain a mix of WSL/linux paths and Windows paths from VS,
+    # which, in combination with WSLENV, will make the WSL layer complain
+    old_path="$PATH"
+    PATH=
     new_path=`$CMD /c $TOPDIR_windows/make/scripts/windowsShortName.bat "$input_path" \
         | $SED -e 's|\r||g' \
         | $TR \\\\\\\\ / | $TR 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz'`
     # Rewrite back to unix style
+    PATH="$old_path"
     UTIL_REWRITE_AS_UNIX_PATH([new_path])
   fi
 ])
