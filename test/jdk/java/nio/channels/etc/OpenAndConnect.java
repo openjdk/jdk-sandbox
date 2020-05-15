@@ -35,6 +35,9 @@ import java.net.*;
 import java.nio.channels.*;
 import java.time.Duration;
 import java.util.function.Predicate;
+import java.util.Arrays;
+import java.util.List;
+import java.util.LinkedList;
 
 import static java.lang.Boolean.parseBoolean;
 import static java.lang.System.getProperty;
@@ -62,10 +65,10 @@ public class OpenAndConnect {
     static final Inet6Address IA6ANYLOCAL;
     static final Inet4Address IA4LOOPBACK;
     static final Inet6Address IA6LOOPBACK;
-    static Inet4Address IA4LOCAL;
-    static Inet6Address IA6LOCAL;
-    static Inet4Address NO_IA4LOCAL;
-    static Inet6Address NO_IA6LOCAL;
+    static Inet4Address IA4LOCAL = null;
+    static Inet6Address IA6LOCAL = null;
+    static boolean has_ia4local;
+    static boolean has_ia6local;
     static InetAddress DONT_BIND;
 
     static {
@@ -74,11 +77,6 @@ public class OpenAndConnect {
             IA6ANYLOCAL = (Inet6Address) InetAddress.getByName("::0");
             IA4LOOPBACK = (Inet4Address) InetAddress.getByName("127.0.0.1");
             IA6LOOPBACK = (Inet6Address) InetAddress.getByName("::1");
-
-            // Special values used as placeholders when local IPv4/IPv6 address
-            // cannot be found (addresses are not used)
-            NO_IA4LOCAL = (Inet4Address) InetAddress.getByName("127.0.0.2");
-            NO_IA6LOCAL = (Inet6Address) InetAddress.getByName("ff00::");
 
             // Special value to tell test not to call bind (address is not used)
             DONT_BIND = (Inet4Address) InetAddress.getByName("127.0.0.3");
@@ -95,12 +93,8 @@ public class OpenAndConnect {
         IPSupport.printPlatformSupport(out);
         throwSkippedExceptionIfNonOperational();
 
-        out.println("IA4LOCAL:    " + (IA4LOCAL == NO_IA4LOCAL
-                                       ? "NO_IA4LOCAL"
-                                       : IA4LOCAL));
-        out.println("IA6LOCAL:    " + (IA6LOCAL == NO_IA6LOCAL
-                                       ? "NO_IA6LOCAL"
-                                       : IA6LOCAL));
+        out.println("IA4LOCAL:    " + IA4LOCAL);
+        out.println("IA6LOCAL:    " + IA6LOCAL);
         out.println("IA4ANYLOCAL: " + IA4ANYLOCAL);
         out.println("IA6ANYLOCAL: " + IA6ANYLOCAL);
         out.println("IA4LOOPBACK: " + IA4LOOPBACK);
@@ -109,103 +103,101 @@ public class OpenAndConnect {
 
     @DataProvider(name = "openConnect")
     public Object[][] openConnect() {
-        return new Object[][]{
-            //       +----- sfam is server/first socket family
-            //       |
-            //       |       +------ saddr is bind address for server/first socket
-            //       |       |
-            //       |       |              +---- cfam is family for client/second socket
-            //       |       |              |
-            //       |       |              |        +---- caddr is address client/second
-            //       |       |              |        |     socket binds to. When the server
-            //       |       |              |        |     has bound to a wildcard address
-            //       |       |              |        |     this is address used for connect
-            //       |       |              |        |     also.
-            //       |       |              |        |
-            //       |       |              |        |
-            //       |       |              |        |
-            //       |       |              |        |
-            //       +       +              +        +
-            //  {   sfam,   saddr,         cfam,    caddr,       }
-
-                {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK },
-                {   INET,   IA4LOCAL,      INET,    IA4LOCAL    },
-                {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK },
-                {   INET,   IA4LOCAL,      null,    IA4LOCAL    },
-                {   INET,   IA4LOCAL,      null,    DONT_BIND   },
-
-                {   INET,   IA4ANYLOCAL,   null,    IA4LOCAL    },
-                {   INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK },
-                {   INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK },
-                {   INET,   IA4ANYLOCAL,   INET,    IA4LOCAL    },
-                {   INET,   IA4ANYLOCAL,   INET,    IA4LOOPBACK },
-
-                {   INET6,  IA6ANYLOCAL,   null,    IA6LOCAL    },
-                {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK },
-                {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK },
-                {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOCAL    },
-                {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOOPBACK },
-
-                {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK},
-                {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL   },
-                {   INET6,   IA6LOCAL,      null,    IA6LOCAL   },
-                {   INET6,   IA6LOCAL,      null,    DONT_BIND  },
-
-                {   null,   IA4LOOPBACK,   INET,    IA4ANYLOCAL },
-                {   null,   IA4LOCAL,      INET,    IA4ANYLOCAL },
-
-                {   null,   IA4LOOPBACK,   INET,    IA4LOOPBACK },
-
-                {   null,   IA4LOCAL,      INET,    IA4LOCAL    },
-
-                {   null,   IA4LOOPBACK,   INET,    null        },
-                {   null,   IA4LOCAL,      INET,    null        },
-
-                {   null,   IA4LOOPBACK,   INET6,   IA6ANYLOCAL },
-                {   null,   IA4LOCAL,      INET6,   IA6ANYLOCAL },
-                {   null,   IA6LOOPBACK,   INET6,   IA6ANYLOCAL },
-                {   null,   IA6LOCAL,      INET6,   IA6ANYLOCAL },
-
-                {   null,   IA6LOOPBACK,   INET6,   IA6LOOPBACK },
-                {   null,   IA6LOOPBACK,   INET6,   DONT_BIND   },
-                {   null,   IA4LOOPBACK,   INET6,   DONT_BIND   },
-
-                {   null,   IA6LOCAL,      INET6,   IA6LOCAL    },
-
-                {   null,   IA4LOOPBACK,   INET6,   null        },
-                {   null,   IA4LOCAL,      INET6,   null        },
-                {   null,   IA6LOOPBACK,   INET6,   null        },
-                {   null,   IA6LOCAL,      INET6,   null        },
-
-                {   null,   IA4LOOPBACK,   null,    IA6ANYLOCAL },
-                {   null,   IA4LOCAL,      null,    IA6ANYLOCAL },
-                {   null,   IA6LOOPBACK,   null,    IA6ANYLOCAL },
-                {   null,   IA6LOCAL,      null,    IA6ANYLOCAL },
-
-                {   null,   IA6LOOPBACK,   null,    IA6LOOPBACK },
-
-                {   null,   IA6LOCAL,      null,    IA6LOCAL    },
-
-                {   null,   IA4LOOPBACK,   null,    null        },
-                {   null,   IA4LOCAL,      null,    null        },
-                {   null,   IA6LOOPBACK,   null,    null        },
-                {   null,   IA6LOCAL,      null,    null        },
-
-                {   null,   IA6ANYLOCAL,   null,    IA6LOCAL    },
-                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK },
-                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK },
-                {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL    },
-                {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK },
-
-                {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK},
-                {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL   },
-        };
+        LinkedList<Object[]>  l = new LinkedList<>();
+        l.addAll(openConnectGen);
+        if (has_ia4local) {
+            l.addAll(openConnectV4Local);
+        }
+        if (has_ia6local) {
+            l.addAll(openConnectV6Local);
+        }
+        return l.toArray(new Object[][]{});
     }
 
-    static boolean ignoreTest(InetAddress addr1, InetAddress addr2) {
-        return (addr1 == NO_IA4LOCAL || addr1 == NO_IA6LOCAL || addr2 == NO_IA4LOCAL
-                                     || addr2 == NO_IA6LOCAL);
-    }
+    //            +----- sfam is server/first socket family
+    //            |
+    //            |       +------ saddr is bind address for server/first socket
+    //            |       |
+    //            |       |              +---- cfam is family for client/second socket
+    //            |       |              |
+    //            |       |              |        +---- caddr is address client/second
+    //            |       |              |        |     socket binds to. When the server
+    //            |       |              |        |     has bound to a wildcard address
+    //            |       |              |        |     this is address used for connect
+    //            |       |              |        |     also.
+    //            |       |              |        |
+    //            |       |              |        |
+    //            |       |              |        |
+    //            |       |              |        |
+    //            +       +              +        +
+    //      {   sfam,   saddr,         cfam,    caddr,      }
+
+    public static List<Object[]> openConnectGen =
+        Arrays.asList(new Object[][] {
+            {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK },
+            {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK },
+            {   INET,   IA4ANYLOCAL,   null,    IA4LOOPBACK },
+            {   INET,   IA4ANYLOCAL,   INET,    IA4LOOPBACK },
+            {   INET6,  IA6ANYLOCAL,   null,    IA6LOOPBACK },
+            {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOOPBACK },
+            {   INET6,  IA6LOOPBACK,   INET6,   IA6LOOPBACK },
+            {   null,   IA4LOOPBACK,   INET,    IA4ANYLOCAL },
+            {   null,   IA4LOOPBACK,   INET,    IA4LOOPBACK },
+            {   null,   IA4LOOPBACK,   INET,    null        },
+            {   null,   IA4LOOPBACK,   INET6,   IA6ANYLOCAL },
+            {   null,   IA6LOOPBACK,   INET6,   IA6ANYLOCAL },
+            {   null,   IA6LOOPBACK,   INET6,   IA6LOOPBACK },
+            {   null,   IA6LOOPBACK,   INET6,   DONT_BIND   },
+            {   null,   IA4LOOPBACK,   INET6,   DONT_BIND   },
+            {   null,   IA4LOOPBACK,   INET6,   null        },
+            {   null,   IA6LOOPBACK,   INET6,   null        },
+            {   null,   IA4LOOPBACK,   null,    IA6ANYLOCAL },
+            {   null,   IA6LOOPBACK,   null,    IA6ANYLOCAL },
+            {   null,   IA6LOOPBACK,   null,    IA6LOOPBACK },
+            {   null,   IA4LOOPBACK,   null,    null        },
+            {   null,   IA6LOOPBACK,   null,    null        },
+            {   null,   IA6ANYLOCAL,   null,    IA6LOCAL    },
+            {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK },
+            {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL    },
+            {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK },
+            {   INET6,  IA6LOOPBACK,   INET6,   IA6LOOPBACK }
+        });
+
+    // Additional tests for when an IPv4 local address or V6
+    // local address is available
+
+    public List<Object[]>  openConnectV4Local =
+        Arrays.asList(new Object[][] {
+            {   INET,   IA4LOCAL,      INET,    IA4LOCAL    },
+            {   INET,   IA4LOCAL,      null,    IA4LOCAL    },
+            {   INET,   IA4LOCAL,      null,    DONT_BIND   },
+            {   INET,   IA4ANYLOCAL,   INET,    IA4LOCAL    },
+            {   INET,   IA4ANYLOCAL,   null,    IA4LOCAL    },
+            {   null,   IA4LOCAL,      INET,    IA4ANYLOCAL },
+            {   null,   IA4LOCAL,      INET,    IA4LOCAL    },
+            {   null,   IA4LOCAL,      INET,    null        },
+            {   null,   IA4LOCAL,      INET6,   IA6ANYLOCAL },
+            {   null,   IA4LOCAL,      INET6,   null        },
+            {   null,   IA4LOCAL,      null,    IA6ANYLOCAL }
+        });
+
+    public List<Object[]> openConnectV6Local =
+        Arrays.asList(new Object[][] {
+            {   INET6,  IA6ANYLOCAL,   null,    IA6LOCAL    },
+            {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOCAL    },
+            {   INET6,  IA6LOCAL,      INET6,   IA6LOCAL    },
+            {   INET6,  IA6LOCAL,      null,    IA6LOCAL    },
+            {   INET6,  IA6LOCAL,      null,    DONT_BIND   },
+            {   null,   IA6LOCAL,      INET6,   IA6LOCAL    },
+            {   null,   IA6LOCAL,      INET6,   IA6ANYLOCAL },
+            {   null,   IA6LOCAL,      null,    IA6ANYLOCAL },
+            {   null,   IA6LOCAL,      null,    IA6LOCAL    },
+            {   null,   IA6LOCAL,      INET6,   null        },
+            {   null,   IA6LOCAL,      null,    null        },
+            {   null,   IA4LOCAL,      null,    null        },
+            {   INET6,  IA6LOCAL,      INET6,   IA6LOCAL    }
+        });
+
 
     /**
      * If the destination address is the wildcard, it is replaced by the alternate
@@ -224,12 +216,8 @@ public class OpenAndConnect {
     public void scOpenAndConnect(ProtocolFamily sfam,
                                  InetAddress saddr,
                                  ProtocolFamily cfam,
-                                 InetAddress caddr)
+                                 InetAddress caddr) throws IOException
     {
-        if (ignoreTest(saddr, caddr))
-            // mark test as skipped
-            throw new SkipException("can't run due to configuration");
-
         out.printf("scOpenAndConnect: server bind: %s client bind: %s\n", saddr, caddr);
         try (ServerSocketChannel ssc = openSSC(sfam)) {
             ssc.bind(getSocketAddress(saddr));
@@ -237,18 +225,12 @@ public class OpenAndConnect {
             ssa = getDestinationAddress(ssa, caddr);
             out.println(ssa);
             try (SocketChannel csc = openSC(cfam)) {
-                InetSocketAddress csa = (InetSocketAddress)getSocketAddress(caddr);
                 out.printf("Connecting to:  %s/port: %d\n", ssa.getAddress(), ssa.getPort());
                 if (caddr != DONT_BIND) {
-                    csc.bind(csa);
+                    csc.bind(getSocketAddress(caddr));
                 }
                 csc.connect(ssa);
-            } catch (UnsupportedAddressTypeException
-                    | UnsupportedOperationException e) {
-                error(e);
             }
-        } catch (UnsupportedOperationException | IOException e) {
-            error(e);
         }
     }
 
@@ -256,30 +238,19 @@ public class OpenAndConnect {
     public void dcOpenAndConnect(ProtocolFamily sfam,
                                  InetAddress saddr,
                                  ProtocolFamily cfam,
-                                 InetAddress caddr)
+                                 InetAddress caddr) throws IOException
     {
-        if (ignoreTest(saddr, caddr))
-            // mark test as skipped
-            throw new SkipException("can't run due to configuration");
-            SocketAddress ssa= null;
-
         try (DatagramChannel sdc = openDC(sfam)) {
             sdc.bind(getSocketAddress(saddr));
-            ssa = sdc.socket().getLocalSocketAddress();
+            SocketAddress ssa = sdc.socket().getLocalSocketAddress();
             ssa = getDestinationAddress(ssa, caddr);
             out.println(ssa);
             try (DatagramChannel dc = openDC(cfam)) {
-                SocketAddress csa = getSocketAddress(caddr);
                 if (caddr != DONT_BIND) {
-                    dc.bind(csa);
+                    dc.bind(getSocketAddress(caddr));
                 }
                 dc.connect(ssa);
-            } catch (UnsupportedAddressTypeException
-                    | UnsupportedOperationException e) {
-                error(e);
             }
-        } catch (UnsupportedOperationException | IOException e) {
-            error(e);
         }
     }
 
@@ -331,20 +302,19 @@ public class OpenAndConnect {
             IA6LOCAL = (Inet6Address)iface6.inetAddresses()
                 .filter(a -> a instanceof Inet6Address)
                 .findFirst()
-                .orElse(NO_IA6LOCAL);
-        } else {
-            IA6LOCAL = NO_IA6LOCAL;
+                .orElse(null);
         }
+
+        has_ia6local = IA6LOCAL != null;
 
         if (iface4 != null) {
             IA4LOCAL = (Inet4Address)iface4.inetAddresses()
                 .filter(a -> a instanceof Inet4Address)
                 .filter(a -> !a.isLinkLocalAddress())
                 .findFirst()
-                .orElse(NO_IA4LOCAL);
-        } else {
-            IA4LOCAL = NO_IA4LOCAL;
+                .orElse(null);
         }
+        has_ia4local = IA4LOCAL != null;;
     }
 
     static boolean isUp(NetworkInterface nif) {
@@ -353,9 +323,5 @@ public class OpenAndConnect {
         } catch (SocketException se) {
             throw new RuntimeException(se);
         }
-    }
-
-    private static void error(Exception e) {
-        throw new RuntimeException("Expected to pass", e);
     }
 }
