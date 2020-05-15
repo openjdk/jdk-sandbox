@@ -53,7 +53,6 @@ import static org.testng.Assert.assertThrows;
 
 
 public class ProtocolFamilies {
-    static final boolean isWindows = Platform.isWindows();
     static final boolean hasIPv6 = hasIPv6();
     static final boolean preferIPv4 = preferIPv4Stack();
     static Inet4Address ia4;
@@ -130,7 +129,7 @@ public class ProtocolFamilies {
     }
 
     @Test(dataProvider = "open")
-    public void dcOpen(StandardProtocolFamily sfamily,
+    public void dcOpen(StandardProtocolFamily family,
                        Class<? extends Exception> expectedException)
         throws Throwable
     {
@@ -138,10 +137,10 @@ public class ProtocolFamilies {
         try {
             if (expectedException == UOE) {
                 try {
-                    dc = openDC(sfamily);
+                    dc = openDC(family);
                 } catch (UnsupportedOperationException e) {}
             } else {
-                openDC(sfamily);
+                openDC(family);
             }
         } finally {
             if (dc != null)
@@ -151,7 +150,7 @@ public class ProtocolFamilies {
 
     @DataProvider(name = "openBind")
     public Object[][] openBind() {
-        if (!preferIPv4 && hasIPv6) {
+        if (hasIPv6 && !preferIPv4) {
             return new Object[][]{
                     {   INET,   INET,   null   },
                     {   INET,   INET6,  UATE   },
@@ -276,7 +275,7 @@ public class ProtocolFamilies {
 
     @DataProvider(name = "openConnect")
     public Object[][] openConnect() {
-        if (!preferIPv4 && hasIPv6) {
+        if (hasIPv6 && !preferIPv4) {
             return new Object[][]{
                     {   INET,   INET,   null   },
                     {   INET,   INET6,  null   },
@@ -292,13 +291,8 @@ public class ProtocolFamilies {
             // INET6 channels cannot be created - UOE - tested elsewhere
             return new Object[][]{
                     {   INET,   INET,   null   },
-               //   {   INET,   INET6,  UOE    },
                     {   INET,   null,   null   },
-               //   {   INET6,  INET,   UOE    },
-               //   {   INET6,  INET6,  UOE    },
-               //   {   INET6,  null,   UOE    },
                     {   null,   INET,   null   },
-               //   {   null,   INET6,  UOE    },
                     {   null,   null,   null   }
             };
         }
@@ -314,11 +308,10 @@ public class ProtocolFamilies {
             ssc.bind(null);
             SocketAddress saddr = ssc.getLocalAddress();
             try (SocketChannel sc = openSC(cfamily)) {
-                ThrowingRunnable connectOp = () -> sc.connect(saddr);
                 if (expectedException == null)
-                    connectOp.run();
+                    sc.connect(saddr);
                 else
-                    assertThrows(expectedException, connectOp);
+                    assertThrows(expectedException, () -> sc.connect(saddr));
             }
         }
     }
@@ -421,6 +414,7 @@ public class ProtocolFamilies {
             throws Exception {
         return NetworkConfiguration.probe()
                 .ip6Addresses()
+                .filter(a -> !a.isLoopbackAddress())
                 .findFirst()
                  .orElse((Inet6Address) InetAddress.getByName("::0"));
     }

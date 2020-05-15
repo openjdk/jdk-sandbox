@@ -28,7 +28,6 @@
  * @build jdk.test.lib.NetworkConfiguration
  * @run testng/othervm LocalSocketAddressType
  * @run testng/othervm -Djava.net.preferIPv4Stack=true LocalSocketAddressType
- * @run testng/othervm -Djava.net.preferIPv6Addresses=true LocalSocketAddressType
  */
 
 import jdk.test.lib.NetworkConfiguration;
