@@ -67,8 +67,6 @@ public class OpenAndConnect {
     static final Inet6Address IA6LOOPBACK;
     static Inet4Address IA4LOCAL = null;
     static Inet6Address IA6LOCAL = null;
-    static boolean has_ia4local;
-    static boolean has_ia6local;
     static InetAddress DONT_BIND;
 
     static {
@@ -104,12 +102,12 @@ public class OpenAndConnect {
     @DataProvider(name = "openConnect")
     public Object[][] openConnect() {
         LinkedList<Object[]>  l = new LinkedList<>();
-        l.addAll(openConnectGen);
-        if (has_ia4local) {
-            l.addAll(openConnectV4Local);
+        l.addAll(openConnectGenTests);
+        if (IA4LOCAL != null) {
+            l.addAll(openConnectV4LocalTests);
         }
-        if (has_ia6local) {
-            l.addAll(openConnectV6Local);
+        if (IA6LOCAL != null) {
+            l.addAll(openConnectV6LocalTests);
         }
         return l.toArray(new Object[][]{});
     }
@@ -132,7 +130,7 @@ public class OpenAndConnect {
     //            +       +              +        +
     //      {   sfam,   saddr,         cfam,    caddr,      }
 
-    public static List<Object[]> openConnectGen =
+    public static List<Object[]> openConnectGenTests =
         Arrays.asList(new Object[][] {
             {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK },
             {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK },
@@ -166,7 +164,7 @@ public class OpenAndConnect {
     // Additional tests for when an IPv4 local address or V6
     // local address is available
 
-    public List<Object[]>  openConnectV4Local =
+    public List<Object[]>  openConnectV4LocalTests =
         Arrays.asList(new Object[][] {
             {   INET,   IA4LOCAL,      INET,    IA4LOCAL    },
             {   INET,   IA4LOCAL,      null,    IA4LOCAL    },
@@ -181,7 +179,7 @@ public class OpenAndConnect {
             {   null,   IA4LOCAL,      null,    IA6ANYLOCAL }
         });
 
-    public List<Object[]> openConnectV6Local =
+    public List<Object[]> openConnectV6LocalTests =
         Arrays.asList(new Object[][] {
             {   INET6,  IA6ANYLOCAL,   null,    IA6LOCAL    },
             {   INET6,  IA6ANYLOCAL,   INET6,   IA6LOCAL    },
@@ -225,7 +223,6 @@ public class OpenAndConnect {
             ssa = getDestinationAddress(ssa, caddr);
             out.println(ssa);
             try (SocketChannel csc = openSC(cfam)) {
-                out.printf("Connecting to:  %s/port: %d\n", ssa.getAddress(), ssa.getPort());
                 if (caddr != DONT_BIND) {
                     csc.bind(getSocketAddress(caddr));
                 }
@@ -288,40 +285,14 @@ public class OpenAndConnect {
 
         NetworkConfiguration cfg = NetworkConfiguration.probe();
 
-        NetworkInterface iface4 = cfg.ip4Interfaces()
-                .filter(nif -> isNotLoopback(nif))
+        IA4LOCAL = cfg.ip4Addresses()
+                .filter(a -> !a.isLoopbackAddress())
                 .findFirst()
                 .orElse(null);
 
-        NetworkInterface iface6 = cfg.ip6Interfaces()
-                .filter(nif -> isNotLoopback(nif))
+        IA6LOCAL = cfg.ip6Addresses()
+                .filter(a -> !a.isLoopbackAddress())
                 .findFirst()
                 .orElse(null);
-
-        if (iface6 != null) {
-            IA6LOCAL = (Inet6Address)iface6.inetAddresses()
-                .filter(a -> a instanceof Inet6Address)
-                .findFirst()
-                .orElse(null);
-        }
-
-        has_ia6local = IA6LOCAL != null;
-
-        if (iface4 != null) {
-            IA4LOCAL = (Inet4Address)iface4.inetAddresses()
-                .filter(a -> a instanceof Inet4Address)
-                .filter(a -> !a.isLinkLocalAddress())
-                .findFirst()
-                .orElse(null);
-        }
-        has_ia4local = IA4LOCAL != null;;
-    }
-
-    static boolean isUp(NetworkInterface nif) {
-        try {
-            return nif.isUp();
-        } catch (SocketException se) {
-            throw new RuntimeException(se);
-        }
     }
 }

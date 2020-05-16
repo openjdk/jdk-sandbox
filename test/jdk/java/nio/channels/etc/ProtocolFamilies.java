@@ -75,7 +75,7 @@ public class ProtocolFamilies {
 
     @DataProvider(name = "open")
     public Object[][] open() {
-        if (!preferIPv4 && hasIPv6) {
+        if (hasIPv6 && !preferIPv4) {
             return new Object[][]{
                     {  INET,   null  },
                     {  INET6,  null  }
@@ -415,6 +415,6 @@ public class ProtocolFamilies {
                 .ip6Addresses()
                 .filter(a -> !a.isLoopbackAddress())
                 .findFirst()
-                 .orElse((Inet6Address) InetAddress.getByName("::0"));
+                .orElse((Inet6Address) InetAddress.getByName("::0"));
     }
 }

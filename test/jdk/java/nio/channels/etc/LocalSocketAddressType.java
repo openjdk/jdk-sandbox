@@ -52,13 +52,10 @@ import static jdk.test.lib.Asserts.assertTrue;
 import static jdk.test.lib.net.IPSupport.*;
 
 public class LocalSocketAddressType {
-    static final boolean preferIPv6 =
-            parseBoolean(getProperty("java.net.preferIPv6Addresses", "false"));
 
     @BeforeTest()
     public void setup() {
         IPSupport.printPlatformSupport(out);
-        out.printf("preferIPv6Addresses: %b\n", preferIPv6);
         throwSkippedExceptionIfNonOperational();
     }
 
