@@ -790,10 +790,11 @@ void Metaspace::global_initialize() {
 
 #ifdef _LP64
   if (using_class_space() && !class_space_inited) {
-    char* base = (char*)align_up(CompressedOops::end(), _reserve_alignment);
-    if (ForceCompressedClassSpaceStartAddress != 0) {
-      base = (char*)ForceCompressedClassSpaceStartAddress;
-      log_debug(gc, metaspace)("Forcing class space start address to " PTR_FORMAT ".", p2i(base));
+    char* base;
+    if (UseCompressedOops) {
+      base = (char*)align_up(CompressedOops::end(), _reserve_alignment);
+    } else {
+      base = (char*)HeapBaseMinAddress;
     }
     ReservedSpace dummy;
     allocate_metaspace_compressed_klass_ptrs(dummy, base, 0);
