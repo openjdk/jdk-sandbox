@@ -92,6 +92,16 @@ public class SocketOptions {
             System.out.println(p.getUser());
             throw new RuntimeException("should have thrown SocketException");
         } catch (SocketException e) {}
+
+        // Try getting from ServerSocketChannel
+
+        var server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+        try {
+            p = server.getOption(SO_PEERCRED);
+            System.out.println(p.getUser());
+            throw new RuntimeException("should have thrown USE");
+        } catch (UnsupportedOperationException e) {}
+
     }
 
     static boolean supported() {
