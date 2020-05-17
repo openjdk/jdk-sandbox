@@ -183,19 +183,13 @@ public class ProtocolFamilies {
                            Class<? extends Exception> expectedException)
         throws Throwable
     {
-        SocketChannel sc = null;
-        try {
-            try (SocketChannel sc1 = openSC(ofamily)) {
-                SocketAddress addr = getSocketAddress(bfamily);
-                ThrowingRunnable bindOp = () -> sc1.bind(addr);
-                    if (expectedException == null)
-                        bindOp.run();
-                else
-                    assertThrows(expectedException, bindOp);
-            }
-        } finally {
-            if (sc != null)
-                sc.close();
+        try (SocketChannel sc = openSC(ofamily)) {
+            SocketAddress addr = getSocketAddress(bfamily);
+            ThrowingRunnable bindOp = () -> sc.bind(addr);
+                if (expectedException == null)
+                    bindOp.run();
+            else
+                assertThrows(expectedException, bindOp);
         }
     }
 
@@ -208,19 +202,13 @@ public class ProtocolFamilies {
                             Class<? extends Exception> expectedException)
         throws Throwable
     {
-        ServerSocketChannel ssc = null;
-        try {
-            try (ServerSocketChannel ssc1 = openSSC(ofamily)) {
-                SocketAddress addr = getSocketAddress(bfamily);
-                ThrowingRunnable bindOp = () -> ssc1.bind(addr);
-                if (expectedException == null)
-                    bindOp.run();
-                else
-                    assertThrows(expectedException, bindOp);
-            }
-        } finally {
-            if (ssc != null)
-                ssc.close();
+        try (ServerSocketChannel ssc = openSSC(ofamily)) {
+            SocketAddress addr = getSocketAddress(bfamily);
+            ThrowingRunnable bindOp = () -> ssc.bind(addr);
+            if (expectedException == null)
+                bindOp.run();
+            else
+                assertThrows(expectedException, bindOp);
         }
     }
 
@@ -233,19 +221,13 @@ public class ProtocolFamilies {
                            Class<? extends Exception> expectedException)
         throws Throwable
     {
-        DatagramChannel dc = null;
-        try {
-            try (DatagramChannel dc1 = openDC(ofamily)) {
-                SocketAddress addr = getSocketAddress(bfamily);
-                ThrowingRunnable bindOp = () -> dc1.bind(addr);
-                if (expectedException == null)
-                    bindOp.run();
-                else
-                    assertThrows(expectedException, bindOp);
-            }
-        } finally {
-            if (dc != null)
-                dc.close();
+        try (DatagramChannel dc = openDC(ofamily)) {
+            SocketAddress addr = getSocketAddress(bfamily);
+            ThrowingRunnable bindOp = () -> dc.bind(addr);
+            if (expectedException == null)
+                bindOp.run();
+            else
+                assertThrows(expectedException, bindOp);
         }
     }
 
