@@ -52,8 +52,7 @@ import static jdk.test.lib.net.IPSupport.*;
  *          open() and connect(), taking into consideration combinations of
  *          protocol families (INET, INET6, default),
  *          addresses (Inet4Address, Inet6Address),
- *          platforms (Linux, Mac OS, Windows),
- *          and the system properties preferIPv4Stack and preferIPv6Addresses.
+ *          platforms (Linux, Mac OS, Windows)
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
  * @run testng/othervm OpenAndConnect
