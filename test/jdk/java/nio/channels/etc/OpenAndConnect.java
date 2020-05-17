@@ -22,24 +22,18 @@
  */
 
 import jdk.test.lib.NetworkConfiguration;
-import jdk.test.lib.Platform;
 import jdk.test.lib.net.IPSupport;
-import org.testng.SkipException;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.*;
 import java.nio.channels.*;
-import java.time.Duration;
-import java.util.function.Predicate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.LinkedList;
 
-import static java.lang.Boolean.parseBoolean;
 import static java.lang.System.getProperty;
 import static java.lang.System.out;
 import static java.net.StandardProtocolFamily.INET;
@@ -51,8 +45,7 @@ import static jdk.test.lib.net.IPSupport.*;
  * @summary Test SocketChannel, ServerSocketChannel and DatagramChannel
  *          open() and connect(), taking into consideration combinations of
  *          protocol families (INET, INET6, default),
- *          addresses (Inet4Address, Inet6Address),
- *          platforms (Linux, Mac OS, Windows)
+ *          addresses (Inet4Address, Inet6Address).
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
  * @run testng/othervm OpenAndConnect
@@ -270,14 +263,6 @@ public class OpenAndConnect {
 
     private static SocketAddress getSocketAddress(InetAddress ia) {
         return ia == null ? null : new InetSocketAddress(ia, 0);
-    }
-
-    private static boolean isNotLoopback(NetworkInterface nif) {
-        try {
-            return !nif.isLoopback();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     private static void initAddrs() throws IOException {
