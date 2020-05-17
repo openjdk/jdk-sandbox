@@ -167,9 +167,6 @@ public class ProtocolFamilies {
                     {   INET,   INET,   null   },
                     {   INET,   INET6,  UATE   },
                     {   INET,   null,   null   },
-                    {   INET6,  INET,   UOE    },
-                    {   INET6,  INET6,  UOE    },
-                    {   INET6,  null,   UOE    },
                     {   null,   INET,   null   },
                     {   null,   INET6,  UATE   },
                     {   null,   null,   null   }
@@ -188,19 +185,13 @@ public class ProtocolFamilies {
     {
         SocketChannel sc = null;
         try {
-            if (expectedException == UOE) {
-                try {
-                    sc = openSC(ofamily);
-                } catch (UnsupportedOperationException e) {}
-            } else {
-                try (SocketChannel sc1 = openSC(ofamily)) {
-                    SocketAddress addr = getSocketAddress(bfamily);
-                    ThrowingRunnable bindOp = () -> sc1.bind(addr);
-                        if (expectedException == null)
+            try (SocketChannel sc1 = openSC(ofamily)) {
+                SocketAddress addr = getSocketAddress(bfamily);
+                ThrowingRunnable bindOp = () -> sc1.bind(addr);
+                    if (expectedException == null)
                         bindOp.run();
-                    else
-                        assertThrows(expectedException, bindOp);
-                }
+                else
+                    assertThrows(expectedException, bindOp);
             }
         } finally {
             if (sc != null)
@@ -219,19 +210,13 @@ public class ProtocolFamilies {
     {
         ServerSocketChannel ssc = null;
         try {
-            if (expectedException == UOE) {
-                try {
-                    ssc = openSSC(ofamily);
-                } catch (UnsupportedOperationException e) {}
-            } else {
-                try (ServerSocketChannel ssc1 = openSSC(ofamily)) {
-                    SocketAddress addr = getSocketAddress(bfamily);
-                    ThrowingRunnable bindOp = () -> ssc1.bind(addr);
-                    if (expectedException == null)
-                        bindOp.run();
-                    else
-                        assertThrows(expectedException, bindOp);
-                }
+            try (ServerSocketChannel ssc1 = openSSC(ofamily)) {
+                SocketAddress addr = getSocketAddress(bfamily);
+                ThrowingRunnable bindOp = () -> ssc1.bind(addr);
+                if (expectedException == null)
+                    bindOp.run();
+                else
+                    assertThrows(expectedException, bindOp);
             }
         } finally {
             if (ssc != null)
@@ -250,19 +235,13 @@ public class ProtocolFamilies {
     {
         DatagramChannel dc = null;
         try {
-            if (expectedException == UOE) {
-                try {
-                    dc = openDC(ofamily);
-                } catch (UnsupportedOperationException e) {}
-            } else {
-                try (DatagramChannel dc1 = openDC(ofamily)) {
-                    SocketAddress addr = getSocketAddress(bfamily);
-                    ThrowingRunnable bindOp = () -> dc1.bind(addr);
-                    if (expectedException == null)
-                        bindOp.run();
-                    else
-                        assertThrows(expectedException, bindOp);
-                }
+            try (DatagramChannel dc1 = openDC(ofamily)) {
+                SocketAddress addr = getSocketAddress(bfamily);
+                ThrowingRunnable bindOp = () -> dc1.bind(addr);
+                if (expectedException == null)
+                    bindOp.run();
+                else
+                    assertThrows(expectedException, bindOp);
             }
         } finally {
             if (dc != null)
