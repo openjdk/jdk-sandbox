@@ -81,10 +81,12 @@ import static java.util.Objects.requireNonNull;
  *
  * <p> <i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
  * with the family parameter set to {@link StandardProtocolFamily#UNIX UNIX}.
- * The behavior of both channel types is the same except where specified differently
- * below. The two biggest differences are: <i>Unix domain</i> channels do not support the
+ *
+ * <p>Aside from the different address types used, the behavior of both channel types is 
+ * otherwise the same except where specified differently below.
+ * The two main additional differences are: <i>Unix domain</i> channels do not support the
  * {@link #socket()} method and they also only support a subset of the socket options
- * supported by <i>Internet protocol</i> channels.
+ * supported by <i>IP</i> channels.
  *
  * <p> The {@link #open(SocketAddress)} method will create either an Internet protocol
  * channel or a Unix domain channel, depending on the sub-type of {@link SocketAddress}
