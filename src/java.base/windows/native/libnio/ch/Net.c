@@ -119,7 +119,7 @@ NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *
     const char* pname = JNU_GetStringPlatformChars(env, path, &isCopy);
     size_t name_len = strlen(pname)+1;
     if (name_len > MAX_UNIX_DOMAIN_PATH_LEN) {
-        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "unix domain path too long");
+        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Unix domain path too long");
         ret = 1;
         goto finish;
     }

@@ -57,9 +57,7 @@ extern jfieldID udsa_pathID;
 /* Subtle platform differences in how unnamed sockets (empty path)
  * are returned from getsockname()
  */
-#if defined(__solaris__)
-  #define ZERO_PATHLEN(len) (len == 0)
-#elif defined(MACOSX)
+#ifdef MACOSX
   #define ZERO_PATHLEN(len) (JNI_FALSE)
 #else
   #define ZERO_PATHLEN(len) (len == offsetof(struct sockaddr_un, sun_path))
@@ -94,7 +92,7 @@ NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *
     const char* pname = JNU_GetStringPlatformChars(env, path, &isCopy);
     size_t name_len = strlen(pname)+1;
     if (name_len > MAX_UNIX_DOMAIN_PATH_LEN) {
-        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "unix domain path too long");
+        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Unix domain path too long");
         ret = 1;
         goto finish;
     }

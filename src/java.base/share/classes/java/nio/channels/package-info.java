@@ -336,17 +336,18 @@
  *
  * <p><i>Internet protocol</i> channels support network
  * communication using TCP/IP and are addressed using {@link InetSocketAddress}es
- * which encapsulate an IP address and port number.
+ * which encapsulate an IP address and port number. <i>Internet protocol</i> channels 
+ * are the default kind created, when a protocol family is not specified 
+ * in the factory creation method.
  *
  * <p><a id="unixdomain"></a> <i>Unix domain</i> channels
  * support local inter-process communication on the same host, and are addressed
  * using {@link UnixDomainSocketAddress}es which encapsulate a filesystem pathname
- * on the local system. <i>Internet protocol</i> channels are the default kind created, when
- * a protocol family is not specified in the factory creation method. <i>Unix domain</i> channels
+ * on the local system.  <i>Unix domain</i> channels
  * can only be created using {@link SocketChannel#open(ProtocolFamily)} or
  * {@link ServerSocketChannel#open(ProtocolFamily)} with the parameter value
  * {@link StandardProtocolFamily#UNIX}. Unix domain channels might not be supported on all platforms.
- * An attempt to create a unix domain channel may throw {@link UnsupportedOperationException}.
+ * An attempt to create a Unix domain channel may throw {@link UnsupportedOperationException}.
  *
  * {@link UnixDomainSocketAddress}es contain a path which, when the address is bound to a channel,
  * has an associated socket file in the file-system with the same name as the path. Address instances
@@ -366,7 +367,7 @@
  * {@link ServerSocketChannel#getLocalAddress() getLocalAddress} after bind returns.
  * It is an error to bind a {@code ServerSocketChannel} to an unnamed address.
  *
- * <p> A unix domain channel can be bound to a name if and only if, no file exists
+ * <p> A Unix domain channel can be bound to a name if and only if, no file exists
  * in the file-system with the same name, and the calling process has the required
  * operating system permissions to create a file of that name.
  * The socket file that is created when a channel binds to a name is not removed when
