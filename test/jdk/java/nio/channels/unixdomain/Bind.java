@@ -247,6 +247,36 @@ public class Bind {
             }
         );
 
+        // server bind to existing name: not allowed
+
+        checkException(
+            BindException.class, () -> {
+                var path = Files.createTempFile(null, null);
+                var addr = UnixDomainSocketAddress.of(path);
+                server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+                try {
+                    server.bind(addr);
+                } finally {
+                    Files.deleteIfExists(path);
+                }
+            }
+        );
+
+
+        // client bind to existing name: not allowed
+        checkException(
+            BindException.class, () -> {
+                var path = Files.createTempFile(null, null);
+                var addr = UnixDomainSocketAddress.of(path);
+                client = SocketChannel.open(StandardProtocolFamily.UNIX);
+                try {
+                    client.bind(addr);
+                } finally {
+                    Files.deleteIfExists(path);
+                }
+            }
+        );
+
         // bind and connect to name of max size
         checkNormal(() -> {
             int len = Integer.parseInt(System.getProperty("jdk.nio.channels.unixdomain.maxnamelength"));
