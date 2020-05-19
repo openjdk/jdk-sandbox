@@ -149,7 +149,7 @@ $(eval $(call DeclareRecipesForPhase, GENDATA, \
     FILE_PREFIX := Gendata, \
     MAKE_SUBDIR := gendata, \
     CHECK_MODULES := $(ALL_MODULES), \
-    USE_WRAPPER := true))
+))
 
 ALL_TARGETS += $(GENDATA_TARGETS)
 
@@ -160,7 +160,6 @@ $(eval $(call DeclareRecipesForPhase, COPY, \
     FILE_PREFIX := Copy, \
     MAKE_SUBDIR := copy, \
     CHECK_MODULES := $(ALL_MODULES), \
-    USE_WRAPPER := true, \
 ))
 
 ALL_COPY_MODULES += $(COPY_MODULES)
@@ -203,7 +202,7 @@ $(eval $(call DeclareRecipesForPhase, LIBS, \
     FILE_PREFIX := Lib, \
     MAKE_SUBDIR := lib, \
     CHECK_MODULES := $(ALL_MODULES), \
-    USE_WRAPPER := true))
+))
 
 ALL_TARGETS += $(LIBS_TARGETS)
 
@@ -216,7 +215,6 @@ $(eval $(call DeclareRecipesForPhase, STATIC_LIBS, \
     FILE_PREFIX := Lib, \
     MAKE_SUBDIR := lib, \
     CHECK_MODULES := $(STATIC_LIBS_MODULES), \
-    USE_WRAPPER := true, \
     EXTRA_ARGS := STATIC_LIBS=true, \
 ))
 
@@ -229,7 +227,7 @@ $(eval $(call DeclareRecipesForPhase, LAUNCHER, \
     FILE_PREFIX := Launcher, \
     MAKE_SUBDIR := launcher, \
     CHECK_MODULES := $(ALL_MODULES), \
-    USE_WRAPPER := true))
+))
 
 ALL_TARGETS += $(LAUNCHER_TARGETS)
 
