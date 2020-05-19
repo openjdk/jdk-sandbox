@@ -30,7 +30,6 @@
 ifndef _MAINSUPPORT_GMK
 _MAINSUPPORT_GMK := 1
 
-
 # Setup make rules for creating a top-level target.
 # Parameter 1 is the name of the rule. This name is used as variable prefix.
 #
@@ -42,12 +41,14 @@ _MAINSUPPORT_GMK := 1
 #
 SetupTarget = $(NamedParamsMacroTemplate)
 define SetupTargetBody
-$1:
-	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f $$($1_MAKEFILE).gmk $$($1_ARGS))
+  $1:
+	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f $$($1_MAKEFILE).gmk $$($1_TARGET) $$($1_ARGS))
 
   ALL_TARGETS += $1
 
-$1: $$($1_DEPS)
+  ifneq ($(DEPS), none)
+    $1: $$($1_DEPS)
+  endif
 endef
 
 define CleanDocs

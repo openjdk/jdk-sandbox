@@ -24,7 +24,7 @@
 #
 
 ################################################################################
-# This is the main   MAKEFILE containing most actual top level targets. It needs
+# This is the main makefile containing most actual top level targets. It needs
 # to be called with a SPEC file defined.
 ################################################################################
 
@@ -38,7 +38,7 @@ endif
 # Now load the spec
 include $(SPEC)
 
-# Load the vital tools for all the   MAKEFILEs.
+# Load the vital tools for all the makefiles.
 include $(TOPDIR)/make/common/MakeBase.gmk
 include $(TOPDIR)/make/common/Modules.gmk
 include $(TOPDIR)/make/common/FindTests.gmk
@@ -258,8 +258,9 @@ endef
 $(foreach v, $(JVM_VARIANTS), $(eval $(call DeclareHotspotLibsRecipe,$v)))
 
 $(eval $(call SetupTarget, hotspot-ide-project, \
-    MAKEFILE := ide/CreateVSProject, \
+    MAKEFILE := hotspot/ide/CreateVSProject, \
     DEPS := hotspot exploded-image, \
+    ARGS := -I$(TOPDIR)/make/hotspot, \
 ))
 
 ALL_TARGETS += $(HOTSPOT_VARIANT_TARGETS) $(HOTSPOT_VARIANT_GENSRC_TARGETS) \
@@ -545,7 +546,7 @@ BUILDJDK_MODULES := $(sort $(foreach m, jdk.jlink $(INTERIM_IMAGE_MODULES), \
 
 $(eval $(call SetupTarget, create-buildjdk-interim-image, \
     MAKEFILE := Main, \
-    TARGET := $@-helper, \
+    TARGET := create-buildjdk-interim-image-helper, \
     ARGS := SPEC=$(dir $(SPEC))buildjdk-spec.gmk \
         HOTSPOT_SPEC=$(dir $(SPEC))buildjdk-spec.gmk \
         CREATING_BUILDJDK=true \
@@ -1114,9 +1115,12 @@ ifeq ($(INCLUDE_GRAAL), true)
 endif
 
 # This target builds the test image
-test-image: prepare-test-image \
-    test-image-jdk-jtreg-native test-image-failure-handler \
+test-image: prepare-test-image test-image-jdk-jtreg-native \
     test-image-demos-jdk $(JVM_TEST_IMAGE_TARGETS)
+
+ifeq ($(BUILD_FAILURE_HANDLER), true)
+  test-image: test-image-failure-handler
+endif
 
 ifneq ($(JMH_CORE_JAR), )
   test-image: build-microbenchmark
