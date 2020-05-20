@@ -70,7 +70,7 @@ import sun.net.util.SocketExceptions;
 
 public class UnixDomainSocketChannelImpl extends SocketChannelImpl
 {
-    public UnixDomainSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
+    UnixDomainSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
         throws IOException
     {
         super(sp, fd, bound);
@@ -180,4 +180,30 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         return Net.getRevealedLocalAddressAsString(usa);
     }
 
+    /**
+     * Read/write need to be overridden for JFR
+     */
+    @Override
+    public int read(ByteBuffer buf) throws IOException {
+        return super.read(buf);
+    }
+
+    @Override
+    public int write(ByteBuffer buf) throws IOException {
+        return super.write(buf);
+    }
+
+    @Override
+    public long write(ByteBuffer[] srcs, int offset, int length)
+        throws IOException
+    {
+        return super.write(srcs, offset, length);
+    }
+
+    @Override
+    public long read(ByteBuffer[] dsts, int offset, int length)
+        throws IOException
+    {
+        return super.read(dsts, offset, length);
+    }
 }

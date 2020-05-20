@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,17 +24,29 @@
  */
 
 package jdk.jfr.events;
-import jdk.jfr.internal.handlers.EventHandler;
-import jdk.jfr.internal.Utils;
 
-public final class Handlers {
-    public final static EventHandler SOCKET_READ = Utils.getHandler(SocketReadEvent.class);
-    public final static EventHandler SOCKET_WRITE = Utils.getHandler(SocketWriteEvent.class);
-    public final static EventHandler UNIX_SOCKET_READ = Utils.getHandler(UnixSocketReadEvent.class);
-    public final static EventHandler UNIX_SOCKET_WRITE = Utils.getHandler(UnixSocketWriteEvent.class);
-    public final static EventHandler FILE_READ = Utils.getHandler(FileReadEvent.class);
-    public final static EventHandler FILE_WRITE = Utils.getHandler(FileWriteEvent.class);
-    public final static EventHandler FILE_FORCE = Utils.getHandler(FileForceEvent.class);
-    public final static EventHandler ERROR_THROWN = Utils.getHandler(ErrorThrownEvent.class);
-    public final static EventHandler EXCEPTION_THROWN = Utils.getHandler(ExceptionThrownEvent.class);
+import jdk.jfr.Category;
+import jdk.jfr.Description;
+import jdk.jfr.Label;
+import jdk.jfr.DataAmount;
+import jdk.jfr.Name;
+import jdk.jfr.internal.Type;
+
+@Name(Type.EVENT_NAME_PREFIX + "UnixSocketWrite")
+@Label("UnixSocket Write")
+@Category("Java Application")
+@Description("Writing data to a Unix socket")
+public final class UnixSocketWriteEvent extends AbstractJDKEvent {
+
+    // The order of these fields must be the same as the parameters in
+    // EventHandler::write(..., String, long)
+
+    @Label("To")
+    @Description("Path to peer socket")
+    public String path;
+
+    @Label("Bytes Written")
+    @Description("Number of bytes written to the file")
+    @DataAmount
+    public long bytesWritten;
 }

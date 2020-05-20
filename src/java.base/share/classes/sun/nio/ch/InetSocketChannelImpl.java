@@ -226,6 +226,33 @@ class InetSocketChannelImpl extends SocketChannelImpl
         return Net.connect(family, fd, isa.getAddress(), isa.getPort());
     }
 
+    /**
+     * Read/write need to be overridden for JFR
+     */
+    @Override
+    public int read(ByteBuffer buf) throws IOException {
+        return super.read(buf);
+    }
+
+    @Override
+    public int write(ByteBuffer buf) throws IOException {
+        return super.write(buf);
+    }
+
+    @Override
+    public long write(ByteBuffer[] srcs, int offset, int length)
+        throws IOException
+    {
+        return super.write(srcs, offset, length);
+    }
+
+    @Override
+    public long read(ByteBuffer[] dsts, int offset, int length)
+        throws IOException
+    {
+        return super.read(dsts, offset, length);
+    }
+
     @Override
     protected SocketAddress getConnectedAddress(FileDescriptor fd) throws IOException {
         return Net.localAddress(fd);
