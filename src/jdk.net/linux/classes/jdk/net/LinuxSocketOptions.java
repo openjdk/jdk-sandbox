@@ -90,6 +90,17 @@ class LinuxSocketOptions extends PlatformSocketOptions {
     int getTcpKeepAliveIntvl(int fd) throws SocketException {
         return getTcpKeepAliveIntvl0(fd);
     }
+    
+    @Override
+    boolean incomingNapiIdSupported() {
+        return incomingNapiIdSupported0();
+    }
+    
+    @Override
+    int getIncomingNapiId(int fd) throws SocketException {
+        return getIncomingNapiId0(fd);
+    }
+
 
     @Override
     UnixDomainPrincipal getSoPeerCred(int fd) throws SocketException {
@@ -112,6 +123,8 @@ class LinuxSocketOptions extends PlatformSocketOptions {
     private static native void getSoPeerCred0(int fd, int[] result) throws SocketException;
     private static native boolean keepAliveOptionsSupported0();
     private static native boolean quickAckSupported0();
+    private static native boolean incomingNapiIdSupported0();
+    private static native int getIncomingNapiId0(int fd) throws SocketException;
     static {
         if (System.getSecurityManager() == null) {
             System.loadLibrary("extnet");
