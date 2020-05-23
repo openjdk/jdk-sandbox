@@ -27,6 +27,7 @@
  * @run main/othervm Security policy1
  * @run main/othervm Security policy2
  * @run main/othervm Security policy3
+ * @run main/othervm Security policy4
  * @summary Security test for Unix Domain socket and server socket channels
  */
 
@@ -50,21 +51,21 @@ public class Security {
         public void run() throws Exception;
     }
 
-    static <T extends Exception> void call(Command r, boolean mustThrow) {
+    static <T extends Exception> void call(Command r, Class<? extends Exception> expectedException) {
         boolean threw = false;
         try {
             r.run();
         } catch (Throwable t) {
-            threw = true;
-            if (!(t instanceof SecurityException)) {
-                throw new RuntimeException("wrong exception type thrown " + t.toString());
-            }
-            if (!mustThrow) {
+            if (expectedException == null) {
                 t.printStackTrace();
                 throw new RuntimeException("an exception was thrown but was not expected");
             }
+            threw = true;
+            if (!(expectedException.isAssignableFrom(t.getClass()))) {
+                throw new RuntimeException("wrong exception type thrown " + t.toString());
+            }
         }
-        if (mustThrow && !threw) {
+        if (expectedException != null && !threw) {
             // should have thrown
             throw new RuntimeException("SecurityException was expected");
         }
@@ -83,7 +84,7 @@ public class Security {
         switch (policy) {
             case "policy1":
                 initDir("sockets");
-                initDir("sockets1");
+                initDir("sockets2");
                 setSecurityManager(policy);
                 testPolicy1();
                 break;
@@ -94,8 +95,14 @@ public class Security {
                 testPolicy2();
                 break;
             case "policy3":
+                initDir("sockets");
                 setSecurityManager(policy);
                 testPolicy3();
+                break;
+            case "policy4":
+                initDir("sockets");
+                setSecurityManager(policy);
+                testPolicy4();
                 break;
             default:
         }
@@ -135,101 +142,99 @@ public class Security {
         }
     }
 
+    private static final Class<SecurityException> SE = SecurityException.class;
+    private static final Class<IOException> IOE = IOException.class;
+
+    // can bind a server only
+
     public static void testPolicy1() throws Exception {
-        // Permission exists to bind and connect to this
+        // Permission exists to bind a ServerSocketChannel
         Path servername = Path.of("sockets", "sock1");
+        Path servername2 = Path.of("sockets2", "sock1");
         final UnixDomainSocketAddress saddr = UnixDomainSocketAddress.of(servername);
+        final UnixDomainSocketAddress saddr2 = UnixDomainSocketAddress.of(servername2);
         final ServerSocketChannel server = ServerSocketChannel.open(UNIX);
+        final ServerSocketChannel server2 = ServerSocketChannel.open(UNIX);
         final SocketChannel client = SocketChannel.open(UNIX);
         call(() -> {
-            System.out.println("XXX " + saddr);
             server.bind(saddr);
-        }, false);
+        }, null);
+        call(() -> {
+            server2.bind(saddr2);
+        }, SE);
         call(() -> {
             client.connect(saddr);
-        }, false);
-        call(() -> {
-            SocketChannel s1 = server.accept();
-            s1.close();
-        }, false);
-        close(server, client);
+        }, SE);
+        close(server, client, server2);
 
-        // Permission to bind but not to connect to sock2
-        Path servername1 = Path.of("sockets", "sock2");
-        final UnixDomainSocketAddress saddr1 = UnixDomainSocketAddress.of(servername1);
-        final ServerSocketChannel server1 = ServerSocketChannel.open(UNIX);
-        final SocketChannel client1 = SocketChannel.open(UNIX);
+        final ServerSocketChannel server3 = ServerSocketChannel.open(UNIX);
         call(() -> {
-            server1.bind(saddr1);
-        }, false);
-        call(() -> {
-            client1.connect(saddr1);
-        }, true);
-        close(server1, client1);
+            server3.bind(null);
+        }, SE);
+        close(server3);
     }
+
+    // can bind a client only
 
     public static void testPolicy2() throws Exception {
-        Path servername = Path.of("server", "sock");
+        Path servername = Path.of("sockets", "sock");
         final UnixDomainSocketAddress saddr = UnixDomainSocketAddress.of(servername);
         final ServerSocketChannel server = ServerSocketChannel.open(UNIX);
         final SocketChannel client = SocketChannel.open(UNIX);
         call(() -> {
             server.bind(saddr);
-        }, false);
+        }, SE);
         call(() -> {
             client.connect(saddr);
-        }, false);
-
-        // accept should fail because the client is unnamed
-        call(() -> {
-            SocketChannel s1 = server.accept();
-            s1.close();
-        }, true);
-
-        final SocketChannel client1 = SocketChannel.open(UNIX);
-        Path clientname = Path.of("client1", "csock");
-        final UnixDomainSocketAddress caddr = UnixDomainSocketAddress.of(clientname);
-
-        call(() -> {
-            client1.bind(caddr);
-        }, false);
-        call(() -> {
-            client1.connect(saddr);
-        }, false);
-
-        // accept should succeed because client has expected name "client1/csock"
-        call(() -> {
-            SocketChannel s1 = server.accept();
-            s1.close();
-        }, false);
-
-        // Before we create permission to bind to ${java.io.tmpdir} in next test
-        // check that we can't bind to a null address here first, connect to it either
-
-        final ServerSocketChannel server1 = ServerSocketChannel.open(UNIX);
-        call(() -> {
-            server1.bind(null);
-        }, true);
-
-        final SocketChannel client2 = SocketChannel.open(UNIX);
-        final UnixDomainSocketAddress caddr2 = UnixDomainSocketAddress.of(System.getProperty("java.io.tmpdir") + "test");
-        call(() -> {
-            client2.connect(caddr2);
-        }, true);
+        }, IOE);
+        close(server, client);
     }
+
+    // can bind both server and client to a specific diriectory only
 
     public static void testPolicy3() throws Exception {
+        Path servername = Path.of("sockets", "sock1");
+        Path servername2 = Path.of("sockets2", "sock1");
+        final UnixDomainSocketAddress saddr = UnixDomainSocketAddress.of(servername);
+        final UnixDomainSocketAddress saddr2 = UnixDomainSocketAddress.of(servername2);
         final ServerSocketChannel server = ServerSocketChannel.open(UNIX);
+        final ServerSocketChannel server2 = ServerSocketChannel.open(UNIX);
         final SocketChannel client = SocketChannel.open(UNIX);
+        final SocketChannel client2 = SocketChannel.open(UNIX);
 
         call(() -> {
-            server.bind(null);
-        }, false);
-
-        SocketAddress saddr = server.getLocalAddress();
+            server.bind(saddr);
+        }, null);
 
         call(() -> {
             client.connect(saddr);
-        }, false);
+        }, null);
+
+        call(() -> {
+            server2.bind(saddr2);
+        }, SE);
+
+        call(() -> {
+            client2.connect(saddr2);
+        }, SE);
+        close(server, client, server2, client2);
     }
+
+    public static void testPolicy4() throws Exception {
+        final ServerSocketChannel server = ServerSocketChannel.open(UNIX);
+        final SocketChannel client = SocketChannel.open(UNIX);
+        call(() -> {
+            server.bind(null);
+        }, null);
+
+        SocketAddress addr = server.getLocalAddress();
+        System.out.println("testPolicy4: connecting to " + addr);
+
+        call(() -> {
+            client.connect(addr);
+        }, null);
+
+        close(server, client);
+    }
+
 }

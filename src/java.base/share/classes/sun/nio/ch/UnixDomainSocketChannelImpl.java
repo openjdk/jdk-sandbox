@@ -29,6 +29,7 @@ import java.io.FileDescriptor;
 import java.io.FilePermission;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.NetPermission;
 import java.net.ProtocolFamily;
 import java.net.Socket;
 import java.net.SocketAddress;
@@ -50,6 +51,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.spi.SelectorProvider;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -113,13 +115,16 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         return DefaultOptionsHolder.defaultOptions;
     }
 
+    private static final NetPermission clientPermission = new NetPermission("unixChannels.client");
+
     @Override
     SocketAddress bindImpl(SocketAddress local) throws IOException {
         UnixDomainSocketAddress usa = Net.checkUnixAddress(local);
         SecurityManager sm = System.getSecurityManager();
-        if (usa != null && sm != null) {
-            Path parent = privilegedGetParent(usa.getPath());
-            FilePermission p1 = new FilePermission(parent.toString(), "write");
+        if (sm != null && usa != null) {
+            sm.checkPermission(clientPermission);
+            String path = usa.getPath().toString();
+            FilePermission p1 = new FilePermission(path, "read,write");
             sm.checkPermission(p1);
         }
         Net.unixDomainBind(getFD(), usa);
@@ -130,31 +135,23 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         }
     }
 
-    private static Path privilegedGetParent(Path path) {
-        return AccessController.doPrivileged(
-            (PrivilegedAction<Path>) () -> {
-                return path
-                    .normalize()
-                    .toAbsolutePath()
-                    .getParent();
-            }
-        );
-    }
-
     @Override
     public Socket socket() {
         throw new UnsupportedOperationException("socket not supported");
     }
 
     /**
-     * Checks the remote address to which this channel is to be connected.
+     * Checks the permissions required for connect
      */
     @Override
     SocketAddress checkRemote(SocketAddress sa) throws IOException {
         UnixDomainSocketAddress usa = Net.checkUnixAddress(sa);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
-            FilePermission p = new FilePermission(usa.getPath().toString(), "read,write");
+            sm.checkPermission(clientPermission);
+            Path path = usa.getPath();
+            String pathString = Net.inTempDirectory(path) ? "" : path.toString();
+            FilePermission p = new FilePermission(pathString, "read,write");
             sm.checkPermission(p);
         }
         return usa;

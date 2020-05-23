@@ -30,6 +30,7 @@ import java.io.FileDescriptor;
 import java.io.FilePermission;
 import java.io.IOException;
 import java.net.BindException;
+import java.net.NetPermission;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.net.SocketOption;
@@ -46,6 +47,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.spi.SelectorProvider;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.NoSuchAlgorithmException;
@@ -110,6 +112,10 @@ public class UnixDomainServerSocketChannelImpl
         boolean found = false;
         SecurityManager sm = System.getSecurityManager();
 
+        if (sm != null) {
+            sm.checkPermission(serverPermission);
+        }
+
         if (local == null && sm != null) {
             // only needs to be done once
             checkTempDirPermission(sm);
@@ -124,8 +130,8 @@ public class UnixDomainServerSocketChannelImpl
             } else {
                 usa = Net.checkUnixAddress(local);
                 if (sm != null) {
-                    Path parent = privilegedGetParent(usa.getPath());
-                    FilePermission p = new FilePermission(parent.toString(), "write");
+                    String path = usa.getPath().toString();
+                    FilePermission p = new FilePermission(path, "read,write");
                     sm.checkPermission(p);
                 }
             }
@@ -145,29 +151,6 @@ public class UnixDomainServerSocketChannelImpl
         return Net.localUnixAddress(getFD());
     }
 
-    private static Path privilegedGetParent(Path path) {
-        return AccessController.doPrivileged(
-            (PrivilegedAction<Path>) () -> {
-                return path
-                    .normalize()
-                    .toAbsolutePath()
-                    .getParent();
-            }
-        );
-    }
-
-    private static String getTempDir() {
-        return AccessController.doPrivileged(
-            (PrivilegedAction<String>) () -> {
-                String s = System.getProperty("java.io.tmpdir");
-                String sep = System.getProperty("file.separator");
-                if (!s.endsWith(sep))
-                    s = s + sep;
-                return s;
-            }
-        );
-    }
-
     private static Random getRandom() {
         return AccessController.doPrivileged(
             (PrivilegedAction<Random>) () -> {
@@ -180,8 +163,8 @@ public class UnixDomainServerSocketChannelImpl
         );
     }
 
-    private static final String tempDir = getTempDir();
-    private static final FilePermission tempDirPermission = new FilePermission(tempDir, "write");
+    private static final FilePermission tempDirPermission = new FilePermission("", "read,write");
+    private static final NetPermission serverPermission = new NetPermission("unixChannels.server");
     private static final Random random = getRandom();;
     private static final long pid = AccessController.doPrivileged(
         (PrivilegedAction<Long>)UnixDomainServerSocketChannelImpl::getPid);
@@ -203,7 +186,7 @@ public class UnixDomainServerSocketChannelImpl
     private static UnixDomainSocketAddress getTempName() throws IOException {
         int rnd = random.nextInt(Integer.MAX_VALUE);
         StringBuilder sb = new StringBuilder();
-        sb.append(tempDir).append("niosocket_").append(pid).append('_').append(rnd);
+        sb.append(Net.tempDir).append("/niosocket_").append(pid).append('_').append(rnd);
         return UnixDomainSocketAddress.of(sb.toString());
     }
 
@@ -230,6 +213,7 @@ public class UnixDomainServerSocketChannelImpl
         UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
+            sm.checkPermission(serverPermission);
             String path = usa.getPath().toString();
             FilePermission p = new FilePermission(path, "read,write");
             sm.checkPermission(p);

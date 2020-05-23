@@ -48,6 +48,8 @@ import java.nio.channels.NotYetConnectedException;
 import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.UnresolvedAddressException;
 import java.nio.channels.UnsupportedAddressTypeException;
+import java.nio.file.Path;
+import java.nio.file.InvalidPathException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Enumeration;
@@ -816,13 +818,41 @@ public class Net {
         return unixDomainSupported ? unixDomainMaxNameLen0() : -1;
     }
 
+    public static boolean inTempDirectory(Path path) {
+        Path parent = AccessController.doPrivileged(
+            (PrivilegedAction<Path>) () -> {
+                return path
+                    .normalize()
+                    .toAbsolutePath()
+                    .getParent();
+            }
+        );
+        return parent.equals(tempDir);
+    }
+
+    public static final Path tempDir = getTempDir();
+
+    private static Path getTempDir() {
+        return AccessController.doPrivileged(
+            (PrivilegedAction<Path>) () -> {
+                try {
+                    return Path.of(System.getProperty("java.io.tmpdir"));
+                } catch (InvalidPathException ipe) {
+                    return null;
+                }
+            }
+        );
+    }
+
     static UnixDomainSocketAddress getRevealedLocalAddress(UnixDomainSocketAddress addr) {
         SecurityManager sm = System.getSecurityManager();
         if (addr == null || sm == null)
             return addr;
 
         try{
-            FilePermission p = new FilePermission(addr.getPath().toString(), "read");
+            Path path = addr.getPath();
+            String pathString = inTempDirectory(path) ? "" : path.toString();
+            FilePermission p = new FilePermission(pathString, "read");
             sm.checkPermission(p);
             // Security check passed
         } catch (SecurityException e) {

@@ -1,0 +1,9 @@
+grant {
+    // permission to bind a SocketChannel and ServerSocketChannel
+    permission java.net.NetPermission "unixChannels.client";
+    permission java.net.NetPermission "unixChannels.server";
+
+    // Allows server to bind to null (temporary directory)
+    // and client to connect to this
+    permission java.io.FilePermission "", "read,write";
+};

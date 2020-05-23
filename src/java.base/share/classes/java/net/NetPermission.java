@@ -66,6 +66,26 @@ import java.util.StringTokenizer;
  *   </tr>
  *
  * <tr>
+ *   <th scope="row">unixChannels.client</th>
+ *   <td>The ability to bind and connect a <i>Unix domain</i> SocketChannel
+ *   This permission is required in addition to {@link java.io.FilePermission FilePermission}s
+ *   with "read,write" actions for the specific paths being bound or connected to.
+ *   </td>
+ *   <td>Malicious code could connect to local system services using Unix domain sockets
+ *   if they have this permission together with the relevant FilePermission.</td>
+ * </tr>
+ *
+ * <tr>
+ *   <th scope="row">unixChannels.server</th>
+ *   <td>The ability to bind and accept connections on a <i>Unix domain</i> ServerSocketChannel
+ *   This permission is required in addition to {@link java.io.FilePermission FilePermission}s
+ *   with "read,write" actions for the specific path being bound or accepted from.
+ *   </td>
+ *   <td>Malicious code impersonate local system services using Unix domain sockets
+ *   if they have this permission together with the relevant FilePermission.</td>
+ * </tr>
+ *
+ * <tr>
  *   <th scope="row">getCookieHandler</th>
  *   <td>The ability to get the cookie handler that processes highly
  *   security sensitive cookie information for an Http session.</td>

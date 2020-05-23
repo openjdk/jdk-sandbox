@@ -27,6 +27,7 @@ package java.nio.channels;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.NetPermission;
 import java.net.ProtocolFamily;
 import java.net.StandardProtocolFamily;
 import java.net.Socket;
@@ -321,9 +322,11 @@ public abstract class SocketChannel
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
      *          the operation for <i>Internet protocol</i> channels; or for <i>Unix Domain</i>
-     *          channels, if the security manager denies the "write" action for
-     *          {@link java.io.FilePermission} for the parent directory of the {@code local}
-     *          parameter's path.
+     *          channels, if the security manager denies the "read,write" actions for
+     *          {@link java.io.FilePermission} for the {@code local} parameter's path,
+     *          or {@link java.net.NetPermission NetPermission}{@code ("unixChannels.client")}.
+     *          Note, if {@code local} is null for a <i>Unix Domain</i> channel which is
+     *          equivalent to an implicit bind, then no FilePermission is required.
      *
      * @since 1.7
      */
@@ -435,10 +438,14 @@ public abstract class SocketChannel
      * java.lang.SecurityManager#checkConnect checkConnect} method permits
      * connecting to the address and port number of the given remote endpoint.
      *
-     * <p> For <i>Unix Domain</i> channels, this method performs a security
-     * manager {@link SecurityManager#checkPermission(Permission)} using
-     * a {@link java.io.FilePermission} constructed with the path from the
-     * destination address and {@code "read, write"} as the actions.
+     * <p> For <i>Unix Domain</i> channels, this method checks two permissions
+     * with {@link SecurityManager#checkPermission(Permission)}:
+     * {@link java.io.FilePermission} constructed with the path from the
+     * destination address and {@code "read, write"} as the actions and
+     * {@link java.net.NetPermission NetPermission}{@code ("unixChannels.client")}
+     * Note, if the destination address is a temporary path, such as one
+     * obtained if a ServerSocketChannel binds to {@code null} then the
+     * FilePermission required uses an empty path.
      *
      * <p> This method may be invoked at any time.  If a read or write
      * operation upon this channel is invoked while an invocation of this

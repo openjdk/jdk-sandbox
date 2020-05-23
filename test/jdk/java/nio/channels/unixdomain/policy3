@@ -1,7 +1,6 @@
 grant {
-    // permission to bind in temp directory
-    permission java.io.FilePermission "${java.io.tmpdir}", "write";
-
-    // permission to connect to temp directory
-    permission java.io.FilePermission "${java.io.tmpdir}${file.separator}*", "read,write";
+    // permission to bind a SocketChannel and ServerSocketChannel in sockets directory
+    permission java.net.NetPermission "unixChannels.client";
+    permission java.net.NetPermission "unixChannels.server";
+    permission java.io.FilePermission "${user.dir}${file.separator}sockets${file.separator}*", "read,write";
 };

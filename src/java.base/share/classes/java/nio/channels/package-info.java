@@ -336,8 +336,8 @@
  *
  * <p><i>Internet protocol</i> channels support network
  * communication using TCP/IP and are addressed using {@link InetSocketAddress}es
- * which encapsulate an IP address and port number. <i>Internet protocol</i> channels 
- * are the default kind created, when a protocol family is not specified 
+ * which encapsulate an IP address and port number. <i>Internet protocol</i> channels
+ * are the default kind created, when a protocol family is not specified
  * in the factory creation method.
  *
  * <p><a id="unixdomain"></a> <i>Unix domain</i> channels
@@ -363,7 +363,8 @@
  * <p>
  * If a Unix domain {@link ServerSocketChannel} is automatically bound by passing a {@code null}
  * address to one of the {@link ServerSocketChannel#bind(SocketAddress) bind} methods, the channel
- * is bound to a unique name in some temporary directory. The name can be obtained by calling
+ * is bound to a unique name in the temporary directory identified by the {@code "java.io.tmpdir"}
+ * system property. The exact pathname can be obtained by calling
  * {@link ServerSocketChannel#getLocalAddress() getLocalAddress} after bind returns.
  * It is an error to bind a {@code ServerSocketChannel} to an unnamed address.
  *
@@ -381,6 +382,17 @@
  * implementation specific, maximum length for the name of a Unix domain channel.
  * This limitation is enforced when a channel is bound. The maximum length is typically
  * close to and generally not less than 100 bytes.
+ *
+ * <p> If a security manager is present then using a <i>Unix Domain</i> SocketChannel;
+ * specifically calling bind or connect, requires a {@link NetPermission NetPermission}
+ * {@code ("unixChannels.client")} together with a {@link FilePermission} with {@code "read,write"}
+ * actions for the path being bound or connected to. Using a <i>Unix Domain</i> ServerSocketChannel;
+ * specifically calling bind or accept requires a {@link NetPermission NetPermission}
+ * {@code ("unixChannels.server")} together with a {@link FilePermission} with {@code "read,write"}
+ * actions for the path being bound or accepted from. A special case for the FilePermission
+ * check is if a ServerSocketChannel binds to {@code null} or if a SocketChannel connects to
+ * the address of a server channel bound to {@code null} then the FilePermission required
+ * uses an empty path. No FilePermission is required to bind a SocketChannel to {@code null}.
  *
  * @since 1.4
  * @author Mark Reinhold

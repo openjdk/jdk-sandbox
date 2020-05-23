@@ -1,16 +1,5 @@
 grant {
-    // permission to bind in server directory
-    permission java.io.FilePermission "${user.dir}${file.separator}server", "write";
-
-    // permission to bind in client1 directory
-    permission java.io.FilePermission "${user.dir}${file.separator}client1", "write";
-
-    // permission to connect to server/sock
-    permission java.io.FilePermission "${user.dir}${file.separator}server${file.separator}sock", "read,write";
-
-    // permission to accept from client1/csock
-    permission java.io.FilePermission "${user.dir}${file.separator}client1${file.separator}csock", "read,write";
-
-    // needed for final test
-    permission java.util.PropertyPermission "java.io.tmpdir", "read";
+    // permission to bind a SocketChannel in sockets directory
+    permission java.net.NetPermission "unixChannels.client" ;
+    permission java.io.FilePermission "${user.dir}${file.separator}sockets${file.separator}*", "read,write";
 };
