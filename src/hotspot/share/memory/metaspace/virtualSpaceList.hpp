@@ -130,6 +130,11 @@ public:
   static void set_vslist_class(VirtualSpaceList* vslist_class);
   static void set_vslist_nonclass(VirtualSpaceList* vslist_class);
 
+  // These exist purely to print limits of the compressed class space;
+  // if we ever change the ccs to not use a degenerated-list-of-one-node this
+  // will go away.
+  MetaWord* base_of_first_node() const { return _first_node != NULL ? _first_node->base() : NULL; }
+  size_t word_size_of_first_node() const { return _first_node != NULL ? _first_node->word_size() : 0; }
 
 };
 
