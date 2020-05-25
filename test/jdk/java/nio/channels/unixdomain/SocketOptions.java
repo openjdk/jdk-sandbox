@@ -63,9 +63,9 @@ public class SocketOptions {
         }
         Files.deleteIfExists(addr.getPath());
         UnixDomainPrincipal p = c.getOption(SO_PEERCRED);
-        String s1 = p.getUser().getName();
+        String s1 = p.user().getName();
         System.out.println(s1);
-        System.out.println(p.getGroup().getName());
+        System.out.println(p.group().getName());
         String s2 = System.getProperty("user.name");
 
         // Check returned user name
@@ -89,7 +89,7 @@ public class SocketOptions {
         c = SocketChannel.open(StandardProtocolFamily.UNIX);
         try {
             p = c.getOption(SO_PEERCRED);
-            System.out.println(p.getUser());
+            System.out.println(p.user());
             throw new RuntimeException("should have thrown SocketException");
         } catch (SocketException e) {}
 
@@ -98,7 +98,7 @@ public class SocketOptions {
         var server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
         try {
             p = server.getOption(SO_PEERCRED);
-            System.out.println(p.getUser());
+            System.out.println(p.user());
             throw new RuntimeException("should have thrown USE");
         } catch (UnsupportedOperationException e) {}
 

@@ -77,7 +77,7 @@ public final class UnixDomainPrincipal {
      * Returns a hashcode calculated from the user and group
      */
     public int hashCode() {
-        return user.hashCode() + group.hashCode();
+        return user.hashCode() ^ group.hashCode();
     }
 
     /**
@@ -85,7 +85,7 @@ public final class UnixDomainPrincipal {
      *
      * @return this object's user
      */
-    public UserPrincipal getUser() {
+    public UserPrincipal user() {
         return user;
     }
 
@@ -94,7 +94,7 @@ public final class UnixDomainPrincipal {
      *
      * @return this object's user
      */
-    public GroupPrincipal getGroup() {
+    public GroupPrincipal group() {
         return group;
     }
 }
