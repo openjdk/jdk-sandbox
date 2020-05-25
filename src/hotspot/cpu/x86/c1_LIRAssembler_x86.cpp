@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -536,29 +536,17 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   // Note: we do not need to round double result; float result has the right precision
   // the poll sets the condition code, but no data registers
 
-  if (SafepointMechanism::uses_thread_local_poll()) {
 #ifdef _LP64
-    const Register poll_addr = rscratch1;
-    __ movptr(poll_addr, Address(r15_thread, Thread::polling_page_offset()));
+  const Register poll_addr = rscratch1;
+  __ movptr(poll_addr, Address(r15_thread, Thread::polling_page_offset()));
 #else
-    const Register poll_addr = rbx;
-    assert(FrameMap::is_caller_save_register(poll_addr), "will overwrite");
-    __ get_thread(poll_addr);
-    __ movptr(poll_addr, Address(poll_addr, Thread::polling_page_offset()));
+  const Register poll_addr = rbx;
+  assert(FrameMap::is_caller_save_register(poll_addr), "will overwrite");
+  __ get_thread(poll_addr);
+  __ movptr(poll_addr, Address(poll_addr, Thread::polling_page_offset()));
 #endif
-    __ relocate(relocInfo::poll_return_type);
-    __ testl(rax, Address(poll_addr, 0));
-  } else {
-    AddressLiteral polling_page(os::get_polling_page(), relocInfo::poll_return_type);
-
-    if (Assembler::is_polling_page_far()) {
-      __ lea(rscratch1, polling_page);
-      __ relocate(relocInfo::poll_return_type);
-      __ testl(rax, Address(rscratch1, 0));
-    } else {
-      __ testl(rax, polling_page);
-    }
-  }
+  __ relocate(relocInfo::poll_return_type);
+  __ testl(rax, Address(poll_addr, 0));
   __ ret(0);
 }
 
@@ -566,35 +554,21 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
   guarantee(info != NULL, "Shouldn't be NULL");
   int offset = __ offset();
-  if (SafepointMechanism::uses_thread_local_poll()) {
 #ifdef _LP64
-    const Register poll_addr = rscratch1;
-    __ movptr(poll_addr, Address(r15_thread, Thread::polling_page_offset()));
+  const Register poll_addr = rscratch1;
+  __ movptr(poll_addr, Address(r15_thread, Thread::polling_page_offset()));
 #else
-    assert(tmp->is_cpu_register(), "needed");
-    const Register poll_addr = tmp->as_register();
-    __ get_thread(poll_addr);
-    __ movptr(poll_addr, Address(poll_addr, in_bytes(Thread::polling_page_offset())));
+  assert(tmp->is_cpu_register(), "needed");
+  const Register poll_addr = tmp->as_register();
+  __ get_thread(poll_addr);
+  __ movptr(poll_addr, Address(poll_addr, in_bytes(Thread::polling_page_offset())));
 #endif
-    add_debug_info_for_branch(info);
-    __ relocate(relocInfo::poll_type);
-    address pre_pc = __ pc();
-    __ testl(rax, Address(poll_addr, 0));
-    address post_pc = __ pc();
-    guarantee(pointer_delta(post_pc, pre_pc, 1) == 2 LP64_ONLY(+1), "must be exact length");
-  } else {
-    AddressLiteral polling_page(os::get_polling_page(), relocInfo::poll_type);
-    if (Assembler::is_polling_page_far()) {
-      __ lea(rscratch1, polling_page);
-      offset = __ offset();
-      add_debug_info_for_branch(info);
-      __ relocate(relocInfo::poll_type);
-      __ testl(rax, Address(rscratch1, 0));
-    } else {
-      add_debug_info_for_branch(info);
-      __ testl(rax, polling_page);
-    }
-  }
+  add_debug_info_for_branch(info);
+  __ relocate(relocInfo::poll_type);
+  address pre_pc = __ pc();
+  __ testl(rax, Address(poll_addr, 0));
+  address post_pc = __ pc();
+  guarantee(pointer_delta(post_pc, pre_pc, 1) == 2 LP64_ONLY(+1), "must be exact length");
   return offset;
 }
 
@@ -1211,6 +1185,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
 
   LIR_Address* addr = src->as_address_ptr();
   Address from_addr = as_Address(addr);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
 
   if (addr->base()->type() == T_OBJECT) {
     __ verify_oop(addr->base()->as_pointer_register());
@@ -1396,7 +1371,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
   } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
 #ifdef _LP64
     if (UseCompressedClassPointers) {
-      __ decode_klass_not_null(dest->as_register());
+      __ decode_klass_not_null(dest->as_register(), tmp_load_klass);
     }
 #endif
   }
@@ -1724,6 +1699,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   Register dst = op->result_opr()->as_register();
   ciKlass* k = op->klass();
   Register Rtmp1 = noreg;
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
 
   // check if it needs to be profiled
   ciMethodData* md = NULL;
@@ -1787,7 +1763,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
     // not a safepoint as obj null check happens earlier
 #ifdef _LP64
     if (UseCompressedClassPointers) {
-      __ load_klass(Rtmp1, obj);
+      __ load_klass(Rtmp1, obj, tmp_load_klass);
       __ cmpptr(k_RInfo, Rtmp1);
     } else {
       __ cmpptr(k_RInfo, Address(obj, oopDesc::klass_offset_in_bytes()));
@@ -1804,7 +1780,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   } else {
     // get object class
     // not a safepoint as obj null check happens earlier
-    __ load_klass(klass_RInfo, obj);
+    __ load_klass(klass_RInfo, obj, tmp_load_klass);
     if (k->is_loaded()) {
       // See if we get an immediate positive hit
 #ifdef _LP64
@@ -1859,7 +1835,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
     Register mdo  = klass_RInfo, recv = k_RInfo;
     __ bind(profile_cast_success);
     __ mov_metadata(mdo, md->constant_encoding());
-    __ load_klass(recv, obj);
+    __ load_klass(recv, obj, tmp_load_klass);
     type_profile_helper(mdo, md, data, recv, success);
     __ jmp(*success);
 
@@ -1874,6 +1850,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
 
 
 void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
   LIR_Code code = op->code();
   if (code == lir_store_check) {
     Register value = op->object()->as_register();
@@ -1919,8 +1896,8 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
     }
 
     add_debug_info_for_null_check_here(op->info_for_exception());
-    __ load_klass(k_RInfo, array);
-    __ load_klass(klass_RInfo, value);
+    __ load_klass(k_RInfo, array, tmp_load_klass);
+    __ load_klass(klass_RInfo, value, tmp_load_klass);
 
     // get instance klass (it's already uncompressed)
     __ movptr(k_RInfo, Address(k_RInfo, ObjArrayKlass::element_klass_offset()));
@@ -1941,7 +1918,7 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
       Register mdo  = klass_RInfo, recv = k_RInfo;
       __ bind(profile_cast_success);
       __ mov_metadata(mdo, md->constant_encoding());
-      __ load_klass(recv, value);
+      __ load_klass(recv, value, tmp_load_klass);
       type_profile_helper(mdo, md, data, recv, &done);
       __ jmpb(done);
 
@@ -3133,6 +3110,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   Register dst_pos = op->dst_pos()->as_register();
   Register length  = op->length()->as_register();
   Register tmp = op->tmp()->as_register();
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
 
   __ resolve(ACCESS_READ, src);
   __ resolve(ACCESS_WRITE, dst);
@@ -3280,13 +3258,13 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   // an instance type.
   if (flags & LIR_OpArrayCopy::type_check) {
     if (!(flags & LIR_OpArrayCopy::dst_objarray)) {
-      __ load_klass(tmp, dst);
+      __ load_klass(tmp, dst, tmp_load_klass);
       __ cmpl(Address(tmp, in_bytes(Klass::layout_helper_offset())), Klass::_lh_neutral_value);
       __ jcc(Assembler::greaterEqual, *stub->entry());
     }
 
     if (!(flags & LIR_OpArrayCopy::src_objarray)) {
-      __ load_klass(tmp, src);
+      __ load_klass(tmp, src, tmp_load_klass);
       __ cmpl(Address(tmp, in_bytes(Klass::layout_helper_offset())), Klass::_lh_neutral_value);
       __ jcc(Assembler::greaterEqual, *stub->entry());
     }
@@ -3343,8 +3321,8 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
       __ push(src);
       __ push(dst);
 
-      __ load_klass(src, src);
-      __ load_klass(dst, dst);
+      __ load_klass(src, src, tmp_load_klass);
+      __ load_klass(dst, dst, tmp_load_klass);
 
       __ check_klass_subtype_fast_path(src, dst, tmp, &cont, &slow, NULL);
 
@@ -3372,9 +3350,9 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
           assert(flags & mask, "one of the two should be known to be an object array");
 
           if (!(flags & LIR_OpArrayCopy::src_objarray)) {
-            __ load_klass(tmp, src);
+            __ load_klass(tmp, src, tmp_load_klass);
           } else if (!(flags & LIR_OpArrayCopy::dst_objarray)) {
-            __ load_klass(tmp, dst);
+            __ load_klass(tmp, dst, tmp_load_klass);
           }
           int lh_offset = in_bytes(Klass::layout_helper_offset());
           Address klass_lh_addr(tmp, lh_offset);
@@ -3418,14 +3396,14 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 #ifdef _WIN64
         // Allocate abi space for args but be sure to keep stack aligned
         __ subptr(rsp, 6*wordSize);
-        __ load_klass(c_rarg3, dst);
+        __ load_klass(c_rarg3, dst, tmp_load_klass);
         __ movptr(c_rarg3, Address(c_rarg3, ObjArrayKlass::element_klass_offset()));
         store_parameter(c_rarg3, 4);
         __ movl(c_rarg3, Address(c_rarg3, Klass::super_check_offset_offset()));
         __ call(RuntimeAddress(copyfunc_addr));
         __ addptr(rsp, 6*wordSize);
 #else
-        __ load_klass(c_rarg4, dst);
+        __ load_klass(c_rarg4, dst, tmp_load_klass);
         __ movptr(c_rarg4, Address(c_rarg4, ObjArrayKlass::element_klass_offset()));
         __ movl(c_rarg3, Address(c_rarg4, Klass::super_check_offset_offset()));
         __ call(RuntimeAddress(copyfunc_addr));
@@ -3490,7 +3468,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ mov_metadata(tmp, default_type->constant_encoding());
 #ifdef _LP64
     if (UseCompressedClassPointers) {
-      __ encode_klass_not_null(tmp);
+      __ encode_klass_not_null(tmp, rscratch1);
     }
 #endif
 
@@ -3595,6 +3573,7 @@ void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
   ciMethod* method = op->profiled_method();
   int bci          = op->profiled_bci();
   ciMethod* callee = op->profiled_callee();
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
 
   // Update counter for all call types
   ciMethodData* md = method->method_data_or_null();
@@ -3647,7 +3626,7 @@ void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
         }
       }
     } else {
-      __ load_klass(recv, recv);
+      __ load_klass(recv, recv, tmp_load_klass);
       Label update_done;
       type_profile_helper(mdo, md, data, recv, &update_done);
       // Receiver did not match any saved receiver and there is no empty row for it.
@@ -3665,6 +3644,7 @@ void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
 void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
   Register obj = op->obj()->as_register();
   Register tmp = op->tmp()->as_pointer_register();
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
   Address mdo_addr = as_Address(op->mdp()->as_address_ptr());
   ciKlass* exact_klass = op->exact_klass();
   intptr_t current_klass = op->current_klass();
@@ -3711,7 +3691,7 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
 #ifdef ASSERT
     if (exact_klass != NULL) {
       Label ok;
-      __ load_klass(tmp, tmp);
+      __ load_klass(tmp, tmp, tmp_load_klass);
       __ push(tmp);
       __ mov_metadata(tmp, exact_klass->constant_encoding());
       __ cmpptr(tmp, Address(rsp, 0));
@@ -3726,7 +3706,7 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
         if (exact_klass != NULL) {
           __ mov_metadata(tmp, exact_klass->constant_encoding());
         } else {
-          __ load_klass(tmp, tmp);
+          __ load_klass(tmp, tmp, tmp_load_klass);
         }
 
         __ xorptr(tmp, mdo_addr);

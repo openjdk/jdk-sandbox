@@ -299,6 +299,7 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
     public final int jvmAccFieldHasGenericSignature = getConstant("JVM_ACC_FIELD_HAS_GENERIC_SIGNATURE", Integer.class);
     public final int jvmAccWrittenFlags = getConstant("JVM_ACC_WRITTEN_FLAGS", Integer.class);
     public final int jvmAccSynthetic = getConstant("JVM_ACC_SYNTHETIC", Integer.class);
+    public final int jvmAccIsHiddenClass = getConstant("JVM_ACC_IS_HIDDEN_CLASS", Integer.class);
 
     public final int jvmciCompileStateCanPostOnExceptionsOffset = getJvmciJvmtiCapabilityOffset("_jvmti_can_post_on_exceptions");
     public final int jvmciCompileStateCanPopFrameOffset = getJvmciJvmtiCapabilityOffset("_jvmti_can_pop_frame");
@@ -413,11 +414,6 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
         return javaThreadAnchorOffset + getFieldOffset("JavaFrameAnchor::_last_Java_fp", Integer.class, "intptr_t*");
     }
 
-    public int threadJavaFrameAnchorFlagsOffset() {
-        assert osArch.equals("sparc");
-        return javaThreadAnchorOffset + getFieldOffset("JavaFrameAnchor::_flags", Integer.class, "int");
-    }
-
     public final int runtimeCallStackSize = getConstant("frame::arg_reg_save_area_bytes", Integer.class, intRequiredOnAMD64);
     public final int frameInterpreterFrameSenderSpOffset = getConstant("frame::interpreter_frame_sender_sp_offset", Integer.class, intRequiredOnAMD64);
     public final int frameInterpreterFrameLastSpOffset = getConstant("frame::interpreter_frame_last_sp_offset", Integer.class, intRequiredOnAMD64);
@@ -522,7 +518,7 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
 
     public final int logOfHRGrainBytes = getFieldValue("HeapRegion::LogOfHRGrainBytes", Integer.class, "int");
 
-    public final long cardtableStartAddress = getFieldValue("CompilerToVM::Data::cardtable_start_address", Long.class, "jbyte*");
+    public final long cardtableStartAddress = getFieldValue("CompilerToVM::Data::cardtable_start_address", Long.class, "CardTable::CardValue*");
     public final int cardtableShift = getFieldValue("CompilerToVM::Data::cardtable_shift", Integer.class, "int");
 
     /**
@@ -550,7 +546,7 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
     public final int basicLockSize = getFieldValue("CompilerToVM::Data::sizeof_BasicLock", Integer.class, "int");
     public final int basicLockDisplacedHeaderOffset = getFieldOffset("BasicLock::_displaced_header", Integer.class, markWord);
 
-    public final int threadPollingPageOffset = getFieldOffset("Thread::_polling_page", Integer.class, "address", -1);
+    public final int threadPollingPageOffset = getFieldOffset("Thread::_polling_page", Integer.class, "volatile void*", -1);
     public final int threadAllocatedBytesOffset = getFieldOffset("Thread::_allocated_bytes", Integer.class, "jlong");
 
     public final int tlabRefillWasteIncrement = getFlag("TLABWasteIncrement", Integer.class);

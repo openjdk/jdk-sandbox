@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,8 +37,8 @@
  * @library ../../../java/security/testlibrary
  * @library ../../../javax/net/ssl/TLSCommon
  * @modules jdk.crypto.cryptoki/sun.security.pkcs11.wrapper
- * @run main/othervm -Djdk.tls.namedGroups="secp256r1,sect193r1" TestEC
- * @run main/othervm/java.security.policy=TestEC.policy -Djdk.tls.namedGroups="secp256r1,sect193r1" TestEC
+ * @run main/othervm -Djdk.tls.namedGroups="secp256r1,sect193r1" -Djdk.sunec.disableNative=false TestEC
+ * @run main/othervm -Djava.security.policy=TestEC.policy -Djdk.tls.namedGroups="secp256r1,sect193r1" -Djdk.sunec.disableNative=false TestEC
  */
 
 import java.security.NoSuchProviderException;
@@ -107,10 +107,6 @@ public class TestEC {
         new ReadPKCS12().main(p);
         new ReadCertificates().main(p);
 
-        // ClientJSSEServerJSSE fails on Solaris 11 when both SunEC and
-        // SunPKCS11-Solaris providers are enabled.
-        // Workaround:
-        // Security.removeProvider("SunPKCS11-Solaris");
         new ClientJSSEServerJSSE().main(p);
 
         long stop = System.currentTimeMillis();

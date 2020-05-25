@@ -580,7 +580,6 @@ void AOTCodeHeap::link_global_lib_symbols() {
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_card_table_address", address, (BarrierSet::barrier_set()->is_a(BarrierSet::CardTableBarrierSet) ? ci_card_table_address() : NULL));
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_heap_top_address", address, (heap->supports_inline_contig_alloc() ? heap->top_addr() : NULL));
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_heap_end_address", address, (heap->supports_inline_contig_alloc() ? heap->end_addr() : NULL));
-    SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_polling_page", address, os::get_polling_page());
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_narrow_klass_base_address", address, CompressedKlassPointers::base());
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_narrow_oop_base_address", address, CompressedOops::base());
 #if INCLUDE_G1GC
@@ -1050,7 +1049,7 @@ bool AOTCodeHeap::reconcile_dynamic_klass(AOTCompiledMethod *caller, InstanceKla
 
   InstanceKlass* dyno = InstanceKlass::cast(dyno_klass);
 
-  if (!dyno->is_unsafe_anonymous()) {
+  if (!dyno->is_hidden() && !dyno->is_unsafe_anonymous()) {
     if (_klasses_got[dyno_data->_got_index] != dyno) {
       // compile-time class different from runtime class, fail and deoptimize
       sweep_dependent_methods(holder_data);

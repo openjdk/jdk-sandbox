@@ -50,7 +50,6 @@
 #define  FloatToFTFixed(f) (FT_Fixed)((f) * (float)(ftFixed1))
 #define  FTFixedToFloat(x) ((x) / (float)(ftFixed1))
 #define  FT26Dot6ToFloat(x)  ((x) / ((float) (1<<6)))
-#define  FT26Dot6ToInt(x) (((int)(x)) >> 6)
 
 typedef struct {
     /* Important note:
@@ -266,7 +265,7 @@ static void setInterpreterVersion(FT_Library library) {
     const char* property = "interpreter-version";
 
     /* If some one is setting this, don't override it */
-    if (props != NULL && strstr(property, props)) {
+    if (props != NULL && strstr(props, property)) {
         return;
     }
     /*
@@ -295,6 +294,71 @@ static void setInterpreterVersion(FT_Library library) {
     dlclose(lib);
 #endif
 }
+
+/*
+ * FT_GlyphSlot_Embolden (ftsynth.c) uses FT_MulFix(upem, y_scale) / 24
+ * I prefer something a little less bold, so using 32 instead of 24.
+ */
+#define BOLD_DIVISOR (32)
+#define BOLD_FACTOR(units_per_EM, y_scale) \
+    ((FT_MulFix(units_per_EM, y_scale) / BOLD_DIVISOR ))
+
+#define BOLD_MODIFIER(units_per_EM, y_scale) \
+    (context->doBold ? BOLD_FACTOR(units_per_EM, y_scale) : 0)
+
+static void GlyphSlot_Embolden(FT_GlyphSlot slot, FT_Matrix transform) {
+    FT_Pos extra = 0;
+
+    /*
+     * Does it make sense to embolden an empty image, such as SPACE ?
+     * We'll say no. A fixed width font might be the one case, but
+     * nothing in freetype made provision for this. And freetype would also
+     * have adjusted the metrics of zero advance glyphs (we won't, see below).
+     */
+    if (!slot ||
+        slot->format != FT_GLYPH_FORMAT_OUTLINE ||
+        slot->metrics.width == 0 ||
+        slot->metrics.height == 0)
+    {
+        return;
+    }
+
+    extra = BOLD_FACTOR(slot->face->units_per_EM,
+                        slot->face->size->metrics.y_scale);
+
+    /*
+     * It should not matter that the outline is rotated already,
+     * since we are applying the strength equally in X and Y.
+     * If that changes, then it might.
+     */
+    FT_Outline_Embolden(&slot->outline, extra);
+    slot->metrics.width        += extra;
+    slot->metrics.height       += extra;
+
+    // Some glyphs are meant to be used as marks or diacritics, so
+    // have a shape but do not have an advance.
+    // Let's not adjust the metrics of any glyph that is zero advance.
+    if (slot->linearHoriAdvance == 0) {
+        return;
+    }
+
+    if (slot->advance.x) {
+        slot->advance.x += FT_MulFix(extra, transform.xx);
+    }
+
+    if (slot->advance.y) {
+        slot->advance.y += FT_MulFix(extra, transform.yx);
+    }
+
+    // The following need to be adjusted but no rotation
+    // linear advance is in 16.16 format, extra is 26.6
+    slot->linearHoriAdvance    += extra << 10;
+    // these are pixel values stored in 26.6 format.
+    slot->metrics.horiAdvance  += extra;
+    slot->metrics.vertAdvance  += extra;
+    slot->metrics.horiBearingY += extra;
+}
+
 
 /*
  * Class:     sun_font_FreetypeFontScaler
@@ -522,13 +586,6 @@ static int setupFTContext(JNIEnv *env,
 
 // using same values as for the transformation matrix
 #define OBLIQUE_MODIFIER(y)  (context->doItalize ? ((y)*FT_MATRIX_OBLIQUE_XY/FT_MATRIX_ONE) : 0)
-
-/* FT_GlyphSlot_Embolden (ftsynth.c) uses FT_MulFix(units_per_EM, y_scale) / 24
- * strength value when glyph format is FT_GLYPH_FORMAT_OUTLINE. This value has
- * been taken from libfreetype version 2.6 and remain valid at least up to
- * 2.9.1. */
-#define BOLD_MODIFIER(units_per_EM, y_scale) \
-    (context->doBold ? FT_MulFix(units_per_EM, y_scale) / 24 : 0)
 
 /*
  * Class:     sun_font_FreetypeFontScaler
@@ -836,8 +893,9 @@ static jlong
         jlong pScalerContext, jlong pScaler, jint glyphCode,
         jboolean renderImage) {
 
+    static int PADBYTES = 3;
     int error, imageSize;
-    UInt16 width, height;
+    UInt16 width, height, rowBytes;
     GlyphInfo *glyphInfo;
     int renderFlags = FT_LOAD_DEFAULT, target;
     FT_GlyphSlot ftglyph;
@@ -901,7 +959,7 @@ static jlong
 
     /* apply styles */
     if (context->doBold) { /* if bold style */
-        FT_GlyphSlot_Embolden(ftglyph);
+        GlyphSlot_Embolden(ftglyph, context->transform);
     }
 
     /* generate bitmap if it is not done yet
@@ -923,6 +981,10 @@ static jlong
 
     if (renderImage) {
         width  = (UInt16) ftglyph->bitmap.width;
+        rowBytes = width;
+        if (ftglyph->bitmap.pixel_mode == FT_PIXEL_MODE_LCD) {
+           rowBytes = PADBYTES + width + PADBYTES;
+        }
         height = (UInt16) ftglyph->bitmap.rows;
             if (width > MAX_GLYPH_DIM || height > MAX_GLYPH_DIM) {
               glyphInfo = getNullGlyphImage();
@@ -930,19 +992,20 @@ static jlong
             }
      } else {
         width = 0;
+        rowBytes = 0;
         height = 0;
      }
 
 
-    imageSize = width*height;
-    glyphInfo = (GlyphInfo*) malloc(sizeof(GlyphInfo) + imageSize);
+    imageSize = rowBytes*height;
+    glyphInfo = (GlyphInfo*) calloc(sizeof(GlyphInfo) + imageSize, 1);
     if (glyphInfo == NULL) {
         glyphInfo = getNullGlyphImage();
         return ptr_to_jlong(glyphInfo);
     }
     glyphInfo->cellInfo  = NULL;
     glyphInfo->managed   = UNMANAGED_GLYPH;
-    glyphInfo->rowBytes  = width;
+    glyphInfo->rowBytes  = rowBytes;
     glyphInfo->width     = width;
     glyphInfo->height    = height;
 
@@ -950,8 +1013,10 @@ static jlong
         glyphInfo->topLeftX  = (float)  ftglyph->bitmap_left;
         glyphInfo->topLeftY  = (float) -ftglyph->bitmap_top;
 
-        if (ftglyph->bitmap.pixel_mode ==  FT_PIXEL_MODE_LCD) {
+        if (ftglyph->bitmap.pixel_mode ==  FT_PIXEL_MODE_LCD && width > 0) {
             glyphInfo->width = width/3;
+            glyphInfo->topLeftX -= 1;
+            glyphInfo->width += 1;
         } else if (ftglyph->bitmap.pixel_mode ==  FT_PIXEL_MODE_LCD_V) {
             glyphInfo->height = glyphInfo->height/3;
         }
@@ -965,13 +1030,11 @@ static jlong
             (float) - (advh * FTFixedToFloat(context->transform.yx));
     } else {
         if (!ftglyph->advance.y) {
-            glyphInfo->advanceX =
-                (float) FT26Dot6ToInt(ftglyph->advance.x);
+            glyphInfo->advanceX = FT26Dot6ToFloat(ftglyph->advance.x);
             glyphInfo->advanceY = 0;
         } else if (!ftglyph->advance.x) {
             glyphInfo->advanceX = 0;
-            glyphInfo->advanceY =
-                (float) FT26Dot6ToInt(-ftglyph->advance.y);
+            glyphInfo->advanceY = FT26Dot6ToFloat(-ftglyph->advance.y);
         } else {
             glyphInfo->advanceX = FT26Dot6ToFloat(ftglyph->advance.x);
             glyphInfo->advanceY = FT26Dot6ToFloat(-ftglyph->advance.y);
@@ -1008,8 +1071,8 @@ static jlong
             /* 3 bytes per pixel to 3 bytes per pixel */
             CopyFTSubpixelToSubpixel(ftglyph->bitmap.buffer,
                                      ftglyph->bitmap.pitch,
-                                     (void *) glyphInfo->image,
-                                     width,
+                                     (void *) (glyphInfo->image+PADBYTES),
+                                     rowBytes,
                                      width,
                                      height);
         } else if (ftglyph->bitmap.pixel_mode ==  FT_PIXEL_MODE_LCD_V) {
@@ -1145,7 +1208,7 @@ static FT_Outline* getFTOutline(JNIEnv* env, jobject font2D,
 
     /* apply styles */
     if (context->doBold) { /* if bold style */
-        FT_GlyphSlot_Embolden(ftglyph);
+        GlyphSlot_Embolden(ftglyph, context->transform);
     }
 
     FT_Outline_Translate(&ftglyph->outline,

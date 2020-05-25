@@ -817,7 +817,7 @@ public class JavacParser implements Parser {
     JCExpression term() {
         JCExpression t = term1();
         if ((mode & EXPR) != 0 &&
-            token.kind == EQ || PLUSEQ.compareTo(token.kind) <= 0 && token.kind.compareTo(GTGTGTEQ) <= 0)
+            (token.kind == EQ || PLUSEQ.compareTo(token.kind) <= 0 && token.kind.compareTo(GTGTGTEQ) <= 0))
             return termRest(t);
         else
             return t;
@@ -2573,7 +2573,9 @@ public class JavacParser implements Parser {
             dc = token.comment(CommentStyle.JAVADOC);
             return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
         case ENUM:
-            log.error(DiagnosticFlag.SYNTAX, token.pos, Errors.LocalEnum);
+            if (!allowRecords) {
+                log.error(DiagnosticFlag.SYNTAX, token.pos, Errors.LocalEnum);
+            }
             dc = token.comment(CommentStyle.JAVADOC);
             return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
         case IDENTIFIER:
@@ -2582,7 +2584,7 @@ public class JavacParser implements Parser {
                 boolean isYieldStatement;
                 switch (next.kind) {
                     case PLUS: case SUB: case STRINGLITERAL: case CHARLITERAL:
-                    case INTLITERAL: case FLOATLITERAL: case DOUBLELITERAL:
+                    case INTLITERAL: case LONGLITERAL: case FLOATLITERAL: case DOUBLELITERAL:
                     case NULL: case IDENTIFIER: case TRUE: case FALSE:
                     case NEW: case SWITCH: case THIS: case SUPER:
                         isYieldStatement = true;
@@ -3262,7 +3264,7 @@ public class JavacParser implements Parser {
         int startPos = Position.NOPOS;
         if (elemType.hasTag(IDENT)) {
             Name typeName = ((JCIdent)elemType).name;
-            if (isRestrictedTypeName(typeName, pos, !compound && localDecl)) {
+            if (restrictedTypeNameStartingAtSource(typeName, pos, !compound && localDecl) != null) {
                 if (type.hasTag(TYPEARRAY) && !compound) {
                     //error - 'var' and arrays
                     reportSyntaxError(pos, Errors.RestrictedTypeNotAllowedArray(typeName));
@@ -3288,7 +3290,7 @@ public class JavacParser implements Parser {
     Name restrictedTypeName(JCExpression e, boolean shouldWarn) {
         switch (e.getTag()) {
             case IDENT:
-                return isRestrictedTypeName(((JCIdent)e).name, e.pos, shouldWarn) ? ((JCIdent)e).name : null;
+                return restrictedTypeNameStartingAtSource(((JCIdent)e).name, e.pos, shouldWarn) != null ? ((JCIdent)e).name : null;
             case TYPEARRAY:
                 return restrictedTypeName(((JCArrayTypeTree)e).elemtype, shouldWarn);
             default:
@@ -3296,29 +3298,29 @@ public class JavacParser implements Parser {
         }
     }
 
-    boolean isRestrictedTypeName(Name name, int pos, boolean shouldWarn) {
+    Source restrictedTypeNameStartingAtSource(Name name, int pos, boolean shouldWarn) {
         if (name == names.var) {
             if (Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source)) {
-                return true;
+                return Source.JDK10;
             } else if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowed(name, Source.JDK10));
             }
         }
         if (name == names.yield) {
             if (allowYieldStatement) {
-                return true;
+                return Source.JDK14;
             } else if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowed(name, Source.JDK14));
             }
         }
         if (name == names.record) {
             if (allowRecords) {
-                return true;
+                return Source.JDK14;
             } else if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK14));
             }
         }
-        return false;
+        return null;
     }
 
     /** VariableDeclaratorId = Ident BracketsOpt
@@ -3766,8 +3768,9 @@ public class JavacParser implements Parser {
     Name typeName() {
         int pos = token.pos;
         Name name = ident();
-        if (isRestrictedTypeName(name, pos, true)) {
-            reportSyntaxError(pos, Errors.RestrictedTypeNotAllowed(name, name == names.var ? Source.JDK10 : Source.JDK13));
+        Source source = restrictedTypeNameStartingAtSource(name, pos, true);
+        if (source != null) {
+            reportSyntaxError(pos, Errors.RestrictedTypeNotAllowed(name, source));
         }
         return name;
     }
@@ -3894,7 +3897,10 @@ public class JavacParser implements Parser {
     }
 
     private EnumeratorEstimate estimateEnumeratorOrMember(Name enumName) {
-        if (token.kind == TokenKind.IDENTIFIER && token.name() != enumName) {
+        // if we are seeing a record declaration inside of an enum we want the same error message as expected for a
+        // let's say an interface declaration inside an enum
+        if (token.kind == TokenKind.IDENTIFIER && token.name() != enumName &&
+                (!allowRecords || !isRecordStart())) {
             Token next = S.token(1);
             switch (next.kind) {
                 case LPAREN: case LBRACE: case COMMA: case SEMI:
@@ -3903,6 +3909,11 @@ public class JavacParser implements Parser {
         }
         switch (token.kind) {
             case IDENTIFIER: case MONKEYS_AT: case LT:
+                if (token.kind == IDENTIFIER) {
+                    if (allowRecords && isRecordStart()) {
+                        return EnumeratorEstimate.MEMBER;
+                    }
+                }
                 return EnumeratorEstimate.UNKNOWN;
             default:
                 return EnumeratorEstimate.MEMBER;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,6 +67,7 @@
 #include "classTrack.h"
 #include "commonRef.h"
 #include "debugLoop.h"
+#include "signature.h"
 
 static HandlerID requestIdCounter;
 static jbyte currentSessionID;
@@ -1625,6 +1626,9 @@ installHandler(HandlerNode *node,
 
     node->handlerID = external? ++requestIdCounter : 0;
     error = eventFilterRestricted_install(node);
+    if (node->ei == EI_GC_FINISH) {
+        classTrack_activate(getEnv());
+    }
     if (error == JVMTI_ERROR_NONE) {
         insert(getHandlerChain(node->ei), node);
     }

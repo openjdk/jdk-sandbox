@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -168,86 +168,25 @@ void OopMap::set_derived_oop(VMReg reg, VMReg derived_from_local_register ) {
 
 // OopMapSet
 
-OopMapSet::OopMapSet() {
-  set_om_size(MinOopMapAllocation);
-  set_om_count(0);
-  OopMap** temp = NEW_RESOURCE_ARRAY(OopMap*, om_size());
-  set_om_data(temp);
-}
-
-
-void OopMapSet::grow_om_data() {
-  int new_size = om_size() * 2;
-  OopMap** new_data = NEW_RESOURCE_ARRAY(OopMap*, new_size);
-  memcpy(new_data,om_data(),om_size() * sizeof(OopMap*));
-  set_om_size(new_size);
-  set_om_data(new_data);
-}
+OopMapSet::OopMapSet() : _list(MinOopMapAllocation) {}
 
 void OopMapSet::add_gc_map(int pc_offset, OopMap *map ) {
-  assert(om_size() != -1,"Cannot grow a fixed OopMapSet");
-
-  if(om_count() >= om_size()) {
-    grow_om_data();
-  }
   map->set_offset(pc_offset);
 
 #ifdef ASSERT
-  if(om_count() > 0) {
-    OopMap* last = at(om_count()-1);
+  if(_list.length() > 0) {
+    OopMap* last = _list.last();
     if (last->offset() == map->offset() ) {
       fatal("OopMap inserted twice");
     }
-    if(last->offset() > map->offset()) {
+    if (last->offset() > map->offset()) {
       tty->print_cr( "WARNING, maps not sorted: pc[%d]=%d, pc[%d]=%d",
-                      om_count(),last->offset(),om_count()+1,map->offset());
+                      _list.length(),last->offset(),_list.length()+1,map->offset());
     }
   }
 #endif // ASSERT
 
-  set(om_count(),map);
-  increment_count();
-}
-
-
-int OopMapSet::heap_size() const {
-  // The space we use
-  int size = sizeof(OopMap);
-  int align = sizeof(void *) - 1;
-  size = ((size+align) & ~align);
-  size += om_count() * sizeof(OopMap*);
-
-  // Now add in the space needed for the indivdiual OopMaps
-  for(int i=0; i < om_count(); i++) {
-    size += at(i)->heap_size();
-  }
-  // We don't need to align this, it will be naturally pointer aligned
-  return size;
-}
-
-
-OopMap* OopMapSet::singular_oop_map() {
-  guarantee(om_count() == 1, "Make sure we only have a single gc point");
-  return at(0);
-}
-
-
-OopMap* OopMapSet::find_map_at_offset(int pc_offset) const {
-  int i, len = om_count();
-  assert( len > 0, "must have pointer maps" );
-
-  // Scan through oopmaps. Stop when current offset is either equal or greater
-  // than the one we are looking for.
-  for( i = 0; i < len; i++) {
-    if( at(i)->offset() >= pc_offset )
-      break;
-  }
-
-  assert( i < len, "oopmap not found" );
-
-  OopMap* m = at(i);
-  assert( m->offset() == pc_offset, "oopmap not found" );
-  return m;
+  add(map);
 }
 
 static void add_derived_oop(oop* base, oop* derived) {
@@ -302,7 +241,6 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
 
   NOT_PRODUCT(if (TraceCodeBlobStacks) trace_codeblob_maps(fr, reg_map);)
 
-  const ImmutableOopMapSet* maps = cb->oop_maps();
   const ImmutableOopMap* map = cb->oop_map_for_return_address(fr->pc());
   assert(map != NULL, "no ptr map found");
 
@@ -377,8 +315,7 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
         narrowOop *nl = (narrowOop*)loc;
 #ifndef VM_LITTLE_ENDIAN
         VMReg vmReg = omv.reg();
-        // Don't do this on SPARC float registers as they can be individually addressed
-        if (!vmReg->is_stack() SPARC_ONLY(&& !vmReg->is_FloatRegister())) {
+        if (!vmReg->is_stack()) {
           // compressed oops in registers only take up 4 bytes of an
           // 8 byte register but they are in the wrong part of the
           // word so adjust loc to point at the right place.
@@ -516,7 +453,7 @@ void ImmutableOopMapSet::print_on(outputStream* st) const {
 void ImmutableOopMapSet::print() const { print_on(tty); }
 
 void OopMapSet::print_on(outputStream* st) const {
-  const int len = om_count();
+  const int len = _list.length();
 
   st->print_cr("OopMapSet contains %d OopMaps", len);
 

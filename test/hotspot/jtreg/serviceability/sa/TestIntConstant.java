@@ -33,7 +33,7 @@ import jtreg.SkippedException;
  * @test
  * @summary Test the 'intConstant' command of jhsdb clhsdb.
  * @bug 8190307
- * @requires vm.hasSAandCanAttach
+ * @requires vm.hasSA
  * @library /test/lib
  * @build jdk.test.lib.apps.*
  * @run main/othervm TestIntConstant
@@ -66,7 +66,7 @@ public class TestIntConstant {
                  "CollectedHeap::G1 3",
                  "RUNNABLE 2",
                  "Deoptimization::Reason_class_check 4",
-                 "InstanceKlass::_misc_is_unsafe_anonymous 32",
+                 "InstanceKlass::_misc_is_unsafe_anonymous 8",
                  "_thread_uninitialized 0"));
             expStrMap.put("intConstant _temp_constant", List.of(
                  "intConstant _temp_constant 45"));

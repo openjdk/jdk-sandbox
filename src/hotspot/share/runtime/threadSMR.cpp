@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,9 @@
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/resourceHash.hpp"
 #include "utilities/vmError.hpp"
+
+// List of exiting threads
+ThreadsSMRSupport::Holder* ThreadsSMRSupport::_exiting_threads = NULL;
 
 // The '_cnt', '_max' and '_times" fields are enabled via
 // -XX:+EnableThreadSMRStatistics:
@@ -923,10 +926,14 @@ void ThreadsSMRSupport::release_stable_list_wake_up(bool is_nested) {
 }
 
 void ThreadsSMRSupport::remove_thread(JavaThread *thread) {
+
+  ThreadsSMRSupport::add_exiting_thread(thread);
+
   if (ThreadIdTable::is_initialized()) {
     jlong tid = SharedRuntime::get_java_tid(thread);
     ThreadIdTable::remove_thread(tid);
   }
+
   ThreadsList *new_list = ThreadsList::remove_thread(ThreadsSMRSupport::get_java_thread_list(), thread);
   if (EnableThreadSMRStatistics) {
     ThreadsSMRSupport::inc_java_thread_list_alloc_cnt();
@@ -950,13 +957,29 @@ void ThreadsSMRSupport::set_delete_notify() {
 // ThreadsListHandle.
 //
 void ThreadsSMRSupport::smr_delete(JavaThread *thread) {
-  assert(!Threads_lock->owned_by_self(), "sanity");
-
-  bool has_logged_once = false;
   elapsedTimer timer;
   if (EnableThreadSMRStatistics) {
     timer.start();
   }
+
+  wait_until_not_protected(thread);
+
+  delete thread;
+  if (EnableThreadSMRStatistics) {
+    timer.stop();
+    uint millis = (uint)timer.milliseconds();
+    ThreadsSMRSupport::inc_deleted_thread_cnt();
+    ThreadsSMRSupport::add_deleted_thread_times(millis);
+    ThreadsSMRSupport::update_deleted_thread_time_max(millis);
+  }
+
+  log_debug(thread, smr)("tid=" UINTX_FORMAT ": ThreadsSMRSupport::smr_delete: thread=" INTPTR_FORMAT " is deleted.", os::current_thread_id(), p2i(thread));
+}
+
+void ThreadsSMRSupport::wait_until_not_protected(JavaThread *thread) {
+  assert(!Threads_lock->owned_by_self(), "sanity");
+
+  bool has_logged_once = false;
 
   while (true) {
     {
@@ -975,18 +998,19 @@ void ThreadsSMRSupport::smr_delete(JavaThread *thread) {
         // This is the common case.
         ThreadsSMRSupport::clear_delete_notify();
         ThreadsSMRSupport::delete_lock()->unlock();
+        ThreadsSMRSupport::remove_exiting_thread(thread);
         break;
       }
       if (!has_logged_once) {
         has_logged_once = true;
-        log_debug(thread, smr)("tid=" UINTX_FORMAT ": ThreadsSMRSupport::smr_delete: thread=" INTPTR_FORMAT " is not deleted.", os::current_thread_id(), p2i(thread));
+        log_debug(thread, smr)("tid=" UINTX_FORMAT ": ThreadsSMRSupport::wait_until_not_protected: thread=" INTPTR_FORMAT " is not deleted.", os::current_thread_id(), p2i(thread));
         if (log_is_enabled(Debug, os, thread)) {
           ScanHazardPtrPrintMatchingThreadsClosure scan_cl(thread);
           threads_do(&scan_cl);
           ThreadsList* current = _to_delete_list;
           while (current != NULL) {
             if (current->_nested_handle_cnt != 0 && current->includes(thread)) {
-              log_debug(thread, smr)("tid=" UINTX_FORMAT ": ThreadsSMRSupport::smr_delete: found nested hazard pointer to thread=" INTPTR_FORMAT, os::current_thread_id(), p2i(thread));
+              log_debug(thread, smr)("tid=" UINTX_FORMAT ": ThreadsSMRSupport::wait_until_not_protected: found nested hazard pointer to thread=" INTPTR_FORMAT, os::current_thread_id(), p2i(thread));
             }
             current = current->next_list();
           }
@@ -1012,17 +1036,6 @@ void ThreadsSMRSupport::smr_delete(JavaThread *thread) {
     ThreadsSMRSupport::delete_lock()->unlock();
     // Retry the whole scenario.
   }
-
-  delete thread;
-  if (EnableThreadSMRStatistics) {
-    timer.stop();
-    uint millis = (uint)timer.milliseconds();
-    ThreadsSMRSupport::inc_deleted_thread_cnt();
-    ThreadsSMRSupport::add_deleted_thread_times(millis);
-    ThreadsSMRSupport::update_deleted_thread_time_max(millis);
-  }
-
-  log_debug(thread, smr)("tid=" UINTX_FORMAT ": ThreadsSMRSupport::smr_delete: thread=" INTPTR_FORMAT " is deleted.", os::current_thread_id(), p2i(thread));
 }
 
 // Apply the closure to all threads in the system, with a snapshot of
@@ -1173,5 +1186,49 @@ void ThreadsSMRSupport::print_info_elements_on(outputStream* st, ThreadsList* t_
       st->cr();
     }
     cnt++;
+  }
+}
+
+void ThreadsSMRSupport::add_exiting_thread(JavaThread* thread) {
+  assert(thread == JavaThread::current(), "invariant");
+  assert(Threads_lock->owned_by_self(), "invariant");
+  assert(!contains_exiting_thread(thread), "invariant");
+  Holder* h = new Holder(thread, _exiting_threads);
+  _exiting_threads = h;
+}
+
+void ThreadsSMRSupport::remove_exiting_thread(JavaThread* thread) {
+  assert(thread == JavaThread::current(), "invariant");
+  assert(Threads_lock->owned_by_self(), "invariant");
+  // If a thread fails to initialize fully it can be deleted immediately
+  // so we won't remove it from the ThreadsList and so never add it to the
+  // exiting thread list - so we can't assert(contains_exiting_thread(p)) here.
+
+  for (Holder* current = _exiting_threads, **prev_next = &_exiting_threads;
+       current != NULL;
+       prev_next = &current->_next, current = current->_next) {
+    if (current->_thread == thread) {
+      *prev_next = current->_next;
+      delete current;
+      break;
+    }
+  }
+}
+
+#ifdef ASSERT
+bool ThreadsSMRSupport::contains_exiting_thread(JavaThread* thread) {
+  for (Holder* current = _exiting_threads; current != NULL; current = current->_next) {
+    if (current->_thread == thread) {
+      return true;
+    }
+  }
+  return false;
+}
+#endif
+
+void ThreadsSMRSupport::exiting_threads_oops_do(OopClosure* f) {
+  assert_locked_or_safepoint(Threads_lock);
+  for (Holder* current = _exiting_threads; current != NULL; current = current->_next) {
+    f->do_oop((oop*) &current->_thread->_threadObj);
   }
 }

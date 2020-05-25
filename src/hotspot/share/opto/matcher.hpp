@@ -121,17 +121,13 @@ private:
   bool find_shared_visit(MStack& mstack, Node* n, uint opcode, bool& mem_op, int& mem_addr_idx);
   void find_shared_post_visit(Node* n, uint opcode);
 
-#ifdef X86
-  bool is_bmi_pattern(Node *n, Node *m);
-#endif
-
   bool is_vshift_con_pattern(Node *n, Node *m);
 
   // Debug and profile information for nodes in old space:
   GrowableArray<Node_Notes*>* _old_node_note_array;
 
   // Node labeling iterator for instruction selection
-  Node *Label_Root( const Node *n, State *svec, Node *control, const Node *mem );
+  Node* Label_Root(const Node* n, State* svec, Node* control, Node*& mem);
 
   Node *transform( Node *dummy );
 
@@ -340,7 +336,6 @@ public:
 
   // Vector ideal reg
   static const uint vector_ideal_reg(int len);
-  static const uint vector_shift_count_ideal_reg(int len);
 
   // CPU supports misaligned vectors store/load.
   static const bool misaligned_vectors_ok();
@@ -452,10 +447,15 @@ public:
   // Some hardware have expensive CMOV for float and double.
   static const int float_cmove_cost();
 
+  // Should the input 'm' of node 'n' be cloned during matching?
+  // Reports back whether the node was cloned or not.
+  bool    clone_node(Node* n, Node* m, Matcher::MStack& mstack);
+  bool pd_clone_node(Node* n, Node* m, Matcher::MStack& mstack);
+
   // Should the Matcher clone shifts on addressing modes, expecting them to
   // be subsumed into complex addressing expressions or compute them into
   // registers?  True for Intel but false for most RISCs
-  bool clone_address_expressions(AddPNode* m, MStack& mstack, VectorSet& address_visited);
+  bool pd_clone_address_expressions(AddPNode* m, MStack& mstack, VectorSet& address_visited);
   // Clone base + offset address expression
   bool clone_base_plus_offset_address(AddPNode* m, MStack& mstack, VectorSet& address_visited);
 
@@ -519,10 +519,8 @@ public:
   void specialize_mach_node(MachNode* m);
   void specialize_temp_node(MachTempNode* tmp, MachNode* use, uint idx);
   MachOper* specialize_vector_operand(MachNode* m, uint opnd_idx);
-  MachOper* specialize_vector_operand_helper(MachNode* m, uint opnd_idx, const TypeVect* vt);
 
-  static MachOper* specialize_generic_vector_operand(MachOper* generic_opnd, uint ideal_reg, bool is_temp);
-
+  static MachOper* pd_specialize_generic_vector_operand(MachOper* generic_opnd, uint ideal_reg, bool is_temp);
   static bool is_generic_reg2reg_move(MachNode* m);
   static bool is_generic_vector(MachOper* opnd);
 

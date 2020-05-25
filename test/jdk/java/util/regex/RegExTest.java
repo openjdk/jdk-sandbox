@@ -36,6 +36,7 @@
  * 8151481 4867170 7080302 6728861 6995635 6736245 4916384 6328855 6192895
  * 6345469 6988218 6693451 7006761 8140212 8143282 8158482 8176029 8184706
  * 8194667 8197462 8184692 8221431 8224789 8228352 8230829 8236034 8235812
+ * 8216332 8214245 8237599 8241055
  *
  * @library /test/lib
  * @library /lib/testlibrary/java/lang
@@ -55,6 +56,8 @@ import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.nio.CharBuffer;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -68,6 +71,8 @@ import java.util.regex.Matcher;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Stream;
+
 import jdk.test.lib.RandomFactory;
 
 /**
@@ -189,6 +194,8 @@ public class RegExTest {
         illegalRepetitionRange();
         surrogatePairWithCanonEq();
         lineBreakWithQuantifier();
+        caseInsensitivePMatch();
+        surrogatePairOverlapRegion();
 
         if (failure) {
             throw new
@@ -4790,9 +4797,14 @@ public class RegExTest {
     }
 
     private static void grapheme() throws Exception {
-        Files.lines(UCDFiles.GRAPHEME_BREAK_TEST)
-            .filter( ln -> ln.length() != 0 && !ln.startsWith("#") )
+        final int[] lineNumber = new int[1];
+        Stream.concat(Files.lines(UCDFiles.GRAPHEME_BREAK_TEST),
+                Files.lines(Paths.get(System.getProperty("test.src", "."), "GraphemeTestCases.txt")))
             .forEach( ln -> {
+                    lineNumber[0]++;
+                    if (ln.length() == 0 || ln.startsWith("#")) {
+                        return;
+                    }
                     ln = ln.replaceAll("\\s+|\\([a-zA-Z]+\\)|\\[[a-zA-Z]]+\\]|#.*", "");
                     // System.out.println(str);
                     String[] strs = ln.split("\u00f7|\u00d7");
@@ -4813,22 +4825,69 @@ public class RegExTest {
                         }
                     }
                     Pattern p = Pattern.compile("\\X");
+                    // (1) test \X directly
                     Matcher m = p.matcher(src.toString());
-                    Scanner s = new Scanner(src.toString()).useDelimiter("\\b{g}");
                     for (String g : graphemes) {
                         // System.out.printf("     grapheme:=[%s]%n", g);
-                        // (1) test \\X directly
-                        if (!m.find() || !m.group().equals(g)) {
-                            System.out.println("Failed \\X [" + ln + "] : " + g);
+                        String group = null;
+                        if (!m.find() || !(group = m.group()).equals(g)) {
+                            System.out.println("Failed pattern \\X [" + ln + "] : "
+                                    + "expected: " + g + " - actual: " + group
+                                    + "(line " + lineNumber[0] + ")");
                             failCount++;
                         }
-                        // (2) test \\b{g} + \\X  via Scanner
-                        boolean hasNext = s.hasNext(p);
-                        // if (!s.hasNext() || !s.next().equals(next)) {
-                        if (!s.hasNext(p) || !s.next(p).equals(g)) {
-                            System.out.println("Failed b{g} [" + ln + "] : " + g);
+                    }
+                    if (m.find()) {
+                        failCount++;
+                    }
+                    // test \b{g} without \X via Pattern
+                    Pattern pbg = Pattern.compile("\\b{g}");
+                    m = pbg.matcher(src.toString());
+                    m.find();
+                    int prev = m.end();
+                    for (String g : graphemes) {
+                        String group = null;
+                        if (!m.find() || !(group = src.substring(prev, m.end())).equals(g)) {
+                            System.out.println("Failed pattern \\b{g} [" + ln + "] : "
+                                    + "expected: " + g + " - actual: " + group
+                                    + "(line " + lineNumber[0] + ")");
                             failCount++;
                         }
+                        if (!"".equals(m.group())) {
+                            failCount++;
+                        }
+                        prev = m.end();
+                    }
+                    if (m.find()) {
+                        failCount++;
+                    }
+                    // (2) test \b{g} + \X  via Scanner
+                    Scanner s = new Scanner(src.toString()).useDelimiter("\\b{g}");
+                    for (String g : graphemes) {
+                        String next = null;
+                        if (!s.hasNext(p) || !(next = s.next(p)).equals(g)) {
+                            System.out.println("Failed \\b{g} [" + ln + "] : "
+                                    + "expected: " + g + " - actual: " + next
+                                    + " (line " + lineNumber[0] + ")");
+                            failCount++;
+                        }
+                    }
+                    if (s.hasNext(p)) {
+                        failCount++;
+                    }
+                    // test \b{g} without \X via Scanner
+                    s = new Scanner(src.toString()).useDelimiter("\\b{g}");
+                    for (String g : graphemes) {
+                        String next = null;
+                        if (!s.hasNext() || !(next = s.next()).equals(g)) {
+                            System.out.println("Failed \\b{g} [" + ln + "] : "
+                                    + "expected: " + g + " - actual: " + next
+                                    + " (line " + lineNumber[0] + ")");
+                            failCount++;
+                        }
+                    }
+                    if (s.hasNext()) {
+                        failCount++;
                     }
                 });
         // some sanity checks
@@ -5079,5 +5138,114 @@ public class RegExTest {
             }
         }
         report("lineBreakWithQuantifier");
+    }
+
+    // This test is for 8214245
+    private static void caseInsensitivePMatch() {
+        for (String input : List.of("abcd", "AbCd", "ABCD")) {
+            for (String pattern : List.of("abcd", "aBcD", "[a-d]{4}",
+                    "(?:a|b|c|d){4}", "\\p{Lower}{4}", "\\p{Ll}{4}",
+                    "\\p{IsLl}{4}", "\\p{gc=Ll}{4}",
+                    "\\p{general_category=Ll}{4}", "\\p{IsLowercase}{4}",
+                    "\\p{javaLowerCase}{4}", "\\p{Upper}{4}", "\\p{Lu}{4}",
+                    "\\p{IsLu}{4}", "\\p{gc=Lu}{4}", "\\p{general_category=Lu}{4}",
+                    "\\p{IsUppercase}{4}", "\\p{javaUpperCase}{4}",
+                    "\\p{Lt}{4}", "\\p{IsLt}{4}", "\\p{gc=Lt}{4}",
+                    "\\p{general_category=Lt}{4}", "\\p{IsTitlecase}{4}",
+                    "\\p{javaTitleCase}{4}", "[\\p{Lower}]{4}", "[\\p{Ll}]{4}",
+                    "[\\p{IsLl}]{4}", "[\\p{gc=Ll}]{4}",
+                    "[\\p{general_category=Ll}]{4}", "[\\p{IsLowercase}]{4}",
+                    "[\\p{javaLowerCase}]{4}", "[\\p{Upper}]{4}", "[\\p{Lu}]{4}",
+                    "[\\p{IsLu}]{4}", "[\\p{gc=Lu}]{4}",
+                    "[\\p{general_category=Lu}]{4}", "[\\p{IsUppercase}]{4}",
+                    "[\\p{javaUpperCase}]{4}", "[\\p{Lt}]{4}", "[\\p{IsLt}]{4}",
+                    "[\\p{gc=Lt}]{4}", "[\\p{general_category=Lt}]{4}",
+                    "[\\p{IsTitlecase}]{4}", "[\\p{javaTitleCase}]{4}"))
+            {
+                if (!Pattern.compile(pattern, Pattern.CASE_INSENSITIVE)
+                            .matcher(input)
+                            .matches())
+                {
+                    failCount++;
+                    System.err.println("Expected to match: " +
+                                       "'" + input + "' =~ /" + pattern + "/");
+                }
+            }
+        }
+
+        for (String input : List.of("\u01c7", "\u01c8", "\u01c9")) {
+            for (String pattern : List.of("\u01c7", "\u01c8", "\u01c9",
+                    "[\u01c7\u01c8]", "[\u01c7\u01c9]", "[\u01c8\u01c9]",
+                    "[\u01c7-\u01c8]", "[\u01c8-\u01c9]", "[\u01c7-\u01c9]",
+                    "\\p{Lower}", "\\p{Ll}", "\\p{IsLl}", "\\p{gc=Ll}",
+                    "\\p{general_category=Ll}", "\\p{IsLowercase}",
+                    "\\p{javaLowerCase}", "\\p{Upper}", "\\p{Lu}",
+                    "\\p{IsLu}", "\\p{gc=Lu}", "\\p{general_category=Lu}",
+                    "\\p{IsUppercase}", "\\p{javaUpperCase}",
+                    "\\p{Lt}", "\\p{IsLt}", "\\p{gc=Lt}",
+                    "\\p{general_category=Lt}", "\\p{IsTitlecase}",
+                    "\\p{javaTitleCase}", "[\\p{Lower}]", "[\\p{Ll}]",
+                    "[\\p{IsLl}]", "[\\p{gc=Ll}]",
+                    "[\\p{general_category=Ll}]", "[\\p{IsLowercase}]",
+                    "[\\p{javaLowerCase}]", "[\\p{Upper}]", "[\\p{Lu}]",
+                    "[\\p{IsLu}]", "[\\p{gc=Lu}]",
+                    "[\\p{general_category=Lu}]", "[\\p{IsUppercase}]",
+                    "[\\p{javaUpperCase}]", "[\\p{Lt}]", "[\\p{IsLt}]",
+                    "[\\p{gc=Lt}]", "[\\p{general_category=Lt}]",
+                    "[\\p{IsTitlecase}]", "[\\p{javaTitleCase}]"))
+            {
+                if (!Pattern.compile(pattern, Pattern.CASE_INSENSITIVE
+                                            | Pattern.UNICODE_CHARACTER_CLASS)
+                            .matcher(input)
+                            .matches())
+                {
+                    failCount++;
+                    System.err.println("Expected to match: " +
+                                       "'" + input + "' =~ /" + pattern + "/");
+                }
+            }
+        }
+        report("caseInsensitivePMatch");
+    }
+
+    // This test is for 8237599
+    private static void surrogatePairOverlapRegion() {
+        String input = "\ud801\udc37";
+
+        Pattern p = Pattern.compile(".+");
+        Matcher m = p.matcher(input);
+        m.region(0, 1);
+
+        boolean ok = m.find();
+        if (!ok || !m.group(0).equals(input.substring(0, 1)))
+        {
+            failCount++;
+            System.out.println("Input \"" + input + "\".substr(0, 1)" +
+                    " expected to match pattern \"" + p + "\"");
+            if (ok) {
+                System.out.println("group(0): \"" + m.group(0) + "\"");
+            }
+        } else if (!m.hitEnd()) {
+            failCount++;
+            System.out.println("Expected m.hitEnd() == true");
+        }
+
+        p = Pattern.compile(".*(.)");
+        m = p.matcher(input);
+        m.region(1, 2);
+
+        ok = m.find();
+        if (!ok || !m.group(0).equals(input.substring(1, 2))
+                || !m.group(1).equals(input.substring(1, 2)))
+        {
+            failCount++;
+            System.out.println("Input \"" + input + "\".substr(1, 2)" +
+                    " expected to match pattern \"" + p + "\"");
+            if (ok) {
+                System.out.println("group(0): \"" + m.group(0) + "\"");
+                System.out.println("group(1): \"" + m.group(1) + "\"");
+            }
+        }
+        report("surrogatePairOverlapRegion");
     }
 }

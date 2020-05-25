@@ -791,12 +791,6 @@ class JavaValue {
 
 
 #define STACK_BIAS      0
-// V9 Sparc CPU's running in 64 Bit mode use a stack bias of 7ff
-// in order to extend the reach of the stack pointer.
-#if defined(SPARC) && defined(_LP64)
-#undef STACK_BIAS
-#define STACK_BIAS      0x7ff
-#endif
 
 
 // TosState describes the top-of-stack state before and after the execution of
@@ -1022,12 +1016,12 @@ inline int log2_intptr(intptr_t x) {
 
 inline int log2_int(int x) {
   STATIC_ASSERT(sizeof(int) <= sizeof(uintptr_t));
-  return log2_intptr((uintptr_t)x);
+  return log2_intptr((uintptr_t)(unsigned int)x);
 }
 
 inline int log2_jint(jint x) {
   STATIC_ASSERT(sizeof(jint) <= sizeof(uintptr_t));
-  return log2_intptr((uintptr_t)x);
+  return log2_intptr((uintptr_t)(juint)x);
 }
 
 inline int log2_uint(uint x) {

@@ -26,6 +26,9 @@
 package jdk.internal.access;
 
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.module.ModuleDescriptor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
@@ -34,7 +37,6 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.security.AccessControlContext;
 import java.security.ProtectionDomain;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -147,6 +149,14 @@ public interface JavaLangAccess {
      * Defines a class with the given name to a class loader.
      */
     Class<?> defineClass(ClassLoader cl, String name, byte[] b, ProtectionDomain pd, String source);
+
+    /**
+     * Defines a class with the given name to a class loader with
+     * the given flags and class data.
+     *
+     * @see java.lang.invoke.MethodHandles.Lookup#defineClass
+     */
+    Class<?> defineClass(ClassLoader cl, Class<?> lookup, String name, byte[] b, ProtectionDomain pd, boolean initialize, int flags, Object classData);
 
     /**
      * Returns a class loaded by the bootstrap class loader.
@@ -314,10 +324,24 @@ public interface JavaLangAccess {
     void setCause(Throwable t, Throwable cause);
 
     /**
-     * Privileged System.loadLibrary
-     *
-     * @param caller on behalf of which the library is being loaded
-     * @param library name of the library to load
+     * Get protection domain of the given Class
      */
-    void loadLibrary(Class<?> caller, String library);
+    ProtectionDomain protectionDomain(Class<?> c);
+
+    /**
+     * Get a method handle of string concat helper method
+     */
+    MethodHandle stringConcatHelper(String name, MethodType methodType);
+
+    /**
+     * Get the string concat initial coder
+     */
+    long stringConcatInitialCoder();
+
+    /*
+     * Get the class data associated with the given class.
+     * @param c the class
+     * @see java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
+     */
+    Object classData(Class<?> c);
 }

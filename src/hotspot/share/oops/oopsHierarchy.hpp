@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,10 +82,9 @@ class oop {
 
 public:
   void set_obj(const void* p)         {
-    raw_set_obj(p);
+    _o = (oopDesc*)p;
     if (CheckUnhandledOops) register_oop();
   }
-  void raw_set_obj(const void* p)     { _o = (oopDesc*)p; }
 
   oop()                               { set_obj(NULL); }
   oop(const oop& o)                   { set_obj(o.obj()); }
@@ -127,6 +126,7 @@ struct PrimitiveConversions::Translate<oop> : public TrueType {
    class type##Oop : public oop {                                          \
      public:                                                               \
        type##Oop() : oop() {}                                              \
+       type##Oop(const type##Oop& o) : oop(o) {}                           \
        type##Oop(const oop& o) : oop(o) {}                                 \
        type##Oop(const volatile oop& o) : oop(o) {}                        \
        type##Oop(const void* p) : oop(p) {}                                \

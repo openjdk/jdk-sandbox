@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,8 @@
 /**
  * Defines the foundational APIs of the Java SE Platform.
  *
- * <dl>
- * <dt class="simpleTagLabel" style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif">Providers:</dt>
+ * <dl class="notes">
+ * <dt>Providers:</dt>
  * <dd> The JDK implementation of this module provides an implementation of
  *      the {@index jrt jrt} {@linkplain java.nio.file.spi.FileSystemProvider
  *      file system provider} to enumerate and read the class and resource
@@ -173,19 +173,14 @@ module java.base {
     exports jdk.internal.org.objectweb.asm to
         jdk.jartool,
         jdk.jfr,
-        jdk.jlink,
-        jdk.scripting.nashorn;
+        jdk.jlink;
     exports jdk.internal.org.objectweb.asm.tree to
         jdk.jfr,
         jdk.jlink;
     exports jdk.internal.org.objectweb.asm.util to
-        jdk.jfr,
-        jdk.scripting.nashorn;
+        jdk.jfr;
     exports jdk.internal.org.objectweb.asm.commons to
-        jdk.jfr,
-        jdk.scripting.nashorn;
-    exports jdk.internal.org.objectweb.asm.signature to
-        jdk.scripting.nashorn;
+        jdk.jfr;
     exports jdk.internal.org.xml.sax to
         jdk.jfr;
     exports jdk.internal.org.xml.sax.helpers to
@@ -205,8 +200,6 @@ module java.base {
         jdk.jfr,
         jdk.jshell,
         jdk.nio.mapmode,
-        jdk.scripting.nashorn,
-        jdk.scripting.nashorn.shell,
         jdk.unsupported,
         jdk.internal.vm.ci,
         jdk.incubator.foreign;
@@ -231,13 +224,13 @@ module java.base {
         java.sql.rowset,
         jdk.dynalink,
         jdk.internal.vm.ci,
-        jdk.scripting.nashorn,
         jdk.unsupported;
     exports jdk.internal.vm to
         jdk.internal.jvmstat,
         jdk.management.agent;
     exports jdk.internal.vm.annotation to
         jdk.internal.vm.ci,
+        jdk.incubator.foreign,
         jdk.unsupported;
     exports jdk.internal.util.jar to
         jdk.jartool;
@@ -287,6 +280,7 @@ module java.base {
     exports sun.security.action to
         java.desktop,
         java.security.jgss,
+        jdk.crypto.ec,
         jdk.incubator.foreign;
     exports sun.security.internal.interfaces to
         jdk.crypto.cryptoki;
@@ -305,6 +299,7 @@ module java.base {
         java.rmi,
         java.security.jgss,
         jdk.crypto.cryptoki,
+        jdk.crypto.ec,
         jdk.security.auth;
     exports sun.security.provider.certpath to
         java.naming;

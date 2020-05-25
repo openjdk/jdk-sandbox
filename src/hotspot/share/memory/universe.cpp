@@ -205,6 +205,7 @@ void Universe::oops_do(OopClosure* f) {
   f->do_oop((oop*)&_vm_exception);
   f->do_oop((oop*)&_reference_pending_list);
   debug_only(f->do_oop((oop*)&_fullgc_alot_dummy_array);)
+  ThreadsSMRSupport::exiting_threads_oops_do(f);
 }
 
 void LatestMethodCache::metaspace_pointers_do(MetaspaceClosure* it) {
@@ -280,7 +281,11 @@ void initialize_basic_type_klass(Klass* k, TRAPS) {
   if (UseSharedSpaces) {
     ClassLoaderData* loader_data = ClassLoaderData::the_null_class_loader_data();
     assert(k->super() == ok, "u3");
-    k->restore_unshareable_info(loader_data, Handle(), CHECK);
+    if (k->is_instance_klass()) {
+      InstanceKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), NULL, CHECK);
+    } else {
+      ArrayKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), CHECK);
+    }
   } else
 #endif
   {
@@ -644,8 +649,6 @@ jint universe_init() {
 
   TraceTime timer("Genesis", TRACETIME_LOG(Info, startuptime));
 
-  JavaClasses::compute_hard_coded_offsets();
-
   initialize_global_behaviours();
 
   GCConfig::arguments()->initialize_heap_sizes();
@@ -852,12 +855,10 @@ bool universe_post_init() {
   assert(!is_init_completed(), "Error: initialization not yet completed!");
   Universe::_fully_initialized = true;
   EXCEPTION_MARK;
-  { ResourceMark rm;
-    Interpreter::initialize();      // needed for interpreter entry points
-    if (!UseSharedSpaces) {
-      Universe::reinitialize_vtables(CHECK_false);
-      Universe::reinitialize_itables(CHECK_false);
-    }
+  if (!UseSharedSpaces) {
+    ResourceMark rm;
+    Universe::reinitialize_vtables(CHECK_false);
+    Universe::reinitialize_itables(CHECK_false);
   }
 
   HandleMark hm(THREAD);
@@ -865,7 +866,7 @@ bool universe_post_init() {
   Universe::_the_empty_class_klass_array = oopFactory::new_objArray(SystemDictionary::Class_klass(), 0, CHECK_false);
 
   // Setup preallocated OutOfMemoryError errors
-  Klass* k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_OutOfMemoryError(), true, CHECK_false);
+  Klass* k = SystemDictionary::OutOfMemoryError_klass();
   InstanceKlass* ik = InstanceKlass::cast(k);
   Universe::_out_of_memory_error_java_heap = ik->allocate_instance(CHECK_false);
   Universe::_out_of_memory_error_metaspace = ik->allocate_instance(CHECK_false);
@@ -891,8 +892,7 @@ bool universe_post_init() {
   k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_ArithmeticException(), true, CHECK_false);
   Universe::_arithmetic_exception_instance = InstanceKlass::cast(k)->allocate_instance(CHECK_false);
   // Virtual Machine Error for when we get into a situation we can't resolve
-  k = SystemDictionary::resolve_or_fail(
-    vmSymbols::java_lang_VirtualMachineError(), true, CHECK_false);
+  k = SystemDictionary::VirtualMachineError_klass();
   bool linked = InstanceKlass::cast(k)->link_class_or_fail(CHECK_false);
   if (!linked) {
      tty->print_cr("Unable to link/verify VirtualMachineError class");

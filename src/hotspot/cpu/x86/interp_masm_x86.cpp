@@ -59,7 +59,8 @@ void InterpreterMacroAssembler::profile_obj_type(Register obj, const Address& md
   jmpb(next);
 
   bind(update);
-  load_klass(obj, obj);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  load_klass(obj, obj, tmp_load_klass);
 
   xorptr(obj, mdo_addr);
   testptr(obj, TypeEntries::type_klass_mask);
@@ -850,7 +851,7 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
   address* const safepoint_table = Interpreter::safept_table(state);
 #ifdef _LP64
   Label no_safepoint, dispatch;
-  if (SafepointMechanism::uses_thread_local_poll() && table != safepoint_table && generate_poll) {
+  if (table != safepoint_table && generate_poll) {
     NOT_PRODUCT(block_comment("Thread-local Safepoint poll"));
     testb(Address(r15_thread, Thread::polling_page_offset()), SafepointMechanism::poll_bit());
 
@@ -866,7 +867,7 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
 
 #else
   Address index(noreg, rbx, Address::times_ptr);
-  if (SafepointMechanism::uses_thread_local_poll() && table != safepoint_table && generate_poll) {
+  if (table != safepoint_table && generate_poll) {
     NOT_PRODUCT(block_comment("Thread-local Safepoint poll"));
     Label no_safepoint;
     const Register thread = rcx;
@@ -1197,7 +1198,8 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
     movptr(obj_reg, Address(lock_reg, obj_offset));
 
     if (UseBiasedLocking) {
-      biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp_reg, false, done, &slow_case);
+      Register rklass_decode_tmp = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+      biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp_reg, rklass_decode_tmp, false, done, &slow_case);
     }
 
     // Load immediate 1 into swap_reg %rax
@@ -1621,38 +1623,10 @@ void InterpreterMacroAssembler::profile_virtual_call(Register receiver,
     bind(skip_receiver_profile);
 
     // The method data pointer needs to be updated to reflect the new target.
-#if INCLUDE_JVMCI
-    if (MethodProfileWidth == 0) {
-      update_mdp_by_constant(mdp, in_bytes(VirtualCallData::virtual_call_data_size()));
-    }
-#else // INCLUDE_JVMCI
-    update_mdp_by_constant(mdp,
-                           in_bytes(VirtualCallData::
-                                    virtual_call_data_size()));
-#endif // INCLUDE_JVMCI
-    bind(profile_continue);
-  }
-}
-
-#if INCLUDE_JVMCI
-void InterpreterMacroAssembler::profile_called_method(Register method, Register mdp, Register reg2) {
-  assert_different_registers(method, mdp, reg2);
-  if (ProfileInterpreter && MethodProfileWidth > 0) {
-    Label profile_continue;
-
-    // If no method data exists, go to profile_continue.
-    test_method_data_pointer(mdp, profile_continue);
-
-    Label done;
-    record_item_in_profile_helper(method, mdp, reg2, 0, done, MethodProfileWidth,
-      &VirtualCallData::method_offset, &VirtualCallData::method_count_offset, in_bytes(VirtualCallData::nonprofiled_receiver_count_offset()));
-    bind(done);
-
     update_mdp_by_constant(mdp, in_bytes(VirtualCallData::virtual_call_data_size()));
     bind(profile_continue);
   }
 }
-#endif // INCLUDE_JVMCI
 
 // This routine creates a state machine for updating the multi-row
 // type profile at a virtual call site (or other type-sensitive bytecode).

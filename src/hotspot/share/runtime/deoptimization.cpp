@@ -26,6 +26,7 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
@@ -1032,6 +1033,66 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
   return failures;
 }
 
+#if INCLUDE_JVMCI
+/**
+ * For primitive types whose kind gets "erased" at runtime (shorts become stack ints),
+ * we need to somehow be able to recover the actual kind to be able to write the correct
+ * amount of bytes.
+ * For that purpose, this method assumes that, for an entry spanning n bytes at index i,
+ * the entries at index n + 1 to n + i are 'markers'.
+ * For example, if we were writing a short at index 4 of a byte array of size 8, the
+ * expected form of the array would be:
+ *
+ * {b0, b1, b2, b3, INT, marker, b6, b7}
+ *
+ * Thus, in order to get back the size of the entry, we simply need to count the number
+ * of marked entries
+ *
+ * @param virtualArray the virtualized byte array
+ * @param i index of the virtual entry we are recovering
+ * @return The number of bytes the entry spans
+ */
+static int count_number_of_bytes_for_entry(ObjectValue *virtualArray, int i) {
+  int index = i;
+  while (++index < virtualArray->field_size() &&
+           virtualArray->field_at(index)->is_marker()) {}
+  return index - i;
+}
+
+/**
+ * If there was a guarantee for byte array to always start aligned to a long, we could
+ * do a simple check on the parity of the index. Unfortunately, that is not always the
+ * case. Thus, we check alignment of the actual address we are writing to.
+ * In the unlikely case index 0 is 5-aligned for example, it would then be possible to
+ * write a long to index 3.
+ */
+static jbyte* check_alignment_get_addr(typeArrayOop obj, int index, int expected_alignment) {
+    jbyte* res = obj->byte_at_addr(index);
+    assert((((intptr_t) res) % expected_alignment) == 0, "Non-aligned write");
+    return res;
+}
+
+static void byte_array_put(typeArrayOop obj, intptr_t val, int index, int byte_count) {
+  switch (byte_count) {
+    case 1:
+      obj->byte_at_put(index, (jbyte) *((jint *) &val));
+      break;
+    case 2:
+      *((jshort *) check_alignment_get_addr(obj, index, 2)) = (jshort) *((jint *) &val);
+      break;
+    case 4:
+      *((jint *) check_alignment_get_addr(obj, index, 4)) = (jint) *((jint *) &val);
+      break;
+    case 8:
+      *((jlong *) check_alignment_get_addr(obj, index, 8)) = (jlong) *((jlong *) &val);
+      break;
+    default:
+      ShouldNotReachHere();
+  }
+}
+#endif // INCLUDE_JVMCI
+
+
 // restore elements of an eliminated type array
 void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, typeArrayOop obj, BasicType type) {
   int index = 0;
@@ -1047,12 +1108,7 @@ void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_ma
 #ifdef _LP64
       jlong res = (jlong)low->get_int();
 #else
-#ifdef SPARC
-      // For SPARC we have to swap high and low words.
-      jlong res = jlong_from((jint)low->get_int(), (jint)value->get_int());
-#else
       jlong res = jlong_from((jint)value->get_int(), (jint)low->get_int());
-#endif //SPARC
 #endif
       obj->long_at_put(index, res);
       break;
@@ -1081,12 +1137,7 @@ void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_ma
   #ifdef _LP64
         jlong res = (jlong)low->get_int();
   #else
-  #ifdef SPARC
-        // For SPARC we have to swap high and low words.
-        jlong res = jlong_from((jint)low->get_int(), (jint)value->get_int());
-  #else
         jlong res = jlong_from((jint)value->get_int(), (jint)low->get_int());
-  #endif //SPARC
   #endif
         obj->int_at_put(index, (jint)*((jint*)&res));
         obj->int_at_put(++index, (jint)*(((jint*)&res) + 1));
@@ -1109,17 +1160,30 @@ void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_ma
       obj->char_at_put(index, (jchar)*((jint*)&val));
       break;
 
-    case T_BYTE:
+    case T_BYTE: {
       assert(value->type() == T_INT, "Agreement.");
+      // The value we get is erased as a regular int. We will need to find its actual byte count 'by hand'.
       val = value->get_int();
+#if INCLUDE_JVMCI
+      int byte_count = count_number_of_bytes_for_entry(sv, i);
+      byte_array_put(obj, val, index, byte_count);
+      // According to byte_count contract, the values from i + 1 to i + byte_count are illegal values. Skip.
+      i += byte_count - 1; // Balance the loop counter.
+      index += byte_count;
+      // index has been updated so continue at top of loop
+      continue;
+#else
       obj->byte_at_put(index, (jbyte)*((jint*)&val));
       break;
+#endif // INCLUDE_JVMCI
+    }
 
-    case T_BOOLEAN:
+    case T_BOOLEAN: {
       assert(value->type() == T_INT, "Agreement.");
       val = value->get_int();
       obj->bool_at_put(index, (jboolean)*((jint*)&val));
       break;
+    }
 
       default:
         ShouldNotReachHere();
@@ -1127,7 +1191,6 @@ void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_ma
     index++;
   }
 }
-
 
 // restore fields of an eliminated object array
 void Deoptimization::reassign_object_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, objArrayOop obj) {
@@ -1219,12 +1282,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
 #ifdef _LP64
         jlong res = (jlong)low->get_int();
 #else
-#ifdef SPARC
-        // For SPARC we have to swap high and low words.
-        jlong res = jlong_from((jint)low->get_int(), (jint)value->get_int());
-#else
         jlong res = jlong_from((jint)value->get_int(), (jint)low->get_int());
-#endif //SPARC
 #endif
         obj->long_field_put(offset, res);
         break;

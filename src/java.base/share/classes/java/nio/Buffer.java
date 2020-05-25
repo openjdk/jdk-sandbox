@@ -29,9 +29,12 @@ import jdk.internal.HotSpotIntrinsicCandidate;
 import jdk.internal.access.JavaNioAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.foreign.MemorySegmentProxy;
+import jdk.internal.access.foreign.UnmapperProxy;
 import jdk.internal.misc.Unsafe;
+import jdk.internal.misc.VM.BufferPool;
 import jdk.internal.vm.annotation.ForceInline;
 
+import java.io.FileDescriptor;
 import java.util.Spliterator;
 
 /**
@@ -758,13 +761,18 @@ public abstract class Buffer {
         SharedSecrets.setJavaNioAccess(
             new JavaNioAccess() {
                 @Override
-                public JavaNioAccess.BufferPool getDirectBufferPool() {
+                public BufferPool getDirectBufferPool() {
                     return Bits.BUFFER_POOL;
                 }
 
                 @Override
                 public ByteBuffer newDirectByteBuffer(long addr, int cap, Object obj, MemorySegmentProxy segment) {
                     return new DirectByteBuffer(addr, cap, obj, segment);
+                }
+
+                @Override
+                public ByteBuffer newMappedByteBuffer(UnmapperProxy unmapperProxy, long address, int cap, Object obj, MemorySegmentProxy segment) {
+                    return new DirectByteBuffer(address, cap, obj, unmapperProxy.fileDescriptor(), unmapperProxy.isSync(), segment);
                 }
 
                 @Override
@@ -783,8 +791,37 @@ public abstract class Buffer {
                 }
 
                 @Override
-                public void checkSegment(Buffer buffer) {
-                    buffer.checkSegment();
+                public UnmapperProxy unmapper(ByteBuffer bb) {
+                    if (bb instanceof MappedByteBuffer) {
+                        return ((MappedByteBuffer)bb).unmapper();
+                    } else {
+                        return null;
+                    }
+                }
+
+                @Override
+                public MemorySegmentProxy bufferSegment(Buffer buffer) {
+                    return buffer.segment;
+                }
+
+                @Override
+                public void force(FileDescriptor fd, long address, boolean isSync, long offset, long size) {
+                    MappedMemoryUtils.force(fd, address, isSync, offset, size);
+                }
+
+                @Override
+                public void load(long address, boolean isSync, long size) {
+                    MappedMemoryUtils.load(address, isSync, size);
+                }
+
+                @Override
+                public void unload(long address, boolean isSync, long size) {
+                    MappedMemoryUtils.unload(address, isSync, size);
+                }
+
+                @Override
+                public boolean isLoaded(long address, boolean isSync, long size) {
+                    return MappedMemoryUtils.isLoaded(address, isSync, size);
                 }
             });
     }

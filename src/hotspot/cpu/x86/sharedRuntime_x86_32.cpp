@@ -2109,7 +2109,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     if (UseBiasedLocking) {
       // Note that oop_handle_reg is trashed during this call
-      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, oop_handle_reg, false, lock_done, &slow_path_lock);
+      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, oop_handle_reg, noreg, false, lock_done, &slow_path_lock);
     }
 
     // Load immediate 1 into swap_reg %rax,
@@ -3151,7 +3151,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   __ bind(noException);
 
   Label no_adjust, bail, not_special;
-  if (SafepointMechanism::uses_thread_local_poll() && !cause_return) {
+  if (!cause_return) {
     // If our stashed return pc was modified by the runtime we avoid touching it
     __ cmpptr(rbx, Address(rbp, wordSize));
     __ jccb(Assembler::notEqual, no_adjust);

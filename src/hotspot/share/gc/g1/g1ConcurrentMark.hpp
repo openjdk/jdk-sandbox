@@ -65,21 +65,12 @@ private:
   }
   G1TaskQueueEntry(HeapWord* addr) : _holder((void*)((uintptr_t)addr | ArraySliceBit)) { }
 public:
-  G1TaskQueueEntry(const G1TaskQueueEntry& other) { _holder = other._holder; }
+
   G1TaskQueueEntry() : _holder(NULL) { }
+  // Trivially copyable, for use in GenericTaskQueue.
 
   static G1TaskQueueEntry from_slice(HeapWord* what) { return G1TaskQueueEntry(what); }
   static G1TaskQueueEntry from_oop(oop obj) { return G1TaskQueueEntry(obj); }
-
-  G1TaskQueueEntry& operator=(const G1TaskQueueEntry& t) {
-    _holder = t._holder;
-    return *this;
-  }
-
-  volatile G1TaskQueueEntry& operator=(const volatile G1TaskQueueEntry& t) volatile {
-    _holder = t._holder;
-    return *this;
-  }
 
   oop obj() const {
     assert(!is_array_slice(), "Trying to read array slice " PTR_FORMAT " as oop", p2i(_holder));
@@ -303,7 +294,6 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
 
   G1ConcurrentMarkThread* _cm_thread;     // The thread doing the work
   G1CollectedHeap*        _g1h;           // The heap
-  bool                    _completed_initialization; // Set to true when initialization is complete
 
   // Concurrent marking support structures
   G1CMBitMap              _mark_bitmap_1;
@@ -603,11 +593,6 @@ public:
   inline bool mark_in_next_bitmap(uint worker_id, oop const obj);
 
   inline bool is_marked_in_next_bitmap(oop p) const;
-
-  // Returns true if initialization was successfully completed.
-  bool completed_initialization() const {
-    return _completed_initialization;
-  }
 
   ConcurrentGCTimer* gc_timer_cm() const { return _gc_timer_cm; }
   G1OldTracer* gc_tracer_cm() const { return _gc_tracer_cm; }

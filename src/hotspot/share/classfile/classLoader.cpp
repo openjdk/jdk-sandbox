@@ -72,6 +72,7 @@
 #include "utilities/events.hpp"
 #include "utilities/hashtable.inline.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/utf8.hpp"
 
 // Entry point in java.dll for path canonicalization
 
@@ -94,6 +95,7 @@ static FindEntry_t       FindEntry          = NULL;
 static ReadEntry_t       ReadEntry          = NULL;
 static GetNextEntry_t    GetNextEntry       = NULL;
 static Crc32_t           Crc32              = NULL;
+int ClassLoader::_libzip_loaded = 0;
 
 // Entry points for jimage.dll for loading jimage file entries
 
@@ -116,8 +118,6 @@ PerfCounter*    ClassLoader::_perf_class_verify_selftime = NULL;
 PerfCounter*    ClassLoader::_perf_classes_linked = NULL;
 PerfCounter*    ClassLoader::_perf_class_link_time = NULL;
 PerfCounter*    ClassLoader::_perf_class_link_selftime = NULL;
-PerfCounter*    ClassLoader::_perf_class_parse_time = NULL;
-PerfCounter*    ClassLoader::_perf_class_parse_selftime = NULL;
 PerfCounter*    ClassLoader::_perf_sys_class_lookup_time = NULL;
 PerfCounter*    ClassLoader::_perf_shared_classload_time = NULL;
 PerfCounter*    ClassLoader::_perf_sys_classload_time = NULL;
@@ -177,75 +177,58 @@ bool ClassLoader::string_ends_with(const char* str, const char* str_to_find) {
 }
 
 // Used to obtain the package name from a fully qualified class name.
-// It is the responsibility of the caller to establish a ResourceMark.
-const char* ClassLoader::package_from_name(const char* const class_name, bool* bad_class_name) {
-  if (class_name == NULL) {
+Symbol* ClassLoader::package_from_class_name(const Symbol* name, bool* bad_class_name) {
+  if (name == NULL) {
     if (bad_class_name != NULL) {
       *bad_class_name = true;
     }
     return NULL;
   }
 
-  if (bad_class_name != NULL) {
-    *bad_class_name = false;
-  }
-
-  const char* const last_slash = strrchr(class_name, JVM_SIGNATURE_SLASH);
-  if (last_slash == NULL) {
-    // No package name
+  int utf_len = name->utf8_length();
+  const jbyte* base = (const jbyte*)name->base();
+  const jbyte* start = base;
+  const jbyte* end = UTF8::strrchr(start, utf_len, JVM_SIGNATURE_SLASH);
+  if (end == NULL) {
     return NULL;
   }
-
-  char* class_name_ptr = (char*) class_name;
   // Skip over '['s
-  if (*class_name_ptr == JVM_SIGNATURE_ARRAY) {
+  if (*start == JVM_SIGNATURE_ARRAY) {
     do {
-      class_name_ptr++;
-    } while (*class_name_ptr == JVM_SIGNATURE_ARRAY);
+      start++;
+    } while (start < end && *start == JVM_SIGNATURE_ARRAY);
 
     // Fully qualified class names should not contain a 'L'.
     // Set bad_class_name to true to indicate that the package name
     // could not be obtained due to an error condition.
     // In this situation, is_same_class_package returns false.
-    if (*class_name_ptr == JVM_SIGNATURE_CLASS) {
+    if (*start == JVM_SIGNATURE_CLASS) {
       if (bad_class_name != NULL) {
         *bad_class_name = true;
       }
       return NULL;
     }
   }
-
-  int length = last_slash - class_name_ptr;
-
-  // A class name could have just the slash character in the name.
-  if (length <= 0) {
+  // A class name could have just the slash character in the name,
+  // in which case start > end
+  if (start >= end) {
     // No package name
     if (bad_class_name != NULL) {
       *bad_class_name = true;
     }
     return NULL;
   }
-
-  // drop name after last slash (including slash)
-  // Ex., "java/lang/String.class" => "java/lang"
-  char* pkg_name = NEW_RESOURCE_ARRAY(char, length + 1);
-  strncpy(pkg_name, class_name_ptr, length);
-  *(pkg_name+length) = '\0';
-
-  return (const char *)pkg_name;
+  return SymbolTable::new_symbol(name, start - base, end - base);
 }
 
-// Given a fully qualified class name, find its defining package in the class loader's
+// Given a fully qualified package name, find its defining package in the class loader's
 // package entry table.
-PackageEntry* ClassLoader::get_package_entry(const char* class_name, ClassLoaderData* loader_data, TRAPS) {
-  ResourceMark rm(THREAD);
-  const char *pkg_name = ClassLoader::package_from_name(class_name);
+PackageEntry* ClassLoader::get_package_entry(Symbol* pkg_name, ClassLoaderData* loader_data) {
   if (pkg_name == NULL) {
     return NULL;
   }
   PackageEntryTable* pkgEntryTable = loader_data->packages();
-  TempNewSymbol pkg_symbol = SymbolTable::new_symbol(pkg_name);
-  return pkgEntryTable->lookup_only(pkg_symbol);
+  return pkgEntryTable->lookup_only(pkg_name);
 }
 
 const char* ClassPathEntry::copy_path(const char* path) {
@@ -407,16 +390,16 @@ ClassFileStream* ClassPathImageEntry::open_stream_for_loader(const char* name, C
   JImageLocationRef location = (*JImageFindResource)(_jimage, "", get_jimage_version_string(), name, &size);
 
   if (location == 0) {
-    ResourceMark rm;
-    const char* pkg_name = ClassLoader::package_from_name(name);
+    TempNewSymbol class_name = SymbolTable::new_symbol(name);
+    TempNewSymbol pkg_name = ClassLoader::package_from_class_name(class_name);
 
     if (pkg_name != NULL) {
       if (!Universe::is_module_initialized()) {
         location = (*JImageFindResource)(_jimage, JAVA_BASE_NAME, get_jimage_version_string(), name, &size);
       } else {
-        PackageEntry* package_entry = ClassLoader::get_package_entry(name, loader_data, CHECK_NULL);
+        PackageEntry* package_entry = ClassLoader::get_package_entry(pkg_name, loader_data);
         if (package_entry != NULL) {
-          ResourceMark rm;
+          ResourceMark rm(THREAD);
           // Get the module name
           ModuleEntry* module = package_entry->module();
           assert(module != NULL, "Boot classLoader package missing module");
@@ -765,6 +748,7 @@ ClassPathEntry* ClassLoader::create_class_path_entry(const char *path, const str
         // enable call to C land
         ThreadToNativeFromVM ttn(thread);
         HandleMark hm(thread);
+        load_zip_library_if_needed();
         zip = (*ZipOpen)(canonical_path, &error_msg);
       }
       if (zip != NULL && error_msg == NULL) {
@@ -814,6 +798,7 @@ ClassPathZipEntry* ClassLoader::create_class_path_zip_entry(const char *path, bo
           JavaThread* thread = JavaThread::current();
           ThreadToNativeFromVM ttn(thread);
           HandleMark hm(thread);
+          load_zip_library_if_needed();
           zip = (*ZipOpen)(canonical_path, &error_msg);
         }
         if (zip != NULL && error_msg == NULL) {
@@ -985,6 +970,14 @@ void ClassLoader::load_java_library() {
   CanonicalizeEntry = CAST_TO_FN_PTR(canonicalize_fn_t, dll_lookup(javalib_handle, "JDK_Canonicalize", NULL));
 }
 
+void ClassLoader::release_load_zip_library() {
+  MutexLocker locker(Zip_lock, Monitor::_no_safepoint_check_flag);
+  if (_libzip_loaded == 0) {
+    load_zip_library();
+    Atomic::release_store(&_libzip_loaded, 1);
+  }
+}
+
 void ClassLoader::load_zip_library() {
   assert(ZipOpen == NULL, "should not load zip library twice");
   char path[JVM_MAXPATHLEN];
@@ -1026,36 +1019,8 @@ void ClassLoader::load_jimage_library() {
 }
 
 int ClassLoader::crc32(int crc, const char* buf, int len) {
+  load_zip_library_if_needed();
   return (*Crc32)(crc, (const jbyte*)buf, len);
-}
-
-// Function add_package extracts the package from the fully qualified class name
-// and checks if the package is in the boot loader's package entry table.  If so,
-// then it sets the classpath_index in the package entry record.
-//
-// The classpath_index field is used to find the entry on the boot loader class
-// path for packages with classes loaded by the boot loader from -Xbootclasspath/a
-// in an unnamed module.  It is also used to indicate (for all packages whose
-// classes are loaded by the boot loader) that at least one of the package's
-// classes has been loaded.
-bool ClassLoader::add_package(const char *fullq_class_name, s2 classpath_index, TRAPS) {
-  assert(fullq_class_name != NULL, "just checking");
-
-  // Get package name from fully qualified class name.
-  ResourceMark rm(THREAD);
-  const char *cp = package_from_name(fullq_class_name);
-  if (cp != NULL) {
-    PackageEntryTable* pkg_entry_tbl = ClassLoaderData::the_null_class_loader_data()->packages();
-    TempNewSymbol pkg_symbol = SymbolTable::new_symbol(cp);
-    PackageEntry* pkg_entry = pkg_entry_tbl->lookup_only(pkg_symbol);
-    if (pkg_entry != NULL) {
-      assert(classpath_index != -1, "Unexpected classpath_index");
-      pkg_entry->set_classpath_index(classpath_index);
-    } else {
-      return false;
-    }
-  }
-  return true;
 }
 
 oop ClassLoader::get_system_package(const char* name, TRAPS) {
@@ -1166,7 +1131,9 @@ ClassFileStream* ClassLoader::search_module_entries(const GrowableArray<ModuleCl
   ClassFileStream* stream = NULL;
 
   // Find the class' defining module in the boot loader's module entry table
-  PackageEntry* pkg_entry = get_package_entry(class_name, ClassLoaderData::the_null_class_loader_data(), CHECK_NULL);
+  TempNewSymbol class_name_symbol = SymbolTable::new_symbol(class_name);
+  TempNewSymbol pkg_name = package_from_class_name(class_name_symbol);
+  PackageEntry* pkg_entry = get_package_entry(pkg_name, ClassLoaderData::the_null_class_loader_data());
   ModuleEntry* mod_entry = (pkg_entry != NULL) ? pkg_entry->module() : NULL;
 
   // If the module system has not defined java.base yet, then
@@ -1302,13 +1269,12 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
 
   ClassLoaderData* loader_data = ClassLoaderData::the_null_class_loader_data();
   Handle protection_domain;
+  ClassLoadInfo cl_info(protection_domain);
 
   InstanceKlass* result = KlassFactory::create_from_stream(stream,
                                                            name,
                                                            loader_data,
-                                                           protection_domain,
-                                                           NULL, // unsafe_anonymous_host
-                                                           NULL, // cp_patches
+                                                           cl_info,
                                                            THREAD);
   if (HAS_PENDING_EXCEPTION) {
     if (DumpSharedSpaces) {
@@ -1317,10 +1283,7 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
     return NULL;
   }
 
-  if (!add_package(file_name, classpath_index, THREAD)) {
-    return NULL;
-  }
-
+  result->set_classpath_index(classpath_index, THREAD);
   return result;
 }
 
@@ -1350,8 +1313,8 @@ void ClassLoader::record_result(InstanceKlass* ik, const ClassFileStream* stream
   Arguments::assert_is_dumping_archive();
   assert(stream != NULL, "sanity");
 
-  if (ik->is_unsafe_anonymous()) {
-    // We do not archive unsafe anonymous classes.
+  if (ik->is_hidden() || ik->is_unsafe_anonymous()) {
+    // We do not archive hidden or unsafe anonymous classes.
     return;
   }
 
@@ -1361,7 +1324,7 @@ void ClassLoader::record_result(InstanceKlass* ik, const ClassFileStream* stream
     if (loader == NULL) {
       // JFR classes
       ik->set_shared_classpath_index(0);
-      ik->set_class_loader_type(ClassLoader::BOOT_LOADER);
+      ik->set_shared_class_loader_type(ClassLoader::BOOT_LOADER);
     }
     return;
   }
@@ -1480,8 +1443,6 @@ void ClassLoader::initialize() {
     NEWPERFEVENTCOUNTER(_perf_classes_linked, SUN_CLS, "linkedClasses");
     NEWPERFEVENTCOUNTER(_perf_classes_verified, SUN_CLS, "verifiedClasses");
 
-    NEWPERFTICKCOUNTER(_perf_class_parse_time, SUN_CLS, "parseClassTime");
-    NEWPERFTICKCOUNTER(_perf_class_parse_selftime, SUN_CLS, "parseClassTime.self");
     NEWPERFTICKCOUNTER(_perf_sys_class_lookup_time, SUN_CLS, "lookupSysClassTime");
     NEWPERFTICKCOUNTER(_perf_shared_classload_time, SUN_CLS, "sharedClassLoadTime");
     NEWPERFTICKCOUNTER(_perf_sys_classload_time, SUN_CLS, "sysClassLoadTime");
@@ -1517,8 +1478,6 @@ void ClassLoader::initialize() {
 
   // lookup java library entry points
   load_java_library();
-  // lookup zip library entry points
-  load_zip_library();
   // jimage library entry points are loaded below, in lookup_vm_options
   setup_bootstrap_search_path();
 }

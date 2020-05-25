@@ -312,11 +312,13 @@ STDMETHODIMP SAOutputCallbacks::Output(THIS_
     }
     strcpy(m_msgBuffer, msg);
   } else {
-    m_msgBuffer = (char*) realloc(m_msgBuffer, len + strlen(m_msgBuffer));
-    if (m_msgBuffer == 0) {
+    char* newBuffer = (char*)realloc(m_msgBuffer, len + strlen(m_msgBuffer));
+    if (newBuffer == nullptr) {
+      // old m_msgBuffer buffer is still valid
       fprintf(stderr, "out of memory debugger output!\n");
       return S_FALSE;
     }
+    m_msgBuffer = newBuffer;
     strcat(m_msgBuffer, msg);
   }
   return S_OK;
@@ -726,11 +728,9 @@ JNIEXPORT jbyteArray JNICALL Java_sun_jvm_hotspot_debugger_windbg_WindbgDebugger
   CHECK_EXCEPTION_(0);
 
   ULONG bytesRead;
-  COM_VERIFY_OK_(ptrIDebugDataSpaces->ReadVirtual((ULONG64)address, arrayBytes,
-                                                  (ULONG)numBytes, &bytesRead),
-                 "Windbg Error: ReadVirtual failed!", 0);
-
-  if (bytesRead != numBytes) {
+  const HRESULT hr = ptrIDebugDataSpaces->ReadVirtual((ULONG64)address, arrayBytes,
+                                                      (ULONG)numBytes, &bytesRead);
+  if (hr != S_OK || bytesRead != numBytes) {
      return 0;
   }
 

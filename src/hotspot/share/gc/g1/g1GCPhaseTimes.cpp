@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
+#include "gc/g1/g1GCParPhaseTimesTracker.hpp"
 #include "gc/g1/g1GCPhaseTimes.hpp"
 #include "gc/g1/g1HotCardCache.hpp"
 #include "gc/g1/g1ParScanThreadState.inline.hpp"
@@ -157,6 +158,7 @@ void G1GCPhaseTimes::reset() {
   _cur_string_deduplication_time_ms = 0.0;
   _cur_prepare_tlab_time_ms = 0.0;
   _cur_resize_tlab_time_ms = 0.0;
+  _cur_concatenate_dirty_card_logs_time_ms = 0.0;
   _cur_derived_pointer_table_update_time_ms = 0.0;
   _cur_clear_ct_time_ms = 0.0;
   _cur_expand_heap_time_ms = 0.0;
@@ -377,6 +379,8 @@ void G1GCPhaseTimes::trace_count(const char* name, size_t value) const {
 
 double G1GCPhaseTimes::print_pre_evacuate_collection_set() const {
   const double sum_ms = _root_region_scan_wait_time_ms +
+                        _cur_prepare_tlab_time_ms +
+                        _cur_concatenate_dirty_card_logs_time_ms +
                         _recorded_young_cset_choice_time_ms +
                         _recorded_non_young_cset_choice_time_ms +
                         _cur_region_register_time +
@@ -389,6 +393,7 @@ double G1GCPhaseTimes::print_pre_evacuate_collection_set() const {
     debug_time("Root Region Scan Waiting", _root_region_scan_wait_time_ms);
   }
   debug_time("Prepare TLABs", _cur_prepare_tlab_time_ms);
+  debug_time("Concatenate Dirty Card Logs", _cur_concatenate_dirty_card_logs_time_ms);
   debug_time("Choose Collection Set", (_recorded_young_cset_choice_time_ms + _recorded_non_young_cset_choice_time_ms));
   debug_time("Region Register", _cur_region_register_time);
   if (G1EagerReclaimHumongousObjects) {

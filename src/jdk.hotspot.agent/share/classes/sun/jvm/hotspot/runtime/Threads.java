@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,19 +28,17 @@ import java.util.*;
 
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.types.*;
-import sun.jvm.hotspot.runtime.solaris_sparc.SolarisSPARCJavaThreadPDAccess;
-import sun.jvm.hotspot.runtime.solaris_x86.SolarisX86JavaThreadPDAccess;
-import sun.jvm.hotspot.runtime.solaris_amd64.SolarisAMD64JavaThreadPDAccess;
 import sun.jvm.hotspot.runtime.win32_amd64.Win32AMD64JavaThreadPDAccess;
 import sun.jvm.hotspot.runtime.win32_x86.Win32X86JavaThreadPDAccess;
 import sun.jvm.hotspot.runtime.linux_x86.LinuxX86JavaThreadPDAccess;
 import sun.jvm.hotspot.runtime.linux_amd64.LinuxAMD64JavaThreadPDAccess;
 import sun.jvm.hotspot.runtime.linux_aarch64.LinuxAARCH64JavaThreadPDAccess;
 import sun.jvm.hotspot.runtime.linux_ppc64.LinuxPPC64JavaThreadPDAccess;
-import sun.jvm.hotspot.runtime.linux_sparc.LinuxSPARCJavaThreadPDAccess;
 import sun.jvm.hotspot.runtime.bsd_x86.BsdX86JavaThreadPDAccess;
 import sun.jvm.hotspot.runtime.bsd_amd64.BsdAMD64JavaThreadPDAccess;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 class ThreadsList extends VMObject {
     private static AddressField  threadsField;
@@ -96,15 +94,7 @@ public class Threads {
 
         access = null;
         // FIXME: find the platform specific PD class by reflection?
-        if (os.equals("solaris")) {
-            if (cpu.equals("sparc")) {
-                access = new SolarisSPARCJavaThreadPDAccess();
-            } else if (cpu.equals("x86")) {
-                access = new SolarisX86JavaThreadPDAccess();
-            } else if (cpu.equals("amd64")) {
-                access = new SolarisAMD64JavaThreadPDAccess();
-            }
-        } else if (os.equals("win32")) {
+        if (os.equals("win32")) {
             if (cpu.equals("x86")) {
                 access =  new Win32X86JavaThreadPDAccess();
             } else if (cpu.equals("amd64")) {
@@ -115,8 +105,6 @@ public class Threads {
                 access = new LinuxX86JavaThreadPDAccess();
             } else if (cpu.equals("amd64")) {
                 access = new LinuxAMD64JavaThreadPDAccess();
-            } else if (cpu.equals("sparc")) {
-                access = new LinuxSPARCJavaThreadPDAccess();
             } else if (cpu.equals("ppc64")) {
                 access = new LinuxPPC64JavaThreadPDAccess();
             } else if (cpu.equals("aarch64")) {
@@ -126,7 +114,7 @@ public class Threads {
                 access = (JavaThreadPDAccess)
                   Class.forName("sun.jvm.hotspot.runtime.linux_" +
                      cpu.toLowerCase() + ".Linux" + cpu.toUpperCase() +
-                     "JavaThreadPDAccess").newInstance();
+                     "JavaThreadPDAccess").getDeclaredConstructor().newInstance();
               } catch (Exception e) {
                 throw new RuntimeException("OS/CPU combination " + os + "/" + cpu +
                                            " not yet supported");
@@ -235,8 +223,8 @@ public class Threads {
 
     // refer to Threads::get_pending_threads
     // Get list of Java threads that are waiting to enter the specified monitor.
-    public List getPendingThreads(ObjectMonitor monitor) {
-        List pendingThreads = new ArrayList();
+    public List<JavaThread> getPendingThreads(ObjectMonitor monitor) {
+        List<JavaThread> pendingThreads = new ArrayList<>();
         for (int i = 0; i < getNumberOfThreads(); i++) {
             JavaThread thread = getJavaThreadAt(i);
             if (thread.isCompilerThread() || thread.isCodeCacheSweeperThread()) {
@@ -251,8 +239,8 @@ public class Threads {
     }
 
     // Get list of Java threads that have called Object.wait on the specified monitor.
-    public List getWaitingThreads(ObjectMonitor monitor) {
-        List pendingThreads = new ArrayList();
+    public List<JavaThread> getWaitingThreads(ObjectMonitor monitor) {
+        List<JavaThread> pendingThreads = new ArrayList<>();
         for (int i = 0; i < getNumberOfThreads(); i++) {
             JavaThread thread = getJavaThreadAt(i);
             ObjectMonitor waiting = thread.getCurrentWaitingMonitor();

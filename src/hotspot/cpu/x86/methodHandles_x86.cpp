@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "classfile/javaClasses.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
+#include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "prims/methodHandles.hpp"
@@ -73,7 +74,7 @@ void MethodHandles::verify_klass(MacroAssembler* _masm,
   Klass* klass = SystemDictionary::well_known_klass(klass_id);
   Register temp = rdi;
   Register temp2 = noreg;
-  LP64_ONLY(temp2 = rscratch1);  // used by MacroAssembler::cmpptr
+  LP64_ONLY(temp2 = rscratch1);  // used by MacroAssembler::cmpptr and load_klass
   Label L_ok, L_bad;
   BLOCK_COMMENT("verify_klass {");
   __ verify_oop(obj);
@@ -81,7 +82,7 @@ void MethodHandles::verify_klass(MacroAssembler* _masm,
   __ jcc(Assembler::zero, L_bad);
   __ push(temp); if (temp2 != noreg)  __ push(temp2);
 #define UNPUSH { if (temp2 != noreg)  __ pop(temp2);  __ pop(temp); }
-  __ load_klass(temp, obj);
+  __ load_klass(temp, obj, temp2);
   __ cmpptr(temp, ExternalAddress((address) klass_addr));
   __ jcc(Assembler::equal, L_ok);
   intptr_t super_check_offset = klass->super_check_offset();
@@ -351,7 +352,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
       } else {
         // load receiver klass itself
         __ null_check(receiver_reg, oopDesc::klass_offset_in_bytes());
-        __ load_klass(temp1_recv_klass, receiver_reg);
+        __ load_klass(temp1_recv_klass, receiver_reg, temp2);
         __ verify_klass_ptr(temp1_recv_klass);
       }
       BLOCK_COMMENT("check_receiver {");
@@ -359,7 +360,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
       // Check the receiver against the MemberName.clazz
       if (VerifyMethodHandles && iid == vmIntrinsics::_linkToSpecial) {
         // Did not load it above...
-        __ load_klass(temp1_recv_klass, receiver_reg);
+        __ load_klass(temp1_recv_klass, receiver_reg, temp2);
         __ verify_klass_ptr(temp1_recv_klass);
       }
       if (VerifyMethodHandles && iid != vmIntrinsics::_linkToInterface) {
@@ -501,12 +502,23 @@ void trace_method_handle_stub(const char* adaptername,
                 p2i(mh), p2i(entry_sp));
 
   if (Verbose) {
+    ResourceMark rm;
     tty->print_cr("Registers:");
     const int saved_regs_count = RegisterImpl::number_of_registers;
     for (int i = 0; i < saved_regs_count; i++) {
       Register r = as_Register(i);
       // The registers are stored in reverse order on the stack (by pusha).
+#ifdef AMD64
+      assert(RegisterImpl::number_of_registers == 16, "sanity");
+      if (r == rsp) {
+        // rsp is actually not stored by pusha(), compute the old rsp from saved_regs (rsp after pusha): saved_regs + 16 = old rsp
+        tty->print("%3s=" PTR_FORMAT, r->name(), (intptr_t)(&saved_regs[16]));
+      } else {
+        tty->print("%3s=" PTR_FORMAT, r->name(), saved_regs[((saved_regs_count - 1) - i)]);
+      }
+#else
       tty->print("%3s=" PTR_FORMAT, r->name(), saved_regs[((saved_regs_count - 1) - i)]);
+#endif
       if ((i + 1) % 4 == 0) {
         tty->cr();
       } else {
@@ -516,12 +528,11 @@ void trace_method_handle_stub(const char* adaptername,
     tty->cr();
 
     {
-     // dumping last frame with frame::describe
+      // dumping last frame with frame::describe
 
       JavaThread* p = JavaThread::active();
 
-      ResourceMark rm;
-      PRESERVE_EXCEPTION_MARK; // may not be needed by safer and unexpensive here
+      PRESERVE_EXCEPTION_MARK; // may not be needed but safer and inexpensive here
       FrameValues values;
 
       // Note: We want to allow trace_method_handle from any call site.
@@ -570,8 +581,9 @@ void trace_method_handle_stub(const char* adaptername,
     if (has_mh && oopDesc::is_oop(mh)) {
       mh->print();
       if (java_lang_invoke_MethodHandle::is_instance(mh)) {
-        if (java_lang_invoke_MethodHandle::form_offset_in_bytes() != 0)
+        if (java_lang_invoke_MethodHandle::form_offset_in_bytes() != 0) {
           java_lang_invoke_MethodHandle::form(mh)->print();
+        }
       }
     }
   }
@@ -594,7 +606,7 @@ void trace_method_handle_stub_wrapper(MethodHandleStubArguments* args) {
 }
 
 void MethodHandles::trace_method_handle(MacroAssembler* _masm, const char* adaptername) {
-  if (!TraceMethodHandles)  return;
+  if (!log_is_enabled(Info, methodhandles))  return;
   BLOCK_COMMENT(err_msg("trace_method_handle %s {", adaptername));
   __ enter();
   __ andptr(rsp, -16); // align stack if needed for FPU state

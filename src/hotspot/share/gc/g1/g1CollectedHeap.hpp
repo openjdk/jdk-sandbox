@@ -54,6 +54,7 @@
 #include "gc/shared/plab.hpp"
 #include "gc/shared/preservedMarks.hpp"
 #include "gc/shared/softRefPolicy.hpp"
+#include "gc/shared/taskqueue.hpp"
 #include "memory/memRegion.hpp"
 #include "utilities/stack.hpp"
 
@@ -97,8 +98,8 @@ class G1HeapSizingPolicy;
 class G1HeapSummary;
 class G1EvacSummary;
 
-typedef OverflowTaskQueue<StarTask, mtGC>         RefToScanQueue;
-typedef GenericTaskQueueSet<RefToScanQueue, mtGC> RefToScanQueueSet;
+typedef OverflowTaskQueue<ScannerTask, mtGC>           G1ScannerTasksQueue;
+typedef GenericTaskQueueSet<G1ScannerTasksQueue, mtGC> G1ScannerTasksQueueSet;
 
 typedef int RegionIdx_t;   // needs to hold [ 0..max_regions() )
 typedef int CardIdx_t;     // needs to hold [ 0..CardsPerRegion )
@@ -269,7 +270,7 @@ private:
   // (a) cause == _g1_humongous_allocation,
   // (b) cause == _java_lang_system_gc and +ExplicitGCInvokesConcurrent,
   // (c) cause == _dcmd_gc_run and +ExplicitGCInvokesConcurrent,
-  // (d) cause == _wb_conc_mark,
+  // (d) cause == _wb_conc_mark or _wb_breakpoint,
   // (e) cause == _g1_periodic_collection and +G1PeriodicGCInvokesConcurrent.
   bool should_do_concurrent_full_gc(GCCause::Cause cause);
 
@@ -409,7 +410,7 @@ private:
   // Initialize a contiguous set of free regions of length num_regions
   // and starting at index first so that they appear as a single
   // humongous region.
-  HeapWord* humongous_obj_allocate_initialize_regions(uint first,
+  HeapWord* humongous_obj_allocate_initialize_regions(HeapRegion* first_hr,
                                                       uint num_regions,
                                                       size_t word_size);
 
@@ -814,7 +815,7 @@ public:
   G1ConcurrentRefine* _cr;
 
   // The parallel task queues
-  RefToScanQueueSet *_task_queues;
+  G1ScannerTasksQueueSet *_task_queues;
 
   // True iff a evacuation has failed in the current collection.
   bool _evacuation_failed;
@@ -951,7 +952,7 @@ public:
   G1CMSubjectToDiscoveryClosure _is_subject_to_discovery_cm;
 public:
 
-  RefToScanQueue *task_queue(uint i) const;
+  G1ScannerTasksQueue* task_queue(uint i) const;
 
   uint num_task_queues() const;
 
@@ -1423,8 +1424,7 @@ public:
   void verify(VerifyOption vo);
 
   // WhiteBox testing support.
-  virtual bool supports_concurrent_phase_control() const;
-  virtual bool request_concurrent_phase(const char* phase);
+  virtual bool supports_concurrent_gc_breakpoints() const;
   bool is_heterogeneous_heap() const;
 
   virtual WorkGang* get_safepoint_workers() { return _workers; }
@@ -1466,8 +1466,6 @@ public:
 
   // Used to print information about locations in the hs_err file.
   virtual bool print_location(outputStream* st, void* addr) const;
-
-  size_t pending_card_num();
 };
 
 class G1ParEvacuateFollowersClosure : public VoidClosure {
@@ -1481,18 +1479,18 @@ private:
 protected:
   G1CollectedHeap*              _g1h;
   G1ParScanThreadState*         _par_scan_state;
-  RefToScanQueueSet*            _queues;
+  G1ScannerTasksQueueSet*       _queues;
   TaskTerminator*               _terminator;
   G1GCPhaseTimes::GCParPhases   _phase;
 
   G1ParScanThreadState*   par_scan_state() { return _par_scan_state; }
-  RefToScanQueueSet*      queues()         { return _queues; }
+  G1ScannerTasksQueueSet* queues()         { return _queues; }
   TaskTerminator*         terminator()     { return _terminator; }
 
 public:
   G1ParEvacuateFollowersClosure(G1CollectedHeap* g1h,
                                 G1ParScanThreadState* par_scan_state,
-                                RefToScanQueueSet* queues,
+                                G1ScannerTasksQueueSet* queues,
                                 TaskTerminator* terminator,
                                 G1GCPhaseTimes::GCParPhases phase)
     : _start_term(0.0), _term_time(0.0), _term_attempts(0),

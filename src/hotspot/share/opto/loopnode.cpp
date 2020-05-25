@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,12 +31,14 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "opto/addnode.hpp"
+#include "opto/arraycopynode.hpp"
 #include "opto/callnode.hpp"
 #include "opto/connode.hpp"
 #include "opto/convertnode.hpp"
 #include "opto/divnode.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #include "opto/loopnode.hpp"
+#include "opto/movenode.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/superword.hpp"
@@ -1588,7 +1590,13 @@ void OuterStripMinedLoopNode::adjust_strip_mined_loop(PhaseIterGVN* igvn) {
     } else {
       sub = igvn->transform(new SubINode(iv_phi, limit));
     }
-    Node* min = igvn->transform(new MinINode(sub, igvn->intcon(scaled_iters)));
+    // sub is positive and can be larger than the max signed int
+    // value. Use an unsigned min.
+    Node* const_iters = igvn->intcon(scaled_iters);
+    Node* cmp = igvn->transform(new CmpUNode(sub, const_iters));
+    Node* bol = igvn->transform(new BoolNode(cmp, BoolTest::lt));
+    Node* min = igvn->transform(new CMoveINode(bol, const_iters, sub, TypeInt::make(0, scaled_iters, Type::WidenMin)));
+
     Node* new_limit = NULL;
     if (stride > 0) {
       new_limit = igvn->transform(new AddINode(min, iv_phi));
@@ -2090,10 +2098,18 @@ bool IdealLoopTree::beautify_loops( PhaseIdealLoop *phase ) {
   // If I am a shared header (multiple backedges), peel off the many
   // backedges into a private merge point and use the merge point as
   // the one true backedge.
-  if( _head->req() > 3 ) {
+  if (_head->req() > 3) {
     // Merge the many backedges into a single backedge but leave
     // the hottest backedge as separate edge for the following peel.
-    merge_many_backedges( phase );
+    if (!_irreducible) {
+      merge_many_backedges( phase );
+    }
+
+    // When recursively beautify my children, split_fall_in can change
+    // loop tree structure when I am an irreducible loop. Then the head
+    // of my children has a req() not bigger than 3. Here we need to set
+    // result to true to catch that case in order to tell the caller to
+    // rebuild loop tree. See issue JDK-8244407 for details.
     result = true;
   }
 
@@ -2543,17 +2559,17 @@ void IdealLoopTree::dump_head() const {
     tty->print(" limit_check");
     entry = PhaseIdealLoop::skip_loop_predicates(entry);
   }
-  if (UseLoopPredicate) {
-    entry = PhaseIdealLoop::find_predicate_insertion_point(entry, Deoptimization::Reason_predicate);
-    if (entry != NULL) {
-      tty->print(" predicated");
+  if (UseProfiledLoopPredicate) {
+    predicate = PhaseIdealLoop::find_predicate_insertion_point(entry, Deoptimization::Reason_profile_predicate);
+    if (predicate != NULL) {
+      tty->print(" profile_predicated");
       entry = PhaseIdealLoop::skip_loop_predicates(entry);
     }
   }
-  if (UseProfiledLoopPredicate) {
-    entry = PhaseIdealLoop::find_predicate_insertion_point(entry, Deoptimization::Reason_profile_predicate);
-    if (entry != NULL) {
-      tty->print(" profile_predicated");
+  if (UseLoopPredicate) {
+    predicate = PhaseIdealLoop::find_predicate_insertion_point(entry, Deoptimization::Reason_predicate);
+    if (predicate != NULL) {
+      tty->print(" predicated");
     }
   }
   if (_head->is_CountedLoop()) {
@@ -2658,21 +2674,21 @@ void PhaseIdealLoop::collect_potentially_useful_predicates(
     LoopNode* lpn = loop->_head->as_Loop();
     Node* entry = lpn->in(LoopNode::EntryControl);
     Node* predicate_proj = find_predicate(entry); // loop_limit_check first
-    if (predicate_proj != NULL ) { // right pattern that can be used by loop predication
+    if (predicate_proj != NULL) { // right pattern that can be used by loop predication
       assert(entry->in(0)->in(1)->in(1)->Opcode() == Op_Opaque1, "must be");
-      useful_predicates.push(entry->in(0)->in(1)->in(1)); // good one
-      entry = skip_loop_predicates(entry);
-    }
-    predicate_proj = find_predicate(entry); // Predicate
-    if (predicate_proj != NULL ) {
       useful_predicates.push(entry->in(0)->in(1)->in(1)); // good one
       entry = skip_loop_predicates(entry);
     }
     if (UseProfiledLoopPredicate) {
       predicate_proj = find_predicate(entry); // Predicate
-      if (predicate_proj != NULL ) {
+      if (predicate_proj != NULL) {
         useful_predicates.push(entry->in(0)->in(1)->in(1)); // good one
+        entry = skip_loop_predicates(entry);
       }
+    }
+    predicate_proj = find_predicate(entry); // Predicate
+    if (predicate_proj != NULL) {
+      useful_predicates.push(entry->in(0)->in(1)->in(1)); // good one
     }
   }
 
@@ -4089,8 +4105,16 @@ Node *PhaseIdealLoop::get_late_ctrl( Node *n, Node *early ) {
           }
         } else {
           Node *sctrl = has_ctrl(s) ? get_ctrl(s) : s->in(0);
+          const TypePtr* adr_type = s->adr_type();
+          if (s->is_ArrayCopy()) {
+            // Copy to known instance needs destination type to test for aliasing
+            const TypePtr* dest_type = s->as_ArrayCopy()->_dest_type;
+            if (dest_type != TypeOopPtr::BOTTOM) {
+              adr_type = dest_type;
+            }
+          }
           assert(sctrl != NULL || !s->is_reachable_from_root(), "must have control");
-          if (sctrl != NULL && !sctrl->is_top() && C->can_alias(s->adr_type(), load_alias_idx) && is_dominator(early, sctrl)) {
+          if (sctrl != NULL && !sctrl->is_top() && C->can_alias(adr_type, load_alias_idx) && is_dominator(early, sctrl)) {
             LCA = dom_lca_for_get_late_ctrl(LCA, sctrl, n);
           }
         }

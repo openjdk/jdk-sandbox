@@ -39,6 +39,7 @@
 #include "code/codeCache.hpp"
 #include "code/scopeDesc.hpp"
 #include "compiler/compileBroker.hpp"
+#include "compiler/compilerEvent.hpp"
 #include "compiler/compileLog.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -1160,9 +1161,7 @@ void ciEnv::record_failure(const char* reason) {
 void ciEnv::report_failure(const char* reason) {
   EventCompilationFailure event;
   if (event.should_commit()) {
-    event.set_compileId(compile_id());
-    event.set_failureMessage(reason);
-    event.commit();
+    CompilerEvent::CompilationFailureEvent::post(event, compile_id(), reason);
   }
 }
 

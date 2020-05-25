@@ -69,9 +69,10 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
       LIBJSIG_HASHSTYLE_LDFLAGS="-Wl,--hash-style=both"
     fi
 
-    # Add -z defs, to forbid undefined symbols in object files.
-    # add relro (mark relocations read only) for all libs
-    BASIC_LDFLAGS="$BASIC_LDFLAGS -Wl,-z,defs -Wl,-z,relro"
+    # Add -z,defs, to forbid undefined symbols in object files.
+    # add -z,relro (mark relocations read only) for all libs
+    # add -z,now ("full relro" - more of the Global Offset Table GOT is marked read only)
+    BASIC_LDFLAGS="$BASIC_LDFLAGS -Wl,-z,defs -Wl,-z,relro -Wl,-z,now"
     # Linux : remove unused code+data in link step
     if test "x$ENABLE_LINKTIME_GC" = xtrue; then
       if test "x$OPENJDK_TARGET_CPU" = xs390x; then
@@ -86,14 +87,6 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     BASIC_LDFLAGS_JVM_ONLY="-mno-omit-leaf-frame-pointer -mstack-alignment=16 \
         -fPIC"
-
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    BASIC_LDFLAGS="-Wl,-z,defs"
-    BASIC_LDFLAGS_ONLYCXX="-norunpath"
-    BASIC_LDFLAGS_ONLYCXX_JDK_ONLY="-xnolib"
-
-    BASIC_LDFLAGS_JDK_ONLY="-ztext"
-    BASIC_LDFLAGS_JVM_ONLY="-library=%none -mt -z noversion"
 
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
     BASIC_LDFLAGS="-b64 -brtl -bnorwexec -bnolibpath -bexpall -bernotok -btextpsize:64K \
@@ -129,10 +122,6 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
       if test x$DEBUG_LEVEL = xrelease; then
         DEBUGLEVEL_LDFLAGS_JDK_ONLY="$DEBUGLEVEL_LDFLAGS_JDK_ONLY -Wl,-O1"
       fi
-      if test x$DEBUG_LEVEL = xslowdebug; then
-        # do relocations at load
-        DEBUGLEVEL_LDFLAGS="-Wl,-z,now"
-      fi
     fi
 
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
@@ -144,17 +133,20 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
     fi
   fi
 
-  # Setup warning flags
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    LDFLAGS_WARNINGS_ARE_ERRORS="-Wl,-z,fatal-warnings"
-  else
-    LDFLAGS_WARNINGS_ARE_ERRORS=""
-  fi
-  AC_SUBST(LDFLAGS_WARNINGS_ARE_ERRORS)
-
   # Setup LDFLAGS for linking executables
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     EXECUTABLE_LDFLAGS="$EXECUTABLE_LDFLAGS -Wl,--allow-shlib-undefined"
+    # Enabling pie on 32 bit builds prevents the JVM from allocating a continuous
+    # java heap.
+    if test "x$OPENJDK_TARGET_CPU_BITS" != "x32"; then
+      EXECUTABLE_LDFLAGS="$EXECUTABLE_LDFLAGS -pie"
+    fi
+  fi
+
+  if test "x$ALLOW_ABSOLUTE_PATHS_IN_OUTPUT" = "xfalse"; then
+    if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+      BASIC_LDFLAGS="$BASIC_LDFLAGS -pdbaltpath:%_PDB%"
+    fi
   fi
 
   # Export some intermediate variables for compatibility
@@ -178,11 +170,6 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_CPU_DEP],
     elif test "x$OPENJDK_$1_CPU" = xarm; then
       $1_CPU_LDFLAGS_JVM_ONLY="${$1_CPU_LDFLAGS_JVM_ONLY} -fsigned-char"
       $1_CPU_LDFLAGS="$ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS"
-    fi
-
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    if test "x${OPENJDK_$1_CPU}" = "xsparcv9"; then
-      $1_CPU_LDFLAGS_JVM_ONLY="-xarch=sparc"
     fi
 
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then

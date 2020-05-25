@@ -171,12 +171,14 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
     m4_undefine([FEATURE_SHELL])
   ])
 
-  # Warn if the user has both enabled and disabled a feature
-  # If this happens, disable will override enable.
+  # Check if the user has both enabled and disabled a feature
   UTIL_GET_MATCHING_VALUES(enabled_and_disabled, $JVM_FEATURES_ENABLED, \
       $JVM_FEATURES_DISABLED)
   if test "x$enabled_and_disabled" != x; then
-    AC_MSG_WARN([Disabling of these features will override enabling: '$enabled_and_disabled'])
+    AC_MSG_NOTICE([These feature are both enabled and disabled: '$enabled_and_disabled'])
+    AC_MSG_NOTICE([This can happen if you mix --with-jvm-features and --enable-jvm-feature-*])
+    AC_MSG_NOTICE([The recommendation is to only use --enable-jvm-feature-*])
+    AC_MSG_ERROR([Cannot continue])
   fi
 
   # Clean up lists and announce results to user
@@ -318,8 +320,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_CHECK_JFR],
 [
   JVM_FEATURES_CHECK_AVAILABILITY(jfr, [
     AC_MSG_CHECKING([if platform is supported by JFR])
-    if test "x$OPENJDK_TARGET_OS" = xaix || \
-        test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-sparcv9"; then
+    if test "x$OPENJDK_TARGET_OS" = xaix; then
       AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
       AVAILABLE=false
     else
@@ -443,10 +444,6 @@ AC_DEFUN_ONCE([JVM_FEATURES_PREPARE_PLATFORM],
   # Make sure to just add to JVM_FEATURES_PLATFORM_FILTER, since it could
   # have a value already from custom extensions.
   if test "x$OPENJDK_TARGET_OS" = xaix; then
-    JVM_FEATURES_PLATFORM_FILTER="$JVM_FEATURES_PLATFORM_FILTER jfr"
-  fi
-
-  if test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-sparcv9"; then
     JVM_FEATURES_PLATFORM_FILTER="$JVM_FEATURES_PLATFORM_FILTER jfr"
   fi
 ])

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,24 +33,11 @@
 class RecordComponent;
 
 // Interface for manipulating the basic Java classes.
-//
-// All dependencies on layout of actual Java classes should be kept here.
-// If the layout of any of the classes above changes the offsets must be adjusted.
-//
-// For most classes we hardwire the offsets for performance reasons. In certain
-// cases (e.g. java.security.AccessControlContext) we compute the offsets at
-// startup since the layout here differs between JDK1.2 and JDK1.3.
-//
-// Note that fields (static and non-static) are arranged with oops before non-oops
-// on a per class basis. The offsets below have to reflect this ordering.
-//
-// When editing the layouts please update the check_offset verification code
-// correspondingly. The names in the enums must be identical to the actual field
-// names in order for the verification code to work.
 
 #define BASIC_JAVA_CLASSES_DO_PART1(f) \
   f(java_lang_Class) \
   f(java_lang_String) \
+  f(java_lang_ref_Reference) \
   //end
 
 #define BASIC_JAVA_CLASSES_DO_PART2(f) \
@@ -86,6 +73,7 @@ class RecordComponent;
   f(java_lang_LiveStackFrameInfo) \
   f(java_util_concurrent_locks_AbstractOwnableSynchronizer) \
   f(jdk_internal_misc_UnsafeConstants) \
+  f(java_lang_boxing_object) \
   //end
 
 #define BASIC_JAVA_CLASSES_DO(f) \
@@ -168,6 +156,8 @@ class java_lang_String : AllStatic {
 
   // String converters
   static char*  as_utf8_string(oop java_string);
+  static char*  as_utf8_string(oop java_string, int& length);
+  static char*  as_utf8_string_full(oop java_string, char* buf, int buflen, int& length);
   static char*  as_utf8_string(oop java_string, char* buf, int buflen);
   static char*  as_utf8_string(oop java_string, int start, int len);
   static char*  as_utf8_string(oop java_string, typeArrayOop value, char* buf, int buflen);
@@ -263,6 +253,7 @@ class java_lang_Class : AllStatic {
   static int _component_mirror_offset;
   static int _name_offset;
   static int _source_file_offset;
+  static int _classData_offset;
 
   static bool offsets_computed;
   static int classRedefinedCount_offset;
@@ -274,7 +265,8 @@ class java_lang_Class : AllStatic {
   static void set_protection_domain(oop java_class, oop protection_domain);
   static void set_class_loader(oop java_class, oop class_loader);
   static void set_component_mirror(oop java_class, oop comp_mirror);
-  static void initialize_mirror_fields(Klass* k, Handle mirror, Handle protection_domain, TRAPS);
+  static void initialize_mirror_fields(Klass* k, Handle mirror, Handle protection_domain,
+                                       Handle classData, TRAPS);
   static void set_mirror_module_field(Klass* K, Handle mirror, Handle module, TRAPS);
  public:
   static void allocate_fixup_lists();
@@ -282,7 +274,7 @@ class java_lang_Class : AllStatic {
 
   // Instance creation
   static void create_mirror(Klass* k, Handle class_loader, Handle module,
-                            Handle protection_domain, TRAPS);
+                            Handle protection_domain, Handle classData, TRAPS);
   static void fixup_mirror(Klass* k, TRAPS);
   static oop  create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS);
   static void update_archived_primitive_mirror_native_pointers(oop archived_mirror) NOT_CDS_JAVA_HEAP_RETURN;
@@ -330,6 +322,8 @@ class java_lang_Class : AllStatic {
   static oop  component_mirror(oop java_class);
   static objArrayOop  signers(oop java_class);
   static void set_signers(oop java_class, objArrayOop signers);
+  static oop  class_data(oop java_class);
+  static void set_class_data(oop java_class, oop classData);
 
   static oop class_loader(oop java_class);
   static void set_module(oop java_class, oop module);
@@ -523,13 +517,6 @@ class java_lang_Throwable: AllStatic {
   friend class BacktraceIterator;
 
  private:
-  // Offsets
-  enum {
-    hc_backtrace_offset     =  0,
-    hc_detailMessage_offset =  1,
-    hc_cause_offset         =  2,  // New since 1.4
-    hc_stackTrace_offset    =  3   // New since 1.4
-  };
   // Trace constants
   enum {
     trace_methods_offset = 0,
@@ -880,9 +867,6 @@ class reflect_UnsafeStaticFieldAccessorImpl {
 
 class java_lang_boxing_object: AllStatic {
  private:
-  enum {
-   hc_value_offset = 0
-  };
   static int value_offset;
   static int long_value_offset;
 
@@ -904,6 +888,9 @@ class java_lang_boxing_object: AllStatic {
                                                     value_offset;
   }
 
+  static void compute_offsets();
+  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
+
   // Debugging
   friend class JavaClasses;
 };
@@ -913,14 +900,9 @@ class java_lang_boxing_object: AllStatic {
 // Interface to java.lang.ref.Reference objects
 
 class java_lang_ref_Reference: AllStatic {
- public:
-  enum {
-   hc_referent_offset   = 0,
-   hc_queue_offset      = 1,
-   hc_next_offset       = 2,
-   hc_discovered_offset = 3  // Is not last, see SoftRefs.
-  };
+  static bool _offsets_initialized;
 
+ public:
   static int referent_offset;
   static int queue_offset;
   static int next_offset;
@@ -944,6 +926,9 @@ class java_lang_ref_Reference: AllStatic {
   static bool is_referent_field(oop obj, ptrdiff_t offset);
   static inline bool is_final(oop ref);
   static inline bool is_phantom(oop ref);
+
+  static void compute_offsets();
+  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 
 
@@ -1142,16 +1127,20 @@ class java_lang_invoke_MemberName: AllStatic {
 
   // Relevant integer codes (keep these in synch. with MethodHandleNatives.Constants):
   enum {
-    MN_IS_METHOD            = 0x00010000, // method (not constructor)
-    MN_IS_CONSTRUCTOR       = 0x00020000, // constructor
-    MN_IS_FIELD             = 0x00040000, // field
-    MN_IS_TYPE              = 0x00080000, // nested type
-    MN_CALLER_SENSITIVE     = 0x00100000, // @CallerSensitive annotation detected
-    MN_REFERENCE_KIND_SHIFT = 24, // refKind
-    MN_REFERENCE_KIND_MASK  = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT,
+    MN_IS_METHOD             = 0x00010000, // method (not constructor)
+    MN_IS_CONSTRUCTOR        = 0x00020000, // constructor
+    MN_IS_FIELD              = 0x00040000, // field
+    MN_IS_TYPE               = 0x00080000, // nested type
+    MN_CALLER_SENSITIVE      = 0x00100000, // @CallerSensitive annotation detected
+    MN_REFERENCE_KIND_SHIFT  = 24, // refKind
+    MN_REFERENCE_KIND_MASK   = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT,
     // The SEARCH_* bits are not for MN.flags but for the matchFlags argument of MHN.getMembers:
-    MN_SEARCH_SUPERCLASSES  = 0x00100000, // walk super classes
-    MN_SEARCH_INTERFACES    = 0x00200000  // walk implemented interfaces
+    MN_SEARCH_SUPERCLASSES   = 0x00100000, // walk super classes
+    MN_SEARCH_INTERFACES     = 0x00200000, // walk implemented interfaces
+    MN_NESTMATE_CLASS        = 0x00000001,
+    MN_HIDDEN_CLASS          = 0x00000002,
+    MN_STRONG_LOADER_LINK    = 0x00000004,
+    MN_ACCESS_VM_ANNOTATIONS = 0x00000008
   };
 
   // Accessors for code generation:
@@ -1721,7 +1710,6 @@ class JavaClasses : AllStatic {
 
   static int compute_injected_offset(InjectedFieldID id);
 
-  static void compute_hard_coded_offsets();
   static void compute_offsets();
   static void check_offsets() PRODUCT_RETURN;
   static void serialize_offsets(SerializeClosure* soc) NOT_CDS_RETURN;

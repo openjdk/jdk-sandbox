@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -120,6 +120,12 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU],
       VAR_CPU_BITS=64
       VAR_CPU_ENDIAN=little
       ;;
+    riscv64)
+      VAR_CPU=riscv64
+      VAR_CPU_ARCH=riscv
+      VAR_CPU_BITS=64
+      VAR_CPU_ENDIAN=little
+      ;;
     s390)
       VAR_CPU=s390
       VAR_CPU_ARCH=s390
@@ -156,6 +162,18 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU],
       VAR_CPU_BITS=64
       VAR_CPU_ENDIAN=big
       ;;
+    sparc)
+      VAR_CPU=sparc
+      VAR_CPU_ARCH=sparc
+      VAR_CPU_BITS=32
+      VAR_CPU_ENDIAN=big
+      ;;
+    sparcv9|sparc64)
+      VAR_CPU=sparcv9
+      VAR_CPU_ARCH=sparc
+      VAR_CPU_BITS=64
+      VAR_CPU_ENDIAN=big
+      ;;
     *)
       AC_MSG_ERROR([unsupported cpu $1])
       ;;
@@ -170,10 +188,6 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_OS],
   case "$1" in
     *linux*)
       VAR_OS=linux
-      VAR_OS_TYPE=unix
-      ;;
-    *solaris*)
-      VAR_OS=solaris
       VAR_OS_TYPE=unix
       ;;
     *darwin*)
@@ -375,19 +389,6 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS_HELPER],
   fi
   AC_SUBST(OPENJDK_$1_CPU_LEGACY_LIB)
 
-  # OPENJDK_$1_CPU_ISADIR is normally empty. On 64-bit Solaris systems, it is set to
-  # /amd64 or /sparcv9. This string is appended to some library paths, like this:
-  # /usr/lib${OPENJDK_$1_CPU_ISADIR}/libexample.so
-  OPENJDK_$1_CPU_ISADIR=""
-  if test "x$OPENJDK_$1_OS" = xsolaris; then
-    if test "x$OPENJDK_$1_CPU" = xx86_64; then
-      OPENJDK_$1_CPU_ISADIR="/amd64"
-    elif test "x$OPENJDK_$1_CPU" = xsparcv9; then
-      OPENJDK_$1_CPU_ISADIR="/sparcv9"
-    fi
-  fi
-  AC_SUBST(OPENJDK_$1_CPU_ISADIR)
-
   # Setup OPENJDK_$1_CPU_OSARCH, which is used to set the os.arch Java system property
   OPENJDK_$1_CPU_OSARCH="$OPENJDK_$1_CPU"
   if test "x$OPENJDK_$1_OS" = xlinux && test "x$OPENJDK_$1_CPU" = xx86; then
@@ -485,6 +486,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS_HELPER],
     HOTSPOT_$1_CPU_DEFINE=S390
   elif test "x$OPENJDK_$1_CPU" = xs390x; then
     HOTSPOT_$1_CPU_DEFINE=S390
+  elif test "x$OPENJDK_$1_CPU" = xriscv64; then
+    HOTSPOT_$1_CPU_DEFINE=RISCV
   elif test "x$OPENJDK_$1_CPU" != x; then
     HOTSPOT_$1_CPU_DEFINE=$(echo $OPENJDK_$1_CPU | tr a-z A-Z)
   fi
@@ -502,9 +505,6 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS_HELPER],
 
 AC_DEFUN([PLATFORM_SET_RELEASE_FILE_OS_VALUES],
 [
-  if test "x$OPENJDK_TARGET_OS" = "xsolaris"; then
-    RELEASE_FILE_OS_NAME=SunOS
-  fi
   if test "x$OPENJDK_TARGET_OS" = "xlinux"; then
     RELEASE_FILE_OS_NAME=Linux
   fi
@@ -558,22 +558,9 @@ AC_DEFUN_ONCE([PLATFORM_SETUP_OPENJDK_BUILD_AND_TARGET],
   PLATFORM_SET_MODULE_TARGET_OS_VALUES
   PLATFORM_SET_RELEASE_FILE_OS_VALUES
   PLATFORM_SETUP_LEGACY_VARS
-  PLATFORM_CHECK_DEPRECATION
-])
 
-AC_DEFUN([PLATFORM_CHECK_DEPRECATION],
-[
-  AC_ARG_ENABLE(deprecated-ports, [AS_HELP_STRING([--enable-deprecated-ports@<:@=yes/no@:>@],
-       [Suppress the error when configuring for a deprecated port @<:@no@:>@])])
-
-  if test "x$OPENJDK_TARGET_OS" = xsolaris || (test "x$OPENJDK_TARGET_CPU_ARCH" = xsparc && test "x$with_jvm_variants" != xzero); then
-    if test "x$enable_deprecated_ports" = "xyes"; then
-      AC_MSG_WARN([The Solaris and SPARC ports are deprecated and may be removed in a future release.])
-    else
-      AC_MSG_ERROR(m4_normalize([The Solaris and SPARC ports are deprecated and may be removed in a
-        future release. Use --enable-deprecated-ports=yes to suppress this error.]))
-    fi
-  fi
+  # Deprecated in JDK 15
+  UTIL_DEPRECATED_ARG_ENABLE(deprecated-ports)
 ])
 
 AC_DEFUN_ONCE([PLATFORM_SETUP_OPENJDK_BUILD_OS_VERSION],

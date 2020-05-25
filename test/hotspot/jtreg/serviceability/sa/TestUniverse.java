@@ -34,12 +34,12 @@ import sun.hotspot.gc.GC;
 /**
  * @test
  * @summary Test the 'universe' command of jhsdb clhsdb.
- * @requires vm.hasSAandCanAttach
+ * @requires vm.hasSA
  * @bug 8190307
  * @library /test/lib
  * @build jdk.test.lib.apps.*
  * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. TestUniverse
  */
 

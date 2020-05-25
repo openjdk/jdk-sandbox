@@ -74,7 +74,7 @@ public class DatagramSocketAdaptor
     private volatile int timeout;
 
     private DatagramSocketAdaptor(DatagramChannelImpl dc) throws IOException {
-        super(/*SocketAddress*/null);
+        super(/*SocketAddress*/ DatagramSockets.NO_DELEGATE);
         this.dc = dc;
     }
 
@@ -166,13 +166,23 @@ public class DatagramSocketAdaptor
 
     @Override
     public SocketAddress getLocalSocketAddress() {
-        try {
-            return dc.getLocalAddress();
-        } catch (ClosedChannelException e) {
+        InetSocketAddress local = dc.localAddress();
+        if (local == null || isClosed())
             return null;
-        } catch (Exception x) {
-            throw new Error(x);
+
+        InetAddress addr = local.getAddress();
+        if (addr.isAnyLocalAddress())
+            return local;
+
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            try {
+                sm.checkConnect(addr.getHostAddress(), -1);
+            } catch (SecurityException x) {
+                return new InetSocketAddress(local.getPort());
+            }
         }
+        return local;
     }
 
     @Override
@@ -199,7 +209,6 @@ public class DatagramSocketAdaptor
                     p.setPort(remote.getPort());
                     target = remote;
                 } else {
-                    // throws IllegalArgumentException if port not set
                     target = (InetSocketAddress) p.getSocketAddress();
                 }
             }
@@ -757,6 +766,26 @@ public class DatagramSocketAdaptor
                 return (NetworkInterface) CONSTRUCTOR.invoke(name, index, addrs);
             } catch (Throwable e) {
                 throw new InternalError(e);
+            }
+        }
+    }
+
+    /**
+     * Provides access to the value of the private static DatagramSocket.NO_DELEGATE
+     */
+    private static class DatagramSockets {
+        private static final SocketAddress NO_DELEGATE;
+
+        static {
+            try {
+                PrivilegedExceptionAction<Lookup> pa = () ->
+                        MethodHandles.privateLookupIn(DatagramSocket.class, MethodHandles.lookup());
+                MethodHandles.Lookup l = AccessController.doPrivileged(pa);
+                NO_DELEGATE = (SocketAddress)
+                        l.findStaticVarHandle(DatagramSocket.class, "NO_DELEGATE",
+                                SocketAddress.class).get();
+            } catch (Exception e) {
+                throw new ExceptionInInitializerError(e);
             }
         }
     }

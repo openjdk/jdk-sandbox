@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
  * @requires vm.flavor == "server"
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
- * @run main/othervm/timeout=2400 -Xmx1g ClhsdbCDSCore
+ * @run driver/timeout=2400 ClhsdbCDSCore
  */
 
 import java.io.File;
@@ -98,7 +98,7 @@ public class ClhsdbCDSCore {
                List<String> options = new ArrayList<>();
                options.addAll(Arrays.asList(jArgs));
                crashOut =
-                   ProcessTools.executeProcess(getTestJavaCommandlineWithPrefix(
+                   ProcessTools.executeProcess(getTestJvmCommandlineWithPrefix(
                    RUN_SHELL_NO_LIMIT, options.toArray(new String[0])));
             } catch (Throwable t) {
                throw new Error("Can't execute the java cds process.", t);
@@ -163,7 +163,7 @@ public class ClhsdbCDSCore {
                 throw new SkippedException("Could not determine the UseSharedSpaces value");
             }
 
-            if (!useSharedSpacesOutput.contains("true")) {
+            if (useSharedSpacesOutput.contains("UseSharedSpaces = false")) {
                 // CDS archive is not mapped. Skip the rest of the test.
                 cleanup();
                 throw new SkippedException("The CDS archive is not mapped");
@@ -253,9 +253,9 @@ public class ClhsdbCDSCore {
         return null;
     }
 
-    private static String[] getTestJavaCommandlineWithPrefix(String prefix, String... args) {
+    private static String[] getTestJvmCommandlineWithPrefix(String prefix, String... args) {
         try {
-            String cmd = ProcessTools.getCommandLine(ProcessTools.createJavaProcessBuilder(true, args));
+            String cmd = ProcessTools.getCommandLine(ProcessTools.createTestJvm(args));
             return new String[]{"sh", "-c", prefix + cmd};
         } catch (Throwable t) {
             throw new Error("Can't create process builder: " + t, t);

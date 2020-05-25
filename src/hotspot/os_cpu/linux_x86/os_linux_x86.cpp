@@ -45,6 +45,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/osThread.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
@@ -94,18 +95,7 @@
 #endif // AMD64
 
 address os::current_stack_pointer() {
-#ifdef SPARC_WORKS
-  void *esp;
-  __asm__("mov %%" SPELL_REG_SP ", %0":"=r"(esp));
-  return (address) ((char*)esp + sizeof(long)*2);
-#elif defined(__clang__)
-  void* esp;
-  __asm__ __volatile__ ("mov %%" SPELL_REG_SP ", %0":"=r"(esp):);
-  return (address) esp;
-#else
-  register void *esp __asm__ (SPELL_REG_SP);
-  return (address) esp;
-#endif
+  return (address)__builtin_frame_address(0);
 }
 
 char* os::non_memory_address_word() {
@@ -228,10 +218,7 @@ frame os::get_sender_for_C_frame(frame* fr) {
 }
 
 intptr_t* _get_previous_fp() {
-#ifdef SPARC_WORKS
-  intptr_t **ebp;
-  __asm__("mov %%" SPELL_REG_FP ", %0":"=r"(ebp));
-#elif defined(__clang__)
+#if defined(__clang__)
   intptr_t **ebp;
   __asm__ __volatile__ ("mov %%" SPELL_REG_FP ", %0":"=r"(ebp):);
 #else
@@ -428,7 +415,7 @@ JVM_handle_linux_signal(int sig,
       // Java thread running in Java code => find exception handler if any
       // a fault inside compiled code, the interpreter, or a stub
 
-      if (sig == SIGSEGV && os::is_poll_address((address)info->si_addr)) {
+      if (sig == SIGSEGV && SafepointMechanism::is_poll_address((address)info->si_addr)) {
         stub = SharedRuntime::get_poll_stub(pc);
       } else if (sig == SIGBUS /* && info->si_code == BUS_OBJERR */) {
         // BugId 4454115: A read from a MappedByteBuffer can fault

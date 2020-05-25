@@ -1083,11 +1083,8 @@ class StubGenerator: public StubCodeGenerator {
     __ cmpptr(c_rarg2, c_rarg3);
     __ jcc(Assembler::notZero, error);
 
-    // set r12 to heapbase for load_klass()
-    __ reinit_heapbase();
-
     // make sure klass is 'reasonable', which is not zero.
-    __ load_klass(rax, rax);  // get klass
+    __ load_klass(rax, rax, rscratch1);  // get klass
     __ testptr(rax, rax);
     __ jcc(Assembler::zero, error); // if klass is NULL it is broken
 
@@ -2525,7 +2522,7 @@ class StubGenerator: public StubCodeGenerator {
     __ testptr(rax_oop, rax_oop);
     __ jcc(Assembler::zero, L_store_element);
 
-    __ load_klass(r11_klass, rax_oop);// query the object klass
+    __ load_klass(r11_klass, rax_oop, rscratch1);// query the object klass
     generate_type_check(r11_klass, ckoff, ckval, L_store_element);
     // ======== end loop ========
 
@@ -2689,8 +2686,10 @@ class StubGenerator: public StubCodeGenerator {
     const Register dst_pos    = c_rarg3;  // destination position
 #ifndef _WIN64
     const Register length     = c_rarg4;
+    const Register rklass_tmp = r9;  // load_klass
 #else
     const Address  length(rsp, 6 * wordSize);  // elements count is on stack on Win64
+    const Register rklass_tmp = rdi;  // load_klass
 #endif
 
     { int modulus = CodeEntryAlignment;
@@ -2763,7 +2762,7 @@ class StubGenerator: public StubCodeGenerator {
     __ testl(r11_length, r11_length);
     __ jccb(Assembler::negative, L_failed_0);
 
-    __ load_klass(r10_src_klass, src);
+    __ load_klass(r10_src_klass, src, rklass_tmp);
 #ifdef ASSERT
     //  assert(src->klass() != NULL);
     {
@@ -2774,7 +2773,7 @@ class StubGenerator: public StubCodeGenerator {
       __ bind(L1);
       __ stop("broken null klass");
       __ bind(L2);
-      __ load_klass(rax, dst);
+      __ load_klass(rax, dst, rklass_tmp);
       __ cmpq(rax, 0);
       __ jcc(Assembler::equal, L1);     // this would be broken also
       BLOCK_COMMENT("} assert klasses not null done");
@@ -2797,7 +2796,7 @@ class StubGenerator: public StubCodeGenerator {
     __ jcc(Assembler::equal, L_objArray);
 
     //  if (src->klass() != dst->klass()) return -1;
-    __ load_klass(rax, dst);
+    __ load_klass(rax, dst, rklass_tmp);
     __ cmpq(r10_src_klass, rax);
     __ jcc(Assembler::notEqual, L_failed);
 
@@ -2896,7 +2895,7 @@ class StubGenerator: public StubCodeGenerator {
 
     Label L_plain_copy, L_checkcast_copy;
     //  test array classes for subtyping
-    __ load_klass(rax, dst);
+    __ load_klass(rax, dst, rklass_tmp);
     __ cmpq(r10_src_klass, rax); // usual case is exact equality
     __ jcc(Assembler::notEqual, L_checkcast_copy);
 
@@ -2924,7 +2923,7 @@ class StubGenerator: public StubCodeGenerator {
                              rax, L_failed);
 
       const Register r11_dst_klass = r11;
-      __ load_klass(r11_dst_klass, dst); // reload
+      __ load_klass(r11_dst_klass, dst, rklass_tmp); // reload
 
       // Marshal the base address arguments now, freeing registers.
       __ lea(from, Address(src, src_pos, TIMES_OOP,
@@ -4445,7 +4444,7 @@ void roundDeclast(XMMRegister xmm_reg) {
   }
 
 address generate_cipherBlockChaining_decryptVectorAESCrypt() {
-    assert(VM_Version::supports_vaes(), "need AES instructions and misaligned SSE support");
+    assert(VM_Version::supports_avx512_vaes(), "need AES instructions and misaligned SSE support");
     __ align(CodeEntryAlignment);
     StubCodeMark mark(this, "StubRoutines", "cipherBlockChaining_decryptAESCrypt");
     address start = __ pc();
@@ -5750,7 +5749,7 @@ address generate_avx_ghash_processBlocks() {
 
     // If vectorization is enabled, check if the number of iterations is at least 64
     // If not, then go to ShifTwo processing 2 iterations
-    if (VM_Version::supports_vbmi2()) {
+    if (VM_Version::supports_avx512_vbmi2()) {
       __ cmpptr(totalNumIter, (AVX3Threshold/64));
       __ jcc(Assembler::less, ShiftTwo);
 
@@ -5874,7 +5873,7 @@ address generate_avx_ghash_processBlocks() {
 
     // If vectorization is enabled, check if the number of iterations is at least 64
     // If not, then go to ShiftTwo shifting two numbers at a time
-    if (VM_Version::supports_vbmi2()) {
+    if (VM_Version::supports_avx512_vbmi2()) {
       __ cmpl(totalNumIter, (AVX3Threshold/64));
       __ jcc(Assembler::less, ShiftTwo);
 
@@ -6415,6 +6414,14 @@ address generate_avx_ghash_processBlocks() {
         StubRoutines::_dtan = generate_libmTan();
       }
     }
+
+    // Safefetch stubs.
+    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
+                                                       &StubRoutines::_safefetch32_fault_pc,
+                                                       &StubRoutines::_safefetch32_continuation_pc);
+    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
+                                                       &StubRoutines::_safefetchN_fault_pc,
+                                                       &StubRoutines::_safefetchN_continuation_pc);
   }
 
   void generate_all() {
@@ -6466,7 +6473,7 @@ address generate_avx_ghash_processBlocks() {
       StubRoutines::_aescrypt_encryptBlock = generate_aescrypt_encryptBlock();
       StubRoutines::_aescrypt_decryptBlock = generate_aescrypt_decryptBlock();
       StubRoutines::_cipherBlockChaining_encryptAESCrypt = generate_cipherBlockChaining_encryptAESCrypt();
-      if (VM_Version::supports_vaes() &&  VM_Version::supports_avx512vl() && VM_Version::supports_avx512dq() ) {
+      if (VM_Version::supports_avx512_vaes() &&  VM_Version::supports_avx512vl() && VM_Version::supports_avx512dq() ) {
         StubRoutines::_cipherBlockChaining_decryptAESCrypt = generate_cipherBlockChaining_decryptVectorAESCrypt();
         StubRoutines::_electronicCodeBook_encryptAESCrypt = generate_electronicCodeBook_encryptAESCrypt();
         StubRoutines::_electronicCodeBook_decryptAESCrypt = generate_electronicCodeBook_decryptAESCrypt();
@@ -6475,7 +6482,7 @@ address generate_avx_ghash_processBlocks() {
       }
     }
     if (UseAESCTRIntrinsics) {
-      if (VM_Version::supports_vaes() && VM_Version::supports_avx512bw() && VM_Version::supports_avx512vl()) {
+      if (VM_Version::supports_avx512_vaes() && VM_Version::supports_avx512bw() && VM_Version::supports_avx512vl()) {
         StubRoutines::x86::_counter_mask_addr = counter_mask_addr();
         StubRoutines::_counterMode_AESCrypt = generate_counterMode_VectorAESCrypt();
       } else {
@@ -6534,14 +6541,6 @@ address generate_avx_ghash_processBlocks() {
       StubRoutines::_base64_encodeBlock = generate_base64_encodeBlock();
     }
 
-    // Safefetch stubs.
-    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
-                                                       &StubRoutines::_safefetch32_fault_pc,
-                                                       &StubRoutines::_safefetch32_continuation_pc);
-    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
-                                                       &StubRoutines::_safefetchN_fault_pc,
-                                                       &StubRoutines::_safefetchN_continuation_pc);
-
     BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
     if (bs_nm != NULL) {
       StubRoutines::x86::_method_entry_barrier = generate_method_entry_barrier();
@@ -6556,7 +6555,7 @@ address generate_avx_ghash_processBlocks() {
     if (UseMulAddIntrinsic) {
       StubRoutines::_mulAdd = generate_mulAdd();
     }
-    if (VM_Version::supports_vbmi2()) {
+    if (VM_Version::supports_avx512_vbmi2()) {
       StubRoutines::_bigIntegerRightShiftWorker = generate_bigIntegerRightShift();
       StubRoutines::_bigIntegerLeftShiftWorker = generate_bigIntegerLeftShift();
     }

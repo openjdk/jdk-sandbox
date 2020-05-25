@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -175,7 +175,6 @@ const char* Abstract_VM_Version::jre_release_version() {
 
 #define OS       LINUX_ONLY("linux")             \
                  WINDOWS_ONLY("windows")         \
-                 SOLARIS_ONLY("solaris")         \
                  AIX_ONLY("aix")                 \
                  BSD_ONLY("bsd")
 
@@ -193,8 +192,7 @@ const char* Abstract_VM_Version::jre_release_version() {
                  AMD64_ONLY("amd64")             \
                  IA32_ONLY("x86")                \
                  IA64_ONLY("ia64")               \
-                 S390_ONLY("s390")               \
-                 SPARC_ONLY("sparc")
+                 S390_ONLY("s390")
 #endif // !ZERO
 #endif // !CPU
 
@@ -240,20 +238,6 @@ const char* Abstract_VM_Version::internal_vm_info_string() {
       #else
         #define HOTSPOT_BUILD_COMPILER "unknown MS VC++:" XSTR(_MSC_VER)
       #endif
-    #elif defined(__SUNPRO_CC)
-      #if __SUNPRO_CC == 0x580
-        #define HOTSPOT_BUILD_COMPILER "Workshop 5.8"
-      #elif __SUNPRO_CC == 0x590
-        #define HOTSPOT_BUILD_COMPILER "Workshop 5.9"
-      #elif __SUNPRO_CC == 0x5100
-        #define HOTSPOT_BUILD_COMPILER "Sun Studio 12u1"
-      #elif __SUNPRO_CC == 0x5120
-        #define HOTSPOT_BUILD_COMPILER "Sun Studio 12u3"
-      #elif __SUNPRO_CC == 0x5130
-        #define HOTSPOT_BUILD_COMPILER "Sun Studio 12u4"
-      #else
-        #define HOTSPOT_BUILD_COMPILER "unknown Workshop:" XSTR(__SUNPRO_CC)
-      #endif
     #elif defined(__clang_version__)
         #define HOTSPOT_BUILD_COMPILER "clang " __VERSION__
     #elif defined(__GNUC__)
@@ -273,9 +257,13 @@ const char* Abstract_VM_Version::internal_vm_info_string() {
     #define FLOAT_ARCH_STR XSTR(FLOAT_ARCH)
   #endif
 
+  #ifndef HOTSPOT_BUILD_TIME
+    #define HOTSPOT_BUILD_TIME __DATE__ " " __TIME__
+  #endif
+
   #define INTERNAL_VERSION_SUFFIX VM_RELEASE ")" \
          " for " OS "-" CPU FLOAT_ARCH_STR \
-         " JRE (" VERSION_STRING "), built on " __DATE__ " " __TIME__ \
+         " JRE (" VERSION_STRING "), built on " HOTSPOT_BUILD_TIME \
          " by " XSTR(HOTSPOT_BUILD_USER) " with " HOTSPOT_BUILD_COMPILER
 
   return strcmp(DEBUG_LEVEL, "release") == 0

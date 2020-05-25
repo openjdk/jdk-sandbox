@@ -69,7 +69,7 @@ class DynamicArchiveBuilder : ResourceObj {
   DumpRegion* _current_dump_space;
 
   static size_t reserve_alignment() {
-    return Metaspace::reserve_alignment();
+    return os::vm_allocation_granularity();
   }
 
   static const int _total_dump_regions = 3;
@@ -503,14 +503,13 @@ private:
   void write_archive(char* serialized_data);
 
   void init_first_dump_space(address reserved_bottom) {
-    address first_space_base = reserved_bottom;
     DumpRegion* mc_space = MetaspaceShared::misc_code_dump_space();
     DumpRegion* rw_space = MetaspaceShared::read_write_dump_space();
 
     // Use the same MC->RW->RO ordering as in the base archive.
-    MetaspaceShared::init_shared_dump_space(mc_space, first_space_base);
+    MetaspaceShared::init_shared_dump_space(mc_space);
     _current_dump_space = mc_space;
-    _last_verified_top = first_space_base;
+    _last_verified_top = reserved_bottom;
     _num_dump_regions_used = 1;
   }
 
@@ -725,7 +724,7 @@ size_t DynamicArchiveBuilder::estimate_archive_size() {
 
 address DynamicArchiveBuilder::reserve_space_and_init_buffer_to_target_delta() {
   size_t total = estimate_archive_size();
-  ReservedSpace rs = MetaspaceShared::reserve_shared_space(total);
+  ReservedSpace rs(total);
   if (!rs.is_reserved()) {
     log_error(cds, dynamic)("Failed to reserve %d bytes of output buffer.", (int)total);
     vm_direct_exit(0);
@@ -841,13 +840,13 @@ void DynamicArchiveBuilder::make_klasses_shareable() {
     InstanceKlass* ik = _klasses->at(i);
     ClassLoaderData *cld = ik->class_loader_data();
     if (cld->is_boot_class_loader_data()) {
-      ik->set_class_loader_type(ClassLoader::BOOT_LOADER);
+      ik->set_shared_class_loader_type(ClassLoader::BOOT_LOADER);
     }
     else if (cld->is_platform_class_loader_data()) {
-      ik->set_class_loader_type(ClassLoader::PLATFORM_LOADER);
+      ik->set_shared_class_loader_type(ClassLoader::PLATFORM_LOADER);
     }
     else if (cld->is_system_class_loader_data()) {
-      ik->set_class_loader_type(ClassLoader::APP_LOADER);
+      ik->set_shared_class_loader_type(ClassLoader::APP_LOADER);
     }
 
     MetaspaceShared::rewrite_nofast_bytecodes_and_calculate_fingerprints(Thread::current(), ik);
@@ -956,7 +955,7 @@ void DynamicArchiveBuilder::relocate_buffer_to_target() {
   RelocateBufferToTarget patcher(this, (address*)_alloc_bottom, _buffer_to_target_delta);
   ArchivePtrMarker::ptrmap()->iterate(&patcher);
 
-  Array<u8>* table = FileMapInfo::shared_path_table().table();
+  Array<u8>* table = FileMapInfo::saved_shared_path_table().table();
   SharedPathTable runtime_table(to_target(table), FileMapInfo::shared_path_table().size());
   _header->set_shared_path_table(runtime_table);
 
@@ -1020,7 +1019,7 @@ void DynamicArchiveBuilder::write_archive(char* serialized_data) {
   // Now write the archived data including the file offsets.
   const char* archive_name = Arguments::GetSharedDynamicArchivePath();
   dynamic_info->open_for_write(archive_name);
-  MetaspaceShared::write_core_archive_regions(dynamic_info);
+  MetaspaceShared::write_core_archive_regions(dynamic_info, NULL, NULL);
   dynamic_info->set_final_requested_base((char*)Arguments::default_SharedBaseAddress());
   dynamic_info->set_header_crc(dynamic_info->compute_header_crc());
   dynamic_info->write_header();

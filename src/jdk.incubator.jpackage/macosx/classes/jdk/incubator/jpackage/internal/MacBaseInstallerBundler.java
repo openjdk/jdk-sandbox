@@ -100,6 +100,19 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             },
             (s, p) -> s);
 
+    protected static String getInstallDir(
+            Map<String, ? super Object>  params) {
+        String returnValue = INSTALL_DIR.fetchFrom(params);
+        if (returnValue == null) {
+            if (StandardBundlerParam.isRuntimeInstaller(params)) {
+                returnValue = "/Library/Java/JavaVirtualMachines";
+            } else {
+               returnValue = "/Applications";
+            }
+        }
+        return returnValue;
+    }
+
     protected void validateAppImageAndBundeler(
             Map<String, ? super Object> params) throws ConfigException {
         if (PREDEFINED_APP_IMAGE.fetchFrom(params) != null) {
@@ -167,12 +180,14 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             Pattern p = Pattern.compile("\"alis\"<blob>=\"([^\"]+)\"");
             Matcher m = p.matcher(baos.toString());
             if (!m.find()) {
-                Log.error("Did not find a key matching '" + key + "'");
+                Log.error(MessageFormat.format(I18N.getString(
+                        "error.cert.not.found"), key, keychainName));
                 return null;
             }
             String matchedKey = m.group(1);
             if (m.find()) {
-                Log.error("Found more than one key matching '"  + key + "'");
+                Log.error(MessageFormat.format(I18N.getString(
+                        "error.multiple.certs.found"), key, keychainName));
                 return null;
             }
             Log.verbose("Using key '" + matchedKey + "'");

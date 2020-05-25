@@ -25,7 +25,6 @@
 
 package jdk.jfr.internal;
 
-import java.io.IOException;
 import java.util.List;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
@@ -39,10 +38,10 @@ import jdk.jfr.internal.handlers.EventHandler;
 public final class JVM {
     private static final JVM jvm = new JVM();
 
-    // JVM signals file changes by doing Object#notifu on this object
+    // JVM signals file changes by doing Object#notify on this object
     static final Object FILE_DELTA_CHANGE = new Object();
 
-    static final long RESERVED_CLASS_ID_LIMIT = 400;
+    static final long RESERVED_CLASS_ID_LIMIT = 500;
 
     private volatile boolean nativeOK;
 
@@ -106,7 +105,6 @@ public final class JVM {
     @HotSpotIntrinsicCandidate
     public static native long counterTime();
 
-
     /**
      * Emits native periodic event.
      *
@@ -118,8 +116,6 @@ public final class JVM {
      * @return true if the event was committed
      */
     public native boolean emitEvent(long eventTypeId, long timestamp, long when);
-
-
 
     /**
      * Return a list of all classes deriving from {@link jdk.internal.event.Event}
@@ -143,7 +139,7 @@ public final class JVM {
      *
      * @return a unique class identifier
      */
-   @HotSpotIntrinsicCandidate
+    @HotSpotIntrinsicCandidate
     public static native long getClassId(Class<?> clazz);
 
     // temporary workaround until we solve intrinsics supporting epoch shift tagging
@@ -256,8 +252,6 @@ public final class JVM {
     public native void setMemorySize(long size) throws IllegalArgumentException;
 
     /**
-
-    /**
      * Set interval for method samples, in milliseconds.
      *
      * Setting interval to 0 turns off the method sampler.
@@ -266,7 +260,7 @@ public final class JVM {
      */
     public native void setMethodSamplingInterval(long type, long intervalMillis);
 
-      /**
+    /**
      * Sets the file where data should be written.
      *
      * Requires that JFR has been started with {@link #createNativeJFR()}
@@ -288,7 +282,6 @@ public final class JVM {
      *
      * @param file the file where data should be written, or null if it should
      *        not be copied out (in memory).
-     * @throws IOException
      */
     public native void setOutput(String file);
 
@@ -367,8 +360,6 @@ public final class JVM {
      * Requires that JFR has been started with {@link #createNativeJFR()}
      *
      * @param bytes binary representation of metadata descriptor
-     *
-     * @param binary representation of descriptor
      */
     public native void storeMetadataDescriptor(byte[] bytes);
 
@@ -433,8 +424,8 @@ public final class JVM {
     public native double getTimeConversionFactor();
 
     /**
-     * Return a unique identifier for a class. Compared to {@link #getClassId()}
-     * , this method does not tag the class as being "in-use".
+     * Return a unique identifier for a class. Compared to {@link #getClassId(Class)},
+     * this method does not tag the class as being "in-use".
      *
      * @param clazz class
      *
@@ -472,6 +463,7 @@ public final class JVM {
      *
      */
     public native void flush();
+
     /**
      * Sets the location of the disk repository, to be used at an emergency
      * dump.
@@ -480,10 +472,10 @@ public final class JVM {
      */
     public native void setRepositoryLocation(String dirText);
 
-    /**
+   /**
     * Access to VM termination support.
     *
-    *@param errorMsg descriptive message to be include in VM termination sequence
+    * @param errorMsg descriptive message to be include in VM termination sequence
     */
     public native void abort(String errorMsg);
 
@@ -499,6 +491,7 @@ public final class JVM {
      * @return the current epoch of this insertion attempt
      */
     public static native boolean addStringConstant(boolean epoch, long id, String s);
+
     /**
      * Gets the address of the jboolean epoch.
      *
@@ -509,6 +502,7 @@ public final class JVM {
     public native long getEpochAddress();
 
     public native void uncaughtException(Thread thread, Throwable t);
+
     /**
      * Sets cutoff for event.
      *
@@ -527,8 +521,9 @@ public final class JVM {
      *
      * @param cutoff the cutoff in ticks
      * @param emitAll emit all samples in old object queue
+     * @param skipBFS don't use BFS when searching for path to GC root
      */
-    public native void emitOldObjectSamples(long cutoff, boolean emitAll);
+    public native void emitOldObjectSamples(long cutoff, boolean emitAll, boolean skipBFS);
 
     /**
      * Test if a chunk rotation is warranted.
@@ -559,7 +554,7 @@ public final class JVM {
     /**
      * Get the start time in nanos from the header of the current chunk
      *
-     *@return start time of the recording in nanos, -1 in case of in-memory
+     * @return start time of the recording in nanos, -1 in case of in-memory
      */
     public native long getChunkStartNanos();
 
@@ -582,5 +577,4 @@ public final class JVM {
      * @return the handler, may be {@code null}
      */
     public native Object getHandler(Class<? extends jdk.internal.event.Event> eventClass);
-
 }

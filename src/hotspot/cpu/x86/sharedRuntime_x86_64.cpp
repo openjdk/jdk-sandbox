@@ -955,7 +955,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   Register temp = rbx;
 
   {
-    __ load_klass(temp, receiver);
+    __ load_klass(temp, receiver, rscratch1);
     __ cmpptr(temp, Address(holder, CompiledICHolder::holder_klass_offset()));
     __ movptr(rbx, Address(holder, CompiledICHolder::holder_metadata_offset()));
     __ jcc(Assembler::equal, ok);
@@ -2139,7 +2139,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   assert_different_registers(ic_reg, receiver, rscratch1);
   __ verify_oop(receiver);
-  __ load_klass(rscratch1, receiver);
+  __ load_klass(rscratch1, receiver, rscratch2);
   __ cmpq(ic_reg, rscratch1);
   __ jcc(Assembler::equal, hit);
 
@@ -2483,7 +2483,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     __ resolve(IS_NOT_NULL, obj_reg);
     if (UseBiasedLocking) {
-      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, false, lock_done, &slow_path_lock);
+      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, rscratch2, false, lock_done, &slow_path_lock);
     }
 
     // Load immediate 1 into swap_reg %rax
@@ -3512,7 +3512,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
 #ifdef ASSERT
   Label bail;
 #endif
-  if (SafepointMechanism::uses_thread_local_poll() && !cause_return) {
+  if (!cause_return) {
     Label no_prefix, not_special;
 
     // If our stashed return pc was modified by the runtime we avoid touching it

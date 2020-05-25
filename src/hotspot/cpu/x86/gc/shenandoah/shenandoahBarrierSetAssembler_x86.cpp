@@ -28,9 +28,9 @@
 #include "gc/shenandoah/shenandoahForwarding.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
-#include "gc/shenandoah/shenandoahHeuristics.hpp"
 #include "gc/shenandoah/shenandoahRuntime.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
+#include "gc/shenandoah/heuristics/shenandoahHeuristics.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -53,7 +53,7 @@ void ShenandoahBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, Dec
 
   if (is_reference_type(type)) {
 
-    if ((ShenandoahSATBBarrier && !dest_uninitialized) || ShenandoahLoadRefBarrier) {
+    if ((ShenandoahSATBBarrier && !dest_uninitialized) || ShenandoahStoreValEnqueueBarrier || ShenandoahLoadRefBarrier) {
 #ifdef _LP64
       Register thread = r15_thread;
 #else
@@ -77,35 +77,33 @@ void ShenandoahBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, Dec
       __ testptr(count, count);
       __ jcc(Assembler::zero, done);
 
-      // Avoid runtime call when not marking.
+      // Avoid runtime call when not active.
       Address gc_state(thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      int flags = ShenandoahHeap::HAS_FORWARDED;
-      if (!dest_uninitialized) {
-        flags |= ShenandoahHeap::MARKING;
+      int flags;
+      if (ShenandoahSATBBarrier && dest_uninitialized) {
+        flags = ShenandoahHeap::HAS_FORWARDED;
+      } else {
+        flags = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING;
       }
       __ testb(gc_state, flags);
       __ jcc(Assembler::zero, done);
 
       __ pusha();                      // push registers
+
 #ifdef _LP64
       assert(src == rdi, "expected");
       assert(dst == rsi, "expected");
       assert(count == rdx, "expected");
       if (UseCompressedOops) {
-        if (dest_uninitialized) {
-          __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_ref_array_pre_duinit_narrow_oop_entry), src, dst, count);
-        } else {
-          __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_ref_array_pre_narrow_oop_entry), src, dst, count);
-        }
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::arraycopy_barrier_narrow_oop_entry),
+                        src, dst, count);
       } else
 #endif
       {
-        if (dest_uninitialized) {
-          __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_ref_array_pre_duinit_oop_entry), src, dst, count);
-        } else {
-          __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_ref_array_pre_oop_entry), src, dst, count);
-        }
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::arraycopy_barrier_oop_entry),
+                        src, dst, count);
       }
+
       __ popa();
       __ bind(done);
       NOT_LP64(__ pop(thread);)
@@ -157,7 +155,7 @@ void ShenandoahBarrierSetAssembler::satb_write_barrier_pre(MacroAssembler* masm,
   Address buffer(thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
   Address gc_state(thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ testb(gc_state, ShenandoahHeap::MARKING | ShenandoahHeap::TRAVERSAL);
+  __ testb(gc_state, ShenandoahHeap::MARKING);
   __ jcc(Assembler::zero, done);
 
   // Do we need to load the previous value?
@@ -892,7 +890,7 @@ void ShenandoahBarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAss
 
   // Is SATB still active?
   Address gc_state(thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ testb(gc_state, ShenandoahHeap::MARKING | ShenandoahHeap::TRAVERSAL);
+  __ testb(gc_state, ShenandoahHeap::MARKING);
   __ jcc(Assembler::zero, done);
 
   // Can we store original value in the thread's buffer?
@@ -979,7 +977,7 @@ address ShenandoahBarrierSetAssembler::generate_shenandoah_lrb(StubCodeGenerator
   StubCodeMark mark(cgen, "StubRoutines", "shenandoah_lrb");
   address start = __ pc();
 
-  Label resolve_oop, slow_path;
+  Label slow_path;
 
   // We use RDI, which also serves as argument register for slow call.
   // RAX always holds the src object ptr, except after the slow call,
@@ -997,25 +995,7 @@ address ShenandoahBarrierSetAssembler::generate_shenandoah_lrb(StubCodeGenerator
   __ movptr(tmp2, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
   __ movbool(tmp2, Address(tmp2, tmp1, Address::times_1));
   __ testbool(tmp2);
-  __ jccb(Assembler::notZero, resolve_oop);
-  __ pop(tmp2);
-  __ pop(tmp1);
-  __ ret(0);
-
-  // Test if object is already resolved.
-  __ bind(resolve_oop);
-  __ movptr(tmp2, Address(rax, oopDesc::mark_offset_in_bytes()));
-  // Test if both lowest bits are set. We trick it by negating the bits
-  // then test for both bits clear.
-  __ notptr(tmp2);
-  __ testb(tmp2, markWord::marked_value);
   __ jccb(Assembler::notZero, slow_path);
-  // Clear both lower bits. It's still inverted, so set them, and then invert back.
-  __ orptr(tmp2, markWord::marked_value);
-  __ notptr(tmp2);
-  // At this point, tmp2 contains the decoded forwarding pointer.
-  __ mov(rax, tmp2);
-
   __ pop(tmp2);
   __ pop(tmp1);
   __ ret(0);

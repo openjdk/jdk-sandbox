@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,8 +62,8 @@ CardTable::CardTable(MemRegion whole_heap, bool conc_scan) :
 }
 
 CardTable::~CardTable() {
-  FREE_C_HEAP_ARRAY(MemRegion, _covered);
-  FREE_C_HEAP_ARRAY(MemRegion, _committed);
+  MemRegion::destroy_array(_covered, _max_covered_regions);
+  MemRegion::destroy_array(_committed, _max_covered_regions);
 }
 
 void CardTable::initialize() {
@@ -253,19 +253,12 @@ void CardTable::resize_covered_region(MemRegion new_region) {
         committed_unique_to_self(ind, MemRegion(new_end_aligned,
                                                 cur_committed.end()));
       if (!uncommit_region.is_empty()) {
-        // It is not safe to uncommit cards if the boundary between
-        // the generations is moving.  A shrink can uncommit cards
-        // owned by generation A but being used by generation B.
-        if (!UseAdaptiveGCBoundary) {
-          if (!os::uncommit_memory((char*)uncommit_region.start(),
-                                   uncommit_region.byte_size())) {
-            assert(false, "Card table contraction failed");
-            // The call failed so don't change the end of the
-            // committed region.  This is better than taking the
-            // VM down.
-            new_end_aligned = _committed[ind].end();
-          }
-        } else {
+        if (!os::uncommit_memory((char*)uncommit_region.start(),
+                                 uncommit_region.byte_size())) {
+          assert(false, "Card table contraction failed");
+          // The call failed so don't change the end of the
+          // committed region.  This is better than taking the
+          // VM down.
           new_end_aligned = _committed[ind].end();
         }
       }

@@ -30,6 +30,7 @@
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeBlob.hpp"
@@ -242,7 +243,7 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
   case fpu2long_stub_id:
   case unwind_exception_id:
   case counter_overflow_id:
-#if defined(SPARC) || defined(PPC32)
+#if defined(PPC32)
   case handle_exception_nofpu_id:  // Unused on sparc
 #endif
     expect_oop_map = false;
@@ -699,30 +700,22 @@ JRT_ENTRY(void, Runtime1::throw_incompatible_class_change_error(JavaThread* thre
 JRT_END
 
 
-JRT_ENTRY_NO_ASYNC(void, Runtime1::monitorenter(JavaThread* thread, oopDesc* obj, BasicObjectLock* lock))
+JRT_BLOCK_ENTRY(void, Runtime1::monitorenter(JavaThread* thread, oopDesc* obj, BasicObjectLock* lock))
   NOT_PRODUCT(_monitorenter_slowcase_cnt++;)
-  if (PrintBiasedLockingStatistics) {
-    Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
-  }
-  Handle h_obj(thread, obj);
   if (!UseFastLocking) {
     lock->set_obj(obj);
   }
   assert(obj == lock->obj(), "must match");
-  ObjectSynchronizer::enter(h_obj, lock->lock(), THREAD);
+  SharedRuntime::monitor_enter_helper(obj, lock->lock(), thread);
 JRT_END
 
 
 JRT_LEAF(void, Runtime1::monitorexit(JavaThread* thread, BasicObjectLock* lock))
   NOT_PRODUCT(_monitorexit_slowcase_cnt++;)
-  assert(thread == JavaThread::current(), "threads must correspond");
   assert(thread->last_Java_sp(), "last_Java_sp must be set");
-  // monitorexit is non-blocking (leaf routine) => no exceptions can be thrown
-  EXCEPTION_MARK;
-
   oop obj = lock->obj();
   assert(oopDesc::is_oop(obj), "must be NULL or an object");
-  ObjectSynchronizer::exit(obj, lock->lock(), THREAD);
+  SharedRuntime::monitor_exit_helper(obj, lock->lock(), thread);
 JRT_END
 
 // Cf. OptoRuntime::deoptimize_caller_frame
@@ -1141,7 +1134,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
           ShouldNotReachHere();
         }
 
-#if defined(SPARC) || defined(PPC32)
+#if defined(PPC32)
         if (load_klass_or_mirror_patch_id ||
             stub_id == Runtime1::load_appendix_patching_id) {
           // Update the location in the nmethod with the proper
@@ -1232,13 +1225,6 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
             RelocIterator iter(nm, (address)instr_pc, (address)(instr_pc + 1));
             relocInfo::change_reloc_info_for_address(&iter, (address) instr_pc,
                                                      relocInfo::none, rtype);
-#ifdef SPARC
-            // Sparc takes two relocations for an metadata so update the second one.
-            address instr_pc2 = instr_pc + NativeMovConstReg::add_offset;
-            RelocIterator iter2(nm, instr_pc2, instr_pc2 + 1);
-            relocInfo::change_reloc_info_for_address(&iter2, (address) instr_pc2,
-                                                     relocInfo::none, rtype);
-#endif
 #ifdef PPC32
           { address instr_pc2 = instr_pc + NativeMovConstReg::lo_offset;
             RelocIterator iter2(nm, instr_pc2, instr_pc2 + 1);

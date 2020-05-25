@@ -157,6 +157,9 @@ public class Check {
                 enforceMandatoryWarnings, "sunapi", null);
 
         deferredLintHandler = DeferredLintHandler.instance(context);
+
+        allowRecords = (!preview.isPreview(Feature.RECORDS) || preview.isEnabled()) &&
+                Feature.RECORDS.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -187,6 +190,10 @@ public class Check {
     /** A handler for deferred lint warnings.
      */
     private DeferredLintHandler deferredLintHandler;
+
+    /** Are records allowed
+     */
+    private final boolean allowRecords;
 
 /* *************************************************************************
  * Errors and Warnings
@@ -1204,26 +1211,23 @@ public class Check {
             break;
         case TYP:
             if (sym.isLocal()) {
-                mask = (flags & RECORD) != 0 ? LocalRecordFlags : LocalClassFlags;
-                if ((flags & RECORD) != 0) {
-                    implicit = STATIC;
+                boolean implicitlyStatic = !sym.isAnonymous() &&
+                        ((flags & RECORD) != 0 || (flags & ENUM) != 0 || (flags & INTERFACE) != 0);
+                boolean staticOrImplicitlyStatic = (flags & STATIC) != 0 || implicitlyStatic;
+                mask = staticOrImplicitlyStatic && allowRecords ? StaticLocalFlags : LocalClassFlags;
+                implicit = implicitlyStatic ? STATIC : implicit;
+                if (staticOrImplicitlyStatic) {
                     if (sym.owner.kind == TYP) {
-                        log.error(pos, Errors.RecordDeclarationNotAllowedInInnerClasses);
+                        log.error(pos, Errors.StaticDeclarationNotAllowedInInnerClasses);
                     }
-                }
-                if ((sym.owner.flags_field & STATIC) == 0 &&
-                    (flags & ENUM) != 0) {
-                    log.error(pos, Errors.EnumsMustBeStatic);
                 }
             } else if (sym.owner.kind == TYP) {
                 mask = (flags & RECORD) != 0 ? MemberRecordFlags : MemberClassFlags;
                 if (sym.owner.owner.kind == PCK ||
                     (sym.owner.flags_field & STATIC) != 0)
                     mask |= STATIC;
-                else if ((flags & ENUM) != 0) {
-                    log.error(pos, Errors.EnumsMustBeStatic);
-                } else if ((flags & RECORD) != 0) {
-                    log.error(pos, Errors.RecordDeclarationNotAllowedInInnerClasses);
+                else if ((flags & ENUM) != 0 || (flags & RECORD) != 0) {
+                    log.error(pos, Errors.StaticDeclarationNotAllowedInInnerClasses);
                 }
                 // Nested interfaces and enums are always STATIC (Spec ???)
                 if ((flags & (INTERFACE | ENUM | RECORD)) != 0 ) implicit = STATIC;
@@ -1257,7 +1261,7 @@ public class Check {
             }
             else {
                 log.error(pos,
-                          Errors.ModNotAllowedHere(asFlagSet(illegal)));
+                        Errors.ModNotAllowedHere(asFlagSet(illegal)));
             }
         }
         else if ((sym.kind == TYP ||
@@ -2063,11 +2067,21 @@ public class Check {
      */
     void checkOverride(Env<AttrContext> env, JCMethodDecl tree, MethodSymbol m) {
         ClassSymbol origin = (ClassSymbol)m.owner;
-        if ((origin.flags() & ENUM) != 0 && names.finalize.equals(m.name))
+        if ((origin.flags() & ENUM) != 0 && names.finalize.equals(m.name)) {
             if (m.overrides(syms.enumFinalFinalize, origin, types, false)) {
                 log.error(tree.pos(), Errors.EnumNoFinalize);
                 return;
             }
+        }
+        if (allowRecords && origin.isRecord()) {
+            // let's find out if this is a user defined accessor in which case the @Override annotation is acceptable
+            Optional<? extends RecordComponent> recordComponent = origin.getRecordComponents().stream()
+                    .filter(rc -> rc.accessor == tree.sym && (rc.accessor.flags_field & GENERATED_MEMBER) == 0).findFirst();
+            if (recordComponent.isPresent()) {
+                return;
+            }
+        }
+
         for (Type t = origin.type; t.hasTag(CLASS);
              t = types.supertype(t)) {
             if (t != origin.type) {
@@ -2138,8 +2152,10 @@ public class Check {
                     .tsym.members().findFirst(names.equals);
             MethodSymbol hashCodeAtObject = (MethodSymbol)syms.objectType
                     .tsym.members().findFirst(names.hashCode);
-            boolean overridesEquals = types.implementation(equalsAtObject,
-                someClass, false, equalsHasCodeFilter).owner == someClass;
+            MethodSymbol equalsImpl = types.implementation(equalsAtObject,
+                    someClass, false, equalsHasCodeFilter);
+            boolean overridesEquals = equalsImpl != null &&
+                                      equalsImpl.owner == someClass;
             boolean overridesHashCode = types.implementation(hashCodeAtObject,
                 someClass, false, equalsHasCodeFilter) != hashCodeAtObject;
 
@@ -3164,7 +3180,9 @@ public class Check {
             targets.add(names.ANNOTATION_TYPE);
             targets.add(names.CONSTRUCTOR);
             targets.add(names.FIELD);
-            targets.add(names.RECORD_COMPONENT);
+            if (allowRecords) {
+                targets.add(names.RECORD_COMPONENT);
+            }
             targets.add(names.LOCAL_VARIABLE);
             targets.add(names.METHOD);
             targets.add(names.PACKAGE);

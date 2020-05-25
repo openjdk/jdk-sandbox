@@ -38,6 +38,7 @@
 #include "interpreter/oopMapCache.hpp"
 #include "logging/log.hpp"
 #include "logging/logTag.hpp"
+#include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
@@ -1175,14 +1176,12 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
   // If the code cache is full, we may reenter this function for the
   // leftover methods that weren't linked.
   if (is_shared()) {
-    address entry = Interpreter::entry_for_cds_method(h_method);
-    assert(entry != NULL && entry == _i2i_entry,
-           "should be correctly set during dump time");
+    // Can't assert that the adapters are sane, because methods get linked before
+    // the interpreter is generated, and hence before its adapters are generated.
+    // If you messed them up you will notice soon enough though, don't you worry.
     if (adapter() != NULL) {
       return;
     }
-    assert(entry == _from_interpreted_entry,
-           "should be correctly set during dump time");
   } else if (_i2i_entry != NULL) {
     return;
   }
@@ -1415,9 +1414,8 @@ methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
   InstanceKlass* holder = SystemDictionary::MethodHandle_klass();
   Symbol* name = MethodHandles::signature_polymorphic_intrinsic_name(iid);
   assert(iid == MethodHandles::signature_polymorphic_name_id(name), "");
-  if (TraceMethodHandles) {
-    tty->print_cr("make_method_handle_intrinsic MH.%s%s", name->as_C_string(), signature->as_C_string());
-  }
+
+  log_info(methodhandles)("make_method_handle_intrinsic MH.%s%s", name->as_C_string(), signature->as_C_string());
 
   // invariant:   cp->symbol_at_put is preceded by a refcount increment (more usually a lookup)
   name->increment_refcount();
@@ -1430,6 +1428,7 @@ methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
     ConstantPool* cp_oop = ConstantPool::allocate(loader_data, cp_length, CHECK_(empty));
     cp = constantPoolHandle(THREAD, cp_oop);
   }
+  cp->copy_fields(holder->constants());
   cp->set_pool_holder(holder);
   cp->symbol_at_put(_imcp_invoke_name,       name);
   cp->symbol_at_put(_imcp_invoke_signature,  signature);
@@ -1468,9 +1467,10 @@ methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
   m->set_vtable_index(Method::nonvirtual_vtable_index);
   m->link_method(m, CHECK_(empty));
 
-  if (TraceMethodHandles && (Verbose || WizardMode)) {
-    ttyLocker ttyl;
-    m->print_on(tty);
+  if (log_is_enabled(Info, methodhandles) && (Verbose || WizardMode)) {
+    LogTarget(Info, methodhandles) lt;
+    LogStream ls(lt);
+    m->print_on(&ls);
   }
 
   return m;
@@ -1680,7 +1680,6 @@ void Method::init_intrinsic_id() {
   }
 }
 
-// These two methods are static since a GC may move the Method
 bool Method::load_signature_classes(const methodHandle& m, TRAPS) {
   if (!THREAD->can_call_java()) {
     // There is nothing useful this routine can do from within the Compile thread.
@@ -1689,16 +1688,11 @@ bool Method::load_signature_classes(const methodHandle& m, TRAPS) {
     return false;
   }
   bool sig_is_loaded = true;
-  Handle class_loader(THREAD, m->method_holder()->class_loader());
-  Handle protection_domain(THREAD, m->method_holder()->protection_domain());
   ResourceMark rm(THREAD);
-  Symbol*  signature = m->signature();
-  for(SignatureStream ss(signature); !ss.is_done(); ss.next()) {
+  for (ResolvingSignatureStream ss(m()); !ss.is_done(); ss.next()) {
     if (ss.is_reference()) {
-      Symbol* sym = ss.as_symbol();
-      Symbol*  name  = sym;
-      Klass* klass = SystemDictionary::resolve_or_null(name, class_loader,
-                                             protection_domain, THREAD);
+      // load everything, including arrays "[Lfoo;"
+      Klass* klass = ss.as_klass(SignatureStream::ReturnNull, THREAD);
       // We are loading classes eagerly. If a ClassNotFoundException or
       // a LinkageError was generated, be sure to ignore it.
       if (HAS_PENDING_EXCEPTION) {
@@ -1716,14 +1710,13 @@ bool Method::load_signature_classes(const methodHandle& m, TRAPS) {
 }
 
 bool Method::has_unloaded_classes_in_signature(const methodHandle& m, TRAPS) {
-  Handle class_loader(THREAD, m->method_holder()->class_loader());
-  Handle protection_domain(THREAD, m->method_holder()->protection_domain());
   ResourceMark rm(THREAD);
-  Symbol*  signature = m->signature();
-  for(SignatureStream ss(signature); !ss.is_done(); ss.next()) {
+  for(ResolvingSignatureStream ss(m()); !ss.is_done(); ss.next()) {
     if (ss.type() == T_OBJECT) {
-      Symbol* name = ss.as_symbol();
-      Klass* klass = SystemDictionary::find(name, class_loader, protection_domain, THREAD);
+      // Do not use ss.is_reference() here, since we don't care about
+      // unloaded array component types.
+      Klass* klass = ss.as_klass_if_loaded(THREAD);
+      assert(!HAS_PENDING_EXCEPTION, "as_klass_if_loaded contract");
       if (klass == NULL) return true;
     }
   }

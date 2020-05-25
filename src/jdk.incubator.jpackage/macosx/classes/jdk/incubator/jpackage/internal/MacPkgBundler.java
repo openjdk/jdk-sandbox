@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -101,17 +101,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                 },
             (s, p) -> s);
 
-    public static final BundlerParamInfo<String> MAC_INSTALL_DIR =
-            new StandardBundlerParam<>(
-            "mac-install-dir",
-            String.class,
-             params -> {
-                 String dir = INSTALL_DIR.fetchFrom(params);
-                 return (dir != null) ? dir : "/Applications";
-             },
-            (s, p) -> s
-    );
-
     public static final BundlerParamInfo<String> INSTALLER_SUFFIX =
             new StandardBundlerParam<> (
             "mac.pkg.installerName.suffix",
@@ -187,10 +176,10 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
         Map<String, String> data = new HashMap<>();
 
-        Path appLocation = Path.of(MAC_INSTALL_DIR.fetchFrom(params),
+        Path appLocation = Path.of(getInstallDir(params),
                          APP_NAME.fetchFrom(params) + ".app", "Contents", "app");
 
-        data.put("INSTALL_LOCATION", MAC_INSTALL_DIR.fetchFrom(params));
+        data.put("INSTALL_LOCATION", getInstallDir(params));
         data.put("APP_LOCATION", appLocation.toString());
 
         createResource(TEMPLATE_PREINSTALL_SCRIPT, params)
@@ -362,6 +351,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         String root = appLocation.getParent() == null ?
                 "." : appLocation.getParent();
         File rootDir = new File(root);
+
         File[] list = rootDir.listFiles();
         if (list != null) { // Should not happend
             // We should only have app image and/or .DS_Store
@@ -378,11 +368,25 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
         // Copy to new root
         Path newRoot = Files.createTempDirectory(
-                TEMP_ROOT.fetchFrom(params).toPath(),
-                "root-");
+                TEMP_ROOT.fetchFrom(params).toPath(), "root-");
 
-        IOUtils.copyRecursive(appLocation.toPath(),
-                newRoot.resolve(appLocation.getName()));
+        Path source, dest;
+
+        if (StandardBundlerParam.isRuntimeInstaller(params)) {
+            // firs, is this already a runtime with
+            // <runtime>/Contents/Home - if so we need the Home dir
+            Path original = appLocation.toPath();
+            Path home = original.resolve("Contents/Home");
+            source = (Files.exists(home)) ? home : original;
+
+            // Then we need to put back the <NAME>/Content/Home
+            dest = newRoot.resolve(
+                MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params) + "/Contents/Home");
+        } else {
+            source = appLocation.toPath();
+            dest = newRoot.resolve(appLocation.getName());
+        }
+        IOUtils.copyRecursive(source, dest);
 
         return newRoot.toString();
     }
@@ -402,7 +406,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     "--root",
                     root,
                     "--install-location",
-                    MAC_INSTALL_DIR.fetchFrom(params),
+                    getInstallDir(params),
                     "--analyze",
                     cpl.getAbsolutePath());
 
@@ -417,11 +421,13 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     "--root",
                     root,
                     "--install-location",
-                    MAC_INSTALL_DIR.fetchFrom(params),
+                    getInstallDir(params),
                     "--component-plist",
                     cpl.getAbsolutePath(),
                     "--scripts",
                     SCRIPTS_DIR.fetchFrom(params).getAbsolutePath(),
+                    "--identifier",
+                     MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params),
                     appPKG.getAbsolutePath());
             IOUtils.exec(pb);
 
@@ -493,6 +499,20 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         return "pkg";
     }
 
+    private static boolean isValidBundleIdentifier(String id) {
+        for (int i = 0; i < id.length(); i++) {
+            char a = id.charAt(i);
+            // We check for ASCII codes first which we accept. If check fails,
+            // check if it is acceptable extended ASCII or unicode character.
+            if ((a >= 'A' && a <= 'Z') || (a >= 'a' && a <= 'z')
+                    || (a >= '0' && a <= '9') || (a == '-' || a == '.')) {
+                continue;
+            }
+            return false;
+        }
+        return true;
+    }
+
     @Override
     public boolean validate(Map<String, ? super Object> params)
             throws ConfigException {
@@ -503,11 +523,18 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             // we are not interested in return code, only possible exception
             validateAppImageAndBundeler(params);
 
-            if (MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params) == null) {
+            String identifier = MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params);
+            if (identifier == null) {
                 throw new ConfigException(
                         I18N.getString("message.app-image-requires-identifier"),
                         I18N.getString(
                             "message.app-image-requires-identifier.advice"));
+            }
+            if (!isValidBundleIdentifier(identifier)) {
+                throw new ConfigException(
+                        MessageFormat.format(I18N.getString(
+                        "message.invalid-identifier"), identifier),
+                        I18N.getString("message.invalid-identifier.advice"));
             }
 
             // reject explicitly set sign to true and no valid signature key

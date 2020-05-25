@@ -65,7 +65,6 @@
   template(java_lang_Cloneable,                       "java/lang/Cloneable")                      \
   template(java_lang_Throwable,                       "java/lang/Throwable")                      \
   template(java_lang_ClassLoader,                     "java/lang/ClassLoader")                    \
-  template(java_lang_ClassLoader_NativeLibrary,       "java/lang/ClassLoader\x024NativeLibrary")  \
   template(java_lang_ThreadDeath,                     "java/lang/ThreadDeath")                    \
   template(java_lang_Boolean,                         "java/lang/Boolean")                        \
   template(java_lang_Character,                       "java/lang/Character")                      \
@@ -130,6 +129,7 @@
   template(java_util_Iterator,                        "java/util/Iterator")                       \
   template(java_lang_Record,                          "java/lang/Record")                       \
                                                                                                   \
+  template(jdk_internal_loader_NativeLibraries,       "jdk/internal/loader/NativeLibraries")      \
   template(jdk_internal_loader_ClassLoaders_AppClassLoader,      "jdk/internal/loader/ClassLoaders$AppClassLoader")      \
   template(jdk_internal_loader_ClassLoaders_PlatformClassLoader, "jdk/internal/loader/ClassLoaders$PlatformClassLoader") \
                                                                                                   \
@@ -436,8 +436,6 @@
   template(input_stream_signature,                    "Ljava/io/InputStream;")                    \
   template(print_stream_signature,                    "Ljava/io/PrintStream;")                    \
   template(security_manager_signature,                "Ljava/lang/SecurityManager;")              \
-  template(definePackage_name,                        "definePackage")                            \
-  template(definePackage_signature,                   "(Ljava/lang/String;Ljava/lang/Module;)Ljava/lang/Package;") \
   template(defineOrCheckPackage_name,                 "defineOrCheckPackage")                     \
   template(defineOrCheckPackage_signature,            "(Ljava/lang/String;Ljava/util/jar/Manifest;Ljava/net/URL;)Ljava/lang/Package;") \
   template(fileToEncodedURL_name,                     "fileToEncodedURL")                         \
@@ -554,6 +552,7 @@
   template(string_signature,                          "Ljava/lang/String;")                                       \
   template(string_array_signature,                    "[Ljava/lang/String;")                                      \
   template(reference_signature,                       "Ljava/lang/ref/Reference;")                                \
+  template(referencequeue_signature,                  "Ljava/lang/ref/ReferenceQueue;")                           \
   template(executable_signature,                      "Ljava/lang/reflect/Executable;")                           \
   template(module_signature,                          "Ljava/lang/Module;")                                       \
   template(concurrenthashmap_signature,               "Ljava/util/concurrent/ConcurrentHashMap;")                 \
@@ -884,6 +883,8 @@
    do_name(     isArray_name,                                    "isArray")                                             \
   do_intrinsic(_isPrimitive,              java_lang_Class,        isPrimitive_name, void_boolean_signature,      F_RN)  \
    do_name(     isPrimitive_name,                                "isPrimitive")                                         \
+  do_intrinsic(_isHidden,                 java_lang_Class,        isHidden_name, void_boolean_signature,         F_RN)  \
+   do_name(     isHidden_name,                                   "isHidden")                                            \
   do_intrinsic(_getSuperclass,            java_lang_Class,        getSuperclass_name, void_class_signature,      F_RN)  \
    do_name(     getSuperclass_name,                              "getSuperclass")                                       \
   do_intrinsic(_Class_cast,               java_lang_Class,        Class_cast_name, object_object_signature,      F_R)   \
@@ -1535,7 +1536,7 @@ class vmSymbols: AllStatic {
     FIRST_SID = NO_SID + 1
   };
   enum {
-    log2_SID_LIMIT = 10         // checked by an assert at start-up
+    log2_SID_LIMIT = 11         // checked by an assert at start-up
   };
 
  private:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -176,7 +176,7 @@ public class ReflectionFactory {
         Field root = langReflectAccess.getRoot(field);
         if (root != null) {
             // FieldAccessor will use the root unless the modifiers have
-            // been overrridden
+            // been overridden
             if (root.getModifiers() == field.getModifiers() || !override) {
                 field = root;
             }
@@ -200,7 +200,8 @@ public class ReflectionFactory {
             method = root;
         }
 
-        if (noInflation && !ReflectUtil.isVMAnonymousClass(method.getDeclaringClass())) {
+        if (noInflation && !method.getDeclaringClass().isHidden()
+                && !ReflectUtil.isVMAnonymousClass(method.getDeclaringClass())) {
             return new MethodAccessorGenerator().
                 generateMethod(method.getDeclaringClass(),
                                method.getName(),
@@ -244,7 +245,8 @@ public class ReflectionFactory {
             return new BootstrapConstructorAccessorImpl(c);
         }
 
-        if (noInflation && !ReflectUtil.isVMAnonymousClass(c.getDeclaringClass())) {
+        if (noInflation && !c.getDeclaringClass().isHidden()
+                && !ReflectUtil.isVMAnonymousClass(c.getDeclaringClass())) {
             return new MethodAccessorGenerator().
                 generateConstructor(c.getDeclaringClass(),
                                     c.getParameterTypes(),

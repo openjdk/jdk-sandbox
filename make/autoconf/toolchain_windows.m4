@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 ################################################################################
 # The order of these defines the priority by which we try to find them.
-VALID_VS_VERSIONS="2017 2019 2013 2015 2012 2010"
+VALID_VS_VERSIONS="2019 2017 2013 2015 2012 2010"
 
 VS_DESCRIPTION_2010="Microsoft Visual Studio 2010"
 VS_VERSION_INTERNAL_2010=100
@@ -90,8 +90,9 @@ VS_SUPPORTED_2017=true
 VS_TOOLSET_SUPPORTED_2017=true
 
 VS_DESCRIPTION_2019="Microsoft Visual Studio 2019"
-VS_VERSION_INTERNAL_2019=141
+VS_VERSION_INTERNAL_2019=142
 VS_MSVCR_2019=vcruntime140.dll
+VS_VCRUNTIME_1_2019=vcruntime140_1.dll
 VS_MSVCP_2019=msvcp140.dll
 VS_ENVVAR_2019="VS160COMNTOOLS"
 VS_USE_UCRT_2019="true"
@@ -100,8 +101,8 @@ VS_EDITIONS_2019="BuildTools Community Professional Enterprise"
 VS_SDK_INSTALLDIR_2019=
 VS_VS_PLATFORM_NAME_2019="v142"
 VS_SDK_PLATFORM_NAME_2019=
-VS_SUPPORTED_2019=false
-VS_TOOLSET_SUPPORTED_2019=false
+VS_SUPPORTED_2019=true
+VS_TOOLSET_SUPPORTED_2019=true
 
 ################################################################################
 
@@ -299,6 +300,7 @@ AC_DEFUN([TOOLCHAIN_FIND_VISUAL_STUDIO],
     fi
     eval VS_VERSION_INTERNAL="\${VS_VERSION_INTERNAL_${VS_VERSION}}"
     eval MSVCR_NAME="\${VS_MSVCR_${VS_VERSION}}"
+    eval VCRUNTIME_1_NAME="\${VS_VCRUNTIME_1_${VS_VERSION}}"
     eval MSVCP_NAME="\${VS_MSVCP_${VS_VERSION}}"
     eval USE_UCRT="\${VS_USE_UCRT_${VS_VERSION}}"
     eval VS_SUPPORTED="\${VS_SUPPORTED_${VS_VERSION}}"
@@ -365,6 +367,7 @@ AC_DEFUN([TOOLCHAIN_FIND_VISUAL_STUDIO],
       eval VS_DESCRIPTION="\${VS_DESCRIPTION_${VS_VERSION}}"
       eval VS_VERSION_INTERNAL="\${VS_VERSION_INTERNAL_${VS_VERSION}}"
       eval MSVCR_NAME="\${VS_MSVCR_${VS_VERSION}}"
+      eval VCRUNTIME_1_NAME="\${VS_VCRUNTIME_1_${VS_VERSION}}"
       eval MSVCP_NAME="\${VS_MSVCP_${VS_VERSION}}"
       eval USE_UCRT="\${VS_USE_UCRT_${VS_VERSION}}"
       eval VS_SUPPORTED="\${VS_SUPPORTED_${VS_VERSION}}"
@@ -482,10 +485,9 @@ AC_DEFUN([TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV],
       fi
 
       # Now execute the newly created bat file.
-      # The | cat is to stop SetEnv.Cmd to mess with system colors on msys.
       # Change directory so we don't need to mess with Windows paths in redirects.
       cd $VS_ENV_TMP_DIR
-      $CMD /c extract-vs-env.bat | $CAT
+      $CMD /c extract-vs-env.bat > extract-vs-env.log 2>&1
       cd $CONFIGURE_START_DIR
 
       if test ! -s $VS_ENV_TMP_DIR/set-vs-env.sh; then
@@ -800,6 +802,31 @@ AC_DEFUN([TOOLCHAIN_SETUP_VS_RUNTIME_DLLS],
       MSVCP_DLL="$MSVC_DLL"
     fi
     AC_SUBST(MSVCP_DLL)
+  fi
+
+  AC_ARG_WITH(vcruntime-1-dll, [AS_HELP_STRING([--with-vcruntime-1-dll],
+      [path to microsoft C++ runtime dll (vcruntime*_1.dll) (Windows only) @<:@probed@:>@])])
+
+  if test "x$VCRUNTIME_1_NAME" != "x"; then
+    if test "x$with_vcruntime_1_dll" != x; then
+      # If given explicitly by user, do not probe. If not present, fail directly.
+      TOOLCHAIN_CHECK_POSSIBLE_MSVC_DLL($VCRUNTIME_1_NAME, [$with_vcruntime_1_dll],
+          [--with-vcruntime-1-dll])
+      if test "x$MSVC_DLL" = x; then
+        AC_MSG_ERROR([Could not find a proper $VCRUNTIME_1_NAME as specified by --with-vcruntime-1-dll])
+      fi
+      VCRUNTIME_1_DLL="$MSVC_DLL"
+    elif test "x$DEVKIT_VCRUNTIME_1_DLL" != x; then
+      TOOLCHAIN_CHECK_POSSIBLE_MSVC_DLL($VCRUNTIME_1_NAME, [$DEVKIT_VCRUNTIME_1_DLL], [devkit])
+      if test "x$MSVC_DLL" = x; then
+        AC_MSG_ERROR([Could not find a proper $VCRUNTIME_1_NAME as specified by devkit])
+      fi
+      VCRUNTIME_1_DLL="$MSVC_DLL"
+    else
+      TOOLCHAIN_SETUP_MSVC_DLL([${VCRUNTIME_1_NAME}])
+      VCRUNTIME_1_DLL="$MSVC_DLL"
+    fi
+    AC_SUBST(VCRUNTIME_1_DLL)
   fi
 
   AC_ARG_WITH(ucrt-dll-dir, [AS_HELP_STRING([--with-ucrt-dll-dir],

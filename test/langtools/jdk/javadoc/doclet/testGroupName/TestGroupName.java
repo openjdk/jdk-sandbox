@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,9 +65,10 @@ public class TestGroupName extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("index.html", true,
-                "<button role=\"tab\" aria-selected=\"false\" aria-controls=\"overviewSummary_tabpanel\""
-                + " tabindex=\"-1\" onkeydown=\"switchTab(event)\" id=\"t1\" class=\"tableTab\""
-                + " onclick=\"show(1);\">abc &lt; &amp; &gt; def</button>",
+                """
+                    <button role="tab" aria-selected="false" aria-controls="all-packages-table.tabpa\
+                    nel" tabindex="-1" onkeydown="switchTab(event)" id="t1" class="table-tab" onclic\
+                    k="show(1);">abc &lt; &amp; &gt; def</button>""",
                 ",\"abc < & > def\"],");
     }
 
@@ -100,9 +101,10 @@ public class TestGroupName extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("index.html", true,
-                "<button role=\"tab\" aria-selected=\"false\" aria-controls=\"overviewSummary_tabpanel\""
-                + " tabindex=\"-1\" onkeydown=\"switchTab(event)\" id=\"t2\" class=\"tableTab\""
-                + " onclick=\"show(2);\">Other Modules</button>",
+                """
+                    <button role="tab" aria-selected="false" aria-controls="all-modules-table.tabpan\
+                    el" tabindex="-1" onkeydown="switchTab(event)" id="t2" class="table-tab" onclick\
+                    ="show(2);">Other Modules</button>""",
                 ",\"abc < & > def\"],");
     }
 }

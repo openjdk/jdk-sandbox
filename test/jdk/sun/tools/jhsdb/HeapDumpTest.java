@@ -25,7 +25,7 @@
  * @test
  * @bug 8163346
  * @summary Test hashing of extended characters in Serviceability Agent.
- * @requires vm.hasSAandCanAttach
+ * @requires vm.hasSA
  * @library /test/lib
  * @compile -encoding utf8 HeapDumpTest.java
  * @run main/timeout=240 HeapDumpTest
@@ -38,12 +38,13 @@ import java.io.File;
 import java.util.List;
 import java.util.Arrays;
 
-import jdk.test.lib.Platform;
+import jdk.test.lib.Utils;
+import jdk.test.lib.apps.LingeredApp;
+import jdk.test.lib.hprof.parser.HprofReader;
 import jdk.test.lib.JDKToolLauncher;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
-import jdk.test.lib.apps.LingeredApp;
-import jdk.test.lib.hprof.parser.HprofReader;
+import jdk.test.lib.SA.SATestUtils;
 
 public class HeapDumpTest {
 
@@ -65,6 +66,7 @@ public class HeapDumpTest {
             System.out.println(theApp.\u00CB);
             System.out.println("Starting " + toolArgs.get(0) + " against " + theApp.getPid());
             JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jhsdb");
+            launcher.addVMArgs(Utils.getFilteredTestJavaOpts("-Xcomp"));
 
             for (String cmd : toolArgs) {
                 launcher.addToolArg(cmd);
@@ -72,7 +74,7 @@ public class HeapDumpTest {
 
             launcher.addToolArg("--pid=" + Long.toString(theApp.getPid()));
 
-            ProcessBuilder processBuilder = new ProcessBuilder(launcher.getCommand());
+            ProcessBuilder processBuilder = SATestUtils.createProcessBuilder(launcher);
             processBuilder.redirectError(ProcessBuilder.Redirect.INHERIT);
             OutputAnalyzer output = ProcessTools.executeProcess(processBuilder);
             System.out.println("stdout:");
@@ -125,7 +127,7 @@ public class HeapDumpTest {
     }
 
     public static void main(String[] args) throws Exception {
-
+        SATestUtils.skipIfCannotAttach(); // throws SkippedException if attach not expected to work.
         testHeapDump();
 
         // The test throws RuntimeException on error.

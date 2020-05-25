@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -481,11 +481,16 @@ final class Finished {
                         SSLHandshake.FINISHED.id, SSLHandshake.FINISHED);
                 shc.conContext.inputRecord.expectingFinishFlight();
             } else {
-                if (shc.handshakeSession.isRejoinable() &&
-                        !shc.handshakeSession.isStatelessable(shc)) {
-                    ((SSLSessionContextImpl)shc.sslContext.
-                        engineGetServerSessionContext()).put(
-                            shc.handshakeSession);
+                // Set the session's context based on stateless/cache status
+                if (shc.handshakeSession.isStatelessable(shc)) {
+                    shc.handshakeSession.setContext((SSLSessionContextImpl)
+                            shc.sslContext.engineGetServerSessionContext());
+                } else {
+                    if (shc.handshakeSession.isRejoinable()) {
+                        ((SSLSessionContextImpl)shc.sslContext.
+                                engineGetServerSessionContext()).put(
+                                shc.handshakeSession);
+                    }
                 }
                 shc.conContext.conSession = shc.handshakeSession.finish();
                 shc.conContext.protocolVersion = shc.negotiatedProtocol;
@@ -857,6 +862,9 @@ final class Finished {
                 shc.conContext.serverVerifyData = fm.verifyData;
             }
 
+            // Make sure session's context is set
+            shc.handshakeSession.setContext((SSLSessionContextImpl)
+                    shc.sslContext.engineGetServerSessionContext());
             shc.conContext.conSession = shc.handshakeSession.finish();
 
             // update the context
@@ -897,6 +905,8 @@ final class Finished {
             // has been received and processed.
             if (!chc.isResumption) {
                 if (chc.handshakeConsumers.containsKey(
+                        SSLHandshake.CERTIFICATE.id) ||
+                    chc.handshakeConsumers.containsKey(
                         SSLHandshake.CERTIFICATE_VERIFY.id)) {
                     throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                             "Unexpected Finished handshake message");
@@ -1029,6 +1039,8 @@ final class Finished {
             // has been received and processed.
             if (!shc.isResumption) {
                 if (shc.handshakeConsumers.containsKey(
+                        SSLHandshake.CERTIFICATE.id) ||
+                    shc.handshakeConsumers.containsKey(
                         SSLHandshake.CERTIFICATE_VERIFY.id)) {
                     throw shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                             "Unexpected Finished handshake message");
@@ -1068,14 +1080,6 @@ final class Finished {
                 throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Not supported key derivation: " +
                         shc.negotiatedProtocol);
-            }
-
-            // Save the session if possible and not stateless
-            if (!shc.statelessResumption && !shc.isResumption &&
-                    shc.handshakeSession.isRejoinable()) {
-                SSLSessionContextImpl sessionContext = (SSLSessionContextImpl)
-                        shc.sslContext.engineGetServerSessionContext();
-                sessionContext.put(shc.handshakeSession);
             }
 
             try {
@@ -1140,8 +1144,8 @@ final class Finished {
                 SSLLogger.fine(
                 "Sending new session ticket");
             }
-            NewSessionTicket.kickstartProducer.produce(shc);
 
+            NewSessionTicket.kickstartProducer.produce(shc);
         }
     }
 

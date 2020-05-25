@@ -462,7 +462,7 @@ public final class String
      *
      * @param  length
      *         The number of bytes to decode
-
+     *
      * @param  charsetName
      *         The name of a supported {@linkplain java.nio.charset.Charset
      *         charset}
@@ -684,6 +684,7 @@ public final class String
      *
      * @since 1.6
      */
+    @Override
     public boolean isEmpty() {
         return value.length == 0;
     }
@@ -1383,7 +1384,7 @@ public final class String
      * integer <i>k</i> less than {@code len} such that:
      * <blockquote><pre>
      * Character.toLowerCase(Character.toUpperCase(this.charAt(toffset+k))) !=
-     Character.toLowerCase(Character.toUpperCase(other.charAt(ooffset+k)))
+     * Character.toLowerCase(Character.toUpperCase(other.charAt(ooffset+k)))
      * </pre></blockquote>
      * </ul>
      *
@@ -2063,9 +2064,9 @@ public final class String
      * <blockquote>
      * <code>
      * {@link java.util.regex.Pattern}.{@link
-     * java.util.regex.Pattern#compile compile}(<i>regex</i>).{@link
+     * java.util.regex.Pattern#compile(String) compile}(<i>regex</i>).{@link
      * java.util.regex.Pattern#matcher(java.lang.CharSequence) matcher}(<i>str</i>).{@link
-     * java.util.regex.Matcher#replaceFirst replaceFirst}(<i>repl</i>)
+     * java.util.regex.Matcher#replaceFirst(String) replaceFirst}(<i>repl</i>)
      * </code>
      * </blockquote>
      *
@@ -2108,9 +2109,9 @@ public final class String
      * <blockquote>
      * <code>
      * {@link java.util.regex.Pattern}.{@link
-     * java.util.regex.Pattern#compile compile}(<i>regex</i>).{@link
+     * java.util.regex.Pattern#compile(String) compile}(<i>regex</i>).{@link
      * java.util.regex.Pattern#matcher(java.lang.CharSequence) matcher}(<i>str</i>).{@link
-     * java.util.regex.Matcher#replaceAll replaceAll}(<i>repl</i>)
+     * java.util.regex.Matcher#replaceAll(String) replaceAll}(<i>repl</i>)
      * </code>
      * </blockquote>
      *
@@ -2275,7 +2276,7 @@ public final class String
      * <blockquote>
      * <code>
      * {@link java.util.regex.Pattern}.{@link
-     * java.util.regex.Pattern#compile compile}(<i>regex</i>).{@link
+     * java.util.regex.Pattern#compile(String) compile}(<i>regex</i>).{@link
      * java.util.regex.Pattern#split(java.lang.CharSequence,int) split}(<i>str</i>,&nbsp;<i>n</i>)
      * </code>
      * </blockquote>
@@ -2300,10 +2301,10 @@ public final class String
      */
     public String[] split(String regex, int limit) {
         /* fastpath if the regex is a
-         (1)one-char String and this character is not one of the
-            RegEx's meta characters ".$|()[{^?*+\\", or
-         (2)two-char String and the first char is the backslash and
-            the second is not the ascii digit or ascii letter.
+         * (1) one-char String and this character is not one of the
+         *     RegEx's meta characters ".$|()[{^?*+\\", or
+         * (2) two-char String and the first char is the backslash and
+         *     the second is not the ascii digit or ascii letter.
          */
         char ch = 0;
         if (((regex.length() == 1 &&
@@ -2445,12 +2446,12 @@ public final class String
      * <pre>{@code
      *     List<String> strings = List.of("Java", "is", "cool");
      *     String message = String.join(" ", strings);
-     *     //message returned is: "Java is cool"
+     *     // message returned is: "Java is cool"
      *
      *     Set<String> strings =
      *         new LinkedHashSet<>(List.of("Java", "is", "very", "cool"));
      *     String message = String.join("-", strings);
-     *     //message returned is: "Java-is-very-cool"
+     *     // message returned is: "Java-is-very-cool"
      * }</pre></blockquote>
      *
      * Note that if an individual element is {@code null}, then {@code "null"} is added.
@@ -2888,15 +2889,6 @@ public final class String
     }
 
     /**
-     * {@preview Associated with text blocks, a preview feature of
-     *           the Java language.
-     *
-     *           This method is associated with <i>text blocks</i>, a preview
-     *           feature of the Java language. Programs can only use this
-     *           method when preview features are enabled. Preview features
-     *           may be removed in a future release, or upgraded to permanent
-     *           features of the Java language.}
-     *
      * Returns a string whose value is this string, with incidental
      * {@linkplain Character#isWhitespace(int) white space} removed from
      * the beginning and end of every line.
@@ -2970,11 +2962,9 @@ public final class String
      * @see String#indent(int)
      * @see Character#isWhitespace(int)
      *
-     * @since 13
+     * @since 15
      *
      */
-    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.TEXT_BLOCKS,
-                                 essentialAPI=true)
     public String stripIndent() {
         int length = length();
         if (length == 0) {
@@ -3013,15 +3003,6 @@ public final class String
     }
 
     /**
-     * {@preview Associated with text blocks, a preview feature of
-     *           the Java language.
-     *
-     *           This method is associated with <i>text blocks</i>, a preview
-     *           feature of the Java language. Programs can only use this
-     *           method when preview features are enabled. Preview features
-     *           may be removed in a future release, or upgraded to permanent
-     *           features of the Java language.}
-     *
      * Returns a string whose value is this string, with escape sequences
      * translated as if in a string literal.
      * <p>
@@ -3105,10 +3086,8 @@ public final class String
      *
      * @jls 3.10.7 Escape Sequences
      *
-     * @since 13
+     * @since 15
      */
-    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.TEXT_BLOCKS,
-                                 essentialAPI=true)
     public String translateEscapes() {
         if (isEmpty()) {
             return "";
@@ -3344,15 +3323,6 @@ public final class String
     }
 
     /**
-     * {@preview Associated with text blocks, a preview feature of
-     *           the Java language.
-     *
-     *           This method is associated with <i>text blocks</i>, a preview
-     *           feature of the Java language. Programs can only use this
-     *           method when preview features are enabled. Preview features
-     *           may be removed in a future release, or upgraded to permanent
-     *           features of the Java language.}
-     *
      * Formats using this string as the format string, and the supplied
      * arguments.
      *
@@ -3366,11 +3336,9 @@ public final class String
      * @see  java.lang.String#format(String,Object...)
      * @see  java.util.Formatter
      *
-     * @since 13
+     * @since 15
      *
      */
-    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.TEXT_BLOCKS,
-                                 essentialAPI=true)
     public String formatted(Object... args) {
         return new Formatter().format(this, args).toString();
     }

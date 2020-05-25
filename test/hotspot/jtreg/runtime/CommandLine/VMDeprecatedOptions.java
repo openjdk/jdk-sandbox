@@ -31,6 +31,7 @@ import jdk.test.lib.cli.*;
  * @summary Test that various options are deprecated. See deprecated_jvm_flags in arguments.cpp.
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
+ * @run driver VMDeprecatedOptions
  */
 public class VMDeprecatedOptions {
 
@@ -48,6 +49,14 @@ public class VMDeprecatedOptions {
         {"AllowRedefinitionToAddDeleteMethods", "true"},
         {"PrintVMQWaitTime",          "true"},
         {"UseNewFieldLayout",         "true"},
+        {"UseBiasedLocking",                    "false"},
+        {"BiasedLockingStartupDelay",           "0"},
+        {"BiasedLockingBulkRebiasThreshold",    "20"},
+        {"BiasedLockingBulkRevokeThreshold",    "40"},
+        {"BiasedLockingDecayTime",              "25000"},
+        {"UseOptoBiasInlining",                 "true"},
+        {"InitialBootClassLoaderMetaspaceSize", "2200000"},
+        {"UseLargePagesInMetaspace",            "true"},
 
         // deprecated alias flags (see also aliased_jvm_flags):
         {"DefaultMaxRAMFraction", "4"},

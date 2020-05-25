@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -119,8 +119,6 @@ class os: AllStatic {
                                   size_t alignment_hint = 0);
   static char*  pd_attempt_reserve_memory_at(size_t bytes, char* addr);
   static char*  pd_attempt_reserve_memory_at(size_t bytes, char* addr, int file_desc);
-  static void   pd_split_reserved_memory(char *base, size_t size,
-                                      size_t split, bool realloc);
   static bool   pd_commit_memory(char* addr, size_t bytes, bool executable);
   static bool   pd_commit_memory(char* addr, size_t size, size_t alignment_hint,
                                  bool executable);
@@ -143,6 +141,10 @@ class os: AllStatic {
   static bool   pd_unmap_memory(char *addr, size_t bytes);
   static void   pd_free_memory(char *addr, size_t bytes, size_t alignment_hint);
   static void   pd_realign_memory(char *addr, size_t bytes, size_t alignment_hint);
+
+  static char*  pd_reserve_memory_special(size_t size, size_t alignment,
+                                          char* addr, bool executable);
+  static bool   pd_release_memory_special(char* addr, size_t bytes);
 
   static size_t page_size_for_region(size_t region_size, size_t min_pages, bool must_be_aligned);
 
@@ -316,8 +318,17 @@ class os: AllStatic {
                                size_t alignment_hint, MEMFLAGS flags);
   static char*  reserve_memory_aligned(size_t size, size_t alignment, int file_desc = -1);
   static char*  attempt_reserve_memory_at(size_t bytes, char* addr, int file_desc = -1);
-  static void   split_reserved_memory(char *base, size_t size,
-                                      size_t split, bool realloc);
+
+
+  // Split a reserved memory region [base, base+size) into two regions [base, base+split) and
+  //  [base+split, base+size).
+  //  This may remove the original mapping, so its content may be lost.
+  // Both base and split point must be aligned to allocation granularity; split point shall
+  //  be >0 and <size.
+  // Splitting guarantees that the resulting two memory regions can be released independently
+  //  from each other using os::release_memory().
+  static void   split_reserved_memory(char *base, size_t size, size_t split);
+
   static bool   commit_memory(char* addr, size_t bytes, bool executable);
   static bool   commit_memory(char* addr, size_t size, size_t alignment_hint,
                               bool executable);
@@ -394,13 +405,6 @@ class os: AllStatic {
   static bool   can_commit_large_page_memory();
   static bool   can_execute_large_page_memory();
 
-  // OS interface to polling page
-  static address get_polling_page()             { return _polling_page; }
-  static void    set_polling_page(address page) { _polling_page = page; }
-  static bool    is_poll_address(address addr)  { return addr >= _polling_page && addr < (_polling_page + os::vm_page_size()); }
-  static void    make_polling_page_unreadable();
-  static void    make_polling_page_readable();
-
   // Check if pointer points to readable memory (by 4-byte read access)
   static bool    is_readable_pointer(const void* p);
   static bool    is_readable_range(const void* from, const void* to);
@@ -447,7 +451,7 @@ class os: AllStatic {
 
   static void free_thread(OSThread* osthread);
 
-  // thread id on Linux/64bit is 64bit, on Windows and Solaris, it's 32bit
+  // thread id on Linux/64bit is 64bit, on Windows it's 32bit
   static intx current_thread_id();
   static int current_process_id();
 
@@ -774,10 +778,8 @@ class os: AllStatic {
   // JVMTI & JVM monitoring and management support
   // The thread_cpu_time() and current_thread_cpu_time() are only
   // supported if is_thread_cpu_time_supported() returns true.
-  // They are not supported on Solaris T1.
 
   // Thread CPU Time - return the fast estimate on a platform
-  // On Solaris - call gethrvtime (fast) - user time only
   // On Linux   - fast clock_gettime where available - user+sys
   //            - otherwise: very slow /proc fs - user+sys
   // On Windows - GetThreadTimes - user+sys

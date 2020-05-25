@@ -85,9 +85,9 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
     }
 
     @Override
-    public void addMemberTree(Content memberSummaryTree, Content memberTree) {
-        writer.addMemberTree(HtmlStyle.methodSummary,
-                SectionName.METHOD_SUMMARY, memberSummaryTree, memberTree);
+    public void addSummary(Content summariesList, Content content) {
+        writer.addSummary(HtmlStyle.methodSummary,
+                SectionName.METHOD_SUMMARY, summariesList, content);
     }
 
     @Override
@@ -104,7 +104,7 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
     public Content getMethodDocTreeHeader(ExecutableElement method) {
         String erasureAnchor;
         Content methodDocTree = new ContentBuilder();
-        HtmlTree heading = new HtmlTree(Headings.TypeDeclaration.MEMBER_HEADING,
+        HtmlTree heading = HtmlTree.HEADING(Headings.TypeDeclaration.MEMBER_HEADING,
                 new StringContent(name(method)));
         if ((erasureAnchor = getErasureAnchor(method)) != null) {
             heading.setId(erasureAnchor);
@@ -177,11 +177,6 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
     }
 
     @Override
-    public Content getMethodDoc(Content methodDocTree) {
-        return getMemberTree(methodDocTree);
-    }
-
-    @Override
     public void addSummaryLabel(Content memberTree) {
         Content label = HtmlTree.HEADING(Headings.TypeDeclaration.SUMMARY_HEADING,
                 contents.methodSummary);
@@ -196,10 +191,11 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
 
     @Override
     protected Table createSummaryTable() {
-        return new Table(HtmlStyle.memberSummary)
+        return new Table(HtmlStyle.memberSummary, HtmlStyle.summaryTable)
                 .setHeader(getSummaryTableHeader(typeElement))
                 .setRowScopeColumn(1)
                 .setColumnStyles(HtmlStyle.colFirst, HtmlStyle.colSecond, HtmlStyle.colLast)
+                .setId("method-summary-table")
                 .setDefaultTab(resources.getText("doclet.All_Methods"))
                 .addTab(resources.getText("doclet.Static_Methods"), utils::isStatic)
                 .addTab(resources.getText("doclet.Instance_Methods"), e -> !utils.isStatic(e))
@@ -319,7 +315,7 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
         VisibleMemberTable vmt = writer.configuration
                 .getVisibleMemberTable(utils.getEnclosingTypeElement(method));
         SortedSet<ExecutableElement> implementedMethods =
-                new TreeSet<>(utils.makeOverrideUseComparator());
+                new TreeSet<>(utils.comparators.makeOverrideUseComparator());
         implementedMethods.addAll(vmt.getImplementedMethods(method));
         for (ExecutableElement implementedMeth : implementedMethods) {
             TypeMirror intfac = vmt.getImplementedMethodHolder(method, implementedMeth);

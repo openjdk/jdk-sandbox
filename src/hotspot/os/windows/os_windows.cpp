@@ -56,6 +56,7 @@
 #include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/statSampler.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -2531,7 +2532,7 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
         // the rest are checked explicitly now.
         CodeBlob* cb = CodeCache::find_blob(pc);
         if (cb != NULL) {
-          if (os::is_poll_address(addr)) {
+          if (SafepointMechanism::is_poll_address(addr)) {
             address stub = SharedRuntime::get_poll_stub(pc);
             return Handle_Exception(exceptionInfo, stub);
           }
@@ -2715,8 +2716,121 @@ int os::vm_allocation_granularity() {
   #define MEM_LARGE_PAGES 0x20000000
 #endif
 
-static HANDLE    _hProcess;
-static HANDLE    _hToken;
+#define VirtualFreeChecked(mem, size, type)                       \
+  do {                                                            \
+    bool ret = VirtualFree(mem, size, type);                      \
+    assert(ret, "Failed to free memory: " PTR_FORMAT, p2i(mem));  \
+  } while (false)
+
+// The number of bytes is setup to match 1 pixel and 32 bits per pixel.
+static const int gdi_tiny_bitmap_width_bytes = 4;
+
+static HBITMAP gdi_create_tiny_bitmap(void* mem) {
+  // The documentation for CreateBitmap states a word-alignment requirement.
+  STATIC_ASSERT(is_aligned_(gdi_tiny_bitmap_width_bytes, sizeof(WORD)));
+
+  // Some callers use this function to test if memory crossing separate memory
+  // reservations can be used. Create a height of 2 to make sure that one pixel
+  // ends up in the first reservation and the other in the second.
+  int nHeight = 2;
+
+  assert(is_aligned(mem, gdi_tiny_bitmap_width_bytes), "Incorrect alignment");
+
+  // Width is one pixel and correlates with gdi_tiny_bitmap_width_bytes.
+  int nWidth = 1;
+
+  // Calculate bit count - will be 32.
+  UINT nBitCount = gdi_tiny_bitmap_width_bytes / nWidth * BitsPerByte;
+
+  return CreateBitmap(
+      nWidth,
+      nHeight,
+      1,         // nPlanes
+      nBitCount,
+      mem);      // lpBits
+}
+
+// It has been found that some of the GDI functions fail under these two situations:
+//  1) When used with large pages
+//  2) When mem crosses the boundary between two separate memory reservations.
+//
+// This is a small test used to see if the current GDI implementation is
+// susceptible to any of these problems.
+static bool gdi_can_use_memory(void* mem) {
+  HBITMAP bitmap = gdi_create_tiny_bitmap(mem);
+  if (bitmap != NULL) {
+    DeleteObject(bitmap);
+    return true;
+  }
+
+  // Verify that the bitmap could be created with a normal page.
+  // If this fails, the testing method above isn't reliable.
+#ifdef ASSERT
+  void* verify_mem = ::malloc(4 * 1024);
+  HBITMAP verify_bitmap = gdi_create_tiny_bitmap(verify_mem);
+  if (verify_bitmap == NULL) {
+    fatal("Couldn't create test bitmap with malloced memory");
+  } else {
+    DeleteObject(verify_bitmap);
+  }
+  ::free(verify_mem);
+#endif
+
+  return false;
+}
+
+// Test if GDI functions work when memory spans
+// two adjacent memory reservations.
+static bool gdi_can_use_split_reservation_memory(bool use_large_pages, size_t granule) {
+  DWORD mem_large_pages = use_large_pages ? MEM_LARGE_PAGES : 0;
+
+  // Find virtual memory range. Two granules for regions and one for alignment.
+  void* reserved = VirtualAlloc(NULL,
+                                granule * 3,
+                                MEM_RESERVE,
+                                PAGE_NOACCESS);
+  if (reserved == NULL) {
+    // Can't proceed with test - pessimistically report false
+    return false;
+  }
+  VirtualFreeChecked(reserved, 0, MEM_RELEASE);
+
+  // Ensure proper alignment
+  void* res0 = align_up(reserved, granule);
+  void* res1 = (char*)res0 + granule;
+
+  // Reserve and commit the first part
+  void* mem0 = VirtualAlloc(res0,
+                            granule,
+                            MEM_RESERVE|MEM_COMMIT|mem_large_pages,
+                            PAGE_READWRITE);
+  if (mem0 != res0) {
+    // Can't proceed with test - pessimistically report false
+    return false;
+  }
+
+  // Reserve and commit the second part
+  void* mem1 = VirtualAlloc(res1,
+                            granule,
+                            MEM_RESERVE|MEM_COMMIT|mem_large_pages,
+                            PAGE_READWRITE);
+  if (mem1 != res1) {
+    VirtualFreeChecked(mem0, 0, MEM_RELEASE);
+    // Can't proceed with test - pessimistically report false
+    return false;
+  }
+
+  // Set the bitmap's bits to point one "width" bytes before, so that
+  // the bitmap extends across the reservation boundary.
+  void* bitmapBits = (char*)mem1 - gdi_tiny_bitmap_width_bytes;
+
+  bool success = gdi_can_use_memory(bitmapBits);
+
+  VirtualFreeChecked(mem1, 0, MEM_RELEASE);
+  VirtualFreeChecked(mem0, 0, MEM_RELEASE);
+
+  return success;
+}
 
 // Container for NUMA node list info
 class NUMANodeListHolder {
@@ -2765,17 +2879,17 @@ class NUMANodeListHolder {
 
 } numa_node_list_holder;
 
-
-
 static size_t _large_page_size = 0;
 
 static bool request_lock_memory_privilege() {
-  _hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE,
-                          os::current_process_id());
+  HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE,
+                                os::current_process_id());
 
+  bool success = false;
+  HANDLE hToken = NULL;
   LUID luid;
-  if (_hProcess != NULL &&
-      OpenProcessToken(_hProcess, TOKEN_ADJUST_PRIVILEGES, &_hToken) &&
+  if (hProcess != NULL &&
+      OpenProcessToken(hProcess, TOKEN_ADJUST_PRIVILEGES, &hToken) &&
       LookupPrivilegeValue(NULL, "SeLockMemoryPrivilege", &luid)) {
 
     TOKEN_PRIVILEGES tp;
@@ -2785,51 +2899,58 @@ static bool request_lock_memory_privilege() {
 
     // AdjustTokenPrivileges() may return TRUE even when it couldn't change the
     // privilege. Check GetLastError() too. See MSDN document.
-    if (AdjustTokenPrivileges(_hToken, false, &tp, sizeof(tp), NULL, NULL) &&
+    if (AdjustTokenPrivileges(hToken, false, &tp, sizeof(tp), NULL, NULL) &&
         (GetLastError() == ERROR_SUCCESS)) {
-      return true;
+      success = true;
     }
   }
 
-  return false;
-}
+  // Cleanup
+  if (hProcess != NULL) {
+    CloseHandle(hProcess);
+  }
+  if (hToken != NULL) {
+    CloseHandle(hToken);
+  }
 
-static void cleanup_after_large_page_init() {
-  if (_hProcess) CloseHandle(_hProcess);
-  _hProcess = NULL;
-  if (_hToken) CloseHandle(_hToken);
-  _hToken = NULL;
+  return success;
 }
 
 static bool numa_interleaving_init() {
   bool success = false;
-  bool use_numa_interleaving_specified = !FLAG_IS_DEFAULT(UseNUMAInterleaving);
 
   // print a warning if UseNUMAInterleaving flag is specified on command line
-  bool warn_on_failure = use_numa_interleaving_specified;
+  bool warn_on_failure = !FLAG_IS_DEFAULT(UseNUMAInterleaving);
+
 #define WARN(msg) if (warn_on_failure) { warning(msg); }
 
   // NUMAInterleaveGranularity cannot be less than vm_allocation_granularity (or _large_page_size if using large pages)
   size_t min_interleave_granularity = UseLargePages ? _large_page_size : os::vm_allocation_granularity();
   NUMAInterleaveGranularity = align_up(NUMAInterleaveGranularity, min_interleave_granularity);
 
-  if (numa_node_list_holder.build()) {
-    if (log_is_enabled(Debug, os, cpu)) {
-      Log(os, cpu) log;
-      log.debug("NUMA UsedNodeCount=%d, namely ", numa_node_list_holder.get_count());
-      for (int i = 0; i < numa_node_list_holder.get_count(); i++) {
-        log.debug("  %d ", numa_node_list_holder.get_node_list_entry(i));
-      }
-    }
-    success = true;
-  } else {
+  if (!numa_node_list_holder.build()) {
     WARN("Process does not cover multiple NUMA nodes.");
+    WARN("...Ignoring UseNUMAInterleaving flag.");
+    return false;
   }
-  if (!success) {
-    if (use_numa_interleaving_specified) WARN("...Ignoring UseNUMAInterleaving flag.");
+
+  if (!gdi_can_use_split_reservation_memory(UseLargePages, min_interleave_granularity)) {
+    WARN("Windows GDI cannot handle split reservations.");
+    WARN("...Ignoring UseNUMAInterleaving flag.");
+    return false;
   }
-  return success;
+
+  if (log_is_enabled(Debug, os, cpu)) {
+    Log(os, cpu) log;
+    log.debug("NUMA UsedNodeCount=%d, namely ", numa_node_list_holder.get_count());
+    for (int i = 0; i < numa_node_list_holder.get_count(); i++) {
+      log.debug("  %d ", numa_node_list_holder.get_node_list_entry(i));
+    }
+  }
+
 #undef WARN
+
+  return true;
 }
 
 // this routine is used whenever we need to reserve a contiguous VA range
@@ -2950,51 +3071,84 @@ static char* allocate_pages_individually(size_t bytes, char* addr, DWORD flags,
   return p_buf;
 }
 
-
-
-void os::large_page_init() {
-  if (!UseLargePages) return;
-
+static size_t large_page_init_decide_size() {
   // print a warning if any large page related flag is specified on command line
   bool warn_on_failure = !FLAG_IS_DEFAULT(UseLargePages) ||
                          !FLAG_IS_DEFAULT(LargePageSizeInBytes);
-  bool success = false;
 
 #define WARN(msg) if (warn_on_failure) { warning(msg); }
-  if (request_lock_memory_privilege()) {
-    size_t s = GetLargePageMinimum();
-    if (s) {
-#if defined(IA32) || defined(AMD64)
-      if (s > 4*M || LargePageSizeInBytes > 4*M) {
-        WARN("JVM cannot use large pages bigger than 4mb.");
-      } else {
-#endif
-        if (LargePageSizeInBytes && LargePageSizeInBytes % s == 0) {
-          _large_page_size = LargePageSizeInBytes;
-        } else {
-          _large_page_size = s;
-        }
-        success = true;
-#if defined(IA32) || defined(AMD64)
-      }
-#endif
-    } else {
-      WARN("Large page is not supported by the processor.");
-    }
-  } else {
+
+  if (!request_lock_memory_privilege()) {
     WARN("JVM cannot use large page memory because it does not have enough privilege to lock pages in memory.");
+    return 0;
   }
+
+  size_t size = GetLargePageMinimum();
+  if (size == 0) {
+    WARN("Large page is not supported by the processor.");
+    return 0;
+  }
+
+#if defined(IA32) || defined(AMD64)
+  if (size > 4*M || LargePageSizeInBytes > 4*M) {
+    WARN("JVM cannot use large pages bigger than 4mb.");
+    return 0;
+  }
+#endif
+
+  if (LargePageSizeInBytes > 0 && LargePageSizeInBytes % size == 0) {
+    size = LargePageSizeInBytes;
+  }
+
+  // Now test allocating a page
+  void* large_page = VirtualAlloc(NULL,
+                                  size,
+                                  MEM_RESERVE|MEM_COMMIT|MEM_LARGE_PAGES,
+                                  PAGE_READWRITE);
+  if (large_page == NULL) {
+    WARN("JVM cannot allocate one single large page.");
+    return 0;
+  }
+
+  // Detect if GDI can use memory backed by large pages
+  if (!gdi_can_use_memory(large_page)) {
+    WARN("JVM cannot use large pages because of bug in Windows GDI.");
+    return 0;
+  }
+
+  // Release test page
+  VirtualFreeChecked(large_page, 0, MEM_RELEASE);
+
 #undef WARN
 
+  return size;
+}
+
+void os::large_page_init() {
+  if (!UseLargePages) {
+    return;
+  }
+
+  _large_page_size = large_page_init_decide_size();
+
   const size_t default_page_size = (size_t) vm_page_size();
-  if (success && _large_page_size > default_page_size) {
+  if (_large_page_size > default_page_size) {
     _page_sizes[0] = _large_page_size;
     _page_sizes[1] = default_page_size;
     _page_sizes[2] = 0;
   }
 
-  cleanup_after_large_page_init();
-  UseLargePages = success;
+  UseLargePages = _large_page_size != 0;
+
+  if (UseLargePages && UseLargePagesIndividualAllocation) {
+    if (!gdi_can_use_split_reservation_memory(true /* use_large_pages */, _large_page_size)) {
+      if (FLAG_IS_CMDLINE(UseLargePagesIndividualAllocation)) {
+        warning("Windows GDI cannot handle split reservations.");
+        warning("...Ignoring UseLargePagesIndividualAllocation flag.");
+      }
+      UseLargePagesIndividualAllocation = false;
+    }
+  }
 }
 
 int os::create_file_for_heap(const char* dir) {
@@ -3070,17 +3224,19 @@ char* os::replace_existing_mapping_with_file_mapping(char* base, size_t size, in
 // On win32, one cannot release just a part of reserved memory, it's an
 // all or nothing deal.  When we split a reservation, we must break the
 // reservation into two reservations.
-void os::pd_split_reserved_memory(char *base, size_t size, size_t split,
-                                  bool realloc) {
-  if (size > 0) {
-    release_memory(base, size);
-    if (realloc) {
-      reserve_memory(split, base);
-    }
-    if (size != split) {
-      reserve_memory(size - split, base + split);
-    }
-  }
+void os::split_reserved_memory(char *base, size_t size, size_t split) {
+
+  char* const split_address = base + split;
+  assert(size > 0, "Sanity");
+  assert(size > split, "Sanity");
+  assert(split > 0, "Sanity");
+  assert(is_aligned(base, os::vm_allocation_granularity()), "Sanity");
+  assert(is_aligned(split_address, os::vm_allocation_granularity()), "Sanity");
+
+  release_memory(base, size);
+  reserve_memory(split, base);
+  reserve_memory(size - split, split_address);
+
 }
 
 // Multiple threads can race in this code but it's not possible to unmap small sections of
@@ -3176,8 +3332,8 @@ bool os::can_execute_large_page_memory() {
   return true;
 }
 
-char* os::reserve_memory_special(size_t bytes, size_t alignment, char* addr,
-                                 bool exec) {
+char* os::pd_reserve_memory_special(size_t bytes, size_t alignment, char* addr,
+                                    bool exec) {
   assert(UseLargePages, "only for large pages");
 
   if (!is_aligned(bytes, os::large_page_size()) || alignment > os::large_page_size()) {
@@ -3214,17 +3370,14 @@ char* os::reserve_memory_special(size_t bytes, size_t alignment, char* addr,
     // normal policy just allocate it all at once
     DWORD flag = MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES;
     char * res = (char *)VirtualAlloc(addr, bytes, flag, prot);
-    if (res != NULL) {
-      MemTracker::record_virtual_memory_reserve_and_commit((address)res, bytes, CALLER_PC);
-    }
 
     return res;
   }
 }
 
-bool os::release_memory_special(char* base, size_t bytes) {
+bool os::pd_release_memory_special(char* base, size_t bytes) {
   assert(base != NULL, "Sanity check");
-  return release_memory(base, bytes);
+  return pd_release_memory(base, bytes);
 }
 
 void os::print_statistics() {
@@ -4098,10 +4251,13 @@ jint os::init_2(void) {
     UseNUMA = false; // We don't fully support this yet
   }
 
-  if (UseNUMAInterleaving) {
-    // first check whether this Windows OS supports VirtualAllocExNuma, if not ignore this flag
-    bool success = numa_interleaving_init();
-    if (!success) UseNUMAInterleaving = false;
+  if (UseNUMAInterleaving || (UseNUMA && FLAG_IS_DEFAULT(UseNUMAInterleaving))) {
+    if (!numa_interleaving_init()) {
+      FLAG_SET_ERGO(UseNUMAInterleaving, false);
+    } else if (!UseNUMAInterleaving) {
+      // When NUMA requested, not-NUMA-aware allocations default to interleaving.
+      FLAG_SET_ERGO(UseNUMAInterleaving, true);
+    }
   }
 
   if (initSock() != JNI_OK) {
@@ -4116,24 +4272,6 @@ jint os::init_2(void) {
   }
 
   return JNI_OK;
-}
-
-// Mark the polling page as unreadable
-void os::make_polling_page_unreadable(void) {
-  DWORD old_status;
-  if (!VirtualProtect((char *)_polling_page, os::vm_page_size(),
-                      PAGE_NOACCESS, &old_status)) {
-    fatal("Could not disable polling page");
-  }
-}
-
-// Mark the polling page as readable
-void os::make_polling_page_readable(void) {
-  DWORD old_status;
-  if (!VirtualProtect((char *)_polling_page, os::vm_page_size(),
-                      PAGE_READONLY, &old_status)) {
-    fatal("Could not enable polling page");
-  }
 }
 
 // combine the high and low DWORD into a ULONGLONG
@@ -4161,98 +4299,121 @@ static void file_attribute_data_to_stat(struct stat* sbuf, WIN32_FILE_ATTRIBUTE_
   }
 }
 
+static errno_t convert_to_unicode(char const* char_path, LPWSTR* unicode_path) {
+  // Get required buffer size to convert to Unicode
+  int unicode_path_len = MultiByteToWideChar(CP_ACP,
+                                             MB_ERR_INVALID_CHARS,
+                                             char_path, -1,
+                                             NULL, 0);
+  if (unicode_path_len == 0) {
+    return EINVAL;
+  }
+
+  *unicode_path = NEW_C_HEAP_ARRAY(WCHAR, unicode_path_len, mtInternal);
+
+  int result = MultiByteToWideChar(CP_ACP,
+                                   MB_ERR_INVALID_CHARS,
+                                   char_path, -1,
+                                   *unicode_path, unicode_path_len);
+  assert(result == unicode_path_len, "length already checked above");
+
+  return ERROR_SUCCESS;
+}
+
+static errno_t get_full_path(LPCWSTR unicode_path, LPWSTR* full_path) {
+  // Get required buffer size to convert to full path. The return
+  // value INCLUDES the terminating null character.
+  DWORD full_path_len = GetFullPathNameW(unicode_path, 0, NULL, NULL);
+  if (full_path_len == 0) {
+    return EINVAL;
+  }
+
+  *full_path = NEW_C_HEAP_ARRAY(WCHAR, full_path_len, mtInternal);
+
+  // When the buffer has sufficient size, the return value EXCLUDES the
+  // terminating null character
+  DWORD result = GetFullPathNameW(unicode_path, full_path_len, *full_path, NULL);
+  assert(result <= full_path_len, "length already checked above");
+
+  return ERROR_SUCCESS;
+}
+
+static void set_path_prefix(char* buf, LPWSTR* prefix, int* prefix_off, bool* needs_fullpath) {
+  *prefix_off = 0;
+  *needs_fullpath = true;
+
+  if (::isalpha(buf[0]) && !::IsDBCSLeadByte(buf[0]) && buf[1] == ':' && buf[2] == '\\') {
+    *prefix = L"\\\\?\\";
+  } else if (buf[0] == '\\' && buf[1] == '\\') {
+    if (buf[2] == '?' && buf[3] == '\\') {
+      *prefix = L"";
+      *needs_fullpath = false;
+    } else {
+      *prefix = L"\\\\?\\UNC";
+      *prefix_off = 1; // Overwrite the first char with the prefix, so \\share\path becomes \\?\UNC\share\path
+    }
+  } else {
+    *prefix = L"\\\\?\\";
+  }
+}
+
 // Returns the given path as an absolute wide path in unc format. The returned path is NULL
 // on error (with err being set accordingly) and should be freed via os::free() otherwise.
-// additional_space is the number of additionally allocated wchars after the terminating L'\0'.
-// This is based on pathToNTPath() in io_util_md.cpp, but omits the optimizations for
-// short paths.
+// additional_space is the size of space, in wchar_t, the function will additionally add to
+// the allocation of return buffer (such that the size of the returned buffer is at least
+// wcslen(buf) + 1 + additional_space).
 static wchar_t* wide_abs_unc_path(char const* path, errno_t & err, int additional_space = 0) {
   if ((path == NULL) || (path[0] == '\0')) {
     err = ENOENT;
     return NULL;
   }
 
-  size_t path_len = strlen(path);
   // Need to allocate at least room for 3 characters, since os::native_path transforms C: to C:.
-  char* buf = (char*) os::malloc(1 + MAX2((size_t) 3, path_len), mtInternal);
-  wchar_t* result = NULL;
+  size_t buf_len = 1 + MAX2((size_t)3, strlen(path));
+  char* buf = NEW_C_HEAP_ARRAY(char, buf_len, mtInternal);
+  strncpy(buf, path, buf_len);
+  os::native_path(buf);
 
-  if (buf == NULL) {
-    err = ENOMEM;
-  } else {
-    memcpy(buf, path, path_len + 1);
-    os::native_path(buf);
+  LPWSTR prefix = NULL;
+  int prefix_off = 0;
+  bool needs_fullpath = true;
+  set_path_prefix(buf, &prefix, &prefix_off, &needs_fullpath);
 
-    wchar_t* prefix;
-    int prefix_off = 0;
-    bool is_abs = true;
-    bool needs_fullpath = true;
-
-    if (::isalpha(buf[0]) && !::IsDBCSLeadByte(buf[0]) && buf[1] == ':' && buf[2] == '\\') {
-      prefix = L"\\\\?\\";
-    } else if (buf[0] == '\\' && buf[1] == '\\') {
-      if (buf[2] == '?' && buf[3] == '\\') {
-        prefix = L"";
-        needs_fullpath = false;
-      } else {
-        prefix = L"\\\\?\\UNC";
-        prefix_off = 1; // Overwrite the first char with the prefix, so \\share\path becomes \\?\UNC\share\path
-      }
-    } else {
-      is_abs = false;
-      prefix = L"\\\\?\\";
-    }
-
-    size_t buf_len = strlen(buf);
-    size_t prefix_len = wcslen(prefix);
-    size_t full_path_size = is_abs ? 1 + buf_len : JVM_MAXPATHLEN;
-    size_t result_size = prefix_len + full_path_size - prefix_off;
-    result = (wchar_t*) os::malloc(sizeof(wchar_t) * (additional_space + result_size), mtInternal);
-
-    if (result == NULL) {
-      err = ENOMEM;
-    } else {
-      size_t converted_chars;
-      wchar_t* path_start = result + prefix_len - prefix_off;
-      err = ::mbstowcs_s(&converted_chars, path_start, buf_len + 1, buf, buf_len);
-
-      if ((err == ERROR_SUCCESS) && needs_fullpath) {
-        wchar_t* tmp = (wchar_t*) os::malloc(sizeof(wchar_t) * full_path_size, mtInternal);
-
-        if (tmp == NULL) {
-          err = ENOMEM;
-        } else {
-          if (!_wfullpath(tmp, path_start, full_path_size)) {
-            err = ENOENT;
-          } else {
-            ::memcpy(path_start, tmp, (1 + wcslen(tmp)) * sizeof(wchar_t));
-          }
-
-          os::free(tmp);
-        }
-      }
-
-      memcpy(result, prefix, sizeof(wchar_t) * prefix_len);
-
-      // Remove trailing pathsep (not for \\?\<DRIVE>:\, since it would make it relative)
-      size_t result_len = wcslen(result);
-
-      if (result[result_len - 1] == L'\\') {
-        if (!(::iswalpha(result[4]) && result[5] == L':' && result_len == 7)) {
-          result[result_len - 1] = L'\0';
-        }
-      }
-    }
-  }
-
-  os::free(buf);
-
+  LPWSTR unicode_path = NULL;
+  err = convert_to_unicode(buf, &unicode_path);
+  FREE_C_HEAP_ARRAY(char, buf);
   if (err != ERROR_SUCCESS) {
-    os::free(result);
-    result = NULL;
+    return NULL;
   }
 
-  return result;
+  LPWSTR converted_path = NULL;
+  if (needs_fullpath) {
+    err = get_full_path(unicode_path, &converted_path);
+  } else {
+    converted_path = unicode_path;
+  }
+
+  LPWSTR result = NULL;
+  if (converted_path != NULL) {
+    size_t prefix_len = wcslen(prefix);
+    size_t result_len = prefix_len - prefix_off + wcslen(converted_path) + additional_space + 1;
+    result = NEW_C_HEAP_ARRAY(WCHAR, result_len, mtInternal);
+    _snwprintf(result, result_len, L"%s%s", prefix, &converted_path[prefix_off]);
+
+    // Remove trailing pathsep (not for \\?\<DRIVE>:\, since it would make it relative)
+    result_len = wcslen(result);
+    if ((result[result_len - 1] == L'\\') &&
+        !(::iswalpha(result[4]) && result[5] == L':' && result_len == 7)) {
+      result[result_len - 1] = L'\0';
+    }
+  }
+
+  if (converted_path != unicode_path) {
+    FREE_C_HEAP_ARRAY(WCHAR, converted_path);
+  }
+  FREE_C_HEAP_ARRAY(WCHAR, unicode_path);
+
+  return static_cast<wchar_t*>(result); // LPWSTR and wchat_t* are the same type on Windows.
 }
 
 int os::stat(const char *path, struct stat *sbuf) {

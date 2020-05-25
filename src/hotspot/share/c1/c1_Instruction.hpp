@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -268,7 +268,7 @@ class InstructionVisitor: public StackObj {
 
 
 #define HASHING3(class_name, enabled, f1, f2, f3)     \
-  virtual intx hash() const {                          \
+  virtual intx hash() const {                         \
     return (enabled) ? HASH4(name(), f1, f2, f3) : 0; \
   }                                                   \
   virtual bool is_equal(Value v) const {              \
@@ -303,7 +303,6 @@ class Instruction: public CompilationResourceObj {
   XHandlers*   _exception_handlers;              // Flat list of exception handlers covering this instruction
 
   friend class UseCountComputer;
-  friend class BlockBegin;
 
   void update_exception_state(ValueStack* state);
 
@@ -349,7 +348,6 @@ class Instruction: public CompilationResourceObj {
   void* operator new(size_t size) throw() {
     Compilation* c = Compilation::current();
     void* res = c->arena()->Amalloc(size);
-    ((Instruction*)res)->_id = c->get_next_id();
     return res;
   }
 
@@ -410,7 +408,7 @@ class Instruction: public CompilationResourceObj {
 
   // creation
   Instruction(ValueType* type, ValueStack* state_before = NULL, bool type_is_constant = false)
-  :
+  : _id(Compilation::current()->get_next_id()),
 #ifndef PRODUCT
   _printable_bci(-99),
 #endif
@@ -453,6 +451,8 @@ class Instruction: public CompilationResourceObj {
   bool needs_null_check() const                  { return check_flag(NeedsNullCheckFlag); }
   bool is_linked() const                         { return check_flag(IsLinkedInBlockFlag); }
   bool can_be_linked()                           { return as_Local() == NULL && as_Phi() == NULL; }
+
+  bool is_null_obj()                             { return as_Constant() != NULL && type()->as_ObjectType()->constant_value()->is_null_object(); }
 
   bool has_uses() const                          { return use_count() > 0; }
   ValueStack* state_before() const               { return _state_before; }
@@ -834,8 +834,8 @@ LEAF(LoadField, AccessField)
 
   ciType* declared_type() const;
 
-  // generic
-  HASHING2(LoadField, !needs_patching() && !field()->is_volatile(), obj()->subst(), offset())  // cannot be eliminated if needs patching or if volatile
+  // generic; cannot be eliminated if needs patching or if volatile.
+  HASHING3(LoadField, !needs_patching() && !field()->is_volatile(), obj()->subst(), offset(), declared_type())
 };
 
 
@@ -964,8 +964,8 @@ LEAF(LoadIndexed, AccessIndexed)
   ciType* exact_type() const;
   ciType* declared_type() const;
 
-  // generic
-  HASHING2(LoadIndexed, true, array()->subst(), index()->subst())
+  // generic;
+  HASHING3(LoadIndexed, true, type()->tag(), array()->subst(), index()->subst())
 };
 
 
@@ -1649,8 +1649,6 @@ LEAF(BlockBegin, StateSplit)
    void* operator new(size_t size) throw() {
     Compilation* c = Compilation::current();
     void* res = c->arena()->Amalloc(size);
-    ((BlockBegin*)res)->_id = c->get_next_id();
-    ((BlockBegin*)res)->_block_id = c->get_next_block_id();
     return res;
   }
 
@@ -1662,6 +1660,7 @@ LEAF(BlockBegin, StateSplit)
   // creation
   BlockBegin(int bci)
   : StateSplit(illegalType)
+  , _block_id(Compilation::current()->get_next_block_id())
   , _bci(bci)
   , _depth_first_number(-1)
   , _linear_scan_number(-1)

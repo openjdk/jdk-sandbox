@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,21 +70,6 @@ LIR_Opr LIR_OprFact::value_type(ValueType* type) {
   default: ShouldNotReachHere(); return LIR_OprFact::intConst(-1);
   }
 }
-
-
-LIR_Opr LIR_OprFact::dummy_value_type(ValueType* type) {
-  switch (type->tag()) {
-    case objectTag: return LIR_OprFact::oopConst(NULL);
-    case addressTag:return LIR_OprFact::addressConst(0);
-    case intTag:    return LIR_OprFact::intConst(0);
-    case floatTag:  return LIR_OprFact::floatConst(0.0);
-    case longTag:   return LIR_OprFact::longConst(0);
-    case doubleTag: return LIR_OprFact::doubleConst(0.0);
-    default:        ShouldNotReachHere(); return LIR_OprFact::intConst(-1);
-  }
-  return illegalOpr;
-}
-
 
 
 //---------------------------------------------------
@@ -420,9 +405,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
   switch (op->code()) {
 
 // LIR_Op0
-    case lir_word_align:               // result and info always invalid
     case lir_backwardbranch_target:    // result and info always invalid
-    case lir_build_frame:              // result and info always invalid
     case lir_fpop_raw:                 // result and info always invalid
     case lir_breakpoint:               // result and info always invalid
     case lir_membar:                   // result and info always invalid
@@ -472,8 +455,6 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     case lir_monaddr:        // input and result always valid, info always invalid
     case lir_null_check:     // input and info always valid, result always invalid
     case lir_move:           // input and result always valid, may have info
-    case lir_pack64:         // input and result always valid
-    case lir_unpack64:       // input and result always valid
     {
       assert(op->as_Op1() != NULL, "must be");
       LIR_Op1* op1 = (LIR_Op1*)op;
@@ -1637,14 +1618,12 @@ const char * LIR_Op::name() const {
      case lir_membar_storestore:     s = "membar_storestore"; break;
      case lir_membar_loadstore:      s = "membar_loadstore";  break;
      case lir_membar_storeload:      s = "membar_storeload";  break;
-     case lir_word_align:            s = "word_align";    break;
      case lir_label:                 s = "label";         break;
      case lir_nop:                   s = "nop";           break;
      case lir_on_spin_wait:          s = "on_spin_wait";  break;
      case lir_backwardbranch_target: s = "backbranch";    break;
      case lir_std_entry:             s = "std_entry";     break;
      case lir_osr_entry:             s = "osr_entry";     break;
-     case lir_build_frame:           s = "build_frm";     break;
      case lir_fpop_raw:              s = "fpop_raw";      break;
      case lir_breakpoint:            s = "breakpoint";    break;
      case lir_get_thread:            s = "get_thread";    break;
@@ -1667,8 +1646,6 @@ const char * LIR_Op::name() const {
      case lir_convert:               s = "convert";       break;
      case lir_alloc_object:          s = "alloc_obj";     break;
      case lir_monaddr:               s = "mon_addr";      break;
-     case lir_pack64:                s = "pack64";        break;
-     case lir_unpack64:              s = "unpack64";      break;
      // LIR_Op2
      case lir_cmp:                   s = "cmp";           break;
      case lir_cmp_l2i:               s = "cmp_l2i";       break;

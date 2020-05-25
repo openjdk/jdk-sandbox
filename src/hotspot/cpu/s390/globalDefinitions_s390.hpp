@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -56,6 +56,6 @@ const bool CCallingConventionRequiresIntsAsLongs = true;
 
 #define SUPPORT_RESERVED_STACK_AREA
 
-#define THREAD_LOCAL_POLL
+#define COMPRESSED_CLASS_POINTERS_DEPENDS_ON_COMPRESSED_OOPS false
 
 #endif // CPU_S390_GLOBALDEFINITIONS_S390_HPP
