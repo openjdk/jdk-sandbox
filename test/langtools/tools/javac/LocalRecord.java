@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,25 +19,16 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef CPU_AARCH64_ICACHE_AARCH64_HPP
-#define CPU_AARCH64_ICACHE_AARCH64_HPP
-
-// Interface for updating the instruction cache.  Whenever the VM
-// modifies code, part of the processor instruction cache potentially
-// has to be flushed.
-
-class ICache : public AbstractICache {
- public:
-  static void initialize();
-  static void invalidate_word(address addr) {
-    __builtin___clear_cache((char *)addr, (char *)(addr + 3));
-  }
-  static void invalidate_range(address start, int nbytes) {
-    __builtin___clear_cache((char *)start, (char *)(start + nbytes));
-  }
-};
-
-#endif // CPU_AARCH64_ICACHE_AARCH64_HPP
+/*
+ * @test
+ * @bug 8242478
+ * @summary test local records
+ * @compile --enable-preview -source ${jdk.version} LocalRecord.java
+ */
+class LocalRecord {
+    void m() {
+        record R() {}
+    }
+}
