@@ -146,7 +146,7 @@ class WindowsAsynchronousServerSocketChannelImpl
              */
             updateAcceptContext(handle, channel.handle());
 
-            InetSocketAddress local = Net.localAddress(channel.fd);
+            InetSocketAddress local = (InetSocketAddress)Net.localAddress(channel.fd);
             final InetSocketAddress remote = Net.remoteAddress(channel.fd);
             channel.setConnected(local, remote);
 

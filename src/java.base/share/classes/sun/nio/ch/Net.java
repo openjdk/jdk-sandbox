@@ -620,14 +620,18 @@ public class Net {
     private static native int localPort(FileDescriptor fd)
         throws IOException;
 
-    private static native InetAddress localInetAddress(FileDescriptor fd)
-        throws IOException;
-
-    public static InetSocketAddress localAddress(FileDescriptor fd)
-        throws IOException
-    {
-        return new InetSocketAddress(localInetAddress(fd), localPort(fd));
+    public static SocketAddress localAddress(FileDescriptor fd) throws IOException {
+        Object addr = localAddress0(fd);
+        if (addr instanceof InetAddress) {
+            return new InetSocketAddress((InetAddress)addr, localPort(fd));
+        } else if (addr instanceof UnixDomainSocketAddress) {
+            return (UnixDomainSocketAddress)addr;
+        }
+        throw new InternalError();
     }
+
+    public static native Object localAddress0(FileDescriptor fd)
+        throws IOException;
 
     private static native int remotePort(FileDescriptor fd)
         throws IOException;
@@ -889,9 +893,6 @@ public class Net {
         throws IOException;
 
     static native int unixDomainMaxNameLen0();
-
-    public static native UnixDomainSocketAddress localUnixAddress(FileDescriptor fd)
-        throws IOException;
 
     public static final short POLLERR;
     public static final short POLLHUP;

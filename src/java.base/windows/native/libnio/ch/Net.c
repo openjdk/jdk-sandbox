@@ -237,18 +237,6 @@ Java_sun_nio_ch_Net_unixDomainAccept(JNIEnv *env, jclass clazz, jobject fdo, job
     return 1;
 }
 
-JNIEXPORT jobject JNICALL
-Java_sun_nio_ch_Net_localUnixAddress(JNIEnv *env, jclass clazz, jobject fdo)
-{
-    struct sockaddr_un sa;
-    socklen_t sa_len = sizeof(sa);
-    if (getsockname(fdval(env, fdo), (struct sockaddr *)&sa, &sa_len) < 0) {
-        handleSocketError(env, WSAGetLastError());
-        return NULL;
-    }
-    return NET_SockaddrToUnixAddress(env, &sa, sa_len);
-}
-
 JNIEXPORT void JNICALL
 Java_sun_nio_ch_Net_initIDs(JNIEnv *env, jclass clazz)
 {
@@ -469,7 +457,7 @@ Java_sun_nio_ch_Net_localPort(JNIEnv *env, jclass clazz, jobject fdo)
 }
 
 JNIEXPORT jobject JNICALL
-Java_sun_nio_ch_Net_localInetAddress(JNIEnv *env, jclass clazz, jobject fdo)
+Java_sun_nio_ch_Net_localAddress0(JNIEnv *env, jclass clazz, jobject fdo)
 {
     SOCKETADDRESS sa;
     int sa_len = sizeof(sa);
@@ -479,8 +467,13 @@ Java_sun_nio_ch_Net_localInetAddress(JNIEnv *env, jclass clazz, jobject fdo)
         NET_ThrowNew(env, WSAGetLastError(), "getsockname");
         return NULL;
     }
-    return NET_SockaddrToInetAddress(env, &sa, &port);
+    if (sa.sa.sa_family == AF_UNIX) {
+        return NET_SockaddrToUnixAddress(env, &sa.saun, sa_len);
+    } else {
+        return NET_SockaddrToInetAddress(env, &sa, &port);
+    }
 }
+
 
 JNIEXPORT jint JNICALL
 Java_sun_nio_ch_Net_remotePort(JNIEnv *env, jclass clazz, jobject fdo)

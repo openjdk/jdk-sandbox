@@ -212,19 +212,6 @@ Java_sun_nio_ch_Net_unixDomainAccept(JNIEnv *env, jclass clazz, jobject fdo, job
     return 1;
 }
 
-JNIEXPORT jobject JNICALL
-Java_sun_nio_ch_Net_localUnixAddress(JNIEnv *env, jclass clazz, jobject fdo)
-{
-    struct sockaddr_un sa;
-    socklen_t sa_len = sizeof(struct sockaddr_un);
-    int port;
-    if (getsockname(fdval(env, fdo), (struct sockaddr *)&sa, &sa_len) < 0) {
-        handleSocketError(env, errno);
-        return NULL;
-    }
-    return NET_SockaddrToUnixAddress(env, &sa, sa_len);
-}
-
 /**
  * IP_MULTICAST_ALL supported since 2.6.31 but may not be available at
  * build time.
@@ -593,12 +580,13 @@ Java_sun_nio_ch_Net_localPort(JNIEnv *env, jclass clazz, jobject fdo)
 }
 
 JNIEXPORT jobject JNICALL
-Java_sun_nio_ch_Net_localInetAddress(JNIEnv *env, jclass clazz, jobject fdo)
+Java_sun_nio_ch_Net_localAddress0(JNIEnv *env, jclass clazz, jobject fdo)
 {
     SOCKETADDRESS sa;
     socklen_t sa_len = sizeof(SOCKETADDRESS);
     int port;
     if (getsockname(fdval(env, fdo), &sa.sa, &sa_len) < 0) {
+
 #ifdef _ALLBSD_SOURCE
         /*
          * XXXBSD:
@@ -607,7 +595,7 @@ Java_sun_nio_ch_Net_localInetAddress(JNIEnv *env, jclass clazz, jobject fdo)
          * that getsockname() will never fail. According to the Single UNIX Specification,
          * it shouldn't fail. As such, we just fill in generic Linux-compatible values.
          */
-        if (errno == ECONNRESET) {
+        if (errno == ECONNRESET && sa.sa.sa_family != AF_UNIX) {
             bzero(&sa.sa4, sizeof(sa));
             sa.sa4.sin_len  = sizeof(struct sockaddr_in);
             sa.sa4.sin_family = AF_INET;
@@ -622,7 +610,14 @@ Java_sun_nio_ch_Net_localInetAddress(JNIEnv *env, jclass clazz, jobject fdo)
         return NULL;
 #endif /* _ALLBSD_SOURCE */
     }
-    return NET_SockaddrToInetAddress(env, &sa, &port);
+
+    if (sa.sa.sa_family == AF_UNIX) {
+        /* returns a UnixDomainSocketAddress */
+        return NET_SockaddrToUnixAddress(env, &sa.saun, sa_len);
+    } else {
+        /* returns an InetAddress */
+        return NET_SockaddrToInetAddress(env, &sa, &port);
+    }
 }
 
 JNIEXPORT jint JNICALL

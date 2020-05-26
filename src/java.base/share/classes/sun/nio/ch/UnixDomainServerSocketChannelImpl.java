@@ -84,7 +84,7 @@ public class UnixDomainServerSocketChannelImpl
     }
 
     SocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
-        return Net.localUnixAddress(fd);
+        return Net.localAddress(fd);
     }
 
     @Override
@@ -148,7 +148,7 @@ public class UnixDomainServerSocketChannelImpl
         if (!found)
             throw new IOException("could not bind to temporary name");
         Net.listen(getFD(), backlog < 1 ? 50 : backlog);
-        return Net.localUnixAddress(getFD());
+        return Net.localAddress(getFD());
     }
 
     private static Random getRandom() {

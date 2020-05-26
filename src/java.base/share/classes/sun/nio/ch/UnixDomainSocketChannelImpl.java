@@ -88,7 +88,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
 
     @Override
     SocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
-        return Net.localUnixAddress(fd);
+        return Net.localAddress(fd);
     }
 
     @Override
@@ -131,7 +131,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         if (usa == null || usa.getPath().toString().equals("")) {
             return UnixDomainSocketAddress.UNNAMED;
         } else {
-            return Net.localUnixAddress(getFD());
+            return Net.localAddress(getFD());
         }
     }
 
@@ -169,7 +169,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         if (!isBound())
             return UnixDomainSocketAddress.UNNAMED;
         else
-            return Net.localUnixAddress(fd);
+            return Net.localAddress(fd);
     }
 
     String getRevealedLocalAddressAsString(SocketAddress sa) {
