@@ -116,7 +116,7 @@ public class SctpServerChannelImpl extends SctpServerChannel
                     sm.checkListen(isa.getPort());
                 Net.bind(fd, isa.getAddress(), isa.getPort());
 
-                InetSocketAddress boundIsa = Net.localAddress(fd);
+                InetSocketAddress boundIsa = (InetSocketAddress)Net.localAddress(fd);
                 port = boundIsa.getPort();
                 localAddresses.add(isa);
                     if (isa.getAddress().isAnyLocalAddress())
