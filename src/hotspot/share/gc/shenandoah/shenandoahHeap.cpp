@@ -46,6 +46,7 @@
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegionSet.hpp"
+#include "gc/shenandoah/shenandoahInitLogger.hpp"
 #include "gc/shenandoah/shenandoahMarkCompact.hpp"
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
 #include "gc/shenandoah/shenandoahMemoryPool.hpp"
@@ -112,7 +113,9 @@ public:
   virtual void work(uint worker_id) {
     ShenandoahHeapRegion* r = _regions.next();
     while (r != NULL) {
-      os::pretouch_memory(r->bottom(), r->end(), _page_size);
+      if (r->is_committed()) {
+        os::pretouch_memory(r->bottom(), r->end(), _page_size);
+      }
       r = _regions.next();
     }
   }
@@ -138,7 +141,9 @@ public:
       size_t end   = (r->index() + 1) * ShenandoahHeapRegion::region_size_bytes() / MarkBitMap::heap_map_factor();
       assert (end <= _bitmap_size, "end is sane: " SIZE_FORMAT " < " SIZE_FORMAT, end, _bitmap_size);
 
-      os::pretouch_memory(_bitmap_base + start, _bitmap_base + end, _page_size);
+      if (r->is_committed()) {
+        os::pretouch_memory(_bitmap_base + start, _bitmap_base + end, _page_size);
+      }
 
       r = _regions.next();
     }
@@ -156,11 +161,6 @@ jint ShenandoahHeap::initialize() {
   size_t heap_alignment = HeapAlignment;
 
   size_t reg_size_bytes = ShenandoahHeapRegion::region_size_bytes();
-
-  if (ShenandoahAlwaysPreTouch) {
-    // Enabled pre-touch means the entire heap is committed right away.
-    init_byte_size = max_byte_size;
-  }
 
   Universe::check_alignment(max_byte_size,  reg_size_bytes, "Shenandoah heap");
   Universe::check_alignment(init_byte_size, reg_size_bytes, "Shenandoah heap");
@@ -307,7 +307,7 @@ jint ShenandoahHeap::initialize() {
     for (uintptr_t addr = min; addr <= max; addr <<= 1u) {
       char* req_addr = (char*)addr;
       assert(is_aligned(req_addr, cset_align), "Should be aligned");
-      ReservedSpace cset_rs(cset_size, os::vm_page_size(), false, req_addr);
+      ReservedSpace cset_rs(cset_size, cset_align, false, req_addr);
       if (cset_rs.is_reserved()) {
         assert(cset_rs.base() == req_addr, "Allocated where requested: " PTR_FORMAT ", " PTR_FORMAT, p2i(cset_rs.base()), addr);
         _collection_set = new ShenandoahCollectionSet(this, cset_rs, sh_rs.base());
@@ -316,7 +316,7 @@ jint ShenandoahHeap::initialize() {
     }
 
     if (_collection_set == NULL) {
-      ReservedSpace cset_rs(cset_size, os::vm_page_size(), false);
+      ReservedSpace cset_rs(cset_size, cset_align, false);
       _collection_set = new ShenandoahCollectionSet(this, cset_rs, sh_rs.base());
     }
   }
@@ -346,38 +346,32 @@ jint ShenandoahHeap::initialize() {
     _free_set->rebuild();
   }
 
-  if (ShenandoahAlwaysPreTouch) {
-    assert(!AlwaysPreTouch, "Should have been overridden");
-
+  if (AlwaysPreTouch) {
     // For NUMA, it is important to pre-touch the storage under bitmaps with worker threads,
     // before initialize() below zeroes it with initializing thread. For any given region,
     // we touch the region and the corresponding bitmaps from the same thread.
     ShenandoahPushWorkerScope scope(workers(), _max_workers, false);
 
-    size_t pretouch_heap_page_size = heap_page_size;
-    size_t pretouch_bitmap_page_size = bitmap_page_size;
+    _pretouch_heap_page_size = heap_page_size;
+    _pretouch_bitmap_page_size = bitmap_page_size;
 
 #ifdef LINUX
     // UseTransparentHugePages would madvise that backing memory can be coalesced into huge
     // pages. But, the kernel needs to know that every small page is used, in order to coalesce
     // them into huge one. Therefore, we need to pretouch with smaller pages.
     if (UseTransparentHugePages) {
-      pretouch_heap_page_size = (size_t)os::vm_page_size();
-      pretouch_bitmap_page_size = (size_t)os::vm_page_size();
+      _pretouch_heap_page_size = (size_t)os::vm_page_size();
+      _pretouch_bitmap_page_size = (size_t)os::vm_page_size();
     }
 #endif
 
     // OS memory managers may want to coalesce back-to-back pages. Make their jobs
     // simpler by pre-touching continuous spaces (heap and bitmap) separately.
 
-    log_info(gc, init)("Pretouch bitmap: " SIZE_FORMAT " regions, " SIZE_FORMAT " bytes page",
-                       _num_regions, pretouch_bitmap_page_size);
-    ShenandoahPretouchBitmapTask bcl(bitmap.base(), _bitmap_size, pretouch_bitmap_page_size);
+    ShenandoahPretouchBitmapTask bcl(bitmap.base(), _bitmap_size, _pretouch_bitmap_page_size);
     _workers->run_task(&bcl);
 
-    log_info(gc, init)("Pretouch heap: " SIZE_FORMAT " regions, " SIZE_FORMAT " bytes page",
-                       _num_regions, pretouch_heap_page_size);
-    ShenandoahPretouchHeapTask hcl(pretouch_heap_page_size);
+    ShenandoahPretouchHeapTask hcl(_pretouch_heap_page_size);
     _workers->run_task(&hcl);
   }
 
@@ -413,13 +407,10 @@ jint ShenandoahHeap::initialize() {
 
   _control_thread = new ShenandoahControlThread();
 
-  log_info(gc, init)("Initialize Shenandoah heap: " SIZE_FORMAT "%s initial, " SIZE_FORMAT "%s min, " SIZE_FORMAT "%s max",
-                     byte_size_in_proper_unit(_initial_size),  proper_unit_for_byte_size(_initial_size),
-                     byte_size_in_proper_unit(_minimum_size),  proper_unit_for_byte_size(_minimum_size),
-                     byte_size_in_proper_unit(max_capacity()), proper_unit_for_byte_size(max_capacity())
-  );
+  _ref_proc_mt_processing = ParallelRefProcEnabled && (ParallelGCThreads > 1);
+  _ref_proc_mt_discovery = _max_workers > 1;
 
-  log_info(gc, init)("Safepointing mechanism: thread-local poll");
+  ShenandoahInitLogger::print();
 
   return JNI_OK;
 }
@@ -449,8 +440,6 @@ void ShenandoahHeap::initialize_heuristics() {
             err_msg("GC mode \"%s\" is experimental, and must be enabled via -XX:+UnlockExperimentalVMOptions.",
                     _gc_mode->name()));
   }
-  log_info(gc, init)("Shenandoah GC mode: %s",
-                     _gc_mode->name());
 
   _heuristics = _gc_mode->initialize_heuristics();
 
@@ -464,8 +453,6 @@ void ShenandoahHeap::initialize_heuristics() {
             err_msg("Heuristics \"%s\" is experimental, and must be enabled via -XX:+UnlockExperimentalVMOptions.",
                     _heuristics->name()));
   }
-  log_info(gc, init)("Shenandoah heuristics: %s",
-                     _heuristics->name());
 }
 
 #ifdef _MSC_VER
@@ -513,8 +500,6 @@ ShenandoahHeap::ShenandoahHeap(ShenandoahCollectorPolicy* policy) :
   _collection_set(NULL)
 {
   _heap = this;
-
-  log_info(gc, init)("GC threads: " UINT32_FORMAT " parallel, " UINT32_FORMAT " concurrent", ParallelGCThreads, ConcGCThreads);
 
   BarrierSet::set_barrier_set(new ShenandoahBarrierSet(this));
 
@@ -1858,8 +1843,9 @@ public:
 
 void ShenandoahHeap::op_weak_roots() {
   if (is_concurrent_weak_root_in_progress()) {
+    // Concurrent weak root processing
     {
-      // Concurrent weak root processing
+      ShenandoahTimingsTracker t(ShenandoahPhaseTimings::conc_weak_roots_work);
       ShenandoahGCWorkerPhase worker_phase(ShenandoahPhaseTimings::conc_weak_roots_work);
       ShenandoahConcurrentWeakRootsEvacUpdateTask task(ShenandoahPhaseTimings::conc_weak_roots_work);
       workers()->run_task(&task);
@@ -2160,22 +2146,15 @@ void ShenandoahHeap::set_concurrent_weak_root_in_progress(bool in_progress) {
 void ShenandoahHeap::ref_processing_init() {
   assert(_max_workers > 0, "Sanity");
 
-  bool mt_processing = ParallelRefProcEnabled && (ParallelGCThreads > 1);
-  bool mt_discovery = _max_workers > 1;
-
   _ref_processor =
     new ReferenceProcessor(&_subject_to_discovery,  // is_subject_to_discovery
-                           mt_processing,           // MT processing
+                           _ref_proc_mt_processing, // MT processing
                            _max_workers,            // Degree of MT processing
-                           mt_discovery,            // MT discovery
+                           _ref_proc_mt_discovery,  // MT discovery
                            _max_workers,            // Degree of MT discovery
                            false,                   // Reference discovery is not atomic
                            NULL,                    // No closure, should be installed before use
                            true);                   // Scale worker threads
-
-  log_info(gc, init)("Reference processing: %s discovery, %s processing",
-          mt_discovery ? "parallel" : "serial",
-          mt_processing ? "parallel" : "serial");
 
   shenandoah_assert_rp_isalive_not_installed();
 }
@@ -2687,9 +2666,16 @@ bool ShenandoahHeap::commit_bitmap_slice(ShenandoahHeapRegion* r) {
   size_t slice = r->index() / _bitmap_regions_per_slice;
   size_t off = _bitmap_bytes_per_slice * slice;
   size_t len = _bitmap_bytes_per_slice;
-  if (!os::commit_memory((char*)_bitmap_region.start() + off, len, false)) {
+  char* start = (char*) _bitmap_region.start() + off;
+
+  if (!os::commit_memory(start, len, false)) {
     return false;
   }
+
+  if (AlwaysPreTouch) {
+    os::pretouch_memory(start, start + len, _pretouch_bitmap_page_size);
+  }
+
   return true;
 }
 
