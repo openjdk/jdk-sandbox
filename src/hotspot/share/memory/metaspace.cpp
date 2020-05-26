@@ -506,7 +506,7 @@ void Metaspace::print_compressed_class_space(outputStream* st) {
     MetaWord* base = VirtualSpaceList::vslist_class()->base_of_first_node();
     size_t size = VirtualSpaceList::vslist_class()->word_size_of_first_node();
     MetaWord* top = base + size;
-    st->print("Compressed class space mapped at: " PTR_FORMAT "-" PTR_FORMAT ", size: " SIZE_FORMAT,
+    st->print("Compressed class space mapped at: " PTR_FORMAT "-" PTR_FORMAT ", reserved size: " SIZE_FORMAT,
                p2i(base), p2i(top), (top - base) * BytesPerWord);
     st->cr();
   }
@@ -610,43 +610,54 @@ void Metaspace::ergo_initialize() {
 
   // MaxMetaspaceSize and CompressedClassSpaceSize:
   //
-  // MaxMetaspaceSize is the maximum size, in bytes, of memory we are allowed to commit for the Metaspace.
-  //  It is just a number, a cap we compare against before committing. It does not have to be aligned to anything.
+  // MaxMetaspaceSize is the maximum size, in bytes, of memory we are allowed
+  //  to commit for the Metaspace.
+  //  It is just a number; a limit we compare against before committing. It
+  //  does not have to be aligned to anything.
   //  It gets used as compare value in class CommitLimiter.
-  //  It is set to max_uintx in globals.hpp by default, so by default it does not limit anything.
+  //  It is set to max_uintx in globals.hpp by default, so by default it does
+  //  not limit anything.
   //
-  // CompressedClassSpaceSize is the size, in bytes, of the address range we pre-reserve for the compressed
-  //  class space if -XX:+UseCompressedClassPointers is on.
-  //  This size has to be aligned to the metaspace reserve alignment (to the size of a root chunk). It gets
-  //  aligned up from whatever value the caller gave us to the next multiple of root chunk size.
+  // CompressedClassSpaceSize is the size, in bytes, of the address range we
+  //  pre-reserve for the compressed class space (if we use class space).
+  //  This size has to be aligned to the metaspace reserve alignment (to the
+  //  size of a root chunk). It gets aligned up from whatever value the caller
+  //  gave us to the next multiple of root chunk size.
   //
-  // Note: Strictly speaking MaxMetaspaceSize and CompressedClassSpaceSize have very little to do with each
-  // other. The notion often encountered: MaxMetaspaceSize = CompressedClassSpaceSize + <non-class metadata size>
-  // is subtly wrong: MaxMetaspaceSize could be way smaller than CompressedClassSpaceSize, in which case we just
-  // would not be able to fully commit the class space range.
+  // Note: Strictly speaking MaxMetaspaceSize and CompressedClassSpaceSize have
+  //  very little to do with each other. The notion often encountered:
+  //  MaxMetaspaceSize = CompressedClassSpaceSize + <non-class metadata size>
+  //  is subtly wrong: MaxMetaspaceSize can besmaller than CompressedClassSpaceSize,
+  //  in which case we just would not be able to fully commit the class space range.
   //
-  // We still adjust CompressedClassSpaceSize to constitute only a max. percentage of MaxMetaspaceSize. Mainly
-  // to save on reserved space, and to make ergnonomics less confusing.
+  // We still adjust CompressedClassSpaceSize to reasonable limits, mainly to
+  //  save on reserved space, and to make ergnonomics less confusing.
 
-  // Even though there are no hard reasons to limit MaxMetaspaceSize, lets align it to commit granule size
-  // and impose a minimum limit - mainly for cleanliness.
+  // (aligned just for cleanliness:)
   MaxMetaspaceSize = MAX2(align_down(MaxMetaspaceSize, _commit_alignment), _commit_alignment);
 
   if (UseCompressedClassPointers) {
-    // Let CCS size not be larger than one third of MaxMetaspaceSize.
-    // (this is still grossly over-dimensioned - typically, ratio between class-to-nonclass data
-    //  are about 1:5 or 1:8)
-    size_t one_third = MaxMetaspaceSize / 3;
-    size_t adjusted_ccs_size = MIN2(CompressedClassSpaceSize, one_third);
+    // Let CCS size not be larger than 80% of MaxMetaspaceSize. Note that is
+    // grossly over-dimensioned for most usage scenarios; typical ratio of
+    // class space : non class space usage is about 1:6. With many small classes,
+    // it can get as low as 1:2. It is not a big deal though since ccs is only
+    // reserved and will be committed on demand only.
+    size_t max_ccs_size = MaxMetaspaceSize * 0.8;
+    size_t adjusted_ccs_size = MIN2(CompressedClassSpaceSize, max_ccs_size);
 
-    // CCS must be aligned to root chunk size:
+    // CCS must be aligned to root chunk size, and be at least the size of one
+    //  root chunk.
     adjusted_ccs_size = align_up(adjusted_ccs_size, _reserve_alignment);
-    // Note: as a result of the alignment, CompressedClassSpaceSize may end up being larger than or equal to
-    // MaxMetaspaceSize. Lets live with that, its not a big deal. We just won't be able to fill it completely.
+    adjusted_ccs_size = MAX2(adjusted_ccs_size, _reserve_alignment);
+
+    // Note: re-adjusting may have us left with a CompressedClassSpaceSize
+    //  larger than MaxMetaspaceSize for very small values of MaxMetaspaceSize.
+    //  Lets just live with that, its not a big deal.
 
     if (adjusted_ccs_size != CompressedClassSpaceSize) {
       FLAG_SET_ERGO(CompressedClassSpaceSize, adjusted_ccs_size);
-      log_info(metaspace)("Setting CompressedClassSpaceSize to " SIZE_FORMAT ".", CompressedClassSpaceSize);
+      log_info(metaspace)("Setting CompressedClassSpaceSize to " SIZE_FORMAT ".",
+                          CompressedClassSpaceSize);
     }
   }
 

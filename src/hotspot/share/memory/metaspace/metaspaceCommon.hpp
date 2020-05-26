@@ -124,6 +124,7 @@ void print_number_of_classes(outputStream* out, uintx classes, uintx classes_sha
 
 #endif // ASSERT
 
+
 } // namespace metaspace
 
 #endif // SHARE_MEMORY_METASPACE_METASPACECOMMON_HPP
