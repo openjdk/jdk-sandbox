@@ -456,10 +456,20 @@ Java_sun_nio_ch_Net_localPort(JNIEnv *env, jclass clazz, jobject fdo)
     return NET_GetPortFromSockaddr(&sa);
 }
 
+/* only used here so as not to make SOCKETADDRESS too large
+ * and some buggy usages elsewhere
+ */
+typedef union {
+    struct sockaddr     sa;
+    struct sockaddr_in  sa4;
+    struct sockaddr_in6 sa6;
+    struct sockaddr_un  saun;
+} sockaddrall;
+
 JNIEXPORT jobject JNICALL
 Java_sun_nio_ch_Net_localAddress0(JNIEnv *env, jclass clazz, jobject fdo)
 {
-    SOCKETADDRESS sa;
+    sockaddrall sa;
     int sa_len = sizeof(sa);
     int port;
 
