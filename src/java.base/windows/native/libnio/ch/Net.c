@@ -480,7 +480,7 @@ Java_sun_nio_ch_Net_localAddress0(JNIEnv *env, jclass clazz, jobject fdo)
     if (sa.sa.sa_family == AF_UNIX) {
         return NET_SockaddrToUnixAddress(env, &sa.saun, sa_len);
     } else {
-        return NET_SockaddrToInetAddress(env, &sa, &port);
+        return NET_SockaddrToInetAddress(env, (SOCKETADDRESS *)&sa, &port);
     }
 }
 
