@@ -507,7 +507,7 @@ void Metaspace::print_compressed_class_space(outputStream* st) {
     size_t size = VirtualSpaceList::vslist_class()->word_size_of_first_node();
     MetaWord* top = base + size;
     st->print("Compressed class space mapped at: " PTR_FORMAT "-" PTR_FORMAT ", size: " SIZE_FORMAT,
-               p2i(base), p2i(top), top - base);
+               p2i(base), p2i(top), (top - base) * BytesPerWord);
     st->cr();
   }
 }
