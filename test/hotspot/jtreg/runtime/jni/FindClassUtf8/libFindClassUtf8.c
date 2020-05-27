@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,23 +21,12 @@
  * questions.
  */
 
-#ifndef JAVA_MD_SOLINUX_H
-#define JAVA_MD_SOLINUX_H
+#include <stdint.h>
+#include "jni.h"
 
-#include <sys/time.h>
-uint64_t CounterGet(void);
-#define Counter2Micros(counts)    (counts)
+JNIEXPORT void JNICALL Java_FindClassUtf8_nTest(JNIEnv* env, jclass jclazz)
+{
+    const uint64_t chars = 0x5b3132315d20f818UL;  // f8 is invalid utf8
 
-/* pointer to environment */
-extern char **environ;
-
-/*
- *      A collection of useful strings. One should think of these as #define
- *      entries, but actual strings can be more efficient (with many compilers).
- */
-static const char *user_dir = "/java";
-
-#include <dlfcn.h>
-#include <pthread.h>
-
-#endif /* JAVA_MD_SOLINUX_H */
+    jclass badClass = (*env)->FindClass(env, (const char*)&chars);
+}
