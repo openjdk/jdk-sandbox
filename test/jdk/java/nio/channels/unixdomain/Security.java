@@ -26,8 +26,6 @@
  * @bug 8231358
  * @run main/othervm Security policy1
  * @run main/othervm Security policy2
- * @run main/othervm Security policy3
- * @run main/othervm Security policy4
  * @summary Security test for Unix Domain socket and server socket channels
  */
 
@@ -83,26 +81,12 @@ public class Security {
         String policy = args[0];
         switch (policy) {
             case "policy1":
-                initDir("sockets");
-                initDir("sockets2");
                 setSecurityManager(policy);
                 testPolicy1();
                 break;
             case "policy2":
-                initDir("server");
-                initDir("client1");
                 setSecurityManager(policy);
                 testPolicy2();
-                break;
-            case "policy3":
-                initDir("sockets");
-                setSecurityManager(policy);
-                testPolicy3();
-                break;
-            case "policy4":
-                initDir("sockets");
-                setSecurityManager(policy);
-                testPolicy4();
                 break;
             default:
         }
@@ -118,20 +102,6 @@ public class Security {
         System.setSecurityManager(new SecurityManager());
     }
 
-    // initialization prior to setting security manager: remove directory and recreate
-    // it empty
-    static void initDir(String directory) throws IOException {
-        Path dirname = Path.of(directory);
-
-        if (Files.exists(dirname)) {
-            Files.walk(dirname)
-                .sorted(Comparator.reverseOrder())
-                .map(Path::toFile)
-                .forEach(File::delete);
-        }
-        Files.createDirectory(dirname);
-    }
-
     static void close(NetworkChannel... channels) {
 
         for (NetworkChannel chan : channels) {
@@ -145,96 +115,38 @@ public class Security {
     private static final Class<SecurityException> SE = SecurityException.class;
     private static final Class<IOException> IOE = IOException.class;
 
-    // can bind a server only
+    // No permission
 
     public static void testPolicy1() throws Exception {
+        Path servername = Path.of("sock");
+        Files.deleteIfExists(servername);
         // Permission exists to bind a ServerSocketChannel
-        Path servername = Path.of("sockets", "sock1");
-        Path servername2 = Path.of("sockets2", "sock1");
         final UnixDomainSocketAddress saddr = UnixDomainSocketAddress.of(servername);
-        final UnixDomainSocketAddress saddr2 = UnixDomainSocketAddress.of(servername2);
         final ServerSocketChannel server = ServerSocketChannel.open(UNIX);
-        final ServerSocketChannel server2 = ServerSocketChannel.open(UNIX);
         final SocketChannel client = SocketChannel.open(UNIX);
         call(() -> {
             server.bind(saddr);
-        }, null);
-        call(() -> {
-            server2.bind(saddr2);
         }, SE);
         call(() -> {
             client.connect(saddr);
         }, SE);
-        close(server, client, server2);
-
-        final ServerSocketChannel server3 = ServerSocketChannel.open(UNIX);
-        call(() -> {
-            server3.bind(null);
-        }, SE);
-        close(server3);
+        close(server, client);
     }
 
-    // can bind a client only
+    // All permissions
 
     public static void testPolicy2() throws Exception {
-        Path servername = Path.of("sockets", "sock");
+        Path servername = Path.of("sock");
+        Files.deleteIfExists(servername);
         final UnixDomainSocketAddress saddr = UnixDomainSocketAddress.of(servername);
         final ServerSocketChannel server = ServerSocketChannel.open(UNIX);
         final SocketChannel client = SocketChannel.open(UNIX);
         call(() -> {
             server.bind(saddr);
-        }, SE);
-        call(() -> {
-            client.connect(saddr);
-        }, IOE);
-        close(server, client);
-    }
-
-    // can bind both server and client to a specific diriectory only
-
-    public static void testPolicy3() throws Exception {
-        Path servername = Path.of("sockets", "sock1");
-        Path servername2 = Path.of("sockets2", "sock1");
-        final UnixDomainSocketAddress saddr = UnixDomainSocketAddress.of(servername);
-        final UnixDomainSocketAddress saddr2 = UnixDomainSocketAddress.of(servername2);
-        final ServerSocketChannel server = ServerSocketChannel.open(UNIX);
-        final ServerSocketChannel server2 = ServerSocketChannel.open(UNIX);
-        final SocketChannel client = SocketChannel.open(UNIX);
-        final SocketChannel client2 = SocketChannel.open(UNIX);
-
-        call(() -> {
-            server.bind(saddr);
         }, null);
-
         call(() -> {
             client.connect(saddr);
         }, null);
-
-        call(() -> {
-            server2.bind(saddr2);
-        }, SE);
-
-        call(() -> {
-            client2.connect(saddr2);
-        }, SE);
-        close(server, client, server2, client2);
-    }
-
-    public static void testPolicy4() throws Exception {
-        final ServerSocketChannel server = ServerSocketChannel.open(UNIX);
-        final SocketChannel client = SocketChannel.open(UNIX);
-        call(() -> {
-            server.bind(null);
-        }, null);
-
-        SocketAddress addr = server.getLocalAddress();
-        System.out.println("testPolicy4: connecting to " + addr);
-
-        call(() -> {
-            client.connect(addr);
-        }, null);
-
         close(server, client);
     }
-
 }

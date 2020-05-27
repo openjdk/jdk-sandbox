@@ -27,7 +27,6 @@ package sun.nio.ch;
 
 import java.io.File;
 import java.io.FileDescriptor;
-import java.io.FilePermission;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.NetPermission;
@@ -113,12 +112,7 @@ public class UnixDomainServerSocketChannelImpl
         SecurityManager sm = System.getSecurityManager();
 
         if (sm != null) {
-            sm.checkPermission(serverPermission);
-        }
-
-        if (local == null && sm != null) {
-            // only needs to be done once
-            checkTempDirPermission(sm);
+            sm.checkPermission(unixPermission);
         }
 
         // Attempt up to 10 times to find an unused name in temp directory
@@ -129,11 +123,6 @@ public class UnixDomainServerSocketChannelImpl
                 usa = getTempName();
             } else {
                 usa = Net.checkUnixAddress(local);
-                if (sm != null) {
-                    String path = usa.getPath().toString();
-                    FilePermission p = new FilePermission(path, "read,write");
-                    sm.checkPermission(p);
-                }
             }
             try {
                 Net.unixDomainBind(getFD(), usa);
@@ -163,8 +152,7 @@ public class UnixDomainServerSocketChannelImpl
         );
     }
 
-    private static final FilePermission tempDirPermission = new FilePermission("", "read,write");
-    private static final NetPermission serverPermission = new NetPermission("unixChannels.server");
+    private static final NetPermission unixPermission = new NetPermission("allowUnixDomainChannels");
     private static final Random random = getRandom();;
     private static final long pid = AccessController.doPrivileged(
         (PrivilegedAction<Long>)UnixDomainServerSocketChannelImpl::getPid);
@@ -173,11 +161,6 @@ public class UnixDomainServerSocketChannelImpl
         return ProcessHandle.current().pid();
     }
 
-    private static void checkTempDirPermission(SecurityManager sm) {
-        if (sm != null) {
-            sm.checkPermission(tempDirPermission);
-        }
-    }
 
     /**
      * Return a possible temporary name to bind to, which is different for each call
@@ -194,6 +177,10 @@ public class UnixDomainServerSocketChannelImpl
     protected int acceptImpl(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
         throws IOException
     {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(unixPermission);
+        }
         return Net.unixDomainAccept(fd, newfd, addrs);
     }
 
@@ -211,13 +198,6 @@ public class UnixDomainServerSocketChannelImpl
         throws IOException
     {
         UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(serverPermission);
-            String path = usa.getPath().toString();
-            FilePermission p = new FilePermission(path, "read,write");
-            sm.checkPermission(p);
-        }
         return new UnixDomainSocketChannelImpl(provider(), newfd, usa);
     }
 

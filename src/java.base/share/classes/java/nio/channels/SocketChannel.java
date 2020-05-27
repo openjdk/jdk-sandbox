@@ -322,11 +322,8 @@ public abstract class SocketChannel
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
      *          the operation for <i>Internet protocol</i> channels; or for <i>Unix Domain</i>
-     *          channels, if the security manager denies the "read,write" actions for
-     *          {@link java.io.FilePermission} for the {@code local} parameter's path,
-     *          or {@link java.net.NetPermission NetPermission}{@code ("unixChannels.client")}.
-     *          Note, if {@code local} is null for a <i>Unix Domain</i> channel which is
-     *          equivalent to an implicit bind, then no FilePermission is required.
+     *          channels, if the security manager denies {@link java.net.NetPermission
+     *          NetPermission}{@code ("allowUnixDomainChannels")}.
      *
      * @since 1.7
      */
@@ -438,14 +435,9 @@ public abstract class SocketChannel
      * java.lang.SecurityManager#checkConnect checkConnect} method permits
      * connecting to the address and port number of the given remote endpoint.
      *
-     * <p> For <i>Unix Domain</i> channels, this method checks two permissions
+     * <p> For <i>Unix Domain</i> channels, this method checks
+     * {@link java.net.NetPermission NetPermission}{@code ("allowUnixDomainChannels")}
      * with {@link SecurityManager#checkPermission(Permission)}:
-     * {@link java.io.FilePermission} constructed with the path from the
-     * destination address and {@code "read, write"} as the actions and
-     * {@link java.net.NetPermission NetPermission}{@code ("unixChannels.client")}
-     * Note, if the destination address is a temporary path, such as one
-     * obtained if a ServerSocketChannel binds to {@code null} then the
-     * FilePermission required uses an empty path.
      *
      * <p> This method may be invoked at any time.  If a read or write
      * operation upon this channel is invoked while an invocation of this
@@ -625,11 +617,9 @@ public abstract class SocketChannel
      * local port of the channel's socket is returned.
      * <p>
      * If there is a security manager set and this is a <i>Unix Domain</i> channel,
-     * {@code checkPermission} is called with a {@link FilePermission} whose {@code
-     * path} is the path of the bound address and actions is {@code "read"}
-     * and if the operation is allowed a {@link UnixDomainSocketAddress}
-     * corresponding to the bound address is returned. If not, then an address with
-     * an empty path is returned.
+     * {@code checkPermission} is called with {@link java.net.NetPermission
+     * NetPermission}{@code ("allowUnixDomainChannels")}. If this fails,
+     * a {@link UnixDomainSocketAddress} with an empty path is returned.
      *
      * @return  The {@code SocketAddress} that the socket is bound to, or the
      *          {@code SocketAddress} representing the loopback address or an

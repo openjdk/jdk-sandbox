@@ -1,6 +1,0 @@
-grant {
-    // permission to bind a SocketChannel and ServerSocketChannel in sockets directory
-    permission java.net.NetPermission "unixChannels.client";
-    permission java.net.NetPermission "unixChannels.server";
-    permission java.io.FilePermission "${user.dir}${file.separator}sockets${file.separator}*", "read,write";
-};

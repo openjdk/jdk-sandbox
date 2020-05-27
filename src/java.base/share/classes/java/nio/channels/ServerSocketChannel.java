@@ -206,11 +206,8 @@ public abstract class ServerSocketChannel
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
      *          the operation for <i>Internet protocol</i> channels; or for <i>Unix Domain</i>
-     *          channels, if the security manager denies the "read,write" actions for
-     *          {@link java.io.FilePermission} for the {@code local} parameter's path
-     *          or {@link java.net.NetPermission NetPermission}{@code ("unixChannels.server")}.
-     *          Note, if {@code local} is null for a <i>Unix Domain</i> channel then
-     *          the FilePermission check will use an empty path.
+     *          channels, if the security manager denies {@link java.net.NetPermission
+     *          NetPermission}{@code ("allowUnixDomainChannels")}.
      *
      * @since 1.7
      */
@@ -264,11 +261,8 @@ public abstract class ServerSocketChannel
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
      *          the operation for <i>Internet protocol</i> channels; or in the case of <i>Unix Domain</i>
-     *          channels, if the security manager denies the "read,write" actions for
-     *          {@link java.io.FilePermission} for the {@code local} parameter's path
-     *          or {@link java.net.NetPermission NetPermission}{@code ("unixChannels.server")}.
-     *          Note, if {@code local} is null for a <i>Unix Domain</i> channel then
-     *          the FilePermission check will use an empty path.
+     *          channels, if the security manager denies {@link java.net.NetPermission
+     *          NetPermission}{@code ("allowUnixDomainChannels")}.
      *
      * @since 1.7
      */
@@ -318,13 +312,9 @@ public abstract class ServerSocketChannel
      * permitted by the security manager's {@link
      * java.lang.SecurityManager#checkAccept checkAccept} method.  </p>
      *
-     * <p> For <i>Unix Domain</i> channels, this method checks two permissions
+     * <p> For <i>Unix Domain</i> channels, this method checks
+     * {@link java.net.NetPermission NetPermission}{@code ("allowUnixDomainChannels")}.
      * with {@link SecurityManager#checkPermission(Permission)}:
-     * {@link java.io.FilePermission} constructed with the path from the
-     * remote address and {@code "read, write"} as the actions and
-     * {@link java.net.NetPermission NetPermission}{@code ("unixChannels.server")}.
-     * Note, in the case where the remote socket is bound to the unnamed address,
-     * then the path of the FilePermission will be the empty string.
      *
      * @return  The socket channel for the new connection,
      *          or {@code null} if this channel is in non-blocking mode
@@ -371,9 +361,8 @@ public abstract class ServerSocketChannel
      * <p>
      * If there is a security manager set and this is a <i>Unix Domain</i> channel,
      * then {@link SecurityManager#checkPermission(Permission)} is called using
-     * a {@link java.io.FilePermission} constructed with the path from the
-     * local address and "read" as the action. If this check fails
-     * then an unnamed {@link UnixDomainSocketAddress} (with empty pathname)
+     * {@link java.net.NetPermission NetPermission}{@code ("allowUnixDomainChannels")}.
+     * If this fails, a {@link UnixDomainSocketAddress} with an empty path
      * is returned.
      *
      * @return  The {@code SocketAddress} that the socket is bound to, or the

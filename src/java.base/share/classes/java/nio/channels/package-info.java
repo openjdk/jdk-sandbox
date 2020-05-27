@@ -383,16 +383,9 @@
  * This limitation is enforced when a channel is bound. The maximum length is typically
  * close to and generally not less than 100 bytes.
  *
- * <p> If a security manager is present then using a <i>Unix Domain</i> SocketChannel;
- * specifically calling bind or connect, requires a {@link NetPermission NetPermission}
- * {@code ("unixChannels.client")} together with a {@link FilePermission} with {@code "read,write"}
- * actions for the path being bound or connected to. Using a <i>Unix Domain</i> ServerSocketChannel;
- * specifically calling bind or accept requires a {@link NetPermission NetPermission}
- * {@code ("unixChannels.server")} together with a {@link FilePermission} with {@code "read,write"}
- * actions for the path being bound or accepted from. A special case for the FilePermission
- * check is if a ServerSocketChannel binds to {@code null} or if a SocketChannel connects to
- * the address of a server channel bound to {@code null} then the FilePermission required
- * uses an empty path. No FilePermission is required to bind a SocketChannel to {@code null}.
+ * <p> If a security manager is present then using a <i>Unix Domain</i> SocketChannel
+ * or ServerSocketChannel requires the {@link NetPermission NetPermission}
+ * {@code ("allowUnixDomainChannels")}.
  *
  * @since 1.4
  * @author Mark Reinhold

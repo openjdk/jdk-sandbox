@@ -26,7 +26,6 @@
 package sun.nio.ch;
 
 import java.io.FileDescriptor;
-import java.io.FilePermission;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.NetPermission;
@@ -115,17 +114,14 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         return DefaultOptionsHolder.defaultOptions;
     }
 
-    private static final NetPermission clientPermission = new NetPermission("unixChannels.client");
+    private static final NetPermission unixPermission = new NetPermission("allowUnixDomainChannels");
 
     @Override
     SocketAddress bindImpl(SocketAddress local) throws IOException {
         UnixDomainSocketAddress usa = Net.checkUnixAddress(local);
         SecurityManager sm = System.getSecurityManager();
-        if (sm != null && usa != null) {
-            sm.checkPermission(clientPermission);
-            String path = usa.getPath().toString();
-            FilePermission p1 = new FilePermission(path, "read,write");
-            sm.checkPermission(p1);
+        if (sm != null) {
+            sm.checkPermission(unixPermission);
         }
         Net.unixDomainBind(getFD(), usa);
         if (usa == null || usa.getPath().toString().equals("")) {
@@ -148,11 +144,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         UnixDomainSocketAddress usa = Net.checkUnixAddress(sa);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
-            sm.checkPermission(clientPermission);
-            Path path = usa.getPath();
-            String pathString = Net.inTempDirectory(path) ? "" : path.toString();
-            FilePermission p = new FilePermission(pathString, "read,write");
-            sm.checkPermission(p);
+            sm.checkPermission(unixPermission);
         }
         return usa;
     }

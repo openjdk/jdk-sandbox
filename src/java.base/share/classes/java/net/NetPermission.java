@@ -66,23 +66,14 @@ import java.util.StringTokenizer;
  *   </tr>
  *
  * <tr>
- *   <th scope="row">unixChannels.client</th>
- *   <td>The ability to bind and connect a <i>Unix domain</i> SocketChannel
- *   This permission is required in addition to {@link java.io.FilePermission FilePermission}s
- *   with "read,write" actions for the specific paths being bound or connected to.
+ *   <th scope="row">allowUnixDomainChannels</th>
+ *   <td>The ability to bind or connect a <i>Unix Domain</i> SocketChannel or bind and accept
+ *   from a <i>Unix Domain</i> ServerSocketChannel or the ability to get the local address
+ *   from either type.
  *   </td>
- *   <td>Malicious code could connect to local system services using Unix domain sockets
- *   if they have this permission together with the relevant FilePermission.</td>
- * </tr>
- *
- * <tr>
- *   <th scope="row">unixChannels.server</th>
- *   <td>The ability to bind and accept connections on a <i>Unix domain</i> ServerSocketChannel
- *   This permission is required in addition to {@link java.io.FilePermission FilePermission}s
- *   with "read,write" actions for the specific path being bound or accepted from.
- *   </td>
- *   <td>Malicious code impersonate local system services using Unix domain sockets
- *   if they have this permission together with the relevant FilePermission.</td>
+ *   <td>Malicious code could connect to local processes using Unix domain sockets
+ *    or impersonate local processes, by binding to the same pathnames (assuming they
+ *    have the required Operating System permissions.</td>
  * </tr>
  *
  * <tr>
