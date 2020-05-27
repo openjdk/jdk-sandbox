@@ -81,15 +81,17 @@ void ClassLoaderStatsClosure::do_cld(ClassLoaderData* cld) {
 
   metaspace::ClassLoaderMetaspace* ms = cld->metaspace_or_null();
   if (ms != NULL) {
+    size_t used_bytes, capacity_bytes;
+    ms->calculate_jfr_stats(&used_bytes, &capacity_bytes);
     if(cld->has_class_mirror_holder()) {
-      cls->_hidden_chunk_sz += ms->allocated_chunks_bytes();
-      cls->_hidden_block_sz += ms->allocated_blocks_bytes();
+      cls->_hidden_chunk_sz += capacity_bytes;
+      cls->_hidden_block_sz += used_bytes;
     } else {
-      cls->_chunk_sz = ms->allocated_chunks_bytes();
-      cls->_block_sz = ms->allocated_blocks_bytes();
+      cls->_chunk_sz = capacity_bytes;
+      cls->_block_sz = used_bytes;
     }
-    _total_chunk_sz += ms->allocated_chunks_bytes();
-    _total_block_sz += ms->allocated_blocks_bytes();
+    _total_chunk_sz += capacity_bytes;
+    _total_block_sz += used_bytes;
   }
 }
 

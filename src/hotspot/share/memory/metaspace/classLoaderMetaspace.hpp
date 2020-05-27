@@ -84,9 +84,12 @@ public:
 
   DEBUG_ONLY(void verify() const;)
 
-  // TODO
-  size_t allocated_blocks_bytes() const { return 0; }
-  size_t allocated_chunks_bytes() const { return 0; }
+  // This only exists for JFR and jcmd VM.classloader_stats. We may want to
+  //  change this. Capacity as a stat is of questionable use since it may
+  //  contain committed and uncommitted areas. For now we do this to maintain
+  //  backward compatibility with JFR.
+  void calculate_jfr_stats(size_t* p_used_bytes, size_t* p_capacity_bytes) const;
+
 
 };
 

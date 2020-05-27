@@ -184,6 +184,23 @@ void ClassLoaderMetaspace::verify() const {
 }
 #endif // ASSERT
 
+
+// This only exists for JFR and jcmd VM.classloader_stats. We may want to
+//  change this. Capacity as a stat is of questionable use since it may
+//  contain committed and uncommitted areas. For now we do this to maintain
+//  backward compatibility with JFR.
+void ClassLoaderMetaspace::calculate_jfr_stats(size_t* p_used_bytes, size_t* p_capacity_bytes) const {
+
+  // Implement this using the standard statistics objects.
+  clms_stats_t stat;
+  add_to_statistics(&stat);
+  in_use_chunk_stats_t in_use_chunks_totals = stat.totals().totals();
+  *p_used_bytes = in_use_chunks_totals.used_words * BytesPerWord;
+  *p_capacity_bytes = in_use_chunks_totals.word_size * BytesPerWord;
+
+}
+
+
 } // end namespace metaspace
 
 
