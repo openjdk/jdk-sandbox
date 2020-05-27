@@ -19,29 +19,22 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef SHARE_GC_SHARED_GCINITLOGGER_HPP
-#define SHARE_GC_SHARED_GCINITLOGGER_HPP
+/*
+ * @test
+ * @bug 8245801
+ * @requires vm.debug
+ * @summary Test running with StressRecompilation enabled.
+ * @run main/othervm -Xcomp -XX:+IgnoreUnrecognizedVMOptions -XX:+StressRecompilation
+ *                   compiler.c2.TestStressRecompilation
+ */
 
-#include "memory/allocation.hpp"
+package compiler.c2;
 
-class GCInitLogger : public StackObj {
- protected:
-  const char* large_pages_support();
-  virtual void print_version();
-  virtual void print_cpu();
-  virtual void print_memory();
-  virtual void print_large_pages();
-  virtual void print_numa();
-  virtual void print_compressed_oops();
-  virtual void print_heap();
-  virtual void print_workers();
-  virtual void print_gc_specific();
- public:
-  void print_all();
-  static void print();
-};
+public class TestStressRecompilation {
 
-#endif //SHARE_GC_SHARED_GCINITLOGGER_HPP
+    public static void main(String[] args) {
+        System.out.println("Test passed.");
+    }
+}
