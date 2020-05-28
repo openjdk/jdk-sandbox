@@ -503,9 +503,9 @@ Java_sun_nio_ch_Net_remotePort(JNIEnv *env, jclass clazz, jobject fdo)
 }
 
 JNIEXPORT jobject JNICALL
-Java_sun_nio_ch_Net_remoteInetAddress(JNIEnv *env, jclass clazz, jobject fdo)
+Java_sun_nio_ch_Net_remoteAddress0(JNIEnv *env, jclass clazz, jobject fdo)
 {
-    SOCKETADDRESS sa;
+    sockaddrall sa;
     int sa_len = sizeof(sa);
     int port;
 
@@ -513,7 +513,11 @@ Java_sun_nio_ch_Net_remoteInetAddress(JNIEnv *env, jclass clazz, jobject fdo)
         NET_ThrowNew(env, WSAGetLastError(), "getsockname");
         return NULL;
     }
-    return NET_SockaddrToInetAddress(env, &sa, &port);
+    if (sa.sa.sa_family == AF_UNIX) {
+        return NET_SockaddrToUnixAddress(env, &sa.saun, sa_len);
+    } else {
+        return NET_SockaddrToInetAddress(env, &sa, &port);
+    }
 }
 
 JNIEXPORT jint JNICALL

@@ -636,14 +636,20 @@ public class Net {
     private static native int remotePort(FileDescriptor fd)
         throws IOException;
 
-    private static native InetAddress remoteInetAddress(FileDescriptor fd)
-        throws IOException;
-
-    static InetSocketAddress remoteAddress(FileDescriptor fd)
+    static SocketAddress remoteAddress(FileDescriptor fd)
         throws IOException
     {
-        return new InetSocketAddress(remoteInetAddress(fd), remotePort(fd));
+        Object addr = remoteAddress0(fd);
+        if (addr instanceof InetAddress) {
+            return new InetSocketAddress((InetAddress)addr, remotePort(fd));
+        } else if (addr instanceof UnixDomainSocketAddress) {
+            return (UnixDomainSocketAddress)addr;
+        }
+        throw new InternalError();
     }
+
+    public static native Object remoteAddress0(FileDescriptor fd)
+        throws IOException;
 
     private static native int getIntOption0(FileDescriptor fd, boolean mayNeedConversion,
                                             int level, int opt)
