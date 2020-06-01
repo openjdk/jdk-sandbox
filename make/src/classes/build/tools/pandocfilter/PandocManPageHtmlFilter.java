@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
 
 public class PandocManPageHtmlFilter {
     public interface Callback {
-        JSONValue callback(String type, JSONValue value);
+        JSONValue invoke(String type, JSONValue value);
     }
 
     /**
@@ -53,7 +53,7 @@ public class PandocManPageHtmlFilter {
             JSONArray processed_array = new JSONArray();
             for (JSONValue elem : array) {
                 if (elem instanceof JSONObject && elem.contains("t")) {
-                    JSONValue replacement = callback.callback(elem.get("t").asString(), elem.contains("c") ? elem.get("c") : new JSONArray());
+                    JSONValue replacement = callback.invoke(elem.get("t").asString(), elem.contains("c") ? elem.get("c") : new JSONArray());
                     if (replacement == null) {
                         // no replacement object returned, use original
                         processed_array.add(traverse(elem, callback));
@@ -74,7 +74,7 @@ public class PandocManPageHtmlFilter {
             return processed_array;
         } else if (obj instanceof JSONObject) {
             if (obj.contains("t")) {
-                JSONValue replacement = callback.callback(obj.get("t").asString(), obj.contains("c") ? obj.get("c") : new JSONArray());
+                JSONValue replacement = callback.invoke(obj.get("t").asString(), obj.contains("c") ? obj.get("c") : new JSONArray());
                 if (replacement != null) {
                     return replacement;
                 }
@@ -161,13 +161,7 @@ public class PandocManPageHtmlFilter {
             metaobj.remove("date");
             JSONValue title = meta.get("title");
             if (title != null) {
-                Callback callback = new Callback() {
-                    @Override
-                    public JSONValue callback(String type, JSONValue value) {
-                        return filter.change_title(type, value);
-                    }
-                };
-                metaobj.put("title", filter.traverse(title, callback));
+                metaobj.put("title", filter.traverse(title, filter::change_title));
             }
         }
 
