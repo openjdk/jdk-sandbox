@@ -207,16 +207,16 @@ void FileMapHeader::populate(FileMapInfo* mapinfo, size_t alignment) {
   _alignment = alignment;
   _obj_alignment = ObjectAlignmentInBytes;
   _compact_strings = CompactStrings;
-  _narrow_oop_mode = CompressedOops::mode();
-  _narrow_oop_base = CompressedOops::base();
-  _narrow_oop_shift = CompressedOops::shift();
+  if (HeapShared::is_heap_object_archiving_allowed()) {
+    _narrow_oop_mode = CompressedOops::mode();
+    _narrow_oop_base = CompressedOops::base();
+    _narrow_oop_shift = CompressedOops::shift();
+    _heap_end = CompressedOops::end();
+  }
   _compressed_oops = UseCompressedOops;
   _compressed_class_ptrs = UseCompressedClassPointers;
   _max_heap_size = MaxHeapSize;
   _narrow_klass_shift = CompressedKlassPointers::shift();
-  if (HeapShared::is_heap_object_archiving_allowed()) {
-    _heap_end = CompressedOops::end();
-  }
 
   // The following fields are for sanity checks for whether this archive
   // will function correctly with this JVM and the bootclasspath it's
@@ -1079,6 +1079,8 @@ bool FileMapInfo::open_for_read() {
                     os::strerror(errno));
     }
     return false;
+  } else {
+    log_info(cds)("Opened archive %s.", _full_path);
   }
 
   _fd = fd;
@@ -1981,11 +1983,13 @@ void FileMapInfo::unmap_region(int i) {
   size_t used = si->used();
   size_t size = align_up(used, os::vm_allocation_granularity());
 
-  if (mapped_base != NULL && size > 0 && si->mapped_from_file()) {
-    log_info(cds)("Unmapping region #%d at base " INTPTR_FORMAT " (%s)", i, p2i(mapped_base),
-                  shared_region_name[i]);
-    if (!os::unmap_memory(mapped_base, size)) {
-      fatal("os::unmap_memory failed");
+  if (mapped_base != NULL) {
+    if (size > 0 && si->mapped_from_file()) {
+      log_info(cds)("Unmapping region #%d at base " INTPTR_FORMAT " (%s)", i, p2i(mapped_base),
+                    shared_region_name[i]);
+      if (!os::unmap_memory(mapped_base, size)) {
+        fatal("os::unmap_memory failed");
+      }
     }
     si->set_mapped_base(NULL);
   }

@@ -229,6 +229,7 @@ module java.base {
         jdk.management.agent;
     exports jdk.internal.vm.annotation to
         jdk.internal.vm.ci,
+        jdk.incubator.foreign,
         jdk.unsupported;
     exports jdk.internal.util.jar to
         jdk.jartool;
@@ -294,6 +295,7 @@ module java.base {
         java.rmi,
         java.security.jgss,
         jdk.crypto.cryptoki,
+        jdk.crypto.ec,
         jdk.security.auth;
     exports sun.security.provider.certpath to
         java.naming;
