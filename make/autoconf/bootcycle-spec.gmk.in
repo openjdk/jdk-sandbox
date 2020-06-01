@@ -35,10 +35,6 @@ ifeq ($(firstword $(JAVA)),$(FIXPATH))
 else
   JAVA_EXEC_POS=1
 endif
-ifneq ($(word $(JAVA_EXEC_POS),$(SJAVAC_SERVER_JAVA)),$(word $(JAVA_EXEC_POS),$(JAVA)))
-  $(error Bootcycle builds are not possible if --with-sjavac-server-java is specified)
-endif
-
 
 # Override specific values to do a boot cycle build
 
@@ -48,18 +44,13 @@ BOOT_JDK := $(JDK_IMAGE_DIR)
 # The bootcycle build has a different output directory
 OLD_OUTPUTDIR:=@OUTPUTDIR@
 OUTPUTDIR:=$(OLD_OUTPUTDIR)/bootcycle-build
-SJAVAC_SERVER_DIR:=$(patsubst $(OLD_OUTPUTDIR)%, $(OUTPUTDIR)%, $(SJAVAC_SERVER_DIR))
+# No spaces in patsubst to avoid leading space in variable
+JAVAC_SERVER_DIR:=$(patsubst $(OLD_OUTPUTDIR)%,$(OUTPUTDIR)%,$(JAVAC_SERVER_DIR))
 
 JAVA_CMD:=$(BOOT_JDK)/bin/java
 JAVAC_CMD:=$(BOOT_JDK)/bin/javac
 JAR_CMD:=$(BOOT_JDK)/bin/jar
 JARSIGNER_CMD:=$(BOOT_JDK)/bin/jarsigner
-SJAVAC_SERVER_JAVA_CMD:=$(JAVA_CMD)
-# When building a 32bit target, make sure the sjavac server flags are compatible
-# with a 32bit JVM.
-ifeq ($(OPENJDK_TARGET_CPU_BITS), 32)
-  SJAVAC_SERVER_JAVA_FLAGS := @BOOTCYCLE_JVM_ARGS_BIG@
-endif
 # The bootcycle JVM arguments may differ from the original boot jdk.
 JAVA_FLAGS_BIG := @BOOTCYCLE_JVM_ARGS_BIG@
 # Any CDS settings generated for the bootjdk are invalid in the bootcycle build.

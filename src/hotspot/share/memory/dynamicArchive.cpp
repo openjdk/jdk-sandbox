@@ -69,7 +69,7 @@ class DynamicArchiveBuilder : ResourceObj {
   DumpRegion* _current_dump_space;
 
   static size_t reserve_alignment() {
-    return Metaspace::reserve_alignment();
+    return os::vm_allocation_granularity();
   }
 
   static const int _total_dump_regions = 3;
@@ -503,14 +503,13 @@ private:
   void write_archive(char* serialized_data);
 
   void init_first_dump_space(address reserved_bottom) {
-    address first_space_base = reserved_bottom;
     DumpRegion* mc_space = MetaspaceShared::misc_code_dump_space();
     DumpRegion* rw_space = MetaspaceShared::read_write_dump_space();
 
     // Use the same MC->RW->RO ordering as in the base archive.
-    MetaspaceShared::init_shared_dump_space(mc_space, first_space_base);
+    MetaspaceShared::init_shared_dump_space(mc_space);
     _current_dump_space = mc_space;
-    _last_verified_top = first_space_base;
+    _last_verified_top = reserved_bottom;
     _num_dump_regions_used = 1;
   }
 
@@ -725,7 +724,7 @@ size_t DynamicArchiveBuilder::estimate_archive_size() {
 
 address DynamicArchiveBuilder::reserve_space_and_init_buffer_to_target_delta() {
   size_t total = estimate_archive_size();
-  ReservedSpace rs = MetaspaceShared::reserve_shared_space(total);
+  ReservedSpace rs(total);
   if (!rs.is_reserved()) {
     log_error(cds, dynamic)("Failed to reserve %d bytes of output buffer.", (int)total);
     vm_direct_exit(0);

@@ -84,9 +84,9 @@ ShenandoahMarkRefsSuperClosure::ShenandoahMarkRefsSuperClosure(ShenandoahObjToSc
 template<UpdateRefsMode UPDATE_REFS>
 class ShenandoahInitMarkRootsTask : public AbstractGangTask {
 private:
-  ShenandoahAllRootScanner* _rp;
+  ShenandoahRootScanner* _rp;
 public:
-  ShenandoahInitMarkRootsTask(ShenandoahAllRootScanner* rp) :
+  ShenandoahInitMarkRootsTask(ShenandoahRootScanner* rp) :
     AbstractGangTask("Shenandoah init mark roots task"),
     _rp(rp) {
   }
@@ -267,9 +267,10 @@ public:
       }
     }
 
-    if (heap->is_degenerated_gc_in_progress()) {
-      // Degenerated cycle may bypass concurrent cycle, so code roots might not be scanned,
-      // let's check here.
+    if (heap->is_degenerated_gc_in_progress() || heap->is_full_gc_in_progress()) {
+      // Full GC does not execute concurrent cycle.
+      // Degenerated cycle may bypass concurrent cycle.
+      // So code roots might not be scanned, let's scan here.
       _cm->concurrent_scan_code_roots(worker_id, rp);
     }
 
@@ -294,7 +295,7 @@ void ShenandoahConcurrentMark::mark_roots(ShenandoahPhaseTimings::Phase root_pha
 
   assert(nworkers <= task_queues()->size(), "Just check");
 
-  ShenandoahAllRootScanner root_proc(nworkers, root_phase);
+  ShenandoahRootScanner root_proc(nworkers, root_phase);
   TASKQUEUE_STATS_ONLY(task_queues()->reset_taskqueue_stats());
   task_queues()->reserve(nworkers);
 
@@ -308,9 +309,7 @@ void ShenandoahConcurrentMark::mark_roots(ShenandoahPhaseTimings::Phase root_pha
     workers->run_task(&mark_roots);
   }
 
-  if (ShenandoahConcurrentScanCodeRoots) {
-    clear_claim_codecache();
-  }
+  clear_claim_codecache();
 }
 
 void ShenandoahConcurrentMark::update_roots(ShenandoahPhaseTimings::Phase root_phase) {
@@ -346,11 +345,12 @@ private:
 public:
   ShenandoahUpdateThreadRootsTask(bool is_par, ShenandoahPhaseTimings::Phase phase) :
     AbstractGangTask("Shenandoah Update Thread Roots"),
-    _thread_roots(is_par),
+    _thread_roots(phase, is_par),
     _phase(phase),
     _worker_phase(phase) {}
 
   void work(uint worker_id) {
+    ShenandoahParallelWorkerSession worker_session(worker_id);
     ShenandoahUpdateRefsClosure cl;
     _thread_roots.oops_do(&cl, NULL, worker_id);
   }
@@ -391,21 +391,23 @@ void ShenandoahConcurrentMark::initialize(uint workers) {
 }
 
 void ShenandoahConcurrentMark::concurrent_scan_code_roots(uint worker_id, ReferenceProcessor* rp) {
-  if (ShenandoahConcurrentScanCodeRoots && claim_codecache()) {
+  if (_heap->unload_classes()) {
+    return;
+  }
+
+  if (claim_codecache()) {
     ShenandoahObjToScanQueue* q = task_queues()->queue(worker_id);
-    if (!_heap->unload_classes()) {
-      MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-      // TODO: We can not honor StringDeduplication here, due to lock ranking
-      // inversion. So, we may miss some deduplication candidates.
-      if (_heap->has_forwarded_objects()) {
-        ShenandoahMarkResolveRefsClosure cl(q, rp);
-        CodeBlobToOopClosure blobs(&cl, !CodeBlobToOopClosure::FixRelocations);
-        CodeCache::blobs_do(&blobs);
-      } else {
-        ShenandoahMarkRefsClosure cl(q, rp);
-        CodeBlobToOopClosure blobs(&cl, !CodeBlobToOopClosure::FixRelocations);
-        CodeCache::blobs_do(&blobs);
-      }
+    MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    // TODO: We can not honor StringDeduplication here, due to lock ranking
+    // inversion. So, we may miss some deduplication candidates.
+    if (_heap->has_forwarded_objects()) {
+      ShenandoahMarkResolveRefsClosure cl(q, rp);
+      CodeBlobToOopClosure blobs(&cl, !CodeBlobToOopClosure::FixRelocations);
+      CodeCache::blobs_do(&blobs);
+    } else {
+      ShenandoahMarkRefsClosure cl(q, rp);
+      CodeBlobToOopClosure blobs(&cl, !CodeBlobToOopClosure::FixRelocations);
+      CodeCache::blobs_do(&blobs);
     }
   }
 }
@@ -588,6 +590,7 @@ public:
     HandleMark hm;
     assert(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "Must be at a safepoint");
     ShenandoahHeap* heap = ShenandoahHeap::heap();
+    ShenandoahParallelWorkerSession worker_session(worker_id);
     ShenandoahCMDrainMarkingStackClosure complete_gc(worker_id, _terminator);
     if (heap->has_forwarded_objects()) {
       ShenandoahForwardedIsAliveClosure is_alive;
@@ -682,7 +685,11 @@ void ShenandoahConcurrentMark::weak_refs_work_doit(bool full_gc) {
   ReferenceProcessorPhaseTimes pt(_heap->gc_timer(), rp->num_queues());
 
   {
-    ShenandoahGCPhase phase(phase_process);
+    // Note: Don't emit JFR event for this phase, to avoid overflow nesting phase level.
+    // Reference Processor emits 2 levels JFR event, that can get us over the JFR
+    // event nesting level limits, in case of degenerated GC gets upgraded to
+    // full GC.
+    ShenandoahTimingsTracker phase_timing(phase_process);
 
     if (_heap->has_forwarded_objects()) {
       ShenandoahCMKeepAliveUpdateClosure keep_alive(get_queue(serial_worker_id));
@@ -937,11 +944,9 @@ void ShenandoahConcurrentMark::mark_loop_work(T* cl, ShenandoahLiveData* live_da
 }
 
 bool ShenandoahConcurrentMark::claim_codecache() {
-  assert(ShenandoahConcurrentScanCodeRoots, "must not be called otherwise");
   return _claimed_codecache.try_set();
 }
 
 void ShenandoahConcurrentMark::clear_claim_codecache() {
-  assert(ShenandoahConcurrentScanCodeRoots, "must not be called otherwise");
   _claimed_codecache.unset();
 }

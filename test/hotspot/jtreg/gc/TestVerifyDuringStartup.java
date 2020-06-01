@@ -38,14 +38,12 @@ import jdk.test.lib.process.OutputAnalyzer;
 
 public class TestVerifyDuringStartup {
   public static void main(String args[]) throws Exception {
-    String[] flags = {
+    ProcessBuilder pb = ProcessTools.createTestJvm(
         "-XX:-UseTLAB",
         "-XX:+UnlockDiagnosticVMOptions",
         "-XX:+VerifyDuringStartup",
         "-Xlog:gc+verify=debug",
-        "-version"};
-
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true, flags);
+        "-version");
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
 
     System.out.println("Output:\n" + output.getOutput());
