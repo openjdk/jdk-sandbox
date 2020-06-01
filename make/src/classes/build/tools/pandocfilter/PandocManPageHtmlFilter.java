@@ -26,10 +26,17 @@ package build.tools.pandocfilter;
 import build.tools.pandocfilter.json.*;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class PandocManPageHtmlFilter {
+    public interface Callback {
+        JSONValue callback(String type, JSONValue value);
+    }
 
     /**
      * Traverse a tree of pandoc format objects, calling callback on each
@@ -39,39 +46,35 @@ public class PandocManPageHtmlFilter {
      * https://github.com/jgm/pandocfilters/blob/master/pandocfilters.py
      */
 
-    private static JSONValue callback(String type, JSONValue value) {
-        return null;
-    }
-
-    private static JSONValue traverse(JSONValue obj, Object callback2) {
+    private JSONValue traverse(JSONValue obj, Callback callback) {
         if (obj instanceof JSONArray) {
             JSONArray array = (JSONArray) obj;
 
             JSONArray processed_array = new JSONArray();
             for (JSONValue elem : array) {
                 if (elem instanceof JSONObject && elem.contains("t")) {
-                    JSONValue replacement = callback(elem.get("t").asString(), elem.contains("c") ? elem.get("c") : new JSONArray());
+                    JSONValue replacement = callback.callback(elem.get("t").asString(), elem.contains("c") ? elem.get("c") : new JSONArray());
                     if (replacement == null) {
                         // no replacement object returned, use original
-                        processed_array.add(traverse(elem, callback2));
+                        processed_array.add(traverse(elem, callback));
                     } else if (replacement instanceof JSONArray) {
                         // array of objects returned, splice all elements into array
                         JSONArray replacement_array = (JSONArray) replacement;
                         for (JSONValue repl_elem : replacement_array) {
-                            processed_array.add(traverse(repl_elem, callback2));
+                            processed_array.add(traverse(repl_elem, callback));
                         }
                     } else {
                         // replacement object given, traverse it
-                        processed_array.add(traverse(replacement, callback2));
+                        processed_array.add(traverse(replacement, callback));
                     }
                 } else {
-                    processed_array.add(traverse(elem, callback2));
+                    processed_array.add(traverse(elem, callback));
                 }
             }
             return processed_array;
         } else if (obj instanceof JSONObject) {
             if (obj.contains("t")) {
-                JSONValue replacement = callback(obj.get("t").asString(), obj.contains("c") ? obj.get("c") : new JSONArray());
+                JSONValue replacement = callback.callback(obj.get("t").asString(), obj.contains("c") ? obj.get("c") : new JSONArray());
                 if (replacement != null) {
                     return replacement;
                 }
@@ -79,7 +82,7 @@ public class PandocManPageHtmlFilter {
             JSONObject obj_obj = (JSONObject) obj;
             var processed_obj = new JSONObject();
             for (String key : obj_obj.keys()) {
-                processed_obj.put(key, traverse(obj_obj.get(key), callback2));
+                processed_obj.put(key, traverse(obj_obj.get(key), callback));
             }
             return processed_obj;
         } else {
@@ -87,39 +90,50 @@ public class PandocManPageHtmlFilter {
         }
     }
 
+    private JSONValue PandocAtom(String type, JSONValue content) {
+        if (content == null) {
+            return new JSONObject(Map.of(
+                    "t", new JSONString(type)));
+        } else {
+            return new JSONObject(Map.of(
+                    "t", new JSONString(type),
+                    "c", content));
+        }
+    }
+
+    private JSONValue PandocAtom(String type) {
+        return PandocAtom(type, null);
+    }
+
     /*
      * Helper constructors to create pandoc format objects
      */
-    private Object Space() {
-        return new JSONObject(Map.of(
-                "t", new JSONString("Space")));
+    private JSONValue Space() {
+        return PandocAtom("Space");
     }
 
-    private Object Str(JSONValue value) {
-        return new JSONObject(Map.of(
-                "t", new JSONString("Str"),
-                "c", value));
+    private JSONValue Str(String string) {
+        return PandocAtom("Str", new JSONString(string));
     }
 
-    private Object MetaInlines(JSONValue value) {
-        return new JSONObject(Map.of(
-                "t", new JSONString("'MetaInlines'"),
-                "c", value));
+    private JSONValue MetaInlines(JSONValue value) {
+        return PandocAtom("MetaInlines", value);
     }
 
     private JSONValue change_title(String type, JSONValue value) {
         if (type.equals("MetaInlines")) {
-            if (value.get(0).get("t").asString().equals("Str")) {
-            /*
-            var match = value[0].c.match(/^([A-Z0-9]+)\([0-9]+\)$/);
-            if (match) {
-                return MetaInlines([
-                        Str("The"), Space(),
-			Str(match[1].toLowerCase()),
-			Space(), Str("Command")
-		    ]);
-            }
-            */
+            String subType = value.get(0).get("t").asString();
+            String subContent = value.get(0).get("c").asString();
+            if (subType.equals("Str")) {
+                Pattern pattern = Pattern.compile("^([A-Z0-9]+)\\([0-9]+\\)$");
+                Matcher matcher = pattern.matcher(subContent);
+                if (matcher.find()) {
+                    String commandName = matcher.group(1).toLowerCase();
+                    return MetaInlines(new JSONArray(
+                            Str("The"), Space(),
+                            Str(commandName),
+                            Space(), Str("Command")));
+                }
             }
         }
         return null;
@@ -128,11 +142,18 @@ public class PandocManPageHtmlFilter {
     /**
      * Main function
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws FileNotFoundException {
         StringBuffer input = new StringBuffer();
-        new BufferedReader(new InputStreamReader(System.in)).lines().forEach(line -> input.append(line));
+        InputStreamReader reader;
+        if (args.length > 0)
+            reader = new FileReader(args[0]);
+        else {
+            reader = new InputStreamReader(System.in);
+        }
+        new BufferedReader(reader).lines().forEach(line -> input.append(line));
 
         JSONValue json = JSON.parse(input.toString());
+        PandocManPageHtmlFilter filter = new PandocManPageHtmlFilter();
 
         JSONValue meta = json.get("meta");
         if (meta != null && meta instanceof JSONObject) {
@@ -140,12 +161,16 @@ public class PandocManPageHtmlFilter {
             metaobj.remove("date");
             JSONValue title = meta.get("title");
             if (title != null) {
-//            metaobj.put(title, traverse(meta.title, change_title));
-                metaobj.put("title", traverse(title, null));
+                Callback callback = new Callback() {
+                    @Override
+                    public JSONValue callback(String type, JSONValue value) {
+                        return filter.change_title(type, value);
+                    }
+                };
+                metaobj.put("title", filter.traverse(title, callback));
             }
         }
 
         System.out.println(json);
-
     }
 }
