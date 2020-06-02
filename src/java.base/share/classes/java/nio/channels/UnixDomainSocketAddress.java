@@ -26,6 +26,7 @@
 package java.nio.channels;
 
 import java.io.ObjectStreamException;
+import java.io.Serializable;
 import java.net.SocketAddress;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -49,16 +50,34 @@ import sun.nio.ch.Net;
  * @since 15
  */
 public final class UnixDomainSocketAddress extends SocketAddress {
-
-    static final long serialVersionUID = 9829020419651288L;
+    static final long serialVersionUID = 92902496589351288L;
 
     static {
         Net.init();
         init();
     }
 
-    private final transient Path path;
+    private final Path path;
     private final String pathname; // used in native code
+
+    static class SerializationProxy implements Serializable {
+
+        static final long serialVersionUID = 9829020419651288L;
+
+	private String pathname;
+
+	public SerializationProxy(UnixDomainSocketAddress addr) {
+	    this.pathname = addr.pathname;
+	}
+
+	private Object readResolve() {
+	    return UnixDomainSocketAddress.of(pathname);
+	}
+    }
+
+    private Object writeReplace() throws ObjectStreamException {
+        return new SerializationProxy(this);
+    }
 
     /**
      * An unnamed UnixDomainSocketAddress. If a {@link SocketChannel} is automatically
@@ -157,18 +176,5 @@ public final class UnixDomainSocketAddress extends SocketAddress {
     @Override
     public String toString() {
         return path.toString();
-    }
-
-    /**
-     * Replaces the de-serialized object with a UnixDomainSocketAddress
-     *
-     * @return a UnixDomainSocketAddress created from the serialized pathname string
-     *
-     * @throws ObjectStreamException if a new object replacing this
-     * object could not be created
-     */
-    @java.io.Serial
-    private Object readResolve() throws ObjectStreamException {
-        return UnixDomainSocketAddress.of(pathname);
     }
 }
