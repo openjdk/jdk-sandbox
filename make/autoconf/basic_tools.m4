@@ -220,10 +220,7 @@ AC_DEFUN([BASIC_CHECK_GNU_MAKE],
     # If MAKE was set by user, verify the version
     BASIC_CHECK_MAKE_VERSION("$MAKE", [user supplied MAKE=$MAKE])
     if test "x$FOUND_MAKE" = x; then
-      BASIC_CHECK_MAKE_VERSION("$MAKE.exe", [user supplied MAKE=$MAKE])
-      if test "x$FOUND_MAKE" = x; then
-        AC_MSG_ERROR([The specified make (by MAKE=$MAKE) is not GNU make $MAKE_REQUIRED_VERSION or newer.])
-      fi
+      AC_MSG_ERROR([The specified make (by MAKE=$MAKE) is not GNU make $MAKE_REQUIRED_VERSION or newer.])
     fi
   ])
 
