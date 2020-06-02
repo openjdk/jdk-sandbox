@@ -34,10 +34,10 @@ import java.util.regex.Pattern;
 public class PandocManPageHtmlFilter extends PandocFilter {
 
     private JSONValue MetaInlines(JSONValue value) {
-        return PandocAtom("MetaInlines", value);
+        return createPandocNode("MetaInlines", value);
     }
 
-    private JSONValue change_title(String type, JSONValue value) {
+    private JSONValue changeTitle(String type, JSONValue value) {
         if (type.equals("MetaInlines")) {
             String subType = value.get(0).get("t").asString();
             String subContent = value.get(0).get("c").asString();
@@ -47,9 +47,9 @@ public class PandocManPageHtmlFilter extends PandocFilter {
                 if (matcher.find()) {
                     String commandName = matcher.group(1).toLowerCase();
                     return MetaInlines(new JSONArray(
-                            Str("The"), Space(),
-                            Str(commandName),
-                            Space(), Str("Command")));
+                            createStr("The"), createSpace(),
+                            createStr(commandName),
+                            createSpace(), createStr("Command")));
                 }
             }
         }
@@ -70,7 +70,7 @@ public class PandocManPageHtmlFilter extends PandocFilter {
             metaobj.remove("date");
             JSONValue title = meta.get("title");
             if (title != null) {
-                metaobj.put("title", filter.traverse(title, filter::change_title));
+                metaobj.put("title", filter.traverse(title, filter::changeTitle));
             }
         }
 

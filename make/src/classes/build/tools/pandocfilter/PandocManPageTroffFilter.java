@@ -30,12 +30,12 @@ import java.io.FileNotFoundException;
 
 public class PandocManPageTroffFilter extends PandocFilter {
 
-    private JSONValue Strong(JSONValue value) {
-        return PandocAtom("Strong", value);
+    private JSONValue createStrong(JSONValue value) {
+        return createPandocNode("Strong", value);
     }
 
-    private JSONValue Header(JSONValue value) {
-        return PandocAtom("Header", value);
+    private JSONValue createHeader(JSONValue value) {
+        return createPandocNode("Header", value);
     }
 
     /**
@@ -43,7 +43,7 @@ public class PandocManPageTroffFilter extends PandocFilter {
      */
     private JSONValue uppercase(String type, JSONValue value) {
         if (type.equals("Str")) {
-            return Str(value.asString().toUpperCase());
+            return createStr(value.asString().toUpperCase());
         }
         return null;
     }
@@ -51,7 +51,7 @@ public class PandocManPageTroffFilter extends PandocFilter {
     /**
      * Main callback function that performs our man page AST rewrites
      */
-    private JSONValue manpage_filter(String type, JSONValue value) {
+    private JSONValue manpageFilter(String type, JSONValue value) {
         // If it is a header, decrease the heading level by one, and
         // if it is a level 1 header, convert it to upper case.
         if (type.equals("Header")) {
@@ -59,14 +59,14 @@ public class PandocManPageTroffFilter extends PandocFilter {
             int level = array.get(0).asInt();
             array.set(0, JSONValue.from(level - 1));
             if (value.asArray().get(0).asInt() == 1) {
-                return Header(traverse(value, this::uppercase));
+                return createHeader(traverse(value, this::uppercase));
             }
         }
 
         // Man pages does not have superscript. We use it for footnotes, so
         // enclose in [...] for best representation.
         if (type.equals("Superscript")) {
-            return new JSONArray(Str("["), value, Str("]"));
+            return new JSONArray(createStr("["), value, createStr("]"));
         }
 
         // If it is a link, put the link name in bold. If it is an external
@@ -77,9 +77,9 @@ public class PandocManPageTroffFilter extends PandocFilter {
             JSONValue target = value.asArray().get(2).asArray().get(0);
             String targetStr = target.asString();
             if (targetStr.startsWith("https:") || targetStr.startsWith("http:")) {
-                return new JSONArray(Strong(value.asArray().get(1)), Space(), Str("[" + targetStr + "]"));
+                return new JSONArray(createStrong(value.asArray().get(1)), createSpace(), createStr("[" + targetStr + "]"));
             } else {
-                return Strong(value.asArray().get(1));
+                return createStrong(value.asArray().get(1));
             }
         }
 
@@ -93,7 +93,7 @@ public class PandocManPageTroffFilter extends PandocFilter {
         JSONValue json = loadJson(args);
         build.tools.pandocfilter.PandocManPageTroffFilter filter = new build.tools.pandocfilter.PandocManPageTroffFilter();
 
-        JSONValue transformed_json = filter.traverse(json, filter::manpage_filter);
+        JSONValue transformed_json = filter.traverse(json, filter::manpageFilter);
 
         System.out.println(transformed_json);
     }

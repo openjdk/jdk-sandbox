@@ -64,7 +64,7 @@ public class PandocFilter {
         }
     }
 
-    public JSONValue PandocAtom(String type, JSONValue content) {
+    public JSONValue createPandocNode(String type, JSONValue content) {
         if (content == null) {
             return new JSONObject(Map.of(
                     "t", new JSONString(type)));
@@ -75,19 +75,19 @@ public class PandocFilter {
         }
     }
 
-    public JSONValue PandocAtom(String type) {
-        return PandocAtom(type, null);
+    public JSONValue createPandocNode(String type) {
+        return createPandocNode(type, null);
     }
 
     /*
      * Helper constructors to create pandoc format objects
      */
-    public JSONValue Space() {
-        return PandocAtom("Space");
+    public JSONValue createSpace() {
+        return createPandocNode("Space");
     }
 
-    public JSONValue Str(String string) {
-        return PandocAtom("Str", new JSONString(string));
+    public JSONValue createStr(String string) {
+        return createPandocNode("Str", new JSONString(string));
     }
 
     public static JSONValue loadJson(String[] args) throws FileNotFoundException {
