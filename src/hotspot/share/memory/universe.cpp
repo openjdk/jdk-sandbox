@@ -649,8 +649,6 @@ jint universe_init() {
 
   TraceTime timer("Genesis", TRACETIME_LOG(Info, startuptime));
 
-  JavaClasses::compute_hard_coded_offsets();
-
   initialize_global_behaviours();
 
   GCConfig::arguments()->initialize_heap_sizes();
@@ -721,13 +719,9 @@ jint universe_init() {
 jint Universe::initialize_heap() {
   assert(_collectedHeap == NULL, "Heap already created");
   _collectedHeap = GCConfig::arguments()->create_heap();
-  jint status = _collectedHeap->initialize();
 
-  if (status == JNI_OK) {
-    log_info(gc)("Using %s", _collectedHeap->name());
-  }
-
-  return status;
+  log_info(gc)("Using %s", _collectedHeap->name());
+  return _collectedHeap->initialize();
 }
 
 void Universe::initialize_tlab() {
