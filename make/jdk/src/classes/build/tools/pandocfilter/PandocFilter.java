@@ -20,7 +20,7 @@ public class PandocFilter {
      * Inspired by the walk method in
      * https://github.com/jgm/pandocfilters/blob/master/pandocfilters.py
      */
-    public JSONValue traverse(JSONValue obj, Callback callback) {
+    public JSONValue traverse(JSONValue obj, Callback callback, boolean deep) {
         if (obj instanceof JSONArray) {
             JSONArray array = (JSONArray) obj;
 
@@ -30,33 +30,32 @@ public class PandocFilter {
                     JSONValue replacement = callback.invoke(elem.get("t").asString(), elem.contains("c") ? elem.get("c") : new JSONArray());
                     if (replacement == null) {
                         // no replacement object returned, use original
-                        processed_array.add(traverse(elem, callback));
+                        processed_array.add(traverse(elem, callback, deep));
                     } else if (replacement instanceof JSONArray) {
                         // array of objects returned, splice all elements into array
                         JSONArray replacement_array = (JSONArray) replacement;
                         for (JSONValue repl_elem : replacement_array) {
-                            processed_array.add(traverse(repl_elem, callback));
+                            processed_array.add(traverse(repl_elem, callback, deep));
                         }
                     } else {
                         // replacement object given, traverse it
-                        processed_array.add(traverse(replacement, callback));
+                        processed_array.add(traverse(replacement, callback, deep));
                     }
                 } else {
-                    processed_array.add(traverse(elem, callback));
+                    processed_array.add(traverse(elem, callback, deep));
                 }
             }
             return processed_array;
         } else if (obj instanceof JSONObject) {
-            if (obj.contains("t")) {
+            if (deep && obj.contains("t")) {
                 JSONValue replacement = callback.invoke(obj.get("t").asString(), obj.contains("c") ? obj.get("c") : new JSONArray());
                 if (replacement != null) {
                     return replacement;
                 }
-            }
-            JSONObject obj_obj = (JSONObject) obj;
+            }            JSONObject obj_obj = (JSONObject) obj;
             var processed_obj = new JSONObject();
             for (String key : obj_obj.keys()) {
-                processed_obj.put(key, traverse(obj_obj.get(key), callback));
+                processed_obj.put(key, traverse(obj_obj.get(key), callback, deep));
             }
             return processed_obj;
         } else {

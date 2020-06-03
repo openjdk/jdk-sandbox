@@ -59,7 +59,7 @@ public class PandocManPageTroffFilter extends PandocFilter {
             int level = array.get(0).asInt();
             array.set(0, JSONValue.from(level - 1));
             if (value.asArray().get(0).asInt() == 1) {
-                return createHeader(traverse(value, this::uppercase));
+                return createHeader(traverse(value, this::uppercase, false));
             }
         }
 
@@ -93,7 +93,7 @@ public class PandocManPageTroffFilter extends PandocFilter {
         JSONValue json = loadJson(args);
         build.tools.pandocfilter.PandocManPageTroffFilter filter = new build.tools.pandocfilter.PandocManPageTroffFilter();
 
-        JSONValue transformed_json = filter.traverse(json, filter::manpageFilter);
+        JSONValue transformed_json = filter.traverse(json, filter::manpageFilter, false);
 
         System.out.println(transformed_json);
     }

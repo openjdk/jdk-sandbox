@@ -70,7 +70,7 @@ public class PandocManPageHtmlFilter extends PandocFilter {
             metaobj.remove("date");
             JSONValue title = meta.get("title");
             if (title != null) {
-                metaobj.put("title", filter.traverse(title, filter::changeTitle));
+                metaobj.put("title", filter.traverse(title, filter::changeTitle, true));
             }
         }
 
