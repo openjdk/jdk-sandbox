@@ -66,7 +66,7 @@ public class PandocManPageTroffFilter extends PandocFilter {
         // Man pages does not have superscript. We use it for footnotes, so
         // enclose in [...] for best representation.
         if (type.equals("Superscript")) {
-            return new JSONArray(createStr("["), value.asArray().get(0), createStr("]"));
+            return new JSONArray(createStr("["), value, createStr("]"));
         }
 
         // If it is a link, put the link name in bold. If it is an external

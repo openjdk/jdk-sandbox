@@ -39,11 +39,21 @@ public class JSONArray implements JSONValue, Iterable<JSONValue> {
         }
     }
 
+    private void append(JSONValue value) {
+        if (value instanceof JSONArray) {
+            for (var v : value.asArray()) {
+                append(v);
+            }
+        } else {
+            this.values.add(value);
+        }
+    }
+
     public JSONArray(JSONValue value, JSONValue... values) {
         this.values = new ArrayList<JSONValue>(values.length + 1);
-        this.values.add(value);
+        append(value);
         for (var v : values) {
-            this.values.add(v);
+            append(v);
         }
     }
 
