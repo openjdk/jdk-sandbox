@@ -14,7 +14,6 @@ import java.util.function.LongConsumer;
  */
 abstract class FlatPushConsumer<T> implements AutoCloseable {
     T consumer;
-
     FlatPushConsumer(T consumer) {
         this.consumer = consumer;
     }
@@ -34,7 +33,15 @@ abstract class FlatPushConsumer<T> implements AutoCloseable {
 
         @Override
         public void accept(U u) {
-            consumer.accept(u);
+            var consumer = this.consumer;
+            if (consumer == null)
+                throw new IllegalStateException("access out of method boundaries");
+            this.consumer = null; // prevents recursive access
+            try {
+                consumer.accept(u);
+            } finally {
+                this.consumer = consumer;
+            }
         }
     }
 
@@ -47,7 +54,15 @@ abstract class FlatPushConsumer<T> implements AutoCloseable {
 
         @Override
         public void accept(double u) {
-            consumer.accept(u);
+            var consumer = this.consumer;
+            if (consumer == null)
+                throw new IllegalStateException("access out of method boundaries");
+            this.consumer = null; // prevents recursive access
+            try {
+                consumer.accept(u);
+            } finally {
+                this.consumer = consumer;
+            }
         }
     }
 
@@ -60,7 +75,15 @@ abstract class FlatPushConsumer<T> implements AutoCloseable {
 
         @Override
         public void accept(int u) {
-            consumer.accept(u);
+            var consumer = this.consumer;
+            if (consumer == null)
+                throw new IllegalStateException("access out of method boundaries");
+            this.consumer = null; // prevents recursive access
+            try {
+                consumer.accept(u);
+            } finally {
+                this.consumer = consumer;
+            }
         }
     }
 
@@ -73,7 +96,15 @@ abstract class FlatPushConsumer<T> implements AutoCloseable {
 
         @Override
         public void accept(long u) {
-            consumer.accept(u);
+            var consumer = this.consumer;
+            if (consumer == null)
+                throw new IllegalStateException("access out of method boundaries");
+            this.consumer = null; // prevents recursive access
+            try {
+                consumer.accept(u);
+            } finally {
+                this.consumer = consumer;
+            }
         }
     }
 }

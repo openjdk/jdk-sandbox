@@ -117,10 +117,10 @@ public class FlatPushOpTest extends OpTestCase {
     public void testConsumerContained(Stream<Integer> s) {
         Consumer<Integer>[] capture = new Consumer[1];
         BiConsumer<Consumer<Integer>, Integer> mapper = (c, i) -> {
-            c.accept(i);
             capture[0] = c;
+            c.accept(i);
         };
-        expectThrows(NullPointerException.class,
+        assertThrows(IllegalStateException.class,
                 () -> s.flatPush(mapper)
                         .peek(e -> capture[0].accept(666))
                         .collect(Collectors.toList()));
@@ -130,10 +130,10 @@ public class FlatPushOpTest extends OpTestCase {
     public void testConsumerContainedToInt(Stream<Integer> s) {
         IntConsumer[] capture = new IntConsumer[1];
         BiConsumer<IntConsumer, Integer> mapper = (c, i) -> {
-            c.accept(i);
             capture[0] = c;
+            c.accept(i);
         };
-        expectThrows(NullPointerException.class,
+        assertThrows(IllegalStateException.class,
                 () -> s.flatPushToInt(mapper)
                         .peek(e -> capture[0].accept(666))
                         .toArray());
@@ -143,10 +143,10 @@ public class FlatPushOpTest extends OpTestCase {
     public void testConsumerContainedToDouble(Stream<Integer> s) {
         DoubleConsumer[] capture = new DoubleConsumer[1];
         BiConsumer<DoubleConsumer, Integer> mapper = (c, i) -> {
-            c.accept(i);
             capture[0] = c;
+            c.accept(i);
         };
-        expectThrows(NullPointerException.class,
+        assertThrows(IllegalStateException.class,
                 () -> s.flatPushToDouble(mapper)
                         .peek(e -> capture[0].accept(666))
                         .toArray());
@@ -156,10 +156,10 @@ public class FlatPushOpTest extends OpTestCase {
     public void testConsumerContainedToLong(Stream<Integer> s) {
         LongConsumer[] capture = new LongConsumer[1];
         BiConsumer<LongConsumer, Integer> mapper = (c, i) -> {
-            c.accept(i);
             capture[0] = c;
+            c.accept(i);
         };
-        expectThrows(NullPointerException.class,
+        assertThrows(IllegalStateException.class,
                 () -> s.flatPushToLong(mapper)
                         .peek(e -> capture[0].accept(666))
                         .toArray());
@@ -274,10 +274,10 @@ public class FlatPushOpTest extends OpTestCase {
     public void testIntConsumerContained(IntStream s) {
         IntConsumer[] capture = new IntConsumer[1];
         ObjIntConsumer<IntConsumer> mapper = (c, i) -> {
-            c.accept(i);
             capture[0] = c;
+            c.accept(i);
         };
-        expectThrows(NullPointerException.class,
+        assertThrows(IllegalStateException.class,
                 () -> s.flatPush(mapper)
                         .peek(e -> capture[0].accept(666))
                         .toArray()
@@ -355,10 +355,10 @@ public class FlatPushOpTest extends OpTestCase {
     public void testDoubleConsumerContained(DoubleStream s) {
         DoubleConsumer[] capture = new DoubleConsumer[1];
         ObjDoubleConsumer<DoubleConsumer> mapper = (c, i) -> {
-            c.accept(i);
             capture[0] = c;
+            c.accept(i);
         };
-        expectThrows(NullPointerException.class,
+        assertThrows(IllegalStateException.class,
                 () -> s.flatPush(mapper)
                         .peek(e -> capture[0].accept(666))
                         .toArray()
@@ -431,10 +431,10 @@ public class FlatPushOpTest extends OpTestCase {
     public void testLongConsumerContained(LongStream s) {
         LongConsumer[] capture = new LongConsumer[1];
         ObjLongConsumer<LongConsumer> mapper = (c, i) -> {
-            c.accept(i);
             capture[0] = c;
+            c.accept(i);
         };
-        expectThrows(NullPointerException.class,
+        assertThrows(IllegalStateException.class,
                 () -> s.flatPush(mapper)
                         .peek(e -> capture[0].accept(666))
                         .toArray()
