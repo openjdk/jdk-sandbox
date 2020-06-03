@@ -346,6 +346,7 @@ module java.base {
 
     uses java.lang.System.LoggerFinder;
     uses java.net.ContentHandlerFactory;
+    uses java.net.spi.InetNameServiceProvider;
     uses java.net.spi.URLStreamHandlerProvider;
     uses java.nio.channels.spi.AsynchronousChannelProvider;
     uses java.nio.channels.spi.SelectorProvider;
