@@ -257,7 +257,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                                      StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<R> sink) {
-                return new Sink.ChainedReference<P_OUT, R>(sink) {
+                return new Sink.ChainedReference<>(sink) {
                     // true if cancellationRequested() has been called
                     boolean cancellationRequestedCalled;
 
@@ -430,11 +430,11 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
     public final <R> Stream<R> flatPush(BiConsumer<Consumer<R>, ? super P_OUT> mapper) {
         Objects.requireNonNull(mapper);
-        return new StatelessOp<P_OUT, R>(this, StreamShape.REFERENCE,
+        return new StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<R> sink) {
-                return new Sink.ChainedReference<P_OUT, R>(sink) {
+                return new Sink.ChainedReference<>(sink) {
 
                     @Override
                     public void begin(long size) {
@@ -443,7 +443,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        try (FlatPushConsumer.RefSink<R> c = new FlatPushConsumer.RefSink<>(downstream)) {
+                        try (FlatPushConsumer.OfRef<R> c = new FlatPushConsumer.OfRef<>(downstream)) {
                             mapper.accept(c, u);
                         }
                     }
@@ -464,11 +464,13 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     @Override
     public final IntStream flatPushToInt(BiConsumer<IntConsumer, ? super P_OUT> mapper) {
         Objects.requireNonNull(mapper);
-        return new IntPipeline.StatelessOp<P_OUT>(this, StreamShape.REFERENCE,
+        return new IntPipeline.StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Integer> sink) {
-                return new Sink.ChainedReference<P_OUT, Integer>(sink) {
+                return new Sink.ChainedReference<>(sink) {
+                    // cache the consumer to avoid creation on every accepted element
+                    IntConsumer downstreamAsInt = downstream::accept;
 
                     @Override
                     public void begin(long size) {
@@ -477,7 +479,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        try (FlatPushConsumer.IntSink c = new FlatPushConsumer.IntSink(downstream)) {
+                        try (FlatPushConsumer.OfInt c = new FlatPushConsumer.OfInt(downstreamAsInt)) {
                             mapper.accept(c, u);
                         }
                     }
@@ -494,11 +496,13 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     @Override
     public final LongStream flatPushToLong(BiConsumer<LongConsumer, ? super P_OUT> mapper) {
         Objects.requireNonNull(mapper);
-        return new LongPipeline.StatelessOp<P_OUT>(this, StreamShape.REFERENCE,
+        return new LongPipeline.StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Long> sink) {
-                return new Sink.ChainedReference<P_OUT, Long>(sink) {
+                return new Sink.ChainedReference<>(sink) {
+                    // cache the consumer to avoid creation on every accepted element
+                    LongConsumer downstreamAsLong = downstream::accept;
 
                     @Override
                     public void begin(long size) {
@@ -507,7 +511,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        try (FlatPushConsumer.LongSink c = new FlatPushConsumer.LongSink(downstream)) {
+                        try (FlatPushConsumer.OfLong c = new FlatPushConsumer.OfLong(downstreamAsLong)) {
                             mapper.accept(c, u);
                         }
                     }
@@ -525,13 +529,13 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     @Override
     public final DoubleStream flatPushToDouble(BiConsumer<DoubleConsumer, ? super P_OUT> mapper) {
         Objects.requireNonNull(mapper);
-        return new DoublePipeline.StatelessOp<P_OUT>(this, StreamShape.REFERENCE,
+        return new DoublePipeline.StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Double> sink) {
-                return new Sink.ChainedReference<P_OUT, Double>(sink) {
-                    // true if cancellationRequested() has been called
-                    boolean cancellationRequestedCalled;
+                return new Sink.ChainedReference<>(sink) {
+                    // cache the consumer to avoid creation on every accepted element
+                    DoubleConsumer downstreamAsDouble = downstream::accept;
 
                     @Override
                     public void begin(long size) {
@@ -540,14 +544,13 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        try (FlatPushConsumer.DoubleSink c = new FlatPushConsumer.DoubleSink(downstream)) {
+                        try (FlatPushConsumer.OfDouble c = new FlatPushConsumer.OfDouble(downstreamAsDouble)) {
                             mapper.accept(c, u);
                         }
                     }
 
                     @Override
                     public boolean cancellationRequested() {
-                        cancellationRequestedCalled = true;
                         return downstream.cancellationRequested();
                     }
                 };

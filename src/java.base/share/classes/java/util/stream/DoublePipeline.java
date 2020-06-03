@@ -307,12 +307,14 @@ abstract class DoublePipeline<E_IN>
     @Override
     public final DoubleStream flatPush(ObjDoubleConsumer<DoubleConsumer> mapper) {
         Objects.requireNonNull(mapper);
-        return new StatelessOp<Double>(this, StreamShape.DOUBLE_VALUE,
+        return new StatelessOp<>(this, StreamShape.DOUBLE_VALUE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
 
             @Override
             Sink<Double> opWrapSink(int flags, Sink<Double> sink) {
-                return new Sink.ChainedDouble<Double>(sink) {
+                return new Sink.ChainedDouble<>(sink) {
+                    // cache the consumer to avoid creation on every accepted element
+                    DoubleConsumer downstreamAsDouble = downstream::accept;
 
                     @Override
                     public void begin(long size) {
@@ -321,7 +323,7 @@ abstract class DoublePipeline<E_IN>
 
                     @Override
                     public void accept(double t) {
-                        try (FlatPushConsumer.DoubleSink c = new FlatPushConsumer.DoubleSink(downstream)) {
+                        try (FlatPushConsumer.OfDouble c = new FlatPushConsumer.OfDouble(downstreamAsDouble)) {
                             mapper.accept(c, t);
                         }
                     }

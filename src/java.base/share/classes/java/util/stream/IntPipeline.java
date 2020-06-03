@@ -341,11 +341,14 @@ abstract class IntPipeline<E_IN>
     @Override
     public final IntStream flatPush(ObjIntConsumer<IntConsumer> mapper) {
         Objects.requireNonNull(mapper);
-        return new StatelessOp<Integer>(this, StreamShape.INT_VALUE,
+        return new StatelessOp<>(this, StreamShape.INT_VALUE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
             @Override
             Sink<Integer> opWrapSink(int flags, Sink<Integer> sink) {
-                return new Sink.ChainedInt<Integer>(sink) {
+                return new Sink.ChainedInt<>(sink) {
+                    // cache the consumer to avoid creation on every accepted element
+                    IntConsumer downstreamAsInt = downstream::accept;
+
                     @Override
                     public void begin(long size) {
                         downstream.begin(-1);
@@ -353,7 +356,7 @@ abstract class IntPipeline<E_IN>
 
                     @Override
                     public void accept(int t) {
-                        try (FlatPushConsumer.IntSink c = new FlatPushConsumer.IntSink(downstream)) {
+                        try (FlatPushConsumer.OfInt c = new FlatPushConsumer.OfInt(downstreamAsInt)) {
                             mapper.accept(c, t);
                         }
                     }

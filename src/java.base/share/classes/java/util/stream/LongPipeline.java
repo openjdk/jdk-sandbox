@@ -323,11 +323,14 @@ abstract class LongPipeline<E_IN>
     @Override
     public final LongStream flatPush(ObjLongConsumer<LongConsumer> mapper) {
         Objects.requireNonNull(mapper);
-        return new LongPipeline.StatelessOp<Long>(this, StreamShape.LONG_VALUE,
+        return new LongPipeline.StatelessOp<>(this, StreamShape.LONG_VALUE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
             @Override
             Sink<Long> opWrapSink(int flags, Sink<Long> sink) {
-                return new Sink.ChainedLong<Long>(sink) {
+                return new Sink.ChainedLong<>(sink) {
+                    // cache the consumer to avoid creation on every accepted element
+                    LongConsumer downstreamAsLong = downstream::accept;
+
                     @Override
                     public void begin(long size) {
                         downstream.begin(-1);
@@ -335,7 +338,7 @@ abstract class LongPipeline<E_IN>
 
                     @Override
                     public void accept(long t) {
-                        try (FlatPushConsumer.LongSink c = new FlatPushConsumer.LongSink(downstream)) {
+                        try (FlatPushConsumer.OfLong c = new FlatPushConsumer.OfLong(downstreamAsLong)) {
                             mapper.accept(c, t);
                         }
                     }
