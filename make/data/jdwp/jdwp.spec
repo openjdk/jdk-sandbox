@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -461,16 +461,9 @@ JDWP "Java(tm) Debug Wire Protocol"
         "<a href=\"#JDWP_StackFrame_PopFrames\">PopFrames</a> command can be used "
         "to pop frames with obsolete methods."
         "<p>"
-        "Unless the canUnrestrictedlyRedefineClasses capability is present the following "
-        "redefinitions are restricted: "
-        "<ul>"
-        "<li>changing the schema (the fields)</li>"
-        "<li>changing the hierarchy (superclasses, interfaces)</li>"
-        "<li>deleting a method</li>"
-        "<li>changing class modifiers</li>"
-        "<li>changing method modifiers</li>"
-        "<li>changing the <code>NestHost</code>, <code>NestMembers</code>, or <code>Record</code> class attributes</li>"
-        "</ul>"
+        "Unless the canUnrestrictedlyRedefineClasses capability is present "
+        "the redefinition must follow the restrictions described in "
+        "<a href=\"../jvmti.html#RedefineClasses\">JVM TI RedefineClasses</a>."
         "<p>"
         "Requires canRedefineClasses capability - see "
         "<a href=\"#JDWP_VirtualMachine_CapabilitiesNew\">CapabilitiesNew</a>. "
@@ -3167,8 +3160,8 @@ JDWP "Java(tm) Debug Wire Protocol"
                                           "canUnrestrictedlyRedefineClasses is false.")
     (Constant CLASS_ATTRIBUTE_CHANGE_NOT_IMPLEMENTED
                                      =72  "The new class version has a different NestHost, "
-                                          "NestMembers, or Record class attribute and "
-                                          "canUnrestrictedlyRedefineClasses is false.")
+                                          "NestMembers, PermittedSubclasses, or Record class attribute "
+                                          "and canUnrestrictedlyRedefineClasses is false.")
     (Constant NOT_IMPLEMENTED        =99  "The functionality is not implemented in "
                                           "this virtual machine.")
     (Constant NULL_POINTER           =100 "Invalid pointer.")

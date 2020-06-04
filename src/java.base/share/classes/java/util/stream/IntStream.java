@@ -506,8 +506,9 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * <p>This is a <a href="package-summary.html#StreamOps">terminal
      * operation</a>.
      *
-     * @apiNote Sum, min, max, and average are all special cases of reduction.
-     * Summing a stream of numbers can be expressed as:
+     * @apiNote Sum, min and max are all special cases of reduction that can be
+     * expressed using this method.
+     * For example, summing a stream can be expressed as:
      *
      * <pre>{@code
      *     int sum = integers.reduce(0, (a, b) -> a+b);

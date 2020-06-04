@@ -176,6 +176,9 @@ JVM_GetVmArguments(JNIEnv *env);
 JNIEXPORT void JNICALL
 JVM_InitializeFromArchive(JNIEnv* env, jclass cls);
 
+JNIEXPORT jlong JNICALL
+JVM_GetRandomSeedForCDSDump();
+
 /*
  * java.lang.Throwable
  */
@@ -563,6 +566,11 @@ JVM_IsRecord(JNIEnv *env, jclass cls);
 
 JNIEXPORT jobjectArray JNICALL
 JVM_GetRecordComponents(JNIEnv *env, jclass ofClass);
+
+/* Sealed types - since JDK 15 */
+
+JNIEXPORT jobjectArray JNICALL
+JVM_GetPermittedSubclasses(JNIEnv *env, jclass current);
 
 /* The following two reflection routines are still needed due to startup time issues */
 /*

@@ -482,7 +482,7 @@ public:
   static void compute_java_loaders(TRAPS);
 
   // Register a new class loader
-  static ClassLoaderData* register_loader(Handle class_loader);
+  static ClassLoaderData* register_loader(Handle class_loader, bool create_mirror_cld = false);
 protected:
   // Mirrors for primitive classes (created eagerly)
   static oop check_mirror(oop m) {
@@ -667,6 +667,9 @@ public:
     assert(m != NULL, "Unexpected NULL Method*");
     return !m->is_public() && m->method_holder() == SystemDictionary::Object_klass();
   }
+
+  // Return Symbol or throw exception if name given is can not be a valid Symbol.
+  static Symbol* class_name_symbol(const char* name, Symbol* exception, TRAPS);
 
 protected:
   // Setup link to hierarchy

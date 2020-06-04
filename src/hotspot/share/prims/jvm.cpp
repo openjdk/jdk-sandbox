@@ -74,6 +74,7 @@
 #include "runtime/os.inline.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/reflection.hpp"
+#include "runtime/synchronizer.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vframe.inline.hpp"
@@ -490,6 +491,11 @@ JVM_END
 JVM_ENTRY_NO_ENV(void, JVM_GC(void))
   JVMWrapper("JVM_GC");
   if (!DisableExplicitGC) {
+    if (AsyncDeflateIdleMonitors) {
+      // AsyncDeflateIdleMonitors needs to know when System.gc() is
+      // called so any special deflation can be done at a safepoint.
+      ObjectSynchronizer::set_is_special_deflation_requested(true);
+    }
     Universe::heap()->collect(GCCause::_java_lang_system_gc);
   }
 JVM_END
@@ -810,12 +816,13 @@ JVM_ENTRY(jclass, JVM_FindClassFromBootLoader(JNIEnv* env,
                                               const char* name))
   JVMWrapper("JVM_FindClassFromBootLoader");
 
-  // Java libraries should ensure that name is never null...
+  // Java libraries should ensure that name is never null or illegal.
   if (name == NULL || (int)strlen(name) > Symbol::max_length()) {
     // It's impossible to create this class;  the name cannot fit
     // into the constant pool.
     return NULL;
   }
+  assert(UTF8::is_legal_utf8((const unsigned char*)name, (int)strlen(name), false), "illegal UTF name");
 
   TempNewSymbol h_name = SymbolTable::new_symbol(name);
   Klass* k = SystemDictionary::resolve_or_null(h_name, CHECK_NULL);
@@ -834,14 +841,10 @@ JVM_ENTRY(jclass, JVM_FindClassFromCaller(JNIEnv* env, const char* name,
                                           jboolean init, jobject loader,
                                           jclass caller))
   JVMWrapper("JVM_FindClassFromCaller throws ClassNotFoundException");
-  // Java libraries should ensure that name is never null...
-  if (name == NULL || (int)strlen(name) > Symbol::max_length()) {
-    // It's impossible to create this class;  the name cannot fit
-    // into the constant pool.
-    THROW_MSG_0(vmSymbols::java_lang_ClassNotFoundException(), name);
-  }
 
-  TempNewSymbol h_name = SymbolTable::new_symbol(name);
+  TempNewSymbol h_name =
+       SystemDictionary::class_name_symbol(name, vmSymbols::java_lang_ClassNotFoundException(),
+                                           CHECK_NULL);
 
   oop loader_oop = JNIHandles::resolve(loader);
   oop from_class = JNIHandles::resolve(caller);
@@ -870,20 +873,9 @@ JVM_END
 JVM_ENTRY(jclass, JVM_FindClassFromClass(JNIEnv *env, const char *name,
                                          jboolean init, jclass from))
   JVMWrapper("JVM_FindClassFromClass");
-  if (name == NULL) {
-    THROW_MSG_0(vmSymbols::java_lang_NoClassDefFoundError(), "No class name given");
-  }
-  if ((int)strlen(name) > Symbol::max_length()) {
-    // It's impossible to create this class;  the name cannot fit
-    // into the constant pool.
-    Exceptions::fthrow(THREAD_AND_LOCATION,
-                       vmSymbols::java_lang_NoClassDefFoundError(),
-                       "Class name exceeds maximum length of %d: %s",
-                       Symbol::max_length(),
-                       name);
-    return 0;
-  }
-  TempNewSymbol h_name = SymbolTable::new_symbol(name);
+  TempNewSymbol h_name =
+       SystemDictionary::class_name_symbol(name, vmSymbols::java_lang_ClassNotFoundException(),
+                                           CHECK_NULL);
   oop from_class_oop = JNIHandles::resolve(from);
   Klass* from_class = (from_class_oop == NULL)
                            ? (Klass*)NULL
@@ -949,23 +941,10 @@ static jclass jvm_define_class_common(JNIEnv *env, const char *name,
     ClassLoader::perf_app_classfile_bytes_read()->inc(len);
   }
 
-  // Since exceptions can be thrown, class initialization can take place
-  // if name is NULL no check for class name in .class stream has to be made.
-  TempNewSymbol class_name = NULL;
-  if (name != NULL) {
-    const int str_len = (int)strlen(name);
-    if (str_len > Symbol::max_length()) {
-      // It's impossible to create this class;  the name cannot fit
-      // into the constant pool.
-      Exceptions::fthrow(THREAD_AND_LOCATION,
-                         vmSymbols::java_lang_NoClassDefFoundError(),
-                         "Class name exceeds maximum length of %d: %s",
-                         Symbol::max_length(),
-                         name);
-      return 0;
-    }
-    class_name = SymbolTable::new_symbol(name, str_len);
-  }
+  // Class resolution will get the class name from the .class stream if the name is null.
+  TempNewSymbol class_name = name == NULL ? NULL :
+       SystemDictionary::class_name_symbol(name, vmSymbols::java_lang_NoClassDefFoundError(),
+                                           CHECK_NULL);
 
   ResourceMark rm(THREAD);
   ClassFileStream st((u1*)buf, len, source, ClassFileStream::verify);
@@ -1054,24 +1033,10 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
     }
   }
 
-
-  // Since exceptions can be thrown, class initialization can take place
-  // if name is NULL no check for class name in .class stream has to be made.
-  TempNewSymbol class_name = NULL;
-  if (name != NULL) {
-    const int str_len = (int)strlen(name);
-    if (str_len > Symbol::max_length()) {
-      // It's impossible to create this class;  the name cannot fit
-      // into the constant pool.
-      Exceptions::fthrow(THREAD_AND_LOCATION,
-                         vmSymbols::java_lang_NoClassDefFoundError(),
-                         "Class name exceeds maximum length of %d: %s",
-                         Symbol::max_length(),
-                         name);
-      return 0;
-    }
-    class_name = SymbolTable::new_symbol(name, str_len);
-  }
+  // Class resolution will get the class name from the .class stream if the name is null.
+  TempNewSymbol class_name = name == NULL ? NULL :
+       SystemDictionary::class_name_symbol(name, vmSymbols::java_lang_NoClassDefFoundError(),
+                                           CHECK_NULL);
 
   Handle protection_domain (THREAD, JNIHandles::resolve(pd));
   const char* source = is_nestmate ? host_class->external_name() : "__JVM_LookupDefineClass__";
@@ -2136,6 +2101,33 @@ JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
     }
     else {
       assert(host == ck || ck->is_hidden(), "must be singleton nest or dynamic nestmate");
+    }
+    return (jobjectArray)JNIHandles::make_local(THREAD, result());
+  }
+}
+JVM_END
+
+JVM_ENTRY(jobjectArray, JVM_GetPermittedSubclasses(JNIEnv* env, jclass current))
+{
+  JVMWrapper("JVM_GetPermittedSubclasses");
+  assert(!java_lang_Class::is_primitive(JNIHandles::resolve_non_null(current)), "should not be");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ik = InstanceKlass::cast(c);
+  {
+    JvmtiVMObjectAllocEventCollector oam;
+    Array<u2>* subclasses = ik->permitted_subclasses();
+    int length = subclasses == NULL ? 0 : subclasses->length();
+    objArrayOop r = oopFactory::new_objArray(SystemDictionary::String_klass(),
+                                             length, CHECK_NULL);
+    objArrayHandle result(THREAD, r);
+    for (int i = 0; i < length; i++) {
+      int cp_index = subclasses->at(i);
+      // This returns <package-name>/<class-name>.
+      Symbol* klass_name = ik->constants()->klass_name_at(cp_index);
+      assert(klass_name != NULL, "Unexpected null klass_name");
+      Handle perm_subtype_h = java_lang_String::create_from_symbol(klass_name, CHECK_NULL);
+      result->obj_at_put(i, perm_subtype_h());
     }
     return (jobjectArray)JNIHandles::make_local(THREAD, result());
   }
@@ -3731,6 +3723,29 @@ JVM_ENTRY(void, JVM_InitializeFromArchive(JNIEnv* env, jclass cls))
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve(cls));
   assert(k->is_klass(), "just checking");
   HeapShared::initialize_from_archived_subgraph(k);
+JVM_END
+
+JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForCDSDump())
+  JVMWrapper("JVM_GetRandomSeedForCDSDump");
+  if (DumpSharedSpaces) {
+    const char* release = Abstract_VM_Version::vm_release();
+    const char* dbg_level = Abstract_VM_Version::jdk_debug_level();
+    const char* version = VM_Version::internal_vm_info_string();
+    jlong seed = (jlong)(java_lang_String::hash_code((const jbyte*)release, (int)strlen(release)) ^
+                         java_lang_String::hash_code((const jbyte*)dbg_level, (int)strlen(dbg_level)) ^
+                         java_lang_String::hash_code((const jbyte*)version, (int)strlen(version)));
+    seed += (jlong)Abstract_VM_Version::vm_major_version();
+    seed += (jlong)Abstract_VM_Version::vm_minor_version();
+    seed += (jlong)Abstract_VM_Version::vm_security_version();
+    seed += (jlong)Abstract_VM_Version::vm_patch_version();
+    if (seed == 0) { // don't let this ever be zero.
+      seed = 0x87654321;
+    }
+    log_debug(cds)("JVM_GetRandomSeedForCDSDump() = " JLONG_FORMAT, seed);
+    return seed;
+  } else {
+    return 0;
+  }
 JVM_END
 
 // Returns an array of all live Thread objects (VM internal JavaThreads,
