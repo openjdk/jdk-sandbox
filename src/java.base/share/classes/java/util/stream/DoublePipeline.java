@@ -305,7 +305,7 @@ abstract class DoublePipeline<E_IN>
     }
 
     @Override
-    public final DoubleStream flatPush(ObjDoubleConsumer<DoubleConsumer> mapper) {
+    public final DoubleStream flatten(ObjDoubleConsumer<DoubleConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return new StatelessOp<>(this, StreamShape.DOUBLE_VALUE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {

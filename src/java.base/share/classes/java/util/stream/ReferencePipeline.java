@@ -428,7 +428,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
         };
     }
 
-    public final <R> Stream<R> flatPush(BiConsumer<Consumer<R>, ? super P_OUT> mapper) {
+    public final <R> Stream<R> flatten(BiConsumer<Consumer<R>, ? super P_OUT> mapper) {
         Objects.requireNonNull(mapper);
         return new StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
@@ -460,7 +460,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     }
 
     @Override
-    public final IntStream flatPushToInt(BiConsumer<IntConsumer, ? super P_OUT> mapper) {
+    public final IntStream flattenToInt(BiConsumer<IntConsumer, ? super P_OUT> mapper) {
         Objects.requireNonNull(mapper);
         return new IntPipeline.StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
@@ -490,7 +490,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     }
 
     @Override
-    public final LongStream flatPushToLong(BiConsumer<LongConsumer, ? super P_OUT> mapper) {
+    public final LongStream flattenToLong(BiConsumer<LongConsumer, ? super P_OUT> mapper) {
         Objects.requireNonNull(mapper);
         return new LongPipeline.StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
@@ -521,7 +521,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
 
     @Override
-    public final DoubleStream flatPushToDouble(BiConsumer<DoubleConsumer, ? super P_OUT> mapper) {
+    public final DoubleStream flattenToDouble(BiConsumer<DoubleConsumer, ? super P_OUT> mapper) {
         Objects.requireNonNull(mapper);
         return new DoublePipeline.StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {

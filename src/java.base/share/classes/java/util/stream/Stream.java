@@ -352,7 +352,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * operation</a>.
      *
      * @apiNote
-     * The {@code flatPush()} operation has the effect of applying a one-to-many
+     * The {@code flatten()} operation has the effect of applying a one-to-many
      * transformation to the elements of the stream, and then flattening the
      * resulting elements into a new stream.
      *
@@ -367,7 +367,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * order can be updated and checked, then the following updates each order and
      * produces a stream containing all the orders that have been completed:
      * <pre>{@code
-     *       orders.flatPush((order, sink) -> {
+     *       orders.flatten((order, sink) -> {
      *          order.update();
      *          if (order.isCompleted())
      *              sink.accept(order);
@@ -378,13 +378,13 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * produces a stream of only the Integer objects in {@code numbers}. Each
      * of these objects is added twice to the resulting stream:
      * <pre>{@code
-     *       numbers.flatPush((n, sink) -> {
+     *       numbers.flatten((n, sink) -> {
      *           if (n instanceof Integer)
      *               sink.accept(n);
      *               sink.accept(n)
      *       });
      * }</pre>
-     * The {@code mapper} passed to {@code flatPush} checks the class type of
+     * The {@code mapper} passed to {@code flatten} checks the class type of
      * each element of the numbers stream and pushes only the elements that are
      * of type Integer to the sink twice.
      *
@@ -395,7 +395,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               new values
      * @return       the new stream
      */
-    default <R> Stream<R> flatPush(BiConsumer<Consumer<R>, ? super T> mapper) {
+    default <R> Stream<R> flatten(BiConsumer<Consumer<R>, ? super T> mapper) {
         Objects.requireNonNull(mapper);
         return this.flatMap(e -> {
             SpinedBuffer<R> buffer = new SpinedBuffer<>();
@@ -426,9 +426,9 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               function to apply to each element which produces a stream
      *               of new values
      * @return the new stream
-     * @see #flatPush(BiConsumer)
+     * @see #flatten(BiConsumer)
      */
-    default IntStream flatPushToInt(BiConsumer<IntConsumer, ? super T> mapper) {
+    default IntStream flattenToInt(BiConsumer<IntConsumer, ? super T> mapper) {
         Objects.requireNonNull(mapper);
         return this.flatMapToInt(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
@@ -459,9 +459,9 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               function to apply to each element which produces a stream
      *               of new values
      * @return the new stream
-     * @see #flatPush(BiConsumer)
+     * @see #flatten(BiConsumer)
      */
-    default LongStream flatPushToLong(BiConsumer<LongConsumer, ? super T> mapper) {
+    default LongStream flattenToLong(BiConsumer<LongConsumer, ? super T> mapper) {
         Objects.requireNonNull(mapper);
         return this.flatMapToLong(e -> {
             SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
@@ -492,9 +492,9 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               function to apply to each element which produces a stream
      *               of new values
      * @return the new stream
-     * @see #flatPush(BiConsumer)
+     * @see #flatten(BiConsumer)
      */
-    default DoubleStream flatPushToDouble(BiConsumer<DoubleConsumer, ? super T> mapper) {
+    default DoubleStream flattenToDouble(BiConsumer<DoubleConsumer, ? super T> mapper) {
         Objects.requireNonNull(mapper);
         return this.flatMapToDouble(e -> {
             SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();

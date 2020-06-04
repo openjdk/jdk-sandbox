@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary flatPush(BiConsumer) + primitive stream operations
+ * @summary flatten(BiConsumer) and primitive stream operations
  */
 
 package org.openjdk.tests.java.util.stream;
@@ -33,7 +33,6 @@ import org.testng.annotations.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
@@ -43,7 +42,6 @@ import java.util.function.LongConsumer;
 import java.util.function.ObjDoubleConsumer;
 import java.util.function.ObjIntConsumer;
 import java.util.function.ObjLongConsumer;
-import java.util.stream.Collectors;
 import java.util.stream.DefaultMethodStreams;
 import java.util.stream.DoubleStream;
 import java.util.stream.DoubleStreamTestDataProvider;
@@ -69,7 +67,7 @@ import static java.util.stream.LambdaTestHelpers.mfNull;
 import static java.util.stream.ThrowableHelper.checkNPE;
 
 @Test
-public class FlatPushOpTest extends OpTestCase {
+public class FlattenOpTest extends OpTestCase {
 
     BiConsumer<Consumer<Integer>, Integer> nullConsumer =
             (sink, e) -> mfNull.apply(e).forEach(sink::accept);
@@ -107,63 +105,50 @@ public class FlatPushOpTest extends OpTestCase {
 
     @Test(dataProvider = "Stream<Integer>")
     public void testNullMapper(Stream<Integer> s) {
-        checkNPE(() -> s.flatPush(null));
-        checkNPE(() -> s.flatPushToInt(null));
-        checkNPE(() -> s.flatPushToDouble(null));
-        checkNPE(() -> s.flatPushToLong(null));
+        checkNPE(() -> s.flatten(null));
+        checkNPE(() -> s.flattenToInt(null));
+        checkNPE(() -> s.flattenToDouble(null));
+        checkNPE(() -> s.flattenToLong(null));
     }
-
-    /*
-    // Commented out until cancel operation for flatPush is revisited
-
-    @Test(dataProvider = "Stream<Integer>")
-    public void testOpsShortCircuit(Stream<Integer> s) {
-        AtomicInteger count = new AtomicInteger();
-        s.flatPush(rangeConsumer100)
-                .peek(i -> count.incrementAndGet())
-                .limit(10).toArray();
-        assertEquals(count.get(), 10);
-    }
-     */
 
     @Test
-    public void testFlatPush() {
+    public void testFlatten() {
         String[] stringsArray = {"hello", "there", "", "yada"};
         Stream<String> strings = Arrays.asList(stringsArray).stream();
 
-        assertConcat(strings.flatPush(charConsumer)
+        assertConcat(strings.flatten(charConsumer)
                 .iterator(), "hellothereyada");
-        assertCountSum((countTo(10).stream().flatPush(idConsumer)),
+        assertCountSum((countTo(10).stream().flatten(idConsumer)),
                 10, 55);
-        assertCountSum(countTo(10).stream().flatPush(nullConsumer),
+        assertCountSum(countTo(10).stream().flatten(nullConsumer),
                 0, 0);
-        assertCountSum(countTo(3).stream().flatPush(listConsumer),
+        assertCountSum(countTo(3).stream().flatten(listConsumer),
                 6, 4);
 
         exerciseOps(TestData.Factory.ofArray("stringsArray",
-                stringsArray), s -> s.flatPush(charConsumer));
+                stringsArray), s -> s.flatten(charConsumer));
         exerciseOps(TestData.Factory.ofArray("LONG_STRING",
-                new String[]{LONG_STRING}), s -> s.flatPush(charConsumer));
+                new String[]{LONG_STRING}), s -> s.flatten(charConsumer));
     }
 
     @Test
-    public void testDefaultFlatPush() {
+    public void testDefaultFlatten() {
         String[] stringsArray = {"hello", "there", "", "yada"};
         Stream<String> strings = Arrays.stream(stringsArray);
 
         assertConcat(delegateTo(strings)
-                .flatPush(charConsumer).iterator(), "hellothereyada");
+                .flatten(charConsumer).iterator(), "hellothereyada");
         assertCountSum(delegateTo(countTo(10).stream())
-                .flatPush(idConsumer), 10, 55);
+                .flatten(idConsumer), 10, 55);
         assertCountSum(delegateTo(countTo(10).stream())
-                .flatPush(nullConsumer), 0, 0);
+                .flatten(nullConsumer), 0, 0);
         assertCountSum(delegateTo(countTo(3).stream())
-                .flatPush(listConsumer), 6, 4);
+                .flatten(listConsumer), 6, 4);
 
         exerciseOps(TestData.Factory.ofArray("stringsArray",
-                stringsArray), s -> delegateTo(s).flatPush(charConsumer));
+                stringsArray), s -> delegateTo(s).flatten(charConsumer));
         exerciseOps(TestData.Factory.ofArray("LONG_STRING",
-                new String[]{LONG_STRING}), s -> delegateTo(s).flatPush(charConsumer));
+                new String[]{LONG_STRING}), s -> delegateTo(s).flatten(charConsumer));
     }
 
     @Test(dataProvider = "StreamTestData<Integer>",
@@ -177,30 +162,30 @@ public class FlatPushOpTest extends OpTestCase {
                          TestData.OfRef<Integer> data,
                          Function<Stream<Integer>, Stream<Integer>> sf) {
         Collection<Integer> result;
-        result = exerciseOps(data, s -> sf.apply(s).flatPush(idConsumer));
+        result = exerciseOps(data, s -> sf.apply(s).flatten(idConsumer));
         assertEquals(data.size(), result.size());
 
-        result = exerciseOps(data, s -> sf.apply(s).flatPush(nullConsumer));
+        result = exerciseOps(data, s -> sf.apply(s).flatten(nullConsumer));
         assertEquals(0, result.size());
 
-        result = exerciseOps(data, s -> sf.apply(s).flatPush(emptyStreamConsumer));
+        result = exerciseOps(data, s -> sf.apply(s).flatten(emptyStreamConsumer));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "StreamTestData<Integer>.small",
             dataProviderClass = StreamTestDataProvider.class)
     public void testOpsX(String name, TestData.OfRef<Integer> data) {
-        exerciseOps(data, s -> s.flatPush(listConsumer));
-        exerciseOps(data, s -> s.flatPush(intRangeConsumer));
-        exerciseOps(data, s -> s.flatPush(rangeConsumerWithLimit));
+        exerciseOps(data, s -> s.flatten(listConsumer));
+        exerciseOps(data, s -> s.flatten(intRangeConsumer));
+        exerciseOps(data, s -> s.flatten(rangeConsumerWithLimit));
     }
 
     @Test(dataProvider = "StreamTestData<Integer>.small",
             dataProviderClass = StreamTestDataProvider.class)
     public void testDefaultOpsX(String name, TestData.OfRef<Integer> data) {
-        exerciseOps(data, s -> delegateTo(s).flatPush(listConsumer));
-        exerciseOps(data, s -> delegateTo(s).flatPush(intRangeConsumer));
-        exerciseOps(data, s -> delegateTo(s).flatPush(rangeConsumerWithLimit));
+        exerciseOps(data, s -> delegateTo(s).flatten(listConsumer));
+        exerciseOps(data, s -> delegateTo(s).flatten(intRangeConsumer));
+        exerciseOps(data, s -> delegateTo(s).flatten(rangeConsumerWithLimit));
     }
 
     // Int
@@ -215,21 +200,8 @@ public class FlatPushOpTest extends OpTestCase {
 
     @Test(dataProvider = "IntStream")
     public void testIntNullMapper(IntStream s) {
-        checkNPE(() -> s.flatPush(null));
+        checkNPE(() -> s.flatten(null));
     }
-
-    /*
-    // Commented out until cancel operation for flatPush is revisited
-
-    @Test(dataProvider = "IntStream")
-    public void testIntOpsShortCircuit(IntStream s) {
-        AtomicInteger count = new AtomicInteger();
-        s.flatPush(rangeConsumer100Int)
-                .peek(i -> count.incrementAndGet())
-                .limit(10).toArray();
-        assertEquals(count.get(), 10);
-    }
-    */
 
     @Test(dataProvider = "IntStreamTestData", dataProviderClass = IntStreamTestDataProvider.class)
     public void testIntOps(String name, TestData.OfInt data) {
@@ -240,34 +212,34 @@ public class FlatPushOpTest extends OpTestCase {
     private void testIntOps(String name,
                             TestData.OfInt data,
                             Function<IntStream, IntStream> sf) {
-        Collection<Integer> result = exerciseOps(data, s -> sf.apply(s).flatPush((sink, i) -> IntStream.of(i).forEach(sink::accept)));
+        Collection<Integer> result = exerciseOps(data, s -> sf.apply(s).flatten((sink, i) -> IntStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).boxed().flatPushToInt((sink, i) -> IntStream.of(i).forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).boxed().flattenToInt((sink, i) -> IntStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).flatPush((sink, i) -> IntStream.empty().forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).flatten((sink, i) -> IntStream.empty().forEach(sink::accept)));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "IntStreamTestData.small", dataProviderClass = IntStreamTestDataProvider.class)
     public void testIntOpsX(String name, TestData.OfInt data) {
-        exerciseOps(data, s -> s.flatPush((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> s.flatPush((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> s.flatten((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> s.flatten((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
 
-        exerciseOps(data, s -> s.boxed().flatPushToInt((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> s.boxed().flatPushToInt((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> s.boxed().flattenToInt((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> s.boxed().flattenToInt((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 
     @Test(dataProvider = "IntStreamTestData.small", dataProviderClass = IntStreamTestDataProvider.class)
     public void testDefaultIntOpsX(String name, TestData.OfInt data) {
-        exerciseOps(data, s -> delegateTo(s).flatPush((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> delegateTo(s).flatPush((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).flatten((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).flatten((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
 
-        exerciseOps(data, s -> delegateTo(s).boxed().flatPushToInt((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> delegateTo(s).boxed().flatPushToInt((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).boxed().flattenToInt((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).boxed().flattenToInt((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 
     // Double
@@ -282,22 +254,8 @@ public class FlatPushOpTest extends OpTestCase {
 
     @Test(dataProvider = "DoubleStream")
     public void testDoubleNullMapper(DoubleStream s) {
-        checkNPE(() -> s.flatPush(null));
+        checkNPE(() -> s.flatten(null));
     }
-
-    /*
-    // Commented out until cancel operation for flatPush is revisited
-
-    @Test(dataProvider = "DoubleStream")
-    public void testDoubleOpsShortCircuit(DoubleStream s) {
-        AtomicInteger count = new AtomicInteger();
-        s.flatPush(rangeConsumer100Double)
-                .peek(i -> count.incrementAndGet())
-                .limit(10).toArray();
-        assertEquals(count.get(), 10);
-    }
-    */
-
 
     @Test(dataProvider = "DoubleStreamTestData", dataProviderClass = DoubleStreamTestDataProvider.class)
     public void testDoubleOps(String name, TestData.OfDouble data) {
@@ -308,28 +266,28 @@ public class FlatPushOpTest extends OpTestCase {
     private void testDoubleOps(String name,
                                TestData.OfDouble data,
                                Function<DoubleStream, DoubleStream> sf) {
-        Collection<Double> result = exerciseOps(data, s -> sf.apply(s).flatPush((sink, i) -> DoubleStream.of(i).forEach(sink::accept)));
+        Collection<Double> result = exerciseOps(data, s -> sf.apply(s).flatten((sink, i) -> DoubleStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).boxed().flatPushToDouble((sink, i) -> DoubleStream.of(i).forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).boxed().flattenToDouble((sink, i) -> DoubleStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).flatPush((sink, i) -> DoubleStream.empty().forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).flatten((sink, i) -> DoubleStream.empty().forEach(sink::accept)));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "DoubleStreamTestData.small", dataProviderClass = DoubleStreamTestDataProvider.class)
     public void testDoubleOpsX(String name, TestData.OfDouble data) {
-        exerciseOps(data, s -> s.flatPush((sink, e) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
-        exerciseOps(data, s -> s.flatPush((sink, e) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> s.flatten((sink, e) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> s.flatten((sink, e) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
     }
 
     @Test(dataProvider = "DoubleStreamTestData.small", dataProviderClass = DoubleStreamTestDataProvider.class)
     public void testDefaultDoubleOpsX(String name, TestData.OfDouble data) {
-        exerciseOps(data, s -> delegateTo(s).flatPush((sink, e) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
-        exerciseOps(data, s -> delegateTo(s).flatPush((sink, e) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).flatten((sink, e) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).flatten((sink, e) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
     }
 
     // Long
@@ -344,21 +302,8 @@ public class FlatPushOpTest extends OpTestCase {
 
     @Test(dataProvider = "LongStream")
     public void testLongNullMapper(LongStream s) {
-        checkNPE(() -> s.flatPush(null));
+        checkNPE(() -> s.flatten(null));
     }
-
-    /*
-    // Commented out until cancel operation for flatPush is revisited
-
-    @Test(dataProvider = "LongStream")
-    public void testLongOpsShortCircuit(LongStream s) {
-        AtomicInteger count = new AtomicInteger();
-        s.flatPush(rangeConsumer100Long)
-                .peek(i -> count.incrementAndGet())
-                .limit(10).toArray();
-        assertEquals(count.get(), 10);
-    }
-     */
 
     @Test(dataProvider = "LongStreamTestData", dataProviderClass = LongStreamTestDataProvider.class)
     public void testLongOps(String name, TestData.OfLong data) {
@@ -369,27 +314,27 @@ public class FlatPushOpTest extends OpTestCase {
     private void testLongOps(String name,
                              TestData.OfLong data,
                              Function<LongStream, LongStream> sf) {
-        Collection<Long> result = exerciseOps(data, s -> sf.apply(s).flatPush((sink, i) -> LongStream.of(i).forEach(sink::accept)));
+        Collection<Long> result = exerciseOps(data, s -> sf.apply(s).flatten((sink, i) -> LongStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).boxed().flatPushToLong((sink, i) -> LongStream.of(i).forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).boxed().flattenToLong((sink, i) -> LongStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).flatPush((sink, i) -> LongStream.empty().forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).flatten((sink, i) -> LongStream.empty().forEach(sink::accept)));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "LongStreamTestData.small", dataProviderClass = LongStreamTestDataProvider.class)
     public void testLongOpsX(String name, TestData.OfLong data) {
-        exerciseOps(data, s -> s.flatPush((sink, e) -> LongStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> s.flatPush((sink, e) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> s.flatten((sink, e) -> LongStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> s.flatten((sink, e) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 
     @Test(dataProvider = "LongStreamTestData.small", dataProviderClass = LongStreamTestDataProvider.class)
     public void testDefaultLongOpsX(String name, TestData.OfLong data) {
-        exerciseOps(data, s -> delegateTo(s).flatPush((sink, e) -> LongStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> delegateTo(s).flatPush((sink, e) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).flatten((sink, e) -> LongStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).flatten((sink, e) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 }

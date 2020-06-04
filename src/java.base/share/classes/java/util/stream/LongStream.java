@@ -185,9 +185,9 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      *               function to apply to each element which produces a
      *               {@code LongStream} of new values
      * @return the new stream
-     * @see Stream#flatPush(BiConsumer)
+     * @see Stream#flatten(BiConsumer)
      */
-    default LongStream flatPush(ObjLongConsumer<LongConsumer> mapper) {
+    default LongStream flatten(ObjLongConsumer<LongConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return this.flatMap(e -> {
             SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();

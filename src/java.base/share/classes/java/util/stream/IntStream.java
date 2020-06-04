@@ -185,9 +185,9 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      *               function to apply to each element which produces an
      *               {@code IntStream} of new values
      * @return the new stream
-     * @see Stream#flatPush(BiConsumer)
+     * @see Stream#flatten(BiConsumer)
      */
-    default IntStream flatPush(ObjIntConsumer<IntConsumer> mapper) {
+    default IntStream flatten(ObjIntConsumer<IntConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return this.flatMap(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
