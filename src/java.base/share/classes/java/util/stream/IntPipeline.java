@@ -356,9 +356,7 @@ abstract class IntPipeline<E_IN>
 
                     @Override
                     public void accept(int t) {
-                        try (FlatPushConsumer.OfInt c = new FlatPushConsumer.OfInt(downstreamAsInt)) {
-                            mapper.accept(c, t);
-                        }
+                        mapper.accept(downstreamAsInt, t);
                     }
 
                     @Override

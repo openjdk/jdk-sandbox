@@ -323,9 +323,7 @@ abstract class DoublePipeline<E_IN>
 
                     @Override
                     public void accept(double t) {
-                        try (FlatPushConsumer.OfDouble c = new FlatPushConsumer.OfDouble(downstreamAsDouble)) {
-                            mapper.accept(c, t);
-                        }
+                            mapper.accept(downstreamAsDouble, t);
                     }
 
                     @Override

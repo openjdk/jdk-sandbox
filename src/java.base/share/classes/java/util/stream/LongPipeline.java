@@ -338,9 +338,7 @@ abstract class LongPipeline<E_IN>
 
                     @Override
                     public void accept(long t) {
-                        try (FlatPushConsumer.OfLong c = new FlatPushConsumer.OfLong(downstreamAsLong)) {
-                            mapper.accept(c, t);
-                        }
+                        mapper.accept(downstreamAsLong, t);
                     }
 
                     @Override

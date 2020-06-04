@@ -113,58 +113,6 @@ public class FlatPushOpTest extends OpTestCase {
         checkNPE(() -> s.flatPushToLong(null));
     }
 
-    @Test(dataProvider = "Stream<Integer>")
-    public void testConsumerContained(Stream<Integer> s) {
-        Consumer<Integer>[] capture = new Consumer[1];
-        BiConsumer<Consumer<Integer>, Integer> mapper = (c, i) -> {
-            capture[0] = c;
-            c.accept(i);
-        };
-        assertThrows(IllegalStateException.class,
-                () -> s.flatPush(mapper)
-                        .peek(e -> capture[0].accept(666))
-                        .collect(Collectors.toList()));
-    }
-
-    @Test(dataProvider = "Stream<Integer>")
-    public void testConsumerContainedToInt(Stream<Integer> s) {
-        IntConsumer[] capture = new IntConsumer[1];
-        BiConsumer<IntConsumer, Integer> mapper = (c, i) -> {
-            capture[0] = c;
-            c.accept(i);
-        };
-        assertThrows(IllegalStateException.class,
-                () -> s.flatPushToInt(mapper)
-                        .peek(e -> capture[0].accept(666))
-                        .toArray());
-    }
-
-    @Test(dataProvider = "Stream<Integer>")
-    public void testConsumerContainedToDouble(Stream<Integer> s) {
-        DoubleConsumer[] capture = new DoubleConsumer[1];
-        BiConsumer<DoubleConsumer, Integer> mapper = (c, i) -> {
-            capture[0] = c;
-            c.accept(i);
-        };
-        assertThrows(IllegalStateException.class,
-                () -> s.flatPushToDouble(mapper)
-                        .peek(e -> capture[0].accept(666))
-                        .toArray());
-    }
-
-    @Test(dataProvider = "Stream<Integer>")
-    public void testConsumerContainedToLong(Stream<Integer> s) {
-        LongConsumer[] capture = new LongConsumer[1];
-        BiConsumer<LongConsumer, Integer> mapper = (c, i) -> {
-            capture[0] = c;
-            c.accept(i);
-        };
-        assertThrows(IllegalStateException.class,
-                () -> s.flatPushToLong(mapper)
-                        .peek(e -> capture[0].accept(666))
-                        .toArray());
-    }
-
     /*
     // Commented out until cancel operation for flatPush is revisited
 
@@ -270,20 +218,6 @@ public class FlatPushOpTest extends OpTestCase {
         checkNPE(() -> s.flatPush(null));
     }
 
-    @Test(dataProvider = "IntStream")
-    public void testIntConsumerContained(IntStream s) {
-        IntConsumer[] capture = new IntConsumer[1];
-        ObjIntConsumer<IntConsumer> mapper = (c, i) -> {
-            capture[0] = c;
-            c.accept(i);
-        };
-        assertThrows(IllegalStateException.class,
-                () -> s.flatPush(mapper)
-                        .peek(e -> capture[0].accept(666))
-                        .toArray()
-        );
-    }
-
     /*
     // Commented out until cancel operation for flatPush is revisited
 
@@ -351,20 +285,6 @@ public class FlatPushOpTest extends OpTestCase {
         checkNPE(() -> s.flatPush(null));
     }
 
-    @Test(dataProvider = "DoubleStream")
-    public void testDoubleConsumerContained(DoubleStream s) {
-        DoubleConsumer[] capture = new DoubleConsumer[1];
-        ObjDoubleConsumer<DoubleConsumer> mapper = (c, i) -> {
-            capture[0] = c;
-            c.accept(i);
-        };
-        assertThrows(IllegalStateException.class,
-                () -> s.flatPush(mapper)
-                        .peek(e -> capture[0].accept(666))
-                        .toArray()
-        );
-    }
-
     /*
     // Commented out until cancel operation for flatPush is revisited
 
@@ -425,20 +345,6 @@ public class FlatPushOpTest extends OpTestCase {
     @Test(dataProvider = "LongStream")
     public void testLongNullMapper(LongStream s) {
         checkNPE(() -> s.flatPush(null));
-    }
-
-    @Test(dataProvider = "LongStream")
-    public void testLongConsumerContained(LongStream s) {
-        LongConsumer[] capture = new LongConsumer[1];
-        ObjLongConsumer<LongConsumer> mapper = (c, i) -> {
-            capture[0] = c;
-            c.accept(i);
-        };
-        assertThrows(IllegalStateException.class,
-                () -> s.flatPush(mapper)
-                        .peek(e -> capture[0].accept(666))
-                        .toArray()
-        );
     }
 
     /*

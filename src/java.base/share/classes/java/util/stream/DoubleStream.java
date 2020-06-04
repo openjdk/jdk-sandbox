@@ -190,9 +190,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
         Objects.requireNonNull(mapper);
         return this.flatMap(e -> {
             SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
-            try (FlatPushConsumer.OfDouble c = new FlatPushConsumer.OfDouble(buffer)) {
-                mapper.accept(c, e);
-            }
+            mapper.accept(buffer, e);
             return StreamSupport.doubleStream(buffer.spliterator(), false);
         });
     }

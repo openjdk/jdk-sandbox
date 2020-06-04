@@ -191,9 +191,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
         Objects.requireNonNull(mapper);
         return this.flatMap(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
-            try (FlatPushConsumer.OfInt c = new FlatPushConsumer.OfInt(buffer)) {
-                mapper.accept(c, e);
-            }
+            mapper.accept(buffer, e);
             return StreamSupport.intStream(buffer.spliterator(), false);
         });
     }
