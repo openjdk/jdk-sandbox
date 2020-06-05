@@ -56,8 +56,8 @@ public class FlatMapOpTest extends OpTestCase {
     @Test
     public void testNullMapper() {
         checkNPE(() -> Stream.of(1).flatMap(null));
-        checkNPE(() -> IntStream.of(1).flatMap( null));
-        checkNPE(() -> LongStream.of(1).flatMap( null));
+        checkNPE(() -> IntStream.of(1).flatMap(null));
+        checkNPE(() -> LongStream.of(1).flatMap(null));
         checkNPE(() -> DoubleStream.of(1).flatMap(null));
     }
 
@@ -71,11 +71,9 @@ public class FlatMapOpTest extends OpTestCase {
         assertConcat(strings.flatMap(flattenChars).iterator(), "hellothereyada");
 
         assertCountSum(countTo(10).stream().flatMap(mfId), 10, 55);
-
         assertCountSum(countTo(10).stream().flatMap(mfNull), 0, 0);
-        assertCountSum(countTo(10).stream().flatMap(e -> Stream.empty()), 0, 0);
-
         assertCountSum(countTo(3).stream().flatMap(mfLt), 6, 4);
+        assertCountSum(countTo(10).stream().flatMap(e -> Stream.empty()), 0, 0);
 
         exerciseOps(TestData.Factory.ofArray("stringsArray", stringsArray), s -> s.flatMap(flattenChars));
         exerciseOps(TestData.Factory.ofArray("LONG_STRING", new String[] {LONG_STRING}), s -> s.flatMap(flattenChars));
