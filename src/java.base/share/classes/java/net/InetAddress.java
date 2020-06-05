@@ -171,9 +171,9 @@ import sun.nio.cs.UTF_8;
  *     implementations using the system class loader. The order the providers are
  *     located is implementation specific. The first found provider will be used
  *     to instantiate the
- *     {@link InetNameServiceProvider.NameService InetNameService}
+ *     {@link InetNameServiceProvider.NameService NameService}
  *     by invoking {@link java.net.spi.InetNameServiceProvider#get(InetNameServiceProvider.NameService)}
- *     method. The instantiated {@code InetNameService} will be used as platform name
+ *     method. The instantiated {@code NameService} will be used as platform name
  *     service.
  * <li>If the previous step fails to find a name service provider
  *     the platform default name service will be used.
