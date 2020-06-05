@@ -30,13 +30,13 @@ import java.net.ProtocolFamily;
 import java.net.UnknownHostException;
 
 /**
- * A {@code NameServiceProvider} can be used to provide a system-wide alternative name
+ * An {@code InetNameServiceProvider} can be used to provide a system-wide alternative name
  * service resolution mechanism used for {@link InetAddress} host name and IP address resolution.
  */
 public abstract class InetNameServiceProvider {
 
     /**
-     * InetNameService provides host and address lookup service
+     * NameService provides host and address lookup service
      */
     public interface NameService {
 
@@ -110,21 +110,21 @@ public abstract class InetNameServiceProvider {
     public abstract String name();
 
     /**
-     * The {@code RuntimePermission("nameServiceProvider")} is
-     * necessary to subclass and instantiate the {@code NameServiceProvider} class,
+     * The {@code RuntimePermission("inetNameServiceProvider")} is
+     * necessary to subclass and instantiate the {@code InetNameServiceProvider} class,
      * as well as to obtain name service from an instance of that class,
      * and it is also required to obtain the operating system name resolution configurations.
      */
     private static final RuntimePermission NAMESERVICE_PERMISSION =
-            new RuntimePermission("nameServiceProvider");
+            new RuntimePermission("inetNameServiceProvider");
 
     /**
-     * Creates a new instance of {@code NameServiceProvider}.
+     * Creates a new instance of {@code InetNameServiceProvider}.
      *
      * @throws SecurityException if a security manager is present and its
      *                           {@code checkPermission} method doesn't allow the
-     *                           {@code RuntimePermission("nameServiceProvider")}.
-     * @implNote It is recommended that a {@code NameServiceProvider} service
+     *                           {@code RuntimePermission("inetNameServiceProvider")}.
+     * @implNote It is recommended that an {@code InetNameServiceProvider} service
      * implementation does not perform any heavy initialization in its
      * constructor, in order to avoid possible risks of deadlock or class
      * loading cycles during the instantiation of the service provider.
