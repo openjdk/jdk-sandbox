@@ -108,7 +108,8 @@ public final class TypeLibrary {
             if (instance == null) {
                 List<Type> jvmTypes;
                 try {
-                    jvmTypes = MetadataHandler.createTypes();
+                    Collection<Type> types = MetadataLoader.createTypes();
+                    jvmTypes = new ArrayList<Type>(types);
                     Collections.sort(jvmTypes, (a,b) -> Long.compare(a.getId(), b.getId()));
                 } catch (IOException e) {
                     throw new Error("JFR: Could not read metadata");

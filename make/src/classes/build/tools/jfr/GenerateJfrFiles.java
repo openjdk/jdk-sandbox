@@ -1,16 +1,23 @@
 package build.tools.jfr;
 
 import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.function.Predicate;
 
@@ -28,7 +35,7 @@ import org.xml.sax.helpers.DefaultHandler;
 public class GenerateJfrFiles {
 
     public static void main(String... args) throws Exception {
-        if (args.length != 3) {
+        if (args.length != 4) {
             System.err.println("Incorrect number of command line arguments.");
             System.err.println("Usage:");
             System.err.println("java GenerateJfrFiles[.java] <path-to-metadata.xml> <path-to-metadata.xsd> <output-directory>");
@@ -38,11 +45,15 @@ public class GenerateJfrFiles {
             File metadataXml = new File(args[0]);
             File metadataSchema = new File(args[1]);
             File outputDirectory = new File(args[2]);
-
+            File metadataDirectory = new File(args[3]);
+            metadataDirectory.mkdirs();
+            File metadataBinary = new File(metadataDirectory, "metadata.bin");
+            
+            
             Metadata metadata = new Metadata(metadataXml, metadataSchema);
             metadata.verify();
             metadata.wireUpTypes();
-
+            
             TypeCounter typeCounter = new TypeCounter();
             printJfrEventIdsHpp(metadata, typeCounter, outputDirectory);
             printJfrTypesHpp(metadata, typeCounter, outputDirectory);
@@ -50,6 +61,10 @@ public class GenerateJfrFiles {
             printJfrEventControlHpp(metadata, typeCounter, outputDirectory);
             printJfrEventClassesHpp(metadata, outputDirectory);
 
+            try(var b = new DataOutputStream(new FileOutputStream(metadataBinary))) {
+                metadata.persist(b);
+             }
+            
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -114,7 +129,14 @@ public class GenerateJfrFiles {
             return lastEventname;
         }
     }
-
+    
+    public class PerstistableOutputStream extends DataOutputStream {
+        public PerstistableOutputStream(OutputStream out) {
+            super(out);
+        }
+        
+    }
+    
     static class XmlType {
         final String name;
         final String fieldType;
@@ -130,18 +152,63 @@ public class GenerateJfrFiles {
             this.unsigned = unsigned;
         }
     }
+    
+    static class XmlContentType {
+        final String name;
+        final String annotation;
+        
+        XmlContentType(String name, String annotation) {
+            this.name = name;
+            this.annotation = annotation;
+        }
+    }
 
     static class TypeElement {
         List<FieldElement> fields = new ArrayList<>();
         String name;
-        String fieldType;
-        String parameterType;
-        boolean supportStruct;
+        String javaType;
+        String label = "";
+        String description = "";
+        String category = "";
+        boolean thread;
+        boolean stackTrace;
+        boolean startTime;
+        String period = "";
+        boolean cutoff;
+        boolean experimental;
+        long id;
+        boolean isEvent;
+        boolean isRelation;
+        
+        boolean supportStruct = false;
+        String commitState;
+        public boolean primitive;
+
+        public void persist(DataOutputStream pos) throws IOException {
+            pos.writeInt(fields.size());
+            for (FieldElement field : fields) {
+                field.persist(pos);
+            }
+            pos.writeUTF(javaType);
+            pos.writeUTF(label);
+            pos.writeUTF(description);
+            pos.writeUTF(category);
+            pos.writeBoolean(thread);
+            pos.writeBoolean(stackTrace);
+            pos.writeBoolean(startTime);
+            pos.writeUTF(period);
+            pos.writeBoolean(cutoff);
+            pos.writeBoolean(experimental);
+            pos.writeLong(id);
+            pos.writeBoolean(isEvent);
+            pos.writeBoolean(isRelation);
+        }
     }
 
     static class Metadata {
         final Map<String, TypeElement> types = new LinkedHashMap<>();
         final Map<String, XmlType> xmlTypes = new LinkedHashMap<>();
+        final Map<String, XmlContentType> xmlContentTypes = new LinkedHashMap<>();
         Metadata(File metadataXml, File metadataSchema) throws ParserConfigurationException, SAXException, FileNotFoundException, IOException {
             SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
             SAXParserFactory factory = SAXParserFactory.newInstance();
@@ -149,13 +216,20 @@ public class GenerateJfrFiles {
             SAXParser sp = factory.newSAXParser();
             sp.parse(metadataXml, new MetadataHandler(this));
         }
+        
+        public void persist(DataOutputStream pos) throws IOException {
+            pos.writeInt(types.values().size());
+            for(TypeElement t : types.values()) {
+                t.persist(pos);
+            }
+        }
 
-        List<EventElement> getEvents() {
-            return getList(t -> t.getClass() == EventElement.class);
+        List<TypeElement> getEvents() {
+            return getList(t -> t.isEvent);
         }
 
         List<TypeElement> getEventsAndStructs() {
-            return getList(t -> t.getClass() == EventElement.class || t.supportStruct);
+            return getList(t -> t.isEvent || t.supportStruct);
         }
 
         List<TypeElement> getTypesAndStructs() {
@@ -173,16 +247,24 @@ public class GenerateJfrFiles {
             return result;
         }
 
-        List<EventElement> getPeriodicEvents() {
-            return getList(t -> t.getClass() == EventElement.class && ((EventElement) t).periodic);
+        List<TypeElement> getPeriodicEvents() {
+            return getList(t -> t.isEvent && !t.period.isEmpty());
         }
 
+        List<TypeElement> getNonPrimitiveTypes() {
+            return getList(t -> !t.isEvent && !t.primitive);
+        }
+        
         List<TypeElement> getTypes() {
-            return getList(t -> t.getClass() == TypeElement.class);
+            return getList(t -> !t.isEvent);
         }
 
+        public List<TypeElement>  getPrimitiveTypes() {
+            return getList(t -> !t.isEvent && t.primitive);
+        }
+        
         List<TypeElement> getStructs() {
-            return getList(t -> t.getClass() == TypeElement.class && t.supportStruct);
+            return getList(t -> !t.isEvent && t.supportStruct);
         }
 
         void verify()  {
@@ -198,27 +280,71 @@ public class GenerateJfrFiles {
         }
 
         void wireUpTypes() {
+            // Add primitives
+            for (var t : xmlTypes.entrySet()) {
+                String name = t.getKey();
+                XmlType xmlType = t.getValue();
+                if (!types.containsKey(name)) {
+                    if (!xmlType.javaType.isEmpty() && !xmlType.unsigned) {
+                        TypeElement te = new TypeElement();
+                        te.name = name;
+                        te.javaType = xmlType.javaType;
+                        te.primitive = true;
+                        types.put(te.name, te);
+                    }
+                }
+            }  
+           
+            for (TypeElement t : types.values()) {
+                if (t.isEvent) {
+                    t.javaType = "jdk." + t.name;
+                } else {
+                    XmlType xmlType = xmlTypes.get(t.name);
+                    if (xmlType != null && !xmlType.javaType.isEmpty()) {
+                        t.javaType = xmlType.javaType;
+                    } else {
+                        t.javaType = "jdk.types." + t.name;
+                    }
+                }
+            }
+
             for (TypeElement t : types.values()) {
                 for (FieldElement f : t.fields) {
                     TypeElement type = types.get(f.typeName);
+                    XmlType xmlType = xmlTypes.get(f.typeName);
+                    if (type == null) {
+                        if (xmlType == null) {
+                            throw new IllegalStateException("Unknown type");
+                        }
+                        String javaType = xmlType.javaType;
+                        type = types.get(javaType);
+                        Objects.requireNonNull(type);
+                    }
+                  
+                    if (xmlType != null) {
+                        f.unsigned = xmlType.unsigned;
+                    }
+                    
                     if (f.struct) {
                         type.supportStruct = true;
                     }
                     f.type = type;
+                    XmlContentType xmlContentType = xmlContentTypes.get(f.contentType);
+                    if (xmlContentType == null) {
+                        f.annotations = "";
+                    } else {
+                        f.annotations = xmlContentType.annotation;
+                    }
+                    if (!f.relation.isEmpty()) {
+                        f.relation = "jdk.types." + f.relation;
+                    }
+                  
                 }
             }
         }
-    }
 
-    static class EventElement extends TypeElement {
-        String representation;
-        boolean thread;
-        boolean stackTrace;
-        boolean startTime;
-        boolean periodic;
-        boolean cutoff;
-        String commitState;
-    }
+      
+   }
 
     static class FieldElement {
         final Metadata metadata;
@@ -226,11 +352,34 @@ public class GenerateJfrFiles {
         String name;
         String typeName;
         boolean struct;
-
+        public String transition;
+        public String contentType;
+        private String label;
+        private String description;
+        private String relation;
+        private boolean experimental;
+        private boolean unsigned;
+        private boolean array;
+        private String annotations;
+        
         FieldElement(Metadata metadata) {
             this.metadata = metadata;
         }
 
+        public void persist(DataOutputStream pos) throws IOException {
+            pos.writeUTF(name);
+            pos.writeUTF(type.javaType);
+            pos.writeUTF(label);
+            pos.writeUTF(description);
+            pos.writeBoolean(struct);
+            pos.writeBoolean(array);
+            pos.writeBoolean(unsigned);
+            pos.writeUTF(annotations);
+            pos.writeUTF(transition);
+            pos.writeUTF(relation);
+            pos.writeBoolean(experimental);
+        }
+        
         String getParameterType() {
             if (struct) {
                 return "const JfrStruct" + typeName + "&";
@@ -272,40 +421,58 @@ public class GenerateJfrFiles {
         @Override
         public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
             switch (qName) {
+            case "XmlContentType":
+                String n = attributes.getValue("name"); // mandatory
+                String a = attributes.getValue("annotation"); // mandatory
+                metadata.xmlContentTypes.put(n, new XmlContentType(n,a));
+                break;            
             case "XmlType":
-                String name = attributes.getValue("name");
-                String parameterType = attributes.getValue("parameterType");
-                String fieldType = attributes.getValue("fieldType");
-                String javaType = attributes.getValue("javaType");
+                String name = attributes.getValue("name"); // mandatory
+                String parameterType = attributes.getValue("parameterType"); // mandatory
+                String fieldType = attributes.getValue("fieldType"); // mandatory
+                String javaType = getString(attributes, "javaType");
                 boolean unsigned = getBoolean(attributes, "unsigned", false);
                 metadata.xmlTypes.put(name, new XmlType(name, fieldType, parameterType, javaType, unsigned));
                 break;
             case "Relation":
             case "Type":
-                currentType = new TypeElement();
-                currentType.name = attributes.getValue("name");
-                break;
             case "Event":
-                EventElement eventType = new EventElement();
-                eventType.name = attributes.getValue("name");
-                eventType.thread = getBoolean(attributes, "thread", false);
-                eventType.stackTrace = getBoolean(attributes, "stackTrace", false);
-                eventType.startTime = getBoolean(attributes, "startTime", true);
-                eventType.periodic = attributes.getValue("period") != null;
-                eventType.cutoff = getBoolean(attributes, "cutoff", false);
-                eventType.commitState = attributes.getValue("commitState");
-                currentType = eventType;
+                currentType = new TypeElement();
+                currentType.name = attributes.getValue("name"); // mandatory
+                currentType.label = getString(attributes, "label"); 
+                currentType.description = getString(attributes, "description");
+                currentType.category = getString(attributes, "category");
+                currentType.thread = getBoolean(attributes, "thread", false);
+                currentType.stackTrace = getBoolean(attributes, "stackTrace", false);
+                currentType.startTime = getBoolean(attributes, "startTime", true);
+                currentType.period = getString(attributes, "period");
+                currentType.cutoff = getBoolean(attributes, "cutoff", false);
+                currentType.commitState = getString(attributes, "commitState");
+                currentType.isEvent = "Event".equals(qName);
+                currentType.isRelation = "Relation".equals(qName);
                 break;
             case "Field":
                 currentField = new FieldElement(metadata);
+                currentField.name = attributes.getValue("name"); // mandatory
+                currentField.typeName = attributes.getValue("type"); // mandatory
+                currentField.label = getString(attributes, "label");
+                currentField.description = getString(attributes, "description");
+                currentField.contentType = getString(attributes, "contentType");
                 currentField.struct = getBoolean(attributes, "struct", false);
-                currentField.name = attributes.getValue("name");
-                currentField.typeName = attributes.getValue("type");
+                currentField.array = getBoolean(attributes, "array", false);
+                currentField.transition = getString(attributes, "transition");
+                currentField.relation = getString(attributes, "relation");
+                currentField.experimental = getBoolean(attributes, "experimental", false);
                 break;
             }
         }
 
-        private boolean getBoolean(Attributes attributes, String name, boolean defaultValue) {
+        private static String getString(Attributes attributes, String name) {
+            String value = attributes.getValue(name);
+            return value != null ? value : "";
+        }
+        
+        private static boolean getBoolean(Attributes attributes, String name, boolean defaultValue) {
             String value = attributes.getValue(name);
             return value == null ? defaultValue : Boolean.valueOf(value);
         }
@@ -361,7 +528,7 @@ public class GenerateJfrFiles {
             out.write("  static void requestEvent(JfrEventId id) {");
             out.write("    switch(id) {");
             out.write("  ");
-            for (EventElement e : metadata.getPeriodicEvents()) {
+            for (TypeElement e : metadata.getPeriodicEvents()) {
                 out.write("      case Jfr" + e.name + "Event:");
                 out.write("        request" + e.name + "();");
                 out.write("        break;");
@@ -374,7 +541,7 @@ public class GenerateJfrFiles {
             out.write("");
             out.write(" private:");
             out.write("");
-            for (EventElement e : metadata.getPeriodicEvents()) {
+            for (TypeElement e : metadata.getPeriodicEvents()) {
                 out.write("  static void request" + e.name + "(void);");
                 out.write("");
             }
@@ -439,7 +606,8 @@ public class GenerateJfrFiles {
             out.write("  JfrCheckpointEvent = 1,");
             for (TypeElement t : metadata.getEvents()) {
                 String name = "Jfr" + t.name +"Event";
-                out.write("  " + name + " = " + typeCounter.nextEventId(name) + ",");
+                t.id = typeCounter.nextEventId(name) ;
+                out.write("  " + name + " = " + t.id + ",");
             }
             out.write("};");
             out.write("typedef enum JfrEventId JfrEventId;");
@@ -465,24 +633,10 @@ public class GenerateJfrFiles {
             out.write("#include \"memory/allocation.hpp\"");
             out.write("");
             out.write("enum JfrTypeId {");
-            Map<String, XmlType> javaTypes = new LinkedHashMap<>();
-            for (var t : metadata.xmlTypes.entrySet()) {
-                String name = t.getKey();
-                XmlType xmlType = t.getValue();
-                if (xmlType.javaType != null && !xmlType.unsigned) {
-                    String typeName = "TYPE_" + name.toUpperCase();
-                    long typeId = typeCounter.nextTypeId(typeName);
-                    out.write("  " + typeName + " = " + typeId + ",");
-                    javaTypes.put(name, xmlType);
-                }
-            }
             for (TypeElement type : metadata.getTypes()) {
-                String name = type.name;
-                if (!javaTypes.containsKey(name)) {
-                    String typeName = "TYPE_" + name.toUpperCase();
-                    long typeId = typeCounter.nextTypeId(typeName);
-                    out.write("  " + typeName + " = " + typeId + ",");
-                }
+                String typeName = "TYPE_" + type.name.toUpperCase();
+                type.id = typeCounter.nextTypeId(typeName);
+                out.write("  " + typeName + " = " + type.id + ",");
             }
             out.write("};");
             out.write("");
@@ -493,8 +647,13 @@ public class GenerateJfrFiles {
             out.write("class JfrType : public AllStatic {");
             out.write(" public:");
             out.write("  static jlong name_to_id(const char* type_name) {");
-            for (Entry<String, XmlType> m : javaTypes.entrySet()) {
-                XmlType xmlType = m.getValue();
+            Map<String, XmlType> javaTypes = new LinkedHashMap<>();
+            for (XmlType xmlType : metadata.xmlTypes.values()) {
+                if (!xmlType.javaType.isEmpty()) {
+                    javaTypes.put(xmlType.javaType, xmlType);
+                }
+            }
+            for (XmlType xmlType : javaTypes.values()) {
                 String javaName = xmlType.javaType;
                 String typeName = xmlType.name.toUpperCase();
                 out.write("    if (strcmp(type_name, \"" + javaName + "\") == 0) {");
@@ -566,7 +725,7 @@ public class GenerateJfrFiles {
             printType(out, t, empty);
             out.write("");
         }
-        for (EventElement e : metadata.getEvents()) {
+        for (TypeElement e : metadata.getEvents()) {
             printEvent(out, e, empty);
             out.write("");
         }
@@ -588,13 +747,13 @@ public class GenerateJfrFiles {
         }
         out.write("");
         if (!empty) {
-          printWriteData(out, t.fields, null);
+          printWriteData(out, t);
         }
         out.write("};");
         out.write("");
     }
 
-    private static void printEvent(Printer out, EventElement event, boolean empty) {
+    private static void printEvent(Printer out, TypeElement event, boolean empty) {
         out.write("class Event" + event.name + " : public JfrEvent<Event" + event.name + ">");
         out.write("{");
         if (!empty) {
@@ -610,7 +769,7 @@ public class GenerateJfrFiles {
           out.write("  static const bool hasStackTrace = " + event.stackTrace + ";");
           out.write("  static const bool isInstant = " + !event.startTime + ";");
           out.write("  static const bool hasCutoff = " + event.cutoff + ";");
-          out.write("  static const bool isRequestable = " + event.periodic + ";");
+          out.write("  static const bool isRequestable = " + !event.period.isEmpty() + ";");
           out.write("  static const JfrEventId eventId = Jfr" + event.name + "Event;");
           out.write("");
         }
@@ -631,7 +790,7 @@ public class GenerateJfrFiles {
         }
         out.write("");
         if (!empty) {
-          printWriteData(out, event.fields, event.commitState);
+          printWriteData(out, event);
           out.write("");
         }
         out.write("  using JfrEvent<Event" + event.name + ">::commit; // else commit() is hidden by overloaded versions in this class");
@@ -643,14 +802,14 @@ public class GenerateJfrFiles {
         out.write("};");
     }
 
-    private static void printWriteData(Printer out, List<FieldElement> fields, String commitState) {
+    private static void printWriteData(Printer out, TypeElement type) {
         out.write("  template <typename Writer>");
         out.write("  void writeData(Writer& w) {");
-        if (("_thread_in_native").equals(commitState)) {
+        if (("_thread_in_native").equals(type.commitState)) {
             out.write("    // explicit epoch synchronization check");
             out.write("    JfrEpochSynchronization sync;");
         }
-        for (FieldElement field : fields) {
+        for (FieldElement field : type.fields) {
             if (field.struct) {
                 out.write("    _" + field.name + ".writeData(w);");
             } else {
@@ -680,7 +839,7 @@ public class GenerateJfrFiles {
         out.write("#endif");
     }
 
-    private static void printCommitMethod(Printer out, EventElement event, boolean empty) {
+    private static void printCommitMethod(Printer out, TypeElement event, boolean empty) {
         if (event.startTime) {
             StringJoiner sj = new StringJoiner(",\n              ");
             for (FieldElement f : event.fields) {
@@ -731,7 +890,7 @@ public class GenerateJfrFiles {
         out.write("  }");
     }
 
-    private static void printConstructor2(Printer out, EventElement event, boolean empty) {
+    private static void printConstructor2(Printer out, TypeElement event, boolean empty) {
         if (!event.startTime) {
             out.write("");
             out.write("");
