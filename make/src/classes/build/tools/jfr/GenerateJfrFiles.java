@@ -8,15 +8,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.function.Predicate;
@@ -38,28 +33,27 @@ public class GenerateJfrFiles {
         if (args.length != 4) {
             System.err.println("Incorrect number of command line arguments.");
             System.err.println("Usage:");
-            System.err.println("java GenerateJfrFiles[.java] <path-to-metadata.xml> <path-to-metadata.xsd> <output-directory>");
+            System.err.println("java GenerateJfrFiles[.java] <path-to-metadata.xml> <path-to-metadata.xsd> <cpp-output-directory> <jfr-module-output-directory>");
             System.exit(1);
         }
         try {
             File metadataXml = new File(args[0]);
             File metadataSchema = new File(args[1]);
-            File outputDirectory = new File(args[2]);
-            File metadataDirectory = new File(args[3]);
-            metadataDirectory.mkdirs();
-            File metadataBinary = new File(metadataDirectory, "metadata.bin");
-            
+            File hotspotOutputDirectory = new File(args[2]);
+            File jdkOutputDirectory = new File(args[3]);
+            jdkOutputDirectory.mkdirs();
+            File metadataBinary = new File(jdkOutputDirectory, "metadata.bin");
             
             Metadata metadata = new Metadata(metadataXml, metadataSchema);
             metadata.verify();
             metadata.wireUpTypes();
             
             TypeCounter typeCounter = new TypeCounter();
-            printJfrEventIdsHpp(metadata, typeCounter, outputDirectory);
-            printJfrTypesHpp(metadata, typeCounter, outputDirectory);
-            printJfrPeriodicHpp(metadata, outputDirectory);
-            printJfrEventControlHpp(metadata, typeCounter, outputDirectory);
-            printJfrEventClassesHpp(metadata, outputDirectory);
+            printJfrEventIdsHpp(metadata, typeCounter, hotspotOutputDirectory);
+            printJfrTypesHpp(metadata, typeCounter, hotspotOutputDirectory);
+            printJfrPeriodicHpp(metadata, hotspotOutputDirectory);
+            printJfrEventControlHpp(metadata, typeCounter, hotspotOutputDirectory);
+            printJfrEventClassesHpp(metadata, hotspotOutputDirectory);
 
             try(var b = new DataOutputStream(new FileOutputStream(metadataBinary))) {
                 metadata.persist(b);
@@ -143,13 +137,15 @@ public class GenerateJfrFiles {
         final String parameterType;
         final String javaType;
         final boolean unsigned;
+        final String contentType;
 
-        XmlType(String name, String fieldType, String parameterType, String javaType, boolean unsigned) {
+        XmlType(String name, String fieldType, String parameterType, String javaType, String contentType, boolean unsigned) {
             this.name = name;
             this.fieldType = fieldType;
             this.parameterType = parameterType;
             this.javaType = javaType;
             this.unsigned = unsigned;
+            this.contentType = contentType;
         }
     }
     
@@ -179,7 +175,6 @@ public class GenerateJfrFiles {
         long id;
         boolean isEvent;
         boolean isRelation;
-        
         boolean supportStruct = false;
         String commitState;
         public boolean primitive;
@@ -232,10 +227,6 @@ public class GenerateJfrFiles {
             return getList(t -> t.isEvent || t.supportStruct);
         }
 
-        List<TypeElement> getTypesAndStructs() {
-            return getList(t -> t.getClass() == TypeElement.class || t.supportStruct);
-        }
-
         @SuppressWarnings("unchecked")
         <T> List<T> getList(Predicate<? super TypeElement> pred) {
             List<T> result = new ArrayList<>(types.size());
@@ -250,17 +241,9 @@ public class GenerateJfrFiles {
         List<TypeElement> getPeriodicEvents() {
             return getList(t -> t.isEvent && !t.period.isEmpty());
         }
-
-        List<TypeElement> getNonPrimitiveTypes() {
-            return getList(t -> !t.isEvent && !t.primitive);
-        }
         
         List<TypeElement> getTypes() {
             return getList(t -> !t.isEvent);
-        }
-
-        public List<TypeElement>  getPrimitiveTypes() {
-            return getList(t -> !t.isEvent && t.primitive);
         }
         
         List<TypeElement> getStructs() {
@@ -280,11 +263,13 @@ public class GenerateJfrFiles {
         }
 
         void wireUpTypes() {
-            // Add primitives
+            // Add Java primitives
             for (var t : xmlTypes.entrySet()) {
                 String name = t.getKey();
                 XmlType xmlType = t.getValue();
-                if (!types.containsKey(name)) {
+                // Excludes Thread and Class
+                if (!types.containsKey(name)) { 
+                    // Excludes u8, u4, u2, u1, Ticks and Ticksspan
                     if (!xmlType.javaType.isEmpty() && !xmlType.unsigned) {
                         TypeElement te = new TypeElement();
                         te.name = name;
@@ -294,7 +279,7 @@ public class GenerateJfrFiles {
                     }
                 }
             }  
-           
+            // Setup Java fully qualified names
             for (TypeElement t : types.values()) {
                 if (t.isEvent) {
                     t.javaType = "jdk." + t.name;
@@ -307,7 +292,7 @@ public class GenerateJfrFiles {
                     }
                 }
             }
-
+            // Setup content type, annotation, constant pool etc. for fields.
             for (TypeElement t : types.values()) {
                 for (FieldElement f : t.fields) {
                     TypeElement type = types.get(f.typeName);
@@ -316,9 +301,15 @@ public class GenerateJfrFiles {
                         if (xmlType == null) {
                             throw new IllegalStateException("Unknown type");
                         }
+                        if (f.contentType.isEmpty()) {
+                            f.contentType = xmlType.contentType;
+                        }
                         String javaType = xmlType.javaType;
                         type = types.get(javaType);
                         Objects.requireNonNull(type);
+                    } 
+                    if (type.primitive) {
+                        f.constantPool = false;
                     }
                   
                     if (xmlType != null) {
@@ -326,6 +317,7 @@ public class GenerateJfrFiles {
                     }
                     
                     if (f.struct) {
+                        f.constantPool = false;
                         type.supportStruct = true;
                     }
                     f.type = type;
@@ -338,12 +330,9 @@ public class GenerateJfrFiles {
                     if (!f.relation.isEmpty()) {
                         f.relation = "jdk.types." + f.relation;
                     }
-                  
                 }
             }
         }
-
-      
    }
 
     static class FieldElement {
@@ -351,7 +340,7 @@ public class GenerateJfrFiles {
         TypeElement type;
         String name;
         String typeName;
-        boolean struct;
+        boolean constantPool = true;
         public String transition;
         public String contentType;
         private String label;
@@ -361,6 +350,7 @@ public class GenerateJfrFiles {
         private boolean unsigned;
         private boolean array;
         private String annotations;
+        public boolean struct;
         
         FieldElement(Metadata metadata) {
             this.metadata = metadata;
@@ -371,7 +361,7 @@ public class GenerateJfrFiles {
             pos.writeUTF(type.javaType);
             pos.writeUTF(label);
             pos.writeUTF(description);
-            pos.writeBoolean(struct);
+            pos.writeBoolean(constantPool);
             pos.writeBoolean(array);
             pos.writeBoolean(unsigned);
             pos.writeUTF(annotations);
@@ -431,8 +421,9 @@ public class GenerateJfrFiles {
                 String parameterType = attributes.getValue("parameterType"); // mandatory
                 String fieldType = attributes.getValue("fieldType"); // mandatory
                 String javaType = getString(attributes, "javaType");
+                String contentType = getString(attributes, "contentType");
                 boolean unsigned = getBoolean(attributes, "unsigned", false);
-                metadata.xmlTypes.put(name, new XmlType(name, fieldType, parameterType, javaType, unsigned));
+                metadata.xmlTypes.put(name, new XmlType(name, fieldType, parameterType, javaType, contentType, unsigned));
                 break;
             case "Relation":
             case "Type":
@@ -442,6 +433,7 @@ public class GenerateJfrFiles {
                 currentType.label = getString(attributes, "label"); 
                 currentType.description = getString(attributes, "description");
                 currentType.category = getString(attributes, "category");
+                currentType.experimental = getBoolean(attributes, "experimental", false);
                 currentType.thread = getBoolean(attributes, "thread", false);
                 currentType.stackTrace = getBoolean(attributes, "stackTrace", false);
                 currentType.startTime = getBoolean(attributes, "startTime", true);
@@ -632,21 +624,21 @@ public class GenerateJfrFiles {
             out.write("#include <string.h>");
             out.write("#include \"memory/allocation.hpp\"");
             out.write("");
-            out.write("enum JfrTypeId {");
+            out.write("enum JfrTypeId {");            
             for (TypeElement type : metadata.getTypes()) {
-                String typeName = "TYPE_" + type.name.toUpperCase();
-                type.id = typeCounter.nextTypeId(typeName);
-                out.write("  " + typeName + " = " + type.id + ",");
+                    String typeName = "TYPE_" + type.name.toUpperCase();
+                    type.id = typeCounter.nextTypeId(typeName);
+                    out.write("  " + typeName + " = " + type.id + ",");
             }
             out.write("};");
             out.write("");
             out.write("static const JfrTypeId FIRST_TYPE_ID = " + typeCounter.firstTypeName() + ";");
             out.write("static const JfrTypeId LAST_TYPE_ID = " + typeCounter.lastTypeName() + ";");
-
             out.write("");
             out.write("class JfrType : public AllStatic {");
             out.write(" public:");
             out.write("  static jlong name_to_id(const char* type_name) {");
+ 
             Map<String, XmlType> javaTypes = new LinkedHashMap<>();
             for (XmlType xmlType : metadata.xmlTypes.values()) {
                 if (!xmlType.javaType.isEmpty()) {

@@ -45,7 +45,7 @@ TARGETS += $(BUILD_JFR_TOOLS)
 TOOL_JFR_GEN := $(JAVA_SMALL) -cp $(JFR_TOOLS_OUTPUTDIR) build.tools.jfr.GenerateJfrFiles
 
 JFR_OUTPUTDIR := $(JVM_VARIANT_OUTPUTDIR)/gensrc/jfrfiles
-JFR_METADATADIR := $(OUTPUTDIR)/jdk/modules/jdk.jfr/jdk/jfr/internal/types
+JFR_OUTPUTDIR2 := $(OUTPUTDIR)/jdk/modules/jdk.jfr/jdk/jfr/internal/types
 JFR_SRCDIR := $(TOPDIR)/src/hotspot/share/jfr/metadata
 
 # Changing these will trigger a rebuild of generated jfr files.
@@ -56,7 +56,7 @@ $(eval $(call SetupExecute, jfr_gen, \
     INFO := Generating JFR header files, \
     DEPS := $(METADATA_XML) $(METADATA_XSD) $(BUILD_JFR_TOOLS), \
     OUTPUT_DIR := $(JFR_OUTPUTDIR), \
-    COMMAND := $(TOOL_JFR_GEN) $(METADATA_XML) $(METADATA_XSD) $(JFR_OUTPUTDIR) $(JFR_METADATADIR), \
+    COMMAND := $(TOOL_JFR_GEN) $(METADATA_XML) $(METADATA_XSD) $(JFR_OUTPUTDIR) $(JFR_OUTPUTDIR2), \
 ))
 
 
