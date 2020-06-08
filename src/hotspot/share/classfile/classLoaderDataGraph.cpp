@@ -648,19 +648,19 @@ Klass* ClassLoaderDataGraphKlassIteratorAtomic::next_klass() {
   return NULL;
 }
 
+void ClassLoaderDataGraph::verify() {
+  ClassLoaderDataGraphIterator iter;
+  while (ClassLoaderData* cld = iter.get_next()) {
+    cld->verify();
+  }
+}
+
 #ifndef PRODUCT
 // callable from debugger
 extern "C" int print_loader_data_graph() {
   ResourceMark rm;
   ClassLoaderDataGraph::print_on(tty);
   return 0;
-}
-
-void ClassLoaderDataGraph::verify() {
-  ClassLoaderDataGraphIterator iter;
-  while (ClassLoaderData* cld = iter.get_next()) {
-    cld->verify();
-  }
 }
 
 void ClassLoaderDataGraph::print_on(outputStream * const out) {
