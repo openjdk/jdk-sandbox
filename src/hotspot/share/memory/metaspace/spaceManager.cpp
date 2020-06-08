@@ -160,14 +160,19 @@ SpaceManager::~SpaceManager() {
   MutexLocker fcl(lock(), Mutex::_no_safepoint_check_flag);
   Metachunk* c = _chunks.first();
   Metachunk* c2 = NULL;
+
+  size_t used_words_returned = 0;
+
   while(c) {
-    // c may become invalid. Take care while iterating.
     c2 = c->next();
-    _total_used_words_counter->decrement_by(c->used_words());
+    used_words_returned += c->used_words();
     _chunks.remove(c);
     _chunk_manager->return_chunk(c);
+    // c may be invalid after return_chunk(c) was called. Don't access anymore.
     c = c2;
   }
+
+  _total_used_words_counter->decrement_by(used_words_returned);
 
   DEBUG_ONLY(chunk_manager()->verify(true);)
 
