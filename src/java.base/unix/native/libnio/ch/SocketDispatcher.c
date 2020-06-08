@@ -111,17 +111,17 @@ Java_sun_nio_ch_SocketDispatcher_recvmsg0(JNIEnv *env, jclass clazz,
         cmsg = CMSG_FIRSTHDR(&msg);
         if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
             jint *newfds;
-	    jint nfds = (msg.msg_controllen - sizeof(struct cmsghdr))/sizeof(int);
+            jint nfds = (msg.msg_controllen - sizeof(struct cmsghdr))/sizeof(int);
             newfds = (*env)->GetIntArrayElements(env, fdarray, NULL);
             if (newfds == NULL) {
                 JNU_ThrowIOExceptionWithLastError(env, "JNI error");
                 return -1;
             }
-	    memcpy(newfds, CMSG_DATA(cmsg), nfds * sizeof(int));
+            memcpy(newfds, CMSG_DATA(cmsg), nfds * sizeof(int));
             (*env)->ReleaseIntArrayElements(env, fdarray, newfds, 0);
         }
     }
-    return ret;
+    return convertReturnVal(env, ret, JNI_TRUE);
 }
 
 
