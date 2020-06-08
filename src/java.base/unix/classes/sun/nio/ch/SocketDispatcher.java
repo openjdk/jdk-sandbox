@@ -74,6 +74,22 @@ class SocketDispatcher extends NativeDispatcher {
         FileDispatcherImpl.preClose0(fd);
     }
 
+    int sendmsg(FileDescriptor fd, long address, int len, FileDescriptor[] sendfds)
+        throws IOException
+    {
+        return sendmsg0(fd, address, len, sendfds);
+    }
+
+    int recvmsg(FileDescriptor fd, long address, int len, int[] newfds)
+        throws IOException
+    {
+        return recvmsg0(fd, address, len, newfds);
+    }
+
+    static int maxsendfds() {
+        return maxsendfds0();
+    }
+;
     // -- Native methods --
 
     private static native int read0(FileDescriptor fd, long address, int len)
@@ -81,6 +97,13 @@ class SocketDispatcher extends NativeDispatcher {
 
     private static native long readv0(FileDescriptor fd, long address, int len)
         throws IOException;
+
+    private static native int sendmsg0(FileDescriptor fd, long address,
+                                      int len, FileDescriptor[] sendfds);
+
+    private static native int maxsendfds0();
+
+    private static native int recvmsg0(FileDescriptor fd, long address, int len, int[] newfds);
 
     static {
         IOUtil.load();

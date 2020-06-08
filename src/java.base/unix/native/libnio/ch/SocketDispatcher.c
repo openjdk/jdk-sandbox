@@ -23,6 +23,7 @@
  * questions.
  */
 
+ #include <string.h>
  #include <sys/types.h>
  #include <sys/uio.h>
  #include <unistd.h>
@@ -63,3 +64,111 @@
          return convertLongReturnVal(env, n, JNI_TRUE);
      }
  }
+
+#define MAX_SEND_FDS 10
+
+JNIEXPORT jint JNICALL
+Java_sun_nio_ch_SocketDispatcher_maxsendfds0(JNIEnv *env, jclass clazz)
+{
+    return MAX_SEND_FDS;
+}
+
+/* read recvmsg impl. Only accepts one fd per call. Could be expanded
+ * to accept more
+ */
+JNIEXPORT jint JNICALL
+Java_sun_nio_ch_SocketDispatcher_recvmsg0(JNIEnv *env, jclass clazz,
+                     jobject fdo, jlong address, jint len, jintArray fdarray)
+{
+    jint fd = fdval(env, fdo);
+    int ret;
+    void *buf = (void *)jlong_to_ptr(address);
+    struct msghdr msg;
+    struct iovec iov[1];
+    struct cmsghdr *cmsg = NULL;
+    union {
+        char cmsgdata[CMSG_SPACE(sizeof(int) * MAX_SEND_FDS)];
+        struct cmsghdr align;
+    } u;
+
+    memset(&msg, 0, sizeof(msg));
+    memset(u.cmsgdata, 0, sizeof(u.cmsgdata));
+
+    iov[0].iov_base = buf;
+    iov[0].iov_len = len;
+    msg.msg_iov = &iov[0];
+    msg.msg_iovlen = 1;
+    if (fdarray != NULL) {
+        msg.msg_control = u.cmsgdata;
+        msg.msg_controllen = sizeof(u.cmsgdata);
+    }
+
+    ret = recvmsg(fd, &msg, 0);
+    if (ret < 0) {
+        return convertReturnVal(env, ret, JNI_TRUE);
+    }
+    if (msg.msg_controllen != 0) {
+        cmsg = CMSG_FIRSTHDR(&msg);
+        if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
+            jint *newfds;
+	    jint nfds = (msg.msg_controllen - sizeof(struct cmsghdr))/sizeof(int);
+            newfds = (*env)->GetIntArrayElements(env, fdarray, NULL);
+            if (newfds == NULL) {
+                JNU_ThrowIOExceptionWithLastError(env, "JNI error");
+                return -1;
+            }
+	    memcpy(newfds, CMSG_DATA(cmsg), nfds * sizeof(int));
+            (*env)->ReleaseIntArrayElements(env, fdarray, newfds, 0);
+        }
+    }
+    return ret;
+}
+
+
+/**
+ * Send a data buffer and optionaly a FilDescriptor if provided
+ */
+JNIEXPORT jint JNICALL
+Java_sun_nio_ch_SocketDispatcher_sendmsg0(JNIEnv *env, jclass clazz,
+                      jobject fdo, jlong address, jint len, jobjectArray fdarray)
+{
+    jint fd = fdval(env, fdo);
+    void *buf = (void *)jlong_to_ptr(address);
+    struct msghdr msg;
+    struct iovec iov[1];
+    struct cmsghdr *cmsg = NULL;
+    union {
+        char cmsgdata[CMSG_SPACE(sizeof(int) * MAX_SEND_FDS)];
+        struct cmsghdr align;
+    } u;
+    int ret;
+
+    memset(&msg, 0, sizeof(msg));
+    memset(u.cmsgdata, 0, sizeof(u.cmsgdata));
+
+    iov[0].iov_base = buf;
+    iov[0].iov_len = len;
+    msg.msg_iov = &iov[0];
+    msg.msg_iovlen = 1;
+    msg.msg_controllen = 0;
+
+    if (fdarray != NULL) {
+        jsize arraylen = (*env)->GetArrayLength(env, fdarray);
+        int fds[arraylen];
+
+        for (int i=0; i<arraylen; i++) {
+            jobject fdsend = (*env)->GetObjectArrayElement(env, fdarray, i);
+            fds[i] = fdval(env, fdsend);
+        }
+        msg.msg_control = u.cmsgdata;
+        msg.msg_controllen = CMSG_SPACE(sizeof(int) * arraylen);
+        cmsg = CMSG_FIRSTHDR(&msg);
+        cmsg->cmsg_len = CMSG_LEN(sizeof(int) * arraylen);
+        cmsg->cmsg_level = SOL_SOCKET;
+        cmsg->cmsg_type = SCM_RIGHTS;
+        memcpy(CMSG_DATA(cmsg), fds, sizeof(int) * arraylen);
+    }
+
+    ret = sendmsg(fd, &msg, 0);
+    return convertReturnVal(env, ret, JNI_FALSE);
+}

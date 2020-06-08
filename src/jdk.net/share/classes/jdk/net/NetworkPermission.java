@@ -31,6 +31,36 @@ import java.security.BasicPermission;
  * Represents permission to access the extended networking capabilities
  * defined in the jdk.net package. These permissions contain a target
  * name, but no actions list. Callers either possess the permission or not.
+ * <p>
+ * The following targets are defined:
+ *
+ * <table class="striped"><caption style="display:none">permission target name,
+ *  what the target allows,and associated risks</caption>
+ * <thead>
+ * <tr>
+ *   <th scope="col">Permission Target Name</th>
+ *   <th scope="col">What the Permission Allows</th>
+ *   <th scope="col">Risks of Allowing this Permission</th>
+ * </tr>
+ * </thead>
+ * <tbody>
+ * <tr>
+ *   <th scope="row">setOption.SO_SNDCHAN</th>
+ *   <td>set the {@link ExtendedSocketOptions#SO_SNDCHAN SO_SNDCHAN} option
+ *       on any socket that supports it</td>
+ *   <td>allows caller to send SocketChannels and ServerSocketChannels
+ *       to other processes over a <i>Unix Domain</i> SocketChannel</td>
+ * </tr>
+ * <tr>
+ *   <th scope="row">getOption.SO_SNDCHAN</th>
+ *   <td>retrieve the {@link ExtendedSocketOptions#SO_FLOW_SLA SO_FLOW_SLA}
+ *       setting from any socket that supports the option</td>
+ *   <td>allows caller to receive SocketChannels and ServerSocketChannels
+ *       from other processes over a <i>Unix Domain</i> SocketChannel</td>
+ * </tr>
+ *
+ * </tbody>
+ * </table>
  *
  * @see jdk.net.ExtendedSocketOptions
  *

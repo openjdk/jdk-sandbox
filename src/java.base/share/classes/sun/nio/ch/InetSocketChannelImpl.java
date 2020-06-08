@@ -235,8 +235,22 @@ class InetSocketChannelImpl extends SocketChannelImpl
     }
 
     @Override
+    int readImpl(FileDescriptor fd, ByteBuffer bb, long position,
+                 NativeDispatcher nd)
+        throws IOException
+    {
+        return IOUtil.read(fd, bb, position, false, -1, nd);
+    }
+
+    @Override
     public int write(ByteBuffer buf) throws IOException {
         return super.write(buf);
+    }
+
+    @Override
+    public int writeImpl(FileDescriptor fd, ByteBuffer src, long position,
+                         NativeDispatcher nd) throws IOException {
+        return IOUtil.write(fd, src, position, nd);
     }
 
     @Override

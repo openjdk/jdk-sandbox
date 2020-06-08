@@ -57,7 +57,7 @@ import sun.net.ext.ExtendedSocketOptions;
 
 abstract class ServerSocketChannelImpl
     extends ServerSocketChannel
-    implements SelChImpl
+    implements SelChImpl, SendableChannel
 {
     // Used to make native close and configure calls
     private static final NativeDispatcher nd = new SocketDispatcher();

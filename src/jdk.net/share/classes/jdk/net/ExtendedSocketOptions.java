@@ -26,9 +26,14 @@
 package jdk.net;
 
 import java.io.FileDescriptor;
+import java.io.IOException;
 import java.net.SocketException;
 import java.net.SocketOption;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channel;
+import java.nio.channels.NetworkChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.ServerSocketChannel;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Collections;
@@ -182,16 +187,63 @@ public final class ExtendedSocketOptions {
             = new ExtSocketOption<Integer>("SO_INCOMING_NAPI_ID", Integer.class);
 
     /**
-         * Unix domain {@link SocketChannel} peer credentials.
-         * <p>
-         * This is a read-only socket option which returns a {@link UnixDomainPrincipal} for the
-         * peer socket that the channel is connected to. Attempting to set this option or to get
-         * it from an unconnected socket will throw a {@link SocketException}.
-         */
+     * Unix domain {@link SocketChannel} peer credentials.
+     * <p>
+     * This is a read-only socket option which returns a {@link UnixDomainPrincipal} for the
+     * peer socket that the channel is connected to. Attempting to set this option or to get
+     * it from an unconnected socket will throw a {@link SocketException}.
+     */
     public static final SocketOption<UnixDomainPrincipal> SO_PEERCRED
-        = new ExtSocketOption<UnixDomainPrincipal>
-            ("SO_PEERCRED", UnixDomainPrincipal.class);
-    
+            = new ExtSocketOption<UnixDomainPrincipal>
+                ("SO_PEERCRED", UnixDomainPrincipal.class);
+
+
+    /**
+     * Send a {@link SocketChannel} or {@link ServerSocketChannel} through a <i>Unix Domain</i>
+     * {@link SocketChannel} or obtain such a channel received through a <i>Unix Domain</i>
+     * {@code SocketChannel}.
+     * <p>
+     * This socket option allows channels to be sent and received between
+     * processes on the same system alongside regular data. Both <i>Internet Protocol</I>
+     * and <i>Unix domain</i> channels can be sent in this way.
+     * Other {@link Channel} types are not supported at this time.
+     *
+     * <p> Setting the option causes the supplied channel to be added to a send queue
+     * associated with this <i>Unix Domain</i> {@code SocketChannel} such that when the next write occurs
+     * on this channel, an attempt is made to send all channels in the queue, in an ancillary
+     * control message together with the data. Setting this option synchronizes with
+     * channel writes to make ordering predictable. No change in state of the given
+     * channel occurs until the write happens, at which time the channel is closed.
+     * The channel's socket remains open and usable on the receiving side.
+     * The send queue has an implementation specific maximum length and
+     * it is an error to register more than this number of channels for sending before calling
+     * write. It is inadvisable to perform any I/O on a channel
+     * after registering it to be sent with this option. In particular, the
+     * send will fail if a channel is already closed at the time it is to be sent.
+     *
+     * <p> Receiving channels involves a similar procedure in reverse. As data is read
+     * through the {@link SocketChannel} read methods, if any associated ancillary control messages
+     * contain a channel, they are added to a receive queue associated with this channel.
+     * Getting this socket option then removes the first channel from the receive queue
+     * and returns it. If the receive queue is empty when getOption is called, {@code null}
+     * is returned.
+     *
+     * <p> Note, there is no way to detect if a particular read has received
+     * a channel. However, once the data that was written when sending a channel has been
+     * read on the receiving side, then the associated channel is guaranteed to be
+     * available to the receiver. The sender and receiver can co-ordinate by using this fact, or
+     * alternatively the receiver can poll for a received channel after each read
+     * or notification of OP_READ, if non-blocking.
+     *
+     * <p> Closing a channel while channels are still in its send or receive queues causes all
+     * channels in both queues to be closed. If a <i>Unix Domain</i> channel is sent
+     * using this mechanism, and has channels in its own send or receive queues, these
+     * channels are closed before the channel is sent.
+     */
+    public static final SocketOption<Channel> SO_SNDCHAN
+            = new ExtSocketOption<Channel>
+                ("SO_SNDCHAN", Channel.class);
+
     private static final PlatformSocketOptions platformSocketOptions =
             PlatformSocketOptions.get();
 
@@ -199,10 +251,11 @@ public final class ExtendedSocketOptions {
             platformSocketOptions.quickAckSupported();
     private static final boolean keepAliveOptSupported =
             platformSocketOptions.keepAliveOptionsSupported();
-    private static final boolean peerCredentialsSupported =
-            platformSocketOptions.peerCredentialsSupported();
+    private static final boolean unixDomainExtOptionsSupported =
+            platformSocketOptions.unixDomainExtOptionsSupported();
     private static final boolean incomingNapiIdOptSupported  =
             platformSocketOptions.incomingNapiIdSupported();
+
     private static final Set<SocketOption<?>> extendedOptions = options();
 
     static Set<SocketOption<?>> options() {
@@ -216,8 +269,9 @@ public final class ExtendedSocketOptions {
         if (keepAliveOptSupported) {
             options.addAll(Set.of(TCP_KEEPCOUNT, TCP_KEEPIDLE, TCP_KEEPINTERVAL));
         }
-        if (peerCredentialsSupported) {
+        if (unixDomainExtOptionsSupported) {
             options.add(SO_PEERCRED);
+            options.add(SO_SNDCHAN);
         }
         return Collections.unmodifiableSet(options);
     }
@@ -288,6 +342,37 @@ public final class ExtendedSocketOptions {
                     return getIncomingNapiId(fd);
                 } else {
                     throw new InternalError("Unexpected option " + option);
+                }
+            }
+
+            @Override
+            @SuppressWarnings("removal")
+            public void setOptionByChannel(NetworkChannel chan, SocketOption<?> option, Object value)
+                throws IOException
+            {
+                SecurityManager sm = System.getSecurityManager();
+                if (sm != null)
+                    sm.checkPermission(new NetworkPermission("setOption." + option.name()));
+
+                if (option == SO_SNDCHAN) {
+                    setSoSndChan(chan, (Channel)value);
+                } else {
+                    throw new UnsupportedOperationException("Unexpected option " + option);
+                }
+            }
+
+            @Override
+            @SuppressWarnings("removal")
+            public Object getOptionByChannel(NetworkChannel chan, SocketOption<?> option)
+                throws IOException
+            {
+                SecurityManager sm = System.getSecurityManager();
+                if (sm != null)
+                    sm.checkPermission(new NetworkPermission("getOption." + option.name()));
+                if (option == SO_SNDCHAN) {
+                    return receivedChannelFor(chan);
+                } else {
+                    throw new UnsupportedOperationException("Unexpected option " + option);
                 }
             }
         });
@@ -379,7 +464,7 @@ public final class ExtendedSocketOptions {
             return instance;
         }
 
-        boolean peerCredentialsSupported() {
+        boolean unixDomainExtOptionsSupported() {
             return false;
         }
 

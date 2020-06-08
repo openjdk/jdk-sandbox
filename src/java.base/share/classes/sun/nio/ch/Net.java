@@ -43,6 +43,7 @@ import java.net.StandardSocketOptions;
 import java.net.UnknownHostException;
 import java.nio.channels.AlreadyBoundException;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.NetworkChannel;
 import java.nio.channels.NotYetBoundException;
 import java.nio.channels.NotYetConnectedException;
 import java.nio.channels.UnixDomainSocketAddress;
@@ -407,6 +408,29 @@ public class Net {
 
     static final ExtendedSocketOptions extendedOptions =
             ExtendedSocketOptions.getInstance();
+
+    // Some options require the original channel to set
+    static void setOptionByChannel(NetworkChannel chan, SocketOption<?> name, Object value)
+        throws IOException
+    {
+        if (value == null)
+            throw new IllegalArgumentException("Invalid option value");
+
+        assert isByChannelOption(name);
+        extendedOptions.setOptionByChannel(chan, name, value);
+    }
+
+    static boolean isByChannelOption(SocketOption<?> name) {
+        return extendedOptions.byChannelOptions().contains(name);
+    }
+
+    // Some options require the original channel to get
+    static Object getOptionByChannel(NetworkChannel chan, SocketOption<?> name)
+        throws IOException
+    {
+        assert isByChannelOption(name);
+        return extendedOptions.getOptionByChannel(chan, name);
+    }
 
     static void setSocketOption(FileDescriptor fd, SocketOption<?> name, Object value)
         throws IOException

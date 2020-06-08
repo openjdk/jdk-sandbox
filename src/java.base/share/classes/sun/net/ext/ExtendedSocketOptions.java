@@ -26,10 +26,15 @@
 package sun.net.ext;
 
 import java.io.FileDescriptor;
+import java.io.IOException;
 import java.net.SocketException;
 import java.net.SocketOption;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channel;
+import java.nio.channels.NetworkChannel;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -49,6 +54,7 @@ public abstract class ExtendedSocketOptions {
     private final Set<SocketOption<?>> clientStreamOptions;
     private final Set<SocketOption<?>> serverStreamOptions;
     private final Set<SocketOption<?>> unixOptions;
+    private final Set<SocketOption<?>> byChannelOptions;
 
     /** Tells whether or not the option is supported. */
     public final boolean isOptionSupported(SocketOption<?> option) {
@@ -58,8 +64,10 @@ public abstract class ExtendedSocketOptions {
     /** Return the, possibly empty, set of extended socket options available. */
     public final Set<SocketOption<?>> options() { return options; }
 
-    /** Return the, possibly empty, set of extended socket options available. */
+    /** Return the, possibly empty, set of extended unix domain socket options available. */
     public final Set<SocketOption<?>> unixOptions() { return unixOptions; }
+
+    public final Set<SocketOption<?>> byChannelOptions() { return byChannelOptions; }
 
     /**
      * Returns the (possibly empty) set of extended socket options for
@@ -71,6 +79,10 @@ public abstract class ExtendedSocketOptions {
 
     public static Set<SocketOption<?>> unixSocketOptions() {
         return getInstance().unixOptions();
+    }
+
+    public static Set<SocketOption<?>> setByChannelOptions() {
+        return getInstance().byChannelOptions();
     }
 
     /**
@@ -89,12 +101,28 @@ public abstract class ExtendedSocketOptions {
         return getInstance().options0(SOCK_DGRAM, false);
     }
 
+    public static NetworkChannel receivedChannelFor(NetworkChannel chan) {
+        return sun.nio.ch.Util.receivedChannelFor(chan);
+    }
+
+    public static void setSoSndChan(NetworkChannel carrier, Channel payload)
+        throws IOException {
+
+        sun.nio.ch.Util.sendChannel(carrier, payload);
+    }
+
     private static boolean isDatagramOption(SocketOption<?> option) {
         return !option.name().startsWith("TCP_") && !isUnixOption(option);
     }
 
     private static boolean isUnixOption(SocketOption<?> option) {
-        return option.name().equals("SO_PEERCRED");
+        return option.name().equals("SO_PEERCRED")
+                        || option.name().equals("SO_SNDCHAN")
+                        || option.name().equals("SO_RCVCHAN");
+    }
+
+    private static boolean isByChannelOption(SocketOption<?> option) {
+        return option.name().equals("SO_SNDCHAN") || option.name().equals("SO_RCVCHAN");
     }
 
     private static boolean isStreamOption(SocketOption<?> option, boolean server) {
@@ -124,6 +152,10 @@ public abstract class ExtendedSocketOptions {
         }
     }
 
+    /**
+     * Two variants of setOption/getOption. Each option implements one style
+     */
+
     /** Sets the value of a socket option, for the given socket. */
     public abstract void setOption(FileDescriptor fd, SocketOption<?> option, Object value)
             throws SocketException;
@@ -132,12 +164,21 @@ public abstract class ExtendedSocketOptions {
     public abstract Object getOption(FileDescriptor fd, SocketOption<?> option)
             throws SocketException;
 
+    /** Sets the value of a socket option, for the given socket. */
+    public abstract void setOptionByChannel(NetworkChannel chan, SocketOption<?> option, Object value)
+            throws IOException;
+
+    /** Returns the value of a socket option, for the given socket. */
+    public abstract Object getOptionByChannel(NetworkChannel chan, SocketOption<?> option)
+            throws IOException;
+
     protected ExtendedSocketOptions(Set<SocketOption<?>> options) {
         this.options = options;
         var datagramOptions = new HashSet<SocketOption<?>>();
         var serverStreamOptions = new HashSet<SocketOption<?>>();
         var clientStreamOptions = new HashSet<SocketOption<?>>();
         var unixOptions = new HashSet<SocketOption<?>>();
+        var byChannelOptions = new HashSet<SocketOption<?>>();
         for (var option : options) {
             if (isDatagramOption(option)) {
                 datagramOptions.add(option);
@@ -151,11 +192,15 @@ public abstract class ExtendedSocketOptions {
             if (isUnixOption(option)) {
                 unixOptions.add(option);
             }
+            if (isByChannelOption(option)) {
+                byChannelOptions.add(option);
+            }
         }
         this.datagramOptions = Set.copyOf(datagramOptions);
         this.serverStreamOptions = Set.copyOf(serverStreamOptions);
         this.clientStreamOptions = Set.copyOf(clientStreamOptions);
         this.unixOptions = Set.copyOf(unixOptions);
+        this.byChannelOptions = Set.copyOf(byChannelOptions);
     }
 
     private static volatile ExtendedSocketOptions instance;
@@ -198,6 +243,22 @@ public abstract class ExtendedSocketOptions {
         @Override
         public Object getOption(FileDescriptor fd, SocketOption<?> option)
             throws SocketException
+        {
+            throw new UnsupportedOperationException(
+                    "no extended options: " + option.name());
+        }
+
+        @Override
+        public void setOptionByChannel(NetworkChannel chan, SocketOption<?> option, Object value)
+            throws IOException
+        {
+            throw new UnsupportedOperationException(
+                    "no extended options: " + option.name());
+        }
+
+        @Override
+        public Object getOptionByChannel(NetworkChannel chan, SocketOption<?> option)
+            throws IOException
         {
             throw new UnsupportedOperationException(
                     "no extended options: " + option.name());

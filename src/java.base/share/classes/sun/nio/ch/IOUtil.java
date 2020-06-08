@@ -50,15 +50,9 @@ public class IOUtil {
         return write(fd, src, position, false, -1, nd);
     }
 
-    static int write(FileDescriptor fd, ByteBuffer src, long position,
-                     boolean directIO, int alignment, NativeDispatcher nd)
+    static ByteBuffer getNativeWriteBuffer(ByteBuffer src, int alignment, boolean directIO)
         throws IOException
     {
-        if (src instanceof DirectBuffer) {
-            return writeFromNativeBuffer(fd, src, position, directIO, alignment, nd);
-        }
-
-        // Substitute a native buffer
         int pos = src.position();
         int lim = src.limit();
         assert (pos <= lim);
@@ -70,6 +64,21 @@ public class IOUtil {
         } else {
             bb = Util.getTemporaryDirectBuffer(rem);
         }
+        return bb;
+    }
+
+    static int write(FileDescriptor fd, ByteBuffer src, long position,
+                     boolean directIO, int alignment, NativeDispatcher nd)
+        throws IOException
+    {
+        if (src instanceof DirectBuffer) {
+            return writeFromNativeBuffer(fd, src, position, directIO, alignment, nd);
+        }
+
+        int pos = src.position();
+        // Substitute a native buffer
+        ByteBuffer bb = getNativeWriteBuffer(src, alignment, directIO);
+
         try {
             bb.put(src);
             bb.flip();
@@ -86,6 +95,57 @@ public class IOUtil {
             Util.offerFirstTemporaryDirectBuffer(bb);
         }
     }
+
+    static int sendmsg(FileDescriptor fd, ByteBuffer src,
+                       SocketDispatcher sd, FileDescriptor[] sendfds)
+        throws IOException
+    {
+        if (src instanceof DirectBuffer) {
+            return sendmsgFromNativeBuffer(fd, src, sd, sendfds);
+        }
+
+        int pos = src.position();
+
+        // Substitute a native buffer
+        ByteBuffer bb = getNativeWriteBuffer(src, -1, false);
+
+        try {
+            bb.put(src);
+            bb.flip();
+            // Do not update src until we see how many bytes were written
+            src.position(pos);
+
+            int n = sendmsgFromNativeBuffer(fd, bb, sd, sendfds);
+            if (n > 0) {
+                // now update src
+                src.position(pos + n);
+            }
+            return n;
+        } finally {
+            Util.offerFirstTemporaryDirectBuffer(bb);
+        }
+    }
+
+    private static int sendmsgFromNativeBuffer(FileDescriptor fd,
+                                               ByteBuffer bb,
+                                               SocketDispatcher sd,
+                                               FileDescriptor[] sendfds)
+        throws IOException
+    {
+        int pos = bb.position();
+        int lim = bb.limit();
+        assert (pos <= lim);
+        int rem = (pos <= lim ? lim - pos : 0);
+
+        int written = 0;
+        if (rem == 0)
+            return 0;
+        written = sd.sendmsg(fd, ((DirectBuffer)bb).address() + pos, rem, sendfds);
+        if (written > 0)
+            bb.position(pos + written);
+        return written;
+    }
+
 
     private static int writeFromNativeBuffer(FileDescriptor fd, ByteBuffer bb,
                                              long position, boolean directIO,
@@ -223,14 +283,10 @@ public class IOUtil {
         return read(fd, dst, position, false, -1, nd);
     }
 
-    static int read(FileDescriptor fd, ByteBuffer dst, long position,
-                    boolean directIO, int alignment, NativeDispatcher nd)
+    private static ByteBuffer getNativeReadBuffer(ByteBuffer dst,
+                                                  boolean directIO, int alignment)
         throws IOException
     {
-        if (dst.isReadOnly())
-            throw new IllegalArgumentException("Read-only buffer");
-        if (dst instanceof DirectBuffer)
-            return readIntoNativeBuffer(fd, dst, position, directIO, alignment, nd);
 
         // Substitute a native buffer
         ByteBuffer bb;
@@ -241,8 +297,21 @@ public class IOUtil {
         } else {
             bb = Util.getTemporaryDirectBuffer(rem);
         }
+        return bb;
+    }
+
+    static int read(FileDescriptor fd, ByteBuffer dst, long position,
+                    boolean directIO, int alignment, NativeDispatcher nd)
+        throws IOException
+    {
+        if (dst.isReadOnly())
+            throw new IllegalArgumentException("Read-only buffer");
+        if (dst instanceof DirectBuffer)
+            return readIntoNativeBuffer(fd, dst, position, directIO, alignment, nd);
+        ByteBuffer bb = getNativeReadBuffer(dst, directIO, alignment);
+
         try {
-            int n = readIntoNativeBuffer(fd, bb, position, directIO, alignment,nd);
+            int n = readIntoNativeBuffer(fd, bb, position, directIO, alignment, nd);
             bb.flip();
             if (n > 0)
                 dst.put(bb);
@@ -275,6 +344,45 @@ public class IOUtil {
         } else {
             n = nd.read(fd, ((DirectBuffer)bb).address() + pos, rem);
         }
+        if (n > 0)
+            bb.position(pos + n);
+        return n;
+    }
+
+    static int recvmsg(FileDescriptor fd, ByteBuffer dst, SocketDispatcher sd, int[] newfds)
+        throws IOException
+    {
+        if (dst.isReadOnly())
+            throw new IllegalArgumentException("Read-only buffer");
+
+        if (dst instanceof DirectBuffer)
+            return recvMsgAndAncillaryData(fd, dst, sd, newfds);
+
+        ByteBuffer bb = getNativeReadBuffer(dst, false, -1);
+
+        try {
+            int n = recvMsgAndAncillaryData(fd, bb, sd, newfds);
+            bb.flip();
+            if (n > 0)
+                dst.put(bb);
+            return n;
+        } finally {
+            Util.offerFirstTemporaryDirectBuffer(bb);
+        }
+    }
+
+    private static int recvMsgAndAncillaryData(FileDescriptor fd, ByteBuffer bb,
+                            SocketDispatcher sd, int[] newfds)
+        throws IOException
+    {
+        int pos = bb.position();
+        int lim = bb.limit();
+        assert (pos <= lim);
+        int rem = (pos <= lim ? lim - pos : 0);
+
+        if (rem == 0)
+            return 0;
+        int n = sd.recvmsg(fd, ((DirectBuffer)bb).address() + pos, rem, newfds);
         if (n > 0)
             bb.position(pos + n);
         return n;

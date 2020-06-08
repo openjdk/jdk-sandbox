@@ -53,7 +53,7 @@ class MacOSXSocketOptions extends PlatformSocketOptions {
     }
 
     @Override
-    boolean peerCredentialsSupported() {
+    boolean unixDomainExtOptionsSupported() {
         return true;
     }
 

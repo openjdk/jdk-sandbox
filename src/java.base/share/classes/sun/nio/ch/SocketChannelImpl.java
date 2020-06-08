@@ -67,7 +67,7 @@ import sun.net.util.SocketExceptions;
 
 abstract class SocketChannelImpl
     extends SocketChannel
-    implements SelChImpl
+    implements SelChImpl, SendableChannel
 {
     // Used to make native read and write calls
     private static final NativeDispatcher nd = new SocketDispatcher();
@@ -252,6 +252,11 @@ abstract class SocketChannelImpl
         synchronized (stateLock) {
             ensureOpen();
             T ret;
+
+            if (Net.isByChannelOption(name)) {
+                return (T) Net.getOptionByChannel(this, name);
+            }
+
             if ((ret = getOptionSpecial(name)) != null)
                 return ret;
 
@@ -272,6 +277,10 @@ abstract class SocketChannelImpl
 
         synchronized (stateLock) {
             ensureOpen();
+            if (Net.isByChannelOption(name)) {
+                Net.setOptionByChannel(this, name, value);
+                return this;
+            }
             if (setOptionSpecial(name, value))
                 return this;
             // no options that require special handling
@@ -345,11 +354,11 @@ abstract class SocketChannelImpl
                 if (isInputClosed)
                     return IOStatus.EOF;
 
-                n = IOUtil.read(fd, buf, -1, nd);
+                n = readImpl(fd, buf, -1, nd);
                 if (blocking) {
                     while (IOStatus.okayToRetry(n) && isOpen()) {
                         park(Net.POLLIN);
-                        n = IOUtil.read(fd, buf, -1, nd);
+                        n = readImpl(fd, buf, -1, nd);
                     }
                 }
             } catch (ConnectionResetException e) {
@@ -365,6 +374,9 @@ abstract class SocketChannelImpl
             readLock.unlock();
         }
     }
+
+    abstract int readImpl(FileDescriptor fd, ByteBuffer bb, long position,
+                 NativeDispatcher nd) throws IOException ;
 
     @Override
     public long read(ByteBuffer[] dsts, int offset, int length)
@@ -462,11 +474,11 @@ abstract class SocketChannelImpl
             int n = 0;
             try {
                 beginWrite(blocking);
-                n = IOUtil.write(fd, buf, -1, nd);
+                n = writeImpl(fd, buf, -1, nd);
                 if (blocking) {
                     while (IOStatus.okayToRetry(n) && isOpen()) {
                         park(Net.POLLOUT);
-                        n = IOUtil.write(fd, buf, -1, nd);
+                        n = writeImpl(fd, buf, -1, nd);
                     }
                 }
             } finally {
@@ -479,6 +491,10 @@ abstract class SocketChannelImpl
             writeLock.unlock();
         }
     }
+
+    public abstract int writeImpl(FileDescriptor fd, ByteBuffer src,
+                                  long position, NativeDispatcher nd)
+        throws IOException;
 
     @Override
     public long write(ByteBuffer[] srcs, int offset, int length)
@@ -925,16 +941,25 @@ abstract class SocketChannelImpl
             if (state == ST_CLOSING && !tryClose() && connected && isRegistered()) {
                 try {
                     SocketOption<Integer> opt = StandardSocketOptions.SO_LINGER;
-                    int interval = (int) Net.getSocketOption(fd, Net.UNSPEC, opt);
+                    int interval = (int) Net.getSocketOption(getFD(), Net.UNSPEC, opt);
                     if (interval != 0) {
                         if (interval > 0) {
                             // disable SO_LINGER
-                            Net.setSocketOption(fd, Net.UNSPEC, opt, -1);
+                            Net.setSocketOption(getFD(), Net.UNSPEC, opt, -1);
                         }
                         Net.shutdown(fd, Net.SHUT_WR);
                     }
                 } catch (IOException ignore) { }
             }
+        }
+    }
+
+    public void tryMarkClosed() throws IOException {
+        synchronized (stateLock) {
+            if ((readerThread != 0) || (writerThread != 0) || isRegistered()) {
+                throw new IOException("I/O operation in progress");
+            }
+            state = ST_CLOSED;
         }
     }
 
@@ -1306,6 +1331,10 @@ abstract class SocketChannelImpl
     }
 
     abstract String getRevealedLocalAddressAsString(SocketAddress sa);
+
+    protected ReentrantLock writeLock() {
+        return writeLock;
+    }
 
     @Override
     public String toString() {
