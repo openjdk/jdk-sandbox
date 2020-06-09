@@ -25,6 +25,7 @@
  * @test
  * @bug 8231358
  * @run main SendChannels
+ * @requires (os.family != "windows")
  * @summary SendChannels
  */
 
