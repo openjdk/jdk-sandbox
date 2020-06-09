@@ -211,10 +211,13 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         throws IOException
     {
         int[] newfds = new int[MAX_SEND_FDS];
-	for (int i=0; i<newfds.length; i++)
+        for (int i=0; i<newfds.length; i++)
             newfds[i] = -1;
         int nbytes = IOUtil.recvmsg(fd, bb, (SocketDispatcher)nd, newfds);
-	for (int i=0, fd1 = newfds[0]; fd1 != -1; i++, fd1 = newfds[i]) {
+
+        int fd1 = newfds.length == 0 ? -1 : newfds[0];
+
+        for (int i=0; fd1 != -1; fd1 = newfds[++i]) {
             FileDescriptor newfd = new FileDescriptor();
             fdAccess.set(newfd, newfds[i]);
             SocketAddress laddr = Net.localAddress(newfd);
@@ -283,21 +286,21 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
                 int l = sendQueue.size();
                 sendfds = new FileDescriptor[l];
                 chans = new SendableChannel[l];
-		int i=0;
+                int i=0;
                 for (SendableChannel sendee : sendQueue) {
                     if (!sendee.isOpen()) {
                         throw new IOException("Target channel for send is closed");
                     }
                     sendfds[i] = sendee.getFD();
                     chans[i] = sendee;
-		    i++;
+                    i++;
                 };
-		sendQueue.clear();
+                sendQueue.clear();
             }
-  	}
+        }
         int nbytes = IOUtil.sendmsg(fd, src, (SocketDispatcher)nd, sendfds);
         for (SendableChannel chan : chans) {
-	    try {chan.close(); } catch (IOException e) {}
+            try {chan.close(); } catch (IOException e) {}
         }
         return nbytes;
     }
@@ -326,15 +329,15 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         ReentrantLock writeLock = writeLock();
         writeLock.lock();
         try {
-	    synchronized (sendQueue) {
-		if (sendQueue.contains(target)) {
-		    throw new IOException("channel already on send queue");
-		}
-		if (sendQueue.size() >= MAX_SEND_FDS) {
-		    throw new IOException("send queue is full");
-		}
-		sendQueue.add(target);
-	    }
+            synchronized (sendQueue) {
+                if (sendQueue.contains(target)) {
+                    throw new IOException("channel already on send queue");
+                }
+                if (sendQueue.size() >= MAX_SEND_FDS) {
+                    throw new IOException("send queue is full");
+                }
+                sendQueue.add(target);
+            }
         } finally {
             writeLock.unlock();
         }
@@ -342,14 +345,14 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
 
     @Override
     protected void implCloseSelectableChannel() throws IOException {
-	for (SendableChannel c : sendQueue) {
-	    try {c.close(); } catch (IOException e) {}
-	}
-	for (SendableChannel c : receiveQueue) {
-	    try {c.close(); } catch (IOException e) {}
-	}
-	sendQueue.clear();
-	receiveQueue.clear();
-	super.implCloseSelectableChannel();
+        for (SendableChannel c : sendQueue) {
+            try {c.close(); } catch (IOException e) {}
+        }
+        for (SendableChannel c : receiveQueue) {
+            try {c.close(); } catch (IOException e) {}
+        }
+        sendQueue.clear();
+        receiveQueue.clear();
+        super.implCloseSelectableChannel();
     }
 }
