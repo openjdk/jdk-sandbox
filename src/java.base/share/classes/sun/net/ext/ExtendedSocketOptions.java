@@ -116,13 +116,11 @@ public abstract class ExtendedSocketOptions {
     }
 
     private static boolean isUnixOption(SocketOption<?> option) {
-        return option.name().equals("SO_PEERCRED")
-                        || option.name().equals("SO_SNDCHAN")
-                        || option.name().equals("SO_RCVCHAN");
+        return option.name().equals("SO_PEERCRED") || option.name().equals("SO_SNDCHAN");
     }
 
     private static boolean isByChannelOption(SocketOption<?> option) {
-        return option.name().equals("SO_SNDCHAN") || option.name().equals("SO_RCVCHAN");
+        return option.name().equals("SO_SNDCHAN");
     }
 
     private static boolean isStreamOption(SocketOption<?> option, boolean server) {
