@@ -73,6 +73,22 @@ class SocketDispatcher extends NativeDispatcher {
         close0(fdVal);
     }
 
+    int sendmsg(FileDescriptor fd, long address, int len, FileDescriptor[] sendfds)
+        throws IOException
+    {
+        return write(fd, address, len);
+    }
+
+    int recvmsg(FileDescriptor fd, long address, int len, int[] newfds)
+        throws IOException
+    {
+        return read(fd, address, len);
+    }
+
+    static int maxsendfds() {
+        return 0;
+    }
+
     // -- Native methods --
 
     private static native int read0(FileDescriptor fd, long address, int len)
