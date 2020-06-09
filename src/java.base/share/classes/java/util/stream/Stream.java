@@ -341,52 +341,56 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
 
     /**
      * Returns a stream consisting of the results of replacing each element of
-     * this stream with elements produced by applying the provided
-     * {@link BiConsumer} {@code mapper} to the element.
-     *
-     * For each element <em>E</em>, the mapper is invoked with <em>E</em> and a
-     * {@link Consumer Consumer}{@code <R>} lambda, which it can call zero or
-     * more times to map <em>E</em> to zero or more elements of type {@code R}.
+     * this stream with zero or more elements.  The replacement is managed by a
+     * {@code mapper} function, which is invoked with the element of the stream
+     * <em>E</em> to be processed, and a {@link Consumer Consumer} object
+     * {@code R}, which can be invoked any number of times by the mapper to add
+     * a replacement element to the stream.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
      *
      * @apiNote
-     * The {@code flatten()} operation has the effect of applying a one-to-many
-     * transformation to the elements of the stream, and then flattening the
-     * resulting elements into a new stream.
+     * This is similar to {@link #flatMap(Function)}, except that the elements can be
+     * generated imperatively, one-by-one, rather than having to create a Stream
+     * containing the replacement elements.
      *
      * @implSpec
      * The default implementation constructs a new stream by invoking
      * {@link #flatMap(Function)} with a stream that consists of the elements
-     * the mapper pushes through the provided {@code Consumer}.
+     * the mapper pushes through the provided {@code Consumer}, but the
+     * implementation classes in {@code java.util.stream} are much more efficient.
      *
      * <p><b>Examples</b>
-     *
-     * <p>If {@code orders} is a stream of purchase orders, and the status of each
-     * order can be updated and checked, then the following updates each order and
-     * produces a stream containing all the orders that have been completed:
-     * <pre>{@code
-     *       orders.flatten((order, sink) -> {
-     *          order.update();
-     *          if (order.isCompleted())
-     *              sink.accept(order);
-     *       });
-     * }</pre>
      *
      * <p>If {@code numbers} is a stream of Number objects, then the following
      * produces a stream of only the Integer objects in {@code numbers}. Each
      * of these objects is added twice to the resulting stream:
      * <pre>{@code
-     *       numbers.flatten((n, sink) -> {
+     *       numbers.mapMulti(((Number n, Consumer<Integer> sink) -> {
      *           if (n instanceof Integer)
-     *               sink.accept(n);
-     *               sink.accept(n)
+     *               sink.accept((Integer) n);
      *       });
      * }</pre>
-     * The {@code mapper} passed to {@code flatten} checks the class type of
-     * each element of the numbers stream and pushes only the elements that are
-     * of type Integer to the sink twice.
+     *
+     * <p> If we have a {@code String} and need to produce a stream of {@code Characters},
+     * which is the characters of the string, but all runs of whitespace are
+     * compressed to a single space, we can use {@code mapMulti} as follows:
+     * <pre>{@code
+     *     strings.mapMulti((String s, Consumer<Character> c) -> {
+     *         for (int i=0; i<s.length(); i++) {
+     *             char ch = s.charAt(i);
+     *             if (!Character.isWhitespace(ch)) {
+     *                 c.accept(ch);
+     *             }
+     *             else {
+     *                 c.accept(' ');
+     *                 while (++i < s.length() && Character.isWhitespace(s.charAt(i)))
+     *                 ;
+     *             }
+     *         }
+     *     })
+     * }</pre>
      *
      * @param <R>    The element type of the new stream
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
@@ -395,7 +399,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               new values
      * @return       the new stream
      */
-    default <R> Stream<R> flatten(BiConsumer<Consumer<R>, ? super T> mapper) {
+    default <R> Stream<R> mapMulti(BiConsumer<Consumer<R>, ? super T> mapper) {
         Objects.requireNonNull(mapper);
         return this.flatMap(e -> {
             SpinedBuffer<R> buffer = new SpinedBuffer<>();
@@ -426,9 +430,9 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               function to apply to each element which produces a stream
      *               of new values
      * @return the new stream
-     * @see #flatten(BiConsumer)
+     * @see #mapMulti(BiConsumer)
      */
-    default IntStream flattenToInt(BiConsumer<IntConsumer, ? super T> mapper) {
+    default IntStream mapMultiToInt(BiConsumer<IntConsumer, ? super T> mapper) {
         Objects.requireNonNull(mapper);
         return this.flatMapToInt(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
@@ -459,9 +463,9 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               function to apply to each element which produces a stream
      *               of new values
      * @return the new stream
-     * @see #flatten(BiConsumer)
+     * @see #mapMulti(BiConsumer)
      */
-    default LongStream flattenToLong(BiConsumer<LongConsumer, ? super T> mapper) {
+    default LongStream mapMultiToLong(BiConsumer<LongConsumer, ? super T> mapper) {
         Objects.requireNonNull(mapper);
         return this.flatMapToLong(e -> {
             SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
@@ -492,9 +496,9 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               function to apply to each element which produces a stream
      *               of new values
      * @return the new stream
-     * @see #flatten(BiConsumer)
+     * @see #mapMulti(BiConsumer)
      */
-    default DoubleStream flattenToDouble(BiConsumer<DoubleConsumer, ? super T> mapper) {
+    default DoubleStream mapMultiToDouble(BiConsumer<DoubleConsumer, ? super T> mapper) {
         Objects.requireNonNull(mapper);
         return this.flatMapToDouble(e -> {
             SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();

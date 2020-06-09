@@ -67,7 +67,7 @@ import static java.util.stream.LambdaTestHelpers.mfNull;
 import static java.util.stream.ThrowableHelper.checkNPE;
 
 @Test
-public class FlattenOpTest extends OpTestCase {
+public class mapMultiOpTest extends OpTestCase {
 
     BiConsumer<Consumer<Integer>, Integer> nullConsumer =
             (sink, e) -> mfNull.apply(e).forEach(sink::accept);
@@ -105,10 +105,10 @@ public class FlattenOpTest extends OpTestCase {
 
     @Test(dataProvider = "Stream<Integer>")
     public void testNullMapper(Stream<Integer> s) {
-        checkNPE(() -> s.flatten(null));
-        checkNPE(() -> s.flattenToInt(null));
-        checkNPE(() -> s.flattenToDouble(null));
-        checkNPE(() -> s.flattenToLong(null));
+        checkNPE(() -> s.mapMulti(null));
+        checkNPE(() -> s.mapMultiToInt(null));
+        checkNPE(() -> s.mapMultiToDouble(null));
+        checkNPE(() -> s.mapMultiToLong(null));
     }
 
     @Test
@@ -116,19 +116,19 @@ public class FlattenOpTest extends OpTestCase {
         String[] stringsArray = {"hello", "there", "", "yada"};
         Stream<String> strings = Arrays.asList(stringsArray).stream();
 
-        assertConcat(strings.flatten(charConsumer)
+        assertConcat(strings.mapMulti(charConsumer)
                 .iterator(), "hellothereyada");
-        assertCountSum((countTo(10).stream().flatten(idConsumer)),
+        assertCountSum((countTo(10).stream().mapMulti(idConsumer)),
                 10, 55);
-        assertCountSum(countTo(10).stream().flatten(nullConsumer),
+        assertCountSum(countTo(10).stream().mapMulti(nullConsumer),
                 0, 0);
-        assertCountSum(countTo(3).stream().flatten(listConsumer),
+        assertCountSum(countTo(3).stream().mapMulti(listConsumer),
                 6, 4);
 
         exerciseOps(TestData.Factory.ofArray("stringsArray",
-                stringsArray), s -> s.flatten(charConsumer));
+                stringsArray), s -> s.mapMulti(charConsumer));
         exerciseOps(TestData.Factory.ofArray("LONG_STRING",
-                new String[]{LONG_STRING}), s -> s.flatten(charConsumer));
+                new String[]{LONG_STRING}), s -> s.mapMulti(charConsumer));
     }
 
     @Test
@@ -137,18 +137,18 @@ public class FlattenOpTest extends OpTestCase {
         Stream<String> strings = Arrays.stream(stringsArray);
 
         assertConcat(delegateTo(strings)
-                .flatten(charConsumer).iterator(), "hellothereyada");
+                .mapMulti(charConsumer).iterator(), "hellothereyada");
         assertCountSum(delegateTo(countTo(10).stream())
-                .flatten(idConsumer), 10, 55);
+                .mapMulti(idConsumer), 10, 55);
         assertCountSum(delegateTo(countTo(10).stream())
-                .flatten(nullConsumer), 0, 0);
+                .mapMulti(nullConsumer), 0, 0);
         assertCountSum(delegateTo(countTo(3).stream())
-                .flatten(listConsumer), 6, 4);
+                .mapMulti(listConsumer), 6, 4);
 
         exerciseOps(TestData.Factory.ofArray("stringsArray",
-                stringsArray), s -> delegateTo(s).flatten(charConsumer));
+                stringsArray), s -> delegateTo(s).mapMulti(charConsumer));
         exerciseOps(TestData.Factory.ofArray("LONG_STRING",
-                new String[]{LONG_STRING}), s -> delegateTo(s).flatten(charConsumer));
+                new String[]{LONG_STRING}), s -> delegateTo(s).mapMulti(charConsumer));
     }
 
     @Test(dataProvider = "StreamTestData<Integer>",
@@ -162,30 +162,30 @@ public class FlattenOpTest extends OpTestCase {
                          TestData.OfRef<Integer> data,
                          Function<Stream<Integer>, Stream<Integer>> sf) {
         Collection<Integer> result;
-        result = exerciseOps(data, s -> sf.apply(s).flatten(idConsumer));
+        result = exerciseOps(data, s -> sf.apply(s).mapMulti(idConsumer));
         assertEquals(data.size(), result.size());
 
-        result = exerciseOps(data, s -> sf.apply(s).flatten(nullConsumer));
+        result = exerciseOps(data, s -> sf.apply(s).mapMulti(nullConsumer));
         assertEquals(0, result.size());
 
-        result = exerciseOps(data, s -> sf.apply(s).flatten(emptyStreamConsumer));
+        result = exerciseOps(data, s -> sf.apply(s).mapMulti(emptyStreamConsumer));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "StreamTestData<Integer>.small",
             dataProviderClass = StreamTestDataProvider.class)
     public void testOpsX(String name, TestData.OfRef<Integer> data) {
-        exerciseOps(data, s -> s.flatten(listConsumer));
-        exerciseOps(data, s -> s.flatten(intRangeConsumer));
-        exerciseOps(data, s -> s.flatten(rangeConsumerWithLimit));
+        exerciseOps(data, s -> s.mapMulti(listConsumer));
+        exerciseOps(data, s -> s.mapMulti(intRangeConsumer));
+        exerciseOps(data, s -> s.mapMulti(rangeConsumerWithLimit));
     }
 
     @Test(dataProvider = "StreamTestData<Integer>.small",
             dataProviderClass = StreamTestDataProvider.class)
     public void testDefaultOpsX(String name, TestData.OfRef<Integer> data) {
-        exerciseOps(data, s -> delegateTo(s).flatten(listConsumer));
-        exerciseOps(data, s -> delegateTo(s).flatten(intRangeConsumer));
-        exerciseOps(data, s -> delegateTo(s).flatten(rangeConsumerWithLimit));
+        exerciseOps(data, s -> delegateTo(s).mapMulti(listConsumer));
+        exerciseOps(data, s -> delegateTo(s).mapMulti(intRangeConsumer));
+        exerciseOps(data, s -> delegateTo(s).mapMulti(rangeConsumerWithLimit));
     }
 
     // Int
@@ -200,7 +200,7 @@ public class FlattenOpTest extends OpTestCase {
 
     @Test(dataProvider = "IntStream")
     public void testIntNullMapper(IntStream s) {
-        checkNPE(() -> s.flatten(null));
+        checkNPE(() -> s.mapMulti(null));
     }
 
     @Test(dataProvider = "IntStreamTestData", dataProviderClass = IntStreamTestDataProvider.class)
@@ -212,34 +212,34 @@ public class FlattenOpTest extends OpTestCase {
     private void testIntOps(String name,
                             TestData.OfInt data,
                             Function<IntStream, IntStream> sf) {
-        Collection<Integer> result = exerciseOps(data, s -> sf.apply(s).flatten((sink, i) -> IntStream.of(i).forEach(sink::accept)));
+        Collection<Integer> result = exerciseOps(data, s -> sf.apply(s).mapMulti((sink, i) -> IntStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).boxed().flattenToInt((sink, i) -> IntStream.of(i).forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).boxed().mapMultiToInt((sink, i) -> IntStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).flatten((sink, i) -> IntStream.empty().forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).mapMulti((sink, i) -> IntStream.empty().forEach(sink::accept)));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "IntStreamTestData.small", dataProviderClass = IntStreamTestDataProvider.class)
     public void testIntOpsX(String name, TestData.OfInt data) {
-        exerciseOps(data, s -> s.flatten((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> s.flatten((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> s.mapMulti((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> s.mapMulti((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
 
-        exerciseOps(data, s -> s.boxed().flattenToInt((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> s.boxed().flattenToInt((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> s.boxed().mapMultiToInt((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> s.boxed().mapMultiToInt((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 
     @Test(dataProvider = "IntStreamTestData.small", dataProviderClass = IntStreamTestDataProvider.class)
     public void testDefaultIntOpsX(String name, TestData.OfInt data) {
-        exerciseOps(data, s -> delegateTo(s).flatten((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> delegateTo(s).flatten((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).mapMulti((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).mapMulti((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
 
-        exerciseOps(data, s -> delegateTo(s).boxed().flattenToInt((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> delegateTo(s).boxed().flattenToInt((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).boxed().mapMultiToInt((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).boxed().mapMultiToInt((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 
     // Double
@@ -254,7 +254,7 @@ public class FlattenOpTest extends OpTestCase {
 
     @Test(dataProvider = "DoubleStream")
     public void testDoubleNullMapper(DoubleStream s) {
-        checkNPE(() -> s.flatten(null));
+        checkNPE(() -> s.mapMulti(null));
     }
 
     @Test(dataProvider = "DoubleStreamTestData", dataProviderClass = DoubleStreamTestDataProvider.class)
@@ -266,28 +266,28 @@ public class FlattenOpTest extends OpTestCase {
     private void testDoubleOps(String name,
                                TestData.OfDouble data,
                                Function<DoubleStream, DoubleStream> sf) {
-        Collection<Double> result = exerciseOps(data, s -> sf.apply(s).flatten((sink, i) -> DoubleStream.of(i).forEach(sink::accept)));
+        Collection<Double> result = exerciseOps(data, s -> sf.apply(s).mapMulti((sink, i) -> DoubleStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).boxed().flattenToDouble((sink, i) -> DoubleStream.of(i).forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).boxed().mapMultiToDouble((sink, i) -> DoubleStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).flatten((sink, i) -> DoubleStream.empty().forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).mapMulti((sink, i) -> DoubleStream.empty().forEach(sink::accept)));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "DoubleStreamTestData.small", dataProviderClass = DoubleStreamTestDataProvider.class)
     public void testDoubleOpsX(String name, TestData.OfDouble data) {
-        exerciseOps(data, s -> s.flatten((sink, e) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
-        exerciseOps(data, s -> s.flatten((sink, e) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> s.mapMulti((sink, e) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> s.mapMulti((sink, e) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
     }
 
     @Test(dataProvider = "DoubleStreamTestData.small", dataProviderClass = DoubleStreamTestDataProvider.class)
     public void testDefaultDoubleOpsX(String name, TestData.OfDouble data) {
-        exerciseOps(data, s -> delegateTo(s).flatten((sink, e) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
-        exerciseOps(data, s -> delegateTo(s).flatten((sink, e) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).mapMulti((sink, e) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).mapMulti((sink, e) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
     }
 
     // Long
@@ -302,7 +302,7 @@ public class FlattenOpTest extends OpTestCase {
 
     @Test(dataProvider = "LongStream")
     public void testLongNullMapper(LongStream s) {
-        checkNPE(() -> s.flatten(null));
+        checkNPE(() -> s.mapMulti(null));
     }
 
     @Test(dataProvider = "LongStreamTestData", dataProviderClass = LongStreamTestDataProvider.class)
@@ -314,27 +314,27 @@ public class FlattenOpTest extends OpTestCase {
     private void testLongOps(String name,
                              TestData.OfLong data,
                              Function<LongStream, LongStream> sf) {
-        Collection<Long> result = exerciseOps(data, s -> sf.apply(s).flatten((sink, i) -> LongStream.of(i).forEach(sink::accept)));
+        Collection<Long> result = exerciseOps(data, s -> sf.apply(s).mapMulti((sink, i) -> LongStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).boxed().flattenToLong((sink, i) -> LongStream.of(i).forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).boxed().mapMultiToLong((sink, i) -> LongStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).flatten((sink, i) -> LongStream.empty().forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).mapMulti((sink, i) -> LongStream.empty().forEach(sink::accept)));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "LongStreamTestData.small", dataProviderClass = LongStreamTestDataProvider.class)
     public void testLongOpsX(String name, TestData.OfLong data) {
-        exerciseOps(data, s -> s.flatten((sink, e) -> LongStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> s.flatten((sink, e) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> s.mapMulti((sink, e) -> LongStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> s.mapMulti((sink, e) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 
     @Test(dataProvider = "LongStreamTestData.small", dataProviderClass = LongStreamTestDataProvider.class)
     public void testDefaultLongOpsX(String name, TestData.OfLong data) {
-        exerciseOps(data, s -> delegateTo(s).flatten((sink, e) -> LongStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> delegateTo(s).flatten((sink, e) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).mapMulti((sink, e) -> LongStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).mapMulti((sink, e) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 }

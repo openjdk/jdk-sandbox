@@ -184,9 +184,9 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      *               function to apply to each element which produces a
      *               {@code DoubleStream} of new values
      * @return the new stream
-     * @see Stream#flatten(BiConsumer)
+     * @see Stream#mapMulti(BiConsumer)
      */
-    default DoubleStream flatten(ObjDoubleConsumer<DoubleConsumer> mapper) {
+    default DoubleStream mapMulti(ObjDoubleConsumer<DoubleConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return this.flatMap(e -> {
             SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
