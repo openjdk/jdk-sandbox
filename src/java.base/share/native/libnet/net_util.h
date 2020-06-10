@@ -74,7 +74,7 @@ extern void setInetAddress_addr(JNIEnv *env, jobject iaObj, int address);
 extern void setInetAddress_family(JNIEnv *env, jobject iaObj, int family);
 extern void setInetAddress_hostName(JNIEnv *env, jobject iaObj, jobject h);
 extern int getInetAddress_addr(JNIEnv *env, jobject iaObj);
-JNIEXPORT int JNICALL getInetAddress_family(JNIEnv *env, jobject iaObj);
+extern int getInetAddress_family(JNIEnv *env, jobject iaObj);
 
 extern jclass ia4_class;
 extern jmethodID ia4_ctrID;
@@ -110,11 +110,6 @@ extern jfieldID ia6_scopeidID;
 extern jfieldID ia6_scopeidsetID;
 extern jfieldID ia6_scopeifnameID;
 extern jmethodID ia6_ctrID;
-
-/* UnixDomainSocketAddress methods */
-extern jclass udsa_class;
-extern jmethodID udsa_ctorID;
-extern jfieldID udsa_pathID;
 
 /************************************************************************
  *  Utilities

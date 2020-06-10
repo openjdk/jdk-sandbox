@@ -110,7 +110,6 @@ abstract class SocketChannelImpl
     // Binding
     private SocketAddress localAddress;
     private SocketAddress remoteAddress;
-    private boolean isBound;
 
     // Socket adaptor, created on demand
     private Socket socket;
@@ -616,7 +615,6 @@ abstract class SocketChannelImpl
                     if (localAddress != null)
                         throw new AlreadyBoundException();
                     localAddress = bindImpl(local);
-                    isBound = true;
                 }
             } finally {
                 writeLock.unlock();
@@ -625,12 +623,6 @@ abstract class SocketChannelImpl
             readLock.unlock();
         }
         return this;
-    }
-
-    boolean isBound() {
-        synchronized (stateLock) {
-            return isBound;
-        }
     }
 
     @Override
