@@ -35,8 +35,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 
-import static java.nio.channels.UnixDomainSocketAddress.UNNAMED;
-
 /**
  * Check that all bind variations work
  */
@@ -44,7 +42,7 @@ public class Bind {
 
     static Path spath, cpath;
 
-    static UnixDomainSocketAddress sAddr, cAddr, nullAddr;
+    static UnixDomainSocketAddress sAddr, cAddr, UNNAMED, nullAddr;
     static ServerSocketChannel server;
     static SocketChannel client, accept1;
 
@@ -58,6 +56,7 @@ public class Bind {
         sAddr = UnixDomainSocketAddress.of(spath);
         cAddr = UnixDomainSocketAddress.of(cpath);
         nullAddr = UnixDomainSocketAddress.of("");
+        UNNAMED = nullAddr;
         runTests();
     }
 
@@ -138,8 +137,8 @@ public class Bind {
             throw new RuntimeException("this is not the " + s + " address");
     }
 
-    static void assertIdentity(Object a, Object b) {
-        if (a != b)
+    static void assertEquals(Object a, Object b) {
+        if (!a.equals(b))
             throw new RuntimeException("identity check failed");
     }
 
@@ -177,7 +176,7 @@ public class Bind {
             client.bind(null);
             SocketAddress a = client.getLocalAddress();
             assertAddress(a, nullAddr, "null address");
-            assertIdentity(a, UNNAMED);
+            assertEquals(a, UNNAMED);
         });
         // server bind to null: should bind to a local address
         checkNormal(() -> {
@@ -203,7 +202,7 @@ public class Bind {
             client.connect(sAddr);
             SocketAddress cAddr = client.getLocalAddress();
             assertAddress(cAddr, nullAddr, "null address");
-            assertIdentity(cAddr, UNNAMED);
+            assertEquals(cAddr, UNNAMED);
             assertServerAddress(server.getLocalAddress());
         });
         // client null bind and connect (check all addresses)

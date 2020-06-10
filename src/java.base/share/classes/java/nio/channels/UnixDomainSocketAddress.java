@@ -43,6 +43,9 @@ import sun.nio.ch.Net;
  * {@link ServerSocketChannel}. This encapsulates a path which represents a filesystem pathname
  * that channels can bind or connect to.
  *
+ * <p> An <a id="unnamed"></a><i>unnamed</i> {@code UnixDomainSocketAddress} has an empty path.
+ * If a {@link SocketChannel} is automatically bound then its local address will be unnamed.
+ *
  * <p>{@link Path} objects used to create instances of this class must be obtained from the
  * {@linkplain FileSystems#getDefault system-default} filesystem.
  * All other {@code Path}s are considered invalid.
@@ -73,13 +76,6 @@ public final class UnixDomainSocketAddress extends SocketAddress {
     private Object writeReplace() throws ObjectStreamException {
         return new SerializationProxy(this);
     }
-
-    /**
-     * An unnamed UnixDomainSocketAddress. If a {@link SocketChannel} is automatically
-     * bound then its local address will be this instance.
-     */
-    public static final UnixDomainSocketAddress UNNAMED =
-        new UnixDomainSocketAddress("");
 
     /**
      * Create a named UnixDomainSocketAddress for the given pathname string.

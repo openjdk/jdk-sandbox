@@ -307,9 +307,9 @@ public abstract class SocketChannel
      * a file is created in the file-system
      * with the same name as this channel's bound address. This file persists after
      * the channel is closed, and must be removed before another channel can bind
-     * to the same name. However, automatically assigned addresses are {@link
-     * UnixDomainSocketAddress#UNNAMED unnamed} and therefore there is no
-     * corresponding file in the file-system.
+     * to the same name. However, if the channel is automatically bound then its address
+     * is <a href="UnixDomainSocketAddress.html#unnamed">unnamed</a>
+     * and therefore there is no corresponding file in the file-system.
      *
      * @throws  ConnectionPendingException
      *          If a non-blocking connect operation is already in progress on

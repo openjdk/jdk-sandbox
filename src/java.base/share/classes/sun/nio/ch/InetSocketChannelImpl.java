@@ -268,11 +268,6 @@ class InetSocketChannelImpl extends SocketChannelImpl
     }
 
     @Override
-    protected SocketAddress getConnectedAddress(FileDescriptor fd) throws IOException {
-        return Net.localAddress(fd);
-    }
-
-    @Override
     protected String getRevealedLocalAddressAsString(SocketAddress sa) {
         InetSocketAddress isa = (InetSocketAddress)sa;
         return Net.getRevealedLocalAddressAsString(isa);
