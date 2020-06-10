@@ -36,7 +36,6 @@
 #include "net_util.h"
 
 #include "sun_nio_ch_InheritedChannel.h"
-#include "java_nio_channels_UnixDomainSocketAddress.h"
 
 static int matchFamilyInet(SOCKETADDRESS *sa) {
     return (sa->sa.sa_family == (ipv6_available() ? AF_INET6 : AF_INET));
@@ -47,8 +46,6 @@ Java_sun_nio_ch_InheritedChannel_initIDs(JNIEnv *env, jclass cla)
 {
     /* Initialize InetAddress IDs before later use of NET_XXX functions */
     initInetAddressIDs(env);
-    /* Same for UnixDomainSocketAddress */
-    Java_java_nio_channels_UnixDomainSocketAddress_init(env, NULL);
 }
 
 JNIEXPORT jobject JNICALL
@@ -68,7 +65,7 @@ Java_sun_nio_ch_InheritedChannel_peerAddressInet(JNIEnv *env, jclass cla, jint f
     return remote_ia;
 }
 
-JNIEXPORT jobject JNICALL
+JNIEXPORT jstring JNICALL
 Java_sun_nio_ch_InheritedChannel_peerAddressUnix(JNIEnv *env, jclass cla, jint fd)
 {
     struct sockaddr_un sa;
@@ -77,7 +74,7 @@ Java_sun_nio_ch_InheritedChannel_peerAddressUnix(JNIEnv *env, jclass cla, jint f
 
     if (getpeername(fd, (struct sockaddr *)&sa, &len) == 0) {
         if (sa.sun_family == AF_UNIX) {
-            remote_sa = NET_SockaddrToUnixAddress(env, &sa, len);
+            remote_sa = NET_SockaddrToUnixAddressString(env, &sa, len);
         }
     }
     return remote_sa;
@@ -97,27 +94,6 @@ Java_sun_nio_ch_InheritedChannel_peerPort0(JNIEnv *env, jclass cla, jint fd)
     }
 
     return remote_port;
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_InheritedChannel_addressFamily(JNIEnv *env, jclass cla, jint fd)
-{
-    SOCKETADDRESS addr;
-    socklen_t addrlen = sizeof(addr);
-
-    if (getsockname(fd, (struct sockaddr *)&addr, &addrlen) < 0) {
-        return sun_nio_ch_InheritedChannel_AF_UNKNOWN;
-    }
-    if (addr.sa.sa_family == AF_INET) {
-        return sun_nio_ch_InheritedChannel_AF_INET;
-    }
-    if (addr.sa.sa_family == AF_INET6) {
-        return sun_nio_ch_InheritedChannel_AF_INET6;
-    }
-    if (addr.sa.sa_family == AF_UNIX) {
-        return sun_nio_ch_InheritedChannel_AF_UNIX;
-    }
-    return sun_nio_ch_InheritedChannel_AF_UNKNOWN;
 }
 
 JNIEXPORT jboolean JNICALL
