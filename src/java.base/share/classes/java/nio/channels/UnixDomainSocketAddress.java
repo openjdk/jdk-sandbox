@@ -52,11 +52,6 @@ import sun.nio.ch.Net;
 public final class UnixDomainSocketAddress extends SocketAddress {
     static final long serialVersionUID = 92902496589351288L;
 
-    static {
-        Net.init();
-        init();
-    }
-
     private final Path path;
     private final String pathname; // used in native code
 
@@ -64,15 +59,15 @@ public final class UnixDomainSocketAddress extends SocketAddress {
 
         static final long serialVersionUID = 9829020419651288L;
 
-	private String pathname;
+        private String pathname;
 
-	public SerializationProxy(UnixDomainSocketAddress addr) {
-	    this.pathname = addr.pathname;
-	}
+        public SerializationProxy(UnixDomainSocketAddress addr) {
+            this.pathname = addr.pathname;
+        }
 
-	private Object readResolve() {
-	    return UnixDomainSocketAddress.of(pathname);
-	}
+        private Object readResolve() {
+            return UnixDomainSocketAddress.of(pathname);
+        }
     }
 
     private Object writeReplace() throws ObjectStreamException {
@@ -144,8 +139,6 @@ public final class UnixDomainSocketAddress extends SocketAddress {
     public Path getPath() {
         return path;
     }
-
-    static native void init();
 
     /**
      * Returns a hashcode computed from this object's path string.

@@ -92,6 +92,12 @@ public class Net {
         }
     };
 
+    // socket address type
+    static final int AF_UNKNOWN         = -1;
+    static final int AF_INET            = 1;
+    static final int AF_INET6           = 2;
+    static final int AF_UNIX            = 3;
+
     // set to true if exclusive binding is on for Windows
     private static final boolean exclusiveBind;
 
@@ -525,6 +531,11 @@ public class Net {
     /*
      * Returns 1 for Windows and -1 for Linux/Mac OS
      */
+
+    static native int localAddressFamily(FileDescriptor fd);
+
+    static native int remoteAddressFamily(FileDescriptor fd);
+
     private static native int isExclusiveBindAvailable();
 
     private static native boolean shouldSetBothIPv4AndIPv6Options0();
@@ -621,34 +632,36 @@ public class Net {
         throws IOException;
 
     public static SocketAddress localAddress(FileDescriptor fd) throws IOException {
-        Object addr = localAddress0(fd);
-        if (addr instanceof InetAddress) {
-            return new InetSocketAddress((InetAddress)addr, localPort(fd));
-        } else if (addr instanceof UnixDomainSocketAddress) {
-            return (UnixDomainSocketAddress)addr;
+        int family = localAddressFamily(fd);
+        if (family == AF_UNIX) {
+            return UnixDomainSocketAddress.of(localUnixAddress(fd));
+        } else {
+            return new InetSocketAddress(localInetAddress(fd), localPort(fd));
         }
-        throw new InternalError();
     }
 
-    public static native Object localAddress0(FileDescriptor fd)
+    public static SocketAddress remoteAddress(FileDescriptor fd) throws IOException {
+        int family = remoteAddressFamily(fd);
+        if (family == AF_UNIX) {
+            return UnixDomainSocketAddress.of(remoteUnixAddress(fd));
+        } else {
+            return new InetSocketAddress(remoteInetAddress(fd), remotePort(fd));
+        }
+    }
+
+    public static native InetAddress localInetAddress(FileDescriptor fd)
+        throws IOException;
+
+    public static native String localUnixAddress(FileDescriptor fd)
         throws IOException;
 
     private static native int remotePort(FileDescriptor fd)
         throws IOException;
 
-    static SocketAddress remoteAddress(FileDescriptor fd)
-        throws IOException
-    {
-        Object addr = remoteAddress0(fd);
-        if (addr instanceof InetAddress) {
-            return new InetSocketAddress((InetAddress)addr, remotePort(fd));
-        } else if (addr instanceof UnixDomainSocketAddress) {
-            return (UnixDomainSocketAddress)addr;
-        }
-        throw new InternalError();
-    }
+    public static native InetAddress remoteInetAddress(FileDescriptor fd)
+        throws IOException;
 
-    public static native Object remoteAddress0(FileDescriptor fd)
+    public static native String remoteUnixAddress(FileDescriptor fd)
         throws IOException;
 
     private static native int getIntOption0(FileDescriptor fd, boolean mayNeedConversion,
@@ -887,15 +900,15 @@ public class Net {
 
     private static native boolean unixDomainSocketSupported();
 
-    static native void unixDomainBind(FileDescriptor fd, UnixDomainSocketAddress addr)
+    static native void unixDomainBind(FileDescriptor fd, String addr)
         throws IOException;
 
-    static native int unixDomainConnect(FileDescriptor fd, UnixDomainSocketAddress remote)
+    static native int unixDomainConnect(FileDescriptor fd, String remote)
         throws IOException;
 
     static native int unixDomainAccept(FileDescriptor fd,
                                      FileDescriptor newfd,
-                                     SocketAddress[] isaa)
+                                     String[] isaa)
         throws IOException;
 
     static native int unixDomainMaxNameLen0();

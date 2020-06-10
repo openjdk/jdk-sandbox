@@ -124,8 +124,9 @@ public class UnixDomainServerSocketChannelImpl
             } else {
                 usa = Net.checkUnixAddress(local);
             }
+            String path = usa.getPath().toString();
             try {
-                Net.unixDomainBind(getFD(), usa);
+                Net.unixDomainBind(getFD(), path);
                 found = true;
                 break;
             } catch (BindException e) {
@@ -181,7 +182,12 @@ public class UnixDomainServerSocketChannelImpl
         if (sm != null) {
             sm.checkPermission(unixPermission);
         }
-        return Net.unixDomainAccept(fd, newfd, addrs);
+        String[] addrArray = new String[1];
+        int n = Net.unixDomainAccept(fd, newfd, addrArray);
+        if (n > 0) {
+            addrs[0] = UnixDomainSocketAddress.of(addrArray[0]);
+        }
+        return n;
     }
 
     @Override

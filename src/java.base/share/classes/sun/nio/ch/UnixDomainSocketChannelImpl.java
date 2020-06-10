@@ -123,8 +123,9 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         if (sm != null) {
             sm.checkPermission(unixPermission);
         }
-        Net.unixDomainBind(getFD(), usa);
-        if (usa == null || usa.getPath().toString().equals("")) {
+        String path = usa == null ? null : usa.getPath().toString();
+        Net.unixDomainBind(getFD(), path);
+        if (usa == null || path.equals("")) {
             return UnixDomainSocketAddress.UNNAMED;
         } else {
             return Net.localAddress(getFD());
@@ -152,7 +153,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     @Override
     int connectImpl(FileDescriptor fd, SocketAddress sa) throws IOException {
         UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
-        return Net.unixDomainConnect(fd, usa);
+        return Net.unixDomainConnect(fd, usa.getPath().toString());
     }
 
     @Override
