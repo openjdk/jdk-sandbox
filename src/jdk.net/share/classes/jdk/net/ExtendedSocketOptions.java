@@ -288,10 +288,6 @@ public final class ExtendedSocketOptions {
                                   Object value)
                 throws SocketException
             {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null)
-                    sm.checkPermission(new NetworkPermission("setOption." + option.name()));
-
                 if (fd == null || !fd.valid())
                     throw new SocketException("socket closed");
 
@@ -321,10 +317,6 @@ public final class ExtendedSocketOptions {
                                     SocketOption<?> option)
                 throws SocketException
             {
-                SecurityManager sm = System.getSecurityManager();
-                if (sm != null)
-                    sm.checkPermission(new NetworkPermission("getOption." + option.name()));
-
                 if (fd == null || !fd.valid())
                     throw new SocketException("socket closed");
 
