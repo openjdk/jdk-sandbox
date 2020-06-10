@@ -356,10 +356,9 @@
  * <p>
  * If a Unix domain {@link SocketChannel} is automatically bound by connecting it
  * without calling {@link SocketChannel#bind(SocketAddress) bind} first, then its address
- * is unnamed; it has an empty path field, and therefore has no associated file
- * in the file-system. {@link SocketChannel#getLocalAddress() getLocalAddress} will return
- * the constant value {@link UnixDomainSocketAddress#UNNAMED UNNAMED} in this case.
- * Explicitly binding a {@code SocketChannel} to any unnamed address has the same effect.
+ * is <i>unnamed</i>; it has an empty path field, and therefore has no associated file
+ * in the file-system. Explicitly binding a {@code SocketChannel} to any unnamed
+ * address has the same effect.
  * <p>
  * If a Unix domain {@link ServerSocketChannel} is automatically bound by passing a {@code null}
  * address to one of the {@link ServerSocketChannel#bind(SocketAddress) bind} methods, the channel

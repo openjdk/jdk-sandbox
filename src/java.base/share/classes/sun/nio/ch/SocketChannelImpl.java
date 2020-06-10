@@ -697,14 +697,12 @@ abstract class SocketChannelImpl
         if (completed) {
             synchronized (stateLock) {
                 if (state == ST_CONNECTIONPENDING) {
-                    localAddress = getConnectedAddress(fd);
+                    localAddress = Net.localAddress(fd);
                     state = ST_CONNECTED;
                 }
             }
         }
     }
-
-    abstract SocketAddress getConnectedAddress(FileDescriptor fd) throws IOException;
 
     /**
      * Checks the remote address to which this channel is to be connected.
@@ -791,7 +789,7 @@ abstract class SocketChannelImpl
         if (completed) {
             synchronized (stateLock) {
                 if (state == ST_CONNECTIONPENDING) {
-                    localAddress = getConnectedAddress(fd);
+                    localAddress = Net.localAddress(fd);
                     state = ST_CONNECTED;
                 }
             }

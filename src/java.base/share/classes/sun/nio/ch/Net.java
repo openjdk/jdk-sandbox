@@ -67,6 +67,9 @@ public class Net {
         IOUtil.load();
     }
 
+    static final UnixDomainSocketAddress UNNAMED
+        = UnixDomainSocketAddress.of("");;
+
     public static void init () {
         // trigger initialization
     }
@@ -880,14 +883,13 @@ public class Net {
             // Security check passed
         } catch (SecurityException e) {
             // Return unnamed address only if security check fails
-            addr = UnixDomainSocketAddress.UNNAMED;
+            addr = UNNAMED;
         }
         return addr;
     }
 
     static String getRevealedLocalAddressAsString(UnixDomainSocketAddress addr) {
-        return System.getSecurityManager() == null ? addr.toString() :
-                UnixDomainSocketAddress.UNNAMED.toString();
+        return System.getSecurityManager() == null ? addr.toString() : "";
     }
 
     // -- Socket operations --
