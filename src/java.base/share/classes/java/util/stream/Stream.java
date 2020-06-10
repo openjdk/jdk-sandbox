@@ -341,44 +341,59 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
 
     /**
      * Returns a stream consisting of the results of replacing each element of
-     * this stream with zero or more elements.  The replacement is managed by a
-     * {@code mapper} function, which is invoked with the element of the stream
-     * <em>E</em> to be processed, and a {@link Consumer Consumer} object
-     * {@code R}, which can be invoked any number of times by the mapper to add
-     * a replacement element to the stream.
+     * this stream with multiple elements, specifically zero or more elements.
+     * Replacement is performed by applying the provided mapping function to each
+     * element in conjunction with a second {@link Consumer consumer} argument that
+     * accepts replacing elements. The mapping function operates on the consumer,
+     * zero or more times, for acceptance of replacing elements.
+     *
+     * <p>The results of this method are undefined if the second {@link Consumer}
+     * argument is operated on outside the scope of the mapper function.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
      *
-     * @apiNote
-     * This is similar to {@link #flatMap(Function)}, except that the elements can be
-     * generated imperatively, one-by-one, rather than having to create a Stream
-     * containing the replacement elements.
-     *
      * @implSpec
-     * The default implementation constructs a new stream by invoking
-     * {@link #flatMap(Function)} with a stream that consists of the elements
-     * the mapper pushes through the provided {@code Consumer}, but the
-     * implementation classes in {@code java.util.stream} are much more efficient.
+     * The default implementation accumulates accepted elements into an internal
+     * buffer. When the mapper function returns a stream is created from the
+     * internal buffer.  Finally, method {@link #flatMap(Function)} is invoked
+     * with the stream. The implementation classes in {@code java.util.stream} are
+     * much more efficient and do not buffer.
+     *
+     * @apiNote
+     * This method is similar to {@link #flatMap} in that it has the effect of
+     * applying a one-to-many transformation to the elements of the stream, and
+     * then flattening the resulting elements into a new stream. However, this
+     * method is more preferable than {@link #flatMap} in the following circumstances:
+     * <ul>
+     * <li>when performing a `filter` then `map`, mapping to zero or one element,
+     * and there a common computation across the two actions would require duplication
+     * or the computation is clearer when in one place. Further, this avoids the
+     * returning of {@code null} or an {@link Stream#empty() empty} stream for the
+     * zero mapping case, which need not be expressed;
+     * <li>when elements can be generated imperatively, one-by-one, rather than
+     * having to create a Stream containing the replacement elements; and
+     * <li>replacing an element with a small number of elements, thereby avoiding
+     * the overhead of creating a stream;
+     * </ul>
      *
      * <p><b>Examples</b>
      *
      * <p>If {@code numbers} is a stream of Number objects, then the following
-     * produces a stream of only the Integer objects in {@code numbers}. Each
-     * of these objects is added twice to the resulting stream:
+     * produces a stream of only the {@code Integer} objects in {@code numbers}.
      * <pre>{@code
-     *       numbers.mapMulti(((Number n, Consumer<Integer> sink) -> {
-     *           if (n instanceof Integer)
-     *               sink.accept((Integer) n);
-     *       });
+     *     numbers.mapMulti((Number n, Consumer<Integer> c) -> {
+     *         if (n instanceof Integer)
+     *             c.accept((Integer) n);
+     *     });
      * }</pre>
      *
-     * <p> If we have a {@code String} and need to produce a stream of {@code Characters},
+     * <p>If we have a {@code String} and need to produce a stream of {@code Characters},
      * which is the characters of the string, but all runs of whitespace are
      * compressed to a single space, we can use {@code mapMulti} as follows:
      * <pre>{@code
      *     strings.mapMulti((String s, Consumer<Character> c) -> {
-     *         for (int i=0; i<s.length(); i++) {
+     *         for (int i = 0; i < s.length(); i++) {
      *             char ch = s.charAt(i);
      *             if (!Character.isWhitespace(ch)) {
      *                 c.accept(ch);
@@ -389,15 +404,16 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *                 ;
      *             }
      *         }
-     *     })
+     *     });
      * }</pre>
      *
-     * @param <R>    The element type of the new stream
+     * @param <R> The element type of the new stream
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
-     *               {@code BiConsumer} to map each element to one or or more
-     *               new values
-     * @return       the new stream
+     *               function applied to each element in conjunction with a
+     *               second {@link Consumer} argument that accepts replacing elements.
+     * @return the new stream
+     * @see #flatMap
      */
     default <R> Stream<R> mapMulti(BiConsumer<Consumer<R>, ? super T> mapper) {
         Objects.requireNonNull(mapper);
