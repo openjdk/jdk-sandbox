@@ -468,7 +468,6 @@ public final class ExtendedSocketOptions {
             return false;
         }
 
-
         void setQuickAck(int fd, boolean on) throws SocketException {
             throw new UnsupportedOperationException("unsupported TCP_QUICKACK option");
         }
