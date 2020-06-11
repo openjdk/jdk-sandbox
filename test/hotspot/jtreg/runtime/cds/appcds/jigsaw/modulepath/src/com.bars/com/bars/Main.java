@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,22 +22,15 @@
  *
  */
 
-#ifndef SHARE_JFR_RECORDER_CHECKPOINT_JFRMETADATAEVENT_HPP
-#define SHARE_JFR_RECORDER_CHECKPOINT_JFRMETADATAEVENT_HPP
-
-#include "jni.h"
-#include "memory/allocation.hpp"
-
-class JfrChunkWriter;
-
-//
-// Metadata is continuously updated in Java as event classes are loaded / unloaded.
-// Using update(), Java stores a binary representation back to native.
-//
-class JfrMetadataEvent : AllStatic {
- public:
-  static void write(JfrChunkWriter& writer);
-  static void update(jbyteArray metadata);
-};
-
-#endif // SHARE_JFR_RECORDER_CHECKPOINT_JFRMETADATAEVENT_HPP
+package com.bars;
+public class Main {
+    public static void main(String... args) {
+        try {
+             System.out.println("Main.class from " + Main.class.getModule());
+             Class.forName("com.foos.Test");
+             System.out.println("com.foos.Test found!");
+        } catch (ClassNotFoundException e) {
+             System.out.println("ClassNotFoundException " + e);
+        }
+    }
+}
