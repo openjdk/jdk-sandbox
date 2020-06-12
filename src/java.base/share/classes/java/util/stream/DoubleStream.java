@@ -164,20 +164,26 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
     DoubleStream flatMap(DoubleFunction<? extends DoubleStream> mapper);
 
     /**
-     * Returns a {@code DoubleStream} consisting of the results of replacing
-     * each element of this stream with elements produced by applying the
-     * provided {@link ObjDoubleConsumer} {@code mapper} to the element.
-     * The mapper is invoked with each double <em>d</em> from upstream and a
-     * {@link DoubleConsumer DoubleConsumer} lambda, which can be called zero
-     * or more times to map <em>d</em> to zero or more doubles.
+     * Returns a stream consisting of the results of replacing each element of
+     * this stream with multiple elements, specifically zero or more elements.
+     * Replacement is performed by applying the provided mapping function to each
+     * element in conjunction with a second {@link DoubleConsumer consumer}
+     * argument that accepts replacing elements. The mapping function operates
+     * on the consumer, zero or more times, for acceptance of replacing elements.
+     *
+     * <p>The results of this method are undefined if the second
+     * {@link DoubleConsumer} argument is operated on outside the scope
+     * of the mapper function.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
      *
      * @implSpec
-     * The default implementation constructs a new stream by invoking
-     * {@link #flatMap(DoubleFunction)} with a stream that consists of the
-     * elements the mapper pushes through the provided {@code DoubleConsumer}.
+     * The default implementation accumulates accepted elements into an internal
+     * buffer. When the mapper function returns, a stream is created from the
+     * internal buffer. Finally, method {@link #flatMap(DoubleFunction)} is invoked
+     * with the stream. The implementation classes in {@code java.util.stream} are
+     * much more efficient and do not buffer.
      *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
