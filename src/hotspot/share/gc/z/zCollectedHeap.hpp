@@ -27,14 +27,14 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/softRefPolicy.hpp"
 #include "gc/z/zBarrierSet.hpp"
-#include "gc/z/zDirector.hpp"
-#include "gc/z/zDriver.hpp"
 #include "gc/z/zHeap.hpp"
 #include "gc/z/zInitialize.hpp"
 #include "gc/z/zRuntimeWorkers.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zUncommitter.hpp"
 #include "memory/metaspace.hpp"
+
+class ZDirector;
+class ZDriver;
+class ZStat;
 
 class ZCollectedHeap : public CollectedHeap {
   friend class VMStructs;
@@ -46,7 +46,6 @@ private:
   ZHeap             _heap;
   ZDirector*        _director;
   ZDriver*          _driver;
-  ZUncommitter*     _uncommitter;
   ZStat*            _stat;
   ZRuntimeWorkers   _runtime_workers;
 
