@@ -33,6 +33,7 @@ import jdk.net.ExtendedSocketOptions;
 
 import java.net.SocketAddress;
 import java.net.StandardProtocolFamily;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
@@ -48,7 +49,7 @@ import java.util.List;
  *    unix socket. Create {inet,unix} x {socketchannel,server socket} send
  *    from p to c; then from c to p.
  * 3. try send datagram channel, file channel: should fail
- * 4. 
+ * 4. interaction of SNDCHAN and PEERCRED
  *
  *
  */
@@ -58,7 +59,7 @@ public class SendChannels {
         basic(args);
     }
 
-    private static ServerSocketChannel getUnixServer() {
+    private static ServerSocketChannel getUnixServer() throws IOException {
         ServerSocketChannel server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
         server.bind(null);
         return server;
