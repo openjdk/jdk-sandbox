@@ -669,7 +669,10 @@ public class Net {
 
     public static SocketAddress remoteAddress(FileDescriptor fd) throws IOException {
         int family = remoteAddressFamily(fd);
-        if (family == AF_UNIX) {
+        if (family == -1) {
+	    // probably a ServerSocketChannel
+	    return null;
+        } else if (family == AF_UNIX) {
             return UnixDomainSocketAddress.of(remoteUnixAddress(fd));
         } else {
             return new InetSocketAddress(remoteInetAddress(fd), remotePort(fd));
