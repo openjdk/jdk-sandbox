@@ -42,17 +42,40 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Create two socket channels (IP and Unix domain)
- * through a Unix Domain SocketChannel and check that read/write still works.
+ * Tests:
+ * 1. basic functionality
+ * 2. create two processes (p = parent, c = child). Connect c to p thru
+ *    unix socket. Create {inet,unix} x {socketchannel,server socket} send
+ *    from p to c; then from c to p.
+ * 3. try send datagram channel, file channel: should fail
+ * 4. 
+ *
+ *
  */
 public class SendChannels {
+
     public static void main(String[] args) throws Exception {
+        basic(args);
+    }
+
+    private static ServerSocketChannel getUnixServer() {
+        ServerSocketChannel server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+        server.bind(null);
+        return server;
+    }
+
+
+
+    /**
+     * Create two socket channels (IP and Unix domain)
+     * through a Unix Domain SocketChannel and check that read/write still works.
+     */
+    public static void basic(String[] args) throws Exception {
+        ServerSocketChannel server = getUnixServer();
         ServerSocketChannel server1 = ServerSocketChannel.open();
         server1.bind(null);
         SocketChannel a1 = SocketChannel.open(server1.getLocalAddress());
         SocketChannel a2 = server1.accept();
-        ServerSocketChannel server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
-        server.bind(null);
         SocketAddress saddr = server.getLocalAddress();
         SocketChannel c1 = SocketChannel.open(saddr);
         SocketChannel c2 = server.accept();
