@@ -190,8 +190,8 @@ public final class ExtendedSocketOptions {
      * Unix domain {@link SocketChannel} peer credentials.
      * <p>
      * This is a read-only socket option which returns a {@link UnixDomainPrincipal} for the
-     * peer socket that the channel is connected to. The credentials returned are those 
-     * that applied at the time the channel was first connected, or accepted from a 
+     * peer socket that the channel is connected to. The credentials returned are those
+     * that applied at the time the channel was first connected, or accepted from a
      * {@code ServerSocketChannel}. Attempting to set this option or to get
      * it from an unconnected socket will throw a {@link SocketException}.
      */
@@ -246,6 +246,17 @@ public final class ExtendedSocketOptions {
             = new ExtSocketOption<Channel>
                 ("SO_SNDCHAN", Channel.class);
 
+    /**
+     * Enable reception of channels through the {@link #SO_SNDCHAN} option. If disabled,
+     * any channels received on a <i>Unix Domain</i> {@code SocketChannel} are automatically
+     * closed without being made available through the {@code SO_SNDCHAN} option.
+     * This option is disabled by default and needs to be set before any data
+     * containing incoming channels is read.
+     */
+    public static final SocketOption<Boolean> SO_RCVCHAN_ENABLE
+            = new ExtSocketOption<Boolean>
+                ("SO_RCVCHAN_ENABLE", Boolean.class);
+
     private static final PlatformSocketOptions platformSocketOptions =
             PlatformSocketOptions.get();
 
@@ -274,6 +285,7 @@ public final class ExtendedSocketOptions {
         if (unixDomainExtOptionsSupported) {
             options.add(SO_PEERCRED);
             options.add(SO_SNDCHAN);
+            options.add(SO_RCVCHAN_ENABLE);
         }
         return Collections.unmodifiableSet(options);
     }
@@ -348,7 +360,9 @@ public final class ExtendedSocketOptions {
                 if (sm != null)
                     sm.checkPermission(new NetworkPermission("setOption." + option.name()));
 
-                if (option == SO_SNDCHAN) {
+                if (option == SO_RCVCHAN_ENABLE) {
+                    setSoSndChanEnable(chan, (Boolean)value);
+                } else if (option == SO_SNDCHAN) {
                     setSoSndChan(chan, (Channel)value);
                 } else {
                     throw new UnsupportedOperationException("Unexpected option " + option);
@@ -363,8 +377,10 @@ public final class ExtendedSocketOptions {
                 SecurityManager sm = System.getSecurityManager();
                 if (sm != null)
                     sm.checkPermission(new NetworkPermission("getOption." + option.name()));
-                if (option == SO_SNDCHAN) {
-                    return receivedChannelFor(chan);
+                if (option == SO_RCVCHAN_ENABLE) {
+                    return getSoSndChanEnable(chan);
+                } else if (option == SO_SNDCHAN) {
+                    return getSoSndChan(chan);
                 } else {
                     throw new UnsupportedOperationException("Unexpected option " + option);
                 }

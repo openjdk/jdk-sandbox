@@ -87,6 +87,8 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     // received channels waiting to be accepted through get SO_SNDCHAN option
     private final LinkedList<SendableChannel> receiveQueue = new LinkedList<>();
 
+    private boolean soSndChanEnable;
+
     UnixDomainSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
         throws IOException
     {
@@ -198,13 +200,20 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         return super.read(buf);
     }
 
+    private static final int[] nullArray = new int[0];
+
     @Override
     int readImpl(FileDescriptor fd, ByteBuffer bb, long unused, NativeDispatcher nd)
         throws IOException
     {
-        int[] newfds = new int[MAX_SEND_FDS];
-        for (int i=0; i<newfds.length; i++)
-            newfds[i] = -1;
+        int[] newfds;
+        if (soSndChanEnable) {
+            newfds = new int[MAX_SEND_FDS];
+            for (int i=0; i<newfds.length; i++)
+                newfds[i] = -1;
+        } else {
+            newfds = nullArray;
+        }
         int nbytes = IOUtil.recvmsg(fd, bb, (SocketDispatcher)nd, newfds);
 
         int fd1 = newfds.length == 0 ? -1 : newfds[0];
@@ -346,5 +355,13 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         sendQueue.clear();
         receiveQueue.clear();
         super.implCloseSelectableChannel();
+    }
+
+    synchronized boolean getSoSndChanEnable() {
+        return soSndChanEnable;
+    }
+
+    synchronized void setSoSndChanEnable(boolean enable) {
+        soSndChanEnable = enable;
     }
 }

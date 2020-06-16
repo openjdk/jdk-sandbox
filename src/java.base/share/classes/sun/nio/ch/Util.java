@@ -538,7 +538,7 @@ public class Util {
         }
     }
 
-    public static void sendChannel(NetworkChannel carrier, Channel target)
+    public static void setSoSndChan(NetworkChannel carrier, Channel target)
         throws IOException
     {
         if (! (carrier instanceof UnixDomainSocketChannelImpl)) {
@@ -552,7 +552,25 @@ public class Util {
         uchan.sendChannel(schan);
     }
 
-    public static NetworkChannel receivedChannelFor(NetworkChannel chan) {
+    public static boolean getSoSndChanEnable(NetworkChannel chan) {
+        if (chan instanceof UnixDomainSocketChannelImpl) {
+            var uchan = (UnixDomainSocketChannelImpl)chan;
+            return uchan.getSoSndChanEnable();
+        }
+        throw new UnsupportedOperationException("unsupported channel type");
+    }
+
+    public static void setSoSndChanEnable(NetworkChannel carrier, boolean enable)
+        throws IOException
+    {
+        if (! (carrier instanceof UnixDomainSocketChannelImpl)) {
+           throw new UnsupportedOperationException("channel does not support this operation");
+        }
+        var uchan = (UnixDomainSocketChannelImpl)carrier;
+        uchan.setSoSndChanEnable(enable);
+    }
+
+    public static NetworkChannel getSoSndChan(NetworkChannel chan) {
         if (chan instanceof UnixDomainSocketChannelImpl) {
             var uchan = (UnixDomainSocketChannelImpl)chan;
             return (NetworkChannel)uchan.receivedChannel();

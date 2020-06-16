@@ -80,6 +80,7 @@ public class SendChannels {
         SocketAddress saddr = server.getLocalAddress();
         SocketChannel c1 = SocketChannel.open(saddr);
         SocketChannel c2 = server.accept();
+        c2.setOption(ExtendedSocketOptions.SO_RCVCHAN_ENABLE, true);
 
         UnixDomainSocketAddress usa = (UnixDomainSocketAddress)server.getLocalAddress();
         var buf = ByteBuffer.wrap("Hello wurdled".getBytes());

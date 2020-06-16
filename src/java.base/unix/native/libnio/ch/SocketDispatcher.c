@@ -98,10 +98,8 @@ Java_sun_nio_ch_SocketDispatcher_recvmsg0(JNIEnv *env, jclass clazz,
     iov[0].iov_len = len;
     msg.msg_iov = &iov[0];
     msg.msg_iovlen = 1;
-    if (fdarray != NULL) {
-        msg.msg_control = u.cmsgdata;
-        msg.msg_controllen = sizeof(u.cmsgdata);
-    }
+    msg.msg_control = u.cmsgdata;
+    msg.msg_controllen = sizeof(u.cmsgdata);
 
     ret = recvmsg(fd, &msg, 0);
     if (ret < 0) {
@@ -112,13 +110,21 @@ Java_sun_nio_ch_SocketDispatcher_recvmsg0(JNIEnv *env, jclass clazz,
         if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
             jint *newfds;
             jint nfds = (msg.msg_controllen - sizeof(struct cmsghdr))/sizeof(int);
-            newfds = (*env)->GetIntArrayElements(env, fdarray, NULL);
-            if (newfds == NULL) {
-                JNU_ThrowIOExceptionWithLastError(env, "JNI error");
-                return -1;
+            if (fdarray == NULL || (*env)->GetArrayLength(env, fdarray) == 0) {
+                // close them
+                int *fdptr = (int *)CMSG_DATA(cmsg);
+                for (int i=0; i<nfds; i++) {
+                    close(*fdptr++);
+                }
+            } else {
+                newfds = (*env)->GetIntArrayElements(env, fdarray, NULL);
+                if (newfds == NULL) {
+                    JNU_ThrowIOExceptionWithLastError(env, "JNI error");
+                    return -1;
+                }
+                memcpy(newfds, CMSG_DATA(cmsg), nfds * sizeof(int));
+                (*env)->ReleaseIntArrayElements(env, fdarray, newfds, 0);
             }
-            memcpy(newfds, CMSG_DATA(cmsg), nfds * sizeof(int));
-            (*env)->ReleaseIntArrayElements(env, fdarray, newfds, 0);
         }
     }
     return convertReturnVal(env, ret, JNI_TRUE);

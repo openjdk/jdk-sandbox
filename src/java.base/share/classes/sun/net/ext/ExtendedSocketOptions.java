@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import sun.nio.ch.Util;
 
 /**
  * Defines the infrastructure to support extended socket options, beyond those
@@ -101,26 +102,18 @@ public abstract class ExtendedSocketOptions {
         return getInstance().options0(SOCK_DGRAM, false);
     }
 
-    public static NetworkChannel receivedChannelFor(NetworkChannel chan) {
-        return sun.nio.ch.Util.receivedChannelFor(chan);
-    }
-
-    public static void setSoSndChan(NetworkChannel carrier, Channel payload)
-        throws IOException {
-
-        sun.nio.ch.Util.sendChannel(carrier, payload);
-    }
-
     private static boolean isDatagramOption(SocketOption<?> option) {
         return !option.name().startsWith("TCP_") && !isUnixOption(option);
     }
 
     private static boolean isUnixOption(SocketOption<?> option) {
-        return option.name().equals("SO_PEERCRED") || option.name().equals("SO_SNDCHAN");
+        return option.name().equals("SO_PEERCRED")
+            || option.name().equals("SO_SNDCHAN")
+            || option.name().equals("SO_RCVCHAN_ENABLE");
     }
 
     private static boolean isByChannelOption(SocketOption<?> option) {
-        return option.name().equals("SO_SNDCHAN");
+        return option.name().equals("SO_SNDCHAN") || option.name().equals("SO_RCVCHAN_ENABLE");
     }
 
     private static boolean isStreamOption(SocketOption<?> option, boolean server) {
@@ -169,6 +162,27 @@ public abstract class ExtendedSocketOptions {
     /** Returns the value of a socket option, for the given socket. */
     public abstract Object getOptionByChannel(NetworkChannel chan, SocketOption<?> option)
             throws IOException;
+
+    /** Options whose API are in jdk.net, but are implemented in java.base */
+
+    public static boolean getSoSndChanEnable(NetworkChannel chan) {
+        return Util.getSoSndChanEnable(chan);
+    }
+    public static NetworkChannel getSoSndChan(NetworkChannel chan) {
+        return Util.getSoSndChan(chan);
+    }
+
+    public static void setSoSndChan(NetworkChannel carrier, Channel payload)
+        throws IOException {
+
+        Util.setSoSndChan(carrier, payload);
+    }
+
+    public static void setSoSndChanEnable(NetworkChannel carrier, boolean enable)
+        throws IOException {
+
+        Util.setSoSndChanEnable(carrier, enable);
+    }
 
     protected ExtendedSocketOptions(Set<SocketOption<?>> options) {
         this.options = options;
