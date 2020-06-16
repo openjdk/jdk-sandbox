@@ -158,21 +158,19 @@ import sun.nio.cs.UTF_8;
  * <h3> Name Service Providers </h3>
  *
  * <p> Resolution mechanisms of host names and IP addresses can be customized
- * by supplying the name service provider that implements
- * {@link java.net.spi.InetNameServiceProvider InetNameServiceProvider}
- * interface to JDK runtime via {@link java.util.ServiceLoader ServiceLoader} mechanism.
+ * by supplying a name service provider that implements the
+ * {@link InetNameServiceProvider InetNameServiceProvider}
+ * service interface.
  *
- * <p> If this is the first host name or IP address lookup request after the full
- * initialization of VM then the instance of name service is created and registered
- * as platform name service:
+ * <p> Until the VM is fully initialized the platform-default implementation is used.
+ * After that, the system-wide implementation is initialized as follows:
  * <ol>
  * <li>The ServiceLoader mechanism is used to locate
- *     {@link java.net.spi.InetNameServiceProvider InetNameServiceProvider}
+ *     {@link InetNameServiceProvider InetNameServiceProvider}
  *     implementations using the system class loader. The order the providers are
  *     located is implementation specific. The first found provider will be used
- *     to instantiate the
- *     {@link InetNameServiceProvider.NameService NameService}
- *     by invoking {@link java.net.spi.InetNameServiceProvider#get(InetNameServiceProvider.NameService)}
+ *     to instantiate the {@link NameService NameService} by invoking
+ *     {@link InetNameServiceProvider#get(NameService)}
  *     method. The instantiated {@code NameService} will be used as platform name
  *     service.
  * <li>If the previous step fails to find a name service provider
@@ -322,9 +320,9 @@ public class InetAddress implements java.io.Serializable {
     }
 
     /* Used to store the name service provider */
-    private static volatile InetNameServiceProvider.NameService nameService;
+    private static volatile NameService nameService;
 
-    private static final InetNameServiceProvider.NameService DEFAULT_INET_NAME_SERVICE;
+    private static final NameService DEFAULT_INET_NAME_SERVICE;
 
     /**
      * Used to store the best available hostname.
@@ -389,7 +387,7 @@ public class InetAddress implements java.io.Serializable {
 
     private static final ReentrantLock NAMESERVICE_LOCK = new ReentrantLock();
 
-    private static InetNameServiceProvider.NameService nameService() {
+    private static NameService nameService() {
         NameService cns = nameService;
         if (cns != null) {
             return cns;
@@ -406,7 +404,7 @@ public class InetAddress implements java.io.Serializable {
                     // The default name service is already host file name service
                     cns = DEFAULT_INET_NAME_SERVICE;
                 } else if (System.getSecurityManager() != null) {
-                    PrivilegedAction<InetNameServiceProvider.NameService> pa = InetAddress::loadNameService;
+                    PrivilegedAction<NameService> pa = InetAddress::loadNameService;
                     cns = AccessController.doPrivileged(
                             pa, null, NAMESERVICE_PERMISSION);
                 } else {
@@ -423,7 +421,7 @@ public class InetAddress implements java.io.Serializable {
         }
     }
 
-    private static InetNameServiceProvider.NameService loadNameService() {
+    private static NameService loadNameService() {
         return ServiceLoader.load(InetNameServiceProvider.class)
                 .findFirst()
                 .map(nsp -> nsp.get(DEFAULT_INET_NAME_SERVICE))
@@ -980,7 +978,7 @@ public class InetAddress implements java.io.Serializable {
      *
      * @since 9
      */
-    private static final class PlatformNameService implements InetNameServiceProvider.NameService {
+    private static final class PlatformNameService implements NameService {
 
         public Stream<InetAddress> lookupInetAddresses(String host, ProtocolFamily family)
                 throws UnknownHostException {
@@ -1006,7 +1004,7 @@ public class InetAddress implements java.io.Serializable {
      *
      * @since 9
      */
-    private static final class HostsFileNameService implements InetNameServiceProvider.NameService {
+    private static final class HostsFileNameService implements NameService {
 
         // Specify if only IPv4 addresses should be returned by HostsFileService implementation
         private static final boolean preferIPv4Stack = Boolean.parseBoolean(
@@ -1182,7 +1180,7 @@ public class InetAddress implements java.io.Serializable {
         impl = InetAddressImplFactory.create();
 
         // create name service
-        DEFAULT_INET_NAME_SERVICE = createNameService();
+        DEFAULT_INET_NAME_SERVICE = createDefaultInetNameService();
     }
 
     /**
@@ -1200,11 +1198,11 @@ public class InetAddress implements java.io.Serializable {
      *
      * @return a NameService
      */
-    private static InetNameServiceProvider.NameService createNameService() {
+    private static NameService createDefaultInetNameService() {
 
         String hostsFileName =
                 GetPropertyAction.privilegedGetProperty("jdk.net.hosts.file");
-        InetNameServiceProvider.NameService theNameService;
+        NameService theNameService;
         if (hostsFileName != null) {
             theNameService = new HostsFileNameService(hostsFileName);
         } else {
