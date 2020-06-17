@@ -1,12 +1,12 @@
 package build.tools.jfr;
 
 import java.io.BufferedOutputStream;
+import java.io.Closeable;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,7 +68,7 @@ public class GenerateJfrFiles {
         out.println(" --mode <headers|metadata>");
         out.println(" --xml <path-to-metadata.xml> ");
         out.println(" --xsd <path-to-metadata.xsd>");
-        out.println(" --outdir <path-to-output-directory>");
+        out.println(" --output <output-file-or-directory>");
     }
 
     private static String consumeOption(String option, List<String> argList) throws Exception {
@@ -87,7 +87,7 @@ public class GenerateJfrFiles {
             List<String> argList = new ArrayList<>();
             argList.addAll(Arrays.asList(args));
             String mode = consumeOption("--mode", argList);
-            String output = consumeOption("--outdir", argList);
+            String output = consumeOption("--output", argList);
             String xml = consumeOption("--xml", argList);
             String xsd = consumeOption("--xsd", argList);
             if (!argList.isEmpty()) {
@@ -96,23 +96,25 @@ public class GenerateJfrFiles {
             OutputMode outputMode = OutputMode.valueOf(mode);
             File xmlFile = new File(xml);
             File xsdFile = new File(xsd);
-            File outputDir = new File(output);
             
             Metadata metadata = new Metadata(xmlFile, xsdFile);
             metadata.verify();
             metadata.wireUpTypes();
 
             if (outputMode == OutputMode.headers) {
+                File outputDir = new File(output);
                 printJfrEventIdsHpp(metadata, new File(outputDir, "jfrEventIds.hpp"));
-                printJfrTypesHpp(metadata, new File(output, "jfrTypes.hpp"));
+                printJfrTypesHpp(metadata, new File(outputDir, "jfrTypes.hpp"));
                 printJfrPeriodicHpp(metadata, new File(outputDir, "jfrPeriodic.hpp"));
                 printJfrEventControlHpp(metadata, new File(outputDir, "jfrEventControl.hpp"));
                 printJfrEventClassesHpp(metadata, new File(outputDir, "jfrEventClasses.hpp"));
             }
 
             if (outputMode == OutputMode.metadata) {
-                File metadataBinary = new File(outputDir, "metadata.bin");
-                try (var b = new DataOutputStream(new FileOutputStream(metadataBinary))) {
+                File outputFile  = new File(output);
+                try (var b = new DataOutputStream(
+                        new BufferedOutputStream(
+                            new FileOutputStream(outputFile)))) {
                     metadata.persist(b);
                 }
             }
@@ -127,13 +129,6 @@ public class GenerateJfrFiles {
             e.printStackTrace();
         }
         System.exit(1);
-    }
-
-    public class PerstistableOutputStream extends DataOutputStream {
-        public PerstistableOutputStream(OutputStream out) {
-            super(out);
-        }
-
     }
 
     static class XmlType {
@@ -542,7 +537,7 @@ public class GenerateJfrFiles {
         }
     }
 
-    static class Printer implements AutoCloseable {
+    static class Printer implements Closeable {
         final PrintStream out;
 
         Printer(File outputFile) throws FileNotFoundException {
@@ -557,13 +552,13 @@ public class GenerateJfrFiles {
         }
 
         @Override
-        public void close() throws Exception {
+        public void close() throws IOException {
             out.close();
         }
     }
 
     private static void printJfrPeriodicHpp(Metadata metadata, File outputFile) throws Exception {
-        try (Printer out = new Printer(outputFile)) {
+        try (var out = new Printer(outputFile)) {
             out.write("#ifndef JFRFILES_JFRPERIODICEVENTSET_HPP");
             out.write("#define JFRFILES_JFRPERIODICEVENTSET_HPP");
             out.write("");
@@ -602,7 +597,7 @@ public class GenerateJfrFiles {
     }
 
     private static void printJfrEventControlHpp(Metadata metadata, File outputFile) throws Exception {
-        try (Printer out = new Printer(outputFile)) {
+        try (var out = new Printer(outputFile)) {
             out.write("#ifndef JFRFILES_JFR_NATIVE_EVENTSETTING_HPP");
             out.write("#define JFRFILES_JFR_NATIVE_EVENTSETTING_HPP");
             out.write("");
@@ -643,7 +638,7 @@ public class GenerateJfrFiles {
     }
 
     private static void printJfrEventIdsHpp(Metadata metadata, File outputFile) throws Exception {
-        try (Printer out = new Printer(outputFile)) {
+        try (var out = new Printer(outputFile)) {
             out.write("#ifndef JFRFILES_JFREVENTIDS_HPP");
             out.write("#define JFRFILES_JFREVENTIDS_HPP");
             out.write("");
@@ -675,7 +670,7 @@ public class GenerateJfrFiles {
     }
     
     private static void printJfrTypesHpp(Metadata metadata, File outputFile) throws Exception {
-        try (Printer out = new Printer(outputFile)) {
+        try (var out = new Printer(outputFile)) {
             out.write("#ifndef JFRFILES_JFRTYPES_HPP");
             out.write("#define JFRFILES_JFRTYPES_HPP");
             out.write("");
@@ -727,7 +722,7 @@ public class GenerateJfrFiles {
     }
 
     private static void printJfrEventClassesHpp(Metadata metadata, File outputFile) throws Exception {
-        try (Printer out = new Printer(outputFile)) {
+        try (var out = new Printer(outputFile)) {
             out.write("#ifndef JFRFILES_JFREVENTCLASSES_HPP");
             out.write("#define JFRFILES_JFREVENTCLASSES_HPP");
             out.write("");

@@ -47,7 +47,6 @@ $(eval $(call SetupJavaCompilation, BUILD_TOOLS_HOTSPOT, \
     COMPILER := bootjdk, \
     SRC := $(HOTSPOT_TOOLS_SRCDIR), \
     BIN := $(HOTSPOT_TOOLS_OUTPUTDIR), \
-    DISABLED_WARNINGS := try, \
 ))
 
 TARGETS += $(BUILD_TOOLS_HOTSPOT)

@@ -40,7 +40,7 @@ $(eval $(call SetupExecute, jfr_gen_headers, \
     INFO := Generating JFR header files, \
     DEPS := $(METADATA_XML) $(METADATA_XSD) $(BUILD_TOOLS_HOTSPOT), \
     OUTPUT_DIR := $(JFR_OUTPUTDIR), \
-    COMMAND := $(TOOL_JFR_GEN) --mode headers --xml $(METADATA_XML) --xsd $(METADATA_XSD) --outdir $(JFR_OUTPUTDIR), \
+    COMMAND := $(TOOL_JFR_GEN) --mode headers --xml $(METADATA_XML) --xsd $(METADATA_XSD) --output $(JFR_OUTPUTDIR), \
 ))
 
 TARGETS += $(jfr_gen_headers)

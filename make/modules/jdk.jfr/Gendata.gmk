@@ -42,7 +42,7 @@ $(eval $(call SetupExecute, jfr_gen_metadata, \
     DEPS := $(METADATA_XML) $(METADATA_XSD) $(BUILD_TOOLS_HOTSPOT), \
     OUTPUT_FILE := $(JFR_DATA_OUTPUTFILE), \
     SUPPORT_DIR := $(JFR_DATA_SUPPORTDIR), \
-    COMMAND := $(TOOL_JFR_GEN) --mode metadata --xml $(METADATA_XML) --xsd $(METADATA_XSD) --outdir $(JFR_DATA_OUTPUTDIR), \
+    COMMAND := $(TOOL_JFR_GEN) --mode metadata --xml $(METADATA_XML) --xsd $(METADATA_XSD) --output $(JFR_DATA_OUTPUTFILE), \
 ))
 
 TARGETS += $(jfr_gen_metadata)
