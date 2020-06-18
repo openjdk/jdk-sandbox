@@ -328,46 +328,50 @@
  * so that sophisticated users can take advantage of operating-system-specific
  * asynchronous I/O mechanisms when very high performance is required.
  *
- * <p> Unless otherwise noted, passing a {@code null} argument to a constructor
- * or method in any class or interface in this package will cause a {@link
- * java.lang.NullPointerException NullPointerException} to be thrown.
+ * <p> {@link DatagramChannel}, {@link SocketChannel} and {@link
+ * ServerSocketChannel}s can be created with different {@link ProtocolFamily
+ * protocol families}. The standard family types are specified in {@link
+ * StandardProtocolFamily}. These families are not supported by all channel types, nor
+ * all implementations. In particular, {@link StandardProtocolFamily#UNIX}
+ * is only supported by {@code SocketChannel} and {@code ServerSocketChannel} and
+ * only in some implementations. Channels created with {@link StandardProtocolFamily#INET
+ * INET} and {@link StandardProtocolFamily#INET6 INET6} use <i>Internet Protocol</i>
+ * sockets. Channels created with {@link StandardProtocolFamily#UNIX UNIX} use
+ * <i>Unix Domain</i> sockets. Attempts to create an unsupported protocol family
+ * for a particular channel will throw {@link UnsupportedOperationException}.
  *
- * <p>There are two kinds of {@link SocketChannel} and {@link ServerSocketChannel}.
+ * <p><i>Internet Protocol</i> sockets support network communication using TCP/IP and
+ * are addressed using {@link InetSocketAddress}es which encapsulate an IP address
+ * and port number. <i>Internet Protocol</i> sockets are the default kind created,
+ * when a protocol family is not specified in the channel factory creation method.
  *
- * <p><i>Internet protocol</i> channels support network
- * communication using TCP/IP and are addressed using {@link InetSocketAddress}es
- * which encapsulate an IP address and port number. <i>Internet protocol</i> channels
- * are the default kind created, when a protocol family is not specified
- * in the factory creation method.
+ * <p><a id="unixdomain"></a> <i>Unix Domain</i> sockets support local inter-process
+ * communication on the same host, and are addressed using {@link
+ * UnixDomainSocketAddress}es which encapsulate a filesystem pathname on the local
+ * system. <i>Unix Domain</i> sockets can only be created using {@link
+ * SocketChannel#open(ProtocolFamily)} or {@link ServerSocketChannel#open(ProtocolFamily)}
+ * with the parameter value {@link StandardProtocolFamily#UNIX UNIX}.
  *
- * <p><a id="unixdomain"></a> <i>Unix domain</i> channels
- * support local inter-process communication on the same host, and are addressed
- * using {@link UnixDomainSocketAddress}es which encapsulate a filesystem pathname
- * on the local system.  <i>Unix domain</i> channels
- * can only be created using {@link SocketChannel#open(ProtocolFamily)} or
- * {@link ServerSocketChannel#open(ProtocolFamily)} with the parameter value
- * {@link StandardProtocolFamily#UNIX}. Unix domain channels might not be supported on all platforms.
- * An attempt to create a Unix domain channel may throw {@link UnsupportedOperationException}.
- *
- * {@link UnixDomainSocketAddress}es contain a path which, when the address is bound to a channel,
- * has an associated socket file in the file-system with the same name as the path. Address instances
- * are created with either a {@link String} path name or a {@link Path}. Paths
- * can be either absolute or relative with respect to the current working directory.
+ * {@link UnixDomainSocketAddress}es contain a path which, when the address is bound to
+ * a channel, has an associated socket file in the file-system with the same name as the
+ * path. Address instances are created with either a {@link String} path name or a
+ * {@link Path}. Paths can be either absolute or relative with respect to the current
+ * working directory.
  * <p>
  * If a Unix domain {@link SocketChannel} is automatically bound by connecting it
- * without calling {@link SocketChannel#bind(SocketAddress) bind} first, then its address
- * is <i>unnamed</i>; it has an empty path field, and therefore has no associated file
- * in the file-system. Explicitly binding a {@code SocketChannel} to any unnamed
- * address has the same effect.
+ * without calling {@link SocketChannel#bind(SocketAddress) bind} first, then its
+ * address is <i>unnamed</i>; it has an empty path field, and therefore has no
+ * associated file in the file-system. Explicitly binding a {@code SocketChannel}
+ * to any unnamed address has the same effect.
  * <p>
- * If a Unix domain {@link ServerSocketChannel} is automatically bound by passing a {@code null}
- * address to one of the {@link ServerSocketChannel#bind(SocketAddress) bind} methods, the channel
- * is bound to a unique name in the temporary directory identified by the {@code "java.io.tmpdir"}
- * system property. The exact pathname can be obtained by calling
- * {@link ServerSocketChannel#getLocalAddress() getLocalAddress} after bind returns.
+ * If a Unix domain {@link ServerSocketChannel} is automatically bound by passing a
+ * {@code null} address to one of the {@link ServerSocketChannel#bind(SocketAddress) bind}
+ * methods, the channel is bound to a unique name in the temporary directory identified
+ * by the {@code "java.io.tmpdir"} system property. The exact pathname can be obtained by
+ * calling {@link ServerSocketChannel#getLocalAddress() getLocalAddress} after bind returns.
  * It is an error to bind a {@code ServerSocketChannel} to an unnamed address.
  *
- * <p> A Unix domain channel can be bound to a name if and only if, no file exists
+ * <p> A Unix domain socket can be bound to a name if and only if, no file exists
  * in the file-system with the same name, and the calling process has the required
  * operating system permissions to create a file of that name.
  * The socket file that is created when a channel binds to a name is not removed when
@@ -378,13 +382,17 @@
  * channel to bind to the same name. The original channel is not notified of any error
  * in this situation. Operating system permissions can be used to control who is allowed
  * to create and delete these socket files. Note also, that each platform enforces an
- * implementation specific, maximum length for the name of a Unix domain channel.
+ * implementation specific, maximum length for the name of a Unix domain socket.
  * This limitation is enforced when a channel is bound. The maximum length is typically
  * close to and generally not less than 100 bytes.
  *
- * <p> If a security manager is present then using a <i>Unix Domain</i> SocketChannel
- * or ServerSocketChannel requires the {@link NetPermission NetPermission}
- * {@code ("allowUnixDomainChannels")}.
+ * <p> If a security manager is present then binding, connecting or accepting a
+ * <i>Unix Domain</i> {@code SocketChannel} or {@code ServerSocketChannel} requires
+ * the {@link NetPermission NetPermission}{@code ("allowUnixDomainChannels")}.
+ *
+ * <p> Unless otherwise noted, passing a {@code null} argument to a constructor
+ * or method in any class or interface in this package will cause a {@link
+ * java.lang.NullPointerException NullPointerException} to be thrown.
  *
  * @since 1.4
  * @author Mark Reinhold
@@ -394,6 +402,7 @@
 package java.nio.channels;
 
 import java.net.InetSocketAddress;
+import java.net.NetPermission;
 import java.net.ProtocolFamily;
 import java.net.StandardProtocolFamily;
 import java.nio.channels.SocketChannel;

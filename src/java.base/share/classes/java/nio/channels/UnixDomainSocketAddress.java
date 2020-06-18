@@ -32,40 +32,33 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.Objects;
-import sun.nio.ch.Net;
 
 /**
- * A <a href="package-summary.html#unixdomain">Unix domain</a> socket address for {@link SocketChannel} or
- * {@link ServerSocketChannel}. This encapsulates a path which represents a filesystem pathname
- * that channels can bind or connect to.
+ * A <a href="package-summary.html#unixdomain">Unix domain</a> socket address.
+ * A Unix domain socket address encapsulates a file path that Unix domain sockets
+ * bind or connect to.
  *
- * <p> An <a id="unnamed"></a><i>unnamed</i> {@code UnixDomainSocketAddress} has an empty path.
- * If a {@link SocketChannel} is automatically bound then its local address will be unnamed.
+ * <p> An <a id="unnamed"></a><i>unnamed</i> {@code UnixDomainSocketAddress} has
+ * an empty path. The local address of a Unix domain socket that is automatically
+ * bound will be unnamed.
  *
- * <p>{@link Path} objects used to create instances of this class must be obtained from the
- * {@linkplain FileSystems#getDefault system-default} filesystem.
- * All other {@code Path}s are considered invalid.
+ * <p> {@link Path} objects used to create instances of this class must be obtained
+ * from the {@linkplain FileSystems#getDefault system-default} file system.
  *
- * @since 15
+ * @since 16
  */
 public final class UnixDomainSocketAddress extends SocketAddress {
     static final long serialVersionUID = 92902496589351288L;
 
     private final Path path;
-    private final String pathname; // used in native code
 
     static class SerializationProxy implements Serializable {
-
         static final long serialVersionUID = 9829020419651288L;
 
         private String pathname;
 
-        public SerializationProxy(UnixDomainSocketAddress addr) {
-            this.pathname = addr.pathname;
+        SerializationProxy(UnixDomainSocketAddress addr) {
+            this.pathname = addr.path.toString();
         }
 
         private Object readResolve() {
@@ -77,54 +70,45 @@ public final class UnixDomainSocketAddress extends SocketAddress {
         return new SerializationProxy(this);
     }
 
-    /**
-     * Create a named UnixDomainSocketAddress for the given pathname string.
-     *
-     * @param pathname the pathname to the socket.
-     * @return a UnixDomainSocketAddress
-     *
-     * @throws InvalidPathException if pathname cannot be converted to a valid Path
-     */
-    public static  UnixDomainSocketAddress of(String pathname) {
-        return new UnixDomainSocketAddress(pathname);
+    private UnixDomainSocketAddress(Path path) {
+        FileSystem fs = path.getFileSystem();
+        if (fs != FileSystems.getDefault()) {
+            throw new IllegalArgumentException(); // fix message
+        }
+        if (fs.getClass().getModule() != Object.class.getModule()) {
+            throw new IllegalArgumentException();  // fix message
+        }
+        this.path = path;
     }
 
-    private UnixDomainSocketAddress(String pathname) throws InvalidPathException {
-        Objects.requireNonNull(pathname);
-        this.path = Paths.get(pathname);
-        checkPath(path);
-        this.pathname = pathname;
+    /**
+     * Create a named UnixDomainSocketAddress from the given path string.
+     *
+     * @param  pathname
+     *         The path string
+     *
+     * @return A UnixDomainSocketAddress
+     *
+     * @throws InvalidPathException
+     *         If the path cannot be converted to a Path
+     */
+    public static UnixDomainSocketAddress of(String pathname) {
+        return of(Path.of(pathname));
     }
 
     /**
      * Create a named UnixDomainSocketAddress for the given path.
      *
-     * @param path the path to the socket.
-     * @return a UnixDomainSocketAddress
+     * @param  path
+     *         The path to the socket
      *
-     * @throws InvalidPathException if path is not from the system-default filesystem
-     * @throws NullPointerException if path is null
+     * @return A UnixDomainSocketAddress
+     *
+     * @throws IllegalArgumentException
+     *         If the path is not associated with the default file system
      */
     public static UnixDomainSocketAddress of(Path path) {
         return new UnixDomainSocketAddress(path);
-    }
-
-    private UnixDomainSocketAddress(Path path) throws InvalidPathException {
-        checkPath(path);
-        this.pathname = path.toString();
-        this.path = path;
-    }
-
-    private static void checkPath(Path path) throws InvalidPathException {
-        FileSystem fs = path.getFileSystem();
-        if (!fs.equals(FileSystems.getDefault())) {
-            throw new InvalidPathException(path.toString(),
-                        "path is not from the default file-system");
-        }
-        if (!fs.getClass().getModule().equals(Object.class.getModule())) {
-            throw new InvalidPathException(path.toString(),
-                        "default file-system is not the system-default");
-        }
     }
 
     /**
@@ -137,7 +121,7 @@ public final class UnixDomainSocketAddress extends SocketAddress {
     }
 
     /**
-     * Returns a hashcode computed from this object's path string.
+     * Returns a hash code computed from this object's path string.
      */
     @Override
     public int hashCode() {

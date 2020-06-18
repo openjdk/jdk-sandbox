@@ -25,24 +25,22 @@
 
 package jdk.net;
 
-import java.nio.channels.SocketChannel;
 import java.nio.file.attribute.UserPrincipal;
 import java.nio.file.attribute.GroupPrincipal;
 import java.util.Objects;
 
 /**
- * A user and group identity obtained from a Unix domain {@link SocketChannel}.
+ * Represents the credentials of a peer connected to a Unix domain socket.
  *
- * @since 15
+ * @since 16
  */
 
 public final class UnixDomainPrincipal {
-
     private final UserPrincipal user;
     private final GroupPrincipal group;
 
     /**
-     * Creates a UnixDomainPrincipal
+     * Creates a UnixDomainPrincipal.
      *
      * @param user the user identity
      *
@@ -50,12 +48,9 @@ public final class UnixDomainPrincipal {
      *
      * @throws NullPointerException if {@code user} or {@code group} are {@code null}.
      */
-    public UnixDomainPrincipal(UserPrincipal user, GroupPrincipal group)
-    {
-        Objects.requireNonNull(user);
-        Objects.requireNonNull(group);
-        this.user = user;
-        this.group = group;
+    public UnixDomainPrincipal(UserPrincipal user, GroupPrincipal group) {
+        this.user = Objects.requireNonNull(user);
+        this.group = Objects.requireNonNull(group);
     }
 
     /**
@@ -66,18 +61,19 @@ public final class UnixDomainPrincipal {
      * @return true if this equal to obj
      */
     public boolean equals(Object obj) {
-        if (! (obj instanceof UnixDomainPrincipal)) {
-            return false;
+        if (obj instanceof UnixDomainPrincipal) {
+            UnixDomainPrincipal that = (UnixDomainPrincipal) obj;
+            return Objects.equals(this.user, that.user)
+                    && Objects.equals(this.group, that.group);
         }
-        UnixDomainPrincipal that = (UnixDomainPrincipal)obj;
-        return this.user.equals(that.user) && this.group.equals(that.group);
+        return false;
     }
 
     /**
      * Returns a hashcode calculated from the user and group
      */
     public int hashCode() {
-        return user.hashCode() ^ group.hashCode();
+        return Objects.hash(user, group);
     }
 
     /**

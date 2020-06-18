@@ -29,7 +29,6 @@ import java.io.FileDescriptor;
 import java.io.IOException;
 import java.net.SocketException;
 import java.net.SocketOption;
-import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.nio.channels.NetworkChannel;
 import java.nio.channels.SocketChannel;
@@ -187,13 +186,19 @@ public final class ExtendedSocketOptions {
             = new ExtSocketOption<Integer>("SO_INCOMING_NAPI_ID", Integer.class);
 
     /**
-     * Unix domain {@link SocketChannel} peer credentials.
-     * <p>
-     * This is a read-only socket option which returns a {@link UnixDomainPrincipal} for the
-     * peer socket that the channel is connected to. The credentials returned are those
-     * that applied at the time the channel was first connected, or accepted from a
-     * {@code ServerSocketChannel}. Attempting to set this option or to get
-     * it from an unconnected socket will throw a {@link SocketException}.
+     * Unix Domain peer credentials.
+     *
+     * <p> The value of this socket option is a {@link UnixDomainPrincipal} that
+     * represents the credentials of a peer connected to a Unix Domain socket.
+     * The credentials are those that applied at the time the socket was first
+     * connected or accepted.
+     *
+     * <p> The socket option is read-only and an attempt to set the socket option
+     * will throw {@code SocketException}. {@code SocketException} is also thrown
+     * when attempting to get the value of the socket option on an unconnected Unix
+     * Domain socket.
+     *
+     * @since 16
      */
     public static final SocketOption<UnixDomainPrincipal> SO_PEERCRED
             = new ExtSocketOption<UnixDomainPrincipal>
