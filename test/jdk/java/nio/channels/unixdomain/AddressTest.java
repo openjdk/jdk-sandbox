@@ -44,6 +44,6 @@ public class AddressTest {
         try {
             addr = UnixDomainSocketAddress.of(path);
             throw new RuntimeException("Expected illegal path exception");
-        } catch (InvalidPathException e) {}
+        } catch (IllegalArgumentException e) {}
     }
 }
