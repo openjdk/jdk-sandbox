@@ -226,7 +226,8 @@ public final class ExtendedSocketOptions {
      * it is an error to register more than this number of channels for sending before calling
      * write. It is inadvisable to perform any I/O on a channel
      * after registering it to be sent with this option. In particular, the
-     * send will fail if a channel is already closed at the time it is to be sent.
+     * send will fail if a channel is already closed at the time it is to be sent
+     * or if it has been registered with a {@link Selector}.
      *
      * <p> Receiving channels involves a similar procedure in reverse. As data is read
      * through the {@link SocketChannel} read methods, if any associated ancillary control messages
