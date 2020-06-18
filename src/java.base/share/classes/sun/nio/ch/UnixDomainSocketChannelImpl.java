@@ -292,6 +292,9 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
                     if (!sendee.isOpen()) {
                         throw new IOException("Target channel for send is closed");
                     }
+                    if (sendee.isRegistered()) {
+                        throw new IOException("Target channel for send is registered with selector");
+                    }
                     sendfds[i] = sendee.getFD();
                     chans[i] = sendee;
                     i++;

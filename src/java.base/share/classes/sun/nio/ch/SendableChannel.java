@@ -36,4 +36,6 @@ public interface SendableChannel extends Closeable {
     public FileDescriptor getFD();
 
     public boolean isOpen();
+
+    public boolean isRegistered();
 }
