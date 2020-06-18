@@ -26,7 +26,6 @@
 package java.nio.channels;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.NetPermission;
 import java.net.ProtocolFamily;
 import java.net.ServerSocket;
@@ -37,38 +36,22 @@ import java.nio.channels.spi.SelectorProvider;
 import static java.util.Objects.requireNonNull;
 
 /**
- * A selectable channel for stream-oriented listening sockets that are either
- * <i>Internet protocol</i> or <i>Unix domain</i> server-sockets.  Internet protocol server
- * sockets accept network connections addressed by IP address and TCP port number.
- * They use {@link InetSocketAddress} for local and remote addresses.
- * <a href="package-summary.html#unixdomain">Unix domain</a> server-sockets are used for
- * inter-process communication to other processes on the same host and use
- * {@link UnixDomainSocketAddress} for their local and remote addresses.
+ * A selectable channel for stream-oriented listening sockets.
  *
- * <p> A server-socket channel is created by invoking one of the open methods of this class.
- * It is not possible to create a channel for an arbitrary,
- * pre-existing {@link ServerSocket}. A newly-created server-socket channel is
- * open but not yet bound.  An attempt to invoke the {@link #accept() accept}
- * method of an unbound server-socket channel will cause a {@link NotYetBoundException}
+ * <p> A server-socket channel is created by invoking one of the {@code open}
+ * methods of this class. The no-arg {@link #open() open} method opens a server-socket
+ * channel for an <i>Internet protocol</i> socket. The {@link #open(ProtocolFamily)}
+ * method is used to open a server-socket channel for a socket of a specified
+ * protocol family. It is not possible to create a channel for an arbitrary,
+ * pre-existing socket. A newly-created server-socket channel is open but not yet
+ * bound. An attempt to invoke the {@link #accept() accept} method of an
+ * unbound server-socket channel will cause a {@link NotYetBoundException}
  * to be thrown. A server-socket channel can be bound by invoking one of the
- * {@link #bind(java.net.SocketAddress,int) bind} methods defined by this class.
- *
- * <p>Internet protocol channels are created using {@link #open()}, or {@link #open(ProtocolFamily)}
- * with the family parameter set to {@link StandardProtocolFamily#INET INET} or
- * {@link StandardProtocolFamily#INET6 INET6}. <i>Internet protocol</i> channels use {@link
- * InetSocketAddress} addresses and support both IPv4 and IPv6 TCP/IP.
- *
- * <p><i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
- * with the family parameter set to {@link StandardProtocolFamily#UNIX UNIX}.
- *
- * <p>Aside from the different address types used, the behavior of both channel types is
- * otherwise the same except where specified differently below.
- * The two main additional differences are: <i>Unix domain</i> channels do not support the
- * {@link #socket()} method and they also only support a subset of the socket options
- * supported by <i>IP</i> channels.
+ * {@link #bind(java.net.SocketAddress, int) bind} methods defined by this class.
  *
  * <p> Socket options are configured using the {@link #setOption(SocketOption,Object)
- * setOption} method. <i>Internet protocol</i> server-socket channels support the following options:
+ * setOption} method. Server-socket channels for <i>Internet protocol</i> sockets
+ * support the following options:
  * <blockquote>
  * <table class="striped">
  * <caption style="display:none">Socket options</caption>
@@ -91,7 +74,26 @@ import static java.util.Objects.requireNonNull;
  * </table>
  * </blockquote>
  *
- * Additional (implementation specific) options may also be supported.
+ * <p> Server-socket channels for <i>Unix domain</i> sockets support:
+ * <blockquote>
+ * <table class="striped">
+ * <caption style="display:none">Socket options</caption>
+ * <thead>
+ *   <tr>
+ *     <th scope="col">Option Name</th>
+ *     <th scope="col">Description</th>
+ *   </tr>
+ * </thead>
+ * <tbody>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#SO_RCVBUF SO_RCVBUF} </th>
+ *     <td> The size of the socket receive buffer </td>
+ *   </tr>
+ * </tbody>
+ * </table>
+ * </blockquote>
+ *
+ * <p> Additional (implementation specific) options may also be supported.
  *
  * <p> Server-socket channels are safe for use by multiple concurrent threads.
  * </p>
@@ -117,7 +119,7 @@ public abstract class ServerSocketChannel
     }
 
     /**
-     * Opens an <i>Internet protocol</i> server-socket channel.
+     * Opens a server-socket channel for an <i>Internet protocol</i> socket.
      *
      * <p> The new channel is created by invoking the {@link
      * java.nio.channels.spi.SelectorProvider#openServerSocketChannel
@@ -139,7 +141,7 @@ public abstract class ServerSocketChannel
     }
 
     /**
-     * Opens a server-socket channel.The {@code family} parameter specifies the
+     * Opens a server-socket channel. The {@code family} parameter specifies the
      * {@link ProtocolFamily protocol family} of the channel's socket.
      *
      * <p> The new channel is created by invoking the {@link
@@ -203,11 +205,8 @@ public abstract class ServerSocketChannel
      * @throws  ClosedChannelException              {@inheritDoc}
      * @throws  IOException                         {@inheritDoc}
      * @throws  SecurityException
-     *          If a security manager has been installed and its
-     *          {@link SecurityManager#checkListen checkListen} method denies
-     *          the operation for <i>Internet protocol</i> channels; or for <i>Unix Domain</i>
-     *          channels, if the security manager denies {@link java.net.NetPermission
-     *          NetPermission}{@code ("allowUnixDomainChannels")}.
+     *          If a security manager has been installed and it denies the
+     *          operation
      *
      * @since 1.7
      */
@@ -232,14 +231,14 @@ public abstract class ServerSocketChannel
      * the value {@code 0}, or a negative value, then an implementation specific
      * default is used.
      *
-     * <p> Note, for <i>Unix Domain</i> channels, a file is created in the file-system
-     * with the same path name as this channel's bound {@link UnixDomainSocketAddress}.
-     * This file persists after the channel is closed, and must be removed before
-     * another channel can bind to the same name. <i>Unix Domain</i>
-     * {@code ServerSocketChannels} bound to automatically assigned addresses will be
-     * assigned a unique pathname in some system temporary directory. The associated socket
-     * file also persists after the channel is closed. Its name can be obtained by
-     * calling {@link #getLocalAddress()}.
+     * @apiNote
+     * Binding a channel to a <i>Unix Domain</i> socket creates a file corresponding to
+     * the file path in the {@link UnixDomainSocketAddress}. This file persists
+     * after the channel is closed, and must be removed before another socket can
+     * bind to the same name. Binding to an address that is automatically assigned
+     * will create a unique file in some system temporary location. The associated
+     * socket file also persists after the channel is closed. Its name can be
+     * obtained from the channel's local socket address.
      *
      * @param   local
      *          The address to bind the socket, or {@code null} to bind to
@@ -258,11 +257,11 @@ public abstract class ServerSocketChannel
      * @throws  IOException
      *          If some other I/O error occurs
      * @throws  SecurityException
-     *          If a security manager has been installed and its
-     *          {@link SecurityManager#checkListen checkListen} method denies
-     *          the operation for <i>Internet protocol</i> channels; or in the case of <i>Unix Domain</i>
-     *          channels, if the security manager denies {@link java.net.NetPermission
-     *          NetPermission}{@code ("allowUnixDomainChannels")}.
+     *          If a security manager has been installed and its {@link
+     *          SecurityManager#checkListen checkListen} method denies
+     *          the operation for an <i>Internet protocol</i> socket address
+     *          or {@link NetPermission}{@code("allowUnixDomainChannels")}
+     *          when the socket address is a <i>Unix domain</i> socket address
      *
      * @since 1.7
      */
@@ -281,15 +280,15 @@ public abstract class ServerSocketChannel
         throws IOException;
 
     /**
-     * Retrieves a server socket associated with this channel if it is an <i>Internet protocol</i>
-     * channel. The operation is not supported for <i>Unix Domain</i> channels.
+     * Retrieves a server socket associated with this channel.
      *
      * <p> The returned object will not declare any public methods that are not
      * declared in the {@link java.net.ServerSocket} class.  </p>
      *
      * @return  A server socket associated with this channel
      *
-     * @throws UnsupportedOperationException if this is a Unix Domain channel
+     * @throws  UnsupportedOperationException
+     *          If the channel's socket is not an <i>Internet protocol</i> socket
      */
     public abstract ServerSocket socket();
 
@@ -304,17 +303,15 @@ public abstract class ServerSocketChannel
      * <p> The socket channel returned by this method, if any, will be in
      * blocking mode regardless of the blocking mode of this channel.
      *
-     * <p> For <i>Internet protocol</i> channels, this method performs exactly the same security checks
-     * as the {@link java.net.ServerSocket#accept accept} method of the {@link
-     * java.net.ServerSocket} class.  That is, if a security manager has been
-     * installed then for each new connection this method verifies that the
-     * address and port number of the connection's remote endpoint are
-     * permitted by the security manager's {@link
-     * java.lang.SecurityManager#checkAccept checkAccept} method.  </p>
-     *
-     * <p> For <i>Unix Domain</i> channels, this method checks
-     * {@link java.net.NetPermission NetPermission}{@code ("allowUnixDomainChannels")}.
-     * with {@link SecurityManager#checkPermission(Permission)}:
+     * <p> If bound to an <i>Internet protocol</i> socket address, this method
+     * performs exactly the same security checks as the {@link
+     * java.net.ServerSocket#accept accept} method of the {@link java.net.ServerSocket}
+     * class.  That is, if a security manager has been installed then for each
+     * new connection this method verifies that the address and port number
+     * of the connection's remote endpoint are permitted by the security
+     * manager's {@link java.lang.SecurityManager#checkAccept checkAccept}
+     * method. If bound to a <i>Unix Domain</i> socket address, this method checks
+     * {@link NetPermission}{@code ("allowUnixDomainChannels")}.
      *
      * @return  The socket channel for the new connection,
      *          or {@code null} if this channel is in non-blocking mode
@@ -348,26 +345,24 @@ public abstract class ServerSocketChannel
 
     /**
      * {@inheritDoc}
-     * Where the channel is bound to a <i>Unix Domain</i> address, the return
-     * value from this method is of type  {@link UnixDomainSocketAddress}.
-     * <p>
-     * If there is a security manager set and this is an <i>Internet protocol</i> channel,
-     * {@code checkConnect} method is
+     *
+     * If there is a security manager set, its {@code checkConnect} method is
      * called with the local address and {@code -1} as its arguments to see
      * if the operation is allowed. If the operation is not allowed,
      * a {@code SocketAddress} representing the
      * {@link java.net.InetAddress#getLoopbackAddress loopback} address and the
      * local port of the channel's socket is returned.
-     * <p>
-     * If there is a security manager set and this is a <i>Unix Domain</i> channel,
-     * then {@link SecurityManager#checkPermission(Permission)} is called using
-     * {@link java.net.NetPermission NetPermission}{@code ("allowUnixDomainChannels")}.
-     * If this fails, a {@link UnixDomainSocketAddress} with an empty path
-     * is returned.
+     *
+     * <p> Where the channel is bound to a <i>Unix Domain</i> socket address, the socket
+     * address is a {@link UnixDomainSocketAddress}. If there is a security manager
+     * set, its {@link SecurityManager#checkPermission(java.security.Permission)
+     * checkPermission} method is called with {@link NetPermission}{@code
+     * ("allowUnixDomainChannels")}. If the operation is not allowed a {@link
+     * UnixDomainSocketAddress} with an empty path is returned.
      *
      * @return  The {@code SocketAddress} that the socket is bound to, or the
      *          {@code SocketAddress} representing the loopback address or empty
-     *          pathname if denied by the security manager, or {@code null} if the
+     *          path if denied by the security manager, or {@code null} if the
      *          channel's socket is not bound
      *
      * @throws  ClosedChannelException     {@inheritDoc}

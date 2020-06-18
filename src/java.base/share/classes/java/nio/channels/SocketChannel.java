@@ -39,23 +39,20 @@ import java.nio.channels.spi.SelectorProvider;
 import static java.util.Objects.requireNonNull;
 
 /**
- * A selectable channel for stream-oriented connecting sockets that are either
- * <i>Internet protocol</i> or <i>Unix domain</i> sockets.
- * <i>Internet protoco</i>l sockets make network connections addressed by IP address and TCP port number.
- * They use {@link InetSocketAddress} for local and remote addresses.
- * <a href="package-summary.html#unixdomain"><i>Unix domain</i></a> channels are used for
- * inter-process communication to other processes on the same host and use
- * {@link UnixDomainSocketAddress} for their local and remote addresses.
+ * A selectable channel for stream-oriented connecting sockets.
  *
- * <p> A socket channel is created by invoking one of the open methods of this class.
- * It is not possible to create a channel for an arbitrary,
- * pre-existing socket. A newly-created socket channel is open but not yet
- * connected.  An attempt to invoke an I/O operation upon an unconnected
- * channel will cause a {@link NotYetConnectedException} to be thrown.  A
- * socket channel can be connected by invoking its {@link #connect connect}
- * method; once connected, a socket channel remains connected until it is
- * closed.  Whether or not a socket channel is connected may be determined by
- * invoking its {@link #isConnected isConnected} method.
+ * <p> A socket channel is created by invoking one of the {@code open} methods of
+ * this class. The no-arg {@link #open() open} method opens a socket channel
+ * for an <i>Internet protocol</i> socket. The {@link #open(ProtocolFamily)}
+ * method is used to open a socket channel for a socket of a specified protocol
+ * family. It is not possible to create a channel for an arbitrary, pre-existing
+ * socket. A newly-created socket channel is open but not yet connected.  An
+ * attempt to invoke an I/O operation upon an unconnected channel will cause a
+ * {@link NotYetConnectedException} to be thrown.  A socket channel can be
+ * connected by invoking its {@link #connect connect} method; once connected,
+ * a socket channel remains connected until it is closed.  Whether or not a
+ * socket channel is connected may be determined by invoking its {@link #isConnected()
+ * isConnected} method.
  *
  * <p> Socket channels support <i>non-blocking connection:</i>&nbsp;A socket
  * channel may be created and the process of establishing the link to the
@@ -64,7 +61,7 @@ import static java.util.Objects.requireNonNull;
  * Whether or not a connection operation is in progress may be determined by
  * invoking the {@link #isConnectionPending isConnectionPending} method.
  *
- * <p> Socket channels support <i>asynchronous shutdown,</i> which is similar
+ * <p> Socket channels support <i>asynchronous shutdown</i>, which is similar
  * to the asynchronous close operation specified in the {@link Channel} class.
  * If the input side of a socket is shut down by one thread while another
  * thread is blocked in a read operation on the socket's channel, then the read
@@ -74,27 +71,9 @@ import static java.util.Objects.requireNonNull;
  * channel, then the blocked thread will receive an {@link
  * AsynchronousCloseException}.
  *
- * <p> Internet protocol channels are the default kind when the protocol family
- * is not specified directly or indirectly in the creation method.
- * They are created using {@link #open()}, or {@link #open(ProtocolFamily)}
- * with the family parameter set to {@link StandardProtocolFamily#INET INET} or
- * {@link StandardProtocolFamily#INET6 INET6}.
- *
- * <p> <i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
- * with the family parameter set to {@link StandardProtocolFamily#UNIX UNIX}.
- *
- * <p>Aside from the different address types used, the behavior of both channel types is
- * otherwise the same except where specified differently below.
- * The two main additional differences are: <i>Unix domain</i> channels do not support the
- * {@link #socket()} method and they also only support a subset of the socket options
- * supported by <i>IP</i> channels.
- *
- * <p> The {@link #open(SocketAddress)} method will create either an Internet protocol
- * channel or a Unix domain channel, depending on the sub-type of {@link SocketAddress}
- * provided.
- *
  * <p> Socket options are configured using the {@link #setOption(SocketOption,Object)
- * setOption} method. <i>Internet protocol</i> socket channels support the following options:
+ * setOption} method. Socket channels for  <i>Internet protocol</i> sockets support
+ * following options:
  * <blockquote>
  * <table class="striped">
  * <caption style="display:none">Socket options</caption>
@@ -133,10 +112,36 @@ import static java.util.Objects.requireNonNull;
  * </tbody>
  * </table>
  * </blockquote>
- * Additional (implementation specific) options may also be supported.
  *
- * <p><i>Unix Domain</i> channels support a subset of the options listed above and also
- * additional (implementation specific) options may be supported.
+ * <p> Socket channels for <i>Unix domain</i> sockets support:
+ * <blockquote>
+ * <table class="striped">
+ * <caption style="display:none">Socket options</caption>
+ * <thead>
+ *   <tr>
+ *     <th scope="col">Option Name</th>
+ *     <th scope="col">Description</th>
+ *   </tr>
+ * </thead>
+ * <tbody>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#SO_SNDBUF SO_SNDBUF} </th>
+ *     <td> The size of the socket send buffer </td>
+ *   </tr>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#SO_RCVBUF SO_RCVBUF} </th>
+ *     <td> The size of the socket receive buffer </td>
+ *   </tr>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#SO_LINGER SO_LINGER} </th>
+ *     <td> Linger on close if data is present (when configured in blocking mode
+ *          only) </td>
+ *   </tr>
+ * </tbody>
+ * </table>
+ * </blockquote>
+ *
+ * <p> Additional (implementation specific) options may also be supported.
  *
  * <p> Socket channels are safe for use by multiple concurrent threads.  They
  * support concurrent reading and writing, though at most one thread may be
@@ -157,7 +162,7 @@ public abstract class SocketChannel
 {
 
     /**
-     * Initializes a new <i>Internet protocol</i> instance of this class.
+     * Initializes a new instance of this class.
      *
      * @param  provider
      *         The provider that created this channel
@@ -167,7 +172,7 @@ public abstract class SocketChannel
     }
 
     /**
-     * Opens an <i>Internet protocol</i> socket channel.
+     * Opens a socket channel for an <i>Internet protocol</i> socket.
      *
      * <p> The new channel is created by invoking the {@link
      * java.nio.channels.spi.SelectorProvider#openSocketChannel
@@ -184,8 +189,8 @@ public abstract class SocketChannel
     }
 
     /**
-     * Opens a socket channel. The socket channel is to an <i>Internet protocol</i> socket
-     * or a <i>Unix domain</i> socket depending on the protocol family.
+     * Opens a server-socket channel. The {@code family} parameter specifies the
+     * {@link ProtocolFamily protocol family} of the channel's socket.
      *
      * <p> The new channel is created by invoking the {@link
      * java.nio.channels.spi.SelectorProvider#openSocketChannel(ProtocolFamily)
@@ -213,19 +218,17 @@ public abstract class SocketChannel
 
     /**
      * Opens a socket channel and connects it to a remote address.
-     * Depending on the type of {@link SocketAddress} supplied, the returned object
-     * is an <i>Internet protocol</i> or <i>Unix Domain</i> channel.
      *
-     * <p> For {@link InetSocketAddress}es this convenience method works as if by invoking
-     * the {@link #open()} method, invoking the {@link #connect(SocketAddress) connect} method
-     * upon the resulting socket channel, passing it {@code remote}, which must be an
-     * {@link InetSocketAddress} and then returning that channel.  </p>
+     * <p> If the remote address is an {@link InetSocketAddress} then this
+     * method works as if by invoking the {@link #open()} method, invoking the
+     * {@link #connect(SocketAddress) connect} method upon the resulting socket
+     * channel, passing it {@code remote}, and then returning that channel.
      *
-     * <p> For {@link UnixDomainSocketAddress}es it works as if by invoking the {@link
-     * #open(ProtocolFamily)} method with {@link StandardProtocolFamily#UNIX} as parameter,
-     * invoking the {@link #connect(SocketAddress) connect} method upon
-     * the resulting socket channel, passing it {@code remote}, which must be a
-     * {@link UnixDomainSocketAddress} and then returning that channel.  </p>
+     * <p> If the remote address is a {@link UnixDomainSocketAddress} then this
+     * works by invoking the {@link #open(ProtocolFamily)} method with {@link
+     * StandardProtocolFamily#UNIX} as parameter, invoking the {@link
+     * #connect(SocketAddress) connect} method upon the resulting socket channel,
+     * passing it {@code remote}, then returning that channel.  </p>
      *
      * @param  remote
      *         The remote address to which the new channel is to be connected
@@ -243,7 +246,8 @@ public abstract class SocketChannel
      *          interrupt status
      *
      * @throws  UnresolvedAddressException
-     *          If the given remote is an InetSocketAddress that is not fully resolved
+     *          If the given remote is an InetSocketAddress that is not fully
+     *          resolved
      *
      * @throws  UnsupportedAddressTypeException
      *          If the type of the given remote address is not supported
@@ -303,13 +307,14 @@ public abstract class SocketChannel
     /**
      * {@inheritDoc}
      *
-     * <p> Note, for <a href="package-summary.html#unixdomain">Unix Domain</a> channels,
-     * a file is created in the file-system
-     * with the same name as this channel's bound address. This file persists after
-     * the channel is closed, and must be removed before another channel can bind
-     * to the same name. However, if the channel is automatically bound then its address
-     * is <a href="UnixDomainSocketAddress.html#unnamed">unnamed</a>
-     * and therefore there is no corresponding file in the file-system.
+     * @apiNote
+     * Binding a channel to a Unix domain socket creates a file corresponding to
+     * the file path in the {@link UnixDomainSocketAddress}. This file persists
+     * after the channel is closed, and must be removed before another socket can
+     * bind to the same name. Binding to a address that is automatically assigned
+     * will create a unique file in some system temporary location. The associated
+     * socket file also persists after the channel is closed. Its name can be
+     * obtained from its socket address.
      *
      * @throws  ConnectionPendingException
      *          If a non-blocking connect operation is already in progress on
@@ -319,11 +324,11 @@ public abstract class SocketChannel
      * @throws  ClosedChannelException              {@inheritDoc}
      * @throws  IOException                         {@inheritDoc}
      * @throws  SecurityException
-     *          If a security manager has been installed and its
-     *          {@link SecurityManager#checkListen checkListen} method denies
-     *          the operation for <i>Internet protocol</i> channels; or for <i>Unix Domain</i>
-     *          channels, if the security manager denies {@link java.net.NetPermission
-     *          NetPermission}{@code ("allowUnixDomainChannels")}.
+     *          If a security manager has been installed and its {@link
+     *          SecurityManager#checkListen checkListen} method denies
+     *          the operation for an <i>Internet protocol</i> socket address
+     *          or {@link NetPermission}{@code("allowUnixDomainChannels")}
+     *          when the socket address is a <i>Unix domain</i> socket address
      *
      * @since 1.7
      */
@@ -385,15 +390,12 @@ public abstract class SocketChannel
     public abstract SocketChannel shutdownOutput() throws IOException;
 
     /**
-     * Retrieves a socket associated with this channel if it is an <i>Internet protocol</i>
-     * channel. The operation is not supported for <i>Unix Domain</i> channels.
-     *
-     * <p> The returned object will not declare any public methods that are not
-     * declared in the {@link java.net.Socket} class.  </p>
+     * Retrieves a socket associated with this channel.
      *
      * @return  A socket associated with this channel
      *
-     * @throws UnsupportedOperationException if this is a <i>Unix Domain</i> channel
+     * @throws  UnsupportedOperationException
+     *          If the channel's socket is not an <i>Internet protocol</i> socket
      */
     public abstract Socket socket();
 
@@ -437,7 +439,7 @@ public abstract class SocketChannel
      *
      * <p> For <i>Unix Domain</i> channels, this method checks
      * {@link java.net.NetPermission NetPermission}{@code ("allowUnixDomainChannels")}
-     * with {@link SecurityManager#checkPermission(Permission)}:
+     * with {@link SecurityManager#checkPermission(java.security.Permission)}:
      *
      * <p> This method may be invoked at any time.  If a read or write
      * operation upon this channel is invoked while an invocation of this
@@ -542,12 +544,12 @@ public abstract class SocketChannel
     /**
      * Returns the remote address to which this channel's socket is connected.
      *
-     * <p> Where the channel is bound and connected to an Internet Protocol
+     * <p> Where the channel's socket is bound and connected to an Internet Protocol
      * socket address then the return value from this method is of type {@link
      * java.net.InetSocketAddress}.
      *
-     * <p> Where the channel is bound and connected to a <i>Unix Domain</i>
-     * address, the returned address is a {@link UnixDomainSocketAddress}
+     * <p> Where the channel's socket is bound and connected to a <i>Unix Domain</i>
+     * socket address, the returned address is a {@link UnixDomainSocketAddress}.
      *
      * @return  The remote address; {@code null} if the channel's socket is not
      *          connected
@@ -607,23 +609,24 @@ public abstract class SocketChannel
 
     /**
      * {@inheritDoc}
-     * <p>
-     * If there is a security manager set and this is an <i>Internet protocol</i> channel,
-     * {@code checkConnect} method is
+     *
+     * If there is a security manager set, its {@code checkConnect} method is
      * called with the local address and {@code -1} as its arguments to see
      * if the operation is allowed. If the operation is not allowed,
      * a {@code SocketAddress} representing the
      * {@link java.net.InetAddress#getLoopbackAddress loopback} address and the
      * local port of the channel's socket is returned.
-     * <p>
-     * If there is a security manager set and this is a <i>Unix Domain</i> channel,
-     * {@code checkPermission} is called with {@link java.net.NetPermission
-     * NetPermission}{@code ("allowUnixDomainChannels")}. If this fails,
-     * a {@link UnixDomainSocketAddress} with an empty path is returned.
+     *
+     * <p> Where the channel is bound to a Unix Domain socket address, the socket
+     * address is a {@link UnixDomainSocketAddress}. If there is a security manager
+     * set, its {@link SecurityManager#checkPermission(java.security.Permission)
+     * checkPermission} method is called with {@link NetPermission}{@code
+     * ("allowUnixDomainChannels")}. If the operation is not allowed a {@link
+     * UnixDomainSocketAddress} with an empty path is returned.
      *
      * @return  The {@code SocketAddress} that the socket is bound to, or the
-     *          {@code SocketAddress} representing the loopback address or an
-     *          empty pathname, if denied by the security manager, or {@code null} if the
+     *          {@code SocketAddress} representing the loopback address or empty
+     *          path if denied by the security manager, or {@code null} if the
      *          channel's socket is not bound
      *
      * @throws  ClosedChannelException     {@inheritDoc}

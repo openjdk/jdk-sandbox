@@ -294,12 +294,12 @@ public abstract class SelectorProvider {
      *
      * </ul>
      *
-     * <p> In cases where the inherited channel represents a <i>Unix domain</i> socket
-     * then the {@link java.nio.channels.Channel Channel} type returned is the
-     * same as for network sockets as described above, except that datagram-oriented
-     * sockets are not supported.
+     * <p> In cases where the inherited channel represents a <i>Unix domain</i>
+     * socket then the {@link Channel} type returned is the same as for network
+     * sockets as described above, except that datagram-oriented sockets are
+     * not supported.
      *
-      <p> In addition to the two kinds of channels just described, this method
+     * <p> In addition to the two kinds of channels just described, this method
      * may return other kinds of channels in the future.
      *
      * <p> The first invocation of this method creates the channel that is
