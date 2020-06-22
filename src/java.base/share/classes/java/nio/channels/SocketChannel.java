@@ -189,7 +189,7 @@ public abstract class SocketChannel
     }
 
     /**
-     * Opens a server-socket channel. The {@code family} parameter specifies the
+     * Opens a socket channel. The {@code family} parameter specifies the
      * {@link ProtocolFamily protocol family} of the channel's socket.
      *
      * <p> The new channel is created by invoking the {@link
