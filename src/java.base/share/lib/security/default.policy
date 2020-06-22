@@ -31,7 +31,7 @@ grant codeBase "jrt:/java.net.http" {
     permission java.net.NetPermission "getProxySelector";
 };
 
-grant codeBase "jrt:/jdk.dns.client" {
+grant codeBase "jrt:/jdk.net.spi.dns" {
     permission java.security.AllPermission;
 };
 

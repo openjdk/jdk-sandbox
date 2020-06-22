@@ -164,7 +164,7 @@ module java.base {
         java.instrument,
         java.logging,
         java.naming,
-        jdk.dns.client;
+        jdk.net.spi.dns;
     exports jdk.internal.jmod to
         jdk.compiler,
         jdk.jlink;
@@ -246,13 +246,13 @@ module java.base {
     exports sun.net.dns to
         java.security.jgss,
         jdk.naming.dns,
-        jdk.dns.client;
+        jdk.net.spi.dns;
     exports sun.net.util to
         java.desktop,
         java.net.http,
         jdk.jconsole,
         jdk.sctp,
-		jdk.dns.client;
+        jdk.net.spi.dns;
     exports sun.net.www to
         java.net.http,
         jdk.jartool;
@@ -291,7 +291,7 @@ module java.base {
         jdk.crypto.ec,
         jdk.crypto.cryptoki,
         jdk.naming.dns,
-        jdk.dns.client;
+        jdk.net.spi.dns;
     exports sun.security.pkcs to
         jdk.crypto.ec,
         jdk.jartool;
@@ -350,7 +350,7 @@ module java.base {
 
     uses java.lang.System.LoggerFinder;
     uses java.net.ContentHandlerFactory;
-    uses java.net.spi.NameServiceProvider;
+    uses java.net.spi.InetNameServiceProvider;
     uses java.net.spi.URLStreamHandlerProvider;
     uses java.nio.channels.spi.AsynchronousChannelProvider;
     uses java.nio.channels.spi.SelectorProvider;
