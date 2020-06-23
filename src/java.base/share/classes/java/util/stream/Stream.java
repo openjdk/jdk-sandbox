@@ -382,7 +382,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * <p>If {@code numbers} is a stream of Number objects, then the following
      * produces a stream of only the {@code Integer} objects in {@code numbers}.
      * <pre>{@code
-     *     numbers.mapMulti((Number n, Consumer<Integer> c) -> {
+     *     numbers.mapMulti((Consumer<Integer> c, Number n) -> {
      *         if (n instanceof Integer)
      *             c.accept((Integer) n);
      *     });
@@ -392,7 +392,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * which are the characters of the string, but all runs of whitespace are
      * compressed to a single space, we can use {@code mapMulti} as follows:
      * <pre>{@code
-     *     strings.mapMulti((String s, Consumer<Character> c) -> {
+     *     strings.mapMulti((Consumer<Character> c, String s) -> {
      *         for (int i = 0; i < s.length(); i++) {
      *             char ch = s.charAt(i);
      *             if (!Character.isWhitespace(ch)) {
