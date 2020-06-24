@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary flatten(BiConsumer) and primitive stream operations
+ * @summary Test mapMulti(BiConsumer) and primitive stream operations
  */
 
 package org.openjdk.tests.java.util.stream;
@@ -35,13 +35,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.DoubleConsumer;
 import java.util.function.Function;
-import java.util.function.IntConsumer;
-import java.util.function.LongConsumer;
-import java.util.function.ObjDoubleConsumer;
-import java.util.function.ObjIntConsumer;
-import java.util.function.ObjLongConsumer;
 import java.util.stream.DefaultMethodStreams;
 import java.util.stream.DoubleStream;
 import java.util.stream.DoubleStreamTestDataProvider;
@@ -81,19 +75,9 @@ public class mapMultiOpTest extends OpTestCase {
             (sink, e) -> Stream.empty().forEach(i -> sink.accept((Integer) i));
     BiConsumer<Consumer<Integer>, Integer> intRangeConsumer =
             (sink, e) -> IntStream.range(0, e).boxed().forEach(sink::accept);
-    BiConsumer<Consumer<Integer>, Integer> rangeConsumer100 =
-            (sink, e) -> IntStream.range(0, 100).boxed().forEach(sink::accept);
     BiConsumer<Consumer<Integer>, Integer> rangeConsumerWithLimit =
             (sink, e) -> IntStream.range(0, e).boxed().limit(10)
                     .forEach(sink::accept);
-
-    ObjIntConsumer<IntConsumer> rangeConsumer100Int =
-            (sink, e) -> IntStream.range(0, 100).boxed().forEach(sink::accept);
-    ObjDoubleConsumer<DoubleConsumer> rangeConsumer100Double =
-            (sink, e) -> DoubleStream.generate(Math::random).limit(100).boxed()
-                    .forEach(sink::accept);
-    ObjLongConsumer<LongConsumer> rangeConsumer100Long =
-            (sink, e) -> LongStream.range(0, 100).boxed().forEach(sink::accept);
 
     @DataProvider(name = "Stream<Integer>")
     public Object[][] streamProvider() {
@@ -112,7 +96,7 @@ public class mapMultiOpTest extends OpTestCase {
     }
 
     @Test
-    public void testFlatten() {
+    public void testMapMulti() {
         String[] stringsArray = {"hello", "there", "", "yada"};
         Stream<String> strings = Arrays.asList(stringsArray).stream();
 
@@ -132,7 +116,7 @@ public class mapMultiOpTest extends OpTestCase {
     }
 
     @Test
-    public void testDefaultFlatten() {
+    public void testDefaultMapMulti() {
         String[] stringsArray = {"hello", "there", "", "yada"};
         Stream<String> strings = Arrays.stream(stringsArray);
 
