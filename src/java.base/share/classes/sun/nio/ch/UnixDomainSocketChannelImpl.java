@@ -173,6 +173,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
      */
     @Override
     SocketAddress checkRemote(SocketAddress sa) throws IOException {
+        Objects.requireNonNull(sa);
         UnixDomainSocketAddress usa = Net.checkUnixAddress(sa);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
