@@ -458,6 +458,9 @@ abstract class ReferencePipeline<P_IN, P_OUT>
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Integer> sink) {
                 return new Sink.ChainedReference<>(sink) {
+                    // cache the consumer to avoid creation on every accepted element
+                    IntConsumer downstreamAsInt = downstream::accept;
+
                     @Override
                     public void begin(long size) {
                         downstream.begin(-1);
@@ -465,7 +468,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        mapper.accept(downstream::accept, u);
+                        mapper.accept(downstreamAsInt, u);
                     }
                 };
             }
@@ -480,6 +483,9 @@ abstract class ReferencePipeline<P_IN, P_OUT>
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Long> sink) {
                 return new Sink.ChainedReference<>(sink) {
+                    // cache the consumer to avoid creation on every accepted element
+                    LongConsumer downstreamAsLong = downstream::accept;
+
                     @Override
                     public void begin(long size) {
                         downstream.begin(-1);
@@ -487,7 +493,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        mapper.accept(downstream::accept, u);
+                        mapper.accept(downstreamAsLong, u);
                     }
                 };
             }
@@ -503,6 +509,9 @@ abstract class ReferencePipeline<P_IN, P_OUT>
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Double> sink) {
                 return new Sink.ChainedReference<>(sink) {
+                    // cache the consumer to avoid creation on every accepted element
+                    DoubleConsumer downstreamAsDouble = downstream::accept;
+
                     @Override
                     public void begin(long size) {
                         downstream.begin(-1);
@@ -510,7 +519,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        mapper.accept(downstream::accept, u);
+                        mapper.accept(downstreamAsDouble, u);
                     }
                 };
             }
