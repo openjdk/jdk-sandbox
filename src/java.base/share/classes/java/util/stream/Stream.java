@@ -419,7 +419,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      */
     default <R> Stream<R> mapMulti(BiConsumer<Consumer<R>, ? super T> mapper) {
         Objects.requireNonNull(mapper);
-        return this.flatMap(e -> {
+        return flatMap(e -> {
             SpinedBuffer<R> buffer = new SpinedBuffer<>();
             mapper.accept(buffer, e);
             return StreamSupport.stream(buffer.spliterator(), false);

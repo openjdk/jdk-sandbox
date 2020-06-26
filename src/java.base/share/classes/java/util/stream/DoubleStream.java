@@ -194,7 +194,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      */
     default DoubleStream mapMulti(ObjDoubleConsumer<DoubleConsumer> mapper) {
         Objects.requireNonNull(mapper);
-        return this.flatMap(e -> {
+        return flatMap(e -> {
             SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
             mapper.accept(buffer, e);
             return StreamSupport.doubleStream(buffer.spliterator(), false);

@@ -445,15 +445,6 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                     public void accept(P_OUT u) {
                         mapper.accept(downstream::accept, u);
                     }
-
-                    @Override
-                    public boolean cancellationRequested() {
-                        // If this method is called then an operation within the stream
-                        // pipeline is short-circuiting (see AbstractPipeline.copyInto).
-                        // Note that we cannot differentiate between an upstream or
-                        // downstream operation
-                        return downstream.cancellationRequested();
-                    }
                 };
             }
         };
@@ -467,9 +458,6 @@ abstract class ReferencePipeline<P_IN, P_OUT>
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Integer> sink) {
                 return new Sink.ChainedReference<>(sink) {
-                    // cache the consumer to avoid creation on every accepted element
-                    IntConsumer downstreamAsInt = downstream::accept;
-
                     @Override
                     public void begin(long size) {
                         downstream.begin(-1);
@@ -477,12 +465,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        mapper.accept(downstreamAsInt, u);
-                    }
-
-                    @Override
-                    public boolean cancellationRequested() {
-                        return downstream.cancellationRequested();
+                        mapper.accept(downstream::accept, u);
                     }
                 };
             }
@@ -497,9 +480,6 @@ abstract class ReferencePipeline<P_IN, P_OUT>
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Long> sink) {
                 return new Sink.ChainedReference<>(sink) {
-                    // cache the consumer to avoid creation on every accepted element
-                    LongConsumer downstreamAsLong = downstream::accept;
-
                     @Override
                     public void begin(long size) {
                         downstream.begin(-1);
@@ -507,12 +487,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        mapper.accept(downstreamAsLong, u);
-                    }
-
-                    @Override
-                    public boolean cancellationRequested() {
-                        return downstream.cancellationRequested();
+                        mapper.accept(downstream::accept, u);
                     }
                 };
             }
@@ -528,9 +503,6 @@ abstract class ReferencePipeline<P_IN, P_OUT>
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Double> sink) {
                 return new Sink.ChainedReference<>(sink) {
-                    // cache the consumer to avoid creation on every accepted element
-                    DoubleConsumer downstreamAsDouble = downstream::accept;
-
                     @Override
                     public void begin(long size) {
                         downstream.begin(-1);
@@ -538,12 +510,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        mapper.accept(downstreamAsDouble, u);
-                    }
-
-                    @Override
-                    public boolean cancellationRequested() {
-                        return downstream.cancellationRequested();
+                        mapper.accept(downstream::accept, u);
                     }
                 };
             }

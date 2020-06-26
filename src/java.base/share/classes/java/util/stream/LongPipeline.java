@@ -340,11 +340,6 @@ abstract class LongPipeline<E_IN>
                     public void accept(long t) {
                         mapper.accept(downstreamAsLong, t);
                     }
-
-                    @Override
-                    public boolean cancellationRequested() {
-                        return downstream.cancellationRequested();
-                    }
                 };
             }
         };

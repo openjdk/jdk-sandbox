@@ -194,7 +194,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      */
     default IntStream mapMulti(ObjIntConsumer<IntConsumer> mapper) {
         Objects.requireNonNull(mapper);
-        return this.flatMap(e -> {
+        return flatMap(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
             mapper.accept(buffer, e);
             return StreamSupport.intStream(buffer.spliterator(), false);

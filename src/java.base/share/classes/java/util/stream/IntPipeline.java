@@ -358,11 +358,6 @@ abstract class IntPipeline<E_IN>
                     public void accept(int t) {
                         mapper.accept(downstreamAsInt, t);
                     }
-
-                    @Override
-                    public boolean cancellationRequested() {
-                        return downstream.cancellationRequested();
-                    }
                 };
             }
         };
