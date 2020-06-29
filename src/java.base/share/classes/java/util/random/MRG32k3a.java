@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,14 +37,20 @@ import java.util.random.RandomSupport.AbstractArbitrarilyJumpableGenerator;
  * interfaces {@link RandomGenerator} and {@link AbstractArbitrarilyJumpableGenerator},
  * and therefore supports methods for producing pseudorandomly chosen
  * numbers of type {@code int}, {@code long}, {@code float}, and {@code double}
- * as well as creating new {@link Xoroshiro128PlusMRG32k3a} objects
- * by "jumping" or "leaping".
+ * as well as creating new {@link MRG32k3a} objects by "jumping" or "leaping".
  * <p>
- * Instances {@link Xoroshiro128Plus} are <em>not</em> thread-safe.
- * They are designed to be used so that each thread as its own instance.
+ * Instances of {@link MRG32k3a} are <em>not</em> thread-safe.
+ * They are designed to be used so that each thread has its own instance.
  * The methods {@link #jump} and {@link #leap} and {@link #jumps} and {@link #leaps}
- * can be used to construct new instances of {@link Xoroshiro128Plus} that traverse
+ * can be used to construct new instances of {@link MRG32k3a} that traverse
  * other parts of the state cycle.
+ * <p>
+ * {@link MRG32k3a} is most appropriate for an application that uses only
+ * floating-point values to be chosen from a uniform distribution,
+ * where no more than 32 bits of floating-point precision are required
+ * and exact equidistribution is not required.  The methods
+ * {@link #nextGaussian} and {@link #nextExponential} are not supported
+ * (attempting to use either will throw an error).
  * <p>
  * Instances of {@link MRG32k3a} are not cryptographically
  * secure.  Consider instead using {@link java.security.SecureRandom}
@@ -53,7 +59,7 @@ import java.util.random.RandomSupport.AbstractArbitrarilyJumpableGenerator;
  * seed unless the {@linkplain System#getProperty system property}
  * {@code java.util.secureRandomSeed} is set to {@code true}.
  *
- * @since 14
+ * @since   16
  */
 public final class MRG32k3a extends AbstractArbitrarilyJumpableGenerator {
 
@@ -225,8 +231,8 @@ public final class MRG32k3a extends AbstractArbitrarilyJumpableGenerator {
     }
 
     /**
-     * Creates a new instance of {@link Xoshiro256StarStar} using the specified array of
-     * initial seed bytes. Instances of {@link Xoshiro256StarStar} created with the same
+     * Creates a new instance of {@link MRG32k3a} using the specified array of
+     * initial seed bytes. Instances of {@link MRG32k3a} created with the same
      * seed array in the same program execution generate identical sequences of values.
      *
      * @param seed the initial seed
@@ -316,6 +322,24 @@ public final class MRG32k3a extends AbstractArbitrarilyJumpableGenerator {
          return (((long)internalNextInt(0x200000) << 43) |
                 ((long)internalNextInt(0x200000) << 22) |
                 ((long)internalNextInt(0x400000)));
+    }
+
+    /**
+     * This method is not supported by class {@code MRG32k3a}.
+     *
+     * @throws UnsupportedOperationException
+     */
+    default double nextGaussian() {
+        throw new UnsupportedOperationException("Class MRG32k3a does not support method nextGaussian");
+    }
+
+    /**
+     * This method is not supported by class {@code MRG32k3a}.
+     *
+     * @throws UnsupportedOperationException
+     */
+    default double nextExponential() {
+        throw new UnsupportedOperationException("Class MRG32k3a does not support method nextExponential");
     }
 
     // Period is (m1**3 - 1)(m2**3 - 1)/2, or approximately 2**191.

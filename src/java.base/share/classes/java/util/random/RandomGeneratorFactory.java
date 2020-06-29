@@ -36,7 +36,9 @@ import java.util.stream.StreamSupport;
 
 /**
  * This is a factory class for generating random number generators of a specific
- * catagory and algorithm.
+ * category and algorithm.
+ *
+ * @since   16
  */
 public class RandomGeneratorFactory<T> {
     /**

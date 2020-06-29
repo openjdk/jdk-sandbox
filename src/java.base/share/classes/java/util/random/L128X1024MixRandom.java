@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,104 +31,44 @@ import java.util.random.RandomGenerator.SplittableGenerator;
 import java.util.random.RandomSupport.AbstractSplittableWithBrineGenerator;
 
 /**
- * A generator of uniform pseudorandom values applicable for use in
- * (among other contexts) isolated parallel computations that may
- * generate subtasks.  Class {@link L128X1024MixRandom} implements
+ * An instance of this class is used to generate a stream of
+ * pseudorandom values.  Class {@link L128X1024MixRandom} implements
  * interfaces {@link RandomGenerator} and {@link SplittableGenerator},
  * and therefore supports methods for producing pseudorandomly chosen
  * numbers of type {@code int}, {@code long}, {@code float}, and {@code double}
- * as well as creating new split-off {@link L128X1024MixRandom} objects,
- * with similar usages as for class {@link java.util.SplittableRandom}.
- * <p>
- * Series of generated values pass the TestU01 BigCrush and PractRand test suites
- * that measure independence and uniformity properties of random number generators.
- * (Most recently validated with
- * <a href="http://simul.iro.umontreal.ca/testu01/tu01.html">version 1.2.3 of TestU01</a>
- * and <a href="http://pracrand.sourceforge.net">version 0.90 of PractRand</a>.
- * Note that TestU01 BigCrush was used to test not only values produced by the {@code nextLong()}
- * method but also the result of bit-reversing each value produced by {@code nextLong()}.)
- * These tests validate only the methods for certain
- * types and ranges, but similar properties are expected to hold, at
- * least approximately, for others as well.
- * <p>
- * {@link L128X1024MixRandom} is a specific member of the LXM family of algorithms
- * for pseudorandom number generators.  Every LXM generator consists of two
- * subgenerators; one is an LCG (Linear Congruential Generator) and the other is
- * an Xorshift generator.  Each output of an LXM generator is the result of
- * combining state from the LCG with state from the Xorshift generator by
- * using a Mixing function (and then the state of the LCG and the state of the
- * Xorshift generator are advanced).
- * <p>
- * The LCG subgenerator for {@link L128X256MixRandom} has an update step of the
- * form {@code s = m * s + a}, where {@code s}, {@code m}, and {@code a} are all
- * 128-bit integers; {@code s} is the mutable state, the multiplier {@code m}
- * is fixed (the same for all instances of {@link L128X256MixRandom}) and the addend
- * {@code a} is a parameter (a final field of the instance).  The parameter
- * {@code a} is required to be odd (this allows the LCG to have the maximal
- * period, namely 2<sup>128</sup>); therefore there are 2<sup>127</sup> distinct choices
- * of parameter.
- * <p>
- * The Xorshift subgenerator for {@link L128X1024MixRandom} is the {@code xoroshiro1024}
- * algorithm (parameters 25, 27, and 36), without any final scrambler such as "+" or "**".
- * Its state consists of an array {@code x} of sixteen {@code long} values,
- * which can take on any values provided that they are not all zero.
- * The period of this subgenerator is 2<sup>1024</sup>-1.
- * <p>
- * The mixing function for {@link L128X1024MixRandom} is {@link RandomSupport.mixLea64}
- * applied to the argument {@code (sh + s0)}, where {@code sh} is the high half of {@code s}
- * and {@code s0} is the most recently computed element of {@code x}.
- * <p>
- * Because the periods 2<sup>128</sup> and 2<sup>1024</sup>-1 of the two subgenerators
- * are relatively prime, the <em>period</em> of any single {@link L128X1024MixRandom} object
- * (the length of the series of generated 64-bit values before it repeats) is the product
- * of the periods of the subgenerators, that is, 2<sup>128</sup>(2<sup>1024</sup>-1),
- * which is just slightly smaller than 2<sup>1152</sup>.  Moreover, if two distinct
- * {@link L128X1024MixRandom} objects have different {@code a} parameters, then their
- * cycles of produced values will be different.
- * <p>
- * The 64-bit values produced by the {@code nextLong()} method are exactly equidistributed.
- * For any specific instance of {@link L128X1024MixRandom}, over the course of its cycle each
- * of the 2<sup>64</sup> possible {@code long} values will be produced
- * 2<sup>64</sup>(2<sup>1024</sup>-1 times.  The values produced by the {@code nextInt()},
- * {@code nextFloat()}, and {@code nextDouble()} methods are likewise exactly equidistributed.
- * <p>
- * Moreover, 64-bit values produced by the {@code nextLong()} method are conjectured to be
- * "very nearly" 16-equidistributed: all possible 16-tuples of 64-bit values are generated,
- * and some pairs occur more often than others, but only very slightly more often.
- * However, this conjecture has not yet been proven mathematically.
- * If this conjecture is true, then the values produced by the {@code nextInt()}, {@code nextFloat()},
- * and {@code nextDouble()} methods are likewise approximately 16-equidistributed.
- * <p>
- * Method {@link #split} constructs and returns a new {@link L128X1024MixRandom}
- * instance that shares no mutable state with the current instance. However, with
- * very high probability, the values collectively generated by the two objects
- * have the same statistical properties as if the same quantity of values were
- * generated by a single thread using a single {@link L128X1024MixRandom} object.
- * This is because, with high probability, distinct {@link L128X1024MixRandom} objects
- * have distinct {@code a} parameters and therefore use distinct members of the
- * algorithmic family; and even if their {@code a} parameters are the same, with
- * very high probability they will traverse different parts of their common state
- * cycle.
- * <p>
- * As with {@link java.util.SplittableRandom}, instances of
- * {@link L128X1024MixRandom} are <em>not</em> thread-safe.
- * They are designed to be split, not shared, across threads. For
- * example, a {@link java.util.concurrent.ForkJoinTask} fork/join-style
- * computation using random numbers might include a construction
- * of the form {@code new Subtask(someL128X1024MixRandom.split()).fork()}.
- * <p>
- * This class provides additional methods for generating random
+ * as well as creating new split-off {@link L128X1024MixRandom} objects.
+
+ * <p>The {@link L128X1024MixRandom} algorithm is a specific member of
+ * the LXM family of algorithms for pseudorandom number generators;
+ * for more information, see the documentation for package
+ * {@link java.util.random}.  Each instance of {@link L128X1024MixRandom}
+ * has 1152 bits of state plus one 128-bit instance-specific parameter.
+ * 
+ * <p>If two instances of {@link L128X1024MixRandom} are created with
+ * the same seed within the same program execution, and the same
+ * sequence of method calls is made for each, they will generate and
+ * return identical sequences of values.
+ * 
+ * <p>As with {@link java.util.SplittableRandom}, instances of
+ * {@link L128X1024MixRandom} are <em>not</em> thread-safe.  They are
+ * designed to be split, not shared, across threads (see the {@link #split}
+ * method). For example, a {@link java.util.concurrent.ForkJoinTask}
+ * fork/join-style computation using random numbers might include a
+ * construction of the form
+ * {@code new Subtask(someL128X1024MixRandom.split()).fork()}.
+ * 
+ * <p>This class provides additional methods for generating random
  * streams, that employ the above techniques when used in
  * {@code stream.parallel()} mode.
- * <p>
- * Instances of {@link L128X1024MixRandom} are not cryptographically
+ * 
+ * <p>Instances of {@link L128X1024MixRandom} are not cryptographically
  * secure.  Consider instead using {@link java.security.SecureRandom}
  * in security-sensitive applications. Additionally,
  * default-constructed instances do not use a cryptographically random
  * seed unless the {@linkplain System#getProperty system property}
  * {@code java.util.secureRandomSeed} is set to {@code true}.
  *
- * @since 14
+ * @since   16
  */
 public final class L128X1024MixRandom extends AbstractSplittableWithBrineGenerator {
 

@@ -88,7 +88,7 @@ import java.util.stream.Stream;
  * instances of {@code java.security.SecureRandom} may be used interchangeably with other types of
  * pseudorandom generators in applications that do not require a secure generator.
  *
- * @since 14
+ * @since 16
  */
 public interface RandomGenerator {
 
@@ -96,6 +96,18 @@ public interface RandomGenerator {
      * Supported random number Algorithms.
      */
     public enum Algorithm {
+        /**
+         * L32X64StarStarRandom algorithm
+         */
+        L32X64StarStarRandom("L32X64StarStarRandom"),
+        /**
+         * L32X64MixRandom algorithm
+         */
+        L32X64MixRandom("L32X64MixRandom"),
+        /**
+         * L64X128StarStarRandom algorithm
+         */
+        L64X128StarStarRandom("L64X128StarStarRandom"),
         /**
          * L64X128MixRandom algorithm
          */
@@ -109,9 +121,17 @@ public interface RandomGenerator {
          */
         L64X1024MixRandom("L64X1024MixRandom"),
         /**
+         * L128X128MixRandom algorithm
+         */
+        L128X128MixRandom("L128X128MixRandom"),
+        /**
          * L128X256MixRandom algorithm
          */
         L128X256MixRandom("L128X256MixRandom"),
+        /**
+         * L128X1024MixRandom algorithm
+         */
+        L128X1024MixRandom("L128X1024MixRandom"),
         /**
          * MRG32k3a algorithm
          */
@@ -127,13 +147,13 @@ public interface RandomGenerator {
         @Deprecated
         SecureRandom("SecureRandom"),
         /**
-         * Xoroshiro128StarStar algorithm
+         * Xoroshiro128PlusPlus algorithm
          */
-        Xoroshiro128StarStar("Xoroshiro128StarStar"),
+        Xoroshiro128PlusPlus("Xoroshiro128PlusPlus"),
         /**
-         * Xoshiro256StarStar algorithm
+         * Xoshiro256PlusPlus algorithm
          */
-        Xoshiro256StarStar("Xoshiro256StarStar");
+        Xoshiro256PlusPlus("Xoshiro256PlusPlus");
 
         private String name;
 
@@ -156,7 +176,7 @@ public interface RandomGenerator {
 
         /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link RandomGenerator} that utilizes this algorithm.
+         * of {@link RandomGenerator} that utilize this algorithm.
          *
          * @return {@link RandomGeneratorFactory} of {@link RandomGenerator}
          */
@@ -193,7 +213,7 @@ public interface RandomGenerator {
 
     /**
      * Returns a {@link RandomGeneratorFactory} that can produce instances
-     * of {@link RandomGenerator} that utilizes the {@code name} algorithm.
+     * of {@link RandomGenerator} that utilize the {@code name} algorithm.
      *
      * @param name  Name of random number generator algorithm
      *
@@ -206,7 +226,7 @@ public interface RandomGenerator {
 
     /**
      * Returns a {@link RandomGeneratorFactory} that can produce instances
-     * of {@link RandomGenerator} that utilizes the specified {@code algorithm}.
+     * of {@link RandomGenerator} that utilize the specified {@code algorithm}.
      *
      * @param algorithm  Random number generator algorithm
      *
@@ -809,9 +829,8 @@ public interface RandomGenerator {
      * method required by this interface.
      * <p>
      * An implementation of the {@link StreamableGenerator} interface must provide
-     * concrete definitions for the methods {@code nextInt()}, {@code nextLong},
-     * {@code period()}, and {@code rngs()}.
-     * Default implementations are provided for all other methods.
+     * concrete definitions for the methods {@code nextLong}, {@code period()}, and
+     * {@code rngs()}.  Default implementations are provided for all other methods.
      * <p>
      * Objects that implement {@link StreamableGenerator} are typically
      * not cryptographically secure.  Consider instead using
@@ -819,7 +838,7 @@ public interface RandomGenerator {
      * secure pseudo-random number generator for use by
      * security-sensitive applications.
      *
-     * @since 14
+     * @since   16
      */
     public interface StreamableGenerator extends RandomGenerator {
 
@@ -851,7 +870,7 @@ public interface RandomGenerator {
 
         /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link StreamableGenerator} that utilizes the {@code name} algorithm.
+         * of {@link StreamableGenerator} that utilize the {@code name} algorithm.
          *
          * @param name  Name of random number generator algorithm
          *
@@ -864,7 +883,7 @@ public interface RandomGenerator {
 
         /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link StreamableGenerator} that utilizes the specified {@code algorithm}.
+         * of {@link StreamableGenerator} that utilize the specified {@code algorithm}.
          *
          * @param algorithm  Random number generator algorithm
          *
@@ -932,8 +951,8 @@ public interface RandomGenerator {
      * also to produce a stream of generators split off from the original
      * (by either iterative or recursive splitting, or a combination).
      * <p>
-     * An implementation of the {@link SplittableGenerator} interface must provide
-     * concrete definitions for the methods {@code nextInt()}, {@code nextLong},
+     * An implementation of the {@link SplittableGenerator} interface must
+     * provide concrete definitions for the methods {@code nextLong},
      * {@code period()}, {@code split()}, {@code split(SplittableGenerator)},
      * {@code splits()}, {@code splits(long)}, {@code splits(SplittableGenerator)},
      * and {@code splits(long, SplittableGenerator)}.  Perhaps the most convenient
@@ -946,7 +965,7 @@ public interface RandomGenerator {
      * secure pseudo-random number generator for use by
      * security-sensitive applications.
      *
-     * @since 14
+     * @since   16
      */
     public interface SplittableGenerator extends StreamableGenerator {
 
@@ -978,7 +997,7 @@ public interface RandomGenerator {
 
         /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link SplittableGenerator} that utilizes the {@code name} algorithm.
+         * of {@link SplittableGenerator} that utilize the {@code name} algorithm.
          *
          * @param name  Name of random number generator algorithm
          *
@@ -991,7 +1010,7 @@ public interface RandomGenerator {
 
         /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link SplittableGenerator} that utilizes the specified {@code algorithm}.
+         * of {@link SplittableGenerator} that utilize the specified {@code algorithm}.
          *
          * @param algorithm  Random number generator algorithm
          *
@@ -1156,15 +1175,15 @@ public interface RandomGenerator {
      * JumpableGenerator} interface.
      * <p>
      * An implementation of the {@link JumpableGenerator} interface must provide concrete
-     * definitions for the methods {@code nextInt()}, {@code nextLong}, {@code period()}, {@code
-     * copy()}, {@code jump()}, and {@code defaultJumpDistance()}. Default implementations are
+     * definitions for the methods {@code nextLong}, {@code period()}, {@code copy()},
+     * {@code jump()}, and {@code defaultJumpDistance()}. Default implementations are
      * provided for all other methods.
      * <p>
      * Objects that implement {@link JumpableGenerator} are typically not cryptographically secure.
      * Consider instead using {@link java.security.SecureRandom} to get a cryptographically secure
      * pseudo-random number generator for use by security-sensitive applications.
      *
-     * @since 14
+     * @since   16
      */
     public interface JumpableGenerator extends StreamableGenerator {
 
@@ -1196,7 +1215,7 @@ public interface RandomGenerator {
 
         /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link JumpableGenerator} that utilizes the {@code name} algorithm.
+         * of {@link JumpableGenerator} that utilize the {@code name} algorithm.
          *
          * @param name  Name of random number generator algorithm
          *
@@ -1209,7 +1228,7 @@ public interface RandomGenerator {
 
         /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link JumpableGenerator} that utilizes the specified {@code algorithm}.
+         * of {@link JumpableGenerator} that utilize the specified {@code algorithm}.
          *
          * @param algorithm  Random number generator algorithm
          *
@@ -1347,16 +1366,15 @@ public interface RandomGenerator {
      * produce a substream of generator objects.
      * <p>
      * An implementation of the {@link LeapableGenerator} interface must provide concrete
-     * definitions for the methods {@code nextInt()}, {@code nextLong}, {@code period()},
-     * {@code copy()}, {@code jump()}, {@code defaultJumpDistance()}, {@code leap()},
-     * and {@code defaultLeapDistance()}. Default implementations are provided for all other
-     * methods.
+     * definitions for the methods {@code nextLong}, {@code period()}, {@code copy()},
+     * {@code jump()}, {@code defaultJumpDistance()}, {@code leap()}, and {@code defaultLeapDistance()}.
+     * Default implementations are provided for all other methods.
      * <p>
      * Objects that implement {@link LeapableGenerator} are typically not cryptographically secure.
      * Consider instead using {@link java.security.SecureRandom} to get a cryptographically secure
      * pseudo-random number generator for use by security-sensitive applications.
      *
-     * @since 14
+     * @since   16
      */
     public interface LeapableGenerator extends JumpableGenerator {
 
@@ -1388,7 +1406,7 @@ public interface RandomGenerator {
 
         /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link LeapableGenerator} that utilizes the {@code name} algorithm.
+         * of {@link LeapableGenerator} that utilize the {@code name} algorithm.
          *
          * @param name  Name of random number generator algorithm
          *
@@ -1401,7 +1419,7 @@ public interface RandomGenerator {
 
         /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link LeapableGenerator} that utilizes the specified {@code algorithm}.
+         * of {@link LeapableGenerator} that utilize the specified {@code algorithm}.
          *
          * @param algorithm  Random number generator algorithm
          *
@@ -1508,20 +1526,20 @@ public interface RandomGenerator {
      * jump distances can be used to traverse the entire state cycle in various ways.
      * <p>
      * An implementation of the {@link ArbitrarilyJumpableGenerator} interface must provide concrete
-     * definitions for the methods {@code nextInt()}, {@code nextLong}, {@code period()},
-     * {@code copy()}, {@code jump(double)}, {@code defaultJumpDistance()}, and
-     * {@code defaultLeapDistance()}. Default implementations are provided for all other methods.
+     * definitions for the methods {@code nextLong}, {@code period()}, {@code copy()},
+     * {@code jump(double)}, {@code defaultJumpDistance()}, and {@code defaultLeapDistance()}.
+     * Default implementations are provided for all other methods.
      * Perhaps the most convenient way to implement this interface is to extend the abstract class
-     * {@link ArbitrarilyJumpableGenerator}, which provides spliterator-based implementations of the
-     * methods {@code ints}, {@code longs}, {@code doubles}, {@code rngs}, {@code jumps}, and
-     * {@code leaps}.
+     * {@link AbstractArbitrarilyJumpableGenerator}, which provides spliterator-based implementations
+     * of the methods {@code ints}, {@code longs}, {@code doubles}, {@code rngs}, {@code jumps},
+     * and {@code leaps}.
      * <p>
      * Objects that implement {@link ArbitrarilyJumpableGenerator} are typically not
      * cryptographically secure. Consider instead using {@link java.security.SecureRandom} to get a
      * cryptographically secure pseudo-random number generator for use by security-sensitive
      * applications.
      *
-     * @since 14
+     * @since   16
      */
     public interface ArbitrarilyJumpableGenerator extends LeapableGenerator {
 
@@ -1553,7 +1571,7 @@ public interface RandomGenerator {
 
         /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link ArbitrarilyJumpableGenerator} that utilizes the {@code name} algorithm.
+         * of {@link ArbitrarilyJumpableGenerator} that utilize the {@code name} algorithm.
          *
          * @param name  Name of random number generator algorithm
          *
@@ -1566,7 +1584,7 @@ public interface RandomGenerator {
 
         /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link ArbitrarilyJumpableGenerator} that utilizes the specified {@code algorithm}.
+         * of {@link ArbitrarilyJumpableGenerator} that utilize the specified {@code algorithm}.
          *
          * @param algorithm  Random number generator algorithm
          *
