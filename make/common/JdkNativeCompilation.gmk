@@ -92,6 +92,14 @@ ProcessDir = \
     ) \
   )
 
+JDK_RCFLAGS=$RCFLAGS \
+    -D"JDK_VERSION_STRING=$(VERSION_STRING)" \
+    -D"JDK_COMPANY=$(COMPANY_NAME)" \
+    -D"JDK_VER=$(VERSION_NUMBER_FOUR_POSITIONS)" \
+    -D"JDK_COPYRIGHT=Copyright \xA9 $(COPYRIGHT_YEAR)" \
+    -D"JDK_NAME=$(JDK_RC_NAME) $(VERSION_SHORT)" \
+    -D"JDK_FVER=$(subst .,$(COMMA),$(VERSION_NUMBER_FOUR_POSITIONS))"
+
 # Setup make rules for creating a native shared library with suitable defaults
 # for the OpenJDK project.
 #
@@ -108,6 +116,7 @@ ProcessDir = \
 #   HEADERS_FROM_SRC -- if false, does not add source dirs automatically as
 #     header include dirs. (Defaults to true.)
 #   SRC -- this is passed on, but preprocessed to accept source dir designations
+#   RC_FILEDESC -- override the default FILEDESC for Windows version.rc
 #     such as "java.base:headers".
 SetupJdkLibrary = $(NamedParamsMacroTemplate)
 define SetupJdkLibraryBody
@@ -137,18 +146,19 @@ define SetupJdkLibraryBody
 
   ifeq ($$($1_VERSIONINFO_RESOURCE), )
     $1_VERSIONINFO_RESOURCE := $$(GLOBAL_VERSION_INFO_RESOURCE)
-  else ifeq ($$($1_VERSIONINFO_RESOURCE), DISABLE)
-    $1_VERSIONINFO_RESOURCE :=
   endif
 
-  ifeq ($$($1_RCFLAGS), )
-    $1_RCFLAGS :=  $(RCFLAGS) \
-        -D "JDK_FNAME=$$($1_NAME).dll" \
-        -D "JDK_INTERNAL_NAME=$$($1_NAME)" \
-        -D "JDK_FTYPE=0x2L"
-  else ifeq ($$($1_RCFLAGS), DISABLE)
-    $1_RCFLAGS :=
+  ifeq ($$($1_RC_FILEDESC), )
+    $1_RC_FILEDESC := $(JDK_RC_NAME) binary
   endif
+
+  $1_RCFLAGS := $(JDK_RCFLAGS) \
+      -D"JDK_FILEDESC=$$(strip $$($1_RC_FILEDESC))" \
+      -D"JDK_FNAME=$$($1_NAME).dll" \
+      -D"JDK_INTERNAL_NAME=$$($1_NAME)" \
+      -D"JDK_FTYPE=0x2L" \
+      -I$(TOPDIR)/src/java.base/windows/native/common \
+      $$($1_EXTRA_RCFLAGS)
 
   ifneq ($$($1_HEADERS_FROM_SRC), false)
     $1_SRC_HEADER_FLAGS := $$(addprefix -I, $$(wildcard $$($1_SRC)))
@@ -171,7 +181,6 @@ define SetupJdkLibraryBody
   ifeq ($$($1_CFLAGS)$$($1_CXXFLAGS), )
     $1_CFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_EXTRA_HEADER_FLAGS)
   endif
-  $1_RCFLAGS += $$($1_EXTRA_RCFLAGS)
 
   # Since we reuse the rule name ($1), all our arguments will pass through.
   # We lose in transparency, but gain in brevity in this call...
@@ -201,20 +210,15 @@ define SetupJdkExecutableBody
 
   ifeq ($$($1_VERSIONINFO_RESOURCE), )
     $1_VERSIONINFO_RESOURCE := $$(GLOBAL_VERSION_INFO_RESOURCE)
-  else ifeq ($$($1_VERSIONINFO_RESOURCE), DISABLE)
-    $1_VERSIONINFO_RESOURCE :=
   endif
 
-  ifeq ($$($1_RCFLAGS), )
-    $1_RCFLAGS :=  $(RCFLAGS) \
-        -D "JDK_FNAME=$$($1_NAME).exe" \
-        -D "JDK_INTERNAL_NAME=$$($1_NAME)" \
-        -D "JDK_FTYPE=0x1L"
-  else ifeq ($$($1_RCFLAGS), DISABLE)
-    $1_RCFLAGS :=
-  endif
-
-  $1_RCFLAGS += $$($1_EXTRA_RCFLAGS)
+  $1_RCFLAGS := $(JDK_RCFLAGS) \
+      -D"JDK_FILEDESC=$(JDK_RC_NAME) binary" \
+      -D"JDK_FNAME=$$($1_NAME).exe" \
+      -D"JDK_INTERNAL_NAME=$$($1_NAME)" \
+      -D"JDK_FTYPE=0x1L" \
+      -I$(TOPDIR)/src/java.base/windows/native/common \
+      $$($1_EXTRA_RCFLAGS)
 
   # Since we reuse the rule name ($1), all our arguments will pass through.
   # We lose in transparency, but gain in brevity in this call...

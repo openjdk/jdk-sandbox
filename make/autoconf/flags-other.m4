@@ -68,20 +68,6 @@ AC_DEFUN([FLAGS_SETUP_RCFLAGS],
     if test "x$DEBUG_LEVEL" = xrelease; then
       RCFLAGS="$RCFLAGS -DNDEBUG"
     fi
-
-    # The version variables used to create RCFLAGS may be overridden
-    # in a custom configure script, or possibly the command line.
-    # Let those variables be expanded at make time in spec.gmk.
-    # The \$ are escaped to the shell, and the $(...) variables
-    # are evaluated by make.
-    RCFLAGS="$RCFLAGS \
-        -D\"JDK_VERSION_STRING=\$(VERSION_STRING)\" \
-        -D\"JDK_COMPANY=\$(COMPANY_NAME)\" \
-        -D\"JDK_FILEDESC=$JDK_RC_NAME binary\" \
-        -D\"JDK_VER=\$(VERSION_NUMBER_FOUR_POSITIONS)\" \
-        -D\"JDK_COPYRIGHT=Copyright \xA9 $COPYRIGHT_YEAR\" \
-        -D\"JDK_NAME=$JDK_RC_NAME \$(VERSION_SHORT)\" \
-        -D\"JDK_FVER=\$(subst .,\$(COMMA),\$(VERSION_NUMBER_FOUR_POSITIONS))\""
   fi
   AC_SUBST(RCFLAGS)
 ])
