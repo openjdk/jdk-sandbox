@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -100,7 +100,7 @@ ProcessDir = \
 #
 # Remaining parameters are named arguments. These are all passed on to
 # SetupNativeCompilation, except for
-#   EXTRA_RC_FLAGS -- additional RC_FLAGS to append.
+#   EXTRA_RCFLAGS -- additional RCFLAGS to append.
 #   EXTRA_HEADER_DIRS -- additional directories to look for headers in
 #   EXTRA_SRC -- additional directories to look for source in
 #   EXCLUDE_SRC_PATTERNS -- exclude source dirs matching these patterns from
@@ -141,13 +141,13 @@ define SetupJdkLibraryBody
     $1_VERSIONINFO_RESOURCE :=
   endif
 
-  ifeq ($$($1_RC_FLAGS), )
-    $1_RC_FLAGS :=  $(RC_FLAGS) \
+  ifeq ($$($1_RCFLAGS), )
+    $1_RCFLAGS :=  $(RCFLAGS) \
         -D "JDK_FNAME=$$($1_NAME).dll" \
         -D "JDK_INTERNAL_NAME=$$($1_NAME)" \
         -D "JDK_FTYPE=0x2L"
-  else ifeq ($$($1_RC_FLAGS), DISABLE)
-    $1_RC_FLAGS :=
+  else ifeq ($$($1_RCFLAGS), DISABLE)
+    $1_RCFLAGS :=
   endif
 
   ifneq ($$($1_HEADERS_FROM_SRC), false)
@@ -171,7 +171,7 @@ define SetupJdkLibraryBody
   ifeq ($$($1_CFLAGS)$$($1_CXXFLAGS), )
     $1_CFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_EXTRA_HEADER_FLAGS)
   endif
-  $1_RC_FLAGS += $$($1_EXTRA_RC_FLAGS)
+  $1_RCFLAGS += $$($1_EXTRA_RCFLAGS)
 
   # Since we reuse the rule name ($1), all our arguments will pass through.
   # We lose in transparency, but gain in brevity in this call...
@@ -186,7 +186,7 @@ endef
 #
 # Remaining parameters are named arguments. These are all passed on to
 # SetupNativeCompilation, except for
-#   EXTRA_RC_FLAGS -- additional RC_FLAGS to append.
+#   EXTRA_RCFLAGS -- additional RCFLAGS to append.
 SetupJdkExecutable = $(NamedParamsMacroTemplate)
 define SetupJdkExecutableBody
   $1_TYPE := EXECUTABLE
@@ -205,16 +205,16 @@ define SetupJdkExecutableBody
     $1_VERSIONINFO_RESOURCE :=
   endif
 
-  ifeq ($$($1_RC_FLAGS), )
-    $1_RC_FLAGS :=  $(RC_FLAGS) \
+  ifeq ($$($1_RCFLAGS), )
+    $1_RCFLAGS :=  $(RCFLAGS) \
         -D "JDK_FNAME=$$($1_NAME).exe" \
         -D "JDK_INTERNAL_NAME=$$($1_NAME)" \
-        -D "JDK_FTYPE=0x01L"
-  else ifeq ($$($1_RC_FLAGS), DISABLE)
-    $1_RC_FLAGS :=
+        -D "JDK_FTYPE=0x1L"
+  else ifeq ($$($1_RCFLAGS), DISABLE)
+    $1_RCFLAGS :=
   endif
 
-  $1_RC_FLAGS += $$($1_EXTRA_RC_FLAGS)
+  $1_RCFLAGS += $$($1_EXTRA_RCFLAGS)
 
   # Since we reuse the rule name ($1), all our arguments will pass through.
   # We lose in transparency, but gain in brevity in this call...

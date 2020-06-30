@@ -128,7 +128,7 @@ ifeq ($(call isTargetOs, windows), true)
   ifeq ($(call isTargetCpuBits, 64), true)
     RC_DESC := 64-Bit$(SPACE)
   endif
-  JVM_RCFLAGS += -D"HS_FILEDESC=$(HOTSPOT_VM_DISTRO) $(RC_DESC)$(JVM_VARIANT) VM"
+  JVM_RCFLAGS := $(RCFLAGS) -D"JDK_FILEDESC=$(HOTSPOT_VM_DISTRO) $(RC_DESC)$(JVM_VARIANT) VM" -D"JDK_FTYPE=0x2L"
 endif
 
 JVM_OPTIMIZATION ?= HIGHEST_JVM
@@ -168,8 +168,8 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJVM, \
     USE_MAPFILE_FOR_SYMBOLS := true, \
     STRIPFLAGS := $(JVM_STRIPFLAGS), \
     EMBED_MANIFEST := true, \
-    RC_FLAGS := $(JVM_RCFLAGS), \
-    VERSIONINFO_RESOURCE := $(TOPDIR)/src/hotspot/os/windows/version.rc, \
+    RCFLAGS := $(JVM_RCFLAGS), \
+    VERSIONINFO_RESOURCE := $(TOPDIR)/src/java.base/windows/native/common/version.rc, \
     PRECOMPILED_HEADER := $(JVM_PRECOMPILED_HEADER), \
     PRECOMPILED_HEADER_EXCLUDE := $(JVM_PRECOMPILED_HEADER_EXCLUDE), \
 ))
