@@ -92,7 +92,9 @@ ProcessDir = \
     ) \
   )
 
-JDK_RCFLAGS=$RCFLAGS \
+GLOBAL_VERSION_INFO_RESOURCE := $(TOPDIR)/src/java.base/windows/native/common/version.rc
+
+JDK_RCFLAGS=$(RCFLAGS) \
     -D"JDK_VERSION_STRING=$(VERSION_STRING)" \
     -D"JDK_COMPANY=$(COMPANY_NAME)" \
     -D"JDK_VER=$(VERSION_NUMBER_FOUR_POSITIONS)" \
