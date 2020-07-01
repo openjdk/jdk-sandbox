@@ -30,7 +30,9 @@ import java.nio.file.attribute.GroupPrincipal;
 import java.util.Objects;
 
 /**
- * Represents the credentials of a peer connected to a Unix domain socket.
+ * Represents the credentials of a peer connected to a
+ * <a href="../../../java.base/java/nio/channels/package-summary.html#unixdomain">
+ * Unix domain</a> socket.
  *
  * @since 16
  */

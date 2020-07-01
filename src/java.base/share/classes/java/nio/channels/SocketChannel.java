@@ -431,13 +431,14 @@ public abstract class SocketChannel
      * method will block until the connection is established or an I/O error
      * occurs.
      *
-     * <p> For <i>Internet protocol</i> channels, this method performs exactly the same security checks
-     * as the {@link java.net.Socket} class.  That is, if a security manager has been
+     * <p> For channels to <i>Internet protocol</i> sockets, this method performs
+     * exactly the same security checks as the {@link java.net.Socket} class.
+     * That is, if a security manager has been
      * installed then this method verifies that its {@link
      * java.lang.SecurityManager#checkConnect checkConnect} method permits
      * connecting to the address and port number of the given remote endpoint.
      *
-     * <p> For <i>Unix Domain</i> channels, this method checks
+     * <p> For channels to <i>Unix Domain</i> sockets, this method checks
      * {@link java.net.NetPermission NetPermission}{@code ("allowUnixDomainChannels")}
      * with {@link SecurityManager#checkPermission(java.security.Permission)}.
      *

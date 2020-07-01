@@ -358,20 +358,21 @@
  * {@link Path}. Paths can be either absolute or relative with respect to the current
  * working directory.
  * <p>
- * If a Unix domain {@link SocketChannel} is automatically bound by connecting it
- * without calling {@link SocketChannel#bind(SocketAddress) bind} first, then its
- * address is <i>unnamed</i>; it has an empty path field, and therefore has no
+ * If a {@link SocketChannel} for a <i>Unix Domain</i> socket is automatically bound by
+ * connecting it without calling {@link SocketChannel#bind(SocketAddress) bind} first,
+ * then its address is <i>unnamed</i>; it has an empty path field, and therefore has no
  * associated file in the file-system. Explicitly binding a {@code SocketChannel}
  * to any unnamed address has the same effect.
  * <p>
- * If a Unix domain {@link ServerSocketChannel} is automatically bound by passing a
- * {@code null} address to one of the {@link ServerSocketChannel#bind(SocketAddress) bind}
- * methods, the channel is bound to a unique name in the temporary directory identified
- * by the {@code "java.io.tmpdir"} system property. The exact pathname can be obtained by
- * calling {@link ServerSocketChannel#getLocalAddress() getLocalAddress} after bind returns.
- * It is an error to bind a {@code ServerSocketChannel} to an unnamed address.
+ * If a {@link ServerSocketChannel} for a <i>Unix Domain</i> socket is automatically bound
+ * by passing a {@code null} address to one of the {@link ServerSocketChannel#bind
+ * (SocketAddress) bind} methods, the channel is bound to a unique name in the temporary
+ * directory identified by the {@code "java.io.tmpdir"} system property. The exact pathname
+ * can be obtained by calling {@link ServerSocketChannel#getLocalAddress() getLocalAddress}
+ * after bind returns. It is an error to bind a {@code ServerSocketChannel} to an
+ * unnamed address.
  *
- * <p> A Unix domain socket can be bound to a name if and only if, no file exists
+ * <p> A <i>Unix Domain</i> socket can be bound to a name if and only if, no file exists
  * in the file-system with the same name, and the calling process has the required
  * operating system permissions to create a file of that name.
  * The socket file that is created when a channel binds to a name is not removed when
@@ -382,13 +383,13 @@
  * channel to bind to the same name. The original channel is not notified of any error
  * in this situation. Operating system permissions can be used to control who is allowed
  * to create and delete these socket files. Note also, that each platform enforces an
- * implementation specific, maximum length for the name of a Unix domain socket.
+ * implementation specific, maximum length for the name of a <i>Unix Domain</i> socket.
  * This limitation is enforced when a channel is bound. The maximum length is typically
  * close to and generally not less than 100 bytes.
  *
  * <p> If a security manager is present then binding, connecting or accepting a
- * <i>Unix Domain</i> {@code SocketChannel} or {@code ServerSocketChannel} requires
- * the {@link NetPermission NetPermission}{@code ("allowUnixDomainChannels")}.
+ * {@code SocketChannel} or {@code ServerSocketChannel} for a <i>Unix Domain</i> socket
+ * requires the {@link NetPermission NetPermission}{@code ("allowUnixDomainChannels")}.
  *
  * <p> Unless otherwise noted, passing a {@code null} argument to a constructor
  * or method in any class or interface in this package will cause a {@link
