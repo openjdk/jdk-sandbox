@@ -193,7 +193,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * @see Stream#mapMulti(BiConsumer)
      * @since 16
      */
-    default LongStream mapMulti(LongObjConsumer<LongConsumer> mapper) {
+    default LongStream mapMulti(LongObjConsumer<? super LongConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();

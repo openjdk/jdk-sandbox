@@ -428,7 +428,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
         };
     }
 
-    public final <R> Stream<R> mapMulti(BiConsumer<? super P_OUT, Consumer<R>> mapper) {
+    public final <R> Stream<R> mapMulti(BiConsumer<? super P_OUT, ? super Consumer<R>> mapper) {
         Objects.requireNonNull(mapper);
         return new StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
@@ -442,8 +442,9 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                     }
 
                     @Override
+                    @SuppressWarnings("unchecked")
                     public void accept(P_OUT u) {
-                        mapper.accept(u, downstream::accept);
+                        mapper.accept(u, (Consumer<R>) downstream);
                     }
                 };
             }
@@ -451,15 +452,13 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     }
 
     @Override
-    public final IntStream mapMultiToInt(BiConsumer<? super P_OUT, IntConsumer> mapper) {
+    public final IntStream mapMultiToInt(BiConsumer<? super P_OUT, ? super IntConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return new IntPipeline.StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Integer> sink) {
                 return new Sink.ChainedReference<>(sink) {
-                    // cache the consumer to avoid creation on every accepted element
-                    IntConsumer downstreamAsInt = downstream::accept;
 
                     @Override
                     public void begin(long size) {
@@ -467,8 +466,9 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                     }
 
                     @Override
+                    @SuppressWarnings("unchecked")
                     public void accept(P_OUT u) {
-                        mapper.accept(u, downstreamAsInt);
+                        mapper.accept(u, (IntConsumer)downstream);
                     }
                 };
             }
@@ -476,15 +476,13 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     }
 
     @Override
-    public final LongStream mapMultiToLong(BiConsumer<? super P_OUT, LongConsumer> mapper) {
+    public final LongStream mapMultiToLong(BiConsumer<? super P_OUT, ? super LongConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return new LongPipeline.StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Long> sink) {
                 return new Sink.ChainedReference<>(sink) {
-                    // cache the consumer to avoid creation on every accepted element
-                    LongConsumer downstreamAsLong = downstream::accept;
 
                     @Override
                     public void begin(long size) {
@@ -492,8 +490,9 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                     }
 
                     @Override
+                    @SuppressWarnings("unchecked")
                     public void accept(P_OUT u) {
-                        mapper.accept(u, downstreamAsLong);
+                        mapper.accept(u, (LongConsumer) downstream);
                     }
                 };
             }
@@ -502,15 +501,13 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
 
     @Override
-    public final DoubleStream mapMultiToDouble(BiConsumer<? super P_OUT, DoubleConsumer> mapper) {
+    public final DoubleStream mapMultiToDouble(BiConsumer<? super P_OUT, ? super DoubleConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return new DoublePipeline.StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Double> sink) {
                 return new Sink.ChainedReference<>(sink) {
-                    // cache the consumer to avoid creation on every accepted element
-                    DoubleConsumer downstreamAsDouble = downstream::accept;
 
                     @Override
                     public void begin(long size) {
@@ -518,8 +515,9 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                     }
 
                     @Override
+                    @SuppressWarnings("unchecked")
                     public void accept(P_OUT u) {
-                        mapper.accept(u, downstreamAsDouble);
+                        mapper.accept(u, (DoubleConsumer) downstream);
                     }
                 };
             }

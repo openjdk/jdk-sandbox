@@ -193,7 +193,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * @see Stream#mapMulti(BiConsumer)
      * @since 16
      */
-    default DoubleStream mapMulti(DoubleObjConsumer<DoubleConsumer> mapper) {
+    default DoubleStream mapMulti(DoubleObjConsumer<? super DoubleConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();

@@ -321,15 +321,13 @@ abstract class LongPipeline<E_IN>
     }
 
     @Override
-    public final LongStream mapMulti(LongObjConsumer<LongConsumer> mapper) {
+    public final LongStream mapMulti(LongObjConsumer<? super LongConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return new LongPipeline.StatelessOp<>(this, StreamShape.LONG_VALUE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
             @Override
             Sink<Long> opWrapSink(int flags, Sink<Long> sink) {
                 return new Sink.ChainedLong<>(sink) {
-                    // cache the consumer to avoid creation on every accepted element
-                    LongConsumer downstreamAsLong = downstream::accept;
 
                     @Override
                     public void begin(long size) {
@@ -337,8 +335,9 @@ abstract class LongPipeline<E_IN>
                     }
 
                     @Override
+                    @SuppressWarnings("unchecked")
                     public void accept(long t) {
-                        mapper.accept(t, downstreamAsLong);
+                        mapper.accept(t, (LongConsumer) downstream);
                     }
                 };
             }

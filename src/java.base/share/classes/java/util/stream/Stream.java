@@ -419,7 +419,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @see #flatMap
      * @since 16
      */
-    default <R> Stream<R> mapMulti(BiConsumer<? super T, Consumer<R>> mapper) {
+    default <R> Stream<R> mapMulti(BiConsumer<? super T, ? super Consumer<R>> mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer<R> buffer = new SpinedBuffer<>();
@@ -458,7 +458,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @see #mapMulti(BiConsumer)
      * @since 16
      */
-    default IntStream mapMultiToInt(BiConsumer<? super T, IntConsumer> mapper) {
+    default IntStream mapMultiToInt(BiConsumer<? super T, ? super IntConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMapToInt(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
@@ -497,7 +497,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @see #mapMulti(BiConsumer)
      * @since 16
      */
-    default LongStream mapMultiToLong(BiConsumer<? super T, LongConsumer> mapper) {
+    default LongStream mapMultiToLong(BiConsumer<? super T, ? super LongConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMapToLong(e -> {
             SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
@@ -537,7 +537,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @see #mapMulti(BiConsumer)
      * @since 16
      */
-    default DoubleStream mapMultiToDouble(BiConsumer<? super T, DoubleConsumer> mapper) {
+    default DoubleStream mapMultiToDouble(BiConsumer<? super T, ? super DoubleConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMapToDouble(e -> {
             SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();

@@ -193,7 +193,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * @see Stream#mapMulti(BiConsumer)
      * @since 16
      */
-    default IntStream mapMulti(IntObjConsumer<IntConsumer> mapper) {
+    default IntStream mapMulti(IntObjConsumer<? super IntConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
