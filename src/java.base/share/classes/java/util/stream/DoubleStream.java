@@ -1227,7 +1227,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * Unlike most other functional interfaces, {@code DoubleObjConsumer} is
      * expected to operate via side-effects.
      *
-     * <p>This is a <a href="package-summary.html">functional interface</a>
+     * <p>This is a <a href="../function/package-summary.html">functional interface</a>
      * whose functional method is {@link #accept(double, Object)}.
      *
      * @param <T> the type of the object argument to the operation

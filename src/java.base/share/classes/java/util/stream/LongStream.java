@@ -1223,7 +1223,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * Unlike most other functional interfaces, {@code LongObjConsumer} is
      * expected to operate via side-effects.
      *
-     * <p>This is a <a href="package-summary.html">functional interface</a>
+     * <p>This is a <a href="../function/package-summary.html">functional interface</a>
      * whose functional method is {@link #accept(long, Object)}.
      *
      * @param <T> the type of the object argument to the operation
