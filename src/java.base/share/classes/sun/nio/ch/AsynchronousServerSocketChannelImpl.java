@@ -41,6 +41,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
 
+import static java.net.StandardProtocolFamily.UNSPEC;
+
 /**
  * Base implementation of AsynchronousServerSocketChannel.
  */
@@ -195,7 +197,7 @@ abstract class AsynchronousServerSocketChannelImpl
                 // SO_REUSEADDR emulated when using exclusive bind
                 isReuseAddress = (Boolean)value;
             } else {
-                Net.setSocketOption(fd, Net.UNSPEC, name, value);
+                Net.setSocketOption(fd, UNSPEC, name, value);
             }
             return this;
         } finally {
@@ -219,7 +221,7 @@ abstract class AsynchronousServerSocketChannelImpl
                 // SO_REUSEADDR emulated when using exclusive bind
                 return (T)Boolean.valueOf(isReuseAddress);
             }
-            return (T) Net.getSocketOption(fd, Net.UNSPEC, name);
+            return (T) Net.getSocketOption(fd, UNSPEC, name);
         } finally {
             end();
         }

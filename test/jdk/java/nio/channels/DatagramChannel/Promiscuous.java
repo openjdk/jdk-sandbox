@@ -49,12 +49,6 @@ public class Promiscuous {
 
     static final Random rand = new Random();
 
-    static final ProtocolFamily UNSPEC = new ProtocolFamily() {
-        public String name() {
-            return "UNSPEC";
-        }
-    };
-
     /**
      * Sends a datagram to the given multicast group
      */
@@ -64,7 +58,7 @@ public class Promiscuous {
         throws IOException
     {
         ProtocolFamily family = (group instanceof Inet6Address) ?
-            StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
+            INET6 : INET;
         int id = rand.nextInt();
         try (DatagramChannel dc = DatagramChannel.open(family)) {
             dc.setOption(StandardSocketOptions.IP_MULTICAST_IF, nif);

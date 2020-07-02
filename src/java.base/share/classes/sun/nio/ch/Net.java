@@ -57,13 +57,6 @@ public class Net {
 
     private Net() { }
 
-    // unspecified protocol family
-    static final ProtocolFamily UNSPEC = new ProtocolFamily() {
-        public String name() {
-            return "UNSPEC";
-        }
-    };
-
     // set to true if exclusive binding is on for Windows
     private static final boolean exclusiveBind;
 
@@ -383,7 +376,7 @@ public class Net {
     static void setSocketOption(FileDescriptor fd, SocketOption<?> name, Object value)
         throws IOException
     {
-        setSocketOption(fd, Net.UNSPEC, name, value);
+        setSocketOption(fd, StandardProtocolFamily.UNSPEC, name, value);
     }
 
     static void setSocketOption(FileDescriptor fd, ProtocolFamily family,
@@ -443,7 +436,7 @@ public class Net {
             arg = (b) ? 1 : 0;
         }
 
-        boolean mayNeedConversion = (family == UNSPEC);
+        boolean mayNeedConversion = (family == StandardProtocolFamily.UNSPEC);
         boolean isIPv6 = (family == StandardProtocolFamily.INET6);
         setIntOption0(fd, mayNeedConversion, key.level(), key.name(), arg, isIPv6);
     }
@@ -451,7 +444,7 @@ public class Net {
     static Object getSocketOption(FileDescriptor fd, SocketOption<?> name)
         throws IOException
     {
-        return getSocketOption(fd, Net.UNSPEC, name);
+        return getSocketOption(fd, StandardProtocolFamily.UNSPEC, name);
     }
 
     static Object getSocketOption(FileDescriptor fd, ProtocolFamily family, SocketOption<?> name)
@@ -472,7 +465,7 @@ public class Net {
         if (key == null)
             throw new AssertionError("Option not found");
 
-        boolean mayNeedConversion = (family == UNSPEC);
+        boolean mayNeedConversion = (family == StandardProtocolFamily.UNSPEC);
         int value = getIntOption0(fd, mayNeedConversion, key.level(), key.name());
 
         if (type == Integer.class) {
@@ -508,7 +501,7 @@ public class Net {
     private static native boolean canUseIPv6OptionsWithIPv4LocalAddress0();
 
     static FileDescriptor socket(boolean stream) throws IOException {
-        return socket(UNSPEC, stream);
+        return socket(StandardProtocolFamily.UNSPEC, stream);
     }
 
     static FileDescriptor socket(ProtocolFamily family, boolean stream) throws IOException {
@@ -518,7 +511,7 @@ public class Net {
     }
 
     static FileDescriptor serverSocket(boolean stream) {
-        return serverSocket(UNSPEC, stream);
+        return serverSocket(StandardProtocolFamily.UNSPEC, stream);
     }
 
     static FileDescriptor serverSocket(ProtocolFamily family, boolean stream) {
@@ -534,7 +527,7 @@ public class Net {
     public static void bind(FileDescriptor fd, InetAddress addr, int port)
         throws IOException
     {
-        bind(UNSPEC, fd, addr, port);
+        bind(StandardProtocolFamily.UNSPEC, fd, addr, port);
     }
 
     static void bind(ProtocolFamily family, FileDescriptor fd,
@@ -558,7 +551,7 @@ public class Net {
     static int connect(FileDescriptor fd, InetAddress remote, int remotePort)
         throws IOException
     {
-        return connect(UNSPEC, fd, remote, remotePort);
+        return connect(StandardProtocolFamily.UNSPEC, fd, remote, remotePort);
     }
 
     static int connect(ProtocolFamily family, FileDescriptor fd, InetAddress remote, int remotePort)

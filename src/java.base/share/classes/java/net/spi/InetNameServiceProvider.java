@@ -50,8 +50,8 @@ public abstract class InetNameServiceProvider {
          * the given {@code host} name: if a textual representation is supplied, the name
          * resolution is likely to fail and {@link UnknownHostException} may be thrown.
          * <p>
-         * If the specified {@code family} is {@code null} this method returns addresses
-         * for both {@link java.net.StandardProtocolFamily#INET INET} and
+         * If the specified {@code family} is {@link java.net.StandardProtocolFamily#UNSPEC UNSPEC} this
+         * method returns addresses for both {@link java.net.StandardProtocolFamily#INET INET} and
          * {@link java.net.StandardProtocolFamily#INET6 INET6} families.
          * @implSpec
          * In the case when addresses of both families are returned, there is a
@@ -64,16 +64,16 @@ public abstract class InetNameServiceProvider {
          * IPv4 addresses should be returned.
          *
          * @param host the specified hostname
-         * @param family the protocol family type or {@code null}
+         * @param family the protocol family type
          * @return stream of IP addresses for the requested host
          * @throws NullPointerException if {@code host} is {@code null}
          * @throws UnknownHostException if no IP address for the {@code host} could be found
          * @throws UnsupportedOperationException If the specified protocol family is not supported
-         *  (if it is not one of {@code null}, {@link java.net.StandardProtocolFamily#INET INET} or
-         *  {@link java.net.StandardProtocolFamily#INET6 INET6}).
+         *  (if it is not one of {@link java.net.StandardProtocolFamily#UNSPEC UNSPEC},
+         *  {@link java.net.StandardProtocolFamily#INET INET} or {@link java.net.StandardProtocolFamily#INET6 INET6}).
          *
          */
-        Stream<InetAddress> lookupInetAddresses(String host, ProtocolFamily family) throws UnknownHostException;
+        Stream<InetAddress> lookupByName(String host, ProtocolFamily family) throws UnknownHostException;
 
         /**
          * Lookup the host name corresponding to the raw IP address provided.
@@ -88,9 +88,9 @@ public abstract class InetNameServiceProvider {
          * @param addr byte array representing a raw IP address
          * @return {@code String} representing the host name mapping
          * @throws UnknownHostException if no host found for the specified IP address
-         * or if IP address is of illegal length
+         * @throws IllegalArgumentException if IP address is of illegal length
          */
-        String lookupHostName(byte[] addr) throws UnknownHostException;
+        String lookupAddress(byte[] addr) throws UnknownHostException;
     }
 
     /**

@@ -53,7 +53,6 @@ import jdk.test.lib.NetworkConfiguration;
 import jdk.test.lib.net.IPSupport;
 
 public class AdaptorMulticasting {
-    static final ProtocolFamily UNSPEC = () -> "UNSPEC";
 
     public static void main(String[] args) throws IOException {
         IPSupport.throwSkippedExceptionIfNonOperational();
