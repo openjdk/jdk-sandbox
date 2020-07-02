@@ -276,6 +276,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               function to apply to each element which produces a stream
      *               of new values
      * @return the new stream
+     * @see #mapMulti
      */
     <R> Stream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper);
 
