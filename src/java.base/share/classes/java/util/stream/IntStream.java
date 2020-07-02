@@ -191,12 +191,13 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      *               {@code IntStream} of new values
      * @return the new stream
      * @see Stream#mapMulti(BiConsumer)
+     * @since 16
      */
-    default IntStream mapMulti(ObjIntConsumer<IntConsumer> mapper) {
+    default IntStream mapMulti(IntObjConsumer<IntConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
-            mapper.accept(buffer, e);
+            mapper.accept(e, buffer);
             return StreamSupport.intStream(buffer.spliterator(), false);
         });
     }
@@ -1209,5 +1210,32 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
          * the built state
          */
         IntStream build();
+    }
+
+    /**
+     * Represents an operation that accepts a {@code int}-valued argument
+     * and an object-valued, and returns no result.  This is the
+     * {@code (int, reference)} specialization of {@link BiConsumer}.
+     * Unlike most other functional interfaces, {@code IntObjConsumer} is
+     * expected to operate via side-effects.
+     *
+     * <p>This is a <a href="package-summary.html">functional interface</a>
+     * whose functional method is {@link #accept(int, Object)}.
+     *
+     * @param <T> the type of the object argument to the operation
+     *
+     * @see BiConsumer
+     * @since 16
+     */
+    @FunctionalInterface
+    interface IntObjConsumer<T> {
+
+        /**
+         * Performs this operation on the given arguments.
+         *
+         * @param value the first input argument
+         * @param t the second input argument
+         */
+        void accept(int value, T t);
     }
 }

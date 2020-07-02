@@ -191,12 +191,13 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      *               {@code LongStream} of new values
      * @return the new stream
      * @see Stream#mapMulti(BiConsumer)
+     * @since 16
      */
-    default LongStream mapMulti(ObjLongConsumer<LongConsumer> mapper) {
+    default LongStream mapMulti(LongObjConsumer<LongConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
-            mapper.accept(buffer, e);
+            mapper.accept(e, buffer);
             return StreamSupport.longStream(buffer.spliterator(), false);
         });
     }
@@ -1213,5 +1214,32 @@ public interface LongStream extends BaseStream<Long, LongStream> {
          * to the built state
          */
         LongStream build();
+    }
+
+    /**
+     * Represents an operation that accepts a {@code long}-valued argument
+     * and an object-valued, and returns no result.  This is the
+     * {@code (long, reference)} specialization of {@link BiConsumer}.
+     * Unlike most other functional interfaces, {@code LongObjConsumer} is
+     * expected to operate via side-effects.
+     *
+     * <p>This is a <a href="package-summary.html">functional interface</a>
+     * whose functional method is {@link #accept(long, Object)}.
+     *
+     * @param <T> the type of the object argument to the operation
+     *
+     * @see BiConsumer
+     * @since 16
+     */
+    @FunctionalInterface
+    interface LongObjConsumer<T> {
+
+        /**
+         * Performs this operation on the given arguments.
+         *
+         * @param value the first input argument
+         * @param t the second input argument
+         */
+        void accept(long value, T t);
     }
 }

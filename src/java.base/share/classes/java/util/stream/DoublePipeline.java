@@ -305,7 +305,7 @@ abstract class DoublePipeline<E_IN>
     }
 
     @Override
-    public final DoubleStream mapMulti(ObjDoubleConsumer<DoubleConsumer> mapper) {
+    public final DoubleStream mapMulti(DoubleObjConsumer<DoubleConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return new StatelessOp<>(this, StreamShape.DOUBLE_VALUE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
@@ -323,7 +323,7 @@ abstract class DoublePipeline<E_IN>
 
                     @Override
                     public void accept(double t) {
-                            mapper.accept(downstreamAsDouble, t);
+                            mapper.accept(t, downstreamAsDouble);
                     }
                 };
             }

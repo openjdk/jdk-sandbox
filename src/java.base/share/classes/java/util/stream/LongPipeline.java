@@ -321,7 +321,7 @@ abstract class LongPipeline<E_IN>
     }
 
     @Override
-    public final LongStream mapMulti(ObjLongConsumer<LongConsumer> mapper) {
+    public final LongStream mapMulti(LongObjConsumer<LongConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return new LongPipeline.StatelessOp<>(this, StreamShape.LONG_VALUE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
@@ -338,7 +338,7 @@ abstract class LongPipeline<E_IN>
 
                     @Override
                     public void accept(long t) {
-                        mapper.accept(downstreamAsLong, t);
+                        mapper.accept(t, downstreamAsLong);
                     }
                 };
             }

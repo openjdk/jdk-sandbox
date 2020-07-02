@@ -417,12 +417,13 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               second {@link Consumer} argument that accepts replacing elements.
      * @return the new stream
      * @see #flatMap
+     * @since 16
      */
-    default <R> Stream<R> mapMulti(BiConsumer<Consumer<R>, ? super T> mapper) {
+    default <R> Stream<R> mapMulti(BiConsumer<? super T, Consumer<R>> mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer<R> buffer = new SpinedBuffer<>();
-            mapper.accept(buffer, e);
+            mapper.accept(e, buffer);
             return StreamSupport.stream(buffer.spliterator(), false);
         });
     }
@@ -455,12 +456,13 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               of new values
      * @return the new stream
      * @see #mapMulti(BiConsumer)
+     * @since 16
      */
-    default IntStream mapMultiToInt(BiConsumer<IntConsumer, ? super T> mapper) {
+    default IntStream mapMultiToInt(BiConsumer<? super T, IntConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMapToInt(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
-            mapper.accept(buffer, e);
+            mapper.accept(e, buffer);
             return StreamSupport.intStream(buffer.spliterator(), false);
         });
     }
@@ -493,12 +495,13 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               of new values
      * @return the new stream
      * @see #mapMulti(BiConsumer)
+     * @since 16
      */
-    default LongStream mapMultiToLong(BiConsumer<LongConsumer, ? super T> mapper) {
+    default LongStream mapMultiToLong(BiConsumer<? super T, LongConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMapToLong(e -> {
             SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
-            mapper.accept(buffer, e);
+            mapper.accept(e, buffer);
             return StreamSupport.longStream(buffer.spliterator(), false);
         });
     }
@@ -532,12 +535,13 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               of new values
      * @return the new stream
      * @see #mapMulti(BiConsumer)
+     * @since 16
      */
-    default DoubleStream mapMultiToDouble(BiConsumer<DoubleConsumer, ? super T> mapper) {
+    default DoubleStream mapMultiToDouble(BiConsumer<? super T, DoubleConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMapToDouble(e -> {
             SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
-            mapper.accept(buffer, e);
+            mapper.accept(e, buffer);
             return StreamSupport.doubleStream(buffer.spliterator(), false);
         });
     }

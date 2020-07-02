@@ -428,7 +428,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
         };
     }
 
-    public final <R> Stream<R> mapMulti(BiConsumer<Consumer<R>, ? super P_OUT> mapper) {
+    public final <R> Stream<R> mapMulti(BiConsumer<? super P_OUT, Consumer<R>> mapper) {
         Objects.requireNonNull(mapper);
         return new StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
@@ -443,7 +443,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        mapper.accept(downstream::accept, u);
+                        mapper.accept(u, downstream::accept);
                     }
                 };
             }
@@ -451,7 +451,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     }
 
     @Override
-    public final IntStream mapMultiToInt(BiConsumer<IntConsumer, ? super P_OUT> mapper) {
+    public final IntStream mapMultiToInt(BiConsumer<? super P_OUT, IntConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return new IntPipeline.StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
@@ -468,7 +468,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        mapper.accept(downstreamAsInt, u);
+                        mapper.accept(u, downstreamAsInt);
                     }
                 };
             }
@@ -476,7 +476,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     }
 
     @Override
-    public final LongStream mapMultiToLong(BiConsumer<LongConsumer, ? super P_OUT> mapper) {
+    public final LongStream mapMultiToLong(BiConsumer<? super P_OUT, LongConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return new LongPipeline.StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
@@ -493,7 +493,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        mapper.accept(downstreamAsLong, u);
+                        mapper.accept(u, downstreamAsLong);
                     }
                 };
             }
@@ -502,7 +502,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
 
     @Override
-    public final DoubleStream mapMultiToDouble(BiConsumer<DoubleConsumer, ? super P_OUT> mapper) {
+    public final DoubleStream mapMultiToDouble(BiConsumer<? super P_OUT, DoubleConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return new DoublePipeline.StatelessOp<>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
@@ -519,7 +519,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        mapper.accept(downstreamAsDouble, u);
+                        mapper.accept(u, downstreamAsDouble);
                     }
                 };
             }

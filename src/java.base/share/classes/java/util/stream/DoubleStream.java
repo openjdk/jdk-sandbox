@@ -191,12 +191,13 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      *               {@code DoubleStream} of new values
      * @return the new stream
      * @see Stream#mapMulti(BiConsumer)
+     * @since 16
      */
-    default DoubleStream mapMulti(ObjDoubleConsumer<DoubleConsumer> mapper) {
+    default DoubleStream mapMulti(DoubleObjConsumer<DoubleConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
-            mapper.accept(buffer, e);
+            mapper.accept(e, buffer);
             return StreamSupport.doubleStream(buffer.spliterator(), false);
         });
     }
@@ -1217,5 +1218,32 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
          * to the built state
          */
         DoubleStream build();
+    }
+
+    /**
+     * Represents an operation that accepts a {@code double}-valued argument
+     * and an object-valued, and returns no result.  This is the
+     * {@code (double, reference)} specialization of {@link BiConsumer}.
+     * Unlike most other functional interfaces, {@code DoubleObjConsumer} is
+     * expected to operate via side-effects.
+     *
+     * <p>This is a <a href="package-summary.html">functional interface</a>
+     * whose functional method is {@link #accept(double, Object)}.
+     *
+     * @param <T> the type of the object argument to the operation
+     *
+     * @see BiConsumer
+     * @since 16
+     */
+    @FunctionalInterface
+    interface DoubleObjConsumer<T> {
+
+        /**
+         * Performs this operation on the given arguments.
+         *
+         * @param value the first input argument
+         * @param t the second input argument
+         */
+        void accept(double value, T t);
     }
 }

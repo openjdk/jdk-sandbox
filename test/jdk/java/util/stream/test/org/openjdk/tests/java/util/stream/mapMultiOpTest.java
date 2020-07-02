@@ -63,20 +63,20 @@ import static java.util.stream.ThrowableHelper.checkNPE;
 @Test
 public class mapMultiOpTest extends OpTestCase {
 
-    BiConsumer<Consumer<Integer>, Integer> nullConsumer =
-            (sink, e) -> mfNull.apply(e).forEach(sink::accept);
-    BiConsumer<Consumer<Integer>, Integer> idConsumer =
-            (sink, e) -> mfId.apply(e).forEach(sink::accept);
-    BiConsumer<Consumer<Integer>, Integer> listConsumer =
-            (sink, e) -> mfLt.apply(e).forEach(sink::accept);
-    BiConsumer<Consumer<Character>, String> charConsumer =
-            (sink, e) -> flattenChars.apply(e).forEach(sink::accept);
-    BiConsumer<Consumer<Integer>, Integer> emptyStreamConsumer =
-            (sink, e) -> Stream.empty().forEach(i -> sink.accept((Integer) i));
-    BiConsumer<Consumer<Integer>, Integer> intRangeConsumer =
-            (sink, e) -> IntStream.range(0, e).boxed().forEach(sink::accept);
-    BiConsumer<Consumer<Integer>, Integer> rangeConsumerWithLimit =
-            (sink, e) -> IntStream.range(0, e).boxed().limit(10)
+    BiConsumer<Integer, Consumer<Integer>> nullConsumer =
+            (e, sink) -> mfNull.apply(e).forEach(sink::accept);
+    BiConsumer<Integer, Consumer<Integer>> idConsumer =
+            (e, sink) -> mfId.apply(e).forEach(sink::accept);
+    BiConsumer<Integer, Consumer<Integer>> listConsumer =
+            (e, sink) -> mfLt.apply(e).forEach(sink::accept);
+    BiConsumer<String, Consumer<Character>> charConsumer =
+            (e, sink) -> flattenChars.apply(e).forEach(sink::accept);
+    BiConsumer<Integer, Consumer<Integer>> emptyStreamConsumer =
+            (e, sink) -> Stream.empty().forEach(i -> sink.accept((Integer) i));
+    BiConsumer<Integer, Consumer<Integer>> intRangeConsumer =
+            (e, sink) -> IntStream.range(0, e).boxed().forEach(sink::accept);
+    BiConsumer<Integer, Consumer<Integer>> rangeConsumerWithLimit =
+            (e, sink) -> IntStream.range(0, e).boxed().limit(10)
                     .forEach(sink::accept);
 
     @DataProvider(name = "Stream<Integer>")
@@ -196,34 +196,34 @@ public class mapMultiOpTest extends OpTestCase {
     private void testIntOps(String name,
                             TestData.OfInt data,
                             Function<IntStream, IntStream> sf) {
-        Collection<Integer> result = exerciseOps(data, s -> sf.apply(s).mapMulti((sink, i) -> IntStream.of(i).forEach(sink::accept)));
+        Collection<Integer> result = exerciseOps(data, s -> sf.apply(s).mapMulti((i, sink) -> IntStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).boxed().mapMultiToInt((sink, i) -> IntStream.of(i).forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).boxed().mapMultiToInt((i, sink) -> IntStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).mapMulti((sink, i) -> IntStream.empty().forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).mapMulti((i, sink) -> IntStream.empty().forEach(sink::accept)));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "IntStreamTestData.small", dataProviderClass = IntStreamTestDataProvider.class)
     public void testIntOpsX(String name, TestData.OfInt data) {
-        exerciseOps(data, s -> s.mapMulti((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> s.mapMulti((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> s.mapMulti((e, sink) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> s.mapMulti((e, sink) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
 
-        exerciseOps(data, s -> s.boxed().mapMultiToInt((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> s.boxed().mapMultiToInt((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> s.boxed().mapMultiToInt((e, sink) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> s.boxed().mapMultiToInt((e, sink) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 
     @Test(dataProvider = "IntStreamTestData.small", dataProviderClass = IntStreamTestDataProvider.class)
     public void testDefaultIntOpsX(String name, TestData.OfInt data) {
-        exerciseOps(data, s -> delegateTo(s).mapMulti((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> delegateTo(s).mapMulti((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).mapMulti((e, sink) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).mapMulti((e, sink) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
 
-        exerciseOps(data, s -> delegateTo(s).boxed().mapMultiToInt((sink, e) -> IntStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> delegateTo(s).boxed().mapMultiToInt((sink, e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).boxed().mapMultiToInt((e, sink) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).boxed().mapMultiToInt((e, sink) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 
     // Double
@@ -250,28 +250,28 @@ public class mapMultiOpTest extends OpTestCase {
     private void testDoubleOps(String name,
                                TestData.OfDouble data,
                                Function<DoubleStream, DoubleStream> sf) {
-        Collection<Double> result = exerciseOps(data, s -> sf.apply(s).mapMulti((sink, i) -> DoubleStream.of(i).forEach(sink::accept)));
+        Collection<Double> result = exerciseOps(data, s -> sf.apply(s).mapMulti((i, sink) -> DoubleStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).boxed().mapMultiToDouble((sink, i) -> DoubleStream.of(i).forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).boxed().mapMultiToDouble((i, sink) -> DoubleStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).mapMulti((sink, i) -> DoubleStream.empty().forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).mapMulti((i, sink) -> DoubleStream.empty().forEach(sink::accept)));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "DoubleStreamTestData.small", dataProviderClass = DoubleStreamTestDataProvider.class)
     public void testDoubleOpsX(String name, TestData.OfDouble data) {
-        exerciseOps(data, s -> s.mapMulti((sink, e) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
-        exerciseOps(data, s -> s.mapMulti((sink, e) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> s.mapMulti((e, sink) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> s.mapMulti((e, sink) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
     }
 
     @Test(dataProvider = "DoubleStreamTestData.small", dataProviderClass = DoubleStreamTestDataProvider.class)
     public void testDefaultDoubleOpsX(String name, TestData.OfDouble data) {
-        exerciseOps(data, s -> delegateTo(s).mapMulti((sink, e) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
-        exerciseOps(data, s -> delegateTo(s).mapMulti((sink, e) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).mapMulti((e, sink) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).mapMulti((e, sink) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
     }
 
     // Long
@@ -298,27 +298,27 @@ public class mapMultiOpTest extends OpTestCase {
     private void testLongOps(String name,
                              TestData.OfLong data,
                              Function<LongStream, LongStream> sf) {
-        Collection<Long> result = exerciseOps(data, s -> sf.apply(s).mapMulti((sink, i) -> LongStream.of(i).forEach(sink::accept)));
+        Collection<Long> result = exerciseOps(data, s -> sf.apply(s).mapMulti((i, sink) -> LongStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).boxed().mapMultiToLong((sink, i) -> LongStream.of(i).forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).boxed().mapMultiToLong((i, sink) -> LongStream.of(i).forEach(sink::accept)));
         assertEquals(data.size(), result.size());
         assertContents(data, result);
 
-        result = exerciseOps(data, s -> sf.apply(s).mapMulti((sink, i) -> LongStream.empty().forEach(sink::accept)));
+        result = exerciseOps(data, s -> sf.apply(s).mapMulti((i, sink) -> LongStream.empty().forEach(sink::accept)));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "LongStreamTestData.small", dataProviderClass = LongStreamTestDataProvider.class)
     public void testLongOpsX(String name, TestData.OfLong data) {
-        exerciseOps(data, s -> s.mapMulti((sink, e) -> LongStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> s.mapMulti((sink, e) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> s.mapMulti((e, sink) -> LongStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> s.mapMulti((e, sink) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 
     @Test(dataProvider = "LongStreamTestData.small", dataProviderClass = LongStreamTestDataProvider.class)
     public void testDefaultLongOpsX(String name, TestData.OfLong data) {
-        exerciseOps(data, s -> delegateTo(s).mapMulti((sink, e) -> LongStream.range(0, e).forEach(sink::accept)));
-        exerciseOps(data, s -> delegateTo(s).mapMulti((sink, e) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).mapMulti((e, sink) -> LongStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).mapMulti((e, sink) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 }
