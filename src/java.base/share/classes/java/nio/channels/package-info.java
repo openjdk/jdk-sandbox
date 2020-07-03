@@ -340,8 +340,8 @@
  * <i>Unix Domain</i> sockets. Attempts to create an unsupported protocol family
  * for a particular channel will throw {@link UnsupportedOperationException}.
  *
- * <p><i>Internet Protocol</i> sockets support network communication using TCP/IP and
- * are addressed using {@link InetSocketAddress}es which encapsulate an IP address
+ * <p><i>Internet Protocol</i> sockets support network communication using TCP and UDP
+ * and are addressed using {@link InetSocketAddress}es which encapsulate an IP address
  * and port number. <i>Internet Protocol</i> sockets are the default kind created,
  * when a protocol family is not specified in the channel factory creation method.
  *

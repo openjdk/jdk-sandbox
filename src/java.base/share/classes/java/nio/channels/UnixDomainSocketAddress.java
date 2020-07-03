@@ -48,26 +48,77 @@ import java.nio.file.Path;
  * @since 16
  */
 public final class UnixDomainSocketAddress extends SocketAddress {
+    @java.io.Serial
     static final long serialVersionUID = 92902496589351288L;
 
-    private final Path path;
+    private final transient Path path;
 
-    static class SerializationProxy implements Serializable {
-        static final long serialVersionUID = 9829020419651288L;
+    /**
+     * A serial proxy for all {@link UnixDomainSocketAddress} instances.
+     * It captures the file path name and reconstructs using the public static
+     * {@link #of(String) factory}.
+     *
+     * @serial include
+     */
+    private static final class SerialProxy implements Serializable {
+        @java.io.Serial
+        static final long serialVersionUID = -7955684448513979814L;
 
-        private String pathname;
+        /**
+         * The path name.
+         * @serial
+         */
+        private final String pathname;
 
-        SerializationProxy(UnixDomainSocketAddress addr) {
-            this.pathname = addr.path.toString();
+        SerialProxy(String pathname) {
+            this.pathname = pathname;
         }
 
+        /**
+         * Creates a {@link UnixDomainSocketAddress} instance, by an invocation
+         * of the {@link #of(String) factory} method passing the path name.
+         * @return a UnixDomainSocketAddress
+         */
+        @java.io.Serial
         private Object readResolve() {
             return UnixDomainSocketAddress.of(pathname);
         }
     }
 
+    /**
+     * Returns a
+     * <a href="{@docRoot}/serialized-form.html#java.nio.channels.UnixDomainSocketAddress.SerialProxy">
+     * SerialProxy</a> containing the path name of this instance.
+     *
+     * @return a {@link SerialProxy}
+     * representing the path name of this instance
+     */
+    @java.io.Serial
     private Object writeReplace() throws ObjectStreamException {
-        return new SerializationProxy(this);
+        return new SerialProxy(path.toString());
+    }
+
+    /**
+     * Throws InvalidObjectException, always.
+     * @param s the stream
+     * @throws java.io.InvalidObjectException always
+     */
+    @java.io.Serial
+    private void readObject(java.io.ObjectInputStream s)
+        throws java.io.InvalidObjectException
+    {
+        throw new java.io.InvalidObjectException("Proxy required");
+    }
+
+    /**
+     * Throws InvalidObjectException, always.
+     * @throws java.io.InvalidObjectException always
+     */
+    @java.io.Serial
+    private void readObjectNoData()
+        throws java.io.InvalidObjectException
+    {
+        throw new java.io.InvalidObjectException("Proxy required");
     }
 
     private UnixDomainSocketAddress(Path path) {
