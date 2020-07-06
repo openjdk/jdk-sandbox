@@ -41,12 +41,12 @@ import java.net.SocketOption;
 import java.net.StandardProtocolFamily;
 import java.net.StandardSocketOptions;
 import java.net.UnknownHostException;
+import java.net.UnixDomainSocketAddress;
 import java.nio.channels.AlreadyBoundException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NetworkChannel;
 import java.nio.channels.NotYetBoundException;
 import java.nio.channels.NotYetConnectedException;
-import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.UnresolvedAddressException;
 import java.nio.channels.UnsupportedAddressTypeException;
 import java.nio.file.Path;
@@ -670,8 +670,8 @@ public class Net {
     public static SocketAddress remoteAddress(FileDescriptor fd) throws IOException {
         int family = remoteAddressFamily(fd);
         if (family == -1) {
-	    // probably a ServerSocketChannel
-	    return null;
+            // probably a ServerSocketChannel
+            return null;
         } else if (family == AF_UNIX) {
             return UnixDomainSocketAddress.of(remoteUnixAddress(fd));
         } else {

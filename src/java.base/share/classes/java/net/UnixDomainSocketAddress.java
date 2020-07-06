@@ -23,7 +23,7 @@
  * questions.
  */
 
-package java.nio.channels;
+package java.net;
 
 import java.io.ObjectStreamException;
 import java.io.Serializable;
@@ -35,7 +35,7 @@ import java.nio.file.Path;
 
 /**
  * A <a href="package-summary.html#unixdomain">Unix domain</a> socket address.
- * A Unix domain socket address encapsulates a file path that Unix domain sockets
+ * A Unix domain socket address encapsulates a file-system path that Unix domain sockets
  * bind or connect to.
  *
  * <p> An <a id="unnamed"></a><i>unnamed</i> {@code UnixDomainSocketAddress} has
@@ -87,7 +87,7 @@ public final class UnixDomainSocketAddress extends SocketAddress {
 
     /**
      * Returns a
-     * <a href="{@docRoot}/serialized-form.html#java.nio.channels.UnixDomainSocketAddress.SerialProxy">
+     * <a href="{@docRoot}/serialized-form.html#java.net.UnixDomainSocketAddress.SerialProxy">
      * SerialProxy</a> containing the path name of this instance.
      *
      * @return a {@link SerialProxy}

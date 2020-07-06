@@ -24,10 +24,10 @@
 import java.net.InetAddress;
 import java.net.Inet6Address;
 import java.net.NetworkInterface;
+import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.file.Files;
 import java.util.Collections;
 import java.util.Enumeration;

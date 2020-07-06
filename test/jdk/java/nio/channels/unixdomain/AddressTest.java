@@ -28,6 +28,7 @@
  * @run main AddressTest
  */
 
+import java.net.UnixDomainSocketAddress;
 import java.nio.channels.*;
 import java.nio.file.InvalidPathException;
 
