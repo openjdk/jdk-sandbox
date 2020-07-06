@@ -358,7 +358,7 @@
  * {@link Path}. Paths can be either absolute or relative with respect to the current
  * working directory.
  * <p>
- * If a {@link SocketChannel} for a <i>Unix Domain</i> socket is automatically bound by
+ * If a {@link SocketChannel} for a <i>Unix Domain</i> socket is implicitly bound by
  * connecting it without calling {@link SocketChannel#bind(SocketAddress) bind} first,
  * then its address is <i>unnamed</i>; it has an empty path field, and therefore has no
  * associated file in the file-system. Explicitly binding a {@code SocketChannel}
