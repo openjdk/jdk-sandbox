@@ -28,7 +28,7 @@ package sun.net.util;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
-import java.nio.channels.UnixDomainSocketAddress;
+import java.net.UnixDomainSocketAddress;
 import java.net.SocketAddress;
 import java.security.AccessController;
 import java.security.PrivilegedAction;

@@ -23,7 +23,7 @@
  * questions.
  */
 
-package java.nio.channels;
+package java.net;
 
 import java.io.ObjectStreamException;
 import java.io.Serializable;
@@ -87,7 +87,7 @@ public final class UnixDomainSocketAddress extends SocketAddress {
 
     /**
      * Returns a
-     * <a href="{@docRoot}/serialized-form.html#java.nio.channels.UnixDomainSocketAddress.SerialProxy">
+     * <a href="{@docRoot}/serialized-form.html#java.net.UnixDomainSocketAddress.SerialProxy">
      * SerialProxy</a> containing the path name of this instance.
      *
      * @return a {@link SerialProxy}

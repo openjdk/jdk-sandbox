@@ -33,6 +33,7 @@ import java.net.StandardProtocolFamily;
 import java.net.Socket;
 import java.net.SocketOption;
 import java.net.SocketAddress;
+import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.spi.AbstractSelectableChannel;
 import java.nio.channels.spi.SelectorProvider;

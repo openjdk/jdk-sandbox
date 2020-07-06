@@ -36,6 +36,7 @@ import java.net.SocketOption;
 import java.net.SocketTimeoutException;
 import java.net.StandardProtocolFamily;
 import java.net.StandardSocketOptions;
+import java.net.UnixDomainSocketAddress;
 import java.nio.channels.AlreadyBoundException;
 import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedChannelException;
@@ -44,7 +45,6 @@ import java.nio.channels.NotYetBoundException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.spi.SelectorProvider;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -66,8 +66,6 @@ import sun.net.ext.ExtendedSocketOptions;
 /**
  * An implementation of ServerSocketChannels
  */
-
-// TODO: Security checks
 
 public class UnixDomainServerSocketChannelImpl
     extends ServerSocketChannelImpl

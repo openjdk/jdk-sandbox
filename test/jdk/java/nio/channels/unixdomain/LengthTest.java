@@ -35,7 +35,7 @@ import org.testng.annotations.Test;
 import static java.lang.System.out;
 import static jdk.test.lib.Asserts.assertTrue;
 
-import java.nio.channels.UnixDomainSocketAddress;
+import java.net.UnixDomainSocketAddress;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
 

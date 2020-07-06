@@ -27,8 +27,8 @@ package jdk.jfr.internal.instrument;
 
 import java.io.IOException;
 import java.net.SocketAddress;
+import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.UnixDomainSocketAddress;
 
 import jdk.jfr.events.Handlers;
 import jdk.jfr.internal.handlers.EventHandler;
