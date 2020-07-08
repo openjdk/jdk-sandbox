@@ -368,4 +368,10 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     synchronized void setSoSndChanEnable(boolean enable) {
         soSndChanEnable = enable;
     }
+    
+    @Override
+    public ProtocolFamily getProtocolFamily() {
+        return StandardProtocolFamily.UNIX;
+    }
+
 }

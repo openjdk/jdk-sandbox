@@ -171,6 +171,11 @@ class InetServerSocketChannelImpl
         return Net.getRevealedLocalAddressAsString((InetSocketAddress)addr);
     }
 
+    @Override
+    public ProtocolFamily getProtocolFamily() {
+        return family;
+    }
+
 
     protected SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress sa)
         throws IOException

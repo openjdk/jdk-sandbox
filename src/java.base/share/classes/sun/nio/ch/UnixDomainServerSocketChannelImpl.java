@@ -30,6 +30,7 @@ import java.io.FileDescriptor;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.NetPermission;
+import java.net.ProtocolFamily;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.net.SocketOption;
@@ -196,6 +197,11 @@ public class UnixDomainServerSocketChannelImpl
     @Override
     SocketAddress getRevealedLocalAddress(SocketAddress addr) {
         return Net.getRevealedLocalAddress((UnixDomainSocketAddress)addr);
+    }
+
+    @Override
+    public ProtocolFamily getProtocolFamily() {
+        return StandardProtocolFamily.UNIX;
     }
 
     SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress sa)

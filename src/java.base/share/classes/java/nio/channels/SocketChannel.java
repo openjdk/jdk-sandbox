@@ -636,4 +636,12 @@ public abstract class SocketChannel
      */
     @Override
     public abstract SocketAddress getLocalAddress() throws IOException;
+
+
+    /**
+     * Returns the protocol family of this channel.
+     *
+     * @return this channel's protocol family
+     */
+    public abstract ProtocolFamily getProtocolFamily();
 }

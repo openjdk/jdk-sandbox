@@ -296,6 +296,11 @@ class DatagramChannelImpl
         }
     }
 
+    @Override
+    public ProtocolFamily getProtocolFamily() {
+        return family;
+    }
+
     /**
      * Returns the protocol family to specify to set/getSocketOption for the
      * given socket option.
