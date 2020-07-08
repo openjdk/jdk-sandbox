@@ -258,4 +258,9 @@ class InetSocketChannelImpl extends SocketChannelImpl
         InetSocketAddress isa = (InetSocketAddress)sa;
         return Net.getRevealedLocalAddressAsString(isa);
     }
+
+    @Override
+    public ProtocolFamily getProtocolFamily() {
+        return family;
+    }
 }

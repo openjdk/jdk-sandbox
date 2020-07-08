@@ -188,4 +188,9 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     {
         return super.read(dsts, offset, length);
     }
+
+    @Override
+    public ProtocolFamily getProtocolFamily() {
+        return StandardProtocolFamily.UNIX;
+    }
 }
