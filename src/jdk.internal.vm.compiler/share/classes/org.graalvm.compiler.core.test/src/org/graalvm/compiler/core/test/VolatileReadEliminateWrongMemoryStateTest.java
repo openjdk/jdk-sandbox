@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,32 +21,41 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package vm.share.vmcrasher;
 
-import vm.share.UnsafeAccess;
 
-public class UnsafeGCCrasher extends Crasher {
+package org.graalvm.compiler.core.test;
 
-    private static class C {
-        C next;
+import org.junit.Test;
+
+// See https://bugs.openjdk.java.net/browse/JDK-8247832
+public class VolatileReadEliminateWrongMemoryStateTest extends GraalCompilerTest {
+
+    private static volatile int volatileField;
+    private static int field;
+
+    @SuppressWarnings("unused")
+    public static int testMethod() {
+        field = 0;
+        int v = volatileField;
+        field += 1;
+        v = volatileField;
+        field += 1;
+        return field;
     }
 
-    private static C a = null;
+    @Test
+    public void test1() {
+        test("testMethod");
+    }
 
-    @SuppressWarnings("restriction")
-    @Override
-    public void run() {
-        try {
-            a = new C();
-            a.next = new C();
-            a.next.next = new C();
-            a.next.next.next = new C();
-            UnsafeAccess.unsafe.putInt(a.next, UnsafeAccess.unsafe.objectFieldOffset(C.class.getDeclaredField("next")), 0xDEADCAFE);
-            System.gc();
-            Thread.sleep(1000);
-        } catch ( Throwable t ) {
-            t.printStackTrace();
+    public static void testMethod2(Object obj) {
+        synchronized (obj) {
+            volatileField++;
         }
     }
 
+    @Test
+    public void test2() {
+        test("testMethod2", new Object());
+    }
 }

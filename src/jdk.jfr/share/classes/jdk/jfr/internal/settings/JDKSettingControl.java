@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -20,28 +22,14 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package vm.share.vmcrasher;
 
-import vm.share.UnsafeAccess;
+package jdk.jfr.internal.settings;
 
-public class UnsafeJavaCrasher extends Crasher {
+import jdk.jfr.SettingControl;
 
-    private static class C {
-        C next;
-    }
-
-    @SuppressWarnings("restriction")
-    @Override
-    public void run() {
-        try {
-            C a = new C();
-            a.next = new C();
-            a.next.next = new C();
-            UnsafeAccess.unsafe.putInt(a.next, UnsafeAccess.unsafe.objectFieldOffset(C.class.getDeclaredField("next")), 0xDEADCAFE);
-            a.next.next.next = new C();
-        } catch ( Throwable t ) {
-            t.printStackTrace();
-        }
-    }
-
+/**
+ * SettingControls that derive from this class avoids executing settings
+ * modifications in a AccessController.doPrivilege(...) block.
+ */
+public abstract class JDKSettingControl extends SettingControl {
 }

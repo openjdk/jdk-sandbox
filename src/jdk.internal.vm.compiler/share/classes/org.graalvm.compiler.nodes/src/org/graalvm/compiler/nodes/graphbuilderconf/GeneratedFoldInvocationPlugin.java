@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,16 +20,10 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package vm.share.vmcrasher;
 
-import vm.share.ProcessUtils;
-import vm.share.options.Option;
 
-public class SignalCrasher extends Crasher {
-    @Option(name="signalnum", description="signal number", default_value="2")
-    private int num;
+package org.graalvm.compiler.nodes.graphbuilderconf;
 
-    public void run() {
-        ProcessUtils.sendSignal(num);
-    }
+public abstract class GeneratedFoldInvocationPlugin extends GeneratedInvocationPlugin {
+
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,16 +20,22 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package vm.share.vmcrasher;
 
-import vm.share.options.BasicOptionObjectFactory;
-import vm.share.options.FClass;
-import vm.share.options.Factory;
 
-@Factory(placeholder_text="Crasher type", default_value="signal", classlist={
-        @FClass(key="signal", description="Crash VM with a signal", type=SignalCrasher.class),
-        @FClass(key="unsafe.gc", description="Crash VM in GC with Unsafe interface", type=UnsafeGCCrasher.class),
-        @FClass(key="unsafe.java", description="Crash VM in Java thread with Unsafe interface", type=UnsafeJavaCrasher.class),
-})
-public class CrasherFactory extends BasicOptionObjectFactory<Runnable> {
+package org.graalvm.compiler.nodes.graphbuilderconf;
+
+import org.graalvm.compiler.core.common.type.Stamp;
+
+public interface GeneratedPluginInjectionProvider {
+
+    <T> T getInjectedArgument(Class<T> type);
+
+    /**
+     * Gets a stamp denoting a given type and non-nullness property.
+     *
+     * @param type the type the returned stamp represents
+     * @param nonNull specifies if the returned stamp denotes a value that is guaranteed to be
+     *            non-null
+     */
+    Stamp getInjectedStamp(Class<?> type, boolean nonNull);
 }
