@@ -220,11 +220,7 @@ public class Random extends AbstractSpliteratorGenerator
      */
     private static final BigInteger PERIOD = BigInteger.valueOf(1L<<48);
 
-    /**
-     * Returns the period of this random number generator.
-     *
-     * @return the period of this random number generator.
-     */
+    @Override
     public BigInteger period() {
         return PERIOD;
     }
@@ -248,6 +244,7 @@ public class Random extends AbstractSpliteratorGenerator
      * @throws NullPointerException if the byte array is null
      * @since  1.1
      */
+    @Override
     public void nextBytes(byte[] bytes) {
         for (int i = 0, len = bytes.length; i < len; )
             for (int rnd = nextInt(),
@@ -273,6 +270,7 @@ public class Random extends AbstractSpliteratorGenerator
      * @return the next pseudorandom, uniformly distributed {@code int}
      *         value from this random number generator's sequence
      */
+    @Override
     public int nextInt() {
         return next(32);
     }
@@ -286,6 +284,7 @@ public class Random extends AbstractSpliteratorGenerator
      *         (inclusive) and the bound (exclusive)
      * @throws IllegalArgumentException if {@code bound} is not positive
      */
+    @Override
     public int nextInt(int bound) {
         if (bound <= 0)
             throw new IllegalArgumentException(BadBound);
@@ -320,6 +319,7 @@ public class Random extends AbstractSpliteratorGenerator
      * @return the next pseudorandom, uniformly distributed {@code long}
      *         value from this random number generator's sequence
      */
+    @Override
     public long nextLong() {
         // it's okay that the bottom word remains signed.
         return ((long)(next(32)) << 32) + next(32);
@@ -345,6 +345,7 @@ public class Random extends AbstractSpliteratorGenerator
      *         sequence
      * @since 1.2
      */
+    @Override
     public boolean nextBoolean() {
         return next(1) != 0;
     }
@@ -386,6 +387,7 @@ public class Random extends AbstractSpliteratorGenerator
      *         value between {@code 0.0} and {@code 1.0} from this
      *         random number generator's sequence
      */
+    @Override
     public float nextFloat() {
         return next(24) / ((float)(1 << 24));
     }
@@ -429,6 +431,7 @@ public class Random extends AbstractSpliteratorGenerator
      *         random number generator's sequence
      * @see Math#random
      */
+    @Override
     public double nextDouble() {
         return (((long)(next(26)) << 27) + next(27)) * DOUBLE_UNIT;
     }
@@ -481,6 +484,7 @@ public class Random extends AbstractSpliteratorGenerator
      *         standard deviation {@code 1.0} from this random number
      *         generator's sequence
      */
+    @Override
     public synchronized double nextGaussian() {
         // See Knuth, ACP, Section 3.4.1 Algorithm C.
         if (haveNextNextGaussian) {
@@ -571,12 +575,18 @@ public class Random extends AbstractSpliteratorGenerator
     }
 
     // Methods required by class AbstractSpliteratorGenerator
+
+    @Override
     public Spliterator.OfInt makeIntsSpliterator(long index, long fence, int origin, int bound) {
         return new RandomIntsSpliterator(this, index, fence, origin, bound);
     }
+
+    @Override
     public Spliterator.OfLong makeLongsSpliterator(long index, long fence, long origin, long bound) {
         return new RandomLongsSpliterator(this, index, fence, origin, bound);
     }
+
+    @Override
     public Spliterator.OfDouble makeDoublesSpliterator(long index, long fence, double origin, double bound) {
         return new RandomDoublesSpliterator(this, index, fence, origin, bound);
     }

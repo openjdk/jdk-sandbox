@@ -1017,9 +1017,10 @@ public class SecureRandom extends java.util.Random {
     }
 
     /**
-     * Returns the period of this random number generator.
+     * {@inheritDoc}
      *
-     * @return the period of this random number generator.
+     * @implInfo This {@link RandomGenerator} returns a negative value indicating
+     *           a period larger than 2**(2**16).
      */
     @Override
     public BigInteger period() {

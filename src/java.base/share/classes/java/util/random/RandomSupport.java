@@ -881,7 +881,7 @@ public class RandomSupport {
     }
 
     /**
-     * Spliterators for producing streams. These are based on abstract spliterator classes provided
+     * Spliterators for int streams. These are based on abstract spliterator classes provided
      * by class AbstractSpliteratorGenerator. Each one needs to define only a constructor and two
      * methods.
      */
@@ -1661,23 +1661,29 @@ public class RandomSupport {
         static final String BadLogDistance  = "logDistance must be non-negative";
 
         // Methods required by class AbstractSpliteratorGenerator
+
         public Spliterator.OfInt makeIntsSpliterator(long index, long fence, int origin, int bound) {
             return new RandomIntsSpliterator(this, index, fence, origin, bound);
         }
+
         public Spliterator.OfLong makeLongsSpliterator(long index, long fence, long origin, long bound) {
             return new RandomLongsSpliterator(this, index, fence, origin, bound);
         }
+
         public Spliterator.OfDouble makeDoublesSpliterator(long index, long fence, double origin, double bound) {
             return new RandomDoublesSpliterator(this, index, fence, origin, bound);
         }
 
         // Similar methods used by this class
+
         Spliterator<RandomGenerator> makeJumpsSpliterator(long index, long fence, double distance) {
             return new RandomJumpsSpliterator(this, index, fence, distance);
         }
+
         Spliterator<JumpableGenerator> makeLeapsSpliterator(long index, long fence, double distance) {
             return new RandomLeapsSpliterator(this, index, fence, distance);
         }
+
         Spliterator<ArbitrarilyJumpableGenerator> makeArbitraryJumpsSpliterator(long index, long fence, double distance) {
             return new RandomArbitraryJumpsSpliterator(this, index, fence, distance);
         }
@@ -1807,7 +1813,7 @@ public class RandomSupport {
 
 
         /**
-         * Spliterator for int streams.  We multiplex the four int versions into one class by treating a
+         * Spliterator for int streams. We multiplex the four int versions into one class by treating a
          * bound less than origin as unbounded, and also by treating "infinite" as equivalent to
          * {@code Long.MAX_VALUE}. For splits, we choose to override the method {@code trySplit()} to
          * try to optimize execution speed: instead of dividing a range in half, it breaks off the

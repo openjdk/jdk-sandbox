@@ -256,7 +256,8 @@ public final class MRG32k3a extends AbstractArbitrarilyJumpableGenerator {
         }
     }
 
-    public MRG32k3a copy() {
+    @Override
+    public AbstractArbitrarilyJumpableGenerator copy() {
         return new MRG32k3a(s10, s11, s12, s20, s21, s22);
     }
 
@@ -276,13 +277,7 @@ public final class MRG32k3a extends AbstractArbitrarilyJumpableGenerator {
             return ((p1 - p2) * NORM1);
     }
 
-    /**
-     * Returns a pseudorandom {@code double} value between zero
-     * (inclusive) and one (exclusive).
-     *
-     * @return a pseudorandom {@code double} value between zero
-     *         (inclusive) and one (exclusive)
-     */
+    @Override
     public double nextDouble() {
         nextState();
         double p1 = s12, p2 = s22;
@@ -291,33 +286,17 @@ public final class MRG32k3a extends AbstractArbitrarilyJumpableGenerator {
         else return p;
     }
 
-
-    /**
-     * Returns a pseudorandom {@code float} value between zero
-     * (inclusive) and one (exclusive).
-     *
-     * @return a pseudorandom {@code float} value between zero
-     *         (inclusive) and one (exclusive)
-     */
+    @Override
     public float nextFloat() {
         return (float)nextDouble();
     }
 
-    /**
-     * Returns a pseudorandom {@code int} value.
-     *
-     * @return a pseudorandom {@code int} value
-     */
+    @Override
     public int nextInt() {
         return (internalNextInt(0x10000) << 16) | internalNextInt(0x10000);
     }
 
-    /**
-     * Returns a pseudorandom {@code long} value.
-     *
-     * @return a pseudorandom {@code long} value
-     */
-
+    @Override
     public long nextLong() {
          return (((long)internalNextInt(0x200000) << 43) |
                 ((long)internalNextInt(0x200000) << 22) |
@@ -329,6 +308,7 @@ public final class MRG32k3a extends AbstractArbitrarilyJumpableGenerator {
      *
      * @throws UnsupportedOperationException MRG32k3a does not support method nextGaussian
      */
+    @Override
     public double nextGaussian() {
         throw new UnsupportedOperationException("Class MRG32k3a does not support method nextGaussian");
     }
@@ -338,6 +318,7 @@ public final class MRG32k3a extends AbstractArbitrarilyJumpableGenerator {
      *
      * @throws UnsupportedOperationException MRG32k3a does not support method nextExponential
      */
+    @Override
     public double nextExponential() {
         throw new UnsupportedOperationException("Class MRG32k3a does not support method nextExponential");
     }
@@ -353,6 +334,7 @@ public final class MRG32k3a extends AbstractArbitrarilyJumpableGenerator {
 
     static final BigInteger PERIOD = calculateThePeriod();
 
+    @Override
     public BigInteger period() {
         return PERIOD;
     }
@@ -362,14 +344,17 @@ public final class MRG32k3a extends AbstractArbitrarilyJumpableGenerator {
     // An Object-Oriented Random-Number Package with Many Long Streams and Substreams.
     // Operations Research 50, 6 (Nov--Dec 2002), 1073--1075.
 
+    @Override
     public double defaultJumpDistance() {
         return 0x1.0p76;   // 2**76
     }
 
+    @Override
     public double defaultLeapDistance() {
         return 0x1.0p127;   // 2**127
     }
 
+    @Override
     public void jump(double distance) {
         if (distance < 0.0 || Double.isInfinite(distance) || distance != Math.floor(distance))
             throw new IllegalArgumentException("jump distance must be a nonnegative finite integer");

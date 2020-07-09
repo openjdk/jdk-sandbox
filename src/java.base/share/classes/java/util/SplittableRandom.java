@@ -265,26 +265,19 @@ public final class SplittableRandom extends AbstractSplittableGenerator {
         return new SplittableRandom(source.nextLong(), mixGamma(source.nextLong()));
     }
 
-    /**
-     * Returns a pseudorandom {@code int} value.
-     *
-     * @return a pseudorandom {@code int} value
-     */
+    @Override
     public int nextInt() {
         return mix32(nextSeed());
     }
 
-    /**
-     * Returns a pseudorandom {@code long} value.
-     *
-     * @return a pseudorandom {@code long} value
-     */
+    @Override
     public long nextLong() {
         return mix64(nextSeed());
     }
 
     static final BigInteger PERIOD = BigInteger.ONE.shiftLeft(64);  // Period is 2**64
 
+    @Override
     public BigInteger period() {
         return PERIOD;
     }

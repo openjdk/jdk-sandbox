@@ -242,12 +242,7 @@ public final class Xoshiro256PlusPlus implements LeapableGenerator {
      * output to fill s.
      */
 
-
-    /**
-     * Returns a pseudorandom {@code long} value.
-     *
-     * @return a pseudorandom {@code long} value
-     */
+    @Override
     public long nextLong() {
         // Compute the result based on current state information
         // (this allows the computation to be overlapped with state update).
@@ -267,14 +262,17 @@ public final class Xoshiro256PlusPlus implements LeapableGenerator {
         return result;
     }
 
+    @Override
     public BigInteger period() {
         return PERIOD;
     }
 
+    @Override
     public double defaultJumpDistance() {
         return 0x1.0p128;
     }
 
+    @Override
     public double defaultLeapDistance() {
         return 0x1.0p192;
     }
@@ -285,19 +283,12 @@ public final class Xoshiro256PlusPlus implements LeapableGenerator {
     private static final long[] LEAP_TABLE = {
         0x76e15d3efefdcbbfL, 0xc5004e441c522fb3L, 0x77710069854ee241L, 0x39109bb02acbe635L };
 
-    /**
-     * This is the jump function for the generator. It is equivalent to 2**128 calls to next(); it
-     * can be used to generate 2**128 non-overlapping subsequences for parallel computations.
-     */
+    @Override
     public void jump() {
         jumpAlgorithm(JUMP_TABLE);
     }
 
-    /**
-     * This is the long-jump function for the generator. It is equivalent to 2**192 calls to next();
-     * it can be used to generate 2**64 starting points, from each of which jump() will generate
-     * 2**64 non-overlapping subsequences for parallel distributed computations.
-     */
+    @Override
     public void leap() {
         jumpAlgorithm(LEAP_TABLE);
     }

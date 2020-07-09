@@ -191,8 +191,9 @@ public final class Xoroshiro128PlusPlus implements LeapableGenerator {
 
     /* ---------------- public methods ---------------- */
 
-    public Xoroshiro128PlusPlus copy() { return new Xoroshiro128PlusPlus(x0, x1); }
-
+    public Xoroshiro128PlusPlus copy() {
+        return new Xoroshiro128PlusPlus(x0, x1);
+    }
 
     /*
      * The following two comments are quoted from http://prng.di.unimi.it/xoroshiro128plusplus.c
@@ -220,11 +221,7 @@ public final class Xoroshiro128PlusPlus implements LeapableGenerator {
      * output to fill s.
      */
 
-    /**
-     * Returns a pseudorandom {@code long} value.
-     *
-     * @return a pseudorandom {@code long} value
-     */
+    @Override
     public long nextLong() {
         final long s0 = x0;
         long s1 = x1;
@@ -239,14 +236,17 @@ public final class Xoroshiro128PlusPlus implements LeapableGenerator {
         return result;
     }
 
+    @Override
     public BigInteger period() {
         return PERIOD;
     }
 
+    @Override
     public double defaultJumpDistance() {
         return 0x1.0p64;
     }
 
+    @Override
     public double defaultLeapDistance() {
         return 0x1.0p96;
     }
@@ -255,20 +255,12 @@ public final class Xoroshiro128PlusPlus implements LeapableGenerator {
 
     private static final long[] LEAP_TABLE = { 0x360fd5f2cf8d5d99L, 0x9c6e6877736c46e3L };
 
-    /*
-     * This is the jump function for the generator. It is equivalent
-     * to 2**64 calls to nextLong(); it can be used to generate 2**64
-     * non-overlapping subsequences for parallel computations.
-     */
+    @Override
     public void jump() {
         jumpAlgorithm(JUMP_TABLE);
     }
 
-    /**
-     * This is the long-jump function for the generator. It is equivalent to 2**96 calls to next();
-     * it can be used to generate 2**32 starting points, from each of which jump() will generate
-     * 2**32 non-overlapping subsequences for parallel distributed computations.
-     */
+    @Override
     public void leap() {
         jumpAlgorithm(LEAP_TABLE);
     }
@@ -284,7 +276,7 @@ public final class Xoroshiro128PlusPlus implements LeapableGenerator {
                 nextLong();
             }
         }
-	x0 = s0;
-	x1 = s1;
+	    x0 = s0;
+	    x1 = s1;
     }
 }

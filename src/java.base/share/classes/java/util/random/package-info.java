@@ -108,7 +108,7 @@
   * The method {@code period()} returns information about the period of the generator instance.
   *
   * <p>For a multi-threaded application, one can repeat the preceding steps to create
-  * additional {@code RandomGenerator} values, but often it is preferable to use methods of
+  * additional {@code RandomGenerator} values, but often it is preferable to use methods
   * of the one single initially created generator to create others like it.  (One reason
   * is that some generator algorithms, if asked to create a new set of generators all at once,
   * can make a special effort to ensure that the new generators are statistically independent.)

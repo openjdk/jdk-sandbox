@@ -223,20 +223,12 @@ public class ThreadLocalRandom extends Random {
         return nextInt() >>> (32 - bits);
     }
 
-    /**
-     * Returns a pseudorandom {@code int} value.
-     *
-     * @return a pseudorandom {@code int} value
-     */
+    @Override
     public int nextInt() {
         return mix32(nextSeed());
     }
 
-    /**
-     * Returns a pseudorandom {@code long} value.
-     *
-     * @return a pseudorandom {@code long} value
-     */
+    @Override
     public long nextLong() {
         return RandomSupport.mixMurmur64(nextSeed());
     }
