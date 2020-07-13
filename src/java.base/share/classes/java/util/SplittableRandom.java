@@ -31,11 +31,11 @@ import java.util.random.RandomSupport;
 import java.util.random.RandomSupport.AbstractSplittableGenerator;
 
 /**
- * A generator of uniform pseudorandom values applicable for use in
- * (among other contexts) isolated parallel computations that may
- * generate subtasks. Class {@code SplittableRandom} supports methods for
- * producing pseudorandom numbers of type {@code int}, {@code long},
- * and {@code double} with similar usages as for class
+ * A generator of uniform pseudorandom values (with period 2<sup>64</sup>)
+ * applicable for use in (among other contexts) isolated parallel
+ * computations that may generate subtasks. Class {@code SplittableRandom}
+ * supports methods for producing pseudorandom numbers of type {@code int},
+ * {@code long}, and {@code double} with similar usages as for class
  * {@link java.util.Random} but differs in the following ways:
  *
  * <ul>

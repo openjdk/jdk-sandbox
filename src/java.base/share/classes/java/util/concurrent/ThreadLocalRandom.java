@@ -54,9 +54,10 @@ import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
 
 /**
- * A random number generator isolated to the current thread.  Like the
- * global {@link java.util.Random} generator used by the {@link
- * java.lang.Math} class, a {@code ThreadLocalRandom} is initialized
+ * A random number generator (with period 2<sup>64</sup>) isolated
+ * to the current thread.  Like the global {@link java.util.Random}
+ * generator used by the {@link java.lang.Math} class,
+ * a {@code ThreadLocalRandom} is initialized
  * with an internally generated seed that may not otherwise be
  * modified. When applicable, use of {@code ThreadLocalRandom} rather
  * than shared {@code Random} objects in concurrent programs will
@@ -87,8 +88,8 @@ import jdk.internal.misc.VM;
 public class ThreadLocalRandom extends Random {
     /*
      * This class implements the java.util.Random API (and subclasses
-     * Random) using a single static instance that accesses random
-     * number state held in class Thread (primarily, field
+     * Random) using a single static instance that accesses 64 bits of
+     * random number state held in class java.lang.Thread (field
      * threadLocalRandomSeed). In doing so, it also provides a home
      * for managing package-private utilities that rely on exactly the
      * same state as needed to maintain the ThreadLocalRandom
@@ -107,8 +108,11 @@ public class ThreadLocalRandom extends Random {
      * Even though this class subclasses java.util.Random, it uses the
      * same basic algorithm as java.util.SplittableRandom.  (See its
      * internal documentation for explanations, which are not repeated
-     * here.)  Because ThreadLocalRandoms are not splittable
-     * though, we use only a single 64bit gamma.
+     * here.)  Note that ThreadLocalRandom is not a "splittable" generator
+     * (it does not support the split method), but it behaves as if
+     * one instance of the SplittableRandom algorithm had been
+     * created for each thread, each with a distinct gamma parameter
+     * (calculated from the thread id).
      *
      * Because this class is in a different package than class Thread,
      * field access methods use Unsafe to bypass access control rules.

@@ -30,9 +30,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.random.RandomGenerator.LeapableGenerator;
 
 /**
- * A generator of uniform pseudorandom values applicable for use in
- * (among other contexts) isolated parallel computations that may
- * generate subtasks.  Class {@link Xoroshiro128PlusPlus} implements
+ * A "jumpable and leapable" pseudorandom number generator (PRNG) whose period
+ * is roughly 2<sup>128</sup>.  Class {@link Xoroshiro128PlusPlus} implements
  * interfaces {@link RandomGenerator} and {@link LeapableGenerator},
  * and therefore supports methods for producing pseudorandomly chosen
  * numbers of type {@code int}, {@code long}, {@code float}, and {@code double}

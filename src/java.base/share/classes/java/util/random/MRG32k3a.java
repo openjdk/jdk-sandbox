@@ -31,15 +31,20 @@ import java.util.random.RandomGenerator.LeapableGenerator;
 import java.util.random.RandomSupport.AbstractArbitrarilyJumpableGenerator;
 
 /**
- * A generator of uniform pseudorandom values applicable for use in
- * (among other contexts) isolated parallel computations that may
- * generate subtasks.  Class {@link MRG32k3a} implements
- * interfaces {@link RandomGenerator} and {@link AbstractArbitrarilyJumpableGenerator},
+ * An "arbitrarily jumpable" pseudorandom number generator (PRNG) whose period
+ * is roughly 2<sup>191</sup>.  Class {@link MRG32k3a} implements
+ * interface {@link RandomGenerator} and extends abstract class
+ * {@link AbstractArbitrarilyJumpableGenerator},
  * and therefore supports methods for producing pseudorandomly chosen
- * numbers of type {@code int}, {@code long}, {@code float}, and {@code double}
- * as well as creating new {@link MRG32k3a} objects by "jumping" or "leaping".
- * <p>
- * Instances of {@link MRG32k3a} are <em>not</em> thread-safe.
+ * values of type {@code int}, {@code long}, {@code float}, {@code double},
+ * and {@code boolean} (and for producing streams of pseudorandomly chosen
+ * numbers of type {@code int}, {@code long}, and {@code double}),
+ * as well as methods for creating new {@link MRG32k3a} objects
+ * by moving forward either a large distance (2<sup>76</sup>), a very large
+ * distance (2<sup>127</sup>), or an arbitrary user-specified distance
+ * around the state cycle.
+ *
+ * <p>Instances of {@link MRG32k3a} are <em>not</em> thread-safe.
  * They are designed to be used so that each thread has its own instance.
  * The methods {@link #jump} and {@link #leap} and {@link #jumps} and {@link #leaps}
  * can be used to construct new instances of {@link MRG32k3a} that traverse

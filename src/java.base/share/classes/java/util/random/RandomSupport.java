@@ -38,7 +38,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * Low-level utility methods helpful for implementing pseudorandom number generators.
+ * Low-level utility methods helpful for implementing (pseudo)random number generators.
  *
  * This class is mostly for library writers creating specific implementations of the
  * interface {@link RandomGenerator}.
@@ -51,7 +51,7 @@ public class RandomSupport {
      * Implementation Overview.
      *
      * This class provides utility methods and constants frequently
-     * useful in the implementation of pseudorandom number generators
+     * useful in the implementation of (pseudo)random number generators
      * that satisfy the interface {@link RandomGenerator}.
      *
      * File organization: First some message strings, then the main
@@ -299,14 +299,14 @@ public class RandomSupport {
      * {@link Spliterator} and by the public method
      * {@code nextLong(origin, bound)}.  If {@code origin} is greater
      * than {@code bound}, then this method simply calls the unbounded
-     * version of {@code nextLong()}, choosing pseudorandomly from
+     * version of {@code nextLong()}, choosing (pseudo)randomly from
      * among all 2<sup>64</sup> possible {@code long} values}, and
      * otherwise uses one or more calls to {@code nextLong()} to
-     * choose a value pseudorandomly from the possible values
+     * choose a value (pseudo)randomly from the possible values
      * between {@code origin} (inclusive) and {@code bound} (exclusive).
      *
      * @implNote This method first calls {@code nextLong()} to obtain
-     * a {@code long} value that is assumed to be pseudorandomly
+     * a {@code long} value that is assumed to be (pseudo)randomly
      * chosen uniformly and independently from the 2<sup>64</sup>
      * possible {@code long} values (that is, each of the 2<sup>64</sup>
      * possible long values is equally likely to be chosen).
@@ -346,13 +346,13 @@ public class RandomSupport {
      * </ol>
      *
      * @param rng a random number generator to be used as a
-     *        source of pseudorandom {@code long} values
+     *        source of (pseudo)random {@code long} values
      * @param origin the least value that can be produced,
      *        unless greater than or equal to {@code bound}
      * @param bound the upper bound (exclusive), unless {@code origin}
      *        is greater than or equal to {@code bound}
      *
-     * @return a pseudorandomly chosen {@code long} value,
+     * @return a (pseudo)randomly chosen {@code long} value,
      *         which will be between {@code origin} (inclusive) and
      *         {@code bound} exclusive unless {@code origin}
      *         is greater than or equal to {@code bound}
@@ -394,11 +394,11 @@ public class RandomSupport {
      * {@code boundedNextLong(origin, bound)} that has been
      * specialized for the case where the {@code origin} is zero
      * and the {@code bound} is greater than zero.  The value
-     * returned is chosen pseudorandomly from nonnegative integer
+     * returned is chosen (pseudo)randomly from nonnegative integer
      * values less than {@code bound}.
      *
      * @implNote This method first calls {@code nextLong()} to obtain
-     * a {@code long} value that is assumed to be pseudorandomly
+     * a {@code long} value that is assumed to be (pseudo)randomly
      * chosen uniformly and independently from the 2<sup>64</sup>
      * possible {@code long} values (that is, each of the 2<sup>64</sup>
      * possible long values is equally likely to be chosen).
@@ -427,10 +427,10 @@ public class RandomSupport {
      * </ol>
      *
      * @param rng a random number generator to be used as a
-     *        source of pseudorandom {@code long} values
+     *        source of (pseudo)random {@code long} values
      * @param bound the upper bound (exclusive); must be greater than zero
      *
-     * @return a pseudorandomly chosen {@code long} value
+     * @return a (pseudo)randomly chosen {@code long} value
      */
     public static long boundedNextLong(RandomGenerator rng, long bound) {
         // Specialize boundedNextLong for origin == 0, bound > 0
@@ -459,20 +459,20 @@ public class RandomSupport {
      * {@link Spliterator} and by the public method
      * {@code nextInt(origin, bound)}.  If {@code origin} is greater
      * than {@code bound}, then this method simply calls the unbounded
-     * version of {@code nextInt()}, choosing pseudorandomly from
+     * version of {@code nextInt()}, choosing (pseudo)randomly from
      * among all 2<sup>64</sup> possible {@code int} values}, and
      * otherwise uses one or more calls to {@code nextInt()} to
-     * choose a value pseudorandomly from the possible values
+     * choose a value (pseudo)randomly from the possible values
      * between {@code origin} (inclusive) and {@code bound} (exclusive).
      *
      * @param rng a random number generator to be used as a
-     *        source of pseudorandom {@code int} values
+     *        source of (pseudo)random {@code int} values
      * @param origin the least value that can be produced,
      *        unless greater than or equal to {@code bound}
      * @param bound the upper bound (exclusive), unless {@code origin}
      *        is greater than or equal to {@code bound}
      *
-     * @return a pseudorandomly chosen {@code int} value,
+     * @return a (pseudo)randomly chosen {@code int} value,
      *         which will be between {@code origin} (inclusive) and
      *         {@code bound} exclusive unless {@code origin}
      *         is greater than or equal to {@code bound}
@@ -516,14 +516,14 @@ public class RandomSupport {
      * {@code boundedNextInt(origin, bound)} that has been
      * specialized for the case where the {@code origin} is zero
      * and the {@code bound} is greater than zero.  The value
-     * returned is chosen pseudorandomly from nonnegative integer
+     * returned is chosen (pseudo)randomly from nonnegative integer
      * values less than {@code bound}.
      *
      * @param rng a random number generator to be used as a
-     *        source of pseudorandom {@code long} values
+     *        source of (pseudo)random {@code long} values
      * @param bound the upper bound (exclusive); must be greater than zero
      *
-     * @return a pseudorandomly chosen {@code long} value
+     * @return a (pseudo)randomly chosen {@code long} value
      *
      * @implNote The implementation of this method is identical to
      *           the implementation of {@code nextLong(bound)}
@@ -574,12 +574,12 @@ public class RandomSupport {
      * </ol>
      *
      * @param rng a random number generator to be used as a
-     *        source of pseudorandom {@code double} values
+     *        source of (pseudo)random {@code double} values
      * @param origin the least value that can be produced,
      *        unless greater than or equal to {@code bound}; must be finite
      * @param bound the upper bound (exclusive), unless {@code origin}
      *        is greater than or equal to {@code bound}; must be finite
-     * @return a pseudorandomly chosen {@code double} value,
+     * @return a (pseudo)randomly chosen {@code double} value,
      *         which will be between {@code origin} (inclusive) and
      *         {@code bound} exclusive unless {@code origin}
      *         is greater than or equal to {@code bound},
@@ -610,10 +610,10 @@ public class RandomSupport {
      *      {@code double} value that is less than {@code bound}.
      *
      * @param rng a random number generator to be used as a
-     *        source of pseudorandom {@code double} values
+     *        source of (pseudo)random {@code double} values
      * @param bound the upper bound (exclusive); must be finite and
      *        greater than zero
-     * @return a pseudorandomly chosen {@code double} value
+     * @return a (pseudo)randomly chosen {@code double} value
      *         between zero (inclusive) and {@code bound} (exclusive)
      */
     public static double boundedNextDouble(RandomGenerator rng, double bound) {
@@ -641,12 +641,12 @@ public class RandomSupport {
      *     {@code nextDouble()} method.
      *
      * @param rng a random number generator to be used as a
-     *        source of pseudorandom {@code float} values
+     *        source of (pseudo)random {@code float} values
      * @param origin the least value that can be produced,
      *        unless greater than or equal to {@code bound}; must be finite
      * @param bound the upper bound (exclusive), unless {@code origin}
      *        is greater than or equal to {@code bound}; must be finite
-     * @return a pseudorandomly chosen {@code float} value,
+     * @return a (pseudo)randomly chosen {@code float} value,
      *         which will be between {@code origin} (inclusive) and
      *         {@code bound} exclusive unless {@code origin}
      *         is greater than or equal to {@code bound},
@@ -677,10 +677,10 @@ public class RandomSupport {
      *     {@code nextDouble()} method.
      *
      * @param rng a random number generator to be used as a
-     *        source of pseudorandom {@code float} values
+     *        source of (pseudo)random {@code float} values
      * @param bound the upper bound (exclusive); must be finite and
      *        greater than zero
-     * @return a pseudorandomly chosen {@code float} value
+     * @return a (pseudo)randomly chosen {@code float} value
      *         between zero (inclusive) and {@code bound} (exclusive)
      */
     public static float boundedNextFloat(RandomGenerator rng, float bound) {
@@ -897,8 +897,8 @@ public class RandomSupport {
          * @param generatingGenerator base AbstractSpliteratorGenerator
          * @param index the (inclusive) lower bound on traversal positions
          * @param fence the (exclusive) upper bound on traversal positions
-         * @param origin the (inclusive) lower bound on the pseudorandom values to be generated
-         * @param bound the (exclusive) upper bound on the pseudorandom values to be generated
+         * @param origin the (inclusive) lower bound on the (pseudo)random values to be generated
+         * @param bound the (exclusive) upper bound on the (pseudo)random values to be generated
          */
         public RandomIntsSpliterator(AbstractSpliteratorGenerator generatingGenerator,
                                      long index, long fence, int origin, int bound) {
@@ -955,8 +955,8 @@ public class RandomSupport {
          * @param generatingGenerator base AbstractSpliteratorGenerator
          * @param index the (inclusive) lower bound on traversal positions
          * @param fence the (exclusive) upper bound on traversal positions
-         * @param origin the (inclusive) lower bound on the pseudorandom values to be generated
-         * @param bound the (exclusive) upper bound on the pseudorandom values to be generated
+         * @param origin the (inclusive) lower bound on the (pseudo)random values to be generated
+         * @param bound the (exclusive) upper bound on the (pseudo)random values to be generated
          */
         public RandomLongsSpliterator(AbstractSpliteratorGenerator generatingGenerator,
                                       long index, long fence, long origin, long bound) {
@@ -1013,8 +1013,8 @@ public class RandomSupport {
          * @param generatingGenerator base AbstractSpliteratorGenerator
          * @param index the (inclusive) lower bound on traversal positions
          * @param fence the (exclusive) upper bound on traversal positions
-         * @param origin the (inclusive) lower bound on the pseudorandom values to be generated
-         * @param bound the (exclusive) upper bound on the pseudorandom values to be generated
+         * @param origin the (inclusive) lower bound on the (pseudo)random values to be generated
+         * @param bound the (exclusive) upper bound on the (pseudo)random values to be generated
          */
         public RandomDoublesSpliterator(AbstractSpliteratorGenerator generatingGenerator,
                                         long index, long fence, double origin, double bound) {
@@ -1057,15 +1057,25 @@ public class RandomSupport {
     }
 
     /*
-     * Implementation support for nextExponential() and nextGaussian() methods of RandomGenerator.
+     * Implementation support for nextExponential() methods of RandomGenerator.
      *
-     * Each is implemented using McFarland's fast modified ziggurat algorithm (largely
-     * table-driven, with rare cases handled by computation and rejection sampling).
-     * Walker's alias method for sampling a discrete distribution also plays a role.
+     * Certain details of these algorithms may depend critically on the quality
+     * of the low-order bits delivered by NextLong().  These algorithms should
+     * not be used with RNG algorithms (such as a simple Linear Congruential
+     * Generator) whose low-order output bits do not have good statistical
+     * quality.
      *
-     * The tables themselves, as well as a number of associated parameters, are defined
-     * in class java.util.DoubleZigguratTables, which is automatically generated by the
-     * program create_ziggurat_tables.c (which takes only a few seconds to run).
+     * @implNote The reference implementation uses McFarland's fast modified
+     * ziggurat algorithm (largely table-driven, with rare cases handled by
+     * computation and rejection sampling). Walker's alias method for sampling
+     * a discrete distribution also plays a role.
+     */
+    static double computeNextExponential(RandomGenerator rng) {
+    /*
+     * The tables themselves, as well as a number of associated parameters, are
+     * defined in class java.util.DoubleZigguratTables, which is automatically
+     * generated by the program create_ziggurat_tables.c (which takes only a
+     * few seconds to run).
      *
      * For more information about the algorithms, see these articles:
      *
@@ -1079,15 +1089,7 @@ public class RandomSupport {
      * variables with general distributions. ACM Trans. Math. Software 3, 3
      * (September 1977), 253-256. DOI: https://doi.org/10.1145/355744.355749
      *
-     * Certain details of these algorithms depend critically on the quality of the
-     * low-order bits delivered by NextLong().  These algorithms should not be used
-     * with RNG algorithms (such as a simple Linear Congruential Generator) whose
-     * low-order output bits do not have good statistical quality.
      */
-
-    // Implementation support for nextExponential()
-
-    static double computeNextExponential(RandomGenerator rng) {
         long U1 = rng.nextLong();
         // Experimentation on a variety of machines indicates that it is overall much faster
         // to do the following & and < operations on longs rather than first cast U1 to int
@@ -1151,9 +1153,40 @@ public class RandomSupport {
         }
     }
 
-    // Implementation support for nextGaussian()
-
+    /*
+     * Implementation support for  nextGaussian() methods of RandomGenerator.
+     *
+     * Certain details of these algorithms may depend critically on the quality
+     * of the low-order bits delivered by NextLong().  These algorithms should
+     * not be used with RNG algorithms (such as a simple Linear Congruential
+     * Generator) whose low-order output bits do not have good statistical
+     * quality.
+     *
+     * @implNote The reference implementation uses McFarland's fast modified
+     * ziggurat algorithm (largely table-driven, with rare cases handled by
+     * computation and rejection sampling). Walker's alias method for sampling
+     * a discrete distribution also plays a role.
+     */
     static double computeNextGaussian(RandomGenerator rng) {
+    /*
+     * The tables themselves, as well as a number of associated parameters, are
+     * defined in class java.util.DoubleZigguratTables, which is automatically
+     * generated by the program create_ziggurat_tables.c (which takes only a
+     * few seconds to run).
+     *
+     * For more information about the algorithms, see these articles:
+     *
+     * Christopher D. McFarland.  2016 (published online 24 Jun 2015).  A modified ziggurat
+     * algorithm for generating exponentially and normally distributed pseudorandom numbers.
+     * Journal of Statistical Computation and Simulation 86 (7), pages 1281-1294.
+     * https://www.tandfonline.com/doi/abs/10.1080/00949655.2015.1060234
+     * Also at https://arxiv.org/abs/1403.6870 (26 March 2014).
+     *
+     * Alastair J. Walker.  1977.  An efficient method for generating discrete random
+     * variables with general distributions. ACM Trans. Math. Software 3, 3
+     * (September 1977), 253-256. DOI: https://doi.org/10.1145/355744.355749
+     *
+     */
         long U1 = rng.nextLong();
         // Experimentation on a variety of machines indicates that it is overall much faster
         // to do the following & and < operations on longs rather than first cast U1 to int
@@ -1289,7 +1322,7 @@ public class RandomSupport {
      * in class {@link AbstractGenerator} to provide {@link Spliterator}-based
      * implmentations that support potentially parallel execution.
      *
-     * To implement a pseudorandom number generator, the programmer needs
+     * To implement a (pseudo)random number generator, the programmer needs
      * only to extend this class and provide implementations for the methods
      * {@code nextInt()}, {@code nextLong()}, {@code makeIntsSpliterator},
      * {@code makeLongsSpliterator}, and {@code makeDoublesSpliterator}.
@@ -1318,13 +1351,13 @@ public class RandomSupport {
         /**
          * Create an instance of {@link Spliterator.OfInt} that for each traversal position
 	 * between the specified index (inclusive) and the specified fence (exclusive) generates
-	 * a pseudorandomly chosen {@code int} value between the specified origin (inclusive) and
+	 * a (pseudo)randomly chosen {@code int} value between the specified origin (inclusive) and
 	 * the specified bound (exclusive).
          *
          * @param index the (inclusive) lower bound on traversal positions
          * @param fence the (exclusive) upper bound on traversal positions
-         * @param origin the (inclusive) lower bound on the pseudorandom values to be generated
-         * @param bound the (exclusive) upper bound on the pseudorandom values to be generated
+         * @param origin the (inclusive) lower bound on the (pseudo)random values to be generated
+         * @param bound the (exclusive) upper bound on the (pseudo)random values to be generated
          * @return an instance of {@link Spliterator.OfInt}
          */
         public abstract Spliterator.OfInt makeIntsSpliterator(long index, long fence, int origin, int bound);
@@ -1332,13 +1365,13 @@ public class RandomSupport {
         /**
          * Create an instance of {@link Spliterator.OfLong} that for each traversal position
 	 * between the specified index (inclusive) and the specified fence (exclusive) generates
-	 * a pseudorandomly chosen {@code long} value between the specified origin (inclusive) and
+	 * a (pseudo)randomly chosen {@code long} value between the specified origin (inclusive) and
 	 * the specified bound (exclusive).
          *
          * @param index the (inclusive) lower bound on traversal positions
          * @param fence the (exclusive) upper bound on traversal positions
-         * @param origin the (inclusive) lower bound on the pseudorandom values to be generated
-         * @param bound the (exclusive) upper bound on the pseudorandom values to be generated
+         * @param origin the (inclusive) lower bound on the (pseudo)random values to be generated
+         * @param bound the (exclusive) upper bound on the (pseudo)random values to be generated
          * @return an instance of {@link Spliterator.OfLong}
          */
         public abstract Spliterator.OfLong makeLongsSpliterator(long index, long fence, long origin, long bound);
@@ -1346,13 +1379,13 @@ public class RandomSupport {
         /**
          * Create an instance of {@link Spliterator.OfDouble} that for each traversal position
 	 * between the specified index (inclusive) and the specified fence (exclusive) generates
-	 * a pseudorandomly chosen {@code double} value between the specified origin (inclusive) and
+	 * a (pseudo)randomly chosen {@code double} value between the specified origin (inclusive) and
 	 * the specified bound (exclusive).
          *
          * @param index the (inclusive) lower bound on traversal positions
          * @param fence the (exclusive) upper bound on traversal positions
-         * @param origin the (inclusive) lower bound on the pseudorandom values to be generated
-         * @param bound the (exclusive) upper bound on the pseudorandom values to be generated
+         * @param origin the (inclusive) lower bound on the (pseudo)random values to be generated
+         * @param bound the (exclusive) upper bound on the (pseudo)random values to be generated
          * @return an instance of {@link Spliterator.OfDouble}
          */
         public abstract Spliterator.OfDouble makeDoublesSpliterator(long index, long fence, double origin, double bound);
@@ -1375,12 +1408,12 @@ public class RandomSupport {
         }
 
         /**
-         * Returns a stream producing the given {@code streamSize} number of pseudorandom {@code int}
+         * Returns a stream producing the given {@code streamSize} number of (pseudo)random {@code int}
          * values from this generator and/or one split from it.
          *
          * @param streamSize the number of values to generate
          *
-         * @return a stream of pseudorandom {@code int} values
+         * @return a stream of (pseudo)random {@code int} values
          *
          * @throws IllegalArgumentException if {@code streamSize} is less than zero
          */
@@ -1390,13 +1423,13 @@ public class RandomSupport {
         }
 
         /**
-         * Returns an effectively unlimited stream of pseudorandomly chosen
+         * Returns an effectively unlimited stream of (pseudo)randomly chosen
          * {@code int} values.
          *
          * @implNote The implementation of this method is effectively
          * equivalent to {@code ints(Long.MAX_VALUE)}.
          *
-         * @return a stream of pseudorandomly chosen {@code int} values
+         * @return a stream of (pseudo)randomly chosen {@code int} values
          */
 
         public IntStream ints() {
@@ -1404,7 +1437,7 @@ public class RandomSupport {
         }
 
         /**
-         * Returns a stream producing the given {@code streamSize} number of pseudorandom {@code int}
+         * Returns a stream producing the given {@code streamSize} number of (pseudo)random {@code int}
          * values from this generator and/or one split from it; each value conforms to the given origin
          * (inclusive) and bound (exclusive).
          *
@@ -1412,7 +1445,7 @@ public class RandomSupport {
          * @param randomNumberOrigin the origin (inclusive) of each random value
          * @param randomNumberBound  the bound (exclusive) of each random value
          *
-         * @return a stream of pseudorandom {@code int} values, each with the given origin (inclusive)
+         * @return a stream of (pseudo)random {@code int} values, each with the given origin (inclusive)
          *         and bound (exclusive)
          *
          * @throws IllegalArgumentException if {@code streamSize} is less than zero, or {@code
@@ -1426,14 +1459,14 @@ public class RandomSupport {
         }
 
         /**
-         * Returns an effectively unlimited stream of pseudorandom {@code int} values from this
+         * Returns an effectively unlimited stream of (pseudo)random {@code int} values from this
          * generator and/or one split from it; each value conforms to the given origin (inclusive) and
          * bound (exclusive).
          *
          * @param randomNumberOrigin the origin (inclusive) of each random value
          * @param randomNumberBound  the bound (exclusive) of each random value
          *
-         * @return a stream of pseudorandom {@code int} values, each with the given origin (inclusive)
+         * @return a stream of (pseudo)random {@code int} values, each with the given origin (inclusive)
          *         and bound (exclusive)
          *
          * @throws IllegalArgumentException if {@code randomNumberOrigin} is greater than or equal to
@@ -1448,12 +1481,12 @@ public class RandomSupport {
         }
 
         /**
-         * Returns a stream producing the given {@code streamSize} number of pseudorandom {@code long}
+         * Returns a stream producing the given {@code streamSize} number of (pseudo)random {@code long}
          * values from this generator and/or one split from it.
          *
          * @param streamSize the number of values to generate
          *
-         * @return a stream of pseudorandom {@code long} values
+         * @return a stream of (pseudo)random {@code long} values
          *
          * @throws IllegalArgumentException if {@code streamSize} is less than zero
          */
@@ -1463,10 +1496,10 @@ public class RandomSupport {
         }
 
         /**
-         * Returns an effectively unlimited stream of pseudorandom {@code long} values from this
+         * Returns an effectively unlimited stream of (pseudo)random {@code long} values from this
          * generator and/or one split from it.
          *
-         * @return a stream of pseudorandom {@code long} values
+         * @return a stream of (pseudo)random {@code long} values
          *
          * @implNote This method is implemented to be equivalent to {@code
          *         longs(Long.MAX_VALUE)}.
@@ -1476,7 +1509,7 @@ public class RandomSupport {
         }
 
         /**
-         * Returns a stream producing the given {@code streamSize} number of pseudorandom {@code long}
+         * Returns a stream producing the given {@code streamSize} number of (pseudo)random {@code long}
          * values from this generator and/or one split from it; each value conforms to the given origin
          * (inclusive) and bound (exclusive).
          *
@@ -1484,7 +1517,7 @@ public class RandomSupport {
          * @param randomNumberOrigin the origin (inclusive) of each random value
          * @param randomNumberBound  the bound (exclusive) of each random value
          *
-         * @return a stream of pseudorandom {@code long} values, each with the given origin (inclusive)
+         * @return a stream of (pseudo)random {@code long} values, each with the given origin (inclusive)
          *         and bound (exclusive)
          *
          * @throws IllegalArgumentException if {@code streamSize} is less than zero, or {@code
@@ -1499,14 +1532,14 @@ public class RandomSupport {
         }
 
         /**
-         * Returns an effectively unlimited stream of pseudorandom {@code long} values from this
+         * Returns an effectively unlimited stream of (pseudo)random {@code long} values from this
          * generator and/or one split from it; each value conforms to the given origin (inclusive) and
          * bound (exclusive).
          *
          * @param randomNumberOrigin the origin (inclusive) of each random value
          * @param randomNumberBound  the bound (exclusive) of each random value
          *
-         * @return a stream of pseudorandom {@code long} values, each with the given origin (inclusive)
+         * @return a stream of (pseudo)random {@code long} values, each with the given origin (inclusive)
          *         and bound (exclusive)
          *
          * @throws IllegalArgumentException if {@code randomNumberOrigin} is greater than or equal to
@@ -1523,7 +1556,7 @@ public class RandomSupport {
         }
 
         /**
-         * Returns a stream producing the given {@code streamSize} number of pseudorandom {@code double}
+         * Returns a stream producing the given {@code streamSize} number of (pseudo)random {@code double}
          * values from this generator and/or one split from it; each value is between zero (inclusive)
          * and one (exclusive).
          *
@@ -1539,11 +1572,11 @@ public class RandomSupport {
         }
 
         /**
-         * Returns an effectively unlimited stream of pseudorandom {@code double} values from this
+         * Returns an effectively unlimited stream of (pseudo)random {@code double} values from this
          * generator and/or one split from it; each value is between zero (inclusive) and one
          * (exclusive).
          *
-         * @return a stream of pseudorandom {@code double} values
+         * @return a stream of (pseudo)random {@code double} values
          *
          * @implNote This method is implemented to be equivalent to {@code
          *         doubles(Long.MAX_VALUE)}.
@@ -1553,7 +1586,7 @@ public class RandomSupport {
         }
 
         /**
-         * Returns a stream producing the given {@code streamSize} number of pseudorandom {@code double}
+         * Returns a stream producing the given {@code streamSize} number of (pseudo)random {@code double}
          * values from this generator and/or one split from it; each value conforms to the given origin
          * (inclusive) and bound (exclusive).
          *
@@ -1561,7 +1594,7 @@ public class RandomSupport {
          * @param randomNumberOrigin the origin (inclusive) of each random value
          * @param randomNumberBound  the bound (exclusive) of each random value
          *
-         * @return a stream of pseudorandom {@code double} values, each with the given origin
+         * @return a stream of (pseudo)random {@code double} values, each with the given origin
          *         (inclusive) and bound (exclusive)
          *
          * @throws IllegalArgumentException if {@code streamSize} is less than zero
@@ -1575,14 +1608,14 @@ public class RandomSupport {
         }
 
         /**
-         * Returns an effectively unlimited stream of pseudorandom {@code double} values from this
+         * Returns an effectively unlimited stream of (pseudo)random {@code double} values from this
          * generator and/or one split from it; each value conforms to the given origin (inclusive) and
          * bound (exclusive).
          *
          * @param randomNumberOrigin the origin (inclusive) of each random value
          * @param randomNumberBound  the bound (exclusive) of each random value
          *
-         * @return a stream of pseudorandom {@code double} values, each with the given origin
+         * @return a stream of (pseudo)random {@code double} values, each with the given origin
          *         (inclusive) and bound (exclusive)
          *
          * @throws IllegalArgumentException if {@code randomNumberOrigin} is greater than or equal to
@@ -1603,13 +1636,13 @@ public class RandomSupport {
      * {@link ArbitrarilyJumpableGenerator} interface, to minimize the effort
      * required to implement that interface.
      *
-     * To implement a pseudorandom number generator, the programmer needs
+     * To implement a (pseudo)random number generator, the programmer needs
      * only to extend this class and provide implementations for the
      * methods {@link #nextInt()}, {@link #nextLong()}, {@link #copy()},
      * {@link #jump(double)}, {@link #jumpPowerOfTwo(int)},
      * {@link #defaultJumpDistance()}, and {@link #defaultLeapDistance()}.
      *
-     * (If the pseudorandom number generator also has the ability to split,
+     * (If the (pseudo)random number generator also has the ability to split,
      * then the programmer may wish to consider instead extending
      * {@link AbstractSplittableGenerator}.)
      *
@@ -1635,7 +1668,7 @@ public class RandomSupport {
      *
      * The documentation for each non-abstract method in this class
      * describes its implementation in detail. Each of these methods may
-     * be overridden if the pseudorandom number generator being
+     * be overridden if the (pseudo)random number generator being
      * implemented admits a more efficient implementation.
      *
      * @since   16
@@ -1706,7 +1739,7 @@ public class RandomSupport {
         }
 
         /**
-         * Returns an effectively unlimited stream of new pseudorandom number generators, each of which
+         * Returns an effectively unlimited stream of new (pseudo)random number generators, each of which
          * implements the {@link RandomGenerator} interface, produced by jumping copies of this
          * generator by different integer multiples of the default jump distance.
          *
@@ -1721,7 +1754,7 @@ public class RandomSupport {
 
         /**
          * Returns a stream producing the given {@code streamSize} number of
-         * new pseudorandom number generators, each of which implements the
+         * new (pseudo)random number generators, each of which implements the
          * {@link RandomGenerator} interface, produced by jumping copies of this generator
          * by different integer multiples of the default jump distance.
          *
@@ -1737,7 +1770,7 @@ public class RandomSupport {
         }
 
         /**
-         * Returns an effectively unlimited stream of new pseudorandom number generators, each of which
+         * Returns an effectively unlimited stream of new (pseudo)random number generators, each of which
          * implements the {@link RandomGenerator} interface, produced by jumping copies of this
          * generator by different integer multiples of the specified jump distance.
          *
@@ -1753,7 +1786,7 @@ public class RandomSupport {
         }
 
         /**
-         * Returns a stream producing the given {@code streamSize} number of new pseudorandom number
+         * Returns a stream producing the given {@code streamSize} number of new (pseudo)random number
          * generators, each of which implements the {@link RandomGenerator} interface, produced by
          * jumping copies of this generator by different integer multiples of the specified jump
          * distance.
@@ -1771,7 +1804,7 @@ public class RandomSupport {
         }
 
         /**
-         * Alter the state of this pseudorandom number generator so as to
+         * Alter the state of this (pseudo)random number generator so as to
          * jump forward a very large, fixed distance (typically 2<sup>128</sup>
          * or more) within its state cycle.  The distance used is that
          * returned by method {@code defaultLeapDistance()}.
@@ -1783,7 +1816,7 @@ public class RandomSupport {
         // Stream methods for leaping
 
         /**
-         * Returns an effectively unlimited stream of new pseudorandom number generators, each of which
+         * Returns an effectively unlimited stream of new (pseudo)random number generators, each of which
          * implements the {@link RandomGenerator} interface, produced by jumping copies of this
          * generator by different integer multiples of the default leap distance.
          *
@@ -1796,7 +1829,7 @@ public class RandomSupport {
         }
 
         /**
-         * Returns a stream producing the given {@code streamSize} number of new pseudorandom number
+         * Returns a stream producing the given {@code streamSize} number of new (pseudo)random number
          * generators, each of which implements the {@link RandomGenerator} interface, produced by
          * jumping copies of this generator by different integer multiples of the default leap
          * distance.
@@ -2108,11 +2141,11 @@ public class RandomSupport {
      * This class provides much of the implementation of the {@link SplittableGenerator} interface, to
      * minimize the effort required to implement this interface.
      * <p>
-     * To implement a pseudorandom number generator, the programmer needs only to extend this class and
+     * To implement a (pseudo)random number generator, the programmer needs only to extend this class and
      * provide implementations for the methods {@code nextInt()}, {@code nextLong()}, {@code period()},
      * and {@code split(SplittableGenerator)}.
      * <p>
-     * (If the pseudorandom number generator also has the ability to jump an arbitrary
+     * (If the (pseudo)random number generator also has the ability to jump an arbitrary
      * specified distance, then the programmer may wish to consider instead extending the
      * class {@link AbstractArbitrarilyJumpableGenerator}.  See also the class
      * {@link AbstractSplittableWithBrineGenerator}.)
@@ -2127,7 +2160,7 @@ public class RandomSupport {
      * {@link Spliterator}-based implementations that allow parallel execution when appropriate.
      * <p>
      * The documentation for each non-abstract method in this class describes its implementation in
-     * detail. Each of these methods may be overridden if the pseudorandom number generator being
+     * detail. Each of these methods may be overridden if the (pseudo)random number generator being
      * implemented admits a more efficient implementation.
      *
      * @since   16
@@ -2179,10 +2212,10 @@ public class RandomSupport {
         // Stream methods for splittings
 
         /**
-         * Returns an effectively unlimited stream of new pseudorandom number generators, each of which
+         * Returns an effectively unlimited stream of new (pseudo)random number generators, each of which
          * implements the {@link SplittableGenerator} interface.
          * <p>
-         * This pseudorandom number generator provides the entropy used to seed the new ones.
+         * This (pseudo)random number generator provides the entropy used to seed the new ones.
          *
          * @return a stream of {@link SplittableGenerator} objects
          *
@@ -2193,10 +2226,10 @@ public class RandomSupport {
         }
 
         /**
-         * Returns a stream producing the given {@code streamSize} number of new pseudorandom number
+         * Returns a stream producing the given {@code streamSize} number of new (pseudo)random number
          * generators, each of which implements the {@link SplittableGenerator} interface.
          * <p>
-         * This pseudorandom number generator provides the entropy used to seed the new ones.
+         * This (pseudo)random number generator provides the entropy used to seed the new ones.
          *
          * @param streamSize the number of values to generate
          *
@@ -2209,11 +2242,11 @@ public class RandomSupport {
         }
 
         /**
-         * Returns an effectively unlimited stream of new pseudorandom number generators, each of which
+         * Returns an effectively unlimited stream of new (pseudo)random number generators, each of which
          * implements the {@link SplittableGenerator} interface.
          *
          * @param source a {@link SplittableGenerator} instance to be used instead of this one as a source of
-         *               pseudorandom bits used to initialize the state of the new ones.
+         *               (pseudo)random bits used to initialize the state of the new ones.
          *
          * @return a stream of {@link SplittableGenerator} objects
          *
@@ -2224,12 +2257,12 @@ public class RandomSupport {
         }
 
         /**
-         * Returns a stream producing the given {@code streamSize} number of new pseudorandom number
+         * Returns a stream producing the given {@code streamSize} number of new (pseudo)random number
          * generators, each of which implements the {@link SplittableGenerator} interface.
          *
          * @param streamSize the number of values to generate
          * @param source     a {@link SplittableGenerator} instance to be used instead of this one as a source
-         *                   of pseudorandom bits used to initialize the state of the new ones.
+         *                   of (pseudo)random bits used to initialize the state of the new ones.
          *
          * @return a stream of {@link SplittableGenerator} objects
          *
@@ -2438,7 +2471,7 @@ public class RandomSupport {
      * {@link AbstractSplittableGenerator} but makes use of the brine technique for ensuring that
      * distinct generators created by a single call to a {@code splits} method have distinct state cycles.
      * <p>
-     * To implement a pseudorandom number generator, the programmer needs only to extend this class and
+     * To implement a (pseudo)random number generator, the programmer needs only to extend this class and
      * provide implementations for the methods {@code nextInt()}, {@code nextLong()}, {@code period()},
      * and {@code split(SplittableGenerator, long)}.
      * <p>
@@ -2452,7 +2485,7 @@ public class RandomSupport {
      * {@link Spliterator}-based implementations that allow parallel execution when appropriate.
      * <p>
      * The documentation for each non-abstract method in this class describes its implementation in
-     * detail. Each of these methods may be overridden if the pseudorandom number generator being
+     * detail. Each of these methods may be overridden if the (pseudo)random number generator being
      * implemented admits a more efficient implementation.
      *
      * @since   16
@@ -2551,7 +2584,7 @@ public class RandomSupport {
 	 * entire set of generators constructed by such recursive splitting.
 	 *
 	 * @param source a {@code SplittableGenerator} instance to be used instead
-	 *               of this one as a source of pseudorandom bits used to
+	 *               of this one as a source of (pseudo)random bits used to
 	 *               initialize the state of the new ones.
 	 * @return the new {@code SplittableGenerator} instance
 	 */
@@ -2572,7 +2605,7 @@ public class RandomSupport {
 	 * by such recursive splitting.
 	 *
 	 * @param source a {@code SplittableGenerator} instance to be used instead
-	 *               of this one as a source of pseudorandom bits used to
+	 *               of this one as a source of (pseudo)random bits used to
 	 *               initialize the state of the new ones.
 	 * @param brine a long value, of which the low 63 bits provide a unique id
 	 *              among calls to this method for constructing a single series of

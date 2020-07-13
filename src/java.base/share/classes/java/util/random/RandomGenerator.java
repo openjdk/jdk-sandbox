@@ -43,13 +43,15 @@ import java.util.stream.Stream;
  * independently and uniformly from that range. In practice, one may have to settle for some
  * approximation to independence and uniformity.
  * <p>
- * In the case of {@code int}, {@code long}, and {@link Boolean} values, if there is no explicit
+ * In the case of {@code int}, {@code long}, and {@code boolean} values, if there is no explicit
  * specification of range, then the range includes all possible values of the type.  In the case of
- * {@code float} and {@code double} values, a value is always chosen from the set of
+ * {@code float} and {@code double} values, first a value is always chosen uniformly from the set of
  * 2<sup><i>w</i></sup> values between 0.0 (inclusive) and 1.0 (exclusive), where <i>w</i> is 23 for
  * {@code float} values and 52 for {@code double} values, such that adjacent values differ by
- * 2<sup>&minus;<i>w</i></sup>; if an explicit range is specified, then the chosen number is
- * computationally scaled and translated so as to appear to have been chosen from that range.
+ * 2<sup>&minus;<i>w</i></sup> (notice that this set is a <i>subset</i> of the set of
+ * <i>all representable floating-point values</i> between 0.0 (inclusive) and 1.0 (exclusive));
+ * then if an explicit range was specified, then the chosen number is computationally scaled
+ * and translated so as to appear to have been chosen approximately uniformly from that explicit range.
  * <p>
  * Each method that returns a stream produces a stream of values each of which is chosen in the same
  * manner as for a method that returns a single (pseudo)randomly chosen value.  For example, if
@@ -236,10 +238,10 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns an effectively unlimited stream of pseudorandomly chosen
+     * Returns an effectively unlimited stream of (pseudo)randomly chosen
      * {@code double} values.
      *
-     * @return a stream of pseudorandomly chosen {@code double} values
+     * @return a stream of (pseudo)randomly chosen {@code double} values
      *
      * @implNote It is permitted to implement this method in a manner
      * equivalent to {@code doubles(Long.MAX_VALUE)}.
@@ -252,14 +254,14 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns an effectively unlimited stream of pseudorandomly chosen
+     * Returns an effectively unlimited stream of (pseudo)randomly chosen
      * {@code double} values, where each value is between the specified
      * origin (inclusive) and the specified bound (exclusive).
      *
      * @param randomNumberOrigin the least value that can be produced
      * @param randomNumberBound the upper bound (exclusive) for each value produced
      *
-     * @return a stream of pseudorandomly chosen {@code double} values, each between
+     * @return a stream of (pseudo)randomly chosen {@code double} values, each between
      *         the specified origin (inclusive) and the specified bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code randomNumberOrigin} is not finite,
@@ -278,11 +280,11 @@ public interface RandomGenerator {
 
     /**
      * Returns a stream producing the given {@code streamSize} number of
-     * pseudorandomly chosen {@code double} values.
+     * (pseudo)randomly chosen {@code double} values.
      *
      * @param streamSize the number of values to generate
      *
-     * @return a stream of pseudorandomly chosen {@code double} values
+     * @return a stream of (pseudo)randomly chosen {@code double} values
      *
      * @throws IllegalArgumentException if {@code streamSize} is
      *         less than zero
@@ -297,14 +299,14 @@ public interface RandomGenerator {
 
     /**
      * Returns a stream producing the given {@code streamSize} number of
-     * pseudorandomly chosen {@code double} values, where each value is between
+     * (pseudo)randomly chosen {@code double} values, where each value is between
      * the specified origin (inclusive) and the specified bound (exclusive).
      *
      * @param streamSize the number of values to generate
      * @param randomNumberOrigin the least value that can be produced
      * @param randomNumberBound the upper bound (exclusive) for each value produced
      *
-     * @return a stream of pseudorandomly chosen {@code double} values, each between
+     * @return a stream of (pseudo)randomly chosen {@code double} values, each between
      *         the specified origin (inclusive) and the specified bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code streamSize} is less than zero,
@@ -323,10 +325,10 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns an effectively unlimited stream of pseudorandomly chosen
+     * Returns an effectively unlimited stream of (pseudo)randomly chosen
      * {@code int} values.
      *
-     * @return a stream of pseudorandomly chosen {@code int} values
+     * @return a stream of (pseudo)randomly chosen {@code int} values
      *
      * @implNote It is permitted to implement this method in a manner
      *           equivalent to {@code ints(Long.MAX_VALUE)}.
@@ -338,14 +340,14 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns an effectively unlimited stream of pseudorandomly chosen
+     * Returns an effectively unlimited stream of (pseudo)randomly chosen
      * {@code int} values, where each value is between the specified
      * origin (inclusive) and the specified bound (exclusive).
      *
      * @param randomNumberOrigin the least value that can be produced
      * @param randomNumberBound the upper bound (exclusive) for each value produced
      *
-     * @return a stream of pseudorandomly chosen {@code int} values, each between
+     * @return a stream of (pseudo)randomly chosen {@code int} values, each between
      *         the specified origin (inclusive) and the specified bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code randomNumberOrigin}
@@ -363,11 +365,11 @@ public interface RandomGenerator {
 
     /**
      * Returns a stream producing the given {@code streamSize} number of
-     * pseudorandomly chosen {@code int} values.
+     * (pseudo)randomly chosen {@code int} values.
      *
      * @param streamSize the number of values to generate
      *
-     * @return a stream of pseudorandomly chosen {@code int} values
+     * @return a stream of (pseudo)randomly chosen {@code int} values
      *
      * @throws IllegalArgumentException if {@code streamSize} is
      *         less than zero
@@ -382,14 +384,14 @@ public interface RandomGenerator {
 
     /**
      * Returns a stream producing the given {@code streamSize} number of
-     * pseudorandomly chosen {@code int} values, where each value is between
+     * (pseudo)randomly chosen {@code int} values, where each value is between
      * the specified origin (inclusive) and the specified bound (exclusive).
      *
      * @param streamSize the number of values to generate
      * @param randomNumberOrigin the least value that can be produced
      * @param randomNumberBound the upper bound (exclusive) for each value produced
      *
-     * @return a stream of pseudorandomly chosen {@code int} values, each between
+     * @return a stream of (pseudo)randomly chosen {@code int} values, each between
      *         the specified origin (inclusive) and the specified bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code streamSize} is
@@ -407,10 +409,10 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns an effectively unlimited stream of pseudorandomly chosen
+     * Returns an effectively unlimited stream of (pseudo)randomly chosen
      * {@code long} values.
      *
-     * @return a stream of pseudorandomly chosen {@code long} values
+     * @return a stream of (pseudo)randomly chosen {@code long} values
      *
      * @implNote It is permitted to implement this method in a manner
      *           equivalent to {@code longs(Long.MAX_VALUE)}.
@@ -422,14 +424,14 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns an effectively unlimited stream of pseudorandomly chosen
+     * Returns an effectively unlimited stream of (pseudo)randomly chosen
      * {@code long} values, where each value is between the specified
      * origin (inclusive) and the specified bound (exclusive).
      *
      * @param randomNumberOrigin the least value that can be produced
      * @param randomNumberBound the upper bound (exclusive) for each value produced
      *
-     * @return a stream of pseudorandomly chosen {@code long} values, each between
+     * @return a stream of (pseudo)randomly chosen {@code long} values, each between
      *         the specified origin (inclusive) and the specified bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code randomNumberOrigin}
@@ -447,11 +449,11 @@ public interface RandomGenerator {
 
     /**
      * Returns a stream producing the given {@code streamSize} number of
-     * pseudorandomly chosen {@code long} values.
+     * (pseudo)randomly chosen {@code long} values.
      *
      * @param streamSize the number of values to generate
      *
-     * @return a stream of pseudorandomly chosen {@code long} values
+     * @return a stream of (pseudo)randomly chosen {@code long} values
      *
      * @throws IllegalArgumentException if {@code streamSize} is
      *         less than zero
@@ -466,14 +468,14 @@ public interface RandomGenerator {
 
     /**
      * Returns a stream producing the given {@code streamSize} number of
-     * pseudorandomly chosen {@code long} values, where each value is between
+     * (pseudo)randomly chosen {@code long} values, where each value is between
      * the specified origin (inclusive) and the specified bound (exclusive).
      *
      * @param streamSize the number of values to generate
      * @param randomNumberOrigin the least value that can be produced
      * @param randomNumberBound the upper bound (exclusive) for each value produced
      *
-     * @return a stream of pseudorandomly chosen {@code long} values, each between
+     * @return a stream of (pseudo)randomly chosen {@code long} values, each between
      *         the specified origin (inclusive) and the specified bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code streamSize} is
@@ -491,21 +493,21 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a pseudorandomly chosen {@code boolean} value.
+     * Returns a (pseudo)randomly chosen {@code boolean} value.
      * <p>
      * The default implementation tests the high-order bit (sign bit) of a value produced by
      * {@code nextInt()}, on the grounds that some algorithms for pseudorandom number generation
      * produce values whose high-order bits have better statistical quality than the low-order bits.
      *
-     * @return a pseudorandomly chosen {@code boolean} value
+     * @return a (pseudo)randomly chosen {@code boolean} value
      */
     default boolean nextBoolean() {
         return nextInt() < 0;
     }
 
     /**
-     * Fills a user-supplied byte array with generated pseudorandom bytes with
-     * values between zero (inclusive) and 255 (inclusive).
+     * Fills a user-supplied byte array with generated byte values (pseudo)randomly chosen
+     * uniformly from the range of values between -128 (inclusive) and 255 (inclusive).
      *
      * @param  bytes the byte array to fill with pseudorandom bytes
      * @throws NullPointerException if bytes is null
@@ -536,13 +538,13 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a pseudorandomly chosen {@code float} value between zero
+     * Returns a (pseudo)randomly chosen {@code float} value between zero
      * (inclusive) and the specified bound (exclusive).
      *
      * @param bound the upper bound (exclusive) for the returned value.
      *        Must be positive and finite
      *
-     * @return a pseudorandomly chosen {@code float} value between
+     * @return a (pseudo)randomly chosen {@code float} value between
      *         zero (inclusive) and the bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code bound} is not
@@ -558,13 +560,13 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a pseudorandomly chosen {@code float} value between the
+     * Returns a (pseudo)randomly chosen {@code float} value between the
      * specified origin (inclusive) and the specified bound (exclusive).
      *
      * @param origin the least value that can be returned
      * @param bound the upper bound (exclusive)
      *
-     * @return a pseudorandomly chosen {@code float} value between the
+     * @return a (pseudo)randomly chosen {@code float} value between the
      *         origin (inclusive) and the bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code origin} is not finite,
@@ -592,13 +594,13 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a pseudorandomly chosen {@code double} value between zero
+     * Returns a (pseudo)randomly chosen {@code double} value between zero
      * (inclusive) and the specified bound (exclusive).
      *
      * @param bound the upper bound (exclusive) for the returned value.
      *        Must be positive and finite
      *
-     * @return a pseudorandomly chosen {@code double} value between
+     * @return a (pseudo)randomly chosen {@code double} value between
      *         zero (inclusive) and the bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code bound} is not
@@ -614,13 +616,13 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a pseudorandomly chosen {@code double} value between the
+     * Returns a (pseudo)randomly chosen {@code double} value between the
      * specified origin (inclusive) and the specified bound (exclusive).
      *
      * @param origin the least value that can be returned
      * @param bound the upper bound (exclusive) for the returned value
      *
-     * @return a pseudorandomly chosen {@code double} value between the
+     * @return a (pseudo)randomly chosen {@code double} value between the
      *         origin (inclusive) and the bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code origin} is not finite,
@@ -637,23 +639,23 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a pseudorandomly chosen {@code int} value.
+     * Returns a (pseudo)randomly chosen {@code int} value.
      * <p>
      * The default implementation uses the 32 high-order bits from a call to {@code nextLong()}.
      *
-     * @return a pseudorandomly chosen {@code int} value
+     * @return a (pseudo)randomly chosen {@code int} value
      */
     default public int nextInt() {
         return (int)(nextLong() >>> 32);
     }
 
     /**
-     * Returns a pseudorandomly chosen {@code int} value between
+     * Returns a (pseudo)randomly chosen {@code int} value between
      * zero (inclusive) and the specified bound (exclusive).
      *
      * @param bound the upper bound (exclusive) for the returned value. Must be positive.
      *
-     * @return a pseudorandomly chosen {@code int} value between
+     * @return a (pseudo)randomly chosen {@code int} value between
      *         zero (inclusive) and the bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code bound} is not positive
@@ -668,13 +670,13 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a pseudorandomly chosen {@code int} value between the
+     * Returns a (pseudo)randomly chosen {@code int} value between the
      * specified origin (inclusive) and the specified bound (exclusive).
      *
      * @param origin the least value that can be returned
      * @param bound the upper bound (exclusive) for the returned value
      *
-     * @return a pseudorandomly chosen {@code int} value between the
+     * @return a (pseudo)randomly chosen {@code int} value between the
      *         origin (inclusive) and the bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code origin} is greater than
@@ -690,19 +692,19 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a pseudorandomly chosen {@code long} value.
+     * Returns a (pseudo)randomly chosen {@code long} value.
      *
-     * @return a pseudorandomly chosen {@code long} value
+     * @return a (pseudo)randomly chosen {@code long} value
      */
     long nextLong();
 
     /**
-     * Returns a pseudorandomly chosen {@code long} value between
+     * Returns a (pseudo)randomly chosen {@code long} value between
      * zero (inclusive) and the specified bound (exclusive).
      *
      * @param bound the upper bound (exclusive) for the returned value.  Must be positive.
      *
-     * @return a pseudorandomly chosen {@code long} value between
+     * @return a (pseudo)randomly chosen {@code long} value between
      *         zero (inclusive) and the bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code bound} is not positive
@@ -717,13 +719,13 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a pseudorandomly chosen {@code long} value between the
+     * Returns a (pseudo)randomly chosen {@code long} value between the
      * specified origin (inclusive) and the specified bound (exclusive).
      *
      * @param origin the least value that can be returned
      * @param bound the upper bound (exclusive) for the returned value
      *
-     * @return a pseudorandomly chosen {@code long} value between the
+     * @return a (pseudo)randomly chosen {@code long} value between the
      *         origin (inclusive) and the bound (exclusive)
      *
      * @throws IllegalArgumentException if {@code origin} is greater than
@@ -740,11 +742,11 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a {@code double} value pseudorandomly chosen from
+     * Returns a {@code double} value (pseudo)randomly chosen from
      * a Gaussian (normal) distribution whose mean is 0 and whose
      * standard deviation is 1.
      *
-     * @return a {@code double} value pseudorandomly chosen from a
+     * @return a {@code double} value (pseudo)randomly chosen from a
      *         Gaussian distribution
      */
     default double nextGaussian() {
@@ -752,7 +754,7 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a {@code double} value pseudorandomly chosen from
+     * Returns a {@code double} value (pseudo)randomly chosen from
      * a Gaussian (normal) distribution with a mean and
      * standard deviation specified by the arguments.
      *
@@ -760,7 +762,7 @@ public interface RandomGenerator {
      * @param stddev the standard deviation (square root of the variance)
      *        of the Gaussian distribution to be drawn from
      *
-     * @return a {@code double} value pseudorandomly chosen from the
+     * @return a {@code double} value (pseudo)randomly chosen from the
      *         specified Gaussian distribution
      *
      * @throws IllegalArgumentException if {@code stddev} is negative
@@ -771,10 +773,10 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a nonnegative {@code double} value pseudorandomly chosen
+     * Returns a nonnegative {@code double} value (pseudo)randomly chosen
      * from an exponential distribution whose mean is 1.
      *
-     * @return a nonnegative {@code double} value pseudorandomly chosen from an
+     * @return a nonnegative {@code double} value (pseudo)randomly chosen from an
      *         exponential distribution
      */
     default double nextExponential() {

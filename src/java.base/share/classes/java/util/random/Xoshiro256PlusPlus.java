@@ -30,14 +30,16 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.random.RandomGenerator.LeapableGenerator;
 
 /**
- * A generator of uniform pseudorandom values applicable for use in
- * (among other contexts) isolated parallel computations that may
- * generate subtasks.  Class {@link Xoshiro256PlusPlus} implements
+ * A "jumpable and leapable" pseudorandom number generator (PRNG) whose period
+ * is roughly 2<sup>256</sup>.  Class {@link Xoshiro256PlusPlus} implements
  * interfaces {@link RandomGenerator} and {@link LeapableGenerator},
  * and therefore supports methods for producing pseudorandomly chosen
- * numbers of type {@code int}, {@code long}, {@code float}, and {@code double}
- * as well as creating new {@link Xoshiro256PlusPlus} objects
- * by "jumping" or "leaping".
+ * values of type {@code int}, {@code long}, {@code float}, {@code double},
+ * and {@code boolean} (and for producing streams of pseudorandomly chosen
+ * numbers of type {@code int}, {@code long}, and {@code double}),
+ * as well as methods for creating new {@link Xoshiro256PlusPlus} objects
+ * by moving forward either a large distance (2<sup>128</sup>) or a very large
+ * distance (2<sup>192</sup>) around the state cycle.
  * <p>
  * Series of generated values pass the TestU01 BigCrush and PractRand test suites
  * that measure independence and uniformity properties of random number generators.

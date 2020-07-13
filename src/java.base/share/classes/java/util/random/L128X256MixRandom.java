@@ -32,13 +32,16 @@ import java.util.random.RandomSupport.AbstractSplittableWithBrineGenerator;
 
 
 /**
- * An instance of this class is used to generate a stream of
- * pseudorandom values.  Class {@link L128X256MixRandom} implements
+ * A "splittable" pseudorandom number generator (PRNG) whose period
+ * is roughly 2<sup>384</sup>.  Class {@link L128X256MixRandom} implements
  * interfaces {@link RandomGenerator} and {@link SplittableGenerator},
  * and therefore supports methods for producing pseudorandomly chosen
- * numbers of type {@code int}, {@code long}, {@code float}, and {@code double}
- * as well as creating new split-off {@link L128X256MixRandom} objects.
-
+ * values of type {@code int}, {@code long}, {@code float}, {@code double},
+ * and {@code boolean} (and for producing streams of pseudorandomly chosen
+ * numbers of type {@code int}, {@code long}, and {@code double}),
+ * as well as methods for creating new split-off {@link L128X256MixRandom}
+ * objects or streams of such objects.
+ *
  * <p>The {@link L128X256MixRandom} algorithm is a specific member of
  * the LXM family of algorithms for pseudorandom number generators;
  * for more information, see the documentation for package

@@ -47,7 +47,8 @@ import jdk.internal.misc.Unsafe;
 
 /**
  * An instance of this class is used to generate a stream of
- * pseudorandom numbers. The class uses a 48-bit seed, which is
+ * pseudorandom numbers; its period is only 2<sup>48</sup>.
+ * The class uses a 48-bit seed, which is
  * modified using a linear congruential formula. (See Donald Knuth,
  * <i>The Art of Computer Programming, Volume 2</i>, Section 3.2.1.)
  * <p>
