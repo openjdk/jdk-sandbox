@@ -60,7 +60,7 @@ public final class UnixDomainSocketAddress extends SocketAddress {
      *
      * @serial include
      */
-    private static final class SerialProxy implements Serializable {
+    private static final class Ser implements Serializable {
         @java.io.Serial
         static final long serialVersionUID = -7955684448513979814L;
 
@@ -70,7 +70,7 @@ public final class UnixDomainSocketAddress extends SocketAddress {
          */
         private final String pathname;
 
-        SerialProxy(String pathname) {
+        Ser(String pathname) {
             this.pathname = pathname;
         }
 
@@ -87,15 +87,15 @@ public final class UnixDomainSocketAddress extends SocketAddress {
 
     /**
      * Returns a
-     * <a href="{@docRoot}/serialized-form.html#java.net.UnixDomainSocketAddress.SerialProxy">
-     * SerialProxy</a> containing the path name of this instance.
+     * <a href="{@docRoot}/serialized-form.html#java.net.UnixDomainSocketAddress.Ser">
+     * Ser</a> containing the path name of this instance.
      *
-     * @return a {@link SerialProxy}
+     * @return a {@link Ser}
      * representing the path name of this instance
      */
     @java.io.Serial
     private Object writeReplace() throws ObjectStreamException {
-        return new SerialProxy(path.toString());
+        return new Ser(path.toString());
     }
 
     /**
