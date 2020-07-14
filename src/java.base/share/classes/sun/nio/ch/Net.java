@@ -33,6 +33,7 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.NetPermission;
 import java.net.NetworkInterface;
 import java.net.ProtocolFamily;
 import java.net.SocketAddress;
@@ -620,7 +621,7 @@ public class Net {
                                        int remotePort)
         throws IOException;
 
-    public static native int accept(FileDescriptor fd,
+    static native int accept(FileDescriptor fd,
                                     FileDescriptor newfd,
                                     InetSocketAddress[] isaa)
         throws IOException;
@@ -655,19 +656,19 @@ public class Net {
         }
     }
 
-    public static native InetAddress localInetAddress(FileDescriptor fd)
+    static native InetAddress localInetAddress(FileDescriptor fd)
         throws IOException;
 
-    public static native String localUnixAddress(FileDescriptor fd)
+    static native String localUnixAddress(FileDescriptor fd)
         throws IOException;
 
     private static native int remotePort(FileDescriptor fd)
         throws IOException;
 
-    public static native InetAddress remoteInetAddress(FileDescriptor fd)
+    static native InetAddress remoteInetAddress(FileDescriptor fd)
         throws IOException;
 
-    public static native String remoteUnixAddress(FileDescriptor fd)
+    static native String remoteUnixAddress(FileDescriptor fd)
         throws IOException;
 
     private static native int getIntOption0(FileDescriptor fd, boolean mayNeedConversion,
@@ -702,7 +703,7 @@ public class Net {
      * @param timeout the timeout to wait; 0 to not wait, -1 to wait indefinitely
      * @return true if connected
      */
-    public static native boolean pollConnect(FileDescriptor fd, long timeout)
+    static native boolean pollConnect(FileDescriptor fd, long timeout)
         throws IOException;
 
     /**
@@ -873,16 +874,18 @@ public class Net {
         );
     }
 
-    static UnixDomainSocketAddress getRevealedLocalAddress(UnixDomainSocketAddress addr) {
-        SecurityManager sm = System.getSecurityManager();
-        if (addr == null || sm == null)
-            return addr;
+    private static final NetPermission np = new NetPermission("allowUnixDomainChannels");
 
+    static void checkUnixCapability() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm == null)
+            return;
+	sm.checkPermission(np);
+    }
+
+    static UnixDomainSocketAddress getRevealedLocalAddress(UnixDomainSocketAddress addr) {
         try{
-            Path path = addr.getPath();
-            String pathString = inTempDirectory(path) ? "" : path.toString();
-            FilePermission p = new FilePermission(pathString, "read");
-            sm.checkPermission(p);
+	    checkUnixCapability();
             // Security check passed
         } catch (SecurityException e) {
             // Return unnamed address only if security check fails

@@ -108,11 +108,8 @@ public class UnixDomainServerSocketChannelImpl
     @Override
     public SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException {
         boolean found = false;
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(unixPermission);
-        }
+        
+	Net.checkUnixCapability();
 
         // Attempt up to 10 times to find an unused name in temp directory
         // Unlikely to fail
@@ -141,18 +138,17 @@ public class UnixDomainServerSocketChannelImpl
     }
 
     private static Random getRandom() {
-        return AccessController.doPrivileged(
-            (PrivilegedAction<Random>) () -> {
+        //return AccessController.doPrivileged(
+            //(PrivilegedAction<Random>) () -> {
                 try {
                     return SecureRandom.getInstance("NativePRNGNonBlocking");
                 } catch (NoSuchAlgorithmException e) {
                     return new SecureRandom(); // This should not fail
                 }
-            }
-        );
+            //}
+        //);
     }
 
-    private static final NetPermission unixPermission = new NetPermission("allowUnixDomainChannels");
     private static final Random random = getRandom();;
     private static final long pid = AccessController.doPrivileged(
         (PrivilegedAction<Long>)UnixDomainServerSocketChannelImpl::getPid);
@@ -177,10 +173,7 @@ public class UnixDomainServerSocketChannelImpl
     protected int acceptImpl(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
         throws IOException
     {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(unixPermission);
-        }
+	Net.checkUnixCapability();
         String[] addrArray = new String[1];
         int n = Net.unixDomainAccept(fd, newfd, addrArray);
         if (n > 0) {
