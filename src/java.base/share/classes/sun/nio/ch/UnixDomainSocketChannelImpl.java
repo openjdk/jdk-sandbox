@@ -145,15 +145,10 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         return null;
     }
 
-    private static final NetPermission unixPermission = new NetPermission("allowUnixDomainChannels");
-
     @Override
     SocketAddress bindImpl(SocketAddress local) throws IOException {
+	Net.checkUnixCapability();
         UnixDomainSocketAddress usa = Net.checkUnixAddress(local);
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(unixPermission);
-        }
         String path = usa == null ? null : usa.getPath().toString();
         Net.unixDomainBind(getFD(), path);
         if (usa == null || path.equals("")) {
@@ -174,11 +169,8 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     @Override
     SocketAddress checkRemote(SocketAddress sa) throws IOException {
         Objects.requireNonNull(sa);
+	Net.checkUnixCapability();
         UnixDomainSocketAddress usa = Net.checkUnixAddress(sa);
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(unixPermission);
-        }
         return usa;
     }
 
