@@ -108,8 +108,8 @@ public class UnixDomainServerSocketChannelImpl
     @Override
     public SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException {
         boolean found = false;
-        
-	Net.checkUnixCapability();
+
+        Net.checkUnixCapability();
 
         // Attempt up to 10 times to find an unused name in temp directory
         // Unlikely to fail
@@ -173,7 +173,7 @@ public class UnixDomainServerSocketChannelImpl
     protected int acceptImpl(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
         throws IOException
     {
-	Net.checkUnixCapability();
+        Net.checkUnixCapability();
         String[] addrArray = new String[1];
         int n = Net.unixDomainAccept(fd, newfd, addrArray);
         if (n > 0) {
