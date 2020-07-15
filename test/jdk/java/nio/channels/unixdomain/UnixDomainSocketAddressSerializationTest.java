@@ -76,7 +76,7 @@ public class UnixDomainSocketAddressSerializationTest {
 
     /** Tests that SerialProxy with a null/absent path value in the byte-stream is disallowed. */
     public static void testSerialProxyNoStreamValues() throws Exception {
-        Class<?> c = Class.forName("java.net.UnixDomainSocketAddress$SerialProxy");
+        Class<?> c = Class.forName("java.net.UnixDomainSocketAddress$Ser");
         long suid = ObjectStreamClass.lookup(c).getSerialVersionUID();
         byte[] bytes = byteStreamFor(c.getName(), suid);
         expectThrows(NPE, () -> deserialize(bytes, UnixDomainSocketAddress.class));
