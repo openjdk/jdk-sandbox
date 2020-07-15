@@ -116,7 +116,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
 
     @Override
     SocketAddress bindImpl(SocketAddress local) throws IOException {
-	Net.checkUnixCapability();
+        Net.checkUnixCapability();
         UnixDomainSocketAddress usa = Net.checkUnixAddress(local);
         String path = usa == null ? null : usa.getPath().toString();
         Net.unixDomainBind(getFD(), path);
@@ -138,7 +138,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     @Override
     SocketAddress checkRemote(SocketAddress sa) throws IOException {
         Objects.requireNonNull(sa);
-	Net.checkUnixCapability();
+        Net.checkUnixCapability();
         UnixDomainSocketAddress usa = Net.checkUnixAddress(sa);
         return usa;
     }

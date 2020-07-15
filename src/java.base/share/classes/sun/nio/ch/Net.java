@@ -880,12 +880,12 @@ public class Net {
         SecurityManager sm = System.getSecurityManager();
         if (sm == null)
             return;
-	sm.checkPermission(np);
+        sm.checkPermission(np);
     }
 
     static UnixDomainSocketAddress getRevealedLocalAddress(UnixDomainSocketAddress addr) {
         try{
-	    checkUnixCapability();
+            checkUnixCapability();
             // Security check passed
         } catch (SecurityException e) {
             // Return unnamed address only if security check fails

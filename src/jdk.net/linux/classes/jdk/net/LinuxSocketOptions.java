@@ -90,12 +90,12 @@ class LinuxSocketOptions extends PlatformSocketOptions {
     int getTcpKeepAliveIntvl(int fd) throws SocketException {
         return getTcpKeepAliveIntvl0(fd);
     }
-    
+
     @Override
     boolean incomingNapiIdSupported() {
         return incomingNapiIdSupported0();
     }
-    
+
     @Override
     int getIncomingNapiId(int fd) throws SocketException {
         return getIncomingNapiId0(fd);
