@@ -621,7 +621,7 @@ public class Net {
                                        int remotePort)
         throws IOException;
 
-    static native int accept(FileDescriptor fd,
+    public static native int accept(FileDescriptor fd,
                                     FileDescriptor newfd,
                                     InetSocketAddress[] isaa)
         throws IOException;
@@ -703,7 +703,7 @@ public class Net {
      * @param timeout the timeout to wait; 0 to not wait, -1 to wait indefinitely
      * @return true if connected
      */
-    static native boolean pollConnect(FileDescriptor fd, long timeout)
+    public static native boolean pollConnect(FileDescriptor fd, long timeout)
         throws IOException;
 
     /**
