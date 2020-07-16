@@ -222,7 +222,7 @@ bool SpaceManager::attempt_enlarge_current_chunk(size_t requested_word_size) {
 
   // Nor if the chunk is deemed to large to be thus expanded.
   //  (TODO : do we need this if we check the allowed chunk growth progression below? check)
-  if (c->word_size() <= Settings::enlarge_chunks_in_place_max_word_size()) {
+  if (c->word_size() > Settings::enlarge_chunks_in_place_max_word_size()) {
     return false;
   }
 
@@ -233,23 +233,24 @@ bool SpaceManager::attempt_enlarge_current_chunk(size_t requested_word_size) {
 
   const chunklevel_t new_level =
       chunklevel::level_fitting_word_size(c->used_words() + requested_word_size);
+  assert(new_level < c->level(), "Sanity");
 
   // Atm we only attempt to enlarge by one level (so, doubling the chunk in size).
   // So, if the requested enlargement would require the chunk to more than double in size,
   // we bail. But this covers about 99% of all cases, so this is good enough.
-  if (c->level() > new_level + 1) {
+  if (new_level < c->level() - 1) {
     return false;
   }
 
   // This only works if chunk is the leader of its buddy pair (and also if buddy
   // is free and unsplit, but that we cannot check outside of metaspace lock).
-  if (c->is_leader() == false) {
+  if (!c->is_leader()) {
     return false;
   }
 
-  // If enlarging the chunk would increase the arena size faster than we are prepared
-  // to grow, we don't enlarge the chunk.
-  if (chunklevel::word_size_for_level(next_chunk_level()) < c->word_size()) {
+  // If the size added to the chunk would be larger than allowed for the next growth step
+  // dont enlarge.
+  if (next_chunk_level() > c->level()) {
     return false;
   }
 
@@ -302,6 +303,9 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
     if (current_chunk()->free_words() < raw_word_size) {
       if (!attempt_enlarge_current_chunk(raw_word_size)) {
         current_chunk_too_small = true;
+      } else {
+        DEBUG_ONLY(InternalStats::inc_num_chunk_enlarged();)
+        log_debug(metaspace)(LOGFMT_SPCMGR ": .. enlarged chunk.", LOGFMT_SPCMGR_ARGS);
       }
     }
 

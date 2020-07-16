@@ -170,6 +170,9 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
   DEBUG_ONLY(chunklevel::check_valid_level(preferred_level);)
   assert(max_level >= preferred_level, "invalid level.");
 
+  log_debug(metaspace)("ChunkManager %s: requested chunk: pref_level: " CHKLVL_FORMAT ", max_level: " CHKLVL_FORMAT ", min committed size: " SIZE_FORMAT ".",
+                       _name, preferred_level, max_level, min_committed_words);
+
   // First, optimistically look for a chunk which is already committed far enough to hold min_word_size.
 
   // Start at the preferred chunk size (level) and work your way down (up) to the minimum chunk size (level)
