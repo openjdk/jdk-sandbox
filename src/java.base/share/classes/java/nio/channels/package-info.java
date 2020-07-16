@@ -337,8 +337,10 @@
  * only in some implementations. Channels created with {@link StandardProtocolFamily#INET
  * INET} and {@link StandardProtocolFamily#INET6 INET6} use <i>Internet Protocol</i>
  * sockets. Channels created with {@link StandardProtocolFamily#UNIX UNIX} use
- * <i>Unix Domain</i> sockets. Attempts to create an unsupported protocol family
- * for a particular channel will throw {@link UnsupportedOperationException}.
+ * <i>Unix Domain</i> sockets. Note, the creation of <i>Internet Protocol</i> sockets
+ * is also influenced by the <a href="../../net/doc-files/net-properties.html#Ipv4IPv6">
+ * "java.net.preferIPv4Stack"</a> system property. Attempts to create an unsupported
+ * protocol family for a particular channel will throw {@link UnsupportedOperationException}.
  *
  * <p><i>Internet Protocol</i> sockets support network communication using TCP and UDP
  * and are addressed using {@link InetSocketAddress}es which encapsulate an IP address
