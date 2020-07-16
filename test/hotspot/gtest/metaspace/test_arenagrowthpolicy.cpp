@@ -36,7 +36,7 @@ TEST_VM(metaspace, arena_growth_policy) {
   const ArenaGrowthPolicy* a =
       ArenaGrowthPolicy::policy_for_space_type(metaspace::ReflectionMetaspaceType, false);
 
-  EXPECT_EQ(a->get_level_at_step(0), CHUNK_LEVEL_1K);
+  EXPECT_EQ(a->get_level_at_step(0), CHUNK_LEVEL_2K);
   EXPECT_EQ(a->get_level_at_step(2), CHUNK_LEVEL_1K);
   EXPECT_EQ(a->get_level_at_step(10), CHUNK_LEVEL_1K);
 
@@ -48,9 +48,8 @@ TEST_VM(metaspace, arena_growth_policy) {
 
   a = ArenaGrowthPolicy::policy_for_space_type(metaspace::StandardMetaspaceType, false);
 
-  EXPECT_EQ(a->get_level_at_step(0), CHUNK_LEVEL_2K);
-  EXPECT_EQ(a->get_level_at_step(2), CHUNK_LEVEL_8K);
-  EXPECT_EQ(a->get_level_at_step(10), CHUNK_LEVEL_64K);
+  EXPECT_EQ(a->get_level_at_step(0), CHUNK_LEVEL_4K);
+  EXPECT_EQ(a->get_level_at_step(10), CHUNK_LEVEL_16K);
 
   a = ArenaGrowthPolicy::policy_for_space_type(metaspace::BootMetaspaceType, false);
 
