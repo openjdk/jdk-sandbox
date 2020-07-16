@@ -148,28 +148,22 @@ class AbstractMemoryRangeCounter {
 public:
 
   void add(T_size s) {
-    assert(s > 0, "sanity");
-    _count.increment();
-    _total_size.increment_by(s);
-  }
-
-  void add_multiple(T_num n, T_size s) {
-    assert(s > 0 && n > 0, "sanity");
-    _count.increment_by(n);
-    _total_size.increment_by(s);
+    if(s > 0) {
+      _count.increment();
+      _total_size.increment_by(s);
+    }
   }
 
   void sub(T_size s) {
-    assert(s > 0, "sanity");
-    _count.decrement();
-    _total_size.decrement_by(s);
+    if(s > 0) {
+      _count.decrement();
+      _total_size.decrement_by(s);
+    }
   }
 
   T_num count() const       { return _count.get(); }
   T_size total_size() const { return _total_size.get(); }
 
-
-  bool zero() const         { return _count.get() == 0; }
 
 #ifdef ASSERT
   void check(T_num expected_count, T_size expected_size) const {

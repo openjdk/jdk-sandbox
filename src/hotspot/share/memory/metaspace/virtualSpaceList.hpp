@@ -38,7 +38,7 @@ class outputStream;
 namespace metaspace {
 
 class Metachunk;
-class MetachunkListVector;
+class FreeChunkListVector;
 
 class VirtualSpaceList : public CHeapObj<mtClass> {
 
@@ -94,7 +94,7 @@ public:
   // Attempts to purge nodes. This will remove and delete nodes which only contain free chunks.
   // The free chunks are removed from the freelists before the nodes are deleted.
   // Return number of purged nodes.
-  int purge(MetachunkListVector* freelists);
+  int purge(FreeChunkListVector* freelists);
 
   //// Statistics ////
 
@@ -116,6 +116,11 @@ public:
 
   // Returns true if this pointer is contained in one of our nodes.
   bool contains(const MetaWord* p) const;
+
+  // Returns true if the list is not expandable and no more root chunks
+  // can be allocated.
+  bool is_full() const;
+
 
 private:
 

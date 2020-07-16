@@ -22,291 +22,264 @@
  * questions.
  */
 
-
 #include "precompiled.hpp"
+
+//#define LOG_PLEASE
+
+#include "metaspace/metaspace_sparsearray.hpp"
+#include "metaspace/metaspace_testhelper.hpp"
 #include "metaspace/metaspaceTestsCommon.hpp"
 
-class ChunkManagerTest {
 
-  static const int max_num_chunks = 0x100;
+class ChunkManagerRandomChunkAllocTest {
 
-  // These counters are updated by the Node.
-  CommitLimiter _commit_limiter;
-  VirtualSpaceList* _vs_list;
+  static const size_t max_footprint_words = 8 * M;
 
-  ChunkManager* _cm;
+  MetaspaceTestHelper _helper;
 
-  Metachunk* _elems[max_num_chunks];
+  // All allocated live chunks
+  typedef SparseArray<Metachunk*> SparseArrayOfChunks;
+  SparseArrayOfChunks _chunks;
 
-  MemRangeCounter _counter;
+  const ChunkLevelRange _chunklevel_range;
+  const float _commit_factor;
 
-  // Note: [min_level ... max_level] (inclusive max)
-  static chunklevel_t get_random_level(chunklevel_t min_level, chunklevel_t max_level) {
-    int range = max_level - min_level + 1; // [ ]
-    chunklevel_t l = min_level + (os::random() % range);
-    return l;
+  // Depending on a probability pattern, come up with a reasonable limit to number of live chunks
+  static int max_num_live_chunks(ChunkLevelRange r, float commit_factor) {
+    // Assuming we allocate only the largest type of chunk, committed to the fullest commit factor,
+    // how many chunks can we accomodate before hitting max_footprint_words?
+    const size_t largest_chunk_size = word_size_for_level(r.lowest());
+    int max_chunks = (max_footprint_words * commit_factor) / largest_chunk_size;
+    // .. but cap at (min) 50 and (max) 1000
+    max_chunks = MIN2(1000, max_chunks);
+    max_chunks = MAX2(50, max_chunks);
+    return max_chunks;
   }
 
-  struct chunklevel_range_t { chunklevel_t from; chunklevel_t to; };
+  // Return true if, after an allocation error happened, a reserve error seems likely.
+  bool could_be_reserve_error() {
+    return _helper.vslist().is_full();
+  }
 
-  // Note: [min_level ... max_level] (inclusive max)
-  static void get_random_level_range(chunklevel_t min_level, chunklevel_t max_level, chunklevel_range_t* out) {
-    chunklevel_t l1 = get_random_level(min_level, max_level);
-    chunklevel_t l2 = get_random_level(min_level, max_level);
-    if (l1 > l2) {
-      chunklevel_t l = l2;
-      l1 = l2;
-      l2 = l;
+  // Return true if, after an allocation error happened, a commit error seems likely.
+  bool could_be_commit_error(size_t additional_word_size) {
+
+    // could it be commit limit hit?
+    // Note that this is difficult to verify precisely, since there are
+    // several layers of truth:
+    // a) at the lowest layer (RootChunkArea) we have a bitmap of committed granules;
+    // b) at the vslist layer, we keep running counters of committed/reserved words;
+    // c) at the chunk layer, we keep a commit watermark (committed_words).
+    //
+    // (a) should mirror reality.
+    // (a) and (b) should be precisely in sync. This is tested by
+    // VirtualSpaceList::verify().
+    // (c) can be, by design, imprecise (too low).
+    //
+    // Here, I check (b) and trust it to be correct. We also call vslist::verify().
+    DEBUG_ONLY(_helper.verify();)
+
+    const size_t commit_add = align_up(additional_word_size, Settings::commit_granule_words());
+    if (_helper.commit_limit() <= (commit_add + _helper.vslist().committed_words())) {
+      return true;
     }
-    out->from = l1; out->to = l2;
+
+    return false;
+
   }
 
-  bool attempt_free_at(size_t index) {
+  // Given a chunk level and a factor, return a random commit size.
+  static size_t random_committed_words(chunklevel_t lvl, float commit_factor) {
+    const size_t sz = word_size_for_level(lvl) * commit_factor;
+    if (sz < 2) {
+      return 0;
+    }
+    return MIN2(SizeRange(sz).random_value(), sz);
+  }
 
-    LOG("attempt_free_at " SIZE_FORMAT ".", index);
 
-    if (_elems[index] == NULL) {
+  //// Chunk allocation ////
+
+  // Given an slot index, allocate a random chunk and set it into that slot. Slot must be empty.
+  // Returns false if allocation fails.
+  bool allocate_random_chunk_at(int slot) {
+
+    DEBUG_ONLY(_chunks.check_slot_is_null(slot);)
+
+    const ChunkLevelRange r = _chunklevel_range.random_subrange();
+    const chunklevel_t pref_level = r.lowest();
+    const chunklevel_t max_level = r.highest();
+    const size_t min_committed = random_committed_words(max_level, _commit_factor);
+
+    Metachunk* c = _helper.alloc_chunk(r.lowest(), r.highest(), min_committed);
+    if (c == NULL) {
+      EXPECT_TRUE(could_be_reserve_error() ||
+                  could_be_commit_error(min_committed));
+      LOG("Alloc chunk at %d failed.", slot);
       return false;
     }
 
-    Metachunk* c = _elems[index];
-    const size_t chunk_word_size = c->word_size();
-    _cm->return_chunk(c);
+    _chunks.set_at(slot, c);
 
-    _elems[index] = NULL;
-
-    DEBUG_ONLY(_vs_list->verify(true);)
-    DEBUG_ONLY(_cm->verify(true);)
-
-    _counter.sub(chunk_word_size);
+    LOG("Allocated chunk at %d: " METACHUNK_FORMAT ".", slot, METACHUNK_FORMAT_ARGS(c));
 
     return true;
-  }
-
-  bool attempt_allocate_at(size_t index, chunklevel_t max_level, chunklevel_t pref_level, bool fully_commit = false) {
-
-    LOG("attempt_allocate_at " SIZE_FORMAT ". (" chunklevel_FORMAT "-" chunklevel_FORMAT ")", index, max_level, pref_level);
-
-    if (_elems[index] != NULL) {
-      return false;
-    }
-
-    Metachunk* c = _cm->get_chunk(max_level, pref_level);
-
-    EXPECT_NOT_NULL(c);
-    EXPECT_TRUE(c->is_in_use());
-    EXPECT_LE(c->level(), max_level);
-    EXPECT_GE(c->level(), pref_level);
-
-    _elems[index] = c;
-
-    DEBUG_ONLY(c->verify(true);)
-    DEBUG_ONLY(_vs_list->verify(true);)
-    DEBUG_ONLY(_cm->verify(true);)
-
-    _counter.add(c->word_size());
-
-    if (fully_commit) {
-      c->ensure_fully_committed();
-    }
-
-    return true;
-  }
-
-  // Note: [min_level ... max_level] (inclusive max)
-  void allocate_n_random_chunks(int n, chunklevel_t min_level, chunklevel_t max_level) {
-
-    assert(n <= max_num_chunks, "Sanity");
-
-    for (int i = 0; i < n; i ++) {
-      chunklevel_range_t r;
-      get_random_level_range(min_level, max_level, &r);
-      attempt_allocate_at(i, r.to, r.from);
-    }
 
   }
 
-  void free_all_chunks() {
-    for (int i = 0; i < max_num_chunks; i ++) {
-      attempt_free_at(i);
+  // Allocates a random number of random chunks
+  bool allocate_random_chunks() {
+    int to_alloc = 1 + IntRange(MAX2(1, _chunks.size() / 8)).random_value();
+    bool success = true;
+    int slot = _chunks.first_null_slot();
+    while (to_alloc > 0 && slot != -1 && success) {
+      success = allocate_random_chunk_at(slot);
+      slot = _chunks.next_null_slot(slot);
+      to_alloc --;
     }
-    assert(_counter.zero(), "Sanity");
+    return success && to_alloc == 0;
   }
 
-  void random_alloc_free(int iterations, chunklevel_t min_level, chunklevel_t max_level) {
-    for (int i = 0; i < iterations; i ++) {
-      int index = os::random() % max_num_chunks;
-      if ((os::random() % 100) > 50) {
-        attempt_allocate_at(index, max_level, min_level);
+  bool fill_all_slots_with_random_chunks() {
+    bool success = true;
+    for (int slot = _chunks.first_null_slot();
+         slot != -1 && success; slot = _chunks.next_null_slot(slot)) {
+      success = allocate_random_chunk_at(slot);
+    }
+    return success;
+  }
+
+  //// Chunk return ////
+
+  // Given an slot index, return the chunk in that slot to the chunk manager.
+  void return_chunk_at(int slot) {
+    Metachunk* c = _chunks.at(slot);
+    LOG("Returning chunk at %d: " METACHUNK_FORMAT ".", slot, METACHUNK_FORMAT_ARGS(c));
+    _helper.return_chunk(c);
+    _chunks.set_at(slot, NULL);
+  }
+
+  // return a random number of chunks (at most a quarter of the full slot range)
+  void return_random_chunks() {
+    int to_free = 1 + IntRange(MAX2(1, _chunks.size() / 8)).random_value();
+    int index = _chunks.first_non_null_slot();
+    while (to_free > 0 && index != -1) {
+      return_chunk_at(index);
+      index = _chunks.next_non_null_slot(index);
+      to_free --;
+    }
+  }
+
+  void return_all_chunks() {
+    for (int slot = _chunks.first_non_null_slot();
+         slot != -1; slot = _chunks.next_non_null_slot(slot)) {
+      return_chunk_at(slot);
+    }
+  }
+
+  // adjust test if we change levels
+  STATIC_ASSERT(HIGHEST_CHUNK_LEVEL == CHUNK_LEVEL_1K);
+  STATIC_ASSERT(LOWEST_CHUNK_LEVEL == CHUNK_LEVEL_4M);
+
+  void one_test() {
+
+    fill_all_slots_with_random_chunks();
+    _chunks.shuffle();
+
+    IntRange rand(100);
+
+    for (int j = 0; j < 1000; j ++) {
+
+      bool force_alloc = false;
+      bool force_free = true;
+
+      bool do_alloc =
+          force_alloc ? true :
+              (force_free ? false : rand.random_value() >= 50);
+      force_alloc = force_free = false;
+
+      if (do_alloc) {
+        if (!allocate_random_chunks()) {
+          force_free = true;
+        }
       } else {
-        attempt_free_at(index);
+        return_random_chunks();
       }
+
+      _chunks.shuffle();
+
     }
+
+    return_all_chunks();
+
   }
+
 
 public:
 
-  ChunkManagerTest()
-    : _commit_limiter(50 * M), _vs_list(NULL), _cm(NULL)
-  {
-    _vs_list = new VirtualSpaceList("test_vs_lust", &_commit_limiter);
-    _cm = new ChunkManager("test_cm", _vs_list);
-    memset(_elems, 0, sizeof(_elems));
-  }
+  // A test with no limits
+  ChunkManagerRandomChunkAllocTest(ChunkLevelRange r, float commit_factor)
+    : _helper(),
+      _chunks(max_num_live_chunks(r, commit_factor)),
+      _chunklevel_range(r),
+      _commit_factor(commit_factor)
+  {}
 
-  void test(int iterations, chunklevel_t min_level, chunklevel_t max_level) {
-    for (int run = 0; run < iterations; run ++) {
-      allocate_n_random_chunks(max_num_chunks, min_level, max_level);
-      random_alloc_free(iterations, min_level, max_level);
-      free_all_chunks();
+  // A test with no reserve limit but commit limit
+  ChunkManagerRandomChunkAllocTest(size_t commit_limit,
+                                   ChunkLevelRange r, float commit_factor)
+    : _helper(commit_limit),
+      _chunks(max_num_live_chunks(r, commit_factor)),
+      _chunklevel_range(r),
+      _commit_factor(commit_factor)
+  {}
+
+  // A test with both reserve and commit limit
+  ChunkManagerRandomChunkAllocTest(size_t reserve_limit, size_t commit_limit,
+                                   ChunkLevelRange r, float commit_factor)
+    : _helper(reserve_limit, commit_limit),
+      _chunks(max_num_live_chunks(r, commit_factor)),
+      _chunklevel_range(r),
+      _commit_factor(commit_factor)
+  {}
+
+
+  void do_tests() {
+    const int num_runs = 5;
+    for (int n = 0; n < num_runs; n ++) {
+      one_test();
     }
-  }
-
-  void test_enlarge_chunk() {
-    // On an empty state, request a chunk of the smallest possible size from chunk manager; then,
-    // attempt to enlarge it in place. Since all splinters should be free, this should work until
-    // we are back at root chunk size.
-    assert(_cm->total_num_chunks() == 0, "Call this on an empty cm.");
-    Metachunk* c = _cm->get_chunk(HIGHEST_CHUNK_LEVEL, HIGHEST_CHUNK_LEVEL);
-    ASSERT_NOT_NULL(c);
-    ASSERT_EQ(c->level(), HIGHEST_CHUNK_LEVEL);
-
-    int num_splinter_chunks = _cm->total_num_chunks();
-
-    // Getting a chunk of the smallest size there is should have yielded us one splinter for every level beyond 0.
-    ASSERT_EQ(num_splinter_chunks, NUM_CHUNK_LEVELS - 1);
-
-    // Now enlarge n-1 times until c is of root chunk level size again.
-    for (chunklevel_t l = HIGHEST_CHUNK_LEVEL; l > LOWEST_CHUNK_LEVEL; l --) {
-      bool rc = _cm->attempt_enlarge_chunk(c);
-      ASSERT_TRUE(rc);
-      ASSERT_EQ(c->level(), l - 1);
-      num_splinter_chunks --;
-      ASSERT_EQ(num_splinter_chunks, _cm->total_num_chunks());
-    }
-  }
-
-  void test_recommit_chunk() {
-
-    // test that if a chunk is committed again, already committed content stays.
-    assert(_cm->total_num_chunks() == 0, "Call this on an empty cm.");
-    const chunklevel_t lvl = metaspace::chunklevel::level_fitting_word_size(Settings::commit_granule_words());
-    Metachunk* c = _cm->get_chunk(lvl, lvl);
-    ASSERT_NOT_NULL(c);
-    ASSERT_EQ(c->level(), lvl);
-
-    // clean slate.
-    c->set_free();
-    c->uncommit();
-    c->set_in_use();
-
-    c->ensure_committed(10);
-
-    const size_t committed_words_1 = c->committed_words();
-    fill_range_with_pattern(c->base(), (uintx) this, committed_words_1);
-
-    // enlarge chunk, then recommit again, which will make sure we
-    bool rc = _cm->attempt_enlarge_chunk(c);
-    ASSERT_TRUE(rc);
-    rc = _cm->attempt_enlarge_chunk(c);
-    ASSERT_TRUE(rc);
-    rc = _cm->attempt_enlarge_chunk(c);
-    ASSERT_TRUE(rc);
-    ASSERT_EQ(c->level(), lvl - 3);
-
-    c->ensure_committed(c->word_size());
-    check_range_for_pattern(c->base(), (uintx) this, committed_words_1);
-
-  }
-
-  void test_wholesale_reclaim() {
-
-    // test that if a chunk is committed again, already committed content stays.
-    assert(_counter.zero(), "Call this on an empty cm.");
-
-    // Get a number of random sized but large chunks, be sure to cover multiple vsnodes.
-    // Also, commit those chunks.
-    const size_t min_words_to_allocate = 4 * Settings::virtual_space_node_default_word_size(); // about 16 m
-
-    while (_counter.count() < max_num_chunks &&
-           _counter.total_size() < min_words_to_allocate) {
-      const chunklevel_t lvl = LOWEST_CHUNK_LEVEL + os::random() % 4;
-      attempt_allocate_at(_counter.count(), lvl, lvl, true); // < fully committed please
-    }
-
-//_cm->print_on(tty);
-//_vs_list->print_on(tty);
-    DEBUG_ONLY(_cm->verify(true);)
-    DEBUG_ONLY(_vs_list->verify(true);)
-
-    // Return about three quarter of the chunks.
-    for (int i = 0; i < max_num_chunks; i ++) {
-      if (os::random() % 100 < 75) {
-        attempt_free_at(i);
-      }
-    }
-
-    // Now do a reclaim.
-    _cm->wholesale_reclaim();
-
-//_cm->print_on(tty);
-//_vs_list->print_on(tty);
-    DEBUG_ONLY(_cm->verify(true);)
-    DEBUG_ONLY(_vs_list->verify(true);)
-
-    // Return all chunks
-    free_all_chunks();
-
-    // Now do a second reclaim.
-    _cm->wholesale_reclaim();
-
-//_cm->print_on(tty);
-//_vs_list->print_on(tty);
-    DEBUG_ONLY(_cm->verify(true);)
-    DEBUG_ONLY(_vs_list->verify(true);)
-
-    // All space should be gone now, if the settings are not preventing reclaim
-    if (Settings::delete_nodes_on_purge()) {
-      ASSERT_EQ(_vs_list->reserved_words(), (size_t)0);
-    }
-    if (Settings::uncommit_on_purge() || Settings::delete_nodes_on_purge()) {
-      ASSERT_EQ(_vs_list->committed_words(), (size_t)0);
-    }
-
   }
 
 };
 
-// Note: we unfortunately need TEST_VM even though the system tested
-// should be pretty independent since we need things like os::vm_page_size()
-// which in turn need OS layer initialization.
-TEST_VM(metaspace, chunkmanager_test_whole_range) {
-  ChunkManagerTest ct;
-  ct.test(100, LOWEST_CHUNK_LEVEL, HIGHEST_CHUNK_LEVEL);
+#define DEFINE_TEST(name, range, commit_factor) \
+TEST_VM(metaspace, chunkmanager_##name) { \
+	ChunkManagerRandomChunkAllocTest test(range, commit_factor); \
+	test.do_tests(); \
 }
 
-TEST_VM(metaspace, chunkmanager_test_small_chunks) {
-  ChunkManagerTest ct;
-  ct.test(100, HIGHEST_CHUNK_LEVEL / 2, HIGHEST_CHUNK_LEVEL);
+DEFINE_TEST(test_nolimit_1, ChunkLevelRanges::small_chunks(), 0.0f)
+DEFINE_TEST(test_nolimit_2, ChunkLevelRanges::small_chunks(), 0.5f)
+DEFINE_TEST(test_nolimit_3, ChunkLevelRanges::small_chunks(), 1.0f)
+
+DEFINE_TEST(test_nolimit_4, ChunkLevelRanges::all_chunks(), 0.0f)
+DEFINE_TEST(test_nolimit_5, ChunkLevelRanges::all_chunks(), 0.5f)
+DEFINE_TEST(test_nolimit_6, ChunkLevelRanges::all_chunks(), 1.0f)
+
+#define DEFINE_TEST_2(name, range, commit_factor) \
+TEST_VM(metaspace, chunkmanager_##name) { \
+  const size_t commit_limit = 256 * K; \
+  ChunkManagerRandomChunkAllocTest test(commit_limit, range, commit_factor); \
+  test.do_tests(); \
 }
 
-TEST_VM(metaspace, chunkmanager_test_large_chunks) {
-  ChunkManagerTest ct;
-  ct.test(100, LOWEST_CHUNK_LEVEL, HIGHEST_CHUNK_LEVEL / 2);
-}
+DEFINE_TEST_2(test_with_limit_1, ChunkLevelRanges::small_chunks(), 0.0f)
+DEFINE_TEST_2(test_with_limit_2, ChunkLevelRanges::small_chunks(), 0.5f)
+DEFINE_TEST_2(test_with_limit_3, ChunkLevelRanges::small_chunks(), 1.0f)
 
-TEST_VM(metaspace, chunkmanager_test_enlarge_chunk) {
-  ChunkManagerTest ct;
-  ct.test_enlarge_chunk();
-}
+DEFINE_TEST_2(test_with_limit_4, ChunkLevelRanges::all_chunks(), 0.0f)
+DEFINE_TEST_2(test_with_limit_5, ChunkLevelRanges::all_chunks(), 0.5f)
+DEFINE_TEST_2(test_with_limit_6, ChunkLevelRanges::all_chunks(), 1.0f)
 
-TEST_VM(metaspace, chunkmanager_test_recommit_chunk) {
-  ChunkManagerTest ct;
-  ct.test_recommit_chunk();
-}
-
-TEST_VM(metaspace, chunkmanager_test_wholesale_reclaim) {
-  ChunkManagerTest ct;
-  ct.test_wholesale_reclaim();
-}
 

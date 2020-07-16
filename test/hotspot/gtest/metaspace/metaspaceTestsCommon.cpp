@@ -26,53 +26,14 @@
 #include "precompiled.hpp"
 
 #include "metaspaceTestsCommon.hpp"
+#include "metaspace/metaspace_rangehelpers.hpp"
 
+#include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 #ifdef _WIN32
 #include <psapi.h>
 #endif
-
-void calc_random_range(size_t outer_range_len, range_t* out, size_t alignment) {
-
-  assert(is_aligned(outer_range_len, alignment), "bad input range");
-  assert(outer_range_len > 0, "no zero range");
-
-  size_t l1 = os::random() % outer_range_len;
-  size_t l2 = os::random() % outer_range_len;
-  if (l1 > l2) {
-    size_t l = l1;
-    l1 = l2;
-    l2 = l;
-  }
-  l1 = align_down(l1, alignment);
-  l2 = align_up(l2, alignment);
-
-  // disallow zero range
-  if (l2 == l1) {
-    if (l1 >= alignment) {
-      l1 -= alignment;
-    } else {
-      assert(l2 <= outer_range_len - alignment, "Sanity");
-      l2 += alignment;
-    }
-  }
-
-  assert(l2 - l1 > 0 && l2 - l1 <= outer_range_len, "Sanity " SIZE_FORMAT "-" SIZE_FORMAT ".", l1, l2);
-  assert(is_aligned(l1, alignment), "Sanity");
-  assert(is_aligned(l2, alignment), "Sanity");
-
-  out->from = l1; out->to = l2;
-
-}
-
-void calc_random_address_range(const address_range_t* outer_range, address_range_t* out, size_t alignment) {
-  range_t r;
-  calc_random_range(outer_range->word_size, &r, alignment);
-
-  out->p = outer_range->p + r.from;
-  out->word_size = r.from - r.to;
-}
 
 size_t get_workingset_size() {
 #if defined(_WIN32)
@@ -114,10 +75,9 @@ void mark_address(MetaWord* p, uintx pattern) {
 }
 
 // checks pattern at address
-bool check_marked_address(const MetaWord* p, uintx pattern) {
+void check_marked_address(const MetaWord* p, uintx pattern) {
   MetaWord x = (MetaWord)((uintx) p ^ pattern);
   EXPECT_EQ(*p, x);
-  return *p == x;
 }
 
 // "fill_range_with_pattern" fills a range of heap words with pointers to itself.
@@ -127,20 +87,20 @@ bool check_marked_address(const MetaWord* p, uintx pattern) {
 //
 // The filled range can be checked with check_range_for_pattern. One also can only check
 // a sub range of the original range.
-void fill_range_with_pattern(MetaWord* p, uintx pattern, size_t word_size) {
+void fill_range_with_pattern(MetaWord* p, size_t word_size, uintx pattern) {
   assert(word_size > 0 && p != NULL, "sanity");
   for (MetaWord* p2 = p; p2 < p + word_size; p2 ++) {
     mark_address(p2, pattern);
   }
 }
 
-bool check_range_for_pattern(const MetaWord* p, uintx pattern, size_t word_size) {
-  assert(word_size > 0 && p != NULL, "sanity");
+void check_range_for_pattern(const MetaWord* p, size_t word_size, uintx pattern) {
+  assert(p != NULL, "sanity");
   const MetaWord* p2 = p;
-  while (p2 < p + word_size && check_marked_address(p2, pattern)) {
+  while (p2 < p + word_size) {
+    check_marked_address(p2, pattern);
     p2 ++;
   }
-  return p2 < p + word_size;
 }
 
 
@@ -148,26 +108,26 @@ bool check_range_for_pattern(const MetaWord* p, uintx pattern, size_t word_size)
 // where fill_range_with_pattern just is too slow.
 // Use check_marked_range to check the range. In contrast to check_range_for_pattern, only the original
 // range can be checked.
-void mark_range(MetaWord* p, uintx pattern, size_t word_size) {
+void mark_range(MetaWord* p, size_t word_size, uintx pattern) {
   assert(word_size > 0 && p != NULL, "sanity");
   mark_address(p, pattern);
   mark_address(p + word_size - 1, pattern);
 }
 
-bool check_marked_range(const MetaWord* p, uintx pattern, size_t word_size) {
+void check_marked_range(const MetaWord* p, size_t word_size, uintx pattern) {
   assert(word_size > 0 && p != NULL, "sanity");
-  return check_marked_address(p, pattern) && check_marked_address(p + word_size - 1, pattern);
+  check_marked_address(p, pattern);
+  check_marked_address(p + word_size - 1, pattern);
 }
 
 void mark_range(MetaWord* p, size_t word_size) {
   assert(word_size > 0 && p != NULL, "sanity");
   uintx pattern = (uintx)p2i(p);
-  mark_range(p, pattern, word_size);
+  mark_range(p, word_size, pattern);
 }
 
-bool check_marked_range(const MetaWord* p, size_t word_size) {
+void check_marked_range(const MetaWord* p, size_t word_size) {
   uintx pattern = (uintx)p2i(p);
-  return check_marked_range(p, pattern, word_size);
+  check_marked_range(p, word_size, pattern);
 }
-
 

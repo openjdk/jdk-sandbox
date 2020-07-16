@@ -31,6 +31,7 @@
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/counter.hpp"
+#include "memory/metaspace/freeChunkList.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"
 #include "memory/metaspace/virtualSpaceNode.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -142,7 +143,7 @@ Metachunk*  VirtualSpaceList::allocate_root_chunk() {
 // Attempts to purge nodes. This will remove and delete nodes which only contain free chunks.
 // The free chunks are removed from the freelists before the nodes are deleted.
 // Return number of purged nodes.
-int VirtualSpaceList::purge(MetachunkListVector* freelists) {
+int VirtualSpaceList::purge(FreeChunkListVector* freelists) {
 
   // Note: I am not sure all that purging business is even necessary anymore
   // since we have a good reclaim mechanism in place. Need to measure.
@@ -252,6 +253,15 @@ bool VirtualSpaceList::contains(const MetaWord* p) const {
       return true;
     }
     vsn = vsn->next();
+  }
+  return false;
+}
+
+// Returns true if the vslist is not expandable and no more root chunks
+// can be allocated.
+bool VirtualSpaceList::is_full() const {
+  if (!_can_expand && _first_node != NULL && _first_node->free_words() == 0) {
+    return true;
   }
   return false;
 }

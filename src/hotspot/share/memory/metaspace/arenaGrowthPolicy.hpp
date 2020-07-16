@@ -33,21 +33,27 @@
 namespace metaspace {
 
 
-// Encodes the chunk progression - very simply, how big chunks are we hand to a class loader.
+// ArenaGrowthPolicy encodes the growth policy of an arena (a SpaceManager).
 //
-// This is a guessing game - giving it too large chunks may cause memory waste when it stops loading
-//  classes; giving it too small chunks may cause fragmentation and unnecessary contention when it
-//  calls into Metaspace to get a new chunk.
-//
+// These arenas grow in steps (by allocating new chunks). The coarseness of growth
+// (chunk size, level) depends on what the arena is used for. Used for a class loader
+// which is expected to load only one or very few classes should grow in tiny steps.
+// For normal classloaders, it can grow in coarser steps, and arenas used by
+// the boot loader will grow in even larger steps since we expect it to load a lot of
+// classes.
+// Note that when growing in large steps (in steps larger than a commit granule,
+// by default 64K), costs diminish somewhat since we do not commit the whole space
+// immediately.
 
-class ChunkAllocSequence {
+class ArenaGrowthPolicy {
 public:
 
-  virtual chunklevel_t get_next_chunk_level(int num_allocated) const = 0;
+  // Return the level of chunk the arena should preferably allocate at step X.
+  virtual chunklevel_t get_level_at_step(int step) const = 0;
 
-  // Given a space type, return the correct allocation sequence to use.
+  // Given a space type, return the correct policy to use.
   // The returned object is static and read only.
-  static const ChunkAllocSequence* alloc_sequence_by_space_type(MetaspaceType space_type, bool is_class);
+  static const ArenaGrowthPolicy* policy_for_space_type(MetaspaceType space_type, bool is_class);
 
 };
 

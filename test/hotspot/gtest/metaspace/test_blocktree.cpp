@@ -190,9 +190,9 @@ class BlockTreeTest {
 #endif
 
   enum feeding_pattern_t {
-    scattershot = 1,
-    strafe_left_right = 2,
-    strafe_right_left = 3
+    scatter = 1,
+    left_right = 2,
+    right_left = 3
   };
 
   void feed_all(feeding_pattern_t feeding_pattern) {
@@ -204,20 +204,20 @@ class BlockTreeTest {
     // If we feed in small graining, we cap the number of blocks to limit test duration.
     const unsigned max_blocks = 10000;
 
-    size_t old_feeding_size = feeding_pattern == strafe_right_left ? _rgen.max() : _rgen.min();
+    size_t old_feeding_size = feeding_pattern == right_left ? _rgen.max() : _rgen.min();
     do {
       size_t s = 0;
       switch (feeding_pattern) {
-      case scattershot:
+      case scatter:
         // fill completely random
         s =_rgen.get();
         break;
-      case strafe_left_right:
+      case left_right:
         // fill in ascending order to annoy trees.
         s = MIN2(_rgen.get(), old_feeding_size);
         old_feeding_size = s;
         break;
-      case strafe_right_left:
+      case right_left:
         // same, but descending.
         s = MAX2(_rgen.get(), old_feeding_size);
         old_feeding_size = s;
@@ -313,7 +313,7 @@ class BlockTreeTest {
         _bt[0].count(), _bt[0].total_size(),
         _bt[1].count(), _bt[1].total_size());
 
-    ping_pong_loop(5000);
+    ping_pong_loop(3000);
 
     LOG("After Pingpong: bt1=%d:" SIZE_FORMAT ", bt2=%d:" SIZE_FORMAT ".",
         _bt[0].count(), _bt[0].total_size(),
@@ -337,9 +337,9 @@ public:
   }
 
 
-  void test_scattershot()         { test(scattershot); }
-  void test_strafe_right_left()   { test(strafe_right_left); }
-  void test_strafe_left_right()   { test(strafe_left_right); }
+  void test_scatter()      { test(scatter); }
+  void test_right_left()   { test(right_left); }
+  void test_left_right()   { test(left_right); }
 
 };
 
@@ -350,16 +350,14 @@ public:
     }
 
 #define DO_TEST_ALL_PATTERNS(name, min, max) \
-  DO_TEST(name, scattershot, min, max) \
-  DO_TEST(name, strafe_right_left, min, max) \
-  DO_TEST(name, strafe_left_right, min, max)
+  DO_TEST(name, scatter, min, max) \
+  DO_TEST(name, right_left, min, max) \
+  DO_TEST(name, left_right, min, max)
 
 
 DO_TEST_ALL_PATTERNS(wide, BlockTree::minimal_word_size, 128 * K);
 DO_TEST_ALL_PATTERNS(narrow, BlockTree::minimal_word_size, 16)
-DO_TEST_ALL_PATTERNS(85, BlockTree::minimal_word_size, 85)
 DO_TEST_ALL_PATTERNS(129, BlockTree::minimal_word_size, 129)
-DO_TEST_ALL_PATTERNS(1024, BlockTree::minimal_word_size, 1*K)
 DO_TEST_ALL_PATTERNS(4096, BlockTree::minimal_word_size, 4*K)
 DO_TEST_ALL_PATTERNS(1M, BlockTree::minimal_word_size, 1 * M)
 

@@ -770,8 +770,7 @@ void Metaspace::global_initialize() {
   if (using_class_space()) {
     // The simplest way to fix this is to allocate a tiny chunk right at the start of ccs
     // and do not use it for anything.
-    ChunkManager::chunkmanager_class()->get_chunk(metaspace::chunklevel::HIGHEST_CHUNK_LEVEL,
-                                                  metaspace::chunklevel::HIGHEST_CHUNK_LEVEL); // smallest chunk possible.
+    ChunkManager::chunkmanager_class()->get_chunk(metaspace::chunklevel::HIGHEST_CHUNK_LEVEL);
   }
 #endif
 

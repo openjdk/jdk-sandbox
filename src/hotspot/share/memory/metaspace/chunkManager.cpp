@@ -22,12 +22,13 @@
  * questions.
  *
  */
+
 #include "precompiled.hpp"
 
 
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
-#include "memory/metaspace/chunkAllocSequence.hpp"
+#include "memory/metaspace/arenaGrowthPolicy.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/internStat.hpp"
@@ -100,29 +101,44 @@ bool ChunkManager::commit_chunk_before_handout(Metachunk* c) {
   return c->ensure_committed_locked(must_be_committed);
 }
 
-// Given a chunk which must be outside of a freelist and must be free, split it to
-// meet a target level and return it. Splinters are added to the freelist.
-Metachunk* ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chunklevel_t target_level) {
+// Given a chunk, split it into a target chunk of a smaller size (higher target level)
+//  and at least one, possible several splinter chunks.
+// The original chunk must be outside of the freelist and its state must be free.
+// The splinter chunks are added to the freelist.
+// The resulting target chunk will be located at the same address as the original
+//  chunk, but it will of course be smaller (of a higher level).
+// The committed areas within the original chunk carry over to the resulting
+//  chunks.
+void ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chunklevel_t target_level) {
 
   assert_lock_strong(MetaspaceExpand_lock);
 
-  assert(c->is_free() && c->level() < target_level, "Invalid chunk for splitting");
+  assert(c->is_free(), "chunk to be split must be free.");
+  assert(c->level() < target_level, "Target level must be higher than current level.");
+  assert(c->prev() == NULL && c->next() == NULL, "Chunk must be outside of any list.");
+
   DEBUG_ONLY(chunklevel::check_valid_level(target_level);)
-
   DEBUG_ONLY(c->verify(true);)
-
-  // Chunk must be outside of our freelists
-  assert(_chunks.contains(c) == false, "Chunk is in freelist.");
 
   log_debug(metaspace)("ChunkManager %s: will split chunk " METACHUNK_FORMAT " to " CHKLVL_FORMAT ".",
                        _name, METACHUNK_FORMAT_ARGS(c), target_level);
 
+  DEBUG_ONLY(size_t committed_words_before = c->committed_words();)
+
   const chunklevel_t orig_level = c->level();
-  c = c->vsnode()->split(target_level, c, &_chunks);
+  c->vsnode()->split(target_level, c, &_chunks);
 
   // Splitting should never fail.
-  assert(c != NULL, "Split failed");
   assert(c->level() == target_level, "Sanity");
+
+  // The size of the committed portion should not change (subject to the reduced chunk size of course)
+#ifdef ASSERT
+  if (committed_words_before > c->word_size()) {
+    assert(c->is_fully_committed(), "Sanity");
+  } else {
+    assert(c->committed_words() == committed_words_before, "Sanity");
+  }
+#endif
 
   DEBUG_ONLY(c->verify(false));
 
@@ -130,114 +146,94 @@ Metachunk* ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chunklevel_
 
   SOMETIMES(c->vsnode()->verify(true);)
 
-  return c;
 }
 
-// Get a chunk and be smart about it.
-// - 1) Attempt to find a free chunk of exactly the pref_level level
-// - 2) Failing that, attempt to find a chunk smaller or equal the max level.
-// - 3) Failing that, attempt to find a free chunk of larger size and split it.
-// - 4) Failing that, attempt to allocate a new chunk from the connected virtual space.
-// - Failing that, give up and return NULL.
-// Note: this is not guaranteed to return a *committed* chunk. The chunk manager will
-//   attempt to commit the returned chunk according to constants::committed_words_on_fresh_chunks;
-//   but this may fail if we hit a commit limit. In that case, a partly uncommit chunk
-//   will be returned, and the commit is attempted again when we allocate from the chunk's
-//   uncommitted area. See also Metachunk::allocate.
-Metachunk* ChunkManager::get_chunk(chunklevel_t max_level, chunklevel_t pref_level) {
+// On success, returns a chunk of level of <preferred_level>, but at most <max_level>.
+//  The first first <min_committed_words> of the chunk are guaranteed to be committed.
+// On error, will return NULL.
+//
+// This function may fail for two reasons:
+// - Either we are unable to reserve space for a new chunk (if the underlying VirtualSpaceList
+//   is non-expandable but needs expanding - aka out of compressed class space).
+// - Or, if the necessary space cannot be committed because we hit a commit limit.
+//   This may be either the GC threshold or MaxMetaspaceSize.
+Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t max_level, size_t min_committed_words) {
+
+  assert(preferred_level <= max_level, "Sanity");
+  assert(chunklevel::level_fitting_word_size(min_committed_words) >= max_level, "Sanity");
 
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
 
   DEBUG_ONLY(verify_locked(false);)
 
   DEBUG_ONLY(chunklevel::check_valid_level(max_level);)
-  DEBUG_ONLY(chunklevel::check_valid_level(pref_level);)
-  assert(max_level >= pref_level, "invalid level.");
+  DEBUG_ONLY(chunklevel::check_valid_level(preferred_level);)
+  assert(max_level >= preferred_level, "invalid level.");
 
+  // First, optimistically look for a chunk which is already committed far enough to hold min_word_size.
+
+  // Start at the preferred chunk size (level) and work your way down (up) to the minimum chunk size (level)
   Metachunk* c = NULL;
+  c = _chunks.search_chunk_ascending(preferred_level, max_level, min_committed_words);
 
-  // Tracing
-  log_debug(metaspace)("ChunkManager %s: get chunk: max " CHKLVL_FORMAT " (" SIZE_FORMAT "),"
-                       "preferred " CHKLVL_FORMAT " (" SIZE_FORMAT ").",
-                       _name, max_level, chunklevel::word_size_for_level(max_level),
-                       pref_level, chunklevel::word_size_for_level(pref_level));
-
-  // When handing a new chunk to the caller, we must balance the need to not let free space go to waste
-  // with the need to keep fragmentation low.
-  // Every request comes with a preferred chunk size and the minimum chunk size, which is the bare minimum
-  // needed to house the metadata allocation which triggered this chunk allocation.
-  //
-  // Ideally, we have a free chunk of the preferred size just laying around and hand that one out.
-  // Realistically, we are often faced with the choice of either taking a larger chunk and split it
-  // or taking a smaller chunk than the preferred size. Both has pros and cons: splitting a larger chunk
-  // reduces the number of large chunks available for large allocations, and, increases fragmentation.
-  // Using a smaller chunk may also increase fragmentation (beside being inefficient at some point) if
-  // e.g. a normal class loader - which lives normally off 64K chunks - eats from the bowl of small chunk
-  // loaders, which prefer 4K or 1K chunks.
-
-  // 1) Attempt to find a free chunk of exactly the pref_level level
-  c = remove_first_chunk_at_level(pref_level);
-
-  // 2) Failing that, we are also willing to accept a smaller chunk, but only up to a limit
-  //    (for now, half the preferred size)...
-  if (c == NULL && pref_level < max_level) {
-    c = remove_first_chunk_at_level(pref_level + 1);
+  // If that did not yield anything, look at larger chunks, which may be committed. We would have to split
+  //  them first, of course.
+  if (c == NULL) {
+    c = _chunks.search_chunk_descending(preferred_level, min_committed_words);
   }
 
-  // 3) Failing that, attempt to find a free chunk of larger size and split it to the preferred size...
+  // If that did not work, is there at least an uncommitted chunk? Repeat above search without the
+  //  restriction of looking for committed space. We will have to commit the chunk then.
   if (c == NULL) {
-    for (chunklevel_t lvl = pref_level - 1; lvl >= chunklevel::ROOT_CHUNK_LEVEL; lvl --) {
-      c = remove_first_chunk_at_level(lvl);
-      if (c != NULL) {
-        // Split chunk; add splinters to freelist
-        c = split_chunk_and_add_splinters(c, pref_level);
-        break;
-      }
-    }
+    c = _chunks.search_chunk_ascending(preferred_level, max_level, 0);
   }
 
-  // 4) Failing that, before we give up and get a new root chunk, lets really scrape the barrel. Any
-  //    smaller chunk is acceptable now...
   if (c == NULL) {
-    for (chunklevel_t lvl = pref_level + 2; lvl <= max_level; lvl ++) {
-      c = remove_first_chunk_at_level(lvl);
-      if (c != NULL) {
-        break;
-      }
-    }
+    c = _chunks.search_chunk_descending(preferred_level, 0);
   }
 
-  // 5) Failing all that, allocate a new root chunk from the connected virtual space.
+  // Failing all that, allocate a new root chunk from the connected virtual space.
+  // This may fail if the underlying vslist cannot be expanded (e.g. compressed class space)
   if (c == NULL) {
-
-    // Tracing
-    log_debug(metaspace)("ChunkManager %s: need new root chunk.", _name);
-
     c = _vslist->allocate_root_chunk();
-
-    // This may have failed if the virtual space list is exhausted but it cannot be expanded
-    // by a new node (class space).
     if (c == NULL) {
+      log_debug(metaspace)("ChunkManager %s: failed to get new root chunk.", _name);
+    } else {
+      assert(c->level() == chunklevel::ROOT_CHUNK_LEVEL, "root chunk expected");
+      log_debug(metaspace)("ChunkManager %s: allocated new root chunk.", _name);
+    }
+  }
+
+  if (c == NULL) {
+    log_debug(metaspace)("ChunkManager %s: failed to get chunk (preferred level: " CHKLVL_FORMAT
+                         ", max level " CHKLVL_FORMAT ".", _name, preferred_level, max_level);
+    return NULL;
+  }
+
+  // Now we have a chunk. It may be too large for the callers needs. It also may not be committed enough.
+  // So we may have to split it, and commit its starting granules.
+  //
+  // Note that we, as step 1, commit the chunk. Committing may fail and by doing the committing before
+  // the split we can easily add the still unsplit chunk back to the freelist without having to re-merge.
+  //
+  // As step 2 we split the chunk. Splitting preserves the committed regions underlying the chunk, and
+  // since the target chunk is the first in the original chunk area, the target chunk will be committed
+  // enough.
+
+  const size_t need_to_commit = MAX2(Settings::committed_words_on_fresh_chunks(), min_committed_words);
+  if (c->committed_words() < need_to_commit) {
+    if (c->ensure_committed_locked(need_to_commit) == false) {
+      log_debug(metaspace)("ChunkManager %s: failed to commit " SIZE_FORMAT " words on chunk " METACHUNK_FORMAT ".",
+                           _name, need_to_commit,  METACHUNK_FORMAT_ARGS(c));
+      _chunks.add(c);
       return NULL;
     }
-
-    assert(c->level() == chunklevel::LOWEST_CHUNK_LEVEL, "Not a root chunk?");
-
-    // Split this root chunk to the desired chunk size. Splinters are added to freelist.
-    if (pref_level > c->level()) {
-      c = split_chunk_and_add_splinters(c, pref_level);
-    }
   }
 
-  // Note that we should at this point have a chunk; should always work. If we hit
-  // a commit limit in the meantime, the chunk may still be uncommitted, but the chunk
-  // itself should exist now.
-  assert(c != NULL, "Unexpected");
-
-  // Before returning the chunk, attempt to commit it according to the handout rules.
-  // If that fails, we ignore the error and return the uncommitted chunk.
-  if (commit_chunk_before_handout(c) == false) {
-    log_info(gc, metaspace)("Failed to commit chunk prior to handout.");
+  // If too large, split chunk and add the splinter chunks back to the freelist.
+  if (c->level() < preferred_level) {
+    split_chunk_and_add_splinters(c, preferred_level);
+    assert(c->level() == preferred_level, "split failed?");
   }
 
   // Any chunk returned from ChunkManager shall be marked as in use.
@@ -249,13 +245,11 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t max_level, chunklevel_t pref_lev
   log_debug(metaspace)("ChunkManager %s: handing out chunk " METACHUNK_FORMAT ".",
                        _name, METACHUNK_FORMAT_ARGS(c));
 
-
   DEBUG_ONLY(InternalStats::inc_num_chunks_taken_from_freelist();)
 
   return c;
 
-} // ChunkManager::get_chunk
-
+}
 
 // Return a single chunk to the ChunkManager and adjust accounting. May merge chunk
 //  with neighbors.
@@ -272,7 +266,7 @@ void ChunkManager::return_chunk(Metachunk* c) {
 
   DEBUG_ONLY(c->verify(true);)
 
-  assert(!_chunks.contains(c), "A chunk to be added to the freelist must not be in the freelist already.");
+  assert(contains_chunk(c) == false, "A chunk to be added to the freelist must not be in the freelist already.");
 
   assert(c->is_in_use(), "Unexpected chunk state");
   assert(!c->in_list(), "Remove from list first");
@@ -320,7 +314,7 @@ void ChunkManager::return_chunk(Metachunk* c) {
 
 }
 
-// Given a chunk c, which must be "in use" and must not be a root chunk, attempt to
+// Given a chunk c, whose state must be "in-use" and must not be a root chunk, attempt to
 // enlarge it in place by claiming its trailing buddy.
 //
 // This will only work if c is the leader of the buddy pair and the trailing buddy is free.
@@ -455,23 +449,13 @@ void ChunkManager::verify(bool slow) const {
 }
 
 void ChunkManager::verify_locked(bool slow) const {
-
   assert_lock_strong(MetaspaceExpand_lock);
-
   assert(_vslist != NULL, "No vslist");
+  _chunks.verify();
+}
 
-  // This checks that the lists are wired up correctly, that the counters are valid and
-  // that each chunk is (only) in its correct list.
-  _chunks.verify(true);
-
-  // Need to check that each chunk is free..._size = 0;
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
-    for (const Metachunk* c = _chunks.first_at_level(l); c != NULL; c = c->next()) {
-      assert(c->is_free(), "Chunk is not free.");
-      assert(c->used_words() == 0, "Chunk should have not used words.");
-    }
-  }
-
+bool ChunkManager::contains_chunk(Metachunk* c) const {
+  return _chunks.contains(c);
 }
 
 #endif // ASSERT
@@ -484,7 +468,7 @@ void ChunkManager::print_on(outputStream* st) const {
 void ChunkManager::print_on_locked(outputStream* st) const {
   assert_lock_strong(MetaspaceExpand_lock);
   st->print_cr("cm %s: %d chunks, total word size: " SIZE_FORMAT ", committed word size: " SIZE_FORMAT, _name,
-               total_num_chunks(), total_word_size(), _chunks.total_committed_word_size());
+               total_num_chunks(), total_word_size(), _chunks.committed_word_size());
   _chunks.print_on(st);
 }
 

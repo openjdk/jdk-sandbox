@@ -28,8 +28,6 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/debug.hpp"
 
-
-
 namespace metaspace {
 
 void FreeBlocks::add_block(MetaWord* p, size_t word_size) {
@@ -55,7 +53,7 @@ MetaWord* FreeBlocks::get_block(size_t requested_word_size) {
     // Blocks which are larger than a certain threshold are split and
     // the remainder is handed back to the manager.
     const size_t waste = real_size - requested_word_size;
-    if (waste > splinter_threshold) {
+    if (waste > MAX2(minimal_word_size, splinter_threshold)) {
       add_block(p + requested_word_size, waste);
     }
   }

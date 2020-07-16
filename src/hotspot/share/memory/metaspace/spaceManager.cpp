@@ -27,6 +27,7 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/metaspace/allocationGuard.hpp"
+#include "memory/metaspace/arenaGrowthPolicy.hpp"
 #include "memory/metaspace/freeBlocks.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/internStat.hpp"
@@ -46,7 +47,6 @@ namespace metaspace {
 
 #define LOGFMT_SPCMGR         "SpcMgr @" PTR_FORMAT " (%s)"
 #define LOGFMT_SPCMGR_ARGS    p2i(this), this->_name
-
 
 // Given a net allocation word size, return the raw word size we actually allocate.
 // Note: externally visible for gtests.
@@ -77,49 +77,73 @@ size_t get_raw_allocation_word_size(size_t net_word_size) {
 
 }
 
-// Given a requested word size, will allocate a chunk large enough to at least fit that
-// size, but may be larger according to internal heuristics.
-//
-// On success, it will replace the current chunk with the newly allocated one, which will
-// become the current chunk. The old current chunk should be retired beforehand.
-//
-// May fail if we could not allocate a new chunk. In that case the current chunk remains
-// unchanged and false is returned.
-bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
+// Returns the level of the next chunk to be added, acc to growth policy.
+chunklevel_t SpaceManager::next_chunk_level() const {
+  const int growth_step = _chunks.count();
+  return _growth_policy->get_level_at_step(growth_step);
+}
+
+// Given a chunk, add its remaining free committed space to the free block list.
+void SpaceManager::salvage_chunk(Metachunk* c) {
+
+  if (Settings::handle_deallocations() == false) {
+    return;
+  }
 
   assert_lock_strong(lock());
 
+  // If the chunk is completely empty, just return it to the chunk manager.
+  if (c->used_words() == 0) {
+    _chunk_manager->return_chunk(c);
+    return;
+  }
+
+  size_t remaining_words = c->free_below_committed_words();
+
+  if (remaining_words > FreeBlocks::minimal_word_size) {
+
+    log_debug(metaspace)(LOGFMT_SPCMGR " @" PTR_FORMAT " : salvaging chunk " METACHUNK_FULL_FORMAT ".",
+                         LOGFMT_SPCMGR_ARGS, p2i(this), METACHUNK_FULL_FORMAT_ARGS(c));
+
+    MetaWord* ptr = c->allocate(remaining_words);
+    assert(ptr != NULL, "Should have worked");
+    _total_used_words_counter->increment_by(remaining_words);
+
+    add_allocation_to_fbl(ptr, remaining_words);
+
+    // After this operation: the chunk should have no free committed space left.
+    assert(c->free_below_committed_words() == 0,
+           "Salvaging chunk failed (chunk " METACHUNK_FULL_FORMAT ").",
+           METACHUNK_FULL_FORMAT_ARGS(c));
+
+  }
+
+}
+
+// Allocate a new chunk from the underlying chunk manager able to hold at least
+// requested word size.
+Metachunk* SpaceManager::allocate_new_chunk(size_t requested_word_size) {
+
+  assert_lock_strong(lock());
+
+  // Should this ever happen, we need to increase the maximum possible chunk size.
   guarantee(requested_word_size <= chunklevel::MAX_CHUNK_WORD_SIZE,
             "Requested size too large (" SIZE_FORMAT ") - max allowed size per allocation is " SIZE_FORMAT ".",
             requested_word_size, chunklevel::MAX_CHUNK_WORD_SIZE);
 
-  // If we have a current chunk, we should have retired it beforehand, unless we do not handle
-  //  deallocations, or unless we are a micro loader (see: retire_current_chunk(), deallocate_locked()).
-  assert(current_chunk() == NULL || Settings::handle_deallocations() == false || _is_micro_loader ||
-         current_chunk()->free_below_committed_words() <= 10, "Must retire chunk beforehand");
+  const int growth_step = _chunks.count();
+  const chunklevel_t max_level = chunklevel::level_fitting_word_size(requested_word_size);
+  const chunklevel_t preferred_level = MIN2(max_level, next_chunk_level());
 
-  const chunklevel_t min_level = chunklevel::level_fitting_word_size(requested_word_size);
-  chunklevel_t pref_level = _chunk_alloc_sequence->get_next_chunk_level(_chunks.count());
-
-  if (pref_level > min_level) {
-    pref_level = min_level;
-  }
-
-  log_trace(metaspace)(LOGFMT_SPCMGR ": requested word size_ " SIZE_FORMAT ", num chunks so far: %d, preferred level: "
-                       CHKLVL_FORMAT ", min level: " CHKLVL_FORMAT ".",
-                       LOGFMT_SPCMGR_ARGS, requested_word_size, _chunks.count(), pref_level, min_level);
-
-  Metachunk* c = _chunk_manager->get_chunk(min_level, pref_level);
+  Metachunk* c = _chunk_manager->get_chunk(preferred_level, max_level, requested_word_size);
   if (c == NULL) {
     log_debug(metaspace)(LOGFMT_SPCMGR ": failed to allocate new chunk for requested word size " SIZE_FORMAT ".",
                          LOGFMT_SPCMGR_ARGS, requested_word_size);
-    return false;
+    return NULL;
   }
 
   assert(c->is_in_use(), "Wrong chunk state.");
-  assert(c->level() <= min_level && c->level() >= pref_level, "Sanity");
-
-  _chunks.add(c);
+  assert(c->free_below_committed_words() >= requested_word_size, "Chunk not committed");
 
   log_debug(metaspace)(LOGFMT_SPCMGR ": allocated new chunk " METACHUNK_FORMAT " for requested word size " SIZE_FORMAT ".",
                        LOGFMT_SPCMGR_ARGS, METACHUNK_FORMAT_ARGS(c), requested_word_size);
@@ -137,14 +161,14 @@ void SpaceManager::add_allocation_to_fbl(MetaWord* p, size_t word_size) {
 }
 
 SpaceManager::SpaceManager(ChunkManager* chunk_manager,
-             const ChunkAllocSequence* alloc_sequence,
+             const ArenaGrowthPolicy* growth_policy,
              Mutex* lock,
              SizeAtomicCounter* total_used_words_counter,
              const char* name,
              bool is_micro_loader)
 : _lock(lock),
   _chunk_manager(chunk_manager),
-  _chunk_alloc_sequence(alloc_sequence),
+  _growth_policy(growth_policy),
   _chunks(),
   _fbl(NULL),
   _total_used_words_counter(total_used_words_counter),
@@ -158,15 +182,17 @@ SpaceManager::~SpaceManager() {
   DEBUG_ONLY(verify(true);)
 
   MutexLocker fcl(lock(), Mutex::_no_safepoint_check_flag);
-  Metachunk* c = _chunks.first();
-  Metachunk* c2 = NULL;
 
   size_t used_words_returned = 0;
+
+  Metachunk* c = _chunks.first();
+  Metachunk* c2 = NULL;
 
   while(c) {
     c2 = c->next();
     used_words_returned += c->used_words();
-    _chunks.remove(c);
+    DEBUG_ONLY(c->set_prev(NULL);)
+    DEBUG_ONLY(c->set_next(NULL);)
     _chunk_manager->return_chunk(c);
     // c may be invalid after return_chunk(c) was called. Don't access anymore.
     c = c2;
@@ -180,59 +206,58 @@ SpaceManager::~SpaceManager() {
 
 }
 
-// The remaining committed free space in the current chunk is chopped up and stored in the block
-// free list for later use. As a result, the current chunk will remain current but completely
-// used up. This is a preparation for calling allocate_new_current_chunk().
-void SpaceManager::retire_current_chunk() {
-
-  if (Settings::handle_deallocations() == false) {
-    return;
-  }
-
-  assert_lock_strong(lock());
+// Attempt to enlarge the current chunk to make it large enough to hold at least
+//  requested_word_size additional words.
+//
+// On success, true is returned, false otherwise.
+bool SpaceManager::attempt_enlarge_current_chunk(size_t requested_word_size) {
 
   Metachunk* c = current_chunk();
-  assert(c != NULL, "Sanity");
+  assert(c->free_words() < requested_word_size, "Sanity");
 
-  // Side note:
-  // In theory it could happen that we are asked to retire a completely empty chunk. This may be the
-  // result of rolled back allocations (see deallocate in place) and a lot of luck.
-  // But since these cases should be exceedingly rare, we do not handle them special in order to keep
-  // the code simple.
-
-  size_t remaining_words = c->free_below_committed_words();
-
-  // Note: Micro class loaders (lambdas, reflection) are typically the vast majority of loaders. They
-  //  will typically only once - if at all - ever retire a chunk, and the remaining size is typically
-  //  very small.
-  // That means that the structure needed to manage this left over space will not see much action. However,
-  //  that structure is expensive as well and therefore we only should generate it if the benefit of managing
-  //  free space out-weights the costs for that structure.
-  // Non-micro loaders may continue loading, deallocating and retiring more chunks, so the cost of that
-  //  structure can amortize over time.
-  const size_t dont_bother_below_word_size = _is_micro_loader ? 64 : FreeBlocks::minimal_word_size;
-
-  if (remaining_words > dont_bother_below_word_size) {
-
-    log_debug(metaspace)(LOGFMT_SPCMGR " @" PTR_FORMAT " : retiring chunk " METACHUNK_FULL_FORMAT ".",
-                         LOGFMT_SPCMGR_ARGS, p2i(this), METACHUNK_FULL_FORMAT_ARGS(c));
-
-    bool did_hit_limit = false;
-    MetaWord* ptr = c->allocate(remaining_words, &did_hit_limit);
-    assert(ptr != NULL && did_hit_limit == false, "Should have worked");
-    _total_used_words_counter->increment_by(remaining_words);
-
-    add_allocation_to_fbl(ptr, remaining_words);
-
-    // After this operation: the current chunk should have no free committed space left.
-    assert(current_chunk()->free_below_committed_words() == 0,
-           "Chunk retiring did not work (current chunk " METACHUNK_FULL_FORMAT ").",
-           METACHUNK_FULL_FORMAT_ARGS(current_chunk()));
-
-    DEBUG_ONLY(verify_locked(false);)
-
-    DEBUG_ONLY(InternalStats::inc_num_chunks_retired();)
+  // Not if chunk enlargment is switched off in general...
+  if (Settings::enlarge_chunks_in_place() == false) {
+    return false;
   }
+
+  // Nor if the chunk is deemed to large to be thus expanded.
+  //  (TODO : do we need this if we check the allowed chunk growth progression below? check)
+  if (c->word_size() <= Settings::enlarge_chunks_in_place_max_word_size()) {
+    return false;
+  }
+
+  // Nor, obviously, if we are already a root chunk.
+  if (c->is_root_chunk()) {
+    return false;
+  }
+
+  const chunklevel_t new_level =
+      chunklevel::level_fitting_word_size(c->used_words() + requested_word_size);
+
+  // Atm we only attempt to enlarge by one level (so, doubling the chunk in size).
+  // So, if the requested enlargement would require the chunk to more than double in size,
+  // we bail. But this covers about 99% of all cases, so this is good enough.
+  if (c->level() > new_level + 1) {
+    return false;
+  }
+
+  // This only works if chunk is the leader of its buddy pair (and also if buddy
+  // is free and unsplit, but that we cannot check outside of metaspace lock).
+  if (c->is_leader() == false) {
+    return false;
+  }
+
+  // If enlarging the chunk would increase the arena size faster than we are prepared
+  // to grow, we don't enlarge the chunk.
+  if (chunklevel::word_size_for_level(next_chunk_level()) < c->word_size()) {
+    return false;
+  }
+
+  bool success = _chunk_manager->attempt_enlarge_chunk(c);
+
+  assert(success == false || c->free_words() >= requested_word_size, "Sanity");
+
+  return success;
 
 }
 
@@ -251,8 +276,6 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
 
   MetaWord* p = NULL;
 
-  bool did_hit_limit = false;
-
   const size_t raw_word_size = get_raw_allocation_word_size(requested_word_size);
 
   // 1) Attempt to allocate from the dictionary of deallocated blocks.
@@ -261,87 +284,73 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
     if (p != NULL) {
       DEBUG_ONLY(InternalStats::inc_num_allocs_from_deallocated_blocks();)
       log_trace(metaspace)(LOGFMT_SPCMGR ": .. taken from free block list.", LOGFMT_SPCMGR_ARGS);
-      // Note: space in the freeblock dictionary counts as used (see retire_current_chunk()) -
-      // that means that we must not increase the used counter again when allocating from the dictionary.
-      // Therefore we return here.
+      // Note: Space in the freeblock dictionary counts as already used (see retire_current_chunk()) -
+      // that means that we do not modify any counters and therefore can skip the epilog.
       return p;
     }
   }
 
+  bool current_chunk_too_small = false;
+  bool commit_failure = false;
+
   if (current_chunk() != NULL) {
 
-    // 2) Failing that, attempt to allocate from the current chunk. If we hit commit limit, return NULL.
-    if (p == NULL) {
-      p = current_chunk()->allocate(raw_word_size, &did_hit_limit);
-      log_trace(metaspace)(LOGFMT_SPCMGR ": .. taken from current chunk.", LOGFMT_SPCMGR_ARGS);
-    }
+    // 2) Attempt to satisfy the allocation from the current chunk.
 
-    // 3) Failing that because the remaining chunk space is too small for the requested size
-    //     (and not because commit limit), attempt to enlarge the chunk in place.
-    if (p == NULL && !did_hit_limit) {
-
-      // Since we did not hit the commit limit, the current chunk must have been too small.
-      assert(current_chunk()->free_words() < raw_word_size, "Sanity");
-
-      DEBUG_ONLY(InternalStats::inc_num_allocs_failed_chunk_too_small();)
-
-      // Under certain conditions we can just attempt to enlarge the chunk - fusing it with its follower
-      // chunk to produce a chunk double the size (level decreased by 1).
-      // 0) only if it is not switched off
-      // 1) obviously, this only works for non-root chunks
-      // 2) ... which are leader of their buddy pair.
-      // 3) only if the requested allocation would fit into a thus enlarged chunk
-      // 4) do not grow memory faster than what the chunk allocation strategy would allow
-      // 5) as a safety feature, only below a certain limit
-      if (Settings::enlarge_chunks_in_place() &&              // 0
-          current_chunk()->is_root_chunk() == false &&        // 1
-          current_chunk()->is_leader() &&                     // 2
-          current_chunk()->word_size() + current_chunk()->free_words() >= requested_word_size &&      // 3
-          _chunk_alloc_sequence->get_next_chunk_level(_chunks.count()) <= current_chunk()->level() &&  // 4
-          current_chunk()->word_size() <= Settings::enlarge_chunks_in_place_max_word_size())          // 5
-      {
-
-        if (_chunk_manager->attempt_enlarge_chunk(current_chunk())) {
-
-          // Re-attempt allocation.
-          p = current_chunk()->allocate(raw_word_size, &did_hit_limit);
-
-          if (p != NULL) {
-            DEBUG_ONLY(InternalStats::inc_num_chunk_enlarged();)
-              log_trace(metaspace)(LOGFMT_SPCMGR ": .. taken from current chunk (enlarged chunk).", LOGFMT_SPCMGR_ARGS);
-          }
-        }
+    // If the current chunk is too small to hold the requested size, attempt to enlarge it.
+    // If that fails, retire the chunk.
+    if (current_chunk()->free_words() < raw_word_size) {
+      if (!attempt_enlarge_current_chunk(raw_word_size)) {
+        current_chunk_too_small = true;
       }
     }
 
-  } // current_chunk != NULL
-
-  // 4) Failing that, attempt to get a new chunk and allocate from that chunk. Again, we may hit a commit
-  //    limit, in which case we return NULL.
-  if (p == NULL && !did_hit_limit) {
-
-    // Since we did not hit the commit limit, the current chunk must have been too small or it did not yet exist.
-    assert(current_chunk() == NULL ||
-           current_chunk()->free_words() < raw_word_size, "Sanity");
-
-    // Before allocating a new chunk lets properly retire the old one.
-    if (current_chunk() != NULL) {
-      retire_current_chunk();
+    // Commit the chunk far enough to hold the requested word size. If that fails, we
+    // hit a limit (either GC threshold or MaxMetaspaceSize). In that case retire the
+    // chunk.
+    if (!current_chunk_too_small) {
+      if (!current_chunk()->ensure_committed_additional(raw_word_size)) {
+        commit_failure = true;
+      }
     }
 
-    // Allocate a new chunk.
-    if (allocate_new_current_chunk(raw_word_size) == false) {
-      did_hit_limit = true;
-    } else {
-      assert(current_chunk() != NULL && current_chunk()->free_words() >= raw_word_size, "Sanity");
-      p = current_chunk()->allocate(raw_word_size, &did_hit_limit);
+    // Allocate from the current chunk. This should work now.
+    if (!current_chunk_too_small && !commit_failure) {
+      p = current_chunk()->allocate(raw_word_size);
+      assert(p != NULL, "Allocation from chunk failed.");
+      log_trace(metaspace)(LOGFMT_SPCMGR ": .. taken from current chunk.", LOGFMT_SPCMGR_ARGS);
+    }
+
+  }
+
+  if (p == NULL) {
+
+    // If we are here, we either had no current chunk to begin with or it was deemed insufficient.
+    assert(current_chunk() == NULL ||
+           current_chunk_too_small || commit_failure, "Sanity");
+
+    Metachunk* new_chunk = allocate_new_chunk(raw_word_size);
+
+    if (new_chunk != NULL) {
+
+      assert(new_chunk->free_below_committed_words() >= raw_word_size, "Sanity");
+
+      // We have a new chunk. Before making it the current chunk, retire the old one.
+      if (current_chunk() != NULL) {
+        salvage_chunk(current_chunk());
+        DEBUG_ONLY(InternalStats::inc_num_chunks_retired();)
+      }
+
+      _chunks.add(new_chunk);
+
+      // Now, allocate from that chunk. That should work.
+      p = current_chunk()->allocate(raw_word_size);
+      assert(p != NULL, "Allocation from chunk failed.");
       log_trace(metaspace)(LOGFMT_SPCMGR ": .. allocated new chunk " CHKLVL_FORMAT " and taken from that.",
                            LOGFMT_SPCMGR_ARGS, current_chunk()->level());
     }
 
   }
-
-  assert(p != NULL || (p == NULL && did_hit_limit), "Sanity");
 
 #ifdef ASSERT
   // When using allocation guards, establish a prefix.
@@ -350,14 +359,14 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
   }
 #endif
 
-  SOMETIMES(verify_locked(true);)
-
   if (p == NULL) {
     DEBUG_ONLY(InternalStats::inc_num_allocs_failed_limit();)
   } else {
     DEBUG_ONLY(InternalStats::inc_num_allocs();)
     _total_used_words_counter->increment_by(raw_word_size);
   }
+
+  SOMETIMES(verify_locked(true);)
 
   log_trace(metaspace)(LOGFMT_SPCMGR ": returned " PTR_FORMAT ".",
                        LOGFMT_SPCMGR_ARGS, p2i(p));
@@ -371,12 +380,6 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
 void SpaceManager::deallocate_locked(MetaWord* p, size_t word_size) {
 
   if (Settings::handle_deallocations() == false) {
-    return;
-  }
-
-  // Do not deallocate for micro loaders. Micro loaders only ever allocate one class. Chances are
-  // very high we do not see a return of investment for storing this memory block.
-  if (_is_micro_loader) {
     return;
   }
 
@@ -394,14 +397,6 @@ void SpaceManager::deallocate_locked(MetaWord* p, size_t word_size) {
                        LOGFMT_SPCMGR_ARGS, p2i(p), word_size);
 
   size_t raw_word_size = get_raw_allocation_word_size(word_size);
-
-  // As an optimization, attempt to simply rollback this allocation in the chunk; this works if this happens to be
-  // the last allocation done from the current chunk. Happens often enough to be worth a shot.
-  if (current_chunk()->attempt_rollback_allocation(p, raw_word_size)) {
-    return;
-  }
-
-  // Failed; add the deallocated block to the block free list.
   add_allocation_to_fbl(p, raw_word_size);
 
   DEBUG_ONLY(verify_locked(false);)
@@ -449,7 +444,7 @@ void SpaceManager::verify_locked(bool slow) const {
 
   assert_lock_strong(lock());
 
-  assert(_chunk_alloc_sequence != NULL && _chunk_manager != NULL, "Sanity");
+  assert(_growth_policy != NULL && _chunk_manager != NULL, "Sanity");
 
   _chunks.verify();
 
@@ -482,16 +477,34 @@ void SpaceManager::verify(bool slow) const {
 // from this space manager.
 bool SpaceManager::is_valid_area(MetaWord* p, size_t word_size) const {
   assert(p != NULL && word_size > 0, "Sanity");
-  for (const Metachunk* c = _chunks.first(); c != NULL; c = c->next()) {
-    if (c->is_valid_pointer(p)) {
-      assert(c->is_valid_pointer(p + word_size - 1), "Range partly oob");
-      return true;
+  bool found = false;
+  if (!found) {
+    for (const Metachunk* c = _chunks.first(); c != NULL && !found; c = c->next()) {
+      assert(c->is_valid_committed_pointer(p) ==
+             c->is_valid_committed_pointer(p + word_size - 1), "range intersects");
+      found = c->is_valid_committed_pointer(p);
     }
   }
-  return false;
+  return found;
 }
 
 #endif // ASSERT
+
+void SpaceManager::print_on(outputStream* st) const {
+  MutexLocker fcl(_lock, Mutex::_no_safepoint_check_flag);
+  print_on_locked(st);
+}
+
+void SpaceManager::print_on_locked(outputStream* st) const {
+  assert_lock_strong(_lock);
+  st->print_cr("sm %s: %d chunks, total word size: " SIZE_FORMAT ", committed word size: " SIZE_FORMAT, _name,
+               _chunks.count(), _chunks.calc_word_size(), _chunks.calc_committed_word_size());
+  _chunks.print_on(st);
+  st->cr();
+  st->print_cr("micro: %d, growth-policy " PTR_FORMAT ", lock " PTR_FORMAT ", cm " PTR_FORMAT ", fbl " PTR_FORMAT,
+                _is_micro_loader, p2i(_growth_policy), p2i(_lock), p2i(_chunk_manager), p2i(_fbl));
+}
+
 
 
 } // namespace metaspace

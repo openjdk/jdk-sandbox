@@ -30,8 +30,8 @@
 #include "memory/allocation.hpp"
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/commitMask.hpp"
-#include "memory/metaspace/settings.hpp"
 #include "memory/metaspace/rootChunkArea.hpp"
+#include "memory/metaspace/settings.hpp"
 #include "memory/memRegion.hpp"
 #include "memory/virtualspace.hpp"
 #include "utilities/debug.hpp"
@@ -44,7 +44,7 @@ class outputStream;
 namespace metaspace {
 
 class CommitLimiter;
-class MetachunkListVector;
+class FreeChunkListVector;
 
 // VirtualSpaceNode manages a single address range of the Metaspace.
 //
@@ -160,13 +160,9 @@ public:
 
   // Given a chunk c, split it recursively until you get a chunk of the given target_level.
   //
-  // The original chunk must not be part of a freelist.
-  //
-  // Returns pointer to the result chunk; the splitted-off chunks are added as
-  //  free chunks to the freelists.
-  //
-  // Returns NULL if chunk cannot be split at least once.
-  Metachunk* split(chunklevel_t target_level, Metachunk* c, MetachunkListVector* freelists);
+  // The resulting target chunk resides at the same address as the original chunk.
+  // The resulting splinters are added to freelists.
+  void split(chunklevel_t target_level, Metachunk* c, FreeChunkListVector* freelists);
 
   // Given a chunk, attempt to merge it recursively with its neighboring chunks.
   //
@@ -177,7 +173,7 @@ public:
   //
   // !!! Please note that if this method returns a non-NULL value, the
   // original chunk will be invalid and should not be accessed anymore! !!!
-  Metachunk* merge(Metachunk* c, MetachunkListVector* freelists);
+  Metachunk* merge(Metachunk* c, FreeChunkListVector* freelists);
 
   // Given a chunk c, which must be "in use" and must not be a root chunk, attempt to
   // enlarge it in place by claiming its trailing buddy.
@@ -188,7 +184,7 @@ public:
   // double in size (level decreased by one).
   //
   // On success, true is returned, false otherwise.
-  bool attempt_enlarge_chunk(Metachunk* c, MetachunkListVector* freelists);
+  bool attempt_enlarge_chunk(Metachunk* c, FreeChunkListVector* freelists);
 
   // Attempts to purge the node:
   //
@@ -197,7 +193,7 @@ public:
   //
   // Returns true if the node has been deleted, false if not.
   // !! If this returns true, do not access the node from this point on. !!
-  bool attempt_purge(MetachunkListVector* freelists);
+  bool attempt_purge(FreeChunkListVector* freelists);
 
   // Attempts to uncommit free areas according to the rules set in settings.
   // Returns number of words uncommitted.

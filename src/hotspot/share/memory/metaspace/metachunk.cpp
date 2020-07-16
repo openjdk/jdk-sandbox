@@ -179,46 +179,21 @@ void Metachunk::set_committed_words(size_t v) {
  _committed_words = v;
 }
 
-// Allocate word_size words from this chunk.
+
+// Allocate word_size words from this chunk (word_size must be aligned to
+//  allocation_alignment_words).
 //
-// May cause memory to be committed. That may fail if we hit a commit limit. In that case,
-//  NULL is returned and p_did_hit_commit_limit will be set to true.
-// If the remainder portion of the chunk was too small to hold the allocation,
-//  NULL is returned and p_did_hit_commit_limit will be set to false.
-MetaWord* Metachunk::allocate(size_t request_word_size, bool* p_did_hit_commit_limit) {
+// Caller must make sure the chunk is both large enough and committed far enough
+// to hold the allocation. Will always work.
+//
+MetaWord* Metachunk::allocate(size_t request_word_size) {
 
   log_trace(metaspace)("Chunk " METACHUNK_FULL_FORMAT ": allocating " SIZE_FORMAT " words.",
                        METACHUNK_FULL_FORMAT_ARGS(this), request_word_size);
 
-  assert(committed_words() <= word_size(), "Sanity");
-
-  if (free_below_committed_words() < request_word_size) {
-
-    // We may need to expand the comitted area...
-    if (free_words() < request_word_size) {
-      // ... but cannot do this since we ran out of space.
-      *p_did_hit_commit_limit = false;
-      log_trace(metaspace)("Chunk " METACHUNK_FULL_FORMAT ": .. does not fit (remaining space: "
-                           SIZE_FORMAT " words).", METACHUNK_FULL_FORMAT_ARGS(this), free_words());
-      return NULL;
-    }
-
-    log_trace(metaspace)("Chunk " METACHUNK_FULL_FORMAT ": .. attempting to increase committed range.",
-                         METACHUNK_FULL_FORMAT_ARGS(this));
-
-    if (ensure_committed(used_words() + request_word_size) == false) {
-
-      // Commit failed. We may have hit the commit limit or the gc threshold.
-      *p_did_hit_commit_limit = true;
-      log_trace(metaspace)("Chunk " METACHUNK_FULL_FORMAT ": .. failed, we hit a limit.",
-                           METACHUNK_FULL_FORMAT_ARGS(this));
-      return NULL;
-
-    }
-
-  }
-
-  assert(committed_words() >= request_word_size, "Sanity");
+  // Caller must have made sure this works
+  assert(free_words() >= request_word_size, "Chunk too small.");
+  assert(free_below_committed_words() >= request_word_size, "Chunk not committed.");
 
   MetaWord* const p = top();
 
@@ -229,32 +204,6 @@ MetaWord* Metachunk::allocate(size_t request_word_size, bool* p_did_hit_commit_l
   return p;
 
 }
-
-// Given a memory range which may or may not have been allocated from this chunk, attempt
-// to roll its allocation back. This can work if this is the very last allocation we did
-// from this chunk, in which case we just lower the top pointer again.
-// Returns true if this succeeded, false if it failed.
-bool Metachunk::attempt_rollback_allocation(MetaWord* p, size_t word_size) {
-  assert(p != NULL && word_size > 0, "Sanity");
-  assert(is_in_use() && base() != NULL, "Sanity");
-
-  // Is this allocation at the top?
-  if (used_words() >= word_size &&
-      base() + (used_words() - word_size) == p) {
-    log_trace(metaspace)("Chunk " METACHUNK_FULL_FORMAT ": rolling back allocation...",
-                         METACHUNK_FULL_FORMAT_ARGS(this));
-    _used_words -= word_size;
-    log_trace(metaspace)("Chunk " METACHUNK_FULL_FORMAT ": rolled back allocation.",
-                         METACHUNK_FULL_FORMAT_ARGS(this));
-    DEBUG_ONLY(verify(false);)
-
-    return true;
-
-  }
-
-  return false;
-}
-
 
 #ifdef ASSERT
 
@@ -276,6 +225,134 @@ void Metachunk::check_pattern(MetaWord pattern, size_t word_size) {
     assert(_base[l] == pattern,
            "chunk " METACHUNK_FULL_FORMAT ": pattern change at " PTR_FORMAT ": expected " UINTX_FORMAT " but got " UINTX_FORMAT ".",
            METACHUNK_FULL_FORMAT_ARGS(this), p2i(_base + l), (uintx)pattern, (uintx)_base[l]);
+
+    ////////////////////////////////////////////
+    // A double-headed list of Metachunks.
+
+    class AbstractMetachunkList {
+
+      Metachunk* _first;
+      Metachunk* _last;
+
+      // Number of chunks
+      IntCounter _num;
+
+    protected:
+
+      AbstractMetachunkList() : _first(NULL), _last(NULL), _num() {}
+
+      Metachunk* first() const { return _first; }
+      int count() const { return _num.get(); }
+
+      // Add chunk to the front of the list.
+      void add_front(Metachunk* c) {
+        if (_first == NULL) {
+          assert(_last == NULL && _num.get() == 0, "Sanity");
+          _first = _last = c;
+          c->set_prev(NULL);
+          c->set_next(NULL);
+        } else {
+          assert(_last != NULL && _num.get() > 0, "Sanity");
+          c->set_next(_first);
+          c->set_prev(NULL);
+          _first->set_prev(c);
+          _first = c;
+        }
+        _num.increment();
+      }
+
+      // Add chunk to the back of the list.
+      void add_back(Metachunk* c) {
+        if (_last == NULL) {
+          assert(_first == NULL && _num.get() == 0, "Sanity");
+          _last = _first = c;
+          c->set_prev(NULL);
+          c->set_next(NULL);
+        } else {
+          assert(_first != NULL && _num.get() > 0, "Sanity");
+          c->set_next(NULL);
+          c->set_prev(_last);
+          _last->set_next(c);
+          _last = c;
+        }
+        _num.increment();
+      }
+
+      // Remove chunk from the front of the list. Returns NULL if list is empty.
+      Metachunk* remove_front() {
+        Metachunk* c = NULL;
+        if (_first == NULL) {
+          assert(_last == NULL && _num.get() == 0, "Sanity");
+        } else {
+          c = _first;
+          assert(c->prev() == NULL, "Sanity");
+          if (_first == _last) {
+            assert(_num.get() == 1, "Sanity");
+            _first = _last = NULL;
+          } else {
+            assert(_num.get() > 1, "Sanity");
+            _first = _first->next();
+            _first->set_prev(NULL);
+          }
+          _num.decrement();
+          c->set_next(NULL);
+        }
+        return c;
+      }
+
+      // Remove chunk from the back of the list. Returns NULL if list is empty.
+      Metachunk* remove_back() {
+        Metachunk* c = NULL;
+        if (_last == NULL) {
+          assert(_first == NULL && _num.get() == 0, "Sanity");
+        } else {
+          c = _last;
+          assert(c->next() == NULL, "Sanity");
+          if (_first == _last) {
+            assert(_num.get() == 1, "Sanity");
+            _first = _last = NULL;
+          } else {
+            assert(_num.get() > 1, "Sanity");
+            _last = _last->prev();
+            _last->set_next(NULL);
+          }
+          _num.decrement();
+          c->set_prev(NULL);
+        }
+        return c;
+      }
+
+    public:
+
+    #ifdef ASSERT
+      bool contains(const Metachunk* c) const;
+      void verify() const;
+    #endif
+
+      // Returns size, in words, of committed space of all chunks in this list.
+      // Note: walks list.
+      size_t committed_word_size() const {
+        size_t l = 0;
+        for (const Metachunk* c = _first; c != NULL; c = c->next()) {
+          l += c->committed_words();
+        }
+        return l;
+      }
+
+      void print_on(outputStream* st) const;
+
+    };
+
+    class UnsortedMetachunkList : public AbstractMetachunkList {
+    public:
+
+
+
+
+
+    };
+
+
   }
 }
 
@@ -378,6 +455,10 @@ void Metachunk::verify(bool slow) const {
 
   assert(!is_dead(), "Do not call on dead chunks.");
 
+  if (is_free()) {
+    assert(used_words() == 0, "free chunks are not used.");
+  }
+
   // Note: only call this on a life Metachunk.
   chunklevel::check_valid_level(level());
 
@@ -413,110 +494,13 @@ void Metachunk::verify(bool slow) const {
 
 void Metachunk::print_on(outputStream* st) const {
 
-  // Note: must also work with invalid/random data.
+  // Note: must also work with invalid/random data. (e.g. do not call word_size())
   st->print("Chunk @" PTR_FORMAT ", state %c, base " PTR_FORMAT ", "
             "level " CHKLVL_FORMAT " (" SIZE_FORMAT " words), "
             "used " SIZE_FORMAT " words, committed " SIZE_FORMAT " words.",
             p2i(this), get_state_char(), p2i(base()), level(),
-            (chunklevel::is_valid_level(level()) ? chunklevel::word_size_for_level(level()) : 0),
+            (chunklevel::is_valid_level(level()) ? chunklevel::word_size_for_level(level()) : (size_t)-1),
             used_words(), committed_words());
-
-}
-
-///////////////////////////////////7
-// MetachunkList
-
-#ifdef ASSERT
-
-bool MetachunkList::contains(const Metachunk* c) const {
-  for (Metachunk* c2 = first(); c2 != NULL; c2 = c2->next()) {
-    if (c == c2) {
-      return true;
-    }
-  }
-  return false;
-}
-
-void MetachunkList::verify() const {
-  int num = 0;
-  const Metachunk* last_c = NULL;
-  for (const Metachunk* c = first(); c != NULL; c = c->next()) {
-    num ++;
-    assert(c->prev() != c && c->next() != c, "circularity");
-    assert(c->prev() == last_c,
-           "Broken link to predecessor. Chunk " METACHUNK_FULL_FORMAT ".",
-           METACHUNK_FULL_FORMAT_ARGS(c));
-    c->verify(false);
-    last_c = c;
-  }
-  _num.check(num);
-}
-
-#endif // ASSERT
-
-void MetachunkList::print_on(outputStream* st) const {
-
-  if (_num.get() > 0) {
-    for (const Metachunk* c = first(); c != NULL; c = c->next()) {
-      st->print(" - <");
-      c->print_on(st);
-      st->print(">");
-    }
-    st->print(" - total : %d chunks.", _num.get());
-  } else {
-    st->print("empty");
-  }
-
-}
-
-///////////////////////////////////7
-// MetachunkListCluster
-
-#ifdef ASSERT
-
-bool MetachunkListVector::contains(const Metachunk* c) const {
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
-    if (list_for_level(l)->contains(c)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-void MetachunkListVector::verify(bool slow) const {
-
-  MemRangeCounter local_count;
-
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
-
-    // Check, for each chunk in this list, exclusivity.
-    for (const Metachunk* c = first_at_level(l); c != NULL; c = c->next()) {
-      assert(c->level() == l, "Chunk in wrong list.");
-    }
-
-    // Check each list.
-    list_for_level(l)->verify();
-
-    unsigned count = list_for_level(l)->count();
-    if (count > 0) {
-      local_count.add_multiple(count, count * chunklevel::word_size_for_level(l));
-    }
-
-  }
-
-  _counter.check(local_count);
-
-}
-#endif // ASSERT
-
-void MetachunkListVector::print_on(outputStream* st) const {
-
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
-    st->print("-- List[" CHKLVL_FORMAT "]: ", l);
-    list_for_level(l)->print_on(st);
-    st->cr();
-  }
-  st->print_cr("total chunks: %d, total word size: " SIZE_FORMAT ".", _counter.count(), _counter.total_size());
 
 }
 

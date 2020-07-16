@@ -28,6 +28,7 @@
 #include "memory/allocation.hpp"
 #include "memory/metaspace/chunkHeaderPool.hpp"
 #include "memory/metaspace/chunkManager.hpp"
+#include "memory/metaspace/freeChunkList.hpp"
 #include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
@@ -69,17 +70,14 @@ Metachunk* RootChunkArea::alloc_root_chunk_header(VirtualSpaceNode* node) {
 
 }
 
-
-
 // Given a chunk c, split it recursively until you get a chunk of the given target_level.
 //
-// The original chunk must not be part of a freelist.
+// The resulting target chunk resides at the same address as the original chunk.
+// The resulting splinters are added to freelists.
 //
 // Returns pointer to the result chunk; the splitted-off chunks are added as
 //  free chunks to the freelists.
-//
-// Returns NULL if chunk cannot be split at least once.
-Metachunk* RootChunkArea::split(chunklevel_t target_level, Metachunk* c, MetachunkListVector* freelists) {
+void RootChunkArea::split(chunklevel_t target_level, Metachunk* c, FreeChunkListVector* freelists) {
 
   // Splitting a chunk once works like this:
   //
@@ -112,6 +110,7 @@ Metachunk* RootChunkArea::split(chunklevel_t target_level, Metachunk* c, Metachu
   // new chunks at the end of all splits.
 
   DEBUG_ONLY(check_pointer(c->base());)
+  DEBUG_ONLY(c->verify(false);)
   assert(c->is_free(), "Can only split free chunks.");
 
   DEBUG_ONLY(chunklevel::check_valid_level(target_level));
@@ -119,37 +118,34 @@ Metachunk* RootChunkArea::split(chunklevel_t target_level, Metachunk* c, Metachu
 
   const chunklevel_t starting_level = c->level();
 
-  Metachunk* result = c;
+  while (c->level() < target_level) {
 
-  log_trace(metaspace)("Splitting chunk @" PTR_FORMAT ", base " PTR_FORMAT ", level " CHKLVL_FORMAT "...",
-                       p2i(c), p2i(c->base()), c->level());
+    log_trace(metaspace)("Splitting chunk: " METACHUNK_FULL_FORMAT ".", METACHUNK_FULL_FORMAT_ARGS(c));
 
-  while (result->level() < target_level) {
-
-    result->inc_level();
+    c->inc_level();
     Metachunk* splinter_chunk = ChunkHeaderPool::pool().allocate_chunk_header();
-    splinter_chunk->initialize(result->vsnode(), result->end(), result->level());
+    splinter_chunk->initialize(c->vsnode(), c->end(), c->level());
 
     // Fix committed words info: If over the half of the original chunk was
     // committed, committed area spills over into the follower chunk.
-    const size_t old_committed_words = result->committed_words();
-    if (old_committed_words > result->word_size()) {
-      result->set_committed_words(result->word_size());
-      splinter_chunk->set_committed_words(old_committed_words - result->word_size());
+    const size_t old_committed_words = c->committed_words();
+    if (old_committed_words > c->word_size()) {
+      c->set_committed_words(c->word_size());
+      splinter_chunk->set_committed_words(old_committed_words - c->word_size());
     } else {
       splinter_chunk->set_committed_words(0);
     }
 
     // Insert splinter chunk into vs list
-    if (result->next_in_vs() != NULL) {
-      result->next_in_vs()->set_prev_in_vs(splinter_chunk);
+    if (c->next_in_vs() != NULL) {
+      c->next_in_vs()->set_prev_in_vs(splinter_chunk);
     }
-    splinter_chunk->set_next_in_vs(result->next_in_vs());
-    splinter_chunk->set_prev_in_vs(result);
-    result->set_next_in_vs(splinter_chunk);
+    splinter_chunk->set_next_in_vs(c->next_in_vs());
+    splinter_chunk->set_prev_in_vs(c);
+    c->set_next_in_vs(splinter_chunk);
 
-    log_trace(metaspace)("Created splinter chunk @" PTR_FORMAT ", base " PTR_FORMAT ", level " CHKLVL_FORMAT "...",
-                         p2i(splinter_chunk), p2i(splinter_chunk->base()), splinter_chunk->level());
+    log_trace(metaspace)(".. Result chunk: " METACHUNK_FULL_FORMAT ".", METACHUNK_FULL_FORMAT_ARGS(c));
+    log_trace(metaspace)(".. Splinter chunk: " METACHUNK_FULL_FORMAT ".", METACHUNK_FULL_FORMAT_ARGS(splinter_chunk));
 
     // Add splinter to free lists
     freelists->add(splinter_chunk);
@@ -158,14 +154,12 @@ Metachunk* RootChunkArea::split(chunklevel_t target_level, Metachunk* c, Metachu
 
   }
 
-  assert(result->level() == target_level, "Sanity");
+  assert(c->level() == target_level, "Sanity");
 
   DEBUG_ONLY(verify(true);)
-  DEBUG_ONLY(result->verify(true);)
+  DEBUG_ONLY(c->verify(true);)
 
   DEBUG_ONLY(InternalStats::inc_num_chunk_splits();)
-
-  return result;
 
 }
 
@@ -179,7 +173,7 @@ Metachunk* RootChunkArea::split(chunklevel_t target_level, Metachunk* c, Metachu
 //
 // !!! Please note that if this method returns a non-NULL value, the
 // original chunk will be invalid and should not be accessed anymore! !!!
-Metachunk* RootChunkArea::merge(Metachunk* c, MetachunkListVector* freelists) {
+Metachunk* RootChunkArea::merge(Metachunk* c, FreeChunkListVector* freelists) {
 
   // Note rules:
   //
@@ -336,7 +330,7 @@ Metachunk* RootChunkArea::merge(Metachunk* c, MetachunkListVector* freelists) {
 // double in size (level decreased by one).
 //
 // On success, true is returned, false otherwise.
-bool RootChunkArea::attempt_enlarge_chunk(Metachunk* c, MetachunkListVector* freelists) {
+bool RootChunkArea::attempt_enlarge_chunk(Metachunk* c, FreeChunkListVector* freelists) {
 
   DEBUG_ONLY(check_pointer(c->base());)
   assert(!c->is_root_chunk(), "Cannot be merged further.");

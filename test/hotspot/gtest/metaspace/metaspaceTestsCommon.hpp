@@ -23,13 +23,14 @@
  */
 
 #ifndef GTEST_METASPACE_METASPACETESTCOMMON_HPP
+#define GTEST_METASPACE_METASPACETESTCOMMON_HPP
 
 #include "memory/allocation.hpp"
 
 
+#include "memory/metaspace/arenaGrowthPolicy.hpp"
 #include "memory/metaspace/binlist.hpp"
 #include "memory/metaspace/blocktree.hpp"
-#include "memory/metaspace/chunkAllocSequence.hpp"
 #include "memory/metaspace/chunkHeaderPool.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/chunkManager.hpp"
@@ -37,6 +38,7 @@
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/commitMask.hpp"
 #include "memory/metaspace/freeBlocks.hpp"
+#include "memory/metaspace/freeChunkList.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
@@ -61,7 +63,7 @@
 
 using metaspace::BinListImpl;
 using metaspace::BlockTree;
-using metaspace::ChunkAllocSequence;
+using metaspace::ArenaGrowthPolicy;
 using metaspace::ChunkHeaderPool;
 using metaspace::ChunkManager;
 using metaspace::CommitLimiter;
@@ -70,10 +72,11 @@ using metaspace::SizeCounter;
 using metaspace::SizeAtomicCounter;
 using metaspace::IntCounter;
 using metaspace::FreeBlocks;
+using metaspace::FreeChunkList;
+using metaspace::FreeChunkListVector;
 using metaspace::MemRangeCounter;
 using metaspace::Metachunk;
 using metaspace::MetachunkList;
-using metaspace::MetachunkListVector;
 using metaspace::Settings;
 using metaspace::sm_stats_t;
 using metaspace::in_use_chunk_stats_t;
@@ -84,13 +87,7 @@ using metaspace::VirtualSpaceList;
 using metaspace::VirtualSpaceNode;
 
 using metaspace::chunklevel_t;
-using metaspace::chunklevel::HIGHEST_CHUNK_LEVEL;
-using metaspace::chunklevel::MAX_CHUNK_WORD_SIZE;
-using metaspace::chunklevel::MAX_CHUNK_BYTE_SIZE;
-using metaspace::chunklevel::MIN_CHUNK_WORD_SIZE;
-using metaspace::chunklevel::MIN_CHUNK_BYTE_SIZE;
-using metaspace::chunklevel::LOWEST_CHUNK_LEVEL;
-using metaspace::chunklevel::NUM_CHUNK_LEVELS;
+using namespace metaspace::chunklevel;
 
 
 /////////////////////////////////////////////////////////////////////
@@ -126,26 +123,11 @@ public:
     memset(_arr + from, 0, to - from);
   }
 
+  bool at(size_t pos) const {
+    return _arr[pos] == 1;
+  }
+
 };
-
-
-
-///////////////////////////////////////////////////////////////
-// Functions to calculate random ranges in outer ranges
-
-// Note: [ from..to )
-struct range_t {
-  size_t from; size_t to;
-};
-
-void calc_random_range(size_t outer_range_len, range_t* out, size_t alignment);
-
-// Note:  [ p..p+word_size )
-struct address_range_t {
-  MetaWord* p; size_t word_size;
-};
-
-void calc_random_address_range(const address_range_t* outer_range, address_range_t* out, size_t alignment);
 
 
 ///////////////////////////////////////////////////////////
@@ -182,6 +164,7 @@ public:
 
 }; // end RandSizeGenerator
 
+size_t get_random_size(size_t min, size_t max);
 
 ///////////////////////////////////////////////////////////
 // Function to test-access a memory range
@@ -196,22 +179,22 @@ void zap_range(MetaWord* p, size_t word_size);
 // The filled range can be checked with check_range_for_pattern. One also can only check
 // a sub range of the original range.
 void fill_range_with_pattern(MetaWord* p, uintx pattern, size_t word_size);
-bool check_range_for_pattern(const MetaWord* p, uintx pattern, size_t word_size);
+void check_range_for_pattern(const MetaWord* p, uintx pattern, size_t word_size);
 
 // Writes a uniqe pattern to p
 void mark_address(MetaWord* p, uintx pattern);
 // checks pattern at address
-bool check_marked_address(const MetaWord* p, uintx pattern);
+void check_marked_address(const MetaWord* p, uintx pattern);
 
 // Similar to fill_range_with_pattern, but only marks start and end. This is optimized for cases
 // where fill_range_with_pattern just is too slow.
 // Use check_marked_range to check the range. In contrast to check_range_for_pattern, only the original
 // range can be checked.
 void mark_range(MetaWord* p, uintx pattern, size_t word_size);
-bool check_marked_range(const MetaWord* p, uintx pattern, size_t word_size);
+void check_marked_range(const MetaWord* p, uintx pattern, size_t word_size);
 
 void mark_range(MetaWord* p, size_t word_size);
-bool check_marked_range(const MetaWord* p, size_t word_size);
+void check_marked_range(const MetaWord* p, size_t word_size);
 
 //////////////////////////////////////////////////////////
 // Some helpers to avoid typing out those annoying casts for NULL
@@ -220,6 +203,8 @@ bool check_marked_range(const MetaWord* p, size_t word_size);
 #define ASSERT_NULL(ptr)          ASSERT_EQ((void*)NULL, (void*)ptr)
 #define EXPECT_NOT_NULL(ptr)      EXPECT_NE((void*)NULL, (void*)ptr)
 #define EXPECT_NULL(ptr)          EXPECT_EQ((void*)NULL, (void*)ptr)
+
+#define EXPECT_0(v)               EXPECT_EQ((intptr_t)0, (intptr_t)v)
 
 
 //////////////////////////////////////////////////////////

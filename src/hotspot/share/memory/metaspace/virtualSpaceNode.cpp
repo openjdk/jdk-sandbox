@@ -33,6 +33,7 @@
 #include "memory/metaspace/chunkHeaderPool.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/counter.hpp"
+#include "memory/metaspace/freeChunkList.hpp"
 #include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
@@ -362,13 +363,9 @@ Metachunk* VirtualSpaceNode::allocate_root_chunk() {
 
 // Given a chunk c, split it recursively until you get a chunk of the given target_level.
 //
-// The original chunk must not be part of a freelist.
-//
-// Returns pointer to the result chunk; the splitted-off chunks are added as
-//  free chunks to the freelists.
-//
-// Returns NULL if chunk cannot be split at least once.
-Metachunk* VirtualSpaceNode::split(chunklevel_t target_level, Metachunk* c, MetachunkListVector* freelists) {
+// The resulting target chunk resides at the same address as the original chunk.
+// The resulting splinters are added to freelists.
+void VirtualSpaceNode::split(chunklevel_t target_level, Metachunk* c, FreeChunkListVector* freelists) {
 
   assert_lock_strong(MetaspaceExpand_lock);
 
@@ -377,10 +374,9 @@ Metachunk* VirtualSpaceNode::split(chunklevel_t target_level, Metachunk* c, Meta
 
   DEBUG_ONLY(rca->verify_area_is_ideally_merged();)
 
-  return rca->split(target_level, c, freelists);
+  rca->split(target_level, c, freelists);
 
 }
-
 
 // Given a chunk, attempt to merge it recursively with its neighboring chunks.
 //
@@ -391,7 +387,7 @@ Metachunk* VirtualSpaceNode::split(chunklevel_t target_level, Metachunk* c, Meta
 //
 // !!! Please note that if this method returns a non-NULL value, the
 // original chunk will be invalid and should not be accessed anymore! !!!
-Metachunk* VirtualSpaceNode::merge(Metachunk* c, MetachunkListVector* freelists) {
+Metachunk* VirtualSpaceNode::merge(Metachunk* c, FreeChunkListVector* freelists) {
 
   assert(c != NULL && c->is_free(), "Sanity");
   assert_lock_strong(MetaspaceExpand_lock);
@@ -416,7 +412,7 @@ Metachunk* VirtualSpaceNode::merge(Metachunk* c, MetachunkListVector* freelists)
 // double in size (level decreased by one).
 //
 // On success, true is returned, false otherwise.
-bool VirtualSpaceNode::attempt_enlarge_chunk(Metachunk* c, MetachunkListVector* freelists) {
+bool VirtualSpaceNode::attempt_enlarge_chunk(Metachunk* c, FreeChunkListVector* freelists) {
 
   assert(c != NULL && c->is_in_use() && !c->is_root_chunk(), "Sanity");
   assert_lock_strong(MetaspaceExpand_lock);
@@ -439,7 +435,7 @@ bool VirtualSpaceNode::attempt_enlarge_chunk(Metachunk* c, MetachunkListVector* 
 //
 // Returns true if the node has been deleted, false if not.
 // !! If this returns true, do not access the node from this point on. !!
-bool VirtualSpaceNode::attempt_purge(MetachunkListVector* freelists) {
+bool VirtualSpaceNode::attempt_purge(FreeChunkListVector* freelists) {
 
   assert_lock_strong(MetaspaceExpand_lock);
 

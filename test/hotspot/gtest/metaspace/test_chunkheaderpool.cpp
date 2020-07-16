@@ -114,6 +114,35 @@ public:
 
 };
 
+TEST_VM(metaspace, chunk_header_pool_basics) {
+
+  ChunkHeaderPool pool(true);
+  EXPECT_EQ(pool.used(), (int)0);
+  EXPECT_EQ(pool.freelist_size(), (int)0);
+
+  Metachunk* header = pool.allocate_chunk_header();
+  EXPECT_NOT_NULL(header);
+  EXPECT_EQ(pool.used(), 1);
+  EXPECT_EQ(pool.freelist_size(), (int)0);
+
+  header->set_free();
+  pool.return_chunk_header(header);
+  EXPECT_EQ(pool.used(), (int)0);
+  EXPECT_EQ(pool.freelist_size(), 1);
+
+  header = pool.allocate_chunk_header();
+  EXPECT_NOT_NULL(header);
+  EXPECT_EQ(pool.used(), 1);
+  EXPECT_EQ(pool.freelist_size(), (int)0);
+
+  header->set_free();
+  pool.return_chunk_header(header);
+  EXPECT_EQ(pool.used(), (int)0);
+  EXPECT_EQ(pool.freelist_size(), 1);
+
+}
+
+
 TEST_VM(metaspace, chunk_header_pool) {
   ChunkHeaderPoolTest::run_tests();
 }

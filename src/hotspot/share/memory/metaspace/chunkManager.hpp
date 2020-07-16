@@ -29,6 +29,7 @@
 #include "memory/allocation.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/counter.hpp"
+#include "memory/metaspace/freeChunkList.hpp"
 #include "memory/metaspace/metachunk.hpp"
 
 namespace metaspace {
@@ -51,10 +52,10 @@ class ChunkManager : public CHeapObj<mtMetaspace> {
   // Name
   const char* const _name;
 
-  // Freelist
-  MetachunkListVector _chunks;
+  // Freelists
+  FreeChunkListVector _chunks;
 
-  // Returns true if this manager contains the given chunk. Slow (walks free list) and
+  // Returns true if this manager contains the given chunk. Slow (walks free lists) and
   // only needed for verifications.
   DEBUG_ONLY(bool contains_chunk(Metachunk* c) const;)
 
@@ -67,9 +68,18 @@ class ChunkManager : public CHeapObj<mtMetaspace> {
   // if there is no fitting chunk for this level.
   Metachunk* remove_first_chunk_at_level(chunklevel_t l);
 
-  // Given a chunk which must be outside of a freelist and must be free, split it to
-  // meet a target level and return it. Splinters are added to the freelist.
-  Metachunk* split_chunk_and_add_splinters(Metachunk* c, chunklevel_t target_level);
+  // Given a chunk, split it into a target chunk of a smaller size (target level)
+  //  at least one, possible more splinter chunks. Splinter chunks are added to the
+  //  freelist.
+  // The original chunk must be outside of the freelist and its state must be free.
+  // The resulting target chunk will be located at the same address as the original
+  //  chunk, but it will of course be smaller (of a higher level).
+  // The committed areas within the original chunk carry over to the resulting
+  //  chunks.
+  void split_chunk_and_add_splinters(Metachunk* c, chunklevel_t target_level);
+
+  // See get_chunk(s,s,s)
+  Metachunk* get_chunk_locked(size_t preferred_word_size, size_t min_word_size, size_t min_committed_words);
 
   // Uncommit all chunks equal or below the given level.
   void uncommit_free_chunks(chunklevel_t max_level);
@@ -81,24 +91,25 @@ public:
   // (see get_chunk())
   ChunkManager(const char* name, VirtualSpaceList* space_list);
 
-  // Get a chunk and be smart about it.
-  // - 1) Attempt to find a free chunk of exactly the pref_level level
-  // - 2) Failing that, attempt to find a chunk smaller or equal the maximal level.
-  // - 3) Failing that, attempt to find a free chunk of larger size and split it.
-  // - 4) Failing that, attempt to allocate a new chunk from the connected virtual space.
-  // - Failing that, give up and return NULL.
-  // Note: this is not guaranteed to return a *committed* chunk. The chunk manager will
-  //   attempt to commit the returned chunk according to constants::committed_words_on_fresh_chunks;
-  //   but this may fail if we hit a commit limit. In that case, a partly uncommitted chunk
-  //   will be returned, and the commit is attempted again when we allocate from the chunk's
-  //   uncommitted area. See also Metachunk::allocate.
-  Metachunk* get_chunk(chunklevel_t max_level, chunklevel_t pref_level);
+  // On success, returns a chunk of level of <preferred_level>, but at most <max_level>.
+  //  The first first <min_committed_words> of the chunk are guaranteed to be committed.
+  // On error, will return NULL.
+  //
+  // This function may fail for two reasons:
+  // - Either we are unable to reserve space for a new chunk (if the underlying VirtualSpaceList
+  //   is non-expandable but needs expanding - aka out of compressed class space).
+  // - Or, if the necessary space cannot be committed because we hit a commit limit.
+  //   This may be either the GC threshold or MaxMetaspaceSize.
+  Metachunk* get_chunk(chunklevel_t preferred_level, chunklevel_t max_level, size_t min_committed_words);
+
+  // Convenience function - get a chunk of a given level, uncommitted.
+  Metachunk* get_chunk(chunklevel_t lvl) { return get_chunk(lvl, lvl, 0); }
 
   // Return a single chunk to the ChunkManager and adjust accounting. May merge chunk
   //  with neighbors.
   // Happens after a Classloader was unloaded and releases its metaspace chunks.
   // !! Notes:
-  //    1) After this method returns, c may not be valid anymore. Do not access the chunk after this function returns.
+  //    1) After this method returns, c may not be valid anymore. ** Do not access c after this function returns **.
   //    2) This function will not remove c from its current chunk list. This has to be done by the caller prior to
   //       calling this method.
   void return_chunk(Metachunk* c);
@@ -132,10 +143,13 @@ public:
   const char* name() const                  { return _name; }
 
   // Returns total number of chunks
-  int total_num_chunks() const              { return _chunks.total_num_chunks(); }
+  int total_num_chunks() const              { return _chunks.num_chunks(); }
 
-  // Returns number of words in all free chunks.
-  size_t total_word_size() const            { return _chunks.total_word_size(); }
+  // Returns number of words in all free chunks (regardless of commit state).
+  size_t total_word_size() const            { return _chunks.word_size(); }
+
+  // Returns number of committed words in all free chunks.
+  size_t total_committed_word_size() const  { return _chunks.committed_word_size(); }
 
   // Update statistics.
   void add_to_statistics(cm_stats_t* out) const;

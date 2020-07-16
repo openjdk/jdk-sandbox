@@ -76,7 +76,7 @@ class FreeBlocks : public CHeapObj<mtMetaspace> {
   // A BST for larger blocks.
   BlockTree _tree;
 
-  static const size_t splinter_threshold = 0x100;
+  static const size_t splinter_threshold = 0;// 0x100;
 
 public:
 

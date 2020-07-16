@@ -130,7 +130,7 @@ void BlockTree::verify_tree() const {
     verify_node(_root, 0, maximal_word_size + 1, &vd, 0);
     assrt0(vd.largest == _largest_size_added);
     vd.counter.check(_counter);
-    assrt0(vd.counter.zero() == false);
+    assrt0(vd.counter.count() > 0);
   }
 }
 

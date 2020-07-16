@@ -27,6 +27,7 @@
 #include "runtime/os.hpp"
 
 #include "metaspaceTestsCommon.hpp"
+#include "metaspace/metaspace_rangehelpers.hpp"
 
 static int get_random(int limit) { return os::random() % limit; }
 
@@ -216,24 +217,21 @@ class CommitMaskTest {
 
     for (int run = 0; run < 100; run ++) {
 
-      range_t r;
-      calc_random_range(_word_size, &r, Settings::commit_granule_words());
-
-      ASSERT_EQ(_mask.get_committed_size(), (size_t)map.get_num_set());
-      ASSERT_EQ(_mask.get_committed_size_in_range(_base + r.from, r.to - r.from),
-                (size_t)map.get_num_set(r.from, r.to));
+      // A random range
+      SizeRange r = SizeRange(_word_size).random_aligned_subrange(Settings::commit_granule_words());
 
       if (os::random() % 100 < 50) {
-        _mask.mark_range_as_committed(_base + r.from, r.to - r.from);
-        map.set_range(r.from, r.to);
+        _mask.mark_range_as_committed(_base + r.lowest(), r.size());
+        map.set_range(r.lowest(), r.end());
       } else {
-        _mask.mark_range_as_uncommitted(_base + r.from, r.to - r.from);
-        map.clear_range(r.from, r.to);
+        _mask.mark_range_as_uncommitted(_base + r.lowest(), r.size());
+        map.clear_range(r.lowest(), r.end());
       }
 
       ASSERT_EQ(_mask.get_committed_size(), (size_t)map.get_num_set());
-      ASSERT_EQ(_mask.get_committed_size_in_range(_base + r.from, r.to - r.from),
-                (size_t)map.get_num_set(r.from, r.to));
+
+      ASSERT_EQ(_mask.get_committed_size_in_range(_base + r.lowest(), r.size()),
+                (size_t)map.get_num_set(r.lowest(), r.end()));
 
     }
 

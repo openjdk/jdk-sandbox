@@ -28,9 +28,9 @@
 
 #include "memory/allocation.hpp"
 #include "memory/metaspace.hpp"
-#include "memory/metaspace/chunkAllocSequence.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/metachunk.hpp"
+#include "memory/metaspace/metachunkList.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 
 
@@ -39,6 +39,8 @@ class Mutex;
 
 namespace metaspace {
 
+
+class ArenaGrowthPolicy;
 class FreeBlocks;
 
 struct sm_stats_t;
@@ -60,11 +62,9 @@ class SpaceManager : public CHeapObj<mtClass> {
   ChunkManager* const _chunk_manager;
 
   // The chunk allocation strategy to use.
-  const ChunkAllocSequence* const _chunk_alloc_sequence;
+  const ArenaGrowthPolicy* const _growth_policy;
 
-  // List of chunks in use by this SpaceManager.  Allocations
-  // are done from the current chunk. The list is used for deallocating
-  // chunks when the SpaceManager is freed.
+  // List of chunks. Head of the list is the current chunk.
   MetachunkList _chunks;
 
   // Structure to take care of leftover/deallocated space in used chunks
@@ -84,26 +84,26 @@ class SpaceManager : public CHeapObj<mtClass> {
 
   Mutex* lock() const                           { return _lock; }
   ChunkManager* chunk_manager() const           { return _chunk_manager; }
-  const ChunkAllocSequence* chunk_alloc_sequence() const    { return _chunk_alloc_sequence; }
 
   // free block list
   FreeBlocks* fbl() const                       { return _fbl; }
   void add_allocation_to_fbl(MetaWord* p, size_t word_size);
 
-  // The remaining committed free space in the current chunk is chopped up and stored in the block
-  // free list for later use. As a result, the current chunk will remain current but completely
-  // used up. This is a preparation for calling allocate_new_current_chunk().
-  void retire_current_chunk();
+  // Given a chunk, add its remaining free committed space to the free block list.
+  void salvage_chunk(Metachunk* c);
 
-  // Given a requested word size, will allocate a chunk large enough to at least fit that
-  // size, but may be larger according to internal heuristics.
+  // Allocate a new chunk from the underlying chunk manager able to hold at least
+  // requested word size.
+  Metachunk* allocate_new_chunk(size_t requested_word_size);
+
+  // Returns the level of the next chunk to be added, acc to growth policy.
+  chunklevel_t next_chunk_level() const;
+
+  // Attempt to enlarge the current chunk to make it large enough to hold at least
+  //  requested_word_size additional words.
   //
-  // On success, it will replace the current chunk with the newly allocated one, which will
-  // become the current chunk. The old current chunk should be retired beforehand.
-  //
-  // May fail if we could not allocate a new chunk. In that case the current chunk remains
-  // unchanged and false is returned.
-  bool allocate_new_current_chunk(size_t requested_word_size);
+  // On success, true is returned, false otherwise.
+  bool attempt_enlarge_current_chunk(size_t requested_word_size);
 
   // Prematurely returns a metaspace allocation to the _block_freelists
   // because it is not needed anymore (requires CLD lock to be active).
@@ -116,7 +116,7 @@ class SpaceManager : public CHeapObj<mtClass> {
 public:
 
   SpaceManager(ChunkManager* chunk_manager,
-               const ChunkAllocSequence* alloc_sequence,
+               const ArenaGrowthPolicy* growth_policy,
                Mutex* lock,
                SizeAtomicCounter* total_used_words_counter,
                const char* name,
@@ -141,6 +141,9 @@ public:
 
   DEBUG_ONLY(void verify(bool slow) const;)
   DEBUG_ONLY(void verify_locked(bool slow) const;)
+
+  void print_on(outputStream* st) const;
+  void print_on_locked(outputStream* st) const;
 
 };
 

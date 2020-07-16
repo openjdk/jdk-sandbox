@@ -25,9 +25,9 @@
 #include "precompiled.hpp"
 
 #include "logging/log.hpp"
+#include "memory/metaspace/arenaGrowthPolicy.hpp"
 #include "memory/metaspace.hpp"
 #include "memory/metaspaceTracer.hpp"
-#include "memory/metaspace/chunkAllocSequence.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/metaspace/internStat.hpp"
@@ -61,22 +61,22 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
   ChunkManager* const non_class_cm =
           ChunkManager::chunkmanager_nonclass();
 
-  // Initialize non-class spacemanager
+  // Initialize non-class Arena
   _non_class_space_manager = new SpaceManager(
       non_class_cm,
-      ChunkAllocSequence::alloc_sequence_by_space_type(space_type, false),
+      ArenaGrowthPolicy::policy_for_space_type(space_type, false),
       lock,
       RunningCounters::used_nonclass_counter(),
       "non-class sm",
       is_micro());
 
-  // If needed, initialize class spacemanager
+  // If needed, initialize class arena
   if (Metaspace::using_class_space()) {
     ChunkManager* const class_cm =
             ChunkManager::chunkmanager_class();
     _class_space_manager = new SpaceManager(
         class_cm,
-        ChunkAllocSequence::alloc_sequence_by_space_type(space_type, true),
+        ArenaGrowthPolicy::policy_for_space_type(space_type, true),
         lock,
         RunningCounters::used_class_counter(),
         "class sm",

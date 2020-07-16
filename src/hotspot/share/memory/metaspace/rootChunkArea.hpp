@@ -37,7 +37,7 @@ namespace metaspace {
 
 class Metachunk;
 class MetachunkClosure;
-class MetachunkListVector;
+class FreeChunkListVector;
 class VirtualSpaceNode;
 
 
@@ -63,15 +63,15 @@ public:
   // Note: this just allocates a memory-less header; memory itself is allocated inside VirtualSpaceNode.
   Metachunk* alloc_root_chunk_header(VirtualSpaceNode* node);
 
+
   // Given a chunk c, split it recursively until you get a chunk of the given target_level.
   //
-  // The original chunk must not be part of a freelist.
+  // The resulting target chunk resides at the same address as the original chunk.
+  // The resulting splinters are added to freelists.
   //
   // Returns pointer to the result chunk; the splitted-off chunks are added as
   //  free chunks to the freelists.
-  //
-  // Returns NULL if chunk cannot be split at least once.
-  Metachunk* split(chunklevel_t target_level, Metachunk* c, MetachunkListVector* freelists);
+  void split(chunklevel_t target_level, Metachunk* c, FreeChunkListVector* freelists);
 
   // Given a chunk, attempt to merge it recursively with its neighboring chunks.
   //
@@ -82,7 +82,7 @@ public:
   //
   // !!! Please note that if this method returns a non-NULL value, the
   // original chunk will be invalid and should not be accessed anymore! !!!
-  Metachunk* merge(Metachunk* c, MetachunkListVector* freelists);
+  Metachunk* merge(Metachunk* c, FreeChunkListVector* freelists);
 
   // Given a chunk c, which must be "in use" and must not be a root chunk, attempt to
   // enlarge it in place by claiming its trailing buddy.
@@ -93,7 +93,7 @@ public:
   // double in size (level decreased by one).
   //
   // On success, true is returned, false otherwise.
-  bool attempt_enlarge_chunk(Metachunk* c, MetachunkListVector* freelists);
+  bool attempt_enlarge_chunk(Metachunk* c, FreeChunkListVector* freelists);
 
   // Returns true if all chunks in this area are free; false if not.
   bool all_chunks_are_free() const;

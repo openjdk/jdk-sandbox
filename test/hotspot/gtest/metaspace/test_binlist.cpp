@@ -219,7 +219,6 @@ TEST_VM(metaspace, BinList_basic_131)   { BinListBasicTest< metaspace::BinListIm
 TEST_VM(metaspace, BinList_basic2_8)   { BinListBasicTest<metaspace::BinList8>::basic_test_2(); }
 TEST_VM(metaspace, BinList_basic2_16)  { BinListBasicTest<metaspace::BinList16>::basic_test_2(); }
 TEST_VM(metaspace, BinList_basic2_32)  { BinListBasicTest<metaspace::BinList32>::basic_test_2(); }
-//TEST_VM(metaspace, BinList_basic2_64)  { BinListBasicTest<metaspace::BinList64>::basic_test_2(); }
 
 TEST_VM(metaspace, BinList_basic2_1331)   { BinListBasicTest< metaspace::BinListImpl<13, 31> >::basic_test_2(); }
 TEST_VM(metaspace, BinList_basic2_131)   { BinListBasicTest< metaspace::BinListImpl<13, 1> >::basic_test_2(); }
@@ -227,7 +226,6 @@ TEST_VM(metaspace, BinList_basic2_131)   { BinListBasicTest< metaspace::BinListI
 TEST_VM(metaspace, BinList_random_test_8)   { BinListBasicTest<metaspace::BinList8>::random_test(); }
 TEST_VM(metaspace, BinList_random_test_16)  { BinListBasicTest<metaspace::BinList16>::random_test(); }
 TEST_VM(metaspace, BinList_random_test_32)  { BinListBasicTest<metaspace::BinList32>::random_test(); }
-//TEST_VM(metaspace, BinList_random_test_64)  { BinListBasicTest<metaspace::BinList64>::random_test(); }
 
 TEST_VM(metaspace, BinList_random_test_1331)   { BinListBasicTest< metaspace::BinListImpl<13, 31> >::random_test(); }
 TEST_VM(metaspace, BinList_random_test_131)   { BinListBasicTest< metaspace::BinListImpl<13, 1> >::random_test(); }

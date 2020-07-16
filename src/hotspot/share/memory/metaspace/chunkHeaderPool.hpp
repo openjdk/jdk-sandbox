@@ -28,6 +28,7 @@
 
 #include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metachunk.hpp"
+#include "memory/metaspace/metachunkList.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
