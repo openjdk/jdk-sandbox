@@ -251,7 +251,7 @@ public class Bind {
 
         checkException(
             BindException.class, () -> {
-                var path = Files.createTempFile(null, null);
+                var path = Files.createFile(Path.of("moo.sock"));
                 var addr = UnixDomainSocketAddress.of(path);
                 server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
                 try {
