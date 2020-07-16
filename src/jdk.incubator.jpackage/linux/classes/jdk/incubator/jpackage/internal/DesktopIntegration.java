@@ -40,6 +40,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.imageio.ImageIO;
@@ -250,9 +251,14 @@ final class DesktopIntegration {
         data.put("APPLICATION_ICON",
                 iconFile != null ? iconFile.installPath().toString() : null);
         data.put("DEPLOY_BUNDLE_CATEGORY", MENU_GROUP.fetchFrom(params));
-        data.put("APPLICATION_LAUNCHER",
-                thePackage.installedApplicationLayout().launchersDirectory().resolve(
-                        LinuxAppImageBuilder.getLauncherName(params)).toString());
+
+        String appLauncher = thePackage.installedApplicationLayout().launchersDirectory().resolve(
+                LinuxAppImageBuilder.getLauncherName(params)).toString();
+        if (Pattern.compile("\\s").matcher(appLauncher).find()) {
+            // Path contains whitespace(s). Enclose in double quotes.
+            appLauncher = "\"" + appLauncher + "\"";
+        }
+        data.put("APPLICATION_LAUNCHER", appLauncher);
 
         return data;
     }
@@ -429,8 +435,8 @@ final class DesktopIntegration {
                         File.separatorChar, '-') + IOUtils.getSuffix(
                                 assoc.data.iconPath));
 
-                IOUtils.copyFile(assoc.data.iconPath.toFile(),
-                        faIconFile.srcPath().toFile());
+                IOUtils.copyFile(assoc.data.iconPath,
+                        faIconFile.srcPath());
 
                 shellCommands.addIcon(mimeType, faIconFile.installPath(),
                         assoc.iconSize);

@@ -28,16 +28,32 @@ package jdk.incubator.jpackage.internal;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.text.MessageFormat;
-import java.util.*;
-import java.util.function.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import jdk.incubator.jpackage.internal.IOUtils.XmlConsumer;
-import static jdk.incubator.jpackage.internal.StandardBundlerParam.*;
-import static jdk.incubator.jpackage.internal.WinMsiBundler.*;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.APP_NAME;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.INSTALL_DIR;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.VENDOR;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.VERSION;
+import static jdk.incubator.jpackage.internal.WinMsiBundler.MSI_SYSTEM_WIDE;
 
 /**
  * Creates application WiX source files.
@@ -145,7 +161,7 @@ class WixSourcesBuilder {
         fa.launcherPath = addExeSuffixToPath(
                 installedAppImage.launchersDirectory().resolve(fa.launcherPath));
 
-        if (fa.iconPath != null && !fa.iconPath.toFile().exists()) {
+        if (fa.iconPath != null && !Files.exists(fa.iconPath)) {
             fa.iconPath = null;
         }
 

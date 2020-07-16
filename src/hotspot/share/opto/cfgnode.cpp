@@ -346,9 +346,8 @@ bool RegionNode::is_unreachable_region(PhaseGVN *phase) const {
   // Unsafe case - check if the Region node is reachable from root.
   ResourceMark rm;
 
-  Arena *a = Thread::current()->resource_area();
-  Node_List nstack(a);
-  VectorSet visited(a);
+  Node_List nstack;
+  VectorSet visited;
 
   // Mark all control nodes reachable from root outputs
   Node *n = (Node*)phase->C->root();
@@ -1040,7 +1039,7 @@ void PhiNode::verify_adr_type(bool recursive) const {
          "Phi::adr_type must be pre-normalized");
 
   if (recursive) {
-    VectorSet visited(Thread::current()->resource_area());
+    VectorSet visited;
     verify_adr_type(visited, _adr_type);
   }
 }
@@ -1333,6 +1332,30 @@ Node* PhiNode::Identity(PhaseGVN* phase) {
   if (true_path != 0) {
     Node* id = is_cmove_id(phase, true_path);
     if (id != NULL)  return id;
+  }
+
+  // Looking for phis with identical inputs.  If we find one that has
+  // type TypePtr::BOTTOM, replace the current phi with the bottom phi.
+  if (phase->is_IterGVN() && type() == Type::MEMORY && adr_type() !=
+      TypePtr::BOTTOM && !adr_type()->is_known_instance()) {
+    uint phi_len = req();
+    Node* phi_reg = region();
+    for (DUIterator_Fast imax, i = phi_reg->fast_outs(imax); i < imax; i++) {
+      Node* u = phi_reg->fast_out(i);
+      if (u->is_Phi() && u->as_Phi()->type() == Type::MEMORY &&
+          u->adr_type() == TypePtr::BOTTOM && u->in(0) == phi_reg &&
+          u->req() == phi_len) {
+        for (uint j = 1; j < phi_len; j++) {
+          if (in(j) != u->in(j)) {
+            u = NULL;
+            break;
+          }
+        }
+        if (u != NULL) {
+          return u;
+        }
+      }
+    }
   }
 
   return this;                     // No identity
@@ -1780,9 +1803,8 @@ bool PhiNode::is_unsafe_data_reference(Node *in) const {
 
   ResourceMark rm;
 
-  Arena *a = Thread::current()->resource_area();
-  Node_List nstack(a);
-  VectorSet visited(a);
+  Node_List nstack;
+  VectorSet visited;
 
   nstack.push(in); // Start with unique input.
   visited.set(in->_idx);

@@ -25,7 +25,6 @@
 
 package jdk.incubator.jpackage.internal;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,6 +34,8 @@ import java.util.Objects;
 import java.util.function.Function;
 import static jdk.incubator.jpackage.internal.StandardBundlerParam.PREDEFINED_APP_IMAGE;
 import static jdk.incubator.jpackage.internal.StandardBundlerParam.PREDEFINED_RUNTIME_IMAGE;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.LAUNCHER_DATA;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.APP_NAME;
 
 
 class AppImageBundler extends AbstractBundler {
@@ -62,7 +63,7 @@ class AppImageBundler extends AbstractBundler {
 
             if (!params.containsKey(PREDEFINED_APP_IMAGE.getID())
                     && !StandardBundlerParam.isRuntimeInstaller(params)) {
-                StandardBundlerParam.LAUNCHER_DATA.fetchFrom(params);
+                LAUNCHER_DATA.fetchFrom(params);
             }
 
             if (paramsValidator != null) {
@@ -80,14 +81,14 @@ class AppImageBundler extends AbstractBundler {
     }
 
     @Override
-    final public File execute(Map<String, ? super Object> params,
-            File outputParentDir) throws PackagerException {
+    final public Path execute(Map<String, ? super Object> params,
+            Path outputParentDir) throws PackagerException {
         if (StandardBundlerParam.isRuntimeInstaller(params)) {
             return PREDEFINED_RUNTIME_IMAGE.fetchFrom(params);
         }
 
         try {
-            return createAppBundle(params, outputParentDir.toPath()).toFile();
+            return createAppBundle(params, outputParentDir);
         } catch (PackagerException pe) {
             throw pe;
         } catch (RuntimeException|IOException|ConfigException ex) {
@@ -132,7 +133,7 @@ class AppImageBundler extends AbstractBundler {
 
         IOUtils.writableOutputDir(outputDirectory);
 
-        String imageName = StandardBundlerParam.APP_NAME.fetchFrom(params);
+        String imageName = APP_NAME.fetchFrom(params);
         if (Platform.isMac()) {
             imageName = imageName + ".app";
         }

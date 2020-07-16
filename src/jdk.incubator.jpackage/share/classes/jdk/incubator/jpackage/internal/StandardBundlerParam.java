@@ -27,11 +27,8 @@ package jdk.incubator.jpackage.internal;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.module.ModuleDescriptor;
-import java.lang.module.ModuleDescriptor.Version;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,15 +37,9 @@ import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.ResourceBundle;
 import java.util.Set;
-import java.util.HashSet;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.jar.Attributes;
-import java.util.jar.JarFile;
-import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -129,12 +120,12 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> s
             );
 
-    static final StandardBundlerParam<File> PREDEFINED_RUNTIME_IMAGE =
+    static final StandardBundlerParam<Path> PREDEFINED_RUNTIME_IMAGE =
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.PREDEFINED_RUNTIME_IMAGE.getId(),
-                    File.class,
+                    Path.class,
                     params -> null,
-                    (s, p) -> new File(s)
+                    (s, p) -> Path.of(s)
             );
 
     static final StandardBundlerParam<String> APP_NAME =
@@ -150,9 +141,9 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                             }
                             return s;
                         } else if (isRuntimeInstaller(params)) {
-                            File f = PREDEFINED_RUNTIME_IMAGE.fetchFrom(params);
+                            Path f = PREDEFINED_RUNTIME_IMAGE.fetchFrom(params);
                             if (f != null) {
-                                return f.getName();
+                                return f.getFileName().toString();
                             }
                         }
                         return null;
@@ -160,12 +151,12 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> s
             );
 
-    static final StandardBundlerParam<File> ICON =
+    static final StandardBundlerParam<Path> ICON =
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.ICON.getId(),
-                    File.class,
+                    Path.class,
                     params -> null,
-                    (s, p) -> new File(s)
+                    (s, p) -> Path.of(s)
             );
 
     static final StandardBundlerParam<String> VENDOR =
@@ -238,43 +229,35 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> s
             );
 
-    static final StandardBundlerParam<File> TEMP_ROOT =
+    static final StandardBundlerParam<Path> TEMP_ROOT =
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.TEMP_ROOT.getId(),
-                    File.class,
+                    Path.class,
                     params -> {
                         try {
-                            return Files.createTempDirectory(
-                                    "jdk.incubator.jpackage").toFile();
+                            return Files.createTempDirectory("jdk.incubator.jpackage");
                         } catch (IOException ioe) {
                             return null;
                         }
                     },
-                    (s, p) -> new File(s)
+                    (s, p) -> Path.of(s)
             );
 
-    public static final StandardBundlerParam<File> CONFIG_ROOT =
+    public static final StandardBundlerParam<Path> CONFIG_ROOT =
             new StandardBundlerParam<>(
                 "configRoot",
-                File.class,
+                Path.class,
                 params -> {
-                    File root =
-                            new File(TEMP_ROOT.fetchFrom(params), "config");
-                    root.mkdirs();
+                    Path root = TEMP_ROOT.fetchFrom(params).resolve("config");
+                    try {
+                        Files.createDirectories(root);
+                    } catch (IOException ioe) {
+                        return null;
+                    }
                     return root;
                 },
                 (s, p) -> null
             );
-
-    static final StandardBundlerParam<Boolean> BIND_SERVICES =
-            new StandardBundlerParam<>(
-                    Arguments.CLIOptions.BIND_SERVICES.getId(),
-                    Boolean.class,
-                    params -> false,
-                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
-                            true : Boolean.valueOf(s)
-            );
-
 
     static final StandardBundlerParam<Boolean> VERBOSE  =
             new StandardBundlerParam<>(
@@ -286,12 +269,12 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                             true : Boolean.valueOf(s)
             );
 
-    static final StandardBundlerParam<File> RESOURCE_DIR =
+    static final StandardBundlerParam<Path> RESOURCE_DIR =
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.RESOURCE_DIR.getId(),
-                    File.class,
+                    Path.class,
                     params -> null,
-                    (s, p) -> new File(s)
+                    (s, p) -> Path.of(s)
             );
 
     static final BundlerParamInfo<String> INSTALL_DIR =
@@ -302,12 +285,12 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> s
     );
 
-    static final StandardBundlerParam<File> PREDEFINED_APP_IMAGE =
+    static final StandardBundlerParam<Path> PREDEFINED_APP_IMAGE =
             new StandardBundlerParam<>(
             Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId(),
-            File.class,
+            Path.class,
             params -> null,
-            (s, p) -> new File(s));
+            (s, p) -> Path.of(s));
 
     @SuppressWarnings("unchecked")
     static final StandardBundlerParam<List<Map<String, ? super Object>>> ADD_LAUNCHERS =
@@ -355,16 +338,16 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
             new StandardBundlerParam<>(
                     "fileAssociation.description",
                     String.class,
-                    params -> APP_NAME.fetchFrom(params) + " File",
+                    params -> APP_NAME.fetchFrom(params) + " Path",
                     null
             );
 
-    static final StandardBundlerParam<File> FA_ICON =
+    static final StandardBundlerParam<Path> FA_ICON =
             new StandardBundlerParam<>(
                     "fileAssociation.icon",
-                    File.class,
+                    Path.class,
                     ICON::fetchFrom,
-                    (s, p) -> new File(s)
+                    (s, p) -> Path.of(s)
             );
 
     @SuppressWarnings("unchecked")
@@ -458,9 +441,9 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
         return params.containsKey(PREDEFINED_RUNTIME_IMAGE.getID());
     }
 
-    static File getPredefinedAppImage(Map<String, ? super Object> params) {
-        File applicationImage = PREDEFINED_APP_IMAGE.fetchFrom(params);
-        if (applicationImage != null && !applicationImage.exists()) {
+    static Path getPredefinedAppImage(Map<String, ? super Object> params) {
+        Path applicationImage = PREDEFINED_APP_IMAGE.fetchFrom(params);
+        if (applicationImage != null && !IOUtils.exists(applicationImage)) {
             throw new RuntimeException(
                     MessageFormat.format(I18N.getString(
                             "message.app-image-dir-does-not-exist"),
@@ -472,8 +455,8 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static void copyPredefinedRuntimeImage(Map<String, ? super Object> params,
             ApplicationLayout appLayout) throws IOException, ConfigException {
-        File topImage = PREDEFINED_RUNTIME_IMAGE.fetchFrom(params);
-        if (!topImage.exists()) {
+        Path topImage = PREDEFINED_RUNTIME_IMAGE.fetchFrom(params);
+        if (!IOUtils.exists(topImage)) {
             throw new ConfigException(
                     MessageFormat.format(I18N.getString(
                     "message.runtime-image-dir-does-not-exist"),
@@ -486,22 +469,21 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
         if (Platform.isMac()) {
             // On Mac topImage can be runtime root or runtime home.
-            Path runtimeHome = topImage.toPath().resolve("Contents/Home");
+            Path runtimeHome = topImage.resolve("Contents/Home");
             if (Files.isDirectory(runtimeHome)) {
                 // topImage references runtime root, adjust it to pick data from
                 // runtime home
-                topImage = runtimeHome.toFile();
+                topImage = runtimeHome;
             }
         }
 
         // copy whole runtime, need to skip jmods and src.zip
         final List<String> excludes = Arrays.asList("jmods", "src.zip");
-        IOUtils.copyRecursive(topImage.toPath(),
+        IOUtils.copyRecursive(topImage,
                 appLayout.runtimeHomeDirectory(), excludes);
 
         // if module-path given - copy modules to appDir/mods
-        List<Path> modulePath =
-                StandardBundlerParam.MODULE_PATH.fetchFrom(params);
+        List<Path> modulePath = MODULE_PATH.fetchFrom(params);
         List<Path> defaultModulePath = getDefaultModulePath();
         Path dest = appLayout.appModsDirectory();
 

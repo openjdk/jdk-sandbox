@@ -25,7 +25,7 @@
 
 package jdk.incubator.jpackage.internal;
 
-import java.io.*;
+import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,15 +35,23 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.text.MessageFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static jdk.incubator.jpackage.internal.OverridableResource.createResource;
-
-import static jdk.incubator.jpackage.internal.StandardBundlerParam.*;
-
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.APP_NAME;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.VERSION;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.RELEASE;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.VENDOR;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.LICENSE_FILE;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.COPYRIGHT;
 
 public class LinuxDebBundler extends LinuxPackageBundler {
 
@@ -169,13 +177,13 @@ public class LinuxDebBundler extends LinuxPackageBundler {
     }
 
     @Override
-    protected File buildPackageBundle(
+    protected Path buildPackageBundle(
             Map<String, String> replacementData,
-            Map<String, ? super Object> params, File outputParentDir) throws
+            Map<String, ? super Object> params, Path outputParentDir) throws
             PackagerException, IOException {
 
         prepareProjectConfig(replacementData, params);
-        adjustPermissionsRecursive(createMetaPackage(params).sourceRoot().toFile());
+        adjustPermissionsRecursive(createMetaPackage(params).sourceRoot());
         return buildDeb(params, outputParentDir);
     }
 
@@ -300,12 +308,12 @@ public class LinuxDebBundler extends LinuxPackageBundler {
      *
      * This cannot be directly backport to 22u which is built with 1.6
      */
-    private void setPermissions(File file, String permissions) {
+    private void setPermissions(Path file, String permissions) {
         Set<PosixFilePermission> filePermissions =
                 PosixFilePermissions.fromString(permissions);
         try {
-            if (file.exists()) {
-                Files.setPosixFilePermissions(file.toPath(), filePermissions);
+            if (Files.exists(file)) {
+                Files.setPosixFilePermissions(file, filePermissions);
             }
         } catch (IOException ex) {
             Log.error(ex.getMessage());
@@ -326,16 +334,16 @@ public class LinuxDebBundler extends LinuxPackageBundler {
         return false;
     }
 
-    private void adjustPermissionsRecursive(File dir) throws IOException {
-        Files.walkFileTree(dir.toPath(), new SimpleFileVisitor<Path>() {
+    private void adjustPermissionsRecursive(Path dir) throws IOException {
+        Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult visitFile(Path file,
                     BasicFileAttributes attrs)
                     throws IOException {
                 if (file.endsWith(".so") || !Files.isExecutable(file)) {
-                    setPermissions(file.toFile(), "rw-r--r--");
+                    setPermissions(file, "rw-r--r--");
                 } else if (Files.isExecutable(file)) {
-                    setPermissions(file.toFile(), "rwxr-xr-x");
+                    setPermissions(file, "rwxr-xr-x");
                 }
                 return FileVisitResult.CONTINUE;
             }
@@ -344,7 +352,7 @@ public class LinuxDebBundler extends LinuxPackageBundler {
             public FileVisitResult postVisitDirectory(Path dir, IOException e)
                     throws IOException {
                 if (e == null) {
-                    setPermissions(dir.toFile(), "rwxr-xr-x");
+                    setPermissions(dir, "rwxr-xr-x");
                     return FileVisitResult.CONTINUE;
                 } else {
                     // directory iteration failed
@@ -374,7 +382,7 @@ public class LinuxDebBundler extends LinuxPackageBundler {
                     .setSubstitutionData(data)
                     .saveToFile(dstFilePath);
             if (permissions != null) {
-                setPermissions(dstFilePath.toFile(), permissions);
+                setPermissions(dstFilePath, permissions);
             }
         }
 
@@ -406,7 +414,7 @@ public class LinuxDebBundler extends LinuxPackageBundler {
 
         if (!StandardBundlerParam.isRuntimeInstaller(params)) {
             debianFiles.add(new DebianFile(
-                    getConfig_CopyrightFile(params).toPath(),
+                    getConfig_CopyrightFile(params),
                     "resource.copyright-file"));
         }
 
@@ -431,7 +439,7 @@ public class LinuxDebBundler extends LinuxPackageBundler {
         return data;
     }
 
-    private File getConfig_CopyrightFile(Map<String, ? super Object> params) {
+    private Path getConfig_CopyrightFile(Map<String, ? super Object> params) {
         final String installDir = LINUX_INSTALL_DIR.fetchFrom(params);
         final String packageName = PACKAGE_NAME.fetchFrom(params);
 
@@ -443,15 +451,15 @@ public class LinuxDebBundler extends LinuxPackageBundler {
         }
 
         return createMetaPackage(params).sourceRoot().resolve(
-                Path.of("/").relativize(installPath)).toFile();
+                Path.of("/").relativize(installPath));
     }
 
-    private File buildDeb(Map<String, ? super Object> params,
-            File outdir) throws IOException {
-        File outFile = new File(outdir,
+    private Path buildDeb(Map<String, ? super Object> params,
+            Path outdir) throws IOException {
+        Path outFile = outdir.resolve(
                 FULL_PACKAGE_NAME.fetchFrom(params)+".deb");
         Log.verbose(MessageFormat.format(I18N.getString(
-                "message.outputting-to-location"), outFile.getAbsolutePath()));
+                "message.outputting-to-location"), outFile.toAbsolutePath().toString()));
 
         PlatformPackage thePackage = createMetaPackage(params);
 
@@ -461,13 +469,15 @@ public class LinuxDebBundler extends LinuxPackageBundler {
             cmdline.add("--verbose");
         }
         cmdline.addAll(List.of("-b", thePackage.sourceRoot().toString(),
-                outFile.getAbsolutePath()));
+                outFile.toAbsolutePath().toString()));
 
         // run dpkg
-        Executor.of(cmdline.toArray(String[]::new)).executeExpectSuccess();
+        RetryExecutor.retryOnKnownErrorMessage(
+                "semop(1): encountered an error: Invalid argument").execute(
+                        cmdline.toArray(String[]::new));
 
         Log.verbose(MessageFormat.format(I18N.getString(
-                "message.output-to-location"), outFile.getAbsolutePath()));
+                "message.output-to-location"), outFile.toAbsolutePath().toString()));
 
         return outFile;
     }

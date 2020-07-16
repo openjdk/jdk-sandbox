@@ -37,7 +37,6 @@ import java.lang.module.ResolvedModule;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -68,9 +67,6 @@ final class JLinkBundlerHelper {
         LauncherData launcherData = StandardBundlerParam.LAUNCHER_DATA.fetchFrom(
                 params);
 
-        boolean bindServices =
-                StandardBundlerParam.BIND_SERVICES.fetchFrom(params);
-
         // Modules
         if (!launcherData.isModular() && addModules.isEmpty()) {
             addModules.add(ALL_DEFAULT);
@@ -82,8 +78,7 @@ final class JLinkBundlerHelper {
             modules.add(launcherData.moduleName());
         }
 
-        runJLink(outputDir, modulePath, modules, limitModules,
-                options, bindServices);
+        runJLink(outputDir, modulePath, modules, limitModules, options);
     }
 
     /*
@@ -161,7 +156,7 @@ final class JLinkBundlerHelper {
 
     private static void runJLink(Path output, List<Path> modulePath,
             Set<String> modules, Set<String> limitModules,
-            List<String> options, boolean bindServices)
+            List<String> options)
             throws PackagerException, IOException {
 
         ArrayList<String> args = new ArrayList<String>();
@@ -188,9 +183,6 @@ final class JLinkBundlerHelper {
                 }
                 args.add(option);
             }
-        }
-        if (bindServices) {
-            args.add("--bind-services");
         }
 
         StringWriter writer = new StringWriter();

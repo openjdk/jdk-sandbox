@@ -25,12 +25,10 @@
 #ifndef SHARE_RUNTIME_VMOPERATIONS_HPP
 #define SHARE_RUNTIME_VMOPERATIONS_HPP
 
-#include "classfile/javaClasses.hpp"
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/threadSMR.hpp"
-#include "code/codeCache.hpp"
 
 // The following classes are used for operations
 // initiated by a Java thread but that must
@@ -81,8 +79,6 @@
   template(UpdateForPopTopFrame)                  \
   template(SetFramePop)                           \
   template(GetObjectMonitorUsage)                 \
-  template(GetStackTrace)                         \
-  template(GetMultipleStackTraces)                \
   template(GetAllStackTraces)                     \
   template(GetThreadListStackTraces)              \
   template(GetFrameCount)                         \
@@ -110,7 +106,6 @@
   template(ClassLoaderHierarchyOperation)         \
   template(DumpHashtable)                         \
   template(DumpTouchedMethods)                    \
-  template(MarkActiveNMethods)                    \
   template(PrintCompileQueue)                     \
   template(PrintClassHierarchy)                   \
   template(ThreadSuspend)                         \

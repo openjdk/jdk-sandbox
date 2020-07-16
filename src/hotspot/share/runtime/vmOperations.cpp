@@ -432,12 +432,11 @@ int VM_Exit::wait_for_threads_in_native_to_block() {
 }
 
 bool VM_Exit::doit_prologue() {
-  if (AsyncDeflateIdleMonitors && log_is_enabled(Info, monitorinflation)) {
-    // AsyncDeflateIdleMonitors does a special deflation at the VM_Exit
-    // safepoint in order to reduce the in-use monitor population that
-    // is reported by ObjectSynchronizer::log_in_use_monitor_details()
+  if (log_is_enabled(Info, monitorinflation)) {
+    // Do a deflation in order to reduce the in-use monitor population
+    // that is reported by ObjectSynchronizer::log_in_use_monitor_details()
     // at VM exit.
-    ObjectSynchronizer::set_is_special_deflation_requested(true);
+    ObjectSynchronizer::request_deflate_idle_monitors();
   }
   return true;
 }

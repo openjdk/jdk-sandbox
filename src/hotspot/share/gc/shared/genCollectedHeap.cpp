@@ -49,7 +49,7 @@
 #include "gc/shared/gcInitLogger.hpp"
 #include "gc/shared/locationPrinter.inline.hpp"
 #include "gc/shared/oopStorage.inline.hpp"
-#include "gc/shared/oopStorageSet.hpp"
+#include "gc/shared/oopStorageSet.inline.hpp"
 #include "gc/shared/oopStorageParState.inline.hpp"
 #include "gc/shared/scavengableNMethods.hpp"
 #include "gc/shared/space.hpp"
@@ -64,13 +64,13 @@
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/flags/flagSetting.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/vmThread.hpp"
 #include "services/management.hpp"
 #include "services/memoryService.hpp"
+#include "utilities/autoRestore.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/formatBuffer.hpp"
 #include "utilities/macros.hpp"
@@ -567,7 +567,7 @@ void GenCollectedHeap::do_collection(bool           full,
 
   ClearedAllSoftRefs casr(do_clear_all_soft_refs, soft_ref_policy());
 
-  FlagSetting fl(_is_gc_active, true);
+  AutoModifyRestore<bool> temporarily(_is_gc_active, true);
 
   bool complete = full && (max_generation == OldGen);
   bool old_collects_young = complete && !ScavengeBeforeFullGC;
@@ -826,10 +826,6 @@ void GenCollectedHeap::process_roots(StrongRootsScope* scope,
   if (_process_strong_tasks->try_claim_task(GCH_PS_Universe_oops_do)) {
     Universe::oops_do(strong_roots);
   }
-  // Global (strong) JNI handles
-  if (_process_strong_tasks->try_claim_task(GCH_PS_JNIHandles_oops_do)) {
-    JNIHandles::oops_do(strong_roots);
-  }
 
   if (_process_strong_tasks->try_claim_task(GCH_PS_ObjectSynchronizer_oops_do)) {
     ObjectSynchronizer::oops_do(strong_roots);
@@ -845,8 +841,8 @@ void GenCollectedHeap::process_roots(StrongRootsScope* scope,
     AOTLoader::oops_do(strong_roots);
   }
 #endif
-  if (_process_strong_tasks->try_claim_task(GCH_PS_VMGlobal_oops_do)) {
-    OopStorageSet::vm_global()->oops_do(strong_roots);
+  if (_process_strong_tasks->try_claim_task(GCH_PS_OopStorageSet_oops_do)) {
+    OopStorageSet::strong_oops_do(strong_roots);
   }
 
   if (_process_strong_tasks->try_claim_task(GCH_PS_CodeCache_oops_do)) {
@@ -1200,10 +1196,8 @@ void GenCollectedHeap::save_marks() {
 }
 
 GenCollectedHeap* GenCollectedHeap::heap() {
-  CollectedHeap* heap = Universe::heap();
-  assert(heap != NULL, "Uninitialized access to GenCollectedHeap::heap()");
-  assert(heap->kind() == CollectedHeap::Serial, "Invalid name");
-  return (GenCollectedHeap*) heap;
+  // SerialHeap is the only subtype of GenCollectedHeap.
+  return named_heap<GenCollectedHeap>(CollectedHeap::Serial);
 }
 
 #if INCLUDE_SERIALGC

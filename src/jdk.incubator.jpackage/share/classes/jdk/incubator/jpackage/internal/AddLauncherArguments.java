@@ -25,10 +25,9 @@
 
 package jdk.incubator.jpackage.internal;
 
-import java.util.Collection;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-import java.io.File;
 import java.util.List;
 import jdk.incubator.jpackage.internal.Arguments.CLIOptions;
 
@@ -117,7 +116,7 @@ class AddLauncherArguments {
 
         String value = getOptionValue(CLIOptions.ICON);
         Arguments.putUnlessNull(bundleParams, CLIOptions.ICON.getId(),
-                (value == null) ? null : new File(value));
+                (value == null) ? null : Path.of(value));
 
         // "arguments" and "java-options" even if value is null:
         if (allArgs.containsKey(CLIOptions.ARGUMENTS.getId())) {

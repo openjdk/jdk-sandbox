@@ -29,7 +29,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.text.MessageFormat;
@@ -109,7 +108,8 @@ final class ExecutableRebrander {
     private void rebrandExecutable(Map<String, ? super Object> params,
             Path target, UpdateResourceAction action) throws IOException {
         try {
-            String tempDirectory = TEMP_ROOT.fetchFrom(params).getAbsolutePath();
+            String tempDirectory = TEMP_ROOT.fetchFrom(params)
+                    .toAbsolutePath().toString();
             if (WindowsDefender.isThereAPotentialWindowsDefenderIssue(
                     tempDirectory)) {
                 Log.verbose(MessageFormat.format(I18N.getString(
