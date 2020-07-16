@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8231358
- * @run main Bind
+ * @run main/othervm -Djava.nio.tmpdir=/tmp Bind
  * @summary Bind test
  */
 
@@ -185,6 +185,7 @@ public class Bind {
             UnixDomainSocketAddress usa = (UnixDomainSocketAddress)server.getLocalAddress();
             if (usa.getPath().toString().length() < 1)
                 throw new RuntimeException("expected non zero address length");
+            System.out.println("Null server address: " + server.getLocalAddress());
         });
         // server no bind : not allowed
         checkException(
