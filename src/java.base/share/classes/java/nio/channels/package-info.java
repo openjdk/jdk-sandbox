@@ -365,12 +365,14 @@
  * to any unnamed address has the same effect.
  * <p>
  * If a {@link ServerSocketChannel} for a <i>Unix Domain</i> socket is automatically bound
- * by passing a {@code null} address to one of the {@link ServerSocketChannel#bind
- * (SocketAddress) bind} methods, the channel is bound to a unique name in the temporary
- * directory identified by the {@code "java.io.tmpdir"} system property. The exact pathname
- * can be obtained by calling {@link ServerSocketChannel#getLocalAddress() getLocalAddress}
- * after bind returns. It is an error to bind a {@code ServerSocketChannel} to an
- * unnamed address.
+ * by passing a {@code null} address to one of the {@link ServerSocketChannel#bind(SocketAddress)
+ * bind} methods, the channel is bound to a unique name in a temporary
+ * directory. The exact pathname can be obtained by calling {@link
+ * ServerSocketChannel#getLocalAddress() getLocalAddress} after bind returns. It is an
+ * error to bind a {@code ServerSocketChannel} to an unnamed address. The temporary
+ * directory is determined as follows. If the system property {@code "java.nio.tmpdir"}
+ * is set, that value is used. If not, the default VM temporary directory indicated by the
+ * {@code "java.io.tmpdir"} system property is used.
  *
  * <p> A <i>Unix Domain</i> socket can be bound to a name if and only if, no file exists
  * in the file-system with the same name, and the calling process has the required

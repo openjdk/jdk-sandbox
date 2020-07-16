@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8231358
- * @run main Shutdown
+ * @run main/othervm -Djava.nio.tmpdir=/tmp Shutdown
  * @summary Shutdown test
  */
 

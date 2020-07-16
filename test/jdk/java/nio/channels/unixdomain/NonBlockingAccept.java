@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8231358
- * @run main NonBlockingAccept
+ * @run main/othervm -Djava.nio.tmpdir=/tmp NonBlockingAccept
  * @summary Shutdown test
  */
 

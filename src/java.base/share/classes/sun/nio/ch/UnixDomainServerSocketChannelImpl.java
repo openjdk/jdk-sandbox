@@ -138,25 +138,14 @@ public class UnixDomainServerSocketChannelImpl
     }
 
     private static Random getRandom() {
-        //return AccessController.doPrivileged(
-            //(PrivilegedAction<Random>) () -> {
-                try {
-                    return SecureRandom.getInstance("NativePRNGNonBlocking");
-                } catch (NoSuchAlgorithmException e) {
-                    return new SecureRandom(); // This should not fail
-                }
-            //}
-        //);
+        try {
+            return SecureRandom.getInstance("NativePRNGNonBlocking");
+        } catch (NoSuchAlgorithmException e) {
+            return new SecureRandom(); // This should not fail
+        }
     }
 
     private static final Random random = getRandom();;
-    private static final long pid = AccessController.doPrivileged(
-        (PrivilegedAction<Long>)UnixDomainServerSocketChannelImpl::getPid);
-
-    private static long getPid() {
-        return ProcessHandle.current().pid();
-    }
-
 
     /**
      * Return a possible temporary name to bind to, which is different for each call
@@ -165,7 +154,7 @@ public class UnixDomainServerSocketChannelImpl
     private static UnixDomainSocketAddress getTempName() throws IOException {
         int rnd = random.nextInt(Integer.MAX_VALUE);
         StringBuilder sb = new StringBuilder();
-        sb.append(Net.tempDir).append("/niosocket_").append(pid).append('_').append(rnd);
+        sb.append(Net.tempDir).append("/niosocket_").append(rnd);
         return UnixDomainSocketAddress.of(sb.toString());
     }
 
