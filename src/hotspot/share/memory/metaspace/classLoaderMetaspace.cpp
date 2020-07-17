@@ -190,14 +190,20 @@ void ClassLoaderMetaspace::verify() const {
 //  contain committed and uncommitted areas. For now we do this to maintain
 //  backward compatibility with JFR.
 void ClassLoaderMetaspace::calculate_jfr_stats(size_t* p_used_bytes, size_t* p_capacity_bytes) const {
-
   // Implement this using the standard statistics objects.
-  clms_stats_t stat;
-  add_to_statistics(&stat);
-  in_use_chunk_stats_t in_use_chunks_totals = stat.totals().totals();
-  *p_used_bytes = in_use_chunks_totals.used_words * BytesPerWord;
-  *p_capacity_bytes = in_use_chunks_totals.word_size * BytesPerWord;
-
+  size_t used_c = 0, cap_c = 0, used_nc = 0, cap_nc = 0;
+  if (non_class_space_manager() != NULL) {
+    non_class_space_manager()->usage_numbers(&used_nc, NULL, &cap_nc);
+  }
+  if (class_space_manager() != NULL) {
+    class_space_manager()->usage_numbers(&used_c, NULL, &cap_c);
+  }
+  if (p_used_bytes != NULL) {
+    *p_used_bytes = used_c + used_nc;
+  }
+  if (p_capacity_bytes != NULL) {
+    *p_capacity_bytes = cap_c + cap_nc;
+  }
 }
 
 

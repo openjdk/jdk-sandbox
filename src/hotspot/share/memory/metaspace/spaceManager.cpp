@@ -442,6 +442,28 @@ void SpaceManager::add_to_statistics(sm_stats_t* out) const {
 
 }
 
+// Convenience method to get the most important usage statistics.
+// For deeper analysis use add_to_statistics().
+void SpaceManager::usage_numbers(size_t* p_used_words, size_t* p_committed_words, size_t* p_capacity_words) const {
+  MutexLocker cl(lock(), Mutex::_no_safepoint_check_flag);
+  size_t used = 0, comm = 0, cap = 0;
+  for (const Metachunk* c = _chunks.first(); c != NULL; c = c->next()) {
+    used += c->used_words();
+    comm += c->committed_words();
+    cap += c->word_size();
+  }
+  if (p_used_words != NULL) {
+    *p_used_words = used;
+  }
+  if (p_committed_words != NULL) {
+    *p_committed_words = comm;
+  }
+  if (p_capacity_words != NULL) {
+    *p_capacity_words = cap;
+  }
+}
+
+
 #ifdef ASSERT
 
 void SpaceManager::verify_locked(bool slow) const {

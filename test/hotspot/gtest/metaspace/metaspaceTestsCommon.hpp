@@ -204,8 +204,10 @@ void check_marked_range(const MetaWord* p, size_t word_size);
 #define EXPECT_NOT_NULL(ptr)      EXPECT_NE((void*)NULL, (void*)ptr)
 #define EXPECT_NULL(ptr)          EXPECT_EQ((void*)NULL, (void*)ptr)
 
+#define ASSERT_0(v)               ASSERT_EQ((intptr_t)0, (intptr_t)v)
+#define ASSERT_NOT_0(v)           ASSERT_NE((intptr_t)0, (intptr_t)v)
 #define EXPECT_0(v)               EXPECT_EQ((intptr_t)0, (intptr_t)v)
-
+#define EXPECT_NOT_0(v)           EXPECT_NE((intptr_t)0, (intptr_t)v)
 
 //////////////////////////////////////////////////////////
 // logging

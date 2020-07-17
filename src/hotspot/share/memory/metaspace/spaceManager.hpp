@@ -139,6 +139,10 @@ public:
   // Update statistics. This walks all in-use chunks.
   void add_to_statistics(sm_stats_t* out) const;
 
+  // Convenience method to get the most important usage statistics.
+  // For deeper analysis use add_to_statistics().
+  void usage_numbers(size_t* p_used_words, size_t* p_committed_words, size_t* p_capacity_words) const;
+
   DEBUG_ONLY(void verify(bool slow) const;)
   DEBUG_ONLY(void verify_locked(bool slow) const;)
 

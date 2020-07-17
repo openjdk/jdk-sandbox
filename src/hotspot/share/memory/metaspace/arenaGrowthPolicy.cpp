@@ -38,12 +38,13 @@ public:
 };
 
 // hard-coded chunk allocation sequences for various space types
+// (Note: no sudden jumps please)
 
 static const chunklevel_t g_sequ_standard_non_class[] = {
     chunklevel::CHUNK_LEVEL_4K,
     chunklevel::CHUNK_LEVEL_4K,
     chunklevel::CHUNK_LEVEL_4K,
-    chunklevel::CHUNK_LEVEL_4K,
+    chunklevel::CHUNK_LEVEL_8K,
     chunklevel::CHUNK_LEVEL_16K
     // .. repeat last
 };
@@ -51,8 +52,8 @@ static const chunklevel_t g_sequ_standard_non_class[] = {
 static const chunklevel_t g_sequ_standard_class[] = {
     chunklevel::CHUNK_LEVEL_2K,
     chunklevel::CHUNK_LEVEL_2K,
-    chunklevel::CHUNK_LEVEL_2K,
-    chunklevel::CHUNK_LEVEL_2K,
+    chunklevel::CHUNK_LEVEL_4K,
+    chunklevel::CHUNK_LEVEL_8K,
     chunklevel::CHUNK_LEVEL_16K
     // .. repeat last
 };
@@ -112,7 +113,7 @@ const ArenaGrowthPolicy* ArenaGrowthPolicy::policy_for_space_type(MetaspaceType 
     case StandardMetaspaceType:          return &g_chunk_alloc_sequence_standard_class;
     case ReflectionMetaspaceType:        return &g_chunk_alloc_sequence_refl_class;
     case ClassMirrorHolderMetaspaceType: return &g_chunk_alloc_sequence_anon_class;
-    case BootMetaspaceType:              return &g_chunk_alloc_sequence_boot_non_class;
+    case BootMetaspaceType:              return &g_chunk_alloc_sequence_boot_class;
     default: ShouldNotReachHere();
     }
   } else {

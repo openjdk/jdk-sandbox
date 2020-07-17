@@ -175,22 +175,36 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
 
   // First, optimistically look for a chunk which is already committed far enough to hold min_word_size.
 
-  // Start at the preferred chunk size (level) and work your way down (up) to the minimum chunk size (level)
+  // 1) Search best or smaller committed chunks (first attempt):
+  //    Start at the preferred chunk size and work your way down (level up).
+  //    But for now, only consider chunks larger than a certain threshold -
+  //    this is to prevent large loaders (eg boot) from unnecessarily gobbling up
+  //    all the tiny splinter chunks lambdas leave around.
   Metachunk* c = NULL;
-  c = _chunks.search_chunk_ascending(preferred_level, max_level, min_committed_words);
+  c = _chunks.search_chunk_ascending(preferred_level, MIN2((chunklevel_t)(preferred_level + 2), max_level), min_committed_words);
 
-  // If that did not yield anything, look at larger chunks, which may be committed. We would have to split
-  //  them first, of course.
+  // 2) Search larger committed chunks:
+  //    If that did not yield anything, look at larger chunks, which may be committed. We would have to split
+  //    them first, of course.
   if (c == NULL) {
     c = _chunks.search_chunk_descending(preferred_level, min_committed_words);
   }
 
-  // If that did not work, is there at least an uncommitted chunk? Repeat above search without the
-  //  restriction of looking for committed space. We will have to commit the chunk then.
+  // 3) Search best or smaller committed chunks (second attempt):
+  //    Repeat (1) but now consider even the tiniest chunks as long as they are large enough to hold the
+  //    committed min size.
+  if (c == NULL) {
+    c = _chunks.search_chunk_ascending(preferred_level, max_level, min_committed_words);
+  }
+
+  // if we did not get anything yet, there are no free chunks commmitted enough. Repeat search but look for uncommitted chunks too:
+
+  // 4) Search best or smaller chunks, can be uncommitted:
   if (c == NULL) {
     c = _chunks.search_chunk_ascending(preferred_level, max_level, 0);
   }
 
+  // 5) Search a larger uncommitted chunk:
   if (c == NULL) {
     c = _chunks.search_chunk_descending(preferred_level, 0);
   }

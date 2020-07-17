@@ -93,7 +93,6 @@ inline void check_valid_level(chunklevel_t lvl) {
 
 // Given a level return the chunk size, in words.
 inline size_t word_size_for_level(chunklevel_t level) {
-  check_valid_level(level);
   return (MAX_CHUNK_BYTE_SIZE >> level) / BytesPerWord;
 }
 

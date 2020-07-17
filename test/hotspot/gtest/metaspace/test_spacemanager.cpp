@@ -44,20 +44,21 @@ class SpaceManagerTestHelper {
 
 public:
 
-  SpaceManagerTestHelper(MetaspaceTestHelper& helper, metaspace::MetaspaceType space_type)
+  SpaceManagerTestHelper(MetaspaceTestHelper& helper, metaspace::MetaspaceType space_type, bool is_class,
+                         const char* name = "gtest-SpaceManager")
     : _helper(helper),
       _lock(NULL),
       _growth_policy(NULL),
       _used_words_counter(),
       _sm(NULL)
   {
-    _growth_policy = ArenaGrowthPolicy::policy_for_space_type(space_type, false);
+    _growth_policy = ArenaGrowthPolicy::policy_for_space_type(space_type, is_class);
     _lock = new Mutex(Monitor::native, "gtest-SpaceManagerTest-lock", false, Monitor::_safepoint_check_never);
     // Lock during space creation, since this is what happens in the VM too
     //  (see ClassLoaderData::metaspace_non_null(), which we mimick here).
     {
       MutexLocker ml(_lock,  Mutex::_no_safepoint_check_flag);
-      _sm = new SpaceManager(&_helper.cm(), _growth_policy, _lock, &_used_words_counter, "gtest-SpaceManagerTest-sm", false);
+      _sm = new SpaceManager(&_helper.cm(), _growth_policy, _lock, &_used_words_counter, name, false);
     }
     DEBUG_ONLY(_sm->verify(true));
   }
@@ -120,7 +121,7 @@ public:
 
 static void test_basics(size_t commit_limit, bool is_micro) {
   MetaspaceTestHelper msthelper(commit_limit);
-  SpaceManagerTestHelper helper(msthelper, is_micro ? metaspace::ReflectionMetaspaceType : metaspace::StandardMetaspaceType);
+  SpaceManagerTestHelper helper(msthelper, is_micro ? metaspace::ReflectionMetaspaceType : metaspace::StandardMetaspaceType, false);
 
   helper.sm()->allocate(1);
   helper.sm()->allocate(128);
@@ -164,13 +165,13 @@ static void test_recover_from_commit_limit_hit() {
   // The first space managers mimick micro loaders. This will fill the free
   //  chunk list with very small chunks. We allocate from them in an interleaved
   //  way to cause fragmentation.
-  SpaceManagerTestHelper helper1(msthelper, metaspace::ReflectionMetaspaceType);
-  SpaceManagerTestHelper helper2(msthelper, metaspace::ReflectionMetaspaceType);
+  SpaceManagerTestHelper helper1(msthelper, metaspace::ReflectionMetaspaceType, false);
+  SpaceManagerTestHelper helper2(msthelper, metaspace::ReflectionMetaspaceType, false);
 
   // This SpaceManager should hit the limit. We use BootMetaspaceType here since
   // it gets a large initial chunk which is committed
   // on demand and we are likely to hit a commit limit while trying to expand it.
-  SpaceManagerTestHelper helper3(msthelper, metaspace::BootMetaspaceType);
+  SpaceManagerTestHelper helper3(msthelper, metaspace::BootMetaspaceType, false);
 
   // Allocate space until we have below two but above one granule left
   while (msthelper.commit_limiter().possible_expansion_words() >= Settings::commit_granule_words() * 2) {
@@ -209,7 +210,192 @@ TEST_VM(metaspace, spacemanager_recover_from_limit_hit) {
   test_recover_from_commit_limit_hit();
 }
 
+static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
+                                   size_t expected_starting_capacity,
+                                   bool test_in_place_enlargement)
+{
+  // From a spacemanager in a clean room allocate tiny amounts;
+  // watch it grow. Used/committed/capacity should not grow in
+  // large jumps. Also, different types of SpaceManager should
+  // have different initial capacities.
+
+  MetaspaceTestHelper msthelper;
+  SpaceManagerTestHelper smhelper(msthelper, type, is_class, "Grower");
+
+  SpaceManagerTestHelper smhelper_harrasser(msthelper, metaspace::ReflectionMetaspaceType, true, "Harasser");
+
+  size_t used = 0, committed = 0, capacity = 0;
+  const size_t alloc_words = 16;
+
+  smhelper.sm()->usage_numbers(&used, &committed, &capacity);
+  ASSERT_0(used);
+  ASSERT_0(committed);
+  ASSERT_0(capacity);
+
+  ///// First allocation //
+
+  ASSERT_NOT_NULL(smhelper.sm()->allocate(alloc_words));
+
+  smhelper.sm()->usage_numbers(&used, &committed, &capacity);
+
+  ASSERT_EQ(used, alloc_words);
+  ASSERT_GE(committed, used);
+  ASSERT_GE(capacity, committed);
+
+  ASSERT_EQ(capacity, expected_starting_capacity);
+
+  // Initial commit charge should not surpass committed_words_on_fresh_chunks
+  ASSERT_LE(committed, Settings::committed_words_on_fresh_chunks());
 
 
+  ///// subsequent allocations //
 
+  size_t allocated = 0;
+  const size_t safety = 6 * M;
+  size_t last_capacity_jump = capacity;
+  int num_capacity_jumps = 0;
 
+  while (allocated < safety && num_capacity_jumps < 10) {
+
+    // if we want to test growth with in-place chunk enlargement, leave SpaceManager
+    // undisturbed; it will have all the place to grow. Otherwise, allocate from a little
+    // side arena to increase fragmentation.
+    // (Note that this is no guarantee that no in-place enlargements happen but it should
+    //  greatly reduce the chance.)
+    if (!test_in_place_enlargement) {
+      smhelper_harrasser.sm()->allocate(alloc_words * 2);
+    }
+
+    ASSERT_NOT_NULL(smhelper.sm()->allocate(10));
+    allocated += alloc_words;
+
+    size_t used2 = 0, committed2 = 0, capacity2 = 0;
+
+    smhelper.sm()->usage_numbers(&used2, &committed2, &capacity2);
+
+    // used should not grow larger than what we allocated, plus possible overhead.
+    ASSERT_GE(used2, used);
+    ASSERT_LE(used2, used + alloc_words * 2);
+    ASSERT_LE(used2, allocated + 100);
+    used = used2;
+
+    // A jump in committed words should not be larger than commit granule size.
+    // It can be smaller, since the current chunk of the space manager may be
+    // smaller than a commit granule.
+    ASSERT_GE(committed2, used2);
+    ASSERT_GE(committed2, committed);
+    const size_t committed_jump = committed2 - committed;
+    if (committed_jump > 0) {
+      ASSERT_LE(committed_jump, Settings::commit_granule_words());
+    }
+    committed = committed2;
+
+    // Capacity jumps:
+    // (we grow either by enlarging the chunk in place, in which case it can only double;
+    //  or by allocating a new chunk. The latter is subject to the chunk growth rate set
+    //  with arena growth policy (see memory/metaspace/arenaGrowthPolicy.cpp). There should
+    //  not be sudden jumps in chunk sizes.
+    // Note that this is fuzzy the moment we share the underlying chunk manager with
+    //  other arenas, since the chunk manager will always attempt to hand out committed chunks
+    //  first; this may cause us to get small chunks where arena policy would expect larger
+    //  chunks.
+    ASSERT_GE(capacity2, committed2);
+    ASSERT_GE(capacity2, capacity);
+    const size_t capacity_jump = capacity2 - capacity;
+    if (capacity_jump > 0) {
+      LOG(">" SIZE_FORMAT "->" SIZE_FORMAT "(+" SIZE_FORMAT ")", capacity, capacity2, capacity_jump)
+      if (capacity_jump > last_capacity_jump) {
+        // Note: if this fails, check arena policies for sudden chunk size jumps.
+        ASSERT_LE(capacity_jump, last_capacity_jump * 2);
+        ASSERT_GE(capacity_jump, MIN_CHUNK_WORD_SIZE);
+        ASSERT_LE(capacity_jump, MAX_CHUNK_WORD_SIZE);
+        last_capacity_jump = capacity_jump;
+      }
+      num_capacity_jumps ++;
+    }
+    capacity = capacity2;
+
+  }
+
+}
+
+// these numbers have to be in sync with arena policy numbers (see memory/metaspace/arenaGrowthPolicy.cpp)
+TEST_VM(metaspace, spacemanager_growth_refl_c_inplace) {
+  test_controlled_growth(metaspace::ReflectionMetaspaceType, true,
+                         word_size_for_level(CHUNK_LEVEL_1K), true);
+}
+
+TEST_VM(metaspace, spacemanager_growth_refl_c_not_inplace) {
+  test_controlled_growth(metaspace::ReflectionMetaspaceType, true,
+                         word_size_for_level(CHUNK_LEVEL_1K), false);
+}
+
+TEST_VM(metaspace, spacemanager_growth_anon_c_inplace) {
+  test_controlled_growth(metaspace::ClassMirrorHolderMetaspaceType, true,
+                         word_size_for_level(CHUNK_LEVEL_1K), true);
+}
+
+TEST_VM(metaspace, spacemanager_growth_anon_c_not_inplace) {
+  test_controlled_growth(metaspace::ClassMirrorHolderMetaspaceType, true,
+                         word_size_for_level(CHUNK_LEVEL_1K), false);
+}
+
+TEST_VM(metaspace, spacemanager_growth_standard_c_inplace) {
+  test_controlled_growth(metaspace::StandardMetaspaceType, true,
+                         word_size_for_level(CHUNK_LEVEL_2K), true);
+}
+
+TEST_VM(metaspace, spacemanager_growth_standard_c_not_inplace) {
+  test_controlled_growth(metaspace::StandardMetaspaceType, true,
+                         word_size_for_level(CHUNK_LEVEL_2K), false);
+}
+
+TEST_VM(metaspace, spacemanager_growth_boot_c_inplace) {
+  test_controlled_growth(metaspace::BootMetaspaceType, true,
+                         word_size_for_level(CHUNK_LEVEL_1M), true);
+}
+
+TEST_VM(metaspace, spacemanager_growth_boot_c_not_inplace) {
+  test_controlled_growth(metaspace::BootMetaspaceType, true,
+                         word_size_for_level(CHUNK_LEVEL_1M), false);
+}
+
+TEST_VM(metaspace, spacemanager_growth_refl_nc_inplace) {
+  test_controlled_growth(metaspace::ReflectionMetaspaceType, false,
+                         word_size_for_level(CHUNK_LEVEL_2K), true);
+}
+
+TEST_VM(metaspace, spacemanager_growth_refl_nc_not_inplace) {
+  test_controlled_growth(metaspace::ReflectionMetaspaceType, false,
+                         word_size_for_level(CHUNK_LEVEL_2K), false);
+}
+
+TEST_VM(metaspace, spacemanager_growth_anon_nc_inplace) {
+  test_controlled_growth(metaspace::ClassMirrorHolderMetaspaceType, false,
+                         word_size_for_level(CHUNK_LEVEL_1K), true);
+}
+
+TEST_VM(metaspace, spacemanager_growth_anon_nc_not_inplace) {
+  test_controlled_growth(metaspace::ClassMirrorHolderMetaspaceType, false,
+                         word_size_for_level(CHUNK_LEVEL_1K), false);
+}
+
+TEST_VM(metaspace, spacemanager_growth_standard_nc_inplace) {
+  test_controlled_growth(metaspace::StandardMetaspaceType, false,
+                         word_size_for_level(CHUNK_LEVEL_4K), true);
+}
+
+TEST_VM(metaspace, spacemanager_growth_standard_nc_not_inplace) {
+  test_controlled_growth(metaspace::StandardMetaspaceType, false,
+                         word_size_for_level(CHUNK_LEVEL_4K), false);
+}
+
+TEST_VM(metaspace, spacemanager_growth_boot_nc_inplace) {
+  test_controlled_growth(metaspace::BootMetaspaceType, false,
+                         word_size_for_level(CHUNK_LEVEL_4M), true);
+}
+
+TEST_VM(metaspace, spacemanager_growth_boot_nc_not_inplace) {
+  test_controlled_growth(metaspace::BootMetaspaceType, false,
+                         word_size_for_level(CHUNK_LEVEL_4M), false);
+}
