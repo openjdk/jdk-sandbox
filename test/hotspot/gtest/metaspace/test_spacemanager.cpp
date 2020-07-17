@@ -26,7 +26,7 @@
 
 #include "precompiled.hpp"
 
-#define LOG_PLEASE
+//#define LOG_PLEASE
 
 #include "metaspace/metaspaceTestsCommon.hpp"
 #include "metaspace/metaspace_sparsearray.hpp"
@@ -234,7 +234,7 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
 
   ///// First allocation //
 
-  ASSERT_NOT_NULL(smhelper.sm()->allocate(alloc_words));
+  ASSERT_NOT_NULL(smhelper.allocate_from_sm_with_tests(alloc_words));
 
   smhelper.sm()->usage_numbers(&used, &committed, &capacity);
 
@@ -250,9 +250,11 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
 
   ///// subsequent allocations //
 
+  DEBUG_ONLY(const uintx num_chunk_enlarged = metaspace::InternalStats::num_chunks_enlarged();)
+
   size_t allocated = 0;
   const size_t safety = 6 * M;
-  size_t last_capacity_jump = capacity;
+  size_t highest_capacity_jump = capacity;
   int num_capacity_jumps = 0;
 
   while (allocated < safety && num_capacity_jumps < 10) {
@@ -260,13 +262,13 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
     // if we want to test growth with in-place chunk enlargement, leave SpaceManager
     // undisturbed; it will have all the place to grow. Otherwise, allocate from a little
     // side arena to increase fragmentation.
-    // (Note that this is no guarantee that no in-place enlargements happen but it should
-    //  greatly reduce the chance.)
+    // (Note that this does not completely prevent in-place chunk enlargement but makes it
+    //  rather improbable)
     if (!test_in_place_enlargement) {
-      smhelper_harrasser.sm()->allocate(alloc_words * 2);
+      smhelper_harrasser.allocate_from_sm_with_tests(alloc_words * 2);
     }
 
-    ASSERT_NOT_NULL(smhelper.sm()->allocate(10));
+    ASSERT_NOT_NULL(smhelper.allocate_from_sm_with_tests(alloc_words));
     allocated += alloc_words;
 
     size_t used2 = 0, committed2 = 0, capacity2 = 0;
@@ -304,12 +306,12 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
     const size_t capacity_jump = capacity2 - capacity;
     if (capacity_jump > 0) {
       LOG(">" SIZE_FORMAT "->" SIZE_FORMAT "(+" SIZE_FORMAT ")", capacity, capacity2, capacity_jump)
-      if (capacity_jump > last_capacity_jump) {
+      if (capacity_jump > highest_capacity_jump) {
         // Note: if this fails, check arena policies for sudden chunk size jumps.
-        ASSERT_LE(capacity_jump, last_capacity_jump * 2);
+        ASSERT_LE(capacity_jump, highest_capacity_jump * 2);
         ASSERT_GE(capacity_jump, MIN_CHUNK_WORD_SIZE);
         ASSERT_LE(capacity_jump, MAX_CHUNK_WORD_SIZE);
-        last_capacity_jump = capacity_jump;
+        highest_capacity_jump = capacity_jump;
       }
       num_capacity_jumps ++;
     }
@@ -317,6 +319,16 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
 
   }
 
+  // After all this work, we should see an increase in number of chunk-in-place-enlargements
+  //  ( we test this since this especially is vulnerable to regression: the decisions of when
+  //    to do in place enlargements are complicated, see SpaceManager::attempt_enlarge_current_chunk() )
+#ifdef ASSERT
+  // Note, internal statistics only exists in debug builds
+  if (test_in_place_enlargement) {
+    const uintx num_chunk_enlarged_2 = metaspace::InternalStats::num_chunks_enlarged();
+    ASSERT_GT(num_chunk_enlarged_2, num_chunk_enlarged);
+  }
+#endif
 }
 
 // these numbers have to be in sync with arena policy numbers (see memory/metaspace/arenaGrowthPolicy.cpp)

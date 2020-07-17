@@ -304,7 +304,7 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
       if (!attempt_enlarge_current_chunk(raw_word_size)) {
         current_chunk_too_small = true;
       } else {
-        DEBUG_ONLY(InternalStats::inc_num_chunk_enlarged();)
+        DEBUG_ONLY(InternalStats::inc_num_chunks_enlarged();)
         log_debug(metaspace)(LOGFMT_SPCMGR ": .. enlarged chunk.", LOGFMT_SPCMGR_ARGS);
       }
     }

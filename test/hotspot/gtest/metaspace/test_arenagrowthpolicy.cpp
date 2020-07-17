@@ -29,32 +29,43 @@
 
 #include "metaspaceTestsCommon.hpp"
 
-TEST_VM(metaspace, arena_growth_policy) {
-
-  // These tests may have to be adapted if we change policies
+static void test_arena_growth_policy(metaspace::MetaspaceType spacetype, bool is_class) {
 
   const ArenaGrowthPolicy* a =
-      ArenaGrowthPolicy::policy_for_space_type(metaspace::ReflectionMetaspaceType, false);
+      ArenaGrowthPolicy::policy_for_space_type((metaspace::MetaspaceType)spacetype, is_class);
 
-  EXPECT_EQ(a->get_level_at_step(0), CHUNK_LEVEL_2K);
-  EXPECT_EQ(a->get_level_at_step(2), CHUNK_LEVEL_1K);
-  EXPECT_EQ(a->get_level_at_step(10), CHUNK_LEVEL_1K);
+  // initial level
+  chunklevel_t lvl = a->get_level_at_step(0);
+  ASSERT_TRUE(is_valid_level(lvl));
+  if (spacetype != BootMetaspaceType) {
+    // All types save boot loader should start with small or very small chunks
+    ASSERT_GE(lvl, CHUNK_LEVEL_4K);
+  }
 
-  a = ArenaGrowthPolicy::policy_for_space_type(metaspace::ClassMirrorHolderMetaspaceType, false);
-
-  EXPECT_EQ(a->get_level_at_step(0), CHUNK_LEVEL_1K);
-  EXPECT_EQ(a->get_level_at_step(2), CHUNK_LEVEL_1K);
-  EXPECT_EQ(a->get_level_at_step(10), CHUNK_LEVEL_1K);
-
-  a = ArenaGrowthPolicy::policy_for_space_type(metaspace::StandardMetaspaceType, false);
-
-  EXPECT_EQ(a->get_level_at_step(0), CHUNK_LEVEL_4K);
-  EXPECT_EQ(a->get_level_at_step(10), CHUNK_LEVEL_16K);
-
-  a = ArenaGrowthPolicy::policy_for_space_type(metaspace::BootMetaspaceType, false);
-
-  EXPECT_EQ(a->get_level_at_step(0), CHUNK_LEVEL_4M);
-  EXPECT_EQ(a->get_level_at_step(2), CHUNK_LEVEL_1M);
-  EXPECT_EQ(a->get_level_at_step(10), CHUNK_LEVEL_1M);
-
+  for (int step = 1; step < 100; step ++) {
+    chunklevel_t lvl2 = a->get_level_at_step(step);
+    ASSERT_TRUE(is_valid_level(lvl2));
+    // limit steepness: no growth allowed beyond last chunksize * 2
+    ASSERT_LE(word_size_for_level(lvl2), word_size_for_level(lvl) * 2);
+    lvl = lvl2;
+  }
 }
+
+#define DEFINE_GROWTH_POLICY_TEST(spacetype, is_class) \
+TEST_VM(metaspace, arena_growth_policy_##spacetype##_##is_class) { \
+	test_arena_growth_policy(spacetype, is_class); \
+}
+
+DEFINE_GROWTH_POLICY_TEST(ReflectionMetaspaceType, true)
+DEFINE_GROWTH_POLICY_TEST(ReflectionMetaspaceType, false)
+DEFINE_GROWTH_POLICY_TEST(ClassMirrorHolderMetaspaceType, true)
+DEFINE_GROWTH_POLICY_TEST(ClassMirrorHolderMetaspaceType, false)
+DEFINE_GROWTH_POLICY_TEST(StandardMetaspaceType, true)
+DEFINE_GROWTH_POLICY_TEST(StandardMetaspaceType, false)
+DEFINE_GROWTH_POLICY_TEST(BootMetaspaceType, true)
+DEFINE_GROWTH_POLICY_TEST(BootMetaspaceType, false)
+
+
+
+
+

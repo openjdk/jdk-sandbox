@@ -36,6 +36,8 @@ class outputStream;
 
 namespace metaspace {
 
+// TODO these are too useful to hide them in debug builds: those cheap and useful enough
+// should be available in release too.
 
 // A number of counters for internal metaspace statistics; Only active in debug.
 class InternalStats : public AllStatic {
@@ -104,7 +106,7 @@ class InternalStats : public AllStatic {
   /* result of a split operation */                 \
   x(num_chunks_added_to_freelist_due_to_split)      \
   /* Number of chunk in place enlargements */       \
-  x(num_chunk_enlarged)                             \
+  x(num_chunks_enlarged)                            \
   /* Number of chunks retired */                    \
   x(num_chunks_retired)                             \
                                                     \
@@ -125,15 +127,29 @@ class InternalStats : public AllStatic {
 
 public:
 
+// incrementors
+
 #define INCREMENTOR(name)           static void inc_##name() { _##name ++; }
 #define INCREMENTOR_ATOMIC(name)    static void inc_##name() { Atomic::inc(&_##name); }
 
   ALL_MY_COUNTERS(INCREMENTOR, INCREMENTOR_ATOMIC)
 
-  static void print_on(outputStream* st);
-
 #undef INCREMENTOR
 #undef INCREMENTOR_ATOMIC
+
+// getters
+
+#define GETTER(name)                static uintx name() { return _##name; }
+#define GETTER_ATOMIC(name)         GETTER(name)
+
+  ALL_MY_COUNTERS(GETTER, GETTER_ATOMIC)
+
+#undef GETTER
+#undef GETTER_ATOMIC
+
+
+  static void print_on(outputStream* st);
+
 
 };
 

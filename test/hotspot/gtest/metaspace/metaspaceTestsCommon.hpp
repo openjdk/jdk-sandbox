@@ -39,6 +39,7 @@
 #include "memory/metaspace/commitMask.hpp"
 #include "memory/metaspace/freeBlocks.hpp"
 #include "memory/metaspace/freeChunkList.hpp"
+#include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
@@ -88,6 +89,12 @@ using metaspace::VirtualSpaceNode;
 
 using metaspace::chunklevel_t;
 using namespace metaspace::chunklevel;
+
+using metaspace::MetaspaceType;
+using metaspace::ReflectionMetaspaceType;
+using metaspace::ClassMirrorHolderMetaspaceType;
+using metaspace::StandardMetaspaceType;
+using metaspace::BootMetaspaceType;
 
 
 /////////////////////////////////////////////////////////////////////
