@@ -266,7 +266,9 @@ public class Bind {
         // client bind to existing name: not allowed
         checkException(
             BindException.class, () -> {
-                var path = Files.createTempFile(null, null);
+                var path = Path.of("temp.sock");
+                Files.deleteIfExists(path);
+                Files.createFile(path);
                 var addr = UnixDomainSocketAddress.of(path);
                 client = SocketChannel.open(StandardProtocolFamily.UNIX);
                 try {
