@@ -45,6 +45,8 @@ import java.nio.file.Path;
  * <p> {@link Path} objects used to create instances of this class must be obtained
  * from the {@linkplain FileSystems#getDefault system-default} file system.
  *
+ * @see java.nio.channels.SocketChannel
+ * @see java.nio.channels.ServerSocketChannel
  * @since 16
  */
 public final class UnixDomainSocketAddress extends SocketAddress {

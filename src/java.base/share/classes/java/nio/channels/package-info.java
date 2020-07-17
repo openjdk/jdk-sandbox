@@ -331,30 +331,39 @@
  * <p> {@link DatagramChannel}, {@link SocketChannel} and {@link
  * ServerSocketChannel}s can be created with different {@link ProtocolFamily
  * protocol families}. The standard family types are specified in {@link
- * StandardProtocolFamily}. These families are not supported by all channel types, nor
- * all implementations. In particular, {@link StandardProtocolFamily#UNIX}
- * is only supported by {@code SocketChannel} and {@code ServerSocketChannel} and
- * only in some implementations. Channels created with {@link StandardProtocolFamily#INET
- * INET} and {@link StandardProtocolFamily#INET6 INET6} use <i>Internet Protocol</i>
- * sockets. Channels created with {@link StandardProtocolFamily#UNIX UNIX} use
- * <i>Unix Domain</i> sockets. Note, the creation of <i>Internet Protocol</i> sockets
- * is also influenced by the <a href="../../net/doc-files/net-properties.html#Ipv4IPv6">
- * "java.net.preferIPv4Stack"</a> system property. Attempts to create an unsupported
- * protocol family for a particular channel will throw {@link UnsupportedOperationException}.
+ * StandardProtocolFamily}.
  *
- * <p><i>Internet Protocol</i> sockets support network communication using TCP and UDP
- * and are addressed using {@link InetSocketAddress}es which encapsulate an IP address
- * and port number. <i>Internet Protocol</i> sockets are the default kind created,
+ * <p> Channels for <i>Internet Protocol</i> sockets are created using the
+ * {@link StandardProtocolFamily#INET INET} or {@link StandardProtocolFamily#INET6 INET6}
+ * protocol families, and their {@code getProtocolFamily()} method returns the same
+ * value it was created with. <i>Internet Protocol</i> sockets
+ * support network communication using TCP and UDP and are addressed using
+ * {@link InetSocketAddress}es which encapsulate an IP address
+ * and port number. <i>Internet Protocol</i> sockets are also the default type created,
  * when a protocol family is not specified in the channel factory creation method.
+ * Note, the creation of <i>Internet Protocol</i> sockets is also influenced by the
+ * <a href="../../net/doc-files/net-properties.html#Ipv4IPv6">
+ * "java.net.preferIPv4Stack"</a> system property.
  *
- * <p><a id="unixdomain"></a> <i>Unix Domain</i> sockets support local inter-process
+ * <p> Channels for <a id="unixdomain"></a><i>Unix Domain</i> sockets are created using
+ * the {@link StandardProtocolFamily#UNIX UNIX} protocol family only,
+ * and their {@code getProtocolFamily()} method always returns {@code UNIX}.
+ * <i>Unix Domain</i> sockets support local inter-process
  * communication on the same host, and are addressed using {@link
  * UnixDomainSocketAddress}es which encapsulate a filesystem pathname on the local
- * system. <i>Unix Domain</i> sockets can only be created using {@link
- * SocketChannel#open(ProtocolFamily)} or {@link ServerSocketChannel#open(ProtocolFamily)}
- * with the parameter value {@link StandardProtocolFamily#UNIX UNIX}.
+ * system.
  *
- * {@link UnixDomainSocketAddress}es contain a path which, when the address is bound to
+ * <p> These families are not supported by all channel types, nor all implementations.
+ * In particular, {@link DatagramChannel} supports only <i>Internet Protocol</i> sockets.
+ * {@link SocketChannel} and {@link ServerSocketChannel} support <i>Internet Protocol</i>
+ * sockets and in some implementations they also support <i>Unix Domain</i> sockets.
+ * The other network channel types which do not allow specifying the protocol family
+ * only support <i>Internet Protocol</i>.
+ *
+ * <p>Attempts to create a channel with an unsupported protocol family will
+ * throw {@link UnsupportedOperationException}.
+ *
+ * <p> {@link UnixDomainSocketAddress}es contain a path which, when the address is bound to
  * a channel, has an associated socket file in the file-system with the same name as the
  * path. Address instances are created with either a {@link String} path name or a
  * {@link Path}. Paths can be either absolute or relative with respect to the current
@@ -368,13 +377,13 @@
  * <p>
  * If a {@link ServerSocketChannel} for a <i>Unix Domain</i> socket is automatically bound
  * by passing a {@code null} address to one of the {@link ServerSocketChannel#bind(SocketAddress)
- * bind} methods, the channel is bound to a unique name in a temporary
- * directory. The exact pathname can be obtained by calling {@link
- * ServerSocketChannel#getLocalAddress() getLocalAddress} after bind returns. It is an
- * error to bind a {@code ServerSocketChannel} to an unnamed address. The temporary
- * directory is determined as follows. If the system property {@code "java.nio.tmpdir"}
+ * bind} methods, the channel is bound to a unique name in a temporary directory whose name
+ * is determined as follows. If the system property {@code "java.nio.channels.tmpdir"}
  * is set, that value is used. If not, the default VM temporary directory indicated by the
- * {@code "java.io.tmpdir"} system property is used.
+ * {@code "java.io.tmpdir"} system property is used. The exact pathname of an automatically
+ * bound socket can be obtained by calling {@link ServerSocketChannel#getLocalAddress()
+ * getLocalAddress} after bind returns. It is an error to bind a
+ * {@code ServerSocketChannel} to an unnamed address.
  *
  * <p> A <i>Unix Domain</i> socket can be bound to a name if and only if, no file exists
  * in the file-system with the same name, and the calling process has the required
