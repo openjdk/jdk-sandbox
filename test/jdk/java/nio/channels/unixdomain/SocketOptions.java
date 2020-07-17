@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8231358
- * @run main/othervm -Djava.nio.tmpdir=/tmp SocketOptions
+ * @run main/othervm -Djava.nio.channels.tmpdir=/tmp SocketOptions
  * @summary Socket option test
  */
 
