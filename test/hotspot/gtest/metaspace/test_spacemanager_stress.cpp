@@ -81,7 +81,6 @@ class SpaceManagerTestBed : public CHeapObj<mtInternal> {
   void verify_sm_statistics() const {
 
     sm_stats_t stats;
-    memset(&stats, 0, sizeof(stats));
     _sm->add_to_statistics(&stats);
     in_use_chunk_stats_t in_use_stats = stats.totals();
 
