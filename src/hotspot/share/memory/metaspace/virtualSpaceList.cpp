@@ -39,6 +39,10 @@
 
 namespace metaspace {
 
+#define LOGFMT         "VsList @" PTR_FORMAT " (%s)"
+#define LOGFMT_ARGS    p2i(this), this->_name
+
+
 static int next_node_id = 0;
 
 // Create a new, empty, expandable list.
@@ -111,13 +115,8 @@ void VirtualSpaceList::create_new_node() {
 Metachunk*  VirtualSpaceList::allocate_root_chunk() {
   assert_lock_strong(MetaspaceExpand_lock);
 
-  log_debug(metaspace)("VirtualSpaceList %s: allocate root chunk.", _name);
-
   if (_first_node == NULL ||
       _first_node->free_words() == 0) {
-
-    // The current node is fully used up.
-    log_debug(metaspace)("VirtualSpaceList %s: need new node.", _name);
 
     // Since all allocations from a VirtualSpaceNode happen in
     // root-chunk-size units, and the node size must be root-chunk-size aligned,
@@ -127,7 +126,9 @@ Metachunk*  VirtualSpaceList::allocate_root_chunk() {
 
     if (_can_expand) {
       create_new_node();
+      UL2(debug, "added new node (now: %d).", num_nodes());
     } else {
+      UL(debug, "list cannot expand.");
       return NULL; // We cannot expand this list.
     }
   }
@@ -151,11 +152,10 @@ int VirtualSpaceList::purge(FreeChunkListVector* freelists) {
   assert_lock_strong(MetaspaceExpand_lock);
 
   if (_can_purge == false) {
-    log_debug(metaspace)("VirtualSpaceList %s: cannot purge this list.", _name);
     return 0;
   }
 
-  log_debug(metaspace)("VirtualSpaceList %s: purging...", _name);
+  UL(debug, "purging.");
 
   VirtualSpaceNode* vsn = _first_node;
   VirtualSpaceNode* prev_vsn = NULL;
@@ -165,7 +165,7 @@ int VirtualSpaceList::purge(FreeChunkListVector* freelists) {
     bool purged = vsn->attempt_purge(freelists);
     if (purged) {
       // Note: from now on do not dereference vsn!
-      log_debug(metaspace)("VirtualSpaceList %s: purged node @" PTR_FORMAT, _name, p2i(vsn));
+      UL2(debug, "purged node @" PTR_FORMAT ".", p2i(vsn));
       if (_first_node == vsn) {
         _first_node = next_vsn;
       }
@@ -182,7 +182,7 @@ int VirtualSpaceList::purge(FreeChunkListVector* freelists) {
     num ++;
   }
 
-  log_debug(metaspace)("VirtualSpaceList %s: purged %d/%d nodes.", _name, num_purged, num);
+  UL2(debug, "purged %d nodes (now: %d)", num_purged, num_nodes());
 
   return num_purged;
 

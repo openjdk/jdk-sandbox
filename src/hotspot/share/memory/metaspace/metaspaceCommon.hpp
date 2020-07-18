@@ -124,6 +124,25 @@ void print_number_of_classes(outputStream* out, uintx classes, uintx classes_sha
 
 #endif // ASSERT
 
+///////// Logging //////////////
+
+// What we log at which levels:
+
+// "info" : metaspace failed allocation, commit failure, reserve failure, metaspace oom, metaspace gc threshold changed, SpaceManager created, destroyed, metaspace purged
+
+// "debug" : "info" + vslist extended, memory committed/uncommitted, chunk created/split/merged/enlarged, chunk returned
+
+// "trace" : "debug" + every single allocation and deallocation, internals
+
+#define HAVE_UL
+
+#ifdef HAVE_UL
+#define UL(level, message)        log_##level(metaspace)(LOGFMT ": " message, LOGFMT_ARGS);
+#define UL2(level, message, ...)  log_##level(metaspace)(LOGFMT ": " message, LOGFMT_ARGS, __VA_ARGS__);
+#else
+#define UL(level, ...)
+#define UL2(level, ...)
+#endif
 
 } // namespace metaspace
 

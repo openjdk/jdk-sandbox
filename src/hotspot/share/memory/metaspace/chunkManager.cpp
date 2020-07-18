@@ -44,6 +44,8 @@
 
 namespace metaspace {
 
+#define LOGFMT         "ChkMgr @" PTR_FORMAT " (%s)"
+#define LOGFMT_ARGS    p2i(this), this->_name
 
 // Return a single chunk to the freelist and adjust accounting. No merge is attempted.
 void ChunkManager::return_chunk_simple(Metachunk* c) {
@@ -99,8 +101,8 @@ void ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chunklevel_t targ
   DEBUG_ONLY(chunklevel::check_valid_level(target_level);)
   DEBUG_ONLY(c->verify(true);)
 
-  log_debug(metaspace)("ChunkManager %s: will split chunk " METACHUNK_FORMAT " to " CHKLVL_FORMAT ".",
-                       _name, METACHUNK_FORMAT_ARGS(c), target_level);
+  UL2(debug, "splitting chunk " METACHUNK_FORMAT " to " CHKLVL_FORMAT ".",
+      METACHUNK_FORMAT_ARGS(c), target_level);
 
   DEBUG_ONLY(size_t committed_words_before = c->committed_words();)
 
@@ -149,8 +151,9 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
   DEBUG_ONLY(chunklevel::check_valid_level(preferred_level);)
   assert(max_level >= preferred_level, "invalid level.");
 
-  log_debug(metaspace)("ChunkManager %s: requested chunk: pref_level: " CHKLVL_FORMAT ", max_level: " CHKLVL_FORMAT ", min committed size: " SIZE_FORMAT ".",
-                       _name, preferred_level, max_level, min_committed_words);
+  UL2(debug, "requested chunk: pref_level: " CHKLVL_FORMAT
+     ", max_level: " CHKLVL_FORMAT ", min committed size: " SIZE_FORMAT ".",
+     preferred_level, max_level, min_committed_words);
 
   // First, optimistically look for a chunk which is already committed far enough to hold min_word_size.
 
@@ -188,21 +191,25 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
     c = _chunks.search_chunk_descending(preferred_level, 0);
   }
 
+  if (c != NULL) {
+    UL(trace, "taken from freelist.");
+  }
+
   // Failing all that, allocate a new root chunk from the connected virtual space.
   // This may fail if the underlying vslist cannot be expanded (e.g. compressed class space)
   if (c == NULL) {
     c = _vslist->allocate_root_chunk();
     if (c == NULL) {
-      log_debug(metaspace)("ChunkManager %s: failed to get new root chunk.", _name);
+      UL(info, "failed to get new root chunk.");
     } else {
       assert(c->level() == chunklevel::ROOT_CHUNK_LEVEL, "root chunk expected");
-      log_debug(metaspace)("ChunkManager %s: allocated new root chunk.", _name);
+      UL(debug, "allocated new root chunk.");
     }
   }
 
   if (c == NULL) {
-    log_debug(metaspace)("ChunkManager %s: failed to get chunk (preferred level: " CHKLVL_FORMAT
-                         ", max level " CHKLVL_FORMAT ".", _name, preferred_level, max_level);
+    UL2(info, "failed to get chunk (preferred level: " CHKLVL_FORMAT
+       ", max level " CHKLVL_FORMAT ".", preferred_level, max_level);
     return NULL;
   }
 
@@ -219,8 +226,8 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
   const size_t need_to_commit = MAX2(Settings::committed_words_on_fresh_chunks(), min_committed_words);
   if (c->committed_words() < need_to_commit) {
     if (c->ensure_committed_locked(need_to_commit) == false) {
-      log_debug(metaspace)("ChunkManager %s: failed to commit " SIZE_FORMAT " words on chunk " METACHUNK_FORMAT ".",
-                           _name, need_to_commit,  METACHUNK_FORMAT_ARGS(c));
+      UL2(info, "failed to commit " SIZE_FORMAT " words on chunk " METACHUNK_FORMAT ".",
+          need_to_commit,  METACHUNK_FORMAT_ARGS(c));
       _chunks.add(c);
       return NULL;
     }
@@ -238,8 +245,7 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
   DEBUG_ONLY(verify_locked(false);)
   SOMETIMES(c->vsnode()->verify(true);)
 
-  log_debug(metaspace)("ChunkManager %s: handing out chunk " METACHUNK_FORMAT ".",
-                       _name, METACHUNK_FORMAT_ARGS(c));
+  UL2(debug, "handing out chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
 
   DEBUG_ONLY(InternalStats::inc_num_chunks_taken_from_freelist();)
 
@@ -257,8 +263,7 @@ void ChunkManager::return_chunk(Metachunk* c) {
 
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
 
-  log_debug(metaspace)("ChunkManager %s: returning chunk " METACHUNK_FORMAT ".",
-                       _name, METACHUNK_FORMAT_ARGS(c));
+  UL2(debug, ": returning chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
 
   DEBUG_ONLY(c->verify(true);)
 
@@ -286,8 +291,7 @@ void ChunkManager::return_chunk(Metachunk* c) {
     // We did merge chunks and now have a bigger chunk.
     assert(merged->level() < orig_lvl, "Sanity");
 
-    log_trace(metaspace)("ChunkManager %s: merged into chunk " METACHUNK_FORMAT ".",
-                         _name, METACHUNK_FORMAT_ARGS(merged));
+    UL2(debug, "merged into chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(merged));
 
     c = merged;
 
@@ -296,8 +300,8 @@ void ChunkManager::return_chunk(Metachunk* c) {
   if (Settings::uncommit_on_return() &&
       Settings::uncommit_on_return_min_word_size() <= c->word_size())
   {
-    log_trace(metaspace)("ChunkManager %s: uncommitting free chunk " METACHUNK_FORMAT ".",
-                         _name, METACHUNK_FORMAT_ARGS(c));
+
+    UL2(debug, "uncommitting free chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
     c->uncommit_locked();
   }
 
@@ -353,7 +357,7 @@ void ChunkManager::wholesale_reclaim() {
 
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
 
-  log_info(metaspace)("ChunkManager \"%s\": reclaiming memory...", _name);
+  UL(info, ": reclaiming memory...");
 
   const size_t reserved_before = _vslist->reserved_words();
   const size_t committed_before = _vslist->committed_words();
@@ -383,12 +387,12 @@ void ChunkManager::wholesale_reclaim() {
 
   // Print a nice report.
   if (reserved_after == reserved_before && committed_after == committed_before) {
-    log_info(metaspace)("ChunkManager %s: ... nothing reclaimed.", _name);
+    UL(info, "nothing reclaimed.");
   } else {
     LogTarget(Info, metaspace) lt;
     if (lt.is_enabled()) {
       LogStream ls(lt);
-      ls.print_cr("ChunkManager %s: finished reclaiming memory: ", _name);
+      ls.print_cr(LOGFMT ": finished reclaiming memory: ", LOGFMT_ARGS);
 
       ls.print("reserved: ");
       print_word_size_delta(&ls, reserved_before, reserved_after);

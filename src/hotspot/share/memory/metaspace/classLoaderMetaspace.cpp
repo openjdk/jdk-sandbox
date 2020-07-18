@@ -41,6 +41,9 @@
 
 namespace metaspace {
 
+#define LOGFMT         "CLMS @" PTR_FORMAT " "
+#define LOGFMT_ARGS    p2i(this)
+
 static bool use_class_space(bool is_class) {
   if (Metaspace::using_class_space() && is_class) {
     return true;
@@ -83,6 +86,9 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
         is_micro());
   }
 
+  UL2(debug, "born (SpcMgr nonclass: " PTR_FORMAT ", SpcMgr class: " PTR_FORMAT ".",
+      p2i(_non_class_space_manager), p2i(_class_space_manager));
+
 #ifdef ASSERT
   InternalStats::inc_num_metaspace_births();
   if (_space_type == metaspace::ClassMirrorHolderMetaspaceType) {
@@ -93,6 +99,8 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
 
 ClassLoaderMetaspace::~ClassLoaderMetaspace() {
   Metaspace::assert_not_frozen();
+
+  UL(debug, "dies.");
 
   delete _non_class_space_manager;
   delete _class_space_manager;
@@ -140,7 +148,9 @@ MetaWord* ClassLoaderMetaspace::expand_and_allocate(size_t word_size, Metaspace:
   if (incremented) {
     Metaspace::tracer()->report_gc_threshold(before, after,
                                   MetaspaceGCThresholdUpdater::ExpandAndAllocate);
+    // Keeping both for now until I am sure the old variant (gc + metaspace) is not needed anymore
     log_trace(gc, metaspace)("Increase capacity to GC from " SIZE_FORMAT " to " SIZE_FORMAT, before, after);
+    UL2(info, "GC threshold increased: " SIZE_FORMAT "->" SIZE_FORMAT ".", before, after);
   }
 
   return res;

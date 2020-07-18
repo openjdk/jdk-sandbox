@@ -54,6 +54,9 @@
 
 namespace metaspace {
 
+#define LOGFMT         "VsListNode @" PTR_FORMAT " base " PTR_FORMAT " "
+#define LOGFMT_ARGS    p2i(this), p2i(_base)
+
 #ifdef ASSERT
 void check_pointer_is_aligned_to_commit_granule(const MetaWord* p) {
   assert(is_aligned(p, Settings::commit_granule_bytes()),
@@ -94,17 +97,17 @@ bool VirtualSpaceNode::commit_range(MetaWord* p, size_t word_size) {
   //  were we to commit the given address range completely.
   const size_t commit_increase_words = word_size - committed_words_in_range;
 
-  log_debug(metaspace)("VirtualSpaceNode %d, base " PTR_FORMAT ": committing range " PTR_FORMAT ".." PTR_FORMAT "(" SIZE_FORMAT " words)",
-                       _node_id, p2i(_base), p2i(p), p2i(p + word_size), word_size);
+  UL2(debug, "committing range " PTR_FORMAT ".." PTR_FORMAT "(" SIZE_FORMAT " words)",
+      p2i(p), p2i(p + word_size), word_size);
 
   if (commit_increase_words == 0) {
-    log_debug(metaspace)("VirtualSpaceNode %d, base " PTR_FORMAT ": ... already fully committed.",
-                         _node_id, p2i(_base));
+    UL(debug, "... already fully committed.");
     return true; // Already fully committed, nothing to do.
   }
 
   // Before committing any more memory, check limits.
   if (_commit_limiter->possible_expansion_words() < commit_increase_words) {
+    UL(debug, "... cannot commit (limit).");
     return false;
   }
 
@@ -117,8 +120,7 @@ bool VirtualSpaceNode::commit_range(MetaWord* p, size_t word_size) {
     os::pretouch_memory(p, p + word_size);
   }
 
-  log_debug(gc, metaspace)("Increased metaspace by " SIZE_FORMAT " bytes.",
-                           commit_increase_words * BytesPerWord);
+  UL2(debug, "... committed " SIZE_FORMAT " additional words.", commit_increase_words);
 
   // ... tell commit limiter...
   _commit_limiter->increase_committed(commit_increase_words);
@@ -188,12 +190,11 @@ void VirtualSpaceNode::uncommit_range(MetaWord* p, size_t word_size) {
   const size_t committed_words_in_range = _commit_mask.get_committed_size_in_range(p, word_size);
   DEBUG_ONLY(check_word_size_is_aligned_to_commit_granule(committed_words_in_range);)
 
-  log_debug(metaspace)("VirtualSpaceNode %d, base " PTR_FORMAT ": uncommitting range " PTR_FORMAT ".." PTR_FORMAT "(" SIZE_FORMAT " words)",
-                       _node_id, p2i(_base), p2i(p), p2i(p + word_size), word_size);
+  UL2(debug, "uncommitting range " PTR_FORMAT ".." PTR_FORMAT "(" SIZE_FORMAT " words)",
+      p2i(p), p2i(p + word_size), word_size);
 
   if (committed_words_in_range == 0) {
-    log_debug(metaspace)("VirtualSpaceNode %d, base " PTR_FORMAT ": ... already fully uncommitted.",
-                         _node_id, p2i(_base));
+    UL(debug, "... already fully uncommitted.");
     return; // Already fully uncommitted, nothing to do.
   }
 
@@ -203,8 +204,7 @@ void VirtualSpaceNode::uncommit_range(MetaWord* p, size_t word_size) {
     fatal("Failed to uncommit metaspace.");
   }
 
-  log_debug(metaspace)("Decreased metaspace by " SIZE_FORMAT " bytes.",
-                        committed_words_in_range * BytesPerWord);
+  UL2(debug, "... uncommitted " SIZE_FORMAT " words.", committed_words_in_range);
 
   // ... tell commit limiter...
   _commit_limiter->decrease_committed(committed_words_in_range);
@@ -246,9 +246,7 @@ VirtualSpaceNode::VirtualSpaceNode(int node_id,
     _total_committed_words_counter(commit_words_counter),
     _node_id(node_id)
 {
-
-  log_debug(metaspace)("Create new VirtualSpaceNode %d, base " PTR_FORMAT ", word size " SIZE_FORMAT ".",
-                       _node_id, p2i(_base), _word_size);
+  UL2(debug, "born (word_size " SIZE_FORMAT ").", _word_size);
 
   // Update reserved counter in vslist
   _total_reserved_words_counter->increment_by(_word_size);
@@ -301,8 +299,7 @@ VirtualSpaceNode* VirtualSpaceNode::create_node(int node_id,
 VirtualSpaceNode::~VirtualSpaceNode() {
   _rs.release();
 
-  log_debug(metaspace)("Destroying VirtualSpaceNode %d, base " PTR_FORMAT ", word size " SIZE_FORMAT ".",
-                       _node_id, p2i(_base), _word_size);
+  UL(debug, ": dies.");
 
   // Update counters in vslist
   _total_committed_words_counter->decrement_by(committed_words());
@@ -342,12 +339,9 @@ Metachunk* VirtualSpaceNode::allocate_root_chunk() {
 
     DEBUG_ONLY(c->verify(true);)
 
-    log_debug(metaspace)("VirtualSpaceNode %d, base " PTR_FORMAT ": newborn root chunk " METACHUNK_FORMAT ".",
-                         _node_id, p2i(_base), METACHUNK_FORMAT_ARGS(c));
+    UL2(debug, "new root chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
 
     if (Settings::newborn_root_chunks_are_fully_committed()) {
-      log_trace(metaspace)("VirtualSpaceNode %d, base " PTR_FORMAT ": committing newborn root chunk.",
-                           _node_id, p2i(_base));
       // Note: use Metachunk::ensure_commit, do not commit directly. This makes sure the chunk knows
       // its commit range and does not ask needlessly.
       c->ensure_fully_committed_locked();
@@ -451,15 +445,14 @@ bool VirtualSpaceNode::attempt_purge(FreeChunkListVector* freelists) {
     }
   }
 
-  log_debug(metaspace)("VirtualSpaceNode %d, base " PTR_FORMAT ": purging.", _node_id, p2i(_base));
+  UL(debug, ": purging.");
 
   // Okay, we can purge. Before we can do this, we need to remove all chunks from the freelist.
   for (int narea = 0; narea < _root_chunk_area_lut.number_of_areas(); narea ++) {
     RootChunkArea* ra = _root_chunk_area_lut.get_area_by_index(narea);
     Metachunk* c = ra->first_chunk();
     if (c != NULL) {
-      log_trace(metaspace)("VirtualSpaceNode %d, base " PTR_FORMAT ": removing chunk " METACHUNK_FULL_FORMAT ".",
-                           _node_id, p2i(_base), METACHUNK_FULL_FORMAT_ARGS(c));
+      UL2(trace, "removing chunk from purged node: " METACHUNK_FULL_FORMAT ".", METACHUNK_FULL_FORMAT_ARGS(c));
       assert(c->is_free() && c->is_root_chunk(), "Sanity");
       freelists->remove(c);
     }
