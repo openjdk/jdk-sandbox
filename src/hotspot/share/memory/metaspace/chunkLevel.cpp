@@ -35,7 +35,7 @@ namespace metaspace {
 chunklevel_t chunklevel::level_fitting_word_size(size_t word_size) {
 
   assert(chunklevel::MAX_CHUNK_WORD_SIZE >= word_size,
-         "too large allocation size (" SIZE_FORMAT ")", word_size * BytesPerWord);
+         SIZE_FORMAT " - too large allocation size.", word_size * BytesPerWord);
 
   // TODO: This can be done much better.
   chunklevel_t l = chunklevel::HIGHEST_CHUNK_LEVEL;
