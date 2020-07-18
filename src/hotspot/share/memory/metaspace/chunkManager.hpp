@@ -64,10 +64,6 @@ class ChunkManager : public CHeapObj<mtMetaspace> {
   // May fail if we hit the commit limit.
   static bool commit_chunk_before_handout(Metachunk* c);
 
-  // Take a single chunk from the given freelist and adjust counters. Returns NULL
-  // if there is no fitting chunk for this level.
-  Metachunk* remove_first_chunk_at_level(chunklevel_t l);
-
   // Given a chunk, split it into a target chunk of a smaller size (target level)
   //  at least one, possible more splinter chunks. Splinter chunks are added to the
   //  freelist.

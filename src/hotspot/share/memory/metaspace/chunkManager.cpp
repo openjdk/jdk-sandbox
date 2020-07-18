@@ -62,27 +62,6 @@ void ChunkManager::return_chunk_simple(Metachunk* c) {
 
 }
 
-// Take a single chunk from the given freelist and adjust counters. Returns NULL
-// if there is no fitting chunk for this level.
-Metachunk* ChunkManager::remove_first_chunk_at_level(chunklevel_t l) {
-
-  assert_lock_strong(MetaspaceExpand_lock);
-  DEBUG_ONLY(chunklevel::check_valid_level(l);)
-
-  Metachunk* c = _chunks.remove_first(l);
-
-  // Tracing
-  if (c != NULL) {
-    log_debug(metaspace)("ChunkManager %s: removed chunk " METACHUNK_FORMAT ".",
-                         _name, METACHUNK_FORMAT_ARGS(c));
-  } else {
-    log_trace(metaspace)("ChunkManager %s: no chunk found for level " CHKLVL_FORMAT,
-                         _name, l);
-  }
-
-  return c;
-}
-
 // Creates a chunk manager with a given name (which is for debug purposes only)
 // and an associated space list which will be used to request new chunks from
 // (see get_chunk())
