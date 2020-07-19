@@ -794,8 +794,14 @@ void Metaspace::post_initialize() {
   MetaspaceGC::post_initialize();
 }
 
+size_t Metaspace::max_allocation_word_size() {
+  return metaspace::chunklevel::MAX_CHUNK_WORD_SIZE;
+}
+
 MetaWord* Metaspace::allocate(ClassLoaderData* loader_data, size_t word_size,
                               MetaspaceObj::Type type, TRAPS) {
+  assert(word_size <= Metaspace::max_allocation_word_size(),
+         "allocation size too large (" SIZE_FORMAT ")", word_size);
   assert(!_frozen, "sanity");
   assert(!(DumpSharedSpaces && THREAD->is_VM_thread()), "sanity");
 

@@ -34,6 +34,7 @@
 #include "memory/metaspace/chunkHeaderPool.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/chunkManager.hpp"
+#include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/commitMask.hpp"
