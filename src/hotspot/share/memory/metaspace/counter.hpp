@@ -56,16 +56,18 @@ public:
   void decrement() { decrement_by(1); }
 
   void increment_by(T v) {
-    assert(_c + v >= _c,
-        "overflow (" UINT64_FORMAT "+" UINT64_FORMAT ")",
-        (uint64_t)_c, (uint64_t)v);
+#ifdef ASSERT
+    T old = _c;
+    assert(old + v >= old,
+        "overflow (" UINT64_FORMAT "+" UINT64_FORMAT ")", (uint64_t)old, (uint64_t)v);
+#endif
     _c += v;
   }
 
   void decrement_by(T v) {
-    assert(_c - v <= _c,
-        "underflow (" UINT64_FORMAT "-" UINT64_FORMAT ")",
-        (uint64_t)_c, (uint64_t)v);
+    assert(_c >= v,
+           "underflow (" UINT64_FORMAT "-" UINT64_FORMAT ")",
+           (uint64_t)_c, (uint64_t)v);
     _c -= v;
   }
 
@@ -96,29 +98,38 @@ public:
   T get() const               { return _c; }
 
   void increment() {
-    assert(_c + 1 != 0,
-        "overflow (" UINT64_FORMAT "+1)", (uint64_t)_c);
+#ifdef ASSERT
+    T old = Atomic::load_acquire(&_c);
+    assert(old + 1 != 0,
+        "overflow (" UINT64_FORMAT "+1)", (uint64_t)old);
+#endif
     Atomic::inc(&_c);
   }
 
   void decrement() {
-    assert(_c >= 1,
-        "underflow (" UINT64_FORMAT "-1)", (uint64_t)_c);
+#ifdef ASSERT
+    T old = Atomic::load_acquire(&_c);
+    assert(old >= 1,
+        "underflow (" UINT64_FORMAT "-1)", (uint64_t)old);
+#endif
     Atomic::dec(&_c);
   }
 
   void increment_by(T v) {
-    T v1 = _c;
-    T v2 = Atomic::add(&_c, v);
-    assert(v2 > v1,
-           "overflow (" UINT64_FORMAT "+" UINT64_FORMAT ")",
-           (uint64_t)v1, (uint64_t)v);
+#ifdef ASSERT
+    T old = Atomic::load_acquire(&_c);
+    assert(old + v >= old,
+        "overflow (" UINT64_FORMAT "+" UINT64_FORMAT ")", (uint64_t)old, (uint64_t)v);
+#endif
+    Atomic::add(&_c, v);
   }
 
   void decrement_by(T v) {
-    assert(_c >= v,
-           "underflow (" UINT64_FORMAT "-" UINT64_FORMAT ")",
-           (uint64_t)_c, (uint64_t)v);
+#ifdef ASSERT
+    T old = Atomic::load_acquire(&_c);
+    assert(old >= v,
+        "underflow (" UINT64_FORMAT "+" UINT64_FORMAT ")", (uint64_t)old, (uint64_t)v);
+#endif
     Atomic::sub(&_c, v);
   }
 
