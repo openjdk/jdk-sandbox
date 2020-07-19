@@ -90,6 +90,16 @@ public:
     }
   }
 
+  void allocate_from_sm_with_tests_expect_success(size_t word_size) {
+    bool b = allocate_from_sm_with_tests(word_size);
+    ASSERT_TRUE(b);
+  }
+
+  void allocate_from_sm_with_tests_expect_failure(size_t word_size) {
+    bool b = allocate_from_sm_with_tests(word_size);
+    ASSERT_FALSE(b);
+  }
+
   bool allocate_from_sm_with_tests(size_t word_size) {
     if (_sm != NULL) {
 
@@ -108,7 +118,11 @@ public:
         return false;
       } else {
         EXPECT_TRUE(is_aligned(p, sizeof(MetaWord)));
-        EXPECT_GE(used_words_after, used_words_before + word_size); // note: overhead in sm
+        // This is not necessarily true:
+        //   EXPECT_GE(used_words_after, used_words_before + word_size);
+        // since we may have fed off the free block list which already counted as "used" space before.
+        // But we can safely at least assume used numbers should not go down.
+        EXPECT_GE(used_words_after, used_words_before);
         EXPECT_GE(committed_words_after, committed_words_before);
         return true;
       }
@@ -123,12 +137,12 @@ static void test_basics(size_t commit_limit, bool is_micro) {
   MetaspaceTestHelper msthelper(commit_limit);
   SpaceManagerTestHelper helper(msthelper, is_micro ? metaspace::ReflectionMetaspaceType : metaspace::StandardMetaspaceType, false);
 
-  helper.sm()->allocate(1);
-  helper.sm()->allocate(128);
-  helper.sm()->allocate(128 * K);
-  helper.sm()->allocate(1);
-  helper.sm()->allocate(128);
-  helper.sm()->allocate(128 * K);
+  helper.allocate_from_sm_with_tests(1);
+  helper.allocate_from_sm_with_tests(128);
+  helper.allocate_from_sm_with_tests(128 * K);
+  helper.allocate_from_sm_with_tests(1);
+  helper.allocate_from_sm_with_tests(128);
+  helper.allocate_from_sm_with_tests(128 * K);
 }
 
 TEST_VM(metaspace, spacemanager_basics_micro_nolimit) {
@@ -145,6 +159,46 @@ TEST_VM(metaspace, spacemanager_basics_standard_nolimit) {
 
 TEST_VM(metaspace, spacemanager_basics_standard_limit) {
   test_basics(256 * K, false);
+}
+
+
+TEST_VM(metaspace, spacemanager_test_enlarge_in_place) {
+  // Test: in a single undisturbed SpaceManager (so, we should have chunks enlarged in place)
+  // we allocate a small amount, then the full amount possible. The sum of first and second
+  // allocation bring us above root chunk size. This should work - chunk enlargement should
+  // fail and a new root chunk should be allocated instead.
+  MetaspaceTestHelper msthelper;
+  SpaceManagerTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
+  helper.allocate_from_sm_with_tests_expect_success(1);
+  helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
+  helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE / 2);
+  helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
+}
+
+TEST_VM(metaspace, spacemanager_test_enlarge_in_place_ladder_1) {
+  MetaspaceTestHelper msthelper;
+  SpaceManagerTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
+  // Test allocating from smallest to largest chunk size, and one step beyond.
+  // The first n allocations should happen in place, the ladder should open a new chunk.
+  size_t size = MIN_CHUNK_WORD_SIZE;
+  while (size <= MAX_CHUNK_WORD_SIZE) {
+    helper.allocate_from_sm_with_tests_expect_success(size);
+    size *= 2;
+  }
+  helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
+}
+
+TEST_VM(metaspace, spacemanager_test_enlarge_in_place_ladder_2) {
+  MetaspaceTestHelper msthelper;
+  SpaceManagerTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
+  // Same as spacemanager_test_enlarge_in_place_ladder_1, but increase in *4 step size;
+  // this way chunk-in-place-enlargement does not work and we should have new chunks at each allocation.
+  size_t size = MIN_CHUNK_WORD_SIZE;
+  while (size <= MAX_CHUNK_WORD_SIZE) {
+    helper.allocate_from_sm_with_tests_expect_success(size);
+    size *= 4;
+  }
+  helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
 }
 
 static void test_recover_from_commit_limit_hit() {

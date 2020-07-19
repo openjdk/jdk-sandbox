@@ -346,10 +346,10 @@ class SpaceManagerTest {
 
 public:
 
-  SpaceManagerTest(size_t commit_limit)
+  SpaceManagerTest(size_t commit_limit, int num_testbeds)
     : _helper(commit_limit),
       _rss_at_start(get_workingset_size()),
-      _testbeds(32),
+      _testbeds(num_testbeds),
       _num_beds()
   {}
 
@@ -441,15 +441,25 @@ public:
 };
 
 
-TEST_VM(metaspace, spacemanager_random_allocs_no_commit_limit) {
-  SpaceManagerTest test(max_uintx);
+// 32 parallel space managers, random allocating without commit limit
+TEST_VM(metaspace, spacemanager_random_allocs_32_beds_no_commit_limit) {
+  SpaceManagerTest test(max_uintx, 32);
   test.test();
 }
 
-TEST_VM(metaspace, spacemanager_random_allocs_with_commit_limit) {
-  SpaceManagerTest test(2 * M);
+// 32 parallel space managers, random allocating with commit limit
+TEST_VM(metaspace, spacemanager_random_allocs_32_beds_with_commit_limit) {
+  SpaceManagerTest test(2 * M, 32);
   test.test();
 }
+
+// A single space manager, random allocating without commit limit. This should exercise
+//  chunk enlargement since allocation is undisturbed.
+TEST_VM(metaspace, spacemanager_random_allocs_1_bed_no_commit_limit) {
+  SpaceManagerTest test(max_uintx, 1);
+  test.test();
+}
+
 
 
 

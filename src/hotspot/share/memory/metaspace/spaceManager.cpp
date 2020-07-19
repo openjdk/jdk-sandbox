@@ -217,19 +217,23 @@ bool SpaceManager::attempt_enlarge_current_chunk(size_t requested_word_size) {
   Metachunk* c = current_chunk();
   assert(c->free_words() < requested_word_size, "Sanity");
 
-  // Not if chunk enlargment is switched off in general...
+  // Not if chunk enlargment is switched off...
   if (Settings::enlarge_chunks_in_place() == false) {
     return false;
   }
 
-  // Nor if the chunk is deemed to large to be thus expanded.
-  //  (TODO : do we need this if we check the allowed chunk growth progression below? check)
+  // ... we also disallow it for very large chunks...
   if (c->word_size() > Settings::enlarge_chunks_in_place_max_word_size()) {
     return false;
   }
 
-  // Nor, obviously, if we are already a root chunk.
+  // ... nor if we are already a root chunk ...
   if (c->is_root_chunk()) {
+    return false;
+  }
+
+  // ... nor if the combined size of chunk content and new content would bring us above the size of a root chunk ...
+  if ((c->used_words() + requested_word_size) > metaspace::chunklevel::MAX_CHUNK_WORD_SIZE) {
     return false;
   }
 
@@ -237,9 +241,9 @@ bool SpaceManager::attempt_enlarge_current_chunk(size_t requested_word_size) {
       chunklevel::level_fitting_word_size(c->used_words() + requested_word_size);
   assert(new_level < c->level(), "Sanity");
 
-  // Atm we only attempt to enlarge by one level (so, doubling the chunk in size).
-  // So, if the requested enlargement would require the chunk to more than double in size,
-  // we bail. But this covers about 99% of all cases, so this is good enough.
+  // Atm we only enlarge by one level (so, doubling the chunk in size). So, if the requested enlargement
+  // would require the chunk to more than double in size, we bail. But this covers about 99% of all cases,
+  // so this is good enough.
   if (new_level < c->level() - 1) {
     return false;
   }
