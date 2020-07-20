@@ -33,6 +33,9 @@
 #include "metaspace/metaspace_testhelper.hpp"
 #include "utilities/ostream.hpp"
 
+
+// TODO: this class is very similar to SpaceManagerTestBed in test_spacemanager_stress.cpp.
+// should be unified.
 class SpaceManagerTestHelper {
 
   MetaspaceTestHelper& _helper;
@@ -90,6 +93,20 @@ public:
     }
   }
 
+  void usage_numbers_with_test(size_t* p_used, size_t* p_committed, size_t* p_capacity) const {
+    _sm->usage_numbers(p_used, p_committed, p_capacity);
+    if (p_used != NULL) {
+      if (p_committed != NULL) {
+        ASSERT_GE(*p_committed, *p_used);
+      }
+      // Since we own the used words counter, it should reflect our usage number 1:1
+      ASSERT_EQ(_used_words_counter.get(), *p_used);
+    }
+    if (p_committed != NULL && p_capacity != NULL) {
+      ASSERT_GE(*p_capacity, *p_committed);
+    }
+  }
+
   void allocate_from_sm_with_tests_expect_success(size_t word_size) {
     bool b = allocate_from_sm_with_tests(word_size);
     ASSERT_TRUE(b);
@@ -101,31 +118,36 @@ public:
   }
 
   bool allocate_from_sm_with_tests(size_t word_size) {
-    if (_sm != NULL) {
 
-      size_t used_words_before = _used_words_counter.get();
-      size_t committed_words_before = limiter().committed_words();
-      size_t possible_expansion = limiter().possible_expansion_words();
+    // Note: usage_numbers walks all chunks in use and counts.
+    size_t used = 0, committed = 0, capacity = 0;
+    usage_numbers_with_test(&used, &committed, &capacity);
 
-      MetaWord* p = _sm->allocate(word_size);
+    size_t possible_expansion = limiter().possible_expansion_words();
 
-      size_t used_words_after = _used_words_counter.get();
-      size_t committed_words_after = limiter().committed_words();
+    MetaWord* p = _sm->allocate(word_size);
 
-      if (p == NULL) {
-        EXPECT_LT(possible_expansion, word_size);
-        EXPECT_EQ(used_words_after, used_words_before);
-        return false;
-      } else {
-        EXPECT_TRUE(is_aligned(p, sizeof(MetaWord)));
-        // This is not necessarily true:
-        //   EXPECT_GE(used_words_after, used_words_before + word_size);
-        // since we may have fed off the free block list which already counted as "used" space before.
-        // But we can safely at least assume used numbers should not go down.
-        EXPECT_GE(used_words_after, used_words_before);
-        EXPECT_GE(committed_words_after, committed_words_before);
-        return true;
-      }
+    size_t used2 = 0, committed2 = 0, capacity2 = 0;
+    usage_numbers_with_test(&used2, &committed2, &capacity2);
+
+    if (p == NULL) {
+      // Allocation failed. We expect a too small expansion size the cause. Nothing should have changed.
+      EXPECT_LT(possible_expansion, word_size);
+      EXPECT_EQ(used, used2);
+      EXPECT_EQ(committed, committed2);
+      EXPECT_EQ(capacity, capacity2);
+      return false;
+    } else {
+      // Allocation succeeded. Should be correctly aligned.
+      EXPECT_TRUE(is_aligned(p, sizeof(MetaWord)));
+      // used: may go up or may not (since our request may have been satisfied from the freeblocklist
+      //   whose content already counts as used).
+      // committed: may go up, may not
+      // capacity: ditto
+      EXPECT_GE(used2, used);
+      EXPECT_GE(committed2, committed);
+      EXPECT_GE(capacity2, capacity);
+      return true;
     }
     return false;
   }

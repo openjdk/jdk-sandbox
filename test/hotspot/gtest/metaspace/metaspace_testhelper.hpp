@@ -22,8 +22,8 @@
  * questions.
  */
 
-#ifndef GTEST_METASPACE_METASPACETESTHELPER_HPP
-#define GTEST_METASPACE_METASPACETESTHELPER_HPP
+#ifndef GTEST_METASPACE_METASPACE_TESTHELPER_HPP
+#define GTEST_METASPACE_METASPACE_TESTHELPER_HPP
 
 #include "memory/allocation.hpp"
 #include "metaspace/metaspaceTestsCommon.hpp"
@@ -119,6 +119,6 @@ public:
 };
 
 
-#endif // GTEST_METASPACE_METASPACETESTHELPER_HPP
+#endif // GTEST_METASPACE_METASPACE_TESTHELPER_HPP
 
 
