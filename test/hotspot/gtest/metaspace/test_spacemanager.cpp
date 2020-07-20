@@ -146,8 +146,13 @@ public:
     usage_numbers_with_test(&used2, &committed2, &capacity2);
 
     if (p == NULL) {
-      // Allocation failed. We expect a too small expansion size the cause. Nothing should have changed.
-      ASSERT_LT(possible_expansion, word_size);
+      // Allocation failed.
+      if (Settings::newborn_root_chunks_are_fully_committed()) {
+        ASSERT_LT(possible_expansion, MAX_CHUNK_WORD_SIZE);
+      } else {
+        ASSERT_LT(possible_expansion, Settings::commit_granule_words());
+      }
+
       ASSERT_EQ(used, used2);
       ASSERT_EQ(committed, committed2);
       ASSERT_EQ(capacity, capacity2);
@@ -299,6 +304,11 @@ TEST_VM(metaspace, spacemanager_deallocate) {
 }
 
 static void test_recover_from_commit_limit_hit() {
+
+  if (Settings::newborn_root_chunks_are_fully_committed()) {
+    return; // This would throw off the commit counting in this test.
+  }
+
   // Test:
   // - Multiple SpaceManager allocate (operating under the same commit limiter).
   // - One, while attempting to commit parts of its current chunk on demand,
@@ -325,9 +335,12 @@ static void test_recover_from_commit_limit_hit() {
   SpaceManagerTestHelper helper3(msthelper, metaspace::BootMetaspaceType, false);
 
   // Allocate space until we have below two but above one granule left
-  while (msthelper.commit_limiter().possible_expansion_words() >= Settings::commit_granule_words() * 2) {
-    helper1.allocate_from_sm_with_tests(1);
-    helper2.allocate_from_sm_with_tests(1);
+  size_t allocated_from_1_and_2 = 0;
+  while (msthelper.commit_limiter().possible_expansion_words() >= Settings::commit_granule_words() * 2 &&
+      allocated_from_1_and_2 < commit_limit) {
+    helper1.allocate_from_sm_with_tests_expect_success(1);
+    helper2.allocate_from_sm_with_tests_expect_success(1);
+    allocated_from_1_and_2 += 2;
   }
 
   // Now, allocating from helper3, creep up on the limit
@@ -436,10 +449,11 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
     // A jump in committed words should not be larger than commit granule size.
     // It can be smaller, since the current chunk of the space manager may be
     // smaller than a commit granule.
+    // (Note: unless root chunks are born fully committed)
     ASSERT_GE(committed2, used2);
     ASSERT_GE(committed2, committed);
     const size_t committed_jump = committed2 - committed;
-    if (committed_jump > 0) {
+    if (committed_jump > 0 && !Settings::newborn_root_chunks_are_fully_committed()) {
       ASSERT_LE(committed_jump, Settings::commit_granule_words());
     }
     committed = committed2;

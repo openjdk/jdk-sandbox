@@ -65,6 +65,12 @@ class ChunkManagerRandomChunkAllocTest {
   bool could_be_commit_error(size_t additional_word_size) {
 
     // could it be commit limit hit?
+
+    if (Settings::newborn_root_chunks_are_fully_committed()) {
+      // For all we know we may have just failed to fully-commit a new root chunk.
+      additional_word_size = MAX_CHUNK_WORD_SIZE;
+    }
+
     // Note that this is difficult to verify precisely, since there are
     // several layers of truth:
     // a) at the lowest layer (RootChunkArea) we have a bitmap of committed granules;
