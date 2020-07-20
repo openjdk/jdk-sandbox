@@ -384,10 +384,6 @@ public class ConnectionPoolTest {
             return error();
         }
         @Override
-        public ProtocolFamily getProtocolFamily() {
-            return error();
-        }
-        @Override
         public Socket socket() { return error(); }
         @Override
         public boolean isConnected() { return true; }

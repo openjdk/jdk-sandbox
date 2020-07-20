@@ -169,6 +169,9 @@ public abstract class DatagramChannel
      * java.nio.channels.spi.SelectorProvider} object.  The channel will not be
      * connected.
      *
+     * @apiNote <a href="package-summary.html#unixdomain">Unix domain</a> sockets
+     * are not supported by DatagramChannel.
+     *
      * @param   family
      *          The protocol family
      *
@@ -629,11 +632,4 @@ public abstract class DatagramChannel
      */
     @Override
     public abstract SocketAddress getLocalAddress() throws IOException;
-
-    /**
-     * Returns the protocol family of this channel.
-     *
-     * @return this channel's protocol family
-     */
-    public abstract ProtocolFamily getProtocolFamily();
 }

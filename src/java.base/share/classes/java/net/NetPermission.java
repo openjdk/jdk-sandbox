@@ -66,10 +66,9 @@ import java.util.StringTokenizer;
  *   </tr>
  *
  * <tr>
- *   <th scope="row">allowUnixDomainChannels</th>
- *   <td>The ability to bind or connect a SocketChannel for a <i>Unix Domain</i> socket
- *   or bind or accept a ServerSocketChannel for a <i>Unix Domain</i>  socket or the ability
- *   to get the local address from such channels.
+ *   <th scope="row">unixDomainSocket</th>
+ *   <td>The ability to accept, bind, connect or get the local address
+ *   of a <i>Unix Domain</i> socket.
  *   </td>
  *   <td>Malicious code could connect to local processes using Unix domain sockets
  *    or impersonate local processes, by binding to the same pathnames (assuming they

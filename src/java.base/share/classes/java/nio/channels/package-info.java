@@ -335,33 +335,21 @@
  *
  * <p> Channels for <i>Internet Protocol</i> sockets are created using the
  * {@link StandardProtocolFamily#INET INET} or {@link StandardProtocolFamily#INET6 INET6}
- * protocol families, and their {@code getProtocolFamily()} method returns the same
- * value it was created with. <i>Internet Protocol</i> sockets
- * support network communication using TCP and UDP and are addressed using
- * {@link InetSocketAddress}es which encapsulate an IP address
- * and port number. <i>Internet Protocol</i> sockets are also the default type created,
- * when a protocol family is not specified in the channel factory creation method.
- * Note, the creation of <i>Internet Protocol</i> sockets is also influenced by the
+ * protocol families. <i>Internet Protocol</i> sockets support network communication
+ * using TCP and UDP and are addressed using {@link InetSocketAddress}es which
+ * encapsulate an IP address and port number. <i>Internet Protocol</i> sockets
+ * are also the default type created, when a protocol family is not specified
+ * in the channel factory creation method. Note, the creation of <i>Internet
+ * Protocol</i> sockets is also influenced by the
  * <a href="../../net/doc-files/net-properties.html#Ipv4IPv6">
  * "java.net.preferIPv4Stack"</a> system property.
  *
  * <p> Channels for <a id="unixdomain"></a><i>Unix Domain</i> sockets are created using
- * the {@link StandardProtocolFamily#UNIX UNIX} protocol family only,
- * and their {@code getProtocolFamily()} method always returns {@code UNIX}.
+ * the {@link StandardProtocolFamily#UNIX UNIX} protocol family only.
  * <i>Unix Domain</i> sockets support local inter-process
  * communication on the same host, and are addressed using {@link
  * UnixDomainSocketAddress}es which encapsulate a filesystem pathname on the local
  * system.
- *
- * <p> These families are not supported by all channel types, nor all implementations.
- * In particular, {@link DatagramChannel} supports only <i>Internet Protocol</i> sockets.
- * {@link SocketChannel} and {@link ServerSocketChannel} support <i>Internet Protocol</i>
- * sockets and in some implementations they also support <i>Unix Domain</i> sockets.
- * The other network channel types which do not allow specifying the protocol family
- * only support <i>Internet Protocol</i>.
- *
- * <p>Attempts to create a channel with an unsupported protocol family will
- * throw {@link UnsupportedOperationException}.
  *
  * <p> {@link UnixDomainSocketAddress}es contain a path which, when the address is bound to
  * a channel, has an associated socket file in the file-system with the same name as the
@@ -399,10 +387,6 @@
  * implementation specific, maximum length for the name of a <i>Unix Domain</i> socket.
  * This limitation is enforced when a channel is bound. The maximum length is typically
  * close to and generally not less than 100 bytes.
- *
- * <p> If a security manager is present then binding, connecting or accepting a
- * {@code SocketChannel} or {@code ServerSocketChannel} for a <i>Unix Domain</i> socket
- * requires the {@link NetPermission NetPermission}{@code ("allowUnixDomainChannels")}.
  *
  * <p> Unless otherwise noted, passing a {@code null} argument to a constructor
  * or method in any class or interface in this package will cause a {@link
