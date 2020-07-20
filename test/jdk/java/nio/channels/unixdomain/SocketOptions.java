@@ -21,13 +21,6 @@
  * questions.
  */
 
-/**
- * @test
- * @bug 8231358
- * @run main/othervm -Djava.nio.channels.tmpdir=/tmp SocketOptions
- * @summary Socket option test
- */
-
 import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
