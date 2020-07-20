@@ -21,13 +21,6 @@
  * questions.
  */
 
-/**
- * @test
- * @bug 8231358
- * @run main/othervm -Djava.nio.tmpdir=/tmp Shutdown
- * @summary Shutdown test
- */
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.*;

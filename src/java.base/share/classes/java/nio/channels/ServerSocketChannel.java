@@ -260,9 +260,9 @@ public abstract class ServerSocketChannel
      * @throws  SecurityException
      *          If a security manager has been installed and its {@link
      *          SecurityManager#checkListen checkListen} method denies
-     *          the operation for an <i>Internet protocol</i> socket address
-     *          or {@link NetPermission}{@code("allowUnixDomainChannels")}
-     *          when the socket address is a <i>Unix domain</i> socket address
+     *          the operation for an <i>Internet protocol</i> socket address,
+     *          or for a <i>Unix domain</i> socket address if it denies
+     *          {@link NetPermission}{@code("allowUnixDomainChannels")}.
      *
      * @since 1.7
      */
@@ -358,8 +358,8 @@ public abstract class ServerSocketChannel
      * address is a {@link UnixDomainSocketAddress}. If there is a security manager
      * set, its {@link SecurityManager#checkPermission(java.security.Permission)
      * checkPermission} method is called with {@link NetPermission}{@code
-     * ("allowUnixDomainChannels")}. If the operation is not allowed a {@link
-     * UnixDomainSocketAddress} with an empty path is returned.
+     * ("allowUnixDomainChannels")}. If the operation is not allowed an unnamed
+     * {@link UnixDomainSocketAddress} is returned.
      *
      * @return  The {@code SocketAddress} that the socket is bound to, or the
      *          {@code SocketAddress} representing the loopback address or empty

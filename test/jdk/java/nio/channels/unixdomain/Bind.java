@@ -21,13 +21,6 @@
  * questions.
  */
 
-/**
- * @test
- * @bug 8231358
- * @run main/othervm -Djava.nio.tmpdir=/tmp Bind
- * @summary Bind test
- */
-
 import java.io.IOException;
 import java.net.*;
 import java.nio.channels.*;
@@ -266,7 +259,9 @@ public class Bind {
         // client bind to existing name: not allowed
         checkException(
             BindException.class, () -> {
-                var path = Files.createTempFile(null, null);
+                var path = Path.of("temp.sock");
+                Files.deleteIfExists(path);
+                Files.createFile(path);
                 var addr = UnixDomainSocketAddress.of(path);
                 client = SocketChannel.open(StandardProtocolFamily.UNIX);
                 try {

@@ -890,7 +890,7 @@ public class Net {
         return AccessController.doPrivileged(
             (PrivilegedAction<Path>) () -> {
                 try {
-                    String s = System.getProperty("java.nio.tmpdir");
+                    String s = System.getProperty("java.nio.channels.tmpdir");
                     if (s == null) {
                         s = System.getProperty("java.io.tmpdir");
                     }

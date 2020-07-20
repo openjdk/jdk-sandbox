@@ -35,7 +35,7 @@
  *        jdk.test.lib.process.*
  *        UnixSocketTest StateTest StateTestService EchoTest EchoService
  *        UnixDomainChannelTest CloseTest Launcher Util
- * @run testng/othervm/native -Djava.nio.tmpdir=/tmp InheritedChannelTest
+ * @run testng/othervm/native -Djava.nio.channels.tmpdir=/tmp InheritedChannelTest
  * @key intermittent
  */
 

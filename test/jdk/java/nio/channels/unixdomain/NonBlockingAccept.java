@@ -21,13 +21,6 @@
  * questions.
  */
 
-/**
- * @test
- * @bug 8231358
- * @run main/othervm -Djava.nio.tmpdir=/tmp NonBlockingAccept
- * @summary Shutdown test
- */
-
 import java.net.StandardProtocolFamily;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;

@@ -24,27 +24,11 @@
 /**
  * @test
  * @bug 8231358
- * @build AddressTest DummyPath
- * @run main/othervm -Djava.nio.channels.tmpdir=/tmp AddressTest
+ * @requires os.family != "windows"
+ * @build Bind Shutdown NonBlockingAccept SocketOptions
+ * @run main/othervm -Djava.nio.channels.tmpdir=/tmp Bind
+ * @run main/othervm -Djava.nio.channels.tmpdir=/tmp Shutdown
+ * @run main/othervm -Djava.nio.channels.tmpdir=/tmp NonBlockingAccept
+ * @run main/othervm -Djava.nio.channels.tmpdir=/tmp SocketOptions
  */
 
-import java.net.UnixDomainSocketAddress;
-import java.nio.channels.*;
-import java.nio.file.InvalidPathException;
-
-public class AddressTest {
-
-    static UnixDomainSocketAddress addr;
-
-    public static void main(String args[]) throws Exception {
-        runTest();
-    }
-
-    static void runTest() throws Exception {
-        DummyPath path = new DummyPath();
-        try {
-            addr = UnixDomainSocketAddress.of(path);
-            throw new RuntimeException("Expected illegal path exception");
-        } catch (IllegalArgumentException e) {}
-    }
-}
