@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2017, SAP SE and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,27 +21,17 @@
  * questions.
  */
 
-#include "jni.h"
+public class NativeThread {
 
-JNIEXPORT jint JNICALL
-Java_gc_stress_TestJNIBlockFullGC_TestJNIBlockFullGC_TestCriticalArray0(JNIEnv *env, jclass jCls, jintArray jIn) {
-  jint *bufIn = NULL;
-  jint jInLen = (*env)->GetArrayLength(env, jIn);
-  jint result = 0;
-  jint i;
+    public static final int SIGPIPE;
 
-  if (jInLen != 0) {
-    bufIn = (jint*)(*env)->GetPrimitiveArrayCritical(env, jIn, 0);
-  }
+    static {
+        SIGPIPE = getSIGPIPE();
+    }
 
-  for (i = 0; i < jInLen; ++i) {
-    result += bufIn[i]; // result = sum of all array elements
-  }
+    public static native long getID();
 
-  if (bufIn != NULL) {
-    (*env)->ReleasePrimitiveArrayCritical(env, jIn, bufIn, 0);
-  }
+    public static native int signal(long threadId, int sig);
 
-  return result;
+    private static native int getSIGPIPE();
 }
-
