@@ -107,17 +107,18 @@ public:
     }
   }
 
-  void allocate_from_sm_with_tests_expect_success(size_t word_size) {
-    bool b = allocate_from_sm_with_tests(word_size);
-    ASSERT_TRUE(b);
+  MetaWord* allocate_from_sm_with_tests_expect_success(size_t word_size) {
+    MetaWord* p = allocate_from_sm_with_tests(word_size);
+    EXPECT_NOT_NULL(p);
+    return p;
   }
 
   void allocate_from_sm_with_tests_expect_failure(size_t word_size) {
-    bool b = allocate_from_sm_with_tests(word_size);
-    ASSERT_FALSE(b);
+    MetaWord* p = allocate_from_sm_with_tests(word_size);
+    ASSERT_NULL(p);
   }
 
-  bool allocate_from_sm_with_tests(size_t word_size) {
+  MetaWord* allocate_from_sm_with_tests(size_t word_size) {
 
     // Note: usage_numbers walks all chunks in use and counts.
     size_t used = 0, committed = 0, capacity = 0;
@@ -126,6 +127,8 @@ public:
     size_t possible_expansion = limiter().possible_expansion_words();
 
     MetaWord* p = _sm->allocate(word_size);
+
+    SOMETIMES(DEBUG_ONLY(_sm->verify(true);))
 
     size_t used2 = 0, committed2 = 0, capacity2 = 0;
     usage_numbers_with_test(&used2, &committed2, &capacity2);
@@ -136,7 +139,6 @@ public:
       EXPECT_EQ(used, used2);
       EXPECT_EQ(committed, committed2);
       EXPECT_EQ(capacity, capacity2);
-      return false;
     } else {
       // Allocation succeeded. Should be correctly aligned.
       EXPECT_TRUE(is_aligned(p, sizeof(MetaWord)));
@@ -147,10 +149,30 @@ public:
       EXPECT_GE(used2, used);
       EXPECT_GE(committed2, committed);
       EXPECT_GE(capacity2, capacity);
-      return true;
     }
-    return false;
+
+    return p;
   }
+
+
+  void deallocate_with_tests(MetaWord* p, size_t word_size) {
+    size_t used = 0, committed = 0, capacity = 0;
+    usage_numbers_with_test(&used, &committed, &capacity);
+
+    _sm->deallocate(p, word_size);
+
+    SOMETIMES(DEBUG_ONLY(_sm->verify(true);))
+
+    size_t used2 = 0, committed2 = 0, capacity2 = 0;
+    usage_numbers_with_test(&used2, &committed2, &capacity2);
+
+    // Nothing should have changed. Deallocated blocks are added to the free block list
+    // which still counts as used.
+    ASSERT_EQ(used2, used);
+    ASSERT_EQ(committed2, committed);
+    ASSERT_EQ(capacity2, capacity);
+  }
+
 
 };
 
@@ -184,11 +206,11 @@ TEST_VM(metaspace, spacemanager_basics_standard_limit) {
 }
 
 
+// Test: in a single undisturbed SpaceManager (so, we should have chunks enlarged in place)
+// we allocate a small amount, then the full amount possible. The sum of first and second
+// allocation bring us above root chunk size. This should work - chunk enlargement should
+// fail and a new root chunk should be allocated instead.
 TEST_VM(metaspace, spacemanager_test_enlarge_in_place) {
-  // Test: in a single undisturbed SpaceManager (so, we should have chunks enlarged in place)
-  // we allocate a small amount, then the full amount possible. The sum of first and second
-  // allocation bring us above root chunk size. This should work - chunk enlargement should
-  // fail and a new root chunk should be allocated instead.
   MetaspaceTestHelper msthelper;
   SpaceManagerTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
   helper.allocate_from_sm_with_tests_expect_success(1);
@@ -197,11 +219,11 @@ TEST_VM(metaspace, spacemanager_test_enlarge_in_place) {
   helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
 }
 
+// Test allocating from smallest to largest chunk size, and one step beyond.
+// The first n allocations should happen in place, the ladder should open a new chunk.
 TEST_VM(metaspace, spacemanager_test_enlarge_in_place_ladder_1) {
   MetaspaceTestHelper msthelper;
   SpaceManagerTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
-  // Test allocating from smallest to largest chunk size, and one step beyond.
-  // The first n allocations should happen in place, the ladder should open a new chunk.
   size_t size = MIN_CHUNK_WORD_SIZE;
   while (size <= MAX_CHUNK_WORD_SIZE) {
     helper.allocate_from_sm_with_tests_expect_success(size);
@@ -210,17 +232,50 @@ TEST_VM(metaspace, spacemanager_test_enlarge_in_place_ladder_1) {
   helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
 }
 
+// Same as spacemanager_test_enlarge_in_place_ladder_1, but increase in *4 step size;
+// this way chunk-in-place-enlargement does not work and we should have new chunks at each allocation.
 TEST_VM(metaspace, spacemanager_test_enlarge_in_place_ladder_2) {
   MetaspaceTestHelper msthelper;
   SpaceManagerTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
-  // Same as spacemanager_test_enlarge_in_place_ladder_1, but increase in *4 step size;
-  // this way chunk-in-place-enlargement does not work and we should have new chunks at each allocation.
   size_t size = MIN_CHUNK_WORD_SIZE;
   while (size <= MAX_CHUNK_WORD_SIZE) {
     helper.allocate_from_sm_with_tests_expect_success(size);
     size *= 4;
   }
   helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
+}
+
+// Test the spacemanagers' free block list:
+// Allocate, deallocate, then allocate the same block again. The second allocate should
+// reuse the deallocated block.
+TEST_VM(metaspace, spacemanager_deallocate) {
+  for (size_t s = 2; s <= MAX_CHUNK_WORD_SIZE; s *= 2) {
+    MetaspaceTestHelper msthelper;
+    SpaceManagerTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
+
+    MetaWord* p1 = helper.allocate_from_sm_with_tests_expect_success(s);
+
+    size_t used1 = 0, capacity1 = 0;
+    helper.usage_numbers_with_test(&used1, NULL, &capacity1);
+    ASSERT_EQ(used1, s);
+
+    helper.deallocate_with_tests(p1, s);
+
+    size_t used2 = 0, capacity2 = 0;
+    helper.usage_numbers_with_test(&used2, NULL, &capacity2);
+    ASSERT_EQ(used1, used2);
+    ASSERT_EQ(capacity2, capacity2);
+
+    MetaWord* p2 = helper.allocate_from_sm_with_tests_expect_success(s);
+
+    size_t used3 = 0, capacity3 = 0;
+    helper.usage_numbers_with_test(&used3, NULL, &capacity3);
+    ASSERT_EQ(used3, used2);
+    ASSERT_EQ(capacity3, capacity2);
+
+    // Actually, we should get the very same allocation back
+    ASSERT_EQ(p1, p2);
+  }
 }
 
 static void test_recover_from_commit_limit_hit() {
