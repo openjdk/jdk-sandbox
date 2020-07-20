@@ -199,6 +199,11 @@ TEST_VM(metaspace, chunk_buddy_stuff) {
 
 TEST_VM(metaspace, chunk_allocate_with_commit_limit) {
 
+  // This test does not make sense if commit-on-demand is off
+  if (Settings::newborn_root_chunks_are_fully_committed()) {
+    return;
+  }
+
   const size_t granule_sz = Settings::commit_granule_words();
   const size_t commit_limit = granule_sz * 3;
   MetaspaceTestHelper helper(commit_limit);
