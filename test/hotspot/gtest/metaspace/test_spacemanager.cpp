@@ -150,7 +150,7 @@ public:
       if (Settings::newborn_root_chunks_are_fully_committed()) {
         ASSERT_LT(possible_expansion, MAX_CHUNK_WORD_SIZE);
       } else {
-        ASSERT_LT(possible_expansion, Settings::commit_granule_words());
+        ASSERT_LT(possible_expansion, word_size);
       }
 
       ASSERT_EQ(used, used2);

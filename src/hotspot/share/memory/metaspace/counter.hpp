@@ -98,11 +98,6 @@ public:
   T get() const               { return _c; }
 
   void increment() {
-#ifdef ASSERT
-    T old = Atomic::load_acquire(&_c);
-    assert(old + 1 != 0,
-        "overflow (" UINT64_FORMAT "+1)", (uint64_t)old);
-#endif
     Atomic::inc(&_c);
   }
 
@@ -116,11 +111,6 @@ public:
   }
 
   void increment_by(T v) {
-#ifdef ASSERT
-    T old = Atomic::load_acquire(&_c);
-    assert(old + v >= old,
-        "overflow (" UINT64_FORMAT "+" UINT64_FORMAT ")", (uint64_t)old, (uint64_t)v);
-#endif
     Atomic::add(&_c, v);
   }
 
