@@ -111,7 +111,8 @@ class ChunkManagerRandomChunkAllocTest {
     const chunklevel_t max_level = r.highest();
     const size_t min_committed = random_committed_words(max_level, _commit_factor);
 
-    Metachunk* c = _helper.alloc_chunk(r.lowest(), r.highest(), min_committed);
+    Metachunk* c = NULL;
+    _helper.alloc_chunk(&c, r.lowest(), r.highest(), min_committed);
     if (c == NULL) {
       EXPECT_TRUE(could_be_reserve_error() ||
                   could_be_commit_error(min_committed));

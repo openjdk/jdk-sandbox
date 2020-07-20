@@ -40,7 +40,8 @@ TEST_VM(metaspace, metachunklist) {
   size_t total_size = 0;
 
   for (int i = 0; i < 10; i ++) {
-    Metachunk* c = helper.alloc_chunk_expect_success(ChunkLevelRanges::all_chunks().random_value());
+    Metachunk* c = NULL;
+    helper.alloc_chunk_expect_success(&c, ChunkLevelRanges::all_chunks().random_value());
     chunks[i] = c;
     total_size += c->committed_words();
 
@@ -86,7 +87,8 @@ TEST_VM(metaspace, freechunklist) {
   // Make every other chunk randomly uncommitted, and later we check that committed chunks are sorted in at the front
   // of the lists.
   for (int i = 0; i < 100; i ++) {
-    Metachunk* c = helper.alloc_chunk_expect_success(ChunkLevelRanges::all_chunks().random_value());
+    Metachunk* c = NULL;
+    helper.alloc_chunk_expect_success(&c, ChunkLevelRanges::all_chunks().random_value());
     bool uncommitted_chunk = i % 3;
     if (uncommitted_chunk) {
       helper.uncommit_chunk_with_test(c);

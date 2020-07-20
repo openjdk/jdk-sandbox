@@ -64,52 +64,49 @@ MetaspaceTestHelper::~MetaspaceTestHelper() {
   DEBUG_ONLY(verify();)
 }
 
-Metachunk* MetaspaceTestHelper::checked_alloc_chunk_0(chunklevel_t preferred_level, chunklevel_t max_level,
-                                                      size_t min_committed_size, expected_result_t expected_result) {
+void MetaspaceTestHelper::checked_alloc_chunk_0(Metachunk** p_return_value, chunklevel_t preferred_level, chunklevel_t max_level,
+                                                      size_t min_committed_size) {
+
+  *p_return_value = NULL;
 
   Metachunk* c = cm().get_chunk(preferred_level, max_level, min_committed_size);
 
   if (c != NULL) {
 
-    EXPECT_TRUE(expected_result != result_failure);
-
-    EXPECT_LE(c->level(), max_level);
-    EXPECT_GE(c->level(), preferred_level);
-    EXPECT_GE(c->committed_words(), min_committed_size);
-    EXPECT_EQ(c->committed_words(), c->free_below_committed_words());
-    EXPECT_EQ(c->used_words(), (size_t)0);
-    EXPECT_TRUE(c->is_in_use());
-    EXPECT_FALSE(c->is_free());
-    EXPECT_FALSE(c->is_dead());
-    EXPECT_NULL(c->next());
-    EXPECT_NULL(c->prev());
+    ASSERT_LE(c->level(), max_level);
+    ASSERT_GE(c->level(), preferred_level);
+    ASSERT_GE(c->committed_words(), min_committed_size);
+    ASSERT_EQ(c->committed_words(), c->free_below_committed_words());
+    ASSERT_EQ(c->used_words(), (size_t)0);
+    ASSERT_TRUE(c->is_in_use());
+    ASSERT_FALSE(c->is_free());
+    ASSERT_FALSE(c->is_dead());
+    ASSERT_NULL(c->next());
+    ASSERT_NULL(c->prev());
     if (c->level() == HIGHEST_CHUNK_LEVEL) {
-      EXPECT_TRUE(c->is_leaf_chunk());
+      ASSERT_TRUE(c->is_leaf_chunk());
     } else {
-      EXPECT_FALSE(c->is_leaf_chunk());
+      ASSERT_FALSE(c->is_leaf_chunk());
     }
     if (c->level() == LOWEST_CHUNK_LEVEL) {
-      EXPECT_TRUE(c->is_root_chunk());
+      ASSERT_TRUE(c->is_root_chunk());
     } else {
-      EXPECT_FALSE(c->is_root_chunk());
+      ASSERT_FALSE(c->is_root_chunk());
     }
     if (_num_chunks_allocated == 0) { // First chunk? We can make more assumptions
-      EXPECT_EQ(c->level(), preferred_level);
+      ASSERT_EQ(c->level(), preferred_level);
       // Needs lock EXPECT_NULL(c->next_in_vs());
       // Needs lock EXPECT_NULL(c->prev_in_vs());
-      EXPECT_TRUE(c->is_root_chunk() || c->is_leader());
+      ASSERT_TRUE(c->is_root_chunk() || c->is_leader());
     }
     _num_chunks_allocated ++;
-
-  } else {
-
-    EXPECT_TRUE(expected_result != result_success);
 
   }
 
   DEBUG_ONLY(verify();)
 
-  return c;
+  *p_return_value = c;
+
 }
 
 // Test pattern established when allocating from the chunk with allocate_from_chunk_with_tests().
@@ -124,7 +121,7 @@ void MetaspaceTestHelper::return_chunk(Metachunk* c) {
   _cm.return_chunk(c);
 }
 
-MetaWord* MetaspaceTestHelper::allocate_from_chunk(Metachunk* c, size_t word_size) {
+ void MetaspaceTestHelper::allocate_from_chunk(MetaWord** p_return_value, Metachunk* c, size_t word_size) {
 
   size_t used_before = c->used_words();
   size_t free_before = c->free_words();
@@ -144,7 +141,7 @@ MetaWord* MetaspaceTestHelper::allocate_from_chunk(Metachunk* c, size_t word_siz
   // Fill newly allocated range too
   fill_range_with_pattern(p, word_size, (uintx)c);
 
-  return p;
+  *p_return_value = p;
 }
 
 void MetaspaceTestHelper::commit_chunk_with_test(Metachunk* c, size_t additional_size) {

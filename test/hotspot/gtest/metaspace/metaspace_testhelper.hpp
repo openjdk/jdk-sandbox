@@ -38,9 +38,8 @@ class MetaspaceTestHelper : public StackObj {
   ChunkManager _cm;
   int _num_chunks_allocated;
 
-  enum expected_result_t { result_success = 0, result_failure = 1, result_unknown = 2 };
-  Metachunk* checked_alloc_chunk_0(chunklevel_t preferred_level, chunklevel_t max_level,
-                                   size_t min_committed_size, expected_result_t expected_result);
+  void checked_alloc_chunk_0(Metachunk** p_return_value, chunklevel_t preferred_level,
+                             chunklevel_t max_level, size_t min_committed_size);
 
 public:
 
@@ -66,29 +65,35 @@ public:
 
   /////
 
-  // Allocate a chunk; do not expect success, but if it succeeds, test the chunk.
-  Metachunk* alloc_chunk(chunklevel_t preferred_level, chunklevel_t max_level, size_t min_committed_size) {
-    return checked_alloc_chunk_0(preferred_level, max_level, min_committed_size, result_unknown);
+  // Note: all test functions return void and return values are by pointer ref; this is awkward but otherwise we cannot
+  // use gtest ASSERT macros inside those functions.
+
+  // Allocate a chunk (you do not know if it will succeed).
+  void alloc_chunk(Metachunk** p_return_value, chunklevel_t preferred_level, chunklevel_t max_level, size_t min_committed_size) {
+    checked_alloc_chunk_0(p_return_value, preferred_level, max_level, min_committed_size);
   }
 
   // Allocate a chunk; do not expect success, but if it succeeds, test the chunk.
-  Metachunk* alloc_chunk(chunklevel_t level) {
-    return alloc_chunk(level, level, word_size_for_level(level));
+  void alloc_chunk(Metachunk** p_return_value, chunklevel_t level) {
+    alloc_chunk(p_return_value, level, level, word_size_for_level(level));
   }
 
   // Allocate a chunk; it must succeed. Test the chunk.
-  Metachunk* alloc_chunk_expect_success(chunklevel_t preferred_level, chunklevel_t max_level, size_t min_committed_size) {
-    return checked_alloc_chunk_0(preferred_level, max_level, min_committed_size, result_success);
+  void alloc_chunk_expect_success(Metachunk** p_return_value, chunklevel_t preferred_level, chunklevel_t max_level, size_t min_committed_size) {
+    checked_alloc_chunk_0(p_return_value, preferred_level, max_level, min_committed_size);
+    ASSERT_NOT_NULL(*p_return_value);
   }
 
   // Allocate a chunk; it must succeed. Test the chunk.
-  Metachunk* alloc_chunk_expect_success(chunklevel_t level) {
-    return alloc_chunk_expect_success(level, level, word_size_for_level(level));
+  void alloc_chunk_expect_success(Metachunk** p_return_value, chunklevel_t level) {
+    alloc_chunk_expect_success(p_return_value, level, level, word_size_for_level(level));
   }
 
   // Allocate a chunk but expect it to fail.
   void alloc_chunk_expect_failure(chunklevel_t preferred_level, chunklevel_t max_level, size_t min_committed_size) {
-    checked_alloc_chunk_0(preferred_level, max_level, min_committed_size, result_failure);
+    Metachunk* c = NULL;
+    checked_alloc_chunk_0(&c, preferred_level, max_level, min_committed_size);
+    ASSERT_NULL(c);
   }
 
   // Allocate a chunk but expect it to fail.
@@ -103,7 +108,13 @@ public:
   /////
 
   // Allocates from a chunk; also, fills allocated area with test pattern which will be tested with test_pattern().
-  MetaWord* allocate_from_chunk(Metachunk* c, size_t word_size);
+  void allocate_from_chunk(MetaWord** p_return_value, Metachunk* c, size_t word_size);
+
+  // Convenience function: allocate from chunk for when you don't care for the result pointer
+  void allocate_from_chunk(Metachunk* c, size_t word_size) {
+    MetaWord* dummy;
+    allocate_from_chunk(&dummy, c, word_size);
+  }
 
   // Test pattern established when allocating from the chunk with allocate_from_chunk_with_tests().
   void test_pattern(Metachunk* c, size_t word_size);

@@ -75,6 +75,9 @@ public:
   SpaceManager* sm() const { return _sm; }
   SizeAtomicCounter& used_words_counter() { return _used_words_counter; }
 
+  // Note: all test functions return void due to gtests limitation that we cannot use ASSERT
+  // in non-void returning tests.
+
   void delete_sm_with_tests() {
     if (_sm != NULL) {
       size_t used_words_before = _used_words_counter.get();
@@ -84,11 +87,11 @@ public:
       _sm = NULL;
       size_t used_words_after = _used_words_counter.get();
       size_t committed_words_after = limiter().committed_words();
-      EXPECT_0(used_words_after);
+      ASSERT_0(used_words_after);
       if (Settings::uncommit_on_return()) {
-        EXPECT_LE(committed_words_after, committed_words_before);
+        ASSERT_LE(committed_words_after, committed_words_before);
       } else {
-        EXPECT_EQ(committed_words_after, committed_words_before);
+        ASSERT_EQ(committed_words_after, committed_words_before);
       }
     }
   }
@@ -107,18 +110,27 @@ public:
     }
   }
 
-  MetaWord* allocate_from_sm_with_tests_expect_success(size_t word_size) {
-    MetaWord* p = allocate_from_sm_with_tests(word_size);
-    EXPECT_NOT_NULL(p);
-    return p;
+  // Allocate; caller expects success; return pointer in *p_return_value
+  void allocate_from_sm_with_tests_expect_success(MetaWord** p_return_value, size_t word_size) {
+    allocate_from_sm_with_tests(p_return_value, word_size);
+    ASSERT_NOT_NULL(*p_return_value);
   }
 
+  // Allocate; caller expects success but is not interested in return value
+  void allocate_from_sm_with_tests_expect_success(size_t word_size) {
+    MetaWord* dummy = NULL;
+    allocate_from_sm_with_tests_expect_success(&dummy, word_size);
+  }
+
+  // Allocate; caller expects failure
   void allocate_from_sm_with_tests_expect_failure(size_t word_size) {
-    MetaWord* p = allocate_from_sm_with_tests(word_size);
-    ASSERT_NULL(p);
+    MetaWord* dummy = NULL;
+    allocate_from_sm_with_tests(&dummy, word_size);
+    ASSERT_NULL(dummy);
   }
 
-  MetaWord* allocate_from_sm_with_tests(size_t word_size) {
+  // Allocate; it may or may not work; return value in *p_return_value
+  void allocate_from_sm_with_tests(MetaWord** p_return_value, size_t word_size) {
 
     // Note: usage_numbers walks all chunks in use and counts.
     size_t used = 0, committed = 0, capacity = 0;
@@ -135,23 +147,29 @@ public:
 
     if (p == NULL) {
       // Allocation failed. We expect a too small expansion size the cause. Nothing should have changed.
-      EXPECT_LT(possible_expansion, word_size);
-      EXPECT_EQ(used, used2);
-      EXPECT_EQ(committed, committed2);
-      EXPECT_EQ(capacity, capacity2);
+      ASSERT_LT(possible_expansion, word_size);
+      ASSERT_EQ(used, used2);
+      ASSERT_EQ(committed, committed2);
+      ASSERT_EQ(capacity, capacity2);
     } else {
       // Allocation succeeded. Should be correctly aligned.
-      EXPECT_TRUE(is_aligned(p, sizeof(MetaWord)));
+      ASSERT_TRUE(is_aligned(p, sizeof(MetaWord)));
       // used: may go up or may not (since our request may have been satisfied from the freeblocklist
       //   whose content already counts as used).
       // committed: may go up, may not
       // capacity: ditto
-      EXPECT_GE(used2, used);
-      EXPECT_GE(committed2, committed);
-      EXPECT_GE(capacity2, capacity);
+      ASSERT_GE(used2, used);
+      ASSERT_GE(committed2, committed);
+      ASSERT_GE(capacity2, capacity);
     }
 
-    return p;
+    *p_return_value = p;
+  }
+
+  // Allocate; it may or may not work; but caller does not care for the result value
+  void allocate_from_sm_with_tests(size_t word_size) {
+    MetaWord* dummy = NULL;
+    allocate_from_sm_with_tests(&dummy, word_size);
   }
 
 
@@ -253,7 +271,8 @@ TEST_VM(metaspace, spacemanager_deallocate) {
     MetaspaceTestHelper msthelper;
     SpaceManagerTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
 
-    MetaWord* p1 = helper.allocate_from_sm_with_tests_expect_success(s);
+    MetaWord* p1 = NULL;
+    helper.allocate_from_sm_with_tests_expect_success(&p1, s);
 
     size_t used1 = 0, capacity1 = 0;
     helper.usage_numbers_with_test(&used1, NULL, &capacity1);
@@ -266,7 +285,8 @@ TEST_VM(metaspace, spacemanager_deallocate) {
     ASSERT_EQ(used1, used2);
     ASSERT_EQ(capacity2, capacity2);
 
-    MetaWord* p2 = helper.allocate_from_sm_with_tests_expect_success(s);
+    MetaWord* p2 = NULL;
+    helper.allocate_from_sm_with_tests_expect_success(&p2, s);
 
     size_t used3 = 0, capacity3 = 0;
     helper.usage_numbers_with_test(&used3, NULL, &capacity3);
@@ -312,7 +332,8 @@ static void test_recover_from_commit_limit_hit() {
 
   // Now, allocating from helper3, creep up on the limit
   size_t allocated_from_3 = 0;
-  while (helper3.allocate_from_sm_with_tests(1) &&
+  MetaWord* p = NULL;
+  while ( (helper3.allocate_from_sm_with_tests(&p, 1), p != NULL) &&
          ++allocated_from_3 < Settings::commit_granule_words() * 2);
 
   EXPECT_LE(allocated_from_3, Settings::commit_granule_words() * 2);
@@ -332,7 +353,7 @@ static void test_recover_from_commit_limit_hit() {
   EXPECT_GT(msthelper.cm().total_committed_word_size(), (size_t)0);
 
   // Repeat allocation from helper3, should now work.
-  EXPECT_TRUE(helper3.allocate_from_sm_with_tests(1));
+  helper3.allocate_from_sm_with_tests_expect_success(1);
 
 }
 
@@ -365,7 +386,7 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
 
   ///// First allocation //
 
-  ASSERT_NOT_NULL(smhelper.allocate_from_sm_with_tests(alloc_words));
+  smhelper.allocate_from_sm_with_tests_expect_success(alloc_words);
 
   smhelper.sm()->usage_numbers(&used, &committed, &capacity);
 
@@ -396,10 +417,10 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
     // (Note that this does not completely prevent in-place chunk enlargement but makes it
     //  rather improbable)
     if (!test_in_place_enlargement) {
-      smhelper_harrasser.allocate_from_sm_with_tests(alloc_words * 2);
+      smhelper_harrasser.allocate_from_sm_with_tests_expect_success(alloc_words * 2);
     }
 
-    ASSERT_NOT_NULL(smhelper.allocate_from_sm_with_tests(alloc_words));
+    smhelper.allocate_from_sm_with_tests_expect_success(alloc_words);
     allocated += alloc_words;
 
     size_t used2 = 0, committed2 = 0, capacity2 = 0;
