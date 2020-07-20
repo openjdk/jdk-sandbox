@@ -21,13 +21,6 @@
  * questions.
  */
 
-/**
- * @test
- * @bug 8231358
- * @run main/othervm -Djava.nio.channels.tmpdir=/tmp Bind
- * @summary Bind test
- */
-
 import java.io.IOException;
 import java.net.*;
 import java.nio.channels.*;
