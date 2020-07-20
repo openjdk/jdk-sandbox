@@ -902,7 +902,7 @@ public class Net {
         );
     }
 
-    private static final NetPermission np = new NetPermission("allowUnixDomainChannels");
+    private static final NetPermission np = new NetPermission("unixDomainSocket");
 
     static void checkUnixCapability() {
         SecurityManager sm = System.getSecurityManager();

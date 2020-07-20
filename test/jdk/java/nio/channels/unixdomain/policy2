@@ -1,6 +1,6 @@
 grant {
     // permission to bind a SocketChannel in sockets directory
-    permission java.net.NetPermission "allowUnixDomainChannels";
+    permission java.net.NetPermission "unixDomainSocket";
 
     permission java.io.FilePermission "sock", "delete";
 };

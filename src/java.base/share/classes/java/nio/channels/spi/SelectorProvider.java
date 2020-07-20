@@ -269,27 +269,26 @@ public abstract class SelectorProvider {
      * inherits a channel representing a network socket.
      *
      * <p> In cases where the inherited channel is for an <i>Internet protocol</i>
-     * socket then the {@link java.nio.channels.Channel Channel} type returned
+     * socket then the {@link Channel Channel} type returned
      * by this method is determined as follows:
      *
      * <ul>
      *
      *  <li><p> If the inherited channel is for a stream-oriented connected
-     *  <i>Internet protocol</i> socket then a {@link java.nio.channels.SocketChannel
-     *  SocketChannel} is returned. The socket channel is, at least initially, in
-     *  blocking mode, bound to a socket address, and connected to a peer.
+     *  socket then a {@link SocketChannel SocketChannel} is returned. The
+     *  socket channel is, at least initially, in blocking mode, bound
+     *  to a socket address, and connected to a peer.
      *  </p></li>
      *
      *  <li><p> If the inherited channel is for a stream-oriented listening
-     *  <i>Internet protocol</i> socket then a {@link java.nio.channels.ServerSocketChannel
-     *  ServerSocketChannel} is returned. The server-socket channel is, at
-     *  least initially, in blocking mode, and bound to a socket address.
+     *  socket then a {@link ServerSocketChannel ServerSocketChannel} is returned.
+     *  The server-socket channel is, at least initially, in blocking mode,
+     *  and bound to a socket address.
      *  </p></li>
      *
-     *  <li><p> If the inherited channel is a datagram-oriented <i>Internet protocol</i>
-     *  socket then a {@link java.nio.channels.DatagramChannel DatagramChannel} is
-     *  returned. The datagram channel is, at least initially, in blocking
-     *  mode, and bound to a socket address.
+     *  <li><p> If the inherited channel is a datagram-oriented socket then a
+     *  {@link DatagramChannel DatagramChannel} is returned. The datagram channel
+     *  is, at least initially, in blocking mode, and bound to a socket address.
      *  </p></li>
      *
      * </ul>

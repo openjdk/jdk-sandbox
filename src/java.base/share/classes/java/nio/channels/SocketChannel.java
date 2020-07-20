@@ -329,7 +329,7 @@ public abstract class SocketChannel
      *          SecurityManager#checkListen checkListen} method denies
      *          the operation for an <i>Internet protocol</i> socket address,
      *          or for a <i>Unix domain</i> socket address if it denies
-     *          {@link NetPermission}{@code("allowUnixDomainChannels")}.
+     *          {@link NetPermission}{@code("unixDomainSocket")}.
      *
      * @since 1.7
      */
@@ -440,7 +440,7 @@ public abstract class SocketChannel
      * connecting to the address and port number of the given remote endpoint.
      *
      * <p> For channels to <i>Unix Domain</i> sockets, this method checks
-     * {@link java.net.NetPermission NetPermission}{@code ("allowUnixDomainChannels")}
+     * {@link java.net.NetPermission NetPermission}{@code ("unixDomainSocket")}
      * with {@link SecurityManager#checkPermission(java.security.Permission)}.
      *
      * <p> This method may be invoked at any time.  If a read or write
@@ -623,7 +623,7 @@ public abstract class SocketChannel
      * address is a {@link UnixDomainSocketAddress}. If there is a security manager
      * set, its {@link SecurityManager#checkPermission(java.security.Permission)
      * checkPermission} method is called with {@link NetPermission}{@code
-     * ("allowUnixDomainChannels")}. If the operation is not allowed an unnamed
+     * ("unixDomainSocket")}. If the operation is not allowed an unnamed
      * {@link UnixDomainSocketAddress} is returned.
      *
      * @return  The {@code SocketAddress} that the socket is bound to, or the
@@ -636,12 +636,4 @@ public abstract class SocketChannel
      */
     @Override
     public abstract SocketAddress getLocalAddress() throws IOException;
-
-
-    /**
-     * Returns the protocol family of this channel.
-     *
-     * @return this channel's protocol family
-     */
-    public abstract ProtocolFamily getProtocolFamily();
 }

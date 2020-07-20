@@ -340,7 +340,6 @@ public class ProtocolFamilies {
             throws IOException {
         SocketChannel chan = family == null ? SocketChannel.open()
                 : SocketChannel.open(family);
-        assertEquals(chan.getProtocolFamily(), expectedFamily(family));
         return chan;
     }
 
@@ -348,7 +347,6 @@ public class ProtocolFamilies {
             throws IOException {
         ServerSocketChannel chan = family == null ? ServerSocketChannel.open()
                 : ServerSocketChannel.open(family);
-        assertEquals(chan.getProtocolFamily(), expectedFamily(family));
         return chan;
     }
 
@@ -356,7 +354,6 @@ public class ProtocolFamilies {
             throws IOException {
         DatagramChannel chan = family == null ? DatagramChannel.open()
                 : DatagramChannel.open(family);
-        assertEquals(chan.getProtocolFamily(), expectedFamily(family));
         return chan;
     }
 

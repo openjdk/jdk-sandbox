@@ -138,7 +138,7 @@ public final class UnixDomainSocketAddress extends SocketAddress {
      * Create a named UnixDomainSocketAddress from the given path string.
      *
      * @param  pathname
-     *         The path string
+     *         The path string, which can be empty
      *
      * @return A UnixDomainSocketAddress
      *
@@ -153,7 +153,7 @@ public final class UnixDomainSocketAddress extends SocketAddress {
      * Create a named UnixDomainSocketAddress for the given path.
      *
      * @param  path
-     *         The path to the socket
+     *         The path to the socket, which can be empty
      *
      * @return A UnixDomainSocketAddress
      *
@@ -174,7 +174,7 @@ public final class UnixDomainSocketAddress extends SocketAddress {
     }
 
     /**
-     * Returns a hash code computed from this object's path string.
+     * Returns the hash code of this {@code UnixDomainSocketAddress}
      */
     @Override
     public int hashCode() {

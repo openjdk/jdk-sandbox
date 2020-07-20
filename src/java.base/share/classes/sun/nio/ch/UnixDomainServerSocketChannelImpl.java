@@ -181,11 +181,6 @@ public class UnixDomainServerSocketChannelImpl
         return Net.getRevealedLocalAddress((UnixDomainSocketAddress)addr);
     }
 
-    @Override
-    public ProtocolFamily getProtocolFamily() {
-        return StandardProtocolFamily.UNIX;
-    }
-
     SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress sa)
         throws IOException
     {

@@ -30,5 +30,6 @@
  * @run main/othervm Shutdown
  * @run main/othervm NonBlockingAccept
  * @run main/othervm SocketOptions
+ * @run testng/othervm IOExchanges
  */
 
