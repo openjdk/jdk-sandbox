@@ -21,13 +21,6 @@
  * questions.
  */
 
-/*
- * @test
- * @summary Test UnixDomainChannel with various combinations
- *          of blocking/nonblocking connections
- * @run testng/othervm -Djava.nio.channels.tmpdir=/tmp IOExchanges
- */
-
 import java.io.IOException;
 import java.net.*;
 import java.nio.channels.*;
