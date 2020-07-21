@@ -222,8 +222,8 @@ public abstract class ServerSocketChannel
      * listen for connections.
      *
      * <p> This method is used to establish an association between the socket and
-     * a local address. Once an association is established then the socket remains
-     * bound until the channel is closed.
+     * a local address. For <i>Internet protocol</i> sockets, once an association
+     * is established then the socket remains bound until the channel is closed.
      *
      * <p> The {@code backlog} parameter is the maximum number of pending
      * connections on the socket. Its exact semantics are implementation specific.
@@ -233,13 +233,20 @@ public abstract class ServerSocketChannel
      * default is used.
      *
      * @apiNote
-     * Binding a channel to a <i>Unix Domain</i> socket creates a file corresponding to
-     * the file path in the {@link UnixDomainSocketAddress}. This file persists
-     * after the channel is closed, and must be removed before another socket can
-     * bind to the same name. Binding to an address that is automatically assigned
-     * will create a unique file in some system temporary location. The associated
-     * socket file also persists after the channel is closed. Its name can be
-     * obtained from the channel's local socket address.
+     * Binding a server socket channel for a <i>Unix Domain</i> socket, creates a
+     * file corresponding to the file path in the {@link UnixDomainSocketAddress}.
+     * This file persists after the channel is closed, and must be removed before
+     * another socket can bind to the same name. Binding to a {@code null} address
+     * causes the socket to be <i>automatically</i> bound to some unique file
+     * in a system temporary location. The associated socket file also persists
+     * after the channel is closed. Its name can be obtained from the channel's
+     * local socket address.
+     *
+     * @implNote
+     * Each platform enforces an implementation specific, maximum length for the
+     * name of a <i>Unix Domain</i> socket. This limitation is enforced when a
+     * channel is bound. The maximum length is typically close to and generally
+     * not less than 100 bytes.
      *
      * @param   local
      *          The address to bind the socket, or {@code null} to bind to

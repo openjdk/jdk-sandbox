@@ -306,16 +306,37 @@ public abstract class SocketChannel
     // -- Socket-specific operations --
 
     /**
-     * {@inheritDoc}
+     * Binds the channel's socket to a local address.
+     *
+     * <p> This method is used to establish an association between the socket
+     * and a local address. For <i>Internet Protocol</i> sockets, once an
+     * association is established then the socket remains bound until the
+     * channel is closed. If the {@code local} parameter has the value {@code
+     * null} then the socket will be bound to an address that is assigned
+     * automatically.
      *
      * @apiNote
-     * Binding a channel to a Unix domain socket creates a file corresponding to
-     * the file path in the {@link UnixDomainSocketAddress}. This file persists
-     * after the channel is closed, and must be removed before another socket can
-     * bind to the same name. Binding to a address that is automatically assigned
-     * will create a unique file in some system temporary location. The associated
-     * socket file also persists after the channel is closed. Its name can be
-     * obtained from its socket address.
+     * Binding a socket channel to a <i>Unix Domain</i> socket creates a file
+     * corresponding to the file path in the {@link UnixDomainSocketAddress}. This
+     * file persists after the channel is closed, and must be removed before
+     * another socket can bind to the same name. If a socket channel to a Unix
+     * Domain socket is <i>implicitly</i> bound by connecting it without calling
+     * bind first, then its socket is
+     * <a href="../../java/net/UnixDomainSocketAddress.html#unnamed">unnamed</a>
+     * with no corresponding socket file in the file-system. If a socket channel
+     * to a Unix Domain socket is <i>automatically</i> bound by calling {@code
+     * bind(null)} this results in an unnamed socket also.
+     *
+     * @implNote
+     * Each platform enforces an implementation specific maximum length for the
+     * name of a <i>Unix Domain</i> socket. This limitation is enforced when a
+     * channel is bound. The maximum length is typically close to and generally
+     * not less than 100 bytes.
+     *
+     * @param   local The address to bind the socket, or {@code null} to bind
+     *          the socket to an automatically assigned socket address
+     *
+     * @return  This channel
      *
      * @throws  ConnectionPendingException
      *          If a non-blocking connect operation is already in progress on
