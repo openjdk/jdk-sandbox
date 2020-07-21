@@ -351,43 +351,6 @@
  * UnixDomainSocketAddress}es which encapsulate a filesystem pathname on the local
  * system.
  *
- * <p> {@link UnixDomainSocketAddress}es contain a path which, when the address is bound to
- * a channel, has an associated socket file in the file-system with the same name as the
- * path. Address instances are created with either a {@link String} path name or a
- * {@link Path}. Paths can be either absolute or relative with respect to the current
- * working directory.
- * <p>
- * If a {@link SocketChannel} for a <i>Unix Domain</i> socket is implicitly bound by
- * connecting it without calling {@link SocketChannel#bind(SocketAddress) bind} first,
- * then its address is <i>unnamed</i>; it has an empty path field, and therefore has no
- * associated file in the file-system. Explicitly binding a {@code SocketChannel}
- * to any unnamed address has the same effect.
- * <p>
- * If a {@link ServerSocketChannel} for a <i>Unix Domain</i> socket is automatically bound
- * by passing a {@code null} address to one of the {@link ServerSocketChannel#bind(SocketAddress)
- * bind} methods, the channel is bound to a unique name in a temporary directory whose name
- * is determined as follows. If the system property {@code "java.nio.channels.tmpdir"}
- * is set, that value is used. If not, the default VM temporary directory indicated by the
- * {@code "java.io.tmpdir"} system property is used. The exact pathname of an automatically
- * bound socket can be obtained by calling {@link ServerSocketChannel#getLocalAddress()
- * getLocalAddress} after bind returns. It is an error to bind a
- * {@code ServerSocketChannel} to an unnamed address.
- *
- * <p> A <i>Unix Domain</i> socket can be bound to a name if and only if, no file exists
- * in the file-system with the same name, and the calling process has the required
- * operating system permissions to create a file of that name.
- * The socket file that is created when a channel binds to a name is not removed when
- * the channel is closed. User code must arrange for the deletion of this file if
- * another channel needs to bind to the same name. Note, this also applies to automatically
- * bound {@code ServerSocketChannel}s. Note also, that it may be possible
- * to delete the socket file, even before the channel is closed, thus allowing another
- * channel to bind to the same name. The original channel is not notified of any error
- * in this situation. Operating system permissions can be used to control who is allowed
- * to create and delete these socket files. Note also, that each platform enforces an
- * implementation specific, maximum length for the name of a <i>Unix Domain</i> socket.
- * This limitation is enforced when a channel is bound. The maximum length is typically
- * close to and generally not less than 100 bytes.
- *
  * <p> Unless otherwise noted, passing a {@code null} argument to a constructor
  * or method in any class or interface in this package will cause a {@link
  * java.lang.NullPointerException NullPointerException} to be thrown.

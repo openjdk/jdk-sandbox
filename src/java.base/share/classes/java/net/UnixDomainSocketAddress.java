@@ -135,7 +135,7 @@ public final class UnixDomainSocketAddress extends SocketAddress {
     }
 
     /**
-     * Create a named UnixDomainSocketAddress from the given path string.
+     * Create a UnixDomainSocketAddress from the given path string.
      *
      * @param  pathname
      *         The path string, which can be empty
@@ -150,7 +150,7 @@ public final class UnixDomainSocketAddress extends SocketAddress {
     }
 
     /**
-     * Create a named UnixDomainSocketAddress for the given path.
+     * Create a UnixDomainSocketAddress for the given path.
      *
      * @param  path
      *         The path to the socket, which can be empty
