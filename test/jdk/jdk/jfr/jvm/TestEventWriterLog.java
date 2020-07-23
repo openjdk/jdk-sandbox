@@ -4,7 +4,9 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,30 +23,22 @@
  * questions.
  */
 
-#include <stdio.h>
-
-#include "jni.h"
-
 /*
- * We will replace:
- *   java/lang/Thread.java:    public static native void yield();
- *
- * as it is simple and innocuous.
+ * @test TestEventWriterLog
+ * @summary Test that log message of JFR when handle bytecodes
+ * @key jfr
+ * @requires vm.hasJFR
+ * @library /test/lib /test/jdk
+ * @run main/othervm TestEventWriterLog
  */
-static void myYield(JNIEnv* env, jclass cls) {
-  printf("myYield executed\n");
-}
 
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
 
-JNIEXPORT void JNICALL
-Java_TestRegisterNativesWarning_test
-(JNIEnv *env, jclass cls, jclass jlThread) {
-  JNINativeMethod nativeMethods[] = {
-    {
-      (char*) "yield",  // name
-      (char*) "()V",    // sig
-      (void*) myYield   // native method ptr
+public class TestEventWriterLog {
+    public static void main(String[] args) throws Exception {
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xlog:jfr+system+bytecode=trace", "-XX:StartFlightRecording", "-version");
+        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        output.shouldContain("extends jdk/jfr/internal/handlers/EventHandler");
     }
-  };
-  (*env)->RegisterNatives(env, jlThread, nativeMethods, 1);
 }
