@@ -1550,7 +1550,7 @@ const size_t minimumSymbolTableSize = 1024;
   experimental(uintx, ForceCompressedClassSpaceStartAddress, 0,             \
           "Force class space start address to a given value.")              \
                                                                             \
-  product(ccstr, MetaspaceReclaimStrategy, "balanced",                      \
+  product(ccstr, MetaspaceReclaimPolicy, "balanced",                        \
           "options: balanced, aggressive, none")                            \
                                                                             \
   develop(bool, MetaspaceGuardAllocations, false,                           \

@@ -55,7 +55,7 @@ DEBUG_ONLY(bool Settings::_handle_deallocations = true;)
 
 void Settings::ergo_initialize() {
 
-  if (strcmp(MetaspaceReclaimStrategy, "none") == 0) {
+  if (strcmp(MetaspaceReclaimPolicy, "none") == 0) {
 
     log_info(metaspace)("Initialized with strategy: no reclaim.");
 
@@ -73,7 +73,7 @@ void Settings::ergo_initialize() {
     _uncommit_on_purge = false;
     _uncommit_on_purge_min_word_size = 3; // does not matter; should not be used resp. assert when used.
 
-  } else if (strcmp(MetaspaceReclaimStrategy, "aggressive") == 0) {
+  } else if (strcmp(MetaspaceReclaimPolicy, "aggressive") == 0) {
 
     log_info(metaspace)("Initialized with strategy: aggressive reclaim.");
 
@@ -96,7 +96,7 @@ void Settings::ergo_initialize() {
     _uncommit_on_purge = true;
     _uncommit_on_purge_min_word_size = _commit_granule_words; // does not matter; should not be used resp. assert when used.
 
-  } else if (strcmp(MetaspaceReclaimStrategy, "balanced") == 0) {
+  } else if (strcmp(MetaspaceReclaimPolicy, "balanced") == 0) {
 
     log_info(metaspace)("Initialized with strategy: balanced reclaim.");
 
@@ -119,7 +119,7 @@ void Settings::ergo_initialize() {
 
   } else {
 
-    vm_exit_during_initialization("Invalid value for MetaspaceReclaimStrategy: \"%s\".", MetaspaceReclaimStrategy);
+    vm_exit_during_initialization("Invalid value for MetaspaceReclaimPolicy: \"%s\".", MetaspaceReclaimPolicy);
 
   }
 
