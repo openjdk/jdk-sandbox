@@ -795,7 +795,8 @@ void Metaspace::post_initialize() {
 }
 
 size_t Metaspace::max_allocation_word_size() {
-  return metaspace::chunklevel::MAX_CHUNK_WORD_SIZE;
+  const size_t max_overhead_words = metaspace::get_raw_word_size_for_requested_word_size(1);
+  return metaspace::chunklevel::MAX_CHUNK_WORD_SIZE - max_overhead_words;
 }
 
 MetaWord* Metaspace::allocate(ClassLoaderData* loader_data, size_t word_size,

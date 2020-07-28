@@ -214,6 +214,8 @@ SpaceManager::~SpaceManager() {
 // On success, true is returned, false otherwise.
 bool SpaceManager::attempt_enlarge_current_chunk(size_t requested_word_size) {
 
+  assert_lock_strong(lock());
+
   Metachunk* c = current_chunk();
   assert(c->free_words() < requested_word_size, "Sanity");
 
@@ -282,7 +284,7 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
 
   MetaWord* p = NULL;
 
-  const size_t raw_word_size = get_raw_allocation_word_size(requested_word_size);
+  const size_t raw_word_size = get_raw_word_size_for_requested_word_size(requested_word_size);
 
   // 1) Attempt to allocate from the free blocks list
   if (Settings::handle_deallocations() && _fbl != NULL && !_fbl->is_empty()) {
@@ -412,7 +414,7 @@ void SpaceManager::deallocate_locked(MetaWord* p, size_t word_size) {
   UL2(trace, "deallocating " PTR_FORMAT ", word size: " SIZE_FORMAT ".",
       p2i(p), word_size);
 
-  size_t raw_word_size = get_raw_allocation_word_size(word_size);
+  size_t raw_word_size = get_raw_word_size_for_requested_word_size(word_size);
   add_allocation_to_fbl(p, raw_word_size);
 
   DEBUG_ONLY(verify_locked(false);)

@@ -66,10 +66,13 @@ void Settings::ergo_initialize() {
 
     _committed_words_on_fresh_chunks = chunklevel::MAX_CHUNK_WORD_SIZE;
 
+    // In "none" reclamation mode, we do not uncommit, but still delete completely empty nodes.
+    // This is almost the same behavior as the old Metaspace.
+
     _uncommit_on_return = false;
     _uncommit_on_return_min_word_size = 3; // does not matter; should not be used resp. assert when used.
 
-    _delete_nodes_on_purge = false;
+    _delete_nodes_on_purge = true;
     _uncommit_on_purge = false;
     _uncommit_on_purge_min_word_size = 3; // does not matter; should not be used resp. assert when used.
 

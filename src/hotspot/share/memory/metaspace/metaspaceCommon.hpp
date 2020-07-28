@@ -54,6 +54,8 @@ STATIC_ASSERT(allocation_alignment_bytes == (size_t)KlassAlignmentInBytes);
 
 static const size_t allocation_alignment_words = allocation_alignment_bytes / BytesPerWord;
 
+// Returns the raw word size allocated for a given net allocation
+size_t get_raw_word_size_for_requested_word_size(size_t word_size);
 
 
 // Utility functions

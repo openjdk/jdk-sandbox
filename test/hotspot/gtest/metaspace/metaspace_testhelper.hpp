@@ -30,12 +30,8 @@
 
 using namespace metaspace::chunklevel;
 
-class MetaspaceTestHelper : public StackObj {
+class MetaspaceTestHelper : public metaspace::MetaspaceTestContext {
 
-  ReservedSpace _rs;
-  CommitLimiter _commit_limiter;
-  VirtualSpaceList _vs_list;
-  ChunkManager _cm;
   int _num_chunks_allocated;
 
   void checked_alloc_chunk_0(Metachunk** p_return_value, chunklevel_t preferred_level,
@@ -43,25 +39,8 @@ class MetaspaceTestHelper : public StackObj {
 
 public:
 
-  // No reserve limit, and a commit limit.
-  MetaspaceTestHelper(size_t commit_limit);
-
-  // Reserve limit and commit limit.
-  MetaspaceTestHelper(size_t reserve_limit, size_t commit_limit);
-
-  // Default ctor should cause no limits to fire (within reason)
-  MetaspaceTestHelper ();
-
-  ~MetaspaceTestHelper();
-
-  const CommitLimiter& commit_limiter() const { return _commit_limiter; }
-  const VirtualSpaceList& vslist() const { return _vs_list; }
-  ChunkManager& cm() { return _cm; }
-
-  // Returns reserve- and commit limit we run the test with (in the real world,
-  // these would be equivalent to CompressedClassSpaceSize resp MaxMetaspaceSize)
-  size_t reserve_limit() const { return _rs.is_reserved() ? _rs.size() : max_uintx; }
-  size_t commit_limit() const { return _commit_limiter.cap(); }
+  // Note: limit = 0 means unlimited
+  MetaspaceTestHelper(size_t commit_limit = 0, size_t reserve_limit = 0);
 
   /////
 
@@ -125,7 +104,6 @@ public:
 
   void uncommit_chunk_with_test(Metachunk* c);
 
-  DEBUG_ONLY(void verify() const;)
 
 };
 

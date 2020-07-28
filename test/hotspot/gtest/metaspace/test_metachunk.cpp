@@ -101,7 +101,7 @@ TEST_VM(metaspace, get_chunk_with_reserve_limit) {
 
   const size_t reserve_limit_words = word_size_for_level(ROOT_CHUNK_LEVEL);
   const size_t commit_limit_words = 1024 * M; // just very high
-  MetaspaceTestHelper helper(reserve_limit_words, commit_limit_words);
+  MetaspaceTestHelper helper(commit_limit_words, reserve_limit_words);
 
   // Reserve limit works at root chunk size granularity: if the chunk manager cannot satisfy
   //  a request for a chunk from its freelists, it will acquire a new root chunk from the

@@ -401,6 +401,18 @@ public class WhiteBox {
   public native long metaspaceCapacityUntilGC();
   public native long metaspaceReserveAlignment();
 
+  // Metaspace Arena Tests
+  public native long createMetaspaceTestContext(long commit_limit, long reserve_limit);
+  public native void destroyMetaspaceTestContext(long context);
+  public native void purgeMetaspaceTestContext(long context);
+  public native void printMetaspaceTestContext(long context);
+  public native long getTotalCommittedWordsInMetaspaceTestContext(long context);
+  public native long getTotalUsedWordsInMetaspaceTestContext(long context);
+  public native long createArenaInTestContext(long context, boolean is_micro);
+  public native void destroyMetaspaceTestArena(long arena);
+  public native long allocateFromMetaspaceTestArena(long arena, long word_size);
+  public native void deallocateToMetaspaceTestArena(long arena, long p, long word_size);
+
   // Don't use these methods directly
   // Use sun.hotspot.gc.GC class instead.
   public native boolean isGCSupported(int name);

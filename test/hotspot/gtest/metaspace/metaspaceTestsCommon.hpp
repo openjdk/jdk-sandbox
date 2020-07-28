@@ -45,6 +45,7 @@
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
+#include "memory/metaspace/metaspace_test.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"
 #include "memory/metaspace/spaceManager.hpp"
 #include "memory/metaspace/settings.hpp"

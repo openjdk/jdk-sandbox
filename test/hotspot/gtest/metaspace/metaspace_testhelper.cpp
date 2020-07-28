@@ -30,38 +30,10 @@
 using namespace metaspace::chunklevel;
 
   // No reserve limit, and a commit limit.
-MetaspaceTestHelper::MetaspaceTestHelper(size_t commit_limit_word_size)
-: _rs(), // ignored for this case, see VirtualSpaceList
-  _commit_limiter(commit_limit_word_size),
-  _vs_list("test_vs_list", &_commit_limiter),
-  _cm("test_cm", &_vs_list),
+MetaspaceTestHelper::MetaspaceTestHelper(size_t commit_limit, size_t reserve_limit)
+: metaspace::MetaspaceTestContext("metaspace-gtest-context", commit_limit, reserve_limit),
   _num_chunks_allocated(0)
 {
-}
-
-  // Reserve limit and commit limit.
-MetaspaceTestHelper::MetaspaceTestHelper(size_t reserve_limit_word_size, size_t commit_limit_word_size)
-: _rs(reserve_limit_word_size * BytesPerWord, Metaspace::reserve_alignment(), false),
-  _commit_limiter(commit_limit_word_size),
-  _vs_list("test_vs_list", _rs, &_commit_limiter),
-  _cm("test_cm", &_vs_list),
-  _num_chunks_allocated(0)
-{
-}
-
-// Default ctor should cause no limits to fire (within reason)
-MetaspaceTestHelper::MetaspaceTestHelper()
-// (no c++11) : MetachunkTestHelper(1024 * G)
-: _rs(), // ignored for this case, see VirtualSpaceList
-  _commit_limiter(max_uintx),
-  _vs_list("test_vs_list", &_commit_limiter),
-  _cm("test_cm", &_vs_list),
-  _num_chunks_allocated(0)
-{
-}
-
-MetaspaceTestHelper::~MetaspaceTestHelper() {
-  DEBUG_ONLY(verify();)
 }
 
 void MetaspaceTestHelper::checked_alloc_chunk_0(Metachunk** p_return_value, chunklevel_t preferred_level, chunklevel_t max_level,
@@ -118,7 +90,7 @@ void MetaspaceTestHelper::return_chunk(Metachunk* c) {
   test_pattern(c);
   DEBUG_ONLY(verify();)
   c->set_in_use(); // Forestall assert in cm
-  _cm.return_chunk(c);
+  cm().return_chunk(c);
 }
 
  void MetaspaceTestHelper::allocate_from_chunk(MetaWord** p_return_value, Metachunk* c, size_t word_size) {
@@ -200,13 +172,6 @@ void MetaspaceTestHelper::uncommit_chunk_with_test(Metachunk* c) {
     EXPECT_TRUE(c->is_fully_uncommitted());
   }
 }
-
-#ifdef ASSERT
-void MetaspaceTestHelper::verify() const {
-  _cm.verify(true);
-  _vs_list.verify(true);
-}
-#endif
 
 
 

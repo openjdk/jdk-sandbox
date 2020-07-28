@@ -242,13 +242,13 @@ public:
   {}
 
   // A test with both reserve and commit limit
-  ChunkManagerRandomChunkAllocTest(size_t reserve_limit, size_t commit_limit,
-                                   ChunkLevelRange r, float commit_factor)
-    : _helper(reserve_limit, commit_limit),
-      _chunks(max_num_live_chunks(r, commit_factor)),
-      _chunklevel_range(r),
-      _commit_factor(commit_factor)
-  {}
+  // ChunkManagerRandomChunkAllocTest(size_t commit_limit, size_t reserve_limit,
+  //                                  ChunkLevelRange r, float commit_factor)
+  // : _helper(commit_limit, reserve_limit),
+  // _chunks(max_num_live_chunks(r, commit_factor)),
+  // _chunklevel_range(r),
+  // _commit_factor(commit_factor)
+  // {}
 
 
   void do_tests() {

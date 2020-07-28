@@ -46,6 +46,7 @@
 #include "memory/heapShared.inline.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/metadataFactory.hpp"
+#include "memory/metaspace/metaspace_test.hpp"
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -84,6 +85,7 @@
 #include "utilities/elfFile.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/ostream.hpp"
 #if INCLUDE_CDS
 #include "prims/cdsoffsets.hpp"
 #endif // INCLUDE_CDS
@@ -1690,6 +1692,61 @@ int WhiteBox::array_bytes_to_length(size_t bytes) {
   return Array<u1>::bytes_to_length(bytes);
 }
 
+///////////////
+// MetaspaceTestContext and MetaspaceTestArena
+WB_ENTRY(jlong, WB_CreateMetaspaceTestContext(JNIEnv* env, jobject wb, jlong commit_limit, jlong reserve_limit))
+  metaspace::MetaspaceTestContext* context =
+      new metaspace::MetaspaceTestContext("whitebox-metaspace-context", (size_t) commit_limit, (size_t) reserve_limit);
+  return (jlong)p2i(context);
+WB_END
+
+WB_ENTRY(void, WB_DestroyMetaspaceTestContext(JNIEnv* env, jobject wb, jlong context))
+  delete (metaspace::MetaspaceTestContext*) context;
+WB_END
+
+WB_ENTRY(void, WB_PurgeMetaspaceTestContext(JNIEnv* env, jobject wb, jlong context))
+  metaspace::MetaspaceTestContext* context0 = (metaspace::MetaspaceTestContext*) context;
+  context0->purge_area();
+WB_END
+
+WB_ENTRY(void, WB_PrintMetaspaceTestContext(JNIEnv* env, jobject wb, jlong context))
+  metaspace::MetaspaceTestContext* context0 = (metaspace::MetaspaceTestContext*) context;
+  context0->print_on(tty);
+WB_END
+
+WB_ENTRY(jlong, WB_GetTotalCommittedWordsInMetaspaceTestContext(JNIEnv* env, jobject wb, jlong context))
+  metaspace::MetaspaceTestContext* context0 = (metaspace::MetaspaceTestContext*) context;
+  return context0->committed_words();
+WB_END
+
+WB_ENTRY(jlong, WB_GetTotalUsedWordsInMetaspaceTestContext(JNIEnv* env, jobject wb, jlong context))
+  metaspace::MetaspaceTestContext* context0 = (metaspace::MetaspaceTestContext*) context;
+  return context0->used_words();
+WB_END
+
+WB_ENTRY(jlong, WB_CreateArenaInTestContext(JNIEnv* env, jobject wb, jlong context, jboolean is_micro))
+  const metaspace::MetaspaceType type = is_micro ? metaspace::ReflectionMetaspaceType : metaspace::StandardMetaspaceType;
+  metaspace::MetaspaceTestContext* context0 = (metaspace::MetaspaceTestContext*) context;
+  return (jlong)p2i(context0->create_arena(type));
+WB_END
+
+WB_ENTRY(void, WB_DestroyMetaspaceTestArena(JNIEnv* env, jobject wb, jlong arena))
+  delete (metaspace::MetaspaceTestArena*) arena;
+WB_END
+
+WB_ENTRY(jlong, WB_AllocateFromMetaspaceTestArena(JNIEnv* env, jobject wb, jlong arena, jlong word_size))
+  metaspace::MetaspaceTestArena* arena0 = (metaspace::MetaspaceTestArena*) arena;
+  MetaWord* p = arena0->allocate((size_t) word_size);
+  return (jlong)p2i(p);
+WB_END
+
+WB_ENTRY(void, WB_DeallocateToMetaspaceTestArena(JNIEnv* env, jobject wb, jlong arena, jlong p, jlong word_size))
+  metaspace::MetaspaceTestArena* arena0 = (metaspace::MetaspaceTestArena*) arena;
+  arena0->deallocate((MetaWord*)p, (size_t) word_size);
+WB_END
+
+//////////////
+
 WB_ENTRY(jlong, WB_AllocateMetaspace(JNIEnv* env, jobject wb, jobject class_loader, jlong size))
   if (size < 0) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(),
@@ -2533,6 +2590,18 @@ static JNINativeMethod methods[] = {
   {CC"protectionDomainRemovedCount",   CC"()I",       (void*)&WB_ProtectionDomainRemovedCount },
   {CC"aotLibrariesCount", CC"()I",                    (void*)&WB_AotLibrariesCount },
   {CC"getKlassMetadataSize", CC"(Ljava/lang/Class;)I",(void*)&WB_GetKlassMetadataSize},
+
+  {CC"createMetaspaceTestContext", CC"(JJ)J",         (void*)&WB_CreateMetaspaceTestContext},
+  {CC"destroyMetaspaceTestContext", CC"(J)V",         (void*)&WB_DestroyMetaspaceTestContext},
+  {CC"purgeMetaspaceTestContext", CC"(J)V",           (void*)&WB_PurgeMetaspaceTestContext},
+  {CC"printMetaspaceTestContext", CC"(J)V",           (void*)&WB_PrintMetaspaceTestContext},
+  {CC"getTotalCommittedWordsInMetaspaceTestContext", CC"(J)J",(void*)&WB_GetTotalCommittedWordsInMetaspaceTestContext},
+  {CC"getTotalUsedWordsInMetaspaceTestContext", CC"(J)J", (void*)&WB_GetTotalUsedWordsInMetaspaceTestContext},
+  {CC"createArenaInTestContext", CC"(JZ)J",           (void*)&WB_CreateArenaInTestContext},
+  {CC"destroyMetaspaceTestArena", CC"(J)V",           (void*)&WB_DestroyMetaspaceTestArena},
+  {CC"allocateFromMetaspaceTestArena", CC"(JJ)J",     (void*)&WB_AllocateFromMetaspaceTestArena},
+  {CC"deallocateToMetaspaceTestArena", CC"(JJJ)V",    (void*)&WB_DeallocateToMetaspaceTestArena},
+
 };
 
 
