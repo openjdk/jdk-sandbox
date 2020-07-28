@@ -125,7 +125,7 @@ void ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chunklevel_t targ
 
   DEBUG_ONLY(verify_locked(true);)
 
-  SOMETIMES(c->vsnode()->verify(true);)
+  SOMETIMES(c->vsnode()->verify_locked(true);)
 
 }
 
@@ -243,7 +243,7 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
   c->set_in_use();
 
   DEBUG_ONLY(verify_locked(false);)
-  SOMETIMES(c->vsnode()->verify(true);)
+  SOMETIMES(c->vsnode()->verify_locked(true);)
 
   UL2(debug, "handing out chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
 
@@ -308,7 +308,7 @@ void ChunkManager::return_chunk(Metachunk* c) {
   return_chunk_simple(c);
 
   DEBUG_ONLY(verify_locked(false);)
-  SOMETIMES(c->vsnode()->verify(true);)
+  SOMETIMES(c->vsnode()->verify_locked(true);)
 
   DEBUG_ONLY(InternalStats::inc_num_chunks_returned_to_freelist();)
 

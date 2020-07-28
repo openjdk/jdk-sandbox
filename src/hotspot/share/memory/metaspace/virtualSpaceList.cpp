@@ -80,6 +80,7 @@ VirtualSpaceList::VirtualSpaceList(const char* name, ReservedSpace rs, CommitLim
 }
 
 VirtualSpaceList::~VirtualSpaceList() {
+  assert_lock_strong(MetaspaceExpand_lock);
   // Note: normally, there is no reason ever to delete a vslist since they are
   // global objects, but for gtests it makes sense to allow this.
   VirtualSpaceNode* vsn = _first_node;
@@ -221,7 +222,7 @@ void VirtualSpaceList::verify_locked(bool slow) const {
     const VirtualSpaceNode* vsn = _first_node;
     while (vsn != NULL) {
       n ++;
-      vsn->verify(slow);
+      vsn->verify_locked(slow);
       total_reserved_words += vsn->word_size();
       total_committed_words += vsn->committed_words();
       vsn = vsn->next();

@@ -297,13 +297,20 @@ VirtualSpaceNode* VirtualSpaceNode::create_node(int node_id,
 }
 
 VirtualSpaceNode::~VirtualSpaceNode() {
+
+  DEBUG_ONLY(verify_locked(true);)
+
   _rs.release();
 
   UL(debug, ": dies.");
 
   // Update counters in vslist
-  _total_committed_words_counter->decrement_by(committed_words());
+  size_t committed = committed_words();
+  _total_committed_words_counter->decrement_by(committed);
   _total_reserved_words_counter->decrement_by(_word_size);
+
+  // ... and tell commit limiter
+  _commit_limiter->decrease_committed(committed);
 
   DEBUG_ONLY(InternalStats::inc_num_vsnodes_destroyed();)
 
@@ -492,8 +499,13 @@ size_t VirtualSpaceNode::committed_words() const {
 }
 
 #ifdef ASSERT
-// Verify counters and basic structure. Slow mode: verify all chunks in depth
 void VirtualSpaceNode::verify(bool slow) const {
+  MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
+  verify_locked(slow);
+}
+
+// Verify counters and basic structure. Slow mode: verify all chunks in depth
+void VirtualSpaceNode::verify_locked(bool slow) const {
 
   assert_lock_strong(MetaspaceExpand_lock);
 

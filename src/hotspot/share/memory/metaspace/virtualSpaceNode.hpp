@@ -258,6 +258,7 @@ public:
     assert(contains(p), "invalid pointer");
   }
   void verify(bool slow) const;
+  void verify_locked(bool slow) const;
 #endif
 
 };
