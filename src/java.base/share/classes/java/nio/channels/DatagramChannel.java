@@ -150,6 +150,9 @@ public abstract class DatagramChannel
      *
      * @throws  IOException
      *          If an I/O error occurs
+     *
+     * @see     <a href="../../net/doc-files/net-properties.html#Ipv4IPv6">
+     *          java.net.preferIPv4Stack</a> system property
      */
     public static DatagramChannel open() throws IOException {
         return SelectorProvider.provider().openDatagramChannel();
@@ -184,6 +187,9 @@ public abstract class DatagramChannel
      *          but IPv6 is not enabled on the platform.
      * @throws  IOException
      *          If an I/O error occurs
+     *
+     * @see     <a href="../../net/doc-files/net-properties.html#Ipv4IPv6">
+     *          java.net.preferIPv4Stack</a> system property
      *
      * @since   1.7
      */

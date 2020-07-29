@@ -860,7 +860,7 @@ public class Net {
         return parent.equals(tempDir);
     }
 
-    public static final Path tempDir = getTempDir();
+    static final Path tempDir = getTempDir();
 
     private static Path getTempDir() {
         return AccessController.doPrivileged(
@@ -878,7 +878,7 @@ public class Net {
         );
     }
 
-    private static final NetPermission np = new NetPermission("unixDomainSocket");
+    private static final NetPermission np = new NetPermission("accessUnixDomainSocket");
 
     static void checkUnixCapability() {
         SecurityManager sm = System.getSecurityManager();
