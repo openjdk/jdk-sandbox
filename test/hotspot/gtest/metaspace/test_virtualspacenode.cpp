@@ -289,8 +289,7 @@ public:
   {
     {
       MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
-      _node = VirtualSpaceNode::create_node(test_node_id++,
-                                            vs_word_size, &_commit_limiter,
+      _node = VirtualSpaceNode::create_node(vs_word_size, &_commit_limiter,
                                             &_counter_reserved_words, &_counter_committed_words);
     }
     EXPECT_TRUE(_commit_limiter.possible_expansion_words() == _commit_limit);
@@ -495,7 +494,7 @@ TEST_VM(metaspace, virtual_space_node_test_basics) {
   SizeCounter sres;
   CommitLimiter cl (word_size * 2); // basically, no commit limiter.
 
-  VirtualSpaceNode* node = VirtualSpaceNode::create_node(42, word_size, &cl, &sres, &scomm);
+  VirtualSpaceNode* node = VirtualSpaceNode::create_node(word_size, &cl, &sres, &scomm);
   ASSERT_NOT_NULL(node);
   ASSERT_EQ(node->committed_words(), (size_t)0);
   ASSERT_EQ(node->committed_words(), scomm.get());

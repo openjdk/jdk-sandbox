@@ -121,19 +121,10 @@ public:
   // can be allocated.
   bool is_full() const;
 
-
-private:
-
-  static VirtualSpaceList* _vslist_class;
-  static VirtualSpaceList* _vslist_nonclass;
-
-public:
-
-  static VirtualSpaceList* vslist_class()       { return _vslist_class; }
-  static VirtualSpaceList* vslist_nonclass()    { return _vslist_nonclass; }
-
-  static void set_vslist_class(VirtualSpaceList* vslist_class);
-  static void set_vslist_nonclass(VirtualSpaceList* vslist_class);
+  // Convenience methods to return the global class-space vslist
+  //  and non-class vslist, respectively.
+  static VirtualSpaceList* vslist_class();
+  static VirtualSpaceList* vslist_nonclass();
 
   // These exist purely to print limits of the compressed class space;
   // if we ever change the ccs to not use a degenerated-list-of-one-node this

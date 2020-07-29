@@ -32,6 +32,7 @@
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/freeChunkList.hpp"
+#include "memory/metaspace/metaspaceContext.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"
 #include "memory/metaspace/virtualSpaceNode.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -41,9 +42,6 @@ namespace metaspace {
 
 #define LOGFMT         "VsList @" PTR_FORMAT " (%s)"
 #define LOGFMT_ARGS    p2i(this), this->_name
-
-
-static int next_node_id = 0;
 
 // Create a new, empty, expandable list.
 VirtualSpaceList::VirtualSpaceList(const char* name, CommitLimiter* commit_limiter)
@@ -70,8 +68,7 @@ VirtualSpaceList::VirtualSpaceList(const char* name, ReservedSpace rs, CommitLim
 {
   // Create the first node spanning the existing ReservedSpace. This will be the only node created
   // for this list since we cannot expand.
-  VirtualSpaceNode* vsn = VirtualSpaceNode::create_node(next_node_id++,
-                                                        rs, _commit_limiter,
+  VirtualSpaceNode* vsn = VirtualSpaceNode::create_node(rs, _commit_limiter,
                                                         &_reserved_words_counter, &_committed_words_counter);
   assert(vsn != NULL, "node creation failed");
   _first_node = vsn;
@@ -99,8 +96,7 @@ void VirtualSpaceList::create_new_node() {
   assert(_can_expand, "List is not expandable");
   assert_lock_strong(MetaspaceExpand_lock);
 
-  VirtualSpaceNode* vsn = VirtualSpaceNode::create_node(next_node_id ++,
-                                                        Settings::virtual_space_node_default_word_size(),
+  VirtualSpaceNode* vsn = VirtualSpaceNode::create_node(Settings::virtual_space_node_default_word_size(),
                                                         _commit_limiter,
                                                         &_reserved_words_counter, &_committed_words_counter);
   assert(vsn != NULL, "node creation failed");
@@ -146,9 +142,6 @@ Metachunk*  VirtualSpaceList::allocate_root_chunk() {
 // The free chunks are removed from the freelists before the nodes are deleted.
 // Return number of purged nodes.
 int VirtualSpaceList::purge(FreeChunkListVector* freelists) {
-
-  // Note: I am not sure all that purging business is even necessary anymore
-  // since we have a good reclaim mechanism in place. Need to measure.
 
   assert_lock_strong(MetaspaceExpand_lock);
 
@@ -267,17 +260,16 @@ bool VirtualSpaceList::is_full() const {
   return false;
 }
 
-VirtualSpaceList* VirtualSpaceList::_vslist_class = NULL;
-VirtualSpaceList* VirtualSpaceList::_vslist_nonclass = NULL;
-
-void VirtualSpaceList::set_vslist_class(VirtualSpaceList* vsl) {
-  assert(_vslist_class == NULL, "Sanity");
-  _vslist_class = vsl;
+// Convenience methods to return the global class-space chunkmanager
+//  and non-class chunkmanager, respectively.
+VirtualSpaceList* VirtualSpaceList::vslist_class() {
+  return MetaspaceContext::class_space_context() == NULL ? NULL : MetaspaceContext::class_space_context()->vslist();
 }
 
-void VirtualSpaceList::set_vslist_nonclass(VirtualSpaceList* vsl) {
-  assert(_vslist_nonclass == NULL, "Sanity");
-  _vslist_nonclass = vsl;
+VirtualSpaceList* VirtualSpaceList::vslist_nonclass() {
+  return MetaspaceContext::nonclass_space_context() == NULL ? NULL : MetaspaceContext::nonclass_space_context()->vslist();
 }
+
+
 
 } // namespace metaspace

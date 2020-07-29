@@ -33,6 +33,7 @@
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/metaspace_test.hpp"
 #include "memory/metaspace/metaspaceArena.hpp"
+#include "memory/metaspace/metaspaceContext.hpp"
 #include "memory/metaspace/runningCounters.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/debug.hpp"
@@ -62,31 +63,26 @@ void MetaspaceTestArena::deallocate(MetaWord* p, size_t word_size) {
 ///// MetaspaceTestArea //////
 
 MetaspaceTestContext::MetaspaceTestContext(const char* name, size_t commit_limit, size_t reserve_limit)
-  : _name(name),
+  : _name(name), _reserve_limit(reserve_limit), _commit_limit(commit_limit),
+    _context(NULL),
     _commit_limiter(commit_limit == 0 ? max_uintx : commit_limit), // commit_limit == 0 -> no limit
-    _rs(),
-    _vslist(NULL),
-    _cm(NULL),
     _used_words_counter()
 {
 
   if (reserve_limit > 0) {
-    // have reserve limit -> non-expandable vslist
-    _rs = ReservedSpace(reserve_limit * BytesPerWord, Metaspace::reserve_alignment(), false);
-    _vslist = new VirtualSpaceList(name, _rs, &_commit_limiter);
+    // have reserve limit -> non-expandable context
+    ReservedSpace rs(reserve_limit * BytesPerWord, Metaspace::reserve_alignment(), false);
+    _context = MetaspaceContext::create_nonexpandable_context(name, rs, &_commit_limiter);
   } else {
     // no reserve limit -> expandable vslist
-    _vslist = new VirtualSpaceList(name, &_commit_limiter);
+    _context = MetaspaceContext::create_expandable_context(name, &_commit_limiter);
   }
-
-  _cm = new ChunkManager(name, _vslist);
 
 }
 
 MetaspaceTestContext::~MetaspaceTestContext() {
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
-  delete _cm;
-  delete _vslist;
+  delete _context;
 }
 
 // Create an arena, feeding off this area.
@@ -96,31 +92,25 @@ MetaspaceTestArena* MetaspaceTestContext::create_arena(MetaspaceType type) {
   MetaspaceArena* arena = NULL;
   {
     MutexLocker ml(lock,  Mutex::_no_safepoint_check_flag);
-    arena = new MetaspaceArena(_cm, growth_policy, lock, &_used_words_counter, _name, false);
+    arena = new MetaspaceArena(_context->cm(), growth_policy, lock, &_used_words_counter, _name, false);
   }
   return new MetaspaceTestArena(lock, arena);
 }
 
 void MetaspaceTestContext::purge_area() {
-  _cm->wholesale_reclaim();
+  _context->cm()->wholesale_reclaim();
 }
 
 #ifdef ASSERT
 void MetaspaceTestContext::verify(bool slow) const {
-  if (_vslist != NULL) {
-    _vslist->verify(slow);
-  }
-  if (_cm != NULL) {
-    _cm->verify(slow);
+  if (_context != NULL) {
+    _context->verify(slow);
   }
 }
 #endif
 
 void MetaspaceTestContext::print_on(outputStream* st) const {
-  _vslist->print_on(st);
-  st->cr();
-  _cm->print_on(st);
-  st->cr();
+  _context->print_on(st);
 }
 
 } // namespace metaspace

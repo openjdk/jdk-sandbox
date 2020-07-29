@@ -229,22 +229,19 @@ void VirtualSpaceNode::uncommit_range(MetaWord* p, size_t word_size) {
 
 //// creation, destruction ////
 
-VirtualSpaceNode::VirtualSpaceNode(int node_id,
-                                   ReservedSpace rs,
-                                   CommitLimiter* limiter,
-                                   SizeCounter* reserve_words_counter,
-                                   SizeCounter* commit_words_counter)
+VirtualSpaceNode::VirtualSpaceNode(ReservedSpace rs, bool owns_rs, CommitLimiter* limiter,
+                                   SizeCounter* reserve_counter, SizeCounter* commit_counter)
   : _next(NULL),
     _rs(rs),
+    _owns_rs(owns_rs),
     _base((MetaWord*)rs.base()),
     _word_size(rs.size() / BytesPerWord),
     _used_words(0),
     _commit_mask((MetaWord*)rs.base(), rs.size() / BytesPerWord),
     _root_chunk_area_lut((MetaWord*)rs.base(), rs.size() / BytesPerWord),
     _commit_limiter(limiter),
-    _total_reserved_words_counter(reserve_words_counter),
-    _total_committed_words_counter(commit_words_counter),
-    _node_id(node_id)
+    _total_reserved_words_counter(reserve_counter),
+    _total_committed_words_counter(commit_counter)
 {
   UL2(debug, "born (word_size " SIZE_FORMAT ").", _word_size);
 
@@ -256,11 +253,10 @@ VirtualSpaceNode::VirtualSpaceNode(int node_id,
 
 }
 
-// Create a node of a given size
-VirtualSpaceNode* VirtualSpaceNode::create_node(int node_id,
-                                                size_t word_size,
-                                                CommitLimiter* limiter,
-                                                SizeCounter* reserve_words_counter,
+
+// Create a node of a given size (it will create its own space).
+VirtualSpaceNode* VirtualSpaceNode::create_node(size_t word_size,
+                                                CommitLimiter* limiter, SizeCounter* reserve_words_counter,
                                                 SizeCounter* commit_words_counter)
 {
 
@@ -281,28 +277,28 @@ VirtualSpaceNode* VirtualSpaceNode::create_node(int node_id,
 
   assert_is_aligned(rs.base(), chunklevel::MAX_CHUNK_BYTE_SIZE);
 
-  return create_node(node_id, rs, limiter, reserve_words_counter, commit_words_counter);
+  DEBUG_ONLY(InternalStats::inc_num_vsnodes_created();)
+  return new VirtualSpaceNode(rs, true, limiter, reserve_words_counter, commit_words_counter);
 
 }
 
 // Create a node over an existing space
-VirtualSpaceNode* VirtualSpaceNode::create_node(int node_id,
-                                                ReservedSpace rs,
-                                                CommitLimiter* limiter,
-                                                SizeCounter* reserve_words_counter,
-                                                SizeCounter* commit_words_counter)
+VirtualSpaceNode* VirtualSpaceNode::create_node(ReservedSpace rs, CommitLimiter* limiter,
+                                                SizeCounter* reserve_words_counter, SizeCounter* commit_words_counter)
 {
   DEBUG_ONLY(InternalStats::inc_num_vsnodes_created();)
-  return new VirtualSpaceNode(node_id, rs, limiter, reserve_words_counter, commit_words_counter);
+  return new VirtualSpaceNode(rs, false, limiter, reserve_words_counter, commit_words_counter);
 }
 
 VirtualSpaceNode::~VirtualSpaceNode() {
 
   DEBUG_ONLY(verify_locked(true);)
 
-  _rs.release();
-
   UL(debug, ": dies.");
+
+  if (_owns_rs) {
+    _rs.release();
+  }
 
   // Update counters in vslist
   size_t committed = committed_words();
@@ -431,8 +427,8 @@ bool VirtualSpaceNode::attempt_enlarge_chunk(Metachunk* c, FreeChunkListVector* 
 
 // Attempts to purge the node:
 //
-// If all chunks living in this node are free, they will all be removed from their freelists
-//   and deletes the node.
+// If all chunks living in this node are free, they will all be removed from
+//  the freelist they currently reside in. Then, the node will be deleted.
 //
 // Returns true if the node has been deleted, false if not.
 // !! If this returns true, do not access the node from this point on. !!
@@ -440,16 +436,16 @@ bool VirtualSpaceNode::attempt_purge(FreeChunkListVector* freelists) {
 
   assert_lock_strong(MetaspaceExpand_lock);
 
+  if (!_owns_rs) {
+    // We do not allow purging of nodes if we do not own the
+    // underlying ReservedSpace (CompressClassSpace case).
+    return false;
+  }
+
   // First find out if all areas are empty. Since empty chunks collapse to root chunk
   // size, if all chunks in this node are free root chunks we are good to go.
-  for (int narea = 0; narea < _root_chunk_area_lut.number_of_areas(); narea ++) {
-    const RootChunkArea* ra = _root_chunk_area_lut.get_area_by_index(narea);
-    const Metachunk* c = ra->first_chunk();
-    if (c != NULL) {
-      if (!(c->is_root_chunk() && c->is_free())) {
-        return false;
-      }
-    }
+  if (!_root_chunk_area_lut.is_free()) {
+    return false;
   }
 
   UL(debug, ": purging.");
@@ -459,7 +455,8 @@ bool VirtualSpaceNode::attempt_purge(FreeChunkListVector* freelists) {
     RootChunkArea* ra = _root_chunk_area_lut.get_area_by_index(narea);
     Metachunk* c = ra->first_chunk();
     if (c != NULL) {
-      UL2(trace, "removing chunk from purged node: " METACHUNK_FULL_FORMAT ".", METACHUNK_FULL_FORMAT_ARGS(c));
+      UL2(trace, "removing chunk from to-be-purged node: "
+          METACHUNK_FULL_FORMAT ".", METACHUNK_FULL_FORMAT_ARGS(c));
       assert(c->is_free() && c->is_root_chunk(), "Sanity");
       freelists->remove(c);
     }
@@ -477,7 +474,7 @@ void VirtualSpaceNode::print_on(outputStream* st) const {
 
   size_t scale = K;
 
-  st->print("id: %d, base " PTR_FORMAT ": ", _node_id, p2i(base()));
+  st->print("base " PTR_FORMAT ": ", p2i(base()));
   st->print("reserved=");
   print_scaled_words(st, word_size(), scale);
   st->print(", committed=");
@@ -486,7 +483,6 @@ void VirtualSpaceNode::print_on(outputStream* st) const {
   print_scaled_words_and_percentage(st, used_words(), word_size(), scale);
 
   st->cr();
-
   _root_chunk_area_lut.print_on(st);
   _commit_mask.print_on(st);
 

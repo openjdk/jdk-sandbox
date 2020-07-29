@@ -401,6 +401,14 @@ bool RootChunkArea::attempt_enlarge_chunk(Metachunk* c, FreeChunkListVector* fre
 
 }
 
+// Returns true if this root chunk area is completely free:
+//  In that case, it should only contain one chunk (maximally merged, so a root chunk)
+//  and it should be free.
+bool RootChunkArea::is_free() const {
+  return _first_chunk == NULL ||
+      (_first_chunk->is_root_chunk() && _first_chunk->is_free());
+}
+
 
 #ifdef ASSERT
 
@@ -430,6 +438,10 @@ void RootChunkArea::verify(bool slow) const {
     const MetaWord* const area_end = _base + word_size();
 
     while (c != NULL) {
+
+      assrt_(c->is_free() || c->is_in_use(),
+          "Chunk No. %d " METACHUNK_FORMAT " - invalid state.",
+          num_chunk, METACHUNK_FORMAT_ARGS(c));
 
       assrt_(c->base() == expected_next_base,
              "Chunk No. %d " METACHUNK_FORMAT " - unexpected base.",
@@ -527,6 +539,16 @@ RootChunkAreaLUT::~RootChunkAreaLUT() {
     _arr[i].~RootChunkArea();
   }
   FREE_C_HEAP_ARRAY(RootChunkArea, _arr);
+}
+
+// Returns true if all areas in this area table are free (only contain free chunks).
+bool RootChunkAreaLUT::is_free() const {
+  for (int i = 0; i < _num; i ++) {
+    if (!_arr[i].is_free()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 #ifdef ASSERT

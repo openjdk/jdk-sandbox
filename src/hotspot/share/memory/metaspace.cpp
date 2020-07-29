@@ -36,6 +36,7 @@
 #include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
+#include "memory/metaspace/metaspaceContext.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspace/metaspaceReport.hpp"
 #include "memory/metaspace/metaspaceSizesSnapshot.hpp"
@@ -57,8 +58,9 @@
 using metaspace::ChunkManager;
 using metaspace::ClassLoaderMetaspace;
 using metaspace::CommitLimiter;
-using metaspace::MetaspaceType;
+using metaspace::MetaspaceContext;
 using metaspace::MetaspaceReporter;
+using metaspace::MetaspaceType;
 using metaspace::RunningCounters;
 using metaspace::VirtualSpaceList;
 
@@ -524,10 +526,7 @@ void Metaspace::initialize_class_space(ReservedSpace rs) {
          is_aligned(rs.size(), Metaspace::reserve_alignment()),
          "wrong alignment");
 
-  VirtualSpaceList* vsl = new VirtualSpaceList("class space list", rs, CommitLimiter::globalLimiter());
-  VirtualSpaceList::set_vslist_class(vsl);
-  ChunkManager* cm = new ChunkManager("class space chunk manager", vsl);
-  ChunkManager::set_chunkmanager_class(cm);
+  MetaspaceContext::initialize_class_space_context(rs);
 
   // This does currently not work because rs may be the result of a split
   // operation and NMT seems not to be able to handle splits.
@@ -538,7 +537,7 @@ void Metaspace::initialize_class_space(ReservedSpace rs) {
 
 // Returns true if class space has been setup (initialize_class_space).
 bool Metaspace::class_space_is_initialized() {
-  return VirtualSpaceList::vslist_class() != NULL;
+  return MetaspaceContext::class_space_context() != NULL;
 }
 
 // Reserve a range of memory at an address suitable for en/decoding narrow
@@ -751,10 +750,7 @@ void Metaspace::global_initialize() {
 #endif
 
   // Initialize non-class virtual space list, and its chunk manager:
-  VirtualSpaceList* vsl = new VirtualSpaceList("non-class virtualspacelist", CommitLimiter::globalLimiter());
-  VirtualSpaceList::set_vslist_nonclass(vsl);
-  ChunkManager* cm = new ChunkManager("non-class chunkmanager", vsl);
-  ChunkManager::set_chunkmanager_nonclass(cm);
+  MetaspaceContext::initialize_nonclass_space_context();
 
   _tracer = new MetaspaceTracer();
 
@@ -768,9 +764,9 @@ void Metaspace::global_initialize() {
   // had a header and therefore could not allocate anything at offset 0.
 #ifdef _LP64
   if (using_class_space()) {
-    // The simplest way to fix this is to allocate a tiny chunk right at the start of ccs
-    // and do not use it for anything.
-    ChunkManager::chunkmanager_class()->get_chunk(metaspace::chunklevel::HIGHEST_CHUNK_LEVEL);
+    // The simplest way to fix this is to allocate a tiny dummy chunk right at the
+    // start of ccs and do not use it for anything.
+    MetaspaceContext::class_space_context()->cm()->get_chunk(metaspace::chunklevel::HIGHEST_CHUNK_LEVEL);
   }
 #endif
 

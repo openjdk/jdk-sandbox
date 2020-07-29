@@ -153,18 +153,12 @@ public:
   void print_on(outputStream* st) const;
   void print_on_locked(outputStream* st) const;
 
-private:
-
-  static ChunkManager* _chunkmanager_class;
-  static ChunkManager* _chunkmanager_nonclass;
-
 public:
 
-  static ChunkManager* chunkmanager_class() { return _chunkmanager_class; }
-  static ChunkManager* chunkmanager_nonclass() { return _chunkmanager_nonclass; }
-
-  static void set_chunkmanager_class(ChunkManager* cm);
-  static void set_chunkmanager_nonclass(ChunkManager* cm);
+  // Convenience methods to return the global class-space chunkmanager
+  //  and non-class chunkmanager, respectively.
+  static ChunkManager* chunkmanager_class();
+  static ChunkManager* chunkmanager_nonclass();
 
 
 };

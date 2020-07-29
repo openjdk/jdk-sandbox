@@ -30,6 +30,7 @@
 #include "memory/allocation.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/counter.hpp"
+#include "memory/metaspace/metaspaceContext.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/virtualspace.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -42,8 +43,7 @@ class outputStream;
 
 namespace metaspace {
 
-class VirtualSpaceList;
-class ChunkManager;
+class MetaspaceContext;
 class MetaspaceArena;
 
 
@@ -68,15 +68,15 @@ public:
 };
 
 
-// Wraps one instance of the global objects - VirtualSpaceList with underlying ReservedSpace,
-// its limiter, and the associated ChunkManager.
+// Wraps an instance of a MetaspaceContext together with some side objects for easy use in test beds (whitebox, gtests)
 class MetaspaceTestContext : public CHeapObj<mtInternal> {
 
-  const char* _name;
+  const char* const _name;
+  const size_t _reserve_limit;
+  const size_t _commit_limit;
+
+  MetaspaceContext* _context;
   CommitLimiter _commit_limiter;
-  ReservedSpace _rs;
-  VirtualSpaceList* _vslist;
-  ChunkManager* _cm;
   SizeAtomicCounter _used_words_counter;
 
 public:
@@ -94,13 +94,13 @@ public:
 
   // Accessors
   const CommitLimiter& commit_limiter() const { return _commit_limiter; }
-  const VirtualSpaceList& vslist() const      { return *_vslist; }
-  ChunkManager& cm()                          { return *_cm; }
+  const VirtualSpaceList& vslist() const      { return *(_context->vslist()); }
+  ChunkManager& cm()                          { return *(_context->cm()); }
 
   // Returns reserve- and commit limit we run the test with (in the real world,
   // these would be equivalent to CompressedClassSpaceSize resp MaxMetaspaceSize)
-  size_t reserve_limit() const { return _rs.is_reserved() ? _rs.size() : max_uintx; }
-  size_t commit_limit() const { return _commit_limiter.cap(); }
+  size_t reserve_limit() const    { return _reserve_limit == 0 ? max_uintx : 0; }
+  size_t commit_limit() const     { return _commit_limit == 0 ? max_uintx : 0; }
 
   // Convenience function to retrieve total committed/used words
   size_t used_words() const       { return _used_words_counter.get(); }

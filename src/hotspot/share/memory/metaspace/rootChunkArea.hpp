@@ -95,9 +95,6 @@ public:
   // On success, true is returned, false otherwise.
   bool attempt_enlarge_chunk(Metachunk* c, FreeChunkListVector* freelists);
 
-  // Returns true if all chunks in this area are free; false if not.
-  bool all_chunks_are_free() const;
-
   /// range ///
 
   const MetaWord* base() const  { return _base; }
@@ -107,6 +104,11 @@ public:
   // Direct access to the first chunk (use with care)
   Metachunk* first_chunk()              { return _first_chunk; }
   const Metachunk* first_chunk() const  { return _first_chunk; }
+
+  // Returns true if this root chunk area is completely free:
+  //  In that case, it should only contain one chunk (maximally merged, so a root chunk)
+  //  and it should be free.
+  bool is_free() const;
 
   //// Debug stuff ////
 
@@ -185,6 +187,9 @@ public:
   const MetaWord* base() const  { return _base; }
   size_t word_size() const      { return _num * chunklevel::MAX_CHUNK_WORD_SIZE; }
   const MetaWord* end() const   { return _base + word_size(); }
+
+  // Returns true if all areas in this area table are free (only contain free chunks).
+  bool is_free() const;
 
   DEBUG_ONLY(void verify(bool slow) const;)
 

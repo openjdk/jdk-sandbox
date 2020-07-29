@@ -34,6 +34,7 @@
 #include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
+#include "memory/metaspace/metaspaceContext.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
 #include "memory/metaspace/settings.hpp"
 #include "memory/metaspace/virtualSpaceNode.hpp"
@@ -411,21 +412,15 @@ void ChunkManager::wholesale_reclaim() {
 
 }
 
-
-ChunkManager* ChunkManager::_chunkmanager_class = NULL;
-ChunkManager* ChunkManager::_chunkmanager_nonclass = NULL;
-
-void ChunkManager::set_chunkmanager_class(ChunkManager* cm) {
-  assert(_chunkmanager_class == NULL, "Sanity");
-  _chunkmanager_class = cm;
+// Convenience methods to return the global class-space chunkmanager
+//  and non-class chunkmanager, respectively.
+ChunkManager* ChunkManager::chunkmanager_class() {
+  return MetaspaceContext::class_space_context() == NULL ? NULL : MetaspaceContext::class_space_context()->cm();
 }
 
-void ChunkManager::set_chunkmanager_nonclass(ChunkManager* cm) {
-  assert(_chunkmanager_nonclass == NULL, "Sanity");
-  _chunkmanager_nonclass = cm;
+ChunkManager* ChunkManager::chunkmanager_nonclass() {
+  return MetaspaceContext::nonclass_space_context() == NULL ? NULL : MetaspaceContext::nonclass_space_context()->cm();
 }
-
-
 
 // Update statistics.
 void ChunkManager::add_to_statistics(cm_stats_t* out) const {
@@ -473,6 +468,3 @@ void ChunkManager::print_on_locked(outputStream* st) const {
 }
 
 } // namespace metaspace
-
-
-

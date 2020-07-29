@@ -61,7 +61,13 @@ class VirtualSpaceNode : public CHeapObj<mtClass> {
   // Link to next VirtualSpaceNode
   VirtualSpaceNode* _next;
 
+  // The underlying space. This has been either created by this node
+  //  and is owned by it, or has been handed in from outside (e.g. in
+  //  case of CompressedClassSpace).
   ReservedSpace _rs;
+
+  // True if the node owns the reserved space, false if not.
+  const bool _owns_rs;
 
   // Start pointer of the area.
   MetaWord* const _base;
@@ -70,7 +76,7 @@ class VirtualSpaceNode : public CHeapObj<mtClass> {
   const size_t _word_size;
 
   // Size, in words, of the range of this node which has been handed out in
-  // the form of chunks.
+  // the form of root chunks.
   size_t _used_words;
 
   // The bitmap describing the commit state of the region:
@@ -88,9 +94,6 @@ class VirtualSpaceNode : public CHeapObj<mtClass> {
   // space from this node.
   SizeCounter* const _total_reserved_words_counter;
   SizeCounter* const _total_committed_words_counter;
-
-  // For debug and tracing purposes
-  const int _node_id;
 
   /// committing, uncommitting ///
 
@@ -118,27 +121,18 @@ class VirtualSpaceNode : public CHeapObj<mtClass> {
 
   //// creation ////
 
-  // Create a new empty node spanning the given reserved space.
-  VirtualSpaceNode(int node_id,
-                   ReservedSpace rs,
-                   CommitLimiter* limiter,
-                   SizeCounter* reserve_counter,
-                   SizeCounter* commit_counter);
+  // Create a new empty node spanning the given given reserved space.
+  VirtualSpaceNode(ReservedSpace rs, bool owns_rs, CommitLimiter* limiter,
+                   SizeCounter* reserve_counter, SizeCounter* commit_counter);
 
 public:
 
-  // Create a node of a given size
-  static VirtualSpaceNode* create_node(int node_id,
-                                       size_t word_size,
-                                       CommitLimiter* limiter,
-                                       SizeCounter* reserve_words_counter,
+  // Create a node of a given size (it will create its own space).
+  static VirtualSpaceNode* create_node(size_t word_size, CommitLimiter* limiter, SizeCounter* reserve_words_counter,
                                        SizeCounter* commit_words_counter);
 
   // Create a node over an existing space
-  static VirtualSpaceNode* create_node(int node_id,
-                                       ReservedSpace rs,
-                                       CommitLimiter* limiter,
-                                       SizeCounter* reserve_words_counter,
+  static VirtualSpaceNode* create_node(ReservedSpace rs, CommitLimiter* limiter, SizeCounter* reserve_words_counter,
                                        SizeCounter* commit_words_counter);
 
   ~VirtualSpaceNode();
@@ -188,8 +182,8 @@ public:
 
   // Attempts to purge the node:
   //
-  // If all chunks living in this node are free, they will all be removed from their freelists
-  //   and deletes the node.
+  // If all chunks living in this node are free, they will all be removed from
+  //  the freelist they currently reside in. Then, the node will be deleted.
   //
   // Returns true if the node has been deleted, false if not.
   // !! If this returns true, do not access the node from this point on. !!
