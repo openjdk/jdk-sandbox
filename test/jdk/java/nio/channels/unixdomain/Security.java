@@ -24,8 +24,8 @@
 /**
  * @test
  * @bug 8231358
- * @run main/othervm -Djava.nio.channels.tmpdir=/tmp Security policy1
- * @run main/othervm -Djava.nio.channels.tmpdir=/tmp Security policy2
+ * @run main/othervm -Djdk.nio.channels.tmpdir=/tmp Security policy1
+ * @run main/othervm -Djdk.nio.channels.tmpdir=/tmp Security policy2
  * @summary Security test for Unix Domain socket and server socket channels
  */
 
