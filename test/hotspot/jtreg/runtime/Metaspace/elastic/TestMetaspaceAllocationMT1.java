@@ -41,34 +41,37 @@
 
 
 /*
- * @test
+ * @test id=debug
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
  * @build sun.hotspot.WhiteBox
  * @key randomness stress
+ * @requires (vm.debug == true)
  *
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *
  * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI  -XX:VerifyMetaspaceInterval=10                                        TestMetaspaceAllocationMT1
  * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI  -XX:VerifyMetaspaceInterval=10  -XX:MetaspaceReclaimPolicy=none       TestMetaspaceAllocationMT1
  * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI  -XX:VerifyMetaspaceInterval=10  -XX:MetaspaceReclaimPolicy=aggressive TestMetaspaceAllocationMT1
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI  -XX:VerifyMetaspaceInterval=10  -XX:+MetaspaceGuardAllocations        TestMetaspaceAllocationMT1
  *
  */
 
 /*
- * @test id=with-guards
+ * @test id=ndebug
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
  * @build sun.hotspot.WhiteBox
  * @key randomness stress
- * @requires vm.debug
+ * @requires (vm.debug == false)
  *
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *
- * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI  -XX:VerifyMetaspaceInterval=10  -XX:+MetaspaceGuardAllocations   TestMetaspaceAllocationMT1
- *
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI                                        TestMetaspaceAllocationMT1
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI  -XX:MetaspaceReclaimPolicy=none       TestMetaspaceAllocationMT1
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI  -XX:MetaspaceReclaimPolicy=aggressive TestMetaspaceAllocationMT1
  */
 
 public class TestMetaspaceAllocationMT1 {

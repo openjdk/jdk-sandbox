@@ -39,7 +39,7 @@ static bool fifty_fifty() {
 
 // See spaceManager.cpp : needed for predicting commit sizes.
 namespace metaspace {
-  extern size_t get_raw_allocation_word_size(size_t net_word_size);
+  extern size_t get_raw_word_size_for_requested_word_size(size_t net_word_size);
 }
 
 // A SpaceManagerTestBed contains a single SpaceManager and its lock.
@@ -284,7 +284,7 @@ class SpaceManagerTest {
     if (success == false) {
       // We must have hit a limit.
       EXPECT_LT(_helper.commit_limiter().possible_expansion_words(),
-                metaspace::get_raw_allocation_word_size(bed->size_of_last_failed_allocation()));
+                metaspace::get_raw_word_size_for_requested_word_size(bed->size_of_last_failed_allocation()));
     }
     return success;
   }
