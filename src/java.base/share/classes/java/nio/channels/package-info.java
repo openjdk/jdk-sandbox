@@ -241,6 +241,26 @@
  * If a channel needs an associated socket then a socket will be created as a side
  * effect of this operation.
  *
+ * <p> {@link DatagramChannel}, {@link SocketChannel} and {@link
+ * ServerSocketChannel}s can be created with different {@link ProtocolFamily
+ * protocol families}. The standard family types are specified in {@link
+ * StandardProtocolFamily}.
+ *
+ * <p> Channels for <i>Internet Protocol</i> sockets are created using the
+ * {@link StandardProtocolFamily#INET INET} or {@link StandardProtocolFamily#INET6 INET6}
+ * protocol families. <i>Internet Protocol</i> sockets support network communication
+ * using TCP and UDP and are addressed using {@link InetSocketAddress}es which
+ * encapsulate an IP address and port number. <i>Internet Protocol</i> sockets
+ * are also the default type created, when a protocol family is not specified
+ * in the channel factory creation method.
+ *
+ * <p> Channels for <a id="unixdomain"></a><i>Unix Domain</i> sockets are created using
+ * the {@link StandardProtocolFamily#UNIX UNIX} protocol family only.
+ * <i>Unix Domain</i> sockets support local inter-process
+ * communication on the same host, and are addressed using {@link
+ * UnixDomainSocketAddress}es which encapsulate a filesystem pathname on the local
+ * system.
+ *
  * <p> The implementation of selectors, selectable channels, and selection keys
  * can be replaced by "plugging in" an alternative definition or instance of the
  * {@link java.nio.channels.spi.SelectorProvider} class defined in the {@link
@@ -327,29 +347,6 @@
  * developers will actually make use of this facility; it is provided primarily
  * so that sophisticated users can take advantage of operating-system-specific
  * asynchronous I/O mechanisms when very high performance is required.
- *
- * <p> {@link DatagramChannel}, {@link SocketChannel} and {@link
- * ServerSocketChannel}s can be created with different {@link ProtocolFamily
- * protocol families}. The standard family types are specified in {@link
- * StandardProtocolFamily}.
- *
- * <p> Channels for <i>Internet Protocol</i> sockets are created using the
- * {@link StandardProtocolFamily#INET INET} or {@link StandardProtocolFamily#INET6 INET6}
- * protocol families. <i>Internet Protocol</i> sockets support network communication
- * using TCP and UDP and are addressed using {@link InetSocketAddress}es which
- * encapsulate an IP address and port number. <i>Internet Protocol</i> sockets
- * are also the default type created, when a protocol family is not specified
- * in the channel factory creation method. Note, the creation of <i>Internet
- * Protocol</i> sockets is also influenced by the
- * <a href="../../net/doc-files/net-properties.html#Ipv4IPv6">
- * "java.net.preferIPv4Stack"</a> system property.
- *
- * <p> Channels for <a id="unixdomain"></a><i>Unix Domain</i> sockets are created using
- * the {@link StandardProtocolFamily#UNIX UNIX} protocol family only.
- * <i>Unix Domain</i> sockets support local inter-process
- * communication on the same host, and are addressed using {@link
- * UnixDomainSocketAddress}es which encapsulate a filesystem pathname on the local
- * system.
  *
  * <p> Unless otherwise noted, passing a {@code null} argument to a constructor
  * or method in any class or interface in this package will cause a {@link

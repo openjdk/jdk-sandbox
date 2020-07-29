@@ -66,7 +66,7 @@ import java.util.StringTokenizer;
  *   </tr>
  *
  * <tr>
- *   <th scope="row">unixDomainSocket</th>
+ *   <th scope="row">accessUnixDomainSocket</th>
  *   <td>The ability to accept, bind, connect or get the local address
  *   of a <i>Unix Domain</i> socket.
  *   </td>

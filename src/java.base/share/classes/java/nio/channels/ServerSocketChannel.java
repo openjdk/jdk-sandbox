@@ -136,6 +136,9 @@ public abstract class ServerSocketChannel
      *
      * @throws  IOException
      *          If an I/O error occurs
+     *
+     * @see     <a href="../../net/doc-files/net-properties.html#Ipv4IPv6">
+     *          java.net.preferIPv4Stack</a> system property
      */
     public static ServerSocketChannel open() throws IOException {
         return SelectorProvider.provider().openServerSocketChannel();
@@ -162,6 +165,9 @@ public abstract class ServerSocketChannel
      *          but IPv6 is not enabled on the platform.
      * @throws  IOException
      *          If an I/O error occurs
+     *
+     * @see     <a href="../../net/doc-files/net-properties.html#Ipv4IPv6">
+     *          java.net.preferIPv4Stack</a> system property
      *
      * @since 15
      */
@@ -269,7 +275,7 @@ public abstract class ServerSocketChannel
      *          SecurityManager#checkListen checkListen} method denies
      *          the operation for an <i>Internet protocol</i> socket address,
      *          or for a <i>Unix domain</i> socket address if it denies
-     *          {@link NetPermission}{@code("unixDomainSocket")}.
+     *          {@link NetPermission}{@code("accessUnixDomainSocket")}.
      *
      * @since 1.7
      */
@@ -319,7 +325,7 @@ public abstract class ServerSocketChannel
      * of the connection's remote endpoint are permitted by the security
      * manager's {@link java.lang.SecurityManager#checkAccept checkAccept}
      * method. If bound to a <i>Unix Domain</i> socket address, this method checks
-     * {@link NetPermission}{@code ("unixDomainSocket")}.
+     * {@link NetPermission}{@code ("accessUnixDomainSocket")}.
      *
      * @return  The socket channel for the new connection,
      *          or {@code null} if this channel is in non-blocking mode
@@ -365,7 +371,7 @@ public abstract class ServerSocketChannel
      * address is a {@link UnixDomainSocketAddress}. If there is a security manager
      * set, its {@link SecurityManager#checkPermission(java.security.Permission)
      * checkPermission} method is called with {@link NetPermission}{@code
-     * ("unixDomainSocket")}. If the operation is not allowed an unnamed
+     * ("accessUnixDomainSocket")}. If the operation is not allowed an unnamed
      * {@link UnixDomainSocketAddress} is returned.
      *
      * @return  The {@code SocketAddress} that the socket is bound to, or the

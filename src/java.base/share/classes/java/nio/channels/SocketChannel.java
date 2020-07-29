@@ -184,6 +184,9 @@ public abstract class SocketChannel
      *
      * @throws  IOException
      *          If an I/O error occurs
+     *
+     * @see     <a href="../../net/doc-files/net-properties.html#Ipv4IPv6">
+     *          java.net.preferIPv4Stack</a> system property
      */
     public static SocketChannel open() throws IOException {
         return SelectorProvider.provider().openSocketChannel();
@@ -210,6 +213,9 @@ public abstract class SocketChannel
      *          but IPv6 is not enabled on the platform.
      * @throws  IOException
      *          If an I/O error occurs
+     *
+     * @see     <a href="../../net/doc-files/net-properties.html#Ipv4IPv6">
+     *          java.net.preferIPv4Stack</a> system property
      *
      * @since 15
      */
@@ -259,6 +265,9 @@ public abstract class SocketChannel
      *
      * @throws  IOException
      *          If some other I/O error occurs
+     *
+     * @see     <a href="../../net/doc-files/net-properties.html#Ipv4IPv6">
+     *          java.net.preferIPv4Stack</a> system property
      */
     public static SocketChannel open(SocketAddress remote)
         throws IOException
@@ -350,7 +359,7 @@ public abstract class SocketChannel
      *          SecurityManager#checkListen checkListen} method denies
      *          the operation for an <i>Internet protocol</i> socket address,
      *          or for a <i>Unix domain</i> socket address if it denies
-     *          {@link NetPermission}{@code("unixDomainSocket")}.
+     *          {@link NetPermission}{@code("accessUnixDomainSocket")}.
      *
      * @since 1.7
      */
@@ -461,8 +470,9 @@ public abstract class SocketChannel
      * connecting to the address and port number of the given remote endpoint.
      *
      * <p> For channels to <i>Unix Domain</i> sockets, this method checks
-     * {@link java.net.NetPermission NetPermission}{@code ("unixDomainSocket")}
-     * with {@link SecurityManager#checkPermission(java.security.Permission)}.
+     * {@link java.net.NetPermission NetPermission}{@code
+     * ("accessUnixDomainSocket")} with {@link SecurityManager#checkPermission
+     * (java.security.Permission)}.
      *
      * <p> This method may be invoked at any time.  If a read or write
      * operation upon this channel is invoked while an invocation of this
@@ -644,7 +654,7 @@ public abstract class SocketChannel
      * address is a {@link UnixDomainSocketAddress}. If there is a security manager
      * set, its {@link SecurityManager#checkPermission(java.security.Permission)
      * checkPermission} method is called with {@link NetPermission}{@code
-     * ("unixDomainSocket")}. If the operation is not allowed an unnamed
+     * ("accessUnixDomainSocket")}. If the operation is not allowed an unnamed
      * {@link UnixDomainSocketAddress} is returned.
      *
      * @return  The {@code SocketAddress} that the socket is bound to, or the
