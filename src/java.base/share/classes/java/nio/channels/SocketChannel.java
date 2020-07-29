@@ -509,7 +509,7 @@ public abstract class SocketChannel
      *          interrupt status
      *
      * @throws  UnresolvedAddressException
-     *          If the given remote address is an InetSocketAddress which is not fully resolved
+     *          If the given remote address is an InetSocketAddress that is not fully resolved
      *
      * @throws  UnsupportedAddressTypeException
      *          If the type of the given remote address is not supported

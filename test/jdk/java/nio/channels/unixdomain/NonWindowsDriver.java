@@ -26,9 +26,9 @@
  * @bug 8231358
  * @requires os.family != "windows"
  * @build Bind Shutdown NonBlockingAccept SocketOptions IOExchanges
- * @run main/othervm -Djava.nio.channels.tmpdir=/tmp Bind
- * @run main/othervm -Djava.nio.channels.tmpdir=/tmp Shutdown
- * @run main/othervm -Djava.nio.channels.tmpdir=/tmp NonBlockingAccept
- * @run main/othervm -Djava.nio.channels.tmpdir=/tmp SocketOptions
- * @run testng/othervm -Djava.nio.channels.tmpdir=/tmp IOExchanges
+ * @run main/othervm -Djdk.nio.channels.tmpdir=/tmp Bind
+ * @run main/othervm -Djdk.nio.channels.tmpdir=/tmp Shutdown
+ * @run main/othervm -Djdk.nio.channels.tmpdir=/tmp NonBlockingAccept
+ * @run main/othervm -Djdk.nio.channels.tmpdir=/tmp SocketOptions
+ * @run testng/othervm -Djdk.nio.channels.tmpdir=/tmp IOExchanges
  */

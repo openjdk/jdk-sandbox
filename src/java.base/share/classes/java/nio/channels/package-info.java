@@ -241,24 +241,24 @@
  * If a channel needs an associated socket then a socket will be created as a side
  * effect of this operation.
  *
- * <p> {@link DatagramChannel}, {@link SocketChannel} and {@link
- * ServerSocketChannel}s can be created with different {@link ProtocolFamily
+ * <p> {@link java.nio.channels.DatagramChannel}, {@link java.nio.channels.SocketChannel} and {@link
+ * java.nio.channels.ServerSocketChannel}s can be created with different {@link java.net.ProtocolFamily
  * protocol families}. The standard family types are specified in {@link
- * StandardProtocolFamily}.
+ * java.net.StandardProtocolFamily}.
  *
  * <p> Channels for <i>Internet Protocol</i> sockets are created using the
- * {@link StandardProtocolFamily#INET INET} or {@link StandardProtocolFamily#INET6 INET6}
+ * {@link java.net.StandardProtocolFamily#INET INET} or {@link java.net.StandardProtocolFamily#INET6 INET6}
  * protocol families. <i>Internet Protocol</i> sockets support network communication
- * using TCP and UDP and are addressed using {@link InetSocketAddress}es which
+ * using TCP and UDP and are addressed using {@link java.net.InetSocketAddress}es which
  * encapsulate an IP address and port number. <i>Internet Protocol</i> sockets
  * are also the default type created, when a protocol family is not specified
  * in the channel factory creation method.
  *
  * <p> Channels for <a id="unixdomain"></a><i>Unix Domain</i> sockets are created using
- * the {@link StandardProtocolFamily#UNIX UNIX} protocol family only.
+ * the {@link java.net.StandardProtocolFamily#UNIX UNIX} protocol family only.
  * <i>Unix Domain</i> sockets support local inter-process
  * communication on the same host, and are addressed using {@link
- * UnixDomainSocketAddress}es which encapsulate a filesystem pathname on the local
+ * java.net.UnixDomainSocketAddress}es which encapsulate a filesystem pathname on the local
  * system.
  *
  * <p> The implementation of selectors, selectable channels, and selection keys
@@ -358,12 +358,3 @@
  */
 
 package java.nio.channels;
-
-import java.net.InetSocketAddress;
-import java.net.NetPermission;
-import java.net.ProtocolFamily;
-import java.net.UnixDomainSocketAddress;
-import java.net.StandardProtocolFamily;
-import java.nio.channels.SocketChannel;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.file.Path;
