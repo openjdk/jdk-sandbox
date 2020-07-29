@@ -127,8 +127,13 @@ public class MetaspaceTestContext {
     public void checkStatistics() {
 
 
-        // Rather than risk positives we are very conservative here. The point is to catch clear-case leaks, not to endlessly
-        // tweak these heuristics. The metaspace gtests do more thorough tests.
+        // Note:
+        // Estimating Used and Committed is fuzzy, and we only have limited information here
+        // (we know the current state, but not the history, which determines fragmentation and
+        //  freelist occupancy).
+        //
+        // We do not want test which constantly generate false positives, so these checks are
+        // somewhat loose and only meant to check for clear outliers, e.g. leaks.
 
         ///// used /////
 
@@ -175,8 +180,10 @@ public class MetaspaceTestContext {
         // Any allocation is 3 words least
         expectedMaxUsage += (numAllocated * 3);
         if (Settings.settings().usesAllocationGuards) {
-            // Space for guards
+            // Guards need space.
             expectedMaxUsage += (numAllocated * 2);
+            // Also, they disable the fbl, so deallocated still counts as used.
+            expectedMaxUsage += deallocatedWords;
         }
 
         // Lets add a overhead per arena (SpaceManager). Each arena carries a free block list containing
