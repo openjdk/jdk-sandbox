@@ -176,7 +176,7 @@ public class MetaspaceTestContext {
         // - remains of retired chunks in fbl
         // - overhead per allocation (padding for alignment, possibly allocation guards)
 
-        // Overhead per allocation (see spaceManager.cpp, get_raw_allocation_word_size() )
+        // Overhead per allocation (see metaspaceArena.cpp, get_raw_allocation_word_size() )
         // Any allocation is 3 words least
         expectedMaxUsage += (numAllocated * 3);
         if (Settings.settings().usesAllocationGuards) {
@@ -186,7 +186,7 @@ public class MetaspaceTestContext {
             expectedMaxUsage += deallocatedWords;
         }
 
-        // Lets add a overhead per arena (SpaceManager). Each arena carries a free block list containing
+        // Lets add a overhead per arena. Each arena carries a free block list containing
         // deallocated/retired blocks. We do not know how much. In general, the free block list should not
         // accumulate a lot of memory but be drained in the course of allocating memory from the arena.
         long overheadPerArena = 1024 * 1024 * numLiveArenas();

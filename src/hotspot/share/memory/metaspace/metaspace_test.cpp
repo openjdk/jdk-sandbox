@@ -32,8 +32,8 @@
 #include "memory/metaspace/arenaGrowthPolicy.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/metaspace_test.hpp"
+#include "memory/metaspace/metaspaceArena.hpp"
 #include "memory/metaspace/runningCounters.hpp"
-#include "memory/metaspace/spaceManager.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/ostream.hpp"
@@ -43,20 +43,20 @@ namespace metaspace {
 
 ///// MetaspaceTestArena //////
 
-MetaspaceTestArena::MetaspaceTestArena(Mutex* lock, SpaceManager* sm)
-  : _lock(lock), _sm(sm) {}
+MetaspaceTestArena::MetaspaceTestArena(Mutex* lock, MetaspaceArena* arena)
+  : _lock(lock), _arena(arena) {}
 
 MetaspaceTestArena::~MetaspaceTestArena() {
-  delete _sm;
+  delete _arena;
   delete _lock;
 }
 
 MetaWord* MetaspaceTestArena::allocate(size_t word_size) {
-  return _sm->allocate(word_size);
+  return _arena->allocate(word_size);
 }
 
 void MetaspaceTestArena::deallocate(MetaWord* p, size_t word_size) {
-  return _sm->deallocate(p, word_size);
+  return _arena->deallocate(p, word_size);
 }
 
 ///// MetaspaceTestArea //////
@@ -93,12 +93,12 @@ MetaspaceTestContext::~MetaspaceTestContext() {
 MetaspaceTestArena* MetaspaceTestContext::create_arena(MetaspaceType type) {
   const ArenaGrowthPolicy* growth_policy = ArenaGrowthPolicy::policy_for_space_type(type, false);
   Mutex* lock = new Mutex(Monitor::native, "MetaspaceTestArea-lock", false, Monitor::_safepoint_check_never);
-  SpaceManager* sm = NULL;
+  MetaspaceArena* arena = NULL;
   {
     MutexLocker ml(lock,  Mutex::_no_safepoint_check_flag);
-    sm = new SpaceManager(_cm, growth_policy, lock, &_used_words_counter, _name, false);
+    arena = new MetaspaceArena(_cm, growth_policy, lock, &_used_words_counter, _name, false);
   }
-  return new MetaspaceTestArena(lock, sm);;
+  return new MetaspaceTestArena(lock, arena);
 }
 
 void MetaspaceTestContext::purge_area() {

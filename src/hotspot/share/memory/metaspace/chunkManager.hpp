@@ -39,7 +39,7 @@ struct cm_stats_t;
 
 // ChunkManager has a central role.
 
-// SpaceManagers request chunks from it. It keeps the freelists for chunks.
+// Arenas request chunks from it. It keeps the freelists for chunks.
 // If the freelist is exhausted it allocates new chunks from a connected
 // VirtualSpaceList.
 //

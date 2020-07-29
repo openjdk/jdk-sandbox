@@ -23,7 +23,7 @@
  */
 
 /*
- * This is a stress test for allocating from a single Arena (SpaceManager) from
+ * This is a stress test for allocating from a single MetaspaceArena from
  *  multiple threads, optionally with reserve limit (mimicking the non-expandable CompressedClassSpace)
  * or commit limit (mimimcking MaxMetaspaceSize).
  *

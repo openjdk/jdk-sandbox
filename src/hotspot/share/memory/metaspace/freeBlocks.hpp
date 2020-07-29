@@ -63,7 +63,7 @@ namespace metaspace {
 // FreeBlocks is optimized toward the typical size and number of deallocated
 //  blocks. The vast majority of them (about 90%) are below 16 words in size,
 //  but there is a significant portion of memory blocks much larger than that -
-//  leftover space from used uu chunks, see SpaceManager::retire_current_chunk().
+//  leftover space from used uu chunks, see MetaspaceArena::retire_current_chunk().
 //
 
 class FreeBlocks : public CHeapObj<mtMetaspace> {

@@ -42,12 +42,12 @@
 #include "memory/metaspace/freeChunkList.hpp"
 #include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metachunk.hpp"
+#include "memory/metaspace/metaspaceArena.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
 #include "memory/metaspace/metaspace_test.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"
-#include "memory/metaspace/spaceManager.hpp"
 #include "memory/metaspace/settings.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
@@ -81,11 +81,11 @@ using metaspace::MemRangeCounter;
 using metaspace::Metachunk;
 using metaspace::MetachunkList;
 using metaspace::Settings;
-using metaspace::sm_stats_t;
+using metaspace::arena_stats_t;
 using metaspace::in_use_chunk_stats_t;
 using metaspace::cm_stats_t;
 using metaspace::SizeCounter;
-using metaspace::SpaceManager;
+using metaspace::MetaspaceArena;
 using metaspace::VirtualSpaceList;
 using metaspace::VirtualSpaceNode;
 

@@ -33,7 +33,7 @@
 namespace metaspace {
 
 
-// ArenaGrowthPolicy encodes the growth policy of an arena (a SpaceManager).
+// ArenaGrowthPolicy encodes the growth policy of a MetaspaceArena.
 //
 // These arenas grow in steps (by allocating new chunks). The coarseness of growth
 // (chunk size, level) depends on what the arena is used for. Used for a class loader

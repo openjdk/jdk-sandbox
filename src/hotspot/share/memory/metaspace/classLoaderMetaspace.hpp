@@ -33,7 +33,7 @@ class Mutex;
 
 namespace metaspace {
 
-class SpaceManager;
+class MetaspaceArena;
 struct clms_stats_t;
 
 class ClassLoaderMetaspace : public CHeapObj<mtClass> {
@@ -43,15 +43,20 @@ class ClassLoaderMetaspace : public CHeapObj<mtClass> {
 
   const MetaspaceType _space_type;
 
-  SpaceManager* _non_class_space_manager;
-  SpaceManager* _class_space_manager;
+  // Arena for allocations from non-class  metaspace
+  //  (resp. for all allocations if -XX:-UseCompressedClassPointers).
+  MetaspaceArena* _non_class_space_arena;
 
-  Mutex* lock() const                            { return _lock; }
-  SpaceManager* non_class_space_manager() const  { return _non_class_space_manager; }
-  SpaceManager* class_space_manager() const      { return _class_space_manager; }
+  // Arena for allocations from class space
+  //  (NULL if -XX:-UseCompressedClassPointers).
+  MetaspaceArena* _class_space_arena;
 
-  SpaceManager* get_space_manager(bool is_class) {
-    return is_class ? class_space_manager() : non_class_space_manager();
+  Mutex* lock() const                             { return _lock; }
+  MetaspaceArena* non_class_space_arena() const   { return _non_class_space_arena; }
+  MetaspaceArena* class_space_arena() const       { return _class_space_arena; }
+
+  MetaspaceArena* get_arena(bool is_class) {
+    return is_class ? class_space_arena() : non_class_space_arena();
   }
 
   // Returns true if this class loader is of a type which will only ever load one class.

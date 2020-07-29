@@ -69,19 +69,6 @@ class MetaspaceSizesSnapshot;
 
 ////////////////// Metaspace ///////////////////////
 
-// Metaspaces each have a  SpaceManager and allocations
-// are done by the SpaceManager.  Allocations are done
-// out of the current Metachunk.  When the current Metachunk
-// is exhausted, the SpaceManager gets a new one from
-// the current VirtualSpace.  When the VirtualSpace is exhausted
-// the SpaceManager gets a new one.  The SpaceManager
-// also manages freelists of available Chunks.
-//
-// Currently the space manager maintains the list of
-// virtual spaces and the list of chunks in use.  Its
-// allocate() method returns a block for use as a
-// quantum of metadata.
-
 // Namespace for important central static functions
 // (auxiliary stuff goes into MetaspaceUtils)
 class Metaspace : public AllStatic {

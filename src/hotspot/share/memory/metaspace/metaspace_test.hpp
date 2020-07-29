@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef SHARE_MEMORY_METASPACE_TESTHELPERS_HPP
-#define SHARE_MEMORY_METASPACE_TESTHELPERS_HPP
+#ifndef SHARE_MEMORY_METASPACE_METASPACE_TEST_HPP
+#define SHARE_MEMORY_METASPACE_METASPACE_TEST_HPP
 
 
 #include "memory/allocation.hpp"
@@ -44,22 +44,22 @@ namespace metaspace {
 
 class VirtualSpaceList;
 class ChunkManager;
-class SpaceManager;
+class MetaspaceArena;
 
 
-// Wraps a SpaceManager and whatever one needs to make it work
+// Wraps a MetaspaceTestArena with its own lock for testing purposes.
 class MetaspaceTestArena : public CHeapObj<mtInternal> {
 
   Mutex* const _lock;
-  SpaceManager* const _sm;
+  MetaspaceArena* const _arena;
 
 public:
 
-  const SpaceManager* sm() const {
-    return _sm;
+  const MetaspaceArena* arena() const {
+    return _arena;
   }
 
-  MetaspaceTestArena(Mutex* lock, SpaceManager* sm);
+  MetaspaceTestArena(Mutex* lock, MetaspaceArena* arena);
   ~MetaspaceTestArena();
 
   MetaWord* allocate(size_t word_size);
@@ -115,4 +115,5 @@ public:
 
 } // namespace metaspace
 
-#endif // SHARE_MEMORY_METASPACE_SPACEMANAGER_HPP
+#endif // SHARE_MEMORY_METASPACE_METASPACE_TEST_HPP
+

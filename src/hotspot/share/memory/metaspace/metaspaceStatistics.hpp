@@ -58,7 +58,7 @@ struct cm_stats_t {
 
   DEBUG_ONLY(void verify() const;)
 
-}; // ChunkManagerStatistics
+};
 
 // Contains statistics for one or multiple chunks in use.
 struct in_use_chunk_stats_t {
@@ -105,23 +105,23 @@ struct in_use_chunk_stats_t {
 
   DEBUG_ONLY(void verify() const;)
 
-}; // UsedChunksStatistics
+};
 
-// Class containing statistics for one or more space managers.
-struct  sm_stats_t {
+// Class containing statistics for one or more MetaspaceArena objects.
+struct  arena_stats_t {
 
   // chunk statistics by chunk level
   in_use_chunk_stats_t stats[chunklevel::NUM_CHUNK_LEVELS];
   uintx free_blocks_num;
   size_t free_blocks_word_size;
 
-  sm_stats_t()
+  arena_stats_t()
     : stats(),
       free_blocks_num(0),
       free_blocks_word_size(0)
   {}
 
-  void add(const sm_stats_t& other);
+  void add(const arena_stats_t& other);
 
   void print_on(outputStream* st, size_t scale = K,  bool detailed = true) const;
 
@@ -129,30 +129,30 @@ struct  sm_stats_t {
 
   DEBUG_ONLY(void verify() const;)
 
-}; // SpaceManagerStatistics
+};
 
 // Statistics for one or multiple ClassLoaderMetaspace objects
 struct clms_stats_t {
 
-  sm_stats_t sm_stats_nonclass;
-  sm_stats_t sm_stats_class;
+  arena_stats_t arena_stats_nonclass;
+  arena_stats_t arena_stats_class;
 
-  clms_stats_t() : sm_stats_nonclass(), sm_stats_class() {}
+  clms_stats_t() : arena_stats_nonclass(), arena_stats_class() {}
 
   void add(const clms_stats_t& other) {
-    sm_stats_nonclass.add(other.sm_stats_nonclass);
-    sm_stats_class.add(other.sm_stats_class);
+    arena_stats_nonclass.add(other.arena_stats_nonclass);
+    arena_stats_class.add(other.arena_stats_class);
   }
 
   void print_on(outputStream* st, size_t scale, bool detailed) const;
 
-  // Returns total space manager statistics for both class and non-class metaspace
-  sm_stats_t totals() const;
+  // Returns total statistics for both class and non-class metaspace
+  arena_stats_t totals() const;
 
 
   DEBUG_ONLY(void verify() const;)
 
-}; // ClassLoaderMetaspaceStatistics
+};
 
 } // namespace metaspace
 

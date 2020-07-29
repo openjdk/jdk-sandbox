@@ -139,7 +139,7 @@ void Settings::ergo_initialize() {
   //  from allocation.
   _handle_deallocations = MetaspaceHandleDeallocations;
 
-  // We also switch it off automatically if we use allocation guards. This is to keep prefix handling in SpaceManager simple.
+  // We also switch it off automatically if we use allocation guards. This is to keep prefix handling in MetaspaceArena simple.
   if (_use_allocation_guard) {
     _handle_deallocations = false;
   }

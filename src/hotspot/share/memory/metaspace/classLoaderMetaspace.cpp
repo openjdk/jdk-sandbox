@@ -31,11 +31,11 @@
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/metaspace/internStat.hpp"
+#include "memory/metaspace/metaspaceArena.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
 #include "memory/metaspace/runningCounters.hpp"
 #include "memory/metaspace/settings.hpp"
-#include "memory/metaspace/spaceManager.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
 
@@ -58,14 +58,14 @@ static bool use_class_space(Metaspace::MetadataType mdType) {
 ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type)
   : _lock(lock)
   , _space_type(space_type)
-  , _non_class_space_manager(NULL)
-  , _class_space_manager(NULL)
+  , _non_class_space_arena(NULL)
+  , _class_space_arena(NULL)
 {
   ChunkManager* const non_class_cm =
           ChunkManager::chunkmanager_nonclass();
 
   // Initialize non-class Arena
-  _non_class_space_manager = new SpaceManager(
+  _non_class_space_arena = new MetaspaceArena(
       non_class_cm,
       ArenaGrowthPolicy::policy_for_space_type(space_type, false),
       lock,
@@ -77,7 +77,7 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
   if (Metaspace::using_class_space()) {
     ChunkManager* const class_cm =
             ChunkManager::chunkmanager_class();
-    _class_space_manager = new SpaceManager(
+    _class_space_arena = new MetaspaceArena(
         class_cm,
         ArenaGrowthPolicy::policy_for_space_type(space_type, true),
         lock,
@@ -87,7 +87,7 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
   }
 
   UL2(debug, "born (SpcMgr nonclass: " PTR_FORMAT ", SpcMgr class: " PTR_FORMAT ".",
-      p2i(_non_class_space_manager), p2i(_class_space_manager));
+      p2i(_non_class_space_arena), p2i(_class_space_arena));
 
 #ifdef ASSERT
   InternalStats::inc_num_metaspace_births();
@@ -102,8 +102,8 @@ ClassLoaderMetaspace::~ClassLoaderMetaspace() {
 
   UL(debug, "dies.");
 
-  delete _non_class_space_manager;
-  delete _class_space_manager;
+  delete _non_class_space_arena;
+  delete _class_space_arena;
 
 #ifdef ASSERT
   InternalStats::inc_num_metaspace_deaths();
@@ -118,9 +118,9 @@ ClassLoaderMetaspace::~ClassLoaderMetaspace() {
 MetaWord* ClassLoaderMetaspace::allocate(size_t word_size, Metaspace::MetadataType mdType) {
   Metaspace::assert_not_frozen();
   if (use_class_space(mdType)) {
-    return class_space_manager()->allocate(word_size);
+    return class_space_arena()->allocate(word_size);
   } else {
-    return non_class_space_manager()->allocate(word_size);
+    return non_class_space_arena()->allocate(word_size);
   }
 }
 
@@ -163,9 +163,9 @@ void ClassLoaderMetaspace::deallocate(MetaWord* ptr, size_t word_size, bool is_c
   Metaspace::assert_not_frozen();
 
   if (use_class_space(is_class)) {
-    class_space_manager()->deallocate(ptr, word_size);
+    class_space_arena()->deallocate(ptr, word_size);
   } else {
-    non_class_space_manager()->deallocate(ptr, word_size);
+    non_class_space_arena()->deallocate(ptr, word_size);
   }
 
   DEBUG_ONLY(InternalStats::inc_num_deallocs();)
@@ -174,22 +174,22 @@ void ClassLoaderMetaspace::deallocate(MetaWord* ptr, size_t word_size, bool is_c
 
 // Update statistics. This walks all in-use chunks.
 void ClassLoaderMetaspace::add_to_statistics(clms_stats_t* out) const {
-  if (non_class_space_manager() != NULL) {
-    non_class_space_manager()->add_to_statistics(&out->sm_stats_nonclass);
+  if (non_class_space_arena() != NULL) {
+    non_class_space_arena()->add_to_statistics(&out->arena_stats_nonclass);
   }
-  if (class_space_manager() != NULL) {
-    class_space_manager()->add_to_statistics(&out->sm_stats_class);
+  if (class_space_arena() != NULL) {
+    class_space_arena()->add_to_statistics(&out->arena_stats_class);
   }
 }
 
 #ifdef ASSERT
 void ClassLoaderMetaspace::verify() const {
   check_valid_spacetype(_space_type);
-  if (non_class_space_manager() != NULL) {
-    non_class_space_manager()->verify(false);
+  if (non_class_space_arena() != NULL) {
+    non_class_space_arena()->verify(false);
   }
-  if (class_space_manager() != NULL) {
-    class_space_manager()->verify(false);
+  if (class_space_arena() != NULL) {
+    class_space_arena()->verify(false);
   }
 }
 #endif // ASSERT
@@ -202,11 +202,11 @@ void ClassLoaderMetaspace::verify() const {
 void ClassLoaderMetaspace::calculate_jfr_stats(size_t* p_used_bytes, size_t* p_capacity_bytes) const {
   // Implement this using the standard statistics objects.
   size_t used_c = 0, cap_c = 0, used_nc = 0, cap_nc = 0;
-  if (non_class_space_manager() != NULL) {
-    non_class_space_manager()->usage_numbers(&used_nc, NULL, &cap_nc);
+  if (non_class_space_arena() != NULL) {
+    non_class_space_arena()->usage_numbers(&used_nc, NULL, &cap_nc);
   }
-  if (class_space_manager() != NULL) {
-    class_space_manager()->usage_numbers(&used_c, NULL, &cap_c);
+  if (class_space_arena() != NULL) {
+    class_space_arena()->usage_numbers(&used_c, NULL, &cap_c);
   }
   if (p_used_bytes != NULL) {
     *p_used_bytes = used_c + used_nc;

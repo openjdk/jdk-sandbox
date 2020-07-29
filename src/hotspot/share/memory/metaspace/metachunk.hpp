@@ -38,22 +38,70 @@ namespace metaspace {
 
 class VirtualSpaceNode;
 
-// Todo: comment is outdated.
+// A Metachunk is a contiguous metaspace memory region. It is part of
+// a MetaspaceArena, which keeps a list of MetaChunk and allocates via
+// pointer bump from the top element in the list.
+//
+// The Metachunk object itself (the "chunk header") is separated from
+//  the memory region (the chunk payload) it describes. It also can have
+//  no payload (a "dead" chunk). In itself it lives in C-heap, managed
+//  as part of a pool of Metachunk headers (ChunkHeaderPool).
+//
+// -- Metachunk state --
+//
+// A Metachunk is "in-use" if it is part of a MetaspaceArena. That means
+//  its memory is used - or will be used shortly - to hold VM metadata
+//  on behalf of a class loader.
+//
+// A Metachunk is "free" if its payload is currently unused. In that
+//  case it is managed by a chunk freelist (the ChunkManager).
+// 
+// A Metachunk is "dead" if it does not have a corresponding payload.
+//  In that case it lives as part of a freelist-of-dead-chunk-headers
+//  in the ChunkHeaderPool.
+//
+// -- Level --
+//
+// Metachunks are managed as part of a buddy style allocation scheme.
+// Its sizes are always power-2, ranging from the smallest chunk size
+// (1Kb) to the largest (4Mb) (see chunklevel.hpp).
+// Its size is encoded as level, with level 0 being the largest chunk
+// size ("root chunk").
+//
+// -- Payload commit state --
+//
+// A Metachunk payload may be committed, partly committed or completely
+// uncommitted. Technically, a payload may be committed "checkered" -
+// i.e. committed and uncommitted parts may interleave - but the
+// important part is how much contiguous space is committed starting
+// at the base of the payload (since that's where we allocate). 
+// 
+// The Metachunk keeps track of how much space is committed starting
+//  at the base of the payload - which is a performace optimization - 
+//  while underlying layers (VirtualSpaceNode->commitmask) keep track
+//  of the "real" commit state, aka which granules are committed,
+//  independent on what chunks reside above those granules.
 
-//  Metachunk - Quantum of allocation from a Virtualspace
-//    Metachunks are reused (when freed are put on a global freelist) and
-//    have no permanent association to a SpaceManager.
 
-//            +--------------+ <- end    ----+         --+
-//            |              |               |           |
-//            |              |               | free      |
-//            |              |               |
-//            |              |               |           | size (aka capacity)
-//            |              |               |           |
-//            | -----------  | <- top     -- +           |
-//            |              |               |           |
-//            |              |               | used      |
-//            +--------------+ <- start   -- +        -- +
+//            +--------------+ <- end    -----------+ ----------+
+//            |              |                      |           |
+//            |              |                      |           |
+//            |              |                      |           |
+//            |              |                      |           |
+//            |              |                      |           |
+//            | -----------  | <- committed_top  -- +           |
+//            |              |                      |           |
+//            |              |                      | "free"    |
+//            |              |                      |           | size 
+//            |              |     "free_below_     |           |
+//            |              |        committed"    |           |
+//            |              |                      |           |
+//            |              |                      |           |
+//            | -----------  | <- top     --------- + --------  |
+//            |              |                      |           |
+//            |              |     "used"           |           |
+//            |              |                      |           |
+//            +--------------+ <- start   ----------+ ----------+
 
 // Note: this is a chunk **descriptor**. The real Payload area lives in metaspace,
 // this class lives somewhere else.
@@ -74,8 +122,8 @@ class Metachunk {
 
   chunklevel_t _level; // aka size.
 
-  // state_free:    free, owned by ChunkManager
-  // state_in_use:  in-use, owned by SpaceManager
+  // state_free:    free, owned by a ChunkManager
+  // state_in_use:  in-use, owned by a MetaspaceArena
   // dead:          just a hollow chunk header without associated memory, owned
   //                 by chunk header pool.
   enum state_t {
@@ -91,7 +139,7 @@ class Metachunk {
 
 
   // A chunk header is kept in a list:
-  // 1 in the list of used chunks inside a SpaceManager, if it is in use
+  // 1 in the list of used chunks inside a MetaspaceArena, if it is in use
   // 2 in the list of free chunks inside a ChunkManager, if it is free
   // 3 in the freelist of unused headers inside the ChunkHeaderPool,
   //   if it is unused (e.g. result of chunk merging) and has no associated

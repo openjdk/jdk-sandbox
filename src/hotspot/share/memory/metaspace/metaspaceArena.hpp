@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef SHARE_MEMORY_METASPACE_SPACEMANAGER_HPP
-#define SHARE_MEMORY_METASPACE_SPACEMANAGER_HPP
+#ifndef SHARE_MEMORY_METASPACE_METASPACEARENA_HPP
+#define SHARE_MEMORY_METASPACE_METASPACEARENA_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/metaspace.hpp"
@@ -43,40 +43,46 @@ namespace metaspace {
 class ArenaGrowthPolicy;
 class FreeBlocks;
 
-struct sm_stats_t;
+struct arena_stats_t;
 
-// The SpaceManager:
+// The MetaspaceArena:
 // - keeps a list of chunks-in-use by the class loader, as well as a current chunk used
 //   to allocate from
 // - keeps a dictionary of free MetaBlocks. Those can be remnants of a retired chunk or
 //   allocations which were not needed anymore for some reason (e.g. releasing half-allocated
 //   structures when class loading fails)
 
-class SpaceManager : public CHeapObj<mtClass> {
+class MetaspaceArena : public CHeapObj<mtClass> {
 
-  // Lock handed down from the associated ClassLoaderData.
-  //  Protects allocations from this space.
+  // Reference to an outside lock to use for synchronizing access to this arena.
+  //  This lock is normally owned by the CLD which owns the ClassLoaderMetaspace which
+  //  owns this arena.
+  // Todo: This should be changed. Either the CLD should synchronize access to the
+  //       CLMS and its arenas itself, or the arena should have an own lock. The latter
+  //       would allow for more fine granular locking since it would allow access to
+  //       both class- and non-class arena in the CLMS independently.
   Mutex* const _lock;
 
-  // The chunk manager to allocate chunks from.
+  // Reference to the chunk manager to allocate chunks from.
   ChunkManager* const _chunk_manager;
 
-  // The chunk allocation strategy to use.
+  // Reference to the chunk allocation strategy to use.
   const ArenaGrowthPolicy* const _growth_policy;
 
   // List of chunks. Head of the list is the current chunk.
   MetachunkList _chunks;
 
-  // Structure to take care of leftover/deallocated space in used chunks
+  // Structure to take care of leftover/deallocated space in used chunks.
+  // Owned by the Arena. Gets allocated on demand only.
   FreeBlocks* _fbl;
 
   Metachunk* current_chunk()              { return _chunks.first(); }
   const Metachunk* current_chunk() const  { return _chunks.first(); }
 
-  // Points to outside size counter which we are to increase/decrease when we allocate memory
-  // on behalf of a user or when we are destroyed.
+  // Reference to an outside counter to keep track of used space.
   SizeAtomicCounter* const _total_used_words_counter;
 
+  // A name for purely debugging/logging purposes.
   const char* const _name;
 
   // Whether or not this is a "micro loader" which is not expected to load more than one class.
@@ -110,19 +116,19 @@ class SpaceManager : public CHeapObj<mtClass> {
   void deallocate_locked(MetaWord* p, size_t word_size);
 
   // Returns true if the area indicated by pointer and size have actually been allocated
-  // from this space manager.
+  // from this arena.
   DEBUG_ONLY(bool is_valid_area(MetaWord* p, size_t word_size) const;)
 
 public:
 
-  SpaceManager(ChunkManager* chunk_manager,
+  MetaspaceArena(ChunkManager* chunk_manager,
                const ArenaGrowthPolicy* growth_policy,
                Mutex* lock,
                SizeAtomicCounter* total_used_words_counter,
                const char* name,
                bool is_micro_loader);
 
-  ~SpaceManager();
+  ~MetaspaceArena();
 
   // Allocate memory from Metaspace.
   // 1) Attempt to allocate from the dictionary of deallocated blocks.
@@ -137,7 +143,7 @@ public:
   void deallocate(MetaWord* p, size_t word_size);
 
   // Update statistics. This walks all in-use chunks.
-  void add_to_statistics(sm_stats_t* out) const;
+  void add_to_statistics(arena_stats_t* out) const;
 
   // Convenience method to get the most important usage statistics.
   // For deeper analysis use add_to_statistics().
@@ -153,4 +159,5 @@ public:
 
 } // namespace metaspace
 
-#endif // SHARE_MEMORY_METASPACE_SPACEMANAGER_HPP
+#endif // SHARE_MEMORY_METASPACE_METASPACEARENA_HPP
+

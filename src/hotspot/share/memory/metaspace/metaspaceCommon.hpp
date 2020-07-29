@@ -130,7 +130,7 @@ void print_number_of_classes(outputStream* out, uintx classes, uintx classes_sha
 
 // What we log at which levels:
 
-// "info" : metaspace failed allocation, commit failure, reserve failure, metaspace oom, metaspace gc threshold changed, SpaceManager created, destroyed, metaspace purged
+// "info" : metaspace failed allocation, commit failure, reserve failure, metaspace oom, metaspace gc threshold changed, Arena created, destroyed, metaspace purged
 
 // "debug" : "info" + vslist extended, memory committed/uncommitted, chunk created/split/merged/enlarged, chunk returned
 

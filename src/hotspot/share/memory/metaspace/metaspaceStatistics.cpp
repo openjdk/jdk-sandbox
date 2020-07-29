@@ -35,7 +35,6 @@
 
 namespace metaspace {
 
-// ChunkManagerStatistics methods
 
 // Returns total word size of all chunks in this manager.
 void cm_stats_t::add(const cm_stats_t& other) {
@@ -102,7 +101,6 @@ void cm_stats_t::verify() const {
 }
 #endif
 
-// UsedChunksStatistics methods
 
 void in_use_chunk_stats_t::print_on(outputStream* st, size_t scale) const {
   int col = st->position();
@@ -141,9 +139,7 @@ void in_use_chunk_stats_t::verify() const {
 }
 #endif
 
-// SpaceManagerStatistics methods
-
-void sm_stats_t::add(const sm_stats_t& other) {
+void arena_stats_t::add(const arena_stats_t& other) {
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     stats[l].add(other.stats[l]);
   }
@@ -153,7 +149,7 @@ void sm_stats_t::add(const sm_stats_t& other) {
 
 
 // Returns total chunk statistics over all chunk types.
-in_use_chunk_stats_t sm_stats_t::totals() const {
+in_use_chunk_stats_t arena_stats_t::totals() const {
   in_use_chunk_stats_t out;
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     out.add(stats[l]);
@@ -161,7 +157,7 @@ in_use_chunk_stats_t sm_stats_t::totals() const {
   return out;
 }
 
-void sm_stats_t::print_on(outputStream* st, size_t scale,  bool detailed) const {
+void arena_stats_t::print_on(outputStream* st, size_t scale,  bool detailed) const {
   streamIndentor sti(st);
   if (detailed) {
     st->cr_indent();
@@ -198,7 +194,7 @@ void sm_stats_t::print_on(outputStream* st, size_t scale,  bool detailed) const 
 
 #ifdef ASSERT
 
-void sm_stats_t::verify() const {
+void arena_stats_t::verify() const {
   size_t total_used = 0;
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     stats[l].verify();
@@ -210,13 +206,12 @@ void sm_stats_t::verify() const {
 }
 #endif
 
-// ClassLoaderMetaspaceStatistics methods
 
-// Returns total space manager statistics for both class and non-class metaspace
-sm_stats_t clms_stats_t::totals() const {
-  sm_stats_t out;
-  out.add(sm_stats_nonclass);
-  out.add(sm_stats_class);
+// Returns total arena statistics for both class and non-class metaspace
+arena_stats_t clms_stats_t::totals() const {
+  arena_stats_t out;
+  out.add(arena_stats_nonclass);
+  out.add(arena_stats_class);
   return out;
 }
 
@@ -226,14 +221,14 @@ void clms_stats_t::print_on(outputStream* st, size_t scale, bool detailed) const
   if (Metaspace::using_class_space()) {
     st->print("Non-Class: ");
   }
-  sm_stats_nonclass.print_on(st, scale, detailed);
+  arena_stats_nonclass.print_on(st, scale, detailed);
   if (detailed) {
     st->cr();
   }
   if (Metaspace::using_class_space()) {
     st->cr_indent();
     st->print("    Class: ");
-    sm_stats_class.print_on(st, scale, detailed);
+    arena_stats_class.print_on(st, scale, detailed);
     if (detailed) {
       st->cr();
     }
@@ -250,8 +245,8 @@ void clms_stats_t::print_on(outputStream* st, size_t scale, bool detailed) const
 
 #ifdef ASSERT
 void clms_stats_t::verify() const {
-  sm_stats_nonclass.verify();
-  sm_stats_class.verify();
+  arena_stats_nonclass.verify();
+  arena_stats_class.verify();
 }
 #endif
 
