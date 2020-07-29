@@ -1745,6 +1745,10 @@ WB_ENTRY(void, WB_DeallocateToMetaspaceTestArena(JNIEnv* env, jobject wb, jlong 
   arena0->deallocate((MetaWord*)p, (size_t) word_size);
 WB_END
 
+WB_ENTRY(jlong, WB_GetMaxMetaspaceAllocationSize(JNIEnv* env, jobject wb))
+  return (jlong) Metaspace::max_allocation_word_size() * BytesPerWord;
+WB_END
+
 //////////////
 
 WB_ENTRY(jlong, WB_AllocateMetaspace(JNIEnv* env, jobject wb, jobject class_loader, jlong size))
@@ -1761,15 +1765,6 @@ WB_ENTRY(jlong, WB_AllocateMetaspace(JNIEnv* env, jobject wb, jobject class_load
   void* metadata = MetadataFactory::new_array<u1>(cld, WhiteBox::array_bytes_to_length((size_t)size), thread);
 
   return (jlong)(uintptr_t)metadata;
-WB_END
-
-WB_ENTRY(void, WB_FreeMetaspace(JNIEnv* env, jobject wb, jobject class_loader, jlong addr, jlong size))
-  oop class_loader_oop = JNIHandles::resolve(class_loader);
-  ClassLoaderData* cld = class_loader_oop != NULL
-      ? java_lang_ClassLoader::loader_data_acquire(class_loader_oop)
-      : ClassLoaderData::the_null_class_loader_data();
-
-  MetadataFactory::free_array(cld, (Array<u1>*)(uintptr_t)addr);
 WB_END
 
 WB_ENTRY(void, WB_DefineModule(JNIEnv* env, jobject o, jobject module, jboolean is_open,
@@ -2492,8 +2487,6 @@ static JNINativeMethod methods[] = {
   {CC"readReservedMemory", CC"()V",                   (void*)&WB_ReadReservedMemory },
   {CC"allocateMetaspace",
      CC"(Ljava/lang/ClassLoader;J)J",                 (void*)&WB_AllocateMetaspace },
-  {CC"freeMetaspace",
-     CC"(Ljava/lang/ClassLoader;JJ)V",                (void*)&WB_FreeMetaspace },
   {CC"incMetaspaceCapacityUntilGC", CC"(J)J",         (void*)&WB_IncMetaspaceCapacityUntilGC },
   {CC"metaspaceCapacityUntilGC", CC"()J",             (void*)&WB_MetaspaceCapacityUntilGC },
   {CC"metaspaceReserveAlignment", CC"()J",            (void*)&WB_MetaspaceReserveAlignment },
@@ -2601,6 +2594,7 @@ static JNINativeMethod methods[] = {
   {CC"destroyMetaspaceTestArena", CC"(J)V",           (void*)&WB_DestroyMetaspaceTestArena},
   {CC"allocateFromMetaspaceTestArena", CC"(JJ)J",     (void*)&WB_AllocateFromMetaspaceTestArena},
   {CC"deallocateToMetaspaceTestArena", CC"(JJJ)V",    (void*)&WB_DeallocateToMetaspaceTestArena},
+  {CC"maxMetaspaceAllocationSize", CC"()J",           (void*)&WB_GetMaxMetaspaceAllocationSize},
 
 };
 

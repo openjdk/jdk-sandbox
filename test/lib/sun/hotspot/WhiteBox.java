@@ -396,7 +396,6 @@ public class WhiteBox {
   // Memory
   public native void readReservedMemory();
   public native long allocateMetaspace(ClassLoader classLoader, long size);
-  public native void freeMetaspace(ClassLoader classLoader, long addr, long size);
   public native long incMetaspaceCapacityUntilGC(long increment);
   public native long metaspaceCapacityUntilGC();
   public native long metaspaceReserveAlignment();
@@ -412,6 +411,8 @@ public class WhiteBox {
   public native void destroyMetaspaceTestArena(long arena);
   public native long allocateFromMetaspaceTestArena(long arena, long word_size);
   public native void deallocateToMetaspaceTestArena(long arena, long p, long word_size);
+
+  public native long maxMetaspaceAllocationSize();
 
   // Don't use these methods directly
   // Use sun.hotspot.gc.GC class instead.
