@@ -159,7 +159,6 @@ void Settings::print_on(outputStream* st) {
   st->print_cr(" - committed_words_on_fresh_chunks: " SIZE_FORMAT ".", committed_words_on_fresh_chunks());
 
   st->print_cr(" - virtual_space_node_default_size: " SIZE_FORMAT ".", virtual_space_node_default_word_size());
-  st->print_cr(" - allocation_from_dictionary_limit: " SIZE_FORMAT ".", allocation_from_dictionary_limit());
 
   st->print_cr(" - enlarge_chunks_in_place: %d.", (int)enlarge_chunks_in_place());
   st->print_cr(" - enlarge_chunks_in_place_max_word_size: " SIZE_FORMAT ".", enlarge_chunks_in_place_max_word_size());
