@@ -299,9 +299,8 @@ void ChunkManager::return_chunk(Metachunk* c) {
   }
 
   if (Settings::uncommit_on_return() &&
-      Settings::uncommit_on_return_min_word_size() <= c->word_size())
+      c->word_size() >= Settings::commit_granule_words())
   {
-
     UL2(debug, "uncommitting free chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
     c->uncommit_locked();
   }
@@ -370,7 +369,7 @@ void ChunkManager::wholesale_reclaim() {
 
   if (Settings::uncommit_on_purge()) {
     const chunklevel_t max_level =
-        chunklevel::level_fitting_word_size(Settings::uncommit_on_purge_min_word_size());
+        chunklevel::level_fitting_word_size(Settings::commit_granule_words());
     for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL;
          l <= max_level;
          l ++)

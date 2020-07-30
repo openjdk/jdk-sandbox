@@ -66,18 +66,8 @@ class Settings : public AllStatic {
   // If true, chunks are uncommitted after gc (when metaspace is purged).
   static bool _uncommit_on_return;
 
-  // If _uncommit_on_return is true:
-  // Minimum word size a chunk has to have after returning and merging with neighboring free chunks
-  // to be candidate for uncommitting. Must be a multiple of and not smaller than commit granularity.
-  static size_t _uncommit_on_return_min_word_size;
-
   // If true, chunks are uncommitted after gc (when metaspace is purged).
   static bool _uncommit_on_purge;
-
-  // If _uncommit_on_purge is true:
-  // Minimum word size of an area to be candidate for uncommitting.
-  // Must be a multiple of and not smaller than commit granularity.
-  static size_t _uncommit_on_purge_min_word_size;
 
   // If true, metablock allocations are guarded and periodically checked.
   DEBUG_ONLY(static bool _use_allocation_guard;)
@@ -95,9 +85,7 @@ public:
   static bool enlarge_chunks_in_place()                       { return _enlarge_chunks_in_place; }
   static size_t enlarge_chunks_in_place_max_word_size()       { return _enlarge_chunks_in_place_max_word_size; }
   static bool uncommit_on_return()                            { return _uncommit_on_return; }
-  static size_t uncommit_on_return_min_word_size()            { return _uncommit_on_return_min_word_size; }
   static bool uncommit_on_purge()                             { return _uncommit_on_purge; }
-  static size_t uncommit_on_purge_min_word_size()             { return _uncommit_on_purge_min_word_size; }
 
   static bool use_allocation_guard()                          { return DEBUG_ONLY(_use_allocation_guard) NOT_DEBUG(false); }
   static bool handle_deallocations()                          { return DEBUG_ONLY(_handle_deallocations) NOT_DEBUG(true); }
