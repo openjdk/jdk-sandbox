@@ -364,10 +364,9 @@ void ChunkManager::wholesale_reclaim() {
   const size_t committed_before = _vslist->committed_words();
   int num_nodes_purged = 0;
 
-  if (Settings::delete_nodes_on_purge()) {
-    num_nodes_purged = _vslist->purge(&_chunks);
-    DEBUG_ONLY(InternalStats::inc_num_purges();)
-  }
+  // Purge all space nodes which only have emtpy chunks.
+  num_nodes_purged = _vslist->purge(&_chunks);
+  DEBUG_ONLY(InternalStats::inc_num_purges();)
 
   if (Settings::uncommit_on_purge()) {
     const chunklevel_t max_level =

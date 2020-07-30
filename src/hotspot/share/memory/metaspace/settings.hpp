@@ -66,9 +66,6 @@ class Settings : public AllStatic {
   // If true, chunks are uncommitted after gc (when metaspace is purged).
   static bool _uncommit_on_return;
 
-  // If true, vsnodes which only contain free chunks will be deleted (purged) as part of a gc.
-  static bool _delete_nodes_on_purge;
-
   // If _uncommit_on_return is true:
   // Minimum word size a chunk has to have after returning and merging with neighboring free chunks
   // to be candidate for uncommitting. Must be a multiple of and not smaller than commit granularity.
@@ -99,7 +96,6 @@ public:
   static size_t enlarge_chunks_in_place_max_word_size()       { return _enlarge_chunks_in_place_max_word_size; }
   static bool uncommit_on_return()                            { return _uncommit_on_return; }
   static size_t uncommit_on_return_min_word_size()            { return _uncommit_on_return_min_word_size; }
-  static bool delete_nodes_on_purge()                         { return _delete_nodes_on_purge; }
   static bool uncommit_on_purge()                             { return _uncommit_on_purge; }
   static size_t uncommit_on_purge_min_word_size()             { return _uncommit_on_purge_min_word_size; }
 

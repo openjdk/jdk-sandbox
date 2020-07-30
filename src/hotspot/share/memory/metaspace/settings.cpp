@@ -45,7 +45,6 @@ size_t Settings::_committed_words_on_fresh_chunks = 0;
 bool Settings::_uncommit_on_return = false;
 size_t Settings::_uncommit_on_return_min_word_size = 0;
 
-bool Settings::_delete_nodes_on_purge = false;
 bool Settings::_uncommit_on_purge = false;
 size_t Settings::_uncommit_on_purge_min_word_size = 0;
 
@@ -72,7 +71,6 @@ void Settings::ergo_initialize() {
     _uncommit_on_return = false;
     _uncommit_on_return_min_word_size = 3; // does not matter; should not be used resp. assert when used.
 
-    _delete_nodes_on_purge = true;
     _uncommit_on_purge = false;
     _uncommit_on_purge_min_word_size = 3; // does not matter; should not be used resp. assert when used.
 
@@ -95,7 +93,6 @@ void Settings::ergo_initialize() {
     _uncommit_on_return = true;
     _uncommit_on_return_min_word_size = _commit_granule_words;
 
-    _delete_nodes_on_purge = true;
     _uncommit_on_purge = true;
     _uncommit_on_purge_min_word_size = _commit_granule_words; // does not matter; should not be used resp. assert when used.
 
@@ -116,7 +113,6 @@ void Settings::ergo_initialize() {
     _uncommit_on_return = true;
     _uncommit_on_return_min_word_size = _commit_granule_words;
 
-    _delete_nodes_on_purge = true;
     _uncommit_on_purge = true;
     _uncommit_on_purge_min_word_size = _commit_granule_words;
 
@@ -165,8 +161,6 @@ void Settings::print_on(outputStream* st) {
 
   st->print_cr(" - uncommit_on_return: %d.", (int)uncommit_on_return());
   st->print_cr(" - uncommit_on_return_min_word_size: " SIZE_FORMAT ".", uncommit_on_return_min_word_size());
-
-  st->print_cr(" - delete_nodes_on_purge: %d.", (int)delete_nodes_on_purge());
 
   st->print_cr(" - uncommit_on_purge: %d.", (int)uncommit_on_purge());
   st->print_cr(" - uncommit_on_purge_min_word_size: " SIZE_FORMAT ".", uncommit_on_purge_min_word_size());
