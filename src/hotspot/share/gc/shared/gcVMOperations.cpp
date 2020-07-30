@@ -131,7 +131,6 @@ bool VM_GC_HeapInspection::collect() {
 }
 
 void VM_GC_HeapInspection::doit() {
-  HandleMark hm;
   Universe::heap()->ensure_parsability(false); // must happen, even if collection does
                                                // not happen (e.g. due to GCLocker)
                                                // or _full_gc being false
