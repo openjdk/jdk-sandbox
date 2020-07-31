@@ -471,8 +471,9 @@ public abstract class SocketChannel
      *
      * <p> For channels to <i>Unix Domain</i> sockets, this method checks
      * {@link java.net.NetPermission NetPermission}{@code
-     * ("accessUnixDomainSocket")} with {@link SecurityManager#checkPermission
-     * (java.security.Permission)}.
+     * ("accessUnixDomainSocket")} with the security manager's {@link
+     * SecurityManager#checkPermission(java.security.Permission)
+     * checkPermission} method.
      *
      * <p> This method may be invoked at any time.  If a read or write
      * operation upon this channel is invoked while an invocation of this
@@ -577,9 +578,9 @@ public abstract class SocketChannel
     /**
      * Returns the remote address to which this channel's socket is connected.
      *
-     * <p> Where the channel's socket is bound and connected to an Internet Protocol
-     * socket address then the return value from this method is of type {@link
-     * java.net.InetSocketAddress}.
+     * <p> Where the channel's socket is bound and connected to an <i>Internet
+     * Protocol</i> socket address then the return value is of type
+     * {@link java.net.InetSocketAddress}.
      *
      * <p> Where the channel's socket is bound and connected to a <i>Unix Domain</i>
      * socket address, the returned address is a {@link UnixDomainSocketAddress}.
