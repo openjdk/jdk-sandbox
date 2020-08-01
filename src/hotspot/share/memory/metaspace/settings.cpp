@@ -42,8 +42,7 @@ size_t Settings::_commit_granule_words = 0;
 bool Settings::_newborn_root_chunks_are_fully_committed = false;
 size_t Settings::_committed_words_on_fresh_chunks = 0;
 
-bool Settings::_uncommit_on_return = false;
-bool Settings::_uncommit_on_purge = false;
+bool Settings::_uncommit_free_chunks = false;
 
 DEBUG_ONLY(bool Settings::_use_allocation_guard = false;)
 DEBUG_ONLY(bool Settings::_handle_deallocations = true;)
@@ -65,8 +64,8 @@ void Settings::ergo_initialize() {
     // In "none" reclamation mode, we do not uncommit, but still delete completely empty nodes.
     // This is almost the same behavior as the old Metaspace.
 
-    _uncommit_on_return = false;
-    _uncommit_on_purge = false;
+    _uncommit_free_chunks = false;
+
 
   } else if (strcmp(MetaspaceReclaimPolicy, "aggressive") == 0) {
 
@@ -84,8 +83,7 @@ void Settings::ergo_initialize() {
     // first granule would be committed right away anyway).
     _committed_words_on_fresh_chunks = _commit_granule_words;
 
-    _uncommit_on_return = true;
-    _uncommit_on_purge = true;
+    _uncommit_free_chunks = true;
 
   } else if (strcmp(MetaspaceReclaimPolicy, "balanced") == 0) {
 
@@ -101,8 +99,7 @@ void Settings::ergo_initialize() {
     // first granule would be committed right away anyway).
     _committed_words_on_fresh_chunks = _commit_granule_words;
 
-    _uncommit_on_return = true;
-    _uncommit_on_purge = true;
+    _uncommit_free_chunks = true;
 
   } else {
 
@@ -147,8 +144,7 @@ void Settings::print_on(outputStream* st) {
   st->print_cr(" - enlarge_chunks_in_place: %d.", (int)enlarge_chunks_in_place());
   st->print_cr(" - enlarge_chunks_in_place_max_word_size: " SIZE_FORMAT ".", enlarge_chunks_in_place_max_word_size());
 
-  st->print_cr(" - uncommit_on_return: %d.", (int)uncommit_on_return());
-  st->print_cr(" - uncommit_on_purge: %d.", (int)uncommit_on_purge());
+  st->print_cr(" - uncommit_free_chunks: %d.", (int)uncommit_free_chunks());
 
   st->print_cr(" - use_allocation_guard: %d.", (int)use_allocation_guard());
   st->print_cr(" - handle_deallocations: %d.", (int)handle_deallocations());

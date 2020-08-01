@@ -75,14 +75,6 @@ ChunkManager::ChunkManager(const char* name, VirtualSpaceList* space_list)
 {
 }
 
-// Given a chunk we are about to handout to the caller, make sure it is committed
-// according to constants::committed_words_on_fresh_chunks
-bool ChunkManager::commit_chunk_before_handout(Metachunk* c) {
-  assert_lock_strong(MetaspaceExpand_lock);
-  const size_t must_be_committed = MIN2(c->word_size(), Settings::committed_words_on_fresh_chunks());
-  return c->ensure_committed_locked(must_be_committed);
-}
-
 // Given a chunk, split it into a target chunk of a smaller size (higher target level)
 //  and at least one, possible several splinter chunks.
 // The original chunk must be outside of the freelist and its state must be free.
@@ -298,7 +290,7 @@ void ChunkManager::return_chunk(Metachunk* c) {
 
   }
 
-  if (Settings::uncommit_on_return() &&
+  if (Settings::uncommit_free_chunks() &&
       c->word_size() >= Settings::commit_granule_words())
   {
     UL2(debug, "uncommitting free chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
@@ -367,7 +359,7 @@ void ChunkManager::wholesale_reclaim() {
   num_nodes_purged = _vslist->purge(&_chunks);
   DEBUG_ONLY(InternalStats::inc_num_purges();)
 
-  if (Settings::uncommit_on_purge()) {
+  if (Settings::uncommit_free_chunks()) {
     const chunklevel_t max_level =
         chunklevel::level_fitting_word_size(Settings::commit_granule_words());
     for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL;

@@ -59,11 +59,6 @@ class ChunkManager : public CHeapObj<mtMetaspace> {
   // only needed for verifications.
   DEBUG_ONLY(bool contains_chunk(Metachunk* c) const;)
 
-  // Given a chunk we are about to handout to the caller, make sure it is committed
-  // according to constants::committed_words_on_fresh_chunks.
-  // May fail if we hit the commit limit.
-  static bool commit_chunk_before_handout(Metachunk* c);
-
   // Given a chunk, split it into a target chunk of a smaller size (target level)
   //  at least one, possible more splinter chunks. Splinter chunks are added to the
   //  freelist.

@@ -88,7 +88,7 @@ public:
       size_t used_words_after = _used_words_counter.get();
       size_t committed_words_after = limiter().committed_words();
       ASSERT_0(used_words_after);
-      if (Settings::uncommit_on_return()) {
+      if (Settings::uncommit_free_chunks()) {
         ASSERT_LE(committed_words_after, committed_words_before);
       } else {
         ASSERT_EQ(committed_words_after, committed_words_before);
