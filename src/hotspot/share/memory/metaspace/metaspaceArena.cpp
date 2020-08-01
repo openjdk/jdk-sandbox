@@ -45,7 +45,7 @@
 
 namespace metaspace {
 
-#define LOGFMT         "SpcMgr @" PTR_FORMAT " (%s)"
+#define LOGFMT         "Arena @" PTR_FORMAT " (%s)"
 #define LOGFMT_ARGS    p2i(this), this->_name
 
 // Given a net allocation word size, return the raw word size we actually allocate.

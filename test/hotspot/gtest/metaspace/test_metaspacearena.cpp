@@ -67,7 +67,7 @@ public:
   }
 
   ~MetaspaceArenaTestHelper() {
-    delete_sm_with_tests();
+    delete_arena_with_tests();
     delete _lock;
   }
 
@@ -78,7 +78,7 @@ public:
   // Note: all test functions return void due to gtests limitation that we cannot use ASSERT
   // in non-void returning tests.
 
-  void delete_sm_with_tests() {
+  void delete_arena_with_tests() {
     if (_arena != NULL) {
       size_t used_words_before = _used_words_counter.get();
       size_t committed_words_before = limiter().committed_words();
@@ -111,26 +111,26 @@ public:
   }
 
   // Allocate; caller expects success; return pointer in *p_return_value
-  void allocate_from_sm_with_tests_expect_success(MetaWord** p_return_value, size_t word_size) {
-    allocate_from_sm_with_tests(p_return_value, word_size);
+  void allocate_from_arena_with_tests_expect_success(MetaWord** p_return_value, size_t word_size) {
+    allocate_from_arena_with_tests(p_return_value, word_size);
     ASSERT_NOT_NULL(*p_return_value);
   }
 
   // Allocate; caller expects success but is not interested in return value
-  void allocate_from_sm_with_tests_expect_success(size_t word_size) {
+  void allocate_from_arena_with_tests_expect_success(size_t word_size) {
     MetaWord* dummy = NULL;
-    allocate_from_sm_with_tests_expect_success(&dummy, word_size);
+    allocate_from_arena_with_tests_expect_success(&dummy, word_size);
   }
 
   // Allocate; caller expects failure
-  void allocate_from_sm_with_tests_expect_failure(size_t word_size) {
+  void allocate_from_arena_with_tests_expect_failure(size_t word_size) {
     MetaWord* dummy = NULL;
-    allocate_from_sm_with_tests(&dummy, word_size);
+    allocate_from_arena_with_tests(&dummy, word_size);
     ASSERT_NULL(dummy);
   }
 
   // Allocate; it may or may not work; return value in *p_return_value
-  void allocate_from_sm_with_tests(MetaWord** p_return_value, size_t word_size) {
+  void allocate_from_arena_with_tests(MetaWord** p_return_value, size_t word_size) {
 
     // Note: usage_numbers walks all chunks in use and counts.
     size_t used = 0, committed = 0, capacity = 0;
@@ -172,9 +172,9 @@ public:
   }
 
   // Allocate; it may or may not work; but caller does not care for the result value
-  void allocate_from_sm_with_tests(size_t word_size) {
+  void allocate_from_arena_with_tests(size_t word_size) {
     MetaWord* dummy = NULL;
-    allocate_from_sm_with_tests(&dummy, word_size);
+    allocate_from_arena_with_tests(&dummy, word_size);
   }
 
 
@@ -204,12 +204,12 @@ static void test_basics(size_t commit_limit, bool is_micro) {
   MetaspaceTestHelper msthelper(commit_limit);
   MetaspaceArenaTestHelper helper(msthelper, is_micro ? metaspace::ReflectionMetaspaceType : metaspace::StandardMetaspaceType, false);
 
-  helper.allocate_from_sm_with_tests(1);
-  helper.allocate_from_sm_with_tests(128);
-  helper.allocate_from_sm_with_tests(128 * K);
-  helper.allocate_from_sm_with_tests(1);
-  helper.allocate_from_sm_with_tests(128);
-  helper.allocate_from_sm_with_tests(128 * K);
+  helper.allocate_from_arena_with_tests(1);
+  helper.allocate_from_arena_with_tests(128);
+  helper.allocate_from_arena_with_tests(128 * K);
+  helper.allocate_from_arena_with_tests(1);
+  helper.allocate_from_arena_with_tests(128);
+  helper.allocate_from_arena_with_tests(128 * K);
 }
 
 TEST_VM(metaspace, MetaspaceArena_basics_micro_nolimit) {
@@ -236,10 +236,10 @@ TEST_VM(metaspace, MetaspaceArena_basics_standard_limit) {
 TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place) {
   MetaspaceTestHelper msthelper;
   MetaspaceArenaTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
-  helper.allocate_from_sm_with_tests_expect_success(1);
-  helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
-  helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE / 2);
-  helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
+  helper.allocate_from_arena_with_tests_expect_success(1);
+  helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
+  helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE / 2);
+  helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
 }
 
 // Test allocating from smallest to largest chunk size, and one step beyond.
@@ -249,10 +249,10 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_1) {
   MetaspaceArenaTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
   size_t size = MIN_CHUNK_WORD_SIZE;
   while (size <= MAX_CHUNK_WORD_SIZE) {
-    helper.allocate_from_sm_with_tests_expect_success(size);
+    helper.allocate_from_arena_with_tests_expect_success(size);
     size *= 2;
   }
-  helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
+  helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
 }
 
 // Same as MetaspaceArena_test_enlarge_in_place_ladder_1, but increase in *4 step size;
@@ -262,10 +262,10 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_2) {
   MetaspaceArenaTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
   size_t size = MIN_CHUNK_WORD_SIZE;
   while (size <= MAX_CHUNK_WORD_SIZE) {
-    helper.allocate_from_sm_with_tests_expect_success(size);
+    helper.allocate_from_arena_with_tests_expect_success(size);
     size *= 4;
   }
-  helper.allocate_from_sm_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
+  helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
 }
 
 // Test the MetaspaceArenas' free block list:
@@ -277,7 +277,7 @@ TEST_VM(metaspace, MetaspaceArena_deallocate) {
     MetaspaceArenaTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
 
     MetaWord* p1 = NULL;
-    helper.allocate_from_sm_with_tests_expect_success(&p1, s);
+    helper.allocate_from_arena_with_tests_expect_success(&p1, s);
 
     size_t used1 = 0, capacity1 = 0;
     helper.usage_numbers_with_test(&used1, NULL, &capacity1);
@@ -291,7 +291,7 @@ TEST_VM(metaspace, MetaspaceArena_deallocate) {
     ASSERT_EQ(capacity2, capacity2);
 
     MetaWord* p2 = NULL;
-    helper.allocate_from_sm_with_tests_expect_success(&p2, s);
+    helper.allocate_from_arena_with_tests_expect_success(&p2, s);
 
     size_t used3 = 0, capacity3 = 0;
     helper.usage_numbers_with_test(&used3, NULL, &capacity3);
@@ -338,15 +338,15 @@ static void test_recover_from_commit_limit_hit() {
   size_t allocated_from_1_and_2 = 0;
   while (msthelper.commit_limiter().possible_expansion_words() >= Settings::commit_granule_words() * 2 &&
       allocated_from_1_and_2 < commit_limit) {
-    helper1.allocate_from_sm_with_tests_expect_success(1);
-    helper2.allocate_from_sm_with_tests_expect_success(1);
+    helper1.allocate_from_arena_with_tests_expect_success(1);
+    helper2.allocate_from_arena_with_tests_expect_success(1);
     allocated_from_1_and_2 += 2;
   }
 
   // Now, allocating from helper3, creep up on the limit
   size_t allocated_from_3 = 0;
   MetaWord* p = NULL;
-  while ( (helper3.allocate_from_sm_with_tests(&p, 1), p != NULL) &&
+  while ( (helper3.allocate_from_arena_with_tests(&p, 1), p != NULL) &&
          ++allocated_from_3 < Settings::commit_granule_words() * 2);
 
   EXPECT_LE(allocated_from_3, Settings::commit_granule_words() * 2);
@@ -357,7 +357,7 @@ static void test_recover_from_commit_limit_hit() {
   //msthelper.cm().print_on(tty);
 
   // Release the first MetaspaceArena.
-  helper1.delete_sm_with_tests();
+  helper1.delete_arena_with_tests();
 
   //msthelper.cm().print_on(tty);
 
@@ -366,7 +366,7 @@ static void test_recover_from_commit_limit_hit() {
   EXPECT_GT(msthelper.cm().total_committed_word_size(), (size_t)0);
 
   // Repeat allocation from helper3, should now work.
-  helper3.allocate_from_sm_with_tests_expect_success(1);
+  helper3.allocate_from_arena_with_tests_expect_success(1);
 
 }
 
@@ -399,7 +399,7 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
 
   ///// First allocation //
 
-  smhelper.allocate_from_sm_with_tests_expect_success(alloc_words);
+  smhelper.allocate_from_arena_with_tests_expect_success(alloc_words);
 
   smhelper.arena()->usage_numbers(&used, &committed, &capacity);
 
@@ -430,10 +430,10 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
     // (Note that this does not completely prevent in-place chunk enlargement but makes it
     //  rather improbable)
     if (!test_in_place_enlargement) {
-      smhelper_harrasser.allocate_from_sm_with_tests_expect_success(alloc_words * 2);
+      smhelper_harrasser.allocate_from_arena_with_tests_expect_success(alloc_words * 2);
     }
 
-    smhelper.allocate_from_sm_with_tests_expect_success(alloc_words);
+    smhelper.allocate_from_arena_with_tests_expect_success(alloc_words);
     allocated += alloc_words;
 
     size_t used2 = 0, committed2 = 0, capacity2 = 0;

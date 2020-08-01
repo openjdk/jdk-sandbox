@@ -78,7 +78,7 @@ class MetaspaceArenaTestBed : public CHeapObj<mtInternal> {
   // Check statistics returned by MetaspaceArena::add_to_statistics() against what
   // we know we allocated. This is a bit flaky since MetaspaceArena has internal
   // overhead.
-  void verify_sm_statistics() const {
+  void verify_arena_statistics() const {
 
     arena_stats_t stats;
     _arena->add_to_statistics(&stats);
@@ -133,7 +133,7 @@ public:
 
   ~MetaspaceArenaTestBed() {
 
-    verify_sm_statistics();
+    verify_arena_statistics();
 
     allocation_t* a = _allocations;
     while (a != NULL) {
@@ -170,7 +170,7 @@ public:
       _allocations = a;
       _alloc_count.add(word_size);
       if ((_alloc_count.count() % 20) == 0) {
-        verify_sm_statistics();
+        verify_arena_statistics();
         DEBUG_ONLY(_arena->verify(true);)
       }
       return true;
@@ -192,7 +192,7 @@ public:
       _dealloc_count.add(a->word_size);
       a->p = NULL; a->word_size = 0;
       if ((_dealloc_count.count() % 20) == 0) {
-        verify_sm_statistics();
+        verify_arena_statistics();
         DEBUG_ONLY(_arena->verify(true);)
       }
     }
