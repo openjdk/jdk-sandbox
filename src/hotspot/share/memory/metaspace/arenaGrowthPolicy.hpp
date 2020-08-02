@@ -29,6 +29,7 @@
 #include "memory/metaspace.hpp" // For Metaspace::MetaspaceType
 #include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
+#include "utilities/debug.hpp"
 
 namespace metaspace {
 
@@ -46,10 +47,26 @@ namespace metaspace {
 // immediately.
 
 class ArenaGrowthPolicy {
+
+  // const array specifying chunk level allocation progression (growth steps). Last
+  //  chunk is to be an endlessly repeated allocation.
+  const chunklevel_t* const _entries;
+  const int _num_entries;
+
+  ArenaGrowthPolicy(const chunklevel_t* array, int num_entries)
+    : _entries(array), _num_entries(num_entries) {
+    assert(_num_entries > 0, "must not be empty.");
+  }
+
 public:
 
-  // Return the level of chunk the arena should preferably allocate at step X.
-  virtual chunklevel_t get_level_at_step(int step) const = 0;
+  chunklevel_t get_level_at_step(int num_allocated) const {
+    if (num_allocated >= _num_entries) {
+      // Caller shall repeat last allocation
+      return _entries[_num_entries - 1];
+    }
+    return _entries[num_allocated];
+  }
 
   // Given a space type, return the correct policy to use.
   // The returned object is static and read only.

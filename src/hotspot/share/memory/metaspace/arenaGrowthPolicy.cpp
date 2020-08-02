@@ -6,39 +6,9 @@
 
 namespace metaspace {
 
-// Todo: simplify?
-// This used to contain more logic in the first prototypes, but now it is basically
-// a set of hard-wired integer arrays. We may do away with the implementation hiding.
-
-// A chunk allocation sequence which can be encoded with a simple const array.
-class ConstantArenaGrowthPolicy : public ArenaGrowthPolicy {
-
-  // integer array specifying chunk level allocation progression.
-  // Last chunk is to be an endlessly repeated allocation.
-  const chunklevel_t* const _entries;
-  const int _num_entries;
-
-public:
-
-  ConstantArenaGrowthPolicy(const chunklevel_t* array, int num_entries)
-    : _entries(array)
-    , _num_entries(num_entries)
-  {
-    assert(_num_entries > 0, "must not be empty.");
-  }
-
-  chunklevel_t get_level_at_step(int num_allocated) const {
-    if (num_allocated >= _num_entries) {
-      // Caller shall repeat last allocation
-      return _entries[_num_entries - 1];
-    }
-    return _entries[num_allocated];
-  }
-
-};
-
 // hard-coded chunk allocation sequences for various space types
-// (Note: no sudden jumps please)
+//  (Note: when modifying this, don't add jumps of more than double the
+//   last chunk size. There is a gtest testing this, see test_arenagrowthpolicy.cpp)
 
 static const chunklevel_t g_sequ_standard_non_class[] = {
     chunklevel::CHUNK_LEVEL_4K,
@@ -94,34 +64,34 @@ static const chunklevel_t g_sequ_boot_class[] = {
     // .. repeat last
 };
 
-#define DEFINE_CLASS_FOR_ARRAY(what) \
-  static ConstantArenaGrowthPolicy g_chunk_alloc_sequence_##what (g_sequ_##what, sizeof(g_sequ_##what)/sizeof(chunklevel_t));
-
-DEFINE_CLASS_FOR_ARRAY(standard_non_class)
-DEFINE_CLASS_FOR_ARRAY(standard_class)
-DEFINE_CLASS_FOR_ARRAY(anon_non_class)
-DEFINE_CLASS_FOR_ARRAY(anon_class)
-DEFINE_CLASS_FOR_ARRAY(refl_non_class)
-DEFINE_CLASS_FOR_ARRAY(refl_class)
-DEFINE_CLASS_FOR_ARRAY(boot_non_class)
-DEFINE_CLASS_FOR_ARRAY(boot_class)
-
 const ArenaGrowthPolicy* ArenaGrowthPolicy::policy_for_space_type(MetaspaceType space_type, bool is_class) {
+
+#define DEFINE_CLASS_FOR_ARRAY(what) \
+  static ArenaGrowthPolicy chunk_alloc_sequence_##what (g_sequ_##what, sizeof(g_sequ_##what)/sizeof(chunklevel_t));
+
+  DEFINE_CLASS_FOR_ARRAY(standard_non_class)
+  DEFINE_CLASS_FOR_ARRAY(standard_class)
+  DEFINE_CLASS_FOR_ARRAY(anon_non_class)
+  DEFINE_CLASS_FOR_ARRAY(anon_class)
+  DEFINE_CLASS_FOR_ARRAY(refl_non_class)
+  DEFINE_CLASS_FOR_ARRAY(refl_class)
+  DEFINE_CLASS_FOR_ARRAY(boot_non_class)
+  DEFINE_CLASS_FOR_ARRAY(boot_class)
 
   if (is_class) {
     switch(space_type) {
-    case StandardMetaspaceType:          return &g_chunk_alloc_sequence_standard_class;
-    case ReflectionMetaspaceType:        return &g_chunk_alloc_sequence_refl_class;
-    case ClassMirrorHolderMetaspaceType: return &g_chunk_alloc_sequence_anon_class;
-    case BootMetaspaceType:              return &g_chunk_alloc_sequence_boot_class;
+    case StandardMetaspaceType:          return &chunk_alloc_sequence_standard_class;
+    case ReflectionMetaspaceType:        return &chunk_alloc_sequence_refl_class;
+    case ClassMirrorHolderMetaspaceType: return &chunk_alloc_sequence_anon_class;
+    case BootMetaspaceType:              return &chunk_alloc_sequence_boot_class;
     default: ShouldNotReachHere();
     }
   } else {
     switch(space_type) {
-    case StandardMetaspaceType:          return &g_chunk_alloc_sequence_standard_non_class;
-    case ReflectionMetaspaceType:        return &g_chunk_alloc_sequence_refl_non_class;
-    case ClassMirrorHolderMetaspaceType: return &g_chunk_alloc_sequence_anon_non_class;
-    case BootMetaspaceType:              return &g_chunk_alloc_sequence_boot_non_class;
+    case StandardMetaspaceType:          return &chunk_alloc_sequence_standard_non_class;
+    case ReflectionMetaspaceType:        return &chunk_alloc_sequence_refl_non_class;
+    case ClassMirrorHolderMetaspaceType: return &chunk_alloc_sequence_anon_non_class;
+    case BootMetaspaceType:              return &chunk_alloc_sequence_boot_non_class;
     default: ShouldNotReachHere();
     }
   }
