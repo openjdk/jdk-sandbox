@@ -40,7 +40,7 @@ class outputStream;
 
 namespace metaspace {
 
-// Class FreeBlocks manages the Metaspace deallocation handling.
+// Class FreeBlocks manages deallocated blocks in Metaspace.
 //
 // In Metaspace, deallocations are an uncommon occurrence of
 // allocated memory blocks which are deallocated prematurely. Normally,

@@ -120,6 +120,8 @@ void ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chunklevel_t targ
 
   SOMETIMES(c->vsnode()->verify_locked(true);)
 
+  InternalStats::inc_num_chunk_splits();
+
 }
 
 // On success, returns a chunk of level of <preferred_level>, but at most <max_level>.
@@ -240,7 +242,7 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
 
   UL2(debug, "handing out chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
 
-  DEBUG_ONLY(InternalStats::inc_num_chunks_taken_from_freelist();)
+  InternalStats::inc_num_chunks_taken_from_freelist();
 
   return c;
 
@@ -277,6 +279,8 @@ void ChunkManager::return_chunk(Metachunk* c) {
 
   if (merged != NULL) {
 
+    InternalStats::inc_num_chunk_merges();
+
     DEBUG_ONLY(merged->verify(false));
 
     // We did merge our chunk into a different chunk.
@@ -302,7 +306,7 @@ void ChunkManager::return_chunk(Metachunk* c) {
   DEBUG_ONLY(verify_locked(false);)
   SOMETIMES(c->vsnode()->verify_locked(true);)
 
-  DEBUG_ONLY(InternalStats::inc_num_chunks_returned_to_freelist();)
+  InternalStats::inc_num_chunks_returned_to_freelist();
 
 }
 
@@ -357,7 +361,7 @@ void ChunkManager::wholesale_reclaim() {
 
   // Purge all space nodes which only have emtpy chunks.
   num_nodes_purged = _vslist->purge(&_chunks);
-  DEBUG_ONLY(InternalStats::inc_num_purges();)
+  InternalStats::inc_num_purges();
 
   if (Settings::uncommit_free_chunks()) {
     const chunklevel_t max_level =
@@ -370,7 +374,6 @@ void ChunkManager::wholesale_reclaim() {
         c->uncommit_locked();
       }
     }
-    DEBUG_ONLY(InternalStats::inc_num_wholesale_uncommits();)
   }
 
   const size_t reserved_after = _vslist->reserved_words();

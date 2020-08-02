@@ -20,35 +20,26 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
 
-
 #include "precompiled.hpp"
+
+//#define LOG_PLEASE
+
+#include "metaspaceTestsCommon.hpp"
 #include "memory/metaspace/internStat.hpp"
-#include "utilities/globalDefinitions.hpp"
-#include "utilities/ostream.hpp"
 
-namespace metaspace {
+// Very simple test, since the VM is fired up we should see a little
+// Metaspace activity already which should show up in the stats.
+TEST_VM(metaspace, internstats) {
 
-#define MATERIALIZE_COUNTER(name)          uint64_t InternalStats::_##name;
-#define MATERIALIZE_ATOMIC_COUNTER(name)   volatile uint64_t InternalStats::_##name;
-  ALL_MY_COUNTERS(MATERIALIZE_COUNTER, MATERIALIZE_ATOMIC_COUNTER)
-#undef MATERIALIZE_COUNTER
-#undef MATERIALIZE_ATOMIC_COUNTER
+  DEBUG_ONLY(ASSERT_GT(metaspace::InternalStats::num_allocs(), (uint64_t)0);)
 
-
-void InternalStats::print_on(outputStream* st) {
-
-#define xstr(s) str(s)
-#define str(s) #s
-
-#define PRINT_COUNTER(name)  st->print_cr("%s: " UINT64_FORMAT ".", xstr(name), _##name);
-  ALL_MY_COUNTERS(PRINT_COUNTER, PRINT_COUNTER)
-#undef PRINT_COUNTER
+  ASSERT_GT(metaspace::InternalStats::num_arena_births(), (uint64_t)0);
+  ASSERT_GT(metaspace::InternalStats::num_vsnodes_births(), (uint64_t)0);
+  ASSERT_GT(metaspace::InternalStats::num_space_committed(), (uint64_t)0);
+  ASSERT_GT(metaspace::InternalStats::num_chunks_taken_from_freelist(), (uint64_t)0);
 
 }
-
-} // namespace metaspace
 

@@ -171,6 +171,12 @@ MetaspaceArena::MetaspaceArena(ChunkManager* chunk_manager,
   _is_micro_loader(is_micro_loader)
 {
   UL(debug, ": born.");
+
+  // Update statistics
+  InternalStats::inc_num_arena_births();
+  if (is_micro_loader) {
+    DEBUG_ONLY(InternalStats::inc_num_micro_arena_births();)
+  }
 }
 
 MetaspaceArena::~MetaspaceArena() {
@@ -205,6 +211,12 @@ MetaspaceArena::~MetaspaceArena() {
   delete _fbl;
 
   UL(debug, ": dies.");
+
+  // Update statistics
+  InternalStats::inc_num_arena_deaths();
+  if (_is_micro_loader) {
+    DEBUG_ONLY(InternalStats::inc_num_micro_arena_deaths();)
+  }
 
 }
 
@@ -376,7 +388,7 @@ MetaWord* MetaspaceArena::allocate(size_t requested_word_size) {
 #endif
 
   if (p == NULL) {
-    DEBUG_ONLY(InternalStats::inc_num_allocs_failed_limit();)
+    InternalStats::inc_num_allocs_failed_limit();
   } else {
     DEBUG_ONLY(InternalStats::inc_num_allocs();)
     _total_used_words_counter->increment_by(raw_word_size);

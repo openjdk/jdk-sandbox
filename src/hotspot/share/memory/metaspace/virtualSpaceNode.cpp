@@ -139,7 +139,7 @@ bool VirtualSpaceNode::commit_range(MetaWord* p, size_t word_size) {
   }
 #endif
 
-  DEBUG_ONLY(InternalStats::inc_num_space_committed();)
+  InternalStats::inc_num_space_committed();
 
   return true;
 
@@ -223,7 +223,7 @@ void VirtualSpaceNode::uncommit_range(MetaWord* p, size_t word_size) {
   }
 #endif
 
-  DEBUG_ONLY(InternalStats::inc_num_space_uncommitted();)
+  InternalStats::inc_num_space_uncommitted();
 
 }
 
@@ -277,7 +277,7 @@ VirtualSpaceNode* VirtualSpaceNode::create_node(size_t word_size,
 
   assert_is_aligned(rs.base(), chunklevel::MAX_CHUNK_BYTE_SIZE);
 
-  DEBUG_ONLY(InternalStats::inc_num_vsnodes_created();)
+  InternalStats::inc_num_vsnodes_births();
   return new VirtualSpaceNode(rs, true, limiter, reserve_words_counter, commit_words_counter);
 
 }
@@ -286,7 +286,7 @@ VirtualSpaceNode* VirtualSpaceNode::create_node(size_t word_size,
 VirtualSpaceNode* VirtualSpaceNode::create_node(ReservedSpace rs, CommitLimiter* limiter,
                                                 SizeCounter* reserve_words_counter, SizeCounter* commit_words_counter)
 {
-  DEBUG_ONLY(InternalStats::inc_num_vsnodes_created();)
+  InternalStats::inc_num_vsnodes_births();
   return new VirtualSpaceNode(rs, false, limiter, reserve_words_counter, commit_words_counter);
 }
 
@@ -308,7 +308,7 @@ VirtualSpaceNode::~VirtualSpaceNode() {
   // ... and tell commit limiter
   _commit_limiter->decrease_committed(committed);
 
-  DEBUG_ONLY(InternalStats::inc_num_vsnodes_destroyed();)
+  InternalStats::inc_num_vsnodes_deaths();
 
 }
 
@@ -420,6 +420,10 @@ bool VirtualSpaceNode::attempt_enlarge_chunk(Metachunk* c, FreeChunkListVector* 
   bool rc = rca->attempt_enlarge_chunk(c, freelists);
 
   DEBUG_ONLY(rca->verify_area_is_ideally_merged();)
+
+  if (rc) {
+    InternalStats::inc_num_chunks_enlarged();
+  }
 
   return rc;
 

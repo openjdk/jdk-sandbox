@@ -25,9 +25,6 @@
 #ifndef SHARE_MEMORY_METASPACE_INTERNSTAT_HPP
 #define SHARE_MEMORY_METASPACE_INTERNSTAT_HPP
 
-#ifdef ASSERT
-
-
 #include "memory/allocation.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -36,10 +33,10 @@ class outputStream;
 
 namespace metaspace {
 
-// TODO these are too useful to hide them in debug builds: those cheap and useful enough
-// should be available in release too.
 
-// A number of counters for internal metaspace statistics; Only active in debug.
+// These are some counters useful for debugging and analyzing Metaspace problems.
+// They get printed as part of the Metaspace report (e.g. via jcmd VM.metaspace)
+
 class InternalStats : public AllStatic {
 
   // Note: all counters which are modified on the classloader local allocation path
@@ -48,39 +45,39 @@ class InternalStats : public AllStatic {
 #define ALL_MY_COUNTERS(x, x_atomic)                \
                                                     \
   /* Number of allocations. */                      \
-  x_atomic(num_allocs)                              \
+  DEBUG_ONLY(x_atomic(num_allocs))                  \
                                                     \
-  /* Number of deallocations (external) */          \
-  x_atomic(num_deallocs)                            \
+  /* Number of external deallocations */            \
+  /* (excluding retired chunk remains) */           \
+	DEBUG_ONLY(x_atomic(num_deallocs))                \
+                                                    \
   /* Number of times an allocation was satisfied */ \
   /*  from deallocated blocks. */                   \
-  x_atomic(num_allocs_from_deallocated_blocks)      \
+  DEBUG_ONLY(x_atomic(num_allocs_from_deallocated_blocks)) \
                                                     \
-  /* Number of times an allocation failed */        \
-  /*  because the chunk was too small. */           \
-	x_atomic(num_allocs_failed_chunk_too_small)       \
+  /* Number of times an arena retired a chunk */    \
+  DEBUG_ONLY(x_atomic(num_chunks_retired))          \
                                                     \
   /* Number of times an allocation failed */        \
   /*  because we hit a limit. */                    \
   x_atomic(num_allocs_failed_limit)                 \
                                                     \
-  /* Number of times a ClassLoaderMetaspace was */  \
-  /*  born... */                                    \
-  x(num_metaspace_births)                           \
+  /* Number of times an arena was born ... */       \
+	x_atomic(num_arena_births)                        \
   /* ... and died. */                               \
-  x(num_metaspace_deaths)                           \
+	x_atomic(num_arena_deaths)                        \
                                                     \
-	/* Number of times a ClassLoaderMetaspace was */  \
-	/*  born for a hidden or anonymous class... */    \
-	x(num_anon_cld_births)                            \
+	/* Number of times a micro arena (anon/hidden */  \
+	/*  class or reflection proxy) was born. */       \
+  DEBUG_ONLY(x_atomic(num_micro_arena_births))      \
 	/* ... and died. */                               \
-  x(num_anon_cld_deaths)                            \
+	DEBUG_ONLY(x_atomic(num_micro_arena_deaths))      \
                                                     \
   /* Number of times VirtualSpaceNode were */       \
-  /*  created...  */                                \
-  x(num_vsnodes_created)                            \
-  /* ... and purged. */                             \
-  x(num_vsnodes_destroyed)                          \
+  /*  born...  */                                   \
+  x(num_vsnodes_births)                             \
+  /* ... and died. */                               \
+  x(num_vsnodes_deaths)                             \
                                                     \
   /* Number of times we committed space. */         \
   x(num_space_committed)                            \
@@ -96,56 +93,34 @@ class InternalStats : public AllStatic {
                                                     \
   /* Number of successful chunk merges */           \
   x(num_chunk_merges)                               \
-  /* Number of chunks removed from freelist as */   \
-  /* result of a merge operation */                 \
-  x(num_chunks_removed_from_freelist_due_to_merge)  \
-                                                    \
   /* Number of chunk splits */                      \
   x(num_chunk_splits)                               \
-  /* Number of chunks added to freelist as */       \
-  /* result of a split operation */                 \
-  x(num_chunks_added_to_freelist_due_to_split)      \
   /* Number of chunk in place enlargements */       \
   x(num_chunks_enlarged)                            \
-  /* Number of chunks retired */                    \
-  x(num_chunks_retired)                             \
                                                     \
   /* Number of times we did a purge */              \
   x(num_purges)                                     \
-  /* Number of times we did a wholesale uncommit */ \
-  x(num_wholesale_uncommits)                        \
 
 
-
-#define DEFINE_COUNTER(name)          static uintx _##name;
-#define DEFINE_ATOMIC_COUNTER(name)   static volatile uintx _##name;
-
+#define DEFINE_COUNTER(name)          static uint64_t _##name;
+#define DEFINE_ATOMIC_COUNTER(name)   static volatile uint64_t _##name;
   ALL_MY_COUNTERS(DEFINE_COUNTER, DEFINE_ATOMIC_COUNTER)
-
 #undef DEFINE_COUNTER
 #undef DEFINE_ATOMIC_COUNTER
 
 public:
 
 // incrementors
-
 #define INCREMENTOR(name)           static void inc_##name() { _##name ++; }
 #define INCREMENTOR_ATOMIC(name)    static void inc_##name() { Atomic::inc(&_##name); }
-
   ALL_MY_COUNTERS(INCREMENTOR, INCREMENTOR_ATOMIC)
-
 #undef INCREMENTOR
 #undef INCREMENTOR_ATOMIC
 
 // getters
-
-#define GETTER(name)                static uintx name() { return _##name; }
-#define GETTER_ATOMIC(name)         GETTER(name)
-
-  ALL_MY_COUNTERS(GETTER, GETTER_ATOMIC)
-
+#define GETTER(name)                static uint64_t name() { return _##name; }
+  ALL_MY_COUNTERS(GETTER, GETTER)
 #undef GETTER
-#undef GETTER_ATOMIC
 
 
   static void print_on(outputStream* st);
@@ -154,7 +129,5 @@ public:
 };
 
 } // namespace metaspace
-
-#endif // ASSERT
 
 #endif // SHARE_MEMORY_METASPACE_INTERNSTAT_HPP

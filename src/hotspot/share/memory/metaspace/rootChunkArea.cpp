@@ -29,7 +29,6 @@
 #include "memory/metaspace/chunkHeaderPool.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/freeChunkList.hpp"
-#include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/rootChunkArea.hpp"
@@ -150,16 +149,12 @@ void RootChunkArea::split(chunklevel_t target_level, Metachunk* c, FreeChunkList
     // Add splinter to free lists
     freelists->add(splinter_chunk);
 
-    DEBUG_ONLY(InternalStats::inc_num_chunks_added_to_freelist_due_to_split();)
-
   }
 
   assert(c->level() == target_level, "Sanity");
 
   DEBUG_ONLY(verify(true);)
   DEBUG_ONLY(c->verify(true);)
-
-  DEBUG_ONLY(InternalStats::inc_num_chunk_splits();)
 
 }
 
@@ -255,7 +250,6 @@ Metachunk* RootChunkArea::merge(Metachunk* c, FreeChunkListVector* freelists) {
       // First, remove buddy from the chunk manager.
       assert(buddy->is_free(), "Sanity");
       freelists->remove(buddy);
-      DEBUG_ONLY(InternalStats::inc_num_chunks_removed_from_freelist_due_to_merge();)
 
       // Determine current leader and follower
       Metachunk* leader;
@@ -311,9 +305,6 @@ Metachunk* RootChunkArea::merge(Metachunk* c, FreeChunkListVector* freelists) {
   verify(true);
   if (result != NULL) {
     result->verify(true);
-    if (result->level() < starting_level) {
-      DEBUG_ONLY(InternalStats::inc_num_chunk_merges();)
-    }
   }
 #endif // ASSERT
 

@@ -88,13 +88,6 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
 
   UL2(debug, "born (SpcMgr nonclass: " PTR_FORMAT ", SpcMgr class: " PTR_FORMAT ".",
       p2i(_non_class_space_arena), p2i(_class_space_arena));
-
-#ifdef ASSERT
-  InternalStats::inc_num_metaspace_births();
-  if (_space_type == metaspace::ClassMirrorHolderMetaspaceType) {
-    InternalStats::inc_num_anon_cld_births();
-  }
-#endif
 }
 
 ClassLoaderMetaspace::~ClassLoaderMetaspace() {
@@ -104,13 +97,6 @@ ClassLoaderMetaspace::~ClassLoaderMetaspace() {
 
   delete _non_class_space_arena;
   delete _class_space_arena;
-
-#ifdef ASSERT
-  InternalStats::inc_num_metaspace_deaths();
-  if (_space_type == metaspace::ClassMirrorHolderMetaspaceType) {
-    InternalStats::inc_num_anon_cld_deaths();
-  }
-#endif
 
 }
 

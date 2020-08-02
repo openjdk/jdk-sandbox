@@ -171,13 +171,12 @@ void MetaspaceReporter::print_basic_report(outputStream* out, size_t scale) {
 
   out->cr();
 
-#ifdef ASSERT
   out->cr();
   out->print_cr("Internal statistics:");
   out->cr();
   InternalStats::print_on(out);
   out->cr();
-#endif
+
 }
 
 void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags) {
@@ -357,13 +356,11 @@ void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags)
   out->cr();
 
   // Print internal statistics
-#ifdef ASSERT
   out->cr();
   out->print_cr("Internal statistics:");
   out->cr();
   InternalStats::print_on(out);
   out->cr();
-#endif
 
   // Print some interesting settings
   out->cr();
