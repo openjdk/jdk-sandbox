@@ -82,7 +82,7 @@ public:
   static size_t virtual_space_node_default_word_size()        { return _virtual_space_node_default_word_size; }
   static bool enlarge_chunks_in_place()                       { return _enlarge_chunks_in_place; }
   static size_t enlarge_chunks_in_place_max_word_size()       { return _enlarge_chunks_in_place_max_word_size; }
-  static bool uncommit_free_chunks()                          { return uncommit_free_chunks; }
+  static bool uncommit_free_chunks()                          { return _uncommit_free_chunks; }
 
   static bool use_allocation_guard()                          { return DEBUG_ONLY(_use_allocation_guard) NOT_DEBUG(false); }
   static bool handle_deallocations()                          { return DEBUG_ONLY(_handle_deallocations) NOT_DEBUG(true); }
