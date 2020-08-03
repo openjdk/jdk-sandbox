@@ -234,6 +234,11 @@ TEST_VM(metaspace, MetaspaceArena_basics_standard_limit) {
 // allocation bring us above root chunk size. This should work - chunk enlargement should
 // fail and a new root chunk should be allocated instead.
 TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place) {
+
+  if (Settings::use_allocation_guard()) {
+    return;
+  }
+
   MetaspaceTestHelper msthelper;
   MetaspaceArenaTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
   helper.allocate_from_arena_with_tests_expect_success(1);
@@ -245,6 +250,11 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place) {
 // Test allocating from smallest to largest chunk size, and one step beyond.
 // The first n allocations should happen in place, the ladder should open a new chunk.
 TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_1) {
+
+  if (Settings::use_allocation_guard()) {
+    return;
+  }
+
   MetaspaceTestHelper msthelper;
   MetaspaceArenaTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
   size_t size = MIN_CHUNK_WORD_SIZE;
@@ -258,6 +268,11 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_1) {
 // Same as MetaspaceArena_test_enlarge_in_place_ladder_1, but increase in *4 step size;
 // this way chunk-in-place-enlargement does not work and we should have new chunks at each allocation.
 TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_2) {
+
+  if (Settings::use_allocation_guard()) {
+    return;
+  }
+
   MetaspaceTestHelper msthelper;
   MetaspaceArenaTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
   size_t size = MIN_CHUNK_WORD_SIZE;
@@ -272,6 +287,9 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_2) {
 // Allocate, deallocate, then allocate the same block again. The second allocate should
 // reuse the deallocated block.
 TEST_VM(metaspace, MetaspaceArena_deallocate) {
+  if (Settings::use_allocation_guard()) {
+    return;
+  }
   for (size_t s = 2; s <= MAX_CHUNK_WORD_SIZE; s *= 2) {
     MetaspaceTestHelper msthelper;
     MetaspaceArenaTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
@@ -379,6 +397,11 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
                                    size_t expected_starting_capacity,
                                    bool test_in_place_enlargement)
 {
+
+  if (Settings::use_allocation_guard()) {
+    return;
+  }
+
   // From a MetaspaceArena in a clean room allocate tiny amounts;
   // watch it grow. Used/committed/capacity should not grow in
   // large jumps. Also, different types of MetaspaceArena should
