@@ -342,12 +342,7 @@ static void print_word_size_delta(outputStream* st, size_t word_size_1, size_t w
   }
 }
 
-// Attempt to reclaim free areas in metaspace wholesale:
-// - first, attempt to purge nodes of the backing virtual space. This can only be successful
-//   if whole nodes are only containing free chunks, so it highly depends on fragmentation.
-// - then, it will uncommit areas of free chunks according to the rules laid down in
-//   settings (see settings.hpp).
-void ChunkManager::wholesale_reclaim() {
+void ChunkManager::purge() {
 
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
 
@@ -357,10 +352,11 @@ void ChunkManager::wholesale_reclaim() {
   const size_t committed_before = _vslist->committed_words();
   int num_nodes_purged = 0;
 
-  // Purge all space nodes which only have emtpy chunks.
+  // 1) purge virtual space list
   num_nodes_purged = _vslist->purge(&_chunks);
   InternalStats::inc_num_purges();
 
+  // 2) uncommit free chunks
   if (Settings::uncommit_free_chunks()) {
     const chunklevel_t max_level =
         chunklevel::level_fitting_word_size(Settings::commit_granule_words());
@@ -406,11 +402,11 @@ void ChunkManager::wholesale_reclaim() {
 // Convenience methods to return the global class-space chunkmanager
 //  and non-class chunkmanager, respectively.
 ChunkManager* ChunkManager::chunkmanager_class() {
-  return MetaspaceContext::class_space_context() == NULL ? NULL : MetaspaceContext::class_space_context()->cm();
+  return MetaspaceContext::contect_class() == NULL ? NULL : MetaspaceContext::contect_class()->cm();
 }
 
 ChunkManager* ChunkManager::chunkmanager_nonclass() {
-  return MetaspaceContext::nonclass_space_context() == NULL ? NULL : MetaspaceContext::nonclass_space_context()->cm();
+  return MetaspaceContext::context_nonclass() == NULL ? NULL : MetaspaceContext::context_nonclass()->cm();
 }
 
 // Update statistics.

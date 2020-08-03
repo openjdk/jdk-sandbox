@@ -81,6 +81,7 @@ MetaspaceTestContext::MetaspaceTestContext(const char* name, size_t commit_limit
 }
 
 MetaspaceTestContext::~MetaspaceTestContext() {
+  DEBUG_ONLY(verify(true);)
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
   delete _context;
 }
@@ -98,7 +99,7 @@ MetaspaceTestArena* MetaspaceTestContext::create_arena(MetaspaceType type) {
 }
 
 void MetaspaceTestContext::purge_area() {
-  _context->cm()->wholesale_reclaim();
+  _context->cm()->purge();
 }
 
 #ifdef ASSERT

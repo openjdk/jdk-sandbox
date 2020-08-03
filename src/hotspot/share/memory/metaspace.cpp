@@ -537,7 +537,7 @@ void Metaspace::initialize_class_space(ReservedSpace rs) {
 
 // Returns true if class space has been setup (initialize_class_space).
 bool Metaspace::class_space_is_initialized() {
-  return MetaspaceContext::class_space_context() != NULL;
+  return MetaspaceContext::contect_class() != NULL;
 }
 
 // Reserve a range of memory at an address suitable for en/decoding narrow
@@ -766,7 +766,7 @@ void Metaspace::global_initialize() {
   if (using_class_space()) {
     // The simplest way to fix this is to allocate a tiny dummy chunk right at the
     // start of ccs and do not use it for anything.
-    MetaspaceContext::class_space_context()->cm()->get_chunk(metaspace::chunklevel::HIGHEST_CHUNK_LEVEL);
+    MetaspaceContext::contect_class()->cm()->get_chunk(metaspace::chunklevel::HIGHEST_CHUNK_LEVEL);
   }
 #endif
 
@@ -908,12 +908,12 @@ void Metaspace::report_metadata_oome(ClassLoaderData* loader_data, size_t word_s
 void Metaspace::purge() {
   ChunkManager* cm = ChunkManager::chunkmanager_nonclass();
   if (cm != NULL) {
-    cm->wholesale_reclaim();
+    cm->purge();
   }
   if (using_class_space()) {
     cm = ChunkManager::chunkmanager_class();
     if (cm != NULL) {
-      cm->wholesale_reclaim();
+      cm->purge();
     }
   }
 }

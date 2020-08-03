@@ -120,11 +120,10 @@ public:
   bool attempt_enlarge_chunk(Metachunk* c);
 
   // Attempt to reclaim free areas in metaspace wholesale:
-  // - first, attempt to purge nodes of the backing virtual space. This can only be successful
-  //   if whole nodes are only containing free chunks, so it highly depends on fragmentation.
-  // - then, it will uncommit areas of free chunks according to the rules laid down in
-  //   settings (see settings.hpp).
-  void wholesale_reclaim();
+  // - first, attempt to purge nodes of the backing virtual space list: nodes which are completely
+  //   unused get unmapped and deleted completely.
+  // - second, it will uncommit free chunks depending on commit granule size.
+  void purge();
 
   // Run verifications. slow=true: verify chunk-internal integrity too.
   DEBUG_ONLY(void verify(bool slow) const;)

@@ -75,8 +75,6 @@ void MetaspaceTestHelper::checked_alloc_chunk_0(Metachunk** p_return_value, chun
 
   }
 
-  DEBUG_ONLY(verify();)
-
   *p_return_value = c;
 
 }
@@ -88,7 +86,6 @@ void MetaspaceTestHelper::test_pattern(Metachunk* c, size_t word_size) {
 
 void MetaspaceTestHelper::return_chunk(Metachunk* c) {
   test_pattern(c);
-  DEBUG_ONLY(verify();)
   c->set_in_use(); // Forestall assert in cm
   cm().return_chunk(c);
 }

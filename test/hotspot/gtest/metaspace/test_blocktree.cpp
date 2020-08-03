@@ -202,7 +202,7 @@ class BlockTreeTest {
     unsigned added = 0;
 
     // If we feed in small graining, we cap the number of blocks to limit test duration.
-    const unsigned max_blocks = 10000;
+    const unsigned max_blocks = 2000;
 
     size_t old_feeding_size = feeding_pattern == right_left ? _rgen.max() : _rgen.min();
     do {
@@ -313,7 +313,7 @@ class BlockTreeTest {
         _bt[0].count(), _bt[0].total_size(),
         _bt[1].count(), _bt[1].total_size());
 
-    ping_pong_loop(3000);
+    ping_pong_loop(2000);
 
     LOG("After Pingpong: bt1=%d:" SIZE_FORMAT ", bt2=%d:" SIZE_FORMAT ".",
         _bt[0].count(), _bt[0].total_size(),
@@ -358,8 +358,7 @@ public:
 DO_TEST_ALL_PATTERNS(wide, BlockTree::minimal_word_size, 128 * K);
 DO_TEST_ALL_PATTERNS(narrow, BlockTree::minimal_word_size, 16)
 DO_TEST_ALL_PATTERNS(129, BlockTree::minimal_word_size, 129)
-DO_TEST_ALL_PATTERNS(4096, BlockTree::minimal_word_size, 4*K)
-DO_TEST_ALL_PATTERNS(1M, BlockTree::minimal_word_size, 1 * M)
+DO_TEST_ALL_PATTERNS(4K, BlockTree::minimal_word_size, 4*K)
 
 
 

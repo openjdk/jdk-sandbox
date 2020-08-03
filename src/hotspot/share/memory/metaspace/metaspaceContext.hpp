@@ -38,22 +38,15 @@ class ChunkManager;
 class VirtualSpaceList;
 class CommitLimiter;
 
-// A MetaspaceContext contains the lowest layer of Metaspace.
+// A MetaspaceContext is a convenience bracket around:
+// - a VirtualSpaceList defining a memory area used for Metaspace
+// - a ChunkManager sitting atop of that which manages chunk freelists
 //
-// It is a convenience bracket around:
-// - a VirtualSpaceList defining a memory area used for Metaspace, which may
-//   be expandable or non-expandable.
-// - Atop of that a ChunkManager, which manages chunk freelists and is the outside
-//   gateway to memory allocated from this context.
-// - Associated counters
-//
-// In a normal VM only ever exist one or two contexts: one expandable area to hold
-//  the non-class Metaspace (or the whole of Metaspace if -XX:-UseCompressedClassPointers)
-//  and a second one, non-expandable, holding the class space (or not existing at all if
-//  -XX:-UseCompressedClassPointers).
+// In a normal VM only one or two of these contexts ever exist: one for the metaspace, and
+//  optionally another one for the compressed class space.
 //
 // For tests more contexts may be created, and this would also be a way to use Metaspace
-// for things other than Metaspace. We would have to work on the naming then.
+//  for things other than Metaspace. We would have to work on the naming then.
 //
 // - (Future TODO): Context should own a lock to guard it. Currently this stuff is guarded
 //     by one global lock, the slightly misnamed Metaspace_expandlock, but that one
@@ -100,11 +93,11 @@ public:
   // Returns pointer to the global metaspace context.
   // If compressed class space is active, this contains the non-class-space allocations.
   // If compressed class space is inactive, this contains all metaspace allocations.
-  static MetaspaceContext* nonclass_space_context()     { return _nonclass_space_context; }
+  static MetaspaceContext* context_nonclass()     { return _nonclass_space_context; }
 
   // Returns pointer to the global class space context, if compressed class space is active,
   // NULL otherwise.
-  static MetaspaceContext* class_space_context()        { return _class_space_context; }
+  static MetaspaceContext* contect_class()        { return _class_space_context; }
 
 };
 
