@@ -40,8 +40,6 @@ namespace metaspace {
 size_t Settings::_commit_granule_bytes = 0;
 size_t Settings::_commit_granule_words = 0;
 bool Settings::_newborn_root_chunks_are_fully_committed = false;
-size_t Settings::_committed_words_on_fresh_chunks = 0;
-
 bool Settings::_uncommit_free_chunks = false;
 
 DEBUG_ONLY(bool Settings::_use_allocation_guard = false;)
@@ -58,8 +56,6 @@ void Settings::ergo_initialize() {
     _commit_granule_words = _commit_granule_bytes / BytesPerWord;
 
     _newborn_root_chunks_are_fully_committed = true;
-
-    _committed_words_on_fresh_chunks = chunklevel::MAX_CHUNK_WORD_SIZE;
 
     // In "none" reclamation mode, we do not uncommit, but still delete completely empty nodes.
     // This is almost the same behavior as the old Metaspace.
@@ -78,11 +74,6 @@ void Settings::ergo_initialize() {
 
     _newborn_root_chunks_are_fully_committed = false;
 
-    // When handing out fresh chunks, only commit the minimum sensible amount (0 would be possible
-    // but not make sense since the chunk is immediately used for allocation after being handed out, so the
-    // first granule would be committed right away anyway).
-    _committed_words_on_fresh_chunks = _commit_granule_words;
-
     _uncommit_free_chunks = true;
 
   } else if (strcmp(MetaspaceReclaimPolicy, "balanced") == 0) {
@@ -93,11 +84,6 @@ void Settings::ergo_initialize() {
     _commit_granule_words = _commit_granule_bytes / BytesPerWord;
 
     _newborn_root_chunks_are_fully_committed = false;
-
-    // When handing out fresh chunks, only commit the minimum sensible amount (0 would be possible
-    // but not make sense since the chunk is immediately used for allocation after being handed out, so the
-    // first granule would be committed right away anyway).
-    _committed_words_on_fresh_chunks = _commit_granule_words;
 
     _uncommit_free_chunks = true;
 
@@ -137,7 +123,6 @@ void Settings::print_on(outputStream* st) {
   st->print_cr(" - commit_granule_words: " SIZE_FORMAT ".", commit_granule_words());
 
   st->print_cr(" - newborn_root_chunks_are_fully_committed: %d.", (int)newborn_root_chunks_are_fully_committed());
-  st->print_cr(" - committed_words_on_fresh_chunks: " SIZE_FORMAT ".", committed_words_on_fresh_chunks());
 
   st->print_cr(" - virtual_space_node_default_size: " SIZE_FORMAT ".", virtual_space_node_default_word_size());
 

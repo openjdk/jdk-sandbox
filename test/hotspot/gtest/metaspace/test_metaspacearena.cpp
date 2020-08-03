@@ -26,7 +26,7 @@
 
 #include "precompiled.hpp"
 
-//#define LOG_PLEASE
+#define LOG_PLEASE
 
 #include "metaspace/metaspaceTestsCommon.hpp"
 #include "metaspace/metaspace_sparsearray.hpp"
@@ -409,9 +409,24 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
 
   ASSERT_EQ(capacity, expected_starting_capacity);
 
-  // Initial commit charge should not surpass committed_words_on_fresh_chunks
-  ASSERT_LE(committed, Settings::committed_words_on_fresh_chunks());
+  // Check context-wide commit numbers:
+  // Initial commit charge for the whole context should be one granule, unless
+  // newborn_root_chunks_are_fully_committed=true in which case it would be the
+  // size of a root chunk.
+  if (!Settings::newborn_root_chunks_are_fully_committed()) {
+    ASSERT_EQ(msthelper.committed_words(), Settings::commit_granule_words());
+  } else {
+    ASSERT_EQ(msthelper.committed_words(), MAX_CHUNK_WORD_SIZE);
+  }
 
+  // Check arena-local commit numbers:
+  // Same as above but arena->usage_numbers() only reports the part of commit charge
+  // accounted to the arena, so it may be less than the total amount.
+  if (!Settings::newborn_root_chunks_are_fully_committed()) {
+    ASSERT_LE(committed, Settings::commit_granule_words());
+  } else {
+    ASSERT_LE(committed, MAX_CHUNK_WORD_SIZE);
+  }
 
   ///// subsequent allocations //
 

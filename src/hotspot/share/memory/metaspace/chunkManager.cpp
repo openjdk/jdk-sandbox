@@ -209,20 +209,18 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
   }
 
   // Now we have a chunk. It may be too large for the callers needs. It also may not be committed enough.
-  // So we may have to split it, and commit its starting granules.
+  // So we may have to (a) split it and (b) commit the first portion of it to ensure min_committed_words
+  // are committed.
   //
-  // Note that we, as step 1, commit the chunk. Committing may fail and by doing the committing before
-  // the split we can easily add the still unsplit chunk back to the freelist without having to re-merge.
+  // We start with (b) though: committing may fail while splitting cannot fail. By committing before
+  // splitting, we avoid having to re-merge a split chunk in case of a commit error.
   //
-  // As step 2 we split the chunk. Splitting preserves the committed regions underlying the chunk, and
-  // since the target chunk is the first in the original chunk area, the target chunk will be committed
-  // enough.
-
-  const size_t need_to_commit = MAX2(Settings::committed_words_on_fresh_chunks(), min_committed_words);
-  if (c->committed_words() < need_to_commit) {
-    if (c->ensure_committed_locked(need_to_commit) == false) {
+  // (Note that the split operation always returns the first portion of the original chunk as target chunk;
+  //  so it is guaranteed that the committed portion is carried over to the new chunk).
+  if (c->committed_words() < min_committed_words) {
+    if (c->ensure_committed_locked(min_committed_words) == false) {
       UL2(info, "failed to commit " SIZE_FORMAT " words on chunk " METACHUNK_FORMAT ".",
-          need_to_commit,  METACHUNK_FORMAT_ARGS(c));
+          min_committed_words,  METACHUNK_FORMAT_ARGS(c));
       _chunks.add(c);
       return NULL;
     }

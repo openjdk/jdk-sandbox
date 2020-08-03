@@ -31,21 +31,9 @@
 
 namespace metaspace {
 
-class ClassLoaderMetaspace;
-
-// These are running counters for some basic Metaspace statistics.
-// Their value can be obtained quickly without locking.
-
+// This class is a convenience interface for accessing global metaspace counters.
 class RunningCounters : public AllStatic {
 
-  friend class ClassLoaderMetaspace;
-
-  // ---- in-use chunks ----
-
-  // Used space, in words.
-  // (Note that the used counter is on the hot path of Metaspace allocation.
-  //  Do we really need it? We may get by with capacity only and get more details
-  //  with get_statistics_slow().)
   static SizeAtomicCounter _used_class_counter;
   static SizeAtomicCounter _used_nonclass_counter;
 
