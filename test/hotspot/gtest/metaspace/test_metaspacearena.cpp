@@ -26,7 +26,7 @@
 
 #include "precompiled.hpp"
 
-#define LOG_PLEASE
+//#define LOG_PLEASE
 
 #include "metaspace/metaspaceTestsCommon.hpp"
 #include "metaspace/metaspace_sparsearray.hpp"
@@ -390,7 +390,7 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
   MetaspaceArenaTestHelper smhelper_harrasser(msthelper, metaspace::ReflectionMetaspaceType, true, "Harasser");
 
   size_t used = 0, committed = 0, capacity = 0;
-  const size_t alloc_words = 16;
+  const size_t alloc_words = 32;
 
   smhelper.arena()->usage_numbers(&used, &committed, &capacity);
   ASSERT_0(used);
@@ -433,11 +433,11 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
   DEBUG_ONLY(const uintx num_chunk_enlarged = metaspace::InternalStats::num_chunks_enlarged();)
 
   size_t allocated = 0;
-  const size_t safety = 6 * M;
+  const size_t safety = MAX_CHUNK_WORD_SIZE * 1.5;
   size_t highest_capacity_jump = capacity;
   int num_capacity_jumps = 0;
 
-  while (allocated < safety && num_capacity_jumps < 10) {
+  while (allocated < safety && num_capacity_jumps < 20) {
 
     // if we want to test growth with in-place chunk enlargement, leave MetaspaceArena
     // undisturbed; it will have all the place to grow. Otherwise, allocate from a little
