@@ -193,7 +193,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * @see Stream#mapMulti(BiConsumer)
      * @since 16
      */
-    default IntStream mapMulti(IntObjConsumer<? super IntConsumer> mapper) {
+    default IntStream mapMulti(IntMapMultiConsumer<? super IntConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
@@ -1216,7 +1216,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * Represents an operation that accepts a {@code int}-valued argument
      * and an object-valued, and returns no result.  This is the
      * {@code (int, reference)} specialization of {@link BiConsumer}.
-     * Unlike most other functional interfaces, {@code IntObjConsumer} is
+     * Unlike most other functional interfaces, {@code IntMapMultiConsumer} is
      * expected to operate via side-effects.
      *
      * <p>This is a <a href="../function/package-summary.html">functional interface</a>
@@ -1228,7 +1228,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * @since 16
      */
     @FunctionalInterface
-    interface IntObjConsumer<T> {
+    interface IntMapMultiConsumer<T> {
 
         /**
          * Performs this operation on the given arguments.

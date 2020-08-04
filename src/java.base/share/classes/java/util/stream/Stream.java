@@ -362,20 +362,16 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * much more efficient and do not buffer.
      *
      * @apiNote
-     * This method is similar to {@link #flatMap} in that it has the effect of
-     * applying a one-to-many transformation to the elements of the stream, and
-     * then flattening the resulting elements into a new stream. However, this
-     * method is more preferable than {@link #flatMap} in the following circumstances:
+     * This method is similar to {@link #flatMap} in that it applies a one-to-many
+     * transformation to the elements of the stream and flattens the result elements
+     * into a new stream. This method is preferable to {@code flatMap} in the following
+     * circumstances:
      * <ul>
-     * <li>when performing a `filter` then `map`, mapping to zero or one element,
-     * and a common computation across the two actions would require duplication
-     * or the computation is clearer when in one place. Further, this avoids the
-     * returning of {@code null} or an {@link Stream#empty() empty} stream for the
-     * zero mapping case, which need not be expressed;
-     * <li>when elements can be generated imperatively, one-by-one, rather than
-     * having to create a Stream containing the replacement elements; and
-     * <li>replacing an element with a small number of elements, thereby avoiding
-     * the overhead of creating a stream;
+     * <li>When replacing each stream element with a small number (possibly zero) of
+     * elements. Using this method avoids the overhead of creating a new Stream instance
+     * for every group of result elements, as required by {@code flatMap}.</li>
+     * <li>When it is easier to use an imperative approach for generating result
+     * elements than it is to return them in the form of a Stream.</li>
      * </ul>
      *
      * <p><b>Examples</b>

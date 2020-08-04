@@ -193,7 +193,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * @see Stream#mapMulti(BiConsumer)
      * @since 16
      */
-    default LongStream mapMulti(LongObjConsumer<? super LongConsumer> mapper) {
+    default LongStream mapMulti(LongMapMultiConsumer<? super LongConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
@@ -1220,7 +1220,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * Represents an operation that accepts a {@code long}-valued argument
      * and an object-valued, and returns no result.  This is the
      * {@code (long, reference)} specialization of {@link BiConsumer}.
-     * Unlike most other functional interfaces, {@code LongObjConsumer} is
+     * Unlike most other functional interfaces, {@code LongMapMultiConsumer} is
      * expected to operate via side-effects.
      *
      * <p>This is a <a href="../function/package-summary.html">functional interface</a>
@@ -1232,7 +1232,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * @since 16
      */
     @FunctionalInterface
-    interface LongObjConsumer<T> {
+    interface LongMapMultiConsumer<T> {
 
         /**
          * Performs this operation on the given arguments.

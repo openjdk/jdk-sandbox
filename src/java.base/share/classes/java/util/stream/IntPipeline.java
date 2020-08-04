@@ -339,7 +339,7 @@ abstract class IntPipeline<E_IN>
     }
 
     @Override
-    public final IntStream mapMulti(IntObjConsumer<? super IntConsumer> mapper) {
+    public final IntStream mapMulti(IntMapMultiConsumer<? super IntConsumer> mapper) {
         Objects.requireNonNull(mapper);
         return new StatelessOp<>(this, StreamShape.INT_VALUE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
