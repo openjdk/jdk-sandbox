@@ -59,7 +59,6 @@ static const chunklevel_t g_sequ_boot_non_class[] = {
 };
 
 static const chunklevel_t g_sequ_boot_class[] = {
-    chunklevel::CHUNK_LEVEL_1M,
     chunklevel::CHUNK_LEVEL_256K
     // .. repeat last
 };
