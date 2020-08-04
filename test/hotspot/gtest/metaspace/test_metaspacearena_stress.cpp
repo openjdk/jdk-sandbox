@@ -207,8 +207,6 @@ class MetaspaceArenaTest {
 
   SizeAtomicCounter _used_words_counter;
 
-  const size_t _rss_at_start;
-
   SparseArray<MetaspaceArenaTestBed*> _testbeds;
   IntCounter _num_beds;
 
@@ -348,38 +346,13 @@ public:
 
   MetaspaceArenaTest(size_t commit_limit, int num_testbeds)
     : _helper(commit_limit),
-      _rss_at_start(get_workingset_size()),
       _testbeds(num_testbeds),
       _num_beds()
   {}
 
   ~MetaspaceArenaTest () {
 
-    // We compare our footprint now against what we had when the test started. Note that this is
-    // of course fuzzy. We only do this to catch run-away leaks.
-
-    const size_t rss_after_test = get_workingset_size();
-
-    const size_t estimated_gtest_footprint = 4 * M;
-
-    const size_t estimated_footprint = estimated_gtest_footprint +
-                                       get_total_words_allocated() +
-                                       get_total_number_of_allocations() * 10 +
-                                       (sizeof(MetaspaceArenaTestBed) + sizeof(MetaspaceArenaTestBed*)) * _testbeds.size();
-
-    const float margin_factor = 1.5f;
-    EXPECT_LE(rss_after_test, _rss_at_start + estimated_footprint * margin_factor);
-
     delete_all_test_beds();
-
-    const size_t rss_after_cleanup = get_workingset_size();
-
-    // Check for memory leaks. We should ideally be at the baseline of _rss_at_start. However, this depends
-    // on whether this gtest was executed as a first test in the suite, since gtest suite adds overhead of 2-4 MB.
-    EXPECT_LE(rss_after_cleanup, _rss_at_start + estimated_gtest_footprint);
-
-    LOG("rss at start: " INTX_FORMAT ", after test " INTX_FORMAT " (+" INTX_FORMAT "), after cleanup: " INTX_FORMAT " (+" INTX_FORMAT ").", \
-        _rss_at_start, rss_after_test, rss_after_test - _rss_at_start, rss_after_cleanup, rss_after_cleanup - _rss_at_start); \
 
   }
 
@@ -394,7 +367,7 @@ public:
     // - (rarely) deallocate (simulates metaspace deallocation, e.g. class redefinitions)
     // - delete a test bed (simulates collection of a loader and subsequent return of metaspace to freelists)
 
-    const int iterations = 2000;
+    const int iterations = 10000;
 
     // Lets have a ceiling on number of words allocated (this is independent from the commit limit)
     const size_t max_allocation_size = 8 * M;

@@ -31,34 +31,6 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-#ifdef _WIN32
-#include <psapi.h>
-#endif
-
-size_t get_workingset_size() {
-#if defined(_WIN32)
-  PROCESS_MEMORY_COUNTERS info;
-  GetProcessMemoryInfo(GetCurrentProcess(), &info, sizeof(info));
-  return (size_t)info.WorkingSetSize;
-#elif defined(LINUX)
-  long result = 0L;
-  FILE* f = fopen("/proc/self/statm", "r");
-  if (f == NULL) {
-    return 0;
-  }
-  // Second number in statm, in num of pages
-  if (fscanf(f, "%*s%ld", &result) != 1 ) {
-    fclose(f);
-    return 0;
-  }
-  fclose(f);
-  return (size_t)result * (size_t)os::vm_page_size();
-#else
-  return 0L;
-#endif
-}
-
-
 
 void zap_range(MetaWord* p, size_t word_size) {
   for (MetaWord* pzap = p; pzap < p + word_size; pzap += os::vm_page_size() / BytesPerWord) {
