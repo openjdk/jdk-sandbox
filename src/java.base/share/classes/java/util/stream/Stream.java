@@ -373,6 +373,12 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * <li>When it is easier to use an imperative approach for generating result
      * elements than it is to return them in the form of a Stream.</li>
      * </ul>
+     * <p>If a lambda expression is assigned to the mapping function argument, then
+     * that expression may need to be <em>explicitly typed</em> (all parameters have
+     * declared types), alternatively a type witness may need to be declared on the call
+     * to {@code mapMulti}. In such cases, where this stream operation is fluently composed,
+     * explicit typing is required to correctly infer the element type ({@code R}) of the
+     * returned stream.
      *
      * <p><b>Examples</b>
      *
@@ -384,24 +390,20 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *             c.accept((Integer) n);
      *     });
      * }</pre>
+     * In this example the lambda expression is explicitly typed, and {@code Integer}
+     * is correctly inferred for the element type of the returned stream. Alternatively,
+     * a type witness can be declared, such as {@code numbers.<Integer>mapMulti((n, c) -> { ... }}).
      *
-     * <p>If we have a {@code String} and need to produce a stream of {@code Characters},
-     * which are the characters of the string, but all runs of whitespace are
-     * compressed to a single space, we can use {@code mapMulti} as follows:
+     * <p>If we have an {@code Iterable} and need to recursively expand its elements,
+     * which are of type {@code Object} of the Iterable, we can use {@code mapMulti} as follows:
      * <pre>{@code
-     *     strings.mapMulti((String s, Consumer<Character> c) -> {
-     *         for (int i = 0; i < s.length(); i++) {
-     *             char ch = s.charAt(i);
-     *             if (!Character.isWhitespace(ch)) {
-     *                 c.accept(ch);
+     *     objects.expandIterable((Object e, Consumer<Object> c) -> {
+     *         if (e instanceof Iterable) {
+     *             for (Object ie: (Iterable<?>) e) {
+     *                 expandIterable(ie, c);
      *             }
-     *             else {
-     *                 c.accept(' ');
-     *                 int j = i;
-     *                 while (++j < s.length() && Character.isWhitespace(s.charAt(j))) {
-     *                     i = j;
-     *                 }
-     *             }
+     *         } else if (e != null) {
+     *             c.accept(e);
      *         }
      *     });
      * }</pre>
