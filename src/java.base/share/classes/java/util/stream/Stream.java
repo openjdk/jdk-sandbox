@@ -375,7 +375,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * </ul>
      * <p>If a lambda expression is assigned to the mapping function argument, then
      * that expression may need to be <em>explicitly typed</em> (all parameters have
-     * declared types), alternatively a type witness may need to be declared on the call
+     * declared types), alternatively an explicit type parameter may need to be declared on the call
      * to {@code mapMulti}. In such cases, where this stream operation is fluently composed,
      * explicit typing is required to correctly infer the element type ({@code R}) of the
      * returned stream.
@@ -392,10 +392,11 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * }</pre>
      * In this example the lambda expression is explicitly typed, and {@code Integer}
      * is correctly inferred for the element type of the returned stream. Alternatively,
-     * a type witness can be declared, such as {@code numbers.<Integer>mapMulti((n, c) -> { ... }}).
+     * an explicit type parameter can be declared, such as
+     * {@code numbers.<Integer>mapMulti((n, c) -> { ... }}).
      *
      * <p>If we have an {@code Iterable} and need to recursively expand its elements,
-     * which are of type {@code Object} of the Iterable, we can use {@code mapMulti} as follows:
+     * which are of type {@code Object}, we can use {@code mapMulti} as follows:
      * <pre>{@code
      * class C {
      *     static void expandIterable(Object e, Consumer<Object> c) {
