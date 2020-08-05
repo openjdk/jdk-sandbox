@@ -397,7 +397,8 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * <p>If we have an {@code Iterable} and need to recursively expand its elements,
      * which are of type {@code Object} of the Iterable, we can use {@code mapMulti} as follows:
      * <pre>{@code
-     *     objects.expandIterable((Object e, Consumer<Object> c) -> {
+     * class C {
+     *     static void expandIterable(Object e, Consumer<Object> c) {
      *         if (e instanceof Iterable) {
      *             for (Object ie: (Iterable<?>) e) {
      *                 expandIterable(ie, c);
@@ -405,7 +406,13 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *         } else if (e != null) {
      *             c.accept(e);
      *         }
-     *     });
+     *     }
+     *
+     *     public static void main(String[] args) {
+     *         Stream<Object> stream = ...;
+     *         Stream<Object> expandedStream = stream.mapMulti(A::expandIterable);
+     *     }
+     * }
      * }</pre>
      *
      * @param <R> The element type of the new stream
