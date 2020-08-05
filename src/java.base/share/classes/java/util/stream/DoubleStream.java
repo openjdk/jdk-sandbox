@@ -193,7 +193,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * @see Stream#mapMulti(BiConsumer)
      * @since 16
      */
-    default DoubleStream mapMulti(DoubleMapMultiConsumer<? super DoubleConsumer> mapper) {
+    default DoubleStream mapMulti(DoubleMapMultiConsumer mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
@@ -1222,28 +1222,27 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
 
     /**
      * Represents an operation that accepts a {@code double}-valued argument
-     * and an object-valued, and returns no result.  This is the
-     * {@code (double, reference)} specialization of {@link BiConsumer}.
-     * Unlike most other functional interfaces, {@code DoubleMapMultiConsumer} is
-     * expected to operate via side-effects.
+     * and a DoubleConsumer, and returns no result. This functional interface is
+     * used by {@link DoubleStream#mapMulti(DoubleMapMultiConsumer) DoubleStream.mapMulti}
+     * to replace a double value with zero or more double values.
      *
      * <p>This is a <a href="../function/package-summary.html">functional interface</a>
-     * whose functional method is {@link #accept(double, Object)}.
+     * whose functional method is {@link #accept(double, DoubleConsumer)}.
      *
-     * @param <T> the type of the object argument to the operation
+     * @see DoubleStream#mapMulti(DoubleMapMultiConsumer)
      *
-     * @see BiConsumer
      * @since 16
      */
     @FunctionalInterface
-    interface DoubleMapMultiConsumer<T> {
+    interface DoubleMapMultiConsumer {
 
         /**
-         * Performs this operation on the given arguments.
+         * Replaces the given {@code value} with zero or more values by feeding the mapped
+         * values to the {@code dc} consumer.
          *
-         * @param value the first input argument
-         * @param t the second input argument
+         * @param value the double value coming from upstream
+         * @param dc a {@code DoubleConsumer} accepting the mapped values
          */
-        void accept(double value, T t);
+        void accept(double value, DoubleConsumer dc);
     }
 }

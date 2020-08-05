@@ -193,7 +193,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * @see Stream#mapMulti(BiConsumer)
      * @since 16
      */
-    default IntStream mapMulti(IntMapMultiConsumer<? super IntConsumer> mapper) {
+    default IntStream mapMulti(IntMapMultiConsumer mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
@@ -1214,28 +1214,27 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
 
     /**
      * Represents an operation that accepts a {@code int}-valued argument
-     * and an object-valued, and returns no result.  This is the
-     * {@code (int, reference)} specialization of {@link BiConsumer}.
-     * Unlike most other functional interfaces, {@code IntMapMultiConsumer} is
-     * expected to operate via side-effects.
+     * and an IntConsumer, and returns no result. This functional interface is
+     * used by {@link IntStream#mapMulti(IntMapMultiConsumer) IntStream.mapMulti}
+     * to replace an int value with zero or more int values.
      *
      * <p>This is a <a href="../function/package-summary.html">functional interface</a>
-     * whose functional method is {@link #accept(int, Object)}.
+     * whose functional method is {@link #accept(int, IntConsumer)}.
      *
-     * @param <T> the type of the object argument to the operation
-     *
-     * @see BiConsumer
+     * @see IntStream#mapMulti(IntMapMultiConsumer)
+     * 
      * @since 16
      */
     @FunctionalInterface
-    interface IntMapMultiConsumer<T> {
+    interface IntMapMultiConsumer {
 
         /**
-         * Performs this operation on the given arguments.
+         * Replaces the given {@code value} with zero or more values by feeding the mapped
+         * values to the {@code ic} consumer.
          *
-         * @param value the first input argument
-         * @param t the second input argument
+         * @param value the int value coming from upstream
+         * @param ic a {@code IntConsumer} accepting the mapped values
          */
-        void accept(int value, T t);
+        void accept(int value, IntConsumer ic);
     }
 }

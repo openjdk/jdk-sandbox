@@ -193,7 +193,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * @see Stream#mapMulti(BiConsumer)
      * @since 16
      */
-    default LongStream mapMulti(LongMapMultiConsumer<? super LongConsumer> mapper) {
+    default LongStream mapMulti(LongMapMultiConsumer mapper) {
         Objects.requireNonNull(mapper);
         return flatMap(e -> {
             SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
@@ -1218,28 +1218,27 @@ public interface LongStream extends BaseStream<Long, LongStream> {
 
     /**
      * Represents an operation that accepts a {@code long}-valued argument
-     * and an object-valued, and returns no result.  This is the
-     * {@code (long, reference)} specialization of {@link BiConsumer}.
-     * Unlike most other functional interfaces, {@code LongMapMultiConsumer} is
-     * expected to operate via side-effects.
+     * and a LongConsumer, and returns no result. This functional interface is
+     * used by {@link LongStream#mapMulti(LongStream.LongMapMultiConsumer) LongStream.mapMulti}
+     * to replace a long value with zero or more long values.
      *
      * <p>This is a <a href="../function/package-summary.html">functional interface</a>
-     * whose functional method is {@link #accept(long, Object)}.
+     * whose functional method is {@link #accept(long, LongConsumer)}.
      *
-     * @param <T> the type of the object argument to the operation
+     * @see LongStream#mapMulti(LongStream.LongMapMultiConsumer)
      *
-     * @see BiConsumer
      * @since 16
      */
     @FunctionalInterface
-    interface LongMapMultiConsumer<T> {
+    interface LongMapMultiConsumer {
 
         /**
-         * Performs this operation on the given arguments.
+         * Replaces the given {@code value} with zero or more values by feeding the mapped
+         * values to the {@code lc} consumer.
          *
-         * @param value the first input argument
-         * @param t the second input argument
+         * @param value the long value coming from upstream
+         * @param lc a {@code LongConsumer} accepting the mapped values
          */
-        void accept(long value, T t);
+        void accept(long value, LongConsumer lc);
     }
 }

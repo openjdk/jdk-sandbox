@@ -321,7 +321,7 @@ abstract class LongPipeline<E_IN>
     }
 
     @Override
-    public final LongStream mapMulti(LongMapMultiConsumer<? super LongConsumer> mapper) {
+    public final LongStream mapMulti(LongMapMultiConsumer mapper) {
         Objects.requireNonNull(mapper);
         return new LongPipeline.StatelessOp<>(this, StreamShape.LONG_VALUE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
