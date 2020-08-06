@@ -402,7 +402,7 @@ void ChunkManager::purge() {
 // Convenience methods to return the global class-space chunkmanager
 //  and non-class chunkmanager, respectively.
 ChunkManager* ChunkManager::chunkmanager_class() {
-  return MetaspaceContext::contect_class() == NULL ? NULL : MetaspaceContext::contect_class()->cm();
+  return MetaspaceContext::context_class() == NULL ? NULL : MetaspaceContext::context_class()->cm();
 }
 
 ChunkManager* ChunkManager::chunkmanager_nonclass() {

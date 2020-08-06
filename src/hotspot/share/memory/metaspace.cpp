@@ -494,10 +494,13 @@ void MetaspaceGC::compute_new_size() {
 MetaWord* Metaspace::_compressed_class_space_base = NULL;
 size_t Metaspace::_compressed_class_space_size = 0;
 const MetaspaceTracer* Metaspace::_tracer = NULL;
-bool Metaspace::_initialized = false;
 
 DEBUG_ONLY(bool Metaspace::_frozen = false;)
 
+bool Metaspace::initialized() {
+  return metaspace::MetaspaceContext::context_nonclass() != NULL &&
+      (using_class_space() ? metaspace::MetaspaceContext::context_class() != NULL : true);
+}
 
 #ifdef _LP64
 
@@ -535,7 +538,7 @@ void Metaspace::initialize_class_space(ReservedSpace rs) {
 
 // Returns true if class space has been setup (initialize_class_space).
 bool Metaspace::class_space_is_initialized() {
-  return MetaspaceContext::contect_class() != NULL;
+  return MetaspaceContext::context_class() != NULL;
 }
 
 // Reserve a range of memory at an address suitable for en/decoding narrow
@@ -752,8 +755,6 @@ void Metaspace::global_initialize() {
 
   _tracer = new MetaspaceTracer();
 
-  _initialized = true;
-
   // We must prevent the very first address of the ccs from being used to store
   // metadata, since that address would translate to a narrow pointer of 0, and the
   // VM does not distinguish between "narrow 0 as in NULL" and "narrow 0 as in start
@@ -764,7 +765,7 @@ void Metaspace::global_initialize() {
   if (using_class_space()) {
     // The simplest way to fix this is to allocate a tiny dummy chunk right at the
     // start of ccs and do not use it for anything.
-    MetaspaceContext::contect_class()->cm()->get_chunk(metaspace::chunklevel::HIGHEST_CHUNK_LEVEL);
+    MetaspaceContext::context_class()->cm()->get_chunk(metaspace::chunklevel::HIGHEST_CHUNK_LEVEL);
   }
 #endif
 

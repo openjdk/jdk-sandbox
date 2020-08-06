@@ -97,7 +97,7 @@ public:
 
   // Returns pointer to the global class space context, if compressed class space is active,
   // NULL otherwise.
-  static MetaspaceContext* contect_class()        { return _class_space_context; }
+  static MetaspaceContext* context_class()        { return _class_space_context; }
 
 };
 

@@ -165,7 +165,7 @@ public:
     return NOT_LP64(false) LP64_ONLY(UseCompressedClassPointers);
   }
 
-  static bool initialized() { return _initialized; }
+  static bool initialized();
 
 };
 

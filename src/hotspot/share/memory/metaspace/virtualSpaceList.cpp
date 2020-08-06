@@ -263,7 +263,7 @@ bool VirtualSpaceList::is_full() const {
 // Convenience methods to return the global class-space chunkmanager
 //  and non-class chunkmanager, respectively.
 VirtualSpaceList* VirtualSpaceList::vslist_class() {
-  return MetaspaceContext::contect_class() == NULL ? NULL : MetaspaceContext::contect_class()->vslist();
+  return MetaspaceContext::context_class() == NULL ? NULL : MetaspaceContext::context_class()->vslist();
 }
 
 VirtualSpaceList* VirtualSpaceList::vslist_nonclass() {
