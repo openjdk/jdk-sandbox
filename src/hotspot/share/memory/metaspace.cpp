@@ -489,10 +489,6 @@ void MetaspaceGC::compute_new_size() {
 
 //////  Metaspace methods /////
 
-
-
-MetaWord* Metaspace::_compressed_class_space_base = NULL;
-size_t Metaspace::_compressed_class_space_size = 0;
 const MetaspaceTracer* Metaspace::_tracer = NULL;
 
 DEBUG_ONLY(bool Metaspace::_frozen = false;)
@@ -673,8 +669,6 @@ void Metaspace::ergo_initialize() {
   MinMetaspaceExpansion = align_down_bounded(MinMetaspaceExpansion, commit_alignment());
   MaxMetaspaceExpansion = align_down_bounded(MaxMetaspaceExpansion, commit_alignment());
 
-  _compressed_class_space_size = CompressedClassSpaceSize;
-
 }
 
 void Metaspace::global_initialize() {
@@ -738,7 +732,7 @@ void Metaspace::global_initialize() {
     if (!rs.is_reserved()) {
       vm_exit_during_initialization(
           err_msg("Could not allocate compressed class space: " SIZE_FORMAT " bytes",
-                   compressed_class_space_size()));
+                   CompressedClassSpaceSize));
     }
 
     // Initialize space

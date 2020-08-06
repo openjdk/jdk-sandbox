@@ -84,18 +84,11 @@ public:
 private:
   friend class MetaspaceShared;
 
-  // Base and size of the compressed class space.
-  static MetaWord* _compressed_class_space_base;
-  static size_t _compressed_class_space_size;
-
   DEBUG_ONLY(static bool   _frozen;)
 
   static const MetaspaceTracer* _tracer;
 
   static bool _initialized;
-
-  static MetaWord* compressed_class_space_base()              { return _compressed_class_space_base; }
-  static size_t compressed_class_space_size()                 { return _compressed_class_space_size; }
 
 public:
 
