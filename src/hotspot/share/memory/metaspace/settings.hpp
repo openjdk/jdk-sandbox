@@ -47,6 +47,9 @@ class Settings : public AllStatic {
   // Must be a multiple of the root chunk size.
   static const size_t _virtual_space_node_default_word_size = chunklevel::MAX_CHUNK_WORD_SIZE * 2; // lets go with 8mb virt size. Seems a good compromise betw. virt and mapping fragmentation.
 
+  // Alignment of the base address of a virtual space node
+  static const size_t _virtual_space_node_reserve_alignment_words = chunklevel::MAX_CHUNK_WORD_SIZE;
+
   // When allocating from a chunk, if the remaining area in the chunk is too small to hold
   // the requested size, we attempt to double the chunk size in place...
   static const bool _enlarge_chunks_in_place = true;
@@ -70,6 +73,7 @@ public:
   static size_t commit_granule_words()                        { return _commit_granule_words; }
   static bool newborn_root_chunks_are_fully_committed()       { return _newborn_root_chunks_are_fully_committed; }
   static size_t virtual_space_node_default_word_size()        { return _virtual_space_node_default_word_size; }
+  static size_t virtual_space_node_reserve_alignment_words()  { return _virtual_space_node_reserve_alignment_words; }
   static bool enlarge_chunks_in_place()                       { return _enlarge_chunks_in_place; }
   static size_t enlarge_chunks_in_place_max_word_size()       { return _enlarge_chunks_in_place_max_word_size; }
   static bool uncommit_free_chunks()                          { return _uncommit_free_chunks; }

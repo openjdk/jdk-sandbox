@@ -291,6 +291,7 @@ public:
       MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
       _node = VirtualSpaceNode::create_node(vs_word_size, &_commit_limiter,
                                             &_counter_reserved_words, &_counter_committed_words);
+      EXPECT_EQ(_node->word_size(), vs_word_size);
     }
     EXPECT_TRUE(_commit_limiter.possible_expansion_words() == _commit_limit);
     verify();

@@ -39,6 +39,7 @@ namespace metaspace {
 
 size_t Settings::_commit_granule_bytes = 0;
 size_t Settings::_commit_granule_words = 0;
+
 bool Settings::_newborn_root_chunks_are_fully_committed = false;
 bool Settings::_uncommit_free_chunks = false;
 
@@ -94,8 +95,12 @@ void Settings::ergo_initialize() {
   }
 
   // Sanity checks.
-  guarantee(commit_granule_words() <= chunklevel::MAX_CHUNK_WORD_SIZE, "Too large granule size");
-  guarantee(is_power_of_2(commit_granule_words()), "granule size must be a power of 2");
+  assert(commit_granule_words() <= chunklevel::MAX_CHUNK_WORD_SIZE, "Too large granule size");
+  assert(is_power_of_2(commit_granule_words()), "granule size must be a power of 2");
+
+  // Should always be true since root chunk size should be much larger than alloc granularity
+  assert(is_aligned(_virtual_space_node_reserve_alignment_words * BytesPerWord,
+                    os::vm_allocation_granularity()), "Sanity");
 
 #ifdef ASSERT
   // Off for release builds, and by default for debug builds, but can be switched on manually to aid

@@ -30,6 +30,25 @@
 #include "classfile/classLoaderData.hpp"
 #include "metaspaceTestsCommon.hpp"
 
+
+TEST_VM(metaspace, misc_sizes)   {
+
+  // Test test common sizes (seems primitive but breaks surprisingly often during development
+  //  because of word vs byte confusion)
+  // Adjust this test if numbers change.
+  ASSERT_TRUE(Settings::commit_granule_bytes() == 16 * K ||
+              Settings::commit_granule_bytes() == 64 * K);
+  ASSERT_EQ(Settings::commit_granule_bytes(), Metaspace::commit_alignment());
+  ASSERT_TRUE(is_aligned(Settings::virtual_space_node_default_word_size(),
+              metaspace::chunklevel::MAX_CHUNK_WORD_SIZE));
+  ASSERT_EQ(Settings::virtual_space_node_default_word_size(),
+            metaspace::chunklevel::MAX_CHUNK_WORD_SIZE * 2);
+  ASSERT_EQ(Settings::virtual_space_node_reserve_alignment_words(),
+            Metaspace::reserve_alignment_words());
+
+}
+
+
 TEST_VM(metaspace, misc_max_alloc_size)   {
 
   // Make sure we can allocate what we promise to allocate

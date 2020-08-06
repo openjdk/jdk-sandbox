@@ -88,8 +88,6 @@ private:
   static MetaWord* _compressed_class_space_base;
   static size_t _compressed_class_space_size;
 
-  static size_t _commit_alignment;
-  static size_t _reserve_alignment;
   DEBUG_ONLY(static bool   _frozen;)
 
   static const MetaspaceTracer* _tracer;
@@ -137,13 +135,13 @@ public:
   static void post_initialize();
 
   // The alignment at which Metaspace mappings are reserved.
-  static size_t reserve_alignment()       { return _reserve_alignment; }
-  static size_t reserve_alignment_words() { return _reserve_alignment / BytesPerWord; }
+  static size_t reserve_alignment()       { return reserve_alignment_words() * BytesPerWord; }
+  static size_t reserve_alignment_words();
 
   // The granularity at which Metaspace is committed and uncommitted.
   // (Todo: Why does this have to be exposed?)
-  static size_t commit_alignment()        { return _commit_alignment; }
-  static size_t commit_words()            { return _commit_alignment / BytesPerWord; }
+  static size_t commit_alignment()        { return commit_alignment_words() * BytesPerWord; }
+  static size_t commit_alignment_words();
 
   // The largest possible single allocation
   static size_t max_allocation_word_size();

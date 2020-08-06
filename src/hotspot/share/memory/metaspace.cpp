@@ -495,8 +495,6 @@ MetaWord* Metaspace::_compressed_class_space_base = NULL;
 size_t Metaspace::_compressed_class_space_size = 0;
 const MetaspaceTracer* Metaspace::_tracer = NULL;
 bool Metaspace::_initialized = false;
-size_t Metaspace::_commit_alignment = 0;
-size_t Metaspace::_reserve_alignment = 0;
 
 DEBUG_ONLY(bool Metaspace::_frozen = false;)
 
@@ -594,18 +592,18 @@ ReservedSpace Metaspace::reserve_address_space_for_compressed_classes(size_t siz
 #endif // _LP64
 
 
+size_t Metaspace::reserve_alignment_words() {
+  return metaspace::Settings::virtual_space_node_reserve_alignment_words();
+}
+
+size_t Metaspace::commit_alignment_words() {
+  return metaspace::Settings::commit_granule_words();
+}
+
 void Metaspace::ergo_initialize() {
 
   // Must happen before using any setting from Settings::---
   metaspace::Settings::ergo_initialize();
-
-  // Commit alignment: (I would rather hide this since this is an implementation detail but we need it
-  // when calculating the gc threshold).
-  _commit_alignment  = metaspace::Settings::commit_granule_bytes();
-
-  // Reserve alignment: all Metaspace memory mappings are to be aligned to the size of a root chunk.
-  _reserve_alignment = MAX2((size_t)os::vm_allocation_granularity(), metaspace::chunklevel::MAX_CHUNK_BYTE_SIZE);
-
 
   // MaxMetaspaceSize and CompressedClassSpaceSize:
   //
@@ -633,7 +631,7 @@ void Metaspace::ergo_initialize() {
   //  save on reserved space, and to make ergnonomics less confusing.
 
   // (aligned just for cleanliness:)
-  MaxMetaspaceSize = MAX2(align_down(MaxMetaspaceSize, _commit_alignment), _commit_alignment);
+  MaxMetaspaceSize = MAX2(align_down(MaxMetaspaceSize, commit_alignment()), commit_alignment());
 
   if (UseCompressedClassPointers) {
     // Let CCS size not be larger than 80% of MaxMetaspaceSize. Note that is
@@ -646,8 +644,8 @@ void Metaspace::ergo_initialize() {
 
     // CCS must be aligned to root chunk size, and be at least the size of one
     //  root chunk.
-    adjusted_ccs_size = align_up(adjusted_ccs_size, _reserve_alignment);
-    adjusted_ccs_size = MAX2(adjusted_ccs_size, _reserve_alignment);
+    adjusted_ccs_size = align_up(adjusted_ccs_size, reserve_alignment());
+    adjusted_ccs_size = MAX2(adjusted_ccs_size, reserve_alignment());
 
     // Note: re-adjusting may have us left with a CompressedClassSpaceSize
     //  larger than MaxMetaspaceSize for very small values of MaxMetaspaceSize.
@@ -665,12 +663,12 @@ void Metaspace::ergo_initialize() {
     MetaspaceSize = MaxMetaspaceSize;
   }
 
-  MetaspaceSize = align_down_bounded(MetaspaceSize, _commit_alignment);
+  MetaspaceSize = align_down_bounded(MetaspaceSize, commit_alignment());
 
   assert(MetaspaceSize <= MaxMetaspaceSize, "MetaspaceSize should be limited by MaxMetaspaceSize");
 
-  MinMetaspaceExpansion = align_down_bounded(MinMetaspaceExpansion, _commit_alignment);
-  MaxMetaspaceExpansion = align_down_bounded(MaxMetaspaceExpansion, _commit_alignment);
+  MinMetaspaceExpansion = align_down_bounded(MinMetaspaceExpansion, commit_alignment());
+  MaxMetaspaceExpansion = align_down_bounded(MaxMetaspaceExpansion, commit_alignment());
 
   _compressed_class_space_size = CompressedClassSpaceSize;
 

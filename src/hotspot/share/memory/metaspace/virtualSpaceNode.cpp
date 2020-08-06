@@ -262,12 +262,8 @@ VirtualSpaceNode* VirtualSpaceNode::create_node(size_t word_size,
 
   DEBUG_ONLY(assert_is_aligned(word_size, chunklevel::MAX_CHUNK_WORD_SIZE);)
 
-#ifdef ASSERT
-  size_t alignment = chunklevel::MAX_CHUNK_BYTE_SIZE;
-#endif
-
   ReservedSpace rs(word_size * BytesPerWord,
-                   Metaspace::reserve_alignment(),
+                   Settings::virtual_space_node_reserve_alignment_words() * BytesPerWord,
                    false // large
                    );
 
