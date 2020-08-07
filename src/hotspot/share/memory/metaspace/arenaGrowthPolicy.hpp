@@ -70,7 +70,7 @@ public:
 
   // Given a space type, return the correct policy to use.
   // The returned object is static and read only.
-  static const ArenaGrowthPolicy* policy_for_space_type(MetaspaceType space_type, bool is_class);
+  static const ArenaGrowthPolicy* policy_for_space_type(Metaspace::MetaspaceType space_type, bool is_class);
 
 };
 

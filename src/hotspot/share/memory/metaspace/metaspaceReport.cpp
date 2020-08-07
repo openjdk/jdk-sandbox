@@ -206,13 +206,13 @@ void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags)
     out->cr();
     out->print_cr("Usage per space type:");
     out->cr();
-    for (int space_type = (int)metaspace::ZeroMetaspaceType;
-         space_type < (int)metaspace::MetaspaceTypeCount; space_type ++)
+    for (int space_type = (int)Metaspace::ZeroMetaspaceType;
+         space_type < (int)Metaspace::MetaspaceTypeCount; space_type ++)
     {
       uintx num_loaders = cl._num_loaders_by_spacetype[space_type];
       uintx num_classes = cl._num_classes_by_spacetype[space_type];
       out->print("%s - " UINTX_FORMAT " %s",
-        describe_spacetype((MetaspaceType)space_type),
+        describe_spacetype((Metaspace::MetaspaceType)space_type),
         num_loaders, loaders_plural(num_loaders));
       if (num_classes > 0) {
         out->print(", ");

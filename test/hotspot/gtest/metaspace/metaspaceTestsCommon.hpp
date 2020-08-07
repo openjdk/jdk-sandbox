@@ -34,7 +34,6 @@
 #include "memory/metaspace/chunkHeaderPool.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/chunkManager.hpp"
-#include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/commitMask.hpp"
@@ -91,12 +90,6 @@ using metaspace::VirtualSpaceNode;
 
 using metaspace::chunklevel_t;
 using namespace metaspace::chunklevel;
-
-using metaspace::MetaspaceType;
-using metaspace::ReflectionMetaspaceType;
-using metaspace::ClassMirrorHolderMetaspaceType;
-using metaspace::StandardMetaspaceType;
-using metaspace::BootMetaspaceType;
 
 
 /////////////////////////////////////////////////////////////////////

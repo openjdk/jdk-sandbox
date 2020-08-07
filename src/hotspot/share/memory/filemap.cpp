@@ -40,7 +40,6 @@
 #include "memory/heapShared.inline.hpp"
 #include "memory/iterator.inline.hpp"
 #include "memory/metadataFactory.hpp"
-#include "memory/metaspace.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"

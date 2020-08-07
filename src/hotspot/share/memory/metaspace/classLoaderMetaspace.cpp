@@ -29,7 +29,10 @@
 #include "memory/metaspace.hpp"
 #include "memory/metaspaceTracer.hpp"
 #include "memory/metaspace/chunkManager.hpp"
-#include "memory/metaspace/classLoaderMetaspace.hpp"
+// Note: for now, to keep changes to the outside tree minimal,
+// ClassLoaderMetaspace prototype continutes to live in
+// metaspace.hpp and the global namespace.
+//#include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metaspaceArena.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
@@ -39,7 +42,12 @@
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
 
-namespace metaspace {
+using metaspace::clms_stats_t;
+using metaspace::ChunkManager;
+using metaspace::MetaspaceArena;
+using metaspace::ArenaGrowthPolicy;
+using metaspace::RunningCounters;
+using metaspace::InternalStats;
 
 #define LOGFMT         "CLMS @" PTR_FORMAT " "
 #define LOGFMT_ARGS    p2i(this)
@@ -52,10 +60,10 @@ static bool use_class_space(bool is_class) {
 }
 
 static bool use_class_space(Metaspace::MetadataType mdType) {
-  return use_class_space(is_class(mdType));
+  return use_class_space(metaspace::is_class(mdType));
 }
 
-ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type)
+ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, Metaspace::MetaspaceType space_type)
   : _lock(lock)
   , _space_type(space_type)
   , _non_class_space_arena(NULL)
@@ -170,7 +178,7 @@ void ClassLoaderMetaspace::add_to_statistics(clms_stats_t* out) const {
 
 #ifdef ASSERT
 void ClassLoaderMetaspace::verify() const {
-  check_valid_spacetype(_space_type);
+  metaspace::check_valid_spacetype(_space_type);
   if (non_class_space_arena() != NULL) {
     non_class_space_arena()->verify(false);
   }
@@ -201,9 +209,6 @@ void ClassLoaderMetaspace::calculate_jfr_stats(size_t* p_used_bytes, size_t* p_c
     *p_capacity_bytes = cap_c + cap_nc;
   }
 }
-
-
-} // end namespace metaspace
 
 
 

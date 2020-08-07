@@ -23,10 +23,10 @@
  */
 
 #include "precompiled.hpp"
-#include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classLoaderStats.hpp"
+#include "memory/metaspace.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -79,7 +79,7 @@ void ClassLoaderStatsClosure::do_cld(ClassLoaderData* cld) {
   }
   _total_classes += csc._num_classes;
 
-  metaspace::ClassLoaderMetaspace* ms = cld->metaspace_or_null();
+  ClassLoaderMetaspace* ms = cld->metaspace_or_null();
   if (ms != NULL) {
     size_t used_bytes, capacity_bytes;
     ms->calculate_jfr_stats(&used_bytes, &capacity_bytes);

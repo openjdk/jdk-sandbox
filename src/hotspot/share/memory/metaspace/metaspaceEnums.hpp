@@ -33,9 +33,10 @@ namespace metaspace {
 
 ///////////////////////
 
-/* Moved to metaspace.hpp to keep diff in non-metaspace coding
- * small. Would like to have this here and in metaspace:: namespace,
- * eventually.
+/* Continues to live in Metaspace class (metaspace.hpp) for
+ * the time being to keep changes to the outside tree minimal.
+ * Will be factored out to an own header and potentially
+ * made enum class.
  *
  * enum MetadataType {
  *  ClassType,
@@ -45,8 +46,6 @@ namespace metaspace {
  */
 
 inline bool is_class(Metaspace::MetadataType md) { return md == Metaspace::ClassType; }
-
-inline Metaspace::MetadataType mdtype_from_bool(bool is_class) { return is_class ? Metaspace::ClassType : Metaspace::NonClassType; }
 
 const char* describe_mdtype(Metaspace::MetadataType md);
 
@@ -61,22 +60,28 @@ inline void check_valid_mdtype(Metaspace::MetadataType md) {
 
 ///////////////////////
 
-enum MetaspaceType {
-  ZeroMetaspaceType = 0,
-  StandardMetaspaceType = ZeroMetaspaceType,
-  BootMetaspaceType = StandardMetaspaceType + 1,
-  ClassMirrorHolderMetaspaceType = BootMetaspaceType + 1,
-  ReflectionMetaspaceType = ClassMirrorHolderMetaspaceType + 1,
-  MetaspaceTypeCount
-};
+/* Continues to live in Metaspace class (metaspace.hpp) for
+ * the time being to keep changes to the outside tree minimal.
+ * Will be factored out to an own header and potentially
+ * made enum class.
+ *
+ * enum MetaspaceType {
+ *   ZeroMetaspaceType = 0,
+ *   StandardMetaspaceType = ZeroMetaspaceType,
+ *   BootMetaspaceType = StandardMetaspaceType + 1,
+ *   ClassMirrorHolderMetaspaceType = BootMetaspaceType + 1,
+ *   ReflectionMetaspaceType = ClassMirrorHolderMetaspaceType + 1,
+ *   MetaspaceTypeCount
+ * };
+ */
 
-const char* describe_spacetype(MetaspaceType st);
+const char* describe_spacetype(Metaspace::MetaspaceType st);
 
 #ifdef ASSERT
-inline bool is_valid_spacetype(MetaspaceType st) {
-  return (int)st >= 0 && (int)st < MetaspaceTypeCount;
+inline bool is_valid_spacetype(Metaspace::MetaspaceType st) {
+  return (int)st >= 0 && (int)st < Metaspace::MetaspaceTypeCount;
 }
-inline void check_valid_spacetype(MetaspaceType st) {
+inline void check_valid_spacetype(Metaspace::MetaspaceType st) {
   assert(is_valid_spacetype(st), "Wrong value for MetaspaceType: %d", (int) st);
 }
 #endif

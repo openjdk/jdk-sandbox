@@ -29,15 +29,15 @@
 
 #include "metaspaceTestsCommon.hpp"
 
-static void test_arena_growth_policy(metaspace::MetaspaceType spacetype, bool is_class) {
+static void test_arena_growth_policy(Metaspace::MetaspaceType spacetype, bool is_class) {
 
   const ArenaGrowthPolicy* a =
-      ArenaGrowthPolicy::policy_for_space_type((metaspace::MetaspaceType)spacetype, is_class);
+      ArenaGrowthPolicy::policy_for_space_type((Metaspace::MetaspaceType)spacetype, is_class);
 
   // initial level
   chunklevel_t lvl = a->get_level_at_step(0);
   ASSERT_TRUE(is_valid_level(lvl));
-  if (spacetype != BootMetaspaceType) {
+  if (spacetype != Metaspace::BootMetaspaceType) {
     // All types save boot loader should start with small or very small chunks
     ASSERT_GE(lvl, CHUNK_LEVEL_4K);
   }
@@ -53,7 +53,7 @@ static void test_arena_growth_policy(metaspace::MetaspaceType spacetype, bool is
 
 #define DEFINE_GROWTH_POLICY_TEST(spacetype, is_class) \
 TEST_VM(metaspace, arena_growth_policy_##spacetype##_##is_class) { \
-	test_arena_growth_policy(spacetype, is_class); \
+	test_arena_growth_policy(Metaspace::spacetype, is_class); \
 }
 
 DEFINE_GROWTH_POLICY_TEST(ReflectionMetaspaceType, true)

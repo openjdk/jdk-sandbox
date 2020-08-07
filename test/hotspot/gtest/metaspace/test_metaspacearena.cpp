@@ -47,7 +47,7 @@ class MetaspaceArenaTestHelper {
 
 public:
 
-  MetaspaceArenaTestHelper(MetaspaceTestHelper& helper, metaspace::MetaspaceType space_type, bool is_class,
+  MetaspaceArenaTestHelper(MetaspaceTestHelper& helper, Metaspace::MetaspaceType space_type, bool is_class,
                          const char* name = "gtest-MetaspaceArena")
     : _helper(helper),
       _lock(NULL),
@@ -202,7 +202,7 @@ public:
 
 static void test_basics(size_t commit_limit, bool is_micro) {
   MetaspaceTestHelper msthelper(commit_limit);
-  MetaspaceArenaTestHelper helper(msthelper, is_micro ? metaspace::ReflectionMetaspaceType : metaspace::StandardMetaspaceType, false);
+  MetaspaceArenaTestHelper helper(msthelper, is_micro ? Metaspace::ReflectionMetaspaceType : Metaspace::StandardMetaspaceType, false);
 
   helper.allocate_from_arena_with_tests(1);
   helper.allocate_from_arena_with_tests(128);
@@ -240,7 +240,7 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place) {
   }
 
   MetaspaceTestHelper msthelper;
-  MetaspaceArenaTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
+  MetaspaceArenaTestHelper helper(msthelper, Metaspace::StandardMetaspaceType, false);
   helper.allocate_from_arena_with_tests_expect_success(1);
   helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
   helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE / 2);
@@ -256,7 +256,7 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_1) {
   }
 
   MetaspaceTestHelper msthelper;
-  MetaspaceArenaTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
+  MetaspaceArenaTestHelper helper(msthelper, Metaspace::StandardMetaspaceType, false);
   size_t size = MIN_CHUNK_WORD_SIZE;
   while (size <= MAX_CHUNK_WORD_SIZE) {
     helper.allocate_from_arena_with_tests_expect_success(size);
@@ -274,7 +274,7 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_2) {
   }
 
   MetaspaceTestHelper msthelper;
-  MetaspaceArenaTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
+  MetaspaceArenaTestHelper helper(msthelper, Metaspace::StandardMetaspaceType, false);
   size_t size = MIN_CHUNK_WORD_SIZE;
   while (size <= MAX_CHUNK_WORD_SIZE) {
     helper.allocate_from_arena_with_tests_expect_success(size);
@@ -292,7 +292,7 @@ TEST_VM(metaspace, MetaspaceArena_deallocate) {
   }
   for (size_t s = 2; s <= MAX_CHUNK_WORD_SIZE; s *= 2) {
     MetaspaceTestHelper msthelper;
-    MetaspaceArenaTestHelper helper(msthelper, metaspace::StandardMetaspaceType, false);
+    MetaspaceArenaTestHelper helper(msthelper, Metaspace::StandardMetaspaceType, false);
 
     MetaWord* p1 = NULL;
     helper.allocate_from_arena_with_tests_expect_success(&p1, s);
@@ -344,13 +344,13 @@ static void test_recover_from_commit_limit_hit() {
   // The first MetaspaceArena mimicks a micro loader. This will fill the free
   //  chunk list with very small chunks. We allocate from them in an interleaved
   //  way to cause fragmentation.
-  MetaspaceArenaTestHelper helper1(msthelper, metaspace::ReflectionMetaspaceType, false);
-  MetaspaceArenaTestHelper helper2(msthelper, metaspace::ReflectionMetaspaceType, false);
+  MetaspaceArenaTestHelper helper1(msthelper, Metaspace::ReflectionMetaspaceType, false);
+  MetaspaceArenaTestHelper helper2(msthelper, Metaspace::ReflectionMetaspaceType, false);
 
   // This MetaspaceArena should hit the limit. We use BootMetaspaceType here since
   // it gets a large initial chunk which is committed
   // on demand and we are likely to hit a commit limit while trying to expand it.
-  MetaspaceArenaTestHelper helper3(msthelper, metaspace::BootMetaspaceType, false);
+  MetaspaceArenaTestHelper helper3(msthelper, Metaspace::BootMetaspaceType, false);
 
   // Allocate space until we have below two but above one granule left
   size_t allocated_from_1_and_2 = 0;
@@ -393,7 +393,7 @@ TEST_VM(metaspace, MetaspaceArena_recover_from_limit_hit) {
   test_recover_from_commit_limit_hit();
 }
 
-static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
+static void test_controlled_growth(Metaspace::MetaspaceType type, bool is_class,
                                    size_t expected_starting_capacity,
                                    bool test_in_place_enlargement)
 {
@@ -410,7 +410,7 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
   MetaspaceTestHelper msthelper;
   MetaspaceArenaTestHelper smhelper(msthelper, type, is_class, "Grower");
 
-  MetaspaceArenaTestHelper smhelper_harrasser(msthelper, metaspace::ReflectionMetaspaceType, true, "Harasser");
+  MetaspaceArenaTestHelper smhelper_harrasser(msthelper, Metaspace::ReflectionMetaspaceType, true, "Harasser");
 
   size_t used = 0, committed = 0, capacity = 0;
   const size_t alloc_words = 16;
@@ -533,87 +533,87 @@ static void test_controlled_growth(metaspace::MetaspaceType type, bool is_class,
 
 // these numbers have to be in sync with arena policy numbers (see memory/metaspace/arenaGrowthPolicy.cpp)
 TEST_VM(metaspace, MetaspaceArena_growth_refl_c_inplace) {
-  test_controlled_growth(metaspace::ReflectionMetaspaceType, true,
+  test_controlled_growth(Metaspace::ReflectionMetaspaceType, true,
                          word_size_for_level(CHUNK_LEVEL_1K), true);
 }
 
 TEST_VM(metaspace, MetaspaceArena_growth_refl_c_not_inplace) {
-  test_controlled_growth(metaspace::ReflectionMetaspaceType, true,
+  test_controlled_growth(Metaspace::ReflectionMetaspaceType, true,
                          word_size_for_level(CHUNK_LEVEL_1K), false);
 }
 
 TEST_VM(metaspace, MetaspaceArena_growth_anon_c_inplace) {
-  test_controlled_growth(metaspace::ClassMirrorHolderMetaspaceType, true,
+  test_controlled_growth(Metaspace::ClassMirrorHolderMetaspaceType, true,
                          word_size_for_level(CHUNK_LEVEL_1K), true);
 }
 
 TEST_VM(metaspace, MetaspaceArena_growth_anon_c_not_inplace) {
-  test_controlled_growth(metaspace::ClassMirrorHolderMetaspaceType, true,
+  test_controlled_growth(Metaspace::ClassMirrorHolderMetaspaceType, true,
                          word_size_for_level(CHUNK_LEVEL_1K), false);
 }
 
 TEST_VM(metaspace, MetaspaceArena_growth_standard_c_inplace) {
-  test_controlled_growth(metaspace::StandardMetaspaceType, true,
+  test_controlled_growth(Metaspace::StandardMetaspaceType, true,
                          word_size_for_level(CHUNK_LEVEL_2K), true);
 }
 
 TEST_VM(metaspace, MetaspaceArena_growth_standard_c_not_inplace) {
-  test_controlled_growth(metaspace::StandardMetaspaceType, true,
+  test_controlled_growth(Metaspace::StandardMetaspaceType, true,
                          word_size_for_level(CHUNK_LEVEL_2K), false);
 }
 
 /* Disabled growth tests for BootMetaspaceType: there, the growth steps are too rare,
  * and too large, to make any reliable guess as toward chunks get enlarged in place.
 TEST_VM(metaspace, MetaspaceArena_growth_boot_c_inplace) {
-  test_controlled_growth(metaspace::BootMetaspaceType, true,
+  test_controlled_growth(Metaspace::BootMetaspaceType, true,
                          word_size_for_level(CHUNK_LEVEL_1M), true);
 }
 
 TEST_VM(metaspace, MetaspaceArena_growth_boot_c_not_inplace) {
-  test_controlled_growth(metaspace::BootMetaspaceType, true,
+  test_controlled_growth(Metaspace::BootMetaspaceType, true,
                          word_size_for_level(CHUNK_LEVEL_1M), false);
 }
 */
 
 TEST_VM(metaspace, MetaspaceArena_growth_refl_nc_inplace) {
-  test_controlled_growth(metaspace::ReflectionMetaspaceType, false,
+  test_controlled_growth(Metaspace::ReflectionMetaspaceType, false,
                          word_size_for_level(CHUNK_LEVEL_2K), true);
 }
 
 TEST_VM(metaspace, MetaspaceArena_growth_refl_nc_not_inplace) {
-  test_controlled_growth(metaspace::ReflectionMetaspaceType, false,
+  test_controlled_growth(Metaspace::ReflectionMetaspaceType, false,
                          word_size_for_level(CHUNK_LEVEL_2K), false);
 }
 
 TEST_VM(metaspace, MetaspaceArena_growth_anon_nc_inplace) {
-  test_controlled_growth(metaspace::ClassMirrorHolderMetaspaceType, false,
+  test_controlled_growth(Metaspace::ClassMirrorHolderMetaspaceType, false,
                          word_size_for_level(CHUNK_LEVEL_1K), true);
 }
 
 TEST_VM(metaspace, MetaspaceArena_growth_anon_nc_not_inplace) {
-  test_controlled_growth(metaspace::ClassMirrorHolderMetaspaceType, false,
+  test_controlled_growth(Metaspace::ClassMirrorHolderMetaspaceType, false,
                          word_size_for_level(CHUNK_LEVEL_1K), false);
 }
 
 TEST_VM(metaspace, MetaspaceArena_growth_standard_nc_inplace) {
-  test_controlled_growth(metaspace::StandardMetaspaceType, false,
+  test_controlled_growth(Metaspace::StandardMetaspaceType, false,
                          word_size_for_level(CHUNK_LEVEL_4K), true);
 }
 
 TEST_VM(metaspace, MetaspaceArena_growth_standard_nc_not_inplace) {
-  test_controlled_growth(metaspace::StandardMetaspaceType, false,
+  test_controlled_growth(Metaspace::StandardMetaspaceType, false,
                          word_size_for_level(CHUNK_LEVEL_4K), false);
 }
 
 /* Disabled growth tests for BootMetaspaceType: there, the growth steps are too rare,
  * and too large, to make any reliable guess as toward chunks get enlarged in place.
 TEST_VM(metaspace, MetaspaceArena_growth_boot_nc_inplace) {
-  test_controlled_growth(metaspace::BootMetaspaceType, false,
+  test_controlled_growth(Metaspace::BootMetaspaceType, false,
                          word_size_for_level(CHUNK_LEVEL_4M), true);
 }
 
 TEST_VM(metaspace, MetaspaceArena_growth_boot_nc_not_inplace) {
-  test_controlled_growth(metaspace::BootMetaspaceType, false,
+  test_controlled_growth(Metaspace::BootMetaspaceType, false,
                          word_size_for_level(CHUNK_LEVEL_4M), false);
 }
 */

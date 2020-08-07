@@ -25,9 +25,8 @@
 #include "precompiled.hpp"
 
 #include "memory/allocation.inline.hpp"
-#include "memory/metaspace/classLoaderMetaspace.hpp"
-#include "memory/metaspace/virtualSpaceList.hpp"
 #include "memory/metaspace.hpp"
+#include "memory/metaspace/virtualSpaceList.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
@@ -54,7 +53,7 @@ public:
     _lock = new Mutex(Monitor::native, "gtest-IsMetaspaceObjTest-lock", false, Monitor::_safepoint_check_never);
     {
       MutexLocker ml(_lock, Mutex::_no_safepoint_check_flag);
-      _ms = new ClassLoaderMetaspace(_lock, StandardMetaspaceType);
+      _ms = new ClassLoaderMetaspace(_lock, Metaspace::StandardMetaspaceType);
     }
 
     const MetaspaceObj* p = (MetaspaceObj*) _ms->allocate(42, mdType);

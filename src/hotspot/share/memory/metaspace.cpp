@@ -33,7 +33,6 @@
 #include "memory/metaspaceShared.hpp"
 #include "memory/metaspaceTracer.hpp"
 #include "memory/metaspace/chunkManager.hpp"
-#include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceContext.hpp"
@@ -56,11 +55,9 @@
 
 
 using metaspace::ChunkManager;
-using metaspace::ClassLoaderMetaspace;
 using metaspace::CommitLimiter;
 using metaspace::MetaspaceContext;
 using metaspace::MetaspaceReporter;
-using metaspace::MetaspaceType;
 using metaspace::RunningCounters;
 using metaspace::VirtualSpaceList;
 

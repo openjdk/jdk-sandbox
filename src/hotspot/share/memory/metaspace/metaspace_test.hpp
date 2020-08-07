@@ -28,10 +28,10 @@
 
 
 #include "memory/allocation.hpp"
+#include "memory/metaspace.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/metaspaceContext.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/virtualspace.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -88,7 +88,7 @@ public:
   ~MetaspaceTestContext();
 
   // Create an arena, feeding off this area.
-  MetaspaceTestArena* create_arena(MetaspaceType type);
+  MetaspaceTestArena* create_arena(Metaspace::MetaspaceType type);
 
   void purge_area();
 

@@ -25,7 +25,7 @@
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/javaClasses.hpp"
-#include "memory/metaspace/classLoaderMetaspace.hpp"
+#include "memory/metaspace.hpp"
 #include "memory/metaspace/printCLDMetaspaceInfoClosure.hpp"
 #include "memory/metaspace/printMetaspaceInfoKlassClosure.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"

@@ -32,7 +32,6 @@
 #include "gc/shared/genCollectedHeap.hpp"
 #include "interpreter/oopMapCache.hpp"
 #include "logging/log.hpp"
-#include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/universe.hpp"
 #include "runtime/handles.inline.hpp"

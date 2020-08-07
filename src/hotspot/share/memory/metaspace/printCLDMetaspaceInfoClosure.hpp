@@ -51,11 +51,11 @@ public:
   uintx                           _num_loaders_unloading;
   clms_stats_t                    _stats_total;
 
-  uintx                           _num_loaders_by_spacetype [MetaspaceTypeCount];
-  clms_stats_t                    _stats_by_spacetype [MetaspaceTypeCount];
+  uintx                           _num_loaders_by_spacetype [Metaspace::MetaspaceTypeCount];
+  clms_stats_t                    _stats_by_spacetype [Metaspace::MetaspaceTypeCount];
 
-  uintx                           _num_classes_by_spacetype [MetaspaceTypeCount];
-  uintx                           _num_classes_shared_by_spacetype [MetaspaceTypeCount];
+  uintx                           _num_classes_by_spacetype [Metaspace::MetaspaceTypeCount];
+  uintx                           _num_classes_shared_by_spacetype [Metaspace::MetaspaceTypeCount];
   uintx                           _num_classes;
   uintx                           _num_classes_shared;
 

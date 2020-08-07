@@ -28,13 +28,13 @@
 
 namespace metaspace {
 
-const char* describe_spacetype(MetaspaceType st) {
+const char* describe_spacetype(Metaspace::MetaspaceType st) {
   const char* s = NULL;
   switch (st) {
-    case StandardMetaspaceType: s = "Standard"; break;
-    case BootMetaspaceType: s = "Boot"; break;
-    case ClassMirrorHolderMetaspaceType: s = "ClassMirrorHolder"; break;
-    case ReflectionMetaspaceType: s = "Reflection"; break;
+    case Metaspace::StandardMetaspaceType: s = "Standard"; break;
+    case Metaspace::BootMetaspaceType: s = "Boot"; break;
+    case Metaspace::ClassMirrorHolderMetaspaceType: s = "ClassMirrorHolder"; break;
+    case Metaspace::ReflectionMetaspaceType: s = "Reflection"; break;
     default: ShouldNotReachHere();
   }
   return s;

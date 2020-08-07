@@ -63,7 +63,7 @@ static const chunklevel_t g_sequ_boot_class[] = {
     // .. repeat last
 };
 
-const ArenaGrowthPolicy* ArenaGrowthPolicy::policy_for_space_type(MetaspaceType space_type, bool is_class) {
+const ArenaGrowthPolicy* ArenaGrowthPolicy::policy_for_space_type(Metaspace::MetaspaceType space_type, bool is_class) {
 
 #define DEFINE_CLASS_FOR_ARRAY(what) \
   static ArenaGrowthPolicy chunk_alloc_sequence_##what (g_sequ_##what, sizeof(g_sequ_##what)/sizeof(chunklevel_t));
@@ -79,18 +79,18 @@ const ArenaGrowthPolicy* ArenaGrowthPolicy::policy_for_space_type(MetaspaceType 
 
   if (is_class) {
     switch(space_type) {
-    case StandardMetaspaceType:          return &chunk_alloc_sequence_standard_class;
-    case ReflectionMetaspaceType:        return &chunk_alloc_sequence_refl_class;
-    case ClassMirrorHolderMetaspaceType: return &chunk_alloc_sequence_anon_class;
-    case BootMetaspaceType:              return &chunk_alloc_sequence_boot_class;
+    case Metaspace::StandardMetaspaceType:          return &chunk_alloc_sequence_standard_class;
+    case Metaspace::ReflectionMetaspaceType:        return &chunk_alloc_sequence_refl_class;
+    case Metaspace::ClassMirrorHolderMetaspaceType: return &chunk_alloc_sequence_anon_class;
+    case Metaspace::BootMetaspaceType:              return &chunk_alloc_sequence_boot_class;
     default: ShouldNotReachHere();
     }
   } else {
     switch(space_type) {
-    case StandardMetaspaceType:          return &chunk_alloc_sequence_standard_non_class;
-    case ReflectionMetaspaceType:        return &chunk_alloc_sequence_refl_non_class;
-    case ClassMirrorHolderMetaspaceType: return &chunk_alloc_sequence_anon_non_class;
-    case BootMetaspaceType:              return &chunk_alloc_sequence_boot_non_class;
+    case Metaspace::StandardMetaspaceType:          return &chunk_alloc_sequence_standard_non_class;
+    case Metaspace::ReflectionMetaspaceType:        return &chunk_alloc_sequence_refl_non_class;
+    case Metaspace::ClassMirrorHolderMetaspaceType: return &chunk_alloc_sequence_anon_non_class;
+    case Metaspace::BootMetaspaceType:              return &chunk_alloc_sequence_boot_non_class;
     default: ShouldNotReachHere();
     }
   }

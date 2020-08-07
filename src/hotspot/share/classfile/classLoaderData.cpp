@@ -59,8 +59,7 @@
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/metadataFactory.hpp"
-#include "memory/metaspace/classLoaderMetaspace.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
+#include "memory/metaspace.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
@@ -74,8 +73,6 @@
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
-
-using metaspace::ClassLoaderMetaspace;
 
 ClassLoaderData * ClassLoaderData::_the_null_class_loader_data = NULL;
 
@@ -763,13 +760,13 @@ ClassLoaderMetaspace* ClassLoaderData::metaspace_non_null() {
     if ((metaspace = _metaspace) == NULL) {
       if (this == the_null_class_loader_data()) {
         assert (class_loader() == NULL, "Must be");
-        metaspace = new ClassLoaderMetaspace(_metaspace_lock, metaspace::BootMetaspaceType);
+        metaspace = new ClassLoaderMetaspace(_metaspace_lock, Metaspace::BootMetaspaceType);
       } else if (has_class_mirror_holder()) {
-        metaspace = new ClassLoaderMetaspace(_metaspace_lock, metaspace::ClassMirrorHolderMetaspaceType);
+        metaspace = new ClassLoaderMetaspace(_metaspace_lock, Metaspace::ClassMirrorHolderMetaspaceType);
       } else if (class_loader()->is_a(SystemDictionary::reflect_DelegatingClassLoader_klass())) {
-        metaspace = new ClassLoaderMetaspace(_metaspace_lock, metaspace::ReflectionMetaspaceType);
+        metaspace = new ClassLoaderMetaspace(_metaspace_lock, Metaspace::ReflectionMetaspaceType);
       } else {
-        metaspace = new ClassLoaderMetaspace(_metaspace_lock, metaspace::StandardMetaspaceType);
+        metaspace = new ClassLoaderMetaspace(_metaspace_lock, Metaspace::StandardMetaspaceType);
       }
       // Ensure _metaspace is stable, since it is examined without a lock
       Atomic::release_store(&_metaspace, metaspace);
