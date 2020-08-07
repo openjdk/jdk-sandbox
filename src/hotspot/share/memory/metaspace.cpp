@@ -148,7 +148,7 @@ void MetaspaceUtils::print_basic_report(outputStream* out, size_t scale) {
 // Optional parts can be enabled via flags.
 // Function will walk the CLDG and will lock the expand lock; if that is not
 // convenient, use print_basic_report() instead.
-void MetaspaceUtils::print_full_report(outputStream* out, size_t scale) {
+void MetaspaceUtils::print_report(outputStream* out, size_t scale) {
   const int flags =
       MetaspaceReporter::rf_show_loaders |
       MetaspaceReporter::rf_break_down_by_chunktype |

@@ -28,7 +28,6 @@
 //#define LOG_PLEASE
 
 #include "metaspaceTestsCommon.hpp"
-#include "memory/metaspace/metaspaceReport.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
 
@@ -38,7 +37,7 @@ TEST_VM(metaspace, report_basic) {
   //outputStream* st = tty;
   outputStream* st = &ss;
 
-  metaspace::MetaspaceReporter::print_basic_report(st, 0);
+  MetaspaceUtils::print_basic_report(st, 0);
 
   ASSERT_GT(ss.size(), (size_t)0);
 

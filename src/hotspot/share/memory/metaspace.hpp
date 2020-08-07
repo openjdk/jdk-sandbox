@@ -276,7 +276,7 @@ public:
   // Prints a report about the current metaspace state.
   // Function will walk the CLDG and will lock the expand lock; if that is not
   // convenient, use print_basic_report() instead.
-  static void print_full_report(outputStream* out, size_t scale = 0);
+  static void print_report(outputStream* out, size_t scale = 0);
 
   static void print_on(outputStream * out);
 
