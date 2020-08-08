@@ -145,11 +145,12 @@ public:
 
   //// Chunk allocation, splitting, merging /////
 
-  // Allocate a root chunk from this node. Will fail and return NULL
-  // if the node is full.
-  // Note: this just returns a chunk whose memory is reserved; no memory is committed yet.
-  // Hence, before using this chunk, it must be committed.
-  // Also, no limits are checked, since no committing takes place.
+  // Allocate a root chunk from this node. Will fail and return NULL if the node is full
+  //  - if we used up the whole address space of this node's memory region.
+  //    (in case this node backs compressed class space, this is how we hit
+  //     CompressedClassSpaceSize).
+  // Note that this just returns reserved memory; caller must take care of committing this
+  //  chunk before using it.
   Metachunk* allocate_root_chunk();
 
   // Given a chunk c, split it recursively until you get a chunk of the given target_level.

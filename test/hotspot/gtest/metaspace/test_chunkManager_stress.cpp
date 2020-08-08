@@ -67,7 +67,7 @@ class ChunkManagerRandomChunkAllocTest {
 
     // could it be commit limit hit?
 
-    if (Settings::newborn_root_chunks_are_fully_committed()) {
+    if (Settings::new_chunks_are_fully_committed()) {
       // For all we know we may have just failed to fully-commit a new root chunk.
       additional_word_size = MAX_CHUNK_WORD_SIZE;
     }

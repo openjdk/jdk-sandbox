@@ -310,11 +310,12 @@ VirtualSpaceNode::~VirtualSpaceNode() {
 
 //// Chunk allocation, splitting, merging /////
 
-// Allocate a root chunk from this node. Will fail and return NULL
-// if the node is full.
-// Note: this just returns a chunk whose memory is reserved; no memory is committed yet.
-// Hence, before using this chunk, it must be committed.
-// Also, no limits are checked, since no committing takes place.
+// Allocate a root chunk from this node. Will fail and return NULL if the node is full
+//  - if we used up the whole address space of this node's memory region.
+//    (in case this node backs compressed class space, this is how we hit
+//     CompressedClassSpaceSize).
+// Note that this just returns reserved memory; caller must take care of committing this
+//  chunk before using it.
 Metachunk* VirtualSpaceNode::allocate_root_chunk() {
 
   assert_lock_strong(MetaspaceExpand_lock);
@@ -337,12 +338,6 @@ Metachunk* VirtualSpaceNode::allocate_root_chunk() {
     DEBUG_ONLY(c->verify(true);)
 
     UL2(debug, "new root chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
-
-    if (Settings::newborn_root_chunks_are_fully_committed()) {
-      // Note: use Metachunk::ensure_commit, do not commit directly. This makes sure the chunk knows
-      // its commit range and does not ask needlessly.
-      c->ensure_fully_committed_locked();
-    }
 
     return c;
 

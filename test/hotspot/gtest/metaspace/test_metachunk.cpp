@@ -207,7 +207,7 @@ TEST_VM(metaspace, chunk_buddy_stuff) {
 TEST_VM(metaspace, chunk_allocate_with_commit_limit) {
 
   // This test does not make sense if commit-on-demand is off
-  if (Settings::newborn_root_chunks_are_fully_committed()) {
+  if (Settings::new_chunks_are_fully_committed()) {
     return;
   }
 

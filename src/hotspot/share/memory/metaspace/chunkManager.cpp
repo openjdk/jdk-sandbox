@@ -49,7 +49,7 @@ namespace metaspace {
 #define LOGFMT_ARGS    p2i(this), this->_name
 
 // Return a single chunk to the freelist and adjust accounting. No merge is attempted.
-void ChunkManager::return_chunk_simple(Metachunk* c) {
+void ChunkManager::return_chunk_simple_locked(Metachunk* c) {
 
   assert_lock_strong(MetaspaceExpand_lock);
 
@@ -203,48 +203,62 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
   }
 
   if (c == NULL) {
+    // If we end up here, we found no match in the freelists and were unable to get a new
+    // root chunk (so we used up all address space, e.g. out of CompressedClassSpace).
     UL2(info, "failed to get chunk (preferred level: " CHKLVL_FORMAT
        ", max level " CHKLVL_FORMAT ".", preferred_level, max_level);
-    return NULL;
+    c = NULL;
   }
 
-  // Now we have a chunk. It may be too large for the callers needs. It also may not be committed enough.
-  // So we may have to (a) split it and (b) commit the first portion of it to ensure min_committed_words
-  // are committed.
-  //
-  // We start with (b) though: committing may fail while splitting cannot fail. By committing before
-  // splitting, we avoid having to re-merge a split chunk in case of a commit error.
-  //
-  // (Note that the split operation always returns the first portion of the original chunk as target chunk;
-  //  so it is guaranteed that the committed portion is carried over to the new chunk).
-  if (c->committed_words() < min_committed_words) {
-    if (c->ensure_committed_locked(min_committed_words) == false) {
-      UL2(info, "failed to commit " SIZE_FORMAT " words on chunk " METACHUNK_FORMAT ".",
-          min_committed_words,  METACHUNK_FORMAT_ARGS(c));
-      _chunks.add(c);
-      return NULL;
+  if (c != NULL) {
+
+    // Now we have a chunk.
+    //  It may be larger than what the caller wanted, so we may want to split it. This should
+    //  always work.
+    if (c->level() < preferred_level) {
+      split_chunk_and_add_splinters(c, preferred_level);
+      assert(c->level() == preferred_level, "split failed?");
     }
-  }
 
-  // If too large, split chunk and add the splinter chunks back to the freelist.
-  if (c->level() < preferred_level) {
-    split_chunk_and_add_splinters(c, preferred_level);
-    assert(c->level() == preferred_level, "split failed?");
-  }
+    // Attempt to commit the chunk (depending on settings, we either fully commit it or just
+    //  commit enough to get the caller going). That may fail if we hit a commit limit. In
+    //  that case put the chunk back to the freelist (re-merging it with its neighbors if we
+    //  did split it) and return NULL.
+    const size_t to_commit = Settings::new_chunks_are_fully_committed() ? c->word_size() : min_committed_words;
+    if (c->committed_words() < to_commit) {
+      if (c->ensure_committed_locked(to_commit) == false) {
+        UL2(info, "failed to commit " SIZE_FORMAT " words on chunk " METACHUNK_FORMAT ".",
+            to_commit,  METACHUNK_FORMAT_ARGS(c));
+        c->set_in_use(); // gets asserted in return_chunk().
+        return_chunk_locked(c);
+        c = NULL;
+      }
+    }
 
-  // Any chunk returned from ChunkManager shall be marked as in use.
-  c->set_in_use();
+    if (c != NULL) {
+
+      // Still here? We have now a good chunk, all is well.
+      assert(c->committed_words() >= min_committed_words, "Sanity");
+
+      // Any chunk returned from ChunkManager shall be marked as in use.
+      c->set_in_use();
+
+      UL2(debug, "handing out chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
+
+      InternalStats::inc_num_chunks_taken_from_freelist();
+
+      SOMETIMES(c->vsnode()->verify_locked(true);)
+
+    }
+
+  }
 
   DEBUG_ONLY(verify_locked(false);)
-  SOMETIMES(c->vsnode()->verify_locked(true);)
-
-  UL2(debug, "handing out chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
-
-  InternalStats::inc_num_chunks_taken_from_freelist();
 
   return c;
 
 }
+
 
 // Return a single chunk to the ChunkManager and adjust accounting. May merge chunk
 //  with neighbors.
@@ -253,8 +267,14 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
 // !! Note: this may invalidate the chunk. Do not access the chunk after
 //    this function returns !!
 void ChunkManager::return_chunk(Metachunk* c) {
-
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
+  return_chunk_locked(c);
+}
+
+// See return_chunk().
+void ChunkManager::return_chunk_locked(Metachunk* c) {
+
+  assert_lock_strong(MetaspaceExpand_lock);
 
   UL2(debug, ": returning chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
 
@@ -299,7 +319,7 @@ void ChunkManager::return_chunk(Metachunk* c) {
     c->uncommit_locked();
   }
 
-  return_chunk_simple(c);
+  return_chunk_simple_locked(c);
 
   DEBUG_ONLY(verify_locked(false);)
   SOMETIMES(c->vsnode()->verify_locked(true);)

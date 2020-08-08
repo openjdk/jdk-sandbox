@@ -40,9 +40,6 @@ class Settings : public AllStatic {
   // Granularity, in words, metaspace is committed with.
   static size_t _commit_granule_words;
 
-  // Whether or not commit new-born root chunks thru after creation.
-  static bool _newborn_root_chunks_are_fully_committed;
-
   // The default size of a non-class VirtualSpaceNode (unless created differently).
   // Must be a multiple of the root chunk size.
   static const size_t _virtual_space_node_default_word_size = chunklevel::MAX_CHUNK_WORD_SIZE * 2; // lets go with 8mb virt size. Seems a good compromise betw. virt and mapping fragmentation.
@@ -56,6 +53,11 @@ class Settings : public AllStatic {
 
   // .. but we do only do this for chunks below a given size to prevent unnecessary memory blowup.
   static const size_t _enlarge_chunks_in_place_max_word_size = 256 * K;
+
+  // Whether or not chunks handed out to an arena start out fully committed;
+  // if true, this deactivates committing-on-demand (irregardless of whether
+  // we uncommit free chunks).
+  static bool _new_chunks_are_fully_committed;
 
   // If true, chunks equal or larger than a commit granule are uncommitted
   // after being returned to the freelist.
@@ -71,7 +73,7 @@ public:
 
   static size_t commit_granule_bytes()                        { return _commit_granule_bytes; }
   static size_t commit_granule_words()                        { return _commit_granule_words; }
-  static bool newborn_root_chunks_are_fully_committed()       { return _newborn_root_chunks_are_fully_committed; }
+  static bool new_chunks_are_fully_committed()                { return _new_chunks_are_fully_committed; }
   static size_t virtual_space_node_default_word_size()        { return _virtual_space_node_default_word_size; }
   static size_t virtual_space_node_reserve_alignment_words()  { return _virtual_space_node_reserve_alignment_words; }
   static bool enlarge_chunks_in_place()                       { return _enlarge_chunks_in_place; }

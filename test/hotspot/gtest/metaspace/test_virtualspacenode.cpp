@@ -77,7 +77,6 @@ class VirtualSpaceNodeTest {
     verify();
 
     const bool node_is_full = _node->used_words() == _node->word_size();
-    bool may_hit_commit_limit = _commit_limiter.possible_expansion_words() < MAX_CHUNK_WORD_SIZE;
     Metachunk* c = NULL;
     {
       MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
@@ -98,13 +97,7 @@ class VirtualSpaceNodeTest {
       EXPECT_TRUE(c->is_free());
       EXPECT_EQ(c->word_size(), metaspace::chunklevel::MAX_CHUNK_WORD_SIZE);
 
-      if (!may_hit_commit_limit) {
-        if (Settings::newborn_root_chunks_are_fully_committed()) {
-          EXPECT_TRUE(c->is_fully_committed());
-        } else {
-          EXPECT_TRUE(c->is_fully_uncommitted());
-        }
-      }
+      EXPECT_TRUE(c->is_fully_uncommitted());
 
       EXPECT_TRUE(_node->contains(c->base()));
 

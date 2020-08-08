@@ -75,6 +75,12 @@ class ChunkManager : public CHeapObj<mtMetaspace> {
   // Uncommit all chunks equal or below the given level.
   void uncommit_free_chunks(chunklevel_t max_level);
 
+  // Return a single chunk to the freelist without doing any merging, and adjust accounting.
+  void return_chunk_simple_locked(Metachunk* c);
+
+  // See return_chunk().
+  void return_chunk_locked(Metachunk* c);
+
 public:
 
   // Creates a chunk manager with a given name (which is for debug purposes only)
@@ -104,9 +110,6 @@ public:
   //    2) This function will not remove c from its current chunk list. This has to be done by the caller prior to
   //       calling this method.
   void return_chunk(Metachunk* c);
-
-  // Return a single chunk to the freelist and adjust accounting. No merge is attempted.
-  void return_chunk_simple(Metachunk* c);
 
   // Given a chunk c, which must be "in use" and must not be a root chunk, attempt to
   // enlarge it in place by claiming its trailing buddy.

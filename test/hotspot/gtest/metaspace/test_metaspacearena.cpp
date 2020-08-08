@@ -146,7 +146,7 @@ public:
 
     if (p == NULL) {
       // Allocation failed.
-      if (Settings::newborn_root_chunks_are_fully_committed()) {
+      if (Settings::new_chunks_are_fully_committed()) {
         ASSERT_LT(possible_expansion, MAX_CHUNK_WORD_SIZE);
       } else {
         ASSERT_LT(possible_expansion, word_size);
@@ -322,7 +322,7 @@ TEST_VM(metaspace, MetaspaceArena_deallocate) {
 
 static void test_recover_from_commit_limit_hit() {
 
-  if (Settings::newborn_root_chunks_are_fully_committed()) {
+  if (Settings::new_chunks_are_fully_committed()) {
     return; // This would throw off the commit counting in this test.
   }
 
@@ -431,23 +431,12 @@ static void test_controlled_growth(Metaspace::MetaspaceType type, bool is_class,
 
   ASSERT_EQ(capacity, expected_starting_capacity);
 
-  // Check context-wide commit numbers:
-  // Initial commit charge for the whole context should be one granule, unless
-  // newborn_root_chunks_are_fully_committed=true in which case it would be the
-  // size of a root chunk.
-  if (!Settings::newborn_root_chunks_are_fully_committed()) {
+  if (!(Settings::new_chunks_are_fully_committed() && type == Metaspace::BootMetaspaceType)) {
+    // Initial commit charge for the whole context should be one granule
     ASSERT_EQ(msthelper.committed_words(), Settings::commit_granule_words());
-  } else {
-    ASSERT_EQ(msthelper.committed_words(), MAX_CHUNK_WORD_SIZE);
-  }
-
-  // Check arena-local commit numbers:
-  // Same as above but arena->usage_numbers() only reports the part of commit charge
-  // accounted to the arena, so it may be less than the total amount.
-  if (!Settings::newborn_root_chunks_are_fully_committed()) {
+    // Initial commit number for the arena should be less since - apart from boot loader - no
+    //  space type has large initial chunks.
     ASSERT_LE(committed, Settings::commit_granule_words());
-  } else {
-    ASSERT_LE(committed, MAX_CHUNK_WORD_SIZE);
   }
 
   ///// subsequent allocations //
@@ -492,7 +481,7 @@ static void test_controlled_growth(Metaspace::MetaspaceType type, bool is_class,
     ASSERT_GE(committed2, used2);
     ASSERT_GE(committed2, committed);
     const size_t committed_jump = committed2 - committed;
-    if (committed_jump > 0 && !Settings::newborn_root_chunks_are_fully_committed()) {
+    if (committed_jump > 0 && !Settings::new_chunks_are_fully_committed()) {
       ASSERT_LE(committed_jump, Settings::commit_granule_words());
     }
     committed = committed2;
@@ -504,7 +493,7 @@ static void test_controlled_growth(Metaspace::MetaspaceType type, bool is_class,
     if (capacity_jump > 0) {
       LOG(">" SIZE_FORMAT "->" SIZE_FORMAT "(+" SIZE_FORMAT ")", capacity, capacity2, capacity_jump)
       if (capacity_jump > highest_capacity_jump) {
-        /* Disabled for now since this is rather shaky. The way it is tested makes it too dependend
+        /* Disabled for now since this is rather shaky. The way it is tested makes it too dependent
          * on allocation history. Need to rethink this.
         ASSERT_LE(capacity_jump, highest_capacity_jump * 2);
         ASSERT_GE(capacity_jump, MIN_CHUNK_WORD_SIZE);
