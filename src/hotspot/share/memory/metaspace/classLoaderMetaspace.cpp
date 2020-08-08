@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2018, 2019, SAP SE. All rights reserved.
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
  * questions.
  *
  */
+
 #include "precompiled.hpp"
 
 #include "logging/log.hpp"
@@ -29,9 +30,8 @@
 #include "memory/metaspace.hpp"
 #include "memory/metaspaceTracer.hpp"
 #include "memory/metaspace/chunkManager.hpp"
-// Note: for now, to keep changes to the outside tree minimal,
-// ClassLoaderMetaspace prototype continutes to live in
-// metaspace.hpp and the global namespace.
+// Note: for now, to keep changes to the outside tree minimal, the ClassLoaderMetaspace
+//  class definitioan continues to live in metaspace.hpp and in global scope.
 //#include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metaspaceArena.hpp"

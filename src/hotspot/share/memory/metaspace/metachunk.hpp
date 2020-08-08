@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2019, SAP SE. All rights reserved.
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
  * questions.
  *
  */
+
 #ifndef SHARE_MEMORY_METASPACE_METACHUNK_HPP
 #define SHARE_MEMORY_METASPACE_METACHUNK_HPP
 
