@@ -306,8 +306,6 @@ VirtualSpaceNode::~VirtualSpaceNode() {
 
 }
 
-
-
 //// Chunk allocation, splitting, merging /////
 
 // Allocate a root chunk from this node. Will fail and return NULL if the node is full

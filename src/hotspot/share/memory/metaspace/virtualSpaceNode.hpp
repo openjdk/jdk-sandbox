@@ -46,15 +46,29 @@ namespace metaspace {
 class CommitLimiter;
 class FreeChunkListVector;
 
-// VirtualSpaceNode manages a single address range of the Metaspace.
+// VirtualSpaceNode manages a single contiguous address range of metaspace. Logically that memory
+//  region is split up into a sequence of "root chunk areas", each one containing one root chunk
+//  or splinters of a root chunk.
 //
-// That address range may contain interleaved committed and uncommitted
-// regions. It keeps track of which regions have committed and offers
-// functions to commit and uncommit regions.
+// The underlying memory is also logically devided into a number of "commit granules", units of memory
+//  which may be committed or uncommitted independently from each other.
 //
-// It allocates and hands out memory ranges, starting at the bottom.
+// (Both root chunk areas and commit granules have not much to do with each other - one is a way to
+//   reserve memory for the upper regions, see ChunkManager. One is a way to manage commited memory.)
 //
-// Address range must be aligned to root chunk size.
+// VirtualSpaceNode:
+//  - exposes a function to allocate a new root chunk (see VirtualSpaceNode::allocate_root_chunk()).
+//
+//  - knows about the commit state of the memory region - which commit granule are committed, which
+//    are not. It exposes functions to commit and uncommit regions (without actively committing
+//    itself)
+//
+//  - It has a reference to a "CommitLimiter", an interface to query whether committing is
+//    possible. That interface hides the various ways committing may be limited (GC threshold,
+//    MaxMetaspaceSize, ...)
+//
+//  - It uses ReservedSpace to reserve its memory. It either owns the ReservedSpace or that
+//    space got handed in from outside (ccs).
 //
 class VirtualSpaceNode : public CHeapObj<mtClass> {
 
@@ -83,8 +97,7 @@ class VirtualSpaceNode : public CHeapObj<mtClass> {
   // Each bit covers a region of 64K (see constants::commit_granule_size).
   CommitMask _commit_mask;
 
-  // An array/LUT of RootChunkArea objects. Each one describes
-  // fragmentation inside a root chunk.
+  // An array/lookup table of RootChunkArea objects. Each one describes a root chunk area.
   RootChunkAreaLUT _root_chunk_area_lut;
 
   // Limiter object to ask before expanding the committed size of this node.
