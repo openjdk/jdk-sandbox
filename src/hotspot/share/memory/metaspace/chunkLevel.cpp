@@ -23,28 +23,31 @@
  *
  */
 
-#include <memory/metaspace/settings.hpp>
 #include "precompiled.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 namespace metaspace {
 
+using namespace chunklevel;
+
 chunklevel_t chunklevel::level_fitting_word_size(size_t word_size) {
 
-  assert(chunklevel::MAX_CHUNK_WORD_SIZE >= word_size,
+  assert(MAX_CHUNK_WORD_SIZE >= word_size,
          SIZE_FORMAT " - too large allocation size.", word_size * BytesPerWord);
 
-  // TODO: This can be done much better.
-  chunklevel_t l = chunklevel::HIGHEST_CHUNK_LEVEL;
-  while (l >= chunklevel::LOWEST_CHUNK_LEVEL &&
-         word_size > chunklevel::word_size_for_level(l)) {
-    l --;
+  if (word_size <= MIN_CHUNK_WORD_SIZE) {
+    return HIGHEST_CHUNK_LEVEL;
   }
 
-  return l;
+  const size_t v_pow2 = round_up_power_of_2(word_size);
+  const chunklevel_t lvl =  (chunklevel_t)(exact_log2(MAX_CHUNK_WORD_SIZE) - exact_log2(v_pow2));
+
+  return lvl;
+
 }
 
 void chunklevel::print_chunk_size(outputStream* st, chunklevel_t lvl) {
