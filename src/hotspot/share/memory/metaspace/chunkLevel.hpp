@@ -70,7 +70,7 @@ namespace chunklevel {
 
 static const size_t   MAX_CHUNK_BYTE_SIZE    = 4 * M;
 static const int      NUM_CHUNK_LEVELS       = 13;
-static const size_t   MIN_CHUNK_BYTE_SIZE    = (MAX_CHUNK_BYTE_SIZE >> (size_t)NUM_CHUNK_LEVELS);
+static const size_t   MIN_CHUNK_BYTE_SIZE    = (MAX_CHUNK_BYTE_SIZE >> ((size_t)NUM_CHUNK_LEVELS - 1));
 
 static const size_t   MIN_CHUNK_WORD_SIZE    = MIN_CHUNK_BYTE_SIZE / sizeof(MetaWord);
 static const size_t   MAX_CHUNK_WORD_SIZE    = MAX_CHUNK_BYTE_SIZE / sizeof(MetaWord);
@@ -117,6 +117,8 @@ static const chunklevel_t CHUNK_LEVEL_2K =    (ROOT_CHUNK_LEVEL + 11);
 static const chunklevel_t CHUNK_LEVEL_1K =    (ROOT_CHUNK_LEVEL + 12);
 
 STATIC_ASSERT(CHUNK_LEVEL_1K == HIGHEST_CHUNK_LEVEL);
+STATIC_ASSERT(CHUNK_LEVEL_4M == LOWEST_CHUNK_LEVEL);
+STATIC_ASSERT(ROOT_CHUNK_LEVEL == LOWEST_CHUNK_LEVEL);
 
 /////////////////////////////////////////////////////////
 // print helpers
