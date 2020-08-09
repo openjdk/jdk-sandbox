@@ -78,8 +78,7 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, Metaspace::MetaspaceType
       ArenaGrowthPolicy::policy_for_space_type(space_type, false),
       lock,
       RunningCounters::used_nonclass_counter(),
-      "non-class sm",
-      is_micro());
+      "non-class sm");
 
   // If needed, initialize class arena
   if (Metaspace::using_class_space()) {
@@ -90,8 +89,7 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, Metaspace::MetaspaceType
         ArenaGrowthPolicy::policy_for_space_type(space_type, true),
         lock,
         RunningCounters::used_class_counter(),
-        "class sm",
-        is_micro());
+        "class sm");
   }
 
   UL2(debug, "born (SpcMgr nonclass: " PTR_FORMAT ", SpcMgr class: " PTR_FORMAT ".",

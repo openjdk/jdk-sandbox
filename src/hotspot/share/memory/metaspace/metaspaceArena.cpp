@@ -160,24 +160,19 @@ MetaspaceArena::MetaspaceArena(ChunkManager* chunk_manager,
              const ArenaGrowthPolicy* growth_policy,
              Mutex* lock,
              SizeAtomicCounter* total_used_words_counter,
-             const char* name,
-             bool is_micro_loader)
+             const char* name)
 : _lock(lock),
   _chunk_manager(chunk_manager),
   _growth_policy(growth_policy),
   _chunks(),
   _fbl(NULL),
   _total_used_words_counter(total_used_words_counter),
-  _name(name),
-  _is_micro_loader(is_micro_loader)
+  _name(name)
 {
   UL(debug, ": born.");
 
   // Update statistics
   InternalStats::inc_num_arena_births();
-  if (is_micro_loader) {
-    DEBUG_ONLY(InternalStats::inc_num_micro_arena_births();)
-  }
 }
 
 MetaspaceArena::~MetaspaceArena() {
@@ -215,9 +210,6 @@ MetaspaceArena::~MetaspaceArena() {
 
   // Update statistics
   InternalStats::inc_num_arena_deaths();
-  if (_is_micro_loader) {
-    DEBUG_ONLY(InternalStats::inc_num_micro_arena_deaths();)
-  }
 
 }
 
@@ -554,8 +546,8 @@ void MetaspaceArena::print_on_locked(outputStream* st) const {
                _chunks.count(), _chunks.calc_word_size(), _chunks.calc_committed_word_size());
   _chunks.print_on(st);
   st->cr();
-  st->print_cr("micro: %d, growth-policy " PTR_FORMAT ", lock " PTR_FORMAT ", cm " PTR_FORMAT ", fbl " PTR_FORMAT,
-                _is_micro_loader, p2i(_growth_policy), p2i(_lock), p2i(_chunk_manager), p2i(_fbl));
+  st->print_cr("growth-policy " PTR_FORMAT ", lock " PTR_FORMAT ", cm " PTR_FORMAT ", fbl " PTR_FORMAT,
+                p2i(_growth_policy), p2i(_lock), p2i(_chunk_manager), p2i(_fbl));
 }
 
 

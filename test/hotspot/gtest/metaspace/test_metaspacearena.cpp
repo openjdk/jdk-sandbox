@@ -60,7 +60,7 @@ public:
     //  (see ClassLoaderData::metaspace_non_null(), which we mimick here).
     {
       MutexLocker ml(_lock,  Mutex::_no_safepoint_check_flag);
-      _arena = new MetaspaceArena(&_helper.cm(), _growth_policy, _lock, &_used_words_counter, name, false);
+      _arena = new MetaspaceArena(&_helper.cm(), _growth_policy, _lock, &_used_words_counter, name);
     }
     DEBUG_ONLY(_arena->verify(true));
   }

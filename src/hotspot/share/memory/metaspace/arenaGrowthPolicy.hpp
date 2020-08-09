@@ -28,7 +28,6 @@
 
 #include "memory/metaspace.hpp" // For Metaspace::MetaspaceType
 #include "memory/metaspace/chunkLevel.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
 #include "utilities/debug.hpp"
 
 namespace metaspace {

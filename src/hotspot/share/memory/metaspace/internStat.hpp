@@ -68,12 +68,6 @@ class InternalStats : public AllStatic {
   /* ... and died. */                               \
 	x_atomic(num_arena_deaths)                        \
                                                     \
-	/* Number of times a micro arena (anon/hidden */  \
-	/*  class or reflection proxy) was born. */       \
-  DEBUG_ONLY(x_atomic(num_micro_arena_births))      \
-	/* ... and died. */                               \
-	DEBUG_ONLY(x_atomic(num_micro_arena_deaths))      \
-                                                    \
   /* Number of times VirtualSpaceNode were */       \
   /*  born...  */                                   \
   x(num_vsnodes_births)                             \

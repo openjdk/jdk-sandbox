@@ -85,9 +85,6 @@ class MetaspaceArena : public CHeapObj<mtClass> {
   // A name for purely debugging/logging purposes.
   const char* const _name;
 
-  // Whether or not this is a "micro loader" which is not expected to load more than one class.
-  const bool _is_micro_loader;
-
   Mutex* lock() const                           { return _lock; }
   ChunkManager* chunk_manager() const           { return _chunk_manager; }
 
@@ -125,8 +122,7 @@ public:
                const ArenaGrowthPolicy* growth_policy,
                Mutex* lock,
                SizeAtomicCounter* total_used_words_counter,
-               const char* name,
-               bool is_micro_loader);
+               const char* name);
 
   ~MetaspaceArena();
 

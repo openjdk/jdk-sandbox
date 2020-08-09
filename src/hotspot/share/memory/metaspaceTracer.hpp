@@ -27,7 +27,6 @@
 
 #include "memory/allocation.hpp"
 #include "memory/metaspace.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
 
 class ClassLoaderData;
 

@@ -195,12 +195,6 @@ class ClassLoaderMetaspace : public CHeapObj<mtClass> {
     return is_class ? class_space_arena() : non_class_space_arena();
   }
 
-  // Returns true if this class loader is of a type which will only ever load one class.
-  bool is_micro() const {
-    return _space_type == Metaspace::ClassMirrorHolderMetaspaceType ||
-           _space_type == Metaspace::ReflectionMetaspaceType;
-  }
-
 public:
 
   ClassLoaderMetaspace(Mutex* lock, Metaspace::MetaspaceType space_type);

@@ -127,7 +127,7 @@ public:
     // Lock during space creation, since this is what happens in the VM too
     //  (see ClassLoaderData::metaspace_non_null(), which we mimick here).
     MutexLocker ml(_lock,  Mutex::_no_safepoint_check_flag);
-    _arena = new MetaspaceArena(cm, alloc_sequence, _lock, used_words_counter, "gtest-MetaspaceArenaTestBed-sm", false);
+    _arena = new MetaspaceArena(cm, alloc_sequence, _lock, used_words_counter, "gtest-MetaspaceArenaTestBed-sm");
   }
 
   ~MetaspaceArenaTestBed() {
