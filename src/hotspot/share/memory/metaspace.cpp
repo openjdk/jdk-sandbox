@@ -62,11 +62,6 @@ using metaspace::RunningCounters;
 using metaspace::VirtualSpaceList;
 
 
-// Used by MetaspaceCounters
-size_t MetaspaceUtils::free_chunks_total_words(Metaspace::MetadataType mdtype) {
-  return metaspace::is_class(mdtype) ? RunningCounters::free_chunks_words_class() : RunningCounters::free_chunks_words_nonclass();
-}
-
 size_t MetaspaceUtils::used_words() {
   return RunningCounters::used_words();
 }

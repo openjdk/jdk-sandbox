@@ -27,6 +27,7 @@
 
 #include "utilities/globalDefinitions.hpp"
 
+// Todo: will need to rework this, see JDK-8251342
 class MetaspaceChunkFreeListSummary {
   size_t _num_specialized_chunks;
   size_t _num_small_chunks;

@@ -319,15 +319,7 @@ public:
   static size_t reserved_bytes()                                { return reserved_words() * BytesPerWord; }
   static size_t reserved_bytes(Metaspace::MetadataType mdtype)  { return reserved_words(mdtype) * BytesPerWord; }
 
-  // TODO. Do we need this really? This number is kind of uninformative.
-  static size_t capacity_bytes()                                { return 0; }
-  static size_t capacity_bytes(Metaspace::MetadataType mdtype)  { return 0; }
-
-  // Todo. Consolidate.
-  // Committed space in freelists
-  static size_t free_chunks_total_words(Metaspace::MetadataType mdtype);
-
-  // Todo. Implement or Consolidate.
+  // (See JDK-8251342). Implement or Consolidate.
   static MetaspaceChunkFreeListSummary chunk_free_list_summary(Metaspace::MetadataType mdtype) {
     return MetaspaceChunkFreeListSummary(0,0,0,0,0,0,0,0);
   }
