@@ -28,8 +28,8 @@
 //#define LOG_PLEASE
 
 #include "metaspace/metaspaceTestsCommon.hpp"
+#include "metaspace/metaspaceTestContexts.hpp"
 #include "metaspace/metaspace_sparsearray.hpp"
-#include "metaspace/metaspace_testhelper.hpp"
 #include "utilities/ostream.hpp"
 
 
@@ -37,7 +37,7 @@
 // should be unified.
 class MetaspaceArenaTestHelper {
 
-  MetaspaceTestHelper& _helper;
+  MetaspaceTestContext& _helper;
 
   Mutex* _lock;
   const ArenaGrowthPolicy* _growth_policy;
@@ -46,7 +46,7 @@ class MetaspaceArenaTestHelper {
 
 public:
 
-  MetaspaceArenaTestHelper(MetaspaceTestHelper& helper, Metaspace::MetaspaceType space_type, bool is_class,
+  MetaspaceArenaTestHelper(MetaspaceTestContext& helper, Metaspace::MetaspaceType space_type, bool is_class,
                          const char* name = "gtest-MetaspaceArena")
     : _helper(helper),
       _lock(NULL),
@@ -200,7 +200,7 @@ public:
 
 
 static void test_basics(size_t commit_limit, bool is_micro) {
-  MetaspaceTestHelper msthelper(commit_limit);
+  MetaspaceTestContext msthelper(commit_limit);
   MetaspaceArenaTestHelper helper(msthelper, is_micro ? Metaspace::ReflectionMetaspaceType : Metaspace::StandardMetaspaceType, false);
 
   helper.allocate_from_arena_with_tests(1);
@@ -238,7 +238,7 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place) {
     return;
   }
 
-  MetaspaceTestHelper msthelper;
+  MetaspaceTestContext msthelper;
   MetaspaceArenaTestHelper helper(msthelper, Metaspace::StandardMetaspaceType, false);
   helper.allocate_from_arena_with_tests_expect_success(1);
   helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
@@ -254,7 +254,7 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_1) {
     return;
   }
 
-  MetaspaceTestHelper msthelper;
+  MetaspaceTestContext msthelper;
   MetaspaceArenaTestHelper helper(msthelper, Metaspace::StandardMetaspaceType, false);
   size_t size = MIN_CHUNK_WORD_SIZE;
   while (size <= MAX_CHUNK_WORD_SIZE) {
@@ -272,7 +272,7 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_2) {
     return;
   }
 
-  MetaspaceTestHelper msthelper;
+  MetaspaceTestContext msthelper;
   MetaspaceArenaTestHelper helper(msthelper, Metaspace::StandardMetaspaceType, false);
   size_t size = MIN_CHUNK_WORD_SIZE;
   while (size <= MAX_CHUNK_WORD_SIZE) {
@@ -290,7 +290,7 @@ TEST_VM(metaspace, MetaspaceArena_deallocate) {
     return;
   }
   for (size_t s = 2; s <= MAX_CHUNK_WORD_SIZE; s *= 2) {
-    MetaspaceTestHelper msthelper;
+    MetaspaceTestContext msthelper;
     MetaspaceArenaTestHelper helper(msthelper, Metaspace::StandardMetaspaceType, false);
 
     MetaWord* p1 = NULL;
@@ -338,7 +338,7 @@ static void test_recover_from_commit_limit_hit() {
   // retire it and take a fresh chunk from the freelist.
 
   const size_t commit_limit = Settings::commit_granule_words() * 10;
-  MetaspaceTestHelper msthelper(commit_limit);
+  MetaspaceTestContext msthelper(commit_limit);
 
   // The first MetaspaceArena mimicks a micro loader. This will fill the free
   //  chunk list with very small chunks. We allocate from them in an interleaved
@@ -406,7 +406,7 @@ static void test_controlled_growth(Metaspace::MetaspaceType type, bool is_class,
   // large jumps. Also, different types of MetaspaceArena should
   // have different initial capacities.
 
-  MetaspaceTestHelper msthelper;
+  MetaspaceTestContext msthelper;
   MetaspaceArenaTestHelper smhelper(msthelper, type, is_class, "Grower");
 
   MetaspaceArenaTestHelper smhelper_harrasser(msthelper, Metaspace::ReflectionMetaspaceType, true, "Harasser");

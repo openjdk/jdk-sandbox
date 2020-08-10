@@ -28,15 +28,15 @@
 //#define LOG_PLEASE
 
 #include "metaspace/metaspace_sparsearray.hpp"
-#include "metaspace/metaspace_testhelper.hpp"
 #include "metaspace/metaspaceTestsCommon.hpp"
+#include "metaspace/metaspaceTestContexts.hpp"
 
 
 class ChunkManagerRandomChunkAllocTest {
 
   static const size_t max_footprint_words = 8 * M;
 
-  MetaspaceTestHelper _helper;
+  ChunkTestsContext _helper;
 
   // All allocated live chunks
   typedef SparseArray<Metachunk*> SparseArrayOfChunks;

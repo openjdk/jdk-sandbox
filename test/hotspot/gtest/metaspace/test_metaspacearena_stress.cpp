@@ -26,10 +26,9 @@
 #include "precompiled.hpp"
 
 //#define LOG_PLEASE
-
 #include "metaspace/metaspaceTestsCommon.hpp"
+#include "metaspace/metaspaceTestContexts.hpp"
 #include "metaspace/metaspace_sparsearray.hpp"
-#include "metaspace/metaspace_testhelper.hpp"
 
 // Little randomness helper
 static bool fifty_fifty() {
@@ -202,7 +201,7 @@ public:
 
 class MetaspaceArenaTest {
 
-  MetaspaceTestHelper _helper;
+  MetaspaceTestContext _helper;
 
   SizeAtomicCounter _used_words_counter;
 

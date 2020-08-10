@@ -27,12 +27,12 @@
 
 //#define LOG_PLEASE
 #include "metaspace/metaspaceTestsCommon.hpp"
-#include "metaspace/metaspace_testhelper.hpp"
+#include "metaspace/metaspaceTestContexts.hpp"
 #include "metaspace/metaspace_rangehelpers.hpp"
 
 TEST_VM(metaspace, metachunklist) {
 
-  MetaspaceTestHelper helper;
+  ChunkTestsContext helper;
 
   MetachunkList lst;
 
@@ -76,7 +76,7 @@ TEST_VM(metaspace, metachunklist) {
 
 TEST_VM(metaspace, freechunklist) {
 
-  MetaspaceTestHelper helper;
+  ChunkTestsContext helper;
 
   FreeChunkListVector lst;
 

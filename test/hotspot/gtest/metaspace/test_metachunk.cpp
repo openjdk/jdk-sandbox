@@ -25,7 +25,7 @@
 
 #include "precompiled.hpp"
 #include "metaspace/metaspaceTestsCommon.hpp"
-#include "metaspace/metaspace_testhelper.hpp"
+#include "metaspace/metaspaceTestContexts.hpp"
 #include "runtime/mutexLocker.hpp"
 
 using namespace metaspace::chunklevel;
@@ -33,7 +33,7 @@ using namespace metaspace::chunklevel;
 // Test ChunkManager::get_chunk
 TEST_VM(metaspace, get_chunk) {
 
-  MetaspaceTestHelper helper(8 * M);
+  ChunkTestsContext helper(8 * M);
   Metachunk* c = NULL;
 
   for (chunklevel_t pref_lvl = LOWEST_CHUNK_LEVEL; pref_lvl <= HIGHEST_CHUNK_LEVEL; pref_lvl ++) {
@@ -53,7 +53,7 @@ TEST_VM(metaspace, get_chunk) {
 TEST_VM(metaspace, get_chunk_with_commit_limit) {
 
   const size_t commit_limit_words = 1 * M;
-  MetaspaceTestHelper helper(commit_limit_words);
+  ChunkTestsContext helper(commit_limit_words);
   Metachunk* c = NULL;
 
   for (chunklevel_t pref_lvl = LOWEST_CHUNK_LEVEL; pref_lvl <= HIGHEST_CHUNK_LEVEL; pref_lvl ++) {
@@ -78,7 +78,7 @@ TEST_VM(metaspace, get_chunk_with_commit_limit) {
 // Test that recommitting the used portion of a chunk will preserve the original content.
 TEST_VM(metaspace, get_chunk_recommit) {
 
-  MetaspaceTestHelper helper;
+  ChunkTestsContext helper;
   Metachunk* c = NULL;
   helper.alloc_chunk_expect_success(&c, ROOT_CHUNK_LEVEL, ROOT_CHUNK_LEVEL, 0);
   helper.uncommit_chunk_with_test(c);
@@ -102,7 +102,7 @@ TEST_VM(metaspace, get_chunk_with_reserve_limit) {
 
   const size_t reserve_limit_words = word_size_for_level(ROOT_CHUNK_LEVEL);
   const size_t commit_limit_words = 1024 * M; // just very high
-  MetaspaceTestHelper helper(commit_limit_words, reserve_limit_words);
+  ChunkTestsContext helper(commit_limit_words, reserve_limit_words);
 
   // Reserve limit works at root chunk size granularity: if the chunk manager cannot satisfy
   //  a request for a chunk from its freelists, it will acquire a new root chunk from the
@@ -125,7 +125,7 @@ TEST_VM(metaspace, get_chunk_with_reserve_limit) {
 // Test MetaChunk::allocate
 TEST_VM(metaspace, chunk_allocate_full) {
 
-  MetaspaceTestHelper helper;
+  ChunkTestsContext helper;
 
   for (chunklevel_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl ++) {
     Metachunk* c = NULL;
@@ -139,7 +139,7 @@ TEST_VM(metaspace, chunk_allocate_full) {
 // Test MetaChunk::allocate
 TEST_VM(metaspace, chunk_allocate_random) {
 
-  MetaspaceTestHelper helper;
+  ChunkTestsContext helper;
 
   for (chunklevel_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl ++) {
 
@@ -170,7 +170,7 @@ TEST_VM(metaspace, chunk_buddy_stuff) {
 
   for (chunklevel_t l = ROOT_CHUNK_LEVEL + 1; l <= HIGHEST_CHUNK_LEVEL; l ++) {
 
-    MetaspaceTestHelper helper;
+    ChunkTestsContext helper;
 
     // Allocate two chunks; since we know the first chunk is the first in its area,
     // it has to be a leader, and the next one of the same size its buddy.
@@ -213,7 +213,7 @@ TEST_VM(metaspace, chunk_allocate_with_commit_limit) {
 
   const size_t granule_sz = Settings::commit_granule_words();
   const size_t commit_limit = granule_sz * 3;
-  MetaspaceTestHelper helper(commit_limit);
+  ChunkTestsContext helper(commit_limit);
 
   // A big chunk, but uncommitted.
   Metachunk* c = NULL;
@@ -285,7 +285,7 @@ TEST_VM(metaspace, chunk_split_and_merge) {
   //   in ~RootChunkArea()
   // - finally we have to lock manually
 
-  MetaspaceTestHelper helper;
+  ChunkTestsContext helper;
 
   const chunklevel_t orig_lvl = ROOT_CHUNK_LEVEL;
   for (chunklevel_t target_lvl = orig_lvl + 1; target_lvl <= HIGHEST_CHUNK_LEVEL; target_lvl ++) {
@@ -364,7 +364,7 @@ TEST_VM(metaspace, chunk_split_and_merge) {
 
 TEST_VM(metaspace, chunk_enlarge_in_place) {
 
-  MetaspaceTestHelper helper;
+  ChunkTestsContext helper;
 
   // Starting with the smallest chunk size, attempt to enlarge the chunk in place until we arrive
   // at root chunk size. Since the state is clean, this should work.
