@@ -683,7 +683,7 @@ public:
   }
 };
 
-void G1ConcurrentMark::pre_initial_mark() {
+void G1ConcurrentMark::pre_concurrent_start() {
   assert_at_safepoint_on_vm_thread();
 
   // Reset marking state.
@@ -697,7 +697,7 @@ void G1ConcurrentMark::pre_initial_mark() {
 }
 
 
-void G1ConcurrentMark::post_initial_mark() {
+void G1ConcurrentMark::post_concurrent_start() {
   // Start Concurrent Marking weak-reference discovery.
   ReferenceProcessor* rp = _g1h->ref_processor_cm();
   // enable ("weak") refs discovery
@@ -714,7 +714,7 @@ void G1ConcurrentMark::post_initial_mark() {
 
   // update_g1_committed() will be called at the end of an evac pause
   // when marking is on. So, it's also called at the end of the
-  // initial-mark pause to update the heap end, if the heap expands
+  // concurrent start pause to update the heap end, if the heap expands
   // during it. No need to call it here.
 }
 
@@ -1479,7 +1479,6 @@ public:
 
   virtual void work(uint worker_id) {
     ResourceMark rm;
-    HandleMark hm;
     G1CMTask* task = _cm->task(worker_id);
     G1CMIsAliveClosure g1_is_alive(_g1h);
     G1CMKeepAliveAndDrainClosure g1_par_keep_alive(_cm, task, false /* is_serial */);
@@ -1508,7 +1507,6 @@ void G1CMRefProcTaskExecutor::execute(ProcessTask& proc_task, uint ergo_workers)
 
 void G1ConcurrentMark::weak_refs_work(bool clear_all_soft_refs) {
   ResourceMark rm;
-  HandleMark   hm;
 
   // Is alive closure.
   G1CMIsAliveClosure g1_is_alive(_g1h);
@@ -1755,7 +1753,6 @@ public:
     task->record_start_time();
     {
       ResourceMark rm;
-      HandleMark hm;
 
       G1RemarkThreadsClosure threads_f(G1CollectedHeap::heap(), task);
       Threads::threads_do(&threads_f);
@@ -1779,7 +1776,6 @@ public:
 
 void G1ConcurrentMark::finalize_marking() {
   ResourceMark rm;
-  HandleMark   hm;
 
   _g1h->ensure_parsability(false);
 
@@ -2411,7 +2407,7 @@ bool G1ConcurrentMark::try_stealing(uint worker_id, G1TaskQueueEntry& task_entry
 
       (1) Marking Bitmap. If there are gray objects that appear only
       on the bitmap (this happens either when dealing with an overflow
-      or when the initial marking phase has simply marked the roots
+      or when the concurrent start pause has simply marked the roots
       and didn't push them on the stack), then tasks claim heap
       regions whose bitmap they then scan to find gray objects. A
       global finger indicates where the end of the last claimed region

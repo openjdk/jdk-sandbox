@@ -259,16 +259,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                 (s, p) -> null
             );
 
-    static final StandardBundlerParam<Boolean> BIND_SERVICES =
-            new StandardBundlerParam<>(
-                    Arguments.CLIOptions.BIND_SERVICES.getId(),
-                    Boolean.class,
-                    params -> false,
-                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
-                            true : Boolean.valueOf(s)
-            );
-
-
     static final StandardBundlerParam<Boolean> VERBOSE  =
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.VERBOSE.getId(),
@@ -348,8 +338,8 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
             new StandardBundlerParam<>(
                     "fileAssociation.description",
                     String.class,
-                    params -> APP_NAME.fetchFrom(params) + " Path",
-                    null
+                    p -> null,
+                    (s, p) -> s
             );
 
     static final StandardBundlerParam<Path> FA_ICON =

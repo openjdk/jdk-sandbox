@@ -105,17 +105,6 @@ public:
   virtual bool is_thread_safe() { return false; }
 };
 
-#ifdef ASSERT
-class ShenandoahAssertToSpaceClosure : public OopClosure {
-private:
-  template <class T>
-  void do_oop_work(T* p);
-public:
-  void do_oop(narrowOop* p);
-  void do_oop(oop* p);
-};
-#endif
-
 typedef ShenandoahLock    ShenandoahHeapLock;
 typedef ShenandoahLocker  ShenandoahHeapLocker;
 
@@ -556,9 +545,6 @@ public:
   // Keep alive an object that was loaded with AS_NO_KEEPALIVE.
   void keep_alive(oop obj);
 
-  // Used by RMI
-  jlong millis_since_last_gc();
-
 // ---------- Safepoint interface hooks
 //
 public:
@@ -656,7 +642,6 @@ public:
   void reset_mark_bitmap();
 
   // SATB barriers hooks
-  template<bool RESOLVE>
   inline bool requires_marking(const void* entry) const;
   void force_satb_flush_all_threads();
 

@@ -960,7 +960,7 @@ var getJibProfilesDependencies = function (input, common) {
 
     var devkit_platform_revisions = {
         linux_x64: "gcc9.2.0-OL6.4+1.0",
-        macosx_x64: "Xcode10.1-MacOSX10.14+1.0",
+        macosx_x64: "Xcode11.3.1-MacOSX10.15+1.0",
         windows_x64: "VS2019-16.5.3+1.0",
         linux_aarch64: "gcc9.2.0-OL7.6+1.0",
         linux_arm: "gcc8.2.0-Fedora27+1.0",
@@ -1062,15 +1062,15 @@ var getJibProfilesDependencies = function (input, common) {
 
         jcov: {
             // Until an official build of JCov is available, use custom
-            // build to support classfile version 57.
-            // See CODETOOLS-7902358 for more info.
+            // build to support classfile version 60.
+            // See CODETOOLS-7902734 for more info.
             // server: "jpg",
             // product: "jcov",
             // version: "3.0",
             // build_number: "b07",
             // file: "bundles/jcov-3_0.zip",
             organization: common.organization,
-            revision: "3.0-59-support+1.0",
+            revision: "3.0-60-support+1.0",
             ext: "zip",
             environment_name: "JCOV_HOME",
         },

@@ -49,7 +49,7 @@ final class FileAssociation {
     }
 
     static void verify(List<FileAssociation> associations) throws ConfigException {
-        // only one mime type per association, at least one file extention
+        // only one mime type per association, at least one file extension
         int assocIdx = 0;
         for (var assoc : associations) {
             ++assocIdx;
@@ -79,11 +79,15 @@ final class FileAssociation {
                     FileAssociation assoc = new FileAssociation();
 
                     assoc.launcherPath = Path.of(launcherName);
-                    assoc.description = FA_DESCRIPTION.fetchFrom(fa);
+                    assoc.description = Optional.ofNullable(
+                            FA_DESCRIPTION.fetchFrom(fa))
+                            .orElse(launcherName + " association");
                     assoc.extensions = Optional.ofNullable(
-                            FA_EXTENSIONS.fetchFrom(fa)).orElse(Collections.emptyList());
+                            FA_EXTENSIONS.fetchFrom(fa))
+                            .orElse(Collections.emptyList());
                     assoc.mimeTypes = Optional.ofNullable(
-                            FA_CONTENT_TYPE.fetchFrom(fa)).orElse(Collections.emptyList());
+                            FA_CONTENT_TYPE.fetchFrom(fa))
+                            .orElse(Collections.emptyList());
 
                     Path icon = FA_ICON.fetchFrom(fa);
                     if (icon != null) {

@@ -79,12 +79,8 @@
   template(UpdateForPopTopFrame)                  \
   template(SetFramePop)                           \
   template(GetObjectMonitorUsage)                 \
-  template(GetStackTrace)                         \
-  template(GetMultipleStackTraces)                \
   template(GetAllStackTraces)                     \
   template(GetThreadListStackTraces)              \
-  template(GetFrameCount)                         \
-  template(GetFrameLocation)                      \
   template(ChangeBreakpoints)                     \
   template(GetOrSetLocal)                         \
   template(GetCurrentLocation)                    \
