@@ -25,6 +25,8 @@
 
 import java.util.concurrent.CyclicBarrier;
 
+import static java.lang.System.currentTimeMillis;
+
 public class MetaspaceTestOneArenaManyThreads extends MetaspaceTestWithThreads {
 
     // Several threads allocate from a single arena.
@@ -36,6 +38,9 @@ public class MetaspaceTestOneArenaManyThreads extends MetaspaceTestWithThreads {
     }
 
     public void runTest() throws Exception {
+
+        long t_start = currentTimeMillis();
+        long t_stop = t_start + (seconds * 1000);
 
         // We create a single arena, and n threads which will allocate from that single arena.
 
@@ -51,7 +56,9 @@ public class MetaspaceTestOneArenaManyThreads extends MetaspaceTestWithThreads {
 
         gate.await();
 
-        Thread.sleep(seconds * 1000);
+        while (System.currentTimeMillis() < t_stop) {
+            Thread.sleep(200);
+        }
 
         stopAllThreads();
 
@@ -65,6 +72,8 @@ public class MetaspaceTestOneArenaManyThreads extends MetaspaceTestWithThreads {
         context.purge();
 
         context.destroy();
+
+        System.out.println("This took " + (System.currentTimeMillis() - t_start) + "ms");
 
     }
 

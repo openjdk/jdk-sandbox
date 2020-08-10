@@ -47,7 +47,7 @@
  * @modules java.base/jdk.internal.misc
  *          java.management
  * @build sun.hotspot.WhiteBox
- * @key randomness stress
+ * @key randomness
  * @requires (vm.debug == true)
  *
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
@@ -65,7 +65,7 @@
  * @modules java.base/jdk.internal.misc
  *          java.management
  * @build sun.hotspot.WhiteBox
- * @key randomness stress
+ * @key randomness
  * @requires (vm.debug == false)
  *
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
@@ -81,7 +81,7 @@ public class TestMetaspaceAllocationMT1 {
 
         final long testAllocationCeiling = 1024 * 1024 * 8; // 8m words = 64M on 64bit
         final int numThreads = 4;
-        final int seconds = 8;
+        final int seconds = 10;
 
         for (int i = 0; i < 3; i ++) {
 

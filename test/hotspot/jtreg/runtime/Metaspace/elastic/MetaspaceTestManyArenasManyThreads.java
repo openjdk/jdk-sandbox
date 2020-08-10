@@ -24,6 +24,8 @@
  */
 import java.util.concurrent.CyclicBarrier;
 
+import static java.lang.System.currentTimeMillis;
+
 public class MetaspaceTestManyArenasManyThreads extends MetaspaceTestWithThreads {
 
     // Several threads allocate from a single arena.
@@ -34,6 +36,9 @@ public class MetaspaceTestManyArenasManyThreads extends MetaspaceTestWithThreads
     }
 
     public void runTest() throws Exception {
+
+        long t_start = currentTimeMillis();
+        long t_stop = t_start + (seconds * 1000);
 
         CyclicBarrier gate = new CyclicBarrier(numThreads + 1);
 
@@ -52,13 +57,10 @@ public class MetaspaceTestManyArenasManyThreads extends MetaspaceTestWithThreads
 
         // while test is running, skim the arenas and kill any arena which is saturated (has started getting an
         // untoward number of allocation failures)
-        long remainingMillis = seconds * 1000;
-        while (remainingMillis > 0) {
+        while (System.currentTimeMillis() < t_stop) {
 
             // Wait a bit
-            int sleep_ms = 200;
-            Thread.sleep(sleep_ms);
-            remainingMillis -= sleep_ms;
+            Thread.sleep(200);
 
             for (RandomAllocatorThread t: threads) {
                 if (t.allocator.arena.numAllocationFailures > 0) {
@@ -66,7 +68,7 @@ public class MetaspaceTestManyArenasManyThreads extends MetaspaceTestWithThreads
                     t.join();
                     context.destroyArena(t.allocator.arena);
 
-                    // Create a new arena, allocator, then a new thread (note: do not pass in a start gate thjis time
+                    // Create a new arena, allocator, then a new thread (note: do not pass in a start gate this time
                     // since we do not need to wait) and fire it up.
                     MetaspaceTestArena arena = context.createArena(RandomHelper.fiftyfifty(), ceilingPerThread);
                     RandomAllocator allocator = new RandomAllocator(arena);
@@ -92,6 +94,8 @@ public class MetaspaceTestManyArenasManyThreads extends MetaspaceTestWithThreads
         context.destroy();
 
         context.updateTotals();
+
+        System.out.println("This took " + (System.currentTimeMillis() - t_start) + "ms");
 
     }
 

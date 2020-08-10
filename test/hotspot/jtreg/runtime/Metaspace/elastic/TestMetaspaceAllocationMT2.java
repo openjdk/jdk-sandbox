@@ -46,7 +46,7 @@
  * @modules java.base/jdk.internal.misc
  *          java.management
  * @build sun.hotspot.WhiteBox
- * @key randomness stress
+ * @key randomness
  * @requires (vm.debug == true)
  *
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
@@ -64,7 +64,7 @@
  * @modules java.base/jdk.internal.misc
  *          java.management
  * @build sun.hotspot.WhiteBox
- * @key randomness stress
+ * @key randomness
  * @requires (vm.debug == false)
  *
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
@@ -79,14 +79,14 @@ public class TestMetaspaceAllocationMT2 {
 
     public static void main(String[] args) throws Exception {
 
-        final long testAllocationCeiling = 1024 * 1024 * 8; // 8m words = 64M on 64bit
+        final long testAllocationCeiling = 1024 * 1024 * 6; // 8m words = 64M on 64bit
         final int numThreads = 4;
-        final int seconds = 8;
+        final int seconds = 10;
 
         for (int i = 0; i < 3; i ++) {
 
-            long commitLimit = (i == 1) ? testAllocationCeiling / 2 : 0;
-            long reserveLimit = (i == 2) ? testAllocationCeiling / 2 : 0;
+            long commitLimit = (i == 1) ? 1024 * 256 : 0;
+            long reserveLimit = (i == 2) ? 1024 * 256 : 0;
 
             System.out.println("#### Test: ");
             System.out.println("#### testAllocationCeiling: " + testAllocationCeiling);
