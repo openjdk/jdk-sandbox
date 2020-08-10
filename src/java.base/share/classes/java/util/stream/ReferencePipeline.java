@@ -428,6 +428,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
         };
     }
 
+    @Override
     public final <R> Stream<R> mapMulti(BiConsumer<? super P_OUT, ? super Consumer<R>> mapper) {
         Objects.requireNonNull(mapper);
         return new StatelessOp<>(this, StreamShape.REFERENCE,

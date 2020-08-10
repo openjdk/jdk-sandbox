@@ -356,7 +356,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *
      * @implSpec
      * The default implementation accumulates accepted elements into an internal
-     * buffer. When the mapper function returns a stream is created from the
+     * buffer. When the mapper function returns, a stream is created from the
      * internal buffer. Finally, method {@link #flatMap(Function)} is invoked
      * with the stream. The implementation classes in {@code java.util.stream} are
      * much more efficient and do not buffer.
