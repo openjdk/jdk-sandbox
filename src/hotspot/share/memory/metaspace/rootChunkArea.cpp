@@ -50,7 +50,7 @@ RootChunkArea::~RootChunkArea() {
   if (_first_chunk != NULL) {
     assert(_first_chunk->is_root_chunk() && _first_chunk->is_free(),
            "Cannot delete root chunk area if not all chunks are free.");
-    ChunkHeaderPool::pool().return_chunk_header(_first_chunk);
+    ChunkHeaderPool::pool()->return_chunk_header(_first_chunk);
   }
 }
 
@@ -61,7 +61,7 @@ Metachunk* RootChunkArea::alloc_root_chunk_header(VirtualSpaceNode* node) {
 
   assert(_first_chunk == 0, "already have a root");
 
-  Metachunk* c = ChunkHeaderPool::pool().allocate_chunk_header();
+  Metachunk* c = ChunkHeaderPool::pool()->allocate_chunk_header();
   c->initialize(node, const_cast<MetaWord*>(_base), chunklevel::ROOT_CHUNK_LEVEL);
 
   _first_chunk = c;
@@ -123,7 +123,7 @@ void RootChunkArea::split(chunklevel_t target_level, Metachunk* c, FreeChunkList
     log_trace(metaspace)("Splitting chunk: " METACHUNK_FULL_FORMAT ".", METACHUNK_FULL_FORMAT_ARGS(c));
 
     c->inc_level();
-    Metachunk* splinter_chunk = ChunkHeaderPool::pool().allocate_chunk_header();
+    Metachunk* splinter_chunk = ChunkHeaderPool::pool()->allocate_chunk_header();
     splinter_chunk->initialize(c->vsnode(), c->end(), c->level());
 
     // Fix committed words info: If over the half of the original chunk was
@@ -280,7 +280,7 @@ Metachunk* RootChunkArea::merge(Metachunk* c, FreeChunkListVector* freelists) {
       }
 
       // .. and return follower chunk header to pool for reuse.
-      ChunkHeaderPool::pool().return_chunk_header(follower);
+      ChunkHeaderPool::pool()->return_chunk_header(follower);
 
       // Leader level gets decreased (leader chunk doubles in size) but
       // base address stays the same.
@@ -376,7 +376,7 @@ bool RootChunkArea::attempt_enlarge_chunk(Metachunk* c, FreeChunkListVector* fre
   freelists->remove(buddy);
 
   // .. and return its empty husk to the pool...
-  ChunkHeaderPool::pool().return_chunk_header(buddy);
+  ChunkHeaderPool::pool()->return_chunk_header(buddy);
 
   // Then decrease level of c.
   c->dec_level();

@@ -102,7 +102,7 @@ class ChunkHeaderPoolTest {
 
 public:
 
-  ChunkHeaderPoolTest() : _pool(true) {
+  ChunkHeaderPoolTest() : _pool() {
     memset(_elems, 0, sizeof(_elems));
   }
 
@@ -116,7 +116,7 @@ public:
 
 TEST_VM(metaspace, chunk_header_pool_basics) {
 
-  ChunkHeaderPool pool(true);
+  ChunkHeaderPool pool;
   EXPECT_EQ(pool.used(), (int)0);
   EXPECT_EQ(pool.freelist_size(), (int)0);
 

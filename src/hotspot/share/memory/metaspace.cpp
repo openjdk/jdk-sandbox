@@ -32,6 +32,7 @@
 #include "memory/metaspace.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/metaspaceTracer.hpp"
+#include "memory/metaspace/chunkHeaderPool.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
@@ -665,6 +666,8 @@ void Metaspace::ergo_initialize() {
 
 void Metaspace::global_initialize() {
   MetaspaceGC::initialize(); // <- since we do not prealloc init chunks anymore is this still needed?
+
+  metaspace::ChunkHeaderPool::initialize();
 
   // If UseCompressedClassPointers=1, we have two cases:
   // a) if CDS is active (either dump time or runtime), it will create the ccs

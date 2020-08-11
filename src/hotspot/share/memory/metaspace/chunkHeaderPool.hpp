@@ -26,7 +26,7 @@
 #ifndef SHARE_MEMORY_METASPACE_CHUNKHEADERPOOL_HPP
 #define SHARE_MEMORY_METASPACE_CHUNKHEADERPOOL_HPP
 
-#include "memory/metaspace/internStat.hpp"
+#include "memory/allocation.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metachunkList.hpp"
 #include "utilities/debug.hpp"
@@ -34,14 +34,12 @@
 
 namespace metaspace {
 
-// Chunk headers are kept separate from the chunks themselves; in order to
-//  speed up allocation, reduce waste and increase locality when walking chains
-//  of linked headers, they are kept in a pool.
-//
-// The ChunkHeaderPool is a growable array of chunk headers. Unused chunk headers
-//  are kept in a free list.
+// Chunk headers (Metachunk objects) are separate entities from their payload. They
+//  live in C-Heap, but since they are allocated and released frequently in the course
+//  of buddy allocation (splitting, merging chunks frequently) they are kept in
+//  a slab allocator.
 
-class ChunkHeaderPool {
+class ChunkHeaderPool : public CHeapObj<mtMetaspace> {
 
   static const int slab_capacity = 128;
 
@@ -64,16 +62,14 @@ class ChunkHeaderPool {
 
   MetachunkList _freelist;
 
-  const bool _delete_on_destruction;
-
   void allocate_new_slab();
 
-  static ChunkHeaderPool _chunkHeaderPool;
+  static ChunkHeaderPool* _chunkHeaderPool;
 
 
 public:
 
-  ChunkHeaderPool(bool delete_on_destruction);
+  ChunkHeaderPool();
 
   ~ChunkHeaderPool();
 
@@ -137,8 +133,10 @@ public:
 
   DEBUG_ONLY(void verify(bool slow) const;)
 
+  static void initialize();
+
   // Returns reference to the one global chunk header pool.
-  static ChunkHeaderPool& pool() { return _chunkHeaderPool; }
+  static ChunkHeaderPool* pool() { return _chunkHeaderPool; }
 
 };
 

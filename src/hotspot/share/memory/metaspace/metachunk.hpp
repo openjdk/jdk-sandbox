@@ -64,7 +64,7 @@ class VirtualSpaceNode;
 // -- Level --
 //
 // Metachunks are managed as part of a buddy style allocation scheme.
-// Its sizes are always power-2, ranging from the smallest chunk size
+// Sized always in steps of power-of-2, ranging from the smallest chunk size
 // (1Kb) to the largest (4Mb) (see chunklevel.hpp).
 // Its size is encoded as level, with level 0 being the largest chunk
 // size ("root chunk").

@@ -351,8 +351,8 @@ void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags)
 
   // Also print chunk header pool size.
   out->cr();
-  out->print("chunk header pool: %u items, ", ChunkHeaderPool::pool().used());
-  print_scaled_words(out, ChunkHeaderPool::pool().memory_footprint_words(), scale);
+  out->print("chunk header pool: %u items, ", ChunkHeaderPool::pool()->used());
+  print_scaled_words(out, ChunkHeaderPool::pool()->memory_footprint_words(), scale);
   out->print(".");
   out->cr();
 

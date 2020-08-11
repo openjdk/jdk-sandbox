@@ -33,24 +33,22 @@ namespace metaspace {
 
 
 // Returns reference to the one global chunk header pool.
-ChunkHeaderPool ChunkHeaderPool::_chunkHeaderPool(false);
+ChunkHeaderPool* ChunkHeaderPool::_chunkHeaderPool = NULL;
 
 
-ChunkHeaderPool::ChunkHeaderPool(bool delete_on_destruction)
-  : _num_slabs(), _first_slab(NULL), _current_slab(NULL), _delete_on_destruction(delete_on_destruction)
+ChunkHeaderPool::ChunkHeaderPool()
+  : _num_slabs(), _first_slab(NULL), _current_slab(NULL)
 {
 }
 
+// Note: the global chunk header pool gets never deleted; so this destructor only
+// exists for the sake of tests.
 ChunkHeaderPool::~ChunkHeaderPool() {
-  if (_delete_on_destruction) {
-    // This is only done when tests are running, but not for the global chunk pool,
-    // since that is supposed to live until the process ends.
-    slab_t* s = _first_slab;
-    while (s != NULL) {
-      slab_t* next_slab = s->next;
-      os::free(s);
-      s = next_slab;
-    }
+  slab_t* s = _first_slab;
+  while (s != NULL) {
+    slab_t* next_slab = s->next;
+    os::free(s);
+     s = next_slab;
   }
 }
 
@@ -69,6 +67,11 @@ void ChunkHeaderPool::allocate_new_slab() {
 // Returns size of memory used.
 size_t ChunkHeaderPool::memory_footprint_words() const {
   return (_num_slabs.get() * sizeof(slab_t)) / BytesPerWord;
+}
+
+void ChunkHeaderPool::initialize() {
+  assert(_chunkHeaderPool == NULL, "only once");
+  _chunkHeaderPool = new ChunkHeaderPool();
 }
 
 #ifdef ASSERT
