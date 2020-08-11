@@ -29,37 +29,62 @@
  *
  */
 
-/* @test id=reclaim-none
- * @summary Run gtests for various special metaspace scenarios
+/* @test id=reclaim-none-debug
+ * @summary Run metaspace-related gtests for reclaim policy none (with verifications)
+ * @requires vm.debug
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.xml
- * @run main/native GTestWrapper --gtest_filter=metaspace* -XX:MetaspaceReclaimPolicy=none -XX:+UnlockDiagnosticVMOptions -XX:VerifyMetaspaceInterval=5
+ * @run main/native GTestWrapper --gtest_filter=metaspace* -XX:MetaspaceReclaimPolicy=none -XX:+UnlockDiagnosticVMOptions -XX:VerifyMetaspaceInterval=3
  */
 
-/* @test id=reclaim-aggressive
- * @summary Run gtests for various special metaspace scenarios
+/* @test id=reclaim-none-ndebug
+ * @summary Run metaspace-related gtests for reclaim policy none
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.xml
- * @run main/native GTestWrapper --gtest_filter=metaspace* -XX:MetaspaceReclaimPolicy=aggressive -XX:+UnlockDiagnosticVMOptions -XX:VerifyMetaspaceInterval=5
+ * @run main/native GTestWrapper --gtest_filter=metaspace* -XX:MetaspaceReclaimPolicy=none
  */
+
+
+
+
+/* @test id=reclaim-aggressive-debug
+ * @summary Run metaspace-related gtests for reclaim policy aggressive (with verifications)
+ * @requires vm.debug
+ * @library /test/lib
+ * @modules java.base/jdk.internal.misc
+ *          java.xml
+ * @run main/native GTestWrapper --gtest_filter=metaspace* -XX:MetaspaceReclaimPolicy=aggressive -XX:+UnlockDiagnosticVMOptions -XX:VerifyMetaspaceInterval=3
+ */
+
+/* @test id=reclaim-aggressive-ndebug
+ * @summary Run metaspace-related gtests for reclaim policy aggressive
+ * @library /test/lib
+ * @modules java.base/jdk.internal.misc
+ *          java.xml
+ * @run main/native GTestWrapper --gtest_filter=metaspace* -XX:MetaspaceReclaimPolicy=aggressive
+ */
+
+
+
 
 /* @test id=balanced-with-guards
- * @summary Run gtests for various special metaspace scenarios
- *
+ * @summary Run metaspace-related gtests with allocation guards enabled
  * @requires vm.debug
- *
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.xml
- * @run main/native GTestWrapper --gtest_filter=metaspace* -XX:MetaspaceReclaimPolicy=balanced -XX:+UnlockDiagnosticVMOptions -XX:VerifyMetaspaceInterval=5 -XX:+MetaspaceGuardAllocations
+ * @run main/native GTestWrapper --gtest_filter=metaspace* -XX:+UnlockDiagnosticVMOptions -XX:VerifyMetaspaceInterval=3 -XX:+MetaspaceGuardAllocations
  */
 
+
+
+
 /* @test id=balanced-no-ccs
- * @summary Run gtests for various special metaspace scenarios
+ * @summary Run metaspace-related gtests with compressed class pointers off
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.xml
- * @run main/native GTestWrapper --gtest_filter=metaspace* -XX:MetaspaceReclaimPolicy=balanced -XX:-UseCompressedClassPointers -XX:+UnlockDiagnosticVMOptions -XX:VerifyMetaspaceInterval=5
+ * @run main/native GTestWrapper --gtest_filter=metaspace* -XX:MetaspaceReclaimPolicy=balanced -XX:-UseCompressedClassPointers
  */
