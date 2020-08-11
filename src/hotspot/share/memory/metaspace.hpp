@@ -137,8 +137,9 @@ public:
   static void global_initialize();
   static void post_initialize();
 
-  // The alignment at which Metaspace mappings are reserved.
+  // Alignment, in bytes, of metaspace mappings
   static size_t reserve_alignment()       { return reserve_alignment_words() * BytesPerWord; }
+  // Alignment, in words, of metaspace mappings
   static size_t reserve_alignment_words();
 
   // The granularity at which Metaspace is committed and uncommitted.

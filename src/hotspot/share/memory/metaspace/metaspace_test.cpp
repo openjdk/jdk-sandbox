@@ -67,7 +67,9 @@ MetaspaceTestContext::MetaspaceTestContext(const char* name, size_t commit_limit
     _commit_limiter(commit_limit == 0 ? max_uintx : commit_limit), // commit_limit == 0 -> no limit
     _used_words_counter()
 {
-
+  assert(is_aligned(reserve_limit, Metaspace::reserve_alignment_words()), "reserve_limit (" SIZE_FORMAT ") "
+                    "not aligned to metaspace reserve alignment (" SIZE_FORMAT ")",
+                    reserve_limit, Metaspace::reserve_alignment_words());
   if (reserve_limit > 0) {
     // have reserve limit -> non-expandable context
     ReservedSpace rs(reserve_limit * BytesPerWord, Metaspace::reserve_alignment(), false);
