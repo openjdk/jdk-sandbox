@@ -38,6 +38,10 @@ class outputStream;
 
 namespace metaspace {
 
+// A simple single-linked list of chunks, used in MetaspaceArena to keep
+//  a list of retired chunks, as well as in the ChunkHeaderPool to keep
+//  a cache of unused chunk headers.
+
 class MetachunkList {
 
   Metachunk* _first;

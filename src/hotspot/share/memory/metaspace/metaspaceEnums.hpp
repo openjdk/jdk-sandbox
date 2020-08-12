@@ -29,22 +29,12 @@
 #include "memory/metaspace.hpp"
 #include "utilities/debug.hpp"
 
-// MetadataType and MetaspaceType, as well as some convenience functions surrounding them.
+
 namespace metaspace {
 
-///////////////////////
+// A bunch of convenience functions around MetadataType and MetaspaceType
 
-/* Continues to live in Metaspace class (metaspace.hpp) for
- * the time being to keep changes to the outside tree minimal.
- * Will be factored out to an own header and potentially
- * made enum class.
- *
- * enum MetadataType {
- *  ClassType,
- *  NonClassType,
- *  MetadataTypeCount
- * };
- */
+///////////////////////
 
 inline bool is_class(Metaspace::MetadataType md) { return md == Metaspace::ClassType; }
 
@@ -60,21 +50,6 @@ inline void check_valid_mdtype(Metaspace::MetadataType md) {
 #endif // ASSERT
 
 ///////////////////////
-
-/* Continues to live in Metaspace class (metaspace.hpp) for
- * the time being to keep changes to the outside tree minimal.
- * Will be factored out to an own header and potentially
- * made enum class.
- *
- * enum MetaspaceType {
- *   ZeroMetaspaceType = 0,
- *   StandardMetaspaceType = ZeroMetaspaceType,
- *   BootMetaspaceType = StandardMetaspaceType + 1,
- *   ClassMirrorHolderMetaspaceType = BootMetaspaceType + 1,
- *   ReflectionMetaspaceType = ClassMirrorHolderMetaspaceType + 1,
- *   MetaspaceTypeCount
- * };
- */
 
 const char* describe_spacetype(Metaspace::MetaspaceType st);
 

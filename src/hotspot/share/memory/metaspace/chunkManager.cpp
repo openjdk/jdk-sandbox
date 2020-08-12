@@ -384,6 +384,8 @@ void ChunkManager::purge() {
          l <= max_level;
          l ++)
     {
+      // Since we uncommit all chunks at this level, we do not break the "committed chunks are
+      //  at the front of the list" condition.
       for (Metachunk* c = _chunks.first_at_level(l); c != NULL; c = c->next()) {
         c->uncommit_locked();
       }

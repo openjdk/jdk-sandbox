@@ -32,10 +32,43 @@
 #include "utilities/globalDefinitions.hpp"
 
 // In Debug builds, Metadata in Metaspace can be optionally guarded - enclosed in canaries -
-// to detect memory overwriters. This is switched on by "-XX:+MetaspaceGuardAllocations".
+// to detect memory overwriters.
 //
 // These canaries are periodically checked, e.g. when the Metaspace is purged in a context
 // of a GC.
+
+// The canaries precede any allocated block...
+//
+// +---------------+
+// |  'METAMETA'   |
+// +---------------+
+// |  block size   |
+// +---------------+
+// |  block...     |
+// .               .
+// .               .
+// .               .
+// |               |
+// +---------------+
+// . <padding>     .
+// +---------------+
+// |  'METAMETA'   |
+// +---------------+
+// |  block size   |
+// +---------------+
+// |  block...     |
+
+// ... and since the blocks are allocated via pointer bump and closely follow each other,
+// one block's prefix is its predecessor's suffix, so apart from the last block all
+// blocks have an overwriter canary on both ends.
+//
+
+// Note: this feature is only available in debug, and is activated using
+//  -XX:+MetaspaceGuardAllocations. When active, it disables deallocation handling - since
+//  freeblock handling in the freeblock lists would get too complex - so one may run leaks
+//  in deallocation-heavvy scenarios (e.g. lots of class redefinitions).
+//
+
 
 namespace metaspace {
 

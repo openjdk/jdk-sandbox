@@ -34,8 +34,14 @@ class outputStream;
 
 namespace metaspace {
 
+// Contains a number of data output structures:
+//
+// - cm_stats_t
+// - clms_stats_t -> arena_stats_t -> in_use_chunk_stats_t
+//
+// used for the various XXXX::add_to_statistic() methods in MetaspaceArena, ClassLoaderMetaspace
+//  and ChunkManager, respectively.
 
-// Contains statistics for one or multiple ChunkManager.
 struct cm_stats_t {
 
   // How many chunks per level are checked in.

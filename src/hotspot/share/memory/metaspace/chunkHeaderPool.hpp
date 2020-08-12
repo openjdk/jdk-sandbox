@@ -34,10 +34,10 @@
 
 namespace metaspace {
 
-// Chunk headers (Metachunk objects) are separate entities from their payload. They
-//  live in C-Heap, but since they are allocated and released frequently in the course
-//  of buddy allocation (splitting, merging chunks frequently) they are kept in
-//  a slab allocator.
+// Chunk headers (Metachunk objects) are separate entities from their payload.
+//  Since they are allocated and released frequently in the course of buddy allocation
+//  (splitting, merging chunks happens often) we want allocation of them fast. Therefore
+//  we keep them in a simple pool (somewhat like a primitive slab allocator).
 
 class ChunkHeaderPool : public CHeapObj<mtMetaspace> {
 

@@ -38,15 +38,16 @@ class ChunkManager;
 class VirtualSpaceList;
 class CommitLimiter;
 
-// A MetaspaceContext is a convenience bracket around:
-// - a VirtualSpaceList defining a memory area used for Metaspace
+// MetaspaceContext is a convenience bracket around:
+//
+// - a VirtualSpaceList managing a memory area used for Metaspace
 // - a ChunkManager sitting atop of that which manages chunk freelists
 //
 // In a normal VM only one or two of these contexts ever exist: one for the metaspace, and
 //  optionally another one for the compressed class space.
 //
 // For tests more contexts may be created, and this would also be a way to use Metaspace
-//  for things other than Metaspace. We would have to work on the naming then.
+//  for things other than class metadata. We would have to work on the naming then.
 //
 // - (Future TODO): Context should own a lock to guard it. Currently this stuff is guarded
 //     by one global lock, the slightly misnamed Metaspace_expandlock, but that one

@@ -35,18 +35,43 @@ namespace metaspace {
 
 
 // BlockTree is a rather simple binary search tree. It is used to
-// manage small to medium free memory blocks.
+//  manage small to medium free memory blocks (see class FreeBlocks).
 //
 // There is no separation between payload (managed blocks) and nodes: the
-// memory blocks themselves are the nodes. Since they are considered to
-// be free when added to the structure, they are used to store the node
-// information directly. That also imposes a minimum size to the managed
-// memory blocks, which have to be able to hold at least a tree node.
+//  memory blocks themselves are the nodes, with the block size being the key.
 //
-// Each node corresponds to a memory block of a unique size. Subsequent memory
-// blocks of the same size are stacked below that node.
+// We store node pointer information in these blocks when storing them. That
+//  imposes a minimum size to the managed memory blocks.
+//  See MetaspaceArene::get_raw_allocation_word_size().
 //
-// Todo: this tree is unbalanced. It would be a good fit for a rb-tree.
+// We want to manage many memory blocks of the same size, but we want
+//  to prevent the tree from blowing up and degenerating into a list. Therefore
+//  there is only one node for each unique block size; subsequent blocks of the
+//  same size are stacked below that first node:
+//
+//                   +-----+
+//                   | 100 |
+//                   +-----+
+//                  /       \
+//           +-----+
+//           | 80  |
+//           +-----+
+//          /   |   \
+//         / +-----+ \
+//  +-----+  | 80  |  +-----+
+//  | 70  |  +-----+  | 85  |
+//  +-----+     |     +-----+
+//           +-----+
+//           | 80  |
+//           +-----+
+//
+//
+// Todo: This tree is unbalanced. It would be a good fit for a red-black tree.
+//  In order to make this a red-black tree, we need an algorithm which can deal
+//  with nodes which are their own payload (most red-black tree implementations
+//  swap payloads of their nodes at some point, see e.g. j.u.TreeSet).
+// A good example is the Linux kernel rbtree, which is a clean, easy-to-read
+//  implementation.
 
 class BlockTree: public CHeapObj<mtMetaspace> {
 

@@ -32,31 +32,6 @@
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-// Metaspace
-//
-// Metaspaces are Arenas for the VM's metadata.
-// They are allocated one per class loader object, and one for the null
-// bootstrap class loader
-//
-//    block X ---+       +-------------------+
-//               |       |  Virtualspace     |
-//               |       |                   |
-//               |       |                   |
-//               |       |-------------------|
-//               |       || Chunk            |
-//               |       ||                  |
-//               |       ||----------        |
-//               +------>||| block 0 |       |
-//                       ||----------        |
-//                       ||| block 1 |       |
-//                       ||----------        |
-//                       ||                  |
-//                       |-------------------|
-//                       |                   |
-//                       |                   |
-//                       +-------------------+
-//
-
 class ClassLoaderData;
 class MetaspaceShared;
 class MetaspaceTracer;
@@ -173,9 +148,31 @@ public:
 
 };
 
+// ClassLoaderMetaspace is an inbetween-object between a CLD and its MetaspaceArena(s).
+//
+// A CLD owns one MetaspaceArena if compressed class space is off, two if its one
+// (one for allocations of Klass* structures from class space, one for the rest from
+//  non-class space).
+//
+// ClassLoaderMetaspace only exists to hide this logic from upper layers:
+//
+// +------+       +----------------------+       +-------------------+
+// | CLD  | --->  | ClassLoaderMetaspace | ----> | (non class) Arena |
+// +------+       +----------------------+  |    +-------------------+     allocation top
+//                                          |       |                        v
+//                                          |       + chunk -- chunk ... -- chunk
+//                                          |
+//                                          |    +-------------------+
+//                                          +--> | (class) Arena     |
+//                                               +-------------------+
+//                                                  |
+//                                                  + chunk ... chunk
+//                                                               ^
+//                                                               alloc top
+//
 class ClassLoaderMetaspace : public CHeapObj<mtClass> {
 
-  // The CLD lock.
+  // A reference to an outside lock, held by the CLD.
   Mutex* const _lock;
 
   const Metaspace::MetaspaceType _space_type;

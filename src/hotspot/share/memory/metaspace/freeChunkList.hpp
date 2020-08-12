@@ -42,16 +42,18 @@ namespace metaspace {
 // Chunks are kept in a vector of double-linked double-headed lists
 //  (using Metachunk::prev/next). One list per chunk level exists.
 //
-// Chunks in these lists are roughly ordered, in a fashion: uncommitted chunks
-//  are added to the back of the list, fully or partially committed chunks to the
-//  front. So, chunks at the front of the list are fully or partially committed, but
-//  within that group are unsorted.
+// Chunks in these lists are roughly ordered: uncommitted chunks
+//  are added to the back of the list, fully or partially committed
+//  chunks to the front.
 //
-// Note that there is a small caveat: while chunks can never get uncommitted when
-//  residing in the freelist, they *can* get committed as a side effect of committing
-//  neighboring chunks, if the chunk happens to reside in the same commit granule.
-//  In practice this is not a big deal and not enough motivation to reorder this
-//  list. For our purposes this list is "ordered enough".
+// (Small caveat: commit state of a chunk may change as a result of
+//  actions on neighboring chunks, if the chunk is smaller than a commit
+//  granule and therefore shares its granule with neighbors. So it may change
+//  after the chunk has been added to the list.
+//  It will never involuntarily uncommit: only chunks >= granule size are uncommitted.
+//  But it may get involuntarily committed if an in-granule neighbor is committed and
+//  causes committing of the whole granule.
+//  In practice this is not a big deal; it has very little consequence.)
 //
 // Beyond adding at either front or at back, we do not sort on insert, since the
 //  insert path is used during Metaspace reclamation which may happen at GC pause.

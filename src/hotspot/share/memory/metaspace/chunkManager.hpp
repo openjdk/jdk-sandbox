@@ -37,12 +37,38 @@ namespace metaspace {
 class VirtualSpaceList;
 struct cm_stats_t;
 
-// ChunkManager has a central role.
+// ChunkManager has a somewhat central role.
 
-// Arenas request chunks from it. It keeps the freelists for chunks.
-// If the freelist is exhausted it allocates new chunks from a connected
-// VirtualSpaceList.
+// Arenas request chunks from it and, on death, return chunks back to it.
+//  It keeps freelists for chunks, one per chunk level, sorted by chunk
+//  commit state.
+//  To feed the freelists, it allocates root chunks from the associated
+//  VirtualSpace below it.
 //
+// ChunkManager directs splitting chunks, if a chunk request cannot be
+//  fulfilled directly. It also takes care of merging when chunks are
+//  returned to it, before they are added to the freelist.
+//
+// The freelists are double linked double headed; fully committed chunks
+//  are added to the front, others to the back.
+//
+// Level
+//       +--------------------+   +--------------------+
+//  0    |  free root chunk   |---|  free root chunk   |---...
+//       +--------------------+   +--------------------+
+//
+//       +----------+   +----------+
+//  1    |          |---|          |---...
+//       +----------+   +----------+
+//
+//  .
+//  .
+//
+//       +-+   +-+
+//  12   | |---| |---...
+//       +-+   +-+
+
+
 class ChunkManager : public CHeapObj<mtMetaspace> {
 
   // A chunk manager is connected to a virtual space list which is used

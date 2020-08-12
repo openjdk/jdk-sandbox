@@ -31,16 +31,23 @@
 
 namespace metaspace {
 
-// The CommitLimiter encapsulates the logic of "asking someone if it
-//  is okay to further commit n words of memory". It exists to separate
-//  this control logic from the low-level Metaspace code.
+// The CommitLimiter encapsulates a limit we may want to impose on how much
+//  memory can be committed. This is a matter of separation of concerns:
 //
-// The default variant of the CommitLimiter checks whether committing would
-//  trigger MaxMetaspaceSize, in which case committing is denied. It also checks
-//  whether we would hit the GC threshold, in which case committing is denied too.
+// In metaspace, we have two limits to committing memory: the absolute limit,
+//  MaxMetaspaceSize; and the GC threshold. In both cases an allocation should
+//  fail if it would require committing memory and hit one of these limits.
 //
-// Other versions of this Limiter can be implemented for tests (see metaspace
-//  gtests).
+// However, the actual Metaspace allocator is a generic one and this
+//  GC- and classloading specific logic should be kept separate. Therefore
+//  it is hidden inside this interface.
+//
+// This allows us to:
+//  - more easily write tests for metaspace, by providing a different implementation
+//    of the commit limiter, thus keeping test logic separate from VM state.
+//  - (potentially) use the metaspace for things other than class metadata,
+//    where different commit rules would apply.
+//
 class CommitLimiter : public CHeapObj<mtMetaspace> {
 
   // Counts total words committed for metaspace

@@ -29,6 +29,7 @@
 
 class MetaspacePerfCounters;
 
+// Todo: clean up after jep387, see JDK-8251392
 class MetaspaceCounters: public AllStatic {
   static MetaspacePerfCounters* _perf_counters;
   static size_t used();

@@ -28,6 +28,7 @@
 
 namespace metaspace {
 
+// Todo: clean up after jep387, see JDK-8251392
 class MetaspaceSizesSnapshot {
 public:
   MetaspaceSizesSnapshot();

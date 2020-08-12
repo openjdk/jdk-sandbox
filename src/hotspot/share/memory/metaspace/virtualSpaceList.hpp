@@ -40,6 +40,20 @@ namespace metaspace {
 class Metachunk;
 class FreeChunkListVector;
 
+
+// VirtualSpaceList manages a single (if its non-expandable) or
+//  a series of (if its expandable) virtual memory regions used
+//  for metaspace.
+//
+// Internally it holds a list of nodes (VirtualSpaceNode) each
+//  managing a single contiguous memory region. The first node of
+//  this list is the current node and used for allocation of new
+//  root chunks.
+//
+// Beyond access to those nodes and the ability to grow new nodes
+//  (if expandable) it allows for purging: purging this list means
+//  removing and unmapping all memory regions which are unused.
+
 class VirtualSpaceList : public CHeapObj<mtClass> {
 
   // Name

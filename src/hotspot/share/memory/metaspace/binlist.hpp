@@ -35,17 +35,44 @@
 namespace metaspace {
 
 // BinList is a data structure to manage small to very small memory blocks
-// (only a few words). Memory blocks are kept in linked lists. Each list
+// (only a few words). It is used to manage deallocated blocks - see
+// class FreeBlocks.
+
+// Memory blocks are kept in linked lists. Each list
 // contains blocks of only one size. There is a list for blocks of two words,
 // for blocks of three words, etc. The list heads are kept in a vector,
 // ordered by block size.
 //
-// This structure is very fast in insertion - O(1).
+
+// wordsize
+//
+//       +---+   +---+   +---+      +---+
+//  1    |   |-->|   |-->|   |-...->|   |
+//       +---+   +---+   +---+      +---+
+//
+//       +----+   +----+   +----+      +----+
+//  2    |    |-->|    |-->|    |-...->|    |
+//       +----+   +----+   +----+      +----+
+//
+//       +-----+   +-----+   +-----+      +-----+
+//  3    |     |-->|     |-->|     |-...->|     |
+//       +-----+   +-----+   +-----+      +-----+
+//  .
+//  .
+//  .
+//
+//       +----------+   +----------+   +----------+      +----------+
+//  n    |          |-->|          |-->|          |-...->|          |
+//       +----------+   +----------+   +----------+      +----------+
+
+
+// Insertion is of course fast, O(1).
+//
 // On retrieval, we attempt to find the closest fit to a given size, walking the
 // list head vector (a bitmask is used to speed that part up).
 //
-// This structure is rather expensive in memory cost (one pointer per managed
-// block size) so we only use it for a small number of sizes, see class FreeBlocks.
+// This structure is a bit expensive in memory costs (we pay one pointer per managed
+// block size) so we only use it for a small number of sizes.
 
 template <size_t smallest_size, int num_lists>
 class BinListImpl {

@@ -35,7 +35,8 @@
 #include "memory/virtualspace.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-// Convenience classes for metaspace tests (jtreg, via whitebox, and gtests)
+// This is just convenience classes for metaspace-related tests
+//  (jtreg, via whitebox API, and gtests)
 
 class ReservedSpace;
 class Mutex;

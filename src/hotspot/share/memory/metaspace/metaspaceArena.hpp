@@ -45,12 +45,17 @@ class FreeBlocks;
 
 struct arena_stats_t;
 
-// The MetaspaceArena:
-// - keeps a list of chunks-in-use by the class loader, as well as a current chunk used
-//   to allocate from
-// - keeps a dictionary of free MetaBlocks. Those can be remnants of a retired chunk or
-//   allocations which were not needed anymore for some reason (e.g. releasing half-allocated
-//   structures when class loading fails)
+
+// The MetaspaceArena is a growable metaspace memory pool belonging to a CLD;
+//  internally it consists of a list of metaspace chunks, of which the head chunk
+//  is the current chunk from which we allocate via pointer bump.
+//
+// When the current chunk is used up, MetaspaceArena requestes a new chunk from
+//  the associated ChunkManager.
+//
+// MetaspaceArena also keeps a FreeBlocks structure to manage memory blocks which
+//  had been deallocated prematurely.
+//
 
 class MetaspaceArena : public CHeapObj<mtClass> {
 
@@ -66,7 +71,7 @@ class MetaspaceArena : public CHeapObj<mtClass> {
   // Reference to the chunk manager to allocate chunks from.
   ChunkManager* const _chunk_manager;
 
-  // Reference to the chunk allocation strategy to use.
+  // Reference to the growth policy to use.
   const ArenaGrowthPolicy* const _growth_policy;
 
   // List of chunks. Head of the list is the current chunk.

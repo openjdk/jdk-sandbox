@@ -42,29 +42,26 @@ namespace metaspace {
 
 // Class FreeBlocks manages deallocated blocks in Metaspace.
 //
-// In Metaspace, deallocations are an uncommon occurrence of
-// allocated memory blocks which are deallocated prematurely. Normally,
-// memory blocks stay allocated as long as the ClassLoaderMetaspace itself
-// exists - i.e. typically, until the class loader is unloaded.
+// In Metaspace, allocated memory blocks may be release prematurely. This is
+//  uncommon (otherwise an arena-based allocation scheme would not make sense).
+//  It can happen e.g. when class loading fails or when bytecode gets rewritten.
 //
-// However, there are cases when Metaspace memory blocks are deallocated
-// prematurely. E.g. when class loading errors happen and half-loaded
-// metadata are left over; or when a class is redefined, leaving the
-// old bytecode. For details, see Metaspace::deallocate().
+// All these released blocks should be reused, so they are collected. Since these
+//  blocks are embedded into chunks which are still in use by a live arena,
+//  we cannot just give these blocks to anyone; only the owner of this arena can
+//  reuse these blocks. Therefore these blocks are kept at arena-level.
 //
-// All these blocks can be reused, so they are collected. Since these
-// blocks are embedded into chunks which are still in use by a very alive
-// class loader, we cannot give these blocks to other class loaders; we can
-// however collect these blocks at the class loader level and reuse them
-// for future allocations from the same class loader.
-//
-// This is what FreeBlocks does: it manages small memory blocks.
+// The structure to manage these released blocks at arena level is class FreeBlocks.
 //
 // FreeBlocks is optimized toward the typical size and number of deallocated
 //  blocks. The vast majority of them (about 90%) are below 16 words in size,
-//  but there is a significant portion of memory blocks much larger than that -
-//  leftover space from used uu chunks, see MetaspaceArena::retire_current_chunk().
+//  but there is a significant portion of memory blocks much larger than that,
+//  leftover space from retired chunks, see MetaspaceArena::retire_current_chunk().
 //
+// Since the vast majority of blocks are small or very small, FreeBlocks consists
+//  internally of two separate structures to keep very small blocks and other blocks.
+//  Very small blocks are kept in a bin list (see binlist.hpp) and larger blocks in
+//  a BST (see blocktree.hpp).
 
 class FreeBlocks : public CHeapObj<mtMetaspace> {
 

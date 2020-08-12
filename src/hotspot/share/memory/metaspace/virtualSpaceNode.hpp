@@ -50,7 +50,7 @@ class FreeChunkListVector;
 //  region is split up into a sequence of "root chunk areas", each one containing one root chunk
 //  or splinters of a root chunk.
 //
-// The underlying memory is also logically devided into a number of "commit granules", units of memory
+// The underlying memory is also logically divided into a number of "commit granules", units of memory
 //  which may be committed or uncommitted independently from each other.
 //
 // (Both root chunk areas and commit granules have not much to do with each other - one is a way to
@@ -70,6 +70,22 @@ class FreeChunkListVector;
 //  - It uses ReservedSpace to reserve its memory. It either owns the ReservedSpace or that
 //    space got handed in from outside (ccs).
 //
+//
+//
+//
+// | root chunk area               | root chunk area               | root chunk area               | <-- root chunk areas
+//
+// +-----------------------------------------------------------------------------------------------+
+// |                                                                                               |
+// |                                   `VirtualSpaceNode` memory                                   |
+// |                                                                                               |
+// +-----------------------------------------------------------------------------------------------+
+//
+// |x| |x|x|x| | | | |x|x|x| | | |x|x| | | |x|x|x|x| | | | | | | | |x| | | |x|x|x|x| | | |x| | | |x| <-- commit granules
+//
+// (x = committed)
+//
+
 class VirtualSpaceNode : public CHeapObj<mtClass> {
 
   // Link to next VirtualSpaceNode

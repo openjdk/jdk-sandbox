@@ -41,12 +41,20 @@ class FreeChunkListVector;
 class VirtualSpaceNode;
 
 
-// RootChunkArea describes the chunk composition of a root-chunk-sized area.
+// RootChunkArea manages a memory area covering a single root chunk.
+//
+// Such an area may contain a single root chunk, or a number of chunks the
+//  root chunk was split into.
+//
+// RootChunkArea contains the functionality to merge and split chunks in
+//  buddy allocator fashion.
 //
 
 class RootChunkArea {
 
   // The base address of this area.
+  // Todo: this may be somewhat superfluous since RootChunkArea only exist in the
+  //  context of a series of chunks, so the address is somewhat implicit. Remove?
   const MetaWord* const _base;
 
   // The first chunk in this area; if this area is maximally
@@ -131,11 +139,11 @@ public:
 };
 
 
-///////////////////////
-// A lookup table for RootChunkAreas: given an address into a VirtualSpaceNode,
-// it gives the RootChunkArea containing this address.
-// To reduce pointer chasing, the LUT entries (of type RootChunkArea) are
-// following this object.
+// RootChunkAreaLUT (lookup table) manages a series of contiguous root chunk areas
+//  in memory (in the context of a VirtualSpaceNode). It allows finding the containing
+//  root chunk for any given memory address. It allows for easy iteration over all
+//  root chunks.
+// Beyond that it is unexciting.
 class RootChunkAreaLUT {
 
   // Base address of the whole area.
