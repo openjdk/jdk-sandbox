@@ -30,9 +30,6 @@
 #include "memory/metaspace.hpp"
 #include "memory/metaspaceTracer.hpp"
 #include "memory/metaspace/chunkManager.hpp"
-// Note: for now, to keep changes to the outside tree minimal, the ClassLoaderMetaspace
-//  class definitioan continues to live in metaspace.hpp and in global scope.
-//#include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metaspaceArena.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
