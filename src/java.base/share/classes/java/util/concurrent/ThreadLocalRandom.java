@@ -398,13 +398,13 @@ public class ThreadLocalRandom extends Random {
         @java.io.Serial
         static final long serialVersionUID = 0L;
 
-	    public int nextInt() {
-	        return ThreadLocalRandom.current().nextInt();
-	    }
+       public int nextInt() {
+           return ThreadLocalRandom.current().nextInt();
+       }
 
-	    public long nextLong() {
-	        return ThreadLocalRandom.current().nextLong();
-	    }
+       public long nextLong() {
+           return ThreadLocalRandom.current().nextLong();
+       }
     }
 
     private static final AbstractSpliteratorGenerator proxy = new ThreadLocalRandomProxy();

@@ -93,98 +93,6 @@ import java.util.stream.Stream;
  * @since 16
  */
 public interface RandomGenerator {
-
-    /**
-     * Supported random number Algorithms.
-     */
-    public enum Algorithm {
-        /**
-         * L32X64StarStarRandom algorithm
-         */
-        L32X64StarStarRandom("L32X64StarStarRandom"),
-        /**
-         * L32X64MixRandom algorithm
-         */
-        L32X64MixRandom("L32X64MixRandom"),
-        /**
-         * L64X128StarStarRandom algorithm
-         */
-        L64X128StarStarRandom("L64X128StarStarRandom"),
-        /**
-         * L64X128MixRandom algorithm
-         */
-        L64X128MixRandom("L64X128MixRandom"),
-        /**
-         * L64X256MixRandom algorithm
-         */
-        L64X256MixRandom("L64X256MixRandom"),
-        /**
-         * L64X1024MixRandom algorithm
-         */
-        L64X1024MixRandom("L64X1024MixRandom"),
-        /**
-         * L128X128MixRandom algorithm
-         */
-        L128X128MixRandom("L128X128MixRandom"),
-        /**
-         * L128X256MixRandom algorithm
-         */
-        L128X256MixRandom("L128X256MixRandom"),
-        /**
-         * L128X1024MixRandom algorithm
-         */
-        L128X1024MixRandom("L128X1024MixRandom"),
-        /**
-         * MRG32k3a algorithm
-         */
-        MRG32k3a("MRG32k3a"),
-        /**
-         * Legacy Random algorithm
-         */
-        Random("Random"),
-        /**
-         * Legacy SecureRandom algorithm
-         */
-        SecureRandom("SecureRandom"),
-        /**
-         * Xoroshiro128PlusPlus algorithm
-         */
-        Xoroshiro128PlusPlus("Xoroshiro128PlusPlus"),
-        /**
-         * Xoshiro256PlusPlus algorithm
-         */
-        Xoshiro256PlusPlus("Xoshiro256PlusPlus");
-
-        private String name;
-
-        private Algorithm(String name) {
-            this.name = name;
-        }
-
-        public String toString() {
-            return name;
-        }
-
-        /**
-         * Returns an instance of {@link RandomGenerator} that utilizes this algorithm.
-         *
-         * @return An instance of {@link RandomGenerator}
-         */
-        public RandomGenerator instance() {
-            return RandomGeneratorFactory.of(name, RandomGenerator.class);
-        }
-
-        /**
-         * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link RandomGenerator} that utilize this algorithm.
-         *
-         * @return {@link RandomGeneratorFactory} of {@link RandomGenerator}
-         */
-        public RandomGeneratorFactory<RandomGenerator> factory() {
-            return RandomGeneratorFactory.factoryOf(name, RandomGenerator.class);
-        }
-    }
-
     /**
      * Returns an instance of {@link RandomGenerator} that utilizes the
      * {@code name} algorithm.
@@ -196,19 +104,6 @@ public interface RandomGenerator {
     public static RandomGenerator of(String name) {
         Objects.requireNonNull(name);
         return RandomGeneratorFactory.of(name, RandomGenerator.class);
-    }
-
-    /**
-     * Returns an instance of {@link RandomGenerator} that utilizes the
-     * specified {@code algorithm}.
-     *
-     * @param algorithm  Random number generator algorithm
-     *
-     * @return An instance of {@link RandomGenerator}
-     */
-    public static RandomGenerator of(Algorithm algorithm) {
-        Objects.requireNonNull(algorithm);
-        return RandomGeneratorFactory.of(algorithm.toString(), RandomGenerator.class);
     }
 
     /**
@@ -225,16 +120,12 @@ public interface RandomGenerator {
     }
 
     /**
-     * Returns a {@link RandomGeneratorFactory} that can produce instances
-     * of {@link RandomGenerator} that utilize the specified {@code algorithm}.
+     * Returns a stream of all available RandomGeneratorFactory(s).
      *
-     * @param algorithm  Random number generator algorithm
-     *
-     * @return {@link RandomGeneratorFactory} of {@link RandomGenerator}
+     * @return Stream of all available RandomGeneratorFactory(s).
      */
-    public static RandomGeneratorFactory<RandomGenerator> factoryOf(Algorithm algorithm) {
-        Objects.requireNonNull(algorithm);
-        return RandomGeneratorFactory.factoryOf(algorithm.toString(), RandomGenerator.class);
+    public static Stream<RandomGeneratorFactory<RandomGenerator>> all() {
+        return RandomGeneratorFactory.all(RandomGenerator.class);
     }
 
     /**
@@ -318,7 +209,7 @@ public interface RandomGenerator {
      *           calls {@code nextDouble(randomNumberOrigin, randomNumberBound)}.
      */
     default DoubleStream doubles(long streamSize, double randomNumberOrigin,
-				 double randomNumberBound) {
+                double randomNumberBound) {
         RandomSupport.checkStreamSize(streamSize);
         RandomSupport.checkRange(randomNumberOrigin, randomNumberBound);
         return doubles(randomNumberOrigin, randomNumberBound).limit(streamSize);
@@ -402,7 +293,7 @@ public interface RandomGenerator {
      *           calls {@code nextInt(randomNumberOrigin, randomNumberBound)}.
      */
     default IntStream ints(long streamSize, int randomNumberOrigin,
-			   int randomNumberBound) {
+              int randomNumberBound) {
         RandomSupport.checkStreamSize(streamSize);
         RandomSupport.checkRange(randomNumberOrigin, randomNumberBound);
         return ints(randomNumberOrigin, randomNumberBound).limit(streamSize);
@@ -486,7 +377,7 @@ public interface RandomGenerator {
      *            calls {@code nextLong(randomNumberOrigin, randomNumberBound)}.
      */
     default LongStream longs(long streamSize, long randomNumberOrigin,
-			     long randomNumberBound) {
+                long randomNumberBound) {
         RandomSupport.checkStreamSize(streamSize);
         RandomSupport.checkRange(randomNumberOrigin, randomNumberBound);
         return longs(randomNumberOrigin, randomNumberBound).limit(streamSize);
@@ -843,6 +734,15 @@ public interface RandomGenerator {
     public interface StreamableGenerator extends RandomGenerator {
 
         /**
+         * Returns a stream of all available StreamableGenerator factories.
+         *
+         * @return Stream of all available StreamableGenerator factories.
+         */
+        public static Stream<RandomGeneratorFactory<StreamableGenerator>> all() {
+            return RandomGeneratorFactory.all(StreamableGenerator.class);
+        }
+
+        /**
          * Returns an instance of {@link StreamableGenerator} that utilizes the
          * {@code name} algorithm.
          *
@@ -856,19 +756,6 @@ public interface RandomGenerator {
         }
 
         /**
-         * Returns an instance of {@link StreamableGenerator} that utilizes the
-         * specified {@code algorithm}.
-         *
-         * @param algorithm  Random number generator algorithm
-         *
-         * @return An instance of {@link StreamableGenerator}
-         */
-        public static StreamableGenerator of(Algorithm algorithm) {
-            Objects.requireNonNull(algorithm);
-            return RandomGeneratorFactory.of(algorithm.toString(), StreamableGenerator.class);
-        }
-
-        /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
          * of {@link StreamableGenerator} that utilize the {@code name} algorithm.
          *
@@ -879,19 +766,6 @@ public interface RandomGenerator {
         public static RandomGeneratorFactory<StreamableGenerator> factoryOf(String name) {
             Objects.requireNonNull(name);
             return RandomGeneratorFactory.factoryOf(name, StreamableGenerator.class);
-        }
-
-        /**
-         * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link StreamableGenerator} that utilize the specified {@code algorithm}.
-         *
-         * @param algorithm  Random number generator algorithm
-         *
-         * @return {@link RandomGeneratorFactory} of {@link StreamableGenerator}
-         */
-        public static RandomGeneratorFactory<StreamableGenerator> factoryOf(Algorithm algorithm) {
-            Objects.requireNonNull(algorithm);
-            return RandomGeneratorFactory.factoryOf(algorithm.toString(), StreamableGenerator.class);
         }
 
         /**
@@ -970,6 +844,15 @@ public interface RandomGenerator {
     public interface SplittableGenerator extends StreamableGenerator {
 
         /**
+         * Returns a stream of all available SplittableGenerator factories.
+         *
+         * @return Stream of all available SplittableGenerator factories.
+         */
+        public static Stream<RandomGeneratorFactory<SplittableGenerator>> all() {
+            return RandomGeneratorFactory.all(SplittableGenerator.class);
+        }
+
+        /**
          * Returns an instance of {@link SplittableGenerator} that utilizes the
          * {@code name} algorithm.
          *
@@ -983,19 +866,6 @@ public interface RandomGenerator {
         }
 
         /**
-         * Returns an instance of {@link SplittableGenerator} that utilizes the
-         * specified {@code algorithm}.
-         *
-         * @param algorithm  Random number generator algorithm
-         *
-         * @return An instance of {@link SplittableGenerator}
-         */
-        public static SplittableGenerator of(Algorithm algorithm) {
-            Objects.requireNonNull(algorithm);
-            return RandomGeneratorFactory.of(algorithm.toString(), SplittableGenerator.class);
-        }
-
-        /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
          * of {@link SplittableGenerator} that utilize the {@code name} algorithm.
          *
@@ -1006,19 +876,6 @@ public interface RandomGenerator {
         public static RandomGeneratorFactory<SplittableGenerator> factoryOf(String name) {
             Objects.requireNonNull(name);
             return RandomGeneratorFactory.factoryOf(name, SplittableGenerator.class);
-        }
-
-        /**
-         * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link SplittableGenerator} that utilize the specified {@code algorithm}.
-         *
-         * @param algorithm  Random number generator algorithm
-         *
-         * @return {@link RandomGeneratorFactory} of {@link SplittableGenerator}
-         */
-        public static RandomGeneratorFactory<SplittableGenerator> factoryOf(Algorithm algorithm) {
-            Objects.requireNonNull(algorithm);
-            return RandomGeneratorFactory.factoryOf(algorithm.toString(), SplittableGenerator.class);
         }
 
         /**
@@ -1188,6 +1045,15 @@ public interface RandomGenerator {
     public interface JumpableGenerator extends StreamableGenerator {
 
         /**
+         * Returns a stream of all available JumpableGenerator factories.
+         *
+         * @return Stream of all available JumpableGenerator factories.
+         */
+        public static Stream<RandomGeneratorFactory<JumpableGenerator>> all() {
+            return RandomGeneratorFactory.all(JumpableGenerator.class);
+        }
+
+        /**
          * Returns an instance of {@link JumpableGenerator} that utilizes the
          * {@code name} algorithm.
          *
@@ -1201,19 +1067,6 @@ public interface RandomGenerator {
         }
 
         /**
-         * Returns an instance of {@link JumpableGenerator} that utilizes the
-         * specified {@code algorithm}.
-         *
-         * @param algorithm  Random number generator algorithm
-         *
-         * @return An instance of {@link JumpableGenerator}
-         */
-        public static JumpableGenerator of(Algorithm algorithm) {
-            Objects.requireNonNull(algorithm);
-            return RandomGeneratorFactory.of(algorithm.toString(), JumpableGenerator.class);
-        }
-
-        /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
          * of {@link JumpableGenerator} that utilize the {@code name} algorithm.
          *
@@ -1224,19 +1077,6 @@ public interface RandomGenerator {
         public static RandomGeneratorFactory<JumpableGenerator> factoryOf(String name) {
             Objects.requireNonNull(name);
             return RandomGeneratorFactory.factoryOf(name, JumpableGenerator.class);
-        }
-
-        /**
-         * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link JumpableGenerator} that utilize the specified {@code algorithm}.
-         *
-         * @param algorithm  Random number generator algorithm
-         *
-         * @return {@link RandomGeneratorFactory} of {@link JumpableGenerator}
-         */
-        public static RandomGeneratorFactory<JumpableGenerator> factoryOf(Algorithm algorithm) {
-            Objects.requireNonNull(algorithm);
-            return RandomGeneratorFactory.factoryOf(algorithm.toString(), JumpableGenerator.class);
         }
 
         /**
@@ -1379,6 +1219,15 @@ public interface RandomGenerator {
     public interface LeapableGenerator extends JumpableGenerator {
 
         /**
+         * Returns a stream of all available LeapableGenerator factories.
+         *
+         * @return Stream of all available LeapableGenerator factories.
+         */
+        public static Stream<RandomGeneratorFactory<LeapableGenerator>> all() {
+            return RandomGeneratorFactory.all(LeapableGenerator.class);
+        }
+
+        /**
          * Returns an instance of {@link LeapableGenerator} that utilizes the
          * {@code name} algorithm.
          *
@@ -1392,19 +1241,6 @@ public interface RandomGenerator {
         }
 
         /**
-         * Returns an instance of {@link LeapableGenerator} that utilizes the
-         * specified {@code algorithm}.
-         *
-         * @param algorithm  Random number generator algorithm
-         *
-         * @return An instance of {@link LeapableGenerator}
-         */
-        public static LeapableGenerator of(Algorithm algorithm) {
-            Objects.requireNonNull(algorithm);
-            return RandomGeneratorFactory.of(algorithm.toString(), LeapableGenerator.class);
-        }
-
-        /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
          * of {@link LeapableGenerator} that utilize the {@code name} algorithm.
          *
@@ -1415,19 +1251,6 @@ public interface RandomGenerator {
         public static RandomGeneratorFactory<LeapableGenerator> factoryOf(String name) {
             Objects.requireNonNull(name);
             return RandomGeneratorFactory.factoryOf(name, LeapableGenerator.class);
-        }
-
-        /**
-         * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link LeapableGenerator} that utilize the specified {@code algorithm}.
-         *
-         * @param algorithm  Random number generator algorithm
-         *
-         * @return {@link RandomGeneratorFactory} of {@link LeapableGenerator}
-         */
-        public static RandomGeneratorFactory<LeapableGenerator> factoryOf(Algorithm algorithm) {
-            Objects.requireNonNull(algorithm);
-            return RandomGeneratorFactory.factoryOf(algorithm.toString(), LeapableGenerator.class);
         }
 
         /**
@@ -1544,6 +1367,15 @@ public interface RandomGenerator {
     public interface ArbitrarilyJumpableGenerator extends LeapableGenerator {
 
         /**
+         * Returns a stream of all available ArbitrarilyJumpableGenerator factories.
+         *
+         * @return Stream of all available ArbitrarilyJumpableGenerator factories.
+         */
+        public static Stream<RandomGeneratorFactory<ArbitrarilyJumpableGenerator>> all() {
+            return RandomGeneratorFactory.all(ArbitrarilyJumpableGenerator.class);
+        }
+
+        /**
          * Returns an instance of {@link ArbitrarilyJumpableGenerator} that utilizes the
          * {@code name} algorithm.
          *
@@ -1557,19 +1389,6 @@ public interface RandomGenerator {
         }
 
         /**
-         * Returns an instance of {@link ArbitrarilyJumpableGenerator} that utilizes the
-         * specified {@code algorithm}.
-         *
-         * @param algorithm  Random number generator algorithm
-         *
-         * @return An instance of {@link ArbitrarilyJumpableGenerator}
-         */
-        public static ArbitrarilyJumpableGenerator of(Algorithm algorithm) {
-            Objects.requireNonNull(algorithm);
-            return RandomGeneratorFactory.of(algorithm.toString(), ArbitrarilyJumpableGenerator.class);
-        }
-
-        /**
          * Returns a {@link RandomGeneratorFactory} that can produce instances
          * of {@link ArbitrarilyJumpableGenerator} that utilize the {@code name} algorithm.
          *
@@ -1580,19 +1399,6 @@ public interface RandomGenerator {
         public static RandomGeneratorFactory<ArbitrarilyJumpableGenerator> factoryOf(String name) {
             Objects.requireNonNull(name);
             return RandomGeneratorFactory.factoryOf(name, ArbitrarilyJumpableGenerator.class);
-        }
-
-        /**
-         * Returns a {@link RandomGeneratorFactory} that can produce instances
-         * of {@link ArbitrarilyJumpableGenerator} that utilize the specified {@code algorithm}.
-         *
-         * @param algorithm  Random number generator algorithm
-         *
-         * @return {@link RandomGeneratorFactory} of {@link ArbitrarilyJumpableGenerator}
-         */
-        public static RandomGeneratorFactory<ArbitrarilyJumpableGenerator> factoryOf(Algorithm algorithm) {
-            Objects.requireNonNull(algorithm);
-            return RandomGeneratorFactory.factoryOf(algorithm.toString(), ArbitrarilyJumpableGenerator.class);
         }
 
         /**

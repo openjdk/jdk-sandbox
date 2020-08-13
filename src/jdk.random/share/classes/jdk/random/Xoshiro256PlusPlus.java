@@ -23,11 +23,12 @@
  * questions.
  */
 
-package java.util.random;
+package jdk.random;
 
 import java.math.BigInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.random.RandomGenerator.LeapableGenerator;
+import java.util.random.RandomSupport;
 
 /**
  * A "jumpable and leapable" pseudorandom number generator (PRNG) whose period
@@ -117,6 +118,11 @@ public final class Xoshiro256PlusPlus implements LeapableGenerator {
      */
 
     /* ---------------- static fields ---------------- */
+
+    /**
+     * Group name.
+     */
+    private static final String GROUP = "Xoshiro";
 
     /**
      * The seed generator for default constructors.
@@ -308,10 +314,10 @@ public final class Xoshiro256PlusPlus implements LeapableGenerator {
                 nextLong();
             }
         }
-	x0 = s0;
-	x1 = s1;
-	x2 = s2;
-	x3 = s3;
+   x0 = s0;
+   x1 = s1;
+   x2 = s2;
+   x3 = s3;
     }
 
 }

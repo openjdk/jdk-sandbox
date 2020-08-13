@@ -26,17 +26,23 @@
 package java.util.random;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.math.BigInteger;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.function.Function;
 import java.util.Map;
 import java.util.Objects;
+import java.util.random.RandomGenerator.ArbitrarilyJumpableGenerator;
+import java.util.random.RandomGenerator.JumpableGenerator;
+import java.util.random.RandomGenerator.LeapableGenerator;
+import java.util.random.RandomGenerator.SplittableGenerator;
+import java.util.random.RandomGenerator.StreamableGenerator;
 import java.util.ServiceLoader;
 import java.util.ServiceLoader.Provider;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 /**
  * This is a factory class for generating random number generators of a specific
@@ -46,36 +52,36 @@ import java.util.stream.StreamSupport;
  */
 public class RandomGeneratorFactory<T> {
     /**
-     * Instance provider class of random number algorithm.
-     */
-    private final Provider<T> provider;
-
-    /**
      * Map of provider classes.
      */
-    private static Map<String, Provider<RandomGenerator>> providerMap;
+    private static Map<String, Provider<? extends RandomGenerator>> providerMap;
+
+    /**
+     * Instance provider class of random number algorithm.
+     */
+    private final Provider<? extends RandomGenerator> provider;
 
     /**
      * Default provider constructor.
      */
-    private Constructor<? extends RandomGenerator> ctor;
+    private Constructor<T> ctor;
 
     /**
      * Provider constructor with long seed.
      */
-    private Constructor<? extends RandomGenerator> ctorLong;
+    private Constructor<T> ctorLong;
 
     /**
      * Provider constructor with byte[] seed.
      */
-    private Constructor<? extends RandomGenerator> ctorBytes;
+    private Constructor<T> ctorBytes;
 
     /**
      * Private constructor.
      *
      * @param provider  Provider class to wrap.
      */
-    private RandomGeneratorFactory(Provider<T> provider) {
+    private RandomGeneratorFactory(Provider<? extends RandomGenerator> provider) {
         this.provider = provider;
     }
 
@@ -84,7 +90,7 @@ public class RandomGeneratorFactory<T> {
      *
      * @return Map of provider classes.
      */
-    private static Map<String, Provider<RandomGenerator>> getProviderMap() {
+    private static Map<String, Provider<? extends RandomGenerator>> getProviderMap() {
         if (providerMap == null) {
             synchronized (RandomGeneratorFactory.class) {
                 if (providerMap == null) {
@@ -101,23 +107,77 @@ public class RandomGeneratorFactory<T> {
         return providerMap;
     }
 
-    private static Provider<RandomGenerator> findProvider(String name, Class<? extends RandomGenerator> category)
+    /**
+     * Return true if the provider is a subclass of the category.
+     *
+     * @param category Interface category, sub-interface of {@link RandomGenerator}.
+     *
+     * @return true if the provider is a subclass of the category.
+     */
+    private boolean isSubclass(Class<? extends RandomGenerator> category) {
+        return isSubclass(category, provider);
+    }
+
+    /**
+     * Return true if the provider is a subclass of the category.
+     *
+     * @param category Interface category, sub-interface of {@link RandomGenerator}.
+     * @param provider Provider that is being filtered.
+     *
+     * @return true if the provider is a subclass of the category.
+     */
+    private static boolean isSubclass(Class<? extends RandomGenerator> category,
+                                      Provider<? extends RandomGenerator> provider) {
+        return provider != null && category.isAssignableFrom(provider.type());
+    }
+
+    /**
+     * Returns the provider matching name and category.
+     *
+     * @param name      Name of RandomGenerator
+     * @param category  Interface category, sub-interface of {@link RandomGenerator}.
+     *
+     * @return A provider matching name and category.
+     *
+     * @throws IllegalArgumentException
+     */
+    private static Provider<? extends RandomGenerator> findProvider(String name,
+                                                                    Class<? extends RandomGenerator> category)
             throws IllegalArgumentException {
-        Map<String, Provider<RandomGenerator>> pm = getProviderMap();
-        Provider<RandomGenerator> provider = pm.get(name.toUpperCase());
-        if (provider == null || provider.type().isAssignableFrom(category)) {
+        Map<String, Provider<? extends RandomGenerator>> pm = getProviderMap();
+        Provider<? extends RandomGenerator> provider = pm.get(name.toUpperCase());
+        if (!isSubclass(category, provider)) {
             throw new IllegalArgumentException(name + " is an unknown random number generator");
         }
         return provider;
     }
 
     /**
+     * Returns a stream of matching Providers.
+     *
+     * @param category  Sub-interface of {@link RandomGenerator} to type check
+     * @param <T>       Sub-interface of {@link RandomGenerator} to produce
+     *
+     * @return Stream of matching Providers.
+     */
+    @SuppressWarnings("unchecked")
+    static <T> Stream<RandomGeneratorFactory<T>> all(Class<? extends RandomGenerator> category) {
+        Map<String, Provider<? extends RandomGenerator>> pm = getProviderMap();
+        return pm.values()
+                 .stream()
+                 .filter(p -> isSubclass(category, p))
+                 .map(p -> new RandomGeneratorFactory<>((Provider<? extends RandomGenerator>)p));
+    }
+
+    /**
      * Returns a {@link RandomGenerator} that utilizes the {@code name} algorithm.
      *
-     * @param name  Name of random number algorithm to use
-     * @param category Sub-interface of {@link RandomGenerator} to type check
-     * @param <T> Sub-interface of {@link RandomGenerator} to produce
+     * @param name      Name of random number algorithm to use
+     * @param category  Sub-interface of {@link RandomGenerator} to type check
+     * @param <T>       Sub-interface of {@link RandomGenerator} to produce
+     *
      * @return An instance of {@link RandomGenerator}
+     *
      * @throws IllegalArgumentException when either the name or category is null
      */
     static <T> T of(String name, Class<? extends RandomGenerator> category)
@@ -134,13 +194,16 @@ public class RandomGeneratorFactory<T> {
      * @param name  Name of random number algorithm to use
      * @param category Sub-interface of {@link RandomGenerator} to type check
      * @param <T> Sub-interface of {@link RandomGenerator} to produce
+     *
      * @return Factory of {@link RandomGenerator}
+     *
      * @throws IllegalArgumentException when either the name or category is null
      */
     static <T> RandomGeneratorFactory<T> factoryOf(String name, Class<? extends RandomGenerator> category)
             throws IllegalArgumentException {
         @SuppressWarnings("unchecked")
-        Provider<T> uncheckedProvider = (Provider<T>)findProvider(name, category);
+        Provider<? extends RandomGenerator> uncheckedProvider =
+                (Provider<? extends RandomGenerator>)findProvider(name, category);
         return new RandomGeneratorFactory<T>(uncheckedProvider);
     }
 
@@ -150,15 +213,14 @@ public class RandomGeneratorFactory<T> {
      * @param randomGeneratorClass class of random number algorithm (provider)
      */
     @SuppressWarnings("unchecked")
-    private synchronized void getConstructors(Class<?> randomGeneratorClass) {
+    private synchronized void getConstructors(Class<? extends RandomGenerator> randomGeneratorClass) {
         if (ctor == null) {
             PrivilegedExceptionAction<Constructor<?>[]> ctorAction =
                 () -> randomGeneratorClass.getConstructors();
             try {
                 Constructor<?>[] ctors = AccessController.doPrivileged(ctorAction);
                 for (Constructor<?> ctorGeneric : ctors) {
-                    Constructor<? extends RandomGenerator> ctorSpecific =
-                        (Constructor<? extends RandomGenerator>)ctorGeneric;
+                    Constructor<T> ctorSpecific = (Constructor<T>)ctorGeneric;
                     final Class<?>[] parameterTypes = ctorSpecific.getParameterTypes();
 
                     if (parameterTypes.length == 0) {
@@ -189,13 +251,102 @@ public class RandomGeneratorFactory<T> {
     }
 
     /**
+     * Return the name of the algorithm used by the random number generator.
+     *
+     * @return Name of the algorithm.
+     */
+    public String name() {
+        return provider.type().getSimpleName();
+    }
+
+    /**
+     * Return the group name of the algorithm used by the random number generator.
+     *
+     * @return Group name of the algorithm.
+     */
+    public String group() {
+        try {
+           Field groupField = provider.type().getDeclaredField("GROUP");
+           PrivilegedExceptionAction<String> getAction = () -> {
+               groupField.setAccessible(true);
+               return (String)groupField.get(null);
+           };
+           return AccessController.doPrivileged(getAction);
+        } catch (SecurityException | NoSuchFieldException | PrivilegedActionException ex) {
+            return "Legacy";
+        }
+    }
+
+    /**
+     * Return the period of the algorithm used by the random number generator.
+     *
+     * @return BigInteger period.
+     */
+    public BigInteger period() {
+        try {
+            Field periodField = provider.type().getDeclaredField("PERIOD");
+            PrivilegedExceptionAction<BigInteger> getAction = () -> {
+                periodField.setAccessible(true);
+                return (BigInteger)periodField.get(null);
+            };
+            return AccessController.doPrivileged(getAction);
+        } catch (SecurityException | NoSuchFieldException | PrivilegedActionException ex) {
+            return RandomGenerator.HUGE_PERIOD;
+        }
+    }
+
+    /**
+     * Return true if random generator is arbitrarily jumpable.
+     *
+     * @return true if random generator is arbitrarily jumpable.
+     */
+    public boolean isArbitrarilyJumpable() {
+        return isSubclass(ArbitrarilyJumpableGenerator.class);
+    }
+
+    /**
+     * Return true if random generator is jumpable.
+     *
+     * @return true if random generator is jumpable.
+     */
+    public boolean isJumpable() {
+        return isSubclass(JumpableGenerator.class);
+    }
+
+    /**
+     * Return true if random generator is leapable.
+     *
+     * @return true if random generator is leapable.
+     */
+    public boolean isLeapable() {
+        return isSubclass(LeapableGenerator.class);
+    }
+
+    /**
+     * Return true if random generator is splittable.
+     *
+     * @return true if random generator is splittable.
+     */
+    public boolean isSplittable() {
+        return isSubclass(SplittableGenerator.class);
+    }
+
+    /**
+     * Return true if random generator is streamable.
+     *
+     * @return true if random generator is streamable.
+     */
+    public boolean isStreamable() {
+        return isSubclass(StreamableGenerator.class);
+    }
+
+    /**
      * Create an instance of {@link RandomGenerator} based on algorithm chosen.
      *
      * @return new in instance of {@link RandomGenerator}.
      *
-     *
      */
-    public RandomGenerator create() {
+    public T create() {
         try {
             ensureConstructors();
             return ctor.newInstance();
@@ -214,7 +365,7 @@ public class RandomGeneratorFactory<T> {
      *
      * @return new in instance of {@link RandomGenerator}.
      */
-    public RandomGenerator create(long seed) {
+    public T create(long seed) {
         try {
             ensureConstructors();
             return ctorLong.newInstance(seed);
@@ -232,7 +383,7 @@ public class RandomGeneratorFactory<T> {
      *
      * @return new in instance of {@link RandomGenerator}.
      */
-    public RandomGenerator create(byte[] seed) {
+    public T create(byte[] seed) {
         try {
             ensureConstructors();
             return ctorBytes.newInstance(seed);

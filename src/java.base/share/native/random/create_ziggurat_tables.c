@@ -177,7 +177,7 @@ typedef long double (*solverfn)(long double, longdoublefn, long double, long dou
 // We assume that LDBL_EPSILON is the correct value to use for "macheps" as used in the Algol code.
 
 long double fsolve(solverfn g, longdoublefn f, long double p1, long double p2,
-		   long double a, long double b) {
+          long double a, long double b) {
   // Check the required conditions on the arguments.
   if (a >= b) return NAN;
   long double ga = g(a, f, p1, p2), gb = g(b, f, p1, p2);
@@ -190,35 +190,35 @@ long double fsolve(solverfn g, longdoublefn f, long double p1, long double p2,
     long double d = e;
     for (;;) {   // label "ext:" in the Algol code
       if (absl(gc) < absl(gb)) {
-	a = b; b = c; c = a;
-	ga = gb; gb = gc; gc = ga;
+   a = b; b = c; c = a;
+   ga = gb; gb = gc; gc = ga;
       }
       long double tol = 2 * LDBL_EPSILON * absl(b) + SOLVER_TOLERANCE;
       long double m = (c - b)/2.0L;
       if (absl(m) < tol || gb == 0.0L) return b;
       // See if a bisection is forced
       if (absl(e) < tol || absl(ga) <= absl(gb)) {
-	d = e = m;   // Yes, it is
+   d = e = m;   // Yes, it is
       } else {
-	long double s = gb/ga;
-	long double p, q;
-	if (a == c) {
-	  // Linear interpolation
-	  p = 2.0L * m * s;
-	  q = 1.0L - s;
-	} else {
-	  // Inverse quadratic interpolation
-	  long double z = ga/gc, r = gb/gc;
-	  p = s * (2.0L*m*z*(z-r) - (b - a)*(r - 1.0L));
-	  q = (z - 1.0L) * (r - 1.0L) * (s - 1.0L);
-	}
-	if (p > 0.0L) { q = -q; } else { p = -p; }
-	s = e; e = d;
-	if ((2.0L*p < 3.0L*m*q - absl(tol*q)) && (p < absl(0.5L*s*q))) {
-	  d = p/q;
-	} else {
-	  d = e = m;
-	}
+   long double s = gb/ga;
+   long double p, q;
+   if (a == c) {
+     // Linear interpolation
+     p = 2.0L * m * s;
+     q = 1.0L - s;
+   } else {
+     // Inverse quadratic interpolation
+     long double z = ga/gc, r = gb/gc;
+     p = s * (2.0L*m*z*(z-r) - (b - a)*(r - 1.0L));
+     q = (z - 1.0L) * (r - 1.0L) * (s - 1.0L);
+   }
+   if (p > 0.0L) { q = -q; } else { p = -p; }
+   s = e; e = d;
+   if ((2.0L*p < 3.0L*m*q - absl(tol*q)) && (p < absl(0.5L*s*q))) {
+     d = p/q;
+   } else {
+     d = e = m;
+   }
       }
       a = b; ga = gb;
       b = b + (absl(d) > tol ? d : (m > 0.0L ? tol : -tol));
@@ -513,7 +513,7 @@ void generate_tables(char *kind) {
     }
     int_type scaled_convex_margin = (int_type)(convex_margin * (long double)max_int);
     printf("    static final %s %sConvexMargin = %lldL;   // unscaled convex margin = %.4f\n",
-	   java_int_type, kind, (long long)scaled_convex_margin, (double)convex_margin);
+      java_int_type, kind, (long long)scaled_convex_margin, (double)convex_margin);
   } else if (!strcmp(kind, "normal")) {
     // Within each rectangle, we want to find a point on the curve where the tangent
     // is parallel to the diagonal line of the rectangle whose slope is m.
@@ -553,26 +553,26 @@ void generate_tables(char *kind) {
     for (int k = 0; k < number_of_layers; k++) {
       // Process rectangle k+1
       if ((k+1) <= normal_inflection_index) {
-	// The rectangle has a convex portion of the curve
-	long double lower_bound = ((k+1) == normal_inflection_index) ? inflection_point_x : X[k+1];
-	long double X_tangent = fsolve(normal_tangent_g, f, m[k], 0.0, lower_bound, X[k]);
-	long double E = (Y[k+1] - m[k]*(X_tangent - X[k+1]) - f(X_tangent)) / dY[k];
-      	convex_margin = (convex_margin > E) ? convex_margin : E;
+   // The rectangle has a convex portion of the curve
+   long double lower_bound = ((k+1) == normal_inflection_index) ? inflection_point_x : X[k+1];
+   long double X_tangent = fsolve(normal_tangent_g, f, m[k], 0.0, lower_bound, X[k]);
+   long double E = (Y[k+1] - m[k]*(X_tangent - X[k+1]) - f(X_tangent)) / dY[k];
+       convex_margin = (convex_margin > E) ? convex_margin : E;
       }
       if ((k+1) >= normal_inflection_index) {
-	// The rectangle has a concave portion of the curve
-	long double upper_bound = ((k+1) == normal_inflection_index) ? inflection_point_x : X[k];
-	long double X_tangent = fsolve(normal_tangent_g, f, m[k], 0.0, X[k+1], upper_bound);
-	long double E = - (Y[k+1] - m[k]*(X_tangent - X[k+1]) - f(X_tangent)) / dY[k];
-      	concave_margin = (concave_margin > E) ? concave_margin : E;
+   // The rectangle has a concave portion of the curve
+   long double upper_bound = ((k+1) == normal_inflection_index) ? inflection_point_x : X[k];
+   long double X_tangent = fsolve(normal_tangent_g, f, m[k], 0.0, X[k+1], upper_bound);
+   long double E = - (Y[k+1] - m[k]*(X_tangent - X[k+1]) - f(X_tangent)) / dY[k];
+       concave_margin = (concave_margin > E) ? concave_margin : E;
       }
     }
     int_type scaled_convex_margin = (int_type)(convex_margin * (long double)max_int);
     int_type scaled_concave_margin = (int_type)(concave_margin * (long double)max_int);
     printf("    static final %s %sConvexMargin = %lldL;   // unscaled convex margin = %.4f\n",
-	   java_int_type, kind, (long long)scaled_convex_margin, (double)convex_margin);
+      java_int_type, kind, (long long)scaled_convex_margin, (double)convex_margin);
     printf("    static final %s %sConcaveMargin = %lldL;   // unscaled concave margin = %.4f\n",
-	   java_int_type, kind, (long long)scaled_concave_margin, (double)concave_margin);
+      java_int_type, kind, (long long)scaled_concave_margin, (double)concave_margin);
   }
   printf("\n");
 

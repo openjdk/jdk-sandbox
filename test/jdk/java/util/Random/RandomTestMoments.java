@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import java.util.random.*;
-import java.util.random.RandomGenerator.Algorithm;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -57,32 +56,32 @@ class RandomTestMoments {
     // Moment k of uniform distribution over [0.0,1.0) is 1.0/(1+k).
 
     static double[][] momentsUniform = {
-	{ 1.00000, 1.00000, 0.01000 },
-	{ 0.500000, 0.500000, 0.0266265 },
-	{ 0.333333, 0.333333, 0.0391128 },
-	{ 0.250000, 0.250000, 0.0477151 },
-	{ 0.200000, 0.200000, 0.0540496 },
-	{ 0.166667, 0.166667, 0.0589355 },
-	{ 0.142857, 0.142857, 0.0628462 },
-	{ 0.125000, 0.125000, 0.0660693 },
-	{ 0.111111, 0.111111, 0.0688036 },
-	{ 0.100000, 0.100000, 0.0712002 },
-	{ 0.0909091, 0.0909091, 0.0733755 },
-	{ 0.0833333, 0.0833333, 0.0754172 },
-	{ 0.0769231, 0.0769231, 0.0773868 },
-	{ 0.0714286, 0.0714286, 0.0793244 },
-	{ 0.0666667, 0.0666667, 0.0812526 },
-	{ 0.0625000, 0.0625000, 0.0831806 },
+   { 1.00000, 1.00000, 0.01000 },
+   { 0.500000, 0.500000, 0.0266265 },
+   { 0.333333, 0.333333, 0.0391128 },
+   { 0.250000, 0.250000, 0.0477151 },
+   { 0.200000, 0.200000, 0.0540496 },
+   { 0.166667, 0.166667, 0.0589355 },
+   { 0.142857, 0.142857, 0.0628462 },
+   { 0.125000, 0.125000, 0.0660693 },
+   { 0.111111, 0.111111, 0.0688036 },
+   { 0.100000, 0.100000, 0.0712002 },
+   { 0.0909091, 0.0909091, 0.0733755 },
+   { 0.0833333, 0.0833333, 0.0754172 },
+   { 0.0769231, 0.0769231, 0.0773868 },
+   { 0.0714286, 0.0714286, 0.0793244 },
+   { 0.0666667, 0.0666667, 0.0812526 },
+   { 0.0625000, 0.0625000, 0.0831806 },
     };
 
     // Moment k of exponential distribution with mean 1 is k!.
 
     static double[][] momentsExponential = {
-	{ 1.00000, 1.00000, 0.01000 },
-	{ 1.00000, 1.00000, 0.0718997 },
-	{ 2.00000, 2.00000, 0.153241 },
-	{ 6.00000, 6.00000, 0.282813 },
-	{ 24.0000, 24.0000, 0.503707 },
+   { 1.00000, 1.00000, 0.01000 },
+   { 1.00000, 1.00000, 0.0718997 },
+   { 2.00000, 2.00000, 0.153241 },
+   { 6.00000, 6.00000, 0.282813 },
+   { 24.0000, 24.0000, 0.503707 },
     };
 
 
@@ -91,79 +90,79 @@ class RandomTestMoments {
     // https://arxiv.org/pdf/1209.4340.pdf, equation (18)
 
     static double[][] absoluteMomentsGaussian = {
-	{ 1.00000, 1.00000, 0.01 },
-	{ 0.797885, 0.797885, 0.1 },
-	{ 1.00000, 1.00000, 0.1 },
-	{ 1.59577, 1.59577, 0.2 },
-	{ 3.00000, 3.00000, 0.2 },
-	{ 6.38308, 6.38308, 0.2 },
-	{ 15.0000, 15.0000, 0.2 },
-	{ 38.2985, 38.2985, 0.2 },
-	{ 105.000, 105.000, 0.4 },
+   { 1.00000, 1.00000, 0.01 },
+   { 0.797885, 0.797885, 0.1 },
+   { 1.00000, 1.00000, 0.1 },
+   { 1.59577, 1.59577, 0.2 },
+   { 3.00000, 3.00000, 0.2 },
+   { 6.38308, 6.38308, 0.2 },
+   { 15.0000, 15.0000, 0.2 },
+   { 38.2985, 38.2985, 0.2 },
+   { 105.000, 105.000, 0.4 },
     };
 
     static void checkMoments(double[] measurements, double[][] standard) {
-	for (int j = 0; j < measurements.length; j++) {
-	    double actual = measurements[j];
-	    double expected = standard[j][0];
-	    double basis = standard[j][1];
-	    double tolerance = standard[j][2];
-	    if (!(Math.abs(actual - expected)/basis < tolerance)) {
-		System.out.printf("fail: actual=%f, expected=%f, basis=%f, tolerance=%f\n",
-				  actual, expected, basis, tolerance);
-	    }
-	}
+   for (int j = 0; j < measurements.length; j++) {
+       double actual = measurements[j];
+       double expected = standard[j][0];
+       double basis = standard[j][1];
+       double tolerance = standard[j][2];
+       if (!(Math.abs(actual - expected)/basis < tolerance)) {
+       System.out.printf("fail: actual=%f, expected=%f, basis=%f, tolerance=%f\n",
+                 actual, expected, basis, tolerance);
+       }
+   }
     }
 
     static void testMomentsGaussian(DoubleSupplier theSupplier) {
-	int m = absoluteMomentsGaussian.length;
-	double[] absoluteMoments = new double[m];
-	for (int j = 0; j < SEQUENCE_SIZE; j++) {
-	    double v = theSupplier.getAsDouble();
-	    double z = 1.0;
-	    for (int k = 0; k < m; k++) {
-		absoluteMoments[k] += Math.abs(z);
-		z *= v;
-	    }
-	}
-	for (int k = 0; k < m; k++) {
-	    absoluteMoments[k] /= SEQUENCE_SIZE;
-	}
-	checkMoments(absoluteMoments, absoluteMomentsGaussian);
+   int m = absoluteMomentsGaussian.length;
+   double[] absoluteMoments = new double[m];
+   for (int j = 0; j < SEQUENCE_SIZE; j++) {
+       double v = theSupplier.getAsDouble();
+       double z = 1.0;
+       for (int k = 0; k < m; k++) {
+       absoluteMoments[k] += Math.abs(z);
+       z *= v;
+       }
+   }
+   for (int k = 0; k < m; k++) {
+       absoluteMoments[k] /= SEQUENCE_SIZE;
+   }
+   checkMoments(absoluteMoments, absoluteMomentsGaussian);
     }
 
     static void testMomentsExponential(DoubleSupplier theSupplier) {
-	int m = momentsExponential.length;
-	double[] moments = new double[m];
-	for (int j = 0; j < SEQUENCE_SIZE; j++) {
-	    double v = theSupplier.getAsDouble();
-	    double z = 1.0;
-	    for (int k = 0; k < m; k++) {
-		moments[k] += z;
-		z *= v;
-	    }
-	}
-	for (int k = 0; k < m; k++) {
-	    moments[k] /= SEQUENCE_SIZE;
-	}
-	checkMoments(moments, momentsExponential);
+   int m = momentsExponential.length;
+   double[] moments = new double[m];
+   for (int j = 0; j < SEQUENCE_SIZE; j++) {
+       double v = theSupplier.getAsDouble();
+       double z = 1.0;
+       for (int k = 0; k < m; k++) {
+       moments[k] += z;
+       z *= v;
+       }
+   }
+   for (int k = 0; k < m; k++) {
+       moments[k] /= SEQUENCE_SIZE;
+   }
+   checkMoments(moments, momentsExponential);
     }
 
     static void testMomentsUniform(DoubleSupplier theSupplier) {
-	int m = momentsUniform.length;
-	double[] moments = new double[m];
-	for (int j = 0; j < SEQUENCE_SIZE; j++) {
-	    double v = theSupplier.getAsDouble();
-	    double z = 1.0;
-	    for (int k = 0; k < m; k++) {
-		moments[k] += z;
-		z *= v;
-	    }
-	}
-	for (int k = 0; k < m; k++) {
-	    moments[k] /= SEQUENCE_SIZE;
-	}
-	checkMoments(moments, momentsUniform);
+   int m = momentsUniform.length;
+   double[] moments = new double[m];
+   for (int j = 0; j < SEQUENCE_SIZE; j++) {
+       double v = theSupplier.getAsDouble();
+       double z = 1.0;
+       for (int k = 0; k < m; k++) {
+       moments[k] += z;
+       z *= v;
+       }
+   }
+   for (int k = 0; k < m; k++) {
+       moments[k] /= SEQUENCE_SIZE;
+   }
+   checkMoments(moments, momentsUniform);
     }
 
     static void testOneRng(RandomGenerator rng) {
@@ -174,11 +173,11 @@ class RandomTestMoments {
     }
 
     public static void main(String[] args) {
-        for (Algorithm alg : Algorithm.values()) {
-            testOneRng(alg.factory().create(325));
-        }
+        RandomGenerator.all().forEach(factory -> {
+            testOneRng(factory.create(325));
+        });
 
-	    testOneRng(new java.util.SplittableRandom(325));
+       testOneRng(new java.util.SplittableRandom(325));
     }
 
 }

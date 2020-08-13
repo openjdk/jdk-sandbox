@@ -393,18 +393,6 @@ module java.base {
 
     provides java.util.random.RandomGenerator with
         java.security.SecureRandom,
-        java.util.Random,
-        java.util.random.L32X64MixRandom,
-        java.util.random.L32X64StarStarRandom,
-        java.util.random.L64X128MixRandom,
-        java.util.random.L64X128StarStarRandom,
-        java.util.random.L64X256MixRandom,
-        java.util.random.L64X1024MixRandom,
-        java.util.random.L128X128MixRandom,
-        java.util.random.L128X256MixRandom,
-        java.util.random.L128X1024MixRandom,
-        java.util.random.MRG32k3a,
-        java.util.random.Xoroshiro128PlusPlus,
-        java.util.random.Xoshiro256PlusPlus;
+        java.util.Random;
 
 }

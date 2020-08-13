@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.PrimitiveIterator;
 
 import java.util.random.*;
-import java.util.random.RandomGenerator.Algorithm;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -66,38 +65,38 @@ class RandomTestChiSquared {
     // =CHISQ.INV(0.0000000777517,k) and =CHISQ.INV.RT(0.00000142611,k)
     // (except that entry 0 is a dummy and should never be used).
     static final double[][] chiSquaredBounds = {
-	{ 0.0, 0.0 },
-	{ 9.49598E-15, 23.24513154 },
-	{ 1.55503E-07, 26.92112020 },
-	{ 4.40485E-05, 29.93222467 },
-	{ 0.000788782, 32.62391510 },
-	{ 0.004636947, 35.11665045 },
-	{ 0.015541535, 37.46947634 },
-	{ 0.037678318, 39.71667636 },
-	{ 0.074471919, 41.88031518 },
-	{ 0.128297057, 43.97561646 },
-	{ 0.200566433, 46.01362542 },
-	{ 0.291944952, 48.00266676 },
-	{ 0.402564694, 49.94920504 },
-	{ 0.532199236, 51.85838271 },
-	{ 0.680392565, 53.73437242 },
-	{ 0.846549931, 55.58061674 },
-	{ 1.030000010, 57.39999630 },
-	{ 1.230036580, 59.19495111 },
-	{ 1.445945898, 60.96756998 },
-	{ 1.677024296, 62.71965780 },
-	{ 1.922589129, 64.45278706 },
-	{ 2.181985238, 66.16833789 },
-	{ 2.454588423, 67.86752964 },
-	{ 2.739806923, 69.55144602 },
-	{ 3.037081611, 71.22105544 },
-	{ 3.345885349, 72.87722754 },
-	{ 3.665721841, 74.52074682 },
-	{ 3.996124178, 76.15232388 },
-	{ 4.336653242, 77.77260487 },
-	{ 4.686896041, 79.38217943 },
-	{ 5.046464051, 80.98158736 },
-	{ 5.414991603, 82.57132439 }
+   { 0.0, 0.0 },
+   { 9.49598E-15, 23.24513154 },
+   { 1.55503E-07, 26.92112020 },
+   { 4.40485E-05, 29.93222467 },
+   { 0.000788782, 32.62391510 },
+   { 0.004636947, 35.11665045 },
+   { 0.015541535, 37.46947634 },
+   { 0.037678318, 39.71667636 },
+   { 0.074471919, 41.88031518 },
+   { 0.128297057, 43.97561646 },
+   { 0.200566433, 46.01362542 },
+   { 0.291944952, 48.00266676 },
+   { 0.402564694, 49.94920504 },
+   { 0.532199236, 51.85838271 },
+   { 0.680392565, 53.73437242 },
+   { 0.846549931, 55.58061674 },
+   { 1.030000010, 57.39999630 },
+   { 1.230036580, 59.19495111 },
+   { 1.445945898, 60.96756998 },
+   { 1.677024296, 62.71965780 },
+   { 1.922589129, 64.45278706 },
+   { 2.181985238, 66.16833789 },
+   { 2.454588423, 67.86752964 },
+   { 2.739806923, 69.55144602 },
+   { 3.037081611, 71.22105544 },
+   { 3.345885349, 72.87722754 },
+   { 3.665721841, 74.52074682 },
+   { 3.996124178, 76.15232388 },
+   { 4.336653242, 77.77260487 },
+   { 4.686896041, 79.38217943 },
+   { 5.046464051, 80.98158736 },
+   { 5.414991603, 82.57132439 }
     };
 
 
@@ -105,37 +104,37 @@ class RandomTestChiSquared {
 // N is the number of categories; every element of s ought to be in [0,N).
 // N must be in [1,31].
     static boolean chiSquaredTest(String id, int N, IntSupplier theSupplier) {
-	int[] stats = new int[N];
-	for (int j = 0; j < SEQUENCE_SIZE; j++) {
-	    int v = theSupplier.getAsInt();
-	    // assert((0 <= v) && (v < N));
-	    ++stats[v];
-	}
-	int z = 0;
-	for (int k = 0; k < stats.length; k++) {
-	    z += stats[k]*stats[k];
-	}
-	double x = ((double)N / (double)SEQUENCE_SIZE) * (double)z - (double)SEQUENCE_SIZE;
-	double lo = chiSquaredBounds[N][0];
-	double hi = chiSquaredBounds[N][1];
-	boolean chiSquaredSuccess = ((lo < x) && (x < hi));
-	if (!chiSquaredSuccess) System.out.printf("chi-squared test failure for %s: x=%g (should be in [%g,%g])\n", id, x, lo, hi);
-	return chiSquaredSuccess;
+   int[] stats = new int[N];
+   for (int j = 0; j < SEQUENCE_SIZE; j++) {
+       int v = theSupplier.getAsInt();
+       // assert((0 <= v) && (v < N));
+       ++stats[v];
+   }
+   int z = 0;
+   for (int k = 0; k < stats.length; k++) {
+       z += stats[k]*stats[k];
+   }
+   double x = ((double)N / (double)SEQUENCE_SIZE) * (double)z - (double)SEQUENCE_SIZE;
+   double lo = chiSquaredBounds[N][0];
+   double hi = chiSquaredBounds[N][1];
+   boolean chiSquaredSuccess = ((lo < x) && (x < hi));
+   if (!chiSquaredSuccess) System.out.printf("chi-squared test failure for %s: x=%g (should be in [%g,%g])\n", id, x, lo, hi);
+   return chiSquaredSuccess;
     }
 
     static boolean testRngChiSquared(String id, int N, IntSupplier theSupplier) {
-	if (chiSquaredTest(id, N, theSupplier)) return true;
-	System.out.println("testRngChiSquared glitch");
-	return chiSquaredTest(id, N, theSupplier) && chiSquaredTest(id, N, theSupplier);
+   if (chiSquaredTest(id, N, theSupplier)) return true;
+   System.out.println("testRngChiSquared glitch");
+   return chiSquaredTest(id, N, theSupplier) && chiSquaredTest(id, N, theSupplier);
     }
 
     static void tryIt(RandomGenerator rng, String kind, Function<String,BooleanSupplier> f) {
-	String id = rng.getClass().getName() + " " + kind;
-	// System.out.printf("Testing %s\n", id);
-	boolean success = f.apply(id).getAsBoolean();
-	if (!success) {
-	    System.out.printf("*** Failure of %s\n", id);
-	}
+   String id = rng.getClass().getName() + " " + kind;
+   // System.out.printf("Testing %s\n", id);
+   boolean success = f.apply(id).getAsBoolean();
+   if (!success) {
+       System.out.printf("*** Failure of %s\n", id);
+   }
     }
 
     // To test one instance of an RandomGenerator with the BSI test suite, we test:
@@ -206,15 +205,15 @@ class RandomTestChiSquared {
     }
 
     public static void main(String[] args) {
-        for (Algorithm alg : Algorithm.values()) {
-            if (alg == Algorithm.Random) {
-                testOneRng(alg.factory().create(417), 1);
-            } else if (alg == Algorithm.MRG32k3a) {
+        RandomGenerator.all().forEach(factory -> {
+            if (factory.name().equals("Random")) {
+                testOneRng(factory.create(417), 1);
+            } else if (factory.equals("MRG32k3a")) {
                 // MRG32k3a is known to fail these tests badly
             } else {
-                testOneRng(alg.factory().create(417), 0);
+                testOneRng(factory.create(417), 0);
             }
-        }
+        });
     }
 
 }

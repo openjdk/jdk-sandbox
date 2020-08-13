@@ -23,11 +23,12 @@
  * questions.
  */
 
-package java.util.random;
+package jdk.random;
 
 import java.math.BigInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.random.RandomGenerator.LeapableGenerator;
+import java.util.random.RandomSupport;
 import java.util.random.RandomSupport.AbstractArbitrarilyJumpableGenerator;
 
 /**
@@ -77,6 +78,11 @@ public final class MRG32k3a extends AbstractArbitrarilyJumpableGenerator {
      * the main algorithm, then the main public methods, followed by
      * some custom spliterator classes needed for stream methods.
      */
+
+    /**
+     * Group name.
+     */
+    private static final String GROUP = "MRG";
 
     private final static double NORM1 = 2.328306549295728e-10;
     private final static double NORM2 = 2.328318824698632e-10;
