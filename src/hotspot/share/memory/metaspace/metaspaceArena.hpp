@@ -50,6 +50,25 @@ struct arena_stats_t;
 //  internally it consists of a list of metaspace chunks, of which the head chunk
 //  is the current chunk from which we allocate via pointer bump.
 //
+//  +---------------+
+//  |     Arena     |
+//  +---------------+
+//            |
+//            | _chunks                                               commit top
+//            |                                                       v
+//        +----------+      +----------+      +----------+      +----------+
+//        | retired  | ---> | retired  | ---> | retired  | ---> | current  |
+//        | chunk    |      | chunk    |      | chunk    |      | chunk    |
+//        +----------+      +----------+      +----------+      +----------+
+//                                                                  ^
+//                                                                  used top
+//
+//        +------------+
+//        | FreeBlocks | --> O -> O -> O -> O
+//        +------------+
+//
+//
+
 // When the current chunk is used up, MetaspaceArena requestes a new chunk from
 //  the associated ChunkManager.
 //
