@@ -93,13 +93,6 @@ void MetaspaceArena::salvage_chunk(Metachunk* c) {
 
   assert_lock_strong(lock());
 
-  // If the chunk is completely empty, just return it to the chunk manager.
-  if (c->used_words() == 0) {
-    UL2(trace, "salvage: returning empty chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
-    _chunk_manager->return_chunk(c);
-    return;
-  }
-
   size_t remaining_words = c->free_below_committed_words();
 
   if (remaining_words > FreeBlocks::minimal_word_size) {
