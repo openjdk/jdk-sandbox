@@ -212,6 +212,8 @@ void check_marked_range(const MetaWord* p, size_t word_size);
 #define ASSERT_NOT_0(v)           ASSERT_NE((intptr_t)0, (intptr_t)v)
 #define EXPECT_0(v)               EXPECT_EQ((intptr_t)0, (intptr_t)v)
 #define EXPECT_NOT_0(v)           EXPECT_NE((intptr_t)0, (intptr_t)v)
+#define ASSERT_GT0(v)             ASSERT_GT((intptr_t)v, (intptr_t)0)
+#define EXPECT_GT0(v)             EXPECT_GT((intptr_t)v, (intptr_t)0)
 
 //////////////////////////////////////////////////////////
 // logging

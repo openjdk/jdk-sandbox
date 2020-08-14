@@ -52,12 +52,12 @@ class ArenaGrowthPolicy {
   const chunklevel_t* const _entries;
   const int _num_entries;
 
+public:
+
   ArenaGrowthPolicy(const chunklevel_t* array, int num_entries)
     : _entries(array), _num_entries(num_entries) {
     assert(_num_entries > 0, "must not be empty.");
   }
-
-public:
 
   chunklevel_t get_level_at_step(int num_allocated) const {
     if (num_allocated >= _num_entries) {

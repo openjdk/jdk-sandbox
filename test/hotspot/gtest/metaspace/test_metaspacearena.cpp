@@ -44,17 +44,9 @@ class MetaspaceArenaTestHelper {
   SizeAtomicCounter _used_words_counter;
   MetaspaceArena* _arena;
 
-public:
 
-  MetaspaceArenaTestHelper(MetaspaceTestContext& helper, Metaspace::MetaspaceType space_type, bool is_class,
-                         const char* name = "gtest-MetaspaceArena")
-    : _helper(helper),
-      _lock(NULL),
-      _growth_policy(NULL),
-      _used_words_counter(),
-      _arena(NULL)
-  {
-    _growth_policy = ArenaGrowthPolicy::policy_for_space_type(space_type, is_class);
+  void initialize(const ArenaGrowthPolicy* growth_policy, const char* name = "gtest-MetaspaceArena") {
+    _growth_policy = growth_policy;
     _lock = new Mutex(Monitor::native, "gtest-MetaspaceArenaTest-lock", false, Monitor::_safepoint_check_never);
     // Lock during space creation, since this is what happens in the VM too
     //  (see ClassLoaderData::metaspace_non_null(), which we mimick here).
@@ -63,6 +55,26 @@ public:
       _arena = new MetaspaceArena(&_helper.cm(), _growth_policy, _lock, &_used_words_counter, name);
     }
     DEBUG_ONLY(_arena->verify(true));
+
+  }
+
+public:
+
+  // Create a helper; growth policy for arena is determined by the given spacetype|class tupel
+  MetaspaceArenaTestHelper(MetaspaceTestContext& helper,
+                            Metaspace::MetaspaceType space_type, bool is_class,
+                            const char* name = "gtest-MetaspaceArena")
+    :_helper(helper)
+  {
+    initialize(ArenaGrowthPolicy::policy_for_space_type(space_type, is_class), name);
+  }
+
+  // Create a helper; growth policy is directly specified
+  MetaspaceArenaTestHelper(MetaspaceTestContext& helper, const ArenaGrowthPolicy* growth_policy,
+                            const char* name = "gtest-MetaspaceArena")
+    :_helper(helper)
+  {
+    initialize(growth_policy, name);
   }
 
   ~MetaspaceArenaTestHelper() {
@@ -195,6 +207,16 @@ public:
     ASSERT_EQ(capacity2, capacity);
   }
 
+  arena_stats_t get_arena_statistics() const {
+    arena_stats_t stats;
+    _arena->add_to_statistics(&stats);
+    return stats;
+  }
+
+  // Convenience method to return number of chunks in arena (including current chunk)
+  int get_number_of_chunks() const {
+    return get_arena_statistics().totals().num;
+  }
 
 };
 
@@ -227,28 +249,91 @@ TEST_VM(metaspace, MetaspaceArena_basics_standard_limit) {
   test_basics(256 * K, false);
 }
 
-
-// Test: in a single undisturbed MetaspaceArena (so, we should have chunks enlarged in place)
-// we allocate a small amount, then the full amount possible. The sum of first and second
-// allocation bring us above root chunk size. This should work - chunk enlargement should
-// fail and a new root chunk should be allocated instead.
+// Test chunk enlargement:
+// A single MetaspaceArena, left undisturbed with place to grow. Slowly fill arena up.
+//  We should see occurrences of chunk-in-place enlargement.
 TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place) {
 
   if (Settings::use_allocation_guard()) {
     return;
   }
 
+  // Note: internally, chunk in-place enlargement is disallowed if growing the chunk
+  //  would cause the arena to claim more memory than its growth policy allows. This
+  //  is done to prevent the arena to grow too fast.
+  //
+  // In order to test in-place growth here without that restriction I give it an
+  //  artificial growth policy which starts out with a tiny chunk size, then balloons
+  //  right up to max chunk size. This will cause the initial chunk to be tiny, and
+  //  then the arena is able to grow it without violating growth policy.
+  chunklevel_t growth[] = { HIGHEST_CHUNK_LEVEL, ROOT_CHUNK_LEVEL };
+  ArenaGrowthPolicy growth_policy(growth, 2);
+
   MetaspaceTestContext msthelper;
-  MetaspaceArenaTestHelper helper(msthelper, Metaspace::StandardMetaspaceType, false);
-  helper.allocate_from_arena_with_tests_expect_success(1);
-  helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
-  helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE / 2);
-  helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
+  MetaspaceArenaTestHelper helper(msthelper, &growth_policy);
+
+  int n1 = metaspace::InternalStats::num_chunks_enlarged();
+
+  size_t allocated = 0;
+  while (allocated <= MAX_CHUNK_WORD_SIZE) {
+    size_t s = IntRange(32, 64).random_value();
+    helper.allocate_from_arena_with_tests_expect_success(s);
+    allocated += s;
+    if (allocated <= MAX_CHUNK_WORD_SIZE) {
+      // Chunk should have been enlarged in place
+      ASSERT_EQ(1, helper.get_number_of_chunks());
+    } else {
+      // Next chunk should have started
+      ASSERT_EQ(2, helper.get_number_of_chunks());
+    }
+  }
+
+  int times_chunk_were_enlarged = metaspace::InternalStats::num_chunks_enlarged() - n1;
+  LOG("chunk was enlarged %d times.", times_chunk_were_enlarged);
+
+  ASSERT_GT0(times_chunk_were_enlarged);
+
 }
 
-// Test allocating from smallest to largest chunk size, and one step beyond.
-// The first n allocations should happen in place, the ladder should open a new chunk.
-TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_1) {
+// Regression test: Given a single MetaspaceArena, left undisturbed with place to grow,
+//  test that in place enlargement correctly fails if growing the chunk would bring us
+//  beyond the max. size of a chunk.
+TEST_VM(metaspace, MetaspaceArena_test_failing_to_enlarge_in_place_max_chunk_size) {
+
+  if (Settings::use_allocation_guard()) {
+    return;
+  }
+
+  MetaspaceTestContext msthelper;
+
+  for (size_t first_allocation_size = 1; first_allocation_size <= MAX_CHUNK_WORD_SIZE / 2; first_allocation_size *= 2) {
+
+    MetaspaceArenaTestHelper helper(msthelper, Metaspace::StandardMetaspaceType, false);
+
+    // we allocate first a small amount, then the full amount possible.
+    // The sum of first and second allocation should bring us above root chunk size.
+    // This should work, we should not see any problems, but no chunk enlargement should
+    // happen.
+    int n1 = metaspace::InternalStats::num_chunks_enlarged();
+
+    helper.allocate_from_arena_with_tests_expect_success(first_allocation_size);
+    EXPECT_EQ(helper.get_number_of_chunks(), 1);
+
+    helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE - first_allocation_size + 1);
+    EXPECT_EQ(helper.get_number_of_chunks(), 2);
+
+    int times_chunk_were_enlarged = metaspace::InternalStats::num_chunks_enlarged() - n1;
+    LOG("chunk was enlarged %d times.", times_chunk_were_enlarged);
+
+    EXPECT_0(times_chunk_were_enlarged);
+
+  }
+}
+
+// Regression test: Given a single MetaspaceArena, left undisturbed with place to grow,
+//  test that in place enlargement correctly fails if growing the chunk would cause more
+//  than doubling its size
+TEST_VM(metaspace, MetaspaceArena_test_failing_to_enlarge_in_place_doubling_chunk_size) {
 
   if (Settings::use_allocation_guard()) {
     return;
@@ -256,30 +341,20 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_1) {
 
   MetaspaceTestContext msthelper;
   MetaspaceArenaTestHelper helper(msthelper, Metaspace::StandardMetaspaceType, false);
-  size_t size = MIN_CHUNK_WORD_SIZE;
-  while (size <= MAX_CHUNK_WORD_SIZE) {
-    helper.allocate_from_arena_with_tests_expect_success(size);
-    size *= 2;
-  }
-  helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
-}
 
-// Same as MetaspaceArena_test_enlarge_in_place_ladder_1, but increase in *4 step size;
-// this way chunk-in-place-enlargement does not work and we should have new chunks at each allocation.
-TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_ladder_2) {
+  int n1 = metaspace::InternalStats::num_chunks_enlarged();
 
-  if (Settings::use_allocation_guard()) {
-    return;
-  }
+  helper.allocate_from_arena_with_tests_expect_success(1000);
+  EXPECT_EQ(helper.get_number_of_chunks(), 1);
 
-  MetaspaceTestContext msthelper;
-  MetaspaceArenaTestHelper helper(msthelper, Metaspace::StandardMetaspaceType, false);
-  size_t size = MIN_CHUNK_WORD_SIZE;
-  while (size <= MAX_CHUNK_WORD_SIZE) {
-    helper.allocate_from_arena_with_tests_expect_success(size);
-    size *= 4;
-  }
-  helper.allocate_from_arena_with_tests_expect_success(MAX_CHUNK_WORD_SIZE);
+  helper.allocate_from_arena_with_tests_expect_success(4000);
+  EXPECT_EQ(helper.get_number_of_chunks(), 2);
+
+  int times_chunk_were_enlarged = metaspace::InternalStats::num_chunks_enlarged() - n1;
+  LOG("chunk was enlarged %d times.", times_chunk_were_enlarged);
+
+  EXPECT_0(times_chunk_were_enlarged);
+
 }
 
 // Test the MetaspaceArenas' free block list:
