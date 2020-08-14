@@ -250,9 +250,52 @@ TEST_VM(metaspace, MetaspaceArena_basics_standard_limit) {
 }
 
 // Test chunk enlargement:
+//  A single MetaspaceArena, left undisturbed with place to grow. Slowly fill arena up.
+//  We should see at least some occurrences of chunk-in-place enlargement.
+static void test_chunk_enlargment_simple(Metaspace::MetaspaceType spacetype, bool is_class) {
+
+  MetaspaceTestContext msthelper;
+  MetaspaceArenaTestHelper helper(msthelper, (Metaspace::MetaspaceType)spacetype, is_class);
+
+  uint64_t n1 = metaspace::InternalStats::num_chunks_enlarged();
+
+  size_t allocated = 0;
+  while (allocated <= MAX_CHUNK_WORD_SIZE &&
+         metaspace::InternalStats::num_chunks_enlarged() == n1) {
+    size_t s = IntRange(32, 128).random_value();
+    helper.allocate_from_arena_with_tests_expect_success(s);
+    allocated += s;
+  }
+
+  EXPECT_GT(metaspace::InternalStats::num_chunks_enlarged(), n1);
+
+}
+
+// Do this test for some of the standard types; don't do it for the boot loader type
+//  since that one starts out with max chunk size so we would not see any enlargement.
+
+TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_standard_c) {
+  test_chunk_enlargment_simple(Metaspace::StandardMetaspaceType, true);
+}
+
+TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_standard_nc) {
+  test_chunk_enlargment_simple(Metaspace::StandardMetaspaceType, false);
+}
+
+TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_micro_c) {
+  test_chunk_enlargment_simple(Metaspace::ReflectionMetaspaceType, true);
+}
+
+TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_micro_nc) {
+  test_chunk_enlargment_simple(Metaspace::ReflectionMetaspaceType, false);
+}
+
+// Test chunk enlargement:
 // A single MetaspaceArena, left undisturbed with place to grow. Slowly fill arena up.
 //  We should see occurrences of chunk-in-place enlargement.
-TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place) {
+//  Here, we give it an ideal policy which should enable the initial chunk to grow unmolested
+//  until finish.
+TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_2) {
 
   if (Settings::use_allocation_guard()) {
     return;
@@ -272,11 +315,11 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place) {
   MetaspaceTestContext msthelper;
   MetaspaceArenaTestHelper helper(msthelper, &growth_policy);
 
-  int n1 = metaspace::InternalStats::num_chunks_enlarged();
+  uint64_t n1 = metaspace::InternalStats::num_chunks_enlarged();
 
   size_t allocated = 0;
   while (allocated <= MAX_CHUNK_WORD_SIZE) {
-    size_t s = IntRange(32, 64).random_value();
+    size_t s = IntRange(32, 128).random_value();
     helper.allocate_from_arena_with_tests_expect_success(s);
     allocated += s;
     if (allocated <= MAX_CHUNK_WORD_SIZE) {
