@@ -187,9 +187,6 @@ void Metachunk::set_committed_words(size_t v) {
 //
 MetaWord* Metachunk::allocate(size_t request_word_size) {
 
-  log_trace(metaspace)("Chunk " METACHUNK_FULL_FORMAT ": allocating " SIZE_FORMAT " words.",
-                       METACHUNK_FULL_FORMAT_ARGS(this), request_word_size);
-
   // Caller must have made sure this works
   assert(free_words() >= request_word_size, "Chunk too small.");
   assert(free_below_committed_words() >= request_word_size, "Chunk not committed.");

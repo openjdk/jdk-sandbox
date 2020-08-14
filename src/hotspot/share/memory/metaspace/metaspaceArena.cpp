@@ -392,7 +392,8 @@ MetaWord* MetaspaceArena::allocate(size_t requested_word_size) {
   if (p == NULL) {
     UL(info, "allocation failed, returned NULL.");
   } else {
-    UL2(trace, "returned " PTR_FORMAT ".", p2i(p));
+    UL2(trace, "after allocation: %u chunk(s), current:" METACHUNK_FULL_FORMAT, _chunks.count(), METACHUNK_FULL_FORMAT_ARGS(current_chunk()));
+    UL2(trace, "returning " PTR_FORMAT ".", p2i(p));
   }
 
   return p;
