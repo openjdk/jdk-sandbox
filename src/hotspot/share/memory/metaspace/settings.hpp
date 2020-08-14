@@ -51,9 +51,6 @@ class Settings : public AllStatic {
   // the requested size, we attempt to double the chunk size in place...
   static const bool _enlarge_chunks_in_place = true;
 
-  // .. but we do only do this for chunks below a given size to prevent unnecessary memory blowup.
-  static const size_t _enlarge_chunks_in_place_max_word_size = 256 * K;
-
   // Whether or not chunks handed out to an arena start out fully committed;
   // if true, this deactivates committing-on-demand (irregardless of whether
   // we uncommit free chunks).
@@ -77,7 +74,6 @@ public:
   static size_t virtual_space_node_default_word_size()        { return _virtual_space_node_default_word_size; }
   static size_t virtual_space_node_reserve_alignment_words()  { return _virtual_space_node_reserve_alignment_words; }
   static bool enlarge_chunks_in_place()                       { return _enlarge_chunks_in_place; }
-  static size_t enlarge_chunks_in_place_max_word_size()       { return _enlarge_chunks_in_place_max_word_size; }
   static bool uncommit_free_chunks()                          { return _uncommit_free_chunks; }
 
   static bool use_allocation_guard()                          { return DEBUG_ONLY(_use_allocation_guard) NOT_DEBUG(false); }

@@ -229,11 +229,6 @@ bool MetaspaceArena::attempt_enlarge_current_chunk(size_t requested_word_size) {
     return false;
   }
 
-  // ... we also disallow it for very large chunks...
-  if (c->word_size() > Settings::enlarge_chunks_in_place_max_word_size()) {
-    return false;
-  }
-
   // ... nor if we are already a root chunk ...
   if (c->is_root_chunk()) {
     return false;

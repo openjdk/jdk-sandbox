@@ -122,11 +122,9 @@ void Settings::print_on(outputStream* st) {
   st->print_cr(" - commit_granule_bytes: " SIZE_FORMAT ".", commit_granule_bytes());
   st->print_cr(" - commit_granule_words: " SIZE_FORMAT ".", commit_granule_words());
 
-
   st->print_cr(" - virtual_space_node_default_size: " SIZE_FORMAT ".", virtual_space_node_default_word_size());
 
   st->print_cr(" - enlarge_chunks_in_place: %d.", (int)enlarge_chunks_in_place());
-  st->print_cr(" - enlarge_chunks_in_place_max_word_size: " SIZE_FORMAT ".", enlarge_chunks_in_place_max_word_size());
 
   st->print_cr(" - new_chunks_are_fully_committed: %d.", (int)new_chunks_are_fully_committed());
   st->print_cr(" - uncommit_free_chunks: %d.", (int)uncommit_free_chunks());
