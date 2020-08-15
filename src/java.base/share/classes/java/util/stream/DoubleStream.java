@@ -171,9 +171,8 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * argument that accepts replacing elements. The mapping function operates
      * on the consumer, zero or more times, for acceptance of replacing elements.
      *
-     * <p>The results of this method are undefined if the second
-     * {@link DoubleConsumer} argument is operated on outside the scope
-     * of the mapper function.
+     * <p>The results of this method are undefined if the {@link DoubleConsumer}
+     * argument is called outside the scope of the mapper function.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.

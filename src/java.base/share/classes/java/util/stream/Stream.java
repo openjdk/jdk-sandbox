@@ -348,8 +348,8 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * accepts replacing elements. The mapping function operates on the consumer,
      * zero or more times, for acceptance of replacing elements.
      *
-     * <p>The results of this method are undefined if the second {@link Consumer}
-     * argument is operated on outside the scope of the mapper function.
+     * <p>The results of this method are undefined if the {@link Consumer}
+     * argument is called outside the scope of the mapper function.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
@@ -439,12 +439,12 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * element of this stream with multiple elements, specifically zero or more
      * elements.
      * Replacement is performed by applying the provided mapping function to each
-     * element in conjunction with a second {@link BiConsumer consumer} argument
+     * element in conjunction with a second {@link IntConsumer consumer} argument
      * that accepts replacing elements. The mapping function operates on the
      * consumer, zero or more times, for acceptance of replacing elements.
      *
-     * <p>The results of this method are undefined if the second {@link BiConsumer}
-     * argument is operated on outside the scope of the mapper function.
+     * <p>The results of this method are undefined if the {@link IntConsumer}
+     * argument is called outside the scope of the mapper function.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
@@ -478,12 +478,12 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * element of this stream with multiple elements, specifically zero or more
      * elements.
      * Replacement is performed by applying the provided mapping function to each
-     * element in conjunction with a second {@link BiConsumer consumer} argument
+     * element in conjunction with a second {@link LongConsumer consumer} argument
      * that accepts replacing elements. The mapping function operates on the
      * consumer, zero or more times, for acceptance of replacing elements.
      *
-     * <p>The results of this method are undefined if the second {@link BiConsumer}
-     * argument is operated on outside the scope of the mapper function.
+     * <p>The results of this method are undefined if the {@link LongConsumer}
+     * argument is called outside the scope of the mapper function.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
@@ -521,9 +521,8 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * that accepts replacing elements. The mapping function operates on the
      * consumer, zero or more times, for acceptance of replacing elements.
      *
-     * <p>The results of this method are undefined if the second
-     * {@link DoubleConsumer} argument is operated on outside the scope of
-     * the mapper function.
+     * <p>The results of this method are undefined if the {@link DoubleConsumer}
+     * argument is called outside the scope of the mapper function.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
