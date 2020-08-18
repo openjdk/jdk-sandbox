@@ -627,16 +627,12 @@ define SetupNativeCompilationBody
         $$(DISABLED_WARNINGS) \
         $$(DISABLED_WARNINGS_C) \
         $$($1_DISABLED_WARNINGS_$(TOOLCHAIN_TYPE)) \
-        $$($1_DISABLED_WARNINGS_C_$(TOOLCHAIN_TYPE)) \
-        $$(DISABLED_WARNINGS) \
-        $$(DISABLED_WARNINGS_C))
+        $$($1_DISABLED_WARNINGS_C_$(TOOLCHAIN_TYPE)))
     $1_EXTRA_CXXFLAGS += $$(addprefix $(DISABLE_WARNING_PREFIX), \
         $$(DISABLED_WARNINGS) \
         $$(DISABLED_WARNINGS_CXX) \
         $$($1_DISABLED_WARNINGS_$(TOOLCHAIN_TYPE)) \
-        $$($1_DISABLED_WARNINGS_CXX_$(TOOLCHAIN_TYPE)) \
-        $$(DISABLED_WARNINGS) \
-        $$(DISABLED_WARNINGS_CXX))
+        $$($1_DISABLED_WARNINGS_CXX_$(TOOLCHAIN_TYPE)))
   endif
 
   # Check if warnings should be considered errors.

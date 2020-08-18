@@ -56,6 +56,8 @@ BITS := $(OPENJDK_TARGET_CPU_BITS)
 $(X11WRAPPERS_OUTPUT)/src/data_generator.c: $(GENSRC_X11WRAPPERS_DATADIR)/xlibtypes.txt $(BUILD_TOOLS_JDK)
 	$(call LogInfo, Generating X11 wrapper data generator source code)
 	$(call MakeDir, $(@D))
+	$(call ExecuteWithLog, $@, \
+	    $(TOOL_WRAPPERGENERATOR) gen_c_source $@ $(GENSRC_X11WRAPPERS_DATADIR)/xlibtypes.txt $(BITS))
 
 DATA_GENERATOR_INCLUDES := \
     -I$(TOPDIR)/src/hotspot/share/include \
