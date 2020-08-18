@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package jdk.javadoc.internal.doclets.toolkit;
 
 import java.io.*;
-import java.lang.ref.*;
 import java.util.*;
 
 import javax.lang.model.element.Element;
@@ -43,6 +42,9 @@ import com.sun.tools.javac.util.DefinedBy.Api;
 import jdk.javadoc.doclet.Doclet;
 import jdk.javadoc.doclet.DocletEnvironment;
 import jdk.javadoc.doclet.Reporter;
+import jdk.javadoc.doclet.StandardDoclet;
+import jdk.javadoc.doclet.Taglet;
+import jdk.javadoc.internal.doclets.formats.html.HtmlDoclet;
 import jdk.javadoc.internal.doclets.toolkit.builders.BuilderFactory;
 import jdk.javadoc.internal.doclets.toolkit.taglets.TagletManager;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFile;
@@ -56,17 +58,15 @@ import jdk.javadoc.internal.doclets.toolkit.util.SimpleDocletException;
 import jdk.javadoc.internal.doclets.toolkit.util.TypeElementCatalog;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils.Pair;
-import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberMap;
-import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberMap.GetterSetter;
-import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberMap.Kind;
+import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberCache;
+import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable;
 
 import static javax.tools.Diagnostic.Kind.*;
 
 /**
  * Configure the output based on the options. Doclets should sub-class
  * BaseConfiguration, to configure and add their own options. This class contains
- * all user options which are supported by the 1.1 doclet and the standard
- * doclet.
+ * all user options which are supported by the standard doclet.
  * <p>
  * <p><b>This is NOT part of any supported API.
  * If you write code that depends on this, you do so at your own risk.
@@ -300,8 +300,6 @@ public abstract class BaseConfiguration {
 
     private List<Pair<String, String>> groupPairs;
 
-    private final Map<TypeElement, EnumMap<Kind, Reference<VisibleMemberMap>>> typeElementMemberCache;
-
     public abstract Messages getMessages();
 
     public abstract Resources getResources();
@@ -332,11 +330,6 @@ public abstract class BaseConfiguration {
 
     public OverviewElement overviewElement;
 
-    // The following three fields provide caches for use by all instances of VisibleMemberMap.
-    public final Map<TypeElement, List<Element>> propertiesCache = new HashMap<>();
-    public final Map<Element, Element> classPropertiesMap = new HashMap<>();
-    public final Map<Element, GetterSetter> getterSetterMap = new HashMap<>();
-
     public DocFileFactory docFileFactory;
 
     /**
@@ -353,9 +346,28 @@ public abstract class BaseConfiguration {
             "jdk.javadoc.internal.doclets.toolkit.resources.doclets";
 
     /**
+     * Primarily used to disable strict checks in the regression
+     * tests allowing those tests to be executed successfully, for
+     * instance, with OpenJDK builds which may not contain FX libraries.
+     */
+    public boolean disableJavaFxStrictChecks = false;
+
+    VisibleMemberCache visibleMemberCache = null;
+
+    public PropertyUtils propertyUtils = null;
+
+    /**
      * Constructs the configurations needed by the doclet.
      *
-     * @param doclet the doclet that created this configuration
+     * @apiNote
+     * The {@code doclet} parameter is used when {@link Taglet#init(DocletEnvironment, Doclet)
+     * initializing tags}.
+     * Some doclets (such as the {@link StandardDoclet), may delegate to another
+     * (such as the {@link HtmlDoclet}).  In such cases, the primary doclet (i.e
+     * {@code StandardDoclet}) should be provided here, and not any internal
+     * class like {@code HtmlDoclet}.
+     *
+     * @param doclet the doclet for this run of javadoc
      */
     public BaseConfiguration(Doclet doclet) {
         this.doclet = doclet;
@@ -364,7 +376,6 @@ public abstract class BaseConfiguration {
         setTabWidth(DocletConstants.DEFAULT_TAB_STOP_LENGTH);
         metakeywords = new MetaKeywords(this);
         groupPairs = new ArrayList<>(0);
-        typeElementMemberCache = new HashMap<>();
     }
 
     private boolean initialized = false;
@@ -375,6 +386,15 @@ public abstract class BaseConfiguration {
         }
         initialized = true;
         this.docEnv = docEnv;
+        // Utils needs docEnv, safe to init now.
+        utils = new Utils(this);
+
+        // Once docEnv and Utils have been initialized, others should be safe.
+        cmtUtils = new CommentUtils(this);
+        workArounds = new WorkArounds(this);
+        visibleMemberCache = new VisibleMemberCache(this);
+        propertyUtils = new PropertyUtils(this);
+
         Splitter specifiedSplitter = new Splitter(docEnv, false);
         specifiedModuleElements = Collections.unmodifiableSet(specifiedSplitter.mset);
         specifiedPackageElements = Collections.unmodifiableSet(specifiedSplitter.pset);
@@ -698,6 +718,13 @@ public abstract class BaseConfiguration {
                     @Override
                     public boolean process(String opt, List<String> args) {
                         allowScriptInComments = true;
+                        return true;
+                    }
+                },
+                new Hidden(resources, "--disable-javafx-strict-checks") {
+                    @Override
+                    public boolean process(String opt, List<String> args) {
+                        disableJavaFxStrictChecks = true;
                         return true;
                     }
                 }
@@ -1286,17 +1313,7 @@ public abstract class BaseConfiguration {
         return allowScriptInComments;
     }
 
-    public VisibleMemberMap getVisibleMemberMap(TypeElement te, VisibleMemberMap.Kind kind) {
-        EnumMap<Kind, Reference<VisibleMemberMap>> cacheMap = typeElementMemberCache
-                .computeIfAbsent(te, k -> new EnumMap<>(VisibleMemberMap.Kind.class));
-
-        Reference<VisibleMemberMap> vmapRef = cacheMap.get(kind);
-        // recompute, if referent has been garbage collected
-        VisibleMemberMap vMap = vmapRef == null ? null : vmapRef.get();
-        if (vMap == null) {
-            vMap = new VisibleMemberMap(te, kind, this);
-            cacheMap.put(kind, new SoftReference<>(vMap));
-        }
-        return vMap;
+    public synchronized VisibleMemberTable getVisibleMemberTable(TypeElement te) {
+        return visibleMemberCache.getVisibleMemberTable(te);
     }
 }

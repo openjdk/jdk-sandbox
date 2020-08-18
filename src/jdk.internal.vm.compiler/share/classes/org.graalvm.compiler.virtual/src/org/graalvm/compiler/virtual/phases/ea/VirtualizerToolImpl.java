@@ -26,6 +26,7 @@ import static org.graalvm.compiler.core.common.GraalOptions.MaximumEscapeAnalysi
 
 import java.util.List;
 
+import org.graalvm.compiler.core.common.spi.ArrayOffsetProvider;
 import org.graalvm.compiler.core.common.spi.ConstantFieldProvider;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.graph.Node;
@@ -33,6 +34,7 @@ import org.graalvm.compiler.graph.spi.CanonicalizerTool;
 import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.FixedNode;
 import org.graalvm.compiler.nodes.FixedWithNextNode;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.calc.FloatingNode;
 import org.graalvm.compiler.nodes.calc.UnpackEndianHalfNode;
@@ -107,6 +109,11 @@ class VirtualizerToolImpl implements VirtualizerTool, CanonicalizerTool {
         return constantFieldProvider;
     }
 
+    @Override
+    public ArrayOffsetProvider getArrayOffsetProvider() {
+        return loweringProvider;
+    }
+
     public void reset(PartialEscapeBlockState<?> newState, ValueNode newCurrent, FixedNode newPosition, GraphEffectList newEffects) {
         deleted = false;
         state = newState;
@@ -159,7 +166,7 @@ class VirtualizerToolImpl implements VirtualizerTool, CanonicalizerTool {
                  * Special case: Allow storing a single long or double value into two consecutive
                  * int slots.
                  */
-                int nextIndex = virtual.entryIndexForOffset(offset + 4, JavaKind.Int);
+                int nextIndex = virtual.entryIndexForOffset(getArrayOffsetProvider(), offset + 4, JavaKind.Int);
                 if (nextIndex != -1) {
                     canVirtualize = true;
                     assert nextIndex == index + 1 : "expected to be sequential";
@@ -179,7 +186,7 @@ class VirtualizerToolImpl implements VirtualizerTool, CanonicalizerTool {
                 } else if (oldValue.getStackKind() == JavaKind.Double || oldValue.getStackKind() == JavaKind.Long) {
                     // Splitting double word constant by storing over it with an int
                     getDebug().log(DebugContext.DETAILED_LEVEL, "virtualizing %s producing second half of double word value %s", current, oldValue);
-                    ValueNode secondHalf = UnpackEndianHalfNode.create(oldValue, false);
+                    ValueNode secondHalf = UnpackEndianHalfNode.create(oldValue, false, NodeView.DEFAULT);
                     addNode(secondHalf);
                     state.setEntry(virtual.getObjectId(), index + 1, secondHalf);
                 }
@@ -188,7 +195,7 @@ class VirtualizerToolImpl implements VirtualizerTool, CanonicalizerTool {
                 // Storing into second half of double, so replace previous value
                 ValueNode previous = getEntry(virtual, index - 1);
                 getDebug().log(DebugContext.DETAILED_LEVEL, "virtualizing %s producing first half of double word value %s", current, previous);
-                ValueNode firstHalf = UnpackEndianHalfNode.create(previous, true);
+                ValueNode firstHalf = UnpackEndianHalfNode.create(previous, true, NodeView.DEFAULT);
                 addNode(firstHalf);
                 state.setEntry(virtual.getObjectId(), index - 1, firstHalf);
             }

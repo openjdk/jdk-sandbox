@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,7 +58,7 @@ SuperWord::SuperWord(PhaseIdealLoop* phase) :
   _mem_slice_tail(arena(), 8,  0, NULL),  // memory slice tails
   _node_info(arena(), 8,  0, SWNodeInfo::initial), // info needed per node
   _clone_map(phase->C->clone_map()),      // map of nodes created in cloning
-  _cmovev_kit(_arena, this),              // map to facilitate CMoveVD creation
+  _cmovev_kit(_arena, this),              // map to facilitate CMoveV creation
   _align_to_ref(NULL),                    // memory reference to align vectors to
   _disjoint_ptrs(arena(), 8,  0, OrderedPair::initial), // runtime disambiguated pointer pairs
   _dg(_arena),                            // dependence graph
@@ -190,7 +190,7 @@ void SuperWord::unrolling_analysis(int &local_loop_unroll_factor) {
   int *ignored_loop_nodes = NEW_RESOURCE_ARRAY(int, ignored_size);
   Node_Stack nstack((int)ignored_size);
   CountedLoopNode *cl = lpt()->_head->as_CountedLoop();
-  Node *cl_exit = cl->loopexit();
+  Node *cl_exit = cl->loopexit_or_null();
   int rpo_idx = _post_block.length();
 
   assert(rpo_idx == 0, "post loop block is empty");
@@ -511,8 +511,7 @@ void SuperWord::SLP_extract() {
     combine_packs();
 
     construct_my_pack_map();
-
-    if (_do_vector_loop) {
+    if (UseVectorCmov) {
       merge_packs_to_cmovd();
     }
 
@@ -1102,7 +1101,7 @@ bool SuperWord::stmts_can_pack(Node* s1, Node* s2, int align) {
   }
 
   if (isomorphic(s1, s2)) {
-    if (independent(s1, s2) || reduction(s1, s2)) {
+    if ((independent(s1, s2) && have_similar_inputs(s1, s2)) || reduction(s1, s2)) {
       if (!exists_at(s1, 0) && !exists_at(s2, 1)) {
         if (!s1->is_Mem() || are_adjacent_refs(s1, s2)) {
           int s1_align = alignment(s1);
@@ -1180,6 +1179,20 @@ bool SuperWord::independent(Node* s1, Node* s2) {
   return independent_path(shallow, deep);
 }
 
+//--------------------------have_similar_inputs-----------------------
+// For a node pair (s1, s2) which is isomorphic and independent,
+// do s1 and s2 have similar input edges?
+bool SuperWord::have_similar_inputs(Node* s1, Node* s2) {
+  // assert(isomorphic(s1, s2) == true, "check isomorphic");
+  // assert(independent(s1, s2) == true, "check independent");
+  if (s1->req() > 1 && !s1->is_Store() && !s1->is_Load()) {
+    for (uint i = 1; i < s1->req(); i++) {
+      if (s1->in(i)->Opcode() != s2->in(i)->Opcode()) return false;
+    }
+  }
+  return true;
+}
+
 //------------------------------reduction---------------------------
 // Is there a data path between s1 and s2 and the nodes reductions?
 bool SuperWord::reduction(Node* s1, Node* s2) {
@@ -1235,8 +1248,8 @@ void SuperWord::set_alignment(Node* s1, Node* s2, int align) {
 
 //------------------------------data_size---------------------------
 int SuperWord::data_size(Node* s) {
-  Node* use = NULL; //test if the node is a candidate for CMoveVD optimization, then return the size of CMov
-  if (_do_vector_loop) {
+  Node* use = NULL; //test if the node is a candidate for CMoveV optimization, then return the size of CMov
+  if (UseVectorCmov) {
     use = _cmovev_kit.is_Bool_candidate(s);
     if (use != NULL) {
       return data_size(use);
@@ -1246,6 +1259,7 @@ int SuperWord::data_size(Node* s) {
       return data_size(use);
     }
   }
+
   int bsize = type2aelembytes(velt_basic_type(s));
   assert(bsize != 0, "valid size");
   return bsize;
@@ -1339,6 +1353,7 @@ bool SuperWord::follow_def_uses(Node_List* p) {
     for (DUIterator_Fast jmax, j = s2->fast_outs(jmax); j < jmax; j++) {
       Node* t2 = s2->fast_out(j);
       if (!in_bb(t2)) continue;
+      if (t2->Opcode() == Op_AddI && t2 == _lp->as_CountedLoop()->incr()) continue; // don't mess with the iv
       if (!opnd_positions_match(s1, t1, s2, t2))
         continue;
       if (stmts_can_pack(t1, t2, align)) {
@@ -1703,6 +1718,9 @@ Node_List* CMoveKit::make_cmovevd_pack(Node_List* cmovd_pk) {
   if (!cmovd->is_CMove()) {
     return NULL;
   }
+  if (cmovd->Opcode() != Op_CMoveF && cmovd->Opcode() != Op_CMoveD) {
+    return NULL;
+  }
   if (pack(cmovd) != NULL) { // already in the cmov pack
     return NULL;
   }
@@ -1925,9 +1943,14 @@ bool SuperWord::profitable(Node_List* p) {
         for (uint k = 0; k < use->req(); k++) {
           Node* n = use->in(k);
           if (def == n) {
-            // reductions can be loop carried dependences
-            if (def->is_reduction() && use->is_Phi())
+            // reductions should only have a Phi use at the the loop
+            // head and out of loop uses
+            if (def->is_reduction() &&
+                ((use->is_Phi() && use->in(0) == _lpt->_head) ||
+                 !_lpt->is_member(_phase->get_loop(_phase->ctrl_or_self(use))))) {
+              assert(i == p->size()-1, "must be last element of the pack");
               continue;
+            }
             if (!is_vector_use(use, k)) {
               return false;
             }
@@ -2121,8 +2144,21 @@ void SuperWord::co_locate_pack(Node_List* pk) {
     // we use the memory state of the last load. However, if any load could
     // not be moved down due to the dependence constraint, we use the memory
     // state of the first load.
-    Node* last_mem  = executed_last(pk)->in(MemNode::Memory);
-    Node* first_mem = executed_first(pk)->in(MemNode::Memory);
+    Node* first_mem = pk->at(0)->in(MemNode::Memory);
+    Node* last_mem = first_mem;
+    for (uint i = 1; i < pk->size(); i++) {
+      Node* ld = pk->at(i);
+      Node* mem = ld->in(MemNode::Memory);
+      assert(in_bb(first_mem) || in_bb(mem) || mem == first_mem, "2 different memory state from outside the loop?");
+      if (in_bb(mem)) {
+        if (in_bb(first_mem) && bb_idx(mem) < bb_idx(first_mem)) {
+          first_mem = mem;
+        }
+        if (!in_bb(last_mem) || bb_idx(mem) > bb_idx(last_mem)) {
+          last_mem = mem;
+        }
+      }
+    }
     bool schedule_last = true;
     for (uint i = 0; i < pk->size(); i++) {
       Node* ld = pk->at(i);
@@ -2307,8 +2343,11 @@ void SuperWord::output() {
           vn = VectorNode::make(opc, in1, in2, vlen, velt_basic_type(n));
           vlen_in_bytes = vn->as_Vector()->length_in_bytes();
         }
-      } else if (opc == Op_SqrtD || opc == Op_AbsF || opc == Op_AbsD || opc == Op_NegF || opc == Op_NegD) {
-        // Promote operand to vector (Sqrt/Abs/Neg are 2 address instructions)
+      } else if (opc == Op_SqrtF || opc == Op_SqrtD ||
+                 opc == Op_AbsF || opc == Op_AbsD ||
+                 opc == Op_NegF || opc == Op_NegD ||
+                 opc == Op_PopCountI) {
+        assert(n->req() == 2, "only one input expected");
         Node* in = vector_opd(p, 1);
         vn = VectorNode::make(opc, in, NULL, vlen, velt_basic_type(n));
         vlen_in_bytes = vn->as_Vector()->length_in_bytes();
@@ -2362,7 +2401,13 @@ void SuperWord::output() {
         }
         BasicType bt = velt_basic_type(n);
         const TypeVect* vt = TypeVect::make(bt, vlen);
-        vn = new CMoveVDNode(cc, src1, src2, vt);
+        assert(bt == T_FLOAT || bt == T_DOUBLE, "Only vectorization for FP cmovs is supported");
+        if (bt == T_FLOAT) {
+          vn = new CMoveVFNode(cc, src1, src2, vt);
+        } else {
+          assert(bt == T_DOUBLE, "Expected double");
+          vn = new CMoveVDNode(cc, src1, src2, vt);
+        }
         NOT_PRODUCT(if(is_trace_cmov()) {tty->print("SWPointer::output: created new CMove node %d: ", vn->_idx); vn->dump();})
       } else if (opc == Op_FmaD || opc == Op_FmaF) {
         // Promote operands to vector
@@ -2418,7 +2463,9 @@ void SuperWord::output() {
     }
   }//for (int i = 0; i < _block.length(); i++)
 
-  C->set_max_vector_size(max_vlen_in_bytes);
+  if (max_vlen_in_bytes > C->max_vector_size()) {
+    C->set_max_vector_size(max_vlen_in_bytes);
+  }
   if (max_vlen_in_bytes > 0) {
     cl->mark_loop_vectorized();
   }
@@ -3299,7 +3346,7 @@ CountedLoopEndNode* SuperWord::get_pre_loop_end(CountedLoopNode* cl) {
     return NULL;
   }
 
-  Node* p_f = cl->in(LoopNode::EntryControl)->in(0)->in(0);
+  Node* p_f = cl->skip_predicates()->in(0)->in(0);
   if (!p_f->is_IfFalse()) return NULL;
   if (!p_f->in(0)->is_CountedLoopEnd()) return NULL;
   CountedLoopEndNode* pre_end = p_f->in(0)->as_CountedLoopEnd();

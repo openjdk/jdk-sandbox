@@ -56,12 +56,13 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.Pair;
 import org.graalvm.compiler.options.OptionKey;
 import org.graalvm.compiler.options.OptionValues;
+import org.graalvm.compiler.serviceprovider.GraalServices;
 import org.graalvm.graphio.GraphOutput;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.EconomicSet;
-import org.graalvm.util.Pair;
 
 import jdk.vm.ci.meta.JavaMethod;
 
@@ -127,6 +128,20 @@ public final class DebugContext implements AutoCloseable {
             parentOutput = output;
             return output;
         }
+    }
+
+    /**
+     * Adds version properties to the provided map. The version properties are read at a start of
+     * the JVM from a JVM specific location. Each property identifiers a commit of a certain
+     * component in the system. The properties added to the {@code properties} map are prefixed with
+     * {@code "version."} prefix.
+     *
+     * @param properties map to add the version properties to or {@code null}
+     * @return {@code properties} with version properties added or an unmodifiable map containing
+     *         the version properties if {@code properties == null}
+     */
+    public static Map<Object, Object> addVersionProperties(Map<Object, Object> properties) {
+        return Versions.VERSIONS.withVersions(properties);
     }
 
     /**
@@ -222,14 +237,15 @@ public final class DebugContext implements AutoCloseable {
             this.unscopedTimers = parseUnscopedMetricSpec(Timers.getValue(options), "".equals(timeValue), true);
             this.unscopedMemUseTrackers = parseUnscopedMetricSpec(MemUseTrackers.getValue(options), "".equals(trackMemUseValue), true);
 
-            if (unscopedTimers != null ||
-                            unscopedMemUseTrackers != null ||
-                            timeValue != null ||
-                            trackMemUseValue != null) {
-                try {
-                    Class.forName("java.lang.management.ManagementFactory");
-                } catch (ClassNotFoundException ex) {
-                    throw new IllegalArgumentException("Time, Timers, MemUseTrackers and TrackMemUse options require java.management module");
+            if (unscopedTimers != null || timeValue != null) {
+                if (!GraalServices.isCurrentThreadCpuTimeSupported()) {
+                    throw new IllegalArgumentException("Time and Timers options require VM support for querying CPU time");
+                }
+            }
+
+            if (unscopedMemUseTrackers != null || trackMemUseValue != null) {
+                if (!GraalServices.isThreadAllocatedMemorySupported()) {
+                    throw new IllegalArgumentException("MemUseTrackers and TrackMemUse options require VM support for querying thread allocated memory");
                 }
             }
 
@@ -1923,10 +1939,17 @@ public final class DebugContext implements AutoCloseable {
         if (description != null) {
             printMetrics(description);
         }
-        if (metricsEnabled && globalMetrics != null && metricValues != null) {
+        if (metricsEnabled && metricValues != null && globalMetrics != null) {
             globalMetrics.add(this);
         }
         metricValues = null;
+        if (sharedChannel != null) {
+            try {
+                sharedChannel.realClose();
+            } catch (IOException ex) {
+                // ignore.
+            }
+        }
     }
 
     public void closeDumpHandlers(boolean ignoreErrors) {
@@ -2008,7 +2031,6 @@ public final class DebugContext implements AutoCloseable {
                 }
             }
         }
-
     }
 
     /**

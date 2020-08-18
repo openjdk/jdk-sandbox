@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,8 @@
  * @test
  * @bug 8163561
  * @modules java.base/sun.net.www
- *          jdk.incubator.httpclient
+ *          java.net.http
  * @summary Verify that Proxy-Authenticate header is correctly handled
- *
  * @run main/othervm ProxyAuthTest
  */
 
@@ -40,40 +39,47 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Authenticator;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
+import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.URI;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.util.Base64;
+import java.util.List;
 import sun.net.www.MessageHeader;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
 
 public class ProxyAuthTest {
     private static final String AUTH_USER = "user";
     private static final String AUTH_PASSWORD = "password";
 
     public static void main(String[] args) throws Exception {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = new ServerSocket()) {
+            ss.setReuseAddress(false);
+            ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             int port = ss.getLocalPort();
             MyProxy proxy = new MyProxy(ss);
             (new Thread(proxy)).start();
             System.out.println("Proxy listening port " + port);
 
             Auth auth = new Auth();
-            InetSocketAddress paddr = new InetSocketAddress("localhost", port);
+            InetSocketAddress paddr = new InetSocketAddress(InetAddress.getLoopbackAddress(), port);
 
             URI uri = new URI("http://www.google.ie/");
+            CountingProxySelector ps = CountingProxySelector.of(paddr);
             HttpClient client = HttpClient.newBuilder()
-                                          .proxy(ProxySelector.of(paddr))
+                                          .proxy(ps)
                                           .authenticator(auth)
                                           .build();
             HttpRequest req = HttpRequest.newBuilder(uri).GET().build();
-            HttpResponse<?> resp = client.sendAsync(req, discard(null)).get();
+            HttpResponse<?> resp = client.sendAsync(req, BodyHandlers.discarding()).get();
             if (resp.statusCode() != 404) {
                 throw new RuntimeException("Unexpected status code: " + resp.statusCode());
             }
@@ -87,6 +93,9 @@ public class ProxyAuthTest {
             if (!proxy.matched) {
                 throw new RuntimeException("Proxy authentication failed");
             }
+            if (ps.count() > 1) {
+                throw new RuntimeException("CountingProxySelector. Expected 1, got " + ps.count());
+            }
         }
     }
 
@@ -99,6 +108,37 @@ public class ProxyAuthTest {
             isCalled = true;
             return new PasswordAuthentication(AUTH_USER,
                     AUTH_PASSWORD.toCharArray());
+        }
+    }
+
+    /**
+     * A Proxy Selector that wraps a ProxySelector.of(), and counts the number
+     * of times its select method has been invoked. This can be used to ensure
+     * that the Proxy Selector is invoked only once per HttpClient.sendXXX
+     * invocation.
+     */
+    static class CountingProxySelector extends ProxySelector {
+        private final ProxySelector proxySelector;
+        private volatile int count; // 0
+        private CountingProxySelector(InetSocketAddress proxyAddress) {
+            proxySelector = ProxySelector.of(proxyAddress);
+        }
+
+        public static CountingProxySelector of(InetSocketAddress proxyAddress) {
+            return new CountingProxySelector(proxyAddress);
+        }
+
+        int count() { return count; }
+
+        @Override
+        public List<Proxy> select(URI uri) {
+            count++;
+            return proxySelector.select(uri);
+        }
+
+        @Override
+        public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+            proxySelector.connectFailed(uri, sa, ioe);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,10 @@
 #include "sysShmem.h"
 #include "shmemBase.h"
 #include "jdwpTransport.h"  /* for Packet, TransportCallback */
+
+#if defined(_WIN32)
+  #define PRId64 "I64d"
+#endif
 
 #define MIN(x,y) ((x)<(y)?(x):(y))
 
@@ -400,25 +404,25 @@ static int
 createStream(char *name, Stream *stream)
 {
     jint error;
-    char prefix[MAX_IPC_PREFIX];
+    char objectName[MAX_IPC_NAME];
 
-    sprintf(prefix, "%s.mutex", name);
-    error = createWithGeneratedName(prefix, stream->shared->mutexName,
+    sprintf(objectName, "%s.mutex", name);
+    error = createWithGeneratedName(objectName, stream->shared->mutexName,
                                     createMutex, &stream->mutex);
     if (error != SYS_OK) {
         return error;
     }
 
-    sprintf(prefix, "%s.hasData", name);
-    error = createWithGeneratedName(prefix, stream->shared->hasDataEventName,
+    sprintf(objectName, "%s.hasData", name);
+    error = createWithGeneratedName(objectName, stream->shared->hasDataEventName,
                                     createEvent, &stream->hasData);
     if (error != SYS_OK) {
         (void)closeStream(stream, JNI_FALSE);
         return error;
     }
 
-    sprintf(prefix, "%s.hasSpace", name);
-    error = createWithGeneratedName(prefix, stream->shared->hasSpaceEventName,
+    sprintf(objectName, "%s.hasSpace", name);
+    error = createWithGeneratedName(objectName, stream->shared->hasSpaceEventName,
                                     createEvent, &stream->hasSpace);
     if (error != SYS_OK) {
         (void)closeStream(stream, JNI_FALSE);
@@ -537,7 +541,7 @@ openConnection(SharedMemoryTransport *transport, jlong otherPID,
         return SYS_NOMEM;
     }
 
-    sprintf(connection->name, "%s.%ld", transport->name, sysProcessGetID());
+    sprintf(connection->name, "%s.%" PRId64, transport->name, sysProcessGetID());
     error = sysSharedMemOpen(connection->name, &connection->sharedMemory,
                              &connection->shared);
     if (error != SYS_OK) {
@@ -594,14 +598,14 @@ createConnection(SharedMemoryTransport *transport, jlong otherPID,
                  SharedMemoryConnection **connectionPtr)
 {
     jint error;
-    char streamPrefix[MAX_IPC_NAME];
+    char streamName[MAX_IPC_NAME];
 
     SharedMemoryConnection *connection = allocConnection();
     if (connection == NULL) {
         return SYS_NOMEM;
     }
 
-    sprintf(connection->name, "%s.%ld", transport->name, otherPID);
+    sprintf(connection->name, "%s.%" PRId64, transport->name, otherPID);
     error = sysSharedMemCreate(connection->name, sizeof(SharedMemory),
                                &connection->sharedMemory, &connection->shared);
     if (error != SYS_OK) {
@@ -615,17 +619,17 @@ createConnection(SharedMemoryTransport *transport, jlong otherPID,
     connection->incoming.shared = &connection->shared->toServer;
     connection->outgoing.shared = &connection->shared->toClient;
 
-    strcpy(streamPrefix, connection->name);
-    strcat(streamPrefix, ".ctos");
-    error = createStream(streamPrefix, &connection->incoming);
+    strcpy(streamName, connection->name);
+    strcat(streamName, ".ctos");
+    error = createStream(streamName, &connection->incoming);
     if (error != SYS_OK) {
         closeConnection(connection);
         return error;
     }
 
-    strcpy(streamPrefix, connection->name);
-    strcat(streamPrefix, ".stoc");
-    error = createStream(streamPrefix, &connection->outgoing);
+    strcpy(streamName, connection->name);
+    strcat(streamName, ".stoc");
+    error = createStream(streamName, &connection->outgoing);
     if (error != SYS_OK) {
         closeConnection(connection);
         return error;
@@ -742,9 +746,7 @@ createTransport(const char *address, SharedMemoryTransport **transportPtr)
 {
     SharedMemoryTransport *transport;
     jint error;
-    char prefix[MAX_IPC_PREFIX];
-
-
+    char objectName[MAX_IPC_NAME];
 
     transport = allocTransport();
     if (transport == NULL) {
@@ -780,24 +782,24 @@ createTransport(const char *address, SharedMemoryTransport **transportPtr)
     memset(transport->shared, 0, sizeof(SharedListener));
     transport->shared->acceptingPID = sysProcessGetID();
 
-    sprintf(prefix, "%s.mutex", transport->name);
-    error = createWithGeneratedName(prefix, transport->shared->mutexName,
+    sprintf(objectName, "%s.mutex", transport->name);
+    error = createWithGeneratedName(objectName, transport->shared->mutexName,
                                     createMutex, &transport->mutex);
     if (error != SYS_OK) {
         closeTransport(transport);
         return error;
     }
 
-    sprintf(prefix, "%s.accept", transport->name);
-    error = createWithGeneratedName(prefix, transport->shared->acceptEventName,
+    sprintf(objectName, "%s.accept", transport->name);
+    error = createWithGeneratedName(objectName, transport->shared->acceptEventName,
                                     createEvent, &transport->acceptEvent);
     if (error != SYS_OK) {
         closeTransport(transport);
         return error;
     }
 
-    sprintf(prefix, "%s.attach", transport->name);
-    error = createWithGeneratedName(prefix, transport->shared->attachEventName,
+    sprintf(objectName, "%s.attach", transport->name);
+    error = createWithGeneratedName(objectName, transport->shared->attachEventName,
                                     createEvent, &transport->attachEvent);
     if (error != SYS_OK) {
         closeTransport(transport);
@@ -1045,7 +1047,7 @@ shmemBase_sendPacket(SharedMemoryConnection *connection, const jdwpPacket *packe
         CHECK_ERROR(sendBytes(connection, &packet->type.cmd.cmd, sizeof(jbyte)));
     }
 
-    data_length = packet->type.cmd.len - 11;
+    data_length = packet->type.cmd.len - JDWP_HEADER_SIZE;
     SHMEM_GUARANTEE(data_length >= 0);
     CHECK_ERROR(sendBytes(connection, &data_length, sizeof(jint)));
 
@@ -1121,10 +1123,10 @@ shmemBase_receivePacket(SharedMemoryConnection *connection, jdwpPacket *packet)
     if (data_length < 0) {
         return SYS_ERR;
     } else if (data_length == 0) {
-        packet->type.cmd.len = 11;
+        packet->type.cmd.len = JDWP_HEADER_SIZE;
         packet->type.cmd.data = NULL;
     } else {
-        packet->type.cmd.len = data_length + 11;
+        packet->type.cmd.len = data_length + JDWP_HEADER_SIZE;
         packet->type.cmd.data = (*callback->alloc)(data_length);
         if (packet->type.cmd.data == NULL) {
             return SYS_ERR;

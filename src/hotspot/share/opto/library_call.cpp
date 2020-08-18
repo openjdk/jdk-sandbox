@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,13 @@
 
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"
 #include "memory/resourceArea.hpp"
+#include "jfr/support/jfrIntrinsics.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/arraycopynode.hpp"
@@ -51,10 +53,10 @@
 #include "opto/subnode.hpp"
 #include "prims/nativeLookup.hpp"
 #include "prims/unsafe.hpp"
+#include "runtime/objectMonitor.hpp"
 #include "runtime/sharedRuntime.hpp"
-#ifdef TRACE_HAVE_INTRINSICS
-#include "trace/traceMacros.hpp"
-#endif
+#include "utilities/macros.hpp"
+
 
 class LibraryIntrinsic : public InlineCallGenerator {
   // Extend the set of intrinsics known to the runtime:
@@ -256,9 +258,9 @@ class LibraryCallKit : public GraphKit {
   bool inline_native_currentThread();
 
   bool inline_native_time_funcs(address method, const char* funcName);
-#ifdef TRACE_HAVE_INTRINSICS
+#ifdef JFR_HAVE_INTRINSICS
   bool inline_native_classID();
-  bool inline_native_getBufferWriter();
+  bool inline_native_getEventWriter();
 #endif
   bool inline_native_isInterrupted();
   bool inline_native_Class_query(vmIntrinsics::ID id);
@@ -328,6 +330,13 @@ class LibraryCallKit : public GraphKit {
 
   bool inline_profileBoolean();
   bool inline_isCompileConstant();
+  void clear_upper_avx() {
+#ifdef X86
+    if (UseAVX >= 2) {
+      C->set_clear_upper_avx(true);
+    }
+#endif
+  }
 };
 
 //---------------------------make_vm_intrinsic----------------------------
@@ -537,7 +546,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_notify:
   case vmIntrinsics::_notifyAll:
-    if (InlineNotify) {
+    if (ObjectMonitor::Knob_InlineNotify) {
       return inline_notify(intrinsic_id());
     }
     return false;
@@ -737,10 +746,10 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_currentThread:            return inline_native_currentThread();
   case vmIntrinsics::_isInterrupted:            return inline_native_isInterrupted();
 
-#ifdef TRACE_HAVE_INTRINSICS
-  case vmIntrinsics::_counterTime:              return inline_native_time_funcs(CAST_FROM_FN_PTR(address, TRACE_TIME_METHOD), "counterTime");
+#ifdef JFR_HAVE_INTRINSICS
+  case vmIntrinsics::_counterTime:              return inline_native_time_funcs(CAST_FROM_FN_PTR(address, JFR_TIME_FUNCTION), "counterTime");
   case vmIntrinsics::_getClassId:               return inline_native_classID();
-  case vmIntrinsics::_getBufferWriter:          return inline_native_getBufferWriter();
+  case vmIntrinsics::_getEventWriter:           return inline_native_getEventWriter();
 #endif
   case vmIntrinsics::_currentTimeMillis:        return inline_native_time_funcs(CAST_FROM_FN_PTR(address, os::javaTimeMillis), "currentTimeMillis");
   case vmIntrinsics::_nanoTime:                 return inline_native_time_funcs(CAST_FROM_FN_PTR(address, os::javaTimeNanos), "nanoTime");
@@ -1082,6 +1091,7 @@ Node* LibraryCallKit::make_string_method_node(int opcode, Node* str1_start, Node
 
   // All these intrinsics have checks.
   C->set_has_split_ifs(true); // Has chance for split-if optimization
+  clear_upper_avx();
 
   return _gvn.transform(result);
 }
@@ -1156,6 +1166,8 @@ bool LibraryCallKit::inline_array_equals(StrIntrinsicNode::ArgEnc ae) {
 
   const TypeAryPtr* mtype = (ae == StrIntrinsicNode::UU) ? TypeAryPtr::CHARS : TypeAryPtr::BYTES;
   set_result(_gvn.transform(new AryEqNode(control(), memory(mtype), arg1, arg2, ae)));
+  clear_upper_avx();
+
   return true;
 }
 
@@ -1227,6 +1239,7 @@ bool LibraryCallKit::inline_preconditions_checkIndex() {
   result = _gvn.transform(result);
   set_result(result);
   replace_in_map(index, result);
+  clear_upper_avx();
   return true;
 }
 
@@ -1325,6 +1338,7 @@ bool LibraryCallKit::inline_string_indexOfI(StrIntrinsicNode::ArgEnc ae) {
   set_control(_gvn.transform(region));
   record_for_igvn(region);
   set_result(_gvn.transform(phi));
+  clear_upper_avx();
 
   return true;
 }
@@ -1483,11 +1497,13 @@ bool LibraryCallKit::inline_string_copy(bool compress) {
     // escape analysis can go from the MemBarStoreStoreNode to the
     // AllocateNode and eliminate the MemBarStoreStoreNode if possible
     // based on the escape status of the AllocateNode.
-    insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
+    insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
   }
   if (compress) {
     set_result(_gvn.transform(count));
   }
+  clear_upper_avx();
+
   return true;
 }
 
@@ -1575,7 +1591,7 @@ bool LibraryCallKit::inline_string_toBytesU() {
       // escape analysis can go from the MemBarStoreStoreNode to the
       // AllocateNode and eliminate the MemBarStoreStoreNode if possible
       // based on the escape status of the AllocateNode.
-      insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
+      insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
     } else {
       insert_mem_bar(Op_MemBarCPUOrder);
     }
@@ -1585,6 +1601,8 @@ bool LibraryCallKit::inline_string_toBytesU() {
   if (!stopped()) {
     set_result(newcopy);
   }
+  clear_upper_avx();
+
   return true;
 }
 
@@ -1659,7 +1677,7 @@ bool LibraryCallKit::inline_string_getCharsU() {
       // escape analysis can go from the MemBarStoreStoreNode to the
       // AllocateNode and eliminate the MemBarStoreStoreNode if possible
       // based on the escape status of the AllocateNode.
-      insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
+      insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
     } else {
       insert_mem_bar(Op_MemBarCPUOrder);
     }
@@ -1789,10 +1807,19 @@ bool LibraryCallKit::inline_math_native(vmIntrinsics::ID id) {
     return StubRoutines::dexp() != NULL ?
       runtime_math(OptoRuntime::Math_D_D_Type(), StubRoutines::dexp(),  "dexp") :
       runtime_math(OptoRuntime::Math_D_D_Type(), FN_PTR(SharedRuntime::dexp),  "EXP");
-  case vmIntrinsics::_dpow:
-    return StubRoutines::dpow() != NULL ?
-      runtime_math(OptoRuntime::Math_DD_D_Type(), StubRoutines::dpow(), "dpow") :
+  case vmIntrinsics::_dpow: {
+    Node* exp = round_double_node(argument(2));
+    const TypeD* d = _gvn.type(exp)->isa_double_constant();
+    if (d != NULL && d->getd() == 2.0) {
+      // Special case: pow(x, 2.0) => x * x
+      Node* base = round_double_node(argument(0));
+      set_result(_gvn.transform(new MulDNode(base, base)));
+      return true;
+    }
+    return StubRoutines::dexp() != NULL ?
+      runtime_math(OptoRuntime::Math_DD_D_Type(), StubRoutines::dpow(),  "dpow") :
       runtime_math(OptoRuntime::Math_DD_D_Type(), FN_PTR(SharedRuntime::dpow),  "POW");
+  }
 #undef FN_PTR
 
    // These intrinsics are not yet correctly implemented
@@ -2383,7 +2410,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   offset = argument(2);  // type: long
   // We currently rely on the cookies produced by Unsafe.xxxFieldOffset
   // to be plain byte offsets, which are also the same as those accepted
-  // by oopDesc::field_base.
+  // by oopDesc::field_addr.
   assert(Unsafe_field_offset_to_byte_offset(11) == 11,
          "fieldOffset must be byte-scaled");
   // 32-bit machines ignore the high half!
@@ -2553,7 +2580,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       // the one that guards them: pin the Load node
       LoadNode::ControlDependency dep = LoadNode::Pinned;
       Node* ctrl = control();
-      if (adr_type->isa_instptr()) {
+      // non volatile loads may be able to float
+      if (!need_mem_bar && adr_type->isa_instptr()) {
         assert(adr_type->meet(TypePtr::NULL_PTR) != adr_type->remove_speculative(), "should be not null");
         intptr_t offset = Type::OffsetBot;
         AddPNode::Ideal_base_and_offset(adr, &_gvn, offset);
@@ -2813,7 +2841,7 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   // Build field offset expression.
   // We currently rely on the cookies produced by Unsafe.xxxFieldOffset
   // to be plain byte offsets, which are also the same as those accepted
-  // by oopDesc::field_base.
+  // by oopDesc::field_addr.
   assert(Unsafe_field_offset_to_byte_offset(11) == 11, "fieldOffset must be byte-scaled");
   // 32-bit machines ignore the high half of long offsets
   offset = ConvL2X(offset);
@@ -3258,7 +3286,7 @@ bool LibraryCallKit::inline_native_time_funcs(address funcAddr, const char* func
   return true;
 }
 
-#ifdef TRACE_HAVE_INTRINSICS
+#ifdef JFR_HAVE_INTRINSICS
 
 /*
 * oop -> myklass
@@ -3270,7 +3298,7 @@ bool LibraryCallKit::inline_native_classID() {
   Node* kls = load_klass_from_mirror(cls, false, NULL, 0);
   kls = null_check(kls, T_OBJECT);
 
-  ByteSize offset = TRACE_KLASS_TRACE_ID_OFFSET;
+  ByteSize offset = KLASS_TRACE_ID_OFFSET;
   Node* insp = basic_plus_adr(kls, in_bytes(offset));
   Node* tvalue = make_load(NULL, insp, TypeLong::LONG, T_LONG, MemNode::unordered);
 
@@ -3283,8 +3311,8 @@ bool LibraryCallKit::inline_native_classID() {
   Node* mbits = longcon(~TRACE_ID_META_BITS);
   tvalue = _gvn.transform(new AndLNode(tvalue, mbits));
 #endif
-#ifdef TRACE_ID_CLASS_SHIFT
-  Node* cbits = intcon(TRACE_ID_CLASS_SHIFT);
+#ifdef TRACE_ID_SHIFT
+  Node* cbits = intcon(TRACE_ID_SHIFT);
   tvalue = _gvn.transform(new URShiftLNode(tvalue, cbits));
 #endif
 
@@ -3293,11 +3321,11 @@ bool LibraryCallKit::inline_native_classID() {
 
 }
 
-bool LibraryCallKit::inline_native_getBufferWriter() {
+bool LibraryCallKit::inline_native_getEventWriter() {
   Node* tls_ptr = _gvn.transform(new ThreadLocalNode());
 
   Node* jobj_ptr = basic_plus_adr(top(), tls_ptr,
-                                  in_bytes(TRACE_THREAD_DATA_WRITER_OFFSET)
+                                  in_bytes(THREAD_LOCAL_WRITER_OFFSET_JFR)
                                   );
 
   Node* jobj = make_load(control(), jobj_ptr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
@@ -3330,7 +3358,7 @@ bool LibraryCallKit::inline_native_getBufferWriter() {
   return true;
 }
 
-#endif
+#endif // JFR_HAVE_INTRINSICS
 
 //------------------------inline_native_currentThread------------------
 bool LibraryCallKit::inline_native_currentThread() {
@@ -3461,6 +3489,7 @@ bool LibraryCallKit::inline_native_isInterrupted() {
 Node* LibraryCallKit::load_mirror_from_klass(Node* klass) {
   Node* p = basic_plus_adr(klass, in_bytes(Klass::java_mirror_offset()));
   Node* load = make_load(NULL, p, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
+  // mirror = ((OopHandle)mirror)->resolve();
   return make_load(NULL, load, TypeInstPtr::MIRROR, T_OBJECT, MemNode::unordered);
 }
 
@@ -4697,7 +4726,7 @@ void LibraryCallKit::copy_to_clone(Node* obj, Node* alloc_obj, Node* obj_size, b
     // escape analysis can go from the MemBarStoreStoreNode to the
     // AllocateNode and eliminate the MemBarStoreStoreNode if possible
     // based on the escape status of the AllocateNode.
-    insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
+    insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
   } else {
     insert_mem_bar(Op_MemBarCPUOrder);
   }
@@ -5006,7 +5035,7 @@ void LibraryCallKit::arraycopy_move_allocation_here(AllocateArrayNode* alloc, No
     Node *mem = reset_memory();
     set_all_memory(mem);
     alloc->set_req(TypeFunc::Memory, mem);
-    set_control(init->proj_out(TypeFunc::Control));
+    set_control(init->proj_out_or_null(TypeFunc::Control));
     set_i_o(callprojs.fallthrough_ioproj);
 
     // Update memory as done in GraphKit::set_output_for_allocation()
@@ -5017,8 +5046,8 @@ void LibraryCallKit::arraycopy_move_allocation_here(AllocateArrayNode* alloc, No
     }
     const TypePtr* telemref = ary_type->add_offset(Type::OffsetBot);
     int            elemidx  = C->get_alias_index(telemref);
-    set_memory(init->proj_out(TypeFunc::Memory), Compile::AliasIdxRaw);
-    set_memory(init->proj_out(TypeFunc::Memory), elemidx);
+    set_memory(init->proj_out_or_null(TypeFunc::Memory), Compile::AliasIdxRaw);
+    set_memory(init->proj_out_or_null(TypeFunc::Memory), elemidx);
 
     Node* allocx = _gvn.transform(alloc);
     assert(allocx == alloc, "where has the allocation gone?");
@@ -5286,6 +5315,8 @@ bool LibraryCallKit::inline_arraycopy() {
     assert(validated, "shouldn't transform if all arguments not validated");
     set_all_memory(n);
   }
+  clear_upper_avx();
+
 
   return true;
 }
@@ -5333,7 +5364,7 @@ LibraryCallKit::tightly_coupled_allocation(Node* ptr,
     // to finish initializing the allocated object.
     if ((ctl->is_IfFalse() || ctl->is_IfTrue()) && ctl->in(0)->is_If()) {
       IfNode* iff = ctl->in(0)->as_If();
-      Node* not_ctl = iff->proj_out(1 - ctl->as_Proj()->_con);
+      Node* not_ctl = iff->proj_out_or_null(1 - ctl->as_Proj()->_con);
       assert(not_ctl != NULL && not_ctl != ctl, "found alternate");
       if (slow_region != NULL && slow_region->find_edge(not_ctl) >= 1) {
         ctl = iff->in(0);       // This test feeds the known slow_region.
@@ -5406,6 +5437,8 @@ bool LibraryCallKit::inline_encodeISOArray() {
   Node* res_mem = _gvn.transform(new SCMemProjNode(enc));
   set_memory(res_mem, mtype);
   set_result(enc);
+  clear_upper_avx();
+
   return true;
 }
 

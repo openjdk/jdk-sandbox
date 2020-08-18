@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,9 @@
 
 /**
  * @test
- * @requires vm.cds
  * @bug 8014138
  * @summary Testing new -XX:SharedArchiveFile=<file-name> option
- * @requires (vm.opt.UseCompressedOops == null) | (vm.opt.UseCompressedOops == true)
+ * @requires vm.cds
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
@@ -43,14 +42,12 @@ import jdk.test.lib.process.OutputAnalyzer;
 public class SharedArchiveFile {
     public static void main(String[] args) throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
-                                "-XX:+UnlockDiagnosticVMOptions",
                                 "-XX:SharedArchiveFile=./SharedArchiveFile.jsa",
                                 "-Xshare:dump");
         OutputAnalyzer out = CDSTestUtils.executeAndLog(pb, "SharedArchiveFile");
         CDSTestUtils.checkDump(out);
 
         pb = ProcessTools.createJavaProcessBuilder(true,
-                              "-XX:+UnlockDiagnosticVMOptions",
                               "-XX:SharedArchiveFile=./SharedArchiveFile.jsa",
                               "-Xshare:on", "-version");
         out = CDSTestUtils.executeAndLog(pb, "SharedArchiveFile");

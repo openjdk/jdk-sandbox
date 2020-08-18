@@ -24,6 +24,7 @@ package org.graalvm.compiler.replacements.test;
 
 import org.graalvm.compiler.api.replacements.Snippet;
 import org.graalvm.compiler.nodes.NamedLocationIdentity;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.ReturnNode;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.StructuredGraph.AllowAssumptions;
@@ -36,9 +37,9 @@ import org.graalvm.compiler.phases.common.CanonicalizerPhase;
 import org.graalvm.compiler.phases.tiers.HighTierContext;
 import org.graalvm.compiler.word.Word;
 import org.graalvm.compiler.word.WordCastNode;
-import org.graalvm.word.LocationIdentity;
-import org.graalvm.word.Pointer;
-import org.graalvm.word.WordFactory;
+import jdk.internal.vm.compiler.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.Pointer;
+import jdk.internal.vm.compiler.word.WordFactory;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -105,12 +106,12 @@ public class PointerTest extends SnippetsTest {
         WordCastNode cast = (WordCastNode) graph.start().next();
 
         JavaReadNode read = (JavaReadNode) cast.next();
-        Assert.assertEquals(kind.getStackKind(), read.stamp().getStackKind());
+        Assert.assertEquals(kind.getStackKind(), read.stamp(NodeView.DEFAULT).getStackKind());
 
         OffsetAddressNode address = (OffsetAddressNode) read.getAddress();
         Assert.assertEquals(cast, address.getBase());
         Assert.assertEquals(graph.getParameter(0), cast.getInput());
-        Assert.assertEquals(target.wordJavaKind, cast.stamp().getStackKind());
+        Assert.assertEquals(target.wordJavaKind, cast.stamp(NodeView.DEFAULT).getStackKind());
 
         Assert.assertEquals(locationIdentity, read.getLocationIdentity());
 
@@ -137,7 +138,7 @@ public class PointerTest extends SnippetsTest {
         OffsetAddressNode address = (OffsetAddressNode) write.getAddress();
         Assert.assertEquals(cast, address.getBase());
         Assert.assertEquals(graph.getParameter(0), cast.getInput());
-        Assert.assertEquals(target.wordJavaKind, cast.stamp().getStackKind());
+        Assert.assertEquals(target.wordJavaKind, cast.stamp(NodeView.DEFAULT).getStackKind());
 
         Assert.assertEquals(locationIdentity, write.getLocationIdentity());
 

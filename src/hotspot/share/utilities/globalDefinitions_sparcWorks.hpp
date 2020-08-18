@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -240,7 +240,6 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 #define PRAGMA_INTERFACE
 #define PRAGMA_IMPLEMENTATION
 #define PRAGMA_IMPLEMENTATION_(arg)
-#define VALUE_OBJ_CLASS_SPEC    : public _ValueObj
 
 // Formatting.
 #ifdef _LP64
@@ -258,5 +257,8 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 // Inlining support
 #define NOINLINE
 #define ALWAYSINLINE inline __attribute__((always_inline))
+
+// Alignment
+#define ATTRIBUTE_ALIGNED(x) __attribute__((aligned(x)))
 
 #endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_SPARCWORKS_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8002091
- * @summary Test options patterns for javac,javah,javap and javadoc using
+ * @summary Test options patterns for javac,javap and javadoc using
  * javac as a test launcher. Create a dummy javac and intercept options to check
  * reception of options as passed through the launcher without having to launch
  * javac. Only -J and -cp ./* options should be consumed by the launcher.
@@ -184,7 +184,6 @@ public class ToolsOpts extends TestHelper {
                     break;
             }
 
-            String[] output = tr.testOutput.toArray(new String[tr.testOutput.size()]);
             //-Joptions should not be passed to tool
             if (jpos > -1) {
                 checkJoptionOutput(tr, arg);
@@ -194,14 +193,23 @@ public class ToolsOpts extends TestHelper {
                             + "CMD: " + cmdString);
                 }
             } else {
-                //check that each non -J option was passed to tool.
+                // check that each non -J option was passed to tool. It looks for each arg in the output.
+                // Irrelevant lines in the output are skipped. Arguments order is checked as well.
+                int j = 0;
+                List<String> output = tr.testOutput;
                 for (int i = 0; i < arg.length; i++) {
-                    if (output[i].compareTo(arg[i]) != 0) {
+                    boolean found = false;
+                    for (; j < output.size(); j++) {
+                        if (output.get(j).equals(arg[i])) {
+                            pass("check " + output.get(j) + " == " + arg[i]);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
                         throw new RuntimeException(
-                                "failed! CMD: " + cmdString + "\n   case:" +
-                                output[i] + " != " + arg[i]);
-                    } else {
-                        pass("check " + output[i] + " == " + arg[i]);
+                                "failed! Should have passed non -J option [" + arg[i] + "] to tool.\n"
+                                + "CMD: " + cmdString);
                     }
                 }
             }

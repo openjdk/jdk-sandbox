@@ -28,6 +28,9 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.MapCursor;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.AbstractBeginNode;
 import org.graalvm.compiler.nodes.AbstractEndNode;
@@ -38,9 +41,6 @@ import org.graalvm.compiler.nodes.FixedWithNextNode;
 import org.graalvm.compiler.nodes.LoopBeginNode;
 import org.graalvm.compiler.nodes.LoopEndNode;
 import org.graalvm.compiler.nodes.LoopExitNode;
-import org.graalvm.util.Equivalence;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.MapCursor;
 
 public final class ReentrantNodeIterator {
 

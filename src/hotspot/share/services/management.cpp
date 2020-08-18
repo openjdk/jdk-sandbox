@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,10 @@
  */
 
 #include "precompiled.hpp"
+#include "jmm.h"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/compileBroker.hpp"
+#include "memory/allocation.inline.hpp"
 #include "memory/iterator.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -32,21 +34,23 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/typeArrayOop.inline.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/flags/jvmFlag.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
-#include "runtime/jniHandles.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/serviceThread.hpp"
 #include "runtime/thread.inline.hpp"
+#include "runtime/threadSMR.hpp"
 #include "services/classLoadingService.hpp"
 #include "services/diagnosticCommand.hpp"
 #include "services/diagnosticFramework.hpp"
 #include "services/writeableFlags.hpp"
 #include "services/heapDumper.hpp"
-#include "services/jmm.h"
 #include "services/lowMemoryDetector.hpp"
 #include "services/gcNotifier.hpp"
 #include "services/nmtDCmd.hpp"
@@ -863,10 +867,10 @@ static jint get_vm_thread_count() {
 
 static jint get_num_flags() {
   // last flag entry is always NULL, so subtract 1
-  int nFlags = (int) Flag::numFlags - 1;
+  int nFlags = (int) JVMFlag::numFlags - 1;
   int count = 0;
   for (int i = 0; i < nFlags; i++) {
-    Flag* flag = &Flag::flags[i];
+    JVMFlag* flag = &JVMFlag::flags[i];
     // Exclude the locked (diagnostic, experimental) flags
     if (flag->is_unlocked() || flag->is_unlocker()) {
       count++;
@@ -1025,11 +1029,15 @@ static void do_thread_dump(ThreadDumpResult* dump_result,
   // First get an array of threadObj handles.
   // A JavaThread may terminate before we get the stack trace.
   GrowableArray<instanceHandle>* thread_handle_array = new GrowableArray<instanceHandle>(num_threads);
+
   {
-    MutexLockerEx ml(Threads_lock);
+    // Need this ThreadsListHandle for converting Java thread IDs into
+    // threadObj handles; dump_result->set_t_list() is called in the
+    // VM op below so we can't use it yet.
+    ThreadsListHandle tlh;
     for (int i = 0; i < num_threads; i++) {
       jlong tid = ids_ah->long_at(i);
-      JavaThread* jt = Threads::find_java_thread_from_java_tid(tid);
+      JavaThread* jt = tlh.list()->find_JavaThread_from_java_tid(tid);
       oop thread_obj = (jt != NULL ? jt->threadObj() : (oop)NULL);
       instanceHandle threadObj_h(THREAD, (instanceOop) thread_obj);
       thread_handle_array->append(threadObj_h);
@@ -1101,22 +1109,21 @@ JVM_ENTRY(jint, jmm_GetThreadInfo(JNIEnv *env, jlongArray ids, jint maxDepth, jo
   ThreadDumpResult dump_result(num_threads);
 
   if (maxDepth == 0) {
-    // no stack trace dumped - do not need to stop the world
-    {
-      MutexLockerEx ml(Threads_lock);
-      for (int i = 0; i < num_threads; i++) {
-        jlong tid = ids_ah->long_at(i);
-        JavaThread* jt = Threads::find_java_thread_from_java_tid(tid);
-        ThreadSnapshot* ts;
-        if (jt == NULL) {
-          // if the thread does not exist or now it is terminated,
-          // create dummy snapshot
-          ts = new ThreadSnapshot();
-        } else {
-          ts = new ThreadSnapshot(jt);
-        }
-        dump_result.add_thread_snapshot(ts);
+    // No stack trace to dump so we do not need to stop the world.
+    // Since we never do the VM op here we must set the threads list.
+    dump_result.set_t_list();
+    for (int i = 0; i < num_threads; i++) {
+      jlong tid = ids_ah->long_at(i);
+      JavaThread* jt = dump_result.t_list()->find_JavaThread_from_java_tid(tid);
+      ThreadSnapshot* ts;
+      if (jt == NULL) {
+        // if the thread does not exist or now it is terminated,
+        // create dummy snapshot
+        ts = new ThreadSnapshot();
+      } else {
+        ts = new ThreadSnapshot(dump_result.t_list(), jt);
       }
+      dump_result.add_thread_snapshot(ts);
     }
   } else {
     // obtain thread dump with the specific list of threads with stack trace
@@ -1131,6 +1138,7 @@ JVM_ENTRY(jint, jmm_GetThreadInfo(JNIEnv *env, jlongArray ids, jint maxDepth, jo
 
   int num_snapshots = dump_result.num_snapshots();
   assert(num_snapshots == num_threads, "Must match the number of thread snapshots");
+  assert(num_snapshots == 0 || dump_result.t_list_has_been_set(), "ThreadsList must have been set if we have a snapshot");
   int index = 0;
   for (ThreadSnapshot* ts = dump_result.snapshots(); ts != NULL; index++, ts = ts->next()) {
     // For each thread, create an java/lang/management/ThreadInfo object
@@ -1196,6 +1204,7 @@ JVM_ENTRY(jobjectArray, jmm_DumpThreads(JNIEnv *env, jlongArray thread_ids, jboo
   }
 
   int num_snapshots = dump_result.num_snapshots();
+  assert(num_snapshots == 0 || dump_result.t_list_has_been_set(), "ThreadsList must have been set if we have a snapshot");
 
   // create the result ThreadInfo[] object
   InstanceKlass* ik = Management::java_lang_management_ThreadInfo_klass(CHECK_NULL);
@@ -1319,10 +1328,10 @@ JVM_ENTRY(jboolean, jmm_ResetStatistic(JNIEnv *env, jvalue obj, jmmStatisticType
       }
 
       // Look for the JavaThread of this given tid
-      MutexLockerEx ml(Threads_lock);
+      JavaThreadIteratorWithHandle jtiwh;
       if (tid == 0) {
         // reset contention statistics for all threads if tid == 0
-        for (JavaThread* java_thread = Threads::first(); java_thread != NULL; java_thread = java_thread->next()) {
+        for (; JavaThread *java_thread = jtiwh.next(); ) {
           if (type == JMM_STAT_THREAD_CONTENTION_COUNT) {
             ThreadService::reset_contention_count_stat(java_thread);
           } else {
@@ -1331,7 +1340,7 @@ JVM_ENTRY(jboolean, jmm_ResetStatistic(JNIEnv *env, jvalue obj, jmmStatisticType
         }
       } else {
         // reset contention statistics for a given thread
-        JavaThread* java_thread = Threads::find_java_thread_from_java_tid(tid);
+        JavaThread* java_thread = jtiwh.list()->find_JavaThread_from_java_tid(tid);
         if (java_thread == NULL) {
           return false;
         }
@@ -1399,8 +1408,8 @@ JVM_ENTRY(jlong, jmm_GetThreadCpuTime(JNIEnv *env, jlong thread_id))
     // current thread
     return os::current_thread_cpu_time();
   } else {
-    MutexLockerEx ml(Threads_lock);
-    java_thread = Threads::find_java_thread_from_java_tid(thread_id);
+    ThreadsListHandle tlh;
+    java_thread = tlh.list()->find_JavaThread_from_java_tid(thread_id);
     if (java_thread != NULL) {
       return os::thread_cpu_time((Thread*) java_thread);
     }
@@ -1411,14 +1420,14 @@ JVM_END
 // Returns a String array of all VM global flag names
 JVM_ENTRY(jobjectArray, jmm_GetVMGlobalNames(JNIEnv *env))
   // last flag entry is always NULL, so subtract 1
-  int nFlags = (int) Flag::numFlags - 1;
+  int nFlags = (int) JVMFlag::numFlags - 1;
   // allocate a temp array
   objArrayOop r = oopFactory::new_objArray(SystemDictionary::String_klass(),
                                            nFlags, CHECK_0);
   objArrayHandle flags_ah(THREAD, r);
   int num_entries = 0;
   for (int i = 0; i < nFlags; i++) {
-    Flag* flag = &Flag::flags[i];
+    JVMFlag* flag = &JVMFlag::flags[i];
     // Exclude notproduct and develop flags in product builds.
     if (flag->is_constant_in_binary()) {
       continue;
@@ -1446,7 +1455,7 @@ JVM_END
 // Utility function used by jmm_GetVMGlobals.  Returns false if flag type
 // can't be determined, true otherwise.  If false is returned, then *global
 // will be incomplete and invalid.
-bool add_global_entry(JNIEnv* env, Handle name, jmmVMGlobal *global, Flag *flag, TRAPS) {
+bool add_global_entry(JNIEnv* env, Handle name, jmmVMGlobal *global, JVMFlag *flag, TRAPS) {
   Handle flag_name;
   if (name() == NULL) {
     flag_name = java_lang_String::create_from_str(flag->_name, CHECK_false);
@@ -1491,25 +1500,25 @@ bool add_global_entry(JNIEnv* env, Handle name, jmmVMGlobal *global, Flag *flag,
   global->writeable = flag->is_writeable();
   global->external = flag->is_external();
   switch (flag->get_origin()) {
-    case Flag::DEFAULT:
+    case JVMFlag::DEFAULT:
       global->origin = JMM_VMGLOBAL_ORIGIN_DEFAULT;
       break;
-    case Flag::COMMAND_LINE:
+    case JVMFlag::COMMAND_LINE:
       global->origin = JMM_VMGLOBAL_ORIGIN_COMMAND_LINE;
       break;
-    case Flag::ENVIRON_VAR:
+    case JVMFlag::ENVIRON_VAR:
       global->origin = JMM_VMGLOBAL_ORIGIN_ENVIRON_VAR;
       break;
-    case Flag::CONFIG_FILE:
+    case JVMFlag::CONFIG_FILE:
       global->origin = JMM_VMGLOBAL_ORIGIN_CONFIG_FILE;
       break;
-    case Flag::MANAGEMENT:
+    case JVMFlag::MANAGEMENT:
       global->origin = JMM_VMGLOBAL_ORIGIN_MANAGEMENT;
       break;
-    case Flag::ERGONOMIC:
+    case JVMFlag::ERGONOMIC:
       global->origin = JMM_VMGLOBAL_ORIGIN_ERGONOMIC;
       break;
-    case Flag::ATTACH_ON_DEMAND:
+    case JVMFlag::ATTACH_ON_DEMAND:
       global->origin = JMM_VMGLOBAL_ORIGIN_ATTACH_ON_DEMAND;
       break;
     default:
@@ -1523,7 +1532,7 @@ bool add_global_entry(JNIEnv* env, Handle name, jmmVMGlobal *global, Flag *flag,
 // specified by names. If names == NULL, fill globals array
 // with all Flags. Return value is number of entries
 // created in globals.
-// If a Flag with a given name in an array element does not
+// If a JVMFlag with a given name in an array element does not
 // exist, globals[i].name will be set to NULL.
 JVM_ENTRY(jint, jmm_GetVMGlobals(JNIEnv *env,
                                  jobjectArray names,
@@ -1558,7 +1567,7 @@ JVM_ENTRY(jint, jmm_GetVMGlobals(JNIEnv *env,
 
       Handle sh(THREAD, s);
       char* str = java_lang_String::as_utf8_string(s);
-      Flag* flag = Flag::find_flag(str, strlen(str));
+      JVMFlag* flag = JVMFlag::find_flag(str, strlen(str));
       if (flag != NULL &&
           add_global_entry(env, sh, &globals[i], flag, THREAD)) {
         num_entries++;
@@ -1571,11 +1580,11 @@ JVM_ENTRY(jint, jmm_GetVMGlobals(JNIEnv *env,
     // return all globals if names == NULL
 
     // last flag entry is always NULL, so subtract 1
-    int nFlags = (int) Flag::numFlags - 1;
+    int nFlags = (int) JVMFlag::numFlags - 1;
     Handle null_h;
     int num_entries = 0;
     for (int i = 0; i < nFlags && num_entries < count;  i++) {
-      Flag* flag = &Flag::flags[i];
+      JVMFlag* flag = &JVMFlag::flags[i];
       // Exclude notproduct and develop flags in product builds.
       if (flag->is_constant_in_binary()) {
         continue;
@@ -1601,10 +1610,10 @@ JVM_ENTRY(void, jmm_SetVMGlobal(JNIEnv *env, jstring flag_name, jvalue new_value
   char* name = java_lang_String::as_utf8_string(fn);
 
   FormatBuffer<80> error_msg("%s", "");
-  int succeed = WriteableFlags::set_flag(name, new_value, Flag::MANAGEMENT, error_msg);
+  int succeed = WriteableFlags::set_flag(name, new_value, JVMFlag::MANAGEMENT, error_msg);
 
-  if (succeed != Flag::SUCCESS) {
-    if (succeed == Flag::MISSING_VALUE) {
+  if (succeed != JVMFlag::SUCCESS) {
+    if (succeed == JVMFlag::MISSING_VALUE) {
       // missing value causes NPE to be thrown
       THROW(vmSymbols::java_lang_NullPointerException());
     } else {
@@ -1613,7 +1622,7 @@ JVM_ENTRY(void, jmm_SetVMGlobal(JNIEnv *env, jstring flag_name, jvalue new_value
                 error_msg.buffer());
     }
   }
-  assert(succeed == Flag::SUCCESS, "Setting flag should succeed");
+  assert(succeed == JVMFlag::SUCCESS, "Setting flag should succeed");
 JVM_END
 
 class ThreadTimesClosure: public ThreadClosure {
@@ -1649,6 +1658,7 @@ ThreadTimesClosure::ThreadTimesClosure(objArrayHandle names,
 // Called with Threads_lock held
 //
 void ThreadTimesClosure::do_thread(Thread* thread) {
+  assert(Threads_lock->owned_by_self(), "Must hold Threads_lock");
   assert(thread != NULL, "thread was NULL");
 
   // exclude externally visible JavaThreads
@@ -2109,9 +2119,9 @@ JVM_ENTRY(void, jmm_GetThreadAllocatedMemory(JNIEnv *env, jlongArray ids,
               "the given array of thread IDs");
   }
 
-  MutexLockerEx ml(Threads_lock);
+  ThreadsListHandle tlh;
   for (int i = 0; i < num_threads; i++) {
-    JavaThread* java_thread = Threads::find_java_thread_from_java_tid(ids_ah->long_at(i));
+    JavaThread* java_thread = tlh.list()->find_JavaThread_from_java_tid(ids_ah->long_at(i));
     if (java_thread != NULL) {
       sizeArray_h->long_at_put(i, java_thread->cooked_allocated_bytes());
     }
@@ -2138,8 +2148,8 @@ JVM_ENTRY(jlong, jmm_GetThreadCpuTimeWithKind(JNIEnv *env, jlong thread_id, jboo
     // current thread
     return os::current_thread_cpu_time(user_sys_cpu_time != 0);
   } else {
-    MutexLockerEx ml(Threads_lock);
-    java_thread = Threads::find_java_thread_from_java_tid(thread_id);
+    ThreadsListHandle tlh;
+    java_thread = tlh.list()->find_JavaThread_from_java_tid(thread_id);
     if (java_thread != NULL) {
       return os::thread_cpu_time((Thread*) java_thread, user_sys_cpu_time != 0);
     }
@@ -2180,9 +2190,9 @@ JVM_ENTRY(void, jmm_GetThreadCpuTimesWithKind(JNIEnv *env, jlongArray ids,
               "the given array of thread IDs");
   }
 
-  MutexLockerEx ml(Threads_lock);
+  ThreadsListHandle tlh;
   for (int i = 0; i < num_threads; i++) {
-    JavaThread* java_thread = Threads::find_java_thread_from_java_tid(ids_ah->long_at(i));
+    JavaThread* java_thread = tlh.list()->find_JavaThread_from_java_tid(ids_ah->long_at(i));
     if (java_thread != NULL) {
       timeArray_h->long_at_put(i, os::thread_cpu_time((Thread*)java_thread,
                                                       user_sys_cpu_time != 0));

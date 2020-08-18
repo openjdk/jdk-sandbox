@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,19 +54,14 @@ class WorkGang;
 
 // An abstract task to be worked on by a gang.
 // You subclass this to supply your own work() method
-class AbstractGangTask VALUE_OBJ_CLASS_SPEC {
+class AbstractGangTask {
   const char* _name;
   const uint _gc_id;
 
  public:
-  AbstractGangTask(const char* name) :
+  explicit AbstractGangTask(const char* name) :
     _name(name),
-    _gc_id(GCId::current_raw())
-  {}
-
-  AbstractGangTask(const char* name, const uint gc_id) :
-    _name(name),
-    _gc_id(gc_id)
+    _gc_id(GCId::current_or_undefined())
   {}
 
   // The abstract work method.
@@ -121,6 +116,8 @@ class AbstractWorkGang : public CHeapObj<mtInternal> {
   uint _created_workers;
   // Printing support.
   const char* _name;
+
+  ~AbstractWorkGang() {}
 
  private:
   // Initialize only instance data.
@@ -206,9 +203,6 @@ class WorkGang: public AbstractWorkGang {
   // To get access to the GangTaskDispatcher instance.
   friend class GangWorker;
 
-  // Never deleted.
-  ~WorkGang();
-
   GangTaskDispatcher* const _dispatcher;
   GangTaskDispatcher* dispatcher() const {
     return _dispatcher;
@@ -219,6 +213,8 @@ public:
            uint workers,
            bool are_GC_task_threads,
            bool are_ConcurrentGC_threads);
+
+  ~WorkGang();
 
   // Run a task using the current active number of workers, returns when the task is done.
   virtual void run_task(AbstractGangTask* task);

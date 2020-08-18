@@ -25,7 +25,7 @@ package org.graalvm.compiler.nodes.extended;
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_0;
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_0;
 
-import org.graalvm.compiler.core.common.calc.Condition;
+import org.graalvm.compiler.core.common.calc.CanonicalCondition;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.graph.iterators.NodePredicates;
@@ -34,6 +34,7 @@ import org.graalvm.compiler.graph.spi.SimplifierTool;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
 import org.graalvm.compiler.nodes.FixedGuardNode;
 import org.graalvm.compiler.nodes.IfNode;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.ReturnNode;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.calc.ConditionalNode;
@@ -67,7 +68,7 @@ public final class BranchProbabilityNode extends FloatingNode implements Simplif
     @Input ValueNode condition;
 
     public BranchProbabilityNode(ValueNode probability, ValueNode condition) {
-        super(TYPE, condition.stamp());
+        super(TYPE, condition.stamp(NodeView.DEFAULT));
         this.probability = probability;
         this.condition = condition;
     }
@@ -100,7 +101,7 @@ public final class BranchProbabilityNode extends FloatingNode implements Simplif
             }
             boolean usageFound = false;
             for (IntegerEqualsNode node : this.usages().filter(IntegerEqualsNode.class)) {
-                assert node.condition() == Condition.EQ;
+                assert node.condition() == CanonicalCondition.EQ;
                 ValueNode other = node.getX();
                 if (node.getX() == this) {
                     other = node.getY();

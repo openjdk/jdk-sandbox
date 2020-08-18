@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,16 +24,18 @@
 
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/templateTable.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/cpCache.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.hpp"
@@ -186,71 +188,22 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
                          Register tmp1,
                          Register tmp2,
                          Register tmp3,
-                         BarrierSet::Name barrier,
-                         bool precise,
-                         bool is_null) {
+                         bool is_null,
+                         DecoratorSet decorators = 0) {
 
   assert_different_registers(obj.base(), new_val, tmp1, tmp2, tmp3, noreg);
-  switch (barrier) {
-#if INCLUDE_ALL_GCS
-    case BarrierSet::G1SATBCTLogging:
-      {
-        // flatten object address if needed
-        assert (obj.mode() == basic_offset, "pre- or post-indexing is not supported here");
-
-        const Register store_addr = obj.base();
-        if (obj.index() != noreg) {
-          assert (obj.disp() == 0, "index or displacement, not both");
-#ifdef AARCH64
-          __ add(store_addr, obj.base(), obj.index(), obj.extend(), obj.shift_imm());
-#else
-          assert(obj.offset_op() == add_offset, "addition is expected");
-          __ add(store_addr, obj.base(), AsmOperand(obj.index(), obj.shift(), obj.shift_imm()));
-#endif // AARCH64
-        } else if (obj.disp() != 0) {
-          __ add(store_addr, obj.base(), obj.disp());
-        }
-
-        __ g1_write_barrier_pre(store_addr, new_val, tmp1, tmp2, tmp3);
-        if (is_null) {
-          __ store_heap_oop_null(new_val, Address(store_addr));
-        } else {
-          // G1 barrier needs uncompressed oop for region cross check.
-          Register val_to_store = new_val;
-          if (UseCompressedOops) {
-            val_to_store = tmp1;
-            __ mov(val_to_store, new_val);
-          }
-          __ store_heap_oop(val_to_store, Address(store_addr)); // blows val_to_store:
-          val_to_store = noreg;
-          __ g1_write_barrier_post(store_addr, new_val, tmp1, tmp2, tmp3);
-        }
-      }
-      break;
-#endif // INCLUDE_ALL_GCS
-    case BarrierSet::CardTableForRS:
-    case BarrierSet::CardTableExtension:
-      {
-        if (is_null) {
-          __ store_heap_oop_null(new_val, obj);
-        } else {
-          assert (!precise || (obj.index() == noreg && obj.disp() == 0),
-                  "store check address should be calculated beforehand");
-
-          __ store_check_part1(tmp1);
-          __ store_heap_oop(new_val, obj); // blows new_val:
-          new_val = noreg;
-          __ store_check_part2(obj.base(), tmp1, tmp2);
-        }
-      }
-      break;
-    case BarrierSet::ModRef:
-      ShouldNotReachHere();
-      break;
-    default:
-      ShouldNotReachHere();
-      break;
+  if (is_null) {
+    __ store_heap_oop_null(obj, new_val, tmp1, tmp2, tmp3, decorators);
+  } else {
+    __ store_heap_oop(obj, new_val, tmp1, tmp2, tmp3, decorators);
   }
+}
+
+static void do_oop_load(InterpreterMacroAssembler* _masm,
+                        Register dst,
+                        Address obj,
+                        DecoratorSet decorators = 0) {
+  __ load_heap_oop(dst, obj, noreg, noreg, noreg, decorators);
 }
 
 Address TemplateTable::at_bcp(int offset) {
@@ -445,7 +398,7 @@ void TemplateTable::sipush() {
 
 void TemplateTable::ldc(bool wide) {
   transition(vtos, vtos);
-  Label fastCase, Done;
+  Label fastCase, Condy, Done;
 
   const Register Rindex = R1_tmp;
   const Register Rcpool = R2_tmp;
@@ -497,15 +450,11 @@ void TemplateTable::ldc(bool wide) {
 
   // int, float, String
   __ bind(fastCase);
-#ifdef ASSERT
-  { Label L;
-    __ cmp(RtagType, JVM_CONSTANT_Integer);
-    __ cond_cmp(RtagType, JVM_CONSTANT_Float, ne);
-    __ b(L, eq);
-    __ stop("unexpected tag type in ldc");
-    __ bind(L);
-  }
-#endif // ASSERT
+
+  __ cmp(RtagType, JVM_CONSTANT_Integer);
+  __ cond_cmp(RtagType, JVM_CONSTANT_Float, ne);
+  __ b(Condy, ne);
+
   // itos, ftos
   __ add(Rtemp, Rcpool, AsmOperand(Rindex, lsl, LogBytesPerWord));
   __ ldr_u32(R0_tos, Address(Rtemp, base_offset));
@@ -513,6 +462,11 @@ void TemplateTable::ldc(bool wide) {
   // floats and ints are placed on stack in the same way, so
   // we can use push(itos) to transfer float value without VFP
   __ push(itos);
+  __ b(Done);
+
+  __ bind(Condy);
+  condy_helper(Done);
+
   __ bind(Done);
 }
 
@@ -536,6 +490,23 @@ void TemplateTable::fast_aldc(bool wide) {
   __ call_VM(R0_tos, entry, R1);
   __ bind(resolved);
 
+  { // Check for the null sentinel.
+    // If we just called the VM, that already did the mapping for us,
+    // but it's harmless to retry.
+    Label notNull;
+    Register result = R0;
+    Register tmp = R1;
+    Register rarg = R2;
+
+    // Stash null_sentinel address to get its value later
+    __ mov_slow(rarg, (uintptr_t)Universe::the_null_sentinel_addr());
+    __ ldr(tmp, Address(rarg));
+    __ cmp(result, tmp);
+    __ b(notNull, ne);
+    __ mov(result, 0);  // NULL object reference
+    __ bind(notNull);
+  }
+
   if (VerifyOops) {
     __ verify_oop(R0_tos);
   }
@@ -556,8 +527,9 @@ void TemplateTable::ldc2_w() {
 
   __ add(Rbase, Rcpool, AsmOperand(Rindex, lsl, LogBytesPerWord));
 
+  Label Condy, exit;
 #ifdef __ABI_HARD__
-  Label Long, exit;
+  Label Long;
   // get type from tags
   __ add(Rtemp, Rtags, tags_offset);
   __ ldrb(Rtemp, Address(Rtemp, Rindex));
@@ -570,6 +542,8 @@ void TemplateTable::ldc2_w() {
   __ bind(Long);
 #endif
 
+  __ cmp(Rtemp, JVM_CONSTANT_Long);
+  __ b(Condy, ne);
 #ifdef AARCH64
   __ ldr(R0_tos, Address(Rbase, base_offset));
 #else
@@ -577,10 +551,115 @@ void TemplateTable::ldc2_w() {
   __ ldr(R1_tos_hi, Address(Rbase, base_offset + 1 * wordSize));
 #endif // AARCH64
   __ push(ltos);
+  __ b(exit);
 
-#ifdef __ABI_HARD__
+  __ bind(Condy);
+  condy_helper(exit);
+
   __ bind(exit);
+}
+
+
+void TemplateTable::condy_helper(Label& Done)
+{
+  Register obj   = R0_tmp;
+  Register rtmp  = R1_tmp;
+  Register flags = R2_tmp;
+  Register off   = R3_tmp;
+
+  __ mov(rtmp, (int) bytecode());
+  __ call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_ldc), rtmp);
+  __ get_vm_result_2(flags, rtmp);
+
+  // VMr = obj = base address to find primitive value to push
+  // VMr2 = flags = (tos, off) using format of CPCE::_flags
+  __ mov(off, flags);
+
+#ifdef AARCH64
+  __ andr(off, off, (unsigned)ConstantPoolCacheEntry::field_index_mask);
+#else
+  __ logical_shift_left( off, off, 32 - ConstantPoolCacheEntry::field_index_bits);
+  __ logical_shift_right(off, off, 32 - ConstantPoolCacheEntry::field_index_bits);
 #endif
+
+  const Address field(obj, off);
+
+  __ logical_shift_right(flags, flags, ConstantPoolCacheEntry::tos_state_shift);
+  // Make sure we don't need to mask flags after the above shift
+  ConstantPoolCacheEntry::verify_tos_state_shift();
+
+  switch (bytecode()) {
+    case Bytecodes::_ldc:
+    case Bytecodes::_ldc_w:
+      {
+        // tos in (itos, ftos, stos, btos, ctos, ztos)
+        Label notIntFloat, notShort, notByte, notChar, notBool;
+        __ cmp(flags, itos);
+        __ cond_cmp(flags, ftos, ne);
+        __ b(notIntFloat, ne);
+        __ ldr(R0_tos, field);
+        __ push(itos);
+        __ b(Done);
+
+        __ bind(notIntFloat);
+        __ cmp(flags, stos);
+        __ b(notShort, ne);
+        __ ldrsh(R0_tos, field);
+        __ push(stos);
+        __ b(Done);
+
+        __ bind(notShort);
+        __ cmp(flags, btos);
+        __ b(notByte, ne);
+        __ ldrsb(R0_tos, field);
+        __ push(btos);
+        __ b(Done);
+
+        __ bind(notByte);
+        __ cmp(flags, ctos);
+        __ b(notChar, ne);
+        __ ldrh(R0_tos, field);
+        __ push(ctos);
+        __ b(Done);
+
+        __ bind(notChar);
+        __ cmp(flags, ztos);
+        __ b(notBool, ne);
+        __ ldrsb(R0_tos, field);
+        __ push(ztos);
+        __ b(Done);
+
+        __ bind(notBool);
+        break;
+      }
+
+    case Bytecodes::_ldc2_w:
+      {
+        Label notLongDouble;
+        __ cmp(flags, ltos);
+        __ cond_cmp(flags, dtos, ne);
+        __ b(notLongDouble, ne);
+
+#ifdef AARCH64
+        __ ldr(R0_tos, field);
+#else
+        __ add(rtmp, obj, wordSize);
+        __ ldr(R0_tos_lo, Address(obj, off));
+        __ ldr(R1_tos_hi, Address(rtmp, off));
+#endif
+        __ push(ltos);
+        __ b(Done);
+
+        __ bind(notLongDouble);
+
+        break;
+      }
+
+    default:
+      ShouldNotReachHere();
+    }
+
+    __ stop("bad ldc/condy");
 }
 
 
@@ -793,6 +872,7 @@ void TemplateTable::index_check_without_pop(Register array, Register index) {
     // convention with generate_ArrayIndexOutOfBounds_handler()
     __ mov(R4_ArrayIndexOutOfBounds_index, index, hs);
   }
+  __ mov(R1, array, hs);
   __ b(Interpreter::_throw_ArrayIndexOutOfBoundsException_entry, hs);
 }
 
@@ -863,7 +943,7 @@ void TemplateTable::aaload() {
   const Register Rindex = R0_tos;
 
   index_check(Rarray, Rindex);
-  __ load_heap_oop(R0_tos, get_array_elem_addr(T_OBJECT, Rarray, Rindex, Rtemp));
+  do_oop_load(_masm, R0_tos, get_array_elem_addr(T_OBJECT, Rarray, Rindex, Rtemp), IN_HEAP_ARRAY);
 }
 
 
@@ -1248,7 +1328,7 @@ void TemplateTable::aastore() {
   __ add(Raddr_1, Raddr_1, AsmOperand(Rindex_4, lsl, LogBytesPerHeapOop));
 
   // Now store using the appropriate barrier
-  do_oop_store(_masm, Raddr_1, Rvalue_2, Rtemp, R0_tmp, R3_tmp, _bs->kind(), true, false);
+  do_oop_store(_masm, Raddr_1, Rvalue_2, Rtemp, R0_tmp, R3_tmp, false, IN_HEAP_ARRAY);
   __ b(done);
 
   __ bind(throw_array_store);
@@ -1264,7 +1344,7 @@ void TemplateTable::aastore() {
   __ profile_null_seen(R0_tmp);
 
   // Store a NULL
-  do_oop_store(_masm, Address::indexed_oop(Raddr_1, Rindex_4), Rvalue_2, Rtemp, R0_tmp, R3_tmp, _bs->kind(), true, true);
+  do_oop_store(_masm, Address::indexed_oop(Raddr_1, Rindex_4), Rvalue_2, Rtemp, R0_tmp, R3_tmp, true, IN_HEAP_ARRAY);
 
   // Pop stack arguments
   __ bind(done);
@@ -3286,7 +3366,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
     // atos case for AArch64 and slow version on 32-bit ARM
     if(!atos_merged_with_itos) {
       __ bind(Latos);
-      __ load_heap_oop(R0_tos, Address(Robj, Roffset));
+      do_oop_load(_masm, R0_tos, Address(Robj, Roffset));
       __ push(atos);
       // Rewrite bytecode to be faster
       if (!is_static && rc == may_rewrite) {
@@ -3638,7 +3718,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
     __ pop(atos);
     if (!is_static) pop_and_check_object(Robj);
     // Store into the field
-    do_oop_store(_masm, Address(Robj, Roffset), R0_tos, Rtemp, R1_tmp, R5_tmp, _bs->kind(), false, false);
+    do_oop_store(_masm, Address(Robj, Roffset), R0_tos, Rtemp, R1_tmp, R5_tmp, false);
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_aputfield, R0_tmp, Rtemp, true, byte_no);
     }
@@ -3816,7 +3896,7 @@ void TemplateTable::fast_storefield(TosState state) {
 #endif // AARCH64
 
     case Bytecodes::_fast_aputfield:
-      do_oop_store(_masm, Address(Robj, Roffset), R0_tos, Rtemp, R1_tmp, R2_tmp, _bs->kind(), false, false);
+      do_oop_store(_masm, Address(Robj, Roffset), R0_tos, Rtemp, R1_tmp, R2_tmp, false);
       break;
 
     default:
@@ -3912,7 +3992,7 @@ void TemplateTable::fast_accessfield(TosState state) {
     case Bytecodes::_fast_dgetfield: __ add(Roffset, Robj, Roffset); __ fldd(D0_tos, Address(Roffset)); break;
 #endif // __SOFTFP__
 #endif // AARCH64
-    case Bytecodes::_fast_agetfield: __ load_heap_oop(R0_tos, Address(Robj, Roffset)); __ verify_oop(R0_tos); break;
+    case Bytecodes::_fast_agetfield: do_oop_load(_masm, R0_tos, Address(Robj, Roffset)); __ verify_oop(R0_tos); break;
     default:
       ShouldNotReachHere();
   }
@@ -3992,7 +4072,7 @@ void TemplateTable::fast_xaccess(TosState state) {
   if (state == itos) {
     __ ldr_s32(R0_tos, Address(Robj, Roffset));
   } else if (state == atos) {
-    __ load_heap_oop(R0_tos, Address(Robj, Roffset));
+    do_oop_load(_masm, R0_tos, Address(Robj, Roffset));
     __ verify_oop(R0_tos);
   } else if (state == ftos) {
 #ifdef AARCH64
@@ -4198,7 +4278,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   const Register Rflags  = R3_tmp;
   const Register Rklass  = R3_tmp;
 
-  prepare_invoke(byte_no, Rinterf, Rindex, Rrecv, Rflags);
+  prepare_invoke(byte_no, Rinterf, Rmethod, Rrecv, Rflags);
 
   // Special case of invokeinterface called for virtual method of
   // java.lang.Object.  See cpCacheOop.cpp for details.
@@ -4207,56 +4287,39 @@ void TemplateTable::invokeinterface(int byte_no) {
   Label notMethod;
   __ tbz(Rflags, ConstantPoolCacheEntry::is_forced_virtual_shift, notMethod);
 
-  __ mov(Rmethod, Rindex);
   invokevirtual_helper(Rmethod, Rrecv, Rflags);
   __ bind(notMethod);
 
   // Get receiver klass into Rklass - also a null check
   __ load_klass(Rklass, Rrecv);
 
+  Label no_such_interface;
+
+  // Receiver subtype check against REFC.
+  __ lookup_interface_method(// inputs: rec. class, interface
+                             Rklass, Rinterf, noreg,
+                             // outputs:  scan temp. reg1, scan temp. reg2
+                             noreg, Ritable, Rtemp,
+                             no_such_interface);
+
   // profile this call
   __ profile_virtual_call(R0_tmp, Rklass);
 
-  // Compute start of first itableOffsetEntry (which is at the end of the vtable)
-  const int base = in_bytes(Klass::vtable_start_offset());
-  assert(vtableEntry::size() == 1, "adjust the scaling in the code below");
-  __ ldr_s32(Rtemp, Address(Rklass, Klass::vtable_length_offset())); // Get length of vtable
-  __ add(Ritable, Rklass, base);
-  __ add(Ritable, Ritable, AsmOperand(Rtemp, lsl, LogBytesPerWord));
+  // Get declaring interface class from method
+  __ ldr(Rtemp, Address(Rmethod, Method::const_offset()));
+  __ ldr(Rtemp, Address(Rtemp, ConstMethod::constants_offset()));
+  __ ldr(Rinterf, Address(Rtemp, ConstantPool::pool_holder_offset_in_bytes()));
 
-  Label entry, search, interface_ok;
+  // Get itable index from method
+  __ ldr_s32(Rtemp, Address(Rmethod, Method::itable_index_offset()));
+  __ add(Rtemp, Rtemp, (-Method::itable_index_max)); // small negative constant is too large for an immediate on arm32
+  __ neg(Rindex, Rtemp);
 
-  __ b(entry);
-
-  __ bind(search);
-  __ add(Ritable, Ritable, itableOffsetEntry::size() * HeapWordSize);
-
-  __ bind(entry);
-
-  // Check that the entry is non-null.  A null entry means that the receiver
-  // class doesn't implement the interface, and wasn't the same as the
-  // receiver class checked when the interface was resolved.
-
-  __ ldr(Rtemp, Address(Ritable, itableOffsetEntry::interface_offset_in_bytes()));
-  __ cbnz(Rtemp, interface_ok);
-
-  // throw exception
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
-                   InterpreterRuntime::throw_IncompatibleClassChangeError));
-
-  // the call_VM checks for exception, so we should never return here.
-  __ should_not_reach_here();
-
-  __ bind(interface_ok);
-
-  __ cmp(Rinterf, Rtemp);
-  __ b(search, ne);
-
-  __ ldr_s32(Rtemp, Address(Ritable, itableOffsetEntry::offset_offset_in_bytes()));
-  __ add(Rtemp, Rtemp, Rklass); // Add offset to Klass*
-  assert(itableMethodEntry::size() == 1, "adjust the scaling in the code below");
-
-  __ ldr(Rmethod, Address::indexed_ptr(Rtemp, Rindex));
+  __ lookup_interface_method(// inputs: rec. class, interface
+                             Rklass, Rinterf, Rindex,
+                             // outputs:  scan temp. reg1, scan temp. reg2
+                             Rmethod, Ritable, Rtemp,
+                             no_such_interface);
 
   // Rmethod: Method* to call
 
@@ -4278,6 +4341,13 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   // do the call
   __ jump_from_interpreted(Rmethod);
+
+  // throw exception
+  __ bind(no_such_interface);
+  __ restore_method();
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_IncompatibleClassChangeError));
+  // the call_VM checks for exception, so we should never return here.
+  __ should_not_reach_here();
 }
 
 void TemplateTable::invokehandle(int byte_no) {
@@ -4345,7 +4415,6 @@ void TemplateTable::_new() {
   Label done;
   Label initialize_header;
   Label initialize_object;  // including clearing the fields
-  Label allocate_shared;
 
   const bool allow_shared_alloc =
     Universe::heap()->supports_inline_contig_alloc();
@@ -4390,13 +4459,19 @@ void TemplateTable::_new() {
   // Klass::_lh_instance_slow_path_bit is really a bit mask, not bit number
   __ tbnz(Rsize, exact_log2(Klass::_lh_instance_slow_path_bit), slow_case);
 
+  // Allocate the instance:
+  //  If TLAB is enabled:
+  //    Try to allocate in the TLAB.
+  //    If fails, go to the slow path.
+  //  Else If inline contiguous allocations are enabled:
+  //    Try to allocate in eden.
+  //    If fails due to heap end, go to slow path.
   //
-  // Allocate the instance
-  // 1) Try to allocate in the TLAB
-  // 2) if fail and the object is large allocate in the shared Eden
-  // 3) if the above fails (or is not applicable), go to a slow case
-  // (creates a new TLAB, etc.)
-
+  //  If TLAB is enabled OR inline contiguous is enabled:
+  //    Initialize the allocation.
+  //    Exit.
+  //
+  //  Go to slow path.
   if (UseTLAB) {
     const Register Rtlab_top = R1_tmp;
     const Register Rtlab_end = R2_tmp;
@@ -4406,7 +4481,7 @@ void TemplateTable::_new() {
     __ ldr(Rtlab_end, Address(Rthread, in_bytes(JavaThread::tlab_end_offset())));
     __ add(Rtlab_top, Robj, Rsize);
     __ cmp(Rtlab_top, Rtlab_end);
-    __ b(allow_shared_alloc ? allocate_shared : slow_case, hi);
+    __ b(slow_case, hi);
     __ str(Rtlab_top, Address(Rthread, JavaThread::tlab_top_offset()));
     if (ZeroTLAB) {
       // the fields have been already cleared
@@ -4415,45 +4490,43 @@ void TemplateTable::_new() {
       // initialize both the header and fields
       __ b(initialize_object);
     }
-  }
+  } else {
+    // Allocation in the shared Eden, if allowed.
+    if (allow_shared_alloc) {
+      const Register Rheap_top_addr = R2_tmp;
+      const Register Rheap_top = R5_tmp;
+      const Register Rheap_end = Rtemp;
+      assert_different_registers(Robj, Rklass, Rsize, Rheap_top_addr, Rheap_top, Rheap_end, LR);
 
-  // Allocation in the shared Eden, if allowed.
-  if (allow_shared_alloc) {
-    __ bind(allocate_shared);
+      // heap_end now (re)loaded in the loop since also used as a scratch register in the CAS
+      __ ldr_literal(Rheap_top_addr, Lheap_top_addr);
 
-    const Register Rheap_top_addr = R2_tmp;
-    const Register Rheap_top = R5_tmp;
-    const Register Rheap_end = Rtemp;
-    assert_different_registers(Robj, Rklass, Rsize, Rheap_top_addr, Rheap_top, Rheap_end, LR);
-
-    // heap_end now (re)loaded in the loop since also used as a scratch register in the CAS
-    __ ldr_literal(Rheap_top_addr, Lheap_top_addr);
-
-    Label retry;
-    __ bind(retry);
+      Label retry;
+      __ bind(retry);
 
 #ifdef AARCH64
-    __ ldxr(Robj, Rheap_top_addr);
+      __ ldxr(Robj, Rheap_top_addr);
 #else
-    __ ldr(Robj, Address(Rheap_top_addr));
+      __ ldr(Robj, Address(Rheap_top_addr));
 #endif // AARCH64
 
-    __ ldr(Rheap_end, Address(Rheap_top_addr, (intptr_t)Universe::heap()->end_addr()-(intptr_t)Universe::heap()->top_addr()));
-    __ add(Rheap_top, Robj, Rsize);
-    __ cmp(Rheap_top, Rheap_end);
-    __ b(slow_case, hi);
+      __ ldr(Rheap_end, Address(Rheap_top_addr, (intptr_t)Universe::heap()->end_addr()-(intptr_t)Universe::heap()->top_addr()));
+      __ add(Rheap_top, Robj, Rsize);
+      __ cmp(Rheap_top, Rheap_end);
+      __ b(slow_case, hi);
 
-    // Update heap top atomically.
-    // If someone beats us on the allocation, try again, otherwise continue.
+      // Update heap top atomically.
+      // If someone beats us on the allocation, try again, otherwise continue.
 #ifdef AARCH64
-    __ stxr(Rtemp2, Rheap_top, Rheap_top_addr);
-    __ cbnz_w(Rtemp2, retry);
+      __ stxr(Rtemp2, Rheap_top, Rheap_top_addr);
+      __ cbnz_w(Rtemp2, retry);
 #else
-    __ atomic_cas_bool(Robj, Rheap_top, Rheap_top_addr, 0, Rheap_end/*scratched*/);
-    __ b(retry, ne);
+      __ atomic_cas_bool(Robj, Rheap_top, Rheap_top_addr, 0, Rheap_end/*scratched*/);
+      __ b(retry, ne);
 #endif // AARCH64
 
-    __ incr_allocated_bytes(Rsize, Rtemp);
+      __ incr_allocated_bytes(Rsize, Rtemp);
+    }
   }
 
   if (UseTLAB || allow_shared_alloc) {

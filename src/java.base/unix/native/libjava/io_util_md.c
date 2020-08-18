@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -139,6 +139,11 @@ fileDescriptorClose(JNIEnv *env, jobject this)
     if ((*env)->ExceptionOccurred(env)) {
         return;
     }
+
+    if (fd == -1) {
+        return;     // already closed and set to -1
+    }
+
     /* Set the fd to -1 before closing it so that the timing window
      * of other threads using the wrong fd (closed but recycled fd,
      * that gets re-opened with some other filename) is reduced.
@@ -227,25 +232,6 @@ jint
 handleSetLength(FD fd, jlong length)
 {
     int result;
-#if defined(__linux__)
-    /*
-     * On Linux, if the file size is being increased, then ftruncate64()
-     * will modify the metadata value of the size without actually allocating
-     * any blocks which can cause a SIGBUS error if the file is subsequently
-     * memory-mapped.
-     */
-    struct stat64 sb;
-
-    if (fstat64(fd, &sb) == 0 && length > sb.st_blocks*512) {
-        RESTARTABLE(fallocate64(fd, 0, 0, length), result);
-        // Return on success or if errno is neither EOPNOTSUPP nor ENOSYS
-        if (result == 0) {
-            return 0;
-        } else if (errno != EOPNOTSUPP && errno != ENOSYS) {
-            return result;
-        }
-    }
-#endif
     RESTARTABLE(ftruncate64(fd, length), result);
     return result;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,10 +29,9 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
 
 import jdk.javadoc.internal.doclets.toolkit.util.ClassTree;
-import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberMap;
+import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable;
 
 /**
  * The interface for a factory creates writers.
@@ -59,50 +58,38 @@ public interface WriterFactory {
      * Return the writer for the package summary.
      *
      * @param packageElement the package being documented.
-     * @param prevPkg the previous package that was documented.
-     * @param nextPkg the next package being documented.
      * @return the writer for the package summary.  Return null if this
      * writer is not supported by the doclet.
      */
-    public abstract PackageSummaryWriter getPackageSummaryWriter(PackageElement
-        packageElement, PackageElement prevPkg, PackageElement nextPkg);
+    public abstract PackageSummaryWriter getPackageSummaryWriter(PackageElement packageElement);
 
     /**
      * Return the writer for the module summary.
      *
      * @param mdle the module being documented.
-     * @param prevModule the previous module that was documented.
-     * @param nextModule the next module being documented.
      * @return the writer for the module summary.  Return null if this
      * writer is not supported by the doclet.
      */
-    public abstract ModuleSummaryWriter getModuleSummaryWriter(
-        ModuleElement mdle, ModuleElement prevModule, ModuleElement nextModule);
+    public abstract ModuleSummaryWriter getModuleSummaryWriter(ModuleElement mdle);
 
     /**
      * Return the writer for a class.
      *
      * @param typeElement the class being documented.
-     * @param prevClass the previous class that was documented.
-     * @param nextClass the next class being documented.
      * @param classTree the class tree.
      * @return the writer for the class.  Return null if this
      * writer is not supported by the doclet.
      */
-    public abstract ClassWriter getClassWriter(TypeElement typeElement,
-        TypeElement prevClass, TypeElement nextClass, ClassTree classTree);
+    public abstract ClassWriter getClassWriter(TypeElement typeElement, ClassTree classTree);
 
     /**
      * Return the writer for an annotation type.
      *
      * @param annotationType the type being documented.
-     * @param prevType the previous type that was documented.
-     * @param nextType the next type being documented.
      * @return the writer for the annotation type.  Return null if this
      * writer is not supported by the doclet.
      */
-    public abstract AnnotationTypeWriter getAnnotationTypeWriter(
-        TypeElement annotationType, TypeMirror prevType, TypeMirror nextType);
+    public abstract AnnotationTypeWriter getAnnotationTypeWriter(TypeElement annotationType);
 
     /**
      * Return the method writer for a given class.
@@ -192,30 +179,30 @@ public interface WriterFactory {
      * Return the specified member summary writer for a given class.
      *
      * @param classWriter the writer for the class being documented.
-     * @param memberType  the {@link VisibleMemberMap} member type indicating
+     * @param memberType  the {@link VisibleMemberTable} member type indicating
      *                    the type of member summary that should be returned.
      * @return the summary writer for the give class.  Return null if this
      * writer is not supported by the doclet.
      *
-     * @see VisibleMemberMap
+     * @see VisibleMemberTable
      */
     public abstract MemberSummaryWriter getMemberSummaryWriter(
-        ClassWriter classWriter, VisibleMemberMap.Kind memberType);
+        ClassWriter classWriter, VisibleMemberTable.Kind memberType);
 
     /**
      * Return the specified member summary writer for a given annotation type.
      *
      * @param annotationTypeWriter the writer for the annotation type being
      *                             documented.
-     * @param memberType  the {@link VisibleMemberMap} member type indicating
+     * @param memberType  the {@link VisibleMemberTable} member type indicating
      *                    the type of member summary that should be returned.
      * @return the summary writer for the give class.  Return null if this
      * writer is not supported by the doclet.
      *
-     * @see VisibleMemberMap
+     * @see VisibleMemberTable
      */
     public abstract MemberSummaryWriter getMemberSummaryWriter(
-        AnnotationTypeWriter annotationTypeWriter, VisibleMemberMap.Kind memberType);
+        AnnotationTypeWriter annotationTypeWriter, VisibleMemberTable.Kind memberType);
 
     /**
      * Return the writer for the serialized form.

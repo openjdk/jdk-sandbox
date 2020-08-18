@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,10 @@ import static javax.lang.model.SourceVersion.*;
 
 /**
  * A simple visitor for annotation values with default behavior
- * appropriate for the {@link SourceVersion#RELEASE_9 RELEASE_9}
- * source version.  Visit methods call {@link #defaultAction
+ * appropriate for source versions {@link SourceVersion#RELEASE_9
+ * RELEASE_9} through {@link SourceVersion#RELEASE_11 RELEASE_11}.
+ *
+ * Visit methods call {@link #defaultAction
  * defaultAction} passing their arguments to {@code defaultAction}'s
  * corresponding parameters.
  *
@@ -66,7 +68,7 @@ import static javax.lang.model.SourceVersion.*;
  * @see SimpleAnnotationValueVisitor8
  * @since 9
  */
-@SupportedSourceVersion(RELEASE_9)
+@SupportedSourceVersion(RELEASE_11)
 public class SimpleAnnotationValueVisitor9<R, P> extends SimpleAnnotationValueVisitor8<R, P> {
     /**
      * Constructor for concrete subclasses; uses {@code null} for the

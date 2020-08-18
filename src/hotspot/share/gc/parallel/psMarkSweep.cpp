@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,7 @@
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
 #include "gc/shared/gcId.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
@@ -51,6 +51,8 @@
 #include "logging/log.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/flags/flagSetting.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/vmThread.hpp"
 #include "services/management.hpp"
@@ -63,10 +65,13 @@ elapsedTimer        PSMarkSweep::_accumulated_time;
 jlong               PSMarkSweep::_time_of_last_gc   = 0;
 CollectorCounters*  PSMarkSweep::_counters = NULL;
 
+SpanSubjectToDiscoveryClosure PSMarkSweep::_span_based_discoverer;
+
 void PSMarkSweep::initialize() {
-  MemRegion mr = ParallelScavengeHeap::heap()->reserved_region();
-  set_ref_processor(new ReferenceProcessor(mr));     // a vanilla ref proc
+  _span_based_discoverer.set_span(ParallelScavengeHeap::heap()->reserved_region());
+  set_ref_processor(new ReferenceProcessor(&_span_based_discoverer));     // a vanilla ref proc
   _counters = new CollectorCounters("PSMarkSweep", 1);
+  MarkSweep::initialize();
 }
 
 // This method contains all heap specific policy for invoking mark sweep.
@@ -98,7 +103,7 @@ void PSMarkSweep::invoke(bool maximum_heap_compaction) {
   }
 
   const bool clear_all_soft_refs =
-    heap->collector_policy()->should_clear_all_soft_refs();
+    heap->soft_ref_policy()->should_clear_all_soft_refs();
 
   uint count = maximum_heap_compaction ? 1 : MarkSweepAlwaysCompactCount;
   UIntFlagSetting flag_setting(MarkSweepAlwaysCompactCount, count);
@@ -126,7 +131,7 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
 
   // The scope of casr should end after code that can change
   // CollectorPolicy::_should_clear_all_soft_refs.
-  ClearedAllSoftRefs casr(clear_all_softrefs, heap->collector_policy());
+  ClearedAllSoftRefs casr(clear_all_softrefs, heap->soft_ref_policy());
 
   PSYoungGen* young_gen = heap->young_gen();
   PSOldGen* old_gen = heap->old_gen();
@@ -172,7 +177,7 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
     heap->pre_full_gc_dump(_gc_timer);
 
     TraceCollectorStats tcs(counters());
-    TraceMemoryManagerStats tms(true /* Full GC */,gc_cause);
+    TraceMemoryManagerStats tms(heap->old_gc_manager(),gc_cause);
 
     if (log_is_enabled(Debug, gc, heap, exit)) {
       accumulated_time()->start();
@@ -185,7 +190,7 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
     BiasedLocking::preserve_marks();
 
     // Capture metadata size before collection for sizing.
-    size_t metadata_prev_used = MetaspaceAux::used_bytes();
+    size_t metadata_prev_used = MetaspaceUtils::used_bytes();
 
     size_t old_gen_prev_used = old_gen->used_in_bytes();
     size_t young_gen_prev_used = young_gen->used_in_bytes();
@@ -236,17 +241,17 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
                       young_gen->to_space()->is_empty();
     young_gen_empty = eden_empty && survivors_empty;
 
-    ModRefBarrierSet* modBS = barrier_set_cast<ModRefBarrierSet>(heap->barrier_set());
+    PSCardTable* card_table = heap->card_table();
     MemRegion old_mr = heap->old_gen()->reserved();
     if (young_gen_empty) {
-      modBS->clear(MemRegion(old_mr.start(), old_mr.end()));
+      card_table->clear(MemRegion(old_mr.start(), old_mr.end()));
     } else {
-      modBS->invalidate(MemRegion(old_mr.start(), old_mr.end()));
+      card_table->invalidate(MemRegion(old_mr.start(), old_mr.end()));
     }
 
     // Delete metaspaces for unloaded class loaders and clean up loader_data graph
     ClassLoaderDataGraph::purge();
-    MetaspaceAux::verify_metrics();
+    MetaspaceUtils::verify_metrics();
 
     BiasedLocking::restore_marks();
     CodeCache::gc_epilogue();
@@ -256,11 +261,7 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
     DerivedPointerTable::update_pointers();
 #endif
 
-    ReferenceProcessorPhaseTimes pt(_gc_timer, ref_processor()->num_q());
-
-    ref_processor()->enqueue_discovered_references(NULL, &pt);
-
-    pt.print_enqueue_phase();
+    assert(!ref_processor()->discovery_enabled(), "Should have been disabled earlier");
 
     // Update time of last GC
     reset_millis_since_last_gc();
@@ -292,7 +293,7 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
         assert(young_gen->max_size() >
           young_gen->from_space()->capacity_in_bytes() +
           young_gen->to_space()->capacity_in_bytes(),
-          "Sizes of space in young gen are out-of-bounds");
+          "Sizes of space in young gen are out of bounds");
 
         size_t young_live = young_gen->used_in_bytes();
         size_t eden_live = young_gen->eden_space()->used_in_bytes();
@@ -320,7 +321,7 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
                                              max_eden_size,
                                              true /* full gc*/,
                                              gc_cause,
-                                             heap->collector_policy());
+                                             heap->soft_ref_policy());
 
         size_policy->decay_supplemental_growth(true /* full gc*/);
 
@@ -351,7 +352,7 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
 
     young_gen->print_used_change(young_gen_prev_used);
     old_gen->print_used_change(old_gen_prev_used);
-    MetaspaceAux::print_metaspace_change(metadata_prev_used);
+    MetaspaceUtils::print_metaspace_change(metadata_prev_used);
 
     // Track memory usage and detect low memory
     MemoryService::track_memory_usage();
@@ -535,7 +536,7 @@ void PSMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
     GCTraceTime(Debug, gc, phases) t("Reference Processing", _gc_timer);
 
     ref_processor()->setup_policy(clear_all_softrefs);
-    ReferenceProcessorPhaseTimes pt(_gc_timer, ref_processor()->num_q());
+    ReferenceProcessorPhaseTimes pt(_gc_timer, ref_processor()->num_queues());
     const ReferenceProcessorStats& stats =
       ref_processor()->process_discovered_references(
         is_alive_closure(), mark_and_push_closure(), follow_stack_closure(), NULL, &pt);
@@ -561,7 +562,7 @@ void PSMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
     CodeCache::do_unloading(is_alive_closure(), purged_class);
 
     // Prune dead klasses from subklass/sibling/implementor lists.
-    Klass::clean_weak_klass_links(is_alive_closure());
+    Klass::clean_weak_klass_links(purged_class);
   }
 
   {

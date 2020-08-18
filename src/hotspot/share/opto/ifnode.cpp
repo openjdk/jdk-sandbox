@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,6 +117,7 @@ static Node* split_if(IfNode *iff, PhaseIterGVN *igvn) {
   // No intervening control, like a simple Call
   Node *r = iff->in(0);
   if( !r->is_Region() ) return NULL;
+  if (r->is_Loop() && r->in(LoopNode::LoopBackControl)->is_top()) return NULL; // going away anyway
   if( phi->region() != r ) return NULL;
   // No other users of the cmp/bool
   if (b->outcnt() != 1 || cmp->outcnt() != 1) {
@@ -504,7 +505,7 @@ ProjNode* IfNode::range_check_trap_proj(int& flip_test, Node*& l, Node*& r) {
   //  Flip 1:  If (Bool[<] CmpU(l, LoadRange)) ...
   //  Flip 2:  If (Bool[<=] CmpU(LoadRange, l)) ...
 
-  ProjNode* iftrap = proj_out(flip_test == 2 ? true : false);
+  ProjNode* iftrap = proj_out_or_null(flip_test == 2 ? true : false);
   return iftrap;
 }
 
@@ -774,6 +775,38 @@ bool IfNode::has_shared_region(ProjNode* proj, ProjNode*& success, ProjNode*& fa
   return success != NULL && fail != NULL;
 }
 
+bool IfNode::is_dominator_unc(CallStaticJavaNode* dom_unc, CallStaticJavaNode* unc) {
+  // Different methods and methods containing jsrs are not supported.
+  ciMethod* method = unc->jvms()->method();
+  ciMethod* dom_method = dom_unc->jvms()->method();
+  if (method != dom_method || method->has_jsrs()) {
+    return false;
+  }
+  // Check that both traps are in the same activation of the method (instead
+  // of two activations being inlined through different call sites) by verifying
+  // that the call stacks are equal for both JVMStates.
+  JVMState* dom_caller = dom_unc->jvms()->caller();
+  JVMState* caller = unc->jvms()->caller();
+  if ((dom_caller == NULL) != (caller == NULL)) {
+    // The current method must either be inlined into both dom_caller and
+    // caller or must not be inlined at all (top method). Bail out otherwise.
+    return false;
+  } else if (dom_caller != NULL && !dom_caller->same_calls_as(caller)) {
+    return false;
+  }
+  // Check that the bci of the dominating uncommon trap dominates the bci
+  // of the dominated uncommon trap. Otherwise we may not re-execute
+  // the dominated check after deoptimization from the merged uncommon trap.
+  ciTypeFlow* flow = dom_method->get_flow_analysis();
+  int bci = unc->jvms()->bci();
+  int dom_bci = dom_unc->jvms()->bci();
+  if (!flow->is_dominated_by(bci, dom_bci)) {
+    return false;
+  }
+
+  return true;
+}
+
 // Return projection that leads to an uncommon trap if any
 ProjNode* IfNode::uncommon_trap_proj(CallStaticJavaNode*& call) const {
   for (int i = 0; i < 2; i++) {
@@ -810,31 +843,7 @@ bool IfNode::has_only_uncommon_traps(ProjNode* proj, ProjNode*& success, ProjNod
         return false;
       }
 
-      // Different methods and methods containing jsrs are not supported.
-      ciMethod* method = unc->jvms()->method();
-      ciMethod* dom_method = dom_unc->jvms()->method();
-      if (method != dom_method || method->has_jsrs()) {
-        return false;
-      }
-      // Check that both traps are in the same activation of the method (instead
-      // of two activations being inlined through different call sites) by verifying
-      // that the call stacks are equal for both JVMStates.
-      JVMState* dom_caller = dom_unc->jvms()->caller();
-      JVMState* caller = unc->jvms()->caller();
-      if ((dom_caller == NULL) != (caller == NULL)) {
-        // The current method must either be inlined into both dom_caller and
-        // caller or must not be inlined at all (top method). Bail out otherwise.
-        return false;
-      } else if (dom_caller != NULL && !dom_caller->same_calls_as(caller)) {
-        return false;
-      }
-      // Check that the bci of the dominating uncommon trap dominates the bci
-      // of the dominated uncommon trap. Otherwise we may not re-execute
-      // the dominated check after deoptimization from the merged uncommon trap.
-      ciTypeFlow* flow = dom_method->get_flow_analysis();
-      int bci = unc->jvms()->bci();
-      int dom_bci = dom_unc->jvms()->bci();
-      if (!flow->is_dominated_by(bci, dom_bci)) {
+      if (!is_dominator_unc(dom_unc, unc)) {
         return false;
       }
 
@@ -842,6 +851,8 @@ bool IfNode::has_only_uncommon_traps(ProjNode* proj, ProjNode*& success, ProjNod
       // will be changed and the state of the dominating If will be
       // used. Checked that we didn't apply this transformation in a
       // previous compilation and it didn't cause too many traps
+      ciMethod* dom_method = dom_unc->jvms()->method();
+      int dom_bci = dom_unc->jvms()->bci();
       if (!igvn->C->too_many_traps(dom_method, dom_bci, Deoptimization::Reason_unstable_fused_if) &&
           !igvn->C->too_many_traps(dom_method, dom_bci, Deoptimization::Reason_range_check)) {
         success = unc_proj;
@@ -896,7 +907,8 @@ bool IfNode::fold_compares_helper(ProjNode* proj, ProjNode* success, ProjNode* f
   // Figure out which of the two tests sets the upper bound and which
   // sets the lower bound if any.
   Node* adjusted_lim = NULL;
-  if (hi_type->_lo > lo_type->_hi && hi_type->_hi == max_jint && lo_type->_lo == min_jint) {
+  if (lo_type != NULL && hi_type != NULL && hi_type->_lo > lo_type->_hi &&
+      hi_type->_hi == max_jint && lo_type->_lo == min_jint) {
     assert((dom_bool->_test.is_less() && !proj->_con) ||
            (dom_bool->_test.is_greater() && proj->_con), "incorrect test");
     // this test was canonicalized
@@ -936,7 +948,8 @@ bool IfNode::fold_compares_helper(ProjNode* proj, ProjNode* success, ProjNode* f
         cond = BoolTest::lt;
       }
     }
-  } else if (lo_type->_lo > hi_type->_hi && lo_type->_hi == max_jint && hi_type->_lo == min_jint) {
+  } else if (lo_type != NULL && hi_type != NULL && lo_type->_lo > hi_type->_hi &&
+             lo_type->_hi == max_jint && hi_type->_lo == min_jint) {
 
     // this_bool = <
     //   dom_bool = < (proj = True) or dom_bool = >= (proj = False)
@@ -1194,14 +1207,17 @@ bool IfNode::is_null_check(ProjNode* proj, PhaseIterGVN* igvn) {
 // Check that the If that is in between the 2 integer comparisons has
 // no side effect
 bool IfNode::is_side_effect_free_test(ProjNode* proj, PhaseIterGVN* igvn) {
-  if (proj != NULL &&
-      proj->is_uncommon_trap_if_pattern(Deoptimization::Reason_none) &&
-      proj->outcnt() <= 2) {
+  if (proj == NULL) {
+    return false;
+  }
+  CallStaticJavaNode* unc = proj->is_uncommon_trap_if_pattern(Deoptimization::Reason_none);
+  if (unc != NULL && proj->outcnt() <= 2) {
     if (proj->outcnt() == 1 ||
         // Allow simple null check from LoadRange
         (is_cmp_with_loadrange(proj) && is_null_check(proj, igvn))) {
       CallStaticJavaNode* unc = proj->is_uncommon_trap_if_pattern(Deoptimization::Reason_none);
       CallStaticJavaNode* dom_unc = proj->in(0)->in(0)->as_Proj()->is_uncommon_trap_if_pattern(Deoptimization::Reason_none);
+      assert(dom_unc != NULL, "is_uncommon_trap_if_pattern returned NULL");
 
       // reroute_side_effect_free_unc changes the state of this
       // uncommon trap to restart execution at the previous
@@ -1211,6 +1227,10 @@ bool IfNode::is_side_effect_free_test(ProjNode* proj, PhaseIterGVN* igvn) {
       Deoptimization::DeoptReason reason = Deoptimization::trap_request_reason(trap_request);
 
       if (igvn->C->too_many_traps(dom_unc->jvms()->method(), dom_unc->jvms()->bci(), reason)) {
+        return false;
+      }
+
+      if (!is_dominator_unc(dom_unc, unc)) {
         return false;
       }
 
@@ -1470,7 +1490,7 @@ Node* IfNode::dominated_by(Node* prev_dom, PhaseIterGVN *igvn) {
   // be skipped. For example, range check predicate has two checks
   // for lower and upper bounds.
   ProjNode* unc_proj = proj_out(1 - prev_dom->as_Proj()->_con)->as_Proj();
-  if ((unc_proj != NULL) && (unc_proj->is_uncommon_trap_proj(Deoptimization::Reason_predicate) != NULL)) {
+  if (unc_proj->is_uncommon_trap_proj(Deoptimization::Reason_predicate) != NULL) {
     prev_dom = idom;
   }
 

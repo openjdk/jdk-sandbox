@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@ import javax.tools.*;
 
 import com.sun.source.tree.*;
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.DeferredCompletionFailureHandler.Handler;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.comp.*;
 import com.sun.tools.javac.file.BaseFileManager;
@@ -72,6 +73,7 @@ public class JavacTaskImpl extends BasicJavacTask {
     private final Arguments args;
     private JavaCompiler compiler;
     private JavaFileManager fileManager;
+    private DeferredCompletionFailureHandler dcfh;
     private Locale locale;
     private Map<JavaFileObject, JCCompilationUnit> notYetEntered;
     private ListBuffer<Env<AttrContext>> genList;
@@ -83,6 +85,8 @@ public class JavacTaskImpl extends BasicJavacTask {
         super(context, true);
         args = Arguments.instance(context);
         fileManager = context.get(JavaFileManager.class);
+        dcfh = DeferredCompletionFailureHandler.instance(context);
+        dcfh.setHandler(dcfh.userCodeHandler);
     }
 
     @Override @DefinedBy(Api.COMPILER)
@@ -138,6 +142,7 @@ public class JavacTaskImpl extends BasicJavacTask {
     }
 
     private <T> T handleExceptions(Callable<T> c, T sysErrorResult, T abnormalErrorResult) {
+        Handler prevDeferredHandler = dcfh.setHandler(dcfh.javacCodeHandler);
         try {
             return c.call();
         } catch (FatalError ex) {
@@ -167,10 +172,12 @@ public class JavacTaskImpl extends BasicJavacTask {
             if (compiler == null || compiler.errorCount() == 0
                     || Options.instance(context).isSet("dev")) {
                 Log log = Log.instance(context);
-                log.printLines(PrefixKind.JAVAC, "msg.bug", JavaCompiler.version());
+                log.printLines("msg.bug", JavaCompiler.version());
                 ex.printStackTrace(log.getWriter(WriterKind.NOTICE));
             }
             return abnormalErrorResult;
+        } finally {
+            dcfh.setHandler(prevDeferredHandler);
         }
     }
 

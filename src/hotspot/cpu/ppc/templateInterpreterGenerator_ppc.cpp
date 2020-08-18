@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2015, 2017, SAP SE. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 #include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
@@ -402,7 +403,7 @@ address TemplateInterpreterGenerator::generate_result_handler_for(BasicType type
      break;
   case T_OBJECT:
     // JNIHandles::resolve result.
-    __ resolve_jobject(R3_RET, R11_scratch1, R12_scratch2, /* needs_frame */ true); // kills R31
+    __ resolve_jobject(R3_RET, R11_scratch1, R31, /* needs_frame */ true); // kills R31
     break;
   case T_FLOAT:
      break;
@@ -452,8 +453,8 @@ address TemplateInterpreterGenerator::generate_abstract_entry(void) {
 
   // This is not a leaf but we have a JavaFrameAnchor now and we will
   // check (create) exceptions afterward so this is ok.
-  __ call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodError),
-                  R16_thread);
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodErrorWithMethod),
+                  R16_thread, R19_method);
 
   // Pop the C frame and restore LR.
   __ pop_frame();
@@ -504,59 +505,50 @@ address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
   //   regular method entry code to generate the NPE.
   //
 
-  if (UseG1GC) {
-    address entry = __ pc();
+  address entry = __ pc();
 
-    const int referent_offset = java_lang_ref_Reference::referent_offset;
-    guarantee(referent_offset > 0, "referent offset not initialized");
+  const int referent_offset = java_lang_ref_Reference::referent_offset;
+  guarantee(referent_offset > 0, "referent offset not initialized");
 
-    Label slow_path;
+  Label slow_path;
 
-    // Debugging not possible, so can't use __ skip_if_jvmti_mode(slow_path, GR31_SCRATCH);
+  // Debugging not possible, so can't use __ skip_if_jvmti_mode(slow_path, GR31_SCRATCH);
 
-    // In the G1 code we don't check if we need to reach a safepoint. We
-    // continue and the thread will safepoint at the next bytecode dispatch.
+  // In the G1 code we don't check if we need to reach a safepoint. We
+  // continue and the thread will safepoint at the next bytecode dispatch.
 
-    // If the receiver is null then it is OK to jump to the slow path.
-    __ ld(R3_RET, Interpreter::stackElementSize, R15_esp); // get receiver
+  // If the receiver is null then it is OK to jump to the slow path.
+  __ ld(R3_RET, Interpreter::stackElementSize, R15_esp); // get receiver
 
-    // Check if receiver == NULL and go the slow path.
-    __ cmpdi(CCR0, R3_RET, 0);
-    __ beq(CCR0, slow_path);
+  // Check if receiver == NULL and go the slow path.
+  __ cmpdi(CCR0, R3_RET, 0);
+  __ beq(CCR0, slow_path);
 
-    // Load the value of the referent field.
-    __ load_heap_oop(R3_RET, referent_offset, R3_RET);
+  // Load the value of the referent field.
+  BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->load_at(_masm, IN_HEAP | ON_WEAK_OOP_REF, T_OBJECT,
+                    R3_RET, referent_offset, R3_RET,
+                    /* non-volatile temp */ R31, R11_scratch1, true);
 
-    // Generate the G1 pre-barrier code to log the value of
-    // the referent field in an SATB buffer. Note with
-    // these parameters the pre-barrier does not generate
-    // the load of the previous value.
+  // Generate the G1 pre-barrier code to log the value of
+  // the referent field in an SATB buffer. Note with
+  // these parameters the pre-barrier does not generate
+  // the load of the previous value.
 
-    // Restore caller sp for c2i case.
+  // Restore caller sp for c2i case.
 #ifdef ASSERT
-      __ ld(R9_ARG7, 0, R1_SP);
-      __ ld(R10_ARG8, 0, R21_sender_SP);
-      __ cmpd(CCR0, R9_ARG7, R10_ARG8);
-      __ asm_assert_eq("backlink", 0x544);
+  __ ld(R9_ARG7, 0, R1_SP);
+  __ ld(R10_ARG8, 0, R21_sender_SP);
+  __ cmpd(CCR0, R9_ARG7, R10_ARG8);
+  __ asm_assert_eq("backlink", 0x544);
 #endif // ASSERT
-    __ mr(R1_SP, R21_sender_SP); // Cut the stack back to where the caller started.
+  __ mr(R1_SP, R21_sender_SP); // Cut the stack back to where the caller started.
 
-    __ g1_write_barrier_pre(noreg,         // obj
-                            noreg,         // offset
-                            R3_RET,        // pre_val
-                            R11_scratch1,  // tmp
-                            R12_scratch2,  // tmp
-                            true);         // needs_frame
+  __ blr();
 
-    __ blr();
-
-    // Generate regular method entry.
-    __ bind(slow_path);
-    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::zerolocals), R11_scratch1);
-    return entry;
-  }
-
-  return NULL;
+  __ bind(slow_path);
+  __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::zerolocals), R11_scratch1);
+  return entry;
 }
 
 address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
@@ -572,34 +564,15 @@ address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_ArrayIndexOutOfBounds_handler(const char* name) {
+address TemplateInterpreterGenerator::generate_ArrayIndexOutOfBounds_handler() {
   address entry = __ pc();
   __ empty_expression_stack();
-  __ load_const_optimized(R4_ARG2, (address) name);
+  // R4_ARG2 already contains the array.
   // Index is in R17_tos.
   __ mr(R5_ARG3, R17_tos);
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_ArrayIndexOutOfBoundsException));
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_ArrayIndexOutOfBoundsException), R4_ARG2, R5_ARG3);
   return entry;
 }
-
-#if 0
-// Call special ClassCastException constructor taking object to cast
-// and target class as arguments.
-address TemplateInterpreterGenerator::generate_ClassCastException_verbose_handler() {
-  address entry = __ pc();
-
-  // Expression stack must be empty before entering the VM if an
-  // exception happened.
-  __ empty_expression_stack();
-
-  // Thread will be loaded to R3_ARG1.
-  // Target class oop is in register R5_ARG3 by convention!
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_ClassCastException_verbose), R17_tos, R5_ARG3);
-  // Above call must not return here since exception pending.
-  DEBUG_ONLY(__ should_not_reach_here();)
-  return entry;
-}
-#endif
 
 address TemplateInterpreterGenerator::generate_ClassCastException_handler() {
   address entry = __ pc();
@@ -1535,23 +1508,17 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // Acquire isn't strictly necessary here because of the fence, but
   // sync_state is declared to be volatile, so we do it anyway
   // (cmp-br-isync on one path, release (same as acquire on PPC64) on the other path).
-  int sync_state_offs = __ load_const_optimized(sync_state_addr, SafepointSynchronize::address_of_state(), /*temp*/R0, true);
 
-  // TODO PPC port assert(4 == SafepointSynchronize::sz_state(), "unexpected field size");
-  __ lwz(sync_state, sync_state_offs, sync_state_addr);
+  Label do_safepoint, sync_check_done;
+  // No synchronization in progress nor yet synchronized.
+  __ safepoint_poll(do_safepoint, sync_state);
 
+  // Not suspended.
   // TODO PPC port assert(4 == Thread::sz_suspend_flags(), "unexpected field size");
   __ lwz(suspend_flags, thread_(suspend_flags));
-
-  Label sync_check_done;
-  Label do_safepoint;
-  // No synchronization in progress nor yet synchronized.
-  __ cmpwi(CCR0, sync_state, SafepointSynchronize::_not_synchronized);
-  // Not suspended.
   __ cmpwi(CCR1, suspend_flags, 0);
-
-  __ bne(CCR0, do_safepoint);
   __ beq(CCR1, sync_check_done);
+
   __ bind(do_safepoint);
   __ isync();
   // Block. We do the call directly and leave the current
@@ -1592,7 +1559,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // we don't want the current thread to continue until all our prior memory
   // accesses (including the new thread state) are visible to other threads.
   __ li(R0/*thread_state*/, _thread_in_Java);
-  __ release();
+  __ lwsync(); // Acquire safepoint and suspend state, release thread state.
   __ stw(R0/*thread_state*/, thread_(thread_state));
 
   if (CheckJNICalls) {
@@ -1858,10 +1825,7 @@ address TemplateInterpreterGenerator::generate_CRC32_update_entry() {
 
     // Safepoint check
     const Register sync_state = R11_scratch1;
-    int sync_state_offs = __ load_const_optimized(sync_state, SafepointSynchronize::address_of_state(), /*temp*/R0, true);
-    __ lwz(sync_state, sync_state_offs, sync_state);
-    __ cmpwi(CCR0, sync_state, SafepointSynchronize::_not_synchronized);
-    __ bne(CCR0, slow_path);
+    __ safepoint_poll(slow_path, sync_state);
 
     // We don't generate local frame and don't align stack because
     // we not even call stub code (we generate the code inline)
@@ -1905,7 +1869,6 @@ address TemplateInterpreterGenerator::generate_CRC32_update_entry() {
   return NULL;
 }
 
-
 /**
  * Method entry for static native methods:
  *   int java.util.zip.CRC32.updateBytes(     int crc, byte[] b,  int off, int len)
@@ -1918,10 +1881,7 @@ address TemplateInterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractI
 
     // Safepoint check
     const Register sync_state = R11_scratch1;
-    int sync_state_offs = __ load_const_optimized(sync_state, SafepointSynchronize::address_of_state(), /*temp*/R0, true);
-    __ lwz(sync_state, sync_state_offs, sync_state);
-    __ cmpwi(CCR0, sync_state, SafepointSynchronize::_not_synchronized);
-    __ bne(CCR0, slow_path);
+    __ safepoint_poll(slow_path, sync_state);
 
     // We don't generate local frame and don't align stack because
     // we not even call stub code (we generate the code inline)

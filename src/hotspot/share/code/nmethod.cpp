@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "jvm.h"
 #include "code/codeCache.hpp"
 #include "code/compiledIC.hpp"
+#include "code/compiledMethod.inline.hpp"
 #include "code/dependencies.hpp"
 #include "code/nativeInst.hpp"
 #include "code/nmethod.hpp"
@@ -39,15 +40,23 @@
 #include "interpreter/bytecode.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
+#include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/methodData.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiImpl.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/flags/flagSetting.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/os.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/sweeper.hpp"
+#include "runtime/vmThread.hpp"
 #include "utilities/align.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
@@ -378,6 +387,10 @@ int nmethod::total_size() const {
     nul_chk_table_size();
 }
 
+address* nmethod::orig_pc_addr(const frame* fr) {
+  return (address*) ((address)fr->unextended_sp() + _orig_pc_offset);
+}
+
 const char* nmethod::compile_kind() const {
   if (is_osr_method())     return "osr";
   if (method() != NULL && is_native_method())  return "c2n";
@@ -438,14 +451,14 @@ nmethod* nmethod::new_native_nmethod(const methodHandle& method,
                                             basic_lock_sp_offset, oop_maps);
     NOT_PRODUCT(if (nm != NULL)  native_nmethod_stats.note_native_nmethod(nm));
   }
-  // verify nmethod
-  debug_only(if (nm) nm->verify();) // might block
 
   if (nm != NULL) {
-    nm->log_new_nmethod();
-  }
+    // verify nmethod
+    debug_only(nm->verify();) // might block
 
-  nm->make_in_use();
+    nm->log_new_nmethod();
+    nm->make_in_use();
+  }
   return nm;
 }
 
@@ -955,6 +968,7 @@ void nmethod::verify_clean_inline_caches() {
         CompiledIC *ic = CompiledIC_at(&iter);
         // Ok, to lookup references to zombies here
         CodeBlob *cb = CodeCache::find_blob_unsafe(ic->ic_destination());
+        assert(cb != NULL, "destination not in CodeBlob?");
         nmethod* nm = cb->as_nmethod_or_null();
         if( nm != NULL ) {
           // Verify that inline caches pointing to both zombie and not_entrant methods are clean
@@ -967,6 +981,7 @@ void nmethod::verify_clean_inline_caches() {
       case relocInfo::static_call_type: {
         CompiledStaticCall *csc = compiledStaticCall_at(iter.reloc());
         CodeBlob *cb = CodeCache::find_blob_unsafe(csc->destination());
+        assert(cb != NULL, "destination not in CodeBlob?");
         nmethod* nm = cb->as_nmethod_or_null();
         if( nm != NULL ) {
           // Verify that inline caches pointing to both zombie and not_entrant methods are clean
@@ -1014,17 +1029,16 @@ void nmethod::inc_decompile_count() {
   mdo->inc_decompile_count();
 }
 
-void nmethod::make_unloaded(BoolObjectClosure* is_alive, oop cause) {
+void nmethod::make_unloaded(oop cause) {
 
   post_compiled_method_unload();
 
-  // Since this nmethod is being unloaded, make sure that dependencies
-  // recorded in instanceKlasses get flushed and pass non-NULL closure to
-  // indicate that this work is being done during a GC.
+  // This nmethod is being unloaded, make sure that dependencies
+  // recorded in instanceKlasses get flushed.
+  // Since this work is being done during a GC, defer deleting dependencies from the
+  // InstanceKlass.
   assert(Universe::heap()->is_gc_active(), "should only be called during gc");
-  assert(is_alive != NULL, "Should be non-NULL");
-  // A non-NULL is_alive closure indicates that this is being called during GC.
-  flush_dependencies(is_alive);
+  flush_dependencies(/*delete_immediately*/false);
 
   // Break cycle between nmethod & method
   LogTarget(Trace, class, unload) lt;
@@ -1247,7 +1261,7 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
       if (nmethod_needs_unregister) {
         Universe::heap()->unregister_nmethod(this);
       }
-      flush_dependencies(NULL);
+      flush_dependencies(/*delete_immediately*/true);
     }
 
     // zombie only - if a JVMTI agent has enabled the CompiledMethodUnload
@@ -1330,13 +1344,13 @@ void nmethod::flush() {
 // of dependencies must happen during phase 1 since after GC any
 // dependencies in the unloaded nmethod won't be updated, so
 // traversing the dependency information in unsafe.  In that case this
-// function is called with a non-NULL argument and this function only
+// function is called with a boolean argument and this function only
 // notifies instanceKlasses that are reachable
 
-void nmethod::flush_dependencies(BoolObjectClosure* is_alive) {
+void nmethod::flush_dependencies(bool delete_immediately) {
   assert_locked_or_safepoint(CodeCache_lock);
-  assert(Universe::heap()->is_gc_active() == (is_alive != NULL),
-  "is_alive is non-NULL if and only if we are called during GC");
+  assert(Universe::heap()->is_gc_active() != delete_immediately,
+  "delete_immediately is false if and only if we are called during GC");
   if (!has_flushed_dependencies()) {
     set_has_flushed_dependencies();
     for (Dependencies::DepStream deps(this); deps.next(); ) {
@@ -1349,13 +1363,12 @@ void nmethod::flush_dependencies(BoolObjectClosure* is_alive) {
         if (klass == NULL) {
           continue;  // ignore things like evol_method
         }
-        // During GC the is_alive closure is non-NULL, and is used to
-        // determine liveness of dependees that need to be updated.
-        if (is_alive == NULL || klass->is_loader_alive(is_alive)) {
+        // During GC delete_immediately is false, and liveness
+        // of dependee determines class that needs to be updated.
+        if (delete_immediately || klass->is_loader_alive()) {
           // The GC defers deletion of this entry, since there might be multiple threads
           // iterating over the _dependencies graph. Other call paths are single-threaded
           // and may delete it immediately.
-          bool delete_immediately = is_alive == NULL;
           InstanceKlass::cast(klass)->remove_dependent_nmethod(this, delete_immediately);
         }
       }
@@ -1376,7 +1389,7 @@ bool nmethod::can_unload(BoolObjectClosure* is_alive, oop* root, bool unloading_
   // simply because one of its constant oops has gone dead.
   // No actual classes need to be unloaded in order for this to occur.
   assert(unloading_occurred || ScavengeRootsInCode, "Inconsistency in unloading");
-  make_unloaded(is_alive, obj);
+  make_unloaded(obj);
   return true;
 }
 
@@ -1485,27 +1498,29 @@ bool nmethod::do_unloading_scopes(BoolObjectClosure* is_alive, bool unloading_oc
 
 bool nmethod::do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive, bool unloading_occurred) {
   // Compiled code
-  {
-  RelocIterator iter(this, low_boundary);
-  while (iter.next()) {
-    if (iter.type() == relocInfo::oop_type) {
-      if (unload_if_dead_at(&iter, is_alive, unloading_occurred)) {
-        return true;
+
+  // Prevent extra code cache walk for platforms that don't have immediate oops.
+  if (relocInfo::mustIterateImmediateOopsInCode()) {
+    RelocIterator iter(this, low_boundary);
+    while (iter.next()) {
+      if (iter.type() == relocInfo::oop_type) {
+        if (unload_if_dead_at(&iter, is_alive, unloading_occurred)) {
+          return true;
+        }
       }
     }
-  }
   }
 
   return do_unloading_scopes(is_alive, unloading_occurred);
 }
 
 #if INCLUDE_JVMCI
-bool nmethod::do_unloading_jvmci(BoolObjectClosure* is_alive, bool unloading_occurred) {
+bool nmethod::do_unloading_jvmci(bool unloading_occurred) {
   if (_jvmci_installed_code != NULL) {
     if (JNIHandles::is_global_weak_cleared(_jvmci_installed_code)) {
       if (_jvmci_installed_code_triggers_unloading) {
         // jweak reference processing has already cleared the referent
-        make_unloaded(is_alive, NULL);
+        make_unloaded(NULL);
         return true;
       } else {
         clear_jvmci_installed_code();
@@ -1545,7 +1560,7 @@ void nmethod::metadata_do(void f(Metadata*)) {
         CompiledIC *ic = CompiledIC_at(&iter);
         if (ic->is_icholder_call()) {
           CompiledICHolder* cichk = ic->cached_icholder();
-          f(cichk->holder_method());
+          f(cichk->holder_metadata());
           f(cichk->holder_klass());
         } else {
           Metadata* ic_oop = ic->cached_metadata();
@@ -1584,18 +1599,21 @@ void nmethod::oops_do(OopClosure* f, bool allow_zombie) {
     // (See comment above.)
   }
 
-  RelocIterator iter(this, low_boundary);
+  // Prevent extra code cache walk for platforms that don't have immediate oops.
+  if (relocInfo::mustIterateImmediateOopsInCode()) {
+    RelocIterator iter(this, low_boundary);
 
-  while (iter.next()) {
-    if (iter.type() == relocInfo::oop_type ) {
-      oop_Relocation* r = iter.oop_reloc();
-      // In this loop, we must only follow those oops directly embedded in
-      // the code.  Other oops (oop_index>0) are seen as part of scopes_oops.
-      assert(1 == (r->oop_is_immediate()) +
-                   (r->oop_addr() >= oops_begin() && r->oop_addr() < oops_end()),
-             "oop must be found in exactly one place");
-      if (r->oop_is_immediate() && r->oop_value() != NULL) {
-        f->do_oop(r->oop_addr());
+    while (iter.next()) {
+      if (iter.type() == relocInfo::oop_type ) {
+        oop_Relocation* r = iter.oop_reloc();
+        // In this loop, we must only follow those oops directly embedded in
+        // the code.  Other oops (oop_index>0) are seen as part of scopes_oops.
+        assert(1 == (r->oop_is_immediate()) +
+               (r->oop_addr() >= oops_begin() && r->oop_addr() < oops_end()),
+               "oop must be found in exactly one place");
+        if (r->oop_is_immediate() && r->oop_value() != NULL) {
+          f->do_oop(r->oop_addr());
+        }
       }
     }
   }
@@ -1620,7 +1638,7 @@ bool nmethod::test_set_oops_do_mark() {
   assert(nmethod::oops_do_marking_is_active(), "oops_do_marking_prologue must be called");
   if (_oops_do_mark_link == NULL) {
     // Claim this nmethod for this thread to mark.
-    if (Atomic::cmpxchg(NMETHOD_SENTINEL, &_oops_do_mark_link, (nmethod*)NULL) == NULL) {
+    if (Atomic::replace_if_null(NMETHOD_SENTINEL, &_oops_do_mark_link)) {
       // Atomically append this nmethod (now claimed) to the head of the list:
       nmethod* observed_mark_nmethods = _oops_do_mark_nmethods;
       for (;;) {
@@ -1673,7 +1691,7 @@ public:
   { NOT_PRODUCT(_print_nm = NULL); }
   bool detected_scavenge_root() { return _detected_scavenge_root; }
   virtual void do_oop(oop* p) {
-    if ((*p) != NULL && (*p)->is_scavengable()) {
+    if ((*p) != NULL && Universe::heap()->is_scavengable(*p)) {
       NOT_PRODUCT(maybe_print(p));
       _detected_scavenge_root = true;
     }
@@ -2168,7 +2186,7 @@ public:
   DebugScavengeRoot(nmethod* nm) : _nm(nm), _ok(true) { }
   bool ok() { return _ok; }
   virtual void do_oop(oop* p) {
-    if ((*p) == NULL || !(*p)->is_scavengable())  return;
+    if ((*p) == NULL || !Universe::heap()->is_scavengable(*p))  return;
     if (_ok) {
       _nm->print_nmethod(true);
       _ok = false;
@@ -2727,7 +2745,7 @@ public:
 
   virtual void verify_resolve_call(address dest) const {
     CodeBlob* db = CodeCache::find_blob_unsafe(dest);
-    assert(!db->is_adapter_blob(), "must use stub!");
+    assert(db != NULL && !db->is_adapter_blob(), "must use stub!");
   }
 
   virtual bool is_call_to_interpreted(address dest) const {

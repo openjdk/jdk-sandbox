@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 #include "precompiled.hpp"
 #include "gc/shared/gcTimer.hpp"
 #include "utilities/growableArray.hpp"
-#include "utilities/ticks.inline.hpp"
 
 // the "time" parameter for most functions
 // has a default value set by Ticks::now()
@@ -68,14 +67,14 @@ void STWGCTimer::register_gc_end(const Ticks& time) {
   GCTimer::register_gc_end(time);
 }
 
-void ConcurrentGCTimer::register_gc_pause_start(const char* name) {
+void ConcurrentGCTimer::register_gc_pause_start(const char* name, const Ticks& time) {
   assert(!_is_concurrent_phase_active, "A pause phase can't be started while a concurrent phase is active.");
-  GCTimer::register_gc_pause_start(name);
+  GCTimer::register_gc_pause_start(name, time);
 }
 
-void ConcurrentGCTimer::register_gc_pause_end() {
+void ConcurrentGCTimer::register_gc_pause_end(const Ticks& time) {
   assert(!_is_concurrent_phase_active, "A pause phase can't be ended while a concurrent phase is active.");
-  GCTimer::register_gc_pause_end();
+  GCTimer::register_gc_pause_end(time);
 }
 
 void ConcurrentGCTimer::register_gc_concurrent_start(const char* name, const Ticks& time) {
@@ -376,7 +375,7 @@ public:
     GCTimer gc_timer;
     gc_timer.register_gc_start(1);
 
-    assert(gc_timer.gc_start() == 1, "Incorrect");
+    assert(gc_timer.gc_start() == Ticks(1), "Incorrect");
   }
 
   static void gc_end() {
@@ -384,7 +383,7 @@ public:
     gc_timer.register_gc_start(1);
     gc_timer.register_gc_end(2);
 
-    assert(gc_timer.gc_end() == 2, "Incorrect");
+    assert(gc_timer.gc_end() == Ticks(2), "Incorrect");
   }
 };
 

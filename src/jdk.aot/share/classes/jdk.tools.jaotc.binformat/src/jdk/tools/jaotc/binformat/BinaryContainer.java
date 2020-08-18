@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,6 +64,8 @@ public final class BinaryContainer implements SymbolTable {
     private final int codeSegmentSize;
 
     private final int codeEntryAlignment;
+
+    private final boolean threadLocalHandshakes;
 
     /**
      * Container holding code bits and any other related information.
@@ -228,6 +230,8 @@ public final class BinaryContainer implements SymbolTable {
 
         {"JVMCIRuntime::monitorenter", "_aot_jvmci_runtime_monitorenter"},
         {"JVMCIRuntime::monitorexit", "_aot_jvmci_runtime_monitorexit"},
+        {"JVMCIRuntime::object_notify", "_aot_object_notify"},
+        {"JVMCIRuntime::object_notifyAll", "_aot_object_notifyAll"},
         {"JVMCIRuntime::log_object", "_aot_jvmci_runtime_log_object"},
         {"JVMCIRuntime::log_printf", "_aot_jvmci_runtime_log_printf"},
         {"JVMCIRuntime::vm_message", "_aot_jvmci_runtime_vm_message"},
@@ -279,6 +283,8 @@ public final class BinaryContainer implements SymbolTable {
 
         this.codeEntryAlignment = graalHotSpotVMConfig.codeEntryAlignment;
 
+        this.threadLocalHandshakes = graalHotSpotVMConfig.threadLocalHandshakes;
+
         // Section unique name is limited to 8 characters due to limitation on Windows.
         // Name could be longer but only first 8 characters are stored on Windows.
 
@@ -323,7 +329,8 @@ public final class BinaryContainer implements SymbolTable {
                                    TieredAOT.getValue(graalOptions),
                                    graalHotSpotVMConfig.enableContended,
                                    graalHotSpotVMConfig.restrictContended,
-                                   graphBuilderConfig.omitAssertions()
+                                   graphBuilderConfig.omitAssertions(),
+                                   graalHotSpotVMConfig.threadLocalHandshakes
         };
 
         int[] intFlags         = { graalHotSpotVMConfig.getOopEncoding().getShift(),
@@ -434,6 +441,11 @@ public final class BinaryContainer implements SymbolTable {
         return codeEntryAlignment;
     }
 
+    public boolean getThreadLocalHandshakes() {
+        return threadLocalHandshakes;
+    }
+
+
     /**
      * Gets the global AOT symbol associated with the function name.
      *
@@ -516,7 +528,7 @@ public final class BinaryContainer implements SymbolTable {
         switch (osName) {
             case "Linux":
             case "SunOS":
-                JELFRelocObject elfobj = new JELFRelocObject(this, outputFileName);
+                JELFRelocObject elfobj = JELFRelocObject.newInstance(this, outputFileName);
                 elfobj.createELFRelocObject(relocationTable, symbolTable.values());
                 break;
             case "Mac OS X":
@@ -564,7 +576,7 @@ public final class BinaryContainer implements SymbolTable {
      * @param info relocation information to be added
      */
     public void addRelocation(Relocation info) {
-        // System.out.println("# Relocation [" + symName + "] [" + info.getOffset() + "] [" +
+        // System.out.println("# Relocation [" + info.getSymbol() + "] [" + info.getOffset() + "] [" +
         // info.getSection().getContainerName() + "] [" + info.getSymbol().getName() + "] [" +
         // info.getSymbol().getOffset() + " @ " + info.getSymbol().getSection().getContainerName() +
         // "]");

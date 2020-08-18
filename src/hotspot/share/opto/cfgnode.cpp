@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -571,6 +571,18 @@ Node *RegionNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       return NULL;
     } else if (can_reshape) {   // Optimization phase - remove the node
       PhaseIterGVN *igvn = phase->is_IterGVN();
+      // Strip mined (inner) loop is going away, remove outer loop.
+      if (is_CountedLoop() &&
+          as_Loop()->is_strip_mined()) {
+        Node* outer_sfpt = as_CountedLoop()->outer_safepoint();
+        Node* outer_out = as_CountedLoop()->outer_loop_exit();
+        if (outer_sfpt != NULL && outer_out != NULL) {
+          Node* in = outer_sfpt->in(0);
+          igvn->replace_node(outer_out, in);
+          LoopNode* outer = as_CountedLoop()->outer_loop();
+          igvn->replace_input_of(outer, LoopNode::LoopBackControl, igvn->C->top());
+        }
+      }
       Node *parent_ctrl;
       if( cnt == 0 ) {
         assert( req() == 1, "no inputs expected" );
@@ -2361,7 +2373,7 @@ Node *NeverBranchNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (can_reshape && !in(0)->is_Loop()) {
     // Dead code elimination can sometimes delete this projection so
     // if it's not there, there's nothing to do.
-    Node* fallthru = proj_out(0);
+    Node* fallthru = proj_out_or_null(0);
     if (fallthru != NULL) {
       phase->is_IterGVN()->replace_node(fallthru, in(0));
     }

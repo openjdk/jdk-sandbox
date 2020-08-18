@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,10 +32,13 @@
 #include "oops/symbol.hpp"
 #include "runtime/jniHandles.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/hashtable.hpp"
+#include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
+#if INCLUDE_JFR
+#include "jfr/support/jfrTraceIdExtension.hpp"
+#endif
 
 #define UNNAMED_MODULE "Unnamed Module"
 #define JAVAPKG "java"
@@ -69,7 +72,7 @@ private:
   bool _must_walk_reads;               // walk module's reads list at GC safepoints to purge out dead modules
   bool _is_open;                       // whether the packages in the module are all unqualifiedly exported
   bool _is_patched;                    // whether the module is patched via --patch-module
-  TRACE_DEFINE_TRACE_ID_FIELD;
+  JFR_ONLY(DEFINE_TRACE_ID_FIELD;)
   enum {MODULE_READS_SIZE = 101};      // Initial size of list of modules that the module can read.
 
 public:
@@ -90,7 +93,7 @@ public:
   Symbol*          name() const                        { return literal(); }
   void             set_name(Symbol* n)                 { set_literal(n); }
 
-  oop              module() const                      { return _module.resolve(); }
+  oop              module() const;
   OopHandle        module_handle() const               { return _module; }
   void             set_module(OopHandle j)             { _module = j; }
 
@@ -103,7 +106,11 @@ public:
   void             set_shared_protection_domain(ClassLoaderData *loader_data, Handle pd);
 
   ClassLoaderData* loader_data() const                 { return _loader_data; }
-  void             set_loader_data(ClassLoaderData* l) { _loader_data = l; }
+
+  void set_loader_data(ClassLoaderData* cld) {
+    assert(!cld->is_anonymous(), "Unexpected anonymous class loader data");
+    _loader_data = cld;
+  }
 
   Symbol*          version() const                     { return _version; }
   void             set_version(Symbol* version);
@@ -160,8 +167,6 @@ public:
   // iteration support for readability
   void module_reads_do(ModuleClosure* const f);
 
-  TRACE_DEFINE_TRACE_ID_METHODS;
-
   // Purge dead weak references out of reads list when any given class loader is unloaded.
   void purge_reads();
   void delete_reads();
@@ -174,12 +179,14 @@ public:
 
   void print(outputStream* st = tty);
   void verify();
+
+  JFR_ONLY(DEFINE_TRACE_ID_METHODS;)
 };
 
 // Iterator interface
 class ModuleClosure: public StackObj {
  public:
-  virtual void do_module(ModuleEntry* const module) = 0;
+  virtual void do_module(ModuleEntry* module) = 0;
 };
 
 

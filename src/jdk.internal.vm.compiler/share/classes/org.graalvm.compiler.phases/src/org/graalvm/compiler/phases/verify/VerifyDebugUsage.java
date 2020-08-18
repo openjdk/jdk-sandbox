@@ -38,6 +38,7 @@ import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.NodeInputList;
 import org.graalvm.compiler.nodes.CallTargetNode;
 import org.graalvm.compiler.nodes.Invoke;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.java.MethodCallTargetNode;
@@ -142,9 +143,9 @@ public class VerifyDebugUsage extends VerifyPhase<PhaseContext> {
                     "org.graalvm.compiler.phases.BasePhase.dumpAfter",
                     "org.graalvm.compiler.phases.BasePhase.dumpBefore",
                     "org.graalvm.compiler.core.GraalCompiler.emitFrontEnd",
-                    "org.graalvm.compiler.truffle.PartialEvaluator.fastPartialEvaluation",
-                    "org.graalvm.compiler.truffle.PartialEvaluator$PerformanceInformationHandler.reportPerformanceWarnings",
-                    "org.graalvm.compiler.truffle.TruffleCompiler.compileMethodHelper",
+                    "org.graalvm.compiler.truffle.compiler.PartialEvaluator.fastPartialEvaluation",
+                    "org.graalvm.compiler.truffle.compiler.PartialEvaluator$PerformanceInformationHandler.reportPerformanceWarnings",
+                    "org.graalvm.compiler.truffle.compiler.TruffleCompilerImpl.compilePEGraph",
                     "org.graalvm.compiler.core.test.VerifyDebugUsageTest$ValidDumpUsagePhase.run",
                     "org.graalvm.compiler.core.test.VerifyDebugUsageTest$InvalidConcatDumpUsagePhase.run",
                     "org.graalvm.compiler.core.test.VerifyDebugUsageTest$InvalidDumpUsagePhase.run"));
@@ -234,7 +235,7 @@ public class VerifyDebugUsage extends VerifyPhase<PhaseContext> {
 
     protected void verifyDumpObjectParameter(StructuredGraph callerGraph, MethodCallTargetNode debugCallTarget, ValueNode arg, ResolvedJavaMethod verifiedCallee, Integer dumpLevel)
                     throws org.graalvm.compiler.phases.VerifyPhase.VerificationError {
-        ResolvedJavaType argType = ((ObjectStamp) arg.stamp()).type();
+        ResolvedJavaType argType = ((ObjectStamp) arg.stamp(NodeView.DEFAULT)).type();
         if (metaAccess.lookupJavaType(Graph.class).isAssignableFrom(argType)) {
             verifyStructuredGraphDumping(callerGraph, debugCallTarget, verifiedCallee, dumpLevel);
         }

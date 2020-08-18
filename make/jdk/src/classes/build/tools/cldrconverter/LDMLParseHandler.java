@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,12 +76,16 @@ class LDMLParseHandler extends AbstractLDMLHandler<Object> {
             // ignore this element - it has language and territory elements that aren't locale data
             pushIgnoredContainer(qName);
             break;
-        case "type":
-            if ("calendar".equals(attributes.getValue("key"))) {
-                pushStringEntry(qName, attributes, CLDRConverter.CALENDAR_NAME_PREFIX + attributes.getValue("type"));
-            } else {
-                pushIgnoredContainer(qName);
-            }
+
+        // for LocaleNames
+        // copy string
+        case "localeSeparator":
+            pushStringEntry(qName, attributes,
+                CLDRConverter.LOCALE_SEPARATOR);
+            break;
+        case "localeKeyTypePattern":
+            pushStringEntry(qName, attributes,
+                CLDRConverter.LOCALE_KEYTYPE);
             break;
 
         case "language":
@@ -94,6 +98,35 @@ class LDMLParseHandler extends AbstractLDMLHandler<Object> {
                 CLDRConverter.LOCALE_NAME_PREFIX +
                 (qName.equals("variant") ? "%%" : "") +
                 attributes.getValue("type"));
+            break;
+
+        case "key":
+            // for LocaleNames
+            // copy string
+            {
+                String key = convertOldKeyName(attributes.getValue("type"));
+                if (key.length() == 2) {
+                    pushStringEntry(qName, attributes,
+                        CLDRConverter.LOCALE_KEY_PREFIX + key);
+                } else {
+                    pushIgnoredContainer(qName);
+                }
+            }
+            break;
+
+        case "type":
+            // for LocaleNames/CalendarNames
+            // copy string
+            {
+                String key = convertOldKeyName(attributes.getValue("key"));
+                if (key.length() == 2) {
+                    pushStringEntry(qName, attributes,
+                    CLDRConverter.LOCALE_TYPE_PREFIX + key + "." +
+                    attributes.getValue("type"));
+                } else {
+                    pushIgnoredContainer(qName);
+                }
+            }
             break;
 
         //
@@ -423,6 +456,16 @@ class LDMLParseHandler extends AbstractLDMLHandler<Object> {
         case "gmtFormat":
             pushStringEntry(qName, attributes, "timezone.gmtFormat");
             break;
+        case "gmtZeroFormat":
+            pushStringEntry(qName, attributes, "timezone.gmtZeroFormat");
+            break;
+        case "regionFormat":
+            {
+                String type = attributes.getValue("type");
+                pushStringEntry(qName, attributes, "timezone.regionFormat" +
+                    (type == null ? "" : "." + type));
+            }
+            break;
         case "zone":
             {
                 String tzid = attributes.getValue("type"); // Olson tz id
@@ -452,8 +495,8 @@ class LDMLParseHandler extends AbstractLDMLHandler<Object> {
         case "daylight": // daylight saving (summer) time name
             pushStringEntry(qName, attributes, CLDRConverter.ZONE_NAME_PREFIX + qName + "." + zoneNameStyle);
             break;
-        case "exemplarCity":  // not used in JDK
-            pushIgnoredContainer(qName);
+        case "exemplarCity":
+            pushStringEntry(qName, attributes, CLDRConverter.EXEMPLAR_CITY_PREFIX);
             break;
 
         //
@@ -515,26 +558,10 @@ class LDMLParseHandler extends AbstractLDMLHandler<Object> {
                 currentNumberingSystem = script + ".";
                 String digits = CLDRConverter.handlerNumbering.get(script);
                 if (digits == null) {
-                    throw new InternalError("null digits for " + script);
-                }
-                if (Character.isSurrogate(digits.charAt(0))) {
-                    // DecimalFormatSymbols doesn't support supplementary characters as digit zero.
                     pushIgnoredContainer(qName);
                     break;
                 }
-                // in case digits are in the reversed order, reverse back the order.
-                if (digits.charAt(0) > digits.charAt(digits.length() - 1)) {
-                    StringBuilder sb = new StringBuilder(digits);
-                    digits = sb.reverse().toString();
-                }
-                // Check if the order is sequential.
-                char c0 = digits.charAt(0);
-                for (int i = 1; i < digits.length(); i++) {
-                    if (digits.charAt(i) != c0 + i) {
-                        pushIgnoredContainer(qName);
-                        break symbols;
-                    }
-                }
+
                 @SuppressWarnings("unchecked")
                 List<String> numberingScripts = (List<String>) get("numberingScripts");
                 if (numberingScripts == null) {
@@ -871,11 +898,16 @@ class LDMLParseHandler extends AbstractLDMLHandler<Object> {
         case "generic":
         case "standard":
         case "daylight":
+        case "exemplarCity":
             if (zonePrefix != null && (currentContainer instanceof Entry)) {
                 @SuppressWarnings("unchecked")
                 Map<String, String> valmap = (Map<String, String>) get(zonePrefix + getContainerKey());
                 Entry<?> entry = (Entry<?>) currentContainer;
-                valmap.put(entry.getKey(), (String) entry.getValue());
+                if (qName.equals("exemplarCity")) {
+                    put(CLDRConverter.EXEMPLAR_CITY_PREFIX + getContainerKey(), (String) entry.getValue());
+                } else {
+                    valmap.put(entry.getKey(), (String) entry.getValue());
+                }
             }
             break;
 
@@ -924,17 +956,35 @@ class LDMLParseHandler extends AbstractLDMLHandler<Object> {
                 }
             }
         } else if (currentContainer instanceof Entry) {
-                Entry<?> entry = (Entry<?>) currentContainer;
-                Object value = entry.getValue();
-                if (value != null) {
-                    String key = entry.getKey();
-                    // Tweak for MonthNames for the root locale, Needed for
-                    // SimpleDateFormat.format()/parse() roundtrip.
-                    if (id.equals("root") && key.startsWith("MonthNames")) {
-                        value = new DateFormatSymbols(Locale.US).getShortMonths();
-                    }
-                    put(entry.getKey(), value);
+            Entry<?> entry = (Entry<?>) currentContainer;
+            Object value = entry.getValue();
+            if (value != null) {
+                String key = entry.getKey();
+                // Tweak for MonthNames for the root locale, Needed for
+                // SimpleDateFormat.format()/parse() roundtrip.
+                if (id.equals("root") && key.startsWith("MonthNames")) {
+                    value = new DateFormatSymbols(Locale.US).getShortMonths();
                 }
+                put(entry.getKey(), value);
             }
         }
     }
+
+    public String convertOldKeyName(String key) {
+        // Explicitly obtained from "alias" attribute in each "key" element.
+        switch (key) {
+            case "calendar":
+                return "ca";
+            case "currency":
+                return "cu";
+            case "collation":
+                return "co";
+            case "numbers":
+                return "nu";
+            case "timezone":
+                return "tz";
+            default:
+                return key;
+        }
+    }
+}

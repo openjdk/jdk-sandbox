@@ -29,7 +29,7 @@ import org.graalvm.compiler.nodeinfo.NodeInfo;
 import org.graalvm.compiler.nodes.FloatingGuardedNode;
 import org.graalvm.compiler.nodes.extended.GuardingNode;
 import org.graalvm.compiler.nodes.memory.address.AddressNode;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 @NodeInfo
 public abstract class FloatingAccessNode extends FloatingGuardedNode implements Access, MemoryAccess {
@@ -56,6 +56,12 @@ public abstract class FloatingAccessNode extends FloatingGuardedNode implements 
     @Override
     public AddressNode getAddress() {
         return address;
+    }
+
+    @Override
+    public void setAddress(AddressNode address) {
+        updateUsages(this.address, address);
+        this.address = address;
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,9 @@ import com.sun.tools.javac.tree.JCTree.JCPolyExpression.*;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
+import com.sun.tools.javac.util.JCDiagnostic.Error;
 import com.sun.tools.javac.util.JCDiagnostic.Fragment;
+import com.sun.tools.javac.util.JCDiagnostic.Warning;
 import com.sun.tools.javac.util.List;
 
 import static com.sun.tools.javac.code.Flags.*;
@@ -1417,7 +1419,7 @@ public class Attr extends JCTree.Visitor {
                         if (!pattype.hasTag(ERROR)) {
                             if (pattype.constValue() == null) {
                                 log.error(c.pat.pos(),
-                                          (stringSwitch ? "string.const.req" : "const.expr.req"));
+                                          (stringSwitch ? Errors.StringConstReq : Errors.ConstExprReq));
                             } else if (!labels.add(pattype.constValue())) {
                                 log.error(c.pos(), Errors.DuplicateCaseLabel);
                             }
@@ -2191,8 +2193,7 @@ public class Attr extends JCTree.Visitor {
         List<Type> argtypes = argtypesBuf.toList();
         List<Type> typeargtypes = attribTypes(tree.typeargs, localEnv);
 
-        // If we have made no mistakes in the class type...
-        if (clazztype.hasTag(CLASS)) {
+        if (clazztype.hasTag(CLASS) || clazztype.hasTag(ERROR)) {
             // Enums may not be instantiated except implicitly
             if ((clazztype.tsym.flags_field & Flags.ENUM) != 0 &&
                 (!env.tree.hasTag(VARDEF) ||
@@ -2379,7 +2380,8 @@ public class Attr extends JCTree.Visitor {
                 // If we already errored, be careful to avoid a further avalanche. ErrorType answers
                 // false for isInterface call even when the original type is an interface.
                 boolean implementing = clazztype.tsym.isInterface() ||
-                        clazztype.isErroneous() && clazztype.getOriginalType().tsym.isInterface();
+                        clazztype.isErroneous() && !clazztype.getOriginalType().hasTag(NONE) &&
+                        clazztype.getOriginalType().tsym.isInterface();
 
                 if (implementing) {
                     cdef.implementing = List.of(clazz);
@@ -2411,7 +2413,8 @@ public class Attr extends JCTree.Visitor {
                     finalargtypes = finalargtypes.map(deferredAttr.deferredCopier);
                 }
 
-                clazztype = cdef.sym.type;
+                clazztype = clazztype.hasTag(ERROR) ? types.createErrorType(cdef.sym.type)
+                                                    : cdef.sym.type;
                 Symbol sym = tree.constructor = rs.resolveConstructor(
                         tree.pos(), localEnv, clazztype, finalargtypes, typeargtypes);
                 Assert.check(!sym.kind.isResolutionError());
@@ -2702,6 +2705,9 @@ public class Attr extends JCTree.Visitor {
                 Type target = null;
                 for (Type bound : ict.getExplicitComponents()) {
                     TypeSymbol boundSym = bound.tsym;
+                    if (bound.tsym == syms.objectType.tsym) {
+                        continue;
+                    }
                     if (types.isFunctionalInterface(boundSym) &&
                             types.findDescriptorSymbol(boundSym) == desc) {
                         target = bound;
@@ -3029,14 +3035,14 @@ public class Attr extends JCTree.Visitor {
                         targetError = false;
                 }
 
-                JCDiagnostic detailsDiag = ((Resolve.ResolveError)refSym.baseSymbol()).getDiagnostic(JCDiagnostic.DiagnosticType.FRAGMENT,
+                JCDiagnostic detailsDiag = ((Resolve.ResolveError)refSym.baseSymbol())
+                        .getDiagnostic(JCDiagnostic.DiagnosticType.FRAGMENT,
                                 that, exprType.tsym, exprType, that.name, argtypes, typeargtypes);
 
-                JCDiagnostic.DiagnosticType diagKind = targetError ?
-                        JCDiagnostic.DiagnosticType.FRAGMENT : JCDiagnostic.DiagnosticType.ERROR;
-
-                JCDiagnostic diag = diags.create(diagKind, log.currentSource(), that,
-                        "invalid.mref", Kinds.kindName(that.getMode()), detailsDiag);
+                JCDiagnostic diag = diags.create(log.currentSource(), that,
+                        targetError ?
+                            Fragments.InvalidMref(Kinds.kindName(that.getMode()), detailsDiag) :
+                            Errors.InvalidMref(Kinds.kindName(that.getMode()), detailsDiag));
 
                 if (targetError && currentTarget == Type.recoveryType) {
                     //a target error doesn't make sense during recovery stage
@@ -3675,8 +3681,7 @@ public class Attr extends JCTree.Visitor {
                    sym.name != names._class) {
             // If the qualified item is not a type and the selected item is static, report
             // a warning. Make allowance for the class of an array type e.g. Object[].class)
-            chk.warnStatic(tree, "static.not.qualified.by.type",
-                           sym.kind.kindName(), sym.owner);
+            chk.warnStatic(tree, Warnings.StaticNotQualifiedByType(sym.kind.kindName(), sym.owner));
         }
 
         // If we are selecting an instance member via a `super', ...
@@ -3729,11 +3734,7 @@ public class Attr extends JCTree.Visitor {
                 } else if (name == names._class) {
                     // In this case, we have already made sure in
                     // visitSelect that qualifier expression is a type.
-                    Type t = syms.classType;
-                    List<Type> typeargs = List.of(types.erasure(site));
-                    t = new ClassType(t.getEnclosingType(), typeargs, t.tsym);
-                    return new VarSymbol(
-                        STATIC | PUBLIC | FINAL, names._class, t, site.tsym);
+                    return syms.getClassField(site, types);
                 } else {
                     // We are seeing a plain identifier as selector.
                     Symbol sym = rs.findIdentInType(env, site, name, resultInfo.pkind);
@@ -3771,11 +3772,7 @@ public class Attr extends JCTree.Visitor {
                 if (name == names._class) {
                     // In this case, we have already made sure in Select that
                     // qualifier expression is a type.
-                    Type t = syms.classType;
-                    Type arg = types.boxedClass(site).type;
-                    t = new ClassType(t.getEnclosingType(), List.of(arg), t.tsym);
-                    return new VarSymbol(
-                        STATIC | PUBLIC | FINAL, names._class, t, site.tsym);
+                    return syms.getClassField(site, types);
                 } else {
                     log.error(pos, Errors.CantDeref(site));
                     return syms.errSymbol;
@@ -3925,9 +3922,7 @@ public class Attr extends JCTree.Visitor {
                     if (s != null &&
                         s.isRaw() &&
                         !types.isSameType(v.type, v.erasure(types))) {
-                        chk.warnUnchecked(tree.pos(),
-                                          "unchecked.assign.to.var",
-                                          v, s);
+                        chk.warnUnchecked(tree.pos(), Warnings.UncheckedAssignToVar(v, s));
                     }
                 }
                 // The computed type of a variable is the type of the
@@ -4002,12 +3997,14 @@ public class Attr extends JCTree.Visitor {
                 ((v.flags() & STATIC) != 0) == Resolve.isStatic(env) &&
                 (!env.tree.hasTag(ASSIGN) ||
                  TreeInfo.skipParens(((JCAssign) env.tree).lhs) != tree)) {
-                String suffix = (initEnv.info.enclVar == v) ?
-                                "self.ref" : "forward.ref";
                 if (!onlyWarning || isStaticEnumField(v)) {
-                    log.error(tree.pos(), "illegal." + suffix);
+                    Error errkey = (initEnv.info.enclVar == v) ?
+                                Errors.IllegalSelfRef : Errors.IllegalForwardRef;
+                    log.error(tree.pos(), errkey);
                 } else if (useBeforeDeclarationWarning) {
-                    log.warning(tree.pos(), suffix, v);
+                    Warning warnkey = (initEnv.info.enclVar == v) ?
+                                Warnings.SelfRef(v) : Warnings.ForwardRef(v);
+                    log.warning(tree.pos(), warnkey);
                 }
             }
 
@@ -4117,9 +4114,7 @@ public class Attr extends JCTree.Visitor {
             if (s != null && s.isRaw() &&
                 !types.isSameTypes(sym.type.getParameterTypes(),
                                    sym.erasure(types).getParameterTypes())) {
-                chk.warnUnchecked(env.tree.pos(),
-                                  "unchecked.call.mbr.of.raw.type",
-                                  sym, s);
+                chk.warnUnchecked(env.tree.pos(), Warnings.UncheckedCallMbrOfRawType(sym, s));
             }
         }
 
@@ -4169,14 +4164,12 @@ public class Attr extends JCTree.Visitor {
             argtypes = argtypes.map(checkDeferredMap);
 
             if (noteWarner.hasNonSilentLint(LintCategory.UNCHECKED)) {
-                chk.warnUnchecked(env.tree.pos(),
-                        "unchecked.meth.invocation.applied",
-                        kindName(sym),
+                chk.warnUnchecked(env.tree.pos(), Warnings.UncheckedMethInvocationApplied(kindName(sym),
                         sym.name,
                         rs.methodArguments(sym.type.getParameterTypes()),
                         rs.methodArguments(argtypes.map(checkDeferredMap)),
                         kindName(sym.location()),
-                        sym.location());
+                        sym.location()));
                 if (resultInfo.pt != Infer.anyPoly ||
                         !owntype.hasTag(METHOD) ||
                         !owntype.isPartial()) {
@@ -4238,9 +4231,6 @@ public class Attr extends JCTree.Visitor {
     public void visitTypeArray(JCArrayTypeTree tree) {
         Type etype = attribType(tree.elemtype, env);
         Type type = new ArrayType(etype, syms.arrayClass);
-        if (etype.isErroneous()) {
-            type = types.createErrorType(type);
-        }
         result = check(tree, type, KindSelector.TYP, resultInfo);
     }
 
@@ -4746,9 +4736,8 @@ public class Attr extends JCTree.Visitor {
         // Check for proper use of serialVersionUID
         if (env.info.lint.isEnabled(LintCategory.SERIAL)
                 && isSerializable(c.type)
-                && (c.flags() & Flags.ENUM) == 0
-                && !c.isAnonymous()
-                && checkForSerial(c)) {
+                && (c.flags() & (Flags.ENUM | Flags.INTERFACE)) == 0
+                && !c.isAnonymous()) {
             checkSerialVersionUID(tree, c);
         }
         if (allowTypeAnnos) {
@@ -4760,17 +4749,6 @@ public class Attr extends JCTree.Visitor {
         }
     }
         // where
-        boolean checkForSerial(ClassSymbol c) {
-            if ((c.flags() & ABSTRACT) == 0) {
-                return true;
-            } else {
-                return c.members().anyMatch(anyNonAbstractOrDefaultMethod);
-            }
-        }
-
-        public static final Filter<Symbol> anyNonAbstractOrDefaultMethod = s ->
-                s.kind == MTH && (s.flags() & (DEFAULT | ABSTRACT)) != ABSTRACT;
-
         /** get a diagnostic position for an attribute of Type t, or null if attribute missing */
         private DiagnosticPosition getDiagnosticPosition(JCClassDecl tree, Type t) {
             for(List<JCAnnotation> al = tree.mods.annotations; !al.isEmpty(); al = al.tail) {
@@ -5098,7 +5076,7 @@ public class Attr extends JCTree.Visitor {
          */
         private Type dummyMethodType(JCMethodDecl md) {
             Type restype = syms.unknownType;
-            if (md != null && md.restype.hasTag(TYPEIDENT)) {
+            if (md != null && md.restype != null && md.restype.hasTag(TYPEIDENT)) {
                 JCPrimitiveTypeTree prim = (JCPrimitiveTypeTree)md.restype;
                 if (prim.typetag == VOID)
                     restype = syms.voidType;

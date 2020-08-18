@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@
 #include "compiler/compileTask.hpp"
 #include "compiler/compilerDirectives.hpp"
 #include "runtime/perfData.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/stack.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmciCompiler.hpp"
@@ -161,6 +160,15 @@ class CompileBroker: AllStatic {
   // The installed compiler(s)
   static AbstractCompiler* _compilers[2];
 
+  // The maximum numbers of compiler threads to be determined during startup.
+  static int _c1_count, _c2_count;
+
+  // An array of compiler thread Java objects
+  static jobject *_compiler1_objects, *_compiler2_objects;
+
+  // An array of compiler logs
+  static CompileLog **_compiler1_logs, **_compiler2_logs;
+
   // These counters are used for assigning id's to each compilation
   static volatile jint _compilation_id;
   static volatile jint _osr_compilation_id;
@@ -219,8 +227,11 @@ class CompileBroker: AllStatic {
 
   static volatile int _print_compilation_warning;
 
-  static JavaThread* make_thread(const char* name, CompileQueue* queue, CompilerCounters* counters, AbstractCompiler* comp, bool compiler_thread, TRAPS);
-  static void init_compiler_sweeper_threads(int c1_compiler_count, int c2_compiler_count);
+  static Handle create_thread_oop(const char* name, TRAPS);
+  static JavaThread* make_thread(jobject thread_oop, CompileQueue* queue,
+                                 AbstractCompiler* comp, bool compiler_thread, TRAPS);
+  static void init_compiler_sweeper_threads();
+  static void possibly_add_compiler_threads();
   static bool compilation_is_complete  (const methodHandle& method, int osr_bci, int comp_level);
   static bool compilation_is_prohibited(const methodHandle& method, int osr_bci, int comp_level, bool excluded);
   static void preload_classes          (const methodHandle& method, TRAPS);
@@ -240,7 +251,7 @@ class CompileBroker: AllStatic {
 #endif
 
   static void invoke_compiler_on_method(CompileTask* task);
-  static void post_compile(CompilerThread* thread, CompileTask* task, EventCompilation& event, bool success, ciEnv* ci_env);
+  static void post_compile(CompilerThread* thread, CompileTask* task, bool success, ciEnv* ci_env);
   static void set_last_compile(CompilerThread *thread, const methodHandle& method, bool is_osr, int comp_level);
   static void push_jni_handle_block();
   static void pop_jni_handle_block();
@@ -282,7 +293,8 @@ public:
     CompileQueue *q = compile_queue(comp_level);
     return q != NULL ? q->size() : 0;
   }
-  static void compilation_init(TRAPS);
+  static void compilation_init_phase1(TRAPS);
+  static void compilation_init_phase2();
   static void init_compiler_thread_log();
   static nmethod* compile_method(const methodHandle& method,
                                  int osr_bci,
@@ -366,6 +378,21 @@ public:
   // compiler name for debugging
   static const char* compiler_name(int comp_level);
 
+  // Provide access to compiler thread Java objects
+  static jobject compiler1_object(int idx) {
+    assert(_compiler1_objects != NULL, "must be initialized");
+    assert(idx < _c1_count, "oob");
+    return _compiler1_objects[idx];
+  }
+
+  static jobject compiler2_object(int idx) {
+    assert(_compiler2_objects != NULL, "must be initialized");
+    assert(idx < _c2_count, "oob");
+    return _compiler2_objects[idx];
+  }
+
+  static CompileLog* get_log(CompilerThread* ct);
+
   static int get_total_compile_count() {          return _total_compile_count; }
   static int get_total_bailout_count() {          return _total_bailout_count; }
   static int get_total_invalidated_count() {      return _total_invalidated_count; }
@@ -381,6 +408,10 @@ public:
 
   // Log that compilation profiling is skipped because metaspace is full.
   static void log_metaspace_failure();
+
+  // CodeHeap State Analytics.
+  static void print_info(outputStream *out);
+  static void print_heapinfo(outputStream *out, const char* function, const char* granularity );
 };
 
 #endif // SHARE_VM_COMPILER_COMPILEBROKER_HPP

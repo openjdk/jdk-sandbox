@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2017 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -31,7 +31,7 @@
 // Immediate is an abstraction to represent the various immediate
 // operands which exist on z/Architecture. Neither this class nor
 // instances hereof have an own state. It consists of methods only.
-class Immediate VALUE_OBJ_CLASS_SPEC {
+class Immediate {
 
  public:
     static bool is_simm(int64_t x, unsigned int nbits) {
@@ -82,7 +82,7 @@ class Immediate VALUE_OBJ_CLASS_SPEC {
 // displacements which exist with addresses on z/ArchiTecture.
 // Neither this class nor instances hereof have an own state. It
 // consists of methods only.
-class Displacement VALUE_OBJ_CLASS_SPEC {
+class Displacement {
 
  public: // These tests are used outside the (Macro)Assembler world, e.g. in ad-file.
 
@@ -101,7 +101,7 @@ class Displacement VALUE_OBJ_CLASS_SPEC {
 // form they are used on z/Architecture for instructions which access
 // their operand with pc-relative addresses. Neither this class nor
 // instances hereof have an own state. It consists of methods only.
-class RelAddr VALUE_OBJ_CLASS_SPEC {
+class RelAddr {
 
  private: // No public use at all. Solely for (Macro)Assembler.
 
@@ -177,7 +177,7 @@ class RelAddr VALUE_OBJ_CLASS_SPEC {
 //
 // Note: A register location is represented via a Register, not
 // via an address for efficiency & simplicity reasons.
-class Address VALUE_OBJ_CLASS_SPEC {
+class Address {
  private:
   Register _base;    // Base register.
   Register _index;   // Index register
@@ -275,7 +275,7 @@ class Address VALUE_OBJ_CLASS_SPEC {
   friend class Assembler;
 };
 
-class AddressLiteral VALUE_OBJ_CLASS_SPEC {
+class AddressLiteral {
  private:
   address          _address;
   RelocationHolder _rspec;
@@ -398,7 +398,7 @@ class ExternalAddress: public AddressLiteral {
 // memory or in a register, in a manner consistent with the
 // z/Architecture Application Binary Interface, or ABI. This is often
 // referred to as the native or C calling convention.
-class Argument VALUE_OBJ_CLASS_SPEC {
+class Argument {
  private:
   int _number;
   bool _is_in;
@@ -582,7 +582,11 @@ class Assembler : public AbstractAssembler {
 #define LOC_ZOPC    (unsigned long)(0xebL << 40 | 0xf2L)        // z196
 #define LOCG_ZOPC   (unsigned long)(0xebL << 40 | 0xe2L)        // z196
 
-#define LMG_ZOPC    (unsigned long)(235L << 40 | 4L)
+
+// LOAD multiple registers at once
+#define LM_ZOPC     (unsigned  int)(0x98  << 24)
+#define LMY_ZOPC    (unsigned long)(0xebL << 40 | 0x98L)
+#define LMG_ZOPC    (unsigned long)(0xebL << 40 | 0x04L)
 
 #define LE_ZOPC     (unsigned  int)(0x78 << 24)
 #define LEY_ZOPC    (unsigned long)(237L << 40 | 100L)
@@ -613,7 +617,10 @@ class Assembler : public AbstractAssembler {
 #define STOC_ZOPC   (unsigned long)(0xebL << 40 | 0xf3L)        // z196
 #define STOCG_ZOPC  (unsigned long)(0xebL << 40 | 0xe3L)        // z196
 
-#define STMG_ZOPC   (unsigned long)(235L << 40 | 36L)
+// STORE multiple registers at once
+#define STM_ZOPC    (unsigned  int)(0x90  << 24)
+#define STMY_ZOPC   (unsigned long)(0xebL << 40 | 0x90L)
+#define STMG_ZOPC   (unsigned long)(0xebL << 40 | 0x24L)
 
 #define STE_ZOPC    (unsigned  int)(0x70 << 24)
 #define STEY_ZOPC   (unsigned long)(237L << 40 | 102L)
@@ -874,15 +881,19 @@ class Assembler : public AbstractAssembler {
 
 // Shift
 // arithmetic
-#define SLA_ZOPC    (unsigned  int)(139 << 24)
-#define SLAG_ZOPC   (unsigned long)(235L << 40 | 11L)
-#define SRA_ZOPC    (unsigned  int)(138 << 24)
-#define SRAG_ZOPC   (unsigned long)(235L << 40 | 10L)
+#define SLA_ZOPC    (unsigned  int)(0x8b  << 24)
+#define SLAK_ZOPC   (unsigned long)(0xebL << 40 | 0xddL)
+#define SLAG_ZOPC   (unsigned long)(0xebL << 40 | 0x0bL)
+#define SRA_ZOPC    (unsigned  int)(0x8a  << 24)
+#define SRAK_ZOPC   (unsigned long)(0xebL << 40 | 0xdcL)
+#define SRAG_ZOPC   (unsigned long)(0xebL << 40 | 0x0aL)
 // logical
-#define SLL_ZOPC    (unsigned  int)(137 << 24)
-#define SLLG_ZOPC   (unsigned long)(235L << 40 | 13L)
-#define SRL_ZOPC    (unsigned  int)(136 << 24)
-#define SRLG_ZOPC   (unsigned long)(235L << 40 | 12L)
+#define SLL_ZOPC    (unsigned  int)(0x89  << 24)
+#define SLLK_ZOPC   (unsigned long)(0xebL << 40 | 0xdfL)
+#define SLLG_ZOPC   (unsigned long)(0xebL << 40 | 0x0dL)
+#define SRL_ZOPC    (unsigned  int)(0x88  << 24)
+#define SRLK_ZOPC   (unsigned long)(0xebL << 40 | 0xdeL)
+#define SRLG_ZOPC   (unsigned long)(0xebL << 40 | 0x0cL)
 
 // Rotate, then AND/XOR/OR/insert
 // rotate
@@ -1448,6 +1459,10 @@ class Assembler : public AbstractAssembler {
     bcondLogNotZero          =  bcondLogNotZero_Carry | bcondLogNotZero_NoCarry,
     bcondLogCarry            =  bcondLogZero_Carry | bcondLogNotZero_Carry,
     bcondLogBorrow           =  /* bcondLogZero_Borrow | */ bcondLogNotZero_Borrow,
+    // Vector compare instructions
+    bcondVAlltrue    =  8,  // All  vector elements evaluate true
+    bcondVMixed      =  4,  // Some vector elements evaluate true, some false
+    bcondVAllfalse   =  1,  // All  vector elements evaluate false
     // string search instructions
     bcondFound       =  4,
     bcondNotFound    =  2,
@@ -2262,12 +2277,16 @@ class Assembler : public AbstractAssembler {
 
   // shift
   inline void z_sla( Register r1,              int64_t d2, Register b2=Z_R0); // shift left  r1 = r1 << ((d2+b2)&0x3f) ; int32, only 31 bits shifted, sign preserved!
+  inline void z_slak(Register r1, Register r3, int64_t d2, Register b2=Z_R0); // shift left  r1 = r3 << ((d2+b2)&0x3f) ; int32, only 31 bits shifted, sign preserved!
   inline void z_slag(Register r1, Register r3, int64_t d2, Register b2=Z_R0); // shift left  r1 = r3 << ((d2+b2)&0x3f) ; int64, only 63 bits shifted, sign preserved!
   inline void z_sra( Register r1,              int64_t d2, Register b2=Z_R0); // shift right r1 = r1 >> ((d2+b2)&0x3f) ; int32, sign extended
+  inline void z_srak(Register r1, Register r3, int64_t d2, Register b2=Z_R0); // shift right r1 = r3 >> ((d2+b2)&0x3f) ; int32, sign extended
   inline void z_srag(Register r1, Register r3, int64_t d2, Register b2=Z_R0); // shift right r1 = r3 >> ((d2+b2)&0x3f) ; int64, sign extended
   inline void z_sll( Register r1,              int64_t d2, Register b2=Z_R0); // shift left  r1 = r1 << ((d2+b2)&0x3f) ; int32, zeros added
+  inline void z_sllk(Register r1, Register r3, int64_t d2, Register b2=Z_R0); // shift left  r1 = r3 << ((d2+b2)&0x3f) ; int32, zeros added
   inline void z_sllg(Register r1, Register r3, int64_t d2, Register b2=Z_R0); // shift left  r1 = r3 << ((d2+b2)&0x3f) ; int64, zeros added
   inline void z_srl( Register r1,              int64_t d2, Register b2=Z_R0); // shift right r1 = r1 >> ((d2+b2)&0x3f) ; int32, zero extended
+  inline void z_srlk(Register r1, Register r3, int64_t d2, Register b2=Z_R0); // shift right r1 = r3 >> ((d2+b2)&0x3f) ; int32, zero extended
   inline void z_srlg(Register r1, Register r3, int64_t d2, Register b2=Z_R0); // shift right r1 = r3 >> ((d2+b2)&0x3f) ; int64, zero extended
 
   // rotate
@@ -3007,6 +3026,12 @@ class Assembler : public AbstractAssembler {
   inline void z_btrue( Label& L);
   inline void z_bfalse(Label& L);
 
+  inline void z_bvat(Label& L);   // all true
+  inline void z_bvnt(Label& L);   // not all true (mixed or all false)
+  inline void z_bvmix(Label& L);  // mixed true and false
+  inline void z_bvaf(Label& L);   // not all false (mixed or all true)
+  inline void z_bvnf(Label& L);   // all false
+
   inline void z_brno( Label& L);
 
 
@@ -3035,7 +3060,11 @@ class Assembler : public AbstractAssembler {
 
   inline void z_tam();
   inline void z_stckf(int64_t d2, Register b2);
+  inline void z_stm( Register r1, Register r3, int64_t d2, Register b2);
+  inline void z_stmy(Register r1, Register r3, int64_t d2, Register b2);
   inline void z_stmg(Register r1, Register r3, int64_t d2, Register b2);
+  inline void z_lm( Register r1, Register r3, int64_t d2, Register b2);
+  inline void z_lmy(Register r1, Register r3, int64_t d2, Register b2);
   inline void z_lmg(Register r1, Register r3, int64_t d2, Register b2);
 
   inline void z_cs( Register r1, Register r3, int64_t d2, Register b2);

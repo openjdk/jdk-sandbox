@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -200,7 +200,7 @@ var getJibProfiles = function (input) {
     data.configuration_make_arg = "CONF_NAME=";
 
     // Exclude list to use when Jib creates a source bundle
-    data.src_bundle_excludes = "./build webrev* */webrev* */*/webrev* */*/*/webrev* .hg */.hg */*/.hg */*/*/.hg";
+    data.src_bundle_excludes = "./build .build webrev* */webrev* */*/webrev* */*/*/webrev* .hg */.hg */*/.hg */*/*/.hg";
     // Include list to use when creating a minimal jib source bundle which
     // contains just the jib configuration files.
     data.conf_bundle_includes = "*/conf/jib-profiles.* make/autoconf/version-numbers"
@@ -232,7 +232,8 @@ var getJibProfilesCommon = function (input, data) {
     common.main_profile_names = [
         "linux-x64", "linux-x86", "macosx-x64", "solaris-x64",
         "solaris-sparcv9", "windows-x64", "windows-x86",
-        "linux-arm64", "linux-arm-vfp-hflt", "linux-arm-vfp-hflt-dyn"
+        "linux-aarch64", "linux-arm64", "linux-arm-vfp-hflt",
+        "linux-arm-vfp-hflt-dyn"
     ];
 
     // These are the base setttings for all the main build profiles.
@@ -389,7 +390,7 @@ var getJibProfilesCommon = function (input, data) {
         };
     };
 
-    common.boot_jdk_version = "9";
+    common.boot_jdk_version = "10";
     common.boot_jdk_home = input.get("boot_jdk", "home_path") + "/jdk-"
         + common.boot_jdk_version
         + (input.build_os == "macosx" ? ".jdk/Contents/Home" : "");
@@ -411,7 +412,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "linux-x64": {
             target_os: "linux",
             target_cpu: "x64",
-            dependencies: ["devkit", "graphviz", "pandoc"],
+            dependencies: ["devkit", "autoconf", "graphviz", "pandoc"],
             configure_args: concat(common.configure_args_64bit,
                 "--enable-full-docs", "--with-zlib=system"),
             default_make_targets: ["docs-bundles"],
@@ -421,7 +422,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: "linux",
             target_cpu: "x86",
             build_cpu: "x64",
-            dependencies: ["devkit"],
+            dependencies: ["devkit", "autoconf"],
             configure_args: concat(common.configure_args_32bit,
                 "--with-jvm-variants=minimal,server", "--with-zlib=system"),
         },
@@ -429,15 +430,15 @@ var getJibProfilesProfiles = function (input, common, data) {
         "macosx-x64": {
             target_os: "macosx",
             target_cpu: "x64",
-            dependencies: ["devkit", "freetype"],
+            dependencies: ["devkit", "autoconf"],
             configure_args: concat(common.configure_args_64bit, "--with-zlib=system",
-                "--with-macosx-version-max=10.7.0"),
+                "--with-macosx-version-max=10.9.0"),
         },
 
         "solaris-x64": {
             target_os: "solaris",
             target_cpu: "x64",
-            dependencies: ["devkit", "cups"],
+            dependencies: ["devkit", "autoconf", "cups"],
             configure_args: concat(common.configure_args_64bit,
                 "--with-zlib=system", "--enable-dtrace"),
         },
@@ -445,7 +446,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "solaris-sparcv9": {
             target_os: "solaris",
             target_cpu: "sparcv9",
-            dependencies: ["devkit", "cups"],
+            dependencies: ["devkit", "autoconf", "cups"],
             configure_args: concat(common.configure_args_64bit,
                 "--with-zlib=system", "--enable-dtrace"),
         },
@@ -453,7 +454,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "windows-x64": {
             target_os: "windows",
             target_cpu: "x64",
-            dependencies: ["devkit", "freetype"],
+            dependencies: ["devkit", "autoconf"],
             configure_args: concat(common.configure_args_64bit),
         },
 
@@ -461,15 +462,25 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: "windows",
             target_cpu: "x86",
             build_cpu: "x64",
-            dependencies: ["devkit", "freetype"],
+            dependencies: ["devkit", "autoconf"],
             configure_args: concat(common.configure_args_32bit),
+        },
+
+        "linux-aarch64": {
+            target_os: "linux",
+            target_cpu: "aarch64",
+            build_cpu: "x64",
+            dependencies: ["devkit", "autoconf", "build_devkit", "cups"],
+            configure_args: [
+                "--openjdk-target=aarch64-linux-gnu", "--with-freetype=bundled",
+            ],
         },
 
         "linux-arm64": {
             target_os: "linux",
             target_cpu: "aarch64",
             build_cpu: "x64",
-            dependencies: ["devkit", "build_devkit", "cups", "headless_stubs"],
+            dependencies: ["devkit", "autoconf", "build_devkit", "cups", "headless_stubs"],
             configure_args: [
                 "--with-cpu-port=arm64",
                 "--with-jvm-variants=server",
@@ -482,12 +493,14 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: "linux",
             target_cpu: "arm",
             build_cpu: "x64",
-            dependencies: ["devkit", "build_devkit", "cups"],
+            dependencies: ["devkit", "autoconf", "build_devkit", "cups"],
             configure_args: [
                 "--with-jvm-variants=minimal1,client",
                 "--with-x=" + input.get("devkit", "install_path") + "/arm-linux-gnueabihf/libc/usr/X11R6-PI",
+                "--with-fontconfig=" + input.get("devkit", "install_path") + "/arm-linux-gnueabihf/libc/usr/X11R6-PI",
                 "--openjdk-target=arm-linux-gnueabihf",
-                "--with-abi-profile=arm-vfp-hflt"
+                "--with-abi-profile=arm-vfp-hflt",
+                "--with-freetype=bundled"
             ],
         },
 
@@ -516,6 +529,32 @@ var getJibProfilesProfiles = function (input, common, data) {
         var debugName = name + common.slowdebug_suffix;
         profiles[debugName] = concatObjects(profiles[name],
                                             common.slowdebug_profile_base);
+    });
+    // Generate testmake profiles for the main profile of each build host
+    // platform. This profile only runs the makefile tests.
+    // Ant is needed to run the idea project generator test.
+    var testmakeBase = {
+        dependencies: [ "ant" ],
+        environment: {
+            "ANT_HOME": input.get("ant", "install_path") + "/apache-ant-1.7.1"
+        }
+    };
+    [ "linux-x64", "macosx-x64", "solaris-sparcv9", "solaris-x64", "windows-x64"]
+        .forEach(function (name) {
+            var maketestName = name + "-testmake";
+            profiles[maketestName] = concatObjects(profiles[name], testmakeBase);
+            profiles[maketestName].default_make_targets = [ "test-make" ];
+        });
+    // Generate cmp-baseline profiles for each main profile. This profile does
+    // a compare build run with no changes to verify that the compare script
+    // has a clean baseline
+    common.main_profile_names.forEach(function (name) {
+        var cmpBaselineName = name + "-cmp-baseline";
+        profiles[cmpBaselineName] = clone(profiles[name]);
+        // Only compare the images target. This should pressumably be expanded
+        // to include more build targets when possible.
+        profiles[cmpBaselineName].default_make_targets = [ "images" ];
+        profiles[cmpBaselineName].make_args = [ "COMPARE_BUILD=CONF=" ];
     });
 
     // Profiles for building the zero jvm variant. These are used for verification
@@ -581,6 +620,9 @@ var getJibProfilesProfiles = function (input, common, data) {
         },
         "windows-x86": {
             platform: "windows-x86",
+        },
+       "linux-aarch64": {
+            platform: "linux-aarch64",
         },
        "linux-arm64": {
             platform: "linux-arm64-vfp-hflt",
@@ -662,6 +704,16 @@ var getJibProfilesProfiles = function (input, common, data) {
         }
     });
 
+    // For open profiles, the non-debug jdk bundles, need an "open" prefix on the
+    // remote bundle names, forming the word "openjdk". See JDK-8188789.
+    common.main_profile_names.forEach(function (name) {
+        var openName = name + common.open_suffix;
+        profiles[openName].artifacts["jdk"].remote = replaceAll(
+            "\/jdk-", "/openjdk-",
+            replaceAll("\/\\1", "/open\\1",
+                       profiles[openName].artifacts["jdk"].remote));
+    });
+
     // Profiles used to run tests. Used in JPRT and Mach 5.
     var testOnlyProfiles = {
         "run-test-jprt": {
@@ -734,10 +786,21 @@ var getJibProfilesProfiles = function (input, common, data) {
             dependencies: [ "devkit" ],
             environment_path: input.get("devkit", "install_path")
                 + "/Xcode.app/Contents/Developer/usr/bin"
-        }
+        };
         profiles["run-test"] = concatObjects(profiles["run-test"], macosxRunTestExtra);
         profiles["run-test-jprt"] = concatObjects(profiles["run-test-jprt"], macosxRunTestExtra);
         profiles["run-test-prebuilt"] = concatObjects(profiles["run-test-prebuilt"], macosxRunTestExtra);
+    }
+    // On windows we want the debug symbols available at test time
+    if (input.build_os == "windows") {
+        windowsRunTestPrebuiltExtra = {
+            dependencies: [ testedProfile + ".jdk_symbols" ],
+            environment: {
+                "PRODUCT_SYMBOLS_HOME": input.get(testedProfile + ".jdk_symbols", "home_path"),
+            }
+        };
+        profiles["run-test-prebuilt"] = concatObjects(profiles["run-test-prebuilt"],
+            windowsRunTestPrebuiltExtra);
     }
 
     // Generate the missing platform attributes
@@ -756,12 +819,14 @@ var getJibProfilesProfiles = function (input, common, data) {
 var getJibProfilesDependencies = function (input, common) {
 
     var devkit_platform_revisions = {
-        linux_x64: "gcc4.9.2-OEL6.4+1.2",
+        linux_x64: "gcc7.3.0-OEL6.4+1.0",
         macosx_x64: "Xcode6.3-MacOSX10.9+1.0",
         solaris_x64: "SS12u4-Solaris11u1+1.0",
-        solaris_sparcv9: "SS12u4-Solaris11u1+1.0",
+        solaris_sparcv9: "SS12u4-Solaris11u1+1.1",
         windows_x64: "VS2013SP4+1.0",
-        linux_aarch64: "gcc-linaro-aarch64-linux-gnu-4.8-2013.11_linux+1.0",
+        linux_aarch64: (input.profile != null && input.profile.indexOf("arm64") >= 0
+                    ? "gcc-linaro-aarch64-linux-gnu-4.8-2013.11_linux+1.0"
+                    : "gcc7.3.0-Fedora27+1.0"),
         linux_arm: (input.profile != null && input.profile.indexOf("hflt") >= 0
                     ? "gcc-linaro-arm-linux-gnueabihf-raspbian-2012.09-20120921_linux+1.0"
                     : "arm-linaro-4.7+1.0")
@@ -774,12 +839,6 @@ var getJibProfilesDependencies = function (input, common) {
     var boot_jdk_platform = (input.build_os == "macosx" ? "osx" : input.build_os)
         + "-" + input.build_cpu;
 
-    var freetype_version = {
-        windows_x64: "2.7.1-v120+1.1",
-        windows_x86: "2.7.1-v120+1.1",
-        macosx_x64: "2.7.1-Xcode6.3-MacOSX10.9+1.0"
-    }[input.target_platform];
-
     var makeBinDir = (input.build_os == "windows"
         ? input.get("gnumake", "install_path") + "/cygwin/bin"
         : input.get("gnumake", "install_path") + "/bin");
@@ -790,7 +849,7 @@ var getJibProfilesDependencies = function (input, common) {
             server: "jpg",
             product: "jdk",
             version: common.boot_jdk_version,
-            build_number: "181",
+            build_number: "46",
             file: "bundles/" + boot_jdk_platform + "/jdk-" + common.boot_jdk_version + "_"
                 + boot_jdk_platform + "_bin.tar.gz",
             configure_args: "--with-boot-jdk=" + common.boot_jdk_home,
@@ -820,7 +879,7 @@ var getJibProfilesDependencies = function (input, common) {
         jtreg: {
             server: "javare",
             revision: "4.2",
-            build_number: "b10",
+            build_number: "b12",
             checksum_file: "MD5_VALUES",
             file: "jtreg_bin-4.2.zip",
             environment_name: "JT_HOME",
@@ -845,11 +904,15 @@ var getJibProfilesDependencies = function (input, common) {
             environment_path: makeBinDir
         },
 
-        freetype: {
+        autoconf: {
             organization: common.organization,
             ext: "tar.gz",
-            revision: freetype_version,
-            module: "freetype-" + input.target_platform
+            revision: "2.69+1.0.1",
+            module: (input.build_os == "windows"
+                ? "autoconf-" + input.build_osenv_platform
+                : "autoconf-" + input.build_platform),
+            configure_args: "",
+            environment_path: input.get("autoconf", "install_path")
         },
 
         graphviz: {
@@ -869,6 +932,7 @@ var getJibProfilesDependencies = function (input, common) {
             configure_args: "PANDOC=" + input.get("pandoc", "install_path") + "/pandoc/pandoc",
             environment_path: input.get("pandoc", "install_path") + "/pandoc"
         },
+
         // This adds java jib as a dependency for the test artifacts resolver
         jib: {
             organization: "com.oracle.java.jib",
@@ -878,7 +942,15 @@ var getJibProfilesDependencies = function (input, common) {
             environment_name: "JIB_JAR",
             environment_value: input.get("jib", "install_path")
                 + "/jib-3.0-SNAPSHOT-distribution/lib/jib-3.0-SNAPSHOT.jar"
-       }
+        },
+
+        ant: {
+            organization: common.organization,
+            ext: "zip",
+            revision: "1.7.1+1.0",
+            configure_args: "",
+        },
+
     };
 
     // Need to add a value for the Visual Studio tools variable to make
@@ -1041,17 +1113,17 @@ var concatObjects = function (o1, o2) {
  * Constructs the numeric version string from reading the
  * make/autoconf/version-numbers file and removing all trailing ".0".
  *
- * @param major Override major version
- * @param minor Override minor version
- * @param security Override security version
+ * @param feature Override feature version
+ * @param interim Override interim version
+ * @param update Override update version
  * @param patch Override patch version
  * @returns {String} The numeric version string
  */
-var getVersion = function (major, minor, security, patch) {
+var getVersion = function (feature, interim, update, patch) {
     var version_numbers = getVersionNumbers();
-    var version = (major != null ? major : version_numbers.get("DEFAULT_VERSION_MAJOR"))
-        + "." + (minor != null ? minor : version_numbers.get("DEFAULT_VERSION_MINOR"))
-        + "." + (security != null ? security :  version_numbers.get("DEFAULT_VERSION_SECURITY"))
+    var version = (feature != null ? feature : version_numbers.get("DEFAULT_VERSION_FEATURE"))
+        + "." + (interim != null ? interim : version_numbers.get("DEFAULT_VERSION_INTERIM"))
+        + "." + (update != null ? update :  version_numbers.get("DEFAULT_VERSION_UPDATE"))
         + "." + (patch != null ? patch : version_numbers.get("DEFAULT_VERSION_PATCH"));
     while (version.match(".*\\.0$")) {
         version = version.substring(0, version.length - 2);
@@ -1068,6 +1140,7 @@ var versionArgs = function(input, common) {
     if (input.build_type == "promoted") {
         args = concat(args,
                       // This needs to be changed when we start building release candidates
+                      // with-version-pre must be set to ea for 'ea' and empty for fcs build
                       "--with-version-pre=ea",
                       "--without-version-opt");
     } else {

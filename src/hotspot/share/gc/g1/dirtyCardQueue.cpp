@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,14 @@
 #include "gc/g1/dirtyCardQueue.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1RemSet.hpp"
+#include "gc/g1/g1ThreadLocalData.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
 #include "gc/shared/workgroup.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/thread.inline.hpp"
+#include "runtime/threadSMR.hpp"
 
 // Closure used for updating remembered sets and recording references that
 // point into the collection set while the mutator is running.
@@ -163,7 +165,7 @@ void DirtyCardQueueSet::initialize(Monitor* cbl_mon,
 }
 
 void DirtyCardQueueSet::handle_zero_index_for_thread(JavaThread* t) {
-  t->dirty_card_queue().handle_zero_index();
+  G1ThreadLocalData::dirty_card_queue(t).handle_zero_index();
 }
 
 bool DirtyCardQueueSet::apply_closure_to_buffer(CardTableEntryClosure* cl,
@@ -249,7 +251,7 @@ bool DirtyCardQueueSet::refine_completed_buffer_concurrently(uint worker_i, size
 }
 
 bool DirtyCardQueueSet::apply_closure_during_gc(CardTableEntryClosure* cl, uint worker_i) {
-  assert_at_safepoint(false);
+  assert_at_safepoint();
   return apply_closure_to_completed_buffer(cl, worker_i, 0, true);
 }
 
@@ -319,8 +321,8 @@ void DirtyCardQueueSet::abandon_logs() {
   clear();
   // Since abandon is done only at safepoints, we can safely manipulate
   // these queues.
-  for (JavaThread* t = Threads::first(); t; t = t->next()) {
-    t->dirty_card_queue().reset();
+  for (JavaThreadIteratorWithHandle jtiwh; JavaThread *t = jtiwh.next(); ) {
+    G1ThreadLocalData::dirty_card_queue(t).reset();
   }
   shared_dirty_card_queue()->reset();
 }
@@ -338,8 +340,8 @@ void DirtyCardQueueSet::concatenate_logs() {
   int save_max_completed_queue = _max_completed_queue;
   _max_completed_queue = max_jint;
   assert(SafepointSynchronize::is_at_safepoint(), "Must be at safepoint.");
-  for (JavaThread* t = Threads::first(); t; t = t->next()) {
-    concatenate_log(t->dirty_card_queue());
+  for (JavaThreadIteratorWithHandle jtiwh; JavaThread *t = jtiwh.next(); ) {
+    concatenate_log(G1ThreadLocalData::dirty_card_queue(t));
   }
   concatenate_log(_shared_dirty_card_queue);
   // Restore the completed buffer queue limit.

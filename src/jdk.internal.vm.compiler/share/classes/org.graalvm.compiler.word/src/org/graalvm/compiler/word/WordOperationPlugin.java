@@ -24,14 +24,16 @@ package org.graalvm.compiler.word;
 
 import static org.graalvm.compiler.nodes.ConstantNode.forInt;
 import static org.graalvm.compiler.nodes.ConstantNode.forIntegerKind;
-import static org.graalvm.word.LocationIdentity.any;
+import static jdk.internal.vm.compiler.word.LocationIdentity.any;
 
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
 
 import org.graalvm.compiler.api.replacements.SnippetReflectionProvider;
 import org.graalvm.compiler.bytecode.BridgeMethodUtils;
+import org.graalvm.compiler.core.common.calc.CanonicalCondition;
 import org.graalvm.compiler.core.common.calc.Condition;
+import org.graalvm.compiler.core.common.calc.Condition.CanonicalizedCondition;
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.core.common.type.StampPair;
@@ -68,8 +70,8 @@ import org.graalvm.compiler.nodes.memory.address.OffsetAddressNode;
 import org.graalvm.compiler.nodes.type.StampTool;
 import org.graalvm.compiler.word.Word.Opcode;
 import org.graalvm.compiler.word.Word.Operation;
-import org.graalvm.word.LocationIdentity;
-import org.graalvm.word.WordFactory;
+import jdk.internal.vm.compiler.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.impl.WordFactoryOperation;
 
 import jdk.vm.ci.code.BailoutException;
 import jdk.vm.ci.meta.JavaKind;
@@ -83,7 +85,7 @@ import jdk.vm.ci.meta.ResolvedJavaType;
  * A plugin for calls to {@linkplain Operation word operations}, as well as all other nodes that
  * need special handling for {@link Word} types.
  */
-public class WordOperationPlugin extends WordFactory implements NodePlugin, TypePlugin, InlineInvokePlugin {
+public class WordOperationPlugin implements NodePlugin, TypePlugin, InlineInvokePlugin {
     protected final WordTypes wordTypes;
     protected final JavaKind wordKind;
     protected final SnippetReflectionProvider snippetReflection;
@@ -173,14 +175,14 @@ public class WordOperationPlugin extends WordFactory implements NodePlugin, Type
     }
 
     protected LoadIndexedNode createLoadIndexedNode(ValueNode array, ValueNode index) {
-        return new LoadIndexedNode(null, array, index, wordTypes.getWordKind());
+        return new LoadIndexedNode(null, array, index, wordKind);
     }
 
     @Override
     public boolean handleStoreField(GraphBuilderContext b, ValueNode object, ResolvedJavaField field, ValueNode value) {
         if (field.getJavaKind() == JavaKind.Object) {
             boolean isWordField = wordTypes.isWord(field.getType());
-            boolean isWordValue = value.getStackKind() == wordTypes.getWordKind();
+            boolean isWordValue = value.getStackKind() == wordKind;
 
             if (isWordField && !isWordValue) {
                 throw bailout(b, "Cannot store a non-word value into a word field: " + field.format("%H.%n"));
@@ -203,20 +205,20 @@ public class WordOperationPlugin extends WordFactory implements NodePlugin, Type
         ResolvedJavaType arrayType = StampTool.typeOrNull(array);
         if (arrayType != null && wordTypes.isWord(arrayType.getComponentType())) {
             assert elementKind == JavaKind.Object;
-            if (value.getStackKind() != wordTypes.getWordKind()) {
+            if (value.getStackKind() != wordKind) {
                 throw bailout(b, "Cannot store a non-word value into a word array: " + arrayType.toJavaName(true));
             }
             b.add(createStoreIndexedNode(array, index, value));
             return true;
         }
-        if (elementKind == JavaKind.Object && value.getStackKind() == wordTypes.getWordKind()) {
+        if (elementKind == JavaKind.Object && value.getStackKind() == wordKind) {
             throw bailout(b, "Cannot store a word value into a non-word array: " + arrayType.toJavaName(true));
         }
         return false;
     }
 
     protected StoreIndexedNode createStoreIndexedNode(ValueNode array, ValueNode index, ValueNode value) {
-        return new StoreIndexedNode(array, index, wordTypes.getWordKind(), value);
+        return new StoreIndexedNode(array, index, wordKind, value);
     }
 
     @Override
@@ -228,7 +230,7 @@ public class WordOperationPlugin extends WordFactory implements NodePlugin, Type
             return false;
         }
 
-        if (object.getStackKind() != wordTypes.getWordKind()) {
+        if (object.getStackKind() != wordKind) {
             throw bailout(b, "Cannot cast a non-word value to a word type: " + type.toJavaName(true));
         }
         b.push(JavaKind.Object, object);
@@ -247,7 +249,7 @@ public class WordOperationPlugin extends WordFactory implements NodePlugin, Type
 
     protected void processWordOperation(GraphBuilderContext b, ValueNode[] args, ResolvedJavaMethod wordMethod) throws GraalError {
         JavaKind returnKind = wordMethod.getSignature().getReturnKind();
-        WordFactory.FactoryOperation factoryOperation = BridgeMethodUtils.getAnnotation(WordFactory.FactoryOperation.class, wordMethod);
+        WordFactoryOperation factoryOperation = BridgeMethodUtils.getAnnotation(WordFactoryOperation.class, wordMethod);
         if (factoryOperation != null) {
             switch (factoryOperation.opcode()) {
                 case ZERO:
@@ -409,31 +411,30 @@ public class WordOperationPlugin extends WordFactory implements NodePlugin, Type
     private ValueNode comparisonOp(GraphBuilderContext graph, Condition condition, ValueNode left, ValueNode right) {
         assert left.getStackKind() == wordKind && right.getStackKind() == wordKind;
 
-        // mirroring gets the condition into canonical form
-        boolean mirror = condition.canonicalMirror();
+        CanonicalizedCondition canonical = condition.canonicalize();
 
-        ValueNode a = mirror ? right : left;
-        ValueNode b = mirror ? left : right;
+        ValueNode a = canonical.mustMirror() ? right : left;
+        ValueNode b = canonical.mustMirror() ? left : right;
 
         CompareNode comparison;
-        if (condition == Condition.EQ || condition == Condition.NE) {
+        if (canonical.getCanonicalCondition() == CanonicalCondition.EQ) {
             comparison = new IntegerEqualsNode(a, b);
-        } else if (condition.isUnsigned()) {
+        } else if (canonical.getCanonicalCondition() == CanonicalCondition.BT) {
             comparison = new IntegerBelowNode(a, b);
         } else {
+            assert canonical.getCanonicalCondition() == CanonicalCondition.LT;
             comparison = new IntegerLessThanNode(a, b);
         }
 
         ConstantNode trueValue = graph.add(forInt(1));
         ConstantNode falseValue = graph.add(forInt(0));
 
-        if (condition.canonicalNegate()) {
+        if (canonical.mustNegate()) {
             ConstantNode temp = trueValue;
             trueValue = falseValue;
             falseValue = temp;
         }
-        ConditionalNode materialize = graph.add(new ConditionalNode(graph.add(comparison), trueValue, falseValue));
-        return materialize;
+        return graph.add(new ConditionalNode(graph.add(comparison), trueValue, falseValue));
     }
 
     protected ValueNode readOp(GraphBuilderContext b, JavaKind readKind, AddressNode address, LocationIdentity location, Opcode op) {
@@ -507,10 +508,6 @@ public class WordOperationPlugin extends WordFactory implements NodePlugin, Type
                 return b.add(new SignExtendNode(value, 64));
             }
         }
-    }
-
-    public WordTypes getWordTypes() {
-        return wordTypes;
     }
 
     private static BailoutException bailout(GraphBuilderContext b, String msg) {

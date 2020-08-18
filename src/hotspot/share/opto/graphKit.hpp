@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -754,10 +754,7 @@ class GraphKit : public Phase {
   // Returns the object (if any) which was created the moment before.
   Node* just_allocated_object(Node* current_control);
 
-  static bool use_ReduceInitialCardMarks() {
-    return (ReduceInitialCardMarks
-            && Universe::heap()->can_elide_tlab_store_barriers());
-  }
+  static bool use_ReduceInitialCardMarks();
 
   // Sync Ideal and Graph kits.
   void sync_kit(IdealKit& ideal);
@@ -771,6 +768,7 @@ class GraphKit : public Phase {
   // Used for load_store operations which loads old value.
   bool can_move_pre_barrier() const;
 
+#if INCLUDE_G1GC
   // G1 pre/post barriers
   void g1_write_barrier_pre(bool do_load,
                             Node* obj,
@@ -797,6 +795,7 @@ class GraphKit : public Phase {
   bool g1_can_remove_pre_barrier(PhaseTransform* phase, Node* adr, BasicType bt, uint adr_idx);
 
   bool g1_can_remove_post_barrier(PhaseTransform* phase, Node* store, Node* adr);
+#endif // INCLUDE_G1GC
 
   public:
   // Helper function to round double arguments before a call

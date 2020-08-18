@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,9 @@
 #include "opto/phaseX.hpp"
 #include "opto/movenode.hpp"
 #include "opto/rootnode.hpp"
+#if INCLUDE_G1GC
+#include "gc/g1/g1ThreadLocalData.hpp"
+#endif // INCLUDE_G1GC
 
 ConnectionGraph::ConnectionGraph(Compile * C, PhaseIterGVN *igvn) :
   _nodes(C->comp_arena(), C->unique(), C->unique(), NULL),
@@ -366,7 +369,7 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
       delayed_worklist->push(n);
       // Check if a call returns an object.
       if ((n->as_Call()->returns_pointer() &&
-           n->as_Call()->proj_out(TypeFunc::Parms) != NULL) ||
+           n->as_Call()->proj_out_or_null(TypeFunc::Parms) != NULL) ||
           (n->is_CallStaticJava() &&
            n->as_CallStaticJava()->is_boxing_method())) {
         add_call_node(n->as_Call());
@@ -535,6 +538,7 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
           // Pointer stores in G1 barriers looks like unsafe access.
           // Ignore such stores to be able scalar replace non-escaping
           // allocations.
+#if INCLUDE_G1GC
           if (UseG1GC && adr->is_AddP()) {
             Node* base = get_addp_base(adr);
             if (base->Opcode() == Op_LoadP &&
@@ -543,17 +547,16 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
               Node* tls = get_addp_base(adr);
               if (tls->Opcode() == Op_ThreadLocal) {
                 int offs = (int)igvn->find_intptr_t_con(adr->in(AddPNode::Offset), Type::OffsetBot);
-                if (offs == in_bytes(JavaThread::satb_mark_queue_offset() +
-                                     SATBMarkQueue::byte_offset_of_buf())) {
+                if (offs == in_bytes(G1ThreadLocalData::satb_mark_queue_buffer_offset())) {
                   break; // G1 pre barrier previous oop value store.
                 }
-                if (offs == in_bytes(JavaThread::dirty_card_queue_offset() +
-                                     DirtyCardQueue::byte_offset_of_buf())) {
+                if (offs == in_bytes(G1ThreadLocalData::dirty_card_queue_buffer_offset())) {
                   break; // G1 post barrier card address store.
                 }
               }
             }
           }
+#endif
           delayed_worklist->push(n); // Process unsafe access later.
           break;
         }
@@ -2674,7 +2677,7 @@ Node* ConnectionGraph::find_inst_mem(Node *orig_mem, int alias_idx, GrowableArra
   PhaseGVN* igvn = _igvn;
   const TypeOopPtr *toop = C->get_adr_type(alias_idx)->isa_oopptr();
   bool is_instance = (toop != NULL) && toop->is_known_instance();
-  Node *start_mem = C->start()->proj_out(TypeFunc::Memory);
+  Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
   Node *prev = NULL;
   Node *result = orig_mem;
   while (prev != result) {
@@ -3028,7 +3031,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         // An allocation may have an Initialize which has raw stores. Scan
         // the users of the raw allocation result and push AddP users
         // on alloc_worklist.
-        Node *raw_result = alloc->proj_out(TypeFunc::Parms);
+        Node *raw_result = alloc->proj_out_or_null(TypeFunc::Parms);
         assert (raw_result != NULL, "must have an allocation result");
         for (DUIterator_Fast imax, i = raw_result->fast_outs(imax); i < imax; i++) {
           Node *use = raw_result->fast_out(i);
@@ -3219,14 +3222,14 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
       // we don't need to do anything, but the users must be pushed
     } else if (n->is_MemBar()) { // Initialize, MemBar nodes
       // we don't need to do anything, but the users must be pushed
-      n = n->as_MemBar()->proj_out(TypeFunc::Memory);
+      n = n->as_MemBar()->proj_out_or_null(TypeFunc::Memory);
       if (n == NULL)
         continue;
     } else if (n->Opcode() == Op_StrCompressedCopy ||
                n->Opcode() == Op_EncodeISOArray) {
       // get the memory projection
       n = n->find_out_with(Op_SCMemProj);
-      assert(n->Opcode() == Op_SCMemProj, "memory projection required");
+      assert(n != NULL && n->Opcode() == Op_SCMemProj, "memory projection required");
     } else {
       assert(n->is_Mem(), "memory node required.");
       Node *addr = n->in(MemNode::Address);
@@ -3250,7 +3253,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
       } else if (n->is_LoadStore()) {
         // get the memory projection
         n = n->find_out_with(Op_SCMemProj);
-        assert(n->Opcode() == Op_SCMemProj, "memory projection required");
+        assert(n != NULL && n->Opcode() == Op_SCMemProj, "memory projection required");
       }
     }
     // push user on appropriate worklist

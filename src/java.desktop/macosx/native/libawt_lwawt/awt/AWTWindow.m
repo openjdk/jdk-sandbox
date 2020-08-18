@@ -262,8 +262,7 @@ AWT_NS_WINDOW_IMPLEMENTATION
         } else {
             [self.nsWindow setCollectionBehavior:NSWindowCollectionBehaviorDefault];
         }
-    }
-
+    } 
 }
 
 - (id) initWithPlatformWindow:(JNFWeakJObjectWrapper *)platformWindow
@@ -953,11 +952,6 @@ AWT_ASSERT_APPKIT_THREAD;
 + (AWTWindow *) lastKeyWindow {
     return lastKeyWindow;
 }
-
-- (BOOL)windowShouldZoom:(NSWindow *)window toFrame:(NSRect)newFrame {
-    return !NSEqualSizes(self.nsWindow.frame.size, newFrame.size);
-}
-
 
 @end // AWTWindow
 

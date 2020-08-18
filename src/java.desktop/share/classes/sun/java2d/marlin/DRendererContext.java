@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import sun.java2d.ReentrantContext;
 import sun.java2d.marlin.ArrayCacheConst.CacheStats;
 import sun.java2d.marlin.DMarlinRenderingEngine.NormalizingPathIterator;
+import sun.java2d.marlin.DTransformingPathConsumer2D.CurveBasicMonotonizer;
+import sun.java2d.marlin.DTransformingPathConsumer2D.CurveClipSplitter;
 
 /**
  * This class is a renderer context dedicated to a single thread
@@ -70,21 +72,33 @@ final class DRendererContext extends ReentrantContext implements IRendererContex
     final DStroker stroker;
     // Simplifies out collinear lines
     final DCollinearSimplifier simplifier = new DCollinearSimplifier();
+    // Simplifies path
+    final DPathSimplifier pathSimplifier = new DPathSimplifier();
     final DDasher dasher;
     final MarlinTileGenerator ptg;
     final MarlinCache cache;
     // flag indicating the shape is stroked (1) or filled (0)
     int stroking = 0;
+    // flag indicating to clip the shape
+    boolean doClip = false;
+    // flag indicating if the path is closed or not (in advance) to handle properly caps
+    boolean closedPath = false;
+    // clip rectangle (ymin, ymax, xmin, xmax):
+    final double[] clipRect = new double[4];
+    // CurveBasicMonotonizer instance
+    final CurveBasicMonotonizer monotonizer;
+    // CurveClipSplitter instance
+    final CurveClipSplitter curveClipSplitter;
 
     // Array caches:
     /* clean int[] cache (zero-filled) = 5 refs */
     private final IntArrayCache cleanIntCache = new IntArrayCache(true, 5);
-    /* dirty int[] cache = 4 refs */
-    private final IntArrayCache dirtyIntCache = new IntArrayCache(false, 4);
-    /* dirty double[] cache = 3 refs */
-    private final DoubleArrayCache dirtyDoubleCache = new DoubleArrayCache(false, 3);
-    /* dirty byte[] cache = 1 ref */
-    private final ByteArrayCache dirtyByteCache = new ByteArrayCache(false, 1);
+    /* dirty int[] cache = 5 refs */
+    private final IntArrayCache dirtyIntCache = new IntArrayCache(false, 5);
+    /* dirty double[] cache = 4 refs (2 polystack) */
+    private final DoubleArrayCache dirtyDoubleCache = new DoubleArrayCache(false, 4);
+    /* dirty byte[] cache = 2 ref (2 polystack) */
+    private final ByteArrayCache dirtyByteCache = new ByteArrayCache(false, 2);
 
     // RendererContext statistics
     final RendererStats stats;
@@ -118,8 +132,12 @@ final class DRendererContext extends ReentrantContext implements IRendererContex
         nPCPathIterator = new NormalizingPathIterator.NearestPixelCenter(double6);
         nPQPathIterator  = new NormalizingPathIterator.NearestPixelQuarter(double6);
 
+        // curve monotonizer & clip subdivider (before transformerPC2D init)
+        monotonizer = new CurveBasicMonotonizer(this);
+        curveClipSplitter = new CurveClipSplitter(this);
+
         // MarlinRenderingEngine.TransformingPathConsumer2D
-        transformerPC2D = new DTransformingPathConsumer2D();
+        transformerPC2D = new DTransformingPathConsumer2D(this);
 
         // Renderer:
         cache = new MarlinCache(this);
@@ -141,7 +159,10 @@ final class DRendererContext extends ReentrantContext implements IRendererContex
             }
             stats.totalOffHeap = 0L;
         }
-        stroking = 0;
+        stroking   = 0;
+        doClip     = false;
+        closedPath = false;
+
         // if context is maked as DIRTY:
         if (dirty) {
             // may happen if an exception if thrown in the pipeline processing:
@@ -162,12 +183,11 @@ final class DRendererContext extends ReentrantContext implements IRendererContex
 
     Path2D.Double getPath2D() {
         // resolve reference:
-        Path2D.Double p2d
-            = (refPath2D != null) ? refPath2D.get() : null;
+        Path2D.Double p2d = (refPath2D != null) ? refPath2D.get() : null;
 
         // create a new Path2D ?
         if (p2d == null) {
-            p2d = new Path2D.Double(Path2D.WIND_NON_ZERO, INITIAL_EDGES_COUNT); // 32K
+            p2d = new Path2D.Double(WIND_NON_ZERO, INITIAL_EDGES_COUNT); // 32K
 
             // update weak reference:
             refPath2D = new WeakReference<Path2D.Double>(p2d);

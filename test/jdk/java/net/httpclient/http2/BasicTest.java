@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,51 +26,59 @@
  * @bug 8087112
  * @library /lib/testlibrary server
  * @build jdk.testlibrary.SimpleSSLContext
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.common
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ * @modules java.base/sun.net.www.http
+ *          java.net.http/jdk.internal.net.http.common
+ *          java.net.http/jdk.internal.net.http.frame
+ *          java.net.http/jdk.internal.net.http.hpack
  * @run testng/othervm -Djdk.httpclient.HttpClient.log=ssl,requests,responses,errors BasicTest
  */
 
+import java.io.IOException;
 import java.net.*;
-import jdk.incubator.http.*;
-import static jdk.incubator.http.HttpClient.Version.HTTP_2;
 import javax.net.ssl.*;
+import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.file.*;
 import java.util.concurrent.*;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import jdk.testlibrary.SimpleSSLContext;
-import static jdk.incubator.http.HttpRequest.BodyProcessor.fromFile;
-import static jdk.incubator.http.HttpRequest.BodyProcessor.fromString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asFile;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
-
 import org.testng.annotations.Test;
+import static java.net.http.HttpClient.Version.HTTP_2;
 
 @Test
 public class BasicTest {
     static int httpPort, httpsPort;
     static Http2TestServer httpServer, httpsServer;
     static HttpClient client = null;
-    static ExecutorService exec;
+    static ExecutorService clientExec;
+    static ExecutorService serverExec;
     static SSLContext sslContext;
 
-    static String httpURIString, httpsURIString;
+    static String pingURIString, httpURIString, httpsURIString;
 
     static void initialize() throws Exception {
         try {
             SimpleSSLContext sslct = new SimpleSSLContext();
             sslContext = sslct.get();
             client = getClient();
-            httpServer = new Http2TestServer(false, 0, exec, sslContext);
+            httpServer = new Http2TestServer(false, 0, serverExec, sslContext);
             httpServer.addHandler(new Http2EchoHandler(), "/");
+            httpServer.addHandler(new EchoWithPingHandler(), "/ping");
             httpPort = httpServer.getAddress().getPort();
 
-            httpsServer = new Http2TestServer(true, 0, exec, sslContext);
+            httpsServer = new Http2TestServer(true, 0, serverExec, sslContext);
             httpsServer.addHandler(new Http2EchoHandler(), "/");
 
             httpsPort = httpsServer.getAddress().getPort();
-            httpURIString = "http://127.0.0.1:" + httpPort + "/foo/";
-            httpsURIString = "https://127.0.0.1:" + httpsPort + "/bar/";
+            httpURIString = "http://localhost:" + httpPort + "/foo/";
+            pingURIString = "http://localhost:" + httpPort + "/ping/";
+            httpsURIString = "https://localhost:" + httpsPort + "/bar/";
 
             httpServer.start();
             httpsServer.start();
@@ -81,16 +89,48 @@ public class BasicTest {
         }
     }
 
-    @Test(timeOut=3000000)
+    static List<CompletableFuture<Long>> cfs = Collections
+        .synchronizedList( new LinkedList<>());
+
+    static CompletableFuture<Long> currentCF;
+
+    static class EchoWithPingHandler extends Http2EchoHandler {
+        private final Object lock = new Object();
+
+        @Override
+        public void handle(Http2TestExchange exchange) throws IOException {
+            // for now only one ping active at a time. don't want to saturate
+            synchronized(lock) {
+                CompletableFuture<Long> cf = currentCF;
+                if (cf == null || cf.isDone()) {
+                    cf = exchange.sendPing();
+                    assert cf != null;
+                    cfs.add(cf);
+                    currentCF = cf;
+                }
+            }
+            super.handle(exchange);
+        }
+    }
+
+    @Test
     public static void test() throws Exception {
         try {
             initialize();
-            simpleTest(false);
-            simpleTest(true);
+            warmup(false);
+            warmup(true);
+            simpleTest(false, false);
+            simpleTest(false, true);
+            simpleTest(true, false);
             streamTest(false);
             streamTest(true);
             paramsTest();
-            Thread.sleep(1000 * 4);
+            CompletableFuture.allOf(cfs.toArray(new CompletableFuture[0])).join();
+            synchronized (cfs) {
+                for (CompletableFuture<Long> cf : cfs) {
+                    System.out.printf("Ping ack received in %d millisec\n", cf.get());
+                }
+            }
         } catch (Throwable tt) {
             System.err.println("tt caught");
             tt.printStackTrace();
@@ -98,15 +138,16 @@ public class BasicTest {
         } finally {
             httpServer.stop();
             httpsServer.stop();
-            exec.shutdownNow();
+            //clientExec.shutdown();
         }
     }
 
     static HttpClient getClient() {
         if (client == null) {
-            exec = Executors.newCachedThreadPool();
+            serverExec = Executors.newCachedThreadPool();
+            clientExec = Executors.newCachedThreadPool();
             client = HttpClient.newBuilder()
-                               .executor(exec)
+                               .executor(clientExec)
                                .sslContext(sslContext)
                                .version(HTTP_2)
                                .build();
@@ -115,10 +156,14 @@ public class BasicTest {
     }
 
     static URI getURI(boolean secure) {
+        return getURI(secure, false);
+    }
+
+    static URI getURI(boolean secure, boolean ping) {
         if (secure)
             return URI.create(httpsURIString);
         else
-            return URI.create(httpURIString);
+            return URI.create(ping ? pingURIString: httpURIString);
     }
 
     static void checkStatus(int expected, int found) throws Exception {
@@ -157,12 +202,12 @@ public class BasicTest {
         HttpClient client = getClient();
         Path src = TestUtil.getAFile(FILESIZE * 4);
         HttpRequest req = HttpRequest.newBuilder(uri)
-                                     .POST(fromFile(src))
+                                     .POST(BodyPublishers.ofFile(src))
                                      .build();
 
         Path dest = Paths.get("streamtest.txt");
         dest.toFile().delete();
-        CompletableFuture<Path> response = client.sendAsync(req, asFile(dest))
+        CompletableFuture<Path> response = client.sendAsync(req, BodyHandlers.ofFile(dest))
                 .thenApply(resp -> {
                     if (resp.statusCode() != 200)
                         throw new RuntimeException();
@@ -170,12 +215,11 @@ public class BasicTest {
                 });
         response.join();
         compareFiles(src, dest);
-        System.err.println("DONE");
+        System.err.println("streamTest: DONE");
     }
 
     static void paramsTest() throws Exception {
-        Http2TestServer server = new Http2TestServer(true, 0, exec, sslContext);
-        server.addHandler((t -> {
+        httpsServer.addHandler((t -> {
             SSLSession s = t.getSSLSession();
             String prot = s.getProtocol();
             if (prot.equals("TLSv1.2")) {
@@ -185,20 +229,19 @@ public class BasicTest {
                 t.sendResponseHeaders(500, -1);
             }
         }), "/");
-        server.start();
-        int port = server.getAddress().getPort();
-        URI u = new URI("https://127.0.0.1:"+port+"/foo");
+        URI u = new URI("https://localhost:"+httpsPort+"/foo");
         HttpClient client = getClient();
         HttpRequest req = HttpRequest.newBuilder(u).build();
-        HttpResponse<String> resp = client.send(req, asString());
+        HttpResponse<String> resp = client.send(req, BodyHandlers.ofString());
         int stat = resp.statusCode();
         if (stat != 200) {
             throw new RuntimeException("paramsTest failed "
                 + Integer.toString(stat));
         }
+        System.err.println("paramsTest: DONE");
     }
 
-    static void simpleTest(boolean secure) throws Exception {
+    static void warmup(boolean secure) throws Exception {
         URI uri = getURI(secure);
         System.err.println("Request to " + uri);
 
@@ -206,28 +249,30 @@ public class BasicTest {
 
         HttpClient client = getClient();
         HttpRequest req = HttpRequest.newBuilder(uri)
-                                     .POST(fromString(SIMPLE_STRING))
+                                     .POST(BodyPublishers.ofString(SIMPLE_STRING))
                                      .build();
-        HttpResponse<String> response = client.send(req, asString());
-        HttpHeaders h = response.headers();
-
+        HttpResponse<String> response = client.send(req, BodyHandlers.ofString());
         checkStatus(200, response.statusCode());
-
         String responseBody = response.body();
+        HttpHeaders h = response.headers();
         checkStrings(SIMPLE_STRING, responseBody);
-
         checkStrings(h.firstValue("x-hello").get(), "world");
         checkStrings(h.firstValue("x-bye").get(), "universe");
+    }
+
+    static void simpleTest(boolean secure, boolean ping) throws Exception {
+        URI uri = getURI(secure, ping);
+        System.err.println("Request to " + uri);
 
         // Do loops asynchronously
 
         CompletableFuture[] responses = new CompletableFuture[LOOPS];
         final Path source = TestUtil.getAFile(FILESIZE);
         HttpRequest request = HttpRequest.newBuilder(uri)
-                                         .POST(fromFile(source))
+                                         .POST(BodyPublishers.ofFile(source))
                                          .build();
         for (int i = 0; i < LOOPS; i++) {
-            responses[i] = client.sendAsync(request, asFile(tempFile()))
+            responses[i] = client.sendAsync(request, BodyHandlers.ofFile(tempFile()))
                 //.thenApply(resp -> compareFiles(resp.body(), source));
                 .thenApply(resp -> {
                     System.out.printf("Resp status %d body size %d\n",
@@ -237,6 +282,6 @@ public class BasicTest {
             Thread.sleep(100);
         }
         CompletableFuture.allOf(responses).join();
-        System.err.println("DONE");
+        System.err.println("simpleTest: DONE");
     }
 }

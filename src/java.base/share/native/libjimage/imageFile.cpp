@@ -57,14 +57,16 @@ const char FileSeparator = '/';
 
 // Compute the Perfect Hashing hash code for the supplied UTF-8 string.
 s4 ImageStrings::hash_code(const char* string, s4 seed) {
+    assert(seed > 0 && "invariant");
     // Access bytes as unsigned.
     u1* bytes = (u1*)string;
+    u4 useed = (u4)seed;
     // Compute hash code.
     for (u1 byte = *bytes++; byte; byte = *bytes++) {
-        seed = (seed * HASH_MULTIPLIER) ^ byte;
+        useed = (useed * HASH_MULTIPLIER) ^ byte;
     }
     // Ensure the result is not signed.
-    return seed & 0x7FFFFFFF;
+    return (s4)(useed & 0x7FFFFFFF);
 }
 
 // Match up a string in a perfect hash table.
@@ -205,12 +207,19 @@ const char* ImageModuleData::package_to_module(const char* package_name) {
 // Manage a table of open image files.  This table allows multiple access points
 // to share an open image.
 ImageFileReaderTable::ImageFileReaderTable() : _count(0), _max(_growth) {
-    _table = new ImageFileReader*[_max];
+    _table = static_cast<ImageFileReader**>(calloc(_max, sizeof(ImageFileReader*)));
     assert(_table != NULL && "allocation failed");
 }
 
 ImageFileReaderTable::~ImageFileReaderTable() {
-    delete[] _table;
+    for (u4 i = 0; i < _count; i++) {
+        ImageFileReader* image = _table[i];
+
+        if (image != NULL) {
+            delete image;
+        }
+    }
+    free(_table);
 }
 
 // Add a new image entry to the table.

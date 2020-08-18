@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,34 +23,23 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1ConcurrentRefine.hpp"
 #include "gc/g1/g1ConcurrentRefineThread.hpp"
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1RemSet.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 
-G1ConcurrentRefineThread::G1ConcurrentRefineThread(G1ConcurrentRefine* cr,
-                                                   G1ConcurrentRefineThread *next,
-                                                   uint worker_id_offset,
-                                                   uint worker_id,
-                                                   size_t activate,
-                                                   size_t deactivate) :
+G1ConcurrentRefineThread::G1ConcurrentRefineThread(G1ConcurrentRefine* cr, uint worker_id) :
   ConcurrentGCThread(),
-  _worker_id_offset(worker_id_offset),
   _worker_id(worker_id),
   _active(false),
-  _next(next),
   _monitor(NULL),
   _cr(cr),
-  _vtime_accum(0.0),
-  _activation_threshold(activate),
-  _deactivation_threshold(deactivate)
+  _vtime_accum(0.0)
 {
-
   // Each thread has its own monitor. The i-th thread is responsible for signaling
   // to thread i+1 if the number of buffers in the queue exceeds a threshold for this
   // thread. Monitors are also used to wake up the threads during termination.
@@ -67,13 +56,6 @@ G1ConcurrentRefineThread::G1ConcurrentRefineThread(G1ConcurrentRefine* cr,
   create_and_start();
 }
 
-void G1ConcurrentRefineThread::update_thresholds(size_t activate,
-                                                 size_t deactivate) {
-  assert(deactivate < activate, "precondition");
-  _activation_threshold = activate;
-  _deactivation_threshold = deactivate;
-}
-
 void G1ConcurrentRefineThread::wait_for_completed_buffers() {
   MutexLockerEx x(_monitor, Mutex::_no_safepoint_check_flag);
   while (!should_terminate() && !is_active()) {
@@ -82,7 +64,7 @@ void G1ConcurrentRefineThread::wait_for_completed_buffers() {
 }
 
 bool G1ConcurrentRefineThread::is_active() {
-  DirtyCardQueueSet& dcqs = JavaThread::dirty_card_queue_set();
+  DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
   return is_primary() ? dcqs.process_completed_buffers() : _active;
 }
 
@@ -91,7 +73,7 @@ void G1ConcurrentRefineThread::activate() {
   if (!is_primary()) {
     set_active(true);
   } else {
-    DirtyCardQueueSet& dcqs = JavaThread::dirty_card_queue_set();
+    DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
     dcqs.set_process_completed(true);
   }
   _monitor->notify();
@@ -102,7 +84,7 @@ void G1ConcurrentRefineThread::deactivate() {
   if (!is_primary()) {
     set_active(false);
   } else {
-    DirtyCardQueueSet& dcqs = JavaThread::dirty_card_queue_set();
+    DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
     dcqs.set_process_completed(false);
   }
 }
@@ -118,9 +100,9 @@ void G1ConcurrentRefineThread::run_service() {
     }
 
     size_t buffers_processed = 0;
-    DirtyCardQueueSet& dcqs = JavaThread::dirty_card_queue_set();
-    log_debug(gc, refine)("Activated %d, on threshold: " SIZE_FORMAT ", current: " SIZE_FORMAT,
-                          _worker_id, _activation_threshold, dcqs.completed_buffers_num());
+    log_debug(gc, refine)("Activated worker %d, on threshold: " SIZE_FORMAT ", current: " SIZE_FORMAT,
+                          _worker_id, _cr->activation_threshold(_worker_id),
+                           G1BarrierSet::dirty_card_queue_set().completed_buffers_num());
 
     {
       SuspendibleThreadSetJoiner sts_join;
@@ -131,33 +113,18 @@ void G1ConcurrentRefineThread::run_service() {
           continue;             // Re-check for termination after yield delay.
         }
 
-        size_t curr_buffer_num = dcqs.completed_buffers_num();
-        // If the number of the buffers falls down into the yellow zone,
-        // that means that the transition period after the evacuation pause has ended.
-        if (dcqs.completed_queue_padding() > 0 && curr_buffer_num <= cr()->yellow_zone()) {
-          dcqs.set_completed_queue_padding(0);
-        }
-
-        // Check if we need to activate the next thread.
-        if ((_next != NULL) &&
-            !_next->is_active() &&
-            (curr_buffer_num > _next->_activation_threshold)) {
-          _next->activate();
-        }
-
-        // Process the next buffer, if there are enough left.
-        if (!dcqs.refine_completed_buffer_concurrently(_worker_id + _worker_id_offset, _deactivation_threshold)) {
-          break; // Deactivate, number of buffers fell below threshold.
+        if (!_cr->do_refinement_step(_worker_id)) {
+          break;
         }
         ++buffers_processed;
       }
     }
 
     deactivate();
-    log_debug(gc, refine)("Deactivated %d, off threshold: " SIZE_FORMAT
+    log_debug(gc, refine)("Deactivated worker %d, off threshold: " SIZE_FORMAT
                           ", current: " SIZE_FORMAT ", processed: " SIZE_FORMAT,
-                          _worker_id, _deactivation_threshold,
-                          dcqs.completed_buffers_num(),
+                          _worker_id, _cr->deactivation_threshold(_worker_id),
+                          G1BarrierSet::dirty_card_queue_set().completed_buffers_num(),
                           buffers_processed);
 
     if (os::supports_vtime()) {

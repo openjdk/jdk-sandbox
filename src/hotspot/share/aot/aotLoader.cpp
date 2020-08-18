@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,9 @@
 #include "aot/aotCodeHeap.hpp"
 #include "aot/aotLoader.inline.hpp"
 #include "jvmci/jvmciRuntime.hpp"
+#include "memory/allocation.inline.hpp"
 #include "oops/method.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/timerTrace.hpp"
 
@@ -146,15 +148,6 @@ void AOTLoader::initialize() {
       return;
     }
 
-    const char* home = Arguments::get_java_home();
-    const char* file_separator = os::file_separator();
-
-    for (int i = 0; i < (int) (sizeof(modules) / sizeof(const char*)); i++) {
-      char library[JVM_MAXPATHLEN];
-      jio_snprintf(library, sizeof(library), "%s%slib%slib%s%s%s%s", home, file_separator, file_separator, modules[i], UseCompressedOops ? "-coop" : "", UseG1GC ? "" : "-nong1", os::dll_file_extension());
-      load_library(library, false);
-    }
-
     // Scan the AOTLibrary option.
     if (AOTLibrary != NULL) {
       const int len = (int)strlen(AOTLibrary);
@@ -172,6 +165,16 @@ void AOTLoader::initialize() {
         }
       }
     }
+
+    // Load well-know AOT libraries from Java installation directory.
+    const char* home = Arguments::get_java_home();
+    const char* file_separator = os::file_separator();
+
+    for (int i = 0; i < (int) (sizeof(modules) / sizeof(const char*)); i++) {
+      char library[JVM_MAXPATHLEN];
+      jio_snprintf(library, sizeof(library), "%s%slib%slib%s%s%s%s", home, file_separator, file_separator, modules[i], UseCompressedOops ? "-coop" : "", UseG1GC ? "" : "-nong1", os::dll_file_extension());
+      load_library(library, false);
+    }
   }
 }
 
@@ -180,28 +183,21 @@ void AOTLoader::universe_init() {
     // Shifts are static values which initialized by 0 until java heap initialization.
     // AOT libs are loaded before heap initialized so shift values are not set.
     // It is okay since ObjectAlignmentInBytes flag which defines shifts value is set before AOT libs are loaded.
-    // Set shifts value based on first AOT library config.
+    // AOT sets shift values during heap and metaspace initialization.
+    // Check shifts value to make sure thay did not change.
     if (UseCompressedOops && AOTLib::narrow_oop_shift_initialized()) {
       int oop_shift = Universe::narrow_oop_shift();
-      if (oop_shift == 0) {
-        Universe::set_narrow_oop_shift(AOTLib::narrow_oop_shift());
-      } else {
-        FOR_ALL_AOT_LIBRARIES(lib) {
-          (*lib)->verify_flag(AOTLib::narrow_oop_shift(), oop_shift, "Universe::narrow_oop_shift");
-        }
+      FOR_ALL_AOT_LIBRARIES(lib) {
+        (*lib)->verify_flag((*lib)->config()->_narrowOopShift, oop_shift, "Universe::narrow_oop_shift");
       }
       if (UseCompressedClassPointers) { // It is set only if UseCompressedOops is set
         int klass_shift = Universe::narrow_klass_shift();
-        if (klass_shift == 0) {
-          Universe::set_narrow_klass_shift(AOTLib::narrow_klass_shift());
-        } else {
-          FOR_ALL_AOT_LIBRARIES(lib) {
-            (*lib)->verify_flag(AOTLib::narrow_klass_shift(), klass_shift, "Universe::narrow_klass_shift");
-          }
+        FOR_ALL_AOT_LIBRARIES(lib) {
+          (*lib)->verify_flag((*lib)->config()->_narrowKlassShift, klass_shift, "Universe::narrow_klass_shift");
         }
       }
     }
-    // Create heaps for all the libraries
+    // Create heaps for all valid libraries
     FOR_ALL_AOT_LIBRARIES(lib) {
       if ((*lib)->is_valid()) {
         AOTCodeHeap* heap = new AOTCodeHeap(*lib);
@@ -210,6 +206,9 @@ void AOTLoader::universe_init() {
           add_heap(heap);
           CodeCache::add_heap(heap);
         }
+      } else {
+        // Unload invalid libraries
+        os::dll_unload((*lib)->dl_handle());
       }
     }
   }
@@ -220,25 +219,49 @@ void AOTLoader::universe_init() {
   }
 }
 
+// Set shift value for compressed oops and classes based on first AOT library config.
+// AOTLoader::universe_init(), which is called later, will check the shift value again to make sure nobody change it.
+// This code is not executed during CDS dump because it runs in Interpreter mode and AOT is disabled in this mode.
+
+void AOTLoader::set_narrow_oop_shift() {
+  // This method is called from Universe::initialize_heap().
+  if (UseAOT && libraries_count() > 0 &&
+      UseCompressedOops && AOTLib::narrow_oop_shift_initialized()) {
+    if (Universe::narrow_oop_shift() == 0) {
+      // 0 is valid shift value for small heap but we can safely increase it
+      // at this point when nobody used it yet.
+      Universe::set_narrow_oop_shift(AOTLib::narrow_oop_shift());
+    }
+  }
+}
+
 void AOTLoader::set_narrow_klass_shift() {
-  // This method could be called from Metaspace::set_narrow_klass_base_and_shift().
-  // In case it is not called (during dump CDS, for example) the corresponding code in
-  // AOTLoader::universe_init(), which is called later, will set the shift value.
+  // This method is called from Metaspace::set_narrow_klass_base_and_shift().
   if (UseAOT && libraries_count() > 0 &&
       UseCompressedOops && AOTLib::narrow_oop_shift_initialized() &&
       UseCompressedClassPointers) {
-    int klass_shift = Universe::narrow_klass_shift();
-    if (klass_shift == 0) {
+    if (Universe::narrow_klass_shift() == 0) {
       Universe::set_narrow_klass_shift(AOTLib::narrow_klass_shift());
-    } else {
-      FOR_ALL_AOT_LIBRARIES(lib) {
-        (*lib)->verify_flag(AOTLib::narrow_klass_shift(), klass_shift, "Universe::narrow_klass_shift");
-      }
     }
   }
 }
 
 void AOTLoader::load_library(const char* name, bool exit_on_error) {
+  // Skip library if a library with the same name is already loaded.
+  const int file_separator = *os::file_separator();
+  const char* start = strrchr(name, file_separator);
+  const char* new_name = (start == NULL) ? name : (start + 1);
+  FOR_ALL_AOT_LIBRARIES(lib) {
+    const char* lib_name = (*lib)->name();
+    start = strrchr(lib_name, file_separator);
+    const char* old_name = (start == NULL) ? lib_name : (start + 1);
+    if (strcmp(old_name, new_name) == 0) {
+      if (PrintAOT) {
+        warning("AOT library %s is already loaded as %s.", name, lib_name);
+      }
+      return;
+    }
+  }
   char ebuf[1024];
   void* handle = os::dll_load(name, ebuf, sizeof ebuf);
   if (handle == NULL) {

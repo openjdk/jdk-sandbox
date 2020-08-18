@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/globals.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -62,7 +62,6 @@
 #include "runtime/threadCritical.hpp"
 #include "runtime/timer.hpp"
 #include "runtime/vm_version.hpp"
-#include "semaphore_windows.hpp"
 #include "services/attachListener.hpp"
 #include "services/memTracker.hpp"
 #include "services/runtimeService.hpp"
@@ -100,6 +99,8 @@
 // for enumerating dll libraries
 #include <vdmdbg.h>
 #include <psapi.h>
+#include <mmsystem.h>
+#include <winsock2.h>
 
 // for timer info max values which include all bits
 #define ALL_64_BITS CONST64(-1)
@@ -362,6 +363,39 @@ size_t os::current_stack_size() {
   VirtualQuery(&minfo, &minfo, sizeof(minfo));
   sz = (size_t)os::current_stack_base() - (size_t)minfo.AllocationBase;
   return sz;
+}
+
+bool os::committed_in_range(address start, size_t size, address& committed_start, size_t& committed_size) {
+  MEMORY_BASIC_INFORMATION minfo;
+  committed_start = NULL;
+  committed_size = 0;
+  address top = start + size;
+  const address start_addr = start;
+  while (start < top) {
+    VirtualQuery(start, &minfo, sizeof(minfo));
+    if ((minfo.State & MEM_COMMIT) == 0) {  // not committed
+      if (committed_start != NULL) {
+        break;
+      }
+    } else {  // committed
+      if (committed_start == NULL) {
+        committed_start = start;
+      }
+      size_t offset = start - (address)minfo.BaseAddress;
+      committed_size += minfo.RegionSize - offset;
+    }
+    start = (address)minfo.BaseAddress + minfo.RegionSize;
+  }
+
+  if (committed_start == NULL) {
+    assert(committed_size == 0, "Sanity");
+    return false;
+  } else {
+    assert(committed_start >= start_addr && committed_start < top, "Out of range");
+    // current region may go beyond the limit, trim to the limit
+    committed_size = MIN2(committed_size, size_t(top - committed_start));
+    return true;
+  }
 }
 
 struct tm* os::localtime_pd(const time_t* clock, struct tm* res) {
@@ -980,11 +1014,6 @@ void os::shutdown() {
 }
 
 
-static BOOL (WINAPI *_MiniDumpWriteDump)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
-                                         PMINIDUMP_EXCEPTION_INFORMATION,
-                                         PMINIDUMP_USER_STREAM_INFORMATION,
-                                         PMINIDUMP_CALLBACK_INFORMATION);
-
 static HANDLE dumpFile = NULL;
 
 // Check if dump file can be created.
@@ -1500,13 +1529,39 @@ void os::get_summary_os_info(char* buf, size_t buflen) {
   if (nl != NULL) *nl = '\0';
 }
 
-int os::log_vsnprintf(char* buf, size_t len, const char* fmt, va_list args) {
-  int ret = vsnprintf(buf, len, fmt, args);
-  // Get the correct buffer size if buf is too small
-  if (ret < 0) {
-    return _vscprintf(fmt, args);
+int os::vsnprintf(char* buf, size_t len, const char* fmt, va_list args) {
+#if _MSC_VER >= 1900
+  // Starting with Visual Studio 2015, vsnprint is C99 compliant.
+  int result = ::vsnprintf(buf, len, fmt, args);
+  // If an encoding error occurred (result < 0) then it's not clear
+  // whether the buffer is NUL terminated, so ensure it is.
+  if ((result < 0) && (len > 0)) {
+    buf[len - 1] = '\0';
   }
-  return ret;
+  return result;
+#else
+  // Before Visual Studio 2015, vsnprintf is not C99 compliant, so use
+  // _vsnprintf, whose behavior seems to be *mostly* consistent across
+  // versions.  However, when len == 0, avoid _vsnprintf too, and just
+  // go straight to _vscprintf.  The output is going to be truncated in
+  // that case, except in the unusual case of empty output.  More
+  // importantly, the documentation for various versions of Visual Studio
+  // are inconsistent about the behavior of _vsnprintf when len == 0,
+  // including it possibly being an error.
+  int result = -1;
+  if (len > 0) {
+    result = _vsnprintf(buf, len, fmt, args);
+    // If output (including NUL terminator) is truncated, the buffer
+    // won't be NUL terminated.  Add the trailing NUL specified by C99.
+    if ((result < 0) || ((size_t)result >= len)) {
+      buf[len - 1] = '\0';
+    }
+  }
+  if (result < 0) {
+    result = _vscprintf(fmt, args);
+  }
+  return result;
+#endif // _MSC_VER dispatch
 }
 
 static inline time_t get_mtime(const char* filename) {
@@ -1845,36 +1900,6 @@ int os::get_last_error() {
   return (int)error;
 }
 
-WindowsSemaphore::WindowsSemaphore(uint value) {
-  _semaphore = ::CreateSemaphore(NULL, value, LONG_MAX, NULL);
-
-  guarantee(_semaphore != NULL, "CreateSemaphore failed with error code: %lu", GetLastError());
-}
-
-WindowsSemaphore::~WindowsSemaphore() {
-  ::CloseHandle(_semaphore);
-}
-
-void WindowsSemaphore::signal(uint count) {
-  if (count > 0) {
-    BOOL ret = ::ReleaseSemaphore(_semaphore, count, NULL);
-
-    assert(ret != 0, "ReleaseSemaphore failed with error code: %lu", GetLastError());
-  }
-}
-
-void WindowsSemaphore::wait() {
-  DWORD ret = ::WaitForSingleObject(_semaphore, INFINITE);
-  assert(ret != WAIT_FAILED,   "WaitForSingleObject failed with error code: %lu", GetLastError());
-  assert(ret == WAIT_OBJECT_0, "WaitForSingleObject failed with return value: %lu", ret);
-}
-
-bool WindowsSemaphore::trywait() {
-  DWORD ret = ::WaitForSingleObject(_semaphore, 0);
-  assert(ret != WAIT_FAILED,   "WaitForSingleObject failed with error code: %lu", GetLastError());
-  return ret == WAIT_OBJECT_0;
-}
-
 // sun.misc.Signal
 // NOTE that this is a workaround for an apparent kernel bug where if
 // a signal handler for SIGBREAK is installed then that signal handler
@@ -1966,13 +1991,14 @@ int os::sigexitnum_pd() {
 
 // a counter for each possible signal value, including signal_thread exit signal
 static volatile jint pending_signals[NSIG+1] = { 0 };
-static HANDLE sig_sem = NULL;
+static Semaphore* sig_sem = NULL;
 
 void os::signal_init_pd() {
   // Initialize signal structures
   memset((void*)pending_signals, 0, sizeof(pending_signals));
 
-  sig_sem = ::CreateSemaphore(NULL, 0, NSIG+1, NULL);
+  // Initialize signal semaphore
+  sig_sem = new Semaphore();
 
   // Programs embedding the VM do not want it to attempt to receive
   // events like CTRL_LOGOFF_EVENT, which are used to implement the
@@ -1994,17 +2020,18 @@ void os::signal_init_pd() {
   }
 }
 
-void os::signal_notify(int signal_number) {
-  BOOL ret;
+void os::signal_notify(int sig) {
   if (sig_sem != NULL) {
-    Atomic::inc(&pending_signals[signal_number]);
-    ret = ::ReleaseSemaphore(sig_sem, 1, NULL);
-    assert(ret != 0, "ReleaseSemaphore() failed");
+    Atomic::inc(&pending_signals[sig]);
+    sig_sem->signal();
+  } else {
+    // Signal thread is not created with ReduceSignalUsage and signal_init_pd
+    // initialization isn't called.
+    assert(ReduceSignalUsage, "signal semaphore should be created");
   }
 }
 
-static int check_pending_signals(bool wait_for_signal) {
-  DWORD ret;
+static int check_pending_signals() {
   while (true) {
     for (int i = 0; i < NSIG + 1; i++) {
       jint n = pending_signals[i];
@@ -2012,10 +2039,6 @@ static int check_pending_signals(bool wait_for_signal) {
         return i;
       }
     }
-    if (!wait_for_signal) {
-      return -1;
-    }
-
     JavaThread *thread = JavaThread::current();
 
     ThreadBlockInVM tbivm(thread);
@@ -2024,8 +2047,7 @@ static int check_pending_signals(bool wait_for_signal) {
     do {
       thread->set_suspend_equivalent();
       // cleared by handle_special_suspend_equivalent_condition() or java_suspend_self()
-      ret = ::WaitForSingleObject(sig_sem, INFINITE);
-      assert(ret == WAIT_OBJECT_0, "WaitForSingleObject() failed");
+      sig_sem->wait();
 
       // were we externally suspended while we were waiting?
       threadIsSuspended = thread->handle_special_suspend_equivalent_condition();
@@ -2034,8 +2056,7 @@ static int check_pending_signals(bool wait_for_signal) {
         // another thread suspended us. We don't want to continue running
         // while suspended because that would surprise the thread that
         // suspended us.
-        ret = ::ReleaseSemaphore(sig_sem, 1, NULL);
-        assert(ret != 0, "ReleaseSemaphore() failed");
+        sig_sem->signal();
 
         thread->java_suspend_self();
       }
@@ -2043,12 +2064,8 @@ static int check_pending_signals(bool wait_for_signal) {
   }
 }
 
-int os::signal_lookup() {
-  return check_pending_signals(false);
-}
-
 int os::signal_wait() {
-  return check_pending_signals(true);
+  return check_pending_signals();
 }
 
 // Implicit OS exception handling
@@ -2904,6 +2921,75 @@ void os::large_page_init() {
   UseLargePages = success;
 }
 
+int os::create_file_for_heap(const char* dir) {
+
+  const char name_template[] = "/jvmheap.XXXXXX";
+  char *fullname = (char*)os::malloc((strlen(dir) + strlen(name_template) + 1), mtInternal);
+  if (fullname == NULL) {
+    vm_exit_during_initialization(err_msg("Malloc failed during creation of backing file for heap (%s)", os::strerror(errno)));
+    return -1;
+  }
+
+  (void)strncpy(fullname, dir, strlen(dir)+1);
+  (void)strncat(fullname, name_template, strlen(name_template));
+
+  os::native_path(fullname);
+
+  char *path = _mktemp(fullname);
+  if (path == NULL) {
+    warning("_mktemp could not create file name from template %s (%s)", fullname, os::strerror(errno));
+    os::free(fullname);
+    return -1;
+  }
+
+  int fd = _open(path, O_RDWR | O_CREAT | O_TEMPORARY | O_EXCL, S_IWRITE | S_IREAD);
+
+  os::free(fullname);
+  if (fd < 0) {
+    warning("Problem opening file for heap (%s)", os::strerror(errno));
+    return -1;
+  }
+  return fd;
+}
+
+// If 'base' is not NULL, function will return NULL if it cannot get 'base'
+char* os::map_memory_to_file(char* base, size_t size, int fd) {
+  assert(fd != -1, "File descriptor is not valid");
+
+  HANDLE fh = (HANDLE)_get_osfhandle(fd);
+#ifdef _LP64
+  HANDLE fileMapping = CreateFileMapping(fh, NULL, PAGE_READWRITE,
+    (DWORD)(size >> 32), (DWORD)(size & 0xFFFFFFFF), NULL);
+#else
+  HANDLE fileMapping = CreateFileMapping(fh, NULL, PAGE_READWRITE,
+    0, (DWORD)size, NULL);
+#endif
+  if (fileMapping == NULL) {
+    if (GetLastError() == ERROR_DISK_FULL) {
+      vm_exit_during_initialization(err_msg("Could not allocate sufficient disk space for Java heap"));
+    }
+    else {
+      vm_exit_during_initialization(err_msg("Error in mapping Java heap at the given filesystem directory"));
+    }
+
+    return NULL;
+  }
+
+  LPVOID addr = MapViewOfFileEx(fileMapping, FILE_MAP_WRITE, 0, 0, size, base);
+
+  CloseHandle(fileMapping);
+
+  return (char*)addr;
+}
+
+char* os::replace_existing_mapping_with_file_mapping(char* base, size_t size, int fd) {
+  assert(fd != -1, "File descriptor is not valid");
+  assert(base != NULL, "Base address cannot be NULL");
+
+  release_memory(base, size);
+  return map_memory_to_file(base, size, fd);
+}
+
 // On win32, one cannot release just a part of reserved memory, it's an
 // all or nothing deal.  When we split a reservation, we must break the
 // reservation into two reservations.
@@ -2923,7 +3009,7 @@ void os::pd_split_reserved_memory(char *base, size_t size, size_t split,
 // Multiple threads can race in this code but it's not possible to unmap small sections of
 // virtual space to get requested alignment, like posix-like os's.
 // Windows prevents multiple thread from remapping over each other so this loop is thread-safe.
-char* os::reserve_memory_aligned(size_t size, size_t alignment) {
+char* os::reserve_memory_aligned(size_t size, size_t alignment, int file_desc) {
   assert((alignment & (os::vm_allocation_granularity() - 1)) == 0,
          "Alignment must be a multiple of allocation granularity (page size)");
   assert((size & (alignment -1)) == 0, "size must be 'alignment' aligned");
@@ -2934,16 +3020,20 @@ char* os::reserve_memory_aligned(size_t size, size_t alignment) {
   char* aligned_base = NULL;
 
   do {
-    char* extra_base = os::reserve_memory(extra_size, NULL, alignment);
+    char* extra_base = os::reserve_memory(extra_size, NULL, alignment, file_desc);
     if (extra_base == NULL) {
       return NULL;
     }
     // Do manual alignment
     aligned_base = align_up(extra_base, alignment);
 
-    os::release_memory(extra_base, extra_size);
+    if (file_desc != -1) {
+      os::unmap_memory(extra_base, extra_size);
+    } else {
+      os::release_memory(extra_base, extra_size);
+    }
 
-    aligned_base = os::reserve_memory(size, aligned_base);
+    aligned_base = os::reserve_memory(size, aligned_base, 0, file_desc);
 
   } while (aligned_base == NULL);
 
@@ -2987,6 +3077,11 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
   // Windows os::reserve_memory() fails of the requested address range is
   // not avilable.
   return reserve_memory(bytes, requested_addr);
+}
+
+char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr, int file_desc) {
+  assert(file_desc >= 0, "file_desc is not valid");
+  return map_memory_to_file(requested_addr, bytes, file_desc);
 }
 
 size_t os::large_page_size() {
@@ -3490,9 +3585,7 @@ OSReturn os::get_native_priority(const Thread* const thread,
 void os::hint_no_preempt() {}
 
 void os::interrupt(Thread* thread) {
-  assert(!thread->is_Java_thread() || Thread::current() == thread ||
-         Threads_lock->owned_by_self(),
-         "possibility of dangling Thread pointer");
+  debug_only(Thread::check_for_dangling_thread_pointer(thread);)
 
   OSThread* osthread = thread->osthread();
   osthread->set_interrupted(true);
@@ -3513,8 +3606,7 @@ void os::interrupt(Thread* thread) {
 
 
 bool os::is_interrupted(Thread* thread, bool clear_interrupted) {
-  assert(!thread->is_Java_thread() || Thread::current() == thread || Threads_lock->owned_by_self(),
-         "possibility of dangling Thread pointer");
+  debug_only(Thread::check_for_dangling_thread_pointer(thread);)
 
   OSThread* osthread = thread->osthread();
   // There is no synchronization between the setting of the interrupt
@@ -4319,13 +4411,50 @@ FILE* os::open(int fd, const char* mode) {
 
 // Is a (classpath) directory empty?
 bool os::dir_is_empty(const char* path) {
-  WIN32_FIND_DATA fd;
-  HANDLE f = FindFirstFile(path, &fd);
-  if (f == INVALID_HANDLE_VALUE) {
-    return true;
+  char* search_path = (char*)os::malloc(strlen(path) + 3, mtInternal);
+  if (search_path == NULL) {
+    errno = ENOMEM;
+    return false;
   }
-  FindClose(f);
-  return false;
+  strcpy(search_path, path);
+  os::native_path(search_path);
+  // Append "*", or possibly "\\*", to path
+  if (search_path[1] == ':' &&
+       (search_path[2] == '\0' ||
+         (search_path[2] == '\\' && search_path[3] == '\0'))) {
+    // No '\\' needed for cases like "Z:" or "Z:\"
+    strcat(search_path, "*");
+  }
+  else {
+    strcat(search_path, "\\*");
+  }
+  errno_t err = ERROR_SUCCESS;
+  wchar_t* wpath = create_unc_path(search_path, err);
+  if (err != ERROR_SUCCESS) {
+    if (wpath != NULL) {
+      destroy_unc_path(wpath);
+    }
+    os::free(search_path);
+    errno = err;
+    return false;
+  }
+  WIN32_FIND_DATAW fd;
+  HANDLE f = ::FindFirstFileW(wpath, &fd);
+  destroy_unc_path(wpath);
+  bool is_empty = true;
+  if (f != INVALID_HANDLE_VALUE) {
+    while (is_empty && ::FindNextFileW(f, &fd)) {
+      // An empty directory contains only the current directory file
+      // and the previous directory file.
+      if ((wcscmp(fd.cFileName, L".") != 0) &&
+          (wcscmp(fd.cFileName, L"..") != 0)) {
+        is_empty = false;
+      }
+    }
+    FindClose(f);
+  }
+  os::free(search_path);
+  return is_empty;
 }
 
 // create binary file, rewriting existing file if required
@@ -5189,9 +5318,6 @@ LONG WINAPI os::win32::serialize_fault_filter(struct _EXCEPTION_POINTERS* e) {
 
   return EXCEPTION_CONTINUE_SEARCH;
 }
-
-// We don't build a headless jre for Windows
-bool os::is_headless_jre() { return false; }
 
 static jint initSock() {
   WSADATA wsadata;

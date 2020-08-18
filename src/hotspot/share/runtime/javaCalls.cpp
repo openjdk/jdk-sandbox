@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,15 +29,18 @@
 #include "compiler/compileBroker.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/linkResolver.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jniCheck.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.inline.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
@@ -196,13 +199,13 @@ void JavaCalls::call_virtual(JavaValue* result, Klass* spec_klass, Symbol* name,
 
 
 void JavaCalls::call_virtual(JavaValue* result, Handle receiver, Klass* spec_klass, Symbol* name, Symbol* signature, TRAPS) {
-  JavaCallArguments args(receiver); // One oop argument
+  JavaCallArguments args(receiver);
   call_virtual(result, spec_klass, name, signature, &args, CHECK);
 }
 
 
 void JavaCalls::call_virtual(JavaValue* result, Handle receiver, Klass* spec_klass, Symbol* name, Symbol* signature, Handle arg1, TRAPS) {
-  JavaCallArguments args(receiver); // One oop argument
+  JavaCallArguments args(receiver);
   args.push_oop(arg1);
   call_virtual(result, spec_klass, name, signature, &args, CHECK);
 }
@@ -210,7 +213,7 @@ void JavaCalls::call_virtual(JavaValue* result, Handle receiver, Klass* spec_kla
 
 
 void JavaCalls::call_virtual(JavaValue* result, Handle receiver, Klass* spec_klass, Symbol* name, Symbol* signature, Handle arg1, Handle arg2, TRAPS) {
-  JavaCallArguments args(receiver); // One oop argument
+  JavaCallArguments args(receiver);
   args.push_oop(arg1);
   args.push_oop(arg2);
   call_virtual(result, spec_klass, name, signature, &args, CHECK);
@@ -232,20 +235,20 @@ void JavaCalls::call_special(JavaValue* result, Klass* klass, Symbol* name, Symb
 
 
 void JavaCalls::call_special(JavaValue* result, Handle receiver, Klass* klass, Symbol* name, Symbol* signature, TRAPS) {
-  JavaCallArguments args(receiver); // One oop argument
+  JavaCallArguments args(receiver);
   call_special(result, klass, name, signature, &args, CHECK);
 }
 
 
 void JavaCalls::call_special(JavaValue* result, Handle receiver, Klass* klass, Symbol* name, Symbol* signature, Handle arg1, TRAPS) {
-  JavaCallArguments args(receiver); // One oop argument
+  JavaCallArguments args(receiver);
   args.push_oop(arg1);
   call_special(result, klass, name, signature, &args, CHECK);
 }
 
 
 void JavaCalls::call_special(JavaValue* result, Handle receiver, Klass* klass, Symbol* name, Symbol* signature, Handle arg1, Handle arg2, TRAPS) {
-  JavaCallArguments args(receiver); // One oop argument
+  JavaCallArguments args(receiver);
   args.push_oop(arg1);
   args.push_oop(arg2);
   call_special(result, klass, name, signature, &args, CHECK);
@@ -267,19 +270,19 @@ void JavaCalls::call_static(JavaValue* result, Klass* klass, Symbol* name, Symbo
 
 
 void JavaCalls::call_static(JavaValue* result, Klass* klass, Symbol* name, Symbol* signature, TRAPS) {
-  JavaCallArguments args; // No argument
+  JavaCallArguments args;
   call_static(result, klass, name, signature, &args, CHECK);
 }
 
 
 void JavaCalls::call_static(JavaValue* result, Klass* klass, Symbol* name, Symbol* signature, Handle arg1, TRAPS) {
-  JavaCallArguments args(arg1); // One oop argument
+  JavaCallArguments args(arg1);
   call_static(result, klass, name, signature, &args, CHECK);
 }
 
 
 void JavaCalls::call_static(JavaValue* result, Klass* klass, Symbol* name, Symbol* signature, Handle arg1, Handle arg2, TRAPS) {
-  JavaCallArguments args; // One oop argument
+  JavaCallArguments args;
   args.push_oop(arg1);
   args.push_oop(arg2);
   call_static(result, klass, name, signature, &args, CHECK);
@@ -287,11 +290,42 @@ void JavaCalls::call_static(JavaValue* result, Klass* klass, Symbol* name, Symbo
 
 
 void JavaCalls::call_static(JavaValue* result, Klass* klass, Symbol* name, Symbol* signature, Handle arg1, Handle arg2, Handle arg3, TRAPS) {
-  JavaCallArguments args; // One oop argument
+  JavaCallArguments args;
   args.push_oop(arg1);
   args.push_oop(arg2);
   args.push_oop(arg3);
   call_static(result, klass, name, signature, &args, CHECK);
+}
+
+// ============ allocate and initialize new object instance ============
+
+Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* constructor_signature, JavaCallArguments* args, TRAPS) {
+  klass->initialize(CHECK_NH); // Quick no-op if already initialized.
+  Handle obj = klass->allocate_instance_handle(CHECK_NH);
+  JavaValue void_result(T_VOID);
+  args->set_receiver(obj); // inserts <obj> as the first argument.
+  JavaCalls::call_special(&void_result, klass,
+                          vmSymbols::object_initializer_name(),
+                          constructor_signature, args, CHECK_NH);
+  return obj;
+}
+
+Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* constructor_signature, TRAPS) {
+  JavaCallArguments args;
+  return JavaCalls::construct_new_instance(klass, constructor_signature, &args, CHECK_NH);
+}
+
+Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* constructor_signature, Handle arg1, TRAPS) {
+  JavaCallArguments args;
+  args.push_oop(arg1);
+  return JavaCalls::construct_new_instance(klass, constructor_signature, &args, CHECK_NH);
+}
+
+Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* constructor_signature, Handle arg1, Handle arg2, TRAPS) {
+  JavaCallArguments args;
+  args.push_oop(arg1);
+  args.push_oop(arg2);
+  return JavaCalls::construct_new_instance(klass, constructor_signature, &args, CHECK_NH);
 }
 
 // -------------------------------------------------

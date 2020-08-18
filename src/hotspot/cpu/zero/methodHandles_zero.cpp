@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2009, 2010, 2011 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -28,7 +28,9 @@
 #include "interpreter/interpreter.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/frame.inline.hpp"
 #include "prims/methodHandles.hpp"
 
 void MethodHandles::invoke_target(Method* method, TRAPS) {
@@ -183,3 +185,9 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
     return NULL;
   }
 }
+
+#ifndef PRODUCT
+void MethodHandles::trace_method_handle(MacroAssembler* _masm, const char* adaptername) {
+  // This is just a stub.
+}
+#endif //PRODUCT

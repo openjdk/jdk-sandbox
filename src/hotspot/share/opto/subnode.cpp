@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -886,7 +886,7 @@ static inline Node* isa_java_mirror_load(PhaseGVN* phase, Node* n) {
   if (!tp || tp->klass() != phase->C->env()->Class_klass()) return NULL;
 
   Node* adr = n->in(MemNode::Address);
-  // First load from OopHandle
+  // First load from OopHandle: ((OopHandle)mirror)->resolve(); may need barrier.
   if (adr->Opcode() != Op_LoadP || !phase->type(adr)->isa_rawptr()) return NULL;
   adr = adr->in(MemNode::Address);
 
@@ -1594,4 +1594,13 @@ const Type* SqrtDNode::Value(PhaseGVN* phase) const {
   double d = t1->getd();
   if( d < 0.0 ) return Type::DOUBLE;
   return TypeD::make( sqrt( d ) );
+}
+
+const Type* SqrtFNode::Value(PhaseGVN* phase) const {
+  const Type *t1 = phase->type( in(1) );
+  if( t1 == Type::TOP ) return Type::TOP;
+  if( t1->base() != Type::FloatCon ) return Type::FLOAT;
+  float f = t1->getf();
+  if( f < 0.0f ) return Type::FLOAT;
+  return TypeF::make( (float)sqrt( (double)f ) );
 }

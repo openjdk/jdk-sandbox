@@ -31,13 +31,14 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.MapCursor;
 import org.graalvm.compiler.options.Option;
 import org.graalvm.compiler.options.OptionDescriptor;
 import org.graalvm.compiler.options.OptionDescriptors;
 import org.graalvm.compiler.options.OptionKey;
+import org.graalvm.compiler.options.OptionType;
 import org.graalvm.compiler.options.OptionValues;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.MapCursor;
 
 /**
  * An implementation of {@link OptionDescriptor} that uses reflection to create descriptors from a
@@ -108,8 +109,8 @@ public class ReflectionOptionDescriptors implements OptionDescriptors {
             ParameterizedType pt = (ParameterizedType) declaredType;
             Type[] actualTypeArguments = pt.getActualTypeArguments();
             assert actualTypeArguments.length == 1;
-            Class<?> optionType = (Class<?>) actualTypeArguments[0];
-            descriptors.put(fieldName, OptionDescriptor.create(fieldName, optionType, help, declaringClass, fieldName, (OptionKey<?>) f.get(null)));
+            Class<?> optionValueType = (Class<?>) actualTypeArguments[0];
+            descriptors.put(fieldName, OptionDescriptor.create(fieldName, OptionType.Debug, optionValueType, help, declaringClass, fieldName, (OptionKey<?>) f.get(null)));
         } catch (IllegalAccessException | NoSuchFieldException e) {
             throw new IllegalArgumentException(e);
         }

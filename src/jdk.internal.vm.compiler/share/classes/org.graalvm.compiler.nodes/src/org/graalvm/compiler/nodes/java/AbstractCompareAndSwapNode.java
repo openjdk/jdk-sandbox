@@ -30,13 +30,14 @@ import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.nodeinfo.InputType;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
 import org.graalvm.compiler.nodes.FrameState;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.StateSplit;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.memory.FixedAccessNode;
 import org.graalvm.compiler.nodes.memory.LIRLowerableAccess;
 import org.graalvm.compiler.nodes.memory.MemoryCheckpoint;
 import org.graalvm.compiler.nodes.memory.address.AddressNode;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 /**
  * Low-level atomic compare-and-swap operation.
@@ -88,6 +89,6 @@ public abstract class AbstractCompareAndSwapNode extends FixedAccessNode impleme
 
     @Override
     public Stamp getAccessStamp() {
-        return expectedValue.stamp().meet(newValue.stamp()).unrestricted();
+        return expectedValue.stamp(NodeView.DEFAULT).meet(newValue.stamp(NodeView.DEFAULT)).unrestricted();
     }
 }

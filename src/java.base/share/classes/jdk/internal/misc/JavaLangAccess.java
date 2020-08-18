@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -100,9 +100,9 @@ public interface JavaLangAccess {
     <E extends Enum<E>> E[] getEnumConstantsShared(Class<E> klass);
 
     /**
-     * Set thread's blocker field.
+     * Set current thread's blocker field.
      */
-    void blockedOn(Thread t, Interruptible b);
+    void blockedOn(Interruptible b);
 
     /**
      * Registers a shutdown hook.
@@ -254,4 +254,23 @@ public interface JavaLangAccess {
      * given class loader.
      */
     Stream<ModuleLayer> layers(ClassLoader loader);
+
+    /**
+     * Returns a new string by decoding from the given utf8 bytes array.
+     *
+     * @param off the index of the first byte to decode
+     * @param len the number of bytes to decode
+     * @return the newly created string
+     * @throws IllegalArgumentException for malformed or unmappable bytes.
+     */
+    String newStringUTF8NoRepl(byte[] bytes, int off, int len);
+
+    /**
+     * Encode the given string into a sequence of bytes using utf8.
+     *
+     * @param s the string to encode
+     * @return the encoded bytes in utf8
+     * @throws IllegalArgumentException for malformed surrogates
+     */
+    byte[] getBytesUTF8NoRepl(String s);
 }

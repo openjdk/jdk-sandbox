@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,7 +50,7 @@ template<typename T>
 inline T Atomic::PlatformLoad<8>::operator()(T const volatile* src) const {
   STATIC_ASSERT(8 == sizeof(T));
   return PrimitiveConversions::cast<T>(
-    (*os::atomic_load_long_func)(reinterpret_cast<const volatile jlong*>(src)));
+    (*os::atomic_load_long_func)(reinterpret_cast<const volatile int64_t*>(src)));
 }
 
 template<>
@@ -59,7 +59,7 @@ inline void Atomic::PlatformStore<8>::operator()(T store_value,
                                                  T volatile* dest) const {
   STATIC_ASSERT(8 == sizeof(T));
   (*os::atomic_store_long_func)(
-    PrimitiveConversions::cast<jlong>(store_value), reinterpret_cast<volatile jlong*>(dest));
+    PrimitiveConversions::cast<int64_t>(store_value), reinterpret_cast<volatile int64_t*>(dest));
 }
 #endif
 
@@ -81,12 +81,13 @@ struct Atomic::PlatformAdd
   : Atomic::AddAndFetch<Atomic::PlatformAdd<byte_size> >
 {
   template<typename I, typename D>
-  D add_and_fetch(I add_value, D volatile* dest) const;
+  D add_and_fetch(I add_value, D volatile* dest, atomic_memory_order order) const;
 };
 
 template<>
 template<typename I, typename D>
-inline D Atomic::PlatformAdd<4>::add_and_fetch(I add_value, D volatile* dest) const {
+inline D Atomic::PlatformAdd<4>::add_and_fetch(I add_value, D volatile* dest,
+                                               atomic_memory_order order) const {
   STATIC_ASSERT(4 == sizeof(I));
   STATIC_ASSERT(4 == sizeof(D));
 #ifdef AARCH64
@@ -103,14 +104,15 @@ inline D Atomic::PlatformAdd<4>::add_and_fetch(I add_value, D volatile* dest) co
     : "memory");
   return val;
 #else
-  return add_using_helper<jint>(os::atomic_add_func, add_value, dest);
+  return add_using_helper<int32_t>(os::atomic_add_func, add_value, dest);
 #endif
 }
 
 #ifdef AARCH64
 template<>
 template<typename I, typename D>
-inline D Atomic::PlatformAdd<8>::add_and_fetch(I add_value, D volatile* dest) const {
+inline D Atomic::PlatformAdd<8>::add_and_fetch(I add_value, D volatile* dest,
+                                               atomic_memory_order order) const {
   STATIC_ASSERT(8 == sizeof(I));
   STATIC_ASSERT(8 == sizeof(D));
   D val;
@@ -131,7 +133,8 @@ inline D Atomic::PlatformAdd<8>::add_and_fetch(I add_value, D volatile* dest) co
 template<>
 template<typename T>
 inline T Atomic::PlatformXchg<4>::operator()(T exchange_value,
-                                             T volatile* dest) const {
+                                             T volatile* dest,
+                                             atomic_memory_order order) const {
   STATIC_ASSERT(4 == sizeof(T));
 #ifdef AARCH64
   T old_val;
@@ -146,7 +149,7 @@ inline T Atomic::PlatformXchg<4>::operator()(T exchange_value,
     : "memory");
   return old_val;
 #else
-  return xchg_using_helper<jint>(os::atomic_xchg_func, exchange_value, dest);
+  return xchg_using_helper<int32_t>(os::atomic_xchg_func, exchange_value, dest);
 #endif
 }
 
@@ -154,7 +157,8 @@ inline T Atomic::PlatformXchg<4>::operator()(T exchange_value,
 template<>
 template<typename T>
 inline T Atomic::PlatformXchg<8>::operator()(T exchange_value,
-                                             T volatile* dest) const {
+                                             T volatile* dest,
+                                             atomic_memory_order order) const {
   STATIC_ASSERT(8 == sizeof(T));
   T old_val;
   int tmp;
@@ -178,17 +182,17 @@ struct Atomic::PlatformCmpxchg<1> : Atomic::CmpxchgByteUsingInt {};
 
 #ifndef AARCH64
 
-inline jint reorder_cmpxchg_func(jint exchange_value,
-                                 jint volatile* dest,
-                                 jint compare_value) {
+inline int32_t reorder_cmpxchg_func(int32_t exchange_value,
+                                    int32_t volatile* dest,
+                                    int32_t compare_value) {
   // Warning:  Arguments are swapped to avoid moving them for kernel call
   return (*os::atomic_cmpxchg_func)(compare_value, exchange_value, dest);
 }
 
-inline jlong reorder_cmpxchg_long_func(jlong exchange_value,
-                                       jlong volatile* dest,
-                                       jlong compare_value) {
-  assert(VM_Version::supports_cx8(), "Atomic compare and exchange jlong not supported on this architecture!");
+inline int64_t reorder_cmpxchg_long_func(int64_t exchange_value,
+                                         int64_t volatile* dest,
+                                         int64_t compare_value) {
+  assert(VM_Version::supports_cx8(), "Atomic compare and exchange int64_t not supported on this architecture!");
   // Warning:  Arguments are swapped to avoid moving them for kernel call
   return (*os::atomic_cmpxchg_long_func)(compare_value, exchange_value, dest);
 }
@@ -200,7 +204,7 @@ template<typename T>
 inline T Atomic::PlatformCmpxchg<4>::operator()(T exchange_value,
                                                 T volatile* dest,
                                                 T compare_value,
-                                                cmpxchg_memory_order order) const {
+                                                atomic_memory_order order) const {
   STATIC_ASSERT(4 == sizeof(T));
 #ifdef AARCH64
   T rv;
@@ -221,7 +225,7 @@ inline T Atomic::PlatformCmpxchg<4>::operator()(T exchange_value,
     : "memory");
   return rv;
 #else
-  return cmpxchg_using_helper<jint>(reorder_cmpxchg_func, exchange_value, dest, compare_value);
+  return cmpxchg_using_helper<int32_t>(reorder_cmpxchg_func, exchange_value, dest, compare_value);
 #endif
 }
 
@@ -230,7 +234,7 @@ template<typename T>
 inline T Atomic::PlatformCmpxchg<8>::operator()(T exchange_value,
                                                 T volatile* dest,
                                                 T compare_value,
-                                                cmpxchg_memory_order order) const {
+                                                atomic_memory_order order) const {
   STATIC_ASSERT(8 == sizeof(T));
 #ifdef AARCH64
   T rv;
@@ -251,7 +255,7 @@ inline T Atomic::PlatformCmpxchg<8>::operator()(T exchange_value,
     : "memory");
   return rv;
 #else
-  return cmpxchg_using_helper<jlong>(reorder_cmpxchg_long_func, exchange_value, dest, compare_value);
+  return cmpxchg_using_helper<int64_t>(reorder_cmpxchg_long_func, exchange_value, dest, compare_value);
 #endif
 }
 

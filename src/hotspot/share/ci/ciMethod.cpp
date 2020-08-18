@@ -32,7 +32,7 @@
 #include "ci/ciStreams.hpp"
 #include "ci/ciSymbol.hpp"
 #include "ci/ciReplay.hpp"
-#include "ci/ciUtilities.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/abstractCompiler.hpp"
 #include "compiler/methodLiveness.hpp"
@@ -42,12 +42,12 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/generateOopMap.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/deoptimization.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/xmlstream.hpp"
-#include "trace/tracing.hpp"
 #ifdef COMPILER2
 #include "ci/bcEscapeAnalyzer.hpp"
 #include "ci/ciTypeFlow.hpp"
@@ -1494,13 +1494,3 @@ bool ciMethod::is_consistent_info(ciMethod* declared_method, ciMethod* resolved_
 }
 
 // ------------------------------------------------------------------
-
-#if INCLUDE_TRACE
-TraceStructCalleeMethod ciMethod::to_trace_struct() const {
-  TraceStructCalleeMethod result;
-  result.set_type(holder()->name()->as_utf8());
-  result.set_name(name()->as_utf8());
-  result.set_descriptor(signature()->as_symbol()->as_utf8());
-  return result;
-}
-#endif

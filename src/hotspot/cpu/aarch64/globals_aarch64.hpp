@@ -79,7 +79,7 @@ define_pd_global(bool, CompactStrings, true);
 // Clear short arrays bigger than one word in an arch-specific way
 define_pd_global(intx, InitArrayShortSize, BytesPerLong);
 
-define_pd_global(bool, ThreadLocalHandshakes, false);
+define_pd_global(bool, ThreadLocalHandshakes, true);
 
 #if defined(COMPILER1) || defined(COMPILER2)
 define_pd_global(intx, InlineSmallCode,          1000);
@@ -147,6 +147,10 @@ define_pd_global(intx, InlineSmallCode,          1000);
           "Use CRC32 instructions for CRC32 computation")               \
   product(bool, UseSIMDForMemoryOps, false,                             \
           "Use SIMD instructions in generated memory move code")        \
+  product(bool, UseSIMDForArrayEquals, true,                            \
+          "Use SIMD instructions in generated array equals code")       \
+  product(bool, UseSimpleArrayEquals, false,                            \
+          "Use simpliest and shortest implementation for array equals") \
   product(bool, AvoidUnalignedAccesses, false,                          \
           "Avoid generating unaligned memory accesses")                 \
   product(bool, UseLSE, false,                                          \

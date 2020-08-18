@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -169,7 +169,7 @@ bool PhaseIdealLoop::split_up( Node *n, Node *blk1, Node *blk2 ) {
               assert(u->in(1) == bol, "");
               // Get control block of either the CMove or the If input
               Node *u_ctrl = u->is_If() ? u->in(0) : get_ctrl(u);
-              assert(u_ctrl != blk1 && u_ctrl != blk2, "won't converge");
+              assert((u_ctrl != blk1 && u_ctrl != blk2) || u->is_CMove(), "won't converge");
               Node *x = bol->clone();
               register_new_node(x, u_ctrl);
               _igvn.replace_input_of(u, 1, x);
@@ -292,7 +292,7 @@ struct small_cache : public Dict {
 Node *PhaseIdealLoop::spinup( Node *iff_dom, Node *new_false, Node *new_true, Node *use_blk, Node *def, small_cache *cache ) {
   if (use_blk->is_top())        // Handle dead uses
     return use_blk;
-  Node *prior_n = (Node*)0xdeadbeef;
+  Node *prior_n = (Node*)((intptr_t)0xdeadbeef);
   Node *n = use_blk;            // Get path input
   assert( use_blk != iff_dom, "" );
   // Here's the "spinup" the dominator tree loop.  Do a cache-check
@@ -339,7 +339,7 @@ Node *PhaseIdealLoop::spinup( Node *iff_dom, Node *new_false, Node *new_true, No
   }
 
   // Update cache everywhere
-  prior_n = (Node*)0xdeadbeef;  // Reset IDOM walk
+  prior_n = (Node*)((intptr_t)0xdeadbeef);  // Reset IDOM walk
   n = use_blk;                  // Get path input
   // Spin-up the idom tree again, basically doing path-compression.
   // Insert cache entries along the way, so that if we ever hit this

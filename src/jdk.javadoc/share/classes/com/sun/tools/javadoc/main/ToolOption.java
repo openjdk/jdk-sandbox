@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,8 @@ import com.sun.tools.javac.util.Options;
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
-@Deprecated
+@Deprecated(since="9", forRemoval=true)
+@SuppressWarnings("removal")
 public enum ToolOption {
     // ----- options for underlying compiler -----
 
@@ -159,6 +160,7 @@ public enum ToolOption {
         public void process(Helper helper, String arg) {
             helper.encoding = arg;
             helper.setCompilerOpt(opt, arg);
+            helper.setFileManagerOpt(Option.ENCODING, arg);
         }
     },
 
@@ -208,6 +210,13 @@ public enum ToolOption {
         @Override
         public void process(Helper helper, String arg) throws InvalidValueException {
             Option.PATCH_MODULE.process(helper.getOptionHelper(), opt, arg);
+        }
+    },
+
+    ADD_OPENS("--add-opens", true) {
+        @Override
+        public void process(Helper helper, String arg) throws InvalidValueException {
+            Option.ADD_OPENS.process(helper.getOptionHelper(), opt, arg);
         }
     },
 

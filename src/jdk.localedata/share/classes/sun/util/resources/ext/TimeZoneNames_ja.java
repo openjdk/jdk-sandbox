@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -371,7 +371,7 @@ public final class TimeZoneNames_ja extends TimeZoneNamesBundle {
             {"Africa/Nouakchott", GMT},
             {"Africa/Ouagadougou", GMT},
             {"Africa/Porto-Novo", WAT},
-            {"Africa/Sao_Tome", GMT},
+            {"Africa/Sao_Tome", WAT},
             {"Africa/Timbuktu", GMT},
             {"Africa/Tripoli", EET},
             {"Africa/Tunis", CET},
@@ -446,7 +446,7 @@ public final class TimeZoneNames_ja extends TimeZoneNamesBundle {
                                               "\u897f\u30b0\u30ea\u30fc\u30f3\u30e9\u30f3\u30c9\u590f\u6642\u9593", "WGST",
                                               "\u897F\u90E8\u30B0\u30EA\u30FC\u30F3\u30E9\u30F3\u30C9\u6642\u9593", "WGT"}},
             {"America/Goose_Bay", AST},
-            {"America/Grand_Turk", AST},
+            {"America/Grand_Turk", EST},
             {"America/Grenada", AST},
             {"America/Guadeloupe", AST},
             {"America/Guatemala", CST},

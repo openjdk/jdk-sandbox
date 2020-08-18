@@ -71,24 +71,29 @@ void InstanceMirrorKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
         Devirtualizer<nv>::do_klass(closure, klass);
       }
     } else {
-      // If klass is NULL then this a mirror for a primitive type.
-      // We don't have to follow them, since they are handled as strong
-      // roots in Universe::oops_do.
-      assert(java_lang_Class::is_primitive(obj), "Sanity check");
+      // We would like to assert here (as below) that if klass has been NULL, then
+      // this has been a mirror for a primitive type that we do not need to follow
+      // as they are always strong roots.
+      // However, we might get across a klass that just changed during CMS concurrent
+      // marking if allocation occurred in the old generation.
+      // This is benign here, as we keep alive all CLDs that were loaded during the
+      // CMS concurrent phase in the class loading, i.e. they will be iterated over
+      // and kept alive during remark.
+      // assert(java_lang_Class::is_primitive(obj), "Sanity check");
     }
   }
 
   oop_oop_iterate_statics<nv>(obj, closure);
 }
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 template <bool nv, class OopClosureType>
 void InstanceMirrorKlass::oop_oop_iterate_reverse(oop obj, OopClosureType* closure) {
   InstanceKlass::oop_oop_iterate_reverse<nv>(obj, closure);
 
   InstanceMirrorKlass::oop_oop_iterate_statics<nv>(obj, closure);
 }
-#endif
+#endif // INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 
 template <bool nv, typename T, class OopClosureType>
 void InstanceMirrorKlass::oop_oop_iterate_statics_specialized_bounded(oop obj,

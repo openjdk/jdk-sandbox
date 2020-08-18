@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -84,13 +86,17 @@ public interface MessageType {
         NAME("name", "Name", "com.sun.tools.javac.util"),
         NUMBER("number", "int", null),
         OPTION_NAME("option name", "Option", "com.sun.tools.javac.main"),
+        PROFILE("profile", "Profile", "com.sun.tools.javac.jvm"),
+        SOURCE("source", "Source", "com.sun.tools.javac.code"),
         SOURCE_VERSION("source version", "SourceVersion", "javax.lang.model"),
         STRING("string", "String", null),
         SYMBOL("symbol", "Symbol", "com.sun.tools.javac.code"),
         SYMBOL_KIND("symbol kind", "Kind", "com.sun.tools.javac.code.Kinds"),
         KIND_NAME("kind name", "KindName", "com.sun.tools.javac.code.Kinds"),
+        TARGET("target", "Target", "com.sun.tools.javac.jvm"),
         TOKEN("token", "TokenKind", "com.sun.tools.javac.parser.Tokens"),
         TYPE("type", "Type", "com.sun.tools.javac.code"),
+        URL("url", "URL", "java.net"),
         SET("set", "Set", "java.util"),
         LIST("list", "List", "java.util"),
         OBJECT("object", "Object", null),

@@ -22,12 +22,12 @@
  */
 package org.graalvm.compiler.phases.common.inlining.info;
 
+import jdk.internal.vm.compiler.collections.EconomicSet;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.CallTargetNode.InvokeKind;
 import org.graalvm.compiler.nodes.Invoke;
 import org.graalvm.compiler.phases.common.inlining.InliningUtil;
 import org.graalvm.compiler.phases.util.Providers;
-import org.graalvm.util.EconomicSet;
 
 import jdk.vm.ci.meta.Assumptions.AssumptionResult;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
@@ -46,9 +46,9 @@ public class AssumptionInlineInfo extends ExactInlineInfo {
     }
 
     @Override
-    public EconomicSet<Node> inline(Providers providers) {
+    public EconomicSet<Node> inline(Providers providers, String reason) {
         takenAssumption.recordTo(invoke.asNode().graph().getAssumptions());
-        return super.inline(providers);
+        return super.inline(providers, reason);
     }
 
     @Override

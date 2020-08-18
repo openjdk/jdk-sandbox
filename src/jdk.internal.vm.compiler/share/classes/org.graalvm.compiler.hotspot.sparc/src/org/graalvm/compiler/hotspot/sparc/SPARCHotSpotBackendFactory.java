@@ -49,6 +49,7 @@ import org.graalvm.compiler.hotspot.word.HotSpotWordTypes;
 import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderConfiguration.Plugins;
 import org.graalvm.compiler.nodes.spi.LoweringProvider;
 import org.graalvm.compiler.nodes.spi.Replacements;
+import org.graalvm.compiler.phases.common.AddressLoweringPhase;
 import org.graalvm.compiler.phases.tiers.CompilerConfiguration;
 import org.graalvm.compiler.phases.util.Providers;
 import org.graalvm.compiler.replacements.classfile.ClassfileBytecodeProvider;
@@ -72,7 +73,7 @@ public class SPARCHotSpotBackendFactory implements HotSpotBackendFactory {
 
     @Override
     public String getName() {
-        return "core";
+        return "community";
     }
 
     @Override
@@ -101,7 +102,7 @@ public class SPARCHotSpotBackendFactory implements HotSpotBackendFactory {
         HotSpotSnippetReflectionProvider snippetReflection = new HotSpotSnippetReflectionProvider(runtime, constantReflection, wordTypes);
         BytecodeProvider bytecodeProvider = new ClassfileBytecodeProvider(metaAccess, snippetReflection);
         HotSpotReplacementsImpl replacements = new HotSpotReplacementsImpl(runtime.getOptions(), p, snippetReflection, bytecodeProvider, target);
-        Plugins plugins = createGraphBuilderPlugins(compilerConfiguration, config, metaAccess, constantReflection, foreignCalls, stampProvider, snippetReflection, replacements, wordTypes);
+        Plugins plugins = createGraphBuilderPlugins(compilerConfiguration, config, metaAccess, constantReflection, foreignCalls, lowerer, stampProvider, snippetReflection, replacements, wordTypes);
         replacements.setGraphBuilderPlugins(plugins);
         HotSpotSuitesProvider suites = createSuites(config, runtime, compilerConfiguration, plugins, replacements);
         HotSpotProviders providers = new HotSpotProviders(metaAccess, codeCache, constantReflection, constantFieldProvider, foreignCalls, lowerer, replacements, suites, registers,
@@ -112,9 +113,10 @@ public class SPARCHotSpotBackendFactory implements HotSpotBackendFactory {
     }
 
     protected Plugins createGraphBuilderPlugins(CompilerConfiguration compilerConfiguration, GraalHotSpotVMConfig config, HotSpotMetaAccessProvider metaAccess,
-                    HotSpotConstantReflectionProvider constantReflection, HotSpotForeignCallsProvider foreignCalls, HotSpotStampProvider stampProvider,
+                    HotSpotConstantReflectionProvider constantReflection, HotSpotForeignCallsProvider foreignCalls, LoweringProvider lowerer, HotSpotStampProvider stampProvider,
                     HotSpotSnippetReflectionProvider snippetReflection, HotSpotReplacementsImpl replacements, HotSpotWordTypes wordTypes) {
-        Plugins plugins = HotSpotGraphBuilderPlugins.create(compilerConfiguration, config, wordTypes, metaAccess, constantReflection, snippetReflection, foreignCalls, stampProvider, replacements);
+        Plugins plugins = HotSpotGraphBuilderPlugins.create(compilerConfiguration, config, wordTypes, metaAccess, constantReflection, snippetReflection, foreignCalls, lowerer, stampProvider,
+                        replacements);
         SPARCGraphBuilderPlugins.register(plugins, replacements.getDefaultReplacementBytecodeProvider());
         return plugins;
     }
@@ -124,7 +126,7 @@ public class SPARCHotSpotBackendFactory implements HotSpotBackendFactory {
      */
     protected HotSpotSuitesProvider createSuites(GraalHotSpotVMConfig config, HotSpotGraalRuntimeProvider runtime, CompilerConfiguration compilerConfiguration, Plugins plugins,
                     Replacements replacements) {
-        return new AddressLoweringHotSpotSuitesProvider(new SPARCSuitesCreator(compilerConfiguration, plugins), config, runtime, new SPARCAddressLowering());
+        return new AddressLoweringHotSpotSuitesProvider(new SPARCSuitesCreator(compilerConfiguration, plugins), config, runtime, new AddressLoweringPhase(new SPARCAddressLowering()));
     }
 
     protected SPARCHotSpotBackend createBackend(GraalHotSpotVMConfig config, HotSpotGraalRuntimeProvider runtime, HotSpotProviders providers) {

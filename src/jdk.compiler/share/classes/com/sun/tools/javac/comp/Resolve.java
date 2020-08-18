@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@ import com.sun.tools.javac.comp.Check.CheckContext;
 import com.sun.tools.javac.comp.DeferredAttr.AttrMode;
 import com.sun.tools.javac.comp.DeferredAttr.DeferredAttrContext;
 import com.sun.tools.javac.comp.DeferredAttr.DeferredType;
-import com.sun.tools.javac.comp.Infer.FreeTypeListener;
 import com.sun.tools.javac.comp.Resolve.MethodResolutionContext.Candidate;
 import com.sun.tools.javac.comp.Resolve.MethodResolutionDiagHelper.Template;
 import com.sun.tools.javac.comp.Resolve.ReferenceLookupResult.StaticKind;
@@ -60,7 +59,6 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -70,6 +68,8 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import javax.lang.model.element.ElementVisitor;
+
+import com.sun.tools.javac.comp.Infer.InferenceException;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Flags.BLOCK;
@@ -143,9 +143,6 @@ public class Resolve {
         checkVarargsAccessAfterResolution =
                 Feature.POST_APPLICABILITY_VARARGS_ACCESS_CHECK.allowedInSource(source);
         polymorphicSignatureScope = WriteableScope.create(syms.noSymbol);
-
-        inapplicableMethodException = new InapplicableMethodException(diags);
-
         allowModules = Feature.MODULES.allowedInSource(source);
     }
 
@@ -575,7 +572,7 @@ public class Resolve {
             ForAll pmt = (ForAll) mt;
             if (typeargtypes.length() != pmt.tvars.length())
                  // not enough args
-                throw inapplicableMethodException.setMessage("wrong.number.type.args", Integer.toString(pmt.tvars.length()));
+                throw new InapplicableMethodException(diags.fragment(Fragments.WrongNumberTypeArgs(Integer.toString(pmt.tvars.length()))));
             // Check type arguments are within bounds
             List<Type> formals = pmt.tvars;
             List<Type> actuals = typeargtypes;
@@ -583,8 +580,9 @@ public class Resolve {
                 List<Type> bounds = types.subst(types.getBounds((TypeVar)formals.head),
                                                 pmt.tvars, typeargtypes);
                 for (; bounds.nonEmpty(); bounds = bounds.tail) {
-                    if (!types.isSubtypeUnchecked(actuals.head, bounds.head, warn))
-                        throw inapplicableMethodException.setMessage("explicit.param.do.not.conform.to.bounds",actuals.head, bounds);
+                    if (!types.isSubtypeUnchecked(actuals.head, bounds.head, warn)) {
+                        throw new InapplicableMethodException(diags.fragment(Fragments.ExplicitParamDoNotConformToBounds(actuals.head, bounds)));
+                    }
                 }
                 formals = formals.tail;
                 actuals = actuals.tail;
@@ -811,8 +809,6 @@ public class Resolve {
 
         protected void reportMC(DiagnosticPosition pos, MethodCheckDiag diag, InferenceContext inferenceContext, Object... args) {
             boolean inferDiag = inferenceContext != infer.emptyContext;
-            InapplicableMethodException ex = inferDiag ?
-                    infer.inferenceException : inapplicableMethodException;
             if (inferDiag && (!diag.inferKey.equals(diag.basicKey))) {
                 Object[] args2 = new Object[args.length + 1];
                 System.arraycopy(args, 0, args2, 1, args.length);
@@ -820,7 +816,9 @@ public class Resolve {
                 args = args2;
             }
             String key = inferDiag ? diag.inferKey : diag.basicKey;
-            throw ex.setMessage(diags.create(DiagnosticType.FRAGMENT, log.currentSource(), pos, key, args));
+            throw inferDiag ?
+                infer.error(diags.create(DiagnosticType.FRAGMENT, log.currentSource(), pos, key, args)) :
+                new InapplicableMethodException(diags.create(DiagnosticType.FRAGMENT, log.currentSource(), pos, key, args));
         }
 
         public MethodCheck mostSpecificCheck(List<Type> actuals) {
@@ -1006,7 +1004,7 @@ public class Resolve {
         }
 
         public void report(DiagnosticPosition pos, JCDiagnostic details) {
-            throw inapplicableMethodException.setMessage(details);
+            throw new InapplicableMethodException(details);
         }
 
         public Warner checkWarner(DiagnosticPosition pos, Type found, Type req) {
@@ -1367,31 +1365,15 @@ public class Resolve {
         private static final long serialVersionUID = 0;
 
         JCDiagnostic diagnostic;
-        JCDiagnostic.Factory diags;
 
-        InapplicableMethodException(JCDiagnostic.Factory diags) {
-            this.diagnostic = null;
-            this.diags = diags;
-        }
-        InapplicableMethodException setMessage() {
-            return setMessage((JCDiagnostic)null);
-        }
-        InapplicableMethodException setMessage(String key) {
-            return setMessage(key != null ? diags.fragment(key) : null);
-        }
-        InapplicableMethodException setMessage(String key, Object... args) {
-            return setMessage(key != null ? diags.fragment(key, args) : null);
-        }
-        InapplicableMethodException setMessage(JCDiagnostic diag) {
+        InapplicableMethodException(JCDiagnostic diag) {
             this.diagnostic = diag;
-            return this;
         }
 
         public JCDiagnostic getDiagnostic() {
             return diagnostic;
         }
     }
-    private final InapplicableMethodException inapplicableMethodException;
 
 /* ***************************************************************************
  *  Symbol lookup
@@ -1618,19 +1600,30 @@ public class Resolve {
                 if ((m1.flags() & BRIDGE) != (m2.flags() & BRIDGE))
                     return ((m1.flags() & BRIDGE) != 0) ? m2 : m1;
 
+                if (m1.baseSymbol() == m2.baseSymbol()) {
+                    // this is the same imported symbol which has been cloned twice.
+                    // Return the first one (either will do).
+                    return m1;
+                }
+
                 // if one overrides or hides the other, use it
                 TypeSymbol m1Owner = (TypeSymbol)m1.owner;
                 TypeSymbol m2Owner = (TypeSymbol)m2.owner;
-                if (types.asSuper(m1Owner.type, m2Owner) != null &&
-                    ((m1.owner.flags_field & INTERFACE) == 0 ||
-                     (m2.owner.flags_field & INTERFACE) != 0) &&
-                    m1.overrides(m2, m1Owner, types, false))
-                    return m1;
-                if (types.asSuper(m2Owner.type, m1Owner) != null &&
-                    ((m2.owner.flags_field & INTERFACE) == 0 ||
-                     (m1.owner.flags_field & INTERFACE) != 0) &&
-                    m2.overrides(m1, m2Owner, types, false))
-                    return m2;
+                // the two owners can never be the same if the target methods are compiled from source,
+                // but we need to protect against cases where the methods are defined in some classfile
+                // and make sure we issue an ambiguity error accordingly (by skipping the logic below).
+                if (m1Owner != m2Owner) {
+                    if (types.asSuper(m1Owner.type, m2Owner) != null &&
+                        ((m1.owner.flags_field & INTERFACE) == 0 ||
+                         (m2.owner.flags_field & INTERFACE) != 0) &&
+                        m1.overrides(m2, m1Owner, types, false))
+                        return m1;
+                    if (types.asSuper(m2Owner.type, m1Owner) != null &&
+                        ((m2.owner.flags_field & INTERFACE) == 0 ||
+                         (m1.owner.flags_field & INTERFACE) != 0) &&
+                        m2.overrides(m1, m2Owner, types, false))
+                        return m2;
+                }
                 boolean m1Abstract = (m1.flags() & ABSTRACT) != 0;
                 boolean m2Abstract = (m2.flags() & ABSTRACT) != 0;
                 if (m1Abstract && !m2Abstract) return m2;
@@ -2109,6 +2102,7 @@ public class Resolve {
 
         Set<ModuleSymbol> recoverableModules = new HashSet<>(syms.getAllModules());
 
+        recoverableModules.add(syms.unnamedModule);
         recoverableModules.remove(env.toplevel.modle);
 
         for (ModuleSymbol ms : recoverableModules) {
@@ -4167,9 +4161,6 @@ public class Resolve {
                 Name name,
                 List<Type> argtypes,
                 List<Type> typeargtypes) {
-            if (sym.owner.type.hasTag(ERROR))
-                return null;
-
             if (sym.name == names.init && sym.owner != site.tsym) {
                 return new SymbolNotFoundError(ABSENT_MTH).getDiagnostic(dkind,
                         pos, location, site, name, argtypes, typeargtypes);

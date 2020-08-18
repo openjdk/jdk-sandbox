@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ import jdk.javadoc.internal.doclets.toolkit.util.ClassTree;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
 import jdk.javadoc.internal.doclets.toolkit.util.UncheckedDocletException;
 import jdk.javadoc.internal.doclets.toolkit.util.InternalException;
-import jdk.javadoc.internal.doclets.toolkit.util.PackageListWriter;
+import jdk.javadoc.internal.doclets.toolkit.util.ElementListWriter;
 import jdk.javadoc.internal.doclets.toolkit.util.ResourceIOException;
 import jdk.javadoc.internal.doclets.toolkit.util.SimpleDocletException;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
@@ -81,7 +81,7 @@ public abstract class AbstractDoclet implements Doclet {
 
     /**
      * Verify that the only doclet that is using this toolkit is
-     * {@value #TOOLKIT_DOCLET_NAME}.
+     * #TOOLKIT_DOCLET_NAME.
      */
     private boolean isValidDoclet() {
         if (!getClass().getName().equals(TOOLKIT_DOCLET_NAME)) {
@@ -102,10 +102,7 @@ public abstract class AbstractDoclet implements Doclet {
     public boolean run(DocletEnvironment docEnv) {
         configuration = getConfiguration();
         configuration.initConfiguration(docEnv);
-        configuration.cmtUtils = new CommentUtils(configuration);
-        configuration.utils = new Utils(configuration);
         utils = configuration.utils;
-        configuration.workArounds = new WorkArounds(configuration);
         messages = configuration.getMessages();
 
         if (!isValidDoclet()) {
@@ -189,11 +186,14 @@ public abstract class AbstractDoclet implements Doclet {
      * TreeWriter generation first to ensure the Class Hierarchy is built
      * first and then can be used in the later generation.
      *
-     * @see jdk.doclet.DocletEnvironment
      * @throws DocletException if there is a problem while generating the documentation
      */
     private void startGeneration(DocletEnvironment docEnv) throws DocletException {
-        if (configuration.getIncludedTypeElements().isEmpty()) {
+
+        // Modules with no documented classes may be specified on the
+        // command line to specify a service provider, allow these.
+        if (configuration.getSpecifiedModuleElements().isEmpty() &&
+                configuration.getIncludedTypeElements().isEmpty()) {
             messages.error("doclet.No_Public_Classes_To_Document");
             return;
         }
@@ -206,7 +206,7 @@ public abstract class AbstractDoclet implements Doclet {
 
         generateClassFiles(docEnv, classtree);
 
-        PackageListWriter.generate(configuration);
+        ElementListWriter.generate(configuration);
         generatePackageFiles(classtree);
         generateModuleFiles();
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,7 @@
 import java.io.*;
 import java.nio.ByteBuffer;
 
-import jdk.incubator.http.internal.common.ByteBufferReference;
-import jdk.incubator.http.internal.common.Queue;
-import jdk.incubator.http.internal.frame.DataFrame;
+import jdk.internal.net.http.frame.DataFrame;
 
 /**
  * OutputStream. Incoming window updates handled by the main connection
@@ -38,7 +36,7 @@ class BodyOutputStream extends OutputStream {
 
     final int streamid;
     int window;
-    boolean closed;
+    volatile boolean closed;
     boolean goodToGo = false; // not allowed to send until headers sent
     final Http2TestServerConnection conn;
     final Queue outputQ;
@@ -88,8 +86,14 @@ class BodyOutputStream extends OutputStream {
             throw new IllegalStateException("sendResponseHeaders must be called first");
         }
         try {
-            waitForWindow(len);
-            send(buf, offset, len, 0);
+            int max = conn.getMaxFrameSize();
+            while (len > 0) {
+                int n = len > max ? max : len;
+                waitForWindow(n);
+                send(buf, offset, n, 0);
+                offset += n;
+                len -= n;
+            }
         } catch (InterruptedException ex) {
             throw new IOException(ex);
         }
@@ -100,7 +104,7 @@ class BodyOutputStream extends OutputStream {
         buffer.put(buf, offset, len);
         buffer.flip();
         assert streamid != 0;
-        DataFrame df = new DataFrame(streamid, flags, ByteBufferReference.of(buffer));
+        DataFrame df = new DataFrame(streamid, flags, buffer);
         outputQ.put(df);
     }
 
@@ -118,10 +122,11 @@ class BodyOutputStream extends OutputStream {
 
     @Override
     public void close() {
-        if (closed) {
-            return;
+        if (closed) return;
+        synchronized (this) {
+            if (closed) return;
+            closed = true;
         }
-        closed = true;
         try {
             send(EMPTY_BARRAY, 0, 0, DataFrame.END_STREAM);
         } catch (IOException ex) {

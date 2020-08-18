@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -30,6 +30,8 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "memory/allocation.inline.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/flags/flagSetting.hpp"
+#include "runtime/frame.inline.hpp"
 
 #define __ _masm->
 
@@ -133,11 +135,11 @@ void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,
 
   // Load the invoker, as MH -> MH.form -> LF.vmentry
   __ verify_oop(recv);
-  __ load_heap_oop(method_temp, Address(recv, NONZERO(java_lang_invoke_MethodHandle::form_offset_in_bytes())));
+  __ load_heap_oop(method_temp, Address(recv, NONZERO(java_lang_invoke_MethodHandle::form_offset_in_bytes())), temp2);
   __ verify_oop(method_temp);
-  __ load_heap_oop(method_temp, Address(method_temp, NONZERO(java_lang_invoke_LambdaForm::vmentry_offset_in_bytes())));
+  __ load_heap_oop(method_temp, Address(method_temp, NONZERO(java_lang_invoke_LambdaForm::vmentry_offset_in_bytes())), temp2);
   __ verify_oop(method_temp);
-  __ load_heap_oop(method_temp, Address(method_temp, NONZERO(java_lang_invoke_MemberName::method_offset_in_bytes())));
+  __ load_heap_oop(method_temp, Address(method_temp, NONZERO(java_lang_invoke_MemberName::method_offset_in_bytes())), temp2);
   __ verify_oop(method_temp);
   __ ldr(method_temp, Address(method_temp, NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset_in_bytes())));
 
@@ -309,7 +311,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
       if (VerifyMethodHandles && iid != vmIntrinsics::_linkToInterface) {
         Label L_ok;
         Register temp2_defc = temp2;
-        __ load_heap_oop(temp2_defc, member_clazz);
+        __ load_heap_oop(temp2_defc, member_clazz, temp3);
         load_klass_from_Class(_masm, temp2_defc);
         __ verify_klass_ptr(temp2_defc);
         __ check_klass_subtype(temp1_recv_klass, temp2_defc, temp3, L_ok);

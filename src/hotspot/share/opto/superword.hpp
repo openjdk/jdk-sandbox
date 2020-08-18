@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -114,7 +114,7 @@ class DepMem : public ResourceObj {
 };
 
 //------------------------------DepGraph---------------------------
-class DepGraph VALUE_OBJ_CLASS_SPEC {
+class DepGraph {
  protected:
   Arena* _arena;
   GrowableArray<DepMem*> _map;
@@ -190,7 +190,7 @@ public:
 
 // -----------------------------SWNodeInfo---------------------------------
 // Per node info needed by SuperWord
-class SWNodeInfo VALUE_OBJ_CLASS_SPEC {
+class SWNodeInfo {
  public:
   int         _alignment; // memory alignment for a node
   int         _depth;     // Max expression (DAG) depth from block start
@@ -222,7 +222,7 @@ class CMoveKit {
 // JVMCI: OrderedPair is moved up to deal with compilation issues on Windows
 //------------------------------OrderedPair---------------------------
 // Ordered pair of Node*.
-class OrderedPair VALUE_OBJ_CLASS_SPEC {
+class OrderedPair {
  protected:
   Node* _p1;
   Node* _p2;
@@ -442,6 +442,9 @@ class SuperWord : public ResourceObj {
   bool isomorphic(Node* s1, Node* s2);
   // Is there no data path from s1 to s2 or s2 to s1?
   bool independent(Node* s1, Node* s2);
+  // For a node pair (s1, s2) which is isomorphic and independent,
+  // do s1 and s2 have similar input edges?
+  bool have_similar_inputs(Node* s1, Node* s2);
   // Is there a data path between s1 and s2 and both are reductions?
   bool reduction(Node* s1, Node* s2);
   // Helper for independent
@@ -541,7 +544,7 @@ class SuperWord : public ResourceObj {
 
 //------------------------------SWPointer---------------------------
 // Information about an address for dependence checking and vector alignment
-class SWPointer VALUE_OBJ_CLASS_SPEC {
+class SWPointer {
  protected:
   MemNode*   _mem;           // My memory reference node
   SuperWord* _slp;           // SuperWord class

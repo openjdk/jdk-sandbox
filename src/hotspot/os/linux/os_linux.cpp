@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/globals.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -59,6 +59,7 @@
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadCritical.hpp"
+#include "runtime/threadSMR.hpp"
 #include "runtime/timer.hpp"
 #include "semaphore_posix.hpp"
 #include "services/attachListener.hpp"
@@ -94,7 +95,6 @@
 # include <sys/wait.h>
 # include <pwd.h>
 # include <poll.h>
-# include <semaphore.h>
 # include <fcntl.h>
 # include <string.h>
 # include <syscall.h>
@@ -129,6 +129,7 @@
 #define ALL_64_BITS CONST64(0xFFFFFFFFFFFFFFFF)
 
 #define LARGEPAGES_BIT (1 << 6)
+#define DAX_SHARED_BIT (1 << 8)
 ////////////////////////////////////////////////////////////////////////////////
 // global variables
 julong os::Linux::_physical_memory = 0;
@@ -150,6 +151,13 @@ const char * os::Linux::_libpthread_version = NULL;
 static jlong initial_time_count=0;
 
 static int clock_tics_per_sec = 100;
+
+// If the VM might have been created on the primordial thread, we need to resolve the
+// primordial thread stack bounds and check if the current thread might be the
+// primordial thread in places. If we know that the primordial thread is never used,
+// such as when the VM was created by one of the standard java launchers, we can
+// avoid this
+static bool suppress_primordial_thread_resolution = false;
 
 // For diagnostics to print a message once. see run_periodic_checks
 static sigset_t check_signal_done;
@@ -176,20 +184,17 @@ julong os::Linux::available_memory() {
 
   if (OSContainer::is_containerized()) {
     jlong mem_limit, mem_usage;
-    if ((mem_limit = OSContainer::memory_limit_in_bytes()) > 0) {
-      if ((mem_usage = OSContainer::memory_usage_in_bytes()) > 0) {
-        if (mem_limit > mem_usage) {
-          avail_mem = (julong)mem_limit - (julong)mem_usage;
-        } else {
-          avail_mem = 0;
-        }
-        log_trace(os)("available container memory: " JULONG_FORMAT, avail_mem);
-        return avail_mem;
-      } else {
-        log_debug(os,container)("container memory usage call failed: " JLONG_FORMAT, mem_usage);
-      }
-    } else {
-      log_debug(os,container)("container memory unlimited or failed: " JLONG_FORMAT, mem_limit);
+    if ((mem_limit = OSContainer::memory_limit_in_bytes()) < 1) {
+      log_debug(os, container)("container memory limit %s: " JLONG_FORMAT ", using host value",
+                             mem_limit == OSCONTAINER_ERROR ? "failed" : "unlimited", mem_limit);
+    }
+    if (mem_limit > 0 && (mem_usage = OSContainer::memory_usage_in_bytes()) < 1) {
+      log_debug(os, container)("container memory usage failed: " JLONG_FORMAT ", using host value", mem_usage);
+    }
+    if (mem_limit > 0 && mem_usage > 0 ) {
+      avail_mem = mem_limit > mem_usage ? (julong)mem_limit - (julong)mem_usage : 0;
+      log_trace(os)("available container memory: " JULONG_FORMAT, avail_mem);
+      return avail_mem;
     }
   }
 
@@ -200,22 +205,18 @@ julong os::Linux::available_memory() {
 }
 
 julong os::physical_memory() {
+  jlong phys_mem = 0;
   if (OSContainer::is_containerized()) {
     jlong mem_limit;
     if ((mem_limit = OSContainer::memory_limit_in_bytes()) > 0) {
       log_trace(os)("total container memory: " JLONG_FORMAT, mem_limit);
-      return (julong)mem_limit;
-    } else {
-      if (mem_limit == OSCONTAINER_ERROR) {
-        log_debug(os,container)("container memory limit call failed");
-      }
-      if (mem_limit == -1) {
-        log_debug(os,container)("container memory unlimited, using host value");
-      }
+      return mem_limit;
     }
+    log_debug(os, container)("container memory limit %s: " JLONG_FORMAT ", using host value",
+                            mem_limit == OSCONTAINER_ERROR ? "failed" : "unlimited", mem_limit);
   }
 
-  jlong phys_mem = Linux::physical_memory();
+  phys_mem = Linux::physical_memory();
   log_trace(os)("total system memory: " JLONG_FORMAT, phys_mem);
   return phys_mem;
 }
@@ -635,6 +636,10 @@ static void NOINLINE _expand_stack_to(address bottom) {
   }
 }
 
+void os::Linux::expand_stack_to(address bottom) {
+  _expand_stack_to(bottom);
+}
+
 bool os::Linux::manually_expand_stack(JavaThread * t, address addr) {
   assert(t!=NULL, "just checking");
   assert(t->osthread()->expanding_stack(), "expand should be set");
@@ -919,6 +924,9 @@ void os::free_thread(OSThread* osthread) {
 
 // Check if current thread is the primordial thread, similar to Solaris thr_main.
 bool os::is_primordial_thread(void) {
+  if (suppress_primordial_thread_resolution) {
+    return false;
+  }
   char dummy;
   // If called before init complete, thread stack bottom will be null.
   // Can be called if fatal error occurs before initialization.
@@ -1646,7 +1654,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
         //
         // Dynamic loader will make all stacks executable after
         // this function returns, and will not do that again.
-        assert(Threads::first() == NULL, "no Java threads should exist yet.");
+        assert(Threads::number_of_threads() == 0, "no Java threads should exist yet.");
       } else {
         warning("You have loaded library %s which might have disabled stack guard. "
                 "The VM will try to fix the stack guard now.\n"
@@ -1874,16 +1882,13 @@ void * os::Linux::dll_load_in_vmthread(const char *filename, char *ebuf,
   // may have been queued at the same time.
 
   if (!_stack_is_executable) {
-    JavaThread *jt = Threads::first();
-
-    while (jt) {
+    for (JavaThreadIteratorWithHandle jtiwh; JavaThread *jt = jtiwh.next(); ) {
       if (!jt->stack_guard_zone_unused() &&     // Stack not yet fully initialized
           jt->stack_guards_enabled()) {         // No pending stack overflow exceptions
         if (!os::guard_memory((char *)jt->stack_end(), jt->stack_guard_zone_size())) {
           warning("Attempt to reguard stack yellow zone failed.");
         }
       }
-      jt = jt->next();
     }
   }
 
@@ -2134,63 +2139,54 @@ void os::Linux::print_full_memory_info(outputStream* st) {
 }
 
 void os::Linux::print_container_info(outputStream* st) {
-  if (OSContainer::is_containerized()) {
-    st->print("container (cgroup) information:\n");
-
-    char *p = OSContainer::container_type();
-    if (p == NULL)
-      st->print("container_type() failed\n");
-    else {
-      st->print("container_type: %s\n", p);
-    }
-
-    p = OSContainer::cpu_cpuset_cpus();
-    if (p == NULL)
-      st->print("cpu_cpuset_cpus() failed\n");
-    else {
-      st->print("cpu_cpuset_cpus: %s\n", p);
-      free(p);
-    }
-
-    p = OSContainer::cpu_cpuset_memory_nodes();
-    if (p < 0)
-      st->print("cpu_memory_nodes() failed\n");
-    else {
-      st->print("cpu_memory_nodes: %s\n", p);
-      free(p);
-    }
-
-    int i = OSContainer::active_processor_count();
-    if (i < 0)
-      st->print("active_processor_count() failed\n");
-    else
-      st->print("active_processor_count: %d\n", i);
-
-    i = OSContainer::cpu_quota();
-    st->print("cpu_quota: %d\n", i);
-
-    i = OSContainer::cpu_period();
-    st->print("cpu_period: %d\n", i);
-
-    i = OSContainer::cpu_shares();
-    st->print("cpu_shares: %d\n", i);
-
-    jlong j = OSContainer::memory_limit_in_bytes();
-    st->print("memory_limit_in_bytes: " JLONG_FORMAT "\n", j);
-
-    j = OSContainer::memory_and_swap_limit_in_bytes();
-    st->print("memory_and_swap_limit_in_bytes: " JLONG_FORMAT "\n", j);
-
-    j = OSContainer::memory_soft_limit_in_bytes();
-    st->print("memory_soft_limit_in_bytes: " JLONG_FORMAT "\n", j);
-
-    j = OSContainer::OSContainer::memory_usage_in_bytes();
-    st->print("memory_usage_in_bytes: " JLONG_FORMAT "\n", j);
-
-    j = OSContainer::OSContainer::memory_max_usage_in_bytes();
-    st->print("memory_max_usage_in_bytes: " JLONG_FORMAT "\n", j);
-    st->cr();
+  if (!OSContainer::is_containerized()) {
+    return;
   }
+
+  st->print("container (cgroup) information:\n");
+
+  const char *p_ct = OSContainer::container_type();
+  st->print("container_type: %s\n", p_ct != NULL ? p_ct : "failed");
+
+  char *p = OSContainer::cpu_cpuset_cpus();
+  st->print("cpu_cpuset_cpus: %s\n", p != NULL ? p : "failed");
+  free(p);
+
+  p = OSContainer::cpu_cpuset_memory_nodes();
+  st->print("cpu_memory_nodes: %s\n", p != NULL ? p : "failed");
+  free(p);
+
+  int i = OSContainer::active_processor_count();
+  if (i > 0) {
+    st->print("active_processor_count: %d\n", i);
+  } else {
+    st->print("active_processor_count: failed\n");
+  }
+
+  i = OSContainer::cpu_quota();
+  st->print("cpu_quota: %d\n", i);
+
+  i = OSContainer::cpu_period();
+  st->print("cpu_period: %d\n", i);
+
+  i = OSContainer::cpu_shares();
+  st->print("cpu_shares: %d\n", i);
+
+  jlong j = OSContainer::memory_limit_in_bytes();
+  st->print("memory_limit_in_bytes: " JLONG_FORMAT "\n", j);
+
+  j = OSContainer::memory_and_swap_limit_in_bytes();
+  st->print("memory_and_swap_limit_in_bytes: " JLONG_FORMAT "\n", j);
+
+  j = OSContainer::memory_soft_limit_in_bytes();
+  st->print("memory_soft_limit_in_bytes: " JLONG_FORMAT "\n", j);
+
+  j = OSContainer::OSContainer::memory_usage_in_bytes();
+  st->print("memory_usage_in_bytes: " JLONG_FORMAT "\n", j);
+
+  j = OSContainer::OSContainer::memory_max_usage_in_bytes();
+  st->print("memory_max_usage_in_bytes: " JLONG_FORMAT "\n", j);
+  st->cr();
 }
 
 void os::print_memory_info(outputStream* st) {
@@ -2477,11 +2473,11 @@ void* os::user_handler() {
   return CAST_FROM_FN_PTR(void*, UserHandler);
 }
 
-struct timespec PosixSemaphore::create_timespec(unsigned int sec, int nsec) {
+static struct timespec create_semaphore_timespec(unsigned int sec, int nsec) {
   struct timespec ts;
   // Semaphore's are always associated with CLOCK_REALTIME
   os::Linux::clock_gettime(CLOCK_REALTIME, &ts);
-  // see unpackTime for discussion on overflow checking
+  // see os_posix.cpp for discussion on overflow checking
   if (sec >= MAX_SECS) {
     ts.tv_sec += MAX_SECS;
     ts.tv_nsec = 0;
@@ -2533,7 +2529,7 @@ int os::sigexitnum_pd() {
 static volatile jint pending_signals[NSIG+1] = { 0 };
 
 // Linux(POSIX) specific hand shaking semaphore.
-static sem_t sig_sem;
+static Semaphore* sig_sem = NULL;
 static PosixSemaphore sr_semaphore;
 
 void os::signal_init_pd() {
@@ -2541,15 +2537,21 @@ void os::signal_init_pd() {
   ::memset((void*)pending_signals, 0, sizeof(pending_signals));
 
   // Initialize signal semaphore
-  ::sem_init(&sig_sem, 0, 0);
+  sig_sem = new Semaphore();
 }
 
 void os::signal_notify(int sig) {
-  Atomic::inc(&pending_signals[sig]);
-  ::sem_post(&sig_sem);
+  if (sig_sem != NULL) {
+    Atomic::inc(&pending_signals[sig]);
+    sig_sem->signal();
+  } else {
+    // Signal thread is not created with ReduceSignalUsage and signal_init_pd
+    // initialization isn't called.
+    assert(ReduceSignalUsage, "signal semaphore should be created");
+  }
 }
 
-static int check_pending_signals(bool wait) {
+static int check_pending_signals() {
   Atomic::store(0, &sigint_count);
   for (;;) {
     for (int i = 0; i < NSIG + 1; i++) {
@@ -2558,9 +2560,6 @@ static int check_pending_signals(bool wait) {
         return i;
       }
     }
-    if (!wait) {
-      return -1;
-    }
     JavaThread *thread = JavaThread::current();
     ThreadBlockInVM tbivm(thread);
 
@@ -2568,7 +2567,7 @@ static int check_pending_signals(bool wait) {
     do {
       thread->set_suspend_equivalent();
       // cleared by handle_special_suspend_equivalent_condition() or java_suspend_self()
-      ::sem_wait(&sig_sem);
+      sig_sem->wait();
 
       // were we externally suspended while we were waiting?
       threadIsSuspended = thread->handle_special_suspend_equivalent_condition();
@@ -2577,7 +2576,7 @@ static int check_pending_signals(bool wait) {
         // another thread suspended us. We don't want to continue running
         // while suspended because that would surprise the thread that
         // suspended us.
-        ::sem_post(&sig_sem);
+        sig_sem->signal();
 
         thread->java_suspend_self();
       }
@@ -2585,12 +2584,8 @@ static int check_pending_signals(bool wait) {
   }
 }
 
-int os::signal_lookup() {
-  return check_pending_signals(false);
-}
-
 int os::signal_wait() {
-  return check_pending_signals(true);
+  return check_pending_signals();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3116,6 +3111,68 @@ static address get_stack_commited_bottom(address bottom, size_t size) {
   return nbot;
 }
 
+bool os::committed_in_range(address start, size_t size, address& committed_start, size_t& committed_size) {
+  int mincore_return_value;
+  const size_t stripe = 1024;  // query this many pages each time
+  unsigned char vec[stripe];
+  const size_t page_sz = os::vm_page_size();
+  size_t pages = size / page_sz;
+
+  assert(is_aligned(start, page_sz), "Start address must be page aligned");
+  assert(is_aligned(size, page_sz), "Size must be page aligned");
+
+  committed_start = NULL;
+
+  int loops = (pages + stripe - 1) / stripe;
+  int committed_pages = 0;
+  address loop_base = start;
+  for (int index = 0; index < loops; index ++) {
+    assert(pages > 0, "Nothing to do");
+    int pages_to_query = (pages >= stripe) ? stripe : pages;
+    pages -= pages_to_query;
+
+    // Get stable read
+    while ((mincore_return_value = mincore(loop_base, pages_to_query * page_sz, vec)) == -1 && errno == EAGAIN);
+
+    // During shutdown, some memory goes away without properly notifying NMT,
+    // E.g. ConcurrentGCThread/WatcherThread can exit without deleting thread object.
+    // Bailout and return as not committed for now.
+    if (mincore_return_value == -1 && errno == ENOMEM) {
+      return false;
+    }
+
+    assert(mincore_return_value == 0, "Range must be valid");
+    // Process this stripe
+    for (int vecIdx = 0; vecIdx < pages_to_query; vecIdx ++) {
+      if ((vec[vecIdx] & 0x01) == 0) { // not committed
+        // End of current contiguous region
+        if (committed_start != NULL) {
+          break;
+        }
+      } else { // committed
+        // Start of region
+        if (committed_start == NULL) {
+          committed_start = loop_base + page_sz * vecIdx;
+        }
+        committed_pages ++;
+      }
+    }
+
+    loop_base += pages_to_query * page_sz;
+  }
+
+  if (committed_start != NULL) {
+    assert(committed_pages > 0, "Must have committed region");
+    assert(committed_pages <= int(size / page_sz), "Can not commit more than it has");
+    assert(committed_start >= start && committed_start < start + size, "Out of range");
+    committed_size = page_sz * committed_pages;
+    return true;
+  } else {
+    assert(committed_pages == 0, "Should not have committed region");
+    return false;
+  }
+}
+
 
 // Linux uses a growable mapping for the stack, and if the mapping for
 // the stack guard pages is not removed when we detach a thread the
@@ -3369,10 +3426,13 @@ bool os::Linux::hugetlbfs_sanity_check(bool warn, size_t page_size) {
 //           effective only if the bit 2 is cleared)
 // - (bit 5) hugetlb private memory
 // - (bit 6) hugetlb shared memory
+// - (bit 7) dax private memory
+// - (bit 8) dax shared memory
 //
-static void set_coredump_filter(void) {
+static void set_coredump_filter(bool largepages, bool dax_shared) {
   FILE *f;
   long cdm;
+  bool filter_changed = false;
 
   if ((f = fopen("/proc/self/coredump_filter", "r+")) == NULL) {
     return;
@@ -3385,8 +3445,15 @@ static void set_coredump_filter(void) {
 
   rewind(f);
 
-  if ((cdm & LARGEPAGES_BIT) == 0) {
+  if (largepages && (cdm & LARGEPAGES_BIT) == 0) {
     cdm |= LARGEPAGES_BIT;
+    filter_changed = true;
+  }
+  if (dax_shared && (cdm & DAX_SHARED_BIT) == 0) {
+    cdm |= DAX_SHARED_BIT;
+    filter_changed = true;
+  }
+  if (filter_changed) {
     fprintf(f, "%#lx", cdm);
   }
 
@@ -3525,7 +3592,7 @@ void os::large_page_init() {
   size_t large_page_size = Linux::setup_large_page_size();
   UseLargePages          = Linux::setup_large_page_type(large_page_size);
 
-  set_coredump_filter();
+  set_coredump_filter(true /*largepages*/, false /*dax_shared*/);
 }
 
 #ifndef SHM_HUGETLB
@@ -3852,7 +3919,7 @@ bool os::Linux::release_memory_special_huge_tlbfs(char* base, size_t bytes) {
 bool os::release_memory_special(char* base, size_t bytes) {
   bool res;
   if (MemTracker::tracking_level() > NMT_minimal) {
-    Tracker tkr = MemTracker::get_virtual_memory_release_tracker();
+    Tracker tkr(Tracker::release);
     res = os::Linux::release_memory_special_impl(base, bytes);
     if (res) {
       tkr.record((address)base, bytes);
@@ -3894,6 +3961,17 @@ bool os::can_commit_large_page_memory() {
 
 bool os::can_execute_large_page_memory() {
   return UseTransparentHugePages || UseHugeTLBFS;
+}
+
+char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr, int file_desc) {
+  assert(file_desc >= 0, "file_desc is not valid");
+  char* result = pd_attempt_reserve_memory_at(bytes, requested_addr);
+  if (result != NULL) {
+    if (replace_existing_mapping_with_file_mapping(result, bytes, file_desc) == NULL) {
+      vm_exit_during_initialization(err_msg("Error in mapping Java heap at the given filesystem directory"));
+    }
+  }
+  return result;
 }
 
 // Reserve memory at an arbitrary address, only if that area is
@@ -4294,7 +4372,7 @@ static bool do_suspend(OSThread* osthread) {
 
   // managed to send the signal and switch to SUSPEND_REQUEST, now wait for SUSPENDED
   while (true) {
-    if (sr_semaphore.timedwait(0, 2 * NANOSECS_PER_MILLISEC)) {
+    if (sr_semaphore.timedwait(create_semaphore_timespec(0, 2 * NANOSECS_PER_MILLISEC))) {
       break;
     } else {
       // timeout
@@ -4328,7 +4406,7 @@ static void do_resume(OSThread* osthread) {
 
   while (true) {
     if (sr_notify(osthread) == 0) {
-      if (sr_semaphore.timedwait(0, 2 * NANOSECS_PER_MILLISEC)) {
+      if (sr_semaphore.timedwait(create_semaphore_timespec(0, 2 * NANOSECS_PER_MILLISEC))) {
         if (osthread->sr.is_running()) {
           return;
         }
@@ -4927,7 +5005,11 @@ jint os::init_2(void) {
   if (Posix::set_minimum_stack_sizes() == JNI_ERR) {
     return JNI_ERR;
   }
-  Linux::capture_initial_stack(JavaThread::stack_size_at_create());
+
+  suppress_primordial_thread_resolution = Arguments::created_by_java_launcher();
+  if (!suppress_primordial_thread_resolution) {
+    Linux::capture_initial_stack(JavaThread::stack_size_at_create());
+  }
 
 #if defined(IA32)
   workaround_expand_exec_shield_cs_limit();
@@ -4947,25 +5029,20 @@ jint os::init_2(void) {
         UseNUMA = false;
       }
     }
-    // With SHM and HugeTLBFS large pages we cannot uncommit a page, so there's no way
-    // we can make the adaptive lgrp chunk resizing work. If the user specified
-    // both UseNUMA and UseLargePages (or UseSHM/UseHugeTLBFS) on the command line - warn and
-    // disable adaptive resizing.
-    if (UseNUMA && UseLargePages && !can_commit_large_page_memory()) {
-      if (FLAG_IS_DEFAULT(UseNUMA)) {
-        UseNUMA = false;
-      } else {
-        if (FLAG_IS_DEFAULT(UseLargePages) &&
-            FLAG_IS_DEFAULT(UseSHM) &&
-            FLAG_IS_DEFAULT(UseHugeTLBFS)) {
-          UseLargePages = false;
-        } else if (UseAdaptiveSizePolicy || UseAdaptiveNUMAChunkSizing) {
-          warning("UseNUMA is not fully compatible with SHM/HugeTLBFS large pages, disabling adaptive resizing (-XX:-UseAdaptiveSizePolicy -XX:-UseAdaptiveNUMAChunkSizing)");
-          UseAdaptiveSizePolicy = false;
-          UseAdaptiveNUMAChunkSizing = false;
-        }
+
+    if (UseParallelGC && UseNUMA && UseLargePages && !can_commit_large_page_memory()) {
+      // With SHM and HugeTLBFS large pages we cannot uncommit a page, so there's no way
+      // we can make the adaptive lgrp chunk resizing work. If the user specified both
+      // UseNUMA and UseLargePages (or UseSHM/UseHugeTLBFS) on the command line - warn
+      // and disable adaptive resizing.
+      if (UseAdaptiveSizePolicy || UseAdaptiveNUMAChunkSizing) {
+        warning("UseNUMA is not fully compatible with SHM/HugeTLBFS large pages, "
+                "disabling adaptive resizing (-XX:-UseAdaptiveSizePolicy -XX:-UseAdaptiveNUMAChunkSizing)");
+        UseAdaptiveSizePolicy = false;
+        UseAdaptiveNUMAChunkSizing = false;
       }
     }
+
     if (!UseNUMA && ForceNUMA) {
       UseNUMA = true;
     }
@@ -5012,6 +5089,9 @@ jint os::init_2(void) {
   // initialize thread priority policy
   prio_init();
 
+  if (!FLAG_IS_DEFAULT(AllocateHeapAt)) {
+    set_coredump_filter(false /*largepages*/, true /*dax_shared*/);
+  }
   return JNI_OK;
 }
 
@@ -5669,54 +5749,6 @@ int os::fork_and_exec(char* cmd) {
       return status;
     }
   }
-}
-
-// is_headless_jre()
-//
-// Test for the existence of xawt/libmawt.so or libawt_xawt.so
-// in order to report if we are running in a headless jre
-//
-// Since JDK8 xawt/libmawt.so was moved into the same directory
-// as libawt.so, and renamed libawt_xawt.so
-//
-bool os::is_headless_jre() {
-  struct stat statbuf;
-  char buf[MAXPATHLEN];
-  char libmawtpath[MAXPATHLEN];
-  const char *xawtstr  = "/xawt/libmawt.so";
-  const char *new_xawtstr = "/libawt_xawt.so";
-  char *p;
-
-  // Get path to libjvm.so
-  os::jvm_path(buf, sizeof(buf));
-
-  // Get rid of libjvm.so
-  p = strrchr(buf, '/');
-  if (p == NULL) {
-    return false;
-  } else {
-    *p = '\0';
-  }
-
-  // Get rid of client or server
-  p = strrchr(buf, '/');
-  if (p == NULL) {
-    return false;
-  } else {
-    *p = '\0';
-  }
-
-  // check xawt/libmawt.so
-  strcpy(libmawtpath, buf);
-  strcat(libmawtpath, xawtstr);
-  if (::stat(libmawtpath, &statbuf) == 0) return false;
-
-  // check libawt_xawt.so
-  strcpy(libmawtpath, buf);
-  strcat(libmawtpath, new_xawtstr);
-  if (::stat(libmawtpath, &statbuf) == 0) return false;
-
-  return true;
 }
 
 // Get the default path to the core file

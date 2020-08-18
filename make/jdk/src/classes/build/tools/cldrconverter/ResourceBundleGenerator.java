@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -211,11 +211,13 @@ class ResourceBundleGenerator implements BundleGenerator {
                     if (value == null) {
                         CLDRConverter.warning("null value for " + key);
                     } else if (value instanceof String) {
-                        if (type == BundleType.TIMEZONE ||
-                            ((String)value).startsWith(META_VALUE_PREFIX)) {
-                            out.printf("            { \"%s\", %s },\n", key, CLDRConverter.saveConvert((String) value, useJava));
+                        String valStr = (String)value;
+                        if (type == BundleType.TIMEZONE &&
+                            !key.startsWith(CLDRConverter.EXEMPLAR_CITY_PREFIX) ||
+                            valStr.startsWith(META_VALUE_PREFIX)) {
+                            out.printf("            { \"%s\", %s },\n", key, CLDRConverter.saveConvert(valStr, useJava));
                         } else {
-                            out.printf("            { \"%s\", \"%s\" },\n", key, CLDRConverter.saveConvert((String) value, useJava));
+                            out.printf("            { \"%s\", \"%s\" },\n", key, CLDRConverter.saveConvert(valStr, useJava));
                         }
                     } else if (value instanceof String[]) {
                         String[] values = (String[]) value;
@@ -256,20 +258,22 @@ class ResourceBundleGenerator implements BundleGenerator {
         CLDRConverter.info("Generating file " + file);
 
         try (PrintWriter out = new PrintWriter(file, "us-ascii")) {
-            out.println(CopyrightHeaders.getOpenJDKCopyright());
+            out.printf(CopyrightHeaders.getOpenJDKCopyright());
 
-            out.println((CLDRConverter.isBaseModule ? "package sun.util.cldr;\n\n" :
+            out.printf((CLDRConverter.isBaseModule ? "package sun.util.cldr;\n\n" :
                                   "package sun.util.resources.cldr.provider;\n\n")
                       + "import java.util.HashMap;\n"
                       + "import java.util.Locale;\n"
                       + "import java.util.Map;\n"
-                      + "import sun.util.locale.provider.LocaleProviderAdapter;\n"
-                      + "import sun.util.locale.provider.LocaleDataMetaInfo;\n");
+                      + "import sun.util.locale.provider.LocaleDataMetaInfo;\n"
+                      + "import sun.util.locale.provider.LocaleProviderAdapter;\n\n");
             out.printf("public class %s implements LocaleDataMetaInfo {\n", className);
-            out.println("    private static final Map<String, String> resourceNameToLocales = new HashMap<>();\n" +
-                        (CLDRConverter.isBaseModule ?
-                        "    private static final Map<Locale, String[]> parentLocalesMap = new HashMap<>();\n\n" : "\n") +
-                        "    static {\n");
+            out.printf("    private static final Map<String, String> resourceNameToLocales = new HashMap<>();\n" +
+                       (CLDRConverter.isBaseModule ?
+                       "    private static final Map<Locale, String[]> parentLocalesMap = new HashMap<>();\n" +
+                       "    private static final Map<String, String> languageAliasMap = new HashMap<>();\n\n" :
+                       "\n") +
+                       "    static {\n");
 
             for (String key : metaInfo.keySet()) {
                 if (key.startsWith(CLDRConverter.PARENT_LOCALE_PREFIX)) {
@@ -296,30 +300,65 @@ class ResourceBundleGenerator implements BundleGenerator {
                     }
                     out.printf("\n             });\n");
                 } else {
-                    out.printf("        resourceNameToLocales.put(\"%s\",\n", key);
-                    out.printf("              \"%s\");\n",
-                    toLocaleList(key.equals("FormatData") ? metaInfo.get("AvailableLocales") :
-                                            metaInfo.get(key), false));
+                    if ("AvailableLocales".equals(key)) {
+                        out.printf("        resourceNameToLocales.put(\"%s\",\n", key);
+                        out.printf("              \"%s\");\n", toLocaleList(applyLanguageAliases(metaInfo.get(key)), false));
+                    }
                 }
             }
-            out.println("    }\n\n");
+            // for languageAliasMap
+            if (CLDRConverter.isBaseModule) {
+                CLDRConverter.handlerSupplMeta.getLanguageAliasData().forEach((key, value) -> {
+                    out.printf("                languageAliasMap.put(\"%s\", \"%s\");\n", key, value);
+                });
+            }
 
-            out.println("    @Override\n" +
+            out.printf("    }\n\n");
+
+            // end of static initializer block.
+
+            // Canonical TZ names for delayed initialization
+            if (CLDRConverter.isBaseModule) {
+                out.printf("    private static class TZCanonicalIDMapHolder {\n");
+                out.printf("        static final Map<String, String> tzCanonicalIDMap = new HashMap<>(600);\n");
+                out.printf("        static {\n");
+                CLDRConverter.handlerTimeZone.getData().entrySet().stream()
+                    .forEach(e -> {
+                        String[] ids = ((String)e.getValue()).split("\\s");
+                        out.printf("            tzCanonicalIDMap.put(\"%s\", \"%s\");\n", e.getKey(),
+                                ids[0]);
+                        for (int i = 1; i < ids.length; i++) {
+                            out.printf("            tzCanonicalIDMap.put(\"%s\", \"%s\");\n", ids[i],
+                                ids[0]);
+                        }
+                    });
+                out.printf("        }\n    }\n\n");
+            }
+
+            out.printf("    @Override\n" +
                         "    public LocaleProviderAdapter.Type getType() {\n" +
                         "        return LocaleProviderAdapter.Type.CLDR;\n" +
                         "    }\n\n");
 
-            out.println("    @Override\n" +
+            out.printf("    @Override\n" +
                         "    public String availableLanguageTags(String category) {\n" +
                         "        return resourceNameToLocales.getOrDefault(category, \"\");\n" +
                         "    }\n\n");
 
             if (CLDRConverter.isBaseModule) {
+                out.printf("    @Override\n" +
+                           "    public Map<String, String> getLanguageAliasMap() {\n" +
+                           "        return languageAliasMap;\n" +
+                           "    }\n\n");
+                out.printf("    @Override\n" +
+                           "    public Map<String, String> tzCanonicalIDs() {\n" +
+                           "        return TZCanonicalIDMapHolder.tzCanonicalIDMap;\n" +
+                           "    }\n\n");
                 out.printf("    public Map<Locale, String[]> parentLocales() {\n" +
                            "        return parentLocalesMap;\n" +
                            "    }\n}");
             } else {
-                out.println("}");
+                out.printf("}");
             }
         }
     }
@@ -348,5 +387,14 @@ class ResourceBundleGenerator implements BundleGenerator {
             }
         }
         return sb.toString();
+    }
+
+    private static SortedSet<String> applyLanguageAliases(SortedSet<String> tags) {
+        CLDRConverter.handlerSupplMeta.getLanguageAliasData().forEach((key, value) -> {
+            if (tags.remove(key)) {
+                tags.add(value);
+            }
+        });
+        return tags;
     }
 }

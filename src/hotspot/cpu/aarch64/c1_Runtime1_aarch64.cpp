@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -30,6 +30,8 @@
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
 #include "compiler/disassembler.hpp"
+#include "gc/shared/cardTable.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "interpreter/interpreter.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/compiledICHolder.hpp"
@@ -41,9 +43,6 @@
 #include "runtime/vframe.hpp"
 #include "runtime/vframeArray.hpp"
 #include "vmreg_aarch64.inline.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#endif
 
 
 // Implementation of StubAssembler
@@ -169,31 +168,32 @@ class StubFrame: public StackObj {
   ~StubFrame();
 };;
 
+void StubAssembler::prologue(const char* name, bool must_gc_arguments) {
+  set_info(name, must_gc_arguments);
+  enter();
+}
+
+void StubAssembler::epilogue() {
+  leave();
+  ret(lr);
+}
 
 #define __ _sasm->
 
 StubFrame::StubFrame(StubAssembler* sasm, const char* name, bool must_gc_arguments) {
   _sasm = sasm;
-  __ set_info(name, must_gc_arguments);
-  __ enter();
+  __ prologue(name, must_gc_arguments);
 }
 
 // load parameters that were stored with LIR_Assembler::store_parameter
 // Note: offsets for store_parameter and load_argument must match
 void StubFrame::load_argument(int offset_in_words, Register reg) {
-  // rbp, + 0: link
-  //     + 1: return address
-  //     + 2: argument with offset 0
-  //     + 3: argument with offset 1
-  //     + 4: ...
-
-  __ ldr(reg, Address(rfp, (offset_in_words + 2) * BytesPerWord));
+  __ load_parameter(offset_in_words, reg);
 }
 
 
 StubFrame::~StubFrame() {
-  __ leave();
-  __ ret(lr);
+  __ epilogue();
 }
 
 #undef __
@@ -323,7 +323,7 @@ void Runtime1::initialize_pd() {
 
 
 // target: the entry point of the method that creates and posts the exception oop
-// has_argument: true if the exception needs an argument (passed in rscratch1)
+// has_argument: true if the exception needs arguments (passed in r22 and r23)
 
 OopMapSet* Runtime1::generate_exception_throw(StubAssembler* sasm, address target, bool has_argument) {
   // make a frame and preserve the caller's caller-save registers
@@ -332,7 +332,7 @@ OopMapSet* Runtime1::generate_exception_throw(StubAssembler* sasm, address targe
   if (!has_argument) {
     call_offset = __ call_RT(noreg, noreg, target);
   } else {
-    call_offset = __ call_RT(noreg, noreg, target, rscratch1);
+    call_offset = __ call_RT(noreg, noreg, target, r22, r23);
   }
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(call_offset, oop_map);
@@ -684,14 +684,14 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         }
 
         if ((id == fast_new_instance_id || id == fast_new_instance_init_check_id) &&
-            UseTLAB && FastTLABRefill) {
+            UseTLAB && Universe::heap()->supports_inline_contig_alloc()) {
           Label slow_path;
           Register obj_size = r2;
           Register t1       = r19;
           Register t2       = r4;
           assert_different_registers(klass, obj, obj_size, t1, t2);
 
-          __ stp(r5, r19, Address(__ pre(sp, -2 * wordSize)));
+          __ stp(r19, zr, Address(__ pre(sp, -2 * wordSize)));
 
           if (id == fast_new_instance_init_check_id) {
             // make sure the klass is initialized
@@ -716,24 +716,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           }
 #endif // ASSERT
 
-          // if we got here then the TLAB allocation failed, so try
-          // refilling the TLAB or allocating directly from eden.
-          Label retry_tlab, try_eden;
-          __ tlab_refill(retry_tlab, try_eden, slow_path); // does not destroy r3 (klass), returns r5
-
-          __ bind(retry_tlab);
-
-          // get the instance size (size is postive so movl is fine for 64bit)
-          __ ldrw(obj_size, Address(klass, Klass::layout_helper_offset()));
-
-          __ tlab_allocate(obj, obj_size, 0, t1, t2, slow_path);
-
-          __ initialize_object(obj, klass, obj_size, 0, t1, t2, /* is_tlab_allocated */ true);
-          __ verify_oop(obj);
-          __ ldp(r5, r19, Address(__ post(sp, 2 * wordSize)));
-          __ ret(lr);
-
-          __ bind(try_eden);
           // get the instance size (size is postive so movl is fine for 64bit)
           __ ldrw(obj_size, Address(klass, Klass::layout_helper_offset()));
 
@@ -742,11 +724,11 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
           __ initialize_object(obj, klass, obj_size, 0, t1, t2, /* is_tlab_allocated */ false);
           __ verify_oop(obj);
-          __ ldp(r5, r19, Address(__ post(sp, 2 * wordSize)));
+          __ ldp(r19, zr, Address(__ post(sp, 2 * wordSize)));
           __ ret(lr);
 
           __ bind(slow_path);
-          __ ldp(r5, r19, Address(__ post(sp, 2 * wordSize)));
+          __ ldp(r19, zr, Address(__ post(sp, 2 * wordSize)));
         }
 
         __ enter();
@@ -814,7 +796,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         }
 #endif // ASSERT
 
-        if (UseTLAB && FastTLABRefill) {
+        if (UseTLAB && Universe::heap()->supports_inline_contig_alloc()) {
           Register arr_size = r4;
           Register t1       = r2;
           Register t2       = r5;
@@ -826,45 +808,10 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ cmpw(length, rscratch1);
           __ br(Assembler::HI, slow_path);
 
-          // if we got here then the TLAB allocation failed, so try
-          // refilling the TLAB or allocating directly from eden.
-          Label retry_tlab, try_eden;
-          const Register thread =
-            __ tlab_refill(retry_tlab, try_eden, slow_path); // preserves r19 & r3, returns rthread
-
-          __ bind(retry_tlab);
-
           // get the allocation size: round_up(hdr + length << (layout_helper & 0x1F))
           // since size is positive ldrw does right thing on 64bit
           __ ldrw(t1, Address(klass, Klass::layout_helper_offset()));
-          __ lslvw(arr_size, length, t1);
-          __ ubfx(t1, t1, Klass::_lh_header_size_shift,
-                  exact_log2(Klass::_lh_header_size_mask + 1));
-          __ add(arr_size, arr_size, t1);
-          __ add(arr_size, arr_size, MinObjAlignmentInBytesMask); // align up
-          __ andr(arr_size, arr_size, ~MinObjAlignmentInBytesMask);
-
-          __ tlab_allocate(obj, arr_size, 0, t1, t2, slow_path);  // preserves arr_size
-
-          __ initialize_header(obj, klass, length, t1, t2);
-          __ ldrb(t1, Address(klass, in_bytes(Klass::layout_helper_offset()) + (Klass::_lh_header_size_shift / BitsPerByte)));
-          assert(Klass::_lh_header_size_shift % BitsPerByte == 0, "bytewise");
-          assert(Klass::_lh_header_size_mask <= 0xFF, "bytewise");
-          __ andr(t1, t1, Klass::_lh_header_size_mask);
-          __ sub(arr_size, arr_size, t1);  // body length
-          __ add(t1, t1, obj);       // body start
-          if (!ZeroTLAB) {
-           __ initialize_body(t1, arr_size, 0, t2);
-          }
-          __ verify_oop(obj);
-
-          __ ret(lr);
-
-          __ bind(try_eden);
-          // get the allocation size: round_up(hdr + length << (layout_helper & 0x1F))
-          // since size is positive ldrw does right thing on 64bit
-          __ ldrw(t1, Address(klass, Klass::layout_helper_offset()));
-          // since size is postive movw does right thing on 64bit
+          // since size is positive movw does right thing on 64bit
           __ movw(arr_size, length);
           __ lslvw(arr_size, length, t1);
           __ ubfx(t1, t1, Klass::_lh_header_size_shift,
@@ -874,7 +821,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ andr(arr_size, arr_size, ~MinObjAlignmentInBytesMask);
 
           __ eden_allocate(obj, arr_size, 0, t1, slow_path);  // preserves arr_size
-          __ incr_allocated_bytes(thread, arr_size, 0, rscratch1);
+          __ incr_allocated_bytes(rthread, arr_size, 0, rscratch1);
 
           __ initialize_header(obj, klass, length, t1, t2);
           __ ldrb(t1, Address(klass, in_bytes(Klass::layout_helper_offset()) + (Klass::_lh_header_size_shift / BitsPerByte)));
@@ -1148,138 +1095,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_array_store_exception), true);
       }
       break;
-
-#if INCLUDE_ALL_GCS
-
-    case g1_pre_barrier_slow_id:
-      {
-        StubFrame f(sasm, "g1_pre_barrier", dont_gc_arguments);
-        // arg0 : previous value of memory
-
-        BarrierSet* bs = Universe::heap()->barrier_set();
-        if (bs->kind() != BarrierSet::G1SATBCTLogging) {
-          __ mov(r0, (int)id);
-          __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, unimplemented_entry), r0);
-          __ should_not_reach_here();
-          break;
-        }
-
-        const Register pre_val = r0;
-        const Register thread = rthread;
-        const Register tmp = rscratch1;
-
-        Address in_progress(thread, in_bytes(JavaThread::satb_mark_queue_offset() +
-                                             SATBMarkQueue::byte_offset_of_active()));
-
-        Address queue_index(thread, in_bytes(JavaThread::satb_mark_queue_offset() +
-                                             SATBMarkQueue::byte_offset_of_index()));
-        Address buffer(thread, in_bytes(JavaThread::satb_mark_queue_offset() +
-                                        SATBMarkQueue::byte_offset_of_buf()));
-
-        Label done;
-        Label runtime;
-
-        // Is marking still active?
-        if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
-          __ ldrw(tmp, in_progress);
-        } else {
-          assert(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
-          __ ldrb(tmp, in_progress);
-        }
-        __ cbzw(tmp, done);
-
-        // Can we store original value in the thread's buffer?
-        __ ldr(tmp, queue_index);
-        __ cbz(tmp, runtime);
-
-        __ sub(tmp, tmp, wordSize);
-        __ str(tmp, queue_index);
-        __ ldr(rscratch2, buffer);
-        __ add(tmp, tmp, rscratch2);
-        f.load_argument(0, rscratch2);
-        __ str(rscratch2, Address(tmp, 0));
-        __ b(done);
-
-        __ bind(runtime);
-        __ push_call_clobbered_registers();
-        f.load_argument(0, pre_val);
-        __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_pre), pre_val, thread);
-        __ pop_call_clobbered_registers();
-        __ bind(done);
-      }
-      break;
-    case g1_post_barrier_slow_id:
-      {
-        StubFrame f(sasm, "g1_post_barrier", dont_gc_arguments);
-
-        // arg0: store_address
-        Address store_addr(rfp, 2*BytesPerWord);
-
-        BarrierSet* bs = Universe::heap()->barrier_set();
-        CardTableModRefBS* ct = (CardTableModRefBS*)bs;
-        assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust this code");
-
-        Label done;
-        Label runtime;
-
-        // At this point we know new_value is non-NULL and the new_value crosses regions.
-        // Must check to see if card is already dirty
-
-        const Register thread = rthread;
-
-        Address queue_index(thread, in_bytes(JavaThread::dirty_card_queue_offset() +
-                                             DirtyCardQueue::byte_offset_of_index()));
-        Address buffer(thread, in_bytes(JavaThread::dirty_card_queue_offset() +
-                                        DirtyCardQueue::byte_offset_of_buf()));
-
-        const Register card_offset = rscratch2;
-        // LR is free here, so we can use it to hold the byte_map_base.
-        const Register byte_map_base = lr;
-
-        assert_different_registers(card_offset, byte_map_base, rscratch1);
-
-        f.load_argument(0, card_offset);
-        __ lsr(card_offset, card_offset, CardTableModRefBS::card_shift);
-        __ load_byte_map_base(byte_map_base);
-        __ ldrb(rscratch1, Address(byte_map_base, card_offset));
-        __ cmpw(rscratch1, (int)G1SATBCardTableModRefBS::g1_young_card_val());
-        __ br(Assembler::EQ, done);
-
-        assert((int)CardTableModRefBS::dirty_card_val() == 0, "must be 0");
-
-        __ membar(Assembler::StoreLoad);
-        __ ldrb(rscratch1, Address(byte_map_base, card_offset));
-        __ cbzw(rscratch1, done);
-
-        // storing region crossing non-NULL, card is clean.
-        // dirty card and log.
-        __ strb(zr, Address(byte_map_base, card_offset));
-
-        // Convert card offset into an address in card_addr
-        Register card_addr = card_offset;
-        __ add(card_addr, byte_map_base, card_addr);
-
-        __ ldr(rscratch1, queue_index);
-        __ cbz(rscratch1, runtime);
-        __ sub(rscratch1, rscratch1, wordSize);
-        __ str(rscratch1, queue_index);
-
-        // Reuse LR to hold buffer_addr
-        const Register buffer_addr = lr;
-
-        __ ldr(buffer_addr, buffer);
-        __ str(card_addr, Address(buffer_addr, rscratch1));
-        __ b(done);
-
-        __ bind(runtime);
-        __ push_call_clobbered_registers();
-        __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_post), card_addr, thread);
-        __ pop_call_clobbered_registers();
-        __ bind(done);
-
-      }
-      break;
-#endif
 
     case predicate_failed_trap_id:
       {

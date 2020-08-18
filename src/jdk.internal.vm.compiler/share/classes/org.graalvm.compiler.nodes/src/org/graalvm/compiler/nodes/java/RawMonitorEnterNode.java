@@ -29,6 +29,7 @@ import org.graalvm.compiler.core.common.type.ObjectStamp;
 import org.graalvm.compiler.graph.IterableNodeType;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.extended.MonitorEnter;
 import org.graalvm.compiler.nodes.memory.MemoryCheckpoint;
@@ -37,7 +38,7 @@ import org.graalvm.compiler.nodes.spi.LoweringTool;
 import org.graalvm.compiler.nodes.spi.Virtualizable;
 import org.graalvm.compiler.nodes.spi.VirtualizerTool;
 import org.graalvm.compiler.nodes.virtual.VirtualObjectNode;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 /**
  * The {@code RawMonitorEnterNode} represents the acquisition of a monitor. The object needs to
@@ -56,7 +57,7 @@ public final class RawMonitorEnterNode extends AccessMonitorNode implements Virt
 
     public RawMonitorEnterNode(ValueNode object, ValueNode hub, MonitorIdNode monitorId) {
         super(TYPE, object, monitorId);
-        assert ((ObjectStamp) object.stamp()).nonNull();
+        assert ((ObjectStamp) object.stamp(NodeView.DEFAULT)).nonNull();
         this.hub = hub;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,16 +24,14 @@
 
 #include "precompiled.hpp"
 #include "oops/compiledICHolder.hpp"
-#include "oops/klass.hpp"
-#include "oops/method.hpp"
 #include "runtime/atomic.hpp"
 
 volatile int CompiledICHolder::_live_count;
 volatile int CompiledICHolder::_live_not_claimed_count;
 
 
-CompiledICHolder::CompiledICHolder(Method* method, Klass* klass)
-  : _holder_method(method), _holder_klass(klass) {
+CompiledICHolder::CompiledICHolder(Metadata* metadata, Klass* klass, bool is_method)
+  : _holder_metadata(metadata), _holder_klass(klass), _is_metadata_method(is_method) {
 #ifdef ASSERT
   Atomic::inc(&_live_count);
   Atomic::inc(&_live_not_claimed_count);
@@ -51,8 +49,8 @@ CompiledICHolder::~CompiledICHolder() {
 
 void CompiledICHolder::print_on(outputStream* st) const {
   st->print("%s", internal_name());
-  st->print(" - method: "); holder_method()->print_value_on(st); st->cr();
-  st->print(" - klass:  "); holder_klass()->print_value_on(st); st->cr();
+  st->print(" - metadata: "); holder_metadata()->print_value_on(st); st->cr();
+  st->print(" - klass:    "); holder_klass()->print_value_on(st); st->cr();
 }
 
 void CompiledICHolder::print_value_on(outputStream* st) const {
@@ -63,7 +61,7 @@ void CompiledICHolder::print_value_on(outputStream* st) const {
 // Verification
 
 void CompiledICHolder::verify_on(outputStream* st) {
-  guarantee(holder_method()->is_method(), "should be method");
+  guarantee(holder_metadata()->is_method() || holder_metadata()->is_klass(), "should be method or klass");
   guarantee(holder_klass()->is_klass(),   "should be klass");
 }
 

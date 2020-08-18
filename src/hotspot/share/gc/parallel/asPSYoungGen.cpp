@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -496,7 +496,7 @@ void ASPSYoungGen::reset_after_change() {
 
   _reserved = MemRegion((HeapWord*)virtual_space()->low_boundary(),
                         (HeapWord*)virtual_space()->high_boundary());
-  PSScavenge::reference_processor()->set_span(_reserved);
+  PSScavenge::set_subject_to_discovery_span(_reserved);
 
   HeapWord* new_eden_bottom = (HeapWord*)virtual_space()->low();
   HeapWord* eden_bottom = eden_space()->bottom();
@@ -509,7 +509,7 @@ void ASPSYoungGen::reset_after_change() {
   }
   MemRegion cmr((HeapWord*)virtual_space()->low(),
                 (HeapWord*)virtual_space()->high());
-  ParallelScavengeHeap::heap()->barrier_set()->resize_covered_region(cmr);
+  ParallelScavengeHeap::heap()->barrier_set()->card_table()->resize_covered_region(cmr);
 
   space_invariants();
 }

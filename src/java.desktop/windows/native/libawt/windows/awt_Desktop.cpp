@@ -92,7 +92,7 @@ JNIEXPORT jstring JNICALL Java_sun_awt_windows_WDesktopPeer_ShellExecute
     JNU_ReleaseStringPlatformChars(env, fileOrUri_j, fileOrUri_c);
     JNU_ReleaseStringPlatformChars(env, verb_j, verb_c);
 
-    if ((int)retval <= 32) {
+    if ((int)((intptr_t)retval) <= 32) {
         // ShellExecute failed.
         LPTSTR buffer = NULL;
         int len = ::FormatMessage(
@@ -137,7 +137,7 @@ JNIEXPORT jboolean JNICALL Java_sun_awt_windows_WDesktopPeer_moveToTrash
             fop.hwnd = NULL;
             fop.wFunc = FO_DELETE;
             fop.pFrom = fileBuffer;
-            fop.fFlags = FOF_ALLOWUNDO;
+            fop.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI;
 
             int res = SHFileOperation(&fop);
 

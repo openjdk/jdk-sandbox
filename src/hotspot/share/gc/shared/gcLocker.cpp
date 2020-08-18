@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,13 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "memory/resourceArea.hpp"
 #include "logging/log.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/safepoint.hpp"
 #include "runtime/thread.inline.hpp"
+#include "runtime/threadSMR.hpp"
 
 volatile jint GCLocker::_jni_lock_count = 0;
 volatile bool GCLocker::_needs_gc       = false;
@@ -45,14 +47,16 @@ void GCLocker::verify_critical_count() {
     assert(!needs_gc() || _debug_jni_lock_count == _jni_lock_count, "must agree");
     int count = 0;
     // Count the number of threads with critical operations in progress
-    for (JavaThread* thr = Threads::first(); thr; thr = thr->next()) {
+    JavaThreadIteratorWithHandle jtiwh;
+    for (; JavaThread *thr = jtiwh.next(); ) {
       if (thr->in_critical()) {
         count++;
       }
     }
     if (_jni_lock_count != count) {
       log_error(gc, verify)("critical counts don't match: %d != %d", _jni_lock_count, count);
-      for (JavaThread* thr = Threads::first(); thr; thr = thr->next()) {
+      jtiwh.rewind();
+      for (; JavaThread *thr = jtiwh.next(); ) {
         if (thr->in_critical()) {
           log_error(gc, verify)(INTPTR_FORMAT " in_critical %d", p2i(thr), thr->in_critical());
         }
@@ -80,6 +84,10 @@ void GCLocker::log_debug_jni(const char* msg) {
     ResourceMark rm; // JavaThread::name() allocates to convert to UTF8
     log.debug("%s Thread \"%s\" %d locked.", msg, Thread::current()->name(), _jni_lock_count);
   }
+}
+
+bool GCLocker::is_at_safepoint() {
+  return SafepointSynchronize::is_at_safepoint();
 }
 
 bool GCLocker::check_active_before_gc() {
@@ -142,87 +150,3 @@ void GCLocker::jni_unlock(JavaThread* thread) {
     JNICritical_lock->notify_all();
   }
 }
-
-// Implementation of NoGCVerifier
-
-#ifdef ASSERT
-
-NoGCVerifier::NoGCVerifier(bool verifygc) {
-  _verifygc = verifygc;
-  if (_verifygc) {
-    CollectedHeap* h = Universe::heap();
-    assert(!h->is_gc_active(), "GC active during NoGCVerifier");
-    _old_invocations = h->total_collections();
-  }
-}
-
-
-NoGCVerifier::~NoGCVerifier() {
-  if (_verifygc) {
-    CollectedHeap* h = Universe::heap();
-    assert(!h->is_gc_active(), "GC active during NoGCVerifier");
-    if (_old_invocations != h->total_collections()) {
-      fatal("collection in a NoGCVerifier secured function");
-    }
-  }
-}
-
-PauseNoGCVerifier::PauseNoGCVerifier(NoGCVerifier * ngcv) {
-  _ngcv = ngcv;
-  if (_ngcv->_verifygc) {
-    // if we were verifying, then make sure that nothing is
-    // wrong before we "pause" verification
-    CollectedHeap* h = Universe::heap();
-    assert(!h->is_gc_active(), "GC active during NoGCVerifier");
-    if (_ngcv->_old_invocations != h->total_collections()) {
-      fatal("collection in a NoGCVerifier secured function");
-    }
-  }
-}
-
-
-PauseNoGCVerifier::~PauseNoGCVerifier() {
-  if (_ngcv->_verifygc) {
-    // if we were verifying before, then reenable verification
-    CollectedHeap* h = Universe::heap();
-    assert(!h->is_gc_active(), "GC active during NoGCVerifier");
-    _ngcv->_old_invocations = h->total_collections();
-  }
-}
-
-
-// JRT_LEAF rules:
-// A JRT_LEAF method may not interfere with safepointing by
-//   1) acquiring or blocking on a Mutex or JavaLock - checked
-//   2) allocating heap memory - checked
-//   3) executing a VM operation - checked
-//   4) executing a system call (including malloc) that could block or grab a lock
-//   5) invoking GC
-//   6) reaching a safepoint
-//   7) running too long
-// Nor may any method it calls.
-JRTLeafVerifier::JRTLeafVerifier()
-  : NoSafepointVerifier(true, JRTLeafVerifier::should_verify_GC())
-{
-}
-
-JRTLeafVerifier::~JRTLeafVerifier()
-{
-}
-
-bool JRTLeafVerifier::should_verify_GC() {
-  switch (JavaThread::current()->thread_state()) {
-  case _thread_in_Java:
-    // is in a leaf routine, there must be no safepoint.
-    return true;
-  case _thread_in_native:
-    // A native thread is not subject to safepoints.
-    // Even while it is in a leaf routine, GC is ok
-    return false;
-  default:
-    // Leaf routines cannot be called from other contexts.
-    ShouldNotReachHere();
-    return false;
-  }
-}
-#endif

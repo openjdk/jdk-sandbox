@@ -35,6 +35,7 @@ import org.graalvm.compiler.nodeinfo.NodeSize;
 import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.FixedWithNextNode;
 import org.graalvm.compiler.nodes.NamedLocationIdentity;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.ValueNodeUtil;
 import org.graalvm.compiler.nodes.memory.MemoryAccess;
@@ -45,7 +46,7 @@ import org.graalvm.compiler.nodes.spi.Virtualizable;
 import org.graalvm.compiler.nodes.spi.VirtualizerTool;
 import org.graalvm.compiler.nodes.util.GraphUtil;
 import org.graalvm.compiler.nodes.virtual.VirtualObjectNode;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.ConstantReflectionProvider;
 import jdk.vm.ci.meta.JavaConstant;
@@ -173,7 +174,7 @@ public final class ArrayEqualsNode extends FixedWithNextNode implements LIRLower
                             allEqual = false;
                         }
                     }
-                    if (entry1.stamp().alwaysDistinct(entry2.stamp())) {
+                    if (entry1.stamp(NodeView.DEFAULT).alwaysDistinct(entry2.stamp(NodeView.DEFAULT))) {
                         // the contents are different
                         tool.replaceWithValue(ConstantNode.forBoolean(false, graph()));
                         return;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,12 +28,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SNIServerName;
+import jdk.internal.net.http.frame.ErrorFrame;
 
 /**
  * Waits for incoming TCP connections from a client and establishes
@@ -65,32 +67,47 @@ public class Http2TestServer implements AutoCloseable {
     }
 
     public Http2TestServer(String serverName, boolean secure, int port) throws Exception {
-        this(serverName, secure, port, getDefaultExecutor(), null);
+        this(serverName, secure, port, getDefaultExecutor(), 50, null);
     }
 
     public Http2TestServer(boolean secure, int port) throws Exception {
-        this(null, secure, port, getDefaultExecutor(), null);
+        this(null, secure, port, getDefaultExecutor(), 50, null);
     }
 
     public InetSocketAddress getAddress() {
         return (InetSocketAddress)server.getLocalSocketAddress();
     }
 
+    public String serverAuthority() {
+        return InetAddress.getLoopbackAddress().getHostName() + ":"
+                + getAddress().getPort();
+    }
+
     public Http2TestServer(boolean secure,
                            SSLContext context) throws Exception {
-        this(null, secure, 0, null, context);
+        this(null, secure, 0, null, 50, context);
     }
 
     public Http2TestServer(String serverName, boolean secure,
                            SSLContext context) throws Exception {
-        this(serverName, secure, 0, null, context);
+        this(serverName, secure, 0, null, 50, context);
     }
 
     public Http2TestServer(boolean secure,
                            int port,
                            ExecutorService exec,
                            SSLContext context) throws Exception {
-        this(null, secure, port, exec, context);
+        this(null, secure, port, exec, 50, context);
+    }
+
+    public Http2TestServer(String serverName,
+                           boolean secure,
+                           int port,
+                           ExecutorService exec,
+                           SSLContext context)
+        throws Exception
+    {
+        this(serverName, secure, port, exec, 50, context);
     }
 
     /**
@@ -102,20 +119,22 @@ public class Http2TestServer implements AutoCloseable {
      * @param secure https or http
      * @param port listen port
      * @param exec executor service (cached thread pool is used if null)
+     * @param backlog the server socket backlog
      * @param context the SSLContext used when secure is true
      */
     public Http2TestServer(String serverName,
                            boolean secure,
                            int port,
                            ExecutorService exec,
+                           int backlog,
                            SSLContext context)
         throws Exception
     {
         this.serverName = serverName;
         if (secure) {
-            server = initSecure(port);
+            server = initSecure(port, backlog);
         } else {
-            server = initPlaintext(port);
+            server = initPlaintext(port, backlog);
         }
         this.secure = secure;
         this.exec = exec == null ? getDefaultExecutor() : exec;
@@ -129,6 +148,18 @@ public class Http2TestServer implements AutoCloseable {
      */
     public void addHandler(Http2Handler handler, String path) {
         handlers.put(path, handler);
+    }
+
+    volatile Http2TestExchangeSupplier exchangeSupplier = Http2TestExchangeSupplier.ofDefault();
+
+    /**
+     * Sets an explicit exchange handler to be used for all future connections.
+     * Useful for testing scenarios where non-standard or specific server
+     * behaviour is required, either direct control over the frames sent, "bad"
+     * behaviour, or something else.
+     */
+    public void setExchangeSupplier(Http2TestExchangeSupplier exchangeSupplier) {
+        this.exchangeSupplier = exchangeSupplier;
     }
 
     Http2Handler getHandlerFor(String path) {
@@ -152,15 +183,19 @@ public class Http2TestServer implements AutoCloseable {
         return handler;
     }
 
-    final ServerSocket initPlaintext(int port) throws Exception {
-        return new ServerSocket(port);
+    final ServerSocket initPlaintext(int port, int backlog) throws Exception {
+        ServerSocket ss = new ServerSocket();
+        ss.setReuseAddress(false);
+        ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), backlog);
+        return ss;
     }
 
-    public void stop() {
+    public synchronized void stop() {
         // TODO: clean shutdown GoAway
         stopping = true;
+        System.err.printf("Server stopping %d connections\n", connections.size());
         for (Http2TestServerConnection connection : connections.values()) {
-            connection.close();
+            connection.close(ErrorFrame.NO_ERROR);
         }
         try {
             server.close();
@@ -169,16 +204,19 @@ public class Http2TestServer implements AutoCloseable {
     }
 
 
-    final ServerSocket initSecure(int port) throws Exception {
+    final ServerSocket initSecure(int port, int backlog) throws Exception {
         ServerSocketFactory fac;
         if (sslContext != null) {
             fac = sslContext.getServerSocketFactory();
         } else {
             fac = SSLServerSocketFactory.getDefault();
         }
-        SSLServerSocket se = (SSLServerSocket) fac.createServerSocket(port);
+        SSLServerSocket se = (SSLServerSocket) fac.createServerSocket();
+        se.setReuseAddress(false);
+        se.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), backlog);
         SSLParameters sslp = se.getSSLParameters();
         sslp.setApplicationProtocols(new String[]{"h2"});
+        sslp.setEndpointIdentificationAlgorithm("HTTPS");
         se.setSSLParameters(sslp);
         se.setEnabledCipherSuites(se.getSupportedCipherSuites());
         se.setEnabledProtocols(se.getSupportedProtocols());
@@ -190,6 +228,15 @@ public class Http2TestServer implements AutoCloseable {
         return serverName;
     }
 
+    private synchronized void putConnection(InetSocketAddress addr, Http2TestServerConnection c) {
+        if (!stopping)
+            connections.put(addr, c);
+    }
+
+    private synchronized void removeConnection(InetSocketAddress addr, Http2TestServerConnection c) {
+        connections.remove(addr, c);
+    }
+
     /**
      * Starts a thread which waits for incoming connections.
      */
@@ -198,28 +245,47 @@ public class Http2TestServer implements AutoCloseable {
             try {
                 while (!stopping) {
                     Socket socket = server.accept();
-                    InetSocketAddress addr = (InetSocketAddress) socket.getRemoteSocketAddress();
-                    Http2TestServerConnection c = new Http2TestServerConnection(this, socket);
-                    connections.put(addr, c);
+                    Http2TestServerConnection c = null;
+                    InetSocketAddress addr = null;
                     try {
+                        addr = (InetSocketAddress) socket.getRemoteSocketAddress();
+                        c = createConnection(this, socket, exchangeSupplier);
+                        putConnection(addr, c);
                         c.run();
-                    } catch(Throwable e) {
+                    } catch (Throwable e) {
                         // we should not reach here, but if we do
                         // the connection might not have been closed
                         // and if so then the client might wait
                         // forever.
-                        connections.remove(addr, c);
-                        c.close();
-                        throw e;
+                        if (c != null) {
+                            removeConnection(addr, c);
+                            c.close(ErrorFrame.PROTOCOL_ERROR);
+                        } else {
+                            socket.close();
+                        }
+                        System.err.println("TestServer: start exception: " + e);
+                        //throw e;
                     }
                 }
+            } catch (SecurityException se) {
+                System.err.println("TestServer: terminating, caught " + se);
+                se.printStackTrace();
+                stopping = true;
+                try { server.close(); } catch (IOException ioe) { /* ignore */}
             } catch (Throwable e) {
                 if (!stopping) {
-                    System.err.println("TestServer: start exception: " + e);
+                    System.err.println("TestServer: terminating, caught " + e);
                     e.printStackTrace();
                 }
             }
         });
+    }
+
+    protected Http2TestServerConnection createConnection(Http2TestServer http2TestServer,
+                                                         Socket socket,
+                                                         Http2TestExchangeSupplier exchangeSupplier)
+            throws IOException {
+        return new Http2TestServerConnection(http2TestServer, socket, exchangeSupplier);
     }
 
     @Override

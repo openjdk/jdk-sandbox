@@ -26,12 +26,15 @@ import static org.graalvm.compiler.nodeinfo.InputType.Extension;
 import static org.graalvm.compiler.nodeinfo.InputType.Memory;
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_0;
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_0;
-import static org.graalvm.word.LocationIdentity.any;
+import static jdk.internal.vm.compiler.word.LocationIdentity.any;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.MapCursor;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.graph.NodeInputList;
@@ -41,10 +44,7 @@ import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.calc.FloatingNode;
 import org.graalvm.compiler.nodes.spi.LIRLowerable;
 import org.graalvm.compiler.nodes.spi.NodeLIRBuilderTool;
-import org.graalvm.util.Equivalence;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.MapCursor;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 @NodeInfo(allowedUsageTypes = {Extension, Memory}, cycles = CYCLES_0, size = SIZE_0)
 public final class MemoryMapNode extends FloatingNode implements MemoryMap, MemoryNode, LIRLowerable {

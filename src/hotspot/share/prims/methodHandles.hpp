@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,13 @@
 
 #include "classfile/javaClasses.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "runtime/frame.inline.hpp"
+#include "runtime/frame.hpp"
 #include "runtime/globals.hpp"
-#include "runtime/interfaceSupport.hpp"
 #include "utilities/macros.hpp"
 
 #ifdef ZERO
 # include "entry_zero.hpp"
+# include "interpreter/interpreter.hpp"
 #endif
 
 
@@ -61,7 +61,8 @@ class MethodHandles: AllStatic {
 
  public:
   // working with member names
-  static Handle resolve_MemberName(Handle mname, Klass* caller, TRAPS); // compute vmtarget/vmindex from name/type
+  static Handle resolve_MemberName(Handle mname, Klass* caller,
+                                   bool speculative_resolve, TRAPS); // compute vmtarget/vmindex from name/type
   static void expand_MemberName(Handle mname, int suppress, TRAPS);  // expand defc/name/type if missing
   static oop init_MemberName(Handle mname_h, Handle target_h, TRAPS); // compute vmtarget/vmindex from target
   static oop init_field_MemberName(Handle mname_h, fieldDescriptor& fd, bool is_setter = false);
@@ -70,6 +71,8 @@ class MethodHandles: AllStatic {
   static int find_MemberNames(Klass* k, Symbol* name, Symbol* sig,
                               int mflags, Klass* caller,
                               int skip, objArrayHandle results, TRAPS);
+  static Handle resolve_MemberName_type(Handle mname, Klass* caller, TRAPS);
+
   // bit values for suppress argument to expand_MemberName:
   enum { _suppress_defc = 1, _suppress_name = 2, _suppress_type = 4 };
 
@@ -191,29 +194,13 @@ public:
             ref_kind == JVM_REF_invokeInterface);
   }
 
+  static int ref_kind_to_flags(int ref_kind);
+
 #include CPU_HEADER(methodHandles)
 
   // Tracing
   static void trace_method_handle(MacroAssembler* _masm, const char* adaptername) PRODUCT_RETURN;
-  static void trace_method_handle_interpreter_entry(MacroAssembler* _masm, vmIntrinsics::ID iid) {
-    if (TraceMethodHandles) {
-      const char* name = vmIntrinsics::name_at(iid);
-      if (*name == '_')  name += 1;
-      const size_t len = strlen(name) + 50;
-      char* qname = NEW_C_HEAP_ARRAY(char, len, mtInternal);
-      const char* suffix = "";
-      if (is_signature_polymorphic(iid)) {
-        if (is_signature_polymorphic_static(iid))
-          suffix = "/static";
-        else
-          suffix = "/private";
-      }
-      jio_snprintf(qname, len, "MethodHandle::interpreter_entry::%s%s", name, suffix);
-      trace_method_handle(_masm, qname);
-      // Note:  Don't free the allocated char array because it's used
-      // during runtime.
-    }
-  }
+  static void trace_method_handle_interpreter_entry(MacroAssembler* _masm, vmIntrinsics::ID iid);
 };
 
 //------------------------------------------------------------------------------

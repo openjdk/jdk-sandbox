@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,7 +51,6 @@ import jdk.javadoc.internal.doclets.toolkit.MemberSummaryWriter;
 import jdk.javadoc.internal.doclets.toolkit.Resources;
 import jdk.javadoc.internal.doclets.toolkit.taglets.DeprecatedTaglet;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
-import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberMap;
 
 import static javax.lang.model.element.Modifier.*;
 
@@ -90,7 +89,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
         this.utils = configuration.utils;
         this.contents = configuration.contents;
         this.resources = configuration.resources;
-        this.links = configuration.links;
+        this.links = writer.links;
     }
 
     public AbstractMemberWriter(SubWriterHolderWriter writer) {
@@ -133,7 +132,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
     /**
      * Create the summary table for this element.
      * The table should be created and initialized if needed, and configured
-     * so that it is ready to add content with {@link Table#addRows(Content[])}
+     * so that it is ready to add content with {@link Table#addRow(Content[])}
      * and similar methods.
      *
      * @return the summary table
@@ -213,23 +212,6 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
      * @return a content tree representing the link
      */
     protected abstract Content getDeprecatedLink(Element member);
-
-    /**
-     * Get the navigation summary link.
-     *
-     * @param typeElement the TypeElement to be documented
-     * @param link true if its a link else the label to be printed
-     * @return a content tree for the navigation summary link.
-     */
-    protected abstract Content getNavSummaryLink(TypeElement typeElement, boolean link);
-
-    /**
-     * Add the navigation detail link.
-     *
-     * @param link true if its a link else the label to be printed
-     * @param liNav the content tree to which the navigation detail link will be added
-     */
-    protected abstract void addNavDetailLink(boolean link, Content liNav);
 
     /**
      * Add the member name to the content tree.
@@ -472,41 +454,6 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
             }
             contentTree.addContent(useTable.toContent());
         }
-    }
-
-    /**
-     * Add the navigation detail link.
-     *
-     * @param members the members to be linked
-     * @param liNav the content tree to which the navigation detail link will be added
-     */
-    protected void addNavDetailLink(SortedSet<Element> members, Content liNav) {
-        addNavDetailLink(!members.isEmpty(), liNav);
-    }
-
-    /**
-     * Add the navigation summary link.
-     *
-     * @param members members to be linked
-     * @param visibleMemberMap the visible inherited members map
-     * @param liNav the content tree to which the navigation summary link will be added
-     */
-    protected void addNavSummaryLink(SortedSet<? extends Element> members,
-            VisibleMemberMap visibleMemberMap, Content liNav) {
-        if (!members.isEmpty()) {
-            liNav.addContent(getNavSummaryLink(null, true));
-            return;
-        }
-
-        TypeElement superClass = utils.getSuperClass(typeElement);
-        while (superClass != null) {
-            if (visibleMemberMap.hasMembers(superClass)) {
-                liNav.addContent(getNavSummaryLink(superClass, true));
-                return;
-            }
-            superClass = utils.getSuperClass(superClass);
-        }
-        liNav.addContent(getNavSummaryLink(null, false));
     }
 
     protected void serialWarning(Element e, String key, String a1, String a2) {

@@ -151,8 +151,8 @@ class ConsoleIOContext extends IOContext {
     }
 
     @Override
-    public Iterable<String> currentSessionHistory() {
-        return history.currentSessionEntries();
+    public Iterable<String> history(boolean currentSession) {
+        return history.entries(currentSession);
     }
 
     @Override
@@ -216,7 +216,7 @@ class ConsoleIOContext extends IOContext {
                 int[] anchor = new int[] {-1};
                 List<Suggestion> suggestions;
                 List<String> doc;
-                boolean command = prefix.isEmpty() && text.trim().startsWith("/");
+                boolean command = prefix.isEmpty() && text.startsWith("/");
                 if (command) {
                     suggestions = repl.commandCompletionSuggestions(text, cursor, anchor);
                     doc = repl.commandDocumentation(text, cursor, true);

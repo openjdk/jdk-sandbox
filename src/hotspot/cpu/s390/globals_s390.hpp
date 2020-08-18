@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2017 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,9 +85,16 @@ define_pd_global(bool, CompactStrings, true);
 // 8146801 (Short Array Allocation): No performance work done here yet.
 define_pd_global(intx, InitArrayShortSize, 1*BytesPerLong);
 
-define_pd_global(bool, ThreadLocalHandshakes, false);
+define_pd_global(bool, ThreadLocalHandshakes, true);
 
-#define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct, range, constraint, writeable) \
+#define ARCH_FLAGS(develop,      \
+                   product,      \
+                   diagnostic,   \
+                   experimental, \
+                   notproduct,   \
+                   range,        \
+                   constraint,   \
+                   writeable)    \
                                                                               \
   /* Reoptimize code-sequences of calls at runtime, e.g. replace an */        \
   /* indirect call by a direct call.                                */        \

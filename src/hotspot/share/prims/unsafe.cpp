@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,21 +27,25 @@
 #include "jvm.h"
 #include "classfile/classFileStream.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/typeArrayOop.inline.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/globals.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/reflection.hpp"
+#include "runtime/thread.hpp"
+#include "runtime/threadSMR.hpp"
 #include "runtime/vm_version.hpp"
 #include "services/threadService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
@@ -106,8 +110,8 @@ static inline void assert_field_offset_sane(oop p, jlong field_offset) {
     assert(byte_offset >= 0 && byte_offset <= (jlong)MAX_OBJECT_SIZE, "sane offset");
     if (byte_offset == (jint)byte_offset) {
       void* ptr_plus_disp = (address)p + byte_offset;
-      assert((void*)p->obj_field_addr<oop>((jint)byte_offset) == ptr_plus_disp,
-             "raw [ptr+disp] must be consistent with oop::field_base");
+      assert(p->field_addr_raw((jint)byte_offset) == ptr_plus_disp,
+             "raw [ptr+disp] must be consistent with oop::field_addr_raw");
     }
     jlong p_size = HeapWordSize * (jlong)(p->size());
     assert(byte_offset < p_size, "Unsafe access: offset " INT64_FORMAT " > object's size " INT64_FORMAT, (int64_t)byte_offset, (int64_t)p_size);
@@ -118,6 +122,10 @@ static inline void assert_field_offset_sane(oop p, jlong field_offset) {
 static inline void* index_oop_from_field_offset_long(oop p, jlong field_offset) {
   assert_field_offset_sane(p, field_offset);
   jlong byte_offset = field_offset_to_byte_offset(field_offset);
+
+  if (p != NULL) {
+    p = Access<>::resolve(p);
+  }
 
   if (sizeof(char*) == sizeof(jint)) {   // (this constant folds!)
     return (address)p + (jint) byte_offset;
@@ -144,18 +152,25 @@ jlong Unsafe_field_offset_from_byte_offset(jlong byte_offset) {
  * Normalizes values and wraps accesses in
  * JavaThread::doing_unsafe_access() if needed.
  */
+template <typename T>
 class MemoryAccess : StackObj {
   JavaThread* _thread;
   oop _obj;
   ptrdiff_t _offset;
 
-  // Resolves and returns the address of the memory access
-  void* addr() {
-    return index_oop_from_field_offset_long(_obj, _offset);
+  // Resolves and returns the address of the memory access.
+  // This raw memory access may fault, so we make sure it happens within the
+  // guarded scope by making the access volatile at least. Since the store
+  // of Thread::set_doing_unsafe_access() is also volatile, these accesses
+  // can not be reordered by the compiler. Therefore, if the access triggers
+  // a fault, we will know that Thread::doing_unsafe_access() returns true.
+  volatile T* addr() {
+    void* addr = index_oop_from_field_offset_long(_obj, _offset);
+    return static_cast<volatile T*>(addr);
   }
 
-  template <typename T>
-  T normalize_for_write(T x) {
+  template <typename U>
+  U normalize_for_write(U x) {
     return x;
   }
 
@@ -163,8 +178,8 @@ class MemoryAccess : StackObj {
     return x & 1;
   }
 
-  template <typename T>
-  T normalize_for_read(T x) {
+  template <typename U>
+  U normalize_for_read(U x) {
     return x;
   }
 
@@ -197,11 +212,10 @@ public:
     assert_field_offset_sane(_obj, offset);
   }
 
-  template <typename T>
   T get() {
-    if (oopDesc::is_null(_obj)) {
+    if (_obj == NULL) {
       GuardUnsafeAccess guard(_thread);
-      T ret = RawAccess<>::load((T*)addr());
+      T ret = RawAccess<>::load(addr());
       return normalize_for_read(ret);
     } else {
       T ret = HeapAccess<>::load_at(_obj, _offset);
@@ -209,22 +223,20 @@ public:
     }
   }
 
-  template <typename T>
   void put(T x) {
-    if (oopDesc::is_null(_obj)) {
+    if (_obj == NULL) {
       GuardUnsafeAccess guard(_thread);
-      RawAccess<>::store((T*)addr(), normalize_for_write(x));
+      RawAccess<>::store(addr(), normalize_for_write(x));
     } else {
       HeapAccess<>::store_at(_obj, _offset, normalize_for_write(x));
     }
   }
 
 
-  template <typename T>
   T get_volatile() {
-    if (oopDesc::is_null(_obj)) {
+    if (_obj == NULL) {
       GuardUnsafeAccess guard(_thread);
-      volatile T ret = RawAccess<MO_SEQ_CST>::load((volatile T*)addr());
+      volatile T ret = RawAccess<MO_SEQ_CST>::load(addr());
       return normalize_for_read(ret);
     } else {
       T ret = HeapAccess<MO_SEQ_CST>::load_at(_obj, _offset);
@@ -232,11 +244,10 @@ public:
     }
   }
 
-  template <typename T>
   void put_volatile(T x) {
-    if (oopDesc::is_null(_obj)) {
+    if (_obj == NULL) {
       GuardUnsafeAccess guard(_thread);
-      RawAccess<MO_SEQ_CST>::store((volatile T*)addr(), normalize_for_write(x));
+      RawAccess<MO_SEQ_CST>::store(addr(), normalize_for_write(x));
     } else {
       HeapAccess<MO_SEQ_CST>::store_at(_obj, _offset, normalize_for_write(x));
     }
@@ -294,11 +305,11 @@ UNSAFE_LEAF(jint, Unsafe_unalignedAccess0(JNIEnv *env, jobject unsafe)) {
 #define DEFINE_GETSETOOP(java_type, Type) \
  \
 UNSAFE_ENTRY(java_type, Unsafe_Get##Type(JNIEnv *env, jobject unsafe, jobject obj, jlong offset)) { \
-  return MemoryAccess(thread, obj, offset).get<java_type>(); \
+  return MemoryAccess<java_type>(thread, obj, offset).get(); \
 } UNSAFE_END \
  \
 UNSAFE_ENTRY(void, Unsafe_Put##Type(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, java_type x)) { \
-  MemoryAccess(thread, obj, offset).put<java_type>(x); \
+  MemoryAccess<java_type>(thread, obj, offset).put(x); \
 } UNSAFE_END \
  \
 // END DEFINE_GETSETOOP.
@@ -317,11 +328,11 @@ DEFINE_GETSETOOP(jdouble, Double);
 #define DEFINE_GETSETOOP_VOLATILE(java_type, Type) \
  \
 UNSAFE_ENTRY(java_type, Unsafe_Get##Type##Volatile(JNIEnv *env, jobject unsafe, jobject obj, jlong offset)) { \
-  return MemoryAccess(thread, obj, offset).get_volatile<java_type>(); \
+  return MemoryAccess<java_type>(thread, obj, offset).get_volatile(); \
 } UNSAFE_END \
  \
 UNSAFE_ENTRY(void, Unsafe_Put##Type##Volatile(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, java_type x)) { \
-  MemoryAccess(thread, obj, offset).put_volatile<java_type>(x); \
+  MemoryAccess<java_type>(thread, obj, offset).put_volatile(x); \
 } UNSAFE_END \
  \
 // END DEFINE_GETSETOOP_VOLATILE.
@@ -360,7 +371,7 @@ UNSAFE_ENTRY(jlong, Unsafe_AllocateMemory0(JNIEnv *env, jobject unsafe, jlong si
   size_t sz = (size_t)size;
 
   sz = align_up(sz, HeapWordSize);
-  void* x = os::malloc(sz, mtInternal);
+  void* x = os::malloc(sz, mtOther);
 
   return addr_to_java(x);
 } UNSAFE_END
@@ -370,7 +381,7 @@ UNSAFE_ENTRY(jlong, Unsafe_ReallocateMemory0(JNIEnv *env, jobject unsafe, jlong 
   size_t sz = (size_t)size;
   sz = align_up(sz, HeapWordSize);
 
-  void* x = os::realloc(p, sz, mtInternal);
+  void* x = os::realloc(p, sz, mtOther);
 
   return addr_to_java(x);
 } UNSAFE_END
@@ -864,7 +875,7 @@ UNSAFE_ENTRY(jobject, Unsafe_CompareAndExchangeObject(JNIEnv *env, jobject unsaf
 
 UNSAFE_ENTRY(jint, Unsafe_CompareAndExchangeInt(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jint e, jint x)) {
   oop p = JNIHandles::resolve(obj);
-  if (oopDesc::is_null(p)) {
+  if (p == NULL) {
     volatile jint* addr = (volatile jint*)index_oop_from_field_offset_long(p, offset);
     return RawAccess<>::atomic_cmpxchg(x, addr, e);
   } else {
@@ -875,7 +886,7 @@ UNSAFE_ENTRY(jint, Unsafe_CompareAndExchangeInt(JNIEnv *env, jobject unsafe, job
 
 UNSAFE_ENTRY(jlong, Unsafe_CompareAndExchangeLong(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jlong e, jlong x)) {
   oop p = JNIHandles::resolve(obj);
-  if (oopDesc::is_null(p)) {
+  if (p == NULL) {
     volatile jlong* addr = (volatile jlong*)index_oop_from_field_offset_long(p, offset);
     return RawAccess<>::atomic_cmpxchg(x, addr, e);
   } else {
@@ -890,12 +901,12 @@ UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetObject(JNIEnv *env, jobject unsafe, j
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
   oop ret = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_atomic_cmpxchg_at(x, p, (ptrdiff_t)offset, e);
-  return ret == e;
+  return oopDesc::equals(ret, e);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetInt(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jint e, jint x)) {
   oop p = JNIHandles::resolve(obj);
-  if (oopDesc::is_null(p)) {
+  if (p == NULL) {
     volatile jint* addr = (volatile jint*)index_oop_from_field_offset_long(p, offset);
     return RawAccess<>::atomic_cmpxchg(x, addr, e) == e;
   } else {
@@ -906,7 +917,7 @@ UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetInt(JNIEnv *env, jobject unsafe, jobj
 
 UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetLong(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jlong e, jlong x)) {
   oop p = JNIHandles::resolve(obj);
-  if (oopDesc::is_null(p)) {
+  if (p == NULL) {
     volatile jlong* addr = (volatile jlong*)index_oop_from_field_offset_long(p, offset);
     return RawAccess<>::atomic_cmpxchg(x, addr, e) == e;
   } else {
@@ -915,30 +926,37 @@ UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetLong(JNIEnv *env, jobject unsafe, job
   }
 } UNSAFE_END
 
+static void post_thread_park_event(EventThreadPark* event, const oop obj, jlong timeout) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  event->set_parkedClass((obj != NULL) ? obj->klass() : NULL);
+  event->set_timeout(timeout);
+  event->set_address((obj != NULL) ? (u8)cast_from_oop<uintptr_t>(obj) : 0);
+  event->commit();
+}
+
 UNSAFE_ENTRY(void, Unsafe_Park(JNIEnv *env, jobject unsafe, jboolean isAbsolute, jlong time)) {
-  EventThreadPark event;
   HOTSPOT_THREAD_PARK_BEGIN((uintptr_t) thread->parker(), (int) isAbsolute, time);
+  EventThreadPark event;
 
   JavaThreadParkedState jtps(thread, time != 0);
   thread->parker()->park(isAbsolute != 0, time);
-
-  HOTSPOT_THREAD_PARK_END((uintptr_t) thread->parker());
-
   if (event.should_commit()) {
-    oop obj = thread->current_park_blocker();
-    event.set_parkedClass((obj != NULL) ? obj->klass() : NULL);
-    event.set_timeout(time);
-    event.set_address((obj != NULL) ? (TYPE_ADDRESS) cast_from_oop<uintptr_t>(obj) : 0);
-    event.commit();
+    post_thread_park_event(&event, thread->current_park_blocker(), time);
   }
+  HOTSPOT_THREAD_PARK_END((uintptr_t) thread->parker());
 } UNSAFE_END
 
 UNSAFE_ENTRY(void, Unsafe_Unpark(JNIEnv *env, jobject unsafe, jobject jthread)) {
   Parker* p = NULL;
 
   if (jthread != NULL) {
-    oop java_thread = JNIHandles::resolve_non_null(jthread);
+    ThreadsListHandle tlh;
+    JavaThread* thr = NULL;
+    oop java_thread = NULL;
+    (void) tlh.cv_internal_thread_to_JavaThread(jthread, &thr, &java_thread);
     if (java_thread != NULL) {
+      // This is a valid oop.
       jlong lp = java_lang_Thread::park_event(java_thread);
       if (lp != 0) {
         // This cast is OK even though the jlong might have been read
@@ -946,22 +964,19 @@ UNSAFE_ENTRY(void, Unsafe_Unpark(JNIEnv *env, jobject unsafe, jobject jthread)) 
         // always be zero anyway and the value set is always the same
         p = (Parker*)addr_from_java(lp);
       } else {
-        // Grab lock if apparently null or using older version of library
-        MutexLocker mu(Threads_lock);
-        java_thread = JNIHandles::resolve_non_null(jthread);
-
-        if (java_thread != NULL) {
-          JavaThread* thr = java_lang_Thread::thread(java_thread);
-          if (thr != NULL) {
-            p = thr->parker();
-            if (p != NULL) { // Bind to Java thread for next time.
-              java_lang_Thread::set_park_event(java_thread, addr_to_java(p));
-            }
+        // Not cached in the java.lang.Thread oop yet (could be an
+        // older version of library).
+        if (thr != NULL) {
+          // The JavaThread is alive.
+          p = thr->parker();
+          if (p != NULL) {
+            // Cache the Parker in the java.lang.Thread oop for next time.
+            java_lang_Thread::set_park_event(java_thread, addr_to_java(p));
           }
         }
       }
     }
-  }
+  } // ThreadsListHandle is destroyed here.
 
   if (p != NULL) {
     HOTSPOT_THREAD_UNPARK((uintptr_t) p);

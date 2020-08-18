@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,17 +26,20 @@
 #include "aot/aotLoader.hpp"
 #include "code/codeBlob.hpp"
 #include "code/codeCache.hpp"
+#include "code/codeHeapState.hpp"
 #include "code/compiledIC.hpp"
 #include "code/dependencies.hpp"
 #include "code/icBuffer.hpp"
 #include "code/nmethod.hpp"
 #include "code/pcDesc.hpp"
 #include "compiler/compileBroker.hpp"
-#include "gc/shared/gcLocker.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
-#include "oops/method.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
@@ -47,9 +50,10 @@
 #include "runtime/icache.hpp"
 #include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/sweeper.hpp"
+#include "runtime/vmThread.hpp"
 #include "services/memoryService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/align.hpp"
 #include "utilities/vmError.hpp"
 #include "utilities/xmlstream.hpp"
@@ -259,12 +263,12 @@ void CodeCache::initialize_heaps() {
   }
 
   // We do not need the profiled CodeHeap, use all space for the non-profiled CodeHeap
-  if(!heap_available(CodeBlobType::MethodProfiled)) {
+  if (!heap_available(CodeBlobType::MethodProfiled)) {
     non_profiled_size += profiled_size;
     profiled_size = 0;
   }
   // We do not need the non-profiled CodeHeap, use all space for the non-nmethod CodeHeap
-  if(!heap_available(CodeBlobType::MethodNonProfiled)) {
+  if (!heap_available(CodeBlobType::MethodNonProfiled)) {
     non_nmethod_size += non_profiled_size;
     non_profiled_size = 0;
   }
@@ -282,10 +286,11 @@ void CodeCache::initialize_heaps() {
   FLAG_SET_ERGO(uintx, ProfiledCodeHeapSize, profiled_size);
   FLAG_SET_ERGO(uintx, NonProfiledCodeHeapSize, non_profiled_size);
 
-  // Align CodeHeaps
-  size_t alignment = heap_alignment();
+  // If large page support is enabled, align code heaps according to large
+  // page size to make sure that code cache is covered by large pages.
+  const size_t alignment = MAX2(page_size(false), (size_t) os::vm_allocation_granularity());
   non_nmethod_size = align_up(non_nmethod_size, alignment);
-  profiled_size   = align_down(profiled_size, alignment);
+  profiled_size    = align_down(profiled_size, alignment);
 
   // Reserve one continuous chunk of memory for CodeHeaps and split it into
   // parts for the individual heaps. The memory layout looks like this:
@@ -308,37 +313,29 @@ void CodeCache::initialize_heaps() {
   add_heap(non_profiled_space, "CodeHeap 'non-profiled nmethods'", CodeBlobType::MethodNonProfiled);
 }
 
-size_t CodeCache::heap_alignment() {
-  // If large page support is enabled, align code heaps according to large
-  // page size to make sure that code cache is covered by large pages.
-  const size_t page_size = os::can_execute_large_page_memory() ?
-             os::page_size_for_region_unaligned(ReservedCodeCacheSize, 8) :
-             os::vm_page_size();
-  return MAX2(page_size, (size_t) os::vm_allocation_granularity());
+size_t CodeCache::page_size(bool aligned) {
+  if (os::can_execute_large_page_memory()) {
+    return aligned ? os::page_size_for_region_aligned(ReservedCodeCacheSize, 8) :
+                     os::page_size_for_region_unaligned(ReservedCodeCacheSize, 8);
+  } else {
+    return os::vm_page_size();
+  }
 }
 
 ReservedCodeSpace CodeCache::reserve_heap_memory(size_t size) {
-  // Determine alignment
-  const size_t page_size = os::can_execute_large_page_memory() ?
-          MIN2(os::page_size_for_region_aligned(InitialCodeCacheSize, 8),
-               os::page_size_for_region_aligned(size, 8)) :
-          os::vm_page_size();
-  const size_t granularity = os::vm_allocation_granularity();
-  const size_t r_align = MAX2(page_size, granularity);
-  const size_t r_size = align_up(size, r_align);
-  const size_t rs_align = page_size == (size_t) os::vm_page_size() ? 0 :
-    MAX2(page_size, granularity);
-
-  ReservedCodeSpace rs(r_size, rs_align, rs_align > 0);
-
+  // Align and reserve space for code cache
+  const size_t rs_ps = page_size();
+  const size_t rs_align = MAX2(rs_ps, (size_t) os::vm_allocation_granularity());
+  const size_t rs_size = align_up(size, rs_align);
+  ReservedCodeSpace rs(rs_size, rs_align, rs_ps > (size_t) os::vm_page_size());
   if (!rs.is_reserved()) {
-    vm_exit_during_initialization("Could not reserve enough space for code cache");
+    vm_exit_during_initialization(err_msg("Could not reserve enough space for code cache (" SIZE_FORMAT "K)",
+                                          rs_size/K));
   }
 
   // Initialize bounds
   _low_bound = (address)rs.base();
   _high_bound = _low_bound + rs.size();
-
   return rs;
 }
 
@@ -415,7 +412,8 @@ void CodeCache::add_heap(ReservedSpace rs, const char* name, int code_blob_type)
   size_t size_initial = MIN2(InitialCodeCacheSize, rs.size());
   size_initial = align_up(size_initial, os::vm_page_size());
   if (!heap->reserve(rs, size_initial, CodeCacheSegmentSize)) {
-    vm_exit_during_initialization("Could not reserve enough space for code cache");
+    vm_exit_during_initialization(err_msg("Could not reserve enough space in %s (" SIZE_FORMAT "K)",
+                                          heap->name(), size_initial/K));
   }
 
   // Register the CodeHeap
@@ -1369,8 +1367,17 @@ void CodeCache::report_codemem_full(int code_blob_type, bool print) {
       MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
       print_summary(&s);
     }
-    ttyLocker ttyl;
-    tty->print("%s", s.as_string());
+    {
+      ttyLocker ttyl;
+      tty->print("%s", s.as_string());
+    }
+
+    if (heap->full_count() == 0) {
+      LogTarget(Debug, codecache) lt;
+      if (lt.is_enabled()) {
+        CompileBroker::print_heapinfo(tty, "all", "4096"); // details, may be a lot!
+      }
+    }
   }
 
   heap->report_full();
@@ -1645,3 +1652,54 @@ void CodeCache::log_state(outputStream* st) {
             blob_count(), nmethod_count(), adapter_count(),
             unallocated_capacity());
 }
+
+//---<  BEGIN  >--- CodeHeap State Analytics.
+
+void CodeCache::aggregate(outputStream *out, const char* granularity) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::aggregate(out, (*heap), granularity);
+  }
+}
+
+void CodeCache::discard(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::discard(out, (*heap));
+  }
+}
+
+void CodeCache::print_usedSpace(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::print_usedSpace(out, (*heap));
+  }
+}
+
+void CodeCache::print_freeSpace(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::print_freeSpace(out, (*heap));
+  }
+}
+
+void CodeCache::print_count(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::print_count(out, (*heap));
+  }
+}
+
+void CodeCache::print_space(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::print_space(out, (*heap));
+  }
+}
+
+void CodeCache::print_age(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::print_age(out, (*heap));
+  }
+}
+
+void CodeCache::print_names(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::print_names(out, (*heap));
+  }
+}
+//---<  END  >--- CodeHeap State Analytics.

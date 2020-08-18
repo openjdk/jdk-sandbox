@@ -22,6 +22,7 @@
  */
 package org.graalvm.compiler.hotspot.meta;
 
+import jdk.vm.ci.hotspot.HotSpotResolvedJavaType;
 import org.graalvm.compiler.api.replacements.SnippetReflectionProvider;
 import org.graalvm.compiler.hotspot.HotSpotGraalRuntimeProvider;
 import org.graalvm.compiler.hotspot.GraalHotSpotVMConfig;
@@ -87,7 +88,7 @@ public class HotSpotSnippetReflectionProvider implements SnippetReflectionProvid
         // Need to test all fields since there no guarantee under the JMM
         // about the order in which these fields are written.
         GraalHotSpotVMConfig config = runtime.getVMConfig();
-        if (configType == null || wordTypesType == null || configType == null) {
+        if (configType == null || wordTypesType == null || runtimeType == null) {
             wordTypesType = wordTypes.getClass();
             runtimeType = runtime.getClass();
             configType = config.getClass();
@@ -103,5 +104,10 @@ public class HotSpotSnippetReflectionProvider implements SnippetReflectionProvid
             return type.cast(config);
         }
         return null;
+    }
+
+    @Override
+    public Class<?> originalClass(ResolvedJavaType type) {
+        return ((HotSpotResolvedJavaType) type).mirror();
     }
 }

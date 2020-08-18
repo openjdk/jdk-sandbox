@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,13 +40,12 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
-import jdk.javadoc.internal.doclets.formats.html.markup.Links;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.MemberSummaryWriter;
 import jdk.javadoc.internal.doclets.toolkit.MethodWriter;
-import jdk.javadoc.internal.doclets.toolkit.util.ImplementedMethods;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
+import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable;
 
 /**
  * Writes method documentation in HTML format.
@@ -264,8 +263,7 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
                 .addTab(resources.getText("doclet.Abstract_Methods"), utils::isAbstract)
                 .addTab(resources.getText("doclet.Concrete_Methods"),
                         e -> !utils.isAbstract(e) && !utils.isInterface(e.getEnclosingElement()))
-                .addTab(resources.getText("doclet.Default_Methods"),
-                        e -> !utils.isAbstract(e) && utils.isInterface(e.getEnclosingElement()))
+                .addTab(resources.getText("doclet.Default_Methods"), utils::isDefault)
                 .addTab(resources.getText("doclet.Deprecated_Methods"),
                         e -> utils.isDeprecated(e) || utils.isDeprecated(typeElement))
                 .setTabScriptVariable("methods")
@@ -384,13 +382,13 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
             return;
         }
         Contents contents = writer.contents;
-        ImplementedMethods implementedMethodsFinder =
-                new ImplementedMethods(method, writer.configuration);
+        VisibleMemberTable vmt = writer.configuration
+                .getVisibleMemberTable(utils.getEnclosingTypeElement(method));
         SortedSet<ExecutableElement> implementedMethods =
                 new TreeSet<>(utils.makeOverrideUseComparator());
-        implementedMethods.addAll(implementedMethodsFinder.build());
+        implementedMethods.addAll(vmt.getImplementedMethods(method));
         for (ExecutableElement implementedMeth : implementedMethods) {
-            TypeMirror intfac = implementedMethodsFinder.getMethodHolder(implementedMeth);
+            TypeMirror intfac = vmt.getImplementedMethodHolder(method, implementedMeth);
             intfac = utils.getDeclaredType(utils.getEnclosingTypeElement(method), intfac);
             Content intfaclink = writer.getLink(new LinkInfoImpl(
                     writer.configuration, LinkInfoImpl.Kind.METHOD_SPECIFIED_BY, intfac));
@@ -423,39 +421,6 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
                     new LinkInfoImpl(configuration, LinkInfoImpl.Kind.RETURN_TYPE, type));
             htmltree.addContent(linkContent);
             htmltree.addContent(Contents.SPACE);
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected Content getNavSummaryLink(TypeElement typeElement, boolean link) {
-        if (link) {
-            if (typeElement == null) {
-                return Links.createLink(
-                        SectionName.METHOD_SUMMARY,
-                        contents.navMethod);
-            } else {
-                return links.createLink(
-                        SectionName.METHODS_INHERITANCE,
-                        configuration.getClassName(typeElement), contents.navMethod);
-            }
-        } else {
-            return contents.navMethod;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected void addNavDetailLink(boolean link, Content liNav) {
-        if (link) {
-            liNav.addContent(Links.createLink(
-                    SectionName.METHOD_DETAIL, contents.navMethod));
-        } else {
-            liNav.addContent(contents.navMethod);
         }
     }
 }

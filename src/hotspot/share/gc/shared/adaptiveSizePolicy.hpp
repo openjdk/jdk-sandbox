@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,7 @@
 
 // Forward decls
 class elapsedTimer;
-class CollectorPolicy;
+class SoftRefPolicy;
 
 class AdaptiveSizePolicy : public CHeapObj<mtGC> {
  friend class GCAdaptivePolicyCounters;
@@ -355,6 +355,7 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
   //   For ParNew collections
   //   For PS scavenge and ParOld collections
   //   For G1 evacuation pauses (subject to update)
+  //   For G1 Full GCs (subject to update)
   // Other collection phases inherit the number of
   // GC workers from the calls above.  For example,
   // a CMS parallel remark uses the same number of GC
@@ -486,7 +487,7 @@ class AdaptiveSizePolicy : public CHeapObj<mtGC> {
                                size_t max_eden_size,
                                bool   is_full_gc,
                                GCCause::Cause gc_cause,
-                               CollectorPolicy* collector_policy);
+                               SoftRefPolicy* soft_ref_policy);
 
   static bool should_update_promo_stats(GCCause::Cause cause) {
     return ((GCCause::is_user_requested_gc(cause)  &&

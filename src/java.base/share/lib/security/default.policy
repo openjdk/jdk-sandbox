@@ -8,16 +8,27 @@
 // ${java.home}/conf/security/java.policy.
 //
 
-grant codeBase "jrt:/java.activation" {
-    permission java.security.AllPermission;
-};
 
 grant codeBase "jrt:/java.compiler" {
     permission java.security.AllPermission;
 };
 
-grant codeBase "jrt:/java.corba" {
-    permission java.security.AllPermission;
+
+grant codeBase "jrt:/java.net.http" {
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.net";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.net.util";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.net.www";
+    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.misc";
+    permission java.net.SocketPermission "*","connect,resolve";
+    permission java.net.URLPermission "http:*","*:*";
+    permission java.net.URLPermission "https:*","*:*";
+    permission java.net.URLPermission "ws:*","*:*";
+    permission java.net.URLPermission "wss:*","*:*";
+    permission java.net.URLPermission "socket:*","CONNECT";  // proxy
+    // For request/response body processors, fromFile, asFile
+    permission java.io.FilePermission "<<ALL FILES>>","read,write,delete";
+    permission java.util.PropertyPermission "*","read";
+    permission java.net.NetPermission "getProxySelector";
 };
 
 grant codeBase "jrt:/java.scripting" {
@@ -65,9 +76,6 @@ grant codeBase "jrt:/java.sql.rowset" {
     permission java.security.AllPermission;
 };
 
-grant codeBase "jrt:/java.xml.bind" {
-    permission java.security.AllPermission;
-};
 
 grant codeBase "jrt:/java.xml.crypto" {
     permission java.lang.RuntimePermission
@@ -90,9 +98,6 @@ grant codeBase "jrt:/java.xml.crypto" {
                    "accessClassInPackage.com.sun.org.apache.xpath.internal.*";
 };
 
-grant codeBase "jrt:/java.xml.ws" {
-    permission java.security.AllPermission;
-};
 
 grant codeBase "jrt:/jdk.accessibility" {
     permission java.lang.RuntimePermission "accessClassInPackage.sun.awt";
@@ -124,6 +129,7 @@ grant codeBase "jrt:/jdk.crypto.cryptoki" {
     permission java.util.PropertyPermission "sun.security.pkcs11.allowSingleThreadedModules", "read";
     permission java.util.PropertyPermission "os.name", "read";
     permission java.util.PropertyPermission "os.arch", "read";
+    permission java.util.PropertyPermission "jdk.crypto.KeyAgreement.legacyKDF", "read";
     permission java.security.SecurityPermission "putProviderProperty.*";
     permission java.security.SecurityPermission "clearProviderProperties.*";
     permission java.security.SecurityPermission "removeProviderProperty.*";
@@ -155,7 +161,10 @@ grant codeBase "jrt:/jdk.internal.vm.compiler" {
 };
 
 grant codeBase "jrt:/jdk.internal.vm.compiler.management" {
-    permission java.security.AllPermission;
+    permission java.lang.RuntimePermission "accessClassInPackage.org.graalvm.compiler.hotspot";
+    permission java.lang.RuntimePermission "accessClassInPackage.jdk.vm.ci.runtime";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.management.spi";
+    permission java.lang.RuntimePermission "sun.management.spi.PlatformMBeanProvider.subclass";
 };
 
 grant codeBase "jrt:/jdk.jsobject" {

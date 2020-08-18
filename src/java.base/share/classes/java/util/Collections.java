@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,10 @@
  */
 
 package java.util;
-import java.io.Serializable;
-import java.io.ObjectOutputStream;
+
 import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -65,7 +66,7 @@ import java.util.stream.StreamSupport;
  * already sorted may or may not throw {@code UnsupportedOperationException}.
  *
  * <p>This class is a member of the
- * <a href="{@docRoot}/java/util/package-summary.html#CollectionsFramework">
+ * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
  * Java Collections Framework</a>.
  *
  * @author  Josh Bloch
@@ -3770,9 +3771,9 @@ public class Collections {
                  * Ensure that we don't get an ArrayStoreException even if
                  * s.toArray returns an array of something other than Object
                  */
-                Object[] dest = (CheckedEntry.class.isInstance(
-                    source.getClass().getComponentType()) ? source :
-                                 new Object[source.length]);
+                Object[] dest = (source.getClass() == Object[].class)
+                    ? source
+                    : new Object[source.length];
 
                 for (int i = 0; i < source.length; i++)
                     dest[i] = checkedEntry((Map.Entry<K,V>)source[i],
@@ -5164,14 +5165,19 @@ public class Collections {
      *         specified comparator.
      * @since 1.5
      */
+    @SuppressWarnings("unchecked")
     public static <T> Comparator<T> reverseOrder(Comparator<T> cmp) {
-        if (cmp == null)
-            return reverseOrder();
-
-        if (cmp instanceof ReverseComparator2)
-            return ((ReverseComparator2<T>)cmp).cmp;
-
-        return new ReverseComparator2<>(cmp);
+        if (cmp == null) {
+            return (Comparator<T>) ReverseComparator.REVERSE_ORDER;
+        } else if (cmp == ReverseComparator.REVERSE_ORDER) {
+            return (Comparator<T>) Comparators.NaturalOrderComparator.INSTANCE;
+        } else if (cmp == Comparators.NaturalOrderComparator.INSTANCE) {
+            return (Comparator<T>) ReverseComparator.REVERSE_ORDER;
+        } else if (cmp instanceof ReverseComparator2) {
+            return ((ReverseComparator2<T>) cmp).cmp;
+        } else {
+            return new ReverseComparator2<>(cmp);
+        }
     }
 
     /**

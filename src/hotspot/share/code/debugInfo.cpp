@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,9 @@
 #include "code/nmethod.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
+#include "runtime/thread.hpp"
 
 // Constructors
 
@@ -117,6 +120,10 @@ void LocationValue::print_on(outputStream* st) const {
 }
 
 // ObjectValue
+
+void ObjectValue::set_value(oop value) {
+  _value = Handle(Thread::current(), value);
+}
 
 void ObjectValue::read_object(DebugInfoReadStream* stream) {
   _klass = read_from(stream);
@@ -209,14 +216,24 @@ void ConstantDoubleValue::print_on(outputStream* st) const {
 // ConstantOopWriteValue
 
 void ConstantOopWriteValue::write_on(DebugInfoWriteStream* stream) {
-  assert(JNIHandles::resolve(value()) == NULL ||
-         Universe::heap()->is_in_reserved(JNIHandles::resolve(value())),
-         "Should be in heap");
+#ifdef ASSERT
+  {
+    // cannot use ThreadInVMfromNative here since in case of JVMCI compiler,
+    // thread is already in VM state.
+    ThreadInVMfromUnknown tiv;
+    assert(JNIHandles::resolve(value()) == NULL ||
+           Universe::heap()->is_in_reserved(JNIHandles::resolve(value())),
+           "Should be in heap");
+ }
+#endif
   stream->write_int(CONSTANT_OOP_CODE);
   stream->write_handle(value());
 }
 
 void ConstantOopWriteValue::print_on(outputStream* st) const {
+  // using ThreadInVMfromUnknown here since in case of JVMCI compiler,
+  // thread is already in VM state.
+  ThreadInVMfromUnknown tiv;
   JNIHandles::resolve(value())->print_value_on(st);
 }
 

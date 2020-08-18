@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 
 package jdk.javadoc.internal.doclets.formats.html;
 
+import java.util.EnumMap;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,6 +38,8 @@ import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.Resources;
 import jdk.javadoc.internal.doclets.toolkit.util.DocletConstants;
+import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable;
+
 
 /**
  * Constants and factory methods for common fragments of content
@@ -96,6 +100,7 @@ public class Contents {
     public final Content errors;
     public final Content exception;
     public final Content exceptions;
+    public final Content exportedTo;
     public final Content fieldLabel;
     public final Content fieldDetailsLabel;
     public final Content fieldSummaryLabel;
@@ -139,25 +144,16 @@ public class Contents {
     public final Content navServices;
     public final Content nestedClassSummary;
     public final Content newPage;
-    public final Content nextClassLabel;
-    public final Content nextLabel;
-    public final Content nextLetter;
-    public final Content nextModuleLabel;
-    public final Content nextPackageLabel;
     public final Content noFramesLabel;
     public final Content noScriptMessage;
     public final Content openModuleLabel;
+    public final Content openedTo;
     public final Content overridesLabel;
     public final Content overviewLabel;
     public final Content packageHierarchies;
     public final Content packageLabel;
     public final Content package_;
     public final Content packagesLabel;
-    public final Content prevClassLabel;
-    public final Content prevLabel;
-    public final Content prevLetter;
-    public final Content prevModuleLabel;
-    public final Content prevPackageLabel;
     public final Content properties;
     public final Content propertyLabel;
     public final Content propertyDetailsLabel;
@@ -172,6 +168,8 @@ public class Contents {
     public final Content typeLabel;
     public final Content useLabel;
     public final Content valueLabel;
+
+    private final EnumMap<VisibleMemberTable.Kind, Content> navLinkLabels;
 
     private final Resources resources;
 
@@ -229,6 +227,7 @@ public class Contents {
         errors = getContent("doclet.Errors");
         exception = getContent("doclet.Exception");
         exceptions = getContent("doclet.Exceptions");
+        exportedTo = getContent("doclet.ExportedTo");
         fieldDetailsLabel = getContent("doclet.Field_Detail");
         fieldSummaryLabel = getContent("doclet.Field_Summary");
         fieldLabel = getContent("doclet.Field");
@@ -272,13 +271,9 @@ public class Contents {
         navServices = getContent("doclet.navServices");
         nestedClassSummary = getContent("doclet.Nested_Class_Summary");
         newPage = new Comment(resources.getText("doclet.New_Page"));
-        nextClassLabel = getNonBreakContent("doclet.Next_Class");
-        nextLabel = getNonBreakContent("doclet.Next");
-        nextLetter = getContent("doclet.Next_Letter");
-        nextModuleLabel = getNonBreakContent("doclet.Next_Module");
-        nextPackageLabel = getNonBreakContent("doclet.Next_Package");
         noFramesLabel = getNonBreakContent("doclet.No_Frames");
         noScriptMessage = getContent("doclet.No_Script_Message");
+        openedTo = getContent("doclet.OpenedTo");
         openModuleLabel = getContent("doclet.Open_Module");
         overridesLabel = getContent("doclet.Overrides");
         overviewLabel = getContent("doclet.Overview");
@@ -286,11 +281,6 @@ public class Contents {
         packageLabel = getContent("doclet.Package");
         package_ = getContent("doclet.package");
         packagesLabel = getContent("doclet.Packages");
-        prevClassLabel = getNonBreakContent("doclet.Prev_Class");
-        prevLabel = getContent("doclet.Prev");
-        prevLetter = getContent("doclet.Prev_Letter");
-        prevModuleLabel = getNonBreakContent("doclet.Prev_Module");
-        prevPackageLabel = getNonBreakContent("doclet.Prev_Package");
         properties = getContent("doclet.Properties");
         propertyLabel = getContent("doclet.Property");
         propertyDetailsLabel = getContent("doclet.Property_Detail");
@@ -305,6 +295,13 @@ public class Contents {
         typeLabel = getContent("doclet.Type");
         useLabel = getContent("doclet.navClassUse");
         valueLabel = getContent("doclet.Value");
+
+        navLinkLabels = new EnumMap<>(VisibleMemberTable.Kind.class);
+        navLinkLabels.put(VisibleMemberTable.Kind.INNER_CLASSES, getContent("doclet.navNested"));
+        navLinkLabels.put(VisibleMemberTable.Kind.ENUM_CONSTANTS, getContent("doclet.navEnum"));
+        navLinkLabels.put(VisibleMemberTable.Kind.FIELDS, getContent("doclet.navField"));
+        navLinkLabels.put(VisibleMemberTable.Kind.CONSTRUCTORS, getContent("doclet.navConstructor"));
+        navLinkLabels.put(VisibleMemberTable.Kind.METHODS, getContent("doclet.navMethod"));
     }
 
     /**
@@ -408,5 +405,14 @@ public class Contents {
         }
         c.addContent(text.substring(start));
         return c; // TODO: should be made immutable
+    }
+
+    /**
+     * Returns a content for a visible member kind.
+     * @param kind the visible member table kind.
+     * @return the string content
+     */
+    public Content getNavLinkLabelContent(VisibleMemberTable.Kind kind) {
+        return Objects.requireNonNull(navLinkLabels.get(kind));
     }
 }

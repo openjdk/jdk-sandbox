@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -103,6 +103,10 @@ final class StringLatin1 {
     public static int compareTo(byte[] value, byte[] other) {
         int len1 = value.length;
         int len2 = other.length;
+        return compareTo(value, other, len1, len2);
+    }
+
+    public static int compareTo(byte[] value, byte[] other, int len1, int len2) {
         int lim = Math.min(len1, len2);
         for (int k = 0; k < lim; k++) {
             if (value[k] != other[k]) {
@@ -116,6 +120,20 @@ final class StringLatin1 {
     public static int compareToUTF16(byte[] value, byte[] other) {
         int len1 = length(value);
         int len2 = StringUTF16.length(other);
+        return compareToUTF16Values(value, other, len1, len2);
+    }
+
+    /*
+     * Checks the boundary and then compares the byte arrays.
+     */
+    public static int compareToUTF16(byte[] value, byte[] other, int len1, int len2) {
+        checkOffset(len1, length(value));
+        checkOffset(len2, StringUTF16.length(other));
+
+        return compareToUTF16Values(value, other, len1, len2);
+    }
+
+    private static int compareToUTF16Values(byte[] value, byte[] other, int len1, int len2) {
         int lim = Math.min(len1, len2);
         for (int k = 0; k < lim; k++) {
             char c1 = getChar(value, k);
@@ -518,6 +536,57 @@ final class StringLatin1 {
         }
         return ((st > 0) || (len < value.length)) ?
             newString(value, st, len - st) : null;
+    }
+
+    public static int indexOfNonWhitespace(byte[] value) {
+        int length = value.length;
+        int left = 0;
+        while (left < length) {
+            char ch = (char)(value[left] & 0xff);
+            if (ch != ' ' && ch != '\t' && !Character.isWhitespace(ch)) {
+                break;
+            }
+            left++;
+        }
+        return left;
+    }
+
+    public static int lastIndexOfNonWhitespace(byte[] value) {
+        int length = value.length;
+        int right = length;
+        while (0 < right) {
+            char ch = (char)(value[right - 1] & 0xff);
+            if (ch != ' ' && ch != '\t' && !Character.isWhitespace(ch)) {
+                break;
+            }
+            right--;
+        }
+        return right;
+    }
+
+    public static String strip(byte[] value) {
+        int left = indexOfNonWhitespace(value);
+        if (left == value.length) {
+            return "";
+        }
+        int right = lastIndexOfNonWhitespace(value);
+        return ((left > 0) || (right < value.length)) ? newString(value, left, right - left) : null;
+    }
+
+    public static String stripLeading(byte[] value) {
+        int left = indexOfNonWhitespace(value);
+        if (left == value.length) {
+            return "";
+        }
+        return (left != 0) ? newString(value, left, value.length - left) : null;
+    }
+
+    public static String stripTrailing(byte[] value) {
+        int right = lastIndexOfNonWhitespace(value);
+        if (right == 0) {
+            return "";
+        }
+        return (right != value.length) ? newString(value, 0, right) : null;
     }
 
     public static void putChar(byte[] val, int index, int c) {

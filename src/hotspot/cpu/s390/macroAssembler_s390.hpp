@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2017, SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -198,6 +198,9 @@ class MacroAssembler: public Assembler {
   // Test a bit in a register. Result is reflected in CC.
   void testbit(Register r, unsigned int bitPos);
 
+  void prefetch_read(Address a);
+  void prefetch_update(Address a);
+
   // Clear a register, i.e. load const zero into reg. Return len (in bytes) of
   // generated instruction(s).
   //   whole_reg: Clear 64 bits if true, 32 bits otherwise.
@@ -257,8 +260,6 @@ class MacroAssembler: public Assembler {
   //
   // Constants, loading constants, TOC support
   //
-  // Safepoint check factored out.
-  void generate_safepoint_check(Label& slow_path, Register scratch = noreg, bool may_relocate = true);
 
   // Load generic address: d <- base(a) + index(a) + disp(a).
   inline void load_address(Register d, const Address &a);
@@ -439,6 +440,9 @@ class MacroAssembler: public Assembler {
 
   // Get current PC + offset. Offset given in bytes, must be even!
   address get_PC(Register result, int64_t offset);
+
+  // Get size of instruction at pc (which must point to valid code).
+  void instr_size(Register size, Register pc);
 
   // Accessing, and in particular modifying, a stack location is only safe if
   // the stack pointer (Z_SP) is set such that the accessed stack location is
@@ -638,6 +642,9 @@ class MacroAssembler: public Assembler {
   // Support for serializing memory accesses between threads.
   void serialize_memory(Register thread, Register tmp1, Register tmp2);
 
+  // Check if safepoint requested and if so branch
+  void safepoint_poll(Label& slow_path, Register temp_reg);
+
   // Stack overflow checking
   void bang_stack_with_offset(int offset);
 
@@ -664,8 +671,8 @@ class MacroAssembler: public Assembler {
                                RegisterOrConstant itable_index,
                                Register           method_result,
                                Register           temp1_reg,
-                               Register           temp2_reg,
-                               Label&             no_such_interface);
+                               Label&             no_such_interface,
+                               bool               return_method = true);
 
   // virtual method calling
   void lookup_virtual_method(Register             recv_klass,
@@ -737,31 +744,7 @@ class MacroAssembler: public Assembler {
   void compiler_fast_lock_object(Register oop, Register box, Register temp1, Register temp2, bool try_bias = UseBiasedLocking);
   void compiler_fast_unlock_object(Register oop, Register box, Register temp1, Register temp2, bool try_bias = UseBiasedLocking);
 
-  // Write to card table for modification at store_addr - register is destroyed afterwards.
-  void card_write_barrier_post(Register store_addr, Register tmp);
-
   void resolve_jobject(Register value, Register tmp1, Register tmp2);
-
-#if INCLUDE_ALL_GCS
-  // General G1 pre-barrier generator.
-  // Purpose: record the previous value if it is not null.
-  // All non-tmps are preserved.
-  void g1_write_barrier_pre(Register           Robj,
-                            RegisterOrConstant offset,
-                            Register           Rpre_val,        // Ideally, this is a non-volatile register.
-                            Register           Rval,            // Will be preserved.
-                            Register           Rtmp1,           // If Rpre_val is volatile, either Rtmp1
-                            Register           Rtmp2,           // or Rtmp2 has to be non-volatile.
-                            bool               pre_val_needed); // Save Rpre_val across runtime call, caller uses it.
-
-  // General G1 post-barrier generator.
-  // Purpose: Store cross-region card.
-  void g1_write_barrier_post(Register Rstore_addr,
-                             Register Rnew_val,
-                             Register Rtmp1,
-                             Register Rtmp2,
-                             Register Rtmp3);
-#endif // INCLUDE_ALL_GCS
 
   // Support for last Java frame (but use call_VM instead where possible).
  private:
@@ -836,7 +819,7 @@ class MacroAssembler: public Assembler {
   void load_mirror(Register mirror, Register method);
 
   //--------------------------
-  //---  perations on arrays.
+  //---  Operations on arrays.
   //--------------------------
   unsigned int Clear_Array(Register cnt_arg, Register base_pointer_arg, Register src_addr, Register src_len);
   unsigned int Clear_Array_Const(long cnt, Register base);
@@ -849,19 +832,33 @@ class MacroAssembler: public Assembler {
   // Special String Intrinsics Implementation.
   //-------------------------------------------
   // Intrinsics for CompactStrings
-  // Compress char[] to byte[]. odd_reg contains cnt. tmp3 is only needed for precise behavior in failure case. Kills dst.
-  unsigned int string_compress(Register result, Register src, Register dst, Register odd_reg,
-                               Register even_reg, Register tmp, Register tmp2 = noreg);
+  //   Restores: src, dst
+  //   Uses:     cnt
+  //   Kills:    tmp, Z_R0, Z_R1.
+  //   Early clobber: result.
+  //   Boolean precise controls accuracy of result value.
+  unsigned int string_compress(Register result, Register src, Register dst, Register cnt,
+                               Register tmp,    bool precise);
+
+  // Inflate byte[] to char[].
+  unsigned int string_inflate_trot(Register src, Register dst, Register cnt, Register tmp);
+
+  // Inflate byte[] to char[].
+  //   Restores: src, dst
+  //   Uses:     cnt
+  //   Kills:    tmp, Z_R0, Z_R1.
+  unsigned int string_inflate(Register src, Register dst, Register cnt, Register tmp);
+
+  // Inflate byte[] to char[], length known at compile time.
+  //   Restores: src, dst
+  //   Kills:    tmp, Z_R0, Z_R1.
+  // Note:
+  //   len is signed int. Counts # characters, not bytes.
+  unsigned int string_inflate_const(Register src, Register dst, Register tmp, int len);
 
   // Kills src.
   unsigned int has_negatives(Register result, Register src, Register cnt,
                              Register odd_reg, Register even_reg, Register tmp);
-
-  // Inflate byte[] to char[].
-  unsigned int string_inflate_trot(Register src, Register dst, Register cnt, Register tmp);
-  // Odd_reg contains cnt. Kills src.
-  unsigned int string_inflate(Register src, Register dst, Register odd_reg,
-                              Register even_reg, Register tmp);
 
   unsigned int string_compare(Register str1, Register str2, Register cnt1, Register cnt2,
                               Register odd_reg, Register even_reg, Register result, int ae);

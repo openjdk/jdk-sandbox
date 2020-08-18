@@ -32,13 +32,16 @@
 #include "code/icBuffer.hpp"
 #include "code/nativeInst.hpp"
 #include "code/vtableStubs.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/compiledICHolder.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/vframeArray.hpp"
 #include "utilities/align.hpp"
+#include "utilities/formatBuffer.hpp"
 #include "vm_version_x86.hpp"
 #include "vmreg_x86.inline.hpp"
 #ifdef COMPILER1
@@ -949,7 +952,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   {
     __ load_klass(temp, receiver);
     __ cmpptr(temp, Address(holder, CompiledICHolder::holder_klass_offset()));
-    __ movptr(rbx, Address(holder, CompiledICHolder::holder_method_offset()));
+    __ movptr(rbx, Address(holder, CompiledICHolder::holder_metadata_offset()));
     __ jcc(Assembler::equal, ok);
     __ jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
 
@@ -3388,26 +3391,63 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   // No exception case
   __ bind(noException);
 
-  Label no_adjust, bail;
+  Label no_adjust, bail, no_prefix, not_special;
   if (SafepointMechanism::uses_thread_local_poll() && !cause_return) {
     // If our stashed return pc was modified by the runtime we avoid touching it
     __ cmpptr(rbx, Address(rbp, wordSize));
     __ jccb(Assembler::notEqual, no_adjust);
 
+    // Skip over the poll instruction.
+    // See NativeInstruction::is_safepoint_poll()
+    // Possible encodings:
+    //      85 00       test   %eax,(%rax)
+    //      85 01       test   %eax,(%rcx)
+    //      85 02       test   %eax,(%rdx)
+    //      85 03       test   %eax,(%rbx)
+    //      85 06       test   %eax,(%rsi)
+    //      85 07       test   %eax,(%rdi)
+    //
+    //   41 85 00       test   %eax,(%r8)
+    //   41 85 01       test   %eax,(%r9)
+    //   41 85 02       test   %eax,(%r10)
+    //   41 85 03       test   %eax,(%r11)
+    //   41 85 06       test   %eax,(%r14)
+    //   41 85 07       test   %eax,(%r15)
+    //
+    //      85 04 24    test   %eax,(%rsp)
+    //   41 85 04 24    test   %eax,(%r12)
+    //      85 45 00    test   %eax,0x0(%rbp)
+    //   41 85 45 00    test   %eax,0x0(%r13)
+
+    __ cmpb(Address(rbx, 0), NativeTstRegMem::instruction_rex_b_prefix);
+    __ jcc(Assembler::notEqual, no_prefix);
+    __ addptr(rbx, 1);
+    __ bind(no_prefix);
+#ifdef ASSERT
+    __ movptr(rax, rbx); // remember where 0x85 should be, for verification below
+#endif
+    // r12/r13/rsp/rbp base encoding takes 3 bytes with the following register values:
+    // r12/rsp 0x04
+    // r13/rbp 0x05
+    __ movzbq(rcx, Address(rbx, 1));
+    __ andptr(rcx, 0x07); // looking for 0x04 .. 0x05
+    __ subptr(rcx, 4);    // looking for 0x00 .. 0x01
+    __ cmpptr(rcx, 1);
+    __ jcc(Assembler::above, not_special);
+    __ addptr(rbx, 1);
+    __ bind(not_special);
 #ifdef ASSERT
     // Verify the correct encoding of the poll we're about to skip.
-    // See NativeInstruction::is_safepoint_poll()
-    __ cmpb(Address(rbx, 0), NativeTstRegMem::instruction_rex_b_prefix);
-    __ jcc(Assembler::notEqual, bail);
-    __ cmpb(Address(rbx, 1), NativeTstRegMem::instruction_code_memXregl);
+    __ cmpb(Address(rax, 0), NativeTstRegMem::instruction_code_memXregl);
     __ jcc(Assembler::notEqual, bail);
     // Mask out the modrm bits
-    __ testb(Address(rbx, 2), NativeTstRegMem::modrm_mask);
+    __ testb(Address(rax, 1), NativeTstRegMem::modrm_mask);
     // rax encodes to 0, so if the bits are nonzero it's incorrect
     __ jcc(Assembler::notZero, bail);
 #endif
     // Adjust return pc forward to step over the safepoint poll instruction
-    __ addptr(Address(rbp, wordSize), 3);
+    __ addptr(rbx, 2);
+    __ movptr(Address(rbp, wordSize), rbx);
   }
 
   __ bind(no_adjust);

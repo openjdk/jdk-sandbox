@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package sun.nio.ch;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.ref.Cleaner.Cleanable;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -109,7 +110,12 @@ public class FileChannelImpl
         }
 
         public void run() {
-            fdAccess.close(fd);
+            try {
+                fdAccess.close(fd);
+            } catch (IOException ioe) {
+                // Rethrow as unchecked so the exception can be propagated as needed
+                throw new UncheckedIOException("close", ioe);
+            }
         }
     }
 
@@ -188,7 +194,11 @@ public class FileChannelImpl
         } else if (closer != null) {
             // Perform the cleaning action so it is not redone when
             // this channel becomes phantom reachable.
-            closer.clean();
+            try {
+                closer.clean();
+            } catch (UncheckedIOException uioe) {
+                throw uioe.getCause();
+            }
         } else {
             fdAccess.close(fd);
         }
@@ -324,7 +334,7 @@ public class FileChannelImpl
                 boolean append = fdAccess.getAppend(fd);
                 do {
                     // in append-mode then position is advanced to end before writing
-                    p = (append) ? nd.size(fd) : position0(fd, -1);
+                    p = (append) ? nd.size(fd) : nd.seek(fd, -1);
                 } while ((p == IOStatus.INTERRUPTED) && isOpen());
                 return IOStatus.normalize(p);
             } finally {
@@ -348,7 +358,7 @@ public class FileChannelImpl
                 if (!isOpen())
                     return null;
                 do {
-                    p = position0(fd, newPosition);
+                    p = nd.seek(fd, newPosition);
                 } while ((p == IOStatus.INTERRUPTED) && isOpen());
                 return this;
             } finally {
@@ -408,7 +418,7 @@ public class FileChannelImpl
 
                 // get current position
                 do {
-                    p = position0(fd, -1);
+                    p = nd.seek(fd, -1);
                 } while ((p == IOStatus.INTERRUPTED) && isOpen());
                 if (!isOpen())
                     return null;
@@ -427,7 +437,7 @@ public class FileChannelImpl
                 if (p > newSize)
                     p = newSize;
                 do {
-                    rp = position0(fd, p);
+                    rp = nd.seek(fd, p);
                 } while ((rp == IOStatus.INTERRUPTED) && isOpen());
                 return this;
             } finally {
@@ -975,7 +985,7 @@ public class FileChannelImpl
                     }
                     int rv;
                     do {
-                        rv = nd.allocate(fd, position + size);
+                        rv = nd.truncate(fd, position + size);
                     } while ((rv == IOStatus.INTERRUPTED) && isOpen());
                     if (!isOpen())
                         return null;
@@ -1073,49 +1083,19 @@ public class FileChannelImpl
 
     // -- Locks --
 
-
-
     // keeps track of locks on this file
     private volatile FileLockTable fileLockTable;
-
-    // indicates if file locks are maintained system-wide (as per spec)
-    private static boolean isSharedFileLockTable;
-
-    // indicates if the disableSystemWideOverlappingFileLockCheck property
-    // has been checked
-    private static volatile boolean propertyChecked;
-
-    // The lock list in J2SE 1.4/5.0 was local to each FileChannel instance so
-    // the overlap check wasn't system wide when there were multiple channels to
-    // the same file. This property is used to get 1.4/5.0 behavior if desired.
-    private static boolean isSharedFileLockTable() {
-        if (!propertyChecked) {
-            synchronized (FileChannelImpl.class) {
-                if (!propertyChecked) {
-                    String value = GetPropertyAction.privilegedGetProperty(
-                            "sun.nio.ch.disableSystemWideOverlappingFileLockCheck");
-                    isSharedFileLockTable = ((value == null) || value.equals("false"));
-                    propertyChecked = true;
-                }
-            }
-        }
-        return isSharedFileLockTable;
-    }
 
     private FileLockTable fileLockTable() throws IOException {
         if (fileLockTable == null) {
             synchronized (this) {
                 if (fileLockTable == null) {
-                    if (isSharedFileLockTable()) {
-                        int ti = threads.add();
-                        try {
-                            ensureOpen();
-                            fileLockTable = FileLockTable.newSharedFileLockTable(this, fd);
-                        } finally {
-                            threads.remove(ti);
-                        }
-                    } else {
-                        fileLockTable = new SimpleFileLockTable();
+                    int ti = threads.add();
+                    try {
+                        ensureOpen();
+                        fileLockTable = new FileLockTable(this, fd);
+                    } finally {
+                        threads.remove(ti);
                     }
                 }
             }
@@ -1219,59 +1199,6 @@ public class FileChannelImpl
         fileLockTable.remove(fli);
     }
 
-    // -- File lock support --
-
-    /**
-     * A simple file lock table that maintains a list of FileLocks obtained by a
-     * FileChannel. Use to get 1.4/5.0 behaviour.
-     */
-    private static class SimpleFileLockTable extends FileLockTable {
-        // synchronize on list for access
-        private final List<FileLock> lockList = new ArrayList<FileLock>(2);
-
-        public SimpleFileLockTable() {
-        }
-
-        private void checkList(long position, long size)
-            throws OverlappingFileLockException
-        {
-            assert Thread.holdsLock(lockList);
-            for (FileLock fl: lockList) {
-                if (fl.overlaps(position, size)) {
-                    throw new OverlappingFileLockException();
-                }
-            }
-        }
-
-        public void add(FileLock fl) throws OverlappingFileLockException {
-            synchronized (lockList) {
-                checkList(fl.position(), fl.size());
-                lockList.add(fl);
-            }
-        }
-
-        public void remove(FileLock fl) {
-            synchronized (lockList) {
-                lockList.remove(fl);
-            }
-        }
-
-        public List<FileLock> removeAll() {
-            synchronized(lockList) {
-                List<FileLock> result = new ArrayList<FileLock>(lockList);
-                lockList.clear();
-                return result;
-            }
-        }
-
-        public void replace(FileLock fl1, FileLock fl2) {
-            synchronized (lockList) {
-                lockList.remove(fl1);
-                lockList.add(fl2);
-            }
-        }
-    }
-
     // -- Native methods --
 
     // Creates a new mapping
@@ -1284,11 +1211,6 @@ public class FileChannelImpl
     // Transfers from src to dst, or returns -2 if kernel can't do that
     private native long transferTo0(FileDescriptor src, long position,
                                     long count, FileDescriptor dst);
-
-    // Sets or reports this file's position
-    // If offset is -1, the current position is returned
-    // otherwise the position is set to offset
-    private native long position0(FileDescriptor fd, long offset);
 
     // Caches fieldIDs
     private static native long initIDs();

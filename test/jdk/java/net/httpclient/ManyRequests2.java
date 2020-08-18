@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8087112 8180044
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  *          java.logging
  *          jdk.httpserver
  * @library /lib/testlibrary/ /
@@ -36,7 +36,7 @@
  * @run main/othervm/timeout=40 -Dtest.XFixed=true ManyRequests2
  * @run main/othervm/timeout=40 -Dtest.XFixed=true -Dtest.insertDelay=true ManyRequests2
  * @run main/othervm/timeout=40 -Dtest.XFixed=true -Dtest.chunkSize=64 ManyRequests2
- * @run main/othervm/timeout=40 -Dtest.XFixed=true -Dtest.insertDelay=true -Dtest.chunkSize=64 ManyRequests2
+ * @run main/othervm/timeout=40 -Djdk.internal.httpclient.debug=true -Dtest.XFixed=true -Dtest.insertDelay=true -Dtest.chunkSize=64 ManyRequests2
  * @summary Send a large number of requests asynchronously. The server echoes back using known content length.
  */
  // * @run main/othervm/timeout=40 -Djdk.httpclient.HttpClient.log=ssl ManyRequests

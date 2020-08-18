@@ -24,6 +24,8 @@ package org.graalvm.compiler.phases.schedule;
 
 import java.util.List;
 
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.Equivalence;
 import org.graalvm.compiler.core.common.cfg.BlockMap;
 import org.graalvm.compiler.core.common.cfg.Loop;
 import org.graalvm.compiler.debug.DebugContext;
@@ -40,9 +42,7 @@ import org.graalvm.compiler.nodes.memory.MemoryNode;
 import org.graalvm.compiler.nodes.memory.MemoryPhiNode;
 import org.graalvm.compiler.phases.graph.ReentrantBlockIterator;
 import org.graalvm.compiler.phases.graph.ReentrantBlockIterator.BlockIteratorClosure;
-import org.graalvm.util.EconomicSet;
-import org.graalvm.util.Equivalence;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 public final class MemoryScheduleVerification extends BlockIteratorClosure<EconomicSet<FloatingReadNode>> {
 

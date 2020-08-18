@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -136,7 +136,7 @@ Node *MemNode::optimize_simple_memory_chain(Node *mchain, const TypeOopPtr *t_oo
   if (!(is_instance || is_boxed_value_load))
     return mchain;  // don't try to optimize non-instance types
   uint instance_id = t_oop->instance_id();
-  Node *start_mem = phase->C->start()->proj_out(TypeFunc::Memory);
+  Node *start_mem = phase->C->start()->proj_out_or_null(TypeFunc::Memory);
   Node *prev = NULL;
   Node *result = mchain;
   while (prev != result) {
@@ -2215,12 +2215,16 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
   // mirror go completely dead.  (Current exception:  Class
   // mirrors may appear in debug info, but we could clean them out by
   // introducing a new debug info operator for Klass.java_mirror).
+  //
+  // If the code pattern requires a barrier for
+  //   mirror = ((OopHandle)mirror)->resolve();
+  // this won't match.
 
   if (toop->isa_instptr() && toop->klass() == phase->C->env()->Class_klass()
       && offset == java_lang_Class::klass_offset_in_bytes()) {
     if (base->is_Load()) {
       Node* base2 = base->in(MemNode::Address);
-      if (base2->is_Load()) { /* direct load of a load which is the oophandle */
+      if (base2->is_Load()) { /* direct load of a load which is the OopHandle */
         Node* adr2 = base2->in(MemNode::Address);
         const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
         if (tkls != NULL && !tkls->empty()

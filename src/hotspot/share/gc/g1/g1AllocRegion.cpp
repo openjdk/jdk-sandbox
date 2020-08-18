@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,17 +42,17 @@ void G1AllocRegion::setup(G1CollectedHeap* g1h, HeapRegion* dummy_region) {
 
   // Make sure that any allocation attempt on this region will fail
   // and will not trigger any asserts.
-  assert(allocate(dummy_region, 1, false) == NULL, "should fail");
-  assert(par_allocate(dummy_region, 1, false) == NULL, "should fail");
-  assert(allocate(dummy_region, 1, true) == NULL, "should fail");
-  assert(par_allocate(dummy_region, 1, true) == NULL, "should fail");
+  assert(dummy_region->allocate_no_bot_updates(1) == NULL, "should fail");
+  assert(dummy_region->allocate(1) == NULL, "should fail");
+  DEBUG_ONLY(size_t assert_tmp);
+  assert(dummy_region->par_allocate_no_bot_updates(1, 1, &assert_tmp) == NULL, "should fail");
+  assert(dummy_region->par_allocate(1, 1, &assert_tmp) == NULL, "should fail");
 
   _g1h = g1h;
   _dummy_region = dummy_region;
 }
 
-size_t G1AllocRegion::fill_up_remaining_space(HeapRegion* alloc_region,
-                                              bool bot_updates) {
+size_t G1AllocRegion::fill_up_remaining_space(HeapRegion* alloc_region) {
   assert(alloc_region != NULL && alloc_region != _dummy_region,
          "pre-condition");
   size_t result = 0;
@@ -74,7 +74,7 @@ size_t G1AllocRegion::fill_up_remaining_space(HeapRegion* alloc_region,
   size_t min_word_size_to_fill = CollectedHeap::min_fill_size();
 
   while (free_word_size >= min_word_size_to_fill) {
-    HeapWord* dummy = par_allocate(alloc_region, free_word_size, bot_updates);
+    HeapWord* dummy = par_allocate(alloc_region, free_word_size);
     if (dummy != NULL) {
       // If the allocation was successful we should fill in the space.
       CollectedHeap::fill_with_object(dummy, free_word_size);
@@ -95,33 +95,40 @@ size_t G1AllocRegion::fill_up_remaining_space(HeapRegion* alloc_region,
   return result;
 }
 
+size_t G1AllocRegion::retire_internal(HeapRegion* alloc_region, bool fill_up) {
+  // We never have to check whether the active region is empty or not,
+  // and potentially free it if it is, given that it's guaranteed that
+  // it will never be empty.
+  size_t waste = 0;
+  assert_alloc_region(!alloc_region->is_empty(),
+      "the alloc region should never be empty");
+
+  if (fill_up) {
+    waste = fill_up_remaining_space(alloc_region);
+  }
+
+  assert_alloc_region(alloc_region->used() >= _used_bytes_before, "invariant");
+  size_t allocated_bytes = alloc_region->used() - _used_bytes_before;
+  retire_region(alloc_region, allocated_bytes);
+  _used_bytes_before = 0;
+
+  return waste;
+}
+
 size_t G1AllocRegion::retire(bool fill_up) {
   assert_alloc_region(_alloc_region != NULL, "not initialized properly");
 
-  size_t result = 0;
+  size_t waste = 0;
 
   trace("retiring");
   HeapRegion* alloc_region = _alloc_region;
   if (alloc_region != _dummy_region) {
-    // We never have to check whether the active region is empty or not,
-    // and potentially free it if it is, given that it's guaranteed that
-    // it will never be empty.
-    assert_alloc_region(!alloc_region->is_empty(),
-                           "the alloc region should never be empty");
-
-    if (fill_up) {
-      result = fill_up_remaining_space(alloc_region, _bot_updates);
-    }
-
-    assert_alloc_region(alloc_region->used() >= _used_bytes_before, "invariant");
-    size_t allocated_bytes = alloc_region->used() - _used_bytes_before;
-    retire_region(alloc_region, allocated_bytes);
-    _used_bytes_before = 0;
-    _alloc_region = _dummy_region;
+    waste = retire_internal(alloc_region, fill_up);
+    reset_alloc_region();
   }
   trace("retired");
 
-  return result;
+  return waste;
 }
 
 HeapWord* G1AllocRegion::new_alloc_region_and_allocate(size_t word_size,
@@ -135,7 +142,7 @@ HeapWord* G1AllocRegion::new_alloc_region_and_allocate(size_t word_size,
     new_alloc_region->reset_pre_dummy_top();
     // Need to do this before the allocation
     _used_bytes_before = new_alloc_region->used();
-    HeapWord* result = allocate(new_alloc_region, word_size, _bot_updates);
+    HeapWord* result = allocate(new_alloc_region, word_size);
     assert_alloc_region(result != NULL, "the allocation should succeeded");
 
     OrderAccess::storestore();
@@ -183,7 +190,6 @@ void G1AllocRegion::update_alloc_region(HeapRegion* alloc_region) {
   assert_alloc_region(alloc_region != NULL && !alloc_region->is_empty(), "pre-condition");
 
   _alloc_region = alloc_region;
-  _alloc_region->set_allocation_context(allocation_context());
   _count += 1;
   trace("updated");
 }
@@ -246,8 +252,8 @@ void G1AllocRegion::trace(const char* str, size_t min_word_size, size_t desired_
 G1AllocRegion::G1AllocRegion(const char* name,
                              bool bot_updates)
   : _name(name), _bot_updates(bot_updates),
-    _alloc_region(NULL), _count(0), _used_bytes_before(0),
-    _allocation_context(AllocationContext::system()) { }
+    _alloc_region(NULL), _count(0),
+    _used_bytes_before(0) { }
 
 
 HeapRegion* MutatorAllocRegion::allocate_new_region(size_t word_size,
@@ -258,6 +264,82 @@ HeapRegion* MutatorAllocRegion::allocate_new_region(size_t word_size,
 void MutatorAllocRegion::retire_region(HeapRegion* alloc_region,
                                        size_t allocated_bytes) {
   _g1h->retire_mutator_alloc_region(alloc_region, allocated_bytes);
+}
+
+void MutatorAllocRegion::init() {
+  assert(_retained_alloc_region == NULL, "Pre-condition");
+  G1AllocRegion::init();
+  _wasted_bytes = 0;
+}
+
+bool MutatorAllocRegion::should_retain(HeapRegion* region) {
+  size_t free_bytes = region->free();
+  if (free_bytes < MinTLABSize) {
+    return false;
+  }
+
+  if (_retained_alloc_region != NULL &&
+      free_bytes < _retained_alloc_region->free()) {
+    return false;
+  }
+
+  return true;
+}
+
+size_t MutatorAllocRegion::retire(bool fill_up) {
+  size_t waste = 0;
+  trace("retiring");
+  HeapRegion* current_region = get();
+  if (current_region != NULL) {
+    // Retain the current region if it fits a TLAB and has more
+    // free than the currently retained region.
+    if (should_retain(current_region)) {
+      trace("mutator retained");
+      if (_retained_alloc_region != NULL) {
+        waste = retire_internal(_retained_alloc_region, true);
+      }
+      _retained_alloc_region = current_region;
+    } else {
+      waste = retire_internal(current_region, fill_up);
+    }
+    reset_alloc_region();
+  }
+
+  _wasted_bytes += waste;
+  trace("retired");
+  return waste;
+}
+
+size_t MutatorAllocRegion::used_in_alloc_regions() {
+  size_t used = 0;
+  HeapRegion* hr = get();
+  if (hr != NULL) {
+    used += hr->used();
+  }
+
+  hr = _retained_alloc_region;
+  if (hr != NULL) {
+    used += hr->used();
+  }
+  return used;
+}
+
+HeapRegion* MutatorAllocRegion::release() {
+  HeapRegion* ret = G1AllocRegion::release();
+
+  // The retained alloc region must be retired and this must be
+  // done after the above call to release the mutator alloc region,
+  // since it might update the _retained_alloc_region member.
+  if (_retained_alloc_region != NULL) {
+    _wasted_bytes += retire_internal(_retained_alloc_region, false);
+    _retained_alloc_region = NULL;
+  }
+  log_debug(gc, alloc, region)("Mutator Allocation stats, regions: %u, wasted size: " SIZE_FORMAT "%s (%4.1f%%)",
+                               count(),
+                               byte_size_in_proper_unit(_wasted_bytes),
+                               proper_unit_for_byte_size(_wasted_bytes),
+                               percent_of(_wasted_bytes, count() * HeapRegion::GrainBytes));
+  return ret;
 }
 
 HeapRegion* G1GCAllocRegion::allocate_new_region(size_t word_size,
@@ -301,7 +383,7 @@ HeapRegion* OldGCAllocRegion::release() {
       // possible object. In this case this region will not be retained, so the
       // original problem cannot occur.
       if (to_allocate_words >= G1CollectedHeap::min_fill_size()) {
-        HeapWord* dummy = attempt_allocation(to_allocate_words, true /* bot_updates */);
+        HeapWord* dummy = attempt_allocation(to_allocate_words);
         CollectedHeap::fill_with_object(dummy, to_allocate_words);
       }
     }

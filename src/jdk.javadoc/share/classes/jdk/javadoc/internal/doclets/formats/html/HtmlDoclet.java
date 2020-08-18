@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 
+import jdk.javadoc.doclet.Doclet;
 import jdk.javadoc.doclet.DocletEnvironment;
 import jdk.javadoc.doclet.Reporter;
 import jdk.javadoc.internal.doclets.toolkit.AbstractDoclet;
@@ -59,8 +60,8 @@ import jdk.javadoc.internal.doclets.toolkit.util.IndexBuilder;
  */
 public class HtmlDoclet extends AbstractDoclet {
 
-    public HtmlDoclet() {
-        configuration = new HtmlConfiguration(this);
+    public HtmlDoclet(Doclet parent) {
+        configuration = new HtmlConfiguration(parent);
     }
 
     @Override // defined by Doclet
@@ -107,7 +108,6 @@ public class HtmlDoclet extends AbstractDoclet {
      * For new format.
      *
      * @throws DocletException if there is a problem while writing the other files
-     * @see jdk.doclet.DocletEnvironment
      */
     @Override // defined by AbstractDoclet
     protected void generateOtherFiles(DocletEnvironment docEnv, ClassTree classtree)
@@ -117,8 +117,10 @@ public class HtmlDoclet extends AbstractDoclet {
             SourceToHTMLConverter.convertRoot(configuration,
                 docEnv, DocPaths.SOURCE_OUTPUT);
         }
-
-        if (configuration.topFile.isEmpty()) {
+        // Modules with no documented classes may be specified on the
+        // command line to specify a service provider, allow these.
+        if (configuration.getSpecifiedModuleElements().isEmpty() &&
+                configuration.topFile.isEmpty()) {
             messages.error("doclet.No_Non_Deprecated_Classes_To_Document");
             return;
         }
@@ -239,29 +241,19 @@ public class HtmlDoclet extends AbstractDoclet {
             throws DocletException {
         List<TypeElement> list = new ArrayList<>(arr);
         ListIterator<TypeElement> iterator = list.listIterator();
-        TypeElement klass = null;
-        while (iterator.hasNext()) {
-            TypeElement prev = iterator.hasPrevious() ? klass : null;
-            klass = iterator.next();
-            TypeElement next = iterator.nextIndex() == list.size()
-                    ? null : list.get(iterator.nextIndex());
-
-            if (utils.isHidden(klass) ||
+        for (TypeElement klass : list) {
+            if (utils.hasHiddenTag(klass) ||
                     !(configuration.isGeneratedDoc(klass) && utils.isIncluded(klass))) {
                 continue;
             }
-
             if (utils.isAnnotationType(klass)) {
                 AbstractBuilder annotationTypeBuilder =
                     configuration.getBuilderFactory()
-                        .getAnnotationTypeBuilder(klass,
-                            prev == null ? null : prev.asType(),
-                            next == null ? null : next.asType());
+                        .getAnnotationTypeBuilder(klass);
                 annotationTypeBuilder.build();
             } else {
                 AbstractBuilder classBuilder =
-                    configuration.getBuilderFactory().getClassBuilder(klass,
-                            prev, next, classtree);
+                    configuration.getBuilderFactory().getClassBuilder(klass, classtree);
                 classBuilder.build();
             }
         }
@@ -276,7 +268,6 @@ public class HtmlDoclet extends AbstractDoclet {
             if (configuration.frames  && configuration.modules.size() > 1) {
                 ModuleIndexFrameWriter.generate(configuration);
             }
-            ModuleElement prevModule = null, nextModule;
             List<ModuleElement> mdles = new ArrayList<>(configuration.modulePackages.keySet());
             int i = 0;
             for (ModuleElement mdle : mdles) {
@@ -284,12 +275,9 @@ public class HtmlDoclet extends AbstractDoclet {
                     ModulePackageIndexFrameWriter.generate(configuration, mdle);
                     ModuleFrameWriter.generate(configuration, mdle);
                 }
-                nextModule = (i + 1 < mdles.size()) ? mdles.get(i + 1) : null;
                 AbstractBuilder moduleSummaryBuilder =
-                        configuration.getBuilderFactory().getModuleSummaryBuilder(
-                        mdle, prevModule, nextModule);
+                        configuration.getBuilderFactory().getModuleSummaryBuilder(mdle);
                 moduleSummaryBuilder.build();
-                prevModule = mdle;
                 i++;
             }
         }
@@ -315,7 +303,6 @@ public class HtmlDoclet extends AbstractDoclet {
             PackageIndexFrameWriter.generate(configuration);
         }
         List<PackageElement> pList = new ArrayList<>(packages);
-        PackageElement prev = null;
         for (int i = 0 ; i < pList.size() ; i++) {
             // if -nodeprecated option is set and the package is marked as
             // deprecated, do not generate the package-summary.html, package-frame.html
@@ -325,24 +312,12 @@ public class HtmlDoclet extends AbstractDoclet {
                 if (configuration.frames) {
                     PackageFrameWriter.generate(configuration, pkg);
                 }
-                int nexti = i + 1;
-                PackageElement next = null;
-                if (nexti < pList.size()) {
-                    next = pList.get(nexti);
-                    // If the next package is unnamed package, skip 2 ahead if possible
-                    if (next.isUnnamed() && ++nexti < pList.size()) {
-                       next = pList.get(nexti);
-                    }
-                }
                 AbstractBuilder packageSummaryBuilder =
-                        configuration.getBuilderFactory().getPackageSummaryBuilder(
-                        pkg, prev, next);
+                        configuration.getBuilderFactory().getPackageSummaryBuilder(pkg);
                 packageSummaryBuilder.build();
                 if (configuration.createtree) {
-                    PackageTreeWriter.generate(configuration, pkg, prev, next,
-                            configuration.nodeprecated);
+                    PackageTreeWriter.generate(configuration, pkg, configuration.nodeprecated);
                 }
-                prev = pkg;
             }
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "jvmci/jvmciCompilerToVM.hpp"
 #include "jvmci/jvmciJavaClasses.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "vmreg_aarch64.inline.hpp"
 
@@ -34,6 +35,9 @@ jint CodeInstaller::pd_next_offset(NativeInstruction* inst, jint pc_offset, Hand
     return pc_offset + NativeCall::instruction_size;
   } else if (inst->is_general_jump()) {
     return pc_offset + NativeGeneralJump::instruction_size;
+  } else if (NativeInstruction::is_adrp_at((address)inst)) {
+    // adrp; add; blr
+    return pc_offset + 3 * NativeInstruction::instruction_size;
   } else {
     JVMCI_ERROR_0("unsupported type of instruction for call site");
   }
@@ -80,7 +84,8 @@ void CodeInstaller::pd_patch_MetaspaceConstant(int pc_offset, Handle constant, T
 void CodeInstaller::pd_patch_DataSectionReference(int pc_offset, int data_offset, TRAPS) {
   address pc = _instructions->start() + pc_offset;
   NativeInstruction* inst = nativeInstruction_at(pc);
-  if (inst->is_adr_aligned() || inst->is_ldr_literal()) {
+  if (inst->is_adr_aligned() || inst->is_ldr_literal()
+      || (NativeInstruction::maybe_cpool_ref(pc))) {
     address dest = _constants->start() + data_offset;
     _instructions->relocate(pc, section_word_Relocation::spec((address) dest, CodeBuffer::SECT_CONSTS));
     TRACE_jvmci_3("relocating at " PTR_FORMAT " (+%d) with destination at %d", p2i(pc), pc_offset, data_offset);
@@ -103,13 +108,17 @@ void CodeInstaller::pd_relocate_ForeignCall(NativeInstruction* inst, jlong forei
     NativeGeneralJump* jump = nativeGeneralJump_at(pc);
     jump->set_jump_destination((address) foreign_call_destination);
     _instructions->relocate(jump->instruction_address(), runtime_call_Relocation::spec());
+  } else if (NativeInstruction::is_adrp_at((address)inst)) {
+    // adrp; add; blr
+    MacroAssembler::pd_patch_instruction_size((address)inst,
+                                              (address)foreign_call_destination);
   } else {
     JVMCI_ERROR("unknown call or jump instruction at " PTR_FORMAT, p2i(pc));
   }
   TRACE_jvmci_3("relocating (foreign call) at " PTR_FORMAT, p2i(inst));
 }
 
-void CodeInstaller::pd_relocate_JavaMethod(Handle hotspot_method, jint pc_offset, TRAPS) {
+void CodeInstaller::pd_relocate_JavaMethod(CodeBuffer &cbuf, Handle hotspot_method, jint pc_offset, TRAPS) {
 #ifdef ASSERT
   Method* method = NULL;
   // we need to check, this might also be an unresolved method
@@ -124,22 +133,22 @@ void CodeInstaller::pd_relocate_JavaMethod(Handle hotspot_method, jint pc_offset
     case INVOKEINTERFACE: {
       assert(method == NULL || !method->is_static(), "cannot call static method with invokeinterface");
       NativeCall* call = nativeCall_at(_instructions->start() + pc_offset);
-      call->set_destination(SharedRuntime::get_resolve_virtual_call_stub());
       _instructions->relocate(call->instruction_address(), virtual_call_Relocation::spec(_invoke_mark_pc));
+      call->trampoline_jump(cbuf, SharedRuntime::get_resolve_virtual_call_stub());
       break;
     }
     case INVOKESTATIC: {
       assert(method == NULL || method->is_static(), "cannot call non-static method with invokestatic");
       NativeCall* call = nativeCall_at(_instructions->start() + pc_offset);
-      call->set_destination(SharedRuntime::get_resolve_static_call_stub());
       _instructions->relocate(call->instruction_address(), relocInfo::static_call_type);
+      call->trampoline_jump(cbuf, SharedRuntime::get_resolve_static_call_stub());
       break;
     }
     case INVOKESPECIAL: {
       assert(method == NULL || !method->is_static(), "cannot call static method with invokespecial");
       NativeCall* call = nativeCall_at(_instructions->start() + pc_offset);
-      call->set_destination(SharedRuntime::get_resolve_opt_virtual_call_stub());
       _instructions->relocate(call->instruction_address(), relocInfo::opt_virtual_call_type);
+      call->trampoline_jump(cbuf, SharedRuntime::get_resolve_opt_virtual_call_stub());
       break;
     }
     default:

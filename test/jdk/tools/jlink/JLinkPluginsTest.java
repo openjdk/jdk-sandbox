@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import tests.Helper;
  * @test
  * @summary Test image creation
  * @author Jean-Francois Denise
+ * @requires (vm.compMode != "Xcomp" & os.maxMemory >= 2g)
  * @library ../lib
  * @modules java.base/jdk.internal.jimage
  *          jdk.jdeps/com.sun.tools.classfile
@@ -74,14 +75,6 @@ public class JLinkPluginsTest {
             String[] res = {".jcov", "/META-INF/"};
             Path imageDir = helper.generateDefaultImage(userOptions, moduleName).assertSuccess();
             helper.checkImage(imageDir, moduleName, res, null);
-        }
-        {
-            // Optimize Class.forName
-            String[] userOptions = {"--class-for-name"};
-            String moduleName = "classforname";
-            helper.generateDefaultJModule(moduleName, "composite2");
-            Path imageDir = helper.generateDefaultImage(userOptions, moduleName).assertSuccess();
-            helper.checkImage(imageDir, moduleName, null, null);
         }
         {
             // disable generate jli classes - JDK-8160063

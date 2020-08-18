@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,13 @@
 #define SHARE_VM_RUNTIME_THREAD_HPP
 
 #include "jni.h"
+#include "gc/shared/gcThreadLocalData.hpp"
 #include "gc/shared/threadLocalAllocBuffer.hpp"
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/frame.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/handshake.hpp"
 #include "runtime/javaFrameAnchor.hpp"
 #include "runtime/jniHandles.hpp"
@@ -41,22 +43,22 @@
 #include "runtime/safepoint.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/threadLocalStorage.hpp"
-#include "runtime/thread_ext.hpp"
 #include "runtime/unhandledOops.hpp"
-#include "trace/traceBackend.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/align.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/dirtyCardQueue.hpp"
-#include "gc/g1/satbMarkQueue.hpp"
-#endif // INCLUDE_ALL_GCS
 #ifdef ZERO
 # include "stack_zero.hpp"
 #endif
+#if INCLUDE_JFR
+#include "jfr/support/jfrThreadExtension.hpp"
+#endif
 
+
+class SafeThreadsListPtr;
 class ThreadSafepointState;
+class ThreadsList;
+class ThreadsSMRSupport;
 
 class JvmtiThreadState;
 class JvmtiGetLoadedClassesClosure;
@@ -110,6 +112,22 @@ class Thread: public ThreadShadow {
   static THREAD_LOCAL_DECL Thread* _thr_current;
 #endif
 
+ private:
+  // Thread local data area available to the GC. The internal
+  // structure and contents of this data area is GC-specific.
+  // Only GC and GC barrier code should access this data area.
+  GCThreadLocalData _gc_data;
+
+ public:
+  static ByteSize gc_data_offset() {
+    return byte_offset_of(Thread, _gc_data);
+  }
+
+  template <typename T> T* gc_data() {
+    STATIC_ASSERT(sizeof(T) <= sizeof(_gc_data));
+    return reinterpret_cast<T*>(&_gc_data);
+  }
+
   // Exception handling
   // (Note: _pending_exception and friends are in ThreadShadow)
   //oop       _pending_exception;                // pending exception for current thread
@@ -118,6 +136,41 @@ class Thread: public ThreadShadow {
  protected:
   // Support for forcing alignment of thread objects for biased locking
   void*       _real_malloc_address;
+
+  // JavaThread lifecycle support:
+  friend class SafeThreadsListPtr;  // for _threads_list_ptr, cmpxchg_threads_hazard_ptr(), {dec_,inc_,}nested_threads_hazard_ptr_cnt(), {g,s}et_threads_hazard_ptr(), inc_nested_handle_cnt(), tag_hazard_ptr() access
+  friend class ScanHazardPtrGatherProtectedThreadsClosure;  // for cmpxchg_threads_hazard_ptr(), get_threads_hazard_ptr(), is_hazard_ptr_tagged() access
+  friend class ScanHazardPtrGatherThreadsListClosure;  // for get_threads_hazard_ptr(), untag_hazard_ptr() access
+  friend class ScanHazardPtrPrintMatchingThreadsClosure;  // for get_threads_hazard_ptr(), is_hazard_ptr_tagged() access
+  friend class ThreadsSMRSupport;  // for _nested_threads_hazard_ptr_cnt, _threads_hazard_ptr, _threads_list_ptr access
+
+  ThreadsList* volatile _threads_hazard_ptr;
+  SafeThreadsListPtr*   _threads_list_ptr;
+  ThreadsList*          cmpxchg_threads_hazard_ptr(ThreadsList* exchange_value, ThreadsList* compare_value);
+  ThreadsList*          get_threads_hazard_ptr();
+  void                  set_threads_hazard_ptr(ThreadsList* new_list);
+  static bool           is_hazard_ptr_tagged(ThreadsList* list) {
+    return (intptr_t(list) & intptr_t(1)) == intptr_t(1);
+  }
+  static ThreadsList*   tag_hazard_ptr(ThreadsList* list) {
+    return (ThreadsList*)(intptr_t(list) | intptr_t(1));
+  }
+  static ThreadsList*   untag_hazard_ptr(ThreadsList* list) {
+    return (ThreadsList*)(intptr_t(list) & ~intptr_t(1));
+  }
+  // This field is enabled via -XX:+EnableThreadSMRStatistics:
+  uint _nested_threads_hazard_ptr_cnt;
+  void dec_nested_threads_hazard_ptr_cnt() {
+    assert(_nested_threads_hazard_ptr_cnt != 0, "mismatched {dec,inc}_nested_threads_hazard_ptr_cnt()");
+    _nested_threads_hazard_ptr_cnt--;
+  }
+  void inc_nested_threads_hazard_ptr_cnt() {
+    _nested_threads_hazard_ptr_cnt++;
+  }
+  uint nested_threads_hazard_ptr_cnt() {
+    return _nested_threads_hazard_ptr_cnt;
+  }
+
  public:
   void* operator new(size_t size) throw() { return allocate(size, true); }
   void* operator new(size_t size, const std::nothrow_t& nothrow_constant) throw() {
@@ -247,6 +300,14 @@ class Thread: public ThreadShadow {
   // claimed as a task.
   int _oops_do_parity;
 
+  // Support for GlobalCounter
+ private:
+  volatile uintx _rcu_counter;
+ public:
+  volatile uintx* get_rcu_counter() {
+    return &_rcu_counter;
+  }
+
  public:
   void set_last_handle_mark(HandleMark* mark)   { _last_handle_mark = mark; }
   HandleMark* last_handle_mark() const          { return _last_handle_mark; }
@@ -278,9 +339,7 @@ class Thread: public ThreadShadow {
   jlong _allocated_bytes;                       // Cumulative number of bytes allocated on
                                                 // the Java heap
 
-  mutable TRACE_DATA _trace_data;               // Thread-local data for tracing
-
-  ThreadExt _ext;
+  JFR_ONLY(DEFINE_THREAD_LOCAL_FIELD_JFR;)      // Thread-local data for jfr
 
   int   _vm_operation_started_count;            // VM_Operation support
   int   _vm_operation_completed_count;          // VM_Operation support
@@ -322,7 +381,7 @@ class Thread: public ThreadShadow {
   void initialize_thread_current();
   void clear_thread_current(); // TLS cleanup needed before threads terminate
 
-  public:
+ public:
   // thread entry point
   virtual void run();
 
@@ -359,6 +418,9 @@ class Thread: public ThreadShadow {
   static inline Thread* current_or_null_safe();
 
   // Common thread operations
+#ifdef ASSERT
+  static void check_for_dangling_thread_pointer(Thread *thread);
+#endif
   static void set_priority(Thread* thread, ThreadPriority priority);
   static ThreadPriority get_priority(const Thread* const thread);
   static void start(Thread* thread);
@@ -455,12 +517,9 @@ class Thread: public ThreadShadow {
   void incr_allocated_bytes(jlong size) { _allocated_bytes += size; }
   inline jlong cooked_allocated_bytes();
 
-  TRACE_DEFINE_THREAD_TRACE_DATA_OFFSET;
-  TRACE_DATA* trace_data() const        { return &_trace_data; }
-  bool is_trace_suspend()               { return (_suspend_flags & _trace_flag) != 0; }
+  JFR_ONLY(DEFINE_THREAD_LOCAL_ACCESSOR_JFR;)
 
-  const ThreadExt& ext() const          { return _ext; }
-  ThreadExt& ext()                      { return _ext; }
+  bool is_trace_suspend()               { return (_suspend_flags & _trace_flag) != 0; }
 
   // VM operation support
   int vm_operation_ticket()                      { return ++_vm_operation_started_count; }
@@ -641,6 +700,8 @@ protected:
 
   static ByteSize allocated_bytes_offset()       { return byte_offset_of(Thread, _allocated_bytes); }
 
+  JFR_ONLY(DEFINE_THREAD_LOCAL_OFFSET_JFR;)
+
  public:
   volatile intptr_t _Stalled;
   volatile int _TypeTag;
@@ -798,6 +859,7 @@ class JavaThread: public Thread {
   friend class WhiteBox;
  private:
   JavaThread*    _next;                          // The next thread in the Threads list
+  bool           _on_thread_list;                // Is set when this JavaThread is added to the Threads list
   oop            _threadObj;                     // The Java level thread object
 
 #ifdef ASSERT
@@ -1014,20 +1076,6 @@ class JavaThread: public Thread {
   }   _jmp_ring[jump_ring_buffer_size];
 #endif // PRODUCT
 
-#if INCLUDE_ALL_GCS
-  // Support for G1 barriers
-
-  SATBMarkQueue _satb_mark_queue;        // Thread-local log for SATB barrier.
-  // Set of all such queues.
-  static SATBMarkQueueSet _satb_mark_queue_set;
-
-  DirtyCardQueue _dirty_card_queue;      // Thread-local log for dirty cards.
-  // Set of all such queues.
-  static DirtyCardQueueSet _dirty_card_queue_set;
-
-  void flush_barrier_queues();
-#endif // INCLUDE_ALL_GCS
-
   friend class VMThread;
   friend class ThreadWaitTransition;
   friend class VM_Exit;
@@ -1088,7 +1136,6 @@ class JavaThread: public Thread {
   // not specified, use the priority of the thread object. Threads_lock
   // must be held while this function is called.
   void prepare(jobject jni_thread, ThreadPriority prio=NoPriority);
-  void prepare_ext();
 
   void set_saved_exception_pc(address pc)        { _saved_exception_pc = pc; }
   address saved_exception_pc()                   { return _saved_exception_pc; }
@@ -1125,15 +1172,23 @@ class JavaThread: public Thread {
   void set_safepoint_state(ThreadSafepointState *state) { _safepoint_state = state; }
   bool is_at_poll_safepoint()                    { return _safepoint_state->is_at_poll_safepoint(); }
 
+  // JavaThread termination and lifecycle support:
+  void smr_delete();
+  bool on_thread_list() const { return _on_thread_list; }
+  void set_on_thread_list() { _on_thread_list = true; }
+
   // thread has called JavaThread::exit() or is terminated
-  bool is_exiting()                              { return _terminated == _thread_exiting || is_terminated(); }
+  bool is_exiting() const;
   // thread is terminated (no longer on the threads list); we compare
   // against the two non-terminated values so that a freed JavaThread
   // will also be considered terminated.
-  bool is_terminated()                           { return _terminated != _not_terminated && _terminated != _thread_exiting; }
-  void set_terminated(TerminatedTypes t)         { _terminated = t; }
+  bool check_is_terminated(TerminatedTypes l_terminated) const {
+    return l_terminated != _not_terminated && l_terminated != _thread_exiting;
+  }
+  bool is_terminated() const;
+  void set_terminated(TerminatedTypes t);
   // special for Threads::remove() which is static:
-  void set_terminated_value()                    { _terminated = _thread_terminated; }
+  void set_terminated_value();
   void block_if_vm_exited();
 
   bool doing_unsafe_access()                     { return _doing_unsafe_access; }
@@ -1219,6 +1274,9 @@ class JavaThread: public Thread {
   // other values in the code. Experiments with all calls can be done
   // via the appropriate -XX options.
   bool wait_for_ext_suspend_completion(int count, int delay, uint32_t *bits);
+
+  // test for suspend - most (all?) of these should go away
+  bool is_thread_fully_suspended(bool wait_for_suspend, uint32_t *bits);
 
   inline void set_external_suspend();
   inline void clear_external_suspend();
@@ -1617,11 +1675,6 @@ class JavaThread: public Thread {
     return byte_offset_of(JavaThread, _should_post_on_exceptions_flag);
   }
 
-#if INCLUDE_ALL_GCS
-  static ByteSize satb_mark_queue_offset()       { return byte_offset_of(JavaThread, _satb_mark_queue); }
-  static ByteSize dirty_card_queue_offset()      { return byte_offset_of(JavaThread, _dirty_card_queue); }
-#endif // INCLUDE_ALL_GCS
-
   // Returns the jni environment for this thread
   JNIEnv* jni_environment()                      { return &_jni_environment; }
 
@@ -1892,43 +1945,6 @@ class JavaThread: public Thread {
     _stack_size_at_create = value;
   }
 
-#if INCLUDE_ALL_GCS
-  // SATB marking queue support
-  SATBMarkQueue& satb_mark_queue() { return _satb_mark_queue; }
-  static SATBMarkQueueSet& satb_mark_queue_set() {
-    return _satb_mark_queue_set;
-  }
-
-  // Dirty card queue support
-  DirtyCardQueue& dirty_card_queue() { return _dirty_card_queue; }
-  static DirtyCardQueueSet& dirty_card_queue_set() {
-    return _dirty_card_queue_set;
-  }
-#endif // INCLUDE_ALL_GCS
-
-  // This method initializes the SATB and dirty card queues before a
-  // JavaThread is added to the Java thread list. Right now, we don't
-  // have to do anything to the dirty card queue (it should have been
-  // activated when the thread was created), but we have to activate
-  // the SATB queue if the thread is created while a marking cycle is
-  // in progress. The activation / de-activation of the SATB queues at
-  // the beginning / end of a marking cycle is done during safepoints
-  // so we have to make sure this method is called outside one to be
-  // able to safely read the active field of the SATB queue set. Right
-  // now, it is called just before the thread is added to the Java
-  // thread list in the Threads::add() method. That method is holding
-  // the Threads_lock which ensures we are outside a safepoint. We
-  // cannot do the obvious and set the active field of the SATB queue
-  // when the thread is created given that, in some cases, safepoints
-  // might happen between the JavaThread constructor being called and the
-  // thread being added to the Java thread list (an example of this is
-  // when the structure for the DestroyJavaVM thread is created).
-#if INCLUDE_ALL_GCS
-  void initialize_queues();
-#else  // INCLUDE_ALL_GCS
-  void initialize_queues() { }
-#endif // INCLUDE_ALL_GCS
-
   // Machine dependent stuff
 #include OS_CPU_HEADER(thread)
 
@@ -2002,19 +2018,21 @@ class CompilerThread : public JavaThread {
  private:
   CompilerCounters* _counters;
 
-  ciEnv*            _env;
-  CompileLog*       _log;
-  CompileTask*      _task;
-  CompileQueue*     _queue;
-  BufferBlob*       _buffer_blob;
+  ciEnv*                _env;
+  CompileLog*           _log;
+  CompileTask* volatile _task;  // print_threads_compiling can read this concurrently.
+  CompileQueue*         _queue;
+  BufferBlob*           _buffer_blob;
 
-  AbstractCompiler* _compiler;
+  AbstractCompiler*     _compiler;
+  TimeStamp             _idle_time;
 
  public:
 
   static CompilerThread* current();
 
   CompilerThread(CompileQueue* queue, CompilerCounters* counters);
+  ~CompilerThread();
 
   bool is_Compiler_thread() const                { return true; }
 
@@ -2042,6 +2060,11 @@ class CompilerThread : public JavaThread {
     // Set once, for good.
     assert(_log == NULL, "set only once");
     _log = log;
+  }
+
+  void start_idle_timer()                        { _idle_time.update(); }
+  jlong idle_time_millis() {
+    return TimeHelper::counter_to_millis(_idle_time.ticks_since_update());
   }
 
 #ifndef PRODUCT
@@ -2077,14 +2100,16 @@ class Threads: AllStatic {
 
   static void initialize_java_lang_classes(JavaThread* main_thread, TRAPS);
   static void initialize_jsr292_core_classes(TRAPS);
+
  public:
   // Thread management
   // force_daemon is a concession to JNI, where we may need to add a
   // thread to the thread list before allocating its thread object
   static void add(JavaThread* p, bool force_daemon = false);
   static void remove(JavaThread* p);
-  static bool includes(JavaThread* p);
-  static JavaThread* first()                     { return _thread_list; }
+  static void non_java_threads_do(ThreadClosure* tc);
+  static void java_threads_do(ThreadClosure* tc);
+  static void java_threads_and_vm_thread_do(ThreadClosure* tc);
   static void threads_do(ThreadClosure* tc);
   static void possibly_parallel_threads_do(bool is_par, ThreadClosure* tc);
 
@@ -2123,10 +2148,6 @@ class Threads: AllStatic {
   static void oops_do(OopClosure* f, CodeBlobClosure* cf);
   // This version may be called by sequential or parallel code.
   static void possibly_parallel_oops_do(bool is_par, OopClosure* f, CodeBlobClosure* cf);
-  // This creates a list of GCTasks, one per thread.
-  static void create_thread_roots_tasks(GCTaskQueue* q);
-  // This creates a list of GCTasks, one per thread, for marking objects.
-  static void create_thread_roots_marking_tasks(GCTaskQueue* q);
 
   // Apply "f->do_oop" to roots in all threads that
   // are part of compiled frames
@@ -2158,17 +2179,13 @@ class Threads: AllStatic {
                              int buflen, bool* found_current);
   static void print_threads_compiling(outputStream* st, char* buf, int buflen);
 
-  // Get Java threads that are waiting to enter a monitor. If doLock
-  // is true, then Threads_lock is grabbed as needed. Otherwise, the
-  // VM needs to be at a safepoint.
-  static GrowableArray<JavaThread*>* get_pending_threads(int count,
-                                                         address monitor, bool doLock);
+  // Get Java threads that are waiting to enter a monitor.
+  static GrowableArray<JavaThread*>* get_pending_threads(ThreadsList * t_list,
+                                                         int count, address monitor);
 
-  // Get owning Java thread from the monitor's owner field. If doLock
-  // is true, then Threads_lock is grabbed as needed. Otherwise, the
-  // VM needs to be at a safepoint.
-  static JavaThread *owning_thread_from_monitor_owner(address owner,
-                                                      bool doLock);
+  // Get owning Java thread from the monitor's owner field.
+  static JavaThread *owning_thread_from_monitor_owner(ThreadsList * t_list,
+                                                      address owner);
 
   // Number of threads on the active threads list
   static int number_of_threads()                 { return _number_of_threads; }
@@ -2177,9 +2194,6 @@ class Threads: AllStatic {
 
   // Deoptimizes all frames tied to marked nmethods
   static void deoptimized_wrt_marked_nmethods();
-
-  static JavaThread* find_java_thread_from_java_tid(jlong java_tid);
-
 };
 
 

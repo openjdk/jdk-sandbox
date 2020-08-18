@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #define SHARE_VM_SERVICES_MEMORYPOOL_HPP
 
 #include "memory/heap.hpp"
+#include "oops/oop.hpp"
 #include "services/memoryUsage.hpp"
 #include "utilities/macros.hpp"
 
@@ -37,12 +38,8 @@
 // both heap and non-heap memory.
 
 // Forward declaration
-class CompactibleFreeListSpace;
-class ContiguousSpace;
 class MemoryManager;
 class SensorInfo;
-class Generation;
-class DefNewGeneration;
 class ThresholdSupport;
 
 class MemoryPool : public CHeapObj<mtInternal> {
@@ -96,7 +93,7 @@ class MemoryPool : public CHeapObj<mtInternal> {
   // max size could be changed
   virtual size_t max_size()    const       { return _max_size; }
 
-  bool is_pool(instanceHandle pool) { return (pool() == _memory_pool_obj); }
+  bool is_pool(instanceHandle pool) { return oopDesc::equals(pool(), _memory_pool_obj); }
 
   bool available_for_allocation()   { return _available_for_allocation; }
   bool set_available_for_allocation(bool value) {
@@ -144,65 +141,9 @@ class MemoryPool : public CHeapObj<mtInternal> {
 
 class CollectedMemoryPool : public MemoryPool {
 public:
-  CollectedMemoryPool(const char* name, PoolType type, size_t init_size, size_t max_size, bool support_usage_threshold) :
-    MemoryPool(name, type, init_size, max_size, support_usage_threshold, true) {};
+  CollectedMemoryPool(const char* name, size_t init_size, size_t max_size, bool support_usage_threshold) :
+    MemoryPool(name, MemoryPool::Heap, init_size, max_size, support_usage_threshold, true) {};
   bool is_collected_pool()            { return true; }
-};
-
-class ContiguousSpacePool : public CollectedMemoryPool {
-private:
-  ContiguousSpace* _space;
-
-public:
-  ContiguousSpacePool(ContiguousSpace* space, const char* name, PoolType type, size_t max_size, bool support_usage_threshold);
-
-  ContiguousSpace* space()              { return _space; }
-  MemoryUsage get_memory_usage();
-  size_t used_in_bytes();
-};
-
-class SurvivorContiguousSpacePool : public CollectedMemoryPool {
-private:
-  DefNewGeneration* _young_gen;
-
-public:
-  SurvivorContiguousSpacePool(DefNewGeneration* young_gen,
-                              const char* name,
-                              PoolType type,
-                              size_t max_size,
-                              bool support_usage_threshold);
-
-  MemoryUsage get_memory_usage();
-
-  size_t used_in_bytes();
-  size_t committed_in_bytes();
-};
-
-#if INCLUDE_ALL_GCS
-class CompactibleFreeListSpacePool : public CollectedMemoryPool {
-private:
-  CompactibleFreeListSpace* _space;
-public:
-  CompactibleFreeListSpacePool(CompactibleFreeListSpace* space,
-                               const char* name,
-                               PoolType type,
-                               size_t max_size,
-                               bool support_usage_threshold);
-
-  MemoryUsage get_memory_usage();
-  size_t used_in_bytes();
-};
-#endif // INCLUDE_ALL_GCS
-
-
-class GenerationPool : public CollectedMemoryPool {
-private:
-  Generation* _gen;
-public:
-  GenerationPool(Generation* gen, const char* name, PoolType type, bool support_usage_threshold);
-
-  MemoryUsage get_memory_usage();
-  size_t used_in_bytes();
 };
 
 class CodeHeapPool: public MemoryPool {

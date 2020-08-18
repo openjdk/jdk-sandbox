@@ -26,9 +26,10 @@
 #define SHARE_VM_UTILITIES_GROWABLEARRAY_HPP
 
 #include "memory/allocation.hpp"
-#include "memory/allocation.inline.hpp"
+#include "oops/oop.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/ostream.hpp"
 
 // A growable array.
 
@@ -144,6 +145,8 @@ class GenericGrowableArray : public ResourceObj {
     assert(on_stack(), "fast ResourceObj path only");
     return (void*)resource_allocate_bytes(thread, elementSize * _max);
   }
+
+  void free_C_heap(void* elements);
 };
 
 template<class E> class GrowableArrayIterator;
@@ -208,6 +211,15 @@ template<class E> class GrowableArray : public GenericGrowableArray {
   DEBUG_ONLY(E* data_addr() const      { return _data; })
 
   void print();
+
+  inline static bool safe_equals(oop obj1, oop obj2) {
+    return oopDesc::equals(obj1, obj2);
+  }
+
+  template <class X>
+  inline static bool safe_equals(X i1, X i2) {
+    return i1 == i2;
+  }
 
   int append(const E& elem) {
     check_nesting();
@@ -293,7 +305,7 @@ template<class E> class GrowableArray : public GenericGrowableArray {
 
   bool contains(const E& elem) const {
     for (int i = 0; i < _len; i++) {
-      if (_data[i] == elem) return true;
+      if (safe_equals(_data[i], elem)) return true;
     }
     return false;
   }
@@ -451,7 +463,7 @@ template<class E> void GrowableArray<E>::grow(int j) {
     for (     ; i < _max; i++) ::new ((void*)&newData[i]) E();
     for (i = 0; i < old_max; i++) _data[i].~E();
     if (on_C_heap() && _data != NULL) {
-      FreeHeap(_data);
+      free_C_heap(_data);
     }
     _data = newData;
 }
@@ -475,7 +487,7 @@ template<class E> void GrowableArray<E>::clear_and_deallocate() {
     clear();
     if (_data != NULL) {
       for (int i = 0; i < _max; i++) _data[i].~E();
-      FreeHeap(_data);
+      free_C_heap(_data);
       _data = NULL;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,13 +26,14 @@
 #include "jvm.h"
 #include "classfile/vmSymbols.hpp"
 #include "logging/log.hpp"
+#include "memory/allocation.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
-#include "runtime/perfData.hpp"
+#include "runtime/perfData.inline.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -172,7 +173,7 @@ void PerfData::create_entry(BasicType dtype, size_t dsize, size_t vlen) {
                                 " units = %d, dsize = " SIZE_FORMAT ", vlen = " SIZE_FORMAT ","
                                 " pad_length = " SIZE_FORMAT ", size = " SIZE_FORMAT ", on_c_heap = %s,"
                                 " address = " INTPTR_FORMAT ","
-                                " data address = " INTPTR_FORMAT "\n",
+                                " data address = " INTPTR_FORMAT,
                                 cname, dtype, variability(),
                                 units(), dsize, vlen,
                                 pad_length, size, is_on_c_heap() ? "TRUE":"FALSE",
@@ -610,4 +611,11 @@ PerfDataList* PerfDataList::clone() {
   assert(copy != NULL, "just checking");
 
   return copy;
+}
+
+PerfTraceTime::~PerfTraceTime() {
+  if (!UsePerfData || (_recursion_counter != NULL &&
+      --(*_recursion_counter) > 0)) return;
+  _t.stop();
+  _timerp->inc(_t.ticks());
 }

@@ -200,7 +200,7 @@ public class DeferredAttr extends JCTree.Visitor {
         public JCExpression tree;
         Env<AttrContext> env;
         AttrMode mode;
-        boolean pertinentToApplicability = true;
+        Set<Symbol> notPertinentToApplicability = new HashSet<>();
         SpeculativeCache speculativeCache;
 
         DeferredType(JCExpression tree, Env<AttrContext> env) {
@@ -319,7 +319,7 @@ public class DeferredAttr extends JCTree.Visitor {
                     resultInfo.checkContext.deferredAttrContext();
             Assert.check(deferredAttrContext != emptyDeferredAttrContext);
             if (deferredStuckPolicy.isStuck()) {
-                pertinentToApplicability = false;
+                notPertinentToApplicability.add(deferredAttrContext.msym);
                 deferredAttrContext.addDeferredAttrNode(this, resultInfo, deferredStuckPolicy);
                 return Type.noType;
             } else {
@@ -441,7 +441,7 @@ public class DeferredAttr extends JCTree.Visitor {
         } else {
             stats.add((JCBlock)that.body);
         }
-        JCBlock lambdaBlock = make.Block(0, stats.toList());
+        JCBlock lambdaBlock = make.at(that.pos).Block(0, stats.toList());
         Env<AttrContext> localEnv = attr.lambdaEnv(that, env);
         try {
             localEnv.info.returnResult = resultInfo;

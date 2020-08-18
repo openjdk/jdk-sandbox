@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import jdk.vm.ci.hotspot.HotSpotConstantPool;
+import jdk.vm.ci.hotspot.HotSpotResolvedObjectType;
 import jdk.vm.ci.meta.MetaAccessProvider;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaType;
@@ -43,7 +45,7 @@ import org.graalvm.compiler.graph.Node.NodeIntrinsic;
 import org.graalvm.compiler.hotspot.replacements.HotSpotClassSubstitutions;
 import org.graalvm.compiler.hotspot.word.MetaspacePointer;
 import org.graalvm.compiler.replacements.Snippets;
-import org.graalvm.word.WordBase;
+import jdk.internal.vm.compiler.word.WordBase;
 
 final class GraalFilters {
     private List<ResolvedJavaType> specialClasses;
@@ -85,6 +87,10 @@ final class GraalFilters {
 
     boolean shouldCompileAnyMethodInClass(ResolvedJavaType klass) {
         if (specialClasses.stream().filter(s -> s.isAssignableFrom(klass)).findAny().isPresent()) {
+            return false;
+        }
+        // Skip klass with Condy until Graal is fixed.
+        if (((HotSpotConstantPool)((HotSpotResolvedObjectType) klass).getConstantPool()).hasDynamicConstant()) {
             return false;
         }
         return true;

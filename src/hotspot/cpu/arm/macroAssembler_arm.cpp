@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,24 +29,22 @@
 #include "ci/ciEnv.hpp"
 #include "code/nativeInst.hpp"
 #include "compiler/disassembler.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/cardTable.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/klass.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#include "gc/g1/heapRegion.hpp"
-#endif
 
 // Implementation of AddressLiteral
 
@@ -1316,98 +1314,6 @@ void MacroAssembler::tlab_allocate(Register obj, Register obj_end, Register tmp1
   str(obj_end, Address(Rthread, JavaThread::tlab_top_offset()));
 }
 
-void MacroAssembler::tlab_refill(Register top, Register tmp1, Register tmp2,
-                                 Register tmp3, Register tmp4,
-                               Label& try_eden, Label& slow_case) {
-  if (!Universe::heap()->supports_inline_contig_alloc()) {
-    b(slow_case);
-    return;
-  }
-
-  InlinedAddress intArrayKlass_addr((address)Universe::intArrayKlassObj_addr());
-  Label discard_tlab, do_refill;
-  ldr(top,  Address(Rthread, JavaThread::tlab_top_offset()));
-  ldr(tmp1, Address(Rthread, JavaThread::tlab_end_offset()));
-  ldr(tmp2, Address(Rthread, JavaThread::tlab_refill_waste_limit_offset()));
-
-  // Calculate amount of free space
-  sub(tmp1, tmp1, top);
-  // Retain tlab and allocate in shared space
-  // if the amount of free space in tlab is too large to discard
-  cmp(tmp2, AsmOperand(tmp1, lsr, LogHeapWordSize));
-  b(discard_tlab, ge);
-
-  // Increment waste limit to prevent getting stuck on this slow path
-  mov_slow(tmp3, ThreadLocalAllocBuffer::refill_waste_limit_increment());
-  add(tmp2, tmp2, tmp3);
-  str(tmp2, Address(Rthread, JavaThread::tlab_refill_waste_limit_offset()));
-  if (TLABStats) {
-    ldr_u32(tmp2, Address(Rthread, JavaThread::tlab_slow_allocations_offset()));
-    add_32(tmp2, tmp2, 1);
-    str_32(tmp2, Address(Rthread, JavaThread::tlab_slow_allocations_offset()));
-  }
-  b(try_eden);
-  bind_literal(intArrayKlass_addr);
-
-  bind(discard_tlab);
-  if (TLABStats) {
-    ldr_u32(tmp2, Address(Rthread, JavaThread::tlab_number_of_refills_offset()));
-    ldr_u32(tmp3, Address(Rthread, JavaThread::tlab_fast_refill_waste_offset()));
-    add_32(tmp2, tmp2, 1);
-    add_32(tmp3, tmp3, AsmOperand(tmp1, lsr, LogHeapWordSize));
-    str_32(tmp2, Address(Rthread, JavaThread::tlab_number_of_refills_offset()));
-    str_32(tmp3, Address(Rthread, JavaThread::tlab_fast_refill_waste_offset()));
-  }
-  // If tlab is currently allocated (top or end != null)
-  // then fill [top, end + alignment_reserve) with array object
-  cbz(top, do_refill);
-
-  // Set up the mark word
-  mov_slow(tmp2, (intptr_t)markOopDesc::prototype()->copy_set_hash(0x2));
-  str(tmp2, Address(top, oopDesc::mark_offset_in_bytes()));
-  // Set klass to intArrayKlass and the length to the remaining space
-  ldr_literal(tmp2, intArrayKlass_addr);
-  add(tmp1, tmp1, ThreadLocalAllocBuffer::alignment_reserve_in_bytes() -
-      typeArrayOopDesc::header_size(T_INT) * HeapWordSize);
-  Register klass = tmp2;
-  ldr(klass, Address(tmp2));
-  logical_shift_right(tmp1, tmp1, LogBytesPerInt); // divide by sizeof(jint)
-  str_32(tmp1, Address(top, arrayOopDesc::length_offset_in_bytes()));
-  store_klass(klass, top); // blows klass:
-  klass = noreg;
-
-  ldr(tmp1, Address(Rthread, JavaThread::tlab_start_offset()));
-  sub(tmp1, top, tmp1); // size of tlab's allocated portion
-  incr_allocated_bytes(tmp1, tmp2);
-
-  bind(do_refill);
-  // Refill the tlab with an eden allocation
-  ldr(tmp1, Address(Rthread, JavaThread::tlab_size_offset()));
-  logical_shift_left(tmp4, tmp1, LogHeapWordSize);
-  eden_allocate(top, tmp1, tmp2, tmp3, tmp4, slow_case);
-  str(top, Address(Rthread, JavaThread::tlab_start_offset()));
-  str(top, Address(Rthread, JavaThread::tlab_top_offset()));
-
-#ifdef ASSERT
-  // Verify that tmp1 contains tlab_end
-  ldr(tmp2, Address(Rthread, JavaThread::tlab_size_offset()));
-  add(tmp2, top, AsmOperand(tmp2, lsl, LogHeapWordSize));
-  cmp(tmp1, tmp2);
-  breakpoint(ne);
-#endif
-
-  sub(tmp1, tmp1, ThreadLocalAllocBuffer::alignment_reserve_in_bytes());
-  str(tmp1, Address(Rthread, JavaThread::tlab_end_offset()));
-
-  if (ZeroTLAB) {
-    // clobbers start and tmp
-    // top must be preserved!
-    add(tmp1, tmp1, ThreadLocalAllocBuffer::alignment_reserve_in_bytes());
-    ldr(tmp2, Address(Rthread, JavaThread::tlab_start_offset()));
-    zero_memory(tmp2, tmp1, tmp3);
-  }
-}
-
 // Fills memory regions [start..end] with zeroes. Clobbers `start` and `tmp` registers.
 void MacroAssembler::zero_memory(Register start, Register end, Register tmp) {
   Label loop;
@@ -2220,207 +2126,19 @@ void MacroAssembler::resolve_jobject(Register value,
   cbz(value, done);             // Use NULL as-is.
   STATIC_ASSERT(JNIHandles::weak_tag_mask == 1u);
   tbz(value, 0, not_weak);      // Test for jweak tag.
+
   // Resolve jweak.
-  ldr(value, Address(value, -JNIHandles::weak_tag_value));
-  verify_oop(value);
-#if INCLUDE_ALL_GCS
-  if (UseG1GC) {
-    g1_write_barrier_pre(noreg, // store_addr
-                         noreg, // new_val
-                         value, // pre_val
-                         tmp1,  // tmp1
-                         tmp2); // tmp2
-    }
-#endif // INCLUDE_ALL_GCS
+  access_load_at(T_OBJECT, IN_ROOT | ON_PHANTOM_OOP_REF,
+                 Address(value, -JNIHandles::weak_tag_value), value, tmp1, tmp2, noreg);
   b(done);
   bind(not_weak);
   // Resolve (untagged) jobject.
-  ldr(value, Address(value));
+  access_load_at(T_OBJECT, IN_ROOT | IN_CONCURRENT_ROOT,
+                 Address(value, 0), value, tmp1, tmp2, noreg);
   verify_oop(value);
   bind(done);
 }
 
-
-//////////////////////////////////////////////////////////////////////////////////
-
-#if INCLUDE_ALL_GCS
-
-// G1 pre-barrier.
-// Blows all volatile registers (R0-R3 on 32-bit ARM, R0-R18 on AArch64, Rtemp, LR).
-// If store_addr != noreg, then previous value is loaded from [store_addr];
-// in such case store_addr and new_val registers are preserved;
-// otherwise pre_val register is preserved.
-void MacroAssembler::g1_write_barrier_pre(Register store_addr,
-                                          Register new_val,
-                                          Register pre_val,
-                                          Register tmp1,
-                                          Register tmp2) {
-  Label done;
-  Label runtime;
-
-  if (store_addr != noreg) {
-    assert_different_registers(store_addr, new_val, pre_val, tmp1, tmp2, noreg);
-  } else {
-    assert (new_val == noreg, "should be");
-    assert_different_registers(pre_val, tmp1, tmp2, noreg);
-  }
-
-  Address in_progress(Rthread, in_bytes(JavaThread::satb_mark_queue_offset() +
-                                        SATBMarkQueue::byte_offset_of_active()));
-  Address index(Rthread, in_bytes(JavaThread::satb_mark_queue_offset() +
-                                  SATBMarkQueue::byte_offset_of_index()));
-  Address buffer(Rthread, in_bytes(JavaThread::satb_mark_queue_offset() +
-                                   SATBMarkQueue::byte_offset_of_buf()));
-
-  // Is marking active?
-  assert(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "adjust this code");
-  ldrb(tmp1, in_progress);
-  cbz(tmp1, done);
-
-  // Do we need to load the previous value?
-  if (store_addr != noreg) {
-    load_heap_oop(pre_val, Address(store_addr, 0));
-  }
-
-  // Is the previous value null?
-  cbz(pre_val, done);
-
-  // Can we store original value in the thread's buffer?
-  // Is index == 0?
-  // (The index field is typed as size_t.)
-
-  ldr(tmp1, index);           // tmp1 := *index_adr
-  ldr(tmp2, buffer);
-
-  subs(tmp1, tmp1, wordSize); // tmp1 := tmp1 - wordSize
-  b(runtime, lt);             // If negative, goto runtime
-
-  str(tmp1, index);           // *index_adr := tmp1
-
-  // Record the previous value
-  str(pre_val, Address(tmp2, tmp1));
-  b(done);
-
-  bind(runtime);
-
-  // save the live input values
-#ifdef AARCH64
-  if (store_addr != noreg) {
-    raw_push(store_addr, new_val);
-  } else {
-    raw_push(pre_val, ZR);
-  }
-#else
-  if (store_addr != noreg) {
-    // avoid raw_push to support any ordering of store_addr and new_val
-    push(RegisterSet(store_addr) | RegisterSet(new_val));
-  } else {
-    push(pre_val);
-  }
-#endif // AARCH64
-
-  if (pre_val != R0) {
-    mov(R0, pre_val);
-  }
-  mov(R1, Rthread);
-
-  call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_pre), R0, R1);
-
-#ifdef AARCH64
-  if (store_addr != noreg) {
-    raw_pop(store_addr, new_val);
-  } else {
-    raw_pop(pre_val, ZR);
-  }
-#else
-  if (store_addr != noreg) {
-    pop(RegisterSet(store_addr) | RegisterSet(new_val));
-  } else {
-    pop(pre_val);
-  }
-#endif // AARCH64
-
-  bind(done);
-}
-
-// G1 post-barrier.
-// Blows all volatile registers (R0-R3 on 32-bit ARM, R0-R18 on AArch64, Rtemp, LR).
-void MacroAssembler::g1_write_barrier_post(Register store_addr,
-                                           Register new_val,
-                                           Register tmp1,
-                                           Register tmp2,
-                                           Register tmp3) {
-
-  Address queue_index(Rthread, in_bytes(JavaThread::dirty_card_queue_offset() +
-                                        DirtyCardQueue::byte_offset_of_index()));
-  Address buffer(Rthread, in_bytes(JavaThread::dirty_card_queue_offset() +
-                                   DirtyCardQueue::byte_offset_of_buf()));
-
-  BarrierSet* bs = Universe::heap()->barrier_set();
-  CardTableModRefBS* ct = (CardTableModRefBS*)bs;
-  Label done;
-  Label runtime;
-
-  // Does store cross heap regions?
-
-  eor(tmp1, store_addr, new_val);
-#ifdef AARCH64
-  logical_shift_right(tmp1, tmp1, HeapRegion::LogOfHRGrainBytes);
-  cbz(tmp1, done);
-#else
-  movs(tmp1, AsmOperand(tmp1, lsr, HeapRegion::LogOfHRGrainBytes));
-  b(done, eq);
-#endif
-
-  // crosses regions, storing NULL?
-
-  cbz(new_val, done);
-
-  // storing region crossing non-NULL, is card already dirty?
-  const Register card_addr = tmp1;
-  assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust this code");
-
-  mov_address(tmp2, (address)ct->byte_map_base, symbolic_Relocation::card_table_reference);
-  add(card_addr, tmp2, AsmOperand(store_addr, lsr, CardTableModRefBS::card_shift));
-
-  ldrb(tmp2, Address(card_addr));
-  cmp(tmp2, (int)G1SATBCardTableModRefBS::g1_young_card_val());
-  b(done, eq);
-
-  membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreLoad), tmp2);
-
-  assert(CardTableModRefBS::dirty_card_val() == 0, "adjust this code");
-  ldrb(tmp2, Address(card_addr));
-  cbz(tmp2, done);
-
-  // storing a region crossing, non-NULL oop, card is clean.
-  // dirty card and log.
-
-  strb(zero_register(tmp2), Address(card_addr));
-
-  ldr(tmp2, queue_index);
-  ldr(tmp3, buffer);
-
-  subs(tmp2, tmp2, wordSize);
-  b(runtime, lt); // go to runtime if now negative
-
-  str(tmp2, queue_index);
-
-  str(card_addr, Address(tmp3, tmp2));
-  b(done);
-
-  bind(runtime);
-
-  if (card_addr != R0) {
-    mov(R0, card_addr);
-  }
-  mov(R1, Rthread);
-  call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_post), R0, R1);
-
-  bind(done);
-}
-
-#endif // INCLUDE_ALL_GCS
 
 //////////////////////////////////////////////////////////////////////////////////
 
@@ -2475,49 +2193,65 @@ void MacroAssembler::store_sized_value(Register src, Address dst, size_t size_in
 // On success, the result will be in method_result, and execution falls through.
 // On failure, execution transfers to the given label.
 void MacroAssembler::lookup_interface_method(Register Rklass,
-                                             Register Rinterf,
-                                             Register Rindex,
+                                             Register Rintf,
+                                             RegisterOrConstant itable_index,
                                              Register method_result,
-                                             Register temp_reg1,
-                                             Register temp_reg2,
+                                             Register Rscan,
+                                             Register Rtmp,
                                              Label& L_no_such_interface) {
 
-  assert_different_registers(Rklass, Rinterf, temp_reg1, temp_reg2, Rindex);
+  assert_different_registers(Rklass, Rintf, Rscan, Rtmp);
 
-  Register Ritable = temp_reg1;
+  const int entry_size = itableOffsetEntry::size() * HeapWordSize;
+  assert(itableOffsetEntry::interface_offset_in_bytes() == 0, "not added for convenience");
 
   // Compute start of first itableOffsetEntry (which is at the end of the vtable)
   const int base = in_bytes(Klass::vtable_start_offset());
   const int scale = exact_log2(vtableEntry::size_in_bytes());
-  ldr_s32(temp_reg2, Address(Rklass, Klass::vtable_length_offset())); // Get length of vtable
-  add(Ritable, Rklass, base);
-  add(Ritable, Ritable, AsmOperand(temp_reg2, lsl, scale));
+  ldr_s32(Rtmp, Address(Rklass, Klass::vtable_length_offset())); // Get length of vtable
+  add(Rscan, Rklass, base);
+  add(Rscan, Rscan, AsmOperand(Rtmp, lsl, scale));
 
-  Label entry, search;
+  // Search through the itable for an interface equal to incoming Rintf
+  // itable looks like [intface][offset][intface][offset][intface][offset]
 
-  b(entry);
+  Label loop;
+  bind(loop);
+  ldr(Rtmp, Address(Rscan, entry_size, post_indexed));
+#ifdef AARCH64
+  Label found;
+  cmp(Rtmp, Rintf);
+  b(found, eq);
+  cbnz(Rtmp, loop);
+#else
+  cmp(Rtmp, Rintf);  // set ZF and CF if interface is found
+  cmn(Rtmp, 0, ne);  // check if tmp == 0 and clear CF if it is
+  b(loop, ne);
+#endif // AARCH64
 
-  bind(search);
-  add(Ritable, Ritable, itableOffsetEntry::size() * HeapWordSize);
+#ifdef AARCH64
+  b(L_no_such_interface);
+  bind(found);
+#else
+  // CF == 0 means we reached the end of itable without finding icklass
+  b(L_no_such_interface, cc);
+#endif // !AARCH64
 
-  bind(entry);
-
-  // Check that the entry is non-null.  A null entry means that the receiver
-  // class doesn't implement the interface, and wasn't the same as the
-  // receiver class checked when the interface was resolved.
-
-  ldr(temp_reg2, Address(Ritable, itableOffsetEntry::interface_offset_in_bytes()));
-  cbz(temp_reg2, L_no_such_interface);
-
-  cmp(Rinterf, temp_reg2);
-  b(search, ne);
-
-  ldr_s32(temp_reg2, Address(Ritable, itableOffsetEntry::offset_offset_in_bytes()));
-  add(temp_reg2, temp_reg2, Rklass); // Add offset to Klass*
-  assert(itableMethodEntry::size() * HeapWordSize == wordSize, "adjust the scaling in the code below");
-  assert(itableMethodEntry::method_offset_in_bytes() == 0, "adjust the offset in the code below");
-
-  ldr(method_result, Address::indexed_ptr(temp_reg2, Rindex));
+  if (method_result != noreg) {
+    // Interface found at previous position of Rscan, now load the method
+    ldr_s32(Rtmp, Address(Rscan, itableOffsetEntry::offset_offset_in_bytes() - entry_size));
+    if (itable_index.is_register()) {
+      add(Rtmp, Rtmp, Rklass); // Add offset to Klass*
+      assert(itableMethodEntry::size() * HeapWordSize == wordSize, "adjust the scaling in the code below");
+      assert(itableMethodEntry::method_offset_in_bytes() == 0, "adjust the offset in the code below");
+      ldr(method_result, Address::indexed_ptr(Rtmp, itable_index.as_register()));
+    } else {
+      int method_offset = itableMethodEntry::size() * HeapWordSize * itable_index.as_constant() +
+                          itableMethodEntry::method_offset_in_bytes();
+      add_slow(method_result, Rklass, method_offset);
+      ldr(method_result, Address(method_result, Rtmp));
+    }
+  }
 }
 
 #ifdef COMPILER2
@@ -2950,38 +2684,39 @@ void MacroAssembler::store_klass_gap(Register dst) {
 #endif // AARCH64
 
 
-void MacroAssembler::load_heap_oop(Register dst, Address src) {
-#ifdef AARCH64
-  if (UseCompressedOops) {
-    ldr_w(dst, src);
-    decode_heap_oop(dst);
-    return;
-  }
-#endif // AARCH64
-  ldr(dst, src);
+void MacroAssembler::load_heap_oop(Register dst, Address src, Register tmp1, Register tmp2, Register tmp3, DecoratorSet decorators) {
+  access_load_at(T_OBJECT, IN_HEAP | decorators, src, dst, tmp1, tmp2, tmp3);
 }
 
 // Blows src and flags.
-void MacroAssembler::store_heap_oop(Register src, Address dst) {
-#ifdef AARCH64
-  if (UseCompressedOops) {
-    assert(!dst.uses(src), "not enough registers");
-    encode_heap_oop(src);
-    str_w(src, dst);
-    return;
-  }
-#endif // AARCH64
-  str(src, dst);
+void MacroAssembler::store_heap_oop(Address obj, Register new_val, Register tmp1, Register tmp2, Register tmp3, DecoratorSet decorators) {
+  access_store_at(T_OBJECT, IN_HEAP | decorators, obj, new_val, tmp1, tmp2, tmp3, false);
 }
 
-void MacroAssembler::store_heap_oop_null(Register src, Address dst) {
-#ifdef AARCH64
-  if (UseCompressedOops) {
-    str_w(src, dst);
-    return;
+void MacroAssembler::store_heap_oop_null(Address obj, Register new_val, Register tmp1, Register tmp2, Register tmp3, DecoratorSet decorators) {
+  access_store_at(T_OBJECT, IN_HEAP, obj, new_val, tmp1, tmp2, tmp3, true);
+}
+
+void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators,
+                                    Address src, Register dst, Register tmp1, Register tmp2, Register tmp3) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bool as_raw = (decorators & AS_RAW) != 0;
+  if (as_raw) {
+    bs->BarrierSetAssembler::load_at(this, decorators, type, dst, src, tmp1, tmp2, tmp3);
+  } else {
+    bs->load_at(this, decorators, type, dst, src, tmp1, tmp2, tmp3);
   }
-#endif // AARCH64
-  str(src, dst);
+}
+
+void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators,
+                                     Address obj, Register new_val, Register tmp1, Register tmp2, Register tmp3, bool is_null) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bool as_raw = (decorators & AS_RAW) != 0;
+  if (as_raw) {
+    bs->BarrierSetAssembler::store_at(this, decorators, type, obj, new_val, tmp1, tmp2, tmp3, is_null);
+  } else {
+    bs->store_at(this, decorators, type, obj, new_val, tmp1, tmp2, tmp3, is_null);
+  }
 }
 
 
@@ -3099,7 +2834,6 @@ void MacroAssembler::set_narrow_oop(Register dst, jobject obj) {
 }
 
 #endif // COMPILER2
-
 // Must preserve condition codes, or C2 encodeKlass_not_null rule
 // must be changed.
 void MacroAssembler::encode_klass_not_null(Register r) {
@@ -3337,4 +3071,3 @@ void MacroAssembler::fast_unlock(Register Roop, Register Rbox, Register Rscratch
 
 }
 #endif // COMPILER2
-

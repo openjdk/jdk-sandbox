@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/compiledICHolder.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/vframeArray.hpp"
 #include "utilities/align.hpp"
@@ -559,7 +560,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   __ ldr(rscratch1, Address(rmethod, in_bytes(Method::from_compiled_offset())));
 
 #if INCLUDE_JVMCI
-  if (EnableJVMCI) {
+  if (EnableJVMCI || UseAOT) {
     // check if this call should be routed towards a specific entry point
     __ ldr(rscratch2, Address(rthread, in_bytes(JavaThread::jvmci_alternate_call_target_offset())));
     Label no_alternative_target;
@@ -774,7 +775,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     __ load_klass(rscratch1, receiver);
     __ ldr(tmp, Address(holder, CompiledICHolder::holder_klass_offset()));
     __ cmp(rscratch1, tmp);
-    __ ldr(rmethod, Address(holder, CompiledICHolder::holder_method_offset()));
+    __ ldr(rmethod, Address(holder, CompiledICHolder::holder_metadata_offset()));
     __ br(Assembler::EQ, ok);
     __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
 
@@ -1664,7 +1665,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // critical natives they are offset down.
   GrowableArray<int> arg_order(2 * total_in_args);
   VMRegPair tmp_vmreg;
-  tmp_vmreg.set1(r19->as_VMReg());
+  tmp_vmreg.set2(r19->as_VMReg());
 
   if (!is_critical_native) {
     for (int i = total_in_args - 1, c_arg = total_c_args - 1; i >= 0; i--, c_arg--) {
@@ -1952,7 +1953,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
       __ strw(rscratch1, Address(rthread, JavaThread::thread_state_offset()));
 
       // Force this write out before the read below
-      __ dmb(Assembler::SY);
+      __ dmb(Assembler::ISH);
     } else {
       __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
       __ stlrw(rscratch1, rscratch2);
@@ -1970,13 +1971,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // check for safepoint operation in progress and/or pending suspend requests
   Label safepoint_in_progress, safepoint_in_progress_done;
   {
-    assert(SafepointSynchronize::_not_synchronized == 0, "fix this code");
-    unsigned long offset;
-    __ adrp(rscratch1,
-            ExternalAddress((address)SafepointSynchronize::address_of_state()),
-            offset);
-    __ ldrw(rscratch1, Address(rscratch1, offset));
-    __ cbnzw(rscratch1, safepoint_in_progress);
+    __ safepoint_poll_acquire(safepoint_in_progress);
     __ ldrw(rscratch1, Address(rthread, JavaThread::suspend_flags_offset()));
     __ cbnzw(rscratch1, safepoint_in_progress);
     __ bind(safepoint_in_progress_done);
@@ -2055,29 +2050,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   // Unbox oop result, e.g. JNIHandles::resolve result.
   if (ret_type == T_OBJECT || ret_type == T_ARRAY) {
-    Label done, not_weak;
-    __ cbz(r0, done);           // Use NULL as-is.
-    STATIC_ASSERT(JNIHandles::weak_tag_mask == 1u);
-    __ tbz(r0, 0, not_weak);    // Test for jweak tag.
-    // Resolve jweak.
-    __ ldr(r0, Address(r0, -JNIHandles::weak_tag_value));
-    __ verify_oop(r0);
-#if INCLUDE_ALL_GCS
-    if (UseG1GC) {
-      __ g1_write_barrier_pre(noreg /* obj */,
-                              r0 /* pre_val */,
-                              rthread /* thread */,
-                              rscratch2 /* tmp */,
-                              true /* tosca_live */,
-                              true /* expand_call */);
-    }
-#endif // INCLUDE_ALL_GCS
-    __ b(done);
-    __ bind(not_weak);
-    // Resolve (untagged) jobject.
-    __ ldr(r0, Address(r0, 0));
-    __ verify_oop(r0);
-    __ bind(done);
+    __ resolve_jobject(r0, rthread, rscratch2);
   }
 
   if (CheckJNICalls) {
@@ -2305,7 +2278,7 @@ void SharedRuntime::generate_deopt_blob() {
   // Setup code generation tools
   int pad = 0;
 #if INCLUDE_JVMCI
-  if (EnableJVMCI) {
+  if (EnableJVMCI || UseAOT) {
     pad += 512; // Increase the buffer size when compiling for JVMCI
   }
 #endif
@@ -2366,7 +2339,7 @@ void SharedRuntime::generate_deopt_blob() {
   __ b(cont);
 
   int reexecute_offset = __ pc() - start;
-#if defined(INCLUDE_JVMCI) && !defined(COMPILER1)
+#if INCLUDE_JVMCI && !defined(COMPILER1)
   if (EnableJVMCI && UseJVMCICompiler) {
     // JVMCI does not use this kind of deoptimization
     __ should_not_reach_here();
@@ -2387,7 +2360,7 @@ void SharedRuntime::generate_deopt_blob() {
   int implicit_exception_uncommon_trap_offset = 0;
   int uncommon_trap_offset = 0;
 
-  if (EnableJVMCI) {
+  if (EnableJVMCI || UseAOT) {
     implicit_exception_uncommon_trap_offset = __ pc() - start;
 
     __ ldr(lr, Address(rthread, in_bytes(JavaThread::jvmci_implicit_exception_pc_offset())));
@@ -2513,7 +2486,7 @@ void SharedRuntime::generate_deopt_blob() {
   __ reset_last_Java_frame(false);
 
 #if INCLUDE_JVMCI
-  if (EnableJVMCI) {
+  if (EnableJVMCI || UseAOT) {
     __ bind(after_fetch_unroll_info_call);
   }
 #endif
@@ -2671,7 +2644,7 @@ void SharedRuntime::generate_deopt_blob() {
   _deopt_blob = DeoptimizationBlob::create(&buffer, oop_maps, 0, exception_offset, reexecute_offset, frame_size_in_words);
   _deopt_blob->set_unpack_with_exception_in_tls_offset(exception_in_tls_offset);
 #if INCLUDE_JVMCI
-  if (EnableJVMCI) {
+  if (EnableJVMCI || UseAOT) {
     _deopt_blob->set_uncommon_trap_offset(uncommon_trap_offset);
     _deopt_blob->set_implicit_exception_uncommon_trap_offset(implicit_exception_uncommon_trap_offset);
   }
@@ -2932,8 +2905,11 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
 
   if (!cause_return) {
     // overwrite the return address pushed by save_live_registers
-    __ ldr(c_rarg0, Address(rthread, JavaThread::saved_exception_pc_offset()));
-    __ str(c_rarg0, Address(rfp, wordSize));
+    // Additionally, r20 is a callee-saved register so we can look at
+    // it later to determine if someone changed the return address for
+    // us!
+    __ ldr(r20, Address(rthread, JavaThread::saved_exception_pc_offset()));
+    __ str(r20, Address(rfp, wordSize));
   }
 
   // Do the call
@@ -2968,10 +2944,39 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   // No exception case
   __ bind(noException);
 
+  Label no_adjust, bail;
+  if (SafepointMechanism::uses_thread_local_poll() && !cause_return) {
+    // If our stashed return pc was modified by the runtime we avoid touching it
+    __ ldr(rscratch1, Address(rfp, wordSize));
+    __ cmp(r20, rscratch1);
+    __ br(Assembler::NE, no_adjust);
+
+#ifdef ASSERT
+    // Verify the correct encoding of the poll we're about to skip.
+    // See NativeInstruction::is_ldrw_to_zr()
+    __ ldrw(rscratch1, Address(r20));
+    __ ubfx(rscratch2, rscratch1, 22, 10);
+    __ cmpw(rscratch2, 0b1011100101);
+    __ br(Assembler::NE, bail);
+    __ ubfx(rscratch2, rscratch1, 0, 5);
+    __ cmpw(rscratch2, 0b11111);
+    __ br(Assembler::NE, bail);
+#endif
+    // Adjust return pc forward to step over the safepoint poll instruction
+    __ add(r20, r20, NativeInstruction::instruction_size);
+    __ str(r20, Address(rfp, wordSize));
+  }
+
+  __ bind(no_adjust);
   // Normal exit, restore registers and exit.
   RegisterSaver::restore_live_registers(masm, save_vectors);
 
   __ ret(lr);
+
+#ifdef ASSERT
+  __ bind(bail);
+  __ stop("Attempting to adjust pc to skip safepoint poll but the return point is not what we expected");
+#endif
 
   // Make sure all code is generated
   masm->flush();
