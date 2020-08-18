@@ -126,6 +126,7 @@ enum {
   IS_FIELD             = java_lang_invoke_MemberName::MN_IS_FIELD,
   IS_TYPE              = java_lang_invoke_MemberName::MN_IS_TYPE,
   CALLER_SENSITIVE     = java_lang_invoke_MemberName::MN_CALLER_SENSITIVE,
+  TRUSTED_FINAL        = java_lang_invoke_MemberName::MN_TRUSTED_FINAL,
   REFERENCE_KIND_SHIFT = java_lang_invoke_MemberName::MN_REFERENCE_KIND_SHIFT,
   REFERENCE_KIND_MASK  = java_lang_invoke_MemberName::MN_REFERENCE_KIND_MASK,
   SEARCH_SUPERCLASSES  = java_lang_invoke_MemberName::MN_SEARCH_SUPERCLASSES,
@@ -178,7 +179,6 @@ Handle MethodHandles::resolve_MemberName_type(Handle mname, Klass* caller, TRAPS
 oop MethodHandles::init_MemberName(Handle mname, Handle target, TRAPS) {
   // This method is used from java.lang.invoke.MemberName constructors.
   // It fills in the new MemberName from a java.lang.reflect.Member.
-  Thread* thread = Thread::current();
   oop target_oop = target();
   Klass* target_klass = target_oop->klass();
   if (target_klass == SystemDictionary::reflect_Field_klass()) {
@@ -206,7 +206,7 @@ oop MethodHandles::init_MemberName(Handle mname, Handle target, TRAPS) {
       if (m == NULL || is_signature_polymorphic(m->intrinsic_id()))
         return NULL;            // do not resolve unless there is a concrete signature
       CallInfo info(m, k, CHECK_NULL);
-      return init_method_MemberName(mname, info);
+      return init_method_MemberName(mname, info, THREAD);
     }
   } else if (target_klass == SystemDictionary::reflect_Constructor_klass()) {
     oop clazz  = java_lang_reflect_Constructor::clazz(target_oop);
@@ -216,13 +216,13 @@ oop MethodHandles::init_MemberName(Handle mname, Handle target, TRAPS) {
       Method* m = InstanceKlass::cast(k)->method_with_idnum(slot);
       if (m == NULL)  return NULL;
       CallInfo info(m, k, CHECK_NULL);
-      return init_method_MemberName(mname, info);
+      return init_method_MemberName(mname, info, THREAD);
     }
   }
   return NULL;
 }
 
-oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
+oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info, TRAPS) {
   assert(info.resolved_appendix().is_null(), "only normal methods here");
   methodHandle m(Thread::current(), info.resolved_method());
   assert(m.not_null(), "null method handle");
@@ -339,8 +339,10 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
 }
 
 oop MethodHandles::init_field_MemberName(Handle mname, fieldDescriptor& fd, bool is_setter) {
+  InstanceKlass* ik = fd.field_holder();
   int flags = (jushort)( fd.access_flags().as_short() & JVM_RECOGNIZED_FIELD_MODIFIERS );
   flags |= IS_FIELD | ((fd.is_static() ? JVM_REF_getStatic : JVM_REF_getField) << REFERENCE_KIND_SHIFT);
+  if (fd.is_trusted_final()) flags |= TRUSTED_FINAL;
   if (is_setter)  flags += ((JVM_REF_putField - JVM_REF_getField) << REFERENCE_KIND_SHIFT);
   int vmindex        = fd.offset();  // determines the field uniquely when combined with static bit
 
@@ -348,7 +350,7 @@ oop MethodHandles::init_field_MemberName(Handle mname, fieldDescriptor& fd, bool
   java_lang_invoke_MemberName::set_flags  (mname_oop, flags);
   java_lang_invoke_MemberName::set_method (mname_oop, NULL);
   java_lang_invoke_MemberName::set_vmindex(mname_oop, vmindex);
-  java_lang_invoke_MemberName::set_clazz  (mname_oop, fd.field_holder()->java_mirror());
+  java_lang_invoke_MemberName::set_clazz  (mname_oop, ik->java_mirror());
 
   oop type = field_signature_type_or_null(fd.signature());
   oop name = field_name_or_null(fd.name());
@@ -743,8 +745,8 @@ Handle MethodHandles::resolve_MemberName(Handle mname, Klass* caller,
   if (type == NULL)  return empty;  // no such signature exists in the VM
 
   LinkInfo::AccessCheck access_check = caller != NULL ?
-                                              LinkInfo::needs_access_check :
-                                              LinkInfo::skip_access_check;
+                                              LinkInfo::AccessCheck::required :
+                                              LinkInfo::AccessCheck::skip;
 
   // Time to do the lookup.
   switch (flags & ALL_KINDS) {
@@ -786,7 +788,7 @@ Handle MethodHandles::resolve_MemberName(Handle mname, Klass* caller,
         THROW_MSG_(vmSymbols::java_lang_InternalError(), "appendix", empty);
       }
       result.set_resolved_method_name(CHECK_(empty));
-      oop mname2 = init_method_MemberName(mname, result);
+      oop mname2 = init_method_MemberName(mname, result, THREAD);
       return Handle(THREAD, mname2);
     }
   case IS_CONSTRUCTOR:
@@ -809,7 +811,7 @@ Handle MethodHandles::resolve_MemberName(Handle mname, Klass* caller,
       }
       assert(result.is_statically_bound(), "");
       result.set_resolved_method_name(CHECK_(empty));
-      oop mname2 = init_method_MemberName(mname, result);
+      oop mname2 = init_method_MemberName(mname, result, THREAD);
       return Handle(THREAD, mname2);
     }
   case IS_FIELD:
@@ -817,7 +819,7 @@ Handle MethodHandles::resolve_MemberName(Handle mname, Klass* caller,
       fieldDescriptor result; // find_field initializes fd if found
       {
         assert(!HAS_PENDING_EXCEPTION, "");
-        LinkInfo link_info(defc, name, type, caller, LinkInfo::skip_access_check);
+        LinkInfo link_info(defc, name, type, caller, LinkInfo::AccessCheck::skip);
         LinkResolver::resolve_field(result, link_info, Bytecodes::_nop, false, THREAD);
         if (HAS_PENDING_EXCEPTION) {
           if (speculative_resolve) {
@@ -919,8 +921,6 @@ int MethodHandles::find_MemberNames(Klass* k,
                                     int skip, objArrayHandle results, TRAPS) {
   // %%% take caller into account!
 
-  Thread* thread = Thread::current();
-
   if (k == NULL || !k->is_instance_klass())  return -1;
 
   int rfill = 0, rlimit = results->length(), rskip = skip;
@@ -957,7 +957,7 @@ int MethodHandles::find_MemberNames(Klass* k,
       if (rskip > 0) {
         --rskip;
       } else if (rfill < rlimit) {
-        Handle result(thread, results->obj_at(rfill++));
+        Handle result(THREAD, results->obj_at(rfill++));
         if (!java_lang_invoke_MemberName::is_instance(result()))
           return -99;  // caller bug!
         oop saved = MethodHandles::init_field_MemberName(result, st.field_descriptor());
@@ -1008,11 +1008,11 @@ int MethodHandles::find_MemberNames(Klass* k,
       if (rskip > 0) {
         --rskip;
       } else if (rfill < rlimit) {
-        Handle result(thread, results->obj_at(rfill++));
+        Handle result(THREAD, results->obj_at(rfill++));
         if (!java_lang_invoke_MemberName::is_instance(result()))
           return -99;  // caller bug!
         CallInfo info(m, NULL, CHECK_0);
-        oop saved = MethodHandles::init_method_MemberName(result, info);
+        oop saved = MethodHandles::init_method_MemberName(result, info, THREAD);
         if (saved != result())
           results->obj_at_put(rfill-1, saved);  // show saved instance to user
       } else if (++overflow >= overflow_limit) {
@@ -1107,6 +1107,7 @@ void MethodHandles::trace_method_handle_interpreter_entry(MacroAssembler* _masm,
     template(java_lang_invoke_MemberName,MN_IS_FIELD) \
     template(java_lang_invoke_MemberName,MN_IS_TYPE) \
     template(java_lang_invoke_MemberName,MN_CALLER_SENSITIVE) \
+    template(java_lang_invoke_MemberName,MN_TRUSTED_FINAL) \
     template(java_lang_invoke_MemberName,MN_SEARCH_SUPERCLASSES) \
     template(java_lang_invoke_MemberName,MN_SEARCH_INTERFACES) \
     template(java_lang_invoke_MemberName,MN_REFERENCE_KIND_SHIFT) \
@@ -1298,7 +1299,7 @@ JVM_ENTRY(jobject, MHN_getMemberVMInfo(JNIEnv *env, jobject igcls, jobject mname
     x = mname();
   }
   result->obj_at_put(1, x);
-  return JNIHandles::make_local(env, result());
+  return JNIHandles::make_local(THREAD, result());
 }
 JVM_END
 
@@ -1546,7 +1547,7 @@ JVM_ENTRY(void, JVM_RegisterMethodHandleMethods(JNIEnv *env, jclass MHN_class)) 
   assert(SystemDictionary::MethodHandle_klass() != NULL, "should be present");
 
   oop mirror = SystemDictionary::MethodHandle_klass()->java_mirror();
-  jclass MH_class = (jclass) JNIHandles::make_local(env, mirror);
+  jclass MH_class = (jclass) JNIHandles::make_local(THREAD, mirror);
 
   {
     ThreadToNativeFromVM ttnfv(thread);

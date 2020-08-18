@@ -159,6 +159,8 @@ private:
   WorkGang* _workers;
   G1CardTable* _card_table;
 
+  Ticks _collection_pause_end;
+
   SoftRefPolicy      _soft_ref_policy;
 
   static size_t _humongous_object_threshold_in_words;
@@ -533,8 +535,8 @@ private:
   // Process any reference objects discovered.
   void process_discovered_references(G1ParScanThreadStateSet* per_thread_states);
 
-  // If during an initial mark pause we may install a pending list head which is not
-  // otherwise reachable ensure that it is marked in the bitmap for concurrent marking
+  // If during a concurrent start pause we may install a pending list head which is not
+  // otherwise reachable, ensure that it is marked in the bitmap for concurrent marking
   // to discover.
   void make_pending_list_reachable();
 
@@ -644,7 +646,10 @@ public:
   // the G1OldGCCount_lock in case a Java thread is waiting for a full
   // GC to happen (e.g., it called System.gc() with
   // +ExplicitGCInvokesConcurrent).
-  void increment_old_marking_cycles_completed(bool concurrent);
+  // whole_heap_examined should indicate that during that old marking
+  // cycle the whole heap has been examined for live objects (as opposed
+  // to only parts, or aborted before completion).
+  void increment_old_marking_cycles_completed(bool concurrent, bool whole_heap_examined);
 
   uint old_marking_cycles_completed() {
     return _old_marking_cycles_completed;
@@ -732,7 +737,7 @@ private:
 
   // Shrink the garbage-first heap by at most the given size (in bytes!).
   // (Rounds down to a HeapRegion boundary.)
-  void shrink(size_t expand_bytes);
+  void shrink(size_t shrink_bytes);
   void shrink_helper(size_t expand_bytes);
 
   #if TASKQUEUE_STATS
@@ -856,7 +861,7 @@ public:
   // for the current GC (based upon the type of GC and which
   // command line flags are set);
   inline bool evacuation_failure_alot_for_gc_type(bool for_young_gc,
-                                                  bool during_initial_mark,
+                                                  bool during_concurrent_start,
                                                   bool mark_or_rebuild_in_progress);
 
   inline void set_evacuation_failure_alot_for_current_gc();
@@ -916,7 +921,7 @@ public:
   //    making the STW ref processor inactive by disabling discovery.
   //  * Verify that the CM ref processor is still inactive
   //    and no references have been placed on it's discovered
-  //    lists (also checked as a precondition during initial marking).
+  //    lists (also checked as a precondition during concurrent start).
 
   // The (stw) reference processor...
   ReferenceProcessor* _ref_processor_stw;
@@ -1288,12 +1293,13 @@ public:
   // Return the size of reserved memory. Returns different value than max_capacity() when AllocateOldGenAt is used.
   virtual size_t max_reserved_capacity() const;
 
-  virtual jlong millis_since_last_gc();
-
+  Tickspan time_since_last_collection() const { return Ticks::now() - _collection_pause_end; }
 
   // Convenience function to be used in situations where the heap type can be
   // asserted to be this type.
-  static G1CollectedHeap* heap();
+  static G1CollectedHeap* heap() {
+    return named_heap<G1CollectedHeap>(CollectedHeap::G1);
+  }
 
   void set_region_short_lived_locked(HeapRegion* hr);
   // add appropriate methods for any other surv rate groups
@@ -1454,7 +1460,6 @@ public:
   virtual void print_extended_on(outputStream* st) const;
   virtual void print_on_error(outputStream* st) const;
 
-  virtual void print_gc_threads_on(outputStream* st) const;
   virtual void gc_threads_do(ThreadClosure* tc) const;
 
   // Override

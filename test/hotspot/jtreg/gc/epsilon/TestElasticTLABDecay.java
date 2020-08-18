@@ -25,8 +25,8 @@ package gc.epsilon;
 
 /**
  * @test TestElasticTLABDecay
- * @key gc randomness
- * @requires vm.gc.Epsilon & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Epsilon
  * @summary Epsilon is able to work with/without elastic TLABs
  * @library /test/lib
  *

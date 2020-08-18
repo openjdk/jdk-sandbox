@@ -23,14 +23,13 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/gctests/ReferencesGC.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent, quick]
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm
  *      -XX:-UseGCOverheadLimit
  *      gc.gctests.ReferencesGC.ReferencesGC

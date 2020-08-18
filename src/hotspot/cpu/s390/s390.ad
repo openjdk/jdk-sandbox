@@ -1,6 +1,6 @@
 //
 // Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
-// Copyright (c) 2017, 2019 SAP SE. All rights reserved.
+// Copyright (c) 2017, 2020 SAP SE. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -9050,6 +9050,17 @@ instruct absI_reg(iRegI dst, iRegI src, flagsReg cr) %{
   ins_pipe(pipe_class_dummy);
 %}
 
+instruct absL_reg(iRegL dst, iRegL src, flagsReg cr) %{
+  match(Set dst (AbsL src));
+  effect(KILL cr);
+  ins_cost(DEFAULT_COST_LOW);
+  // TODO: s390 port size(FIXED_SIZE);
+  format %{ "LPGR     $dst, $src" %}
+  opcode(LPGR_ZOPC);
+  ins_encode(z_rreform(dst, src));
+  ins_pipe(pipe_class_dummy);
+%}
+
 instruct negabsI_reg(iRegI dst, iRegI src, immI_0 zero, flagsReg cr) %{
   match(Set dst (SubI zero (AbsI src)));
   effect(KILL cr);
@@ -9819,11 +9830,11 @@ instruct CallLeafNoFPDirect(method meth) %{
 // Also known as an 'interprocedural jump'.
 // Target of jump will eventually return to caller.
 // TailJump below removes the return address.
-instruct TailCalljmpInd(iRegP jump_target, inline_cache_regP method_oop) %{
-  match(TailCall jump_target method_oop);
+instruct TailCalljmpInd(iRegP jump_target, inline_cache_regP method_ptr) %{
+  match(TailCall jump_target method_ptr);
   ins_cost(CALL_COST);
   size(2);
-  format %{ "Jmp     $jump_target\t # $method_oop holds method oop" %}
+  format %{ "Jmp     $jump_target\t # $method_ptr holds method" %}
   ins_encode %{ __ z_br($jump_target$$Register); %}
   ins_pipe(pipe_class_dummy);
 %}

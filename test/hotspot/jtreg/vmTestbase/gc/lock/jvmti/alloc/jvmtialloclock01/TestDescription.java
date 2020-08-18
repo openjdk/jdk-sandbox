@@ -24,14 +24,13 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/lock/jvmti/alloc/jvmtialloclock01.
  * VM Testbase keywords: [gc, stress, stressopt, jvmti, nonconcurrent]
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm/native
  *      -XX:-UseGCOverheadLimit
  *      -agentlib:JVMTIAllocLocker

@@ -239,21 +239,11 @@ AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
       C_O_FLAG_NONE="${C_O_FLAG_NONE} ${DISABLE_FORTIFY_CFLAGS}"
     fi
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-      # On MacOSX we optimize for size, something
-      # we should do for all platforms?
-      C_O_FLAG_HIGHEST_JVM="-Os"
-      C_O_FLAG_HIGHEST="-Os"
-      C_O_FLAG_HI="-Os"
-      C_O_FLAG_NORM="-Os"
-      C_O_FLAG_DEBUG_JVM=""
-    else
-      C_O_FLAG_HIGHEST_JVM="-O3"
-      C_O_FLAG_HIGHEST="-O3"
-      C_O_FLAG_HI="-O3"
-      C_O_FLAG_NORM="-O2"
-      C_O_FLAG_DEBUG_JVM="-O0"
-    fi
+    C_O_FLAG_HIGHEST_JVM="-O3"
+    C_O_FLAG_HIGHEST="-O3"
+    C_O_FLAG_HI="-O3"
+    C_O_FLAG_NORM="-O2"
+    C_O_FLAG_DEBUG_JVM="-O0"
     C_O_FLAG_SIZE="-Os"
     C_O_FLAG_DEBUG="-O0"
     C_O_FLAG_NONE="-O0"
@@ -522,6 +512,18 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   fi
   TOOLCHAIN_CFLAGS_JDK_CONLY="$LANGSTD_CFLAGS $TOOLCHAIN_CFLAGS_JDK_CONLY"
 
+  # CXXFLAGS C++ language level for all of JDK, including Hotspot.
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang || test "x$TOOLCHAIN_TYPE" = xxlc; then
+    LANGSTD_CXXFLAGS="-std=c++14"
+  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    LANGSTD_CXXFLAGS="-std:c++14"
+  else
+    AC_MSG_ERROR([Don't know how to enable C++14 for this toolchain])
+  fi
+  TOOLCHAIN_CFLAGS_JDK_CXXONLY="$TOOLCHAIN_CFLAGS_JDK_CXXONLY $LANGSTD_CXXFLAGS"
+  TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM $LANGSTD_CXXFLAGS"
+  ADLC_LANGSTD_CXXFLAGS="$LANGSTD_CXXFLAGS"
+
   # CFLAGS WARNINGS STUFF
   # Set JVM_CFLAGS warning handling
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
@@ -704,13 +706,6 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
       $1_CFLAGS_CPU_JDK="${$1_CFLAGS_CPU_JDK} -fno-omit-frame-pointer"
     fi
 
-    $1_CXXSTD_CXXFLAG="-std=gnu++98"
-    FLAGS_CXX_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [${$1_CXXSTD_CXXFLAG}],
-        PREFIX: $3, IF_FALSE: [$1_CXXSTD_CXXFLAG=""])
-    $1_TOOLCHAIN_CFLAGS_JDK_CXXONLY="${$1_CXXSTD_CXXFLAG}"
-    $1_TOOLCHAIN_CFLAGS_JVM="${$1_TOOLCHAIN_CFLAGS_JVM} ${$1_CXXSTD_CXXFLAG}"
-    $2ADLC_CXXFLAG="${$1_CXXSTD_CXXFLAG}"
-
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     if test "x$FLAGS_OS" = xlinux; then
       # ppc test not really needed for clang
@@ -805,7 +800,7 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
   AC_SUBST($2CFLAGS_JDKEXE)
   AC_SUBST($2CXXFLAGS_JDKLIB)
   AC_SUBST($2CXXFLAGS_JDKEXE)
-  AC_SUBST($2ADLC_CXXFLAG)
+  AC_SUBST($2ADLC_LANGSTD_CXXFLAGS)
 
   COMPILER_FP_CONTRACT_OFF_FLAG="-ffp-contract=off"
   # Check that the compiler supports -ffp-contract=off flag

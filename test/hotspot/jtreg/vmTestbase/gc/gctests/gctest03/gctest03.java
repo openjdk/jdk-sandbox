@@ -36,14 +36,13 @@
 
 /*
  * @test
- * @key gc randomness
+ * @key randomness
  *
  * @summary converted from VM Testbase gc/gctests/gctest03.
  * VM Testbase keywords: [gc]
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @compile Tree.java appthread.java
  * @run main/othervm gc.gctests.gctest03.gctest03 10000
  */

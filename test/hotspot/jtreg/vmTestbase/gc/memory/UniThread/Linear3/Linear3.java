@@ -23,14 +23,13 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/memory/UniThread/Linear3.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent]
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm gc.memory.UniThread.Linear3.Linear3 -iterations 5
  */
 

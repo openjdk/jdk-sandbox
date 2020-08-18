@@ -25,14 +25,13 @@
 
 /*
  * @test
- * @key gc randomness
+ * @key randomness
  *
  * @summary converted from VM Testbase gc/gctests/gctest02.
  * VM Testbase keywords: [gc]
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm gc.gctests.gctest02.gctest02 100
  */
 

@@ -24,14 +24,13 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/memory/Churn/Churn3a.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent]
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm gc.memory.Churn.Churn3.Churn3 -tg -tf
  */
 

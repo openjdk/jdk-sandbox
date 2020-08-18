@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/gctests/StringInternSyncWithGC.
  * VM Testbase keywords: [gc, stress, stressopt, feature_perm_removal_jdk7, nonconcurrent]
@@ -35,7 +35,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm
  *      -Xlog:gc:gc.log
  *      gc.gctests.StringInternSyncWithGC.StringInternSyncWithGC

@@ -24,14 +24,13 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/gctests/CallGC/CallGC02.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent]
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm gc.gctests.CallGC.CallGC02.CallGC02 -t 100 -gp random(arrays)
  */
 

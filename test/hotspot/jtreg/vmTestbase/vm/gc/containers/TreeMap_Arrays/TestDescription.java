@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase vm/gc/containers/TreeMap_Arrays.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent, monitoring, quarantine]
@@ -32,7 +32,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm
  *      -XX:-UseGCOverheadLimit
  *      vm.gc.containers.ContainersTest

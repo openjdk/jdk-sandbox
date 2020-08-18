@@ -50,9 +50,9 @@ TOOLCHAIN_DESCRIPTION_microsoft="Microsoft Visual Studio"
 TOOLCHAIN_DESCRIPTION_xlc="IBM XL C/C++"
 
 # Minimum supported versions, empty means unspecified
-TOOLCHAIN_MINIMUM_VERSION_clang="3.2"
+TOOLCHAIN_MINIMUM_VERSION_clang="3.5"
 TOOLCHAIN_MINIMUM_VERSION_gcc="5.0"
-TOOLCHAIN_MINIMUM_VERSION_microsoft="16.00.30319.01" # VS2010
+TOOLCHAIN_MINIMUM_VERSION_microsoft="19.10.0.0" # VS2017
 TOOLCHAIN_MINIMUM_VERSION_xlc=""
 
 # Minimum supported linker versions, empty means unspecified
@@ -902,9 +902,14 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_BUILD_COMPILERS],
     # FIXME: we should list the discovered compilers as an exclude pattern!
     # If we do that, we can do this detection before POST_DETECTION, and still
     # find the build compilers in the tools dir, if needed.
-    UTIL_REQUIRE_PROGS(BUILD_CC, [cl cc gcc])
+    if test "x$OPENJDK_BUILD_OS" = xmacosx; then
+      UTIL_REQUIRE_PROGS(BUILD_CC, [clang cl cc gcc])
+      UTIL_REQUIRE_PROGS(BUILD_CXX, [clang++ cl CC g++])
+    else
+      UTIL_REQUIRE_PROGS(BUILD_CC, [cl cc gcc])
+      UTIL_REQUIRE_PROGS(BUILD_CXX, [cl CC g++])
+    fi
     UTIL_FIXUP_EXECUTABLE(BUILD_CC)
-    UTIL_REQUIRE_PROGS(BUILD_CXX, [cl CC g++])
     UTIL_FIXUP_EXECUTABLE(BUILD_CXX)
     UTIL_PATH_PROGS(BUILD_NM, nm gcc-nm)
     UTIL_FIXUP_EXECUTABLE(BUILD_NM)
@@ -972,12 +977,6 @@ AC_DEFUN_ONCE([TOOLCHAIN_MISC_CHECKS],
     fi
   fi
 
-  if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    # If this is a --hash-style=gnu system, use --hash-style=both, why?
-    HAS_GNU_HASH=`$CC -dumpspecs 2>/dev/null | $GREP 'hash-style=gnu'`
-    # This is later checked when setting flags.
-  fi
-
   if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
     # Check if linker has -z noexecstack.
     HAS_NOEXECSTACK=`$CC -Wl,--help 2>/dev/null | $GREP 'z noexecstack'`
@@ -1005,8 +1004,27 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_JTREG],
     AC_MSG_CHECKING([for jtreg test harness])
     AC_MSG_RESULT([no, disabled])
   elif test "x$with_jtreg" != xyes && test "x$with_jtreg" != x; then
-    # An explicit path is specified, use it.
-    JT_HOME="$with_jtreg"
+    if test -d "$with_jtreg"; then
+      # An explicit path is specified, use it.
+      JT_HOME="$with_jtreg"
+    else
+      case "$with_jtreg" in
+        *.zip )
+          JTREG_SUPPORT_DIR=$CONFIGURESUPPORT_OUTPUTDIR/jtreg
+          $RM -rf $JTREG_SUPPORT_DIR
+          $MKDIR -p $JTREG_SUPPORT_DIR
+          $UNZIP -qq -d $JTREG_SUPPORT_DIR $with_jtreg
+
+          # Try to find jtreg to determine JT_HOME path
+          JTREG_PATH=`$FIND $JTREG_SUPPORT_DIR | $GREP "/bin/jtreg"`
+          if test "x$JTREG_PATH" != x; then
+            JT_HOME=$($DIRNAME $($DIRNAME $JTREG_PATH))
+          fi
+          ;;
+        * )
+          ;;
+      esac
+    fi
     UTIL_FIXUP_PATH([JT_HOME])
     if test ! -d "$JT_HOME"; then
       AC_MSG_ERROR([jtreg home directory from --with-jtreg=$with_jtreg does not exist])

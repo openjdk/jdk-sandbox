@@ -105,17 +105,6 @@ public:
   virtual bool is_thread_safe() { return false; }
 };
 
-#ifdef ASSERT
-class ShenandoahAssertToSpaceClosure : public OopClosure {
-private:
-  template <class T>
-  void do_oop_work(T* p);
-public:
-  void do_oop(narrowOop* p);
-  void do_oop(oop* p);
-};
-#endif
-
 typedef ShenandoahLock    ShenandoahHeapLock;
 typedef ShenandoahLocker  ShenandoahHeapLocker;
 
@@ -141,9 +130,6 @@ public:
 
 // ---------- Initialization, termination, identification, printing routines
 //
-private:
-  static ShenandoahHeap* _heap;
-
 public:
   static ShenandoahHeap* heap();
 
@@ -160,7 +146,6 @@ public:
   void print_on(outputStream* st)              const;
   void print_extended_on(outputStream *st)     const;
   void print_tracing_info()                    const;
-  void print_gc_threads_on(outputStream* st)   const;
   void print_heap_regions_on(outputStream* st) const;
 
   void stop();
@@ -560,9 +545,6 @@ public:
   // Keep alive an object that was loaded with AS_NO_KEEPALIVE.
   void keep_alive(oop obj);
 
-  // Used by RMI
-  jlong millis_since_last_gc();
-
 // ---------- Safepoint interface hooks
 //
 public:
@@ -596,7 +578,6 @@ private:
   inline HeapWord* allocate_from_gclab(Thread* thread, size_t size);
   HeapWord* allocate_from_gclab_slow(Thread* thread, size_t size);
   HeapWord* allocate_new_gclab(size_t min_size, size_t word_size, size_t* actual_size);
-  void retire_and_reset_gclabs();
 
 public:
   HeapWord* allocate_memory(ShenandoahAllocRequest& request);
@@ -616,10 +597,11 @@ public:
   size_t max_tlab_size() const;
   size_t tlab_used(Thread* ignored) const;
 
-  void resize_tlabs();
+  void ensure_parsability(bool retire_labs);
 
-  void ensure_parsability(bool retire_tlabs);
-  void make_parsable(bool retire_tlabs);
+  void labs_make_parsable();
+  void tlabs_retire(bool resize);
+  void gclabs_retire(bool resize);
 
 // ---------- Marking support
 //
@@ -660,7 +642,6 @@ public:
   void reset_mark_bitmap();
 
   // SATB barriers hooks
-  template<bool RESOLVE>
   inline bool requires_marking(const void* entry) const;
   void force_satb_flush_all_threads();
 

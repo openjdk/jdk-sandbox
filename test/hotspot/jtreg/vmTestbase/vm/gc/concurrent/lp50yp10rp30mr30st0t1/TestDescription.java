@@ -24,14 +24,13 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase vm/gc/concurrent/lp50yp10rp30mr30st0t1.
  * VM Testbase keywords: [gc, stress, stressopt, feature_g1, nonconcurrent, monitoring]
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm
  *      -XX:-UseGCOverheadLimit
  *      vm.gc.concurrent.Concurrent

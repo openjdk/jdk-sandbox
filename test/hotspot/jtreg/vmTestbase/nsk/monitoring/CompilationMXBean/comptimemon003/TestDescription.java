@@ -31,7 +31,7 @@
  * VM Testbase readme:
  * DESCRIPTION
  *     The test checks that
- *         CompilationMBean.isCompilationTimeMonitoringSupported()
+ *         CompilationMXBean.isCompilationTimeMonitoringSupported()
  *     method returns true. The test performs access to management metrics
  *     through custom MBeanServer (developed and saved in
  *     $TESTBASE/src/nsk/monitoring/share).
@@ -46,10 +46,8 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm/timeout=300
  *      nsk.monitoring.CompilationMXBean.comptimemon001.comptimemon001
  *      -testMode=server
  *      -MBeanServer=custom
  */
-

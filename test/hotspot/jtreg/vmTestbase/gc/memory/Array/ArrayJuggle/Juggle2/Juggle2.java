@@ -24,14 +24,13 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/memory/Array/ArrayJuggle/Juggle2.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent]
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm -Xlog:gc=debug:gc.log gc.memory.Array.ArrayJuggle.Juggle2.Juggle2
  */
 

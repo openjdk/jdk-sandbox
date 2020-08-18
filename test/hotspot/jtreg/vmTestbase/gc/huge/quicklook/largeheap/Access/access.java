@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @key stress gc
+ * @key stress
  *
  * @summary converted from VM Testbase gc/huge/quicklook/largeheap/Access.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent]
@@ -47,7 +47,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm -XX:-UseGCOverheadLimit gc.huge.quicklook.largeheap.Access.access
  */
 

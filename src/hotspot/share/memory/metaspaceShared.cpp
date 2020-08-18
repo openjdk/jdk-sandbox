@@ -89,6 +89,7 @@ size_t MetaspaceShared::_i2i_entry_code_buffers_size = 0;
 void* MetaspaceShared::_shared_metaspace_static_top = NULL;
 intx MetaspaceShared::_relocation_delta;
 char* MetaspaceShared::_requested_base_address;
+bool MetaspaceShared::_use_optimized_module_handling = true;
 
 // The CDS archive is divided into the following regions:
 //     mc  - misc code (the method entry trampolines, c++ vtables)
@@ -455,10 +456,10 @@ void MetaspaceShared::post_initialize(TRAPS) {
   }
 }
 
-static GrowableArray<Handle>* _extra_interned_strings = NULL;
+static GrowableArrayCHeap<Handle, mtClassShared>* _extra_interned_strings = NULL;
 
 void MetaspaceShared::read_extra_data(const char* filename, TRAPS) {
-  _extra_interned_strings = new (ResourceObj::C_HEAP, mtInternal)GrowableArray<Handle>(10000, true);
+  _extra_interned_strings = new GrowableArrayCHeap<Handle, mtClassShared>(10000);
 
   HashtableTextDump reader(filename);
   reader.check_version("VERSION: 1.0");
@@ -662,6 +663,33 @@ class CollectClassesClosure : public KlassClosure {
   }
 };
 
+// Global object for holding symbols that created during class loading. See SymbolTable::new_symbol
+static GrowableArray<Symbol*>* _global_symbol_objects = NULL;
+
+static int compare_symbols_by_address(Symbol** a, Symbol** b) {
+  if (a[0] < b[0]) {
+    return -1;
+  } else if (a[0] == b[0]) {
+    ResourceMark rm;
+    log_warning(cds)("Duplicated symbol %s unexpected", (*a)->as_C_string());
+    return 0;
+  } else {
+    return 1;
+  }
+}
+
+void MetaspaceShared::add_symbol(Symbol* sym) {
+  MutexLocker ml(CDSAddSymbol_lock, Mutex::_no_safepoint_check_flag);
+  if (_global_symbol_objects == NULL) {
+    _global_symbol_objects = new (ResourceObj::C_HEAP, mtSymbol) GrowableArray<Symbol*>(2048, mtSymbol);
+  }
+  _global_symbol_objects->append(sym);
+}
+
+GrowableArray<Symbol*>* MetaspaceShared::collected_symbols() {
+  return _global_symbol_objects;
+}
+
 static void remove_unshareable_in_classes() {
   for (int i = 0; i < _global_klass_objects->length(); i++) {
     Klass* k = _global_klass_objects->at(i);
@@ -684,19 +712,6 @@ static void remove_java_mirror_in_classes() {
       k->remove_java_mirror();
     }
   }
-}
-
-static void clear_basic_type_mirrors() {
-  assert(!HeapShared::is_heap_object_archiving_allowed(), "Sanity");
-  Universe::set_int_mirror(NULL);
-  Universe::set_float_mirror(NULL);
-  Universe::set_double_mirror(NULL);
-  Universe::set_byte_mirror(NULL);
-  Universe::set_bool_mirror(NULL);
-  Universe::set_char_mirror(NULL);
-  Universe::set_long_mirror(NULL);
-  Universe::set_short_mirror(NULL);
-  Universe::set_void_mirror(NULL);
 }
 
 static void rewrite_nofast_bytecode(const methodHandle& method) {
@@ -785,10 +800,11 @@ public:
   }
 };
 
+static inline intptr_t* vtable_of(Metadata* m) {
+  return *((intptr_t**)m);
+}
+
 template <class T> class CppVtableCloner : public T {
-  static intptr_t* vtable_of(Metadata& m) {
-    return *((intptr_t**)&m);
-  }
   static CppVtableInfo* _info;
 
   static int get_vtable_length(const char* name);
@@ -809,6 +825,8 @@ public:
     intptr_t* vptr = *(intptr_t**)obj;
     return vptr == _info->cloned_vtable();
   }
+
+  static void init_orig_cpp_vtptr(int kind);
 };
 
 template <class T> CppVtableInfo* CppVtableCloner<T>::_info = NULL;
@@ -834,7 +852,7 @@ intptr_t* CppVtableCloner<T>::clone_vtable(const char* name, CppVtableInfo* info
   }
   T tmp; // Allocate temporary dummy metadata object to get to the original vtable.
   int n = info->vtable_size();
-  intptr_t* srcvtable = vtable_of(tmp);
+  intptr_t* srcvtable = vtable_of(&tmp);
   intptr_t* dstvtable = info->cloned_vtable();
 
   // We already checked (and, if necessary, adjusted n) when the vtables were allocated, so we are
@@ -880,8 +898,8 @@ int CppVtableCloner<T>::get_vtable_length(const char* name) {
   CppVtableTesterA<T> a;
   CppVtableTesterB<T> b;
 
-  intptr_t* avtable = vtable_of(a);
-  intptr_t* bvtable = vtable_of(b);
+  intptr_t* avtable = vtable_of(&a);
+  intptr_t* bvtable = vtable_of(&b);
 
   // Start at slot 1, because slot 0 may be RTTI (on Solaris/Sparc)
   int vtable_len = 1;
@@ -905,14 +923,31 @@ int CppVtableCloner<T>::get_vtable_length(const char* name) {
 #define ZERO_CPP_VTABLE(c) \
  CppVtableCloner<c>::zero_vtable_clone();
 
-//------------------------------ for DynamicDumpSharedSpaces - start
+#define INIT_ORIG_CPP_VTPTRS(c) \
+  CppVtableCloner<c>::init_orig_cpp_vtptr(c##_Kind);
+
 #define DECLARE_CLONED_VTABLE_KIND(c) c ## _Kind,
 
-enum {
-  // E.g., ConstantPool_Kind == 0, InstanceKlass == 1, etc.
+enum ClonedVtableKind {
+  // E.g., ConstantPool_Kind == 0, InstanceKlass_Kind == 1, etc.
   CPP_VTABLE_PATCH_TYPES_DO(DECLARE_CLONED_VTABLE_KIND)
   _num_cloned_vtable_kinds
 };
+
+// This is a map of all the original vtptrs. E.g., for
+//     ConstantPool *cp = new (...) ConstantPool(...) ; // a dynamically allocated constant pool
+// the following holds true:
+//     _orig_cpp_vtptrs[ConstantPool_Kind] ==  ((intptr_t**)cp)[0]
+static intptr_t* _orig_cpp_vtptrs[_num_cloned_vtable_kinds];
+static bool _orig_cpp_vtptrs_inited = false;
+
+template <class T>
+void CppVtableCloner<T>::init_orig_cpp_vtptr(int kind) {
+  assert(kind < _num_cloned_vtable_kinds, "sanity");
+  T tmp; // Allocate temporary dummy metadata object to get to the original vtable.
+  intptr_t* srcvtable = vtable_of(&tmp);
+  _orig_cpp_vtptrs[kind] = srcvtable;
+}
 
 // This is the index of all the cloned vtables. E.g., for
 //     ConstantPool* cp = ....; // an archived constant pool
@@ -932,7 +967,12 @@ void MetaspaceShared::serialize_cloned_cpp_vtptrs(SerializeClosure* soc) {
   soc->do_ptr((void**)&_cloned_cpp_vtptrs);
 }
 
-intptr_t* MetaspaceShared::fix_cpp_vtable_for_dynamic_archive(MetaspaceObj::Type msotype, address obj) {
+intptr_t* MetaspaceShared::get_archived_cpp_vtable(MetaspaceObj::Type msotype, address obj) {
+  if (!_orig_cpp_vtptrs_inited) {
+    CPP_VTABLE_PATCH_TYPES_DO(INIT_ORIG_CPP_VTPTRS);
+    _orig_cpp_vtptrs_inited = true;
+  }
+
   Arguments::assert_is_dumping_archive();
   int kind = -1;
   switch (msotype) {
@@ -949,53 +989,21 @@ intptr_t* MetaspaceShared::fix_cpp_vtable_for_dynamic_archive(MetaspaceObj::Type
   case MetaspaceObj::RecordComponentType:
     // These have no vtables.
     break;
-  case MetaspaceObj::ClassType:
-    {
-      Klass* k = (Klass*)obj;
-      assert(k->is_klass(), "must be");
-      if (k->is_instance_klass()) {
-        InstanceKlass* ik = InstanceKlass::cast(k);
-        if (ik->is_class_loader_instance_klass()) {
-          kind = InstanceClassLoaderKlass_Kind;
-        } else if (ik->is_reference_instance_klass()) {
-          kind = InstanceRefKlass_Kind;
-        } else if (ik->is_mirror_instance_klass()) {
-          kind = InstanceMirrorKlass_Kind;
-        } else {
-          kind = InstanceKlass_Kind;
-        }
-      } else if (k->is_typeArray_klass()) {
-        kind = TypeArrayKlass_Kind;
-      } else {
-        assert(k->is_objArray_klass(), "must be");
-        kind = ObjArrayKlass_Kind;
-      }
-    }
-    break;
-
-  case MetaspaceObj::MethodType:
-    {
-      Method* m = (Method*)obj;
-      assert(m->is_method(), "must be");
-      kind = Method_Kind;
-    }
-    break;
-
   case MetaspaceObj::MethodDataType:
     // We don't archive MethodData <-- should have been removed in removed_unsharable_info
     ShouldNotReachHere();
     break;
-
-  case MetaspaceObj::ConstantPoolType:
-    {
-      ConstantPool *cp = (ConstantPool*)obj;
-      assert(cp->is_constantPool(), "must be");
-      kind = ConstantPool_Kind;
-    }
-    break;
-
   default:
-    ShouldNotReachHere();
+    for (kind = 0; kind < _num_cloned_vtable_kinds; kind ++) {
+      if (vtable_of((Metadata*)obj) == _orig_cpp_vtptrs[kind]) {
+        break;
+      }
+    }
+    if (kind >= _num_cloned_vtable_kinds) {
+      fatal("Cannot find C++ vtable for " INTPTR_FORMAT " -- you probably added"
+            " a new subtype of Klass or MetaData without updating CPP_VTABLE_PATCH_TYPES_DO",
+            p2i(obj));
+    }
   }
 
   if (kind >= 0) {
@@ -1005,8 +1013,6 @@ intptr_t* MetaspaceShared::fix_cpp_vtable_for_dynamic_archive(MetaspaceObj::Type
     return NULL;
   }
 }
-
-//------------------------------ for DynamicDumpSharedSpaces - end
 
 // This can be called at both dump time and run time:
 // - clone the contents of the c++ vtables into the space
@@ -1237,34 +1243,6 @@ public:
   bool allow_nested_vm_operations() const { return true; }
 }; // class VM_PopulateDumpSharedSpace
 
-class SortedSymbolClosure: public SymbolClosure {
-  GrowableArray<Symbol*> _symbols;
-  virtual void do_symbol(Symbol** sym) {
-    assert((*sym)->is_permanent(), "archived symbols must be permanent");
-    _symbols.append(*sym);
-  }
-  static int compare_symbols_by_address(Symbol** a, Symbol** b) {
-    if (a[0] < b[0]) {
-      return -1;
-    } else if (a[0] == b[0]) {
-      ResourceMark rm;
-      log_warning(cds)("Duplicated symbol %s unexpected", (*a)->as_C_string());
-      return 0;
-    } else {
-      return 1;
-    }
-  }
-
-public:
-  SortedSymbolClosure() {
-    SymbolTable::symbols_do(this);
-    _symbols.sort(compare_symbols_by_address);
-  }
-  GrowableArray<Symbol*>* get_sorted_symbols() {
-    return &_symbols;
-  }
-};
-
 // ArchiveCompactor --
 //
 // This class is the central piece of shared archive compaction -- all metaspace data are
@@ -1276,7 +1254,6 @@ class ArchiveCompactor : AllStatic {
   static const int MAX_TABLE_SIZE     = 1000000;
 
   static DumpAllocStats* _alloc_stats;
-  static SortedSymbolClosure* _ssc;
 
   typedef KVHashtable<address, address, mtInternal> RelocationTable;
   static RelocationTable* _new_loc_table;
@@ -1335,9 +1312,9 @@ public:
     }
     memcpy(p, obj, bytes);
 
-    intptr_t* cloned_vtable = MetaspaceShared::fix_cpp_vtable_for_dynamic_archive(ref->msotype(), (address)p);
-    if (cloned_vtable != NULL) {
-      *(address*)p = (address)cloned_vtable;
+    intptr_t* archived_vtable = MetaspaceShared::get_archived_cpp_vtable(ref->msotype(), (address)p);
+    if (archived_vtable != NULL) {
+      *(address*)p = (address)archived_vtable;
       ArchivePtrMarker::mark_pointer((address*)p);
     }
 
@@ -1420,8 +1397,6 @@ private:
 public:
   static void copy_and_compact() {
     ResourceMark rm;
-    SortedSymbolClosure the_ssc; // StackObj
-    _ssc = &the_ssc;
 
     log_info(cds)("Scanning all metaspace objects ... ");
     {
@@ -1457,9 +1432,11 @@ public:
     {
       log_info(cds)("Fixing symbol identity hash ... ");
       os::init_random(0x12345678);
-      GrowableArray<Symbol*>* symbols = _ssc->get_sorted_symbols();
-      for (int i=0; i<symbols->length(); i++) {
-        symbols->at(i)->update_identity_hash();
+      GrowableArray<Symbol*>* all_symbols = MetaspaceShared::collected_symbols();
+      all_symbols->sort(compare_symbols_by_address);
+      for (int i = 0; i < all_symbols->length(); i++) {
+        assert(all_symbols->at(i)->is_permanent(), "archived symbols must be permanent");
+        all_symbols->at(i)->update_identity_hash();
       }
     }
 #ifdef ASSERT
@@ -1470,10 +1447,6 @@ public:
       iterate_roots(&checker);
     }
 #endif
-
-
-    // cleanup
-    _ssc = NULL;
   }
 
   // We must relocate the System::_well_known_klasses only after we have copied the
@@ -1509,8 +1482,8 @@ public:
     // (see Symbol::operator new(size_t, int)). So if we iterate the Symbols by
     // ascending address order, we ensure that all Symbols are copied into deterministic
     // locations in the archive.
-    GrowableArray<Symbol*>* symbols = _ssc->get_sorted_symbols();
-    for (int i=0; i<symbols->length(); i++) {
+    GrowableArray<Symbol*>* symbols = _global_symbol_objects;
+    for (int i = 0; i < symbols->length(); i++) {
       it->push(symbols->adr_at(i));
     }
     if (_global_klass_objects != NULL) {
@@ -1540,7 +1513,6 @@ public:
 };
 
 DumpAllocStats* ArchiveCompactor::_alloc_stats;
-SortedSymbolClosure* ArchiveCompactor::_ssc;
 ArchiveCompactor::RelocationTable* ArchiveCompactor::_new_loc_table;
 
 void VM_PopulateDumpSharedSpace::dump_symbols() {
@@ -1555,7 +1527,7 @@ char* VM_PopulateDumpSharedSpace::dump_read_only_tables() {
 
   log_info(cds)("Removing java_mirror ... ");
   if (!HeapShared::is_heap_object_archiving_allowed()) {
-    clear_basic_type_mirrors();
+    Universe::clear_basic_type_mirrors();
   }
   remove_java_mirror_in_classes();
   log_info(cds)("done. ");
@@ -1637,6 +1609,7 @@ void VM_PopulateDumpSharedSpace::relocate_to_requested_base_address(CHeapBitMap*
 }
 
 void VM_PopulateDumpSharedSpace::doit() {
+  HeapShared::run_full_gc_in_vm_thread();
   CHeapBitMap ptrmap;
   MetaspaceShared::initialize_ptr_marker(&ptrmap);
 
@@ -1955,14 +1928,9 @@ void MetaspaceShared::preload_and_dump(TRAPS) {
     link_and_cleanup_shared_classes(CATCH);
     log_info(cds)("Rewriting and linking classes: done");
 
-    if (HeapShared::is_heap_object_archiving_allowed()) {
-      // Avoid fragmentation while archiving heap objects.
-      Universe::heap()->soft_ref_policy()->set_should_clear_all_soft_refs(true);
-      Universe::heap()->collect(GCCause::_archive_time_gc);
-      Universe::heap()->soft_ref_policy()->set_should_clear_all_soft_refs(false);
-    }
-
     VM_PopulateDumpSharedSpace op;
+    MutexLocker ml(THREAD, HeapShared::is_heap_object_archiving_allowed() ?
+                   Heap_lock : NULL);     // needed by HeapShared::run_gc()
     VMThread::execute(&op);
   }
 }
@@ -2111,7 +2079,7 @@ void ReadClosure::do_tag(int tag) {
 void ReadClosure::do_oop(oop *p) {
   narrowOop o = (narrowOop)nextPtr();
   if (o == 0 || !HeapShared::open_archive_heap_region_mapped()) {
-    p = NULL;
+    *p = NULL;
   } else {
     assert(HeapShared::is_heap_object_archiving_allowed(),
            "Archived heap object is not allowed");
@@ -2269,6 +2237,7 @@ MapArchiveResult MetaspaceShared::map_archives(FileMapInfo* static_mapinfo, File
                                                                  class_space_rs);
   if (mapped_base_address == NULL) {
     result = MAP_ARCHIVE_MMAP_FAILURE;
+    log_debug(cds)("Failed to reserve spaces (use_requested_addr=%u)", (unsigned)use_requested_addr);
   } else {
 
 #ifdef ASSERT
@@ -2376,6 +2345,7 @@ MapArchiveResult MetaspaceShared::map_archives(FileMapInfo* static_mapinfo, File
           static_mapinfo->map_heap_regions();
         }
       });
+    log_info(cds)("Using optimized module handling %s", MetaspaceShared::use_optimized_module_handling() ? "enabled" : "disabled");
   } else {
     unmap_archive(static_mapinfo);
     unmap_archive(dynamic_mapinfo);
@@ -2471,6 +2441,8 @@ char* MetaspaceShared::reserve_address_space_for_archives(FileMapInfo* static_ma
     if (archive_space_rs.is_reserved()) {
       assert(base_address == NULL ||
              (address)archive_space_rs.base() == base_address, "Sanity");
+      // Register archive space with NMT.
+      MemTracker::record_virtual_memory_type(archive_space_rs.base(), mtClassShared);
       return archive_space_rs.base();
     }
     return NULL;
@@ -2497,8 +2469,8 @@ char* MetaspaceShared::reserve_address_space_for_archives(FileMapInfo* static_ma
          "CompressedClassSpaceSize malformed: "
          SIZE_FORMAT, CompressedClassSpaceSize);
 
-  const size_t ccs_begin_offset = align_up(archive_space_size,
-                                           class_space_alignment);
+  const size_t ccs_begin_offset = align_up(base_address + archive_space_size,
+                                           class_space_alignment) - base_address;
   const size_t gap_size = ccs_begin_offset - archive_space_size;
 
   const size_t total_range_size =
@@ -2537,6 +2509,10 @@ char* MetaspaceShared::reserve_address_space_for_archives(FileMapInfo* static_ma
   assert(is_aligned(archive_space_rs.size(), archive_space_alignment), "Sanity");
   assert(is_aligned(class_space_rs.base(), class_space_alignment), "Sanity");
   assert(is_aligned(class_space_rs.size(), class_space_alignment), "Sanity");
+
+  // NMT: fix up the space tags
+  MemTracker::record_virtual_memory_type(archive_space_rs.base(), mtClassShared);
+  MemTracker::record_virtual_memory_type(class_space_rs.base(), mtClass);
 
   return archive_space_rs.base();
 
@@ -2586,16 +2562,9 @@ MapArchiveResult MetaspaceShared::map_archive(FileMapInfo* mapinfo, char* mapped
     return result;
   }
 
-  if (mapinfo->is_static()) {
-    if (!mapinfo->validate_shared_path_table()) {
-      unmap_archive(mapinfo);
-      return MAP_ARCHIVE_OTHER_FAILURE;
-    }
-  } else {
-    if (!DynamicArchive::validate(mapinfo)) {
-      unmap_archive(mapinfo);
-      return MAP_ARCHIVE_OTHER_FAILURE;
-    }
+  if (!mapinfo->validate_shared_path_table()) {
+    unmap_archive(mapinfo);
+    return MAP_ARCHIVE_OTHER_FAILURE;
   }
 
   mapinfo->set_is_mapped(true);

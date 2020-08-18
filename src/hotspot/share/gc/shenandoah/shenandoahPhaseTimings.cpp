@@ -69,7 +69,7 @@ ShenandoahPhaseTimings::ShenandoahPhaseTimings(uint max_workers) :
     if (is_worker_phase(Phase(i))) {
       int c = 0;
 #define SHENANDOAH_WORKER_DATA_INIT(type, title) \
-      if (c++ != 0) _worker_data[i + c] = new ShenandoahWorkerData(title, _max_workers);
+      if (c++ != 0) _worker_data[i + c] = new ShenandoahWorkerData(NULL, title, _max_workers);
       SHENANDOAH_PAR_PHASE_DO(,, SHENANDOAH_WORKER_DATA_INIT)
 #undef SHENANDOAH_WORKER_DATA_INIT
     }
@@ -269,6 +269,17 @@ void ShenandoahPhaseTimings::print_global_on(outputStream* out) const {
   out->cr();
   out->print_cr("  All times are wall-clock times, except per-root-class counters, that are sum over");
   out->print_cr("  all workers. Dividing the <total> over the root stage time estimates parallelism.");
+  out->cr();
+
+  out->print_cr("  Pacing delays are measured from entering the pacing code till exiting it. Therefore,");
+  out->print_cr("  observed pacing delays may be higher than the threshold when paced thread spent more");
+  out->print_cr("  time in the pacing code. It usually happens when thread is de-scheduled while paced,");
+  out->print_cr("  OS takes longer to unblock the thread, or JVM experiences an STW pause.");
+  out->cr();
+  out->print_cr("  Higher delay would prevent application outpacing the GC, but it will hide the GC latencies");
+  out->print_cr("  from the STW pause times. Pacing affects the individual threads, and so it would also be");
+  out->print_cr("  invisible to the usual profiling tools, but would add up to end-to-end application latency.");
+  out->print_cr("  Raise max pacing delay with care.");
   out->cr();
 
   for (uint i = 0; i < _num_phases; i++) {

@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/gctests/LargeObjects/large001.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent, quick]
@@ -55,7 +55,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  *
  * @comment generate and compile nsk.share.gc.newclass.* classes
  * @run driver nsk.share.gc.GenClassesBuilder

@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/gctests/WeakReference/WeakReferenceTest.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent, jrockit]
@@ -37,7 +37,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm -XX:-UseGCOverheadLimit gc.gctests.WeakReference.WeakReferenceTest
  */
 

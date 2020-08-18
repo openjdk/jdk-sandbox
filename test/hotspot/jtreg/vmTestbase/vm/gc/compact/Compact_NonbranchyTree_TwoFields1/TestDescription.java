@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase vm/gc/compact/Compact_NonbranchyTree_TwoFields1.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent]
@@ -36,7 +36,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm
  *      -XX:-UseGCOverheadLimit
  *      vm.gc.compact.Compact

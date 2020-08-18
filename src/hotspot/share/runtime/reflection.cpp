@@ -812,8 +812,7 @@ oop Reflection::new_method(const methodHandle& method, bool for_constant_pool_ac
   Handle return_type(THREAD, return_type_oop);
 
   objArrayHandle exception_types = get_exception_types(method, CHECK_NULL);
-
-  if (exception_types.is_null()) return NULL;
+  assert(!exception_types.is_null(), "cannot return null");
 
   Symbol*  method_name = method->name();
   oop name_oop = StringTable::intern(method_name, CHECK_NULL);
@@ -859,7 +858,7 @@ oop Reflection::new_constructor(const methodHandle& method, TRAPS) {
   if (parameter_types.is_null()) return NULL;
 
   objArrayHandle exception_types = get_exception_types(method, CHECK_NULL);
-  if (exception_types.is_null()) return NULL;
+  assert(!exception_types.is_null(), "cannot return null");
 
   const int modifiers = method->access_flags().as_int() & JVM_RECOGNIZED_METHOD_MODIFIERS;
 
@@ -897,6 +896,9 @@ oop Reflection::new_field(fieldDescriptor* fd, TRAPS) {
   java_lang_reflect_Field::set_slot(rh(), fd->index());
   java_lang_reflect_Field::set_name(rh(), name());
   java_lang_reflect_Field::set_type(rh(), type());
+  if (fd->is_trusted_final()) {
+    java_lang_reflect_Field::set_trusted_final(rh());
+  }
   // Note the ACC_ANNOTATION bit, which is a per-class access flag, is never set here.
   java_lang_reflect_Field::set_modifiers(rh(), fd->access_flags().as_int() & JVM_RECOGNIZED_FIELD_MODIFIERS);
   java_lang_reflect_Field::set_override(rh(), false);

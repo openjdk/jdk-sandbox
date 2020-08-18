@@ -24,14 +24,13 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/gctests/LoadUnloadGC2.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent, quick]
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm -XX:-UseGCOverheadLimit gc.gctests.LoadUnloadGC2.LoadUnloadGC2
  */
 

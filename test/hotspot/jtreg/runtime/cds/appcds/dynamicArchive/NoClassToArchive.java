@@ -40,19 +40,19 @@
  * @build StrConcatApp
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller -jar strConcatApp.jar StrConcatApp
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. NoClassToArchive
  */
 
 import java.io.File;
+import jdk.test.lib.cds.CDSTestUtils;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
 public class NoClassToArchive extends DynamicArchiveTestBase {
     static final String warningMessage =
         "There is no class to be included in the dynamic archive";
-    static final String classList = System.getProperty("test.classes") +
-        File.separator + "NoClassToArchive.list";
+    static final String classList = CDSTestUtils.getOutputFileName("classlist");
     static final String appClass = "StrConcatApp";
 
     public static void main(String[] args) throws Exception {

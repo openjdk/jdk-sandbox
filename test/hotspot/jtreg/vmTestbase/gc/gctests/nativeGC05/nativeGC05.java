@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @key gc randomness
+ * @key randomness
  *
  * @summary converted from VM Testbase gc/gctests/nativeGC05.
  * VM Testbase keywords: [gc]
@@ -80,7 +80,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm/native gc.gctests.nativeGC05.nativeGC05
  */
 

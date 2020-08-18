@@ -262,9 +262,6 @@ const size_t minimumSymbolTableSize = 1024;
           "A thread requesting compilation is not blocked during "          \
           "compilation")                                                    \
                                                                             \
-  product(bool, PrintVMQWaitTime, false,                                    \
-          "(Deprecated) Print out the waiting time in VM operation queue")  \
-                                                                            \
   product(bool, MethodFlushing, true,                                       \
           "Reclamation of zombie and not-entrant methods")                  \
                                                                             \
@@ -326,6 +323,9 @@ const size_t minimumSymbolTableSize = 1024;
   diagnostic(bool, UseAESCTRIntrinsics, false,                              \
           "Use intrinsics for the paralleled version of AES/CTR crypto")    \
                                                                             \
+  diagnostic(bool, UseMD5Intrinsics, false,                                 \
+          "Use intrinsics for MD5 crypto hash function")                    \
+                                                                            \
   diagnostic(bool, UseSHA1Intrinsics, false,                                \
           "Use intrinsics for SHA-1 crypto hash function. "                 \
           "Requires that UseSHA is enabled.")                               \
@@ -352,6 +352,10 @@ const size_t minimumSymbolTableSize = 1024;
                                                                             \
   diagnostic(ccstrlist, DisableIntrinsic, "",                               \
          "do not expand intrinsics whose (internal) names appear here")     \
+                                                                            \
+  diagnostic(ccstrlist, ControlIntrinsic, "",                               \
+         "Control intrinsics using a list of +/- (internal) names, "        \
+         "separated by commas")                                             \
                                                                             \
   develop(bool, TraceCallFixup, false,                                      \
           "Trace all call fixups")                                          \
@@ -537,6 +541,10 @@ const size_t minimumSymbolTableSize = 1024;
   product(bool, PrintCompilation, false,                                    \
           "Print compilations")                                             \
                                                                             \
+  diagnostic(intx, RepeatCompilation, 0,                                    \
+          "Repeat compilation without installing code (number of times)")   \
+          range(0, max_jint)                                                 \
+                                                                            \
   product(bool, PrintExtendedThreadInfo, false,                             \
           "Print more information in thread dump")                          \
                                                                             \
@@ -617,7 +625,7 @@ const size_t minimumSymbolTableSize = 1024;
   product(bool, OmitStackTraceInFastThrow, true,                            \
           "Omit backtraces for some 'hot' exceptions in optimized code")    \
                                                                             \
-  manageable(bool, ShowCodeDetailsInExceptionMessages, false,               \
+  manageable(bool, ShowCodeDetailsInExceptionMessages, true,                \
           "Show exception messages from RuntimeExceptions that contain "    \
           "snippets of the failing code. Disable this to improve privacy.") \
                                                                             \
@@ -682,9 +690,6 @@ const size_t minimumSymbolTableSize = 1024;
   experimental(bool, DisablePrimordialThreadGuardPages, false,              \
                "Disable the use of stack guard pages if the JVM is loaded " \
                "on the primordial process thread")                          \
-                                                                            \
-  diagnostic(bool, AsyncDeflateIdleMonitors, true,                          \
-          "Deflate idle monitors using the ServiceThread.")                 \
                                                                             \
   /* notice: the max range value here is max_jint, not max_intx  */         \
   /* because of overflow issue                                   */         \
@@ -866,7 +871,7 @@ const size_t minimumSymbolTableSize = 1024;
           "Time calls to GenerateOopMap::compute_map() individually")       \
                                                                             \
   develop(bool, TraceOopMapRewrites, false,                                 \
-          "Trace rewriting of method oops during oop map generation")       \
+          "Trace rewriting of methods during oop map generation")           \
                                                                             \
   develop(bool, TraceICBuffer, false,                                       \
           "Trace usage of IC buffer")                                       \
@@ -1692,6 +1697,11 @@ const size_t minimumSymbolTableSize = 1024;
   product(bool, UseCodeCacheFlushing, true,                                 \
           "Remove cold/old nmethods from the code cache")                   \
                                                                             \
+  product(double, SweeperThreshold, 0.5,                                    \
+          "Threshold controlling when code cache sweeper is invoked."       \
+          "Value is percentage of ReservedCodeCacheSize.")                  \
+          range(0.0, 100.0)                                                 \
+                                                                            \
   product(uintx, StartAggressiveSweepingAt, 10,                             \
           "Start aggressive sweeping if X[%] of the code cache is free."    \
           "Segmented code cache: X[%] of the non-profiled heap."            \
@@ -2444,9 +2454,6 @@ const size_t minimumSymbolTableSize = 1024;
                                                                             \
   experimental(bool, UseFastUnorderedTimeStamps, false,                     \
           "Use platform unstable time where supported for timestamps only") \
-                                                                            \
-  product(bool, UseNewFieldLayout, true,                                    \
-               "(Deprecated) Use new algorithm to compute field layouts")   \
                                                                             \
   product(bool, UseEmptySlotsInSupers, true,                                \
                 "Allow allocating fields in empty slots of super-classes")  \

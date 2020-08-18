@@ -717,7 +717,6 @@ public class TypeEnter implements Completer {
             ListBuffer<Symbol> permittedSubtypeSymbols = new ListBuffer<>();
             List<JCExpression> permittedTrees = tree.permitting;
             for (JCExpression permitted : permittedTrees) {
-                permitted = clearTypeParams(permitted);
                 Type pt = attr.attribBase(permitted, baseEnv, false, false, false);
                 permittedSubtypeSymbols.append(pt.tsym);
             }
@@ -731,7 +730,13 @@ public class TypeEnter implements Completer {
                         ? ct.interfaces_field : all_interfaces.toList();
             }
 
-            sym.permitted = permittedSubtypeSymbols.toList();
+            /* it could be that there are already some symbols in the permitted list, for the case
+             * where there are subtypes in the same compilation unit but the permits list is empty
+             * so don't overwrite the permitted list if it is not empty
+             */
+            if (!permittedSubtypeSymbols.isEmpty()) {
+                sym.permitted = permittedSubtypeSymbols.toList();
+            }
             sym.isPermittedExplicit = !permittedSubtypeSymbols.isEmpty();
         }
             //where:
@@ -990,11 +995,13 @@ public class TypeEnter implements Completer {
             ClassSymbol sym = tree.sym;
             ClassType ct = (ClassType)sym.type;
 
+            JCTree defaultConstructor = null;
+
             // Add default constructor if needed.
             DefaultConstructorHelper helper = getDefaultConstructorHelper(env);
             if (helper != null) {
-                JCTree constrDef = defaultConstructor(make.at(tree.pos), helper);
-                tree.defs = tree.defs.prepend(constrDef);
+                defaultConstructor = defaultConstructor(make.at(tree.pos), helper);
+                tree.defs = tree.defs.prepend(defaultConstructor);
             }
             if (!sym.isRecord()) {
                 enterThisAndSuper(sym, env);
@@ -1006,7 +1013,7 @@ public class TypeEnter implements Completer {
                 }
             }
 
-            finishClass(tree, env);
+            finishClass(tree, defaultConstructor, env);
 
             if (allowTypeAnnos) {
                 typeAnnotations.organizeTypeAnnotationsSignatures(env, (JCClassDecl)env.tree);
@@ -1047,7 +1054,7 @@ public class TypeEnter implements Completer {
 
         /** Enter members for a class.
          */
-        void finishClass(JCClassDecl tree, Env<AttrContext> env) {
+        void finishClass(JCClassDecl tree, JCTree defaultConstructor, Env<AttrContext> env) {
             if ((tree.mods.flags & Flags.ENUM) != 0 &&
                 !tree.sym.type.hasTag(ERROR) &&
                 (types.supertype(tree.sym.type).tsym.flags() & Flags.ENUM) == 0) {
@@ -1058,9 +1065,7 @@ public class TypeEnter implements Completer {
             if (isRecord) {
                 alreadyEntered = List.convert(JCTree.class, TreeInfo.recordFields(tree));
                 alreadyEntered = alreadyEntered.prependList(tree.defs.stream()
-                        .filter(t -> TreeInfo.isConstructor(t) &&
-                                ((JCMethodDecl)t).sym != null &&
-                                (((JCMethodDecl)t).sym.flags_field & Flags.GENERATEDCONSTR) == 0).collect(List.collector()));
+                        .filter(t -> TreeInfo.isConstructor(t) && t != defaultConstructor).collect(List.collector()));
             }
             List<JCTree> defsToEnter = isRecord ?
                     tree.defs.diff(alreadyEntered) : tree.defs;
@@ -1082,9 +1087,11 @@ public class TypeEnter implements Completer {
                  * it could be that some of those annotations are not applicable to the accessor, they will be striped
                  * away later at Check::validateAnnotation
                  */
+                TreeCopier<JCTree> tc = new TreeCopier<JCTree>(make.at(tree.pos));
                 List<JCAnnotation> originalAnnos = rec.getOriginalAnnos().isEmpty() ?
                         rec.getOriginalAnnos() :
-                        new TreeCopier<JCTree>(make.at(tree.pos)).copy(rec.getOriginalAnnos());
+                        tc.copy(rec.getOriginalAnnos());
+                JCVariableDecl recordField = TreeInfo.recordFields((JCClassDecl) env.tree).stream().filter(rf -> rf.name == tree.name).findAny().get();
                 JCMethodDecl getter = make.at(tree.pos).
                         MethodDef(
                                 make.Modifiers(PUBLIC | Flags.GENERATED_MEMBER, originalAnnos),
@@ -1094,7 +1101,7 @@ public class TypeEnter implements Completer {
                            * return type: javac issues an error if a type annotation is applied to java.lang.String
                            * but applying a type annotation to String is kosher
                            */
-                          tree.vartype.hasTag(IDENT) ? make.Ident(tree.vartype.type.tsym) : make.Type(tree.sym.type),
+                          tc.copy(recordField.vartype),
                           List.nil(),
                           List.nil(),
                           List.nil(), // thrown
@@ -1399,10 +1406,11 @@ public class TypeEnter implements Completer {
                  * parameter in the constructor.
                  */
                 RecordComponent rc = ((ClassSymbol) owner).getRecordComponent(arg.sym);
+                TreeCopier<JCTree> tc = new TreeCopier<JCTree>(make.at(arg.pos));
                 arg.mods.annotations = rc.getOriginalAnnos().isEmpty() ?
                         List.nil() :
-                        new TreeCopier<JCTree>(make.at(arg.pos)).copy(rc.getOriginalAnnos());
-                arg.vartype = tmpRecordFieldDecls.head.vartype;
+                        tc.copy(rc.getOriginalAnnos());
+                arg.vartype = tc.copy(tmpRecordFieldDecls.head.vartype);
                 tmpRecordFieldDecls = tmpRecordFieldDecls.tail;
             }
             return md;

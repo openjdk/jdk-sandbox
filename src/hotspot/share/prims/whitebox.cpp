@@ -41,6 +41,7 @@
 #include "gc/shared/genArguments.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
+#include "logging/log.hpp"
 #include "memory/filemap.hpp"
 #include "memory/heapShared.inline.hpp"
 #include "memory/metaspaceShared.hpp"
@@ -386,7 +387,7 @@ WB_END
 
 WB_ENTRY(jlong, WB_GetObjectSize(JNIEnv* env, jobject o, jobject obj))
   oop p = JNIHandles::resolve(obj);
-  return Universe::heap()->obj_size(p) * HeapWordSize;
+  return p->size() * HeapWordSize;
 WB_END
 
 WB_ENTRY(jlong, WB_GetHeapSpaceAlignment(JNIEnv* env, jobject o))
@@ -478,12 +479,6 @@ WB_END
 
 WB_ENTRY(jboolean, WB_G1StartMarkCycle(JNIEnv* env, jobject o))
   if (UseG1GC) {
-    if (AsyncDeflateIdleMonitors) {
-      // AsyncDeflateIdleMonitors needs to know when System.gc() or
-      // the equivalent is called so any special clean up can be done
-      // at a safepoint, e.g., TestHumongousClassLoader.java.
-      ObjectSynchronizer::set_is_special_deflation_requested(true);
-    }
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
     if (!g1h->concurrent_mark()->cm_thread()->during_cycle()) {
       g1h->collect(GCCause::_wb_conc_mark);
@@ -636,7 +631,7 @@ WB_ENTRY(jobject, WB_G1AuxiliaryMemoryUsage(JNIEnv* env))
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
     MemoryUsage usage = g1h->get_auxiliary_data_memory_usage();
     Handle h = MemoryService::create_MemoryUsage_obj(usage, CHECK_NULL);
-    return JNIHandles::make_local(env, h());
+    return JNIHandles::make_local(THREAD, h());
   }
   THROW_MSG_0(vmSymbols::java_lang_UnsupportedOperationException(), "WB_G1AuxiliaryMemoryUsage: G1 GC is not enabled");
 WB_END
@@ -659,7 +654,7 @@ WB_ENTRY(jintArray, WB_G1MemoryNodeIds(JNIEnv* env, jobject o))
     for (int i = 0; i < num_node_ids; i++) {
       result->int_at_put(i, (jint)node_ids[i]);
     }
-    return (jintArray) JNIHandles::make_local(env, result);
+    return (jintArray) JNIHandles::make_local(THREAD, result);
   }
   THROW_MSG_NULL(vmSymbols::java_lang_UnsupportedOperationException(), "WB_G1MemoryNodeIds: G1 GC is not enabled");
 WB_END
@@ -720,7 +715,7 @@ WB_ENTRY(jlongArray, WB_G1GetMixedGCInfo(JNIEnv* env, jobject o, jint liveness))
   result->long_at_put(0, rli.total_count());
   result->long_at_put(1, rli.total_memory());
   result->long_at_put(2, rli.total_memory_to_free());
-  return (jlongArray) JNIHandles::make_local(env, result);
+  return (jlongArray) JNIHandles::make_local(THREAD, result);
 WB_END
 
 #endif // INCLUDE_G1GC
@@ -1455,12 +1450,6 @@ WB_ENTRY(jboolean, WB_IsInStringTable(JNIEnv* env, jobject o, jstring javaString
 WB_END
 
 WB_ENTRY(void, WB_FullGC(JNIEnv* env, jobject o))
-  if (AsyncDeflateIdleMonitors) {
-    // AsyncDeflateIdleMonitors needs to know when System.gc() or
-    // the equivalent is called so any special clean up can be done
-    // at a safepoint, e.g., TestHumongousClassLoader.java.
-    ObjectSynchronizer::set_is_special_deflation_requested(true);
-  }
   Universe::heap()->soft_ref_policy()->set_should_clear_all_soft_refs(true);
   Universe::heap()->collect(GCCause::_wb_full_gc);
 #if INCLUDE_G1GC
@@ -1689,12 +1678,11 @@ WB_ENTRY(jlong, WB_GetMethodData(JNIEnv* env, jobject wv, jobject method))
 WB_END
 
 WB_ENTRY(jlong, WB_GetThreadStackSize(JNIEnv* env, jobject o))
-  return (jlong) Thread::current()->stack_size();
+  return (jlong) thread->stack_size();
 WB_END
 
 WB_ENTRY(jlong, WB_GetThreadRemainingStackSize(JNIEnv* env, jobject o))
-  JavaThread* t = JavaThread::current();
-  return (jlong) t->stack_available(os::current_stack_pointer()) - (jlong)JavaThread::stack_shadow_zone_size();
+  return (jlong) thread->stack_available(os::current_stack_pointer()) - (jlong)JavaThread::stack_shadow_zone_size();
 WB_END
 
 
@@ -1801,7 +1789,7 @@ WB_ENTRY(void, WB_AssertSpecialLock(JNIEnv* env, jobject o, jboolean allowVMBloc
 
   MutexLocker ml(new Mutex(Mutex::special, "SpecialTest_lock", allowVMBlock, sfpt_check_required), safepoint_check);
   // If the lock above succeeds, try to safepoint to test the NSV implied with this special lock.
-  ThreadBlockInVM tbivm(JavaThread::current());
+  ThreadBlockInVM tbivm(thread);
 WB_END
 
 WB_ENTRY(jboolean, WB_IsMonitorInflated(JNIEnv* env, jobject wb, jobject obj))
@@ -1809,14 +1797,12 @@ WB_ENTRY(jboolean, WB_IsMonitorInflated(JNIEnv* env, jobject wb, jobject obj))
   return (jboolean) obj_oop->mark().has_monitor();
 WB_END
 
+WB_ENTRY(jboolean, WB_DeflateIdleMonitors(JNIEnv* env, jobject wb))
+  log_info(monitorinflation)("WhiteBox initiated DeflateIdleMonitors");
+  return ObjectSynchronizer::request_deflate_idle_monitors();
+WB_END
+
 WB_ENTRY(void, WB_ForceSafepoint(JNIEnv* env, jobject wb))
-  if (AsyncDeflateIdleMonitors) {
-    // AsyncDeflateIdleMonitors needs to know when System.gc() or
-    // the equivalent is called so any special clean up can be done
-    // at a safepoint, e.g., TestRTMTotalCountIncrRate.java or
-    // TestUseRTMForStackLocks.java.
-    ObjectSynchronizer::set_is_special_deflation_requested(true);
-  }
   VM_ForceSafepoint force_safepoint_op;
   VMThread::execute(&force_safepoint_op);
 WB_END
@@ -1970,7 +1956,7 @@ WB_ENTRY(jobject, WB_GetResolvedReferences(JNIEnv* env, jobject wb, jclass clazz
     InstanceKlass *ik = InstanceKlass::cast(k);
     ConstantPool *cp = ik->constants();
     objArrayOop refs =  cp->resolved_references();
-    return (jobject)JNIHandles::make_local(env, refs);
+    return (jobject)JNIHandles::make_local(THREAD, refs);
   } else {
     return NULL;
   }
@@ -2045,11 +2031,11 @@ WB_ENTRY(jint, WB_HandshakeWalkStack(JNIEnv* env, jobject wb, jobject thread_han
     }
 
   public:
-    TraceSelfClosure() : HandshakeClosure("WB_TraceSelf"), _num_threads_completed(0) {}
+    TraceSelfClosure(Thread* thread) : HandshakeClosure("WB_TraceSelf"), _num_threads_completed(0) {}
 
     jint num_threads_completed() const { return _num_threads_completed; }
   };
-  TraceSelfClosure tsc;
+  TraceSelfClosure tsc(Thread::current());
 
   if (all_threads) {
     Handshake::execute(&tsc);
@@ -2480,6 +2466,7 @@ static JNINativeMethod methods[] = {
                                                       (void*)&WB_AddModuleExportsToAll },
   {CC"assertMatchingSafepointCalls", CC"(ZZ)V",       (void*)&WB_AssertMatchingSafepointCalls },
   {CC"assertSpecialLock",  CC"(ZZ)V",                 (void*)&WB_AssertSpecialLock },
+  {CC"deflateIdleMonitors", CC"()Z",                  (void*)&WB_DeflateIdleMonitors },
   {CC"isMonitorInflated0", CC"(Ljava/lang/Object;)Z", (void*)&WB_IsMonitorInflated  },
   {CC"forceSafepoint",     CC"()V",                   (void*)&WB_ForceSafepoint     },
   {CC"getConstantPool0",   CC"(Ljava/lang/Class;)J",  (void*)&WB_GetConstantPool    },
@@ -2555,7 +2542,7 @@ JVM_ENTRY(void, JVM_RegisterWhiteBoxMethods(JNIEnv* env, jclass wbclass))
   {
     if (WhiteBoxAPI) {
       // Make sure that wbclass is loaded by the null classloader
-      InstanceKlass* ik = InstanceKlass::cast(JNIHandles::resolve(wbclass)->klass());
+      InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve(wbclass)));
       Handle loader(THREAD, ik->class_loader());
       if (loader.is_null()) {
         WhiteBox::register_methods(env, wbclass, thread, methods, sizeof(methods) / sizeof(methods[0]));

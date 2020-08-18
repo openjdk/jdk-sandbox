@@ -22,13 +22,16 @@
  */
 
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.List;
-import java.util.Optional;
 import java.lang.invoke.MethodHandles;
-import jdk.jpackage.test.*;
-import jdk.jpackage.test.Annotations.*;
+import jdk.jpackage.test.PackageTest;
+import jdk.jpackage.test.FileAssociations;
+import jdk.jpackage.test.AdditionalLauncher;
+import jdk.jpackage.test.JPackageCommand;
+import jdk.jpackage.test.JavaAppDesc;
+import jdk.jpackage.test.TKit;
+import jdk.jpackage.test.Annotations.Test;
+import jdk.jpackage.test.Annotations.Parameter;
 
 /**
  * Test --add-launcher parameter. Output of the test should be
@@ -177,6 +180,7 @@ public class AddLauncherTest {
             cmd.addArguments("--module-path", modularJarCmd.getArgumentValue(
                     "--module-path"));
             cmd.addArguments("--add-modules", modularAppDesc.moduleName());
+            cmd.ignoreDefaultRuntime(true); // because of --add-modules
         }
 
         new AdditionalLauncher("ModularAppLauncher")

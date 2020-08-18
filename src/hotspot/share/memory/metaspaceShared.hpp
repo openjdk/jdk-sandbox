@@ -184,6 +184,7 @@ class MetaspaceShared : AllStatic {
   static void* _shared_metaspace_static_top;
   static intx _relocation_delta;
   static char* _requested_base_address;
+  static bool _use_optimized_module_handling;
  public:
   enum {
     // core archive spaces
@@ -212,6 +213,8 @@ class MetaspaceShared : AllStatic {
                              TRAPS) NOT_CDS_RETURN_(0);
 
   static GrowableArray<Klass*>* collected_klasses();
+  static GrowableArray<Symbol*>* collected_symbols();
+  static void add_symbol(Symbol* sym) NOT_CDS_RETURN;
 
   static ReservedSpace* shared_rs() {
     CDS_ONLY(return &_shared_rs);
@@ -351,7 +354,7 @@ class MetaspaceShared : AllStatic {
   static Klass* get_relocated_klass(Klass *k, bool is_final=false);
 
   static void allocate_cloned_cpp_vtptrs();
-  static intptr_t* fix_cpp_vtable_for_dynamic_archive(MetaspaceObj::Type msotype, address obj);
+  static intptr_t* get_archived_cpp_vtable(MetaspaceObj::Type msotype, address obj);
   static void initialize_ptr_marker(CHeapBitMap* ptrmap);
 
   // This is the base address as specified by -XX:SharedBaseAddress during -Xshare:dump.
@@ -372,6 +375,11 @@ class MetaspaceShared : AllStatic {
   static void write_core_archive_regions(FileMapInfo* mapinfo,
                                          GrowableArray<ArchiveHeapOopmapInfo>* closed_oopmaps,
                                          GrowableArray<ArchiveHeapOopmapInfo>* open_oopmaps);
+
+  // Can we skip some expensive operations related to modules?
+  static bool use_optimized_module_handling()     { return _use_optimized_module_handling;  }
+  static void disable_optimized_module_handling() { _use_optimized_module_handling = false; }
+
 private:
 #if INCLUDE_CDS
   static void write_region(FileMapInfo* mapinfo, int region_idx, DumpRegion* dump_region,

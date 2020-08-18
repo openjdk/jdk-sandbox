@@ -23,14 +23,13 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/gctests/WeakReference/weak006.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent]
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm -XX:-UseGCOverheadLimit gc.gctests.WeakReference.weak006.weak006 -t 1
  */
 

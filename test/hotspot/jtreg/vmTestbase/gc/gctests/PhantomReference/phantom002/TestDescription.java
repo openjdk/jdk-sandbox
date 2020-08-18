@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @key stress gc randomness
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/gctests/PhantomReference/phantom002.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent]
@@ -55,7 +55,6 @@
  *
  * @library /vmTestbase
  *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @run main/othervm gc.gctests.PhantomReference.phantom001.phantom001 -ms high
  */
 

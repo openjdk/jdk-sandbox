@@ -306,14 +306,14 @@ LockedClassesDo::~LockedClassesDo() {
 // unloading can remove entries concurrently soon.
 class ClassLoaderDataGraphIterator : public StackObj {
   ClassLoaderData* _next;
+  Thread*          _thread;
   HandleMark       _hm;  // clean up handles when this is done.
   Handle           _holder;
-  Thread*          _thread;
   NoSafepointVerifier _nsv; // No safepoints allowed in this scope
                             // unless verifying at a safepoint.
 
 public:
-  ClassLoaderDataGraphIterator() : _next(ClassLoaderDataGraph::_head) {
+  ClassLoaderDataGraphIterator() : _next(ClassLoaderDataGraph::_head), _thread(Thread::current()), _hm(_thread) {
     _thread = Thread::current();
     assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
   }
@@ -666,19 +666,19 @@ ClassLoaderMetaspace* ClassLoaderDataGraphMetaspaceIterator::get_next() {
   return result;
 }
 
+void ClassLoaderDataGraph::verify() {
+  ClassLoaderDataGraphIterator iter;
+  while (ClassLoaderData* cld = iter.get_next()) {
+    cld->verify();
+  }
+}
+
 #ifndef PRODUCT
 // callable from debugger
 extern "C" int print_loader_data_graph() {
   ResourceMark rm;
   ClassLoaderDataGraph::print_on(tty);
   return 0;
-}
-
-void ClassLoaderDataGraph::verify() {
-  ClassLoaderDataGraphIterator iter;
-  while (ClassLoaderData* cld = iter.get_next()) {
-    cld->verify();
-  }
 }
 
 void ClassLoaderDataGraph::print_on(outputStream * const out) {

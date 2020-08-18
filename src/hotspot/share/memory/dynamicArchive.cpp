@@ -470,9 +470,9 @@ private:
                             p2i(obj), p2i(p), bytes,
                             MetaspaceObj::type_name(ref->msotype()));
     memcpy(p, obj, bytes);
-    intptr_t* cloned_vtable = MetaspaceShared::fix_cpp_vtable_for_dynamic_archive(ref->msotype(), p);
-    if (cloned_vtable != NULL) {
-      update_pointer((address*)p, (address)cloned_vtable, "vtb", 0, /*is_mso_pointer*/false);
+    intptr_t* archived_vtable = MetaspaceShared::get_archived_cpp_vtable(ref->msotype(), p);
+    if (archived_vtable != NULL) {
+      update_pointer((address*)p, (address)archived_vtable, "vtb", 0, /*is_mso_pointer*/false);
       mark_pointer((address*)p);
     }
 
@@ -521,8 +521,8 @@ private:
 
 public:
   DynamicArchiveBuilder() {
-    _klasses = new (ResourceObj::C_HEAP, mtClass) GrowableArray<InstanceKlass*>(100, true, mtInternal);
-    _symbols = new (ResourceObj::C_HEAP, mtClass) GrowableArray<Symbol*>(1000, true, mtInternal);
+    _klasses = new (ResourceObj::C_HEAP, mtClass) GrowableArray<InstanceKlass*>(100, mtClass);
+    _symbols = new (ResourceObj::C_HEAP, mtClass) GrowableArray<Symbol*>(1000, mtClass);
 
     _estimated_metsapceobj_bytes = 0;
     _estimated_hashtable_bytes = 0;
@@ -561,7 +561,6 @@ public:
   void verify_universe(const char* info) {
     if (VerifyBeforeExit) {
       log_info(cds)("Verify %s", info);
-      HandleMark hm;
       // Among other things, this ensures that Eden top is correct.
       Universe::heap()->prepare_for_verify();
       Universe::verify(info);
@@ -658,6 +657,11 @@ public:
 
     make_trampolines();
     make_klasses_shareable();
+
+    {
+      log_info(cds)("Adjust lambda proxy class dictionary");
+      SystemDictionaryShared::adjust_lambda_proxy_class_dictionary();
+    }
 
     {
       log_info(cds)("Final relocation of pointers ... ");
@@ -838,16 +842,7 @@ void DynamicArchiveBuilder::make_klasses_shareable() {
 
   for (i = 0; i < count; i++) {
     InstanceKlass* ik = _klasses->at(i);
-    ClassLoaderData *cld = ik->class_loader_data();
-    if (cld->is_boot_class_loader_data()) {
-      ik->set_shared_class_loader_type(ClassLoader::BOOT_LOADER);
-    }
-    else if (cld->is_platform_class_loader_data()) {
-      ik->set_shared_class_loader_type(ClassLoader::PLATFORM_LOADER);
-    }
-    else if (cld->is_system_class_loader_data()) {
-      ik->set_shared_class_loader_type(ClassLoader::APP_LOADER);
-    }
+    ik->assign_class_loader_type();
 
     MetaspaceShared::rewrite_nofast_bytecodes_and_calculate_fingerprints(Thread::current(), ik);
     ik->remove_unshareable_info();
@@ -1123,28 +1118,24 @@ DynamicArchiveBuilder* DynamicArchive::_builder = NULL;
 
 
 bool DynamicArchive::validate(FileMapInfo* dynamic_info) {
+  assert(!dynamic_info->is_static(), "must be");
   // Check if the recorded base archive matches with the current one
   FileMapInfo* base_info = FileMapInfo::current_info();
   DynamicArchiveHeader* dynamic_header = dynamic_info->dynamic_header();
 
   // Check the header crc
   if (dynamic_header->base_header_crc() != base_info->crc()) {
-    FileMapInfo::fail_continue("Archive header checksum verification failed.");
+    FileMapInfo::fail_continue("Dynamic archive cannot be used: static archive header checksum verification failed.");
     return false;
   }
 
   // Check each space's crc
   for (int i = 0; i < MetaspaceShared::n_regions; i++) {
     if (dynamic_header->base_region_crc(i) != base_info->space_crc(i)) {
-      FileMapInfo::fail_continue("Archive region #%d checksum verification failed.", i);
+      FileMapInfo::fail_continue("Dynamic archive cannot be used: static archive region #%d checksum verification failed.", i);
       return false;
     }
   }
 
-  // Validate the dynamic archived shared path table, and set the global
-  // _shared_path_table to that.
-  if (!dynamic_info->validate_shared_path_table()) {
-    return false;
-  }
   return true;
 }
