@@ -85,8 +85,7 @@ static StringTableHash* _local_table = NULL;
 
 volatile bool StringTable::_has_work = false;
 volatile bool StringTable::_needs_rehashing = false;
-
-volatile size_t StringTable::_uncleaned_items_count = 0;
+OopStorage*   StringTable::_oop_storage;
 
 static size_t _current_size = 0;
 static volatile size_t _items_count = 0;
@@ -103,7 +102,7 @@ uintx hash_string(const jchar* s, int len, bool useAlt) {
 class StringTableConfig : public StackObj {
  private:
  public:
-  typedef WeakHandle<vm_string_table_data> Value;
+  typedef WeakHandle Value;
 
   static uintx get_hash(Value const& value, bool* is_dead) {
     EXCEPTION_MARK;
@@ -129,7 +128,7 @@ class StringTableConfig : public StackObj {
     return AllocateHeap(size, mtSymbol);
   }
   static void free_node(void* memory, Value const& value) {
-    value.release();
+    value.release(StringTable::_oop_storage);
     FreeHeap(memory);
     StringTable::item_removed();
   }
@@ -150,7 +149,7 @@ class StringTableLookupJchar : StackObj {
   uintx get_hash() const {
     return _hash;
   }
-  bool equals(WeakHandle<vm_string_table_data>* value, bool* is_dead) {
+  bool equals(WeakHandle* value, bool* is_dead) {
     oop val_oop = value->peek();
     if (val_oop == NULL) {
       // dead oop, mark this hash dead for cleaning
@@ -182,7 +181,7 @@ class StringTableLookupOop : public StackObj {
     return _hash;
   }
 
-  bool equals(WeakHandle<vm_string_table_data>* value, bool* is_dead) {
+  bool equals(WeakHandle* value, bool* is_dead) {
     oop val_oop = value->peek();
     if (val_oop == NULL) {
       // dead oop, mark this hash dead for cleaning
@@ -211,18 +210,12 @@ void StringTable::create_table() {
   log_trace(stringtable)("Start size: " SIZE_FORMAT " (" SIZE_FORMAT ")",
                          _current_size, start_size_log_2);
   _local_table = new StringTableHash(start_size_log_2, END_SIZE, REHASH_LEN);
+  _oop_storage = OopStorageSet::create_weak("StringTable Weak");
+  _oop_storage->register_num_dead_callback(&gc_notification);
 }
 
 size_t StringTable::item_added() {
   return Atomic::add(&_items_count, (size_t)1);
-}
-
-size_t StringTable::add_items_to_clean(size_t ndead) {
-  size_t total = Atomic::add(&_uncleaned_items_count, (size_t)ndead);
-  log_trace(stringtable)(
-     "Uncleaned items:" SIZE_FORMAT " added: " SIZE_FORMAT " total:" SIZE_FORMAT,
-     _uncleaned_items_count, ndead, total);
-  return total;
 }
 
 void StringTable::item_removed() {
@@ -230,11 +223,11 @@ void StringTable::item_removed() {
 }
 
 double StringTable::get_load_factor() {
-  return (double)_items_count/_current_size;
+  return double(_items_count)/double(_current_size);
 }
 
-double StringTable::get_dead_factor() {
-  return (double)_uncleaned_items_count/_current_size;
+double StringTable::get_dead_factor(size_t num_dead) {
+  return double(num_dead)/double(_current_size);
 }
 
 size_t StringTable::table_size() {
@@ -243,7 +236,7 @@ size_t StringTable::table_size() {
 
 void StringTable::trigger_concurrent_work() {
   MutexLocker ml(Service_lock, Mutex::_no_safepoint_check_flag);
-  _has_work = true;
+  Atomic::store(&_has_work, true);
   Service_lock->notify_all();
 }
 
@@ -272,7 +265,7 @@ class StringTableGet : public StackObj {
   Handle  _return;
  public:
   StringTableGet(Thread* thread) : _thread(thread) {}
-  void operator()(WeakHandle<vm_string_table_data>* val) {
+  void operator()(WeakHandle* val) {
     oop result = val->resolve();
     assert(result != NULL, "Result should be reachable");
     _return = Handle(_thread, result);
@@ -368,7 +361,7 @@ oop StringTable::do_intern(Handle string_or_null_h, const jchar* name,
   bool rehash_warning;
   do {
     // Callers have already looked up the String using the jchar* name, so just go to add.
-    WeakHandle<vm_string_table_data> wh = WeakHandle<vm_string_table_data>::create(string_h);
+    WeakHandle wh(_oop_storage, string_h);
     // The hash table takes ownership of the WeakHandle, even if it's not inserted.
     if (_local_table->insert(THREAD, lookup, wh, &rehash_warning)) {
       update_needs_rehash(rehash_warning);
@@ -406,7 +399,7 @@ void StringTable::grow(JavaThread* jt) {
 }
 
 struct StringTableDoDelete : StackObj {
-  void operator()(WeakHandle<vm_string_table_data>* val) {
+  void operator()(WeakHandle* val) {
     /* do nothing */
   }
 };
@@ -415,7 +408,7 @@ struct StringTableDeleteCheck : StackObj {
   long _count;
   long _item;
   StringTableDeleteCheck() : _count(0), _item(0) {}
-  bool operator()(WeakHandle<vm_string_table_data>* val) {
+  bool operator()(WeakHandle* val) {
     ++_item;
     oop tmp = val->peek();
     if (tmp == NULL) {
@@ -449,13 +442,15 @@ void StringTable::clean_dead_entries(JavaThread* jt) {
   log_debug(stringtable)("Cleaned %ld of %ld", stdc._count, stdc._item);
 }
 
-void StringTable::check_concurrent_work() {
-  if (_has_work) {
+void StringTable::gc_notification(size_t num_dead) {
+  log_trace(stringtable)("Uncleaned items:" SIZE_FORMAT, num_dead);
+
+  if (has_work()) {
     return;
   }
 
   double load_factor = StringTable::get_load_factor();
-  double dead_factor = StringTable::get_dead_factor();
+  double dead_factor = StringTable::get_dead_factor(num_dead);
   // We should clean/resize if we have more dead than alive,
   // more items than preferred load factor or
   // more dead items than water mark.
@@ -468,8 +463,11 @@ void StringTable::check_concurrent_work() {
   }
 }
 
+bool StringTable::has_work() {
+  return Atomic::load_acquire(&_has_work);
+}
+
 void StringTable::do_concurrent_work(JavaThread* jt) {
-  _has_work = false;
   double load_factor = get_load_factor();
   log_debug(stringtable, perf)("Concurrent work, live factor: %g", load_factor);
   // We prefer growing, since that also removes dead items
@@ -478,6 +476,7 @@ void StringTable::do_concurrent_work(JavaThread* jt) {
   } else {
     clean_dead_entries(jt);
   }
+  Atomic::release_store(&_has_work, false);
 }
 
 // Rehash
@@ -551,7 +550,7 @@ static int literal_size(oop obj) {
 }
 
 struct SizeFunc : StackObj {
-  size_t operator()(WeakHandle<vm_string_table_data>* val) {
+  size_t operator()(WeakHandle* val) {
     oop s = val->peek();
     if (s == NULL) {
       // Dead
@@ -577,7 +576,7 @@ void StringTable::print_table_statistics(outputStream* st,
 // Verification
 class VerifyStrings : StackObj {
  public:
-  bool operator()(WeakHandle<vm_string_table_data>* val) {
+  bool operator()(WeakHandle* val) {
     oop s = val->peek();
     if (s != NULL) {
       assert(java_lang_String::length(s) >= 0, "Length on string must work.");
@@ -601,7 +600,7 @@ class VerifyCompStrings : StackObj {
  public:
   size_t _errors;
   VerifyCompStrings(GrowableArray<oop>* oops) : _oops(oops), _errors(0) {}
-  bool operator()(WeakHandle<vm_string_table_data>* val) {
+  bool operator()(WeakHandle* val) {
     oop s = val->resolve();
     if (s == NULL) {
       return true;
@@ -623,7 +622,7 @@ size_t StringTable::verify_and_compare_entries() {
   Thread* thr = Thread::current();
   GrowableArray<oop>* oops =
     new (ResourceObj::C_HEAP, mtInternal)
-      GrowableArray<oop>((int)_current_size, true);
+      GrowableArray<oop>((int)_current_size, mtInternal);
 
   VerifyCompStrings vcs(oops);
   if (!_local_table->try_scan(thr, vcs)) {
@@ -639,7 +638,7 @@ class PrintString : StackObj {
   outputStream* _st;
  public:
   PrintString(Thread* thr, outputStream* st) : _thr(thr), _st(st) {}
-  bool operator()(WeakHandle<vm_string_table_data>* val) {
+  bool operator()(WeakHandle* val) {
     oop s = val->peek();
     if (s == NULL) {
       return true;
@@ -744,7 +743,7 @@ oop StringTable::create_archived_string(oop s, Thread* THREAD) {
 struct CopyToArchive : StackObj {
   CompactHashtableWriter* _writer;
   CopyToArchive(CompactHashtableWriter* writer) : _writer(writer) {}
-  bool operator()(WeakHandle<vm_string_table_data>* val) {
+  bool operator()(WeakHandle* val) {
     oop s = val->peek();
     if (s == NULL) {
       return true;

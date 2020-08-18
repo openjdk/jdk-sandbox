@@ -33,10 +33,12 @@
 #include "runtime/orderAccess.hpp"
 #include "utilities/ostream.hpp"
 
-#define SHENANDOAH_PHASE_NAME_FORMAT "%-28s"
+#define SHENANDOAH_PHASE_NAME_FORMAT "%-30s"
 #define SHENANDOAH_S_TIME_FORMAT "%8.3lf"
 #define SHENANDOAH_US_TIME_FORMAT "%8.0lf"
 #define SHENANDOAH_US_WORKER_TIME_FORMAT "%3.0lf"
+#define SHENANDOAH_US_WORKER_NOTIME_FORMAT "%3s"
+#define SHENANDOAH_PARALLELISM_FORMAT "%4.2lf"
 
 #define SHENANDOAH_PHASE_DECLARE_NAME(type, title) \
   title,
@@ -67,7 +69,7 @@ ShenandoahPhaseTimings::ShenandoahPhaseTimings(uint max_workers) :
     if (is_worker_phase(Phase(i))) {
       int c = 0;
 #define SHENANDOAH_WORKER_DATA_INIT(type, title) \
-      if (c++ != 0) _worker_data[i + c] = new ShenandoahWorkerData(title, _max_workers);
+      if (c++ != 0) _worker_data[i + c] = new ShenandoahWorkerData(NULL, title, _max_workers);
       SHENANDOAH_PAR_PHASE_DO(,, SHENANDOAH_WORKER_DATA_INIT)
 #undef SHENANDOAH_WORKER_DATA_INIT
     }
@@ -101,12 +103,15 @@ bool ShenandoahPhaseTimings::is_worker_phase(Phase phase) {
     case full_gc_scan_roots:
     case full_gc_update_roots:
     case full_gc_adjust_roots:
+    case degen_gc_scan_conc_roots:
     case degen_gc_update_roots:
+    case full_gc_scan_conc_roots:
     case full_gc_purge_class_unload:
     case full_gc_purge_weak_par:
     case purge_class_unload:
     case purge_weak_par:
     case heap_iteration_roots:
+    case conc_mark_roots:
     case conc_weak_roots_work:
     case conc_strong_roots:
       return true;
@@ -229,6 +234,14 @@ void ShenandoahPhaseTimings::print_cycle_on(outputStream* out) const {
     double v = _cycle_data[i] * 1000000.0;
     if (v > 0) {
       out->print(SHENANDOAH_PHASE_NAME_FORMAT " " SHENANDOAH_US_TIME_FORMAT " us", _phase_names[i], v);
+
+      if (is_worker_phase(Phase(i))) {
+        double total = _cycle_data[i + 1] * 1000000.0;
+        if (total > 0) {
+          out->print(", parallelism: " SHENANDOAH_PARALLELISM_FORMAT "x", total / v);
+        }
+      }
+
       if (_worker_data[i] != NULL) {
         out->print(", workers (us): ");
         for (uint c = 0; c < _max_workers; c++) {
@@ -236,7 +249,7 @@ void ShenandoahPhaseTimings::print_cycle_on(outputStream* out) const {
           if (tv != ShenandoahWorkerData::uninitialized()) {
             out->print(SHENANDOAH_US_WORKER_TIME_FORMAT ", ", tv * 1000000.0);
           } else {
-            out->print("%3s, ", "---");
+            out->print(SHENANDOAH_US_WORKER_NOTIME_FORMAT ", ", "---");
           }
         }
       }
@@ -256,6 +269,17 @@ void ShenandoahPhaseTimings::print_global_on(outputStream* out) const {
   out->cr();
   out->print_cr("  All times are wall-clock times, except per-root-class counters, that are sum over");
   out->print_cr("  all workers. Dividing the <total> over the root stage time estimates parallelism.");
+  out->cr();
+
+  out->print_cr("  Pacing delays are measured from entering the pacing code till exiting it. Therefore,");
+  out->print_cr("  observed pacing delays may be higher than the threshold when paced thread spent more");
+  out->print_cr("  time in the pacing code. It usually happens when thread is de-scheduled while paced,");
+  out->print_cr("  OS takes longer to unblock the thread, or JVM experiences an STW pause.");
+  out->cr();
+  out->print_cr("  Higher delay would prevent application outpacing the GC, but it will hide the GC latencies");
+  out->print_cr("  from the STW pause times. Pacing affects the individual threads, and so it would also be");
+  out->print_cr("  invisible to the usual profiling tools, but would add up to end-to-end application latency.");
+  out->print_cr("  Raise max pacing delay with care.");
   out->cr();
 
   for (uint i = 0; i < _num_phases; i++) {

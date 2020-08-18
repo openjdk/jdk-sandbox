@@ -246,9 +246,6 @@
   develop(bool, UseUniqueSubclasses, true,                                  \
           "Narrow an abstract reference to the unique concrete subclass")   \
                                                                             \
-  develop(bool, UseExactTypes, true,                                        \
-          "Use exact types to eliminate array store checks and v-calls")    \
-                                                                            \
   product(intx, TrackedInitializationLimit, 50,                             \
           "When initializing fields, track up to this many words")          \
           range(0, 65535)                                                   \
@@ -357,13 +354,6 @@
           "Limit of ops to make speculative when using CMOVE")              \
           range(0, max_jint)                                                \
                                                                             \
-  /* Set BranchOnRegister == false. See 4965987. */                         \
-  product(bool, BranchOnRegister, false,                                    \
-          "Use Sparc V9 branch-on-register opcodes")                        \
-                                                                            \
-  develop(bool, SparcV9RegsHiBitsZero, true,                                \
-          "Assume Sparc V9 I&L registers on V8+ systems are zero-extended") \
-                                                                            \
   product(bool, UseRDPCForConstantTableBase, false,                         \
           "Use Sparc RDPC instruction for the constant table base.")        \
                                                                             \
@@ -373,10 +363,12 @@
                                                                             \
   notproduct(intx, PrintIdealGraphLevel, 0,                                 \
           "Level of detail of the ideal graph printout. "                   \
-          "System-wide value, 0=nothing is printed, 4=all details printed. "\
+          "System-wide value, -1=printing is disabled, "                    \
+          "0=print nothing except IGVPrintLevel directives, "               \
+          "4=all details printed. "                                         \
           "Level of detail of printouts can be set on a per-method level "  \
           "as well by using CompileCommand=option.")                        \
-          range(0, 4)                                                       \
+          range(-1, 4)                                                      \
                                                                             \
   notproduct(intx, PrintIdealGraphPort, 4444,                               \
           "Ideal graph printer to network port")                            \

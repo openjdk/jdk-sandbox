@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -153,7 +153,7 @@ void Matcher::verify_new_nodes_only(Node* xroot) {
   // Make sure that the new graph only references new nodes
   ResourceMark rm;
   Unique_Node_List worklist;
-  VectorSet visited(Thread::current()->resource_area());
+  VectorSet visited;
   worklist.push(xroot);
   while (worklist.size() > 0) {
     Node* n = worklist.pop();
@@ -1955,7 +1955,7 @@ bool Matcher::clone_base_plus_offset_address(AddPNode* m, Matcher::MStack& mstac
 }
 
 // A method-klass-holder may be passed in the inline_cache_reg
-// and then expanded into the inline_cache_reg and a method_oop register
+// and then expanded into the inline_cache_reg and a method_ptr register
 //   defined in ad_<arch>.cpp
 
 //------------------------------find_shared------------------------------------
@@ -1964,7 +1964,7 @@ void Matcher::find_shared(Node* n) {
   // Allocate stack of size C->live_nodes() * 2 to avoid frequent realloc
   MStack mstack(C->live_nodes() * 2);
   // Mark nodes as address_visited if they are inputs to an address expression
-  VectorSet address_visited(Thread::current()->resource_area());
+  VectorSet address_visited;
   mstack.push(n, Visit);     // Don't need to pre-visit root node
   while (mstack.is_nonempty()) {
     n = mstack.node();       // Leave node on stack

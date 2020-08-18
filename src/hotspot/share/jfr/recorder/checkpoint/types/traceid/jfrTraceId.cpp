@@ -52,7 +52,7 @@ static traceid atomic_inc(traceid volatile* const dest) {
 }
 
 static traceid next_class_id() {
-  static volatile traceid class_id_counter = MaxJfrEventId + 100;
+  static volatile traceid class_id_counter = LAST_TYPE_ID + 1;
   return atomic_inc(&class_id_counter) << TRACE_ID_SHIFT;
 }
 
@@ -152,6 +152,14 @@ traceid JfrTraceId::assign_thread_id() {
   return next_thread_id();
 }
 
+traceid JfrTraceId::load_raw(jclass jc) {
+  assert(jc != NULL, "invariant");
+  assert(((JavaThread*)Thread::current())->thread_state() == _thread_in_vm, "invariant");
+  const oop my_oop = JNIHandles::resolve(jc);
+  assert(my_oop != NULL, "invariant");
+  return load_raw(java_lang_Class::as_Klass(my_oop));
+}
+
 // used by CDS / APPCDS as part of "remove_unshareable_info"
 void JfrTraceId::remove(const Klass* k) {
   assert(k != NULL, "invariant");
@@ -160,6 +168,13 @@ void JfrTraceId::remove(const Klass* k) {
   // in the archive, allowing for event flag restoration
   // when renewing the traceid on klass revival.
   k->set_trace_id(EVENT_KLASS_MASK(k));
+}
+
+// used by CDS / APPCDS as part of "remove_unshareable_info"
+void JfrTraceId::remove(const Method* method) {
+  assert(method != NULL, "invariant");
+  // Clear all bits.
+  method->set_trace_flags(0);
 }
 
 // used by CDS / APPCDS as part of "restore_unshareable_info"
@@ -171,22 +186,6 @@ void JfrTraceId::restore(const Klass* k) {
   const traceid event_flags = k->trace_id();
   // get a fresh traceid and restore the original event flags
   k->set_trace_id(next_class_id() | event_flags);
-}
-
-traceid JfrTraceId::get(jclass jc) {
-  assert(jc != NULL, "invariant");
-  assert(((JavaThread*)Thread::current())->thread_state() == _thread_in_vm, "invariant");
-  const oop my_oop = JNIHandles::resolve(jc);
-  assert(my_oop != NULL, "invariant");
-  return get(java_lang_Class::as_Klass(my_oop));
-}
-
-traceid JfrTraceId::use(jclass jc) {
-  assert(jc != NULL, "invariant");
-  assert(((JavaThread*)Thread::current())->thread_state() == _thread_in_vm, "invariant");
-  const oop my_oop = JNIHandles::resolve(jc);
-  assert(my_oop != NULL, "invariant");
-  return use(java_lang_Class::as_Klass(my_oop));
 }
 
 bool JfrTraceId::in_visible_set(const jclass jc) {

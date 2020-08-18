@@ -65,9 +65,7 @@ void ShenandoahBarrierSetC2State::add_enqueue_barrier(ShenandoahEnqueueBarrierNo
 }
 
 void ShenandoahBarrierSetC2State::remove_enqueue_barrier(ShenandoahEnqueueBarrierNode * n) {
-  if (_enqueue_barriers->contains(n)) {
-    _enqueue_barriers->remove(n);
-  }
+  _enqueue_barriers->remove_if_existing(n);
 }
 
 int ShenandoahBarrierSetC2State::load_reference_barriers_count() const {
@@ -375,7 +373,7 @@ void ShenandoahBarrierSetC2::insert_pre_barrier(GraphKit* kit, Node* base_oop, N
   // If offset is a constant, is it java_lang_ref_Reference::_reference_offset?
   const TypeX* otype = offset->find_intptr_t_type();
   if (otype != NULL && otype->is_con() &&
-      otype->get_con() != java_lang_ref_Reference::referent_offset) {
+      otype->get_con() != java_lang_ref_Reference::referent_offset()) {
     // Constant offset but not the reference_offset so just return
     return;
   }
@@ -415,7 +413,7 @@ void ShenandoahBarrierSetC2::insert_pre_barrier(GraphKit* kit, Node* base_oop, N
 
   IdealKit ideal(kit);
 
-  Node* referent_off = __ ConX(java_lang_ref_Reference::referent_offset);
+  Node* referent_off = __ ConX(java_lang_ref_Reference::referent_offset());
 
   __ if_then(offset, BoolTest::eq, referent_off, unlikely); {
       // Update graphKit memory and control from IdealKit.
@@ -986,9 +984,8 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
     // Verify G1 pre-barriers
     const int marking_offset = in_bytes(ShenandoahThreadLocalData::satb_mark_queue_active_offset());
 
-    ResourceArea *area = Thread::current()->resource_area();
-    Unique_Node_List visited(area);
-    Node_List worklist(area);
+    Unique_Node_List visited;
+    Node_List worklist;
     // We're going to walk control flow backwards starting from the Root
     worklist.push(compile->root());
     while (worklist.size() > 0) {

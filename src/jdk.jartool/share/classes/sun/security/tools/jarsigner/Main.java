@@ -50,6 +50,8 @@ import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.TrustAnchor;
 import java.util.Map.Entry;
 
+import jdk.internal.access.JavaUtilZipFileAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.security.jarsigner.JarSigner;
 import jdk.security.jarsigner.JarSignerException;
 import sun.security.pkcs.PKCS7;
@@ -108,12 +110,16 @@ public class Main {
     private static final Set<CryptoPrimitive> SIG_PRIMITIVE_SET = Collections
             .unmodifiableSet(EnumSet.of(CryptoPrimitive.SIGNATURE));
 
+    private static boolean permsDetected;
+
     static final String VERSION = "1.0";
 
     static final int IN_KEYSTORE = 0x01;        // signer is in keystore
     static final int NOT_ALIAS = 0x04;          // alias list is NOT empty and
     // signer is not in alias list
     static final int SIGNED_BY_ALIAS = 0x08;    // signer is in alias list
+
+    static final JavaUtilZipFileAccess JUZFA = SharedSecrets.getJavaUtilZipFileAccess();
 
     // Attention:
     // This is the entry that get launched by the security tool jarsigner.
@@ -294,7 +300,7 @@ public class Main {
                 Arrays.fill(storepass, ' ');
                 storepass = null;
             }
-            Event.clearReportListener();
+            Event.clearReportListener(Event.ReporterCategory.CRLCHECK);
         }
 
         if (strict) {
@@ -776,6 +782,9 @@ public class Main {
                     JarEntry je = e.nextElement();
                     String name = je.getName();
 
+                    if (!permsDetected && JUZFA.getPosixPerms(je) != -1) {
+                        permsDetected = true;
+                    }
                     hasSignature = hasSignature
                             || SignatureFileVerifier.isBlockOrSF(name);
 
@@ -1050,176 +1059,155 @@ public class Main {
         boolean signerNotExpired = expireDate == null
                 || expireDate.after(new Date());
 
-        if (badKeyUsage || badExtendedKeyUsage || badNetscapeCertType ||
-                notYetValidCert || chainNotValidated || hasExpiredCert ||
-                hasUnsignedEntry || signerSelfSigned || (legacyAlg != 0) ||
-                (disabledAlg != 0) || aliasNotInStore || notSignedByAlias ||
-                tsaChainNotValidated ||
-                (hasExpiredTsaCert && !signerNotExpired)) {
-
-            if (strict) {
-                result = isSigning
-                        ? rb.getString("jar.signed.with.signer.errors.")
-                        : rb.getString("jar.verified.with.signer.errors.");
-            } else {
-                result = isSigning
-                        ? rb.getString("jar.signed.")
-                        : rb.getString("jar.verified.");
-            }
-
-            if (badKeyUsage) {
-                errors.add(isSigning
-                        ? rb.getString("The.signer.certificate.s.KeyUsage.extension.doesn.t.allow.code.signing.")
-                        : rb.getString("This.jar.contains.entries.whose.signer.certificate.s.KeyUsage.extension.doesn.t.allow.code.signing."));
-            }
-
-            if (badExtendedKeyUsage) {
-                errors.add(isSigning
-                        ? rb.getString("The.signer.certificate.s.ExtendedKeyUsage.extension.doesn.t.allow.code.signing.")
-                        : rb.getString("This.jar.contains.entries.whose.signer.certificate.s.ExtendedKeyUsage.extension.doesn.t.allow.code.signing."));
-            }
-
-            if (badNetscapeCertType) {
-                errors.add(isSigning
-                        ? rb.getString("The.signer.certificate.s.NetscapeCertType.extension.doesn.t.allow.code.signing.")
-                        : rb.getString("This.jar.contains.entries.whose.signer.certificate.s.NetscapeCertType.extension.doesn.t.allow.code.signing."));
-            }
-
-            // only in verifying
-            if (hasUnsignedEntry) {
-                errors.add(rb.getString(
-                        "This.jar.contains.unsigned.entries.which.have.not.been.integrity.checked."));
-            }
-            if (hasExpiredCert) {
-                errors.add(isSigning
-                        ? rb.getString("The.signer.certificate.has.expired.")
-                        : rb.getString("This.jar.contains.entries.whose.signer.certificate.has.expired."));
-            }
-            if (notYetValidCert) {
-                errors.add(isSigning
-                        ? rb.getString("The.signer.certificate.is.not.yet.valid.")
-                        : rb.getString("This.jar.contains.entries.whose.signer.certificate.is.not.yet.valid."));
-            }
-
-            if (chainNotValidated) {
-                errors.add(String.format(isSigning
-                                ? rb.getString("The.signer.s.certificate.chain.is.invalid.reason.1")
-                                : rb.getString("This.jar.contains.entries.whose.certificate.chain.is.invalid.reason.1"),
-                        chainNotValidatedReason.getLocalizedMessage()));
-            }
-
-            if (hasExpiredTsaCert) {
-                errors.add(rb.getString("The.timestamp.has.expired."));
-            }
-            if (tsaChainNotValidated) {
-                errors.add(String.format(isSigning
-                                ? rb.getString("The.tsa.certificate.chain.is.invalid.reason.1")
-                                : rb.getString("This.jar.contains.entries.whose.tsa.certificate.chain.is.invalid.reason.1"),
-                        tsaChainNotValidatedReason.getLocalizedMessage()));
-            }
-
-            // only in verifying
-            if (notSignedByAlias) {
-                errors.add(
-                        rb.getString("This.jar.contains.signed.entries.which.is.not.signed.by.the.specified.alias.es."));
-            }
-
-            // only in verifying
-            if (aliasNotInStore) {
-                errors.add(rb.getString("This.jar.contains.signed.entries.that.s.not.signed.by.alias.in.this.keystore."));
-            }
-
-            if (signerSelfSigned) {
-                errors.add(isSigning
-                        ? rb.getString("The.signer.s.certificate.is.self.signed.")
-                        : rb.getString("This.jar.contains.entries.whose.signer.certificate.is.self.signed."));
-            }
-
-            if (isSigning) {
-                if ((legacyAlg & 1) == 1) {
-                    warnings.add(String.format(
-                            rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update."),
-                            digestalg, "-digestalg"));
-                }
-
-                if ((disabledAlg & 1) == 1) {
-                    errors.add(String.format(
-                            rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk.and.is.disabled."),
-                            digestalg, "-digestalg"));
-                }
-
-                if ((legacyAlg & 2) == 2) {
-                    warnings.add(String.format(
-                            rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update."),
-                            sigalg, "-sigalg"));
-                }
-                if ((disabledAlg & 2) == 2) {
-                    errors.add(String.format(
-                            rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk.and.is.disabled."),
-                            sigalg, "-sigalg"));
-                }
-
-                if ((legacyAlg & 4) == 4) {
-                    warnings.add(String.format(
-                            rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update."),
-                            tSADigestAlg, "-tsadigestalg"));
-                }
-                if ((disabledAlg & 4) == 4) {
-                    errors.add(String.format(
-                            rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk.and.is.disabled."),
-                            tSADigestAlg, "-tsadigestalg"));
-                }
-
-                if ((legacyAlg & 8) == 8) {
-                    warnings.add(String.format(
-                            rb.getString("The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk..This.key.size.will.be.disabled.in.a.future.update."),
-                            privateKey.getAlgorithm(), KeyUtil.getKeySize(privateKey)));
-                }
-                if ((disabledAlg & 8) == 8) {
-                    errors.add(String.format(
-                            rb.getString("The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk.and.is.disabled."),
-                            privateKey.getAlgorithm(), KeyUtil.getKeySize(privateKey)));
-                }
-            } else {
-                if ((legacyAlg & 1) != 0) {
-                    warnings.add(String.format(
-                            rb.getString("The.digest.algorithm.1.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update."),
-                            legacyDigestAlg));
-                }
-
-                if ((legacyAlg & 2) == 2) {
-                     warnings.add(String.format(
-                             rb.getString("The.signature.algorithm.1.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update."),
-                             legacySigAlg));
-                }
-
-                if ((legacyAlg & 4) != 0) {
-                    warnings.add(String.format(
-                            rb.getString("The.timestamp.digest.algorithm.1.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update."),
-                            legacyTsaDigestAlg));
-                }
-
-                if ((legacyAlg & 8) == 8) {
-                    warnings.add(String.format(
-                            rb.getString("The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk..This.key.size.will.be.disabled.in.a.future.update."),
-                            weakPublicKey.getAlgorithm(), KeyUtil.getKeySize(weakPublicKey)));
-                }
-            }
-        } else {
-            result = isSigning ? rb.getString("jar.signed.") : rb.getString("jar.verified.");
+        if (badKeyUsage) {
+            errors.add(isSigning
+                    ? rb.getString("The.signer.certificate.s.KeyUsage.extension.doesn.t.allow.code.signing.")
+                    : rb.getString("This.jar.contains.entries.whose.signer.certificate.s.KeyUsage.extension.doesn.t.allow.code.signing."));
         }
 
+        if (badExtendedKeyUsage) {
+            errors.add(isSigning
+                    ? rb.getString("The.signer.certificate.s.ExtendedKeyUsage.extension.doesn.t.allow.code.signing.")
+                    : rb.getString("This.jar.contains.entries.whose.signer.certificate.s.ExtendedKeyUsage.extension.doesn.t.allow.code.signing."));
+        }
+
+        if (badNetscapeCertType) {
+            errors.add(isSigning
+                    ? rb.getString("The.signer.certificate.s.NetscapeCertType.extension.doesn.t.allow.code.signing.")
+                    : rb.getString("This.jar.contains.entries.whose.signer.certificate.s.NetscapeCertType.extension.doesn.t.allow.code.signing."));
+        }
+
+        // only in verifying
+        if (hasUnsignedEntry) {
+            errors.add(rb.getString(
+                    "This.jar.contains.unsigned.entries.which.have.not.been.integrity.checked."));
+        }
+
+        if (hasExpiredCert) {
+            errors.add(isSigning
+                    ? rb.getString("The.signer.certificate.has.expired.")
+                    : rb.getString("This.jar.contains.entries.whose.signer.certificate.has.expired."));
+        }
+
+        if (notYetValidCert) {
+            errors.add(isSigning
+                    ? rb.getString("The.signer.certificate.is.not.yet.valid.")
+                    : rb.getString("This.jar.contains.entries.whose.signer.certificate.is.not.yet.valid."));
+        }
+
+        if (chainNotValidated) {
+            errors.add(String.format(isSigning
+                            ? rb.getString("The.signer.s.certificate.chain.is.invalid.reason.1")
+                            : rb.getString("This.jar.contains.entries.whose.certificate.chain.is.invalid.reason.1"),
+                    chainNotValidatedReason.getLocalizedMessage()));
+        }
+
+        if (tsaChainNotValidated) {
+            errors.add(String.format(isSigning
+                            ? rb.getString("The.tsa.certificate.chain.is.invalid.reason.1")
+                            : rb.getString("This.jar.contains.entries.whose.tsa.certificate.chain.is.invalid.reason.1"),
+                    tsaChainNotValidatedReason.getLocalizedMessage()));
+        }
+
+        // only in verifying
+        if (notSignedByAlias) {
+            errors.add(
+                    rb.getString("This.jar.contains.signed.entries.which.is.not.signed.by.the.specified.alias.es."));
+        }
+
+        // only in verifying
+        if (aliasNotInStore) {
+            errors.add(rb.getString("This.jar.contains.signed.entries.that.s.not.signed.by.alias.in.this.keystore."));
+        }
+
+        if (signerSelfSigned) {
+            errors.add(isSigning
+                    ? rb.getString("The.signer.s.certificate.is.self.signed.")
+                    : rb.getString("This.jar.contains.entries.whose.signer.certificate.is.self.signed."));
+        }
+
+        if (isSigning) {
+            if ((legacyAlg & 1) == 1) {
+                warnings.add(String.format(
+                        rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update."),
+                        digestalg, "-digestalg"));
+            }
+
+            if ((disabledAlg & 1) == 1) {
+                errors.add(String.format(
+                        rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk.and.is.disabled."),
+                        digestalg, "-digestalg"));
+            }
+
+            if ((legacyAlg & 2) == 2) {
+                warnings.add(String.format(
+                        rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update."),
+                        sigalg, "-sigalg"));
+            }
+
+            if ((disabledAlg & 2) == 2) {
+                errors.add(String.format(
+                        rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk.and.is.disabled."),
+                        sigalg, "-sigalg"));
+            }
+
+            if ((legacyAlg & 4) == 4) {
+                warnings.add(String.format(
+                        rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update."),
+                        tSADigestAlg, "-tsadigestalg"));
+            }
+
+            if ((disabledAlg & 4) == 4) {
+                errors.add(String.format(
+                        rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk.and.is.disabled."),
+                        tSADigestAlg, "-tsadigestalg"));
+            }
+
+            if ((legacyAlg & 8) == 8) {
+                warnings.add(String.format(
+                        rb.getString("The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk..This.key.size.will.be.disabled.in.a.future.update."),
+                        privateKey.getAlgorithm(), KeyUtil.getKeySize(privateKey)));
+            }
+
+            if ((disabledAlg & 8) == 8) {
+                errors.add(String.format(
+                        rb.getString("The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk.and.is.disabled."),
+                        privateKey.getAlgorithm(), KeyUtil.getKeySize(privateKey)));
+            }
+        } else {
+            if ((legacyAlg & 1) != 0) {
+                warnings.add(String.format(
+                        rb.getString("The.digest.algorithm.1.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update."),
+                        legacyDigestAlg));
+            }
+
+            if ((legacyAlg & 2) == 2) {
+                warnings.add(String.format(
+                        rb.getString("The.signature.algorithm.1.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update."),
+                        legacySigAlg));
+            }
+
+            if ((legacyAlg & 4) != 0) {
+                warnings.add(String.format(
+                        rb.getString("The.timestamp.digest.algorithm.1.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update."),
+                        legacyTsaDigestAlg));
+            }
+
+            if ((legacyAlg & 8) == 8) {
+                warnings.add(String.format(
+                        rb.getString("The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk..This.key.size.will.be.disabled.in.a.future.update."),
+                        weakPublicKey.getAlgorithm(), KeyUtil.getKeySize(weakPublicKey)));
+            }
+        }
+
+        // This check must be placed after all other "errors.add()" calls were done.
         if (hasExpiredTsaCert) {
             // No need to warn about expiring if already expired
             hasExpiringTsaCert = false;
-        }
-
-        if (hasExpiringCert ||
-                (hasExpiringTsaCert  && expireDate != null) ||
-                (noTimestamp && expireDate != null) ||
-                (hasExpiredTsaCert && signerNotExpired)) {
-
-            if (hasExpiredTsaCert && signerNotExpired) {
+            // If there are already another errors, we just say it expired.
+            if (!signerNotExpired || !errors.isEmpty()) {
+                errors.add(rb.getString("The.timestamp.has.expired."));
+            } else if (signerNotExpired) {
                 if (expireDate != null) {
                     warnings.add(String.format(
                             rb.getString("The.timestamp.expired.1.but.usable.2"),
@@ -1229,34 +1217,51 @@ public class Main {
                 // Reset the flag so exit code is 0
                 hasExpiredTsaCert = false;
             }
-            if (hasExpiringCert) {
-                warnings.add(isSigning
-                        ? rb.getString("The.signer.certificate.will.expire.within.six.months.")
-                        : rb.getString("This.jar.contains.entries.whose.signer.certificate.will.expire.within.six.months."));
-            }
-            if (hasExpiringTsaCert && expireDate != null) {
-                if (expireDate.after(tsaExpireDate)) {
-                    warnings.add(String.format(rb.getString(
-                            "The.timestamp.will.expire.within.one.year.on.1.but.2"), tsaExpireDate, expireDate));
-                } else {
-                    warnings.add(String.format(rb.getString(
-                            "The.timestamp.will.expire.within.one.year.on.1"), tsaExpireDate));
-                }
-            }
-            if (noTimestamp && expireDate != null) {
-                if (hasTimestampBlock) {
-                    warnings.add(String.format(isSigning
-                            ? rb.getString("invalid.timestamp.signing")
-                            : rb.getString("bad.timestamp.verifying"), expireDate));
-                } else {
-                    warnings.add(String.format(isSigning
-                            ? rb.getString("no.timestamp.signing")
-                            : rb.getString("no.timestamp.verifying"), expireDate));
-                }
+        }
+
+        if (hasExpiringCert) {
+            warnings.add(isSigning
+                    ? rb.getString("The.signer.certificate.will.expire.within.six.months.")
+                    : rb.getString("This.jar.contains.entries.whose.signer.certificate.will.expire.within.six.months."));
+        }
+
+        if (hasExpiringTsaCert && expireDate != null) {
+            if (expireDate.after(tsaExpireDate)) {
+                warnings.add(String.format(rb.getString(
+                        "The.timestamp.will.expire.within.one.year.on.1.but.2"), tsaExpireDate, expireDate));
+            } else {
+                warnings.add(String.format(rb.getString(
+                        "The.timestamp.will.expire.within.one.year.on.1"), tsaExpireDate));
             }
         }
 
+        if (noTimestamp && expireDate != null) {
+            if (hasTimestampBlock) {
+                warnings.add(String.format(isSigning
+                        ? rb.getString("invalid.timestamp.signing")
+                        : rb.getString("bad.timestamp.verifying"), expireDate));
+            } else {
+                warnings.add(String.format(isSigning
+                        ? rb.getString("no.timestamp.signing")
+                        : rb.getString("no.timestamp.verifying"), expireDate));
+            }
+        }
+
+        if (permsDetected) {
+            warnings.add(rb.getString("posix.attributes.detected"));
+        }
+
+        if ((strict) && (!errors.isEmpty())) {
+            result = isSigning
+                    ? rb.getString("jar.signed.with.signer.errors.")
+                    : rb.getString("jar.verified.with.signer.errors.");
+        } else {
+            result = isSigning
+                    ? rb.getString("jar.signed.")
+                    : rb.getString("jar.verified.");
+        }
         System.out.println(result);
+
         if (strict) {
             if (!errors.isEmpty()) {
                 System.out.println();
@@ -1276,6 +1281,7 @@ public class Main {
                 warnings.forEach(System.out::println);
             }
         }
+
         if (!isSigning && (!errors.isEmpty() || !warnings.isEmpty())) {
             if (! (verbose != null && showcerts)) {
                 System.out.println();
@@ -1771,6 +1777,8 @@ public class Main {
         String failedMessage = null;
 
         try {
+            Event.setReportListener(Event.ReporterCategory.POSIXPERMS,
+                    (t, o) -> permsDetected = true);
             builder.build().sign(zipFile, fos);
         } catch (JarSignerException e) {
             failedCause = e.getCause();
@@ -1805,6 +1813,7 @@ public class Main {
                 fos.close();
             }
 
+            Event.clearReportListener(Event.ReporterCategory.POSIXPERMS);
         }
 
         if (failedCause != null) {
@@ -2064,7 +2073,8 @@ public class Main {
                     if (revocationCheck) {
                         Security.setProperty("ocsp.enable", "true");
                         System.setProperty("com.sun.security.enableCRLDP", "true");
-                        Event.setReportListener((t, o) -> System.out.println(String.format(rb.getString(t), o)));
+                        Event.setReportListener(Event.ReporterCategory.CRLCHECK,
+                                (t, o) -> System.out.println(String.format(rb.getString(t), o)));
                     }
                     pkixParameters.setRevocationEnabled(revocationCheck);
                 } catch (InvalidAlgorithmParameterException ex) {

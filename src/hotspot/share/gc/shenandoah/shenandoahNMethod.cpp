@@ -207,8 +207,7 @@ void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
 }
 
 #ifdef ASSERT
-void ShenandoahNMethod::assert_alive_and_correct() {
-  assert(_nm->is_alive(), "only alive nmethods here");
+void ShenandoahNMethod::assert_correct() {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   for (int c = 0; c < _oops_count; c++) {
     oop *loc = _oops[c];
@@ -490,14 +489,14 @@ void ShenandoahNMethodTable::log_flush_nmethod(nmethod* nm) {
 }
 
 #ifdef ASSERT
-void ShenandoahNMethodTable::assert_nmethods_alive_and_correct() {
+void ShenandoahNMethodTable::assert_nmethods_correct() {
   assert_locked_or_safepoint(CodeCache_lock);
 
   for (int index = 0; index < length(); index ++) {
     ShenandoahNMethod* m = _list->at(index);
     // Concurrent unloading may have dead nmethods to be cleaned by sweeper
     if (m->is_unregistered()) continue;
-    m->assert_alive_and_correct();
+    m->assert_correct();
   }
 }
 #endif
@@ -523,13 +522,13 @@ void ShenandoahNMethodList::transfer(ShenandoahNMethodList* const list, int limi
 }
 
 ShenandoahNMethodList* ShenandoahNMethodList::acquire() {
-  assert(CodeCache_lock->owned_by_self(), "Lock must be held");
+  assert_locked_or_safepoint(CodeCache_lock);
   _ref_count++;
   return this;
 }
 
 void ShenandoahNMethodList::release() {
-  assert(CodeCache_lock->owned_by_self(), "Lock must be held");
+  assert_locked_or_safepoint(CodeCache_lock);
   _ref_count--;
   if (_ref_count == 0) {
     delete this;
@@ -542,6 +541,34 @@ ShenandoahNMethodTableSnapshot::ShenandoahNMethodTableSnapshot(ShenandoahNMethod
 
 ShenandoahNMethodTableSnapshot::~ShenandoahNMethodTableSnapshot() {
   _list->release();
+}
+
+void ShenandoahNMethodTableSnapshot::parallel_blobs_do(CodeBlobClosure *f) {
+  size_t stride = 256; // educated guess
+
+  ShenandoahNMethod** const list = _list->list();
+
+  size_t max = (size_t)_limit;
+  while (_claimed < max) {
+    size_t cur = Atomic::fetch_and_add(&_claimed, stride);
+    size_t start = cur;
+    size_t end = MIN2(cur + stride, max);
+    if (start >= max) break;
+
+    for (size_t idx = start; idx < end; idx++) {
+      ShenandoahNMethod* nmr = list[idx];
+      assert(nmr != NULL, "Sanity");
+      if (nmr->is_unregistered()) {
+        continue;
+      }
+
+      // A nmethod can become a zombie before it is unregistered.
+      if (nmr->nm()->is_alive()) {
+        nmr->assert_correct();
+        f->do_code_blob(nmr->nm());
+      }
+    }
+  }
 }
 
 void ShenandoahNMethodTableSnapshot::concurrent_nmethods_do(NMethodClosure* cl) {

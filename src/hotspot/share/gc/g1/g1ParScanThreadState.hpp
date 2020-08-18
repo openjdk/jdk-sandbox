@@ -46,7 +46,7 @@ class outputStream;
 
 class G1ParScanThreadState : public CHeapObj<mtGC> {
   G1CollectedHeap* _g1h;
-  ScannerTasksQueue* _task_queue;
+  G1ScannerTasksQueue* _task_queue;
   G1RedirtyCardsQueue _rdcq;
   G1CardTable* _ct;
   G1EvacuationRootClosures* _closures;
@@ -80,8 +80,6 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   // Indicates whether in the last generation (old) there is no more space
   // available for allocation.
   bool _old_gen_is_full;
-
-#define PADDING_ELEM_NUM (DEFAULT_CACHE_LINE_SIZE / sizeof(size_t))
 
   G1RedirtyCardsQueue& redirty_cards_queue()     { return _rdcq; }
   G1CardTable* ct()                              { return _ct; }
@@ -202,7 +200,7 @@ public:
   Tickspan trim_ticks() const;
   void reset_trim_ticks();
 
-  inline void steal_and_trim_queue(ScannerTasksQueueSet *task_queues);
+  inline void steal_and_trim_queue(G1ScannerTasksQueueSet *task_queues);
 
   // An attempt to evacuate "obj" has failed; take necessary steps.
   oop handle_evacuation_failure_par(oop obj, markWord m);

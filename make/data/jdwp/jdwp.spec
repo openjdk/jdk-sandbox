@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -393,11 +393,14 @@ JDWP "Java(tm) Debug Wire Protocol"
             (boolean canRedefineClasses
                      "Can the VM redefine classes?")
             (boolean canAddMethod
-                     "Can the VM add methods when redefining "
-                     "classes?")
+                     "Can the VM add methods when redefining classes? "
+                     "<p>@Deprecated(since=\"15\") A JVM TI based JDWP back-end "
+                     "will never set this capability to true.")
             (boolean canUnrestrictedlyRedefineClasses
                      "Can the VM redefine classes "
-                     "in ways that are normally restricted?")
+                     "in ways that are normally restricted?"
+                     "<p>@Deprecated(since=\"15\") A JVM TI based JDWP back-end "
+                     "will never set this capability to true.")
             (boolean canPopFrames
                      "Can the VM pop stack frames?")
             (boolean canUseInstanceFilters
@@ -461,19 +464,13 @@ JDWP "Java(tm) Debug Wire Protocol"
         "<a href=\"#JDWP_StackFrame_PopFrames\">PopFrames</a> command can be used "
         "to pop frames with obsolete methods."
         "<p>"
-        "Unless the canUnrestrictedlyRedefineClasses capability is present the following "
-        "redefinitions are restricted: "
-        "<ul>"
-        "<li>changing the schema (the fields)</li>"
-        "<li>changing the hierarchy (superclasses, interfaces)</li>"
-        "<li>deleting a method</li>"
-        "<li>changing class modifiers</li>"
-        "<li>changing method modifiers</li>"
-        "<li>changing the <code>NestHost</code>, <code>NestMembers</code>, or <code>Record</code> class attributes</li>"
-        "</ul>"
+        "Unless the canUnrestrictedlyRedefineClasses capability is present "
+        "the redefinition must follow the restrictions described in "
+        "<a href=\"../jvmti.html#RedefineClasses\">JVM TI RedefineClasses</a>."
         "<p>"
         "Requires canRedefineClasses capability - see "
         "<a href=\"#JDWP_VirtualMachine_CapabilitiesNew\">CapabilitiesNew</a>. "
+        "<p>@Deprecated(since=\"15\")  "
         "In addition to the canRedefineClasses capability, the target VM must "
         "have the canAddMethod capability to add methods when redefining classes, "
         "or the canUnrestrictedlyRedefineClasses capability to redefine classes in ways "
@@ -533,7 +530,7 @@ JDWP "Java(tm) Debug Wire Protocol"
         "returned for each class.  "
         "Generic signatures are described in the signature attribute "
         "section in "
-        "<cite>The Java&trade; Virtual Machine Specification</cite>. "
+        "<cite>The Java Virtual Machine Specification</cite>. "
         "Since JDWP version 1.5."
         (Out
         )
@@ -646,7 +643,7 @@ JDWP "Java(tm) Debug Wire Protocol"
         )
         (Reply
             (int modBits "Modifier bits as defined in Chapter 4 of "
-                         "<cite>The Java&trade; Virtual Machine Specification</cite>")
+                         "<cite>The Java Virtual Machine Specification</cite>")
         )
         (ErrorSet
             (Error INVALID_CLASS     "refType is not the ID of a reference "
@@ -674,7 +671,7 @@ JDWP "Java(tm) Debug Wire Protocol"
                                  "which provide additional information on the  "
                                  "field declaration. Individual flag values are "
                                  "defined in Chapter 4 of "
-                                 "<cite>The Java&trade; Virtual Machine Specification</cite>. "
+                                 "<cite>The Java Virtual Machine Specification</cite>. "
                                  "In addition, The <code>0xf0000000</code> bit identifies "
                                  "the field as synthetic, if the synthetic attribute "
                                  "<a href=\"#JDWP_VirtualMachine_Capabilities\">capability</a> is available.")
@@ -709,7 +706,7 @@ JDWP "Java(tm) Debug Wire Protocol"
                                  "which provide additional information on the  "
                                  "method declaration. Individual flag values are "
                                  "defined in Chapter 4 of "
-                                 "<cite>The Java&trade; Virtual Machine Specification</cite>. "
+                                 "<cite>The Java Virtual Machine Specification</cite>. "
                                  "In addition, The <code>0xf0000000</code> bit identifies "
                                  "the method as synthetic, if the synthetic attribute "
                                  "<a href=\"#JDWP_VirtualMachine_Capabilities\">capability</a> is available.")
@@ -796,7 +793,7 @@ JDWP "Java(tm) Debug Wire Protocol"
         "Returns the current status of the reference type. The status "
         "indicates the extent to which the reference type has been "
         "initialized, as described in section 2.1.6 of "
-        "<cite>The Java&trade; Virtual Machine Specification</cite>. "
+        "<cite>The Java Virtual Machine Specification</cite>. "
         "If the class is linked the PREPARED and VERIFIED bits in the returned status bits "
         "will be set. If the class is initialized the INITIALIZED bit in the returned "
         "status bits will be set. If an error occured during initialization then the "
@@ -875,7 +872,7 @@ JDWP "Java(tm) Debug Wire Protocol"
         "generic signature if there is one.  "
         "Generic signatures are described in the signature attribute "
         "section in "
-        "<cite>The Java&trade; Virtual Machine Specification</cite>. "
+        "<cite>The Java Virtual Machine Specification</cite>. "
         "Since JDWP version 1.5."
         (Out
             (referenceType refType "The reference type ID.")
@@ -903,7 +900,7 @@ JDWP "Java(tm) Debug Wire Protocol"
         "Fields are returned in the order they occur in the class file.  "
         "Generic signatures are described in the signature attribute "
         "section in "
-        "<cite>The Java&trade; Virtual Machine Specification</cite>. "
+        "<cite>The Java Virtual Machine Specification</cite>. "
         "Since JDWP version 1.5."
         (Out
             (referenceType refType "The reference type ID.")
@@ -920,7 +917,7 @@ JDWP "Java(tm) Debug Wire Protocol"
                                  "which provide additional information on the  "
                                  "field declaration. Individual flag values are "
                                  "defined in Chapter 4 of "
-                                 "<cite>The Java&trade; Virtual Machine Specification</cite>. "
+                                 "<cite>The Java Virtual Machine Specification</cite>. "
                                  "In addition, The <code>0xf0000000</code> bit identifies "
                                  "the field as synthetic, if the synthetic attribute "
                                  "<a href=\"#JDWP_VirtualMachine_Capabilities\">capability</a> is available.")
@@ -945,7 +942,7 @@ JDWP "Java(tm) Debug Wire Protocol"
         "Methods are returned in the order they occur in the class file.  "
         "Generic signatures are described in the signature attribute "
         "section in "
-        "<cite>The Java&trade; Virtual Machine Specification</cite>. "
+        "<cite>The Java Virtual Machine Specification</cite>. "
         "Since JDWP version 1.5."
         (Out
             (referenceType refType "The reference type ID.")
@@ -962,7 +959,7 @@ JDWP "Java(tm) Debug Wire Protocol"
                                  "which provide additional information on the  "
                                  "method declaration. Individual flag values are "
                                  "defined in Chapter 4 of "
-                                 "<cite>The Java&trade; Virtual Machine Specification</cite>. "
+                                 "<cite>The Java Virtual Machine Specification</cite>. "
                                  "In addition, The <code>0xf0000000</code> bit identifies "
                                  "the method as synthetic, if the synthetic attribute "
                                  "<a href=\"#JDWP_VirtualMachine_Capabilities\">capability</a> is available.")
@@ -1025,7 +1022,7 @@ JDWP "Java(tm) Debug Wire Protocol"
     (Command ConstantPool=18
         "Return the raw bytes of the constant pool in the format of the "
         "constant_pool item of the Class File Format in "
-        "<cite>The Java&trade; Virtual Machine Specification</cite>. "
+        "<cite>The Java Virtual Machine Specification</cite>. "
         "<p>Since JDWP version 1.6. Requires canGetConstantPool capability - see "
         "<a href=\"#JDWP_VirtualMachine_CapabilitiesNew\">CapabilitiesNew</a>.""
         (Out
@@ -1035,7 +1032,7 @@ JDWP "Java(tm) Debug Wire Protocol"
             (int count "Total number of constant pool entries plus one. This "
                        "corresponds to the constant_pool_count item of the "
                        "Class File Format in "
-                       "<cite>The Java&trade; Virtual Machine Specification</cite>. ")
+                       "<cite>The Java Virtual Machine Specification</cite>. ")
             (Repeat bytes
                 (byte cpbytes "Raw bytes of constant pool")
             )
@@ -1438,7 +1435,7 @@ JDWP "Java(tm) Debug Wire Protocol"
     )
     (Command Bytecodes=3
         "Retrieve the method's bytecodes as defined in "
-        "<cite>The Java&trade; Virtual Machine Specification</cite>. "
+        "<cite>The Java Virtual Machine Specification</cite>. "
         "Requires canGetBytecodes capability - see "
         "<a href=\"#JDWP_VirtualMachine_CapabilitiesNew\">CapabilitiesNew</a>."
         (Out
@@ -1494,7 +1491,7 @@ JDWP "Java(tm) Debug Wire Protocol"
         "table. Also, synthetic variables may be present. "
         "Generic signatures are described in the signature attribute "
         "section in "
-        "<cite>The Java&trade; Virtual Machine Specification</cite>. "
+        "<cite>The Java Virtual Machine Specification</cite>. "
         "Since JDWP version 1.5."
         (Out
             (referenceType refType "The class.")
@@ -2085,7 +2082,7 @@ JDWP "Java(tm) Debug Wire Protocol"
         "The method which will return early is referred to as the "
         "called method. The called method is the current method (as "
         "defined by the Frames section in "
-        "<cite>The Java&trade; Virtual Machine Specification</cite>) "
+        "<cite>The Java Virtual Machine Specification</cite>) "
         "for the specified thread at the time this command "
         "is received. "
         "<p>"
@@ -3167,8 +3164,8 @@ JDWP "Java(tm) Debug Wire Protocol"
                                           "canUnrestrictedlyRedefineClasses is false.")
     (Constant CLASS_ATTRIBUTE_CHANGE_NOT_IMPLEMENTED
                                      =72  "The new class version has a different NestHost, "
-                                          "NestMembers, or Record class attribute and "
-                                          "canUnrestrictedlyRedefineClasses is false.")
+                                          "NestMembers, PermittedSubclasses, or Record class attribute "
+                                          "and canUnrestrictedlyRedefineClasses is false.")
     (Constant NOT_IMPLEMENTED        =99  "The functionality is not implemented in "
                                           "this virtual machine.")
     (Constant NULL_POINTER           =100 "Invalid pointer.")

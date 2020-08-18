@@ -105,17 +105,6 @@ public:
   virtual bool is_thread_safe() { return false; }
 };
 
-#ifdef ASSERT
-class ShenandoahAssertToSpaceClosure : public OopClosure {
-private:
-  template <class T>
-  void do_oop_work(T* p);
-public:
-  void do_oop(narrowOop* p);
-  void do_oop(oop* p);
-};
-#endif
-
 typedef ShenandoahLock    ShenandoahHeapLock;
 typedef ShenandoahLocker  ShenandoahHeapLocker;
 
@@ -141,9 +130,6 @@ public:
 
 // ---------- Initialization, termination, identification, printing routines
 //
-private:
-  static ShenandoahHeap* _heap;
-
 public:
   static ShenandoahHeap* heap();
 
@@ -160,7 +146,6 @@ public:
   void print_on(outputStream* st)              const;
   void print_extended_on(outputStream *st)     const;
   void print_tracing_info()                    const;
-  void print_gc_threads_on(outputStream* st)   const;
   void print_heap_regions_on(outputStream* st) const;
 
   void stop();
@@ -457,6 +442,7 @@ private:
 
 public:
   ShenandoahCollectorPolicy* shenandoah_policy() const { return _shenandoah_policy; }
+  ShenandoahMode*            mode()              const { return _gc_mode;           }
   ShenandoahHeuristics*      heuristics()        const { return _heuristics;        }
   ShenandoahFreeSet*         free_set()          const { return _free_set;          }
   ShenandoahConcurrentMark*  concurrent_mark()         { return _scm;               }
@@ -496,11 +482,15 @@ private:
   AlwaysTrueClosure    _subject_to_discovery;
   ReferenceProcessor*  _ref_processor;
   ShenandoahSharedFlag _process_references;
+  bool                 _ref_proc_mt_discovery;
+  bool                 _ref_proc_mt_processing;
 
   void ref_processing_init();
 
 public:
   ReferenceProcessor* ref_processor() { return _ref_processor; }
+  bool ref_processor_mt_discovery()   { return _ref_proc_mt_discovery;  }
+  bool ref_processor_mt_processing()  { return _ref_proc_mt_processing; }
   void set_process_references(bool pr);
   bool process_references() const;
 
@@ -555,9 +545,6 @@ public:
   // Keep alive an object that was loaded with AS_NO_KEEPALIVE.
   void keep_alive(oop obj);
 
-  // Used by RMI
-  jlong millis_since_last_gc();
-
 // ---------- Safepoint interface hooks
 //
 public:
@@ -591,7 +578,6 @@ private:
   inline HeapWord* allocate_from_gclab(Thread* thread, size_t size);
   HeapWord* allocate_from_gclab_slow(Thread* thread, size_t size);
   HeapWord* allocate_new_gclab(size_t min_size, size_t word_size, size_t* actual_size);
-  void retire_and_reset_gclabs();
 
 public:
   HeapWord* allocate_memory(ShenandoahAllocRequest& request);
@@ -611,10 +597,11 @@ public:
   size_t max_tlab_size() const;
   size_t tlab_used(Thread* ignored) const;
 
-  void resize_tlabs();
+  void ensure_parsability(bool retire_labs);
 
-  void ensure_parsability(bool retire_tlabs);
-  void make_parsable(bool retire_tlabs);
+  void labs_make_parsable();
+  void tlabs_retire(bool resize);
+  void gclabs_retire(bool resize);
 
 // ---------- Marking support
 //
@@ -628,6 +615,9 @@ private:
   size_t _bitmap_size;
   size_t _bitmap_regions_per_slice;
   size_t _bitmap_bytes_per_slice;
+
+  size_t _pretouch_heap_page_size;
+  size_t _pretouch_bitmap_page_size;
 
   bool _bitmap_region_special;
   bool _aux_bitmap_region_special;
@@ -652,7 +642,6 @@ public:
   void reset_mark_bitmap();
 
   // SATB barriers hooks
-  template<bool RESOLVE>
   inline bool requires_marking(const void* entry) const;
   void force_satb_flush_all_threads();
 
@@ -664,6 +653,8 @@ public:
   // Liveness caching support
   ShenandoahLiveData* get_liveness_cache(uint worker_id);
   void flush_liveness_cache(uint worker_id);
+
+  size_t pretouch_heap_page_size() { return _pretouch_heap_page_size; }
 
 // ---------- Evacuation support
 //
@@ -689,8 +680,8 @@ public:
   inline oop evacuate_object(oop src, Thread* thread);
 
   // Call before/after evacuation.
-  void enter_evacuation();
-  void leave_evacuation();
+  inline void enter_evacuation(Thread* t);
+  inline void leave_evacuation(Thread* t);
 
 // ---------- Helper functions
 //

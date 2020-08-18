@@ -309,7 +309,6 @@ tier1_runtime = \
  -runtime/Thread/TestThreadDumpMonitorContention.java \
  -runtime/Unsafe/RangeCheck.java \
   sanity/ \
-  testlibrary_tests/TestMutuallyExclusivePlatformPredicates.java \
  -:tier1_runtime_appcds_exclude \
  -runtime/signal
 
@@ -327,6 +326,7 @@ hotspot_appcds_dynamic = \
  -runtime/cds/appcds/javaldr/ArrayTest.java \
  -runtime/cds/appcds/javaldr/GCSharedStringsDuringDump.java \
  -runtime/cds/appcds/javaldr/HumongousDuringDump.java \
+ -runtime/cds/appcds/javaldr/LockDuringDump.java \
  -runtime/cds/appcds/sharedStrings \
  -runtime/cds/appcds/ArchiveRelocationTest.java \
  -runtime/cds/appcds/DumpClassList.java \

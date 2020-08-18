@@ -26,7 +26,6 @@ package jdk.incubator.jpackage.internal;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -37,14 +36,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import static jdk.incubator.jpackage.internal.OverridableResource.createResource;
 import static jdk.incubator.jpackage.internal.StandardBundlerParam.APP_NAME;
 import static jdk.incubator.jpackage.internal.StandardBundlerParam.COPYRIGHT;
 import static jdk.incubator.jpackage.internal.StandardBundlerParam.DESCRIPTION;
-import static jdk.incubator.jpackage.internal.StandardBundlerParam.ICON;
 import static jdk.incubator.jpackage.internal.StandardBundlerParam.TEMP_ROOT;
 import static jdk.incubator.jpackage.internal.StandardBundlerParam.VENDOR;
 import static jdk.incubator.jpackage.internal.StandardBundlerParam.VERSION;
@@ -111,7 +108,8 @@ final class ExecutableRebrander {
     private void rebrandExecutable(Map<String, ? super Object> params,
             Path target, UpdateResourceAction action) throws IOException {
         try {
-            String tempDirectory = TEMP_ROOT.fetchFrom(params).getAbsolutePath();
+            String tempDirectory = TEMP_ROOT.fetchFrom(params)
+                    .toAbsolutePath().toString();
             if (WindowsDefender.isThereAPotentialWindowsDefenderIssue(
                     tempDirectory)) {
                 Log.verbose(MessageFormat.format(I18N.getString(
@@ -150,8 +148,8 @@ final class ExecutableRebrander {
     }
 
     private static String getFixedFileVersion(String value) {
-        int[] versionComponents = DottedVersion.greedy(value).getComponents();
-        int addComponentsCount = 4 - versionComponents.length;
+        int addComponentsCount = 4
+                - DottedVersion.greedy(value).getComponents().length;
         if (addComponentsCount > 0) {
             StringBuilder sb = new StringBuilder(value);
             do {

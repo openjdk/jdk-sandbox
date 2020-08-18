@@ -30,10 +30,10 @@ import java.util.Set;
 import java.util.HashSet;
 
 /**
- * Source versions of the Java&trade; programming language.
+ * Source versions of the Java programming language.
  *
  * See the appropriate edition of
- * <cite>The Java&trade; Language Specification</cite>
+ * <cite>The Java Language Specification</cite>
  * for information about a particular source version.
  *
  * <p>Note that additional source version constants will be added to
@@ -69,7 +69,7 @@ public enum SourceVersion {
      * The original version.
      *
      * The language described in
-     * <cite>The Java&trade; Language Specification, First Edition</cite>.
+     * <cite>The Java Language Specification, First Edition</cite>.
      */
     RELEASE_0,
 
@@ -77,7 +77,7 @@ public enum SourceVersion {
      * The version recognized by the Java Platform 1.1.
      *
      * The language is {@code RELEASE_0} augmented with nested classes as described in the 1.1 update to
-     * <cite>The Java&trade; Language Specification, First Edition</cite>.
+     * <cite>The Java Language Specification, First Edition</cite>.
      */
     RELEASE_1,
 
@@ -86,7 +86,7 @@ public enum SourceVersion {
      * v 1.2.
      *
      * The language described in
-     * <cite>The Java&trade; Language Specification,
+     * <cite>The Java Language Specification,
      * Second Edition</cite>, which includes the {@code
      * strictfp} modifier.
      */
@@ -113,7 +113,7 @@ public enum SourceVersion {
      * Edition 5.0.
      *
      * The language described in
-     * <cite>The Java&trade; Language Specification,
+     * <cite>The Java Language Specification,
      * Third Edition</cite>.  First release to support
      * generics, annotations, autoboxing, var-args, enhanced {@code
      * for} loop, and hexadecimal floating-point literals.
@@ -168,7 +168,7 @@ public enum SourceVersion {
      *
      * @since 10
      */
-     RELEASE_10,
+    RELEASE_10,
 
     /**
      * The version recognized by the Java Platform, Standard Edition
@@ -179,7 +179,7 @@ public enum SourceVersion {
      *
      * @since 11
      */
-     RELEASE_11,
+    RELEASE_11,
 
     /**
      * The version recognized by the Java Platform, Standard Edition
@@ -187,7 +187,7 @@ public enum SourceVersion {
      *
      * @since 12
      */
-     RELEASE_12,
+    RELEASE_12,
 
     /**
      * The version recognized by the Java Platform, Standard Edition
@@ -195,7 +195,7 @@ public enum SourceVersion {
      *
      * @since 13
      */
-     RELEASE_13,
+    RELEASE_13,
 
     /**
      * The version recognized by the Java Platform, Standard Edition
@@ -215,7 +215,15 @@ public enum SourceVersion {
      *
      * @since 15
      */
-     RELEASE_15;
+    RELEASE_15,
+
+    /**
+     * The version recognized by the Java Platform, Standard Edition
+     * 16.
+     *
+     * @since 16
+     */
+    RELEASE_16;
 
     // Note that when adding constants for newer releases, the
     // behavior of latest() and latestSupported() must be updated too.
@@ -226,7 +234,7 @@ public enum SourceVersion {
      * @return the latest source version that can be modeled
      */
     public static SourceVersion latest() {
-        return RELEASE_15;
+        return RELEASE_16;
     }
 
     private static final SourceVersion latestSupported = getLatestSupported();
@@ -241,7 +249,7 @@ public enum SourceVersion {
     private static SourceVersion getLatestSupported() {
         int intVersion = Runtime.version().feature();
         return (intVersion >= 11) ?
-            valueOf("RELEASE_" + Math.min(15, intVersion)):
+            valueOf("RELEASE_" + Math.min(16, intVersion)):
             RELEASE_10;
     }
 
@@ -420,6 +428,10 @@ public enum SourceVersion {
 
         case "_":
             return version.compareTo(RELEASE_9) >= 0;
+
+     // case "non-sealed": can be added once it is a keyword only
+     // dependent on release and not also preview features being
+     // enabled.
 
             // Keywords common across versions
 

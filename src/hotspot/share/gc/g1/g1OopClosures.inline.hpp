@@ -102,7 +102,7 @@ inline void G1CMOopClosure::do_oop_work(T* p) {
 
 template <class T>
 inline void G1RootRegionScanClosure::do_oop_work(T* p) {
-  T heap_oop = RawAccess<MO_VOLATILE>::oop_load(p);
+  T heap_oop = RawAccess<MO_RELAXED>::oop_load(p);
   if (CompressedOops::is_null(heap_oop)) {
     return;
   }
@@ -133,7 +133,7 @@ inline static void check_obj_during_refinement(T* p, oop const obj) {
 
 template <class T>
 inline void G1ConcurrentRefineOopClosure::do_oop_work(T* p) {
-  T o = RawAccess<MO_VOLATILE>::oop_load(p);
+  T o = RawAccess<MO_RELAXED>::oop_load(p);
   if (CompressedOops::is_null(o)) {
     return;
   }
@@ -251,7 +251,7 @@ void G1ParCopyClosure<barrier, do_mark_object>::do_oop_work(T* p) {
     }
 
     // The object is not in collection set. If we're a root scanning
-    // closure during an initial mark pause then attempt to mark the object.
+    // closure during a concurrent start pause then attempt to mark the object.
     if (do_mark_object == G1MarkFromRoot) {
       mark_object(obj);
     }
@@ -260,7 +260,7 @@ void G1ParCopyClosure<barrier, do_mark_object>::do_oop_work(T* p) {
 }
 
 template <class T> void G1RebuildRemSetClosure::do_oop_work(T* p) {
-  oop const obj = RawAccess<MO_VOLATILE>::oop_load(p);
+  oop const obj = RawAccess<MO_RELAXED>::oop_load(p);
   if (obj == NULL) {
     return;
   }
