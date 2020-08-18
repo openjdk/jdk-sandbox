@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_VM_VERSION_X86_HPP
-#define CPU_X86_VM_VM_VERSION_X86_HPP
+#ifndef CPU_X86_VM_VERSION_X86_HPP
+#define CPU_X86_VM_VERSION_X86_HPP
 
 #include "runtime/globals_extension.hpp"
 #include "runtime/vm_version.hpp"
@@ -336,6 +336,7 @@ protected:
 #define CPU_AVX512_VPOPCNTDQ ((uint64_t)UCONST64(0x2000000000)) // Vector popcount
 #define CPU_VPCLMULQDQ ((uint64_t)UCONST64(0x4000000000)) //Vector carryless multiplication
 #define CPU_VAES ((uint64_t)UCONST64(0x8000000000))    // Vector AES instructions
+#define CPU_VNNI ((uint64_t)UCONST64(0x16000000000))   // Vector Neural Network Instructions
 
   enum Extended_Family {
     // AMD
@@ -548,6 +549,8 @@ protected:
           result |= CPU_VPCLMULQDQ;
         if (_cpuid_info.sef_cpuid7_ecx.bits.vaes != 0)
           result |= CPU_VAES;
+        if (_cpuid_info.sef_cpuid7_ecx.bits.avx512_vnni != 0)
+          result |= CPU_VNNI;
       }
     }
     if(_cpuid_info.sef_cpuid7_ebx.bits.bmi1 != 0)
@@ -828,6 +831,7 @@ public:
   static bool supports_vpopcntdq()  { return (_features & CPU_AVX512_VPOPCNTDQ) != 0; }
   static bool supports_vpclmulqdq() { return (_features & CPU_VPCLMULQDQ) != 0; }
   static bool supports_vaes()       { return (_features & CPU_VAES) != 0; }
+  static bool supports_vnni()       { return (_features & CPU_VNNI) != 0; }
 
   // Intel features
   static bool is_intel_family_core() { return is_intel() &&
@@ -928,4 +932,4 @@ public:
   static bool supports_on_spin_wait() { return supports_sse2(); }
 };
 
-#endif // CPU_X86_VM_VM_VERSION_X86_HPP
+#endif // CPU_X86_VM_VERSION_X86_HPP

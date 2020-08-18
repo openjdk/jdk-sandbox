@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -710,15 +710,16 @@ void LinkResolver::check_field_loader_constraints(Symbol* field, Symbol* sig,
     stringStream ss;
     const char* failed_type_name = failed_type_symbol->as_klass_external_name();
 
-    ss.print("loader constraint violation: when resolving field"
-             " \"%s\" of type %s, the class loader %s of the current class, "
-             "%s, and the class loader %s for the field's defining "
-             "type, %s, have different Class objects for type %s (%s; %s)",
+    ss.print("loader constraint violation: when resolving field \"%s\" of type %s, "
+             "the class loader %s of the current class, %s, "
+             "and the class loader %s for the field's defining %s, %s, "
+             "have different Class objects for type %s (%s; %s)",
              field->as_C_string(),
              failed_type_name,
              current_klass->class_loader_data()->loader_name_and_id(),
              current_klass->external_name(),
              sel_klass->class_loader_data()->loader_name_and_id(),
+             sel_klass->external_kind(),
              sel_klass->external_name(),
              failed_type_name,
              current_klass->class_in_module_of_loader(false, true),
@@ -1151,7 +1152,7 @@ methodHandle LinkResolver::linktime_resolve_special_method(const LinkInfo& link_
     InstanceKlass* ck = InstanceKlass::cast(current_klass);
     InstanceKlass *klass_to_check = !ck->is_unsafe_anonymous() ?
                                     ck :
-                                    InstanceKlass::cast(ck->unsafe_anonymous_host());
+                                    ck->unsafe_anonymous_host();
     // Disable verification for the dynamically-generated reflection bytecodes.
     bool is_reflect = klass_to_check->is_subclass_of(
                         SystemDictionary::reflect_MagicAccessorImpl_klass());

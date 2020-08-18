@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_DEPENDENCYCONTEXT_HPP
-#define SHARE_VM_CODE_DEPENDENCYCONTEXT_HPP
+#ifndef SHARE_CODE_DEPENDENCYCONTEXT_HPP
+#define SHARE_CODE_DEPENDENCYCONTEXT_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
@@ -86,11 +86,12 @@ class DependencyContext : public StackObj {
   nmethodBucket* dependencies();
   nmethodBucket* dependencies_not_unloading();
 
-  static PerfCounter* _perf_total_buckets_allocated_count;
-  static PerfCounter* _perf_total_buckets_deallocated_count;
-  static PerfCounter* _perf_total_buckets_stale_count;
-  static PerfCounter* _perf_total_buckets_stale_acc_count;
+  static PerfCounter*            _perf_total_buckets_allocated_count;
+  static PerfCounter*            _perf_total_buckets_deallocated_count;
+  static PerfCounter*            _perf_total_buckets_stale_count;
+  static PerfCounter*            _perf_total_buckets_stale_acc_count;
   static nmethodBucket* volatile _purge_list;
+  static uint64_t                _cleaning_epoch_monotonic;
   static volatile uint64_t       _cleaning_epoch;
 
  public:
@@ -131,4 +132,4 @@ class DependencyContext : public StackObj {
   bool is_dependent_nmethod(nmethod* nm);
 #endif //PRODUCT
 };
-#endif // SHARE_VM_CODE_DEPENDENCYCONTEXT_HPP
+#endif // SHARE_CODE_DEPENDENCYCONTEXT_HPP

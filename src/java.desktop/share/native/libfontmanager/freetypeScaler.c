@@ -461,6 +461,14 @@ Java_sun_font_FreetypeFontScaler_getFontMetricsNative(
     /* See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=657854 */
 #define FT_MulFixFloatShift6(a, b) (((float) (a)) * ((float) (b)) / 65536.0 / 64.0)
 
+#define contextAwareMetricsX(x, y) \
+    (FTFixedToFloat(context->transform.xx) * (x) - \
+     FTFixedToFloat(context->transform.xy) * (y))
+
+#define contextAwareMetricsY(x, y) \
+    (-FTFixedToFloat(context->transform.yx) * (x) + \
+     FTFixedToFloat(context->transform.yy) * (y))
+
     /*
      * See FreeType source code: src/base/ftobjs.c ft_recompute_scaled_metrics()
      * http://icedtea.classpath.org/bugzilla/show_bug.cgi?id=1659
@@ -491,9 +499,13 @@ Java_sun_font_FreetypeFontScaler_getFontMetricsNative(
     my = 0;
 
     metrics = (*env)->NewObject(env,
-                                sunFontIDs.strikeMetricsClass,
-                                sunFontIDs.strikeMetricsCtr,
-                                ax, ay, dx, dy, bx, by, lx, ly, mx, my);
+        sunFontIDs.strikeMetricsClass,
+        sunFontIDs.strikeMetricsCtr,
+        contextAwareMetricsX(ax, ay), contextAwareMetricsY(ax, ay),
+        contextAwareMetricsX(dx, dy), contextAwareMetricsY(dx, dy),
+        bx, by,
+        contextAwareMetricsX(lx, ly), contextAwareMetricsY(lx, ly),
+        contextAwareMetricsX(mx, my), contextAwareMetricsY(mx, my));
 
     return metrics;
 }
@@ -682,7 +694,7 @@ Java_sun_font_FreetypeFontScaler_getGlyphImageNative(
     int error, imageSize;
     UInt16 width, height;
     GlyphInfo *glyphInfo;
-    int renderFlags = FT_LOAD_RENDER, target;
+    int renderFlags = FT_LOAD_DEFAULT, target;
     FT_GlyphSlot ftglyph;
 
     FTScalerContext* context =
@@ -742,7 +754,10 @@ Java_sun_font_FreetypeFontScaler_getGlyphImageNative(
     /* generate bitmap if it is not done yet
      e.g. if algorithmic styling is performed and style was added to outline */
     if (ftglyph->format == FT_GLYPH_FORMAT_OUTLINE) {
-        FT_Render_Glyph(ftglyph, FT_LOAD_TARGET_MODE(target));
+        error = FT_Render_Glyph(ftglyph, FT_LOAD_TARGET_MODE(target));
+        if (error != 0) {
+            return ptr_to_jlong(getNullGlyphImage());
+        }
     }
 
     width  = (UInt16) ftglyph->bitmap.width;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_CONSTANTPOOLOOP_HPP
-#define SHARE_VM_OOPS_CONSTANTPOOLOOP_HPP
+#ifndef SHARE_OOPS_CONSTANTPOOL_HPP
+#define SHARE_OOPS_CONSTANTPOOL_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/arrayOop.hpp"
@@ -938,11 +938,6 @@ class ConstantPool : public Metadata {
   void print_entry_on(int index, outputStream* st);
 
   const char* internal_name() const { return "{constant pool}"; }
-
-#ifndef PRODUCT
-  // Compile the world support
-  static void preload_and_initialize_all_classes(ConstantPool* constant_pool, TRAPS);
-#endif
 };
 
 class SymbolHashMapEntry : public CHeapObj<mtSymbol> {
@@ -1029,4 +1024,4 @@ class SymbolHashMap: public CHeapObj<mtSymbol> {
   ~SymbolHashMap();
 }; // End SymbolHashMap class
 
-#endif // SHARE_VM_OOPS_CONSTANTPOOLOOP_HPP
+#endif // SHARE_OOPS_CONSTANTPOOL_HPP

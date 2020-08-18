@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -253,11 +253,21 @@ void ConstantPoolCacheEntry::set_direct_or_vtable_call(Bytecodes::Code invoke_co
   if (byte_no == 1) {
     assert(invoke_code != Bytecodes::_invokevirtual &&
            invoke_code != Bytecodes::_invokeinterface, "");
+    bool do_resolve = true;
     // Don't mark invokespecial to method as resolved if sender is an interface.  The receiver
     // has to be checked that it is a subclass of the current class every time this bytecode
     // is executed.
-    if (invoke_code != Bytecodes::_invokespecial || !sender_is_interface ||
-        method->name() == vmSymbols::object_initializer_name()) {
+    if (invoke_code == Bytecodes::_invokespecial && sender_is_interface &&
+        method->name() != vmSymbols::object_initializer_name()) {
+      do_resolve = false;
+    }
+    // Don't mark invokestatic to method as resolved if the holder class has not yet completed
+    // initialization. An invokestatic must only proceed if the class is initialized, but if
+    // we resolve it before then that class initialization check is skipped.
+    if (invoke_code == Bytecodes::_invokestatic && !method->method_holder()->is_initialized()) {
+      do_resolve = false;
+    }
+    if (do_resolve) {
       set_bytecode_1(invoke_code);
     }
   } else if (byte_no == 2)  {
@@ -841,14 +851,12 @@ void ConstantPoolCache::metaspace_pointers_do(MetaspaceClosure* it) {
 // Printing
 
 void ConstantPoolCache::print_on(outputStream* st) const {
-  assert(is_constantPoolCache(), "obj must be constant pool cache");
   st->print_cr("%s", internal_name());
   // print constant pool cache entries
   for (int i = 0; i < length(); i++) entry_at(i)->print(st, i);
 }
 
 void ConstantPoolCache::print_value_on(outputStream* st) const {
-  assert(is_constantPoolCache(), "obj must be constant pool cache");
   st->print("cache [%d]", length());
   print_address_on(st);
   st->print(" for ");
@@ -859,7 +867,6 @@ void ConstantPoolCache::print_value_on(outputStream* st) const {
 // Verification
 
 void ConstantPoolCache::verify_on(outputStream* st) {
-  guarantee(is_constantPoolCache(), "obj must be constant pool cache");
   // print constant pool cache entries
   for (int i = 0; i < length(); i++) entry_at(i)->verify(st);
 }

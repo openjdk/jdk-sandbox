@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,6 +58,7 @@
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/flags/flagSetting.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
@@ -68,7 +69,7 @@
 #include "runtime/task.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/timer.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -81,7 +82,6 @@
 #endif
 #ifdef COMPILER2
 #include "code/compiledIC.hpp"
-#include "compiler/methodLiveness.hpp"
 #include "opto/compile.hpp"
 #include "opto/indexSet.hpp"
 #include "opto/runtime.hpp"
@@ -258,10 +258,6 @@ void print_statistics() {
   if (PrintLockStatistics || PrintPreciseBiasedLockingStatistics || PrintPreciseRTMLockingStatistics) {
     OptoRuntime::print_named_counters();
   }
-
-  if (TimeLivenessAnalysis) {
-    MethodLiveness::print_times();
-  }
 #ifdef ASSERT
   if (CollectIndexSetStatistics) {
     IndexSet::print_statistics();
@@ -292,9 +288,6 @@ void print_statistics() {
 
   print_method_profiling_data();
 
-  if (TimeCompilationPolicy) {
-    CompilationPolicy::policy()->print_time();
-  }
   if (TimeOopMap) {
     GenerateOopMap::print_time();
   }
@@ -318,8 +311,7 @@ void print_statistics() {
 
   // CodeHeap State Analytics.
   // Does also call NMethodSweeper::print(tty)
-  LogTarget(Trace, codecache) lt;
-  if (lt.is_enabled()) {
+  if (PrintCodeHeapAnalytics) {
     CompileBroker::print_heapinfo(NULL, "all", "4096"); // details
   } else if (PrintMethodFlushingStatistics) {
     NMethodSweeper::print(tty);
@@ -387,8 +379,7 @@ void print_statistics() {
 
   // CodeHeap State Analytics.
   // Does also call NMethodSweeper::print(tty)
-  LogTarget(Trace, codecache) lt;
-  if (lt.is_enabled()) {
+  if (PrintCodeHeapAnalytics) {
     CompileBroker::print_heapinfo(NULL, "all", "4096"); // details
   } else if (PrintMethodFlushingStatistics) {
     NMethodSweeper::print(tty);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,7 +71,6 @@
 #include "prims/resolvedMethodTable.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/arguments_ext.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/fieldType.hpp"
 #include "runtime/handles.inline.hpp"
@@ -861,8 +860,15 @@ InstanceKlass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
         check_constraints(d_hash, k, class_loader, false, THREAD);
 
         // Need to check for a PENDING_EXCEPTION again; check_constraints
-        // can throw and doesn't use the CHECK macro.
+        // can throw but we may have to remove entry from the placeholder table below.
         if (!HAS_PENDING_EXCEPTION) {
+          // Record dependency for non-parent delegation.
+          // This recording keeps the defining class loader of the klass (k) found
+          // from being unloaded while the initiating class loader is loaded
+          // even if the reference to the defining class loader is dropped
+          // before references to the initiating class loader.
+          loader_data->record_dependency(k);
+
           { // Grabbing the Compile_lock prevents systemDictionary updates
             // during compilations.
             MutexLocker mu(Compile_lock, THREAD);
@@ -1788,14 +1794,17 @@ void SystemDictionary::add_to_hierarchy(InstanceKlass* k, TRAPS) {
   assert(k != NULL, "just checking");
   assert_locked_or_safepoint(Compile_lock);
 
-  // Link into hierachy. Make sure the vtables are initialized before linking into
+  k->set_init_state(InstanceKlass::loaded);
+  // make sure init_state store is already done.
+  // The compiler reads the hierarchy outside of the Compile_lock.
+  // Access ordering is used to add to hierarchy.
+
+  // Link into hierachy.
   k->append_to_sibling_list();                    // add to superklass/sibling list
   k->process_interfaces(THREAD);                  // handle all "implements" declarations
-  k->set_init_state(InstanceKlass::loaded);
+
   // Now flush all code that depended on old class hierarchy.
   // Note: must be done *after* linking k into the hierarchy (was bug 12/9/97)
-  // Also, first reinitialize vtable because it may have gotten out of synch
-  // while the new class wasn't connected to the class hierarchy.
   CodeCache::flush_dependents_on(k);
 }
 
@@ -1816,40 +1825,27 @@ bool SystemDictionary::do_unloading(GCTimer* gc_timer) {
     if (unloading_occurred) {
       MutexLockerEx ml2(is_concurrent ? Module_lock : NULL);
       JFR_ONLY(Jfr::on_unloading_classes();)
+
       MutexLockerEx ml1(is_concurrent ? SystemDictionary_lock : NULL);
       ClassLoaderDataGraph::clean_module_and_package_info();
-    }
-  }
-
-  // Cleanup ResolvedMethodTable even if no unloading occurred.
-  {
-    GCTraceTime(Debug, gc, phases) t("ResolvedMethodTable", gc_timer);
-    ResolvedMethodTable::trigger_cleanup();
-  }
-
-  if (unloading_occurred) {
-    {
-      GCTraceTime(Debug, gc, phases) t("SymbolTable", gc_timer);
-      // Check if there's work to do in the SymbolTable
-      SymbolTable::do_check_concurrent_work();
-    }
-
-    {
-      MutexLockerEx ml(is_concurrent ? SystemDictionary_lock : NULL);
-      GCTraceTime(Debug, gc, phases) t("Dictionary", gc_timer);
       constraints()->purge_loader_constraints();
       resolution_errors()->purge_resolution_errors();
     }
+  }
 
-    {
-      GCTraceTime(Debug, gc, phases) t("ResolvedMethodTable", gc_timer);
-      // Oops referenced by the protection domain cache table may get unreachable independently
-      // of the class loader (eg. cached protection domain oops). So we need to
-      // explicitly unlink them here.
-      // All protection domain oops are linked to the caller class, so if nothing
-      // unloads, this is not needed.
-      _pd_cache_table->trigger_cleanup();
-    }
+  GCTraceTime(Debug, gc, phases) t("Trigger cleanups", gc_timer);
+  // Trigger cleaning the ResolvedMethodTable even if no unloading occurred.
+  ResolvedMethodTable::trigger_cleanup();
+
+  if (unloading_occurred) {
+    SymbolTable::trigger_cleanup();
+
+    // Oops referenced by the protection domain cache table may get unreachable independently
+    // of the class loader (eg. cached protection domain oops). So we need to
+    // explicitly unlink them here.
+    // All protection domain oops are linked to the caller class, so if nothing
+    // unloads, this is not needed.
+    _pd_cache_table->trigger_cleanup();
   }
 
   return unloading_occurred;
@@ -2177,6 +2173,7 @@ void SystemDictionary::update_dictionary(unsigned int d_hash,
     InstanceKlass* sd_check = find_class(d_hash, name, dictionary);
     if (sd_check == NULL) {
       dictionary->add_klass(d_hash, name, k);
+
       notice_modification();
     }
   #ifdef ASSERT

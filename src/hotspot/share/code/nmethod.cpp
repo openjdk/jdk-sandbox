@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1053,7 +1053,8 @@ void nmethod::make_unloaded() {
   // recorded in instanceKlasses get flushed.
   // Since this work is being done during a GC, defer deleting dependencies from the
   // InstanceKlass.
-  assert(Universe::heap()->is_gc_active(), "should only be called during gc");
+  assert(Universe::heap()->is_gc_active() || Thread::current()->is_ConcurrentGC_thread(),
+         "should only be called during gc");
   flush_dependencies(/*delete_immediately*/false);
 
   // Break cycle between nmethod & method
@@ -1095,10 +1096,21 @@ void nmethod::make_unloaded() {
   }
 
   // Make the class unloaded - i.e., change state and notify sweeper
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert(SafepointSynchronize::is_at_safepoint() || Thread::current()->is_ConcurrentGC_thread(),
+         "must be at safepoint");
+
+  {
+    // Clear ICStubs and release any CompiledICHolders.
+    CompiledICLocker ml(this);
+    clear_ic_callsites();
+  }
 
   // Unregister must be done before the state change
-  Universe::heap()->unregister_nmethod(this);
+  {
+    MutexLockerEx ml(SafepointSynchronize::is_at_safepoint() ? NULL : CodeCache_lock,
+                     Mutex::_no_safepoint_check_flag);
+    Universe::heap()->unregister_nmethod(this);
+  }
 
   // Log the unloading.
   log_state_change();
@@ -1154,6 +1166,19 @@ void nmethod::log_state_change() const {
   CompileTask::print_ul(this, state_msg);
   if (PrintCompilation && _state != unloaded) {
     print_on(tty, state_msg);
+  }
+}
+
+void nmethod::unlink_from_method(bool acquire_lock) {
+  // We need to check if both the _code and _from_compiled_code_entry_point
+  // refer to this nmethod because there is a race in setting these two fields
+  // in Method* as seen in bugid 4947125.
+  // If the vep() points to the zombie nmethod, the memory for the nmethod
+  // could be flushed and the compiler and vtable stubs could still call
+  // through it.
+  if (method() != NULL && (method()->code() == this ||
+                           method()->from_compiled_entry() == verified_entry_point())) {
+    method()->clear_code(acquire_lock);
   }
 }
 
@@ -1244,17 +1269,7 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
     JVMCI_ONLY(maybe_invalidate_installed_code());
 
     // Remove nmethod from method.
-    // We need to check if both the _code and _from_compiled_code_entry_point
-    // refer to this nmethod because there is a race in setting these two fields
-    // in Method* as seen in bugid 4947125.
-    // If the vep() points to the zombie nmethod, the memory for the nmethod
-    // could be flushed and the compiler and vtable stubs could still call
-    // through it.
-    if (method() != NULL && (method()->code() == this ||
-                             method()->from_compiled_entry() == verified_entry_point())) {
-      HandleMark hm;
-      method()->clear_code(false /* already owns Patching_lock */);
-    }
+    unlink_from_method(false /* already owns Patching_lock */);
   } // leave critical region under Patching_lock
 
 #ifdef ASSERT
@@ -1279,6 +1294,14 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
         Universe::heap()->unregister_nmethod(this);
       }
       flush_dependencies(/*delete_immediately*/true);
+    }
+
+    // Clear ICStubs to prevent back patching stubs of zombie or flushed
+    // nmethods during the next safepoint (see ICStub::finalize), as well
+    // as to free up CompiledICHolder resources.
+    {
+      CompiledICLocker ml(this);
+      clear_ic_callsites();
     }
 
     // zombie only - if a JVMTI agent has enabled the CompiledMethodUnload
@@ -1310,6 +1333,7 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
 }
 
 void nmethod::flush() {
+  MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
   // Note that there are no valid oops in the nmethod anymore.
   assert(!is_osr_method() || is_unloaded() || is_zombie(),
          "osr nmethod must be unloaded or zombie before flushing");
@@ -1573,14 +1597,44 @@ bool nmethod::is_unloading() {
   if (state_is_unloading) {
     return true;
   }
-  if (state_unloading_cycle == CodeCache::unloading_cycle()) {
+  uint8_t current_cycle = CodeCache::unloading_cycle();
+  if (state_unloading_cycle == current_cycle) {
     return false;
   }
 
   // The IsUnloadingBehaviour is responsible for checking if there are any dead
   // oops in the CompiledMethod, by calling oops_do on it.
-  state_unloading_cycle = CodeCache::unloading_cycle();
-  state_is_unloading = IsUnloadingBehaviour::current()->is_unloading(this);
+  state_unloading_cycle = current_cycle;
+
+  if (is_zombie()) {
+    // Zombies without calculated unloading epoch are never unloading due to GC.
+
+    // There are no races where a previously observed is_unloading() nmethod
+    // suddenly becomes not is_unloading() due to here being observed as zombie.
+
+    // With STW unloading, all is_alive() && is_unloading() nmethods are unlinked
+    // and unloaded in the safepoint. That makes races where an nmethod is first
+    // observed as is_alive() && is_unloading() and subsequently observed as
+    // is_zombie() impossible.
+
+    // With concurrent unloading, all references to is_unloading() nmethods are
+    // first unlinked (e.g. IC caches and dependency contexts). Then a global
+    // handshake operation is performed with all JavaThreads before finally
+    // unloading the nmethods. The sweeper never converts is_alive() && is_unloading()
+    // nmethods to zombies; it waits for them to become is_unloaded(). So before
+    // the global handshake, it is impossible for is_unloading() nmethods to
+    // racingly become is_zombie(). And is_unloading() is calculated for all is_alive()
+    // nmethods before taking that global handshake, meaning that it will never
+    // be recalculated after the handshake.
+
+    // After that global handshake, is_unloading() nmethods are only observable
+    // to the iterators, and they will never trigger recomputation of the cached
+    // is_unloading_state, and hence may not suffer from such races.
+
+    state_is_unloading = false;
+  } else {
+    state_is_unloading = IsUnloadingBehaviour::current()->is_unloading(this);
+  }
 
   state = IsUnloadingState::create(state_is_unloading, state_unloading_cycle);
 
@@ -1618,7 +1672,8 @@ void nmethod::do_unloading(bool unloading_occurred) {
     }
 #endif
 
-    unload_nmethod_caches(unloading_occurred);
+    guarantee(unload_nmethod_caches(unloading_occurred),
+              "Should not need transition stubs");
   }
 }
 
@@ -1974,30 +2029,26 @@ bool nmethod::check_dependency_on(DepChange& changes) {
   return found_check;
 }
 
-bool nmethod::is_evol_dependent_on(Klass* dependee) {
-  InstanceKlass *dependee_ik = InstanceKlass::cast(dependee);
-  Array<Method*>* dependee_methods = dependee_ik->methods();
+bool nmethod::is_evol_dependent() {
   for (Dependencies::DepStream deps(this); deps.next(); ) {
     if (deps.type() == Dependencies::evol_method) {
       Method* method = deps.method_argument(0);
-      for (int j = 0; j < dependee_methods->length(); j++) {
-        if (dependee_methods->at(j) == method) {
-          if (log_is_enabled(Debug, redefine, class, nmethod)) {
-            ResourceMark rm;
-            log_debug(redefine, class, nmethod)
-              ("Found evol dependency of nmethod %s.%s(%s) compile_id=%d on method %s.%s(%s)",
-               _method->method_holder()->external_name(),
-               _method->name()->as_C_string(),
-               _method->signature()->as_C_string(),
-               compile_id(),
-               method->method_holder()->external_name(),
-               method->name()->as_C_string(),
-               method->signature()->as_C_string());
-          }
-          if (TraceDependencies || LogCompilation)
-            deps.log_dependency(dependee);
-          return true;
+      if (method->is_old()) {
+        if (log_is_enabled(Debug, redefine, class, nmethod)) {
+          ResourceMark rm;
+          log_debug(redefine, class, nmethod)
+            ("Found evol dependency of nmethod %s.%s(%s) compile_id=%d on method %s.%s(%s)",
+             _method->method_holder()->external_name(),
+             _method->name()->as_C_string(),
+             _method->signature()->as_C_string(),
+             compile_id(),
+             method->method_holder()->external_name(),
+             method->name()->as_C_string(),
+             method->signature()->as_C_string());
         }
+        if (TraceDependencies || LogCompilation)
+          deps.log_dependency(method->method_holder());
+        return true;
       }
     }
   }
@@ -2500,6 +2551,7 @@ const char* nmethod::reloc_string_for(u_char* begin, u_char* end) {
         case relocInfo::section_word_type:     return "section_word";
         case relocInfo::poll_type:             return "poll";
         case relocInfo::poll_return_type:      return "poll_return";
+        case relocInfo::trampoline_stub_type:  return "trampoline_stub";
         case relocInfo::type_mask:             return "type_bit_mask";
 
         default:
@@ -2923,6 +2975,10 @@ void nmethod::clear_speculation_log() {
 }
 
 void nmethod::maybe_invalidate_installed_code() {
+  if (!is_compiled_by_jvmci()) {
+    return;
+  }
+
   assert(Patching_lock->is_locked() ||
          SafepointSynchronize::is_at_safepoint(), "should be performed under a lock for consistency");
   oop installed_code = JNIHandles::resolve(_jvmci_installed_code);

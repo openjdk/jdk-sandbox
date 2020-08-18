@@ -1,6 +1,6 @@
 ###########################################################################
 #
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -254,7 +254,6 @@ java/awt/Choice/PopupPosTest/PopupPosTest.html 8192930 windows-all
 java/awt/Choice/ChoiceMouseWheelTest/ChoiceMouseWheelTest.java 7100044 macosx-all,linux-all
 java/awt/Component/CreateImage/CreateImage.java 8198334  windows-all
 java/awt/Component/GetScreenLocTest/GetScreenLocTest.java 4753654 generic-all
-java/awt/Choice/SelectCurrentItemTest/SelectCurrentItemTest.html 8192929 windows-all,linux-all
 java/awt/Clipboard/HTMLTransferTest/HTMLTransferTest.html 8017454 macosx-all
 java/awt/Focus/NonFocusableWindowTest/NoEventsTest.java 8000171 windows-all
 java/awt/Frame/MiscUndecorated/RepaintTest.java 8079267 windows-all,linux-all
@@ -515,8 +514,8 @@ java/beans/XMLEncoder/Test6570354.java 8015593 macosx-all
 # jdk_lang
 
 java/lang/StringCoding/CheckEncodings.sh                        7008363 generic-all
-java/lang/ProcessBuilder/PipelineTest.java                      8211844 aix-ppc64
 java/lang/ProcessHandle/InfoTest.java                           8211847 aix-ppc64
+java/lang/invoke/LFCaching/LFMultiThreadCachingTest.java        8151492 generic-all
 
 ############################################################################
 
@@ -559,9 +558,7 @@ javax/management/remote/mandatory/notif/NotifReconnectDeadlockTest.java 8042215 
 java/net/MulticastSocket/NoLoopbackPackets.java                 7122846 macosx-all
 java/net/MulticastSocket/SetLoopbackMode.java                   7122846 macosx-all
 
-java/net/MulticastSocket/Test.java                              7145658,8207404 macosx-all,aix-all
-java/net/MulticastSocket/JoinLeave.java                         8207404 aix-all
-java/net/MulticastSocket/SetGetNetworkInterfaceTest.java        8207404 aix-all
+java/net/MulticastSocket/Test.java                              7145658 macosx-all
 
 java/net/DatagramSocket/SendDatagramToBadAddress.java           7143960 macosx-all
 
@@ -581,10 +578,8 @@ java/nio/channels/Selector/Wakeup.java                          6963118 windows-
 
 java/nio/file/WatchService/Basic.java                           7158947 solaris-all Solaris 11
 java/nio/file/WatchService/MayFlies.java                        7158947 solaris-all Solaris 11
-java/nio/file/WatchService/LotsOfCancels.java                   8188039 solaris-all Solaris 11
 java/nio/file/WatchService/LotsOfEvents.java                    7158947 solaris-all Solaris 11
 
-sun/nio/cs/OLD/TestIBMDB.java                                   8211841 aix-ppc64
 
 ############################################################################
 
@@ -715,7 +710,6 @@ javax/sound/midi/Sequencer/Recording.java 8167580 linux-all,solaris-all
 
 com/sun/java/swing/plaf/windows/Test8173145.java 8198334 windows-all
 
-javax/swing/border/Test6981576.java 8198339 generic-all
 javax/swing/border/TestTitledBorderLeak.java 8213531 linux-all
 javax/swing/JComponent/7154030/bug7154030.java 7190978 generic-all
 javax/swing/JComboBox/ConsumedKeyTest/ConsumedKeyTest.java 8067986 generic-all
@@ -778,8 +772,6 @@ javax/swing/UITest/UITest.java 8198392 generic-all
 javax/swing/plaf/basic/BasicComboBoxEditor/Test8015336.java 8198394 generic-all
 javax/swing/plaf/metal/MetalLookAndFeel/Test8039750.java 8198395 generic-all
 javax/swing/text/DevanagariEditor.java 8198397 generic-all
-javax/swing/JColorChooser/Test6199676.java 8198398 generic-all
-javax/swing/JTable/6735286/bug6735286.java 8198398 generic-all
 javax/swing/SpringLayout/4726194/bug4726194.java 8198399 generic-all
 javax/swing/SwingUtilities/6797139/bug6797139.java 8198400 generic-all
 javax/swing/text/html/parser/Parser/6836089/bug6836089.java 8198401 generic-all
@@ -842,8 +834,6 @@ tools/pack200/CommandLineTests.java                             8059906 generic-
 
 com/sun/jdi/RepStep.java                                        8043571 generic-all
 
-com/sun/jdi/sde/SourceDebugExtensionTest.java                   8158066 windows-all
-
 com/sun/jdi/NashornPopFrameTest.java                            8187143 generic-all
 
 ############################################################################
@@ -884,4 +874,3 @@ javax/rmi/ssl/SSLSocketParametersTest.sh                        8162906 generic-
 # jdk_jfr
 
 jdk/jfr/event/io/TestInstrumentation.java                       8202142    generic-all
-jdk/jfr/event/sampling/TestNative.java                          8202142    generic-all
