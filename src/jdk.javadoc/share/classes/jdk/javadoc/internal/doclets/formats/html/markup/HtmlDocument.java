@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,33 +42,27 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocletConstants;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Bhavesh Patel
  */
 public class HtmlDocument {
-    private final DocType docType;
+    private final DocType docType = DocType.HTML5;
     private final List<Content> docContent;
 
     /**
      * Constructor to construct an HTML document.
      *
-     * @param docType document type for the HTML document
      * @param docComment comment for the document
      * @param htmlTree HTML tree of the document
      */
-    public HtmlDocument(DocType docType, Content docComment, Content htmlTree) {
-        this.docType = docType;
+    public HtmlDocument(Content docComment, Content htmlTree) {
         docContent = Arrays.asList(docComment, htmlTree);
     }
 
     /**
      * Constructor to construct an HTML document.
      *
-     * @param docType document type for the HTML document
      * @param htmlTree HTML tree of the document
      */
-    public HtmlDocument(DocType docType, Content htmlTree) {
-        this.docType = docType;
+    public HtmlDocument(Content htmlTree) {
         docContent = Collections.singletonList(htmlTree);
     }
 

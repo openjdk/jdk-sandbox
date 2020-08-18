@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,8 @@
  * @test
  * @bug 8214031
  * @summary Verify various corner cases with nested switch expressions.
- * @compile --enable-preview -source 13 ExpressionSwitchBugsInGen.java
- * @run main/othervm --enable-preview ExpressionSwitchBugsInGen
+ * @compile ExpressionSwitchBugsInGen.java
+ * @run main ExpressionSwitchBugsInGen
  */
 
 public class ExpressionSwitchBugsInGen {

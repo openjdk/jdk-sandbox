@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -221,7 +221,7 @@ public class DocTreeMaker implements DocTreeFactory {
     }
 
     /*
-     * Primarily to produce a DocCommenTree when given a
+     * Primarily to produce a DocCommentTree when given a
      * first sentence and a body, this is useful, in cases
      * where the trees are being synthesized by a tool.
      */
@@ -378,7 +378,7 @@ public class DocTreeMaker implements DocTreeFactory {
     public DCReference newReferenceTree(String signature) {
         try {
             ReferenceParser.Reference ref = referenceParser.parse(signature);
-            DCReference tree = new DCReference(signature, ref.qualExpr, ref.member, ref.paramTypes);
+            DCReference tree = new DCReference(signature, ref.moduleName, ref.qualExpr, ref.member, ref.paramTypes);
             tree.pos = pos;
             return tree;
         } catch (ReferenceParser.ParseException e) {
@@ -386,8 +386,8 @@ public class DocTreeMaker implements DocTreeFactory {
         }
     }
 
-    public DCReference newReferenceTree(String signature, JCTree qualExpr, Name member, List<JCTree> paramTypes) {
-        DCReference tree = new DCReference(signature, qualExpr, member, paramTypes);
+    public DCReference newReferenceTree(String signature, JCTree.JCExpression moduleName, JCTree qualExpr, Name member, List<JCTree> paramTypes) {
+        DCReference tree = new DCReference(signature, moduleName, qualExpr, member, paramTypes);
         tree.pos = pos;
         return tree;
     }

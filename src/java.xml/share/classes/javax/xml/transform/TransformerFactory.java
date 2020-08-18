@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,7 +140,7 @@ public abstract class TransformerFactory {
      * {@code TransformerFactory} it can use the factory to configure
      * and obtain transformer instances.
      *
-     * <h2>Tip for Trouble-shooting</h2>
+     * <h4>Tip for Trouble-shooting</h4>
      * <p>Setting the {@code jaxp.debug} system property will cause
      * this method to print a lot of debug messages
      * to {@code System.err} about what it is doing and where it is looking at.
@@ -205,7 +205,7 @@ public abstract class TransformerFactory {
 
     /**
      * Create a new {@code Transformer} that performs a copy
-     * of the {@code Source} to the {@code Result}.
+     * of the {@code Source} to the {@code Result},
      * i.e. the "<em>identity transform</em>".
      *
      * @return A Transformer object that may be used to perform a transformation

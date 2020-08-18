@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,7 @@ import jdk.jfr.Recording;
  * See the package {@code jdk.jfr} documentation for descriptions of the settings
  * syntax and the {@link ConfigurationInfo} class documentation for configuration information.
  *
- * <h3>Recording options</h3>
+ * <h2>Recording options</h2>
  * <p>
  * The following table shows the options names to use with {@link #setRecordingOptions(long, Map)}
  * and {@link #getRecordingOptions(long)}.
@@ -205,12 +205,10 @@ public interface FlightRecorderMXBean extends PlatformManagedObject {
      * The caller must close the recording when access to the data is no longer
      * needed.
      *
-     * @return a snapshot of all available recording data, not {@code null}
+     * @return a unique ID that can be used for reading recording data
      *
      * @throws java.lang.SecurityException if a security manager exists and the
      *         caller does not have {@code ManagementPermission("control")}
-     *
-     * @return a unique ID that can be used for reading recording data.
      *
      * @see Recording
      */

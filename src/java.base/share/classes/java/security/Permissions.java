@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,21 +25,19 @@
 
 package java.security;
 
+import java.io.InvalidObjectException;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
+import java.io.Serializable;
 import java.util.Enumeration;
 import java.util.Hashtable;
-import java.util.NoSuchElementException;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Iterator;
-import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.io.Serializable;
-import java.io.ObjectStreamField;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
-import java.io.IOException;
-
 
 /**
  * This class represents a heterogeneous collection of Permissions. That is,
@@ -117,7 +115,7 @@ implements Serializable
      *
      * @param permission the Permission object to add.
      *
-     * @exception SecurityException if this Permissions object is
+     * @throws    SecurityException if this Permissions object is
      * marked as readonly.
      *
      * @see PermissionCollection#isReadOnly()
@@ -231,38 +229,50 @@ implements Serializable
      */
     private PermissionCollection getPermissionCollection(Permission p,
                                                          boolean createEmpty) {
-        Class<?> c = p.getClass();
-
-        if (!hasUnresolved && !createEmpty) {
-            return permsMap.get(c);
+        PermissionCollection pc = permsMap.get(p.getClass());
+        if ((!hasUnresolved && !createEmpty) || pc != null) {
+            // Collection not to be created, or already created
+            return pc;
         }
+        return createPermissionCollection(p, createEmpty);
+    }
 
-        // Create and add permission collection to map if it is absent.
-        // NOTE: cannot use lambda for mappingFunction parameter until
-        // JDK-8076596 is fixed.
-        return permsMap.computeIfAbsent(c,
-            new java.util.function.Function<>() {
-                @Override
-                public PermissionCollection apply(Class<?> k) {
-                    // Check for unresolved permissions
-                    PermissionCollection pc =
-                        (hasUnresolved ? getUnresolvedPermissions(p) : null);
+    private PermissionCollection createPermissionCollection(Permission p,
+                                                            boolean createEmpty) {
+        synchronized (permsMap) {
+            // Re-read under lock
+            Class<?> c = p.getClass();
+            PermissionCollection pc = permsMap.get(c);
 
-                    // if still null, create a new collection
-                    if (pc == null && createEmpty) {
+            // Collection already created
+            if (pc != null) {
+                return pc;
+            }
 
-                        pc = p.newPermissionCollection();
+            // Create and add permission collection to map if it is absent.
+            // Check for unresolved permissions
+            pc = (hasUnresolved ? getUnresolvedPermissions(p) : null);
 
-                        // still no PermissionCollection?
-                        // We'll give them a PermissionsHash.
-                        if (pc == null) {
-                            pc = new PermissionsHash();
-                        }
-                    }
-                    return pc;
+            // if still null, create a new collection
+            if (pc == null && createEmpty) {
+
+                pc = p.newPermissionCollection();
+
+                // still no PermissionCollection?
+                // We'll give them a PermissionsHash.
+                if (pc == null) {
+                    pc = new PermissionsHash();
                 }
             }
-        );
+            if (pc != null) {
+                // Add pc, resolving any race
+                PermissionCollection oldPc = permsMap.putIfAbsent(c, pc);
+                if (oldPc != null) {
+                    pc = oldPc;
+                }
+            }
+            return pc;
+        }
     }
 
     /**
@@ -329,6 +339,7 @@ implements Serializable
         return pc;
     }
 
+    @java.io.Serial
     private static final long serialVersionUID = 4858622370623524688L;
 
     // Need to maintain serialization interoperability with earlier releases,
@@ -340,6 +351,7 @@ implements Serializable
      *     A table of the Permission classes and PermissionCollections.
      * @serialField allPermission java.security.PermissionCollection
      */
+    @java.io.Serial
     private static final ObjectStreamField[] serialPersistentFields = {
         new ObjectStreamField("perms", Hashtable.class),
         new ObjectStreamField("allPermission", PermissionCollection.class),
@@ -353,6 +365,7 @@ implements Serializable
      * serialization compatibility with earlier releases. allPermission
      * unchanged.
      */
+    @java.io.Serial
     private void writeObject(ObjectOutputStream out) throws IOException {
         // Don't call out.defaultWriteObject()
 
@@ -373,6 +386,7 @@ implements Serializable
      * Reads in a Hashtable of Class/PermissionCollections and saves them in the
      * permsMap field. Reads in allPermission.
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream in) throws IOException,
     ClassNotFoundException {
         // Don't call defaultReadObject()
@@ -391,6 +405,22 @@ implements Serializable
             (Hashtable<Class<?>, PermissionCollection>)gfields.get("perms", null);
         permsMap = new ConcurrentHashMap<>(perms.size()*2);
         permsMap.putAll(perms);
+
+        // Check that Class is mapped to PermissionCollection containing
+        // Permissions of the same class
+        for (Map.Entry<Class<?>, PermissionCollection> e : perms.entrySet()) {
+            Class<?> k = e.getKey();
+            PermissionCollection v = e.getValue();
+            Enumeration<Permission> en = v.elements();
+            while (en.hasMoreElements()) {
+                Permission p = en.nextElement();
+                if (!k.equals(p.getClass())) {
+                    throw new InvalidObjectException("Permission with class " +
+                        k + " incorrectly mapped to PermissionCollection " +
+                        "containing Permission with " + p.getClass());
+                }
+            }
+        }
 
         // Set hasUnresolved
         UnresolvedPermissionCollection uc =
@@ -532,6 +562,7 @@ implements Serializable
         return permsMap.elements();
     }
 
+    @java.io.Serial
     private static final long serialVersionUID = -8491988220802933440L;
     // Need to maintain serialization interoperability with earlier releases,
     // which had the serializable field:
@@ -540,6 +571,7 @@ implements Serializable
      * @serialField perms java.util.Hashtable
      *     A table of the Permissions (both key and value are same).
      */
+    @java.io.Serial
     private static final ObjectStreamField[] serialPersistentFields = {
         new ObjectStreamField("perms", Hashtable.class),
     };
@@ -551,6 +583,7 @@ implements Serializable
      * Writes the contents of the permsMap field out as a Hashtable for
      * serialization compatibility with earlier releases.
      */
+    @java.io.Serial
     private void writeObject(ObjectOutputStream out) throws IOException {
         // Don't call out.defaultWriteObject()
 
@@ -569,6 +602,7 @@ implements Serializable
      * Reads in a Hashtable of Permission/Permission and saves them in the
      * permsMap field.
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream in) throws IOException,
     ClassNotFoundException {
         // Don't call defaultReadObject()
@@ -584,5 +618,15 @@ implements Serializable
                 (Hashtable<Permission, Permission>)gfields.get("perms", null);
         permsMap = new ConcurrentHashMap<>(perms.size()*2);
         permsMap.putAll(perms);
+
+        // check that the Permission key and value are the same object
+        for (Map.Entry<Permission, Permission> e : perms.entrySet()) {
+            Permission k = e.getKey();
+            Permission v = e.getValue();
+            if (k != v) {
+                throw new InvalidObjectException("Permission (" + k +
+                    ") incorrectly mapped to Permission (" + v + ")");
+            }
+        }
     }
 }

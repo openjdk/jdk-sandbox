@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,7 +53,7 @@ void PackageEntry::add_qexport(ModuleEntry* m) {
   if (!has_qual_exports_list()) {
     // Lazily create a package's qualified exports list.
     // Initial size is small, do not anticipate export lists to be large.
-    _qualified_exports = new (ResourceObj::C_HEAP, mtModule) GrowableArray<ModuleEntry*>(QUAL_EXP_SIZE, true);
+    _qualified_exports = new (ResourceObj::C_HEAP, mtModule) GrowableArray<ModuleEntry*>(QUAL_EXP_SIZE, mtModule);
   }
 
   // Determine, based on this newly established export to module m,
@@ -89,7 +89,7 @@ void PackageEntry::set_export_walk_required(ClassLoaderData* m_loader_data) {
 
 // Set the package's exported states based on the value of the ModuleEntry.
 void PackageEntry::set_exported(ModuleEntry* m) {
-  MutexLocker m1(Module_lock);
+  assert(Module_lock->owned_by_self(), "should have the Module_lock");
   if (is_unqual_exported()) {
     // An exception could be thrown, but choose to simply ignore.
     // Illegal to convert an unqualified exported package to be qualifiedly exported
@@ -109,12 +109,8 @@ void PackageEntry::set_exported(ModuleEntry* m) {
 // Set the package as exported to all unnamed modules unless the package is
 // already unqualifiedly exported.
 void PackageEntry::set_is_exported_allUnnamed() {
-  if (module()->is_open()) {
-    // No-op for open modules since all packages are unqualifiedly exported
-    return;
-  }
-
-  MutexLocker m1(Module_lock);
+  assert(!module()->is_open(), "should have been checked already");
+  assert(Module_lock->owned_by_self(), "should have the Module_lock");
   if (!is_unqual_exported()) {
    _export_flags = PKG_EXP_ALLUNNAMED;
   }
@@ -129,7 +125,6 @@ void PackageEntry::purge_qualified_exports() {
   if (_must_walk_exports &&
       _qualified_exports != NULL &&
       !_qualified_exports->is_empty()) {
-    ModuleEntry* pkg_module = module();
 
     // This package's _must_walk_exports flag will be reset based
     // on the remaining live modules on the exports list.
@@ -211,23 +206,28 @@ void PackageEntryTable::add_entry(int index, PackageEntry* new_entry) {
   Hashtable<Symbol*, mtModule>::add_entry(index, (HashtableEntry<Symbol*, mtModule>*)new_entry);
 }
 
-// Create package in loader's package entry table and return the entry.
-// If entry already exists, return null.  Assume Module lock was taken by caller.
-PackageEntry* PackageEntryTable::locked_create_entry_or_null(Symbol* name, ModuleEntry* module) {
+// Create package entry in loader's package entry table.  Assume Module lock
+// was taken by caller.
+void PackageEntryTable::locked_create_entry(Symbol* name, ModuleEntry* module) {
   assert(Module_lock->owned_by_self(), "should have the Module_lock");
-  // Check if package already exists.  Return NULL if it does.
-  if (lookup_only(name) != NULL) {
-    return NULL;
-  } else {
-    PackageEntry* entry = new_entry(compute_hash(name), name, module);
-    add_entry(index_for(name), entry);
-    return entry;
+  assert(locked_lookup_only(name) == NULL, "Package entry already exists");
+  PackageEntry* entry = new_entry(compute_hash(name), name, module);
+  add_entry(index_for(name), entry);
+}
+
+// Create package entry in loader's package entry table if it does not already
+// exist.  Assume Module lock was taken by caller.
+void PackageEntryTable::locked_create_entry_if_not_exist(Symbol* name, ModuleEntry* module) {
+  assert(Module_lock->owned_by_self(), "should have the Module_lock");
+  // Check if package entry already exists.  If not, create it.
+  if (locked_lookup_only(name) == NULL) {
+    locked_create_entry(name, module);
   }
 }
 
 PackageEntry* PackageEntryTable::lookup(Symbol* name, ModuleEntry* module) {
   MutexLocker ml(Module_lock);
-  PackageEntry* p = lookup_only(name);
+  PackageEntry* p = locked_lookup_only(name);
   if (p != NULL) {
     return p;
   } else {
@@ -239,7 +239,13 @@ PackageEntry* PackageEntryTable::lookup(Symbol* name, ModuleEntry* module) {
 }
 
 PackageEntry* PackageEntryTable::lookup_only(Symbol* name) {
-  MutexLockerEx ml(Module_lock->owned_by_self() ? NULL : Module_lock);
+  assert(!Module_lock->owned_by_self(), "should not have the Module_lock - use locked_lookup_only");
+  MutexLocker ml(Module_lock);
+  return locked_lookup_only(name);
+}
+
+PackageEntry* PackageEntryTable::locked_lookup_only(Symbol* name) {
+  assert(Module_lock->owned_by_self(), "should have the Module_lock");
   int index = index_for(name);
   for (PackageEntry* p = bucket(index); p != NULL; p = p->next()) {
     if (p->name()->fast_compare(name) == 0) {

@@ -26,54 +26,64 @@
 #define SHARE_JFR_LEAKPROFILER_SAMPLING_OBJECTSAMPLER_HPP
 
 #include "memory/allocation.hpp"
-#include "jfr/utilities/jfrTime.hpp"
 
-class BoolObjectClosure;
-class OopClosure;
+typedef u8 traceid;
+
+class JavaThread;
+class OopStorage;
 class ObjectSample;
-class ObjectSampler;
 class SampleList;
 class SamplePriorityQueue;
-class Thread;
 
 // Class reponsible for holding samples and
 // making sure the samples are evenly distributed as
 // new entries are added and removed.
 class ObjectSampler : public CHeapObj<mtTracing> {
+  friend class JfrRecorder;
   friend class LeakProfiler;
-  friend class ObjectSampleCheckpoint;
+  friend class ObjectSample;
   friend class StartOperation;
   friend class StopOperation;
-  friend class EmitEventOperation;
  private:
   SamplePriorityQueue* _priority_queue;
   SampleList* _list;
-  JfrTicks _last_sweep;
   size_t _total_allocated;
   size_t _threshold;
   size_t _size;
-  volatile int _tryLock;
-  bool _dead_samples;
 
+  // Lifecycle
   explicit ObjectSampler(size_t size);
   ~ObjectSampler();
+  static bool create(size_t size);
+  static bool is_created();
+  static void destroy();
 
-  void add(HeapWord* object, size_t size, JavaThread* thread);
-  void remove_dead(ObjectSample* sample);
+  // Sampling
+  static void sample(HeapWord* object, size_t size, JavaThread* thread);
+  void add(HeapWord* object, size_t size, traceid thread_id, JavaThread* thread);
   void scavenge();
+  void remove_dead(ObjectSample* sample);
 
-  // Called by GC
-  void oops_do(BoolObjectClosure* is_alive, OopClosure* f);
-
- public:
   const ObjectSample* item_at(int index) const;
   ObjectSample* item_at(int index);
   int item_count() const;
+
+  // OopStorage
+  static bool create_oop_storage();
+  static OopStorage* oop_storage();
+  // Invoked by the GC post oop storage processing.
+  static void oop_storage_gc_notification(size_t num_dead);
+
+ public:
+  static ObjectSampler* sampler();
+  // For operations that require exclusive access (non-safepoint)
+  static ObjectSampler* acquire();
+  static void release();
+  static int64_t last_sweep();
   const ObjectSample* first() const;
-  const ObjectSample* last() const;
+  ObjectSample* last() const;
   const ObjectSample* last_resolved() const;
   void set_last_resolved(const ObjectSample* sample);
-  const JfrTicks& last_sweep() const;
 };
 
 #endif // SHARE_JFR_LEAKPROFILER_SAMPLING_OBJECTSAMPLER_HPP

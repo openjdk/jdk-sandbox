@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import java.util.Objects;
  * parameter set name. For example, NamedParameterSpec.X25519 represents the
  * parameter set identified by the string "X25519". These strings are defined
  * in the <a href=
- * "{@docRoot}/../specs/security/standard-names.html#parameter-spec-names">
+ * "{@docRoot}/../specs/security/standard-names.html#parameterspec-names">
  *          Java Security Standard Algorithm Names Specification</a>.
  *
  * @since 11
@@ -52,6 +52,22 @@ public class NamedParameterSpec implements AlgorithmParameterSpec {
     public static final NamedParameterSpec X448
         = new NamedParameterSpec("X448");
 
+    /**
+     * The Ed25519 parameters
+     *
+     * @since 15
+     */
+    public static final NamedParameterSpec ED25519
+        = new NamedParameterSpec("Ed25519");
+
+    /**
+     * The Ed448 parameters
+     *
+     * @since 15
+     */
+    public static final NamedParameterSpec ED448
+        = new NamedParameterSpec("Ed448");
+
     private String name;
 
     /**
@@ -60,10 +76,14 @@ public class NamedParameterSpec implements AlgorithmParameterSpec {
      * list of supported names, please consult the documentation
      * of the provider whose implementation will be used.
      *
-     * @param stdName the standard name of the algorithm parameters
+     * @param stdName the standard name of the algorithm parameters. See the
+     *        ParameterSpec Names section in the
+     *        <a href=
+     *        "{@docRoot}/../specs/security/standard-names.html#parameterspec-names">
+     *        Java Security Standard Algorithm Names Specification</a> for
+     *        information about standard names.
      *
-     * @throws NullPointerException if {@code stdName}
-     * is null.
+     * @throws NullPointerException if {@code stdName} is null.
      */
     public NamedParameterSpec(String stdName) {
         Objects.requireNonNull(stdName, "stdName must not be null");

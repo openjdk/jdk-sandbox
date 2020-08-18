@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
-#include <thread_db.h>
+#include <sys/procfs.h>
 #include "libproc_impl.h"
+#include "proc_service.h"
+#include "salibelf.h"
 
 #define SA_ALTROOT "SA_ALTROOT"
 
@@ -116,13 +118,6 @@ JNIEXPORT bool JNICALL
 init_libproc(bool debug) {
    // init debug mode
    _libsaproc_debug = debug;
-
-   // initialize the thread_db library
-   if (td_init() != TD_OK) {
-     print_debug("libthread_db's td_init failed\n");
-     return false;
-   }
-
    return true;
 }
 
@@ -133,6 +128,7 @@ static void destroy_lib_info(struct ps_prochandle* ph) {
      if (lib->symtab) {
         destroy_symtab(lib->symtab);
      }
+     free(lib->eh_frame.data);
      free(lib);
      lib = next;
    }
@@ -161,6 +157,82 @@ Prelease(struct ps_prochandle* ph) {
 
 lib_info* add_lib_info(struct ps_prochandle* ph, const char* libname, uintptr_t base) {
    return add_lib_info_fd(ph, libname, -1, base);
+}
+
+static bool fill_instr_info(lib_info* lib) {
+  off_t current_pos;
+  ELF_EHDR ehdr;
+  ELF_PHDR* phbuf = NULL;
+  ELF_PHDR* ph = NULL;
+  int cnt;
+  long align = sysconf(_SC_PAGE_SIZE);
+
+  current_pos = lseek(lib->fd, (off_t)0L, SEEK_CUR);
+  lseek(lib->fd, (off_t)0L, SEEK_SET);
+  read_elf_header(lib->fd, &ehdr);
+  if ((phbuf = read_program_header_table(lib->fd, &ehdr)) == NULL) {
+    lseek(lib->fd, current_pos, SEEK_SET);
+    return false;
+  }
+
+  lib->exec_start = (uintptr_t)-1L;
+  lib->exec_end = (uintptr_t)-1L;
+  for (ph = phbuf, cnt = 0; cnt < ehdr.e_phnum; cnt++, ph++) {
+    if ((ph->p_type == PT_LOAD) && (ph->p_flags & PF_X)) {
+      print_debug("[%d] vaddr = 0x%lx, memsz = 0x%lx, filesz = 0x%lx\n", cnt, ph->p_vaddr, ph->p_memsz, ph->p_filesz);
+      if ((lib->exec_start == -1L) || (lib->exec_start > ph->p_vaddr)) {
+        lib->exec_start = ph->p_vaddr;
+      }
+      if ((lib->exec_end == (uintptr_t)-1L) || (lib->exec_end < (ph->p_vaddr + ph->p_memsz))) {
+        lib->exec_end = ph->p_vaddr + ph->p_memsz;
+      }
+      align = ph->p_align;
+    }
+  }
+
+  free(phbuf);
+  lseek(lib->fd, current_pos, SEEK_SET);
+
+  if ((lib->exec_start == -1L) || (lib->exec_end == -1L)) {
+    return false;
+  } else {
+    lib->exec_start = (lib->exec_start + lib->base) & ~(align - 1);
+    lib->exec_end = (lib->exec_end + lib->base + align) & ~(align - 1);
+    return true;
+  }
+
+}
+
+bool read_eh_frame(struct ps_prochandle* ph, lib_info* lib) {
+  off_t current_pos = -1;
+  ELF_EHDR ehdr;
+  ELF_SHDR* shbuf = NULL;
+  ELF_SHDR* sh = NULL;
+  char* strtab = NULL;
+  void* result = NULL;
+  int cnt;
+
+  current_pos = lseek(lib->fd, (off_t)0L, SEEK_CUR);
+  lseek(lib->fd, (off_t)0L, SEEK_SET);
+
+  read_elf_header(lib->fd, &ehdr);
+  shbuf = read_section_header_table(lib->fd, &ehdr);
+  strtab = read_section_data(lib->fd, &ehdr, &shbuf[ehdr.e_shstrndx]);
+
+  for (cnt = 0, sh = shbuf; cnt < ehdr.e_shnum; cnt++, sh++) {
+    if (strcmp(".eh_frame", sh->sh_name + strtab) == 0) {
+      lib->eh_frame.library_base_addr = lib->base;
+      lib->eh_frame.v_addr = sh->sh_addr;
+      lib->eh_frame.data = read_section_data(lib->fd, &ehdr, sh);
+      lib->eh_frame.size = sh->sh_size;
+      break;
+    }
+  }
+
+  free(strtab);
+  free(shbuf);
+  lseek(lib->fd, current_pos, SEEK_SET);
+  return lib->eh_frame.data != NULL;
 }
 
 lib_info* add_lib_info_fd(struct ps_prochandle* ph, const char* libname, int fd, uintptr_t base) {
@@ -201,6 +273,14 @@ lib_info* add_lib_info_fd(struct ps_prochandle* ph, const char* libname, int fd,
    newlib->symtab = build_symtab(newlib->fd, libname);
    if (newlib->symtab == NULL) {
       print_debug("symbol table build failed for %s\n", newlib->name);
+   }
+
+   if (fill_instr_info(newlib)) {
+     if (!read_eh_frame(ph, newlib)) {
+       print_debug("Could not find .eh_frame section in %s\n", newlib->name);
+     }
+   } else {
+      print_debug("Could not find executable section in %s\n", newlib->name);
    }
 
    // even if symbol table building fails, we add the lib_info.
@@ -256,7 +336,7 @@ const char* symbol_for_pc(struct ps_prochandle* ph, uintptr_t addr, uintptr_t* p
 }
 
 // add a thread to ps_prochandle
-thread_info* add_thread_info(struct ps_prochandle* ph, pthread_t pthread_id, lwpid_t lwp_id) {
+thread_info* add_thread_info(struct ps_prochandle* ph, lwpid_t lwp_id) {
    thread_info* newthr;
    if ( (newthr = (thread_info*) calloc(1, sizeof(thread_info))) == NULL) {
       print_debug("can't allocate memory for thread_info\n");
@@ -264,7 +344,6 @@ thread_info* add_thread_info(struct ps_prochandle* ph, pthread_t pthread_id, lwp
    }
 
    // initialize thread info
-   newthr->pthread_id = pthread_id;
    newthr->lwp_id = lwp_id;
 
    // add new thread to the list
@@ -280,7 +359,7 @@ void delete_thread_info(struct ps_prochandle* ph, thread_info* thr_to_be_removed
     if (thr_to_be_removed == ph->threads) {
       ph->threads = ph->threads->next;
     } else {
-      thread_info* previous_thr;
+      thread_info* previous_thr = NULL;
       while (current_thr && current_thr != thr_to_be_removed) {
         previous_thr = current_thr;
         current_thr = current_thr->next;
@@ -294,64 +373,6 @@ void delete_thread_info(struct ps_prochandle* ph, thread_info* thr_to_be_removed
     ph->num_threads--;
     free(current_thr);
 }
-
-// struct used for client data from thread_db callback
-struct thread_db_client_data {
-   struct ps_prochandle* ph;
-   thread_info_callback callback;
-};
-
-// callback function for libthread_db
-static int thread_db_callback(const td_thrhandle_t *th_p, void *data) {
-  struct thread_db_client_data* ptr = (struct thread_db_client_data*) data;
-  td_thrinfo_t ti;
-  td_err_e err;
-
-  memset(&ti, 0, sizeof(ti));
-  err = td_thr_get_info(th_p, &ti);
-  if (err != TD_OK) {
-    print_debug("libthread_db : td_thr_get_info failed, can't get thread info\n");
-    return err;
-  }
-
-  print_debug("thread_db : pthread %d (lwp %d)\n", ti.ti_tid, ti.ti_lid);
-
-  if (ti.ti_state == TD_THR_UNKNOWN || ti.ti_state == TD_THR_ZOMBIE) {
-    print_debug("Skipping pthread %d (lwp %d)\n", ti.ti_tid, ti.ti_lid);
-    return TD_OK;
-  }
-
-  if (ptr->callback(ptr->ph, ti.ti_tid, ti.ti_lid) != true)
-    return TD_ERR;
-
-  return TD_OK;
-}
-
-// read thread_info using libthread_db
-bool read_thread_info(struct ps_prochandle* ph, thread_info_callback cb) {
-  struct thread_db_client_data mydata;
-  td_thragent_t* thread_agent = NULL;
-  if (td_ta_new(ph, &thread_agent) != TD_OK) {
-     print_debug("can't create libthread_db agent\n");
-     return false;
-  }
-
-  mydata.ph = ph;
-  mydata.callback = cb;
-
-  // we use libthread_db iterator to iterate thru list of threads.
-  if (td_ta_thr_iter(thread_agent, thread_db_callback, &mydata,
-                 TD_THR_ANY_STATE, TD_THR_LOWEST_PRIORITY,
-                 TD_SIGNO_MASK, TD_THR_ANY_USER_FLAGS) != TD_OK) {
-     td_ta_delete(thread_agent);
-     return false;
-  }
-
-  // delete thread agent
-  td_ta_delete(thread_agent);
-  return true;
-}
-
 
 // get number of threads
 int get_num_threads(struct ps_prochandle* ph) {
@@ -421,6 +442,17 @@ bool find_lib(struct ps_prochandle* ph, const char *lib_name) {
   return false;
 }
 
+struct lib_info *find_lib_by_address(struct ps_prochandle* ph, uintptr_t pc) {
+  lib_info *p = ph->libs;
+  while (p) {
+    if ((p->exec_start <= pc) && (pc < p->exec_end)) {
+      return p;
+    }
+    p = p->next;
+  }
+  return NULL;
+}
+
 //--------------------------------------------------------------------------
 // proc service functions
 
@@ -484,9 +516,3 @@ ps_lgetregs(struct ps_prochandle *ph, lwpid_t lid, prgregset_t gregset) {
   return PS_OK;
 }
 
-// new libthread_db of NPTL seem to require this symbol
-JNIEXPORT ps_err_e JNICALL
-ps_get_thread_area() {
-  print_debug("ps_get_thread_area not implemented\n");
-  return PS_OK;
-}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,13 +30,14 @@
 #include "interpreter/linkResolver.hpp"
 #include "interpreter/rewriter.hpp"
 #include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/heapShared.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/compressedOops.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -44,7 +45,6 @@
 #include "prims/methodHandles.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/orderAccess.hpp"
 #include "utilities/macros.hpp"
 
 // Implementation of ConstantPoolCacheEntry
@@ -97,7 +97,7 @@ void ConstantPoolCacheEntry::set_bytecode_1(Bytecodes::Code code) {
   assert(c == 0 || c == code || code == 0, "update must be consistent");
 #endif
   // Need to flush pending stores here before bytecode is written.
-  OrderAccess::release_store(&_indices, _indices | ((u_char)code << bytecode_1_shift));
+  Atomic::release_store(&_indices, _indices | ((u_char)code << bytecode_1_shift));
 }
 
 void ConstantPoolCacheEntry::set_bytecode_2(Bytecodes::Code code) {
@@ -107,17 +107,17 @@ void ConstantPoolCacheEntry::set_bytecode_2(Bytecodes::Code code) {
   assert(c == 0 || c == code || code == 0, "update must be consistent");
 #endif
   // Need to flush pending stores here before bytecode is written.
-  OrderAccess::release_store(&_indices, _indices | ((u_char)code << bytecode_2_shift));
+  Atomic::release_store(&_indices, _indices | ((u_char)code << bytecode_2_shift));
 }
 
 // Sets f1, ordering with previous writes.
 void ConstantPoolCacheEntry::release_set_f1(Metadata* f1) {
   assert(f1 != NULL, "");
-  OrderAccess::release_store(&_f1, f1);
+  Atomic::release_store(&_f1, f1);
 }
 
 void ConstantPoolCacheEntry::set_indy_resolution_failed() {
-  OrderAccess::release_store(&_flags, _flags | (1 << indy_resolution_failed_shift));
+  Atomic::release_store(&_flags, _flags | (1 << indy_resolution_failed_shift));
 }
 
 // Note that concurrent update of both bytecodes can leave one of them
@@ -159,7 +159,7 @@ void ConstantPoolCacheEntry::set_parameter_size(int value) {
   // sure that the final parameter size agrees with what was passed.
   if (_flags == 0) {
     intx newflags = (value & parameter_size_mask);
-    Atomic::cmpxchg(newflags, &_flags, (intx)0);
+    Atomic::cmpxchg(&_flags, (intx)0, newflags);
   }
   guarantee(parameter_size() == value,
             "size must not change: parameter_size=%d, value=%d", parameter_size(), value);
@@ -261,11 +261,22 @@ void ConstantPoolCacheEntry::set_direct_or_vtable_call(Bytecodes::Code invoke_co
         method->name() != vmSymbols::object_initializer_name()) {
       do_resolve = false;
     }
-    // Don't mark invokestatic to method as resolved if the holder class has not yet completed
-    // initialization. An invokestatic must only proceed if the class is initialized, but if
-    // we resolve it before then that class initialization check is skipped.
-    if (invoke_code == Bytecodes::_invokestatic && !method->method_holder()->is_initialized()) {
-      do_resolve = false;
+    if (invoke_code == Bytecodes::_invokestatic) {
+      assert(method->method_holder()->is_initialized() ||
+             method->method_holder()->is_reentrant_initialization(Thread::current()),
+             "invalid class initialization state for invoke_static");
+
+      if (!VM_Version::supports_fast_class_init_checks() && method->needs_clinit_barrier()) {
+        // Don't mark invokestatic to method as resolved if the holder class has not yet completed
+        // initialization. An invokestatic must only proceed if the class is initialized, but if
+        // we resolve it before then that class initialization check is skipped.
+        //
+        // When fast class initialization checks are supported (VM_Version::supports_fast_class_init_checks() == true),
+        // template interpreter supports fast class initialization check for
+        // invokestatic which doesn't require call site re-resolution to
+        // enforce class initialization barrier.
+        do_resolve = false;
+      }
     }
     if (do_resolve) {
       set_bytecode_1(invoke_code);
@@ -390,28 +401,30 @@ void ConstantPoolCacheEntry::set_method_handle_common(const constantPoolHandle& 
     return;
   }
 
-  const methodHandle adapter = call_info.resolved_method();
+  Method* adapter            = call_info.resolved_method();
   const Handle appendix      = call_info.resolved_appendix();
-  const Handle method_type   = call_info.resolved_method_type();
   const bool has_appendix    = appendix.not_null();
-  const bool has_method_type = method_type.not_null();
 
   // Write the flags.
+  // MHs and indy are always sig-poly and have a local signature.
   set_method_flags(as_TosState(adapter->result_type()),
-                   ((has_appendix    ? 1 : 0) << has_appendix_shift   ) |
-                   ((has_method_type ? 1 : 0) << has_method_type_shift) |
-                   (                   1      << is_final_shift       ),
+                   ((has_appendix    ? 1 : 0) << has_appendix_shift        ) |
+                   (                   1      << has_local_signature_shift ) |
+                   (                   1      << is_final_shift            ),
                    adapter->size_of_parameters());
 
-  if (TraceInvokeDynamic) {
-    ttyLocker ttyl;
-    tty->print_cr("set_method_handle bc=%d appendix=" PTR_FORMAT "%s method_type=" PTR_FORMAT "%s method=" PTR_FORMAT " ",
-                  invoke_code,
-                  p2i(appendix()),    (has_appendix    ? "" : " (unused)"),
-                  p2i(method_type()), (has_method_type ? "" : " (unused)"),
-                  p2i(adapter()));
-    adapter->print();
-    if (has_appendix)  appendix()->print();
+  LogStream* log_stream = NULL;
+  LogStreamHandle(Debug, methodhandles, indy) lsh_indy;
+  if (lsh_indy.is_enabled()) {
+    ResourceMark rm;
+    log_stream = &lsh_indy;
+    log_stream->print_cr("set_method_handle bc=%d appendix=" PTR_FORMAT "%s method=" PTR_FORMAT " (local signature) ",
+                         invoke_code,
+                         p2i(appendix()),
+                         (has_appendix ? "" : " (unused)"),
+                         p2i(adapter));
+    adapter->print_on(log_stream);
+    if (has_appendix)  appendix()->print_on(log_stream);
   }
 
   // Method handle invokes and invokedynamic sites use both cp cache words.
@@ -435,30 +448,25 @@ void ConstantPoolCacheEntry::set_method_handle_common(const constantPoolHandle& 
 
   // Store appendix, if any.
   if (has_appendix) {
-    const int appendix_index = f2_as_index() + _indy_resolved_references_appendix_offset;
+    const int appendix_index = f2_as_index();
     assert(appendix_index >= 0 && appendix_index < resolved_references->length(), "oob");
     assert(resolved_references->obj_at(appendix_index) == NULL, "init just once");
     resolved_references->obj_at_put(appendix_index, appendix());
   }
 
-  // Store MethodType, if any.
-  if (has_method_type) {
-    const int method_type_index = f2_as_index() + _indy_resolved_references_method_type_offset;
-    assert(method_type_index >= 0 && method_type_index < resolved_references->length(), "oob");
-    assert(resolved_references->obj_at(method_type_index) == NULL, "init just once");
-    resolved_references->obj_at_put(method_type_index, method_type());
-  }
-
-  release_set_f1(adapter());  // This must be the last one to set (see NOTE above)!
+  release_set_f1(adapter);  // This must be the last one to set (see NOTE above)!
 
   // The interpreter assembly code does not check byte_2,
   // but it is used by is_resolved, method_if_resolved, etc.
   set_bytecode_1(invoke_code);
   NOT_PRODUCT(verify(tty));
-  if (TraceInvokeDynamic) {
-    ttyLocker ttyl;
-    this->print(tty, 0);
+
+  if (log_stream != NULL) {
+    this->print(log_stream, 0);
   }
+
+  assert(has_appendix == this->has_appendix(), "proper storage of appendix flag");
+  assert(this->has_local_signature(), "proper storage of signature flag");
 }
 
 bool ConstantPoolCacheEntry::save_and_throw_indy_exc(
@@ -503,7 +511,7 @@ Method* ConstantPoolCacheEntry::method_if_resolved(const constantPoolHandle& cpo
       switch (invoke_code) {
       case Bytecodes::_invokeinterface:
         assert(f1->is_klass(), "");
-        return klassItable::method_for_itable_index((InstanceKlass*)f1, f2_as_index());
+        return f2_as_interface_method();
       case Bytecodes::_invokestatic:
       case Bytecodes::_invokespecial:
         assert(!has_appendix(), "");
@@ -544,16 +552,7 @@ Method* ConstantPoolCacheEntry::method_if_resolved(const constantPoolHandle& cpo
 oop ConstantPoolCacheEntry::appendix_if_resolved(const constantPoolHandle& cpool) {
   if (!has_appendix())
     return NULL;
-  const int ref_index = f2_as_index() + _indy_resolved_references_appendix_offset;
-  objArrayOop resolved_references = cpool->resolved_references();
-  return resolved_references->obj_at(ref_index);
-}
-
-
-oop ConstantPoolCacheEntry::method_type_if_resolved(const constantPoolHandle& cpool) {
-  if (!has_method_type())
-    return NULL;
-  const int ref_index = f2_as_index() + _indy_resolved_references_method_type_offset;
+  const int ref_index = f2_as_index();
   objArrayOop resolved_references = cpool->resolved_references();
   return resolved_references->obj_at(ref_index);
 }
@@ -562,15 +561,14 @@ oop ConstantPoolCacheEntry::method_type_if_resolved(const constantPoolHandle& cp
 #if INCLUDE_JVMTI
 
 void log_adjust(const char* entry_type, Method* old_method, Method* new_method, bool* trace_name_printed) {
-  if (log_is_enabled(Info, redefine, class, update)) {
-    ResourceMark rm;
-    if (!(*trace_name_printed)) {
-      log_info(redefine, class, update)("adjust: name=%s", old_method->method_holder()->external_name());
-      *trace_name_printed = true;
-    }
-    log_debug(redefine, class, update, constantpool)
-          ("cpc %s entry update: %s(%s)", entry_type, new_method->name()->as_C_string(), new_method->signature()->as_C_string());
+  ResourceMark rm;
+
+  if (!(*trace_name_printed)) {
+    log_info(redefine, class, update)("adjust: name=%s", old_method->method_holder()->external_name());
+    *trace_name_printed = true;
   }
+  log_trace(redefine, class, update, constantpool)
+    ("cpc %s entry update: %s", entry_type, new_method->external_name());
 }
 
 // RedefineClasses() API support:
@@ -606,7 +604,7 @@ void ConstantPoolCacheEntry::adjust_method_entry(Method* old_method,
 
 // a constant pool cache entry should never contain old or obsolete methods
 bool ConstantPoolCacheEntry::check_no_old_or_obsolete_entries() {
-  Method* m = get_interesting_method_entry(NULL);
+  Method* m = get_interesting_method_entry();
   // return false if m refers to a non-deleted old or obsolete method
   if (m != NULL) {
     assert(m->is_valid() && m->is_method(), "m is a valid method");
@@ -616,7 +614,7 @@ bool ConstantPoolCacheEntry::check_no_old_or_obsolete_entries() {
   }
 }
 
-Method* ConstantPoolCacheEntry::get_interesting_method_entry(Klass* k) {
+Method* ConstantPoolCacheEntry::get_interesting_method_entry() {
   if (!is_method_entry()) {
     // not a method entry so not interesting by default
     return NULL;
@@ -637,12 +635,9 @@ Method* ConstantPoolCacheEntry::get_interesting_method_entry(Klass* k) {
     }
   }
   assert(m != NULL && m->is_method(), "sanity check");
-  if (m == NULL || !m->is_method() || (k != NULL && m->method_holder() != k)) {
-    // robustness for above sanity checks or method is not in
-    // the interesting class
+  if (m == NULL || !m->is_method()) {
     return NULL;
   }
-  // the method is in the interesting class so the entry is interesting
   return m;
 }
 #endif // INCLUDE_JVMTI
@@ -701,16 +696,7 @@ void ConstantPoolCache::initialize(const intArray& inverse_index_map,
   for (int ref = 0; ref < invokedynamic_references_map.length(); ref++) {
     const int cpci = invokedynamic_references_map.at(ref);
     if (cpci >= 0) {
-#ifdef ASSERT
-      // invokedynamic and invokehandle have more entries; check if they
-      // all point to the same constant pool cache entry.
-      for (int entry = 1; entry < ConstantPoolCacheEntry::_indy_resolved_references_entries; entry++) {
-        const int cpci_next = invokedynamic_references_map.at(ref + entry);
-        assert(cpci == cpci_next, "%d == %d", cpci, cpci_next);
-      }
-#endif
       entry_at(cpci)->initialize_resolved_reference_index(ref);
-      ref += ConstantPoolCacheEntry::_indy_resolved_references_entries - 1;  // skip extra entries
     }
   }
 }
@@ -724,7 +710,7 @@ void ConstantPoolCache::remove_unshareable_info() {
 }
 
 void ConstantPoolCache::walk_entries_for_initialization(bool check_only) {
-  assert(DumpSharedSpaces, "sanity");
+  Arguments::assert_is_dumping_archive();
   // When dumping the archive, we want to clean up the ConstantPoolCache
   // to remove any effect of linking due to the execution of Java code --
   // each ConstantPoolCacheEntry will have the same contents as if
@@ -739,10 +725,12 @@ void ConstantPoolCache::walk_entries_for_initialization(bool check_only) {
   bool* f2_used = NEW_RESOURCE_ARRAY(bool, length());
   memset(f2_used, 0, sizeof(bool) * length());
 
+  Thread* THREAD = Thread::current();
+
   // Find all the slots that we need to preserve f2
   for (int i = 0; i < ik->methods()->length(); i++) {
     Method* m = ik->methods()->at(i);
-    RawBytecodeStream bcs(m);
+    RawBytecodeStream bcs(methodHandle(THREAD, m));
     while (!bcs.is_last_bytecode()) {
       Bytecodes::Code opcode = bcs.raw_next();
       switch (opcode) {
@@ -778,7 +766,7 @@ void ConstantPoolCache::walk_entries_for_initialization(bool check_only) {
 void ConstantPoolCache::deallocate_contents(ClassLoaderData* data) {
   assert(!is_shared(), "shared caches are not deallocated");
   data->remove_handle(_resolved_references);
-  set_resolved_references(NULL);
+  set_resolved_references(OopHandle());
   MetadataFactory::free_array<u2>(data, _reference_map);
   set_reference_map(NULL);
 }
@@ -801,10 +789,10 @@ void ConstantPoolCache::set_archived_references(oop o) {
 // RedefineClasses() API support:
 // If any entry of this ConstantPoolCache points to any of
 // old_methods, replace it with the corresponding new_method.
-void ConstantPoolCache::adjust_method_entries(InstanceKlass* holder, bool * trace_name_printed) {
+void ConstantPoolCache::adjust_method_entries(bool * trace_name_printed) {
   for (int i = 0; i < length(); i++) {
     ConstantPoolCacheEntry* entry = entry_at(i);
-    Method* old_method = entry->get_interesting_method_entry(holder);
+    Method* old_method = entry->get_interesting_method_entry();
     if (old_method == NULL || !old_method->is_old()) {
       continue; // skip uninteresting entries
     }
@@ -813,20 +801,20 @@ void ConstantPoolCache::adjust_method_entries(InstanceKlass* holder, bool * trac
       entry->initialize_entry(entry->constant_pool_index());
       continue;
     }
-    Method* new_method = holder->method_with_idnum(old_method->orig_method_idnum());
-
-    assert(new_method != NULL, "method_with_idnum() should not be NULL");
-    assert(old_method != new_method, "sanity check");
-
+    Method* new_method = old_method->get_new_method();
     entry_at(i)->adjust_method_entry(old_method, new_method, trace_name_printed);
   }
 }
 
 // the constant pool cache should never contain old or obsolete methods
 bool ConstantPoolCache::check_no_old_or_obsolete_entries() {
+  ResourceMark rm;
   for (int i = 1; i < length(); i++) {
-    if (entry_at(i)->get_interesting_method_entry(NULL) != NULL &&
-        !entry_at(i)->check_no_old_or_obsolete_entries()) {
+    Method* m = entry_at(i)->get_interesting_method_entry();
+    if (m != NULL && !entry_at(i)->check_no_old_or_obsolete_entries()) {
+      log_trace(redefine, class, update, constantpool)
+        ("cpcache check found old method entry: class: %s, old: %d, obsolete: %d, method: %s",
+         constant_pool()->pool_holder()->external_name(), m->is_old(), m->is_obsolete(), m->external_name());
       return false;
     }
   }
@@ -835,7 +823,7 @@ bool ConstantPoolCache::check_no_old_or_obsolete_entries() {
 
 void ConstantPoolCache::dump_cache() {
   for (int i = 1; i < length(); i++) {
-    if (entry_at(i)->get_interesting_method_entry(NULL) != NULL) {
+    if (entry_at(i)->get_interesting_method_entry() != NULL) {
       entry_at(i)->print(tty, i);
     }
   }
@@ -851,14 +839,12 @@ void ConstantPoolCache::metaspace_pointers_do(MetaspaceClosure* it) {
 // Printing
 
 void ConstantPoolCache::print_on(outputStream* st) const {
-  assert(is_constantPoolCache(), "obj must be constant pool cache");
   st->print_cr("%s", internal_name());
   // print constant pool cache entries
   for (int i = 0; i < length(); i++) entry_at(i)->print(st, i);
 }
 
 void ConstantPoolCache::print_value_on(outputStream* st) const {
-  assert(is_constantPoolCache(), "obj must be constant pool cache");
   st->print("cache [%d]", length());
   print_address_on(st);
   st->print(" for ");
@@ -869,7 +855,6 @@ void ConstantPoolCache::print_value_on(outputStream* st) const {
 // Verification
 
 void ConstantPoolCache::verify_on(outputStream* st) {
-  guarantee(is_constantPoolCache(), "obj must be constant pool cache");
   // print constant pool cache entries
   for (int i = 0; i < length(); i++) entry_at(i)->verify(st);
 }

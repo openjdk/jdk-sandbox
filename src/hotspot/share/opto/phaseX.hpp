@@ -91,7 +91,7 @@ public:
     return _table[table_index];
   }
 
-  void   remove_useless_nodes(VectorSet &useful); // replace with sentinel
+  void   remove_useless_nodes(VectorSet& useful); // replace with sentinel
   void   replace_with(NodeHash* nh);
   void   check_no_speculative_types(); // Check no speculative part for type nodes in table
 
@@ -157,6 +157,16 @@ public:
 // Phase that first performs a PhaseRemoveUseless, then it renumbers compiler
 // structures accordingly.
 class PhaseRenumberLive : public PhaseRemoveUseless {
+protected:
+  Type_Array _new_type_array; // Storage for the updated type information.
+  GrowableArray<int> _old2new_map;
+  Node_List _delayed;
+  bool _is_pass_finished;
+  uint _live_node_count;
+
+  int update_embedded_ids(Node* n);
+  int new_index(int old_idx);
+
 public:
   PhaseRenumberLive(PhaseGVN* gvn,
                     Unique_Node_List* worklist, Unique_Node_List* new_worklist,
@@ -367,7 +377,6 @@ protected:
 public:
   PhaseValues( Arena *arena, uint est_max_size );
   PhaseValues( PhaseValues *pt );
-  PhaseValues( PhaseValues *ptv, const char *dummy );
   NOT_PRODUCT( ~PhaseValues(); )
   virtual PhaseIterGVN *is_IterGVN() { return 0; }
 
@@ -408,7 +417,6 @@ protected:
 public:
   PhaseGVN( Arena *arena, uint est_max_size ) : PhaseValues( arena, est_max_size ) {}
   PhaseGVN( PhaseGVN *gvn ) : PhaseValues( gvn ) {}
-  PhaseGVN( PhaseGVN *gvn, const char *dummy ) : PhaseValues( gvn, dummy ) {}
 
   // Return a node which computes the same function as this node, but
   // in a faster or cheaper fashion.
@@ -427,9 +435,6 @@ public:
 
   // Helper to call Node::Ideal() and BarrierSetC2::ideal_node().
   Node* apply_ideal(Node* i, bool can_reshape);
-
-  // Helper to call Node::Identity() and BarrierSetC2::identity_node().
-  Node* apply_identity(Node* n);
 
   // Check for a simple dead loop when a data node references itself.
   DEBUG_ONLY(void dead_loop_check(Node *n);)
@@ -464,7 +469,6 @@ protected:
 public:
   PhaseIterGVN( PhaseIterGVN *igvn ); // Used by CCP constructor
   PhaseIterGVN( PhaseGVN *gvn ); // Used after Parser
-  PhaseIterGVN( PhaseIterGVN *igvn, const char *dummy ); // Used after +VerifyOpto
 
   // Idealize new Node 'n' with respect to its inputs and its value
   virtual Node *transform( Node *a_node );
@@ -548,13 +552,6 @@ public:
   void set_delay_transform(bool delay) {
     _delay_transform = delay;
   }
-
-  // Clone loop predicates. Defined in loopTransform.cpp.
-  Node* clone_loop_predicates(Node* old_entry, Node* new_entry, bool clone_limit_check);
-  // Create a new if below new_entry for the predicate to be cloned
-  ProjNode* create_new_if_for_predicate(ProjNode* cont_proj, Node* new_entry,
-                                        Deoptimization::DeoptReason reason,
-                                        int opcode);
 
   void remove_speculative_types();
   void check_no_speculative_types() {

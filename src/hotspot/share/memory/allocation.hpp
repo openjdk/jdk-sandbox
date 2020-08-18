@@ -25,12 +25,13 @@
 #ifndef SHARE_MEMORY_ALLOCATION_HPP
 #define SHARE_MEMORY_ALLOCATION_HPP
 
-#include "runtime/globals.hpp"
+#include "memory/allStatic.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
 #include <new>
 
+class outputStream;
 class Thread;
 
 class AllocFailStrategy {
@@ -80,16 +81,21 @@ typedef AllocFailStrategy::AllocFailEnum AllocFailType;
 // stored in the array then must pay attention to calling destructors
 // at needed.
 //
-//   NEW_RESOURCE_ARRAY(type, size)
-//   NEW_RESOURCE_OBJ(type)
-//   NEW_C_HEAP_ARRAY(type, size)
-//   NEW_C_HEAP_OBJ(type, memflags)
-//   FREE_C_HEAP_ARRAY(type, old)
-//   FREE_C_HEAP_OBJ(objname, type, memflags)
-//   char* AllocateHeap(size_t size, const char* name);
-//   void  FreeHeap(void* p);
+// NEW_RESOURCE_ARRAY*
+// REALLOC_RESOURCE_ARRAY*
+// FREE_RESOURCE_ARRAY*
+// NEW_RESOURCE_OBJ*
+// NEW_C_HEAP_ARRAY*
+// REALLOC_C_HEAP_ARRAY*
+// FREE_C_HEAP_ARRAY*
+// NEW_C_HEAP_OBJ*
+// FREE_C_HEAP_OBJ
 //
-
+// char* AllocateHeap(size_t size, MEMFLAGS flags, const NativeCallStack& stack, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+// char* AllocateHeap(size_t size, MEMFLAGS flags, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+// char* ReallocateHeap(char *old, size_t size, MEMFLAGS flag, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+// void FreeHeap(void* p);
+//
 // In non product mode we introduce a super class for all allocation classes
 // that supports printing.
 // We avoid the superclass in product mode to save space.
@@ -109,30 +115,34 @@ class AllocatedObj {
 };
 #endif
 
-#define MEMORY_TYPES_DO(f) \
-  /* Memory type by sub systems. It occupies lower byte. */  \
-  f(mtJavaHeap,      "Java Heap")   /* Java heap                                 */ \
-  f(mtClass,         "Class")       /* Java classes                              */ \
-  f(mtThread,        "Thread")      /* thread objects                            */ \
-  f(mtThreadStack,   "Thread Stack")                                                \
-  f(mtCode,          "Code")        /* generated code                            */ \
-  f(mtGC,            "GC")                                                          \
-  f(mtCompiler,      "Compiler")                                                    \
-  f(mtInternal,      "Internal")    /* memory used by VM, but does not belong to */ \
-                                    /* any of above categories, and not used by  */ \
-                                    /* NMT                                       */ \
-  f(mtOther,         "Other")       /* memory not used by VM                     */ \
-  f(mtSymbol,        "Symbol")                                                      \
-  f(mtNMT,           "Native Memory Tracking")  /* memory used by NMT            */ \
-  f(mtClassShared,   "Shared class space")      /* class data sharing            */ \
-  f(mtChunk,         "Arena Chunk") /* chunk that holds content of arenas        */ \
-  f(mtTest,          "Test")        /* Test type for verifying NMT               */ \
-  f(mtTracing,       "Tracing")                                                     \
-  f(mtLogging,       "Logging")                                                     \
-  f(mtArguments,     "Arguments")                                                   \
-  f(mtModule,        "Module")                                                      \
-  f(mtSafepoint,     "Safepoint")                                                   \
-  f(mtNone,          "Unknown")                                                     \
+#define MEMORY_TYPES_DO(f)                                                           \
+  /* Memory type by sub systems. It occupies lower byte. */                          \
+  f(mtJavaHeap,       "Java Heap")   /* Java heap                                 */ \
+  f(mtClass,          "Class")       /* Java classes                              */ \
+  f(mtThread,         "Thread")      /* thread objects                            */ \
+  f(mtThreadStack,    "Thread Stack")                                                \
+  f(mtCode,           "Code")        /* generated code                            */ \
+  f(mtGC,             "GC")                                                          \
+  f(mtCompiler,       "Compiler")                                                    \
+  f(mtJVMCI,          "JVMCI")                                                       \
+  f(mtInternal,       "Internal")    /* memory used by VM, but does not belong to */ \
+                                     /* any of above categories, and not used by  */ \
+                                     /* NMT                                       */ \
+  f(mtOther,          "Other")       /* memory not used by VM                     */ \
+  f(mtSymbol,         "Symbol")                                                      \
+  f(mtNMT,            "Native Memory Tracking")  /* memory used by NMT            */ \
+  f(mtClassShared,    "Shared class space")      /* class data sharing            */ \
+  f(mtChunk,          "Arena Chunk") /* chunk that holds content of arenas        */ \
+  f(mtTest,           "Test")        /* Test type for verifying NMT               */ \
+  f(mtTracing,        "Tracing")                                                     \
+  f(mtLogging,        "Logging")                                                     \
+  f(mtStatistics,     "Statistics")                                                  \
+  f(mtArguments,      "Arguments")                                                   \
+  f(mtModule,         "Module")                                                      \
+  f(mtSafepoint,      "Safepoint")                                                   \
+  f(mtSynchronizer,   "Synchronization")                                             \
+  f(mtServiceability, "Serviceability")                                              \
+  f(mtNone,           "Unknown")                                                     \
   //end
 
 #define MEMORY_TYPE_DECLARE_ENUM(type, human_readable) \
@@ -176,6 +186,7 @@ char* ReallocateHeap(char *old,
                      MEMFLAGS flag,
                      AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
 
+// handles NULL pointers
 void FreeHeap(void* p);
 
 template <MEMFLAGS F> class CHeapObj ALLOCATION_SUPER_CLASS_SPEC {
@@ -227,9 +238,6 @@ class StackObj ALLOCATION_SUPER_CLASS_SPEC {
  private:
   void* operator new(size_t size) throw();
   void* operator new [](size_t size) throw();
-#ifdef __IBMCPP__
- public:
-#endif
   void  operator delete(void* p);
   void  operator delete [](void* p);
 };
@@ -251,24 +259,32 @@ class MetaspaceObj {
   // into a single contiguous memory block, so we can use these
   // two pointers to quickly determine if something is in the
   // shared metaspace.
-  //
   // When CDS is not enabled, both pointers are set to NULL.
-  static void* _shared_metaspace_base; // (inclusive) low address
-  static void* _shared_metaspace_top;  // (exclusive) high address
+  static void* _shared_metaspace_base;  // (inclusive) low address
+  static void* _shared_metaspace_top;   // (exclusive) high address
 
  public:
-  bool is_metaspace_object() const;
-  bool is_shared() const {
+
+  // Returns true if the pointer points to a valid MetaspaceObj. A valid
+  // MetaspaceObj is MetaWord-aligned and contained within either
+  // non-shared or shared metaspace.
+  static bool is_valid(const MetaspaceObj* p);
+
+  static bool is_shared(const MetaspaceObj* p) {
     // If no shared metaspace regions are mapped, _shared_metaspace_{base,top} will
     // both be NULL and all values of p will be rejected quickly.
-    return (((void*)this) < _shared_metaspace_top && ((void*)this) >= _shared_metaspace_base);
+    return (((void*)p) < _shared_metaspace_top &&
+            ((void*)p) >= _shared_metaspace_base);
   }
+  bool is_shared() const { return MetaspaceObj::is_shared(this); }
+
   void print_address_on(outputStream* st) const;  // nonvirtual address printing
 
   static void set_shared_metaspace_range(void* base, void* top) {
     _shared_metaspace_base = base;
     _shared_metaspace_top = top;
   }
+
   static void* shared_metaspace_base() { return _shared_metaspace_base; }
   static void* shared_metaspace_top()  { return _shared_metaspace_top;  }
 
@@ -286,7 +302,8 @@ class MetaspaceObj {
   f(ConstantPool) \
   f(ConstantPoolCache) \
   f(Annotations) \
-  f(MethodCounters)
+  f(MethodCounters) \
+  f(RecordComponent)
 
 #define METASPACE_OBJ_TYPE_DECLARE(name) name ## Type,
 #define METASPACE_OBJ_TYPE_NAME_CASE(name) case name ## Type: return #name;
@@ -332,13 +349,6 @@ class MetaspaceObj {
 // Base class for classes that constitute name spaces.
 
 class Arena;
-
-class AllStatic {
- public:
-  AllStatic()  { ShouldNotCallThis(); }
-  ~AllStatic() { ShouldNotCallThis(); }
-};
-
 
 extern char* resource_allocate_bytes(size_t size,
     AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
@@ -490,23 +500,6 @@ protected:
 // deallocate obj of type in heap without calling dtor
 #define FREE_C_HEAP_OBJ(objname)\
   FreeHeap((char*)objname);
-
-// for statistics
-#ifndef PRODUCT
-class AllocStats : StackObj {
-  julong start_mallocs, start_frees;
-  julong start_malloc_bytes, start_mfree_bytes, start_res_bytes;
- public:
-  AllocStats();
-
-  julong num_mallocs();    // since creation of receiver
-  julong alloc_bytes();
-  julong num_frees();
-  julong free_bytes();
-  julong resource_bytes();
-  void   print();
-};
-#endif
 
 
 //------------------------------ReallocMark---------------------------------

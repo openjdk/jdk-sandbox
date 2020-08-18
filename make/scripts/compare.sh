@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,9 @@ if [ -z "$TOPDIR" ]; then
     echo "Error: You must run this script using build/[conf]/compare.sh"
     exit 1
 fi
+
+# Make sure all shell commands are executed with the C locale
+export LC_ALL=C
 
 if [ "$OPENJDK_TARGET_OS" = "macosx" ]; then
     FULLDUMP_CMD="$OTOOL -v -V -h -X -d"
@@ -69,26 +72,7 @@ fi
 # Disassembly diff filters. These filters try to filter out ephemeral parts of the
 # disassembly, such as hard-coded addresses, to be able to catch "actual" differences.
 
-if [ "$OPENJDK_TARGET_OS" = "solaris" ]; then
-  if [ "$OPENJDK_TARGET_CPU" = "sparcv9" ]; then
-    DIS_DIFF_FILTER="$SED \
-        -e 's/^[0-9a-f]\{16\}/<ADDR>:/' \
-        -e 's/^ *[0-9a-f]\{3,12\}:/  <ADDR>:/' \
-        -e 's/:	[0-9a-f][0-9a-f]\( [0-9a-f][0-9a-f]\)\{2,10\}/:	<NUMS>/' \
-        -e 's/\$[a-zA-Z0-9_\$]\{15\}\./<SYM>./' \
-        -e 's/, [0-9a-fx\-]\{1,8\}/, <ADDR>/g' \
-        -e 's/0x[0-9a-f]\{1,8\}/<HEX>/g' \
-        -e 's/\! [0-9a-f]\{1,8\} /! <ADDR> /' \
-        -e 's/call  [0-9a-f]\{4,7\}/call  <ADDR>/' \
-        -e 's/%hi(0),/%hi(<HEX>),/' \
-        "
-  elif [ "$OPENJDK_TARGET_CPU" = "x86_64" ]; then
-    # Random strings looking like this differ: <.XAKoKoPIac2W0OA.
-    DIS_DIFF_FILTER="$SED \
-        -e 's/<\.[A-Za-z0-9]\{\15}\./<.SYM./' \
-        "
-  fi
-elif [ "$OPENJDK_TARGET_OS" = "windows" ]; then
+if [ "$OPENJDK_TARGET_OS" = "windows" ]; then
   if [ "$OPENJDK_TARGET_CPU" = "x86" ]; then
     DIS_DIFF_FILTER="$SED -r \
         -e 's/^  [0-9A-F]{16}: //' \
@@ -110,7 +94,7 @@ elif [ "$OPENJDK_TARGET_OS" = "windows" ]; then
         "
   fi
 elif [ "$OPENJDK_TARGET_OS" = "macosx" ]; then
-  DIS_DIFF_FILTER="LANG=C $SED \
+  DIS_DIFF_FILTER="$SED \
       -e 's/0x[0-9a-f]\{3,16\}/<HEXSTR>/g' -e 's/^[0-9a-f]\{12,20\}/<ADDR>/' \
       -e 's/-20[0-9][0-9]-[0-1][0-9]-[0-3][0-9]-[0-2][0-9]\{5\}/<DATE>/g' \
       -e 's/), built on .*/), <DATE>/' \
@@ -130,30 +114,8 @@ diff_text() {
     SUFFIX="${THIS_FILE##*.}"
     NAME="${THIS_FILE##*/}"
 
-    TMP=1
+    TMP=$($DIFF $THIS_FILE $OTHER_FILE)
 
-    if [[ "$THIS_FILE" = *"META-INF/MANIFEST.MF" ]]; then
-        # Filter out date string, ant version and java version differences.
-        TMP=$(LC_ALL=C $DIFF $OTHER_FILE $THIS_FILE | \
-            $GREP '^[<>]' | \
-            $SED -e '/[<>] Ant-Version: Apache Ant .*/d' \
-                 -e '/[<>] Created-By: .* (Oracle [Corpatin)]*/d' \
-                 -e '/[<>]  [Corpatin]*)/d' \
-                 -e '/[<>].*[0-9]\{4\}_[0-9]\{2\}_[0-9]\{2\}_[0-9]\{2\}_[0-9]\{2\}-b[0-9]\{2\}.*/d')
-    fi
-    if test "x$SUFFIX" = "xjava"; then
-        TMP=$(LC_ALL=C $DIFF $OTHER_FILE $THIS_FILE | \
-            $GREP '^[<>]' | \
-            $SED -e '/[<>] \* from.*\.idl/d' \
-                 -e '/[<>] .*[0-9]\{4\}_[0-9]\{2\}_[0-9]\{2\}_[0-9]\{2\}_[0-9]\{2\}-b[0-9]\{2\}.*/d' \
-                 -e '/[<>] .*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{6\}.*/d' \
-                 -e '/[<>] \*.*[0-9]\{4\} \(at \)*[0-9][0-9]*:[0-9]\{2\}:[0-9]\{2\}.*/d' \
-                 -e '/\/\/ Generated from input file.*/d' \
-                 -e '/\/\/ This file was generated AUTOMATICALLY from a template file.*/d' \
-                 -e '/\/\/ java GenerateCharacter.*/d')
-    fi
-    # Ignore date strings in class files.
-    # Anonymous lambda classes get randomly assigned counters in their names.
     if test "x$SUFFIX" = "xclass"; then
         if [ "$NAME" = "SystemModules\$all.class" ] \
            || [ "$NAME" = "SystemModules\$default.class" ]; then
@@ -181,37 +143,9 @@ diff_text() {
                 | eval "$MODULES_CLASS_FILTER" > ${THIS_FILE}.javap &
             wait
             TMP=$($DIFF ${OTHER_FILE}.javap ${THIS_FILE}.javap)
-        # To improve performance when large diffs are found, do a rough filtering of classes
-        # elibeble for these exceptions
-        elif $GREP -R -e '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{6\}' \
-                -e 'lambda\$[a-zA-Z0-9]*\$[0-9]' ${THIS_FILE} > /dev/null
-        then
-            $JAVAP -c -constants -l -p "${OTHER_FILE}" >  ${OTHER_FILE}.javap &
-            $JAVAP -c -constants -l -p "${THIS_FILE}" > ${THIS_FILE}.javap &
-            wait
-            TMP=$($DIFF ${OTHER_FILE}.javap ${THIS_FILE}.javap | \
-                $GREP '^[<>]' | \
-                $SED -e '/[<>].*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{6\}.*/d' \
-                     -e '/[<>].*lambda\$[a-zA-Z0-9]*\$[0-9]*/d')
         fi
     fi
-    if test "x$SUFFIX" = "xproperties"; then
-        # Filter out date string differences.
-        TMP=$(LC_ALL=C $DIFF $OTHER_FILE $THIS_FILE | \
-            $GREP '^[<>]' | \
-            $SED -e '/[<>].*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{6\}.*/d')
-    fi
-    if test "x$SUFFIX" = "xhtml"; then
-	# Some javadoc versions do not put quotes around font size
-	HTML_FILTER="$SED \
-            -e 's/<font size=-1>/<font size=\"-1\">/g'"
-	$CAT $THIS_FILE | eval "$HTML_FILTER" > $THIS_FILE.filtered
-	$CAT $OTHER_FILE | eval "$HTML_FILTER" > $OTHER_FILE.filtered
-        TMP=$(LC_ALL=C $DIFF $OTHER_FILE.filtered $THIS_FILE.filtered | \
-            $GREP '^[<>]' | \
-            $SED -e '/[<>] <!-- Generated by javadoc .* on .* -->/d' \
-	         -e '/[<>] <meta name="date" content=".*">/d' )
-    fi
+
     if test -n "$TMP"; then
         echo Files $OTHER_FILE and $THIS_FILE differ
         return 1
@@ -340,7 +274,9 @@ compare_file_types() {
 
     echo -n File types...
     found=""
-    for f in `cd $OTHER_DIR && $FIND . ! -type d`
+    # The file command does not know about jmod files and this sometimes results
+    # in different types being detected more or less randomly.
+    for f in $(cd $OTHER_DIR && $FIND . ! -type d -a ! -name "*.jmod")
     do
         if [ ! -f ${OTHER_DIR}/$f ]; then continue; fi
         if [ ! -f ${THIS_DIR}/$f ]; then continue; fi
@@ -354,6 +290,12 @@ compare_file_types() {
                 # the way we produce zip-files make it so that directories are stored in
                 # old file but not in new (only files with full-path) this makes file
                 # report them as different
+                continue
+            elif [ "`echo $OF | $GREP -c 'MSVC program database ver 7.00'`" -gt 0 ] \
+                     && [ "`echo $TF | $GREP -c 'MSVC program database ver 7.00'`" -gt 0 ]
+            then
+                # For Windows pdb files the file command reports some kind of size data
+                # which may sometimes come out randomly different.
                 continue
             else
                 if [ -z "$found" ]; then echo ; found="yes"; fi
@@ -380,56 +322,41 @@ compare_general_files() {
         ! -name "*.zip" ! -name "*.debuginfo" ! -name "*.dylib" ! -name "jexec" \
         ! -name "modules" ! -name "ct.sym" ! -name "*.diz" ! -name "*.dll" \
         ! -name "*.cpl" ! -name "*.pdb" ! -name "*.exp" ! -name "*.ilk" \
-        ! -name "*.lib" ! -name "*.war" ! -name "JavaControlPanel" ! -name "*.jmod" \
-        ! -name "*.obj" ! -name "*.o" ! -name "JavaControlPanelHelper" \
-        ! -name "JavaUpdater" ! -name "JavaWSApplicationStub" \
-        ! -name "jspawnhelper" ! -name "JavawsLauncher" ! -name "*.a" \
-        ! -name "finish_installation" ! -name "Sparkle" ! -name "*.tar.gz" \
-        ! -name "classes.jsa" \
+        ! -name "*.lib" ! -name "*.jmod" ! -name "*.exe" \
+        ! -name "*.obj" ! -name "*.o" ! -name "jspawnhelper" ! -name "*.a" \
+        ! -name "*.tar.gz" ! -name "*.jsa" ! -name "gtestLauncher" \
+        ! -name "*.map" \
         | $GREP -v "./bin/"  | $SORT | $FILTER)
 
     echo Other files with binary differences...
     for f in $GENERAL_FILES
     do
+        # Skip all files in test/*/native
+        if [[ "$f" == */native/* ]]; then
+            continue
+        fi
         if [ -e $OTHER_DIR/$f ]; then
             SUFFIX="${f##*.}"
             if [ "$(basename $f)" = "release" ]; then
-                # In release file, ignore differences in change numbers and order
-                # of modules in list.
+                # In release file, ignore differences in source rev numbers
                 OTHER_FILE=$WORK_DIR/$f.other
                 THIS_FILE=$WORK_DIR/$f.this
                 $MKDIR -p $(dirname $OTHER_FILE)
                 $MKDIR -p $(dirname $THIS_FILE)
-                RELEASE_FILTER="$SED \
-                    -e 's/\:[0-9a-f]\{12,12\}/:CHANGE/g' \
-                    -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{6\}/<DATE>/g' \
-                    -e 's/^#.*/#COMMENT/g' \
-                    -e 's/MODULES=/MODULES=\'$'\n/' \
-                    -e 's/,/\'$'\n/g' \
-                    | $SORT
-                    "
+                RELEASE_FILTER="$SED -e 's/SOURCE=".*"/SOURCE=<src-rev>/g'"
                 $CAT $OTHER_DIR/$f | eval "$RELEASE_FILTER" > $OTHER_FILE
                 $CAT $THIS_DIR/$f  | eval "$RELEASE_FILTER" > $THIS_FILE
-            elif [ "x$SUFFIX" = "xhtml" ]; then
-                # Ignore time stamps in docs files
+            elif [ "$SUFFIX" = "svg" ]; then
+                # GraphViz has non-determinism when generating svg files
                 OTHER_FILE=$WORK_DIR/$f.other
                 THIS_FILE=$WORK_DIR/$f.this
                 $MKDIR -p $(dirname $OTHER_FILE) $(dirname $THIS_FILE)
-                # Older versions of compare might have left soft links with
-                # these names.
-                $RM $OTHER_FILE $THIS_FILE
-                #Note that | doesn't work on mac sed.
-                HTML_FILTER="$SED \
-                    -e 's/20[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{6,7\}/<DATE>/g' \
-                    -e 's/20[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}/<DATE>/g' \
-                    -e 's/\(-- Generated by javadoc \).*\( --\)/\1(removed)\2/' \
-                    -e 's/[A-Z][a-z]*, [A-Z][a-z]* [0-9][0-9]*, [0-9]\{4\} [0-9][0-9:]* [AMP]\{2,2\} [A-Z][A-Z]*/<DATE>/' \
-                    -e 's/from .*\.idl/\.idl/' \
+                SVG_FILTER="$SED \
+                    -e 's/edge[0-9][0-9]*/edgeX/g'
                     "
-                $CAT $OTHER_DIR/$f | eval "$HTML_FILTER" > $OTHER_FILE &
-                $CAT $THIS_DIR/$f  | eval "$HTML_FILTER" > $THIS_FILE &
-                wait
-            elif [[ "$f" = *"/lib/classlist" ]]; then
+                $CAT $OTHER_DIR/$f | eval "$SVG_FILTER" > $OTHER_FILE
+                $CAT $THIS_DIR/$f | eval "$SVG_FILTER" > $THIS_FILE
+            elif [[ "$f" = *"/lib/classlist" ]] || [ "$SUFFIX" = "jar_contents" ]; then
                 # The classlist files may have some lines in random order
                 OTHER_FILE=$WORK_DIR/$f.other
                 THIS_FILE=$WORK_DIR/$f.this
@@ -494,7 +421,7 @@ compare_zip_file() {
     $RM -rf $THIS_UNZIPDIR $OTHER_UNZIPDIR
     $MKDIR -p $THIS_UNZIPDIR
     $MKDIR -p $OTHER_UNZIPDIR
-    if [ "$TYPE" = "jar" -o "$TYPE" = "war" -o "$TYPE" = "zip" -o "$TYPE" = "jmod" ]
+    if [ "$TYPE" = "jar" -o "$TYPE" = "war" -o "$TYPE" = "zip" ]
     then
         (cd $THIS_UNZIPDIR && $UNARCHIVE $THIS_ZIP)
         (cd $OTHER_UNZIPDIR && $UNARCHIVE $OTHER_ZIP)
@@ -502,45 +429,17 @@ compare_zip_file() {
     then
         (cd $THIS_UNZIPDIR && $GUNZIP -c $THIS_ZIP | $TAR xf -)
         (cd $OTHER_UNZIPDIR && $GUNZIP -c $OTHER_ZIP | $TAR xf -)
+    elif [ "$TYPE" = "jmod" ]
+    then
+        (cd $THIS_UNZIPDIR && $JMOD extract $THIS_ZIP)
+        (cd $OTHER_UNZIPDIR && $JMOD extract $OTHER_ZIP)
     else
         (cd $THIS_UNZIPDIR && $JIMAGE extract $THIS_ZIP)
         (cd $OTHER_UNZIPDIR && $JIMAGE extract $OTHER_ZIP)
     fi
 
-    # Find all archives inside and unzip them as well to compare the contents rather than
-    # the archives. pie.jar.pack.gz i app3.war is corrupt, skip it.
-    EXCEPTIONS="pie.jar.pack.gz jdk.pack"
-    for pack in $($FIND $THIS_UNZIPDIR \( -name "*.pack" -o -name "*.pack.gz" \) -a \
-                        ! -name pie.jar.pack.gz -a ! -name jdk.pack); do
-        ($UNPACK200 $pack $pack.jar)
-        # Filter out the unzipped archives from the diff below.
-        EXCEPTIONS="$EXCEPTIONS $pack $pack.jar"
-    done
-    for pack in $($FIND $OTHER_UNZIPDIR \( -name "*.pack" -o -name "*.pack.gz" \) -a \
-                        ! -name pie.jar.pack.gz -a ! -name jdk.pack); do
-        ($UNPACK200 $pack $pack.jar)
-        EXCEPTIONS="$EXCEPTIONS $pack $pack.jar"
-    done
-    for zip in $($FIND $THIS_UNZIPDIR -name "*.jar" -o -name "*.zip"); do
-        $MKDIR $zip.unzip
-        (cd $zip.unzip && $UNARCHIVE $zip)
-        EXCEPTIONS="$EXCEPTIONS $zip"
-    done
-    for zip in $($FIND $OTHER_UNZIPDIR -name "*.jar" -o -name "*.zip"); do
-        $MKDIR $zip.unzip
-        (cd $zip.unzip && $UNARCHIVE $zip)
-        EXCEPTIONS="$EXCEPTIONS $zip"
-    done
-
     CONTENTS_DIFF_FILE=$WORK_DIR/$ZIP_FILE.diff
-    # On solaris, there is no -q option.
-    if [ "$OPENJDK_TARGET_OS" = "solaris" ]; then
-        LC_ALL=C $DIFF -r $OTHER_UNZIPDIR $THIS_UNZIPDIR \
-            | $GREP -v -e "^<" -e "^>" -e "^Common subdirectories:" \
-            > $CONTENTS_DIFF_FILE
-    else
-        LC_ALL=C $DIFF -rq $OTHER_UNZIPDIR $THIS_UNZIPDIR > $CONTENTS_DIFF_FILE
-    fi
+    $DIFF -rq $OTHER_UNZIPDIR $THIS_UNZIPDIR > $CONTENTS_DIFF_FILE
 
     ONLY_OTHER=$($GREP "^Only in $OTHER_UNZIPDIR" $CONTENTS_DIFF_FILE)
     ONLY_THIS=$($GREP "^Only in $THIS_UNZIPDIR" $CONTENTS_DIFF_FILE)
@@ -559,18 +458,25 @@ compare_zip_file() {
         return_value=1
     fi
 
-    if [ "$OPENJDK_TARGET_OS" = "solaris" ]; then
-        DIFFING_FILES=$($GREP -e 'differ$' -e '^diff ' $CONTENTS_DIFF_FILE \
-            | $SED -e 's/^Files //g' -e 's/diff -r //g' | $CUT -f 1 -d ' ' \
-            | $SED "s|$OTHER_UNZIPDIR/||g")
-    else
+    if [ "$CMP_ZIPS_CONTENTS" = "true" ]; then
         DIFFING_FILES=$($GREP -e "differ$" $CONTENTS_DIFF_FILE \
             | $CUT -f 2 -d ' ' | $SED "s|$OTHER_UNZIPDIR/||g")
-    fi
 
-    if [ "$CMP_ZIPS_CONTENTS" = "true" ]; then
-        $RM -f $WORK_DIR/$ZIP_FILE.diffs
+        # Separate executable/library files from other files in zip.
+        DIFFING_TEXT_FILES=
+        DIFFING_EXEC_FILES=
         for file in $DIFFING_FILES; do
+            SUFFIX="${file##*.}"
+            if [ "$SUFFIX" = "exe" -o "$SUFFIX" = "dll" -o "$SUFFIX" = "so" \
+                 -o "$SUFFIX" = "dylib" ]; then
+                DIFFING_EXEC_FILES="$DIFFING_EXEC_FILES $file"
+            else
+                DIFFING_TEXT_FILES="$DIFFING_TEXT_FILES $file"
+            fi
+        done
+
+        $RM -f $WORK_DIR/$ZIP_FILE.diffs
+        for file in $DIFFING_TEXT_FILES; do
             if [[ "$ACCEPTED_JARZIP_CONTENTS $EXCEPTIONS" != *"$file"* ]]; then
                 diff_text $OTHER_UNZIPDIR/$file $THIS_UNZIPDIR/$file >> $WORK_DIR/$ZIP_FILE.diffs
             fi
@@ -586,20 +492,71 @@ compare_zip_file() {
             if [ -n "$SHOW_DIFFS" ]; then
                 for i in $(cat $WORK_DIR/$ZIP_FILE.difflist) ; do
                     if [ -f "${OTHER_UNZIPDIR}/$i.javap" ]; then
-                        LC_ALL=C $DIFF ${OTHER_UNZIPDIR}/$i.javap ${THIS_UNZIPDIR}/$i.javap
+                        $DIFF ${OTHER_UNZIPDIR}/$i.javap ${THIS_UNZIPDIR}/$i.javap
                     elif [ -f "${OTHER_UNZIPDIR}/$i.cleaned" ]; then
-                        LC_ALL=C $DIFF ${OTHER_UNZIPDIR}/$i.cleaned ${THIS_UNZIPDIR}/$i
+                        $DIFF ${OTHER_UNZIPDIR}/$i.cleaned ${THIS_UNZIPDIR}/$i
                     else
-                        LC_ALL=C $DIFF ${OTHER_UNZIPDIR}/$i ${THIS_UNZIPDIR}/$i
+                        $DIFF ${OTHER_UNZIPDIR}/$i ${THIS_UNZIPDIR}/$i
                     fi
                 done
             fi
         fi
+
+        # Use the compare_bin_file function for comparing the executable files.
+        for file in $DIFFING_EXEC_FILES; do
+            compare_bin_file $THIS_UNZIPDIR $OTHER_UNZIPDIR $WORK_DIR/$ZIP_FILE.bin \
+                             $file
+            if [ "$?" != "0" ]; then
+                return_value=1
+            fi
+        done
     fi
 
     return $return_value
 }
 
+################################################################################
+# Compare jmod file
+
+compare_jmod_file() {
+    THIS_DIR=$1
+    OTHER_DIR=$2
+    WORK_DIR=$3
+    JMOD_FILE=$4
+
+    THIS_JMOD=$THIS_DIR/$JMOD_FILE
+    OTHER_JMOD=$OTHER_DIR/$JMOD_FILE
+
+    if $CMP $OTHER_JMOD $THIS_JMOD > /dev/null; then
+        return 0
+    fi
+
+    THIS_JMOD_LIST=$WORK_DIR/$JMOD_FILE.list.this
+    OTHER_JMOD_LIST=$WORK_DIR/$JMOD_FILE.list.other
+    mkdir -p $(dirname $THIS_JMOD_LIST) $(dirname $OTHER_JMOD_LIST)
+
+    $JMOD list $THIS_JMOD | sort > $THIS_JMOD_LIST
+    $JMOD list $OTHER_JMOD | sort > $OTHER_JMOD_LIST
+    JMOD_LIST_DIFF_FILE=$WORK_DIR/$JMOD_FILE.list.diff
+    $DIFF $THIS_JMOD_LIST $OTHER_JMOD_LIST > $JMOD_LIST_DIFF_FILE
+
+    ONLY_THIS=$($GREP "^<" $JMOD_LIST_DIFF_FILE)
+    ONLY_OTHER=$($GREP "^>" $JMOD_LIST_DIFF_FILE)
+
+    if [ -n "$ONLY_OTHER" ]; then
+        echo "        Only OTHER $JMOD_FILE contains:"
+        echo "$ONLY_OTHER" | sed "s|^>|            |"g | sed 's|: |/|g'
+        return_value=1
+    fi
+
+    if [ -n "$ONLY_THIS" ]; then
+        echo "        Only THIS $JMOD_FILE contains:"
+        echo "$ONLY_THIS" | sed "s|^<|            |"g | sed 's|: |/|g'
+        return_value=1
+    fi
+
+    return $return_value
+}
 
 ################################################################################
 # Compare all zip files
@@ -619,6 +576,34 @@ compare_all_zip_files() {
         for f in $ZIPS; do
             if [ -f "$OTHER_DIR/$f" ]; then
                 compare_zip_file $THIS_DIR $OTHER_DIR $WORK_DIR $f
+                if [ "$?" != "0" ]; then
+                    return_value=1
+                    REGRESSIONS=true
+                fi
+            fi
+        done
+    fi
+
+    return $return_value
+}
+
+################################################################################
+# Compare all jmod files
+
+compare_all_jmod_files() {
+    THIS_DIR=$1
+    OTHER_DIR=$2
+    WORK_DIR=$3
+
+    JMODS=$(cd $THIS_DIR && $FIND . -type f -name "*.jmod" | $SORT | $FILTER )
+
+    if [ -n "$JMODS" ]; then
+        echo Jmod files...
+
+        return_value=0
+        for f in $JMODS; do
+            if [ -f "$OTHER_DIR/$f" ]; then
+                compare_jmod_file $THIS_DIR $OTHER_DIR $WORK_DIR $f
                 if [ "$?" != "0" ]; then
                     return_value=1
                     REGRESSIONS=true
@@ -711,19 +696,19 @@ compare_bin_file() {
         # pdb files.
         PDB_DIRS="$(ls -d \
             {$OTHER,$THIS}/support/modules_{cmds,libs}/{*,*/*} \
-            {$OTHER,$THIS}/support/native/java.base/java_objs \
+            {$OTHER,$THIS}/support/native/jdk.incubator.jpackage/* \
             )"
         export _NT_SYMBOL_PATH="$(echo $PDB_DIRS | tr ' ' ';')"
     fi
 
-    if [ -z "$SKIP_BIN_DIFF" ]; then
-        if cmp $OTHER_FILE $THIS_FILE > /dev/null; then
+    if cmp $OTHER_FILE $THIS_FILE > /dev/null; then
         # The files were bytewise identical.
-            if [ -n "$VERBOSE" ]; then
-                echo "        :           :         :         :          :          : $BIN_FILE"
-            fi
-            return 0
+        if [ -n "$VERBOSE" ]; then
+            echo "        :           :         :         :          :          : $BIN_FILE"
         fi
+        return 0
+    fi
+    if [ -z "$SKIP_BIN_DIFF" ]; then
         BIN_MSG=" diff "
         if [[ "$ACCEPTED_BIN_DIFF" != *"$BIN_FILE"* ]]; then
             DIFF_BIN=true
@@ -737,6 +722,9 @@ compare_bin_file() {
             BIN_MSG="($BIN_MSG)"
             DIFF_BIN=
         fi
+    else
+        BIN_MSG=
+        DIFF_BIN=
     fi
 
     if [ -n "$STAT" ]; then
@@ -750,7 +738,8 @@ compare_bin_file() {
         DIFF_SIZE_NUM=$($EXPR $THIS_SIZE - $OTHER_SIZE)
         DIFF_SIZE_REL=$($EXPR $THIS_SIZE \* 100 / $OTHER_SIZE)
         SIZE_MSG=$($PRINTF "%3d%% %4d" $DIFF_SIZE_REL $DIFF_SIZE_NUM)
-        if [[ "$ACCEPTED_SMALL_SIZE_DIFF" = *"$BIN_FILE"* ]] && [ "$DIFF_SIZE_REL" -gt 98 ] \
+        if [[ "$ACCEPTED_SMALL_SIZE_DIFF" = *"$BIN_FILE"* || "$ACCEPTED_SMALL_SIZE_DIFF" = "true" ]] \
+            && [ "$DIFF_SIZE_REL" -gt 98 ] \
             && [ "$DIFF_SIZE_REL" -lt 102 ]; then
             SIZE_MSG="($SIZE_MSG)"
             DIFF_SIZE=
@@ -808,10 +797,6 @@ compare_bin_file() {
         # to filter out that extra information.
         $DUMPBIN -exports $OTHER_FILE | $GREP  -E '^ +[0-9A-F]+ +[0-9A-F]+ [0-9A-F]+' | sed 's/ = .*//g' | cut -c27- | $SYM_SORT_CMD > $WORK_FILE_BASE.symbols.other
         $DUMPBIN -exports $THIS_FILE  | $GREP  -E '^ +[0-9A-F]+ +[0-9A-F]+ [0-9A-F]+' | sed 's/ = .*//g' | cut -c27- | $SYM_SORT_CMD > $WORK_FILE_BASE.symbols.this
-    elif [ "$OPENJDK_TARGET_OS" = "solaris" ]; then
-        # Some symbols get seemingly random 15 character prefixes. Filter them out.
-        $NM -a $ORIG_OTHER_FILE 2> /dev/null | $GREP -v $NAME | $AWK '{print $2, $3, $4, $5}' | $SED 's/^\([a-zA-Z] [\.\$]\)[a-zA-Z0-9_\$]\{15,15\}\./\1./g' | $SYM_SORT_CMD > $WORK_FILE_BASE.symbols.other
-        $NM -a $ORIG_THIS_FILE  2> /dev/null | $GREP -v $NAME | $AWK '{print $2, $3, $4, $5}' | $SED 's/^\([a-zA-Z] [\.\$]\)[a-zA-Z0-9_\$]\{15,15\}\./\1./g' | $SYM_SORT_CMD > $WORK_FILE_BASE.symbols.this
     elif [ "$OPENJDK_TARGET_OS" = "aix" ]; then
         $OBJDUMP -T $ORIG_OTHER_FILE 2> /dev/null | $GREP -v $NAME | $AWK '{print $2, $3, $4, $5}' | $SYM_SORT_CMD > $WORK_FILE_BASE.symbols.other
         $OBJDUMP -T $ORIG_THIS_FILE  2> /dev/null | $GREP -v $NAME | $AWK '{print $2, $3, $4, $5}' | $SYM_SORT_CMD > $WORK_FILE_BASE.symbols.this
@@ -831,7 +816,7 @@ compare_bin_file() {
             > $WORK_FILE_BASE.symbols.this
     fi
 
-    LC_ALL=C $DIFF $WORK_FILE_BASE.symbols.other $WORK_FILE_BASE.symbols.this > $WORK_FILE_BASE.symbols.diff
+    $DIFF $WORK_FILE_BASE.symbols.other $WORK_FILE_BASE.symbols.this > $WORK_FILE_BASE.symbols.diff
     if [ -s $WORK_FILE_BASE.symbols.diff ]; then
         SYM_MSG=" diff  "
         if [[ "$ACCEPTED_SYM_DIFF" != *"$BIN_FILE"* ]]; then
@@ -871,9 +856,9 @@ compare_bin_file() {
                     | $UNIQ > $WORK_FILE_BASE.deps.this.uniq)
         (cd $FILE_WORK_DIR && $RM -f $NAME)
 
-        LC_ALL=C $DIFF $WORK_FILE_BASE.deps.other $WORK_FILE_BASE.deps.this \
+        $DIFF $WORK_FILE_BASE.deps.other $WORK_FILE_BASE.deps.this \
               > $WORK_FILE_BASE.deps.diff
-        LC_ALL=C $DIFF $WORK_FILE_BASE.deps.other.uniq $WORK_FILE_BASE.deps.this.uniq \
+        $DIFF $WORK_FILE_BASE.deps.other.uniq $WORK_FILE_BASE.deps.this.uniq \
               > $WORK_FILE_BASE.deps.diff.uniq
 
         if [ -s $WORK_FILE_BASE.deps.diff ]; then
@@ -923,7 +908,7 @@ compare_bin_file() {
             > $WORK_FILE_BASE.fulldump.this  2>&1 &
         wait
 
-        LC_ALL=C $DIFF $WORK_FILE_BASE.fulldump.other $WORK_FILE_BASE.fulldump.this \
+        $DIFF $WORK_FILE_BASE.fulldump.other $WORK_FILE_BASE.fulldump.this \
             > $WORK_FILE_BASE.fulldump.diff
 
         if [ -s $WORK_FILE_BASE.fulldump.diff ]; then
@@ -970,7 +955,7 @@ compare_bin_file() {
             | eval "$this_DIS_DIFF_FILTER" > $WORK_FILE_BASE.dis.this  2>&1 &
         wait
 
-        LC_ALL=C $DIFF $WORK_FILE_BASE.dis.other $WORK_FILE_BASE.dis.this > $WORK_FILE_BASE.dis.diff
+        $DIFF $WORK_FILE_BASE.dis.other $WORK_FILE_BASE.dis.this > $WORK_FILE_BASE.dis.diff
 
         if [ -s $WORK_FILE_BASE.dis.diff ]; then
             DIS_DIFF_SIZE=$(ls -n $WORK_FILE_BASE.dis.diff | awk '{print $5}')
@@ -1141,6 +1126,7 @@ if [ -z "$1" ] || [ "$1" = "-h" ] || [ "$1" = "-?" ] || [ "$1" = "/h" ] || [ "$1
     echo "-zips               Compare the contents of all zip files and files in them"
     echo "-zips-names         Compare the file names inside all zip files"
     echo "-jars               Compare the contents of all jar files"
+    echo "-jmods              Compare the listings of all jmod files"
     echo "-libs               Compare all native libraries"
     echo "-execs              Compare all executables"
     echo "-v                  Verbose output, does not hide known differences"
@@ -1169,6 +1155,7 @@ CMP_GENERAL=false
 CMP_ZIPS=false
 CMP_ZIPS_CONTENTS=true
 CMP_JARS=false
+CMP_JMODS=false
 CMP_LIBS=false
 CMP_EXECS=false
 
@@ -1194,6 +1181,7 @@ while [ -n "$1" ]; do
             CMP_GENERAL=true
             CMP_ZIPS=true
             CMP_JARS=true
+            CMP_JMODS=true
             CMP_LIBS=true
             CMP_EXECS=true
             ;;
@@ -1219,6 +1207,9 @@ while [ -n "$1" ]; do
             ;;
         -jars)
             CMP_JARS=true
+            ;;
+        -jmods)
+            CMP_JMODS=true
             ;;
         -libs)
             CMP_LIBS=true
@@ -1264,6 +1255,7 @@ while [ -n "$1" ]; do
             CMP_TYPES=false
             CMP_ZIPS=true
             CMP_JARS=true
+            CMP_JMODS=true
             CMP_LIBS=true
             CMP_EXECS=true
 
@@ -1317,13 +1309,22 @@ if [ "$CMP_2_BINS" = "true" ]; then
     exit
 fi
 
-if [ "$CMP_NAMES" = "false" ] && [ "$CMP_TYPES" = "false" ] && [ "$CMP_PERMS" = "false" ] && [ "$CMP_GENERAL" = "false" ] && [ "$CMP_ZIPS" = "false" ] && [ "$CMP_JARS" = "false" ] && [ "$CMP_LIBS" = "false" ] && [ "$CMP_EXECS" = "false" ]; then
+if [ "$CMP_NAMES" = "false" ] \
+       && [ "$CMP_TYPES" = "false" ] \
+       && [ "$CMP_PERMS" = "false" ] \
+       && [ "$CMP_GENERAL" = "false" ] \
+       && [ "$CMP_ZIPS" = "false" ] \
+       && [ "$CMP_JARS" = "false" ] \
+       && [ "$CMP_JMODS" = "false" ] \
+       && [ "$CMP_LIBS" = "false" ] \
+       && [ "$CMP_EXECS" = "false" ]; then
     CMP_NAMES=true
     CMP_PERMS=true
     CMP_TYPES=true
     CMP_GENERAL=true
     CMP_ZIPS=true
     CMP_JARS=true
+    CMP_JMODS=true
     CMP_LIBS=true
     CMP_EXECS=true
 fi
@@ -1348,13 +1349,8 @@ if [ "$SKIP_DEFAULT" != "true" ]; then
         echo
     fi
 
-
     # Find the common images to compare, prioritizing later build stages
-    if [ -d "$THIS/install/jdk" ] && [ -d "$OTHER/install/jdk" ]; then
-        THIS_JDK="$THIS/install/jdk"
-        OTHER_JDK="$OTHER/install/jdk"
-        echo "Selecting install images for JDK compare"
-    elif [ -d "$THIS/images/jdk" ] && [ -d "$OTHER/images/jdk" ]; then
+    if [ -d "$THIS/images/jdk" ] && [ -d "$OTHER/images/jdk" ]; then
         THIS_JDK="$THIS/images/jdk"
         OTHER_JDK="$OTHER/images/jdk"
         echo "Selecting normal images for JDK compare"
@@ -1373,6 +1369,7 @@ if [ "$SKIP_DEFAULT" != "true" ]; then
         OTHER_JDK="$OTHER/images/jdk"
         # Rewrite the path to tools that are used from the build
         JIMAGE="$(echo "$JIMAGE" | $SED "s|$OLD_THIS|$THIS|g")"
+        JMOD="$(echo "$JMOD" | $SED "s|$OLD_THIS|$THIS|g")"
         JAVAP="$(echo "$JAVAP" | $SED "s|$OLD_THIS|$THIS|g")"
     else
         echo "No common images found."
@@ -1382,61 +1379,20 @@ if [ "$SKIP_DEFAULT" != "true" ]; then
     echo "  $OTHER_JDK"
 
     if [ -d "$THIS/images/jdk-bundle" -o -d "$THIS/deploy/images/jdk-bundle" ] \
-	     && [ -d "$OTHER/images/jdk-bundle" -o -d "$OTHER/deploy/images/jdk-bundle" ]; then
-	if [ -d "$THIS/deploy/images/jdk-bundle" ]; then
+             && [ -d "$OTHER/images/jdk-bundle" -o -d "$OTHER/deploy/images/jdk-bundle" ]; then
+        if [ -d "$THIS/deploy/images/jdk-bundle" ]; then
             THIS_JDK_BUNDLE="$THIS/deploy/images/jdk-bundle"
-	else
+        else
             THIS_JDK_BUNDLE="$THIS/images/jdk-bundle"
-	fi
-	if [ -d "$OTHER/deploy/images/jdk-bundle" ]; then
+        fi
+        if [ -d "$OTHER/deploy/images/jdk-bundle" ]; then
             OTHER_JDK_BUNDLE="$OTHER/deploy/images/jdk-bundle"
-	else
+        else
             OTHER_JDK_BUNDLE="$OTHER/images/jdk-bundle"
-	fi
+        fi
         echo "Also comparing jdk macosx bundles"
         echo "  $THIS_JDK_BUNDLE"
         echo "  $OTHER_JDK_BUNDLE"
-    fi
-
-    if [ -d "$THIS/deploy/bundles" -o -d "$THIS/deploy/images/bundles" ] \
-	     && [ -d "$OTHER/deploy/bundles" -o -d "$OTHER/deploy/images/bundles" ]; then
-	if [ -d "$THIS/deploy/images/bundles" ]; then
-            THIS_DEPLOY_BUNDLE_DIR="$THIS/deploy/images/bundles"
-	else
-            THIS_DEPLOY_BUNDLE_DIR="$THIS/deploy/bundles"
-	fi
-	if [ -d "$OTHER/deploy/images/bundles" ]; then
-            OTHER_DEPLOY_BUNDLE_DIR="$OTHER/deploy/images/bundles"
-	else
-            OTHER_DEPLOY_BUNDLE_DIR="$OTHER/deploy/bundles"
-	fi
-        echo "Also comparing deploy javadoc bundles"
-    fi
-
-    if [ -d "$THIS/images/JavaAppletPlugin.plugin" ] \
-	     && [ -d "$OTHER/images/JavaAppletPlugin.plugin" -o -d "$OTHER/deploy/images/JavaAppletPlugin.plugin" ]; then
-	if [ -d "$THIS/images/JavaAppletPlugin.plugin" ]; then
-            THIS_DEPLOY_APPLET_PLUGIN_DIR="$THIS/images/JavaAppletPlugin.plugin"
-	else
-            THIS_DEPLOY_APPLET_PLUGIN_DIR="$THIS/deploy/images/JavaAppletPlugin.plugin"
-	fi
-	if [ -d "$OTHER/images/JavaAppletPlugin.plugin" ]; then
-            OTHER_DEPLOY_APPLET_PLUGIN_DIR="$OTHER/images/JavaAppletPlugin.plugin"
-	else
-            OTHER_DEPLOY_APPLET_PLUGIN_DIR="$OTHER/deploy/images/JavaAppletPlugin.plugin"
-	fi
-        echo "Also comparing deploy applet image"
-        echo "  $THIS_DEPLOY_APPLET_PLUGIN_DIR"
-        echo "  $OTHER_DEPLOY_APPLET_PLUGIN_DIR"
-    fi
-
-    if [ -d "$THIS/install/sparkle/Sparkle.framework" ] \
-           && [ -d "$OTHER/install/sparkle/Sparkle.framework" ]; then
-        THIS_SPARKLE_DIR="$THIS/install/sparkle/Sparkle.framework"
-        OTHER_SPARKLE_DIR="$OTHER/install/sparkle/Sparkle.framework"
-        echo "Also comparing install sparkle framework"
-        echo "  $THIS_SPARKLE_DIR"
-        echo "  $OTHER_SPARKLE_DIR"
     fi
 
     THIS_SEC_DIR="$THIS/images"
@@ -1464,6 +1420,14 @@ if [ "$SKIP_DEFAULT" != "true" ]; then
     else
         echo "WARNING! Docs haven't been built and won't be compared."
     fi
+
+    if [ -d "$THIS/images/test" ] && [ -d "$OTHER/images/test" ]; then
+        THIS_TEST="$THIS/images/test"
+        OTHER_TEST="$OTHER/images/test"
+        echo "Also comparing test image"
+    else
+        echo "WARNING! Test haven't been built and won't be compared."
+    fi
 fi
 
 ################################################################################
@@ -1489,21 +1453,15 @@ if [ "$CMP_NAMES" = "true" ]; then
         echo -n "Docs "
         compare_files $THIS_DOCS $OTHER_DOCS $COMPARE_ROOT/docs
     fi
+    if [ -n "$THIS_TEST" ] && [ -n "$OTHER_TEST" ]; then
+        echo -n "Test "
+        compare_dirs $THIS_TEST $OTHER_TEST $COMPARE_ROOT/test
+        echo -n "Test "
+        compare_files $THIS_TEST $OTHER_TEST $COMPARE_ROOT/test
+    fi
     if [ -n "$THIS_BASE_DIR" ] && [ -n "$OTHER_BASE_DIR" ]; then
         compare_dirs $THIS_BASE_DIR $OTHER_BASE_DIR $COMPARE_ROOT/base_dir
         compare_files $THIS_BASE_DIR $OTHER_BASE_DIR $COMPARE_ROOT/base_dir
-    fi
-    if [ -n "$THIS_DEPLOY_APPLET_PLUGIN_DIR" ] && [ -n "$OTHER_DEPLOY_APPLET_PLUGIN_DIR" ]; then
-        echo -n "JavaAppletPlugin "
-        compare_dirs $THIS_DEPLOY_APPLET_PLUGIN_DIR $OTHER_DEPLOY_APPLET_PLUGIN_DIR $COMPARE_ROOT/plugin
-        echo -n "JavaAppletPlugin "
-        compare_files $THIS_DEPLOY_APPLET_PLUGIN_DIR $OTHER_DEPLOY_APPLET_PLUGIN_DIR $COMPARE_ROOT/plugin
-    fi
-    if [ -n "$THIS_SPARKLE_DIR" ] && [ -n "$OTHER_SPARKLE_DIR" ]; then
-        echo -n "Sparkle.framework "
-        compare_dirs $THIS_SPARKLE_DIR $OTHER_SPARKLE_DIR $COMPARE_ROOT/sparkle
-        echo -n "Sparkle.framework "
-        compare_files $THIS_SPARKLE_DIR $OTHER_SPARKLE_DIR $COMPARE_ROOT/sparkle
     fi
 fi
 
@@ -1512,33 +1470,36 @@ if [ "$CMP_LIBS" = "true" ]; then
         echo -n "JDK "
         compare_all_libs $THIS_JDK $OTHER_JDK $COMPARE_ROOT/jdk
     fi
+    if [ -n "$THIS_TEST" ] && [ -n "$OTHER_TEST" ]; then
+        echo -n "Test "
+        STRIP_ALL_bak="$STRIP_ALL"
+        if [ "$STRIP_TESTS_BEFORE_COMPARE" = "true" ]; then
+          STRIP_ALL="true"
+        fi
+        compare_all_libs $THIS_TEST $OTHER_TEST $COMPARE_ROOT/test
+        STRIP_ALL="$STRIP_ALL_bak"
+    fi
     if [ -n "$THIS_BASE_DIR" ] && [ -n "$OTHER_BASE_DIR" ]; then
         compare_all_libs $THIS_BASE_DIR $OTHER_BASE_DIR $COMPARE_ROOT/base_dir
-    fi
-    if [ -n "$THIS_DEPLOY_APPLET_PLUGIN_DIR" ] && [ -n "$OTHER_DEPLOY_APPLET_PLUGIN_DIR" ]; then
-        echo -n "JavaAppletPlugin "
-        compare_all_libs $THIS_DEPLOY_APPLET_PLUGIN_DIR $OTHER_DEPLOY_APPLET_PLUGIN_DIR $COMPARE_ROOT/plugin
-    fi
-    if [ -n "$THIS_SPARKLE_DIR" ] && [ -n "$OTHER_SPARKLE_DIR" ]; then
-        echo -n "Sparkle.framework "
-        compare_all_libs $THIS_SPARKLE_DIR $OTHER_SPARKLE_DIR $COMPARE_ROOT/sparkle
     fi
 fi
 
 if [ "$CMP_EXECS" = "true" ]; then
     if [ -n "$THIS_JDK" ] && [ -n "$OTHER_JDK" ]; then
+        echo -n "JDK "
         compare_all_execs $THIS_JDK $OTHER_JDK $COMPARE_ROOT/jdk
+    fi
+    if [ -n "$THIS_TEST" ] && [ -n "$OTHER_TEST" ]; then
+        echo -n "Test "
+        STRIP_ALL_bak="$STRIP_ALL"
+        if [ "$STRIP_TESTS_BEFORE_COMPARE" = "true" ]; then
+          STRIP_ALL="true"
+        fi
+        compare_all_execs $THIS_TEST $OTHER_TEST $COMPARE_ROOT/test
+        STRIP_ALL="$STRIP_ALL_bak"
     fi
     if [ -n "$THIS_BASE_DIR" ] && [ -n "$OTHER_BASE_DIR" ]; then
         compare_all_execs $THIS_BASE_DIR $OTHER_BASE_DIR $COMPARE_ROOT/base_dir
-    fi
-    if [ -n "$THIS_DEPLOY_APPLET_PLUGIN_DIR" ] && [ -n "$OTHER_DEPLOY_APPLET_PLUGIN_DIR" ]; then
-        echo -n "JavaAppletPlugin "
-        compare_all_execs $THIS_DEPLOY_APPLET_PLUGIN_DIR $OTHER_DEPLOY_APPLET_PLUGIN_DIR $COMPARE_ROOT/plugin
-    fi
-    if [ -n "$THIS_SPARKLE_DIR" ] && [ -n "$OTHER_SPARKLE_DIR" ]; then
-        echo -n "Sparkle.framework "
-        compare_all_execs $THIS_SPARKLE_DIR $OTHER_SPARKLE_DIR $COMPARE_ROOT/sparkle
     fi
 fi
 
@@ -1555,22 +1516,23 @@ if [ "$CMP_GENERAL" = "true" ]; then
         echo -n "Docs "
         compare_general_files $THIS_DOCS $OTHER_DOCS $COMPARE_ROOT/docs
     fi
+    if [ -n "$THIS_TEST" ] && [ -n "$OTHER_TEST" ]; then
+        echo -n "Test "
+        compare_general_files $THIS_TEST $OTHER_TEST $COMPARE_ROOT/test
+    fi
     if [ -n "$THIS_BASE_DIR" ] && [ -n "$OTHER_BASE_DIR" ]; then
         compare_general_files $THIS_BASE_DIR $OTHER_BASE_DIR $COMPARE_ROOT/base_dir
-    fi
-    if [ -n "$THIS_DEPLOY_APPLET_PLUGIN_DIR" ] && [ -n "$OTHER_DEPLOY_APPLET_PLUGIN_DIR" ]; then
-        echo -n "JavaAppletPlugin "
-        compare_general_files $THIS_DEPLOY_APPLET_PLUGIN_DIR $OTHER_DEPLOY_APPLET_PLUGIN_DIR $COMPARE_ROOT/plugin
-    fi
-    if [ -n "$THIS_SPARKLE_DIR" ] && [ -n "$OTHER_SPARKLE_DIR" ]; then
-        echo -n "Sparkle.framework "
-        compare_general_files $THIS_SPARKLE_DIR $OTHER_SPARKLE_DIR $COMPARE_ROOT/sparkle
     fi
 fi
 
 if [ "$CMP_ZIPS" = "true" ]; then
     if [ -n "$THIS_JDK" ] && [ -n "$OTHER_JDK" ]; then
+        echo -n "JDK "
         compare_all_zip_files $THIS_JDK $OTHER_JDK $COMPARE_ROOT/jdk
+    fi
+    if [ -n "$THIS_TEST" ] && [ -n "$OTHER_TEST" ]; then
+        echo -n "Test "
+        compare_all_zip_files $THIS_TEST $OTHER_TEST $COMPARE_ROOT/test
     fi
     if [ -n "$THIS_SEC_BIN" ] && [ -n "$OTHER_SEC_BIN" ]; then
         if [ -n "$(echo $THIS_SEC_BIN | $FILTER)" ]; then
@@ -1593,23 +1555,28 @@ if [ "$CMP_ZIPS" = "true" ]; then
     if [ -n "$THIS_BASE_DIR" ] && [ -n "$OTHER_BASE_DIR" ]; then
         compare_all_zip_files $THIS_BASE_DIR $OTHER_BASE_DIR $COMPARE_ROOT/base_dir
     fi
-    if [ -n "$THIS_DEPLOY_BUNDLE_DIR" ] && [ -n "$OTHER_DEPLOY_BUNDLE_DIR" ]; then
-        compare_all_zip_files $THIS_DEPLOY_BUNDLE_DIR $OTHER_DEPLOY_BUNDLE_DIR $COMPARE_ROOT/deploy-bundle
-    fi
-    if [ -n "$THIS_DEPLOY_APPLET_PLUGIN_DIR" ] && [ -n "$OTHER_DEPLOY_APPLET_PLUGIN_DIR" ]; then
-        compare_all_zip_files $THIS_DEPLOY_APPLET_PLUGIN_DIR $OTHER_DEPLOY_APPLET_PLUGIN_DIR $COMPARE_ROOT/plugin
-    fi
 fi
 
 if [ "$CMP_JARS" = "true" ]; then
     if [ -n "$THIS_JDK" ] && [ -n "$OTHER_JDK" ]; then
+        echo -n "JDK "
         compare_all_jar_files $THIS_JDK $OTHER_JDK $COMPARE_ROOT/jdk
+    fi
+    if [ -n "$THIS_TEST" ] && [ -n "$OTHER_TEST" ]; then
+        echo -n "Test "
+        compare_all_jar_files $THIS_TEST $OTHER_TEST $COMPARE_ROOT/test
     fi
     if [ -n "$THIS_BASE_DIR" ] && [ -n "$OTHER_BASE_DIR" ]; then
         compare_all_jar_files $THIS_BASE_DIR $OTHER_BASE_DIR $COMPARE_ROOT/base_dir
     fi
-    if [ -n "$THIS_DEPLOY_APPLET_PLUGIN_DIR" ] && [ -n "$OTHER_DEPLOY_APPLET_PLUGIN_DIR" ]; then
-        compare_all_jar_files $THIS_DEPLOY_APPLET_PLUGIN_DIR $OTHER_DEPLOY_APPLET_PLUGIN_DIR $COMPARE_ROOT/plugin
+fi
+
+if [ "$CMP_JMODS" = "true" ]; then
+    if [ -n "$THIS_JDK" ] && [ -n "$OTHER_JDK" ]; then
+        compare_all_jmod_files $THIS_JDK $OTHER_JDK $COMPARE_ROOT/jdk
+    fi
+    if [ -n "$THIS_BASE_DIR" ] && [ -n "$OTHER_BASE_DIR" ]; then
+        compare_all_jmod_files $THIS_BASE_DIR $OTHER_BASE_DIR $COMPARE_ROOT/base_dir
     fi
 fi
 
@@ -1620,14 +1587,6 @@ if [ "$CMP_PERMS" = "true" ]; then
     fi
     if [ -n "$THIS_BASE_DIR" ] && [ -n "$OTHER_BASE_DIR" ]; then
         compare_permissions $THIS_BASE_DIR $OTHER_BASE_DIR $COMPARE_ROOT/base_dir
-    fi
-    if [ -n "$THIS_DEPLOY_APPLET_PLUGIN_DIR" ] && [ -n "$OTHER_DEPLOY_APPLET_PLUGIN_DIR" ]; then
-        echo -n "JavaAppletPlugin "
-        compare_permissions $THIS_DEPLOY_APPLET_PLUGIN_DIR $OTHER_DEPLOY_APPLET_PLUGIN_DIR $COMPARE_ROOT/plugin
-    fi
-    if [ -n "$THIS_SPARKLE_DIR" ] && [ -n "$OTHER_SPARKLE_DIR" ]; then
-        echo -n "Sparkle.framework "
-        compare_permissions $THIS_SPARKLE_DIR $OTHER_SPARKLE_DIR $COMPARE_ROOT/sparkle
     fi
 fi
 
@@ -1640,16 +1599,12 @@ if [ "$CMP_TYPES" = "true" ]; then
         echo -n "JDK Bundle "
         compare_file_types $THIS_JDK_BUNDLE $OTHER_JDK_BUNDLE $COMPARE_ROOT/jdk-bundle
     fi
+    if [ -n "$THIS_TEST" ] && [ -n "$OTHER_TEST" ]; then
+        echo -n "Test "
+        compare_file_types $THIS_JDK $OTHER_JDK $COMPARE_ROOT/jdk
+    fi
     if [ -n "$THIS_BASE_DIR" ] && [ -n "$OTHER_BASE_DIR" ]; then
         compare_file_types $THIS_BASE_DIR $OTHER_BASE_DIR $COMPARE_ROOT/base_dir
-    fi
-    if [ -n "$THIS_DEPLOY_APPLET_PLUGIN_DIR" ] && [ -n "$OTHER_DEPLOY_APPLET_PLUGIN_DIR" ]; then
-        echo -n "JavaAppletPlugin "
-        compare_file_types $THIS_DEPLOY_APPLET_PLUGIN_DIR $OTHER_DEPLOY_APPLET_PLUGIN_DIR $COMPARE_ROOT/plugin
-    fi
-    if [ -n "$THIS_SPARKLE_DIR" ] && [ -n "$OTHER_SPARKLE_DIR" ]; then
-        echo -n "Sparkle.framework "
-        compare_file_types $THIS_SPARKLE_DIR $OTHER_SPARKLE_DIR $COMPARE_ROOT/sparkle
     fi
 fi
 

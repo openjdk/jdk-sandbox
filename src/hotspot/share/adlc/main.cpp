@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -211,15 +211,17 @@ int main(int argc, char *argv[])
   AD.addInclude(AD._CPP_file, "adfiles", get_basename(AD._VM_file._name));
   AD.addInclude(AD._CPP_file, "adfiles", get_basename(AD._HPP_file._name));
   AD.addInclude(AD._CPP_file, "memory/allocation.inline.hpp");
-  AD.addInclude(AD._CPP_file, "asm/macroAssembler.inline.hpp");
+  AD.addInclude(AD._CPP_file, "code/codeCache.hpp");
   AD.addInclude(AD._CPP_file, "code/compiledIC.hpp");
   AD.addInclude(AD._CPP_file, "code/nativeInst.hpp");
   AD.addInclude(AD._CPP_file, "code/vmreg.inline.hpp");
   AD.addInclude(AD._CPP_file, "gc/shared/collectedHeap.inline.hpp");
   AD.addInclude(AD._CPP_file, "oops/compiledICHolder.hpp");
-  AD.addInclude(AD._CPP_file, "oops/markOop.hpp");
+  AD.addInclude(AD._CPP_file, "oops/compressedOops.hpp");
+  AD.addInclude(AD._CPP_file, "oops/markWord.hpp");
   AD.addInclude(AD._CPP_file, "oops/method.hpp");
   AD.addInclude(AD._CPP_file, "oops/oop.inline.hpp");
+  AD.addInclude(AD._CPP_file, "opto/c2_MacroAssembler.hpp");
   AD.addInclude(AD._CPP_file, "opto/cfgnode.hpp");
   AD.addInclude(AD._CPP_file, "opto/intrinsicnode.hpp");
   AD.addInclude(AD._CPP_file, "opto/locknode.hpp");
@@ -232,8 +234,11 @@ int main(int argc, char *argv[])
   AD.addInclude(AD._CPP_file, "runtime/sharedRuntime.hpp");
   AD.addInclude(AD._CPP_file, "runtime/stubRoutines.hpp");
   AD.addInclude(AD._CPP_file, "utilities/growableArray.hpp");
+  AD.addInclude(AD._CPP_file, "utilities/powerOfTwo.hpp");
   AD.addInclude(AD._HPP_file, "memory/allocation.hpp");
+  AD.addInclude(AD._HPP_file, "oops/compressedOops.hpp");
   AD.addInclude(AD._HPP_file, "code/nativeInst.hpp");
+  AD.addInclude(AD._HPP_file, "opto/output.hpp");
   AD.addInclude(AD._HPP_file, "opto/machnode.hpp");
   AD.addInclude(AD._HPP_file, "opto/node.hpp");
   AD.addInclude(AD._HPP_file, "opto/regalloc.hpp");
@@ -243,12 +248,14 @@ int main(int argc, char *argv[])
   AD.addInclude(AD._CPP_CLONE_file, "adfiles", get_basename(AD._HPP_file._name));
   AD.addInclude(AD._CPP_EXPAND_file, "precompiled.hpp");
   AD.addInclude(AD._CPP_EXPAND_file, "adfiles", get_basename(AD._HPP_file._name));
+  AD.addInclude(AD._CPP_EXPAND_file, "oops/compressedOops.hpp");
   AD.addInclude(AD._CPP_FORMAT_file, "precompiled.hpp");
   AD.addInclude(AD._CPP_FORMAT_file, "adfiles", get_basename(AD._HPP_file._name));
   AD.addInclude(AD._CPP_GEN_file, "precompiled.hpp");
   AD.addInclude(AD._CPP_GEN_file, "adfiles", get_basename(AD._HPP_file._name));
   AD.addInclude(AD._CPP_GEN_file, "opto/cfgnode.hpp");
   AD.addInclude(AD._CPP_GEN_file, "opto/locknode.hpp");
+  AD.addInclude(AD._CPP_GEN_file, "opto/rootnode.hpp");
   AD.addInclude(AD._CPP_MISC_file, "precompiled.hpp");
   AD.addInclude(AD._CPP_MISC_file, "adfiles", get_basename(AD._HPP_file._name));
   AD.addInclude(AD._CPP_PEEPHOLE_file, "precompiled.hpp");
@@ -257,12 +264,15 @@ int main(int argc, char *argv[])
   AD.addInclude(AD._CPP_PIPELINE_file, "adfiles", get_basename(AD._HPP_file._name));
   AD.addInclude(AD._DFA_file, "precompiled.hpp");
   AD.addInclude(AD._DFA_file, "adfiles", get_basename(AD._HPP_file._name));
+  AD.addInclude(AD._DFA_file, "oops/compressedOops.hpp");
   AD.addInclude(AD._DFA_file, "opto/cfgnode.hpp");  // Use PROB_MAX in predicate.
   AD.addInclude(AD._DFA_file, "opto/intrinsicnode.hpp");
   AD.addInclude(AD._DFA_file, "opto/matcher.hpp");
   AD.addInclude(AD._DFA_file, "opto/narrowptrnode.hpp");
   AD.addInclude(AD._DFA_file, "opto/opcodes.hpp");
   AD.addInclude(AD._DFA_file, "opto/convertnode.hpp");
+  AD.addInclude(AD._DFA_file, "utilities/powerOfTwo.hpp");
+
   // Make sure each .cpp file starts with include lines:
   // files declaring and defining generators for Mach* Objects (hpp,cpp)
   // Generate the result files:

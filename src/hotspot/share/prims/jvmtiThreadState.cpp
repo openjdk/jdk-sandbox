@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,6 +71,8 @@ JvmtiThreadState::JvmtiThreadState(JavaThread* thread)
   _earlyret_tos = ilgl;
   _earlyret_value.j = 0L;
   _earlyret_oop = NULL;
+
+  _jvmti_event_queue = NULL;
 
   // add all the JvmtiEnvThreadState to the new JvmtiThreadState
   {
@@ -214,9 +216,13 @@ void JvmtiThreadState::leave_interp_only_mode() {
 
 // Helper routine used in several places
 int JvmtiThreadState::count_frames() {
-  guarantee(SafepointSynchronize::is_at_safepoint() ||
-    (JavaThread *)Thread::current() == get_thread(),
-    "must be current thread or at safepoint");
+#ifdef ASSERT
+  Thread *current_thread = Thread::current();
+#endif
+  assert(current_thread == get_thread() ||
+         SafepointSynchronize::is_at_safepoint() ||
+         current_thread == get_thread()->active_handshaker(),
+         "call by myself / at safepoint / at handshake");
 
   if (!get_thread()->has_last_Java_frame()) return 0;  // no Java frames
 
@@ -234,9 +240,10 @@ int JvmtiThreadState::count_frames() {
 
 
 void JvmtiThreadState::invalidate_cur_stack_depth() {
-  guarantee(SafepointSynchronize::is_at_safepoint() ||
-    (JavaThread *)Thread::current() == get_thread(),
-    "must be current thread or at safepoint");
+  assert(SafepointSynchronize::is_at_safepoint() ||
+         (JavaThread *)Thread::current() == get_thread() ||
+         Thread::current() == get_thread()->active_handshaker(),
+         "bad synchronization with owner thread");
 
   _cur_stack_depth = UNKNOWN_STACK_DEPTH;
 }
@@ -397,6 +404,41 @@ void JvmtiThreadState::process_pending_step_for_earlyret() {
   }
 }
 
-void JvmtiThreadState::oops_do(OopClosure* f) {
+void JvmtiThreadState::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   f->do_oop((oop*) &_earlyret_oop);
+
+  // Keep nmethods from unloading on the event queue
+  if (_jvmti_event_queue != NULL) {
+    _jvmti_event_queue->oops_do(f, cf);
+  }
+}
+
+void JvmtiThreadState::nmethods_do(CodeBlobClosure* cf) {
+  // Keep nmethods from unloading on the event queue
+  if (_jvmti_event_queue != NULL) {
+    _jvmti_event_queue->nmethods_do(cf);
+  }
+}
+
+// Thread local event queue.
+void JvmtiThreadState::enqueue_event(JvmtiDeferredEvent* event) {
+  if (_jvmti_event_queue == NULL) {
+    _jvmti_event_queue = new JvmtiDeferredEventQueue();
+  }
+  // copy the event
+  _jvmti_event_queue->enqueue(*event);
+}
+
+void JvmtiThreadState::post_events(JvmtiEnv* env) {
+  if (_jvmti_event_queue != NULL) {
+    _jvmti_event_queue->post(env);  // deletes each queue node
+    delete _jvmti_event_queue;
+    _jvmti_event_queue = NULL;
+  }
+}
+
+void JvmtiThreadState::run_nmethod_entry_barriers() {
+  if (_jvmti_event_queue != NULL) {
+    _jvmti_event_queue->run_nmethod_entry_barriers();
+  }
 }

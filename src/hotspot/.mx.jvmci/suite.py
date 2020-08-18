@@ -56,6 +56,9 @@ suite = {
     "jdk.vm.ci.common" : {
       "subDir" : "../jdk.internal.vm.ci/share/classes",
       "sourceDirs" : ["src"],
+      "dependencies" : [
+        "jdk.vm.ci.services",
+      ],
       "checkstyle" : "jdk.vm.ci.services",
       "javaCompliance" : "9+",
       "workingSets" : "API,JVMCI",
@@ -84,7 +87,6 @@ suite = {
       "dependencies" : [
         "mx:JUNIT",
         "jdk.vm.ci.amd64",
-        "jdk.vm.ci.sparc",
         "jdk.vm.ci.code",
         "jdk.vm.ci.hotspot",
       ],
@@ -138,15 +140,6 @@ suite = {
       "workingSets" : "JVMCI,AMD64",
     },
 
-    "jdk.vm.ci.sparc" : {
-      "subDir" : "../jdk.internal.vm.ci/share/classes",
-      "sourceDirs" : ["src"],
-      "dependencies" : ["jdk.vm.ci.code"],
-      "checkstyle" : "jdk.vm.ci.services",
-      "javaCompliance" : "9+",
-      "workingSets" : "JVMCI,SPARC",
-    },
-
     "jdk.vm.ci.hotspot" : {
       "subDir" : "../jdk.internal.vm.ci/share/classes",
       "sourceDirs" : ["src"],
@@ -168,7 +161,9 @@ suite = {
       "subDir" : "../../test/hotspot/jtreg/compiler/jvmci",
       "sourceDirs" : ["src"],
       "dependencies" : [
+        "mx:JUNIT",
         "TESTNG",
+        "jdk.vm.ci.code.test",
         "jdk.vm.ci.hotspot",
       ],
       "checkstyle" : "jdk.vm.ci.services",
@@ -200,18 +195,6 @@ suite = {
       "workingSets" : "JVMCI,HotSpot,AMD64",
     },
 
-    "jdk.vm.ci.hotspot.sparc" : {
-      "subDir" : "../jdk.internal.vm.ci/share/classes",
-      "sourceDirs" : ["src"],
-      "dependencies" : [
-        "jdk.vm.ci.sparc",
-        "jdk.vm.ci.hotspot",
-      ],
-      "checkstyle" : "jdk.vm.ci.services",
-      "javaCompliance" : "9+",
-      "workingSets" : "JVMCI,HotSpot,SPARC",
-    },
-
     "hotspot" : {
       "native" : True,
       "class" : "HotSpotProject",
@@ -234,7 +217,6 @@ suite = {
         "jdk.vm.ci.common",
         "jdk.vm.ci.aarch64",
         "jdk.vm.ci.amd64",
-        "jdk.vm.ci.sparc",
       ],
       "distDependencies" : [
         "JVMCI_SERVICES",
@@ -246,7 +228,6 @@ suite = {
       "dependencies" : [
         "jdk.vm.ci.hotspot.aarch64",
         "jdk.vm.ci.hotspot.amd64",
-        "jdk.vm.ci.hotspot.sparc",
       ],
       "distDependencies" : [
         "JVMCI_SERVICES",
@@ -258,9 +239,11 @@ suite = {
       "subDir" : "../../test/hotspot/jtreg/compiler/jvmci",
       "dependencies" : [
         "jdk.vm.ci.runtime.test",
+        "jdk.vm.ci.hotspot.test",
       ],
       "distDependencies" : [
         "JVMCI_API",
+        "JVMCI_HOTSPOT",
       ],
       "exclude" : ["mx:JUNIT"],
     },

@@ -21,15 +21,17 @@
  * questions.
  */
 
+package gc.startup_warnings;
+
 /*
 * @test TestShenandoah
-* @key gc
 * @requires vm.gc.Shenandoah
 * @bug 8006398
 * @summary Test that the Shenandoah collector does not print a warning message
 * @library /test/lib
 * @modules java.base/jdk.internal.misc
 *          java.management
+* @run driver gc.startup_warnings.TestShenandoah
 */
 
 import jdk.test.lib.process.ProcessTools;

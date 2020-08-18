@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,11 @@
  */
 package build.tools.classlist;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.net.InetAddress;
+import java.nio.file.FileSystems;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -54,26 +58,56 @@ public class HelloClasslist {
 
     private static final Logger LOGGER = Logger.getLogger("Hello");
 
-    public static void main(String ... args) {
+    public static void main(String ... args) throws Throwable {
+
+        FileSystems.getDefault();
 
         List<String> strings = Arrays.asList("Hello", "World!", "From: ",
-              InetAddress.getLoopbackAddress().toString());
+                InetAddress.getLoopbackAddress().toString());
 
         String helloWorld = strings.parallelStream()
-              .map(s -> s.toLowerCase(Locale.ROOT))
-              .collect(joining(","));
+                .map(s -> s.toLowerCase(Locale.ROOT))
+                .collect(joining(","));
 
-        Stream.of(helloWorld.split(","))
-              .forEach(System.out::println);
+        Stream.of(helloWorld.split("([,x-z]{1,3})([\\s]*)"))
+                .map(String::toString)
+                .forEach(System.out::println);
 
         // Common concatenation patterns
-        String const_I = "string" + args.length;
-        String const_S = "string" + String.valueOf(args.length);
-        String S_const = String.valueOf(args.length) + "string";
-        String S_S     = String.valueOf(args.length) + String.valueOf(args.length);
-        String const_J = "string" + System.currentTimeMillis();
-        String I_const = args.length + "string";
-        String J_const = System.currentTimeMillis() + "string";
+        int i = args.length;
+        String s = String.valueOf(i);
+
+        String SS     = s + s;
+        String CS     = "string" + s;
+        String SC     = s + "string";
+        String SCS    = s + "string" + s;
+        String CSS    = "string" + s + s;
+        String CSC    = "string" + s + "string";
+        String SSC    = s + s + "string";
+        String CSCS   = "string" + s + "string" + s;
+        String SCSC   = s + "string" + s + "string";
+        String CSCSC  = "string" + s + "string" + s + "string";
+        String SCSCS  = s + "string" + s + "string" + s;
+        String SSCSS  = s + s + "string" + s + s;
+        String SSSSS  = s + s + s + s + s;
+
+        String CI     = "string" + i;
+        String IC     = i + "string";
+        String SI     = s + i;
+        String IS     = i + s;
+        String CIS    = "string" + i + s;
+        String CSCI   = "string" + s + "string" + i;
+        String CIC    = "string" + i + "string";
+        String CICI   = "string" + i + "string" + i;
+
+        long l = System.currentTimeMillis();
+        String CJ     = "string" + l;
+        String JC     = l + "string";
+        String CJC    = "string" + l + "string";
+        String CJCJ   = "string" + l + "string" + l;
+        String CJCJC  = "string" + l + "string" + l + "string";
+        double d = i / 2.0;
+        String CD     = "string" + d;
 
         String newDate = DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(
                 LocalDateTime.now(ZoneId.of("GMT")));
@@ -82,7 +116,31 @@ public class HelloClasslist {
                 DateFormat.getDateInstance(DateFormat.DEFAULT, Locale.ROOT)
                         .format(new Date()));
 
-        LOGGER.log(Level.INFO, "New Date: " + newDate + " - old: " + oldDate);
+        // A selection of trivial and relatively common MH operations
+        invoke(MethodHandles.identity(double.class), 1.0);
+        invoke(MethodHandles.identity(int.class), 1);
+        invoke(MethodHandles.identity(String.class), "x");
+
+        invoke(handle("staticMethod_V", MethodType.methodType(void.class)));
+
+        LOGGER.log(Level.FINE, "New Date: " + newDate + " - old: " + oldDate);
     }
 
+    public static void staticMethod_V() {}
+
+    private static MethodHandle handle(String name, MethodType type) throws Throwable {
+        return MethodHandles.lookup().findStatic(HelloClasslist.class, name, type);
+    }
+
+    private static Object invoke(MethodHandle mh, Object ... args) throws Throwable {
+        try {
+            for (Object o : args) {
+                mh = MethodHandles.insertArguments(mh, 0, o);
+            }
+            return mh.invoke();
+        } catch (Throwable t) {
+            LOGGER.warning("Failed to find, link and/or invoke " + mh.toString() + ": " + t.getMessage());
+            throw t;
+        }
+    }
 }

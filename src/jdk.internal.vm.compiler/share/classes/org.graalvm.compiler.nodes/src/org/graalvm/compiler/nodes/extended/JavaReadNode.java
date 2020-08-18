@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package org.graalvm.compiler.nodes.extended;
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_2;
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_1;
 
+import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.NodeClass;
@@ -37,7 +38,6 @@ import org.graalvm.compiler.nodes.memory.FixedAccessNode;
 import org.graalvm.compiler.nodes.memory.ReadNode;
 import org.graalvm.compiler.nodes.memory.address.AddressNode;
 import org.graalvm.compiler.nodes.spi.Lowerable;
-import org.graalvm.compiler.nodes.spi.LoweringTool;
 import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.JavaKind;
@@ -54,14 +54,13 @@ public final class JavaReadNode extends FixedAccessNode implements Lowerable, Gu
     protected final boolean compressible;
 
     public JavaReadNode(JavaKind readKind, AddressNode address, LocationIdentity location, BarrierType barrierType, boolean compressible) {
-        super(TYPE, address, location, StampFactory.forKind(readKind), barrierType);
-        this.readKind = readKind;
-        this.compressible = compressible;
+        this(StampFactory.forKind(readKind), readKind, address, location, barrierType, compressible);
     }
 
-    @Override
-    public void lower(LoweringTool tool) {
-        tool.getLowerer().lower(this, tool);
+    public JavaReadNode(Stamp stamp, JavaKind readKind, AddressNode address, LocationIdentity location, BarrierType barrierType, boolean compressible) {
+        super(TYPE, address, location, stamp, barrierType);
+        this.readKind = readKind;
+        this.compressible = compressible;
     }
 
     @Override
@@ -81,4 +80,5 @@ public final class JavaReadNode extends FixedAccessNode implements Lowerable, Gu
     public Node canonical(CanonicalizerTool tool) {
         return ReadNode.canonicalizeRead(this, getAddress(), getLocationIdentity(), tool);
     }
+
 }

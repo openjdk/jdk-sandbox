@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,8 @@ import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.*;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.security.AlgorithmParameters;
 import java.security.InvalidAlgorithmParameterException;
 import javax.crypto.spec.PBEParameterSpec;
@@ -63,17 +65,13 @@ import javax.crypto.Mac;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.x500.X500Principal;
 
-import sun.security.util.Debug;
-import sun.security.util.DerInputStream;
-import sun.security.util.DerOutputStream;
-import sun.security.util.DerValue;
-import sun.security.util.ObjectIdentifier;
+import sun.security.tools.KeyStoreUtil;
+import sun.security.util.*;
 import sun.security.pkcs.ContentInfo;
-import sun.security.util.SecurityProperties;
 import sun.security.x509.AlgorithmId;
 import sun.security.pkcs.EncryptedPrivateKeyInfo;
 import sun.security.provider.JavaKeyStore.JKS;
-import sun.security.util.KeyStoreDelegator;
+import sun.security.x509.AuthorityKeyIdentifierExtension;
 
 
 /**
@@ -144,43 +142,42 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
     private static final int MAX_ITERATION_COUNT = 5000000;
     private static final int SALT_LEN = 20;
 
-    // friendlyName, localKeyId, trustedKeyUsage
-    private static final String[] CORE_ATTRIBUTES = {
-        "1.2.840.113549.1.9.20",
-        "1.2.840.113549.1.9.21",
-        "2.16.840.1.113894.746875.1.1"
+    private static final KnownOIDs[] CORE_ATTRIBUTES = {
+        KnownOIDs.FriendlyName,
+        KnownOIDs.LocalKeyID,
+        KnownOIDs.ORACLE_TrustedKeyUsage
     };
 
     private static final Debug debug = Debug.getInstance("pkcs12");
 
-    private static final int[] keyBag  = {1, 2, 840, 113549, 1, 12, 10, 1, 2};
-    private static final int[] certBag = {1, 2, 840, 113549, 1, 12, 10, 1, 3};
-    private static final int[] secretBag = {1, 2, 840, 113549, 1, 12, 10, 1, 5};
+    private static final ObjectIdentifier PKCS8ShroudedKeyBag_OID =
+            ObjectIdentifier.of(KnownOIDs.PKCS8ShroudedKeyBag);
+    private static final ObjectIdentifier CertBag_OID =
+            ObjectIdentifier.of(KnownOIDs.CertBag);
+    private static final ObjectIdentifier SecretBag_OID =
+            ObjectIdentifier.of(KnownOIDs.SecretBag);
 
-    private static final int[] pkcs9Name  = {1, 2, 840, 113549, 1, 9, 20};
-    private static final int[] pkcs9KeyId = {1, 2, 840, 113549, 1, 9, 21};
+    private static final ObjectIdentifier PKCS9FriendlyName_OID =
+            ObjectIdentifier.of(KnownOIDs.FriendlyName);
+    private static final ObjectIdentifier PKCS9LocalKeyId_OID =
+            ObjectIdentifier.of(KnownOIDs.LocalKeyID);
+    private static final ObjectIdentifier PKCS9CertType_OID =
+            ObjectIdentifier.of(KnownOIDs.CertTypeX509);
+    private static final ObjectIdentifier pbes2_OID =
+            ObjectIdentifier.of(KnownOIDs.PBES2);
 
-    private static final int[] pkcs9certType = {1, 2, 840, 113549, 1, 9, 22, 1};
-
-    private static final int[] pbes2 = {1, 2, 840, 113549, 1, 5, 13};
-    // TODO: temporary Oracle OID
     /*
-     * { joint-iso-itu-t(2) country(16) us(840) organization(1) oracle(113894)
-     *   jdk(746875) crypto(1) id-at-trustedKeyUsage(1) }
+     * Temporary Oracle OID
+     *
+     * {joint-iso-itu-t(2) country(16) us(840) organization(1)
+     *  oracle(113894) jdk(746875) crypto(1) id-at-trustedKeyUsage(1)}
      */
-    private static final int[] TrustedKeyUsage =
-                                        {2, 16, 840, 1, 113894, 746875, 1, 1};
-    private static final int[] AnyExtendedKeyUsage = {2, 5, 29, 37, 0};
+    private static final ObjectIdentifier TrustedKeyUsage_OID =
+            ObjectIdentifier.of(KnownOIDs.ORACLE_TrustedKeyUsage);
 
-    private static final ObjectIdentifier PKCS8ShroudedKeyBag_OID;
-    private static final ObjectIdentifier CertBag_OID;
-    private static final ObjectIdentifier SecretBag_OID;
-    private static final ObjectIdentifier PKCS9FriendlyName_OID;
-    private static final ObjectIdentifier PKCS9LocalKeyId_OID;
-    private static final ObjectIdentifier PKCS9CertType_OID;
-    private static final ObjectIdentifier pbes2_OID;
-    private static final ObjectIdentifier TrustedKeyUsage_OID;
-    private static final ObjectIdentifier[] AnyUsage;
+    private static final ObjectIdentifier[] AnyUsage = new ObjectIdentifier[] {
+                ObjectIdentifier.of(KnownOIDs.anyExtendedKeyUsage)
+            };
 
     private int counter = 0;
 
@@ -208,23 +205,6 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
 
     // the source of randomness
     private SecureRandom random;
-
-    static {
-        try {
-            PKCS8ShroudedKeyBag_OID = new ObjectIdentifier(keyBag);
-            CertBag_OID = new ObjectIdentifier(certBag);
-            SecretBag_OID = new ObjectIdentifier(secretBag);
-            PKCS9FriendlyName_OID = new ObjectIdentifier(pkcs9Name);
-            PKCS9LocalKeyId_OID = new ObjectIdentifier(pkcs9KeyId);
-            PKCS9CertType_OID = new ObjectIdentifier(pkcs9certType);
-            pbes2_OID = new ObjectIdentifier(pbes2);
-            TrustedKeyUsage_OID = new ObjectIdentifier(TrustedKeyUsage);
-            AnyUsage = new ObjectIdentifier[]{
-                new ObjectIdentifier(AnyExtendedKeyUsage)};
-        } catch (IOException ioe) {
-            throw new AssertionError("OID not initialized", ioe);
-        }
-    }
 
     // A keystore entry and associated attributes
     private static class Entry {
@@ -306,8 +286,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
         Collections.synchronizedMap(new LinkedHashMap<String, Entry>());
 
     private ArrayList<KeyEntry> keyList = new ArrayList<KeyEntry>();
-    private LinkedHashMap<X500Principal, X509Certificate> certsMap =
-            new LinkedHashMap<X500Principal, X509Certificate>();
+    private List<X509Certificate> allCerts = new ArrayList<>();
     private ArrayList<CertEntry> certEntries = new ArrayList<CertEntry>();
 
     /**
@@ -404,6 +383,9 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 DerInputStream in = val.toDerInputStream();
                 int i = in.getInteger();
                 DerValue[] value = in.getSequence(2);
+                if (value.length < 1 || value.length > 2) {
+                    throw new IOException("Invalid length for AlgorithmIdentifier");
+                }
                 AlgorithmId algId = new AlgorithmId(value[0].getOID());
                 String keyAlgo = algId.getName();
 
@@ -686,12 +668,14 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 entry.attributes.addAll(attributes);
             }
             // set the keyId to current date
-            entry.keyId = ("Time " + (entry.date).getTime()).getBytes("UTF8");
+            entry.keyId = ("Time " + (entry.date).getTime()).getBytes(UTF_8);
             // set the alias
             entry.alias = alias.toLowerCase(Locale.ENGLISH);
             // add the entry
             entries.put(alias.toLowerCase(Locale.ENGLISH), entry);
 
+        } catch (KeyStoreException kse) {
+            throw kse;
         } catch (Exception nsae) {
             throw new KeyStoreException("Key protection" +
                        " algorithm not found: " + nsae, nsae);
@@ -745,12 +729,8 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 alias + "'");
         }
 
-        try {
-            // set the keyId to current date
-            entry.keyId = ("Time " + (entry.date).getTime()).getBytes("UTF8");
-        } catch (UnsupportedEncodingException ex) {
-            // Won't happen
-        }
+        // set the keyId to current date
+        entry.keyId = ("Time " + (entry.date).getTime()).getBytes(UTF_8);
         // set the alias
         entry.alias = alias.toLowerCase(Locale.ENGLISH);
 
@@ -1659,9 +1639,9 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             for (KeyStore.Entry.Attribute attribute : attributes) {
                 String attributeName = attribute.getName();
                 // skip friendlyName, localKeyId and trustedKeyUsage
-                if (CORE_ATTRIBUTES[0].equals(attributeName) ||
-                    CORE_ATTRIBUTES[1].equals(attributeName) ||
-                    CORE_ATTRIBUTES[2].equals(attributeName)) {
+                if (CORE_ATTRIBUTES[0].value().equals(attributeName) ||
+                    CORE_ATTRIBUTES[1].value().equals(attributeName) ||
+                    CORE_ATTRIBUTES[2].value().equals(attributeName)) {
                     continue;
                 }
                 attrs.write(((PKCS12Attribute) attribute).getEncoded());
@@ -2057,11 +2037,17 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 DerInputStream edi =
                                 safeContents.getContent().toDerInputStream();
                 int edVersion = edi.getInteger();
-                DerValue[] seq = edi.getSequence(2);
+                DerValue[] seq = edi.getSequence(3);
+                if (seq.length != 3) {
+                    // We require the encryptedContent field, even though
+                    // it is optional
+                    throw new IOException("Invalid length for EncryptedContentInfo");
+                }
                 ObjectIdentifier edContentType = seq[0].getOID();
                 eAlgId = seq[1].toByteArray();
                 if (!seq[2].isContextSpecific((byte)0)) {
-                   throw new IOException("encrypted content not present!");
+                    throw new IOException("unsupported encrypted content type "
+                                          + seq[2].tag);
                 }
                 byte newTag = DerValue.tag_OctetString;
                 if (seq[2].isConstructed())
@@ -2212,11 +2198,10 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                         }
                     }
                     chain.add(cert);
-                    X500Principal issuerDN = cert.getIssuerX500Principal();
-                    if (issuerDN.equals(cert.getSubjectX500Principal())) {
+                    if (KeyStoreUtil.isSelfSigned(cert)) {
                         break;
                     }
-                    cert = certsMap.get(issuerDN);
+                    cert = findIssuer(cert);
                 }
                 /* Update existing KeyEntry in entries table */
                 if (chain.size() > 0) {
@@ -2231,23 +2216,80 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
         }
 
         if (debug != null) {
-            if (privateKeyCount > 0) {
-                debug.println("Loaded " + privateKeyCount +
-                    " protected private key(s)");
-            }
-            if (secretKeyCount > 0) {
-                debug.println("Loaded " + secretKeyCount +
-                    " protected secret key(s)");
-            }
-            if (certificateCount > 0) {
-                debug.println("Loaded " + certificateCount +
-                    " certificate(s)");
-            }
+            debug.println("PKCS12KeyStore load: private key count: " +
+                    privateKeyCount + ". secret key count: " + secretKeyCount +
+                    ". certificate count: " + certificateCount);
         }
 
         certEntries.clear();
-        certsMap.clear();
+        allCerts.clear();
         keyList.clear();
+    }
+
+    /**
+     * Find the issuer of input in allCerts. If the input has an
+     * AuthorityKeyIdentifier extension and the keyId inside matches
+     * the keyId of the SubjectKeyIdentifier of a cert. This cert is
+     * returned. Otherwise, a cert whose subjectDN is the same as the
+     * input's issuerDN is returned.
+     *
+     * @param input the input certificate
+     * @return the isssuer, or null if none matches
+     */
+    private X509Certificate findIssuer(X509Certificate input) {
+
+        X509Certificate fallback = null; // the DN match
+        X500Principal issuerPrinc = input.getIssuerX500Principal();
+
+        // AuthorityKeyIdentifier value encoded as an OCTET STRING
+        byte[] issuerIdExtension = input.getExtensionValue(
+                KnownOIDs.AuthorityKeyID.value());
+        byte[] issuerId = null;
+
+        if (issuerIdExtension != null) {
+            try {
+                issuerId = new AuthorityKeyIdentifierExtension(
+                            false,
+                            new DerValue(issuerIdExtension).getOctetString())
+                        .getEncodedKeyIdentifier();
+            } catch (IOException e) {
+                // ignored. issuerId is still null
+            }
+        }
+
+        for (X509Certificate cert : allCerts) {
+            if (cert.getSubjectX500Principal().equals(issuerPrinc)) {
+                if (issuerId != null) {
+                    // SubjectKeyIdentifier value encoded as an OCTET STRING
+                    byte[] subjectIdExtension = cert.getExtensionValue(
+                            KnownOIDs.SubjectKeyID.value());
+                    byte[] subjectId = null;
+                    if (subjectIdExtension != null) {
+                        try {
+                            subjectId = new DerValue(subjectIdExtension)
+                                    .getOctetString();
+                        } catch (IOException e) {
+                            // ignored. issuerId is still null
+                        }
+                    }
+                    if (subjectId != null) {
+                        if (Arrays.equals(issuerId, subjectId)) {
+                            // keyId exact match!
+                            return cert;
+                        } else {
+                            // Different keyId. Not a fallback.
+                            continue;
+                        }
+                    } else {
+                        // A DN match with no subjectId
+                        fallback = cert;
+                    }
+                } else { // if there is no issuerId, return the 1st DN match
+                    return cert;
+                }
+            }
+        }
+        return fallback;
     }
 
     /**
@@ -2346,6 +2388,9 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             } else if (bagId.equals(CertBag_OID)) {
                 DerInputStream cs = new DerInputStream(bagValue.toByteArray());
                 DerValue[] certValues = cs.getSequence(2);
+                if (certValues.length != 2) {
+                    throw new IOException("Invalid length for CertBag");
+                }
                 ObjectIdentifier certId = certValues[0].getOID();
                 if (!certValues[1].isContextSpecific((byte)0)) {
                     throw new IOException("unsupported PKCS12 cert value type "
@@ -2361,6 +2406,9 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             } else if (bagId.equals(SecretBag_OID)) {
                 DerInputStream ss = new DerInputStream(bagValue.toByteArray());
                 DerValue[] secretValues = ss.getSequence(2);
+                if (secretValues.length != 2) {
+                    throw new IOException("Invalid length for SecretBag");
+                }
                 ObjectIdentifier secretId = secretValues[0].getOID();
                 if (!secretValues[1].isContextSpecific((byte)0)) {
                     throw new IOException(
@@ -2399,6 +2447,9 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                     byte[] encoded = attrSet[j].toByteArray();
                     DerInputStream as = new DerInputStream(encoded);
                     DerValue[] attrSeq = as.getSequence(2);
+                    if (attrSeq.length != 2) {
+                        throw new IOException("Invalid length for Attribute");
+                    }
                     ObjectIdentifier attrId = attrSeq[0].getOID();
                     DerInputStream vs =
                         new DerInputStream(attrSeq[1].toByteArray());
@@ -2444,18 +2495,18 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                        // attribute in pkcs12 with one private key entry and
                        // associated cert-chain
                        if (privateKeyCount == 1) {
-                            keyId = "01".getBytes("UTF8");
+                            keyId = "01".getBytes(UTF_8);
                        } else {
                             continue;
                        }
                     } else {
                         // keyId in a SecretKeyEntry is not significant
-                        keyId = "00".getBytes("UTF8");
+                        keyId = "00".getBytes(UTF_8);
                     }
                 }
                 entry.keyId = keyId;
                 // restore date if it exists
-                String keyIdStr = new String(keyId, "UTF8");
+                String keyIdStr = new String(keyId, UTF_8);
                 Date date = null;
                 if (keyIdStr.startsWith("Time ")) {
                     try {
@@ -2492,7 +2543,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 if ((keyId == null) && (privateKeyCount == 1)) {
                     // insert localKeyID only for EE cert or self-signed cert
                     if (i == 0) {
-                        keyId = "01".getBytes("UTF8");
+                        keyId = "01".getBytes(UTF_8);
                     }
                 }
                 // Trusted certificate
@@ -2507,12 +2558,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 } else {
                     certEntries.add(new CertEntry(cert, keyId, alias));
                 }
-                X500Principal subjectDN = cert.getSubjectX500Principal();
-                if (subjectDN != null) {
-                    if (!certsMap.containsKey(subjectDN)) {
-                        certsMap.put(subjectDN, cert);
-                    }
-                }
+                allCerts.add(cert);
             }
         }
     }

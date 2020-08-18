@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.IOException;
 import java.io.ByteArrayInputStream;
-import java.io.UnsupportedEncodingException;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -772,6 +773,8 @@ final class P11KeyStore extends KeyStoreSpi {
             }
             if (debug != null) {
                 dumpTokenMap();
+                debug.println("P11KeyStore load. Entry count: " +
+                        aliasMap.size());
             }
         } catch (KeyStoreException | PKCS11Exception e) {
             throw new IOException("load failed", e);
@@ -2152,11 +2155,7 @@ final class P11KeyStore extends KeyStoreSpi {
         if (!printable) {
             return "0x" + Functions.toHexString(bytes);
         } else {
-            try {
-                return new String(bytes, "UTF-8");
-            } catch (UnsupportedEncodingException uee) {
-                return "0x" + Functions.toHexString(bytes);
-            }
+            return new String(bytes, UTF_8);
         }
     }
 

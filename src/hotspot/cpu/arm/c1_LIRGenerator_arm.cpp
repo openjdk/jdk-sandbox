@@ -40,6 +40,7 @@
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "utilities/powerOfTwo.hpp"
 #include "vmreg_arm.inline.hpp"
 
 #ifdef ASSERT
@@ -389,7 +390,7 @@ void LIRGenerator::CardTableBarrierSet_post_barrier_helper(LIR_OprDesc* addr, LI
 
     LabelObj* L_already_dirty = new LabelObj();
     __ cmp(lir_cond_equal, cur_value, LIR_OprFact::intConst(CardTable::dirty_card_val()));
-    __ branch(lir_cond_equal, T_BYTE, L_already_dirty->label());
+    __ branch(lir_cond_equal, L_already_dirty->label());
     set_card(tmp, card_addr);
     __ branch_destination(L_already_dirty->label());
   } else {
@@ -538,7 +539,7 @@ void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
 void LIRGenerator::make_div_by_zero_check(LIR_Opr right_arg, BasicType type, CodeEmitInfo* info) {
   assert(right_arg->is_register(), "must be");
   __ cmp(lir_cond_equal, right_arg, make_constant(type, 0));
-  __ branch(lir_cond_equal, type, new DivByZeroStub(info));
+  __ branch(lir_cond_equal, new DivByZeroStub(info));
 }
 
 
@@ -774,7 +775,7 @@ LIR_Opr LIRGenerator::atomic_xchg(BasicType type, LIR_Opr addr, LIRItem& value) 
   bool is_oop = type == T_OBJECT || type == T_ARRAY;
   LIR_Opr result = new_register(type);
   value.load_item();
-  assert(type == T_INT || is_oop LP64_ONLY( || type == T_LONG ), "unexpected type");
+  assert(type == T_INT || is_oop || (type == T_LONG && VM_Version::supports_ldrexd()), "unexpected type");
   LIR_Opr tmp = (UseCompressedOops && is_oop) ? new_pointer_register() : LIR_OprFact::illegalOpr;
   __ xchg(addr, value.result(), result, tmp);
   return result;
@@ -783,7 +784,7 @@ LIR_Opr LIRGenerator::atomic_xchg(BasicType type, LIR_Opr addr, LIRItem& value) 
 LIR_Opr LIRGenerator::atomic_add(BasicType type, LIR_Opr addr, LIRItem& value) {
   LIR_Opr result = new_register(type);
   value.load_item();
-  assert(type == T_INT LP64_ONLY( || type == T_LONG), "unexpected type");
+  assert(type == T_INT || (type == T_LONG && VM_Version::supports_ldrexd ()), "unexpected type");
   LIR_Opr tmp = new_register(type);
   __ xadd(addr, value.result(), result, tmp);
   return result;
@@ -1226,7 +1227,7 @@ void LIRGenerator::do_soft_float_compare(If* x) {
            LIR_OprFact::intConst(0) : LIR_OprFact::intConst(1));
   profile_branch(x, cond);
   move_to_phi(x->state());
-  __ branch(lir_cond_equal, T_INT, x->tsux());
+  __ branch(lir_cond_equal, x->tsux());
 }
 #endif // __SOFTFP__
 
@@ -1284,9 +1285,9 @@ void LIRGenerator::do_If(If* x) {
   profile_branch(x, cond);
   move_to_phi(x->state());
   if (x->x()->type()->is_float_kind()) {
-    __ branch(lir_cond(cond), right->type(), x->tsux(), x->usux());
+    __ branch(lir_cond(cond), x->tsux(), x->usux());
   } else {
-    __ branch(lir_cond(cond), right->type(), x->tsux());
+    __ branch(lir_cond(cond), x->tsux());
   }
   assert(x->default_sux() == x->fsux(), "wrong destination above");
   __ jump(x->default_sux());
@@ -1310,9 +1311,16 @@ void LIRGenerator::volatile_field_store(LIR_Opr value, LIR_Address* address,
                                         CodeEmitInfo* info) {
   if (value->is_double_cpu()) {
     assert(address->index()->is_illegal(), "should have a constant displacement");
-    LIR_Opr tmp = new_pointer_register();
-    add_large_constant(address->base(), address->disp(), tmp);
-    __ volatile_store_mem_reg(value, new LIR_Address(tmp, (intx)0, address->type()), info);
+    LIR_Address* store_addr = NULL;
+    if (address->disp() != 0) {
+      LIR_Opr tmp = new_pointer_register();
+      add_large_constant(address->base(), address->disp(), tmp);
+      store_addr = new LIR_Address(tmp, (intx)0, address->type());
+    } else {
+      // address->disp() can be 0, if the address is referenced using the unsafe intrinsic
+      store_addr = address;
+    }
+    __ volatile_store_mem_reg(value, store_addr, info);
     return;
   }
   __ store(value, address, info, lir_patch_none);
@@ -1322,9 +1330,16 @@ void LIRGenerator::volatile_field_load(LIR_Address* address, LIR_Opr result,
                                        CodeEmitInfo* info) {
   if (result->is_double_cpu()) {
     assert(address->index()->is_illegal(), "should have a constant displacement");
-    LIR_Opr tmp = new_pointer_register();
-    add_large_constant(address->base(), address->disp(), tmp);
-    __ volatile_load_mem_reg(new LIR_Address(tmp, (intx)0, address->type()), result, info);
+    LIR_Address* load_addr = NULL;
+    if (address->disp() != 0) {
+      LIR_Opr tmp = new_pointer_register();
+      add_large_constant(address->base(), address->disp(), tmp);
+      load_addr = new LIR_Address(tmp, (intx)0, address->type());
+    } else {
+      // address->disp() can be 0, if the address is referenced using the unsafe intrinsic
+      load_addr = address;
+    }
+    __ volatile_load_mem_reg(load_addr, result, info);
     return;
   }
   __ load(address, result, info, lir_patch_none);

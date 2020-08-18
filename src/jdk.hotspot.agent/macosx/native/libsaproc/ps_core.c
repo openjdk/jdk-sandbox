@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <sys/errno.h>
 #include "libproc_impl.h"
-#include "cds.h"
+#include "ps_core_common.h"
 
 #ifdef __APPLE__
 #include "sun_jvm_hotspot_debugger_amd64_AMD64ThreadContext.h"
@@ -38,332 +39,6 @@
 // This file has the libproc implementation to read core files.
 // For live processes, refer to ps_proc.c. Portions of this is adapted
 // /modelled after Solaris libproc.so (in particular Pcore.c)
-
-//----------------------------------------------------------------------
-// ps_prochandle cleanup helper functions
-
-// close all file descriptors
-static void close_files(struct ps_prochandle* ph) {
-  lib_info* lib = NULL;
-
-  // close core file descriptor
-  if (ph->core->core_fd >= 0)
-    close(ph->core->core_fd);
-
-  // close exec file descriptor
-  if (ph->core->exec_fd >= 0)
-    close(ph->core->exec_fd);
-
-  // close interp file descriptor
-  if (ph->core->interp_fd >= 0)
-    close(ph->core->interp_fd);
-
-  // close class share archive file
-  if (ph->core->classes_jsa_fd >= 0)
-    close(ph->core->classes_jsa_fd);
-
-  // close all library file descriptors
-  lib = ph->libs;
-  while (lib) {
-    int fd = lib->fd;
-    if (fd >= 0 && fd != ph->core->exec_fd) {
-      close(fd);
-    }
-    lib = lib->next;
-  }
-}
-
-// clean all map_info stuff
-static void destroy_map_info(struct ps_prochandle* ph) {
-  map_info* map = ph->core->maps;
-  while (map) {
-    map_info* next = map->next;
-    free(map);
-    map = next;
-  }
-
-  if (ph->core->map_array) {
-    free(ph->core->map_array);
-  }
-
-  // Part of the class sharing workaround
-  map = ph->core->class_share_maps;
-  while (map) {
-    map_info* next = map->next;
-    free(map);
-    map = next;
-  }
-}
-
-// ps_prochandle operations
-static void core_release(struct ps_prochandle* ph) {
-  if (ph->core) {
-    close_files(ph);
-    destroy_map_info(ph);
-    free(ph->core);
-  }
-}
-
-static map_info* allocate_init_map(int fd, off_t offset, uintptr_t vaddr, size_t memsz) {
-  map_info* map;
-  if ( (map = (map_info*) calloc(1, sizeof(map_info))) == NULL) {
-    print_debug("can't allocate memory for map_info\n");
-    return NULL;
-  }
-
-  // initialize map
-  map->fd     = fd;
-  map->offset = offset;
-  map->vaddr  = vaddr;
-  map->memsz  = memsz;
-  return map;
-}
-
-// add map info with given fd, offset, vaddr and memsz
-static map_info* add_map_info(struct ps_prochandle* ph, int fd, off_t offset,
-                             uintptr_t vaddr, size_t memsz) {
-  map_info* map;
-  if ((map = allocate_init_map(fd, offset, vaddr, memsz)) == NULL) {
-    return NULL;
-  }
-
-  // add this to map list
-  map->next  = ph->core->maps;
-  ph->core->maps   = map;
-  ph->core->num_maps++;
-
-  return map;
-}
-
-// Part of the class sharing workaround
-static map_info* add_class_share_map_info(struct ps_prochandle* ph, off_t offset,
-                             uintptr_t vaddr, size_t memsz) {
-  map_info* map;
-  if ((map = allocate_init_map(ph->core->classes_jsa_fd,
-                               offset, vaddr, memsz)) == NULL) {
-    return NULL;
-  }
-
-  map->next = ph->core->class_share_maps;
-  ph->core->class_share_maps = map;
-  return map;
-}
-
-// Return the map_info for the given virtual address.  We keep a sorted
-// array of pointers in ph->map_array, so we can binary search.
-static map_info* core_lookup(struct ps_prochandle *ph, uintptr_t addr) {
-  int mid, lo = 0, hi = ph->core->num_maps - 1;
-  map_info *mp;
-
-  while (hi - lo > 1) {
-    mid = (lo + hi) / 2;
-    if (addr >= ph->core->map_array[mid]->vaddr) {
-      lo = mid;
-    } else {
-      hi = mid;
-    }
-  }
-
-  if (addr < ph->core->map_array[hi]->vaddr) {
-    mp = ph->core->map_array[lo];
-  } else {
-    mp = ph->core->map_array[hi];
-  }
-
-  if (addr >= mp->vaddr && addr < mp->vaddr + mp->memsz) {
-    return (mp);
-  }
-
-
-  // Part of the class sharing workaround
-  // Unfortunately, we have no way of detecting -Xshare state.
-  // Check out the share maps atlast, if we don't find anywhere.
-  // This is done this way so to avoid reading share pages
-  // ahead of other normal maps. For eg. with -Xshare:off we don't
-  // want to prefer class sharing data to data from core.
-  mp = ph->core->class_share_maps;
-  if (mp) {
-    print_debug("can't locate map_info at 0x%lx, trying class share maps\n", addr);
-  }
-  while (mp) {
-    if (addr >= mp->vaddr && addr < mp->vaddr + mp->memsz) {
-      print_debug("located map_info at 0x%lx from class share maps\n", addr);
-      return (mp);
-    }
-    mp = mp->next;
-  }
-
-  print_debug("can't locate map_info at 0x%lx\n", addr);
-  return (NULL);
-}
-
-//---------------------------------------------------------------
-// Part of the class sharing workaround:
-//
-// With class sharing, pages are mapped from classes.jsa file.
-// The read-only class sharing pages are mapped as MAP_SHARED,
-// PROT_READ pages. These pages are not dumped into core dump.
-// With this workaround, these pages are read from classes.jsa.
-
-static bool read_jboolean(struct ps_prochandle* ph, uintptr_t addr, jboolean* pvalue) {
-  jboolean i;
-  if (ps_pread(ph, (psaddr_t) addr, &i, sizeof(i)) == PS_OK) {
-    *pvalue = i;
-    return true;
-  } else {
-    return false;
-  }
-}
-
-static bool read_pointer(struct ps_prochandle* ph, uintptr_t addr, uintptr_t* pvalue) {
-  uintptr_t uip;
-  if (ps_pread(ph, (psaddr_t) addr, (char *)&uip, sizeof(uip)) == PS_OK) {
-    *pvalue = uip;
-    return true;
-  } else {
-    return false;
-  }
-}
-
-// used to read strings from debuggee
-static bool read_string(struct ps_prochandle* ph, uintptr_t addr, char* buf, size_t size) {
-  size_t i = 0;
-  char  c = ' ';
-
-  while (c != '\0') {
-    if (ps_pread(ph, (psaddr_t) addr, &c, sizeof(char)) != PS_OK) {
-      return false;
-    }
-    if (i < size - 1) {
-      buf[i] = c;
-    } else {
-      // smaller buffer
-      return false;
-    }
-    i++; addr++;
-  }
-  buf[i] = '\0';
-  return true;
-}
-
-// mangled name of Arguments::SharedArchivePath
-#define SHARED_ARCHIVE_PATH_SYM "__ZN9Arguments17SharedArchivePathE"
-
-#ifdef __APPLE__
-#define USE_SHARED_SPACES_SYM "_UseSharedSpaces"
-#define LIBJVM_NAME "/libjvm.dylib"
-#else
-#define USE_SHARED_SPACES_SYM "UseSharedSpaces"
-#define LIBJVM_NAME "/libjvm.so"
-#endif // __APPLE_
-
-static bool init_classsharing_workaround(struct ps_prochandle* ph) {
-  int m;
-  size_t n;
-  lib_info* lib = ph->libs;
-  while (lib != NULL) {
-    // we are iterating over shared objects from the core dump. look for
-    // libjvm.so.
-    const char *jvm_name = 0;
-    if ((jvm_name = strstr(lib->name, LIBJVM_NAME)) != 0) {
-      char classes_jsa[PATH_MAX];
-      CDSFileMapHeaderBase header;
-      int fd = -1;
-      uintptr_t base = 0, useSharedSpacesAddr = 0;
-      uintptr_t sharedArchivePathAddrAddr = 0, sharedArchivePathAddr = 0;
-      jboolean useSharedSpaces = 0;
-
-      memset(classes_jsa, 0, sizeof(classes_jsa));
-      jvm_name = lib->name;
-      useSharedSpacesAddr = lookup_symbol(ph, jvm_name, USE_SHARED_SPACES_SYM);
-      if (useSharedSpacesAddr == 0) {
-        print_debug("can't lookup 'UseSharedSpaces' flag\n");
-        return false;
-      }
-
-      // Hotspot vm types are not exported to build this library. So
-      // using equivalent type jboolean to read the value of
-      // UseSharedSpaces which is same as hotspot type "bool".
-      if (read_jboolean(ph, useSharedSpacesAddr, &useSharedSpaces) != true) {
-        print_debug("can't read the value of 'UseSharedSpaces' flag\n");
-        return false;
-      }
-
-      if ((int)useSharedSpaces == 0) {
-        print_debug("UseSharedSpaces is false, assuming -Xshare:off!\n");
-        return true;
-      }
-
-      sharedArchivePathAddrAddr = lookup_symbol(ph, jvm_name, SHARED_ARCHIVE_PATH_SYM);
-      if (sharedArchivePathAddrAddr == 0) {
-        print_debug("can't lookup shared archive path symbol\n");
-        return false;
-      }
-
-      if (read_pointer(ph, sharedArchivePathAddrAddr, &sharedArchivePathAddr) != true) {
-        print_debug("can't read shared archive path pointer\n");
-        return false;
-      }
-
-      if (read_string(ph, sharedArchivePathAddr, classes_jsa, sizeof(classes_jsa)) != true) {
-        print_debug("can't read shared archive path value\n");
-        return false;
-      }
-
-      print_debug("looking for %s\n", classes_jsa);
-      // open the class sharing archive file
-      fd = pathmap_open(classes_jsa);
-      if (fd < 0) {
-        print_debug("can't open %s!\n", classes_jsa);
-        ph->core->classes_jsa_fd = -1;
-        return false;
-      } else {
-        print_debug("opened %s\n", classes_jsa);
-      }
-
-      // read CDSFileMapHeaderBase from the file
-      memset(&header, 0, sizeof(CDSFileMapHeaderBase));
-      if ((n = read(fd, &header, sizeof(CDSFileMapHeaderBase)))
-           != sizeof(CDSFileMapHeaderBase)) {
-        print_debug("can't read shared archive file map header from %s\n", classes_jsa);
-        close(fd);
-        return false;
-      }
-
-      // check file magic
-      if (header._magic != CDS_ARCHIVE_MAGIC) {
-        print_debug("%s has bad shared archive file magic number 0x%x, expecting 0x%x\n",
-                    classes_jsa, header._magic, CDS_ARCHIVE_MAGIC);
-        close(fd);
-        return false;
-      }
-
-      // check version
-      if (header._version != CURRENT_CDS_ARCHIVE_VERSION) {
-        print_debug("%s has wrong shared archive file version %d, expecting %d\n",
-                     classes_jsa, header._version, CURRENT_CDS_ARCHIVE_VERSION);
-        close(fd);
-        return false;
-      }
-
-      ph->core->classes_jsa_fd = fd;
-      // add read-only maps from classes.jsa to the list of maps
-      for (m = 0; m < NUM_CDS_REGIONS; m++) {
-        if (header._space[m]._read_only) {
-          base = (uintptr_t) header._space[m]._addr._base;
-          // no need to worry about the fractional pages at-the-end.
-          // possible fractional pages are handled by core_read_data.
-          add_class_share_map_info(ph, (off_t) header._space[m]._file_offset,
-                                   base, (size_t) header._space[m]._used);
-          print_debug("added a share archive map at 0x%lx\n", base);
-        }
-      }
-      return true;
-   }
-   lib = lib->next;
-  }
-  return true;
-}
 
 //---------------------------------------------------------------------------
 // functions to handle map_info
@@ -567,18 +242,20 @@ static bool read_core_segments(struct ps_prochandle* ph) {
       goto err;
     }
     offset += lcmd.cmdsize;    // next command position
+    //print_debug("LC: 0x%x\n", lcmd.cmd);
     if (lcmd.cmd == LC_SEGMENT_64) {
       lseek(fd, -sizeof(load_command), SEEK_CUR);
       if (read(fd, (void *)&segcmd, sizeof(segment_command_64)) != sizeof(segment_command_64)) {
         print_debug("failed to read LC_SEGMENT_64 i = %d!\n", i);
         goto err;
       }
-      if (add_map_info(ph, fd, segcmd.fileoff, segcmd.vmaddr, segcmd.vmsize) == NULL) {
+      if (add_map_info(ph, fd, segcmd.fileoff, segcmd.vmaddr, segcmd.vmsize, segcmd.flags) == NULL) {
         print_debug("Failed to add map_info at i = %d\n", i);
         goto err;
       }
-      print_debug("segment added: %" PRIu64 " 0x%" PRIx64 " %d\n",
-                   segcmd.fileoff, segcmd.vmaddr, segcmd.vmsize);
+      print_debug("LC_SEGMENT_64 added: nsects=%d fileoff=0x%llx vmaddr=0x%llx vmsize=0x%llx filesize=0x%llx %s\n",
+                  segcmd.nsects, segcmd.fileoff, segcmd.vmaddr, segcmd.vmsize,
+                  segcmd.filesize, &segcmd.segname[0]);
     } else if (lcmd.cmd == LC_THREAD || lcmd.cmd == LC_UNIXTHREAD) {
       typedef struct thread_fc {
         uint32_t  flavor;
@@ -659,85 +336,110 @@ err:
   return false;
 }
 
-/**local function **/
-bool exists(const char *fname) {
+static bool exists(const char *fname) {
   return access(fname, F_OK) == 0;
 }
 
-// we check: 1. lib
-//           2. lib/server
-//           3. jre/lib
-//           4. jre/lib/server
-// from: 1. exe path
-//       2. JAVA_HOME
-//       3. DYLD_LIBRARY_PATH
+// reverse strstr()
+static char* rstrstr(const char *str, const char *sub) {
+  char *result = NULL;
+  for (char *p = strstr(str, sub); p != NULL; p = strstr(p + 1, sub)) {
+    result = p;
+  }
+  return result;
+}
+
+// Check if <filename> exists in the <jdk_subdir> directory of <jdk_dir>.
+// Note <jdk_subdir> and  <filename> already have '/' prepended.
+static bool get_real_path_jdk_subdir(char* rpath, char* filename, char* jdk_dir, char* jdk_subdir) {
+  char  filepath[BUF_SIZE];
+  strncpy(filepath, jdk_dir, BUF_SIZE);
+  filepath[BUF_SIZE - 1] = '\0'; // just in case jdk_dir didn't fit
+  strncat(filepath, jdk_subdir, BUF_SIZE - 1 - strlen(filepath));
+  strncat(filepath, filename, BUF_SIZE - 1 - strlen(filepath));
+  if (exists(filepath)) {
+    strcpy(rpath, filepath);
+    return true;
+  }
+  return false;
+}
+
+// Look for <filename> in various subdirs of <jdk_dir>.
+static bool get_real_path_jdk_dir(char* rpath, char* filename, char* jdk_dir) {
+  if (get_real_path_jdk_subdir(rpath, filename, jdk_dir, "/lib")) {
+      return true;
+  }
+  if (get_real_path_jdk_subdir(rpath, filename, jdk_dir, "/lib/server")) {
+      return true;
+  }
+  if (get_real_path_jdk_subdir(rpath, filename, jdk_dir, "/jre/lib")) {
+      return true;
+  }
+  if (get_real_path_jdk_subdir(rpath, filename, jdk_dir, "/jre/lib/server")) {
+      return true;
+  }
+  return false;
+}
+
+// Get the file specified by rpath. We check various directories for it.
 static bool get_real_path(struct ps_prochandle* ph, char *rpath) {
-  /** check if they exist in JAVA ***/
   char* execname = ph->core->exec_path;
-  char  filepath[4096];
-  char* filename = strrchr(rpath, '/');               // like /libjvm.dylib
+  char jdk_dir[BUF_SIZE];
+  char* posbin;
+  char* filename = strrchr(rpath, '/'); // like /libjvm.dylib
   if (filename == NULL) {
     return false;
   }
 
-  char* posbin = strstr(execname, "/bin/java");
+  // First look for the library in 3 places where the JDK might be located. For each of
+  // these 3 potential JDK locations we look in lib, lib/server, jre/lib, and jre/lib/server.
+
+  posbin = rstrstr(execname, "/bin/java");
   if (posbin != NULL) {
-    memcpy(filepath, execname, posbin - execname);    // not include trailing '/'
-    filepath[posbin - execname] = '\0';
-  } else {
-    char* java_home = getenv("JAVA_HOME");
-    if (java_home != NULL) {
-      strcpy(filepath, java_home);
-    } else {
-      char* dyldpath = getenv("DYLD_LIBRARY_PATH");
-      char* dypath = strtok(dyldpath, ":");
-      while (dypath != NULL) {
-        strcpy(filepath, dypath);
-        strcat(filepath, filename);
-        if (exists(filepath)) {
-           strcpy(rpath, filepath);
-           return true;
-        }
-        dypath = strtok(dyldpath, ":");
-      }
-      // not found
-      return false;
+    strncpy(jdk_dir, execname, posbin - execname);
+    jdk_dir[posbin - execname] = '\0';
+    if (get_real_path_jdk_dir(rpath, filename, jdk_dir)) {
+      return true;
     }
   }
-  // for exec and java_home, jdkpath now is filepath
-  size_t filepath_base_size = strlen(filepath);
 
-  // first try /lib/ and /lib/server
-  strcat(filepath, "/lib");
-  strcat(filepath, filename);
-  if (exists(filepath)) {
-    strcpy(rpath, filepath);
-    return true;
-  }
-  char* pos = strstr(filepath, filename);    // like /libjvm.dylib
-  *pos = '\0';
-  strcat(filepath, "/server");
-  strcat(filepath, filename);
-  if (exists(filepath)) {
-    strcpy(rpath, filepath);
-    return true;
+  char* java_home = getenv("JAVA_HOME");
+  if (java_home != NULL) {
+    if (get_real_path_jdk_dir(rpath, filename, java_home)) {
+      return true;
+    }
   }
 
-  // then try /jre/lib/ and /jre/lib/server
-  filepath[filepath_base_size] = '\0';
-  strcat(filepath, "/jre/lib");
-  strcat(filepath, filename);
-  if (exists(filepath)) {
-    strcpy(rpath, filepath);
-    return true;
+  // Look for bin directory in path. This is useful when attaching to a core file
+  // that was launched with a JDK tool other than "java".
+  posbin = rstrstr(execname, "/bin/");  // look for the last occurence of "/bin/"
+  if (posbin != NULL) {
+    strncpy(jdk_dir, execname, posbin - execname);
+    jdk_dir[posbin - execname] = '\0';
+    if (get_real_path_jdk_dir(rpath, filename, jdk_dir)) {
+      return true;
+    }
   }
-  pos = strstr(filepath, filename);
-  *pos = '\0';
-  strcat(filepath, "/server");
-  strcat(filepath, filename);
-  if (exists(filepath)) {
-    strcpy(rpath, filepath);
-    return true;
+
+  // If we didn't find the library in any of the 3 above potential JDK locations, then look in
+  // DYLD_LIBRARY_PATH. This is where user libraries might be. We don't treat these
+  // paths as JDK paths, so we don't append the  various JDK subdirs like lib/server.
+  // However, that doesn't preclude JDK libraries from actually being in one of the paths.
+  char* dyldpath = getenv("DYLD_LIBRARY_PATH");
+  if (dyldpath != NULL) {
+    char* save_ptr;
+    char  filepath[BUF_SIZE];
+    char* dypath = strtok_r(dyldpath, ":", &save_ptr);
+    while (dypath != NULL) {
+      strncpy(filepath, dypath, BUF_SIZE);
+      filepath[BUF_SIZE - 1] = '\0'; // just in case dypath didn't fit
+      strncat(filepath, filename, BUF_SIZE - 1 - strlen(filepath));
+      if (exists(filepath)) {
+        strcpy(rpath, filepath);
+        return true;
+      }
+      dypath = strtok_r(NULL, ":", &save_ptr);
+    }
   }
 
   return false;
@@ -765,7 +467,7 @@ static bool read_shared_lib_info(struct ps_prochandle* ph) {
       // only search core file!
       continue;
     }
-    print_debug("map_info %d: vmaddr = 0x%016" PRIx64 "  fileoff = %" PRIu64 "  vmsize = %" PRIu64 "\n",
+    print_debug("map_info %d: vmaddr = 0x%016llx fileoff = 0x%llx vmsize = 0x%lx\n",
                            j, iter->vaddr, iter->offset, iter->memsz);
     lseek(fd, fpos, SEEK_SET);
     // we assume .dylib loaded at segment address --- which is true for JVM libraries
@@ -789,7 +491,7 @@ static bool read_shared_lib_info(struct ps_prochandle* ph) {
         continue;
       }
       lseek(fd, -sizeof(uint32_t), SEEK_CUR);
-      // this is the file begining to core file.
+      // This is the begining of the mach-o file in the segment.
       if (read(fd, (void *)&header, sizeof(mach_header_64)) != sizeof(mach_header_64)) {
         goto err;
       }
@@ -822,18 +524,26 @@ static bool read_shared_lib_info(struct ps_prochandle* ph) {
             if (name[j] == '\0') break;
             j++;
           }
-          print_debug("%s\n", name);
+          print_debug("%d %s\n", lcmd.cmd, name);
           // changed name from @rpath/xxxx.dylib to real path
           if (strrchr(name, '@')) {
             get_real_path(ph, name);
             print_debug("get_real_path returned: %s\n", name);
+          } else {
+            break; // Ignore non-relative paths, which are system libs. See JDK-8249779.
           }
           add_lib_info(ph, name, iter->vaddr);
           break;
         }
       }
       // done with the file, advanced to next page to search more files
+#if 0
+      // This line is disabled due to JDK-8249779. Instead we break out of the loop
+      // and don't attempt to find any more mach-o files in this segment.
       fpos = (ltell(fd) + pagesize - 1) / pagesize * pagesize;
+#else
+      break;
+#endif
     }
   }
   return true;
@@ -878,13 +588,13 @@ struct ps_prochandle* Pgrab_core(const char* exec_file, const char* core_file) {
   ph->core->exec_fd   = -1;
   ph->core->interp_fd = -1;
 
-  print_debug("exec: %s   core: %s", exec_file, core_file);
+  print_debug("exec: %s   core: %s\n", exec_file, core_file);
 
   strncpy(ph->core->exec_path, exec_file, sizeof(ph->core->exec_path));
 
   // open the core file
   if ((ph->core->core_fd = open(core_file, O_RDONLY)) < 0) {
-    print_error("can't open core file\n");
+    print_error("can't open core file: %s\n", strerror(errno));
     goto err;
   }
 
@@ -961,7 +671,7 @@ static bool core_handle_prstatus(struct ps_prochandle* ph, const char* buf, size
 
    if (is_debug()) {
       print_debug("integer regset\n");
-#ifdef i386
+#if defined(i586) || defined(i386)
       // print the regset
       print_debug("\teax = 0x%x\n", newthr->regs.r_eax);
       print_debug("\tebx = 0x%x\n", newthr->regs.r_ebx);
@@ -1103,7 +813,7 @@ static bool read_core_segments(struct ps_prochandle* ph, ELF_EHDR* core_ehdr) {
          case PT_LOAD: {
             if (core_php->p_filesz != 0) {
                if (add_map_info(ph, ph->core->core_fd, core_php->p_offset,
-                  core_php->p_vaddr, core_php->p_filesz) == NULL) goto err;
+                  core_php->p_vaddr, core_php->p_filesz, core_php->p_flags) == NULL) goto err;
             }
             break;
          }
@@ -1142,7 +852,7 @@ static bool read_lib_segments(struct ps_prochandle* ph, int lib_fd, ELF_EHDR* li
 
       if (existing_map == NULL){
         if (add_map_info(ph, lib_fd, lib_php->p_offset,
-                          target_vaddr, lib_php->p_filesz) == NULL) {
+                          target_vaddr, lib_php->p_filesz, lib_php->p_flags) == NULL) {
           goto err;
         }
       } else {
@@ -1208,7 +918,7 @@ static bool read_exec_segments(struct ps_prochandle* ph, ELF_EHDR* exec_ehdr) {
          case PT_LOAD: {
             // add only non-writable segments of non-zero filesz
             if (!(exec_php->p_flags & PF_W) && exec_php->p_filesz != 0) {
-               if (add_map_info(ph, ph->core->exec_fd, exec_php->p_offset, exec_php->p_vaddr, exec_php->p_filesz) == NULL) goto err;
+               if (add_map_info(ph, ph->core->exec_fd, exec_php->p_offset, exec_php->p_vaddr, exec_php->p_filesz, exec_php->p_flags) == NULL) goto err;
             }
             break;
          }

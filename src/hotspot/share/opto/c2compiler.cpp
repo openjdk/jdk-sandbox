@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "runtime/handles.inline.hpp"
 #include "jfr/support/jfrIntrinsics.hpp"
 #include "opto/c2compiler.hpp"
 #include "opto/compile.hpp"
@@ -83,6 +84,7 @@ bool C2Compiler::init_c2_runtime() {
 }
 
 void C2Compiler::initialize() {
+  assert(!is_c1_or_interpreter_only(), "C2 compiler is launched, it's not c1/interpreter only mode");
   // The first compiler thread that gets here will initialize the
   // small amount of global state (and runtime stubs) that C2 needs.
 
@@ -97,16 +99,17 @@ void C2Compiler::initialize() {
   }
 }
 
-void C2Compiler::compile_method(ciEnv* env, ciMethod* target, int entry_bci, DirectiveSet* directive) {
+void C2Compiler::compile_method(ciEnv* env, ciMethod* target, int entry_bci, bool install_code, DirectiveSet* directive) {
   assert(is_initialized(), "Compiler thread must be initialized");
 
   bool subsume_loads = SubsumeLoads;
-  bool do_escape_analysis = DoEscapeAnalysis && !env->should_retain_local_variables();
+  bool do_escape_analysis = DoEscapeAnalysis && !env->should_retain_local_variables()
+                                             && !env->jvmti_can_get_owned_monitor_info();
   bool eliminate_boxing = EliminateAutoBox;
 
   while (!env->failing()) {
     // Attempt to compile while subsuming loads into machine instructions.
-    Compile C(env, this, target, entry_bci, subsume_loads, do_escape_analysis, eliminate_boxing, directive);
+    Compile C(env, target, entry_bci, subsume_loads, do_escape_analysis, eliminate_boxing, install_code, directive);
 
     // Check result and retry if appropriate.
     if (C.failure_reason() != NULL) {
@@ -148,7 +151,6 @@ void C2Compiler::compile_method(ciEnv* env, ciMethod* target, int entry_bci, Dir
         continue;  // retry
       }
     }
-
     // print inlining for last compilation only
     C.dump_print_inlining();
 
@@ -452,6 +454,20 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method, bool is_virt
   case vmIntrinsics::_minD:
     if (!Matcher::match_rule_supported(Op_MinD)) return false;
     break;
+  case vmIntrinsics::_writeback0:
+    if (!Matcher::match_rule_supported(Op_CacheWB)) return false;
+    break;
+  case vmIntrinsics::_writebackPreSync0:
+    if (!Matcher::match_rule_supported(Op_CacheWBPreSync)) return false;
+    break;
+  case vmIntrinsics::_writebackPostSync0:
+    if (!Matcher::match_rule_supported(Op_CacheWBPostSync)) return false;
+    break;
+  case vmIntrinsics::_rint:
+  case vmIntrinsics::_ceil:
+  case vmIntrinsics::_floor:
+    if (!Matcher::match_rule_supported(Op_RoundDoubleMode)) return false;
+    break;
   case vmIntrinsics::_hashCode:
   case vmIntrinsics::_identityHashCode:
   case vmIntrinsics::_getClass:
@@ -459,6 +475,9 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method, bool is_virt
   case vmIntrinsics::_dcos:
   case vmIntrinsics::_dtan:
   case vmIntrinsics::_dabs:
+  case vmIntrinsics::_fabs:
+  case vmIntrinsics::_iabs:
+  case vmIntrinsics::_labs:
   case vmIntrinsics::_datan2:
   case vmIntrinsics::_dsqrt:
   case vmIntrinsics::_dexp:
@@ -563,7 +582,6 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method, bool is_virt
   case vmIntrinsics::_storeFence:
   case vmIntrinsics::_fullFence:
   case vmIntrinsics::_currentThread:
-  case vmIntrinsics::_isInterrupted:
 #ifdef JFR_HAVE_INTRINSICS
   case vmIntrinsics::_counterTime:
   case vmIntrinsics::_getClassId:
@@ -584,6 +602,7 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method, bool is_virt
   case vmIntrinsics::_isInterface:
   case vmIntrinsics::_isArray:
   case vmIntrinsics::_isPrimitive:
+  case vmIntrinsics::_isHidden:
   case vmIntrinsics::_getSuperclass:
   case vmIntrinsics::_getClassAccessFlags:
   case vmIntrinsics::_floatToRawIntBits:
@@ -598,7 +617,10 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method, bool is_virt
   case vmIntrinsics::_aescrypt_decryptBlock:
   case vmIntrinsics::_cipherBlockChaining_encryptAESCrypt:
   case vmIntrinsics::_cipherBlockChaining_decryptAESCrypt:
+  case vmIntrinsics::_electronicCodeBook_encryptAESCrypt:
+  case vmIntrinsics::_electronicCodeBook_decryptAESCrypt:
   case vmIntrinsics::_counterMode_AESCrypt:
+  case vmIntrinsics::_md5_implCompress:
   case vmIntrinsics::_sha_implCompress:
   case vmIntrinsics::_sha2_implCompress:
   case vmIntrinsics::_sha5_implCompress:
@@ -608,6 +630,8 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method, bool is_virt
   case vmIntrinsics::_mulAdd:
   case vmIntrinsics::_montgomeryMultiply:
   case vmIntrinsics::_montgomerySquare:
+  case vmIntrinsics::_bigIntegerRightShiftWorker:
+  case vmIntrinsics::_bigIntegerLeftShiftWorker:
   case vmIntrinsics::_vectorizedMismatch:
   case vmIntrinsics::_ghash_processBlocks:
   case vmIntrinsics::_base64_encodeBlock:
@@ -630,7 +654,7 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method, bool is_virt
 
 int C2Compiler::initial_code_buffer_size(int const_size) {
   // See Compile::init_scratch_buffer_blob
-  int locs_size = sizeof(relocInfo) * Compile::MAX_locs_size;
+  int locs_size = sizeof(relocInfo) * PhaseOutput::MAX_locs_size;
   int slop = 2 * CodeSection::end_slop(); // space between sections
-  return Compile::MAX_inst_size + Compile::MAX_stubs_size + const_size + slop + locs_size;
+  return PhaseOutput::MAX_inst_size + PhaseOutput::MAX_stubs_size + const_size + slop + locs_size;
 }

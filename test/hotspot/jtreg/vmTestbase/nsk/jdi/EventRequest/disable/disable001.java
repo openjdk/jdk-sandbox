@@ -151,12 +151,6 @@ public class disable001 {
     static int  testExitCode = PASSED;
 
 
-    class JDITestRuntimeException extends RuntimeException {
-        JDITestRuntimeException(String str) {
-            super("JDITestRuntimeException : " + str);
-        }
-    }
-
     //------------------------------------------------------ methods
 
     private int runThis (String argv[], PrintStream out) {
@@ -299,7 +293,7 @@ public class disable001 {
         String bPointMethod = "methodForCommunication";
         String lineForComm  = "lineForComm";
 
-        ThreadReference   mainThread = threadByName("main");
+        ThreadReference   mainThread = debuggee.threadByNameOrThrow("main");
 
         BreakpointRequest bpRequest = settingBreakpoint(mainThread,
                                              debuggeeClass,
@@ -343,7 +337,7 @@ public class disable001 {
             switch (i) {
 
               case 0:
-                     thread1 = threadByName(threadName1);
+                     thread1 = debuggee.threadByNameOrThrow(threadName1);
 
                      log2("......setting up StepRequest");
                      eventRequest1 = eventRManager.createStepRequest
@@ -417,6 +411,7 @@ public class disable001 {
                       throw new JDITestRuntimeException("** default case 2 **");
             }
 
+            vm.suspend();
             log2("......eventRequest1.setEnabled(true);");
             eventRequest1.setEnabled(true);
 
@@ -429,25 +424,12 @@ public class disable001 {
                 log3("ERROR: EventRequest is still enabled");
             }
             eventRequest1.setEnabled(false);
+            vm.resume();
 
             //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         }
         log1("    TESTING ENDS");
         return;
-    }
-
-    private ThreadReference threadByName(String name)
-                 throws JDITestRuntimeException {
-
-        List         all = vm.allThreads();
-        ListIterator li  = all.listIterator();
-
-        for (; li.hasNext(); ) {
-            ThreadReference thread = (ThreadReference) li.next();
-            if (thread.name().equals(name))
-                return thread;
-        }
-        throw new JDITestRuntimeException("** Thread IS NOT found ** : " + name);
     }
 
    /*

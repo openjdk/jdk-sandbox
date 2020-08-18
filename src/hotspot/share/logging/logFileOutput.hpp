@@ -54,6 +54,7 @@ class LogFileOutput : public LogFileStreamOutput {
   uint  _current_file;
   uint  _file_count;
   uint  _file_count_max_digits;
+  bool  _is_default_file_count;
 
   size_t  _archive_name_len;
   size_t  _rotate_size;
@@ -91,6 +92,7 @@ class LogFileOutput : public LogFileStreamOutput {
     return _name;
   }
 
+  const char* cur_log_file_name();
   static const char* const Prefix;
   static void set_file_name_parameters(jlong start_time);
 };

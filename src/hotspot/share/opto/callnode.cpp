@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,7 @@
 #include "opto/regmask.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 // Portions of code courtesy of Clifford Click
 
@@ -49,7 +50,7 @@
 
 //=============================================================================
 uint StartNode::size_of() const { return sizeof(*this); }
-uint StartNode::cmp( const Node &n ) const
+bool StartNode::cmp( const Node &n ) const
 { return _domain == ((StartNode&)n)._domain; }
 const Type *StartNode::bottom_type() const { return _domain; }
 const Type* StartNode::Value(PhaseGVN* phase) const { return _domain; }
@@ -666,7 +667,7 @@ int JVMState::interpreter_frame_size() const {
 }
 
 //=============================================================================
-uint CallNode::cmp( const Node &n ) const
+bool CallNode::cmp( const Node &n ) const
 { return _tf == ((CallNode&)n)._tf && _jvms == ((CallNode&)n)._jvms; }
 #ifndef PRODUCT
 void CallNode::dump_req(outputStream *st) const {
@@ -962,11 +963,26 @@ bool CallNode::is_call_to_arraycopystub() const {
 
 //=============================================================================
 uint CallJavaNode::size_of() const { return sizeof(*this); }
-uint CallJavaNode::cmp( const Node &n ) const {
+bool CallJavaNode::cmp( const Node &n ) const {
   CallJavaNode &call = (CallJavaNode&)n;
   return CallNode::cmp(call) && _method == call._method &&
          _override_symbolic_info == call._override_symbolic_info;
 }
+#ifdef ASSERT
+bool CallJavaNode::validate_symbolic_info() const {
+  if (method() == NULL) {
+    return true; // call into runtime or uncommon trap
+  }
+  ciMethod* symbolic_info = jvms()->method()->get_method_at_bci(_bci);
+  ciMethod* callee = method();
+  if (symbolic_info->is_method_handle_intrinsic() && !callee->is_method_handle_intrinsic()) {
+    assert(override_symbolic_info(), "should be set");
+  }
+  assert(ciMethod::is_consistent_info(symbolic_info, callee), "inconsistent info");
+  return true;
+}
+#endif
+
 #ifndef PRODUCT
 void CallJavaNode::dump_spec(outputStream *st) const {
   if( _method ) _method->print_short_name(st);
@@ -984,7 +1000,7 @@ void CallJavaNode::dump_compact_spec(outputStream* st) const {
 
 //=============================================================================
 uint CallStaticJavaNode::size_of() const { return sizeof(*this); }
-uint CallStaticJavaNode::cmp( const Node &n ) const {
+bool CallStaticJavaNode::cmp( const Node &n ) const {
   CallStaticJavaNode &call = (CallStaticJavaNode&)n;
   return CallJavaNode::cmp(call);
 }
@@ -1041,7 +1057,7 @@ void CallStaticJavaNode::dump_compact_spec(outputStream* st) const {
 
 //=============================================================================
 uint CallDynamicJavaNode::size_of() const { return sizeof(*this); }
-uint CallDynamicJavaNode::cmp( const Node &n ) const {
+bool CallDynamicJavaNode::cmp( const Node &n ) const {
   CallDynamicJavaNode &call = (CallDynamicJavaNode&)n;
   return CallJavaNode::cmp(call);
 }
@@ -1054,7 +1070,7 @@ void CallDynamicJavaNode::dump_spec(outputStream *st) const {
 
 //=============================================================================
 uint CallRuntimeNode::size_of() const { return sizeof(*this); }
-uint CallRuntimeNode::cmp( const Node &n ) const {
+bool CallRuntimeNode::cmp( const Node &n ) const {
   CallRuntimeNode &call = (CallRuntimeNode&)n;
   return CallNode::cmp(call) && !strcmp(_name,call._name);
 }
@@ -1103,7 +1119,7 @@ void SafePointNode::set_local(JVMState* jvms, uint idx, Node *c) {
 }
 
 uint SafePointNode::size_of() const { return sizeof(*this); }
-uint SafePointNode::cmp( const Node &n ) const {
+bool SafePointNode::cmp( const Node &n ) const {
   return (&n == this);          // Always fail except on self
 }
 
@@ -1265,9 +1281,6 @@ Node *SafePointNode::peek_monitor_obj() const {
 
 // Do we Match on this edge index or not?  Match no edges
 uint SafePointNode::match_edge(uint idx) const {
-  if( !needs_polling_address_input() )
-    return 0;
-
   return (TypeFunc::Parms == idx);
 }
 
@@ -1299,7 +1312,7 @@ SafePointScalarObjectNode::SafePointScalarObjectNode(const TypeOopPtr* tp,
 
 // Do not allow value-numbering for SafePointScalarObject node.
 uint SafePointScalarObjectNode::hash() const { return NO_HASH; }
-uint SafePointScalarObjectNode::cmp( const Node &n ) const {
+bool SafePointScalarObjectNode::cmp( const Node &n ) const {
   return (&n == this); // Always fail except on self
 }
 
@@ -1382,6 +1395,18 @@ void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
     _is_allocation_MemBar_redundant = true;
   }
 }
+Node *AllocateNode::make_ideal_mark(PhaseGVN *phase, Node* obj, Node* control, Node* mem) {
+  Node* mark_node = NULL;
+  // For now only enable fast locking for non-array types
+  if (UseBiasedLocking && Opcode() == Op_Allocate) {
+    Node* klass_node = in(AllocateNode::KlassNode);
+    Node* proto_adr = phase->transform(new AddPNode(klass_node, klass_node, phase->MakeConX(in_bytes(Klass::prototype_header_offset()))));
+    mark_node = LoadNode::make(*phase, control, mem, proto_adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+  } else {
+    mark_node = phase->MakeConX(markWord::prototype().value());
+  }
+  return mark_node;
+}
 
 //=============================================================================
 Node* AllocateArrayNode::Ideal(PhaseGVN *phase, bool can_reshape) {
@@ -1416,7 +1441,7 @@ Node* AllocateArrayNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         Node *frame = new ParmNode( phase->C->start(), TypeFunc::FramePtr );
         frame = phase->transform(frame);
         // Halt & Catch Fire
-        Node *halt = new HaltNode( nproj, frame );
+        Node* halt = new HaltNode(nproj, frame, "unexpected negative array length");
         phase->C->root()->add_req(halt);
         phase->transform(halt);
 
@@ -2069,4 +2094,3 @@ bool CallNode::may_modify_arraycopy_helper(const TypeOopPtr* dest_t, const TypeO
 
   return true;
 }
-

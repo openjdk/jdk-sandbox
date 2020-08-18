@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,43 +28,12 @@
 #include <jni.h>
 #include <unistd.h>
 #include <stdint.h>
-#include "proc_service.h"
 
+#include <sys/procfs.h>
 #include <sys/ptrace.h>
 
-/************************************************************************************
 
-0. This is very minimal subset of Solaris libproc just enough for current application.
-Please note that the bulk of the functionality is from proc_service interface. This
-adds Pgrab__ and some missing stuff. We hide the difference b/w live process and core
-file by this interface.
-
-1. pthread_id unique in both NPTL & LinuxThreads. We store this in
-OSThread::_pthread_id in JVM code.
-
-2. All threads see the same pid when they call getpid() under NPTL.
-Threads receive different pid under LinuxThreads. We used to save the result of
-::getpid() call in OSThread::_thread_id. This way uniqueness of OSThread::_thread_id
-was lost under NPTL. Now, we store the result of ::gettid() call in
-OSThread::_thread_id. Because gettid returns actual pid of thread (lwp id), this is
-unique again. We therefore use OSThread::_thread_id as unique identifier.
-
-3. There is a unique LWP id under both thread libraries. libthread_db  maps pthread_id
-to its underlying lwp_id under both the thread libraries. thread_info.lwp_id stores
-lwp_id of the thread. The lwp id is nothing but the actual pid of clone'd processes. But
-unfortunately libthread_db does not work very well for core dumps. So, we get pthread_id
-only for processes. For core dumps, we don't use libthread_db at all (like gdb).
-
-4. ptrace operates on this LWP id under both the thread libraries. When we say 'pid' for
-ptrace call, we refer to lwp_id of the thread.
-
-5. for core file, we parse ELF files and read data from them. For processes we  use
-combination of ptrace and /proc calls.
-
-*************************************************************************************/
-
-
-#if defined(sparc) || defined(sparcv9) || defined(ppc64) || defined(ppc64le)
+#if defined(ppc64) || defined(ppc64le)
 #include <asm/ptrace.h>
 #define user_regs_struct  pt_regs
 #endif
@@ -78,16 +47,22 @@ combination of ptrace and /proc calls.
 
 // This C bool type must be int for compatibility with Linux calls and
 // it would be a mistake to equivalence it to C++ bool on many platforms
-
+#ifndef __cplusplus
 typedef int bool;
 #define true  1
 #define false 0
+#endif
 
 struct ps_prochandle;
+struct lib_info;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // attach to a process
 JNIEXPORT struct ps_prochandle* JNICALL
-Pgrab(pid_t pid, char* err_buf, size_t err_buf_len, bool is_in_container);
+Pgrab(pid_t pid, char* err_buf, size_t err_buf_len);
 
 // attach to a core dump
 JNIEXPORT struct ps_prochandle* JNICALL
@@ -125,6 +100,9 @@ uintptr_t get_lib_base(struct ps_prochandle* ph, int index);
 // returns true if given library is found in lib list
 bool find_lib(struct ps_prochandle* ph, const char *lib_name);
 
+// returns lib which contains pc
+struct lib_info *find_lib_by_address(struct ps_prochandle* ph, uintptr_t pc);
+
 // symbol lookup
 uintptr_t lookup_symbol(struct ps_prochandle* ph,  const char* object_name,
                        const char* sym_name);
@@ -135,5 +113,9 @@ const char* symbol_for_pc(struct ps_prochandle* ph, uintptr_t addr, uintptr_t* p
 struct ps_prochandle* get_proc_handle(JNIEnv* env, jobject this_obj);
 
 void throw_new_debugger_exception(JNIEnv* env, const char* errMsg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //__LIBPROC_H_

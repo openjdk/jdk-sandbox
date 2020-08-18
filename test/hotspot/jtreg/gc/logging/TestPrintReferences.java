@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,20 +21,21 @@
  * questions.
  */
 
+package gc.logging;
+
 /*
  * @test TestPrintReferences
  * @bug 8136991 8186402 8186465 8188245
  * @summary Validate the reference processing logging
- * @key gc
+ * @requires vm.gc.G1
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
+ * @run driver gc.logging.TestPrintReferences
  */
 
 import java.lang.ref.SoftReference;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 import java.util.regex.Pattern;
@@ -54,9 +55,6 @@ public class TestPrintReferences {
     static final String phaseNotifyKeepAliveFinalizer = "Notify and keep alive finalizable";
     static final String phaseNotifyPhantomReferences  = "Notify PhantomReferences";
 
-    static final String phase1 = "Phase1";
-    static final String phase2 = "Phase2";
-    static final String phase3 = "Phase3";
     static final String gcLogTimeRegex = ".* GC\\([0-9]+\\) ";
 
     public static void main(String[] args) throws Exception {
@@ -130,7 +128,6 @@ public class TestPrintReferences {
 
     // Find the first Reference Processing log and check its format.
     private static void checkLogFormat(OutputAnalyzer output, boolean parallelRefProcEnabled) {
-        String countRegex = "[0-9]+";
         String timeRegex = doubleRegex + "ms";
 
         /* Total Reference processing time */

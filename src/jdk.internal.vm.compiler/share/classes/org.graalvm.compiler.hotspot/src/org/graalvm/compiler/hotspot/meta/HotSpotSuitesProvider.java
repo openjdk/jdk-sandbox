@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,8 +39,6 @@ import org.graalvm.compiler.hotspot.HotSpotInstructionProfiling;
 import org.graalvm.compiler.hotspot.lir.VerifyMaxRegisterSizePhase;
 import org.graalvm.compiler.hotspot.phases.AheadOfTimeVerificationPhase;
 import org.graalvm.compiler.hotspot.phases.LoadJavaMirrorWithKlassPhase;
-import org.graalvm.compiler.hotspot.phases.WriteBarrierAdditionPhase;
-import org.graalvm.compiler.hotspot.phases.WriteBarrierVerificationPhase;
 import org.graalvm.compiler.hotspot.phases.aot.AOTInliningPolicy;
 import org.graalvm.compiler.hotspot.phases.aot.EliminateRedundantInitializationPhase;
 import org.graalvm.compiler.hotspot.phases.aot.ReplaceConstantNodesPhase;
@@ -61,6 +59,7 @@ import org.graalvm.compiler.phases.common.CanonicalizerPhase;
 import org.graalvm.compiler.phases.common.LoweringPhase;
 import org.graalvm.compiler.phases.common.inlining.InliningPhase;
 import org.graalvm.compiler.phases.tiers.HighTierContext;
+import org.graalvm.compiler.phases.tiers.LowTierContext;
 import org.graalvm.compiler.phases.tiers.MidTierContext;
 import org.graalvm.compiler.phases.tiers.Suites;
 import org.graalvm.compiler.phases.tiers.SuitesCreator;
@@ -87,11 +86,15 @@ public class HotSpotSuitesProvider extends SuitesProviderBase {
         Suites ret = defaultSuitesCreator.createSuites(options);
 
         if (ImmutableCode.getValue(options)) {
+            ListIterator<BasePhase<? super MidTierContext>> midTierLowering = ret.getMidTier().findPhase(LoweringPhase.class);
+
             // lowering introduces class constants, therefore it must be after lowering
-            ret.getHighTier().appendPhase(new LoadJavaMirrorWithKlassPhase(config));
+            midTierLowering.add(new LoadJavaMirrorWithKlassPhase(config));
+
             if (VerifyPhases.getValue(options)) {
-                ret.getHighTier().appendPhase(new AheadOfTimeVerificationPhase());
+                midTierLowering.add(new AheadOfTimeVerificationPhase());
             }
+
             if (GeneratePIC.getValue(options)) {
                 ListIterator<BasePhase<? super HighTierContext>> highTierLowering = ret.getHighTier().findPhase(LoweringPhase.class);
                 highTierLowering.previous();
@@ -99,8 +102,11 @@ public class HotSpotSuitesProvider extends SuitesProviderBase {
                 if (HotSpotAOTProfilingPlugin.Options.TieredAOT.getValue(options)) {
                     highTierLowering.add(new FinalizeProfileNodesPhase(HotSpotAOTProfilingPlugin.Options.TierAInvokeInlineeNotifyFreqLog.getValue(options)));
                 }
-                ListIterator<BasePhase<? super MidTierContext>> midTierLowering = ret.getMidTier().findPhase(LoweringPhase.class);
-                midTierLowering.add(new ReplaceConstantNodesPhase());
+                midTierLowering.add(new ReplaceConstantNodesPhase(true));
+
+                // Replace possible constants after GC barrier expansion.
+                ListIterator<BasePhase<? super LowTierContext>> lowTierLowering = ret.getLowTier().findPhase(LoweringPhase.class);
+                lowTierLowering.add(new ReplaceConstantNodesPhase(false));
 
                 // Replace inlining policy
                 if (Inline.getValue(options)) {
@@ -110,11 +116,6 @@ public class HotSpotSuitesProvider extends SuitesProviderBase {
                     iter.set(new InliningPhase(new AOTInliningPolicy(null), canonicalizer));
                 }
             }
-        }
-
-        ret.getMidTier().appendPhase(new WriteBarrierAdditionPhase(config));
-        if (VerifyPhases.getValue(options)) {
-            ret.getMidTier().appendPhase(new WriteBarrierVerificationPhase(config));
         }
 
         return ret;
@@ -142,8 +143,7 @@ public class HotSpotSuitesProvider extends SuitesProviderBase {
 
                 StructuredGraph targetGraph = new StructuredGraph.Builder(graph.getOptions(), graph.getDebug(), AllowAssumptions.YES).method(graph.method()).trackNodeSourcePosition(
                                 graph.trackNodeSourcePosition()).build();
-                SimplifyingGraphDecoder graphDecoder = new SimplifyingGraphDecoder(runtime.getTarget().arch, targetGraph, context.getMetaAccess(), context.getConstantReflection(),
-                                context.getConstantFieldProvider(), context.getStampProvider(), !ImmutableCode.getValue(graph.getOptions()));
+                SimplifyingGraphDecoder graphDecoder = new SimplifyingGraphDecoder(runtime.getTarget().arch, targetGraph, context, !ImmutableCode.getValue(graph.getOptions()));
                 graphDecoder.decode(encodedGraph);
             }
 
@@ -176,7 +176,7 @@ public class HotSpotSuitesProvider extends SuitesProviderBase {
         if (profileInstructions != null) {
             suites.getPostAllocationOptimizationStage().appendPhase(new HotSpotInstructionProfiling(profileInstructions));
         }
-        if (Assertions.detailedAssertionsEnabled(options)) {
+        if (Assertions.assertionsEnabled()) {
             suites.getPostAllocationOptimizationStage().appendPhase(new VerifyMaxRegisterSizePhase(config.maxVectorSize));
         }
         return suites;

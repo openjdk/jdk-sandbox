@@ -26,15 +26,14 @@
 #define OS_POSIX_SEMAPHORE_POSIX_HPP
 
 #include "memory/allocation.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 #include <semaphore.h>
 
 class PosixSemaphore : public CHeapObj<mtInternal> {
   sem_t _semaphore;
 
-  // Prevent copying and assignment.
-  PosixSemaphore(const PosixSemaphore&);
-  PosixSemaphore& operator=(const PosixSemaphore&);
+  NONCOPYABLE(PosixSemaphore);
 
  public:
   PosixSemaphore(uint value = 0);
@@ -45,7 +44,10 @@ class PosixSemaphore : public CHeapObj<mtInternal> {
   void wait();
 
   bool trywait();
+  // wait until the given absolute time is reached
   bool timedwait(struct timespec ts);
+  // wait until the given relative time elapses
+  bool timedwait(int64_t millis);
 };
 
 typedef PosixSemaphore SemaphoreImpl;

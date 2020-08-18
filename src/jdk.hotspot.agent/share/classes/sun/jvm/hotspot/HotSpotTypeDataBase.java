@@ -116,8 +116,8 @@ public class HotSpotTypeDataBase extends BasicTypeDataBase {
 
         BasicType basicTargetType = createBasicType(cTypeName, false, false, false);
 
-        // transfer fields from GenericGrowableArray to template instance
-        BasicType generic = lookupOrFail("GenericGrowableArray");
+        // transfer fields from GrowableArrayBase to template instance
+        BasicType generic = lookupOrFail("GrowableArrayBase");
         BasicType specific = lookupOrFail("GrowableArray<int>");
         basicTargetType.setSize(specific.getSize());
         Iterator fields = generic.getFields();
@@ -655,14 +655,7 @@ public class HotSpotTypeDataBase extends BasicTypeDataBase {
       }
 
       if (isOopType) {
-        // HACK: turn markOop into a C integer type. This allows
-        // proper handling of it in the Serviceability Agent. (FIXME
-        // -- consider doing something different here)
-        if (typeName.equals("markOop")) {
-          type = new BasicCIntegerType(this, typeName, true);
-        } else {
-          type.setIsOopType(true);
-        }
+        type.setIsOopType(true);
       }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
  *
  * @summary DatagramSocket.send should throw exception when connected
  *  to an invalid destination (on platforms that support it).
+ * @run main/othervm -Djdk.net.usePlainDatagramSocketImpl=false SendDatagramToBadAddress
  */
 
 import java.net.*;
@@ -47,17 +48,7 @@ public class SendDatagramToBadAddress {
             return (true);
         if (p.getProperty ("os.name").startsWith ("Mac OS"))
             return (true);
-        // Check for specific Solaris version from here
-        v = p.getProperty ("os.arch");
-        if (!v.equalsIgnoreCase ("sparc"))
-            return (false);
-        v = p.getProperty ("os.name");
-        if (!v.equalsIgnoreCase ("Solaris") && !v.equalsIgnoreCase ("SunOS"))
-            return (false);
-        v = p.getProperty ("os.version");
-        if (v.equals ("5.8") || v.equals ("8"))
-            return (false);
-        return (true);
+        return false;
     }
 
     static void print (String s) {
@@ -110,13 +101,17 @@ public class SendDatagramToBadAddress {
     }
 
     public void run() throws Exception {
-
         if (OSsupportsFeature()) {
             print ("running on OS that supports ICMP port unreachable");
         }
-        String host = "127.0.0.1";
-        InetAddress addr = InetAddress.getByName(host);
-        DatagramSocket sock = new DatagramSocket();
+        try (DatagramSocket sock = new DatagramSocket()) {
+            test(sock);
+        }
+    }
+
+    private void test(DatagramSocket sock) throws Exception {
+        print("Testing with " + sock.getClass());
+        InetAddress addr = InetAddress.getLoopbackAddress();
         DatagramSocket serversock = new DatagramSocket(0);
         DatagramPacket p;
         byte[] buf;

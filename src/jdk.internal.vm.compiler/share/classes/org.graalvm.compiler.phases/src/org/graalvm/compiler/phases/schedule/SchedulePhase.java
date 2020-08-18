@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,6 +64,7 @@ import org.graalvm.compiler.nodes.IfNode;
 import org.graalvm.compiler.nodes.KillingBeginNode;
 import org.graalvm.compiler.nodes.LoopBeginNode;
 import org.graalvm.compiler.nodes.LoopExitNode;
+import org.graalvm.compiler.nodes.MultiKillingBeginNode;
 import org.graalvm.compiler.nodes.PhiNode;
 import org.graalvm.compiler.nodes.ProxyNode;
 import org.graalvm.compiler.nodes.StartNode;
@@ -81,7 +82,8 @@ import org.graalvm.compiler.nodes.cfg.ControlFlowGraph;
 import org.graalvm.compiler.nodes.cfg.HIRLoop;
 import org.graalvm.compiler.nodes.cfg.LocationSet;
 import org.graalvm.compiler.nodes.memory.FloatingReadNode;
-import org.graalvm.compiler.nodes.memory.MemoryCheckpoint;
+import org.graalvm.compiler.nodes.memory.MultiMemoryKill;
+import org.graalvm.compiler.nodes.memory.SingleMemoryKill;
 import org.graalvm.compiler.nodes.spi.ValueProxy;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.phases.Phase;
@@ -94,7 +96,7 @@ public final class SchedulePhase extends Phase {
         EARLIEST,
         LATEST,
         LATEST_OUT_OF_LOOPS,
-        FINAL_SCHEDULE;
+        LATEST_OUT_OF_LOOPS_IMPLICIT_NULL_CHECKS;
 
         public boolean isEarliest() {
             return this == EARLIEST || this == EARLIEST_WITH_GUARD_ORDER;
@@ -102,6 +104,14 @@ public final class SchedulePhase extends Phase {
 
         public boolean isLatest() {
             return !isEarliest();
+        }
+
+        public boolean scheduleOutOfLoops() {
+            return this == LATEST_OUT_OF_LOOPS || this == LATEST_OUT_OF_LOOPS_IMPLICIT_NULL_CHECKS;
+        }
+
+        public boolean considerImplicitNullChecks() {
+            return this == LATEST_OUT_OF_LOOPS_IMPLICIT_NULL_CHECKS;
         }
     }
 
@@ -198,7 +208,8 @@ public final class SchedulePhase extends Phase {
                 sortNodesLatestWithinBlock(cfg, earliestBlockToNodesMap, latestBlockToNodesMap, currentNodeMap, watchListMap, visited);
 
                 assert verifySchedule(cfg, latestBlockToNodesMap, currentNodeMap);
-                assert (!Assertions.detailedAssertionsEnabled(graph.getOptions())) || MemoryScheduleVerification.check(cfg.getStartBlock(), latestBlockToNodesMap);
+                assert (!Assertions.detailedAssertionsEnabled(graph.getOptions())) ||
+                                ScheduleVerification.check(cfg.getStartBlock(), latestBlockToNodesMap, currentNodeMap);
 
                 this.blockToNodesMap = latestBlockToNodesMap;
 
@@ -228,8 +239,14 @@ public final class SchedulePhase extends Phase {
                     } else {
                         Block latestBlock = null;
 
+                        if (currentBlock.getFirstDominated() == null && !(currentNode instanceof VirtualState)) {
+                            // This block doesn't dominate any other blocks =>
+                            // node must be scheduled in earliest block.
+                            latestBlock = currentBlock;
+                        }
+
                         LocationIdentity constrainingLocation = null;
-                        if (currentNode instanceof FloatingReadNode) {
+                        if (latestBlock == null && currentNode instanceof FloatingReadNode) {
                             // We are scheduling a floating read node => check memory
                             // anti-dependencies.
                             FloatingReadNode floatingReadNode = (FloatingReadNode) currentNode;
@@ -343,9 +360,22 @@ public final class SchedulePhase extends Phase {
                 lastBlock = currentBlock;
             }
 
-            if (lastBlock.getBeginNode() instanceof KillingBeginNode) {
-                LocationIdentity locationIdentity = ((KillingBeginNode) lastBlock.getBeginNode()).getLocationIdentity();
-                if ((locationIdentity.isAny() || locationIdentity.equals(location)) && lastBlock != earliestBlock) {
+            if (lastBlock != earliestBlock) {
+                boolean foundKill = false;
+                if (lastBlock.getBeginNode() instanceof KillingBeginNode) {
+                    LocationIdentity locationIdentity = ((KillingBeginNode) lastBlock.getBeginNode()).getKilledLocationIdentity();
+                    if (locationIdentity.isAny() || locationIdentity.equals(location)) {
+                        foundKill = true;
+                    }
+                } else if (lastBlock.getBeginNode() instanceof MultiKillingBeginNode) {
+                    for (LocationIdentity locationIdentity : ((MultiKillingBeginNode) lastBlock.getBeginNode()).getKilledLocationIdentities()) {
+                        if (locationIdentity.isAny() || locationIdentity.equals(location)) {
+                            foundKill = true;
+                            break;
+                        }
+                    }
+                }
+                if (foundKill) {
                     // The begin of this block kills the location, so we *have* to schedule the node
                     // in the dominating block.
                     lastBlock = lastBlock.getDominator();
@@ -359,14 +389,14 @@ public final class SchedulePhase extends Phase {
             if (!killed.isAny()) {
                 for (Node n : subList) {
                     // Check if this node kills a node in the watch list.
-                    if (n instanceof MemoryCheckpoint.Single) {
-                        LocationIdentity identity = ((MemoryCheckpoint.Single) n).getLocationIdentity();
+                    if (n instanceof SingleMemoryKill) {
+                        LocationIdentity identity = ((SingleMemoryKill) n).getKilledLocationIdentity();
                         killed.add(identity);
                         if (killed.isAny()) {
                             return;
                         }
-                    } else if (n instanceof MemoryCheckpoint.Multi) {
-                        for (LocationIdentity identity : ((MemoryCheckpoint.Multi) n).getLocationIdentities()) {
+                    } else if (n instanceof MultiMemoryKill) {
+                        for (LocationIdentity identity : ((MultiMemoryKill) n).getKilledLocationIdentities()) {
                             killed.add(identity);
                             if (killed.isAny()) {
                                 return;
@@ -456,11 +486,11 @@ public final class SchedulePhase extends Phase {
         private static void checkWatchList(Block b, NodeMap<Block> nodeMap, NodeBitMap unprocessed, ArrayList<Node> result, ArrayList<FloatingReadNode> watchList, Node n) {
             if (watchList != null && !watchList.isEmpty()) {
                 // Check if this node kills a node in the watch list.
-                if (n instanceof MemoryCheckpoint.Single) {
-                    LocationIdentity identity = ((MemoryCheckpoint.Single) n).getLocationIdentity();
+                if (n instanceof SingleMemoryKill) {
+                    LocationIdentity identity = ((SingleMemoryKill) n).getKilledLocationIdentity();
                     checkWatchList(watchList, identity, b, result, nodeMap, unprocessed);
-                } else if (n instanceof MemoryCheckpoint.Multi) {
-                    for (LocationIdentity identity : ((MemoryCheckpoint.Multi) n).getLocationIdentities()) {
+                } else if (n instanceof MultiMemoryKill) {
+                    for (LocationIdentity identity : ((MultiMemoryKill) n).getKilledLocationIdentities()) {
                         checkWatchList(watchList, identity, b, result, nodeMap, unprocessed);
                     }
                 }
@@ -544,7 +574,7 @@ public final class SchedulePhase extends Phase {
 
                 assert latestBlock != null : currentNode;
 
-                if (strategy == SchedulingStrategy.FINAL_SCHEDULE || strategy == SchedulingStrategy.LATEST_OUT_OF_LOOPS) {
+                if (strategy.scheduleOutOfLoops()) {
                     Block currentBlock = latestBlock;
                     while (currentBlock.getLoopDepth() > earliestBlock.getLoopDepth() && currentBlock != earliestBlock.getDominator()) {
                         Block previousCurrentBlock = currentBlock;
@@ -564,27 +594,25 @@ public final class SchedulePhase extends Phase {
                 }
             }
 
-            if (latestBlock != earliestBlock && currentNode instanceof FloatingReadNode) {
-
-                FloatingReadNode floatingReadNode = (FloatingReadNode) currentNode;
-                if (isImplicitNullOpportunity(floatingReadNode, earliestBlock) &&
-                                earliestBlock.getRelativeFrequency() < latestBlock.getRelativeFrequency() * IMPLICIT_NULL_CHECK_OPPORTUNITY_PROBABILITY_FACTOR) {
-                    latestBlock = earliestBlock;
-                }
+            if (latestBlock != earliestBlock && strategy.considerImplicitNullChecks() && isImplicitNullOpportunity(currentNode, earliestBlock) &&
+                            earliestBlock.getRelativeFrequency() < latestBlock.getRelativeFrequency() * IMPLICIT_NULL_CHECK_OPPORTUNITY_PROBABILITY_FACTOR) {
+                latestBlock = earliestBlock;
             }
 
             selectLatestBlock(currentNode, earliestBlock, latestBlock, currentNodeMap, watchListMap, constrainingLocation, latestBlockToNodesMap);
         }
 
-        private static boolean isImplicitNullOpportunity(FloatingReadNode floatingReadNode, Block block) {
-
-            Node pred = block.getBeginNode().predecessor();
-            if (pred instanceof IfNode) {
-                IfNode ifNode = (IfNode) pred;
-                if (ifNode.condition() instanceof IsNullNode) {
-                    IsNullNode isNullNode = (IsNullNode) ifNode.condition();
-                    if (getUnproxifiedUncompressed(floatingReadNode.getAddress().getBase()) == getUnproxifiedUncompressed(isNullNode.getValue())) {
-                        return true;
+        protected static boolean isImplicitNullOpportunity(Node currentNode, Block block) {
+            if (currentNode instanceof FloatingReadNode) {
+                FloatingReadNode floatingReadNode = (FloatingReadNode) currentNode;
+                Node pred = block.getBeginNode().predecessor();
+                if (pred instanceof IfNode) {
+                    IfNode ifNode = (IfNode) pred;
+                    if (ifNode.condition() instanceof IsNullNode && ifNode.getTrueSuccessorProbability() == 0.0) {
+                        IsNullNode isNullNode = (IsNullNode) ifNode.condition();
+                        if (getUnproxifiedUncompressed(floatingReadNode.getAddress().getBase()) == getUnproxifiedUncompressed(isNullNode.getValue())) {
+                            return true;
+                        }
                     }
                 }
             }
@@ -884,7 +912,7 @@ public final class SchedulePhase extends Phase {
                 }
             }
 
-            assert (!Assertions.detailedAssertionsEnabled(cfg.graph.getOptions())) || MemoryScheduleVerification.check(cfg.getStartBlock(), blockToNodes);
+            assert (!Assertions.detailedAssertionsEnabled(cfg.graph.getOptions())) || ScheduleVerification.check(cfg.getStartBlock(), blockToNodes, nodeToBlock);
         }
 
         private static void processNodes(NodeBitMap visited, NodeMap<MicroBlock> entries, NodeStack stack, MicroBlock startBlock, Iterable<? extends Node> nodes) {
@@ -1170,11 +1198,11 @@ public final class SchedulePhase extends Phase {
         private static void printNode(Node n) {
             Formatter buf = new Formatter();
             buf.format("%s", n);
-            if (n instanceof MemoryCheckpoint.Single) {
-                buf.format(" // kills %s", ((MemoryCheckpoint.Single) n).getLocationIdentity());
-            } else if (n instanceof MemoryCheckpoint.Multi) {
+            if (n instanceof SingleMemoryKill) {
+                buf.format(" // kills %s", ((SingleMemoryKill) n).getKilledLocationIdentity());
+            } else if (n instanceof MultiMemoryKill) {
                 buf.format(" // kills ");
-                for (LocationIdentity locid : ((MemoryCheckpoint.Multi) n).getLocationIdentities()) {
+                for (LocationIdentity locid : ((MultiMemoryKill) n).getKilledLocationIdentities()) {
                     buf.format("%s, ", locid);
                 }
             } else if (n instanceof FloatingReadNode) {

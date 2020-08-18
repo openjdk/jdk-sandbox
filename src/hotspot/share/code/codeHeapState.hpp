@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018 SAP SE. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -95,10 +95,11 @@ class CodeHeapState : public CHeapObj<mtCode> {
   static void print_line_delim(outputStream* out, bufferedStream *sst, char* low_bound, unsigned int ix, unsigned int gpl);
   static void print_line_delim(outputStream* out, outputStream *sst, char* low_bound, unsigned int ix, unsigned int gpl);
   static blobType get_cbType(CodeBlob* cb);
+  static bool blob_access_is_safe(CodeBlob* this_blob, CodeBlob* prev_blob);
 
  public:
   static void discard(outputStream* out, CodeHeap* heap);
-  static void aggregate(outputStream* out, CodeHeap* heap, const char* granularity);
+  static void aggregate(outputStream* out, CodeHeap* heap, size_t granularity);
   static void print_usedSpace(outputStream* out, CodeHeap* heap);
   static void print_freeSpace(outputStream* out, CodeHeap* heap);
   static void print_count(outputStream* out, CodeHeap* heap);

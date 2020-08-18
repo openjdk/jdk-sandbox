@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
 import jdk.internal.net.http.ResponseContent.BodyParser;
 import jdk.internal.net.http.ResponseContent.UnknownLengthBodyParser;
+import jdk.internal.net.http.ResponseSubscribers.TrustedSubscriber;
 import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
@@ -263,7 +264,7 @@ class Http1Response<T> {
             connection.close();
             return MinimalFuture.completedFuture(null); // not treating as error
         } else {
-            return readBody(discarding(), true, executor);
+            return readBody(discarding(), !request.isWebSocket(), executor);
         }
     }
 
@@ -293,13 +294,18 @@ class Http1Response<T> {
      * subscribed.
      * @param <U> The type of response.
      */
-    final static class Http1BodySubscriber<U> implements HttpResponse.BodySubscriber<U> {
+    final static class Http1BodySubscriber<U> implements TrustedSubscriber<U> {
         final HttpResponse.BodySubscriber<U> userSubscriber;
         final AtomicBoolean completed = new AtomicBoolean();
         volatile Throwable withError;
         volatile boolean subscribed;
         Http1BodySubscriber(HttpResponse.BodySubscriber<U> userSubscriber) {
             this.userSubscriber = userSubscriber;
+        }
+
+        @Override
+        public boolean needsExecutor() {
+            return TrustedSubscriber.needsExecutor(userSubscriber);
         }
 
         // propagate the error to the user subscriber, even if not
@@ -356,6 +362,7 @@ class Http1Response<T> {
         public CompletionStage<U> getBody() {
             return userSubscriber.getBody();
         }
+
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
             if (!subscribed) {
@@ -387,6 +394,14 @@ class Http1Response<T> {
     public <U> CompletableFuture<U> readBody(HttpResponse.BodySubscriber<U> p,
                                          boolean return2Cache,
                                          Executor executor) {
+        if (debug.on()) {
+            debug.log("readBody: return2Cache: " + return2Cache);
+            if (request.isWebSocket() && return2Cache && connection != null) {
+                debug.log("websocket connection will be returned to cache: "
+                        + connection.getClass() + "/" + connection );
+            }
+        }
+        assert !return2Cache || !request.isWebSocket();
         this.return2Cache = return2Cache;
         final Http1BodySubscriber<U> subscriber = new Http1BodySubscriber<>(p);
 
@@ -475,18 +490,12 @@ class Http1Response<T> {
                 connection.client().unreference();
             }
         });
-        try {
-            p.getBody().whenComplete((U u, Throwable t) -> {
-                if (t == null)
-                    cf.complete(u);
-                else
-                    cf.completeExceptionally(t);
-            });
-        } catch (Throwable t) {
+
+        ResponseSubscribers.getBodyAsync(executor, p, cf, (t) -> {
             cf.completeExceptionally(t);
             asyncReceiver.setRetryOnError(false);
             asyncReceiver.onReadError(t);
-        }
+        });
 
         return cf.whenComplete((s,t) -> {
             if (t != null) {

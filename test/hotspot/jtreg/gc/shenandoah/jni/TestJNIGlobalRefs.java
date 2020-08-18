@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -23,10 +24,21 @@
 
 /* @test TestJNIGlobalRefs
  * @summary Test JNI Global Refs with Shenandoah
- * @key gc
  * @requires vm.gc.Shenandoah
- * @run main/othervm/native -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC -Xlog:gc -XX:ShenandoahGCHeuristics=aggressive -XX:+ShenandoahVerify TestJNIGlobalRefs
- * @run main/othervm/native -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC -Xlog:gc -XX:ShenandoahGCHeuristics=aggressive                       TestJNIGlobalRefs
+ *
+ * @run main/othervm/native -Xmx1g -Xlog:gc -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=aggressive
+ *      -XX:+ShenandoahVerify
+ *      TestJNIGlobalRefs
+ */
+
+/* @test TestJNIGlobalRefs
+ * @summary Test JNI Global Refs with Shenandoah
+ * @requires vm.gc.Shenandoah
+ *
+ * @run main/othervm/native -Xmx1g -Xlog:gc -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=aggressive
+ *      TestJNIGlobalRefs
  */
 
 import java.util.Arrays;

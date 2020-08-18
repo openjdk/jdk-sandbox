@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 import java.util.stream.Stream;
 
 final class Linker {
@@ -46,9 +50,12 @@ final class Linker {
         return libraryFileName;
     }
 
+    private static Stream<String> getLines(InputStream stream) {
+        return new BufferedReader(new InputStreamReader(stream)).lines();
+    }
+
     private static String getString(InputStream stream) {
-        BufferedReader br = new BufferedReader(new InputStreamReader(stream));
-        Stream<String> lines = br.lines();
+        Stream<String> lines = getLines(stream);
         StringBuilder sb = new StringBuilder();
         lines.iterator().forEachRemaining(e -> sb.append(e));
         return sb.toString();
@@ -76,15 +83,6 @@ final class Linker {
                 linkerCmd = linkerPath + " -shared -z noexecstack -o " + libraryFileName + " " + objectFileName;
                 linkerCheck = linkerPath + " -v";
                 break;
-            case "SunOS":
-                if (name.endsWith(".so")) {
-                    objectFileName = name.substring(0, name.length() - ".so".length());
-                }
-                objectFileName = objectFileName + ".o";
-                linkerPath = (options.linkerpath != null) ? options.linkerpath : "ld";
-                linkerCmd = linkerPath + " -shared -o " + libraryFileName + " " + objectFileName;
-                linkerCheck = linkerPath + " -V";
-                break;
             case "Mac OS X":
                 if (name.endsWith(".dylib")) {
                     objectFileName = name.substring(0, name.length() - ".dylib".length());
@@ -100,7 +98,7 @@ final class Linker {
                         objectFileName = name.substring(0, name.length() - ".dll".length());
                     }
                     objectFileName = objectFileName + ".obj";
-                    linkerPath = (options.linkerpath != null) ? options.linkerpath : getWindowsLinkPath();
+                    linkerPath = (options.linkerpath != null) ? options.linkerpath : getWindowsLinkPath(main);
                     if (linkerPath == null) {
                         throw new InternalError("Can't locate Microsoft Visual Studio amd64 link.exe");
                     }
@@ -120,6 +118,8 @@ final class Linker {
                 throw new InternalError(getString(p.getErrorStream()));
             }
         }
+
+        main.printer.printlnVerbose("Found linker: " + linkerPath);
     }
 
     void link() throws Exception {
@@ -150,9 +150,21 @@ final class Linker {
     }
 
     /**
-     * Search for Visual Studio link.exe Search Order is: VS2013, VS2015, VS2012.
+     * Search for Visual Studio link.exe Search Order is: VS2017+, VS2013, VS2015, VS2012.
      */
-    private static String getWindowsLinkPath() {
+    private static String getWindowsLinkPath(Main main) throws Exception {
+        try {
+            Path vc141NewerLinker = getVC141AndNewerLinker();
+            if (vc141NewerLinker != null) {
+                return vc141NewerLinker.toString();
+            }
+        } catch (Exception e) {
+            main.printer.printlnVerbose("Could not find VC14 or newer version of linker: " + e.getMessage());
+            if (main.options.debug) {
+                e.printStackTrace();
+            }
+        }
+
         String link = "\\VC\\bin\\amd64\\link.exe";
 
         /**
@@ -183,10 +195,47 @@ final class Linker {
         return null;
     }
 
+    private static Path getVC141AndNewerLinker() throws Exception {
+        String programFilesX86 = System.getenv("ProgramFiles(x86)");
+        if (programFilesX86 == null) {
+            throw new IllegalStateException("Could not read the ProgramFiles(x86) environment variable");
+        }
+        String vswherePath = programFilesX86 + "\\Microsoft Visual Studio\\Installer\\vswhere.exe";
+        Path vswhere = Paths.get(vswherePath);
+        if (!Files.exists(vswhere)) {
+            throw new IllegalStateException("Could not find " + vswherePath);
+        }
+
+        ProcessBuilder processBuilder = new ProcessBuilder(vswhere.toString(), "-requires",
+                        "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath", "-latest");
+        processBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
+        processBuilder.redirectError(ProcessBuilder.Redirect.PIPE);
+        Process process = processBuilder.start();
+        final int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            String errorMessage = getString(process.getErrorStream());
+            if (errorMessage.isEmpty()) {
+                errorMessage = getString(process.getInputStream());
+            }
+            throw new IllegalStateException("vswhere error: " + errorMessage);
+        }
+
+        String installationPath = getLines(process.getInputStream()).findFirst().orElseThrow(() -> new IllegalStateException("Unexpected empty output from vswhere"));
+        Path vcToolsVersionFilePath = Paths.get(installationPath, "VC\\Auxiliary\\Build\\Microsoft.VCToolsVersion.default.txt");
+        List<String> vcToolsVersionFileLines = Files.readAllLines(vcToolsVersionFilePath);
+        if (vcToolsVersionFileLines.isEmpty()) {
+            throw new IllegalStateException(vcToolsVersionFilePath.toString() + " is empty");
+        }
+        String vcToolsVersion = vcToolsVersionFileLines.get(0);
+        Path linkPath = Paths.get(installationPath, "VC\\Tools\\MSVC", vcToolsVersion, "bin\\Hostx64\\x64\\link.exe");
+        if (!Files.exists(linkPath)) {
+            throw new IllegalStateException("Linker at path " + linkPath.toString() + " does not exist");
+        }
+
+        return linkPath;
+    }
+
     // @formatter:off (workaround for Eclipse formatting bug)
-    /**
-     * Visual Studio supported versions Search Order is: VS2013, VS2015, VS2012.
-     */
     enum VSVERSIONS {
         VS2013("VS120COMNTOOLS", "C:\\Program Files (x86)\\Microsoft Visual Studio 12.0\\VC\\bin\\amd64\\link.exe"),
         VS2015("VS140COMNTOOLS", "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\bin\\amd64\\link.exe"),

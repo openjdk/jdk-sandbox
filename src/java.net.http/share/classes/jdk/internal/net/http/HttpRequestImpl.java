@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,8 +41,10 @@ import java.util.Optional;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
+
 import jdk.internal.net.http.common.HttpHeadersBuilder;
 import jdk.internal.net.http.common.Utils;
+import jdk.internal.net.http.websocket.OpeningHandshake;
 import jdk.internal.net.http.websocket.WebSocketRequest;
 
 import static jdk.internal.net.http.common.Utils.ALLOWED_HEADERS;
@@ -151,13 +153,18 @@ public class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
     /** Returns a new instance suitable for redirection. */
     public static HttpRequestImpl newInstanceForRedirection(URI uri,
                                                             String method,
-                                                            HttpRequestImpl other) {
-        return new HttpRequestImpl(uri, method, other);
+                                                            HttpRequestImpl other,
+                                                            boolean mayHaveBody) {
+        return new HttpRequestImpl(uri, method, other, mayHaveBody);
     }
 
     /** Returns a new instance suitable for authentication. */
     public static HttpRequestImpl newInstanceForAuthentication(HttpRequestImpl other) {
-        return new HttpRequestImpl(other.uri(), other.method(), other);
+        HttpRequestImpl request = new HttpRequestImpl(other.uri(), other.method(), other, true);
+        if (request.isWebSocket()) {
+            Utils.setWebSocketUpgradeHeaders(request);
+        }
+        return request;
     }
 
     /**
@@ -166,7 +173,8 @@ public class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
      */
     private HttpRequestImpl(URI uri,
                             String method,
-                            HttpRequestImpl other) {
+                            HttpRequestImpl other,
+                            boolean mayHaveBody) {
         assert method == null || Utils.isValidName(method);
         this.method = method == null? "GET" : method;
         this.userHeaders = other.userHeaders;
@@ -179,11 +187,19 @@ public class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
         this.proxy = other.proxy;
         this.expectContinue = other.expectContinue;
         this.secure = uri.getScheme().toLowerCase(Locale.US).equals("https");
-        this.requestPublisher = other.requestPublisher;  // may be null
+        this.requestPublisher = mayHaveBody ? publisher(other) : null; // may be null
         this.acc = other.acc;
         this.timeout = other.timeout;
         this.version = other.version();
         this.authority = null;
+    }
+
+    private BodyPublisher publisher(HttpRequestImpl other) {
+        BodyPublisher res = other.requestPublisher;
+        if (!Objects.equals(method, other.method)) {
+            res = null;
+        }
+        return res;
     }
 
     /* used for creating CONNECT requests  */

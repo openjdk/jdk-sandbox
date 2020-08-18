@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -961,7 +961,13 @@ public class ServiceDialog extends JDialog implements ActionListener {
             if (info != null) {
                 lblInfo.setText(info.toString());
             }
-            btnProperties.setEnabled(uiFactory != null);
+            PrinterJob job = null;
+            PrinterJobWrapper wrapper = (PrinterJobWrapper)
+                                        asCurrent.get(PrinterJobWrapper.class);
+            if (wrapper != null) {
+                job = wrapper.getPrinterJob();
+            }
+            btnProperties.setEnabled(uiFactory != null &&  job != null);
         }
     }
 
@@ -1395,7 +1401,7 @@ public class ServiceDialog extends JDialog implements ActionListener {
             String unitsKey = "label.millimetres";
             String defaultCountry = Locale.getDefault().getCountry();
             if (defaultCountry != null &&
-                (defaultCountry.equals("") ||
+                (defaultCountry.isEmpty() ||
                  defaultCountry.equals(Locale.US.getCountry()) ||
                  defaultCountry.equals(Locale.CANADA.getCountry()))) {
                 unitsKey = "label.inches";

@@ -46,7 +46,6 @@ define_pd_global(intx,     CompileThreshold,             1000);
 define_pd_global(intx,     OnStackReplacePercentage,     1400);
 define_pd_global(bool,     UseTLAB,                      true);
 define_pd_global(bool,     ProfileInterpreter,           false);
-define_pd_global(intx,     FreqInlineSize,               325);
 define_pd_global(bool,     ResizeTLAB,                   true);
 define_pd_global(uintx,    ReservedCodeCacheSize,        32*M);
 define_pd_global(uintx,    NonProfiledCodeHeapSize,      13*M);
@@ -63,9 +62,7 @@ define_pd_global(uintx,    InitialCodeCacheSize,         160*K);
 #endif // !TIERED
 
 define_pd_global(bool,     UseTypeProfile,               false);
-define_pd_global(bool,     RoundFPResults,               false);
 
-define_pd_global(bool,     LIRFillDelaySlots,            false);
 define_pd_global(bool,     OptimizeSinglePrecision,      false);
 define_pd_global(bool,     CSEArrayLength,               true);
 define_pd_global(bool,     TwoOperandLIRForm,            true);

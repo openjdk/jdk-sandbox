@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,9 +30,10 @@ import sun.jvm.hotspot.classfile.*;
 import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class SystemDictionary {
-  private static sun.jvm.hotspot.types.OopField javaSystemLoaderField;
 
   private static AddressField objectKlassField;
   private static AddressField classLoaderKlassField;
@@ -52,8 +53,6 @@ public class SystemDictionary {
 
   private static synchronized void initialize(TypeDataBase db) {
     Type type = db.lookupType("SystemDictionary");
-
-    javaSystemLoaderField = type.getOopField("_java_system_loader");
 
     objectKlassField = type.getAddressField(WK_KLASS("Object_klass"));
     classLoaderKlassField = type.getAddressField(WK_KLASS("ClassLoader_klass"));
@@ -107,10 +106,6 @@ public class SystemDictionary {
   public InstanceKlass getAbstractOwnableSynchronizerKlass() {
     ClassLoaderDataGraph cldg = VM.getVM().getClassLoaderDataGraph();
     return (InstanceKlass) cldg.find("java/util/concurrent/locks/AbstractOwnableSynchronizer");
-  }
-
-  public static Oop javaSystemLoader() {
-    return newOop(javaSystemLoaderField.getValue());
   }
 
   private static Oop newOop(OopHandle handle) {

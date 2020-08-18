@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,16 +21,18 @@
  * questions.
  */
 
+package gc.g1;
+
 /*
  * @test TestRemsetLoggingThreads
  * @requires vm.gc.G1
  * @bug 8025441 8145534
- * @key gc
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management/sun.management
  * @summary Ensure that various values of worker threads/concurrent
  * refinement threads do not crash the VM.
+ * @run driver gc.g1.TestRemsetLoggingThreads
  */
 
 import java.util.regex.Matcher;
@@ -51,11 +53,7 @@ public class TestRemsetLoggingThreads {
 
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
 
-    // a zero in refinement thread numbers indicates that the value in ParallelGCThreads should be used.
-    // Additionally use at least one thread.
-    int expectedNumRefinementThreads = refinementThreads;
-
-    String pattern = "Concurrent RS threads times \\(s\\)$";
+    String pattern = "Concurrent refinement threads times \\(s\\)$";
     Matcher m = Pattern.compile(pattern, Pattern.MULTILINE).matcher(output.getStdout());
 
     if (!m.find()) {

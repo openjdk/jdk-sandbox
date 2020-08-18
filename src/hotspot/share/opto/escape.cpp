@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -350,6 +350,12 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
   if (n_ptn != NULL)
     return; // No need to redefine PointsTo node during first iteration.
 
+  int opcode = n->Opcode();
+  bool gc_handled = BarrierSet::barrier_set()->barrier_set_c2()->escape_add_to_con_graph(this, igvn, delayed_worklist, n, opcode);
+  if (gc_handled) {
+    return; // Ignore node if already handled by GC.
+  }
+
   if (n->is_Call()) {
     // Arguments to allocation and locking don't escape.
     if (n->is_AbstractLock()) {
@@ -382,11 +388,6 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
   if (n_ptn == phantom_obj || n_ptn == null_obj)
     return; // Skip predefined nodes.
 
-  int opcode = n->Opcode();
-  bool gc_handled = BarrierSet::barrier_set()->barrier_set_c2()->escape_add_to_con_graph(this, igvn, delayed_worklist, n, opcode);
-  if (gc_handled) {
-    return; // Ignore node if already handled by GC.
-  }
   switch (opcode) {
     case Op_AddP: {
       Node* base = get_addp_base(n);
@@ -722,8 +723,7 @@ void ConnectionGraph::add_to_congraph_unsafe_access(Node* n, uint opcode, Unique
   if (adr_type->isa_oopptr()
       || ((opcode == Op_StoreP || opcode == Op_StoreN || opcode == Op_StoreNKlass)
           && adr_type == TypeRawPtr::NOTNULL
-          && adr->in(AddPNode::Address)->is_Proj()
-          && adr->in(AddPNode::Address)->in(0)->is_Allocate())) {
+          && is_captured_store_address(adr))) {
     delayed_worklist->push(n); // Process it later.
 #ifdef ASSERT
     assert (adr->is_AddP(), "expecting an AddP");
@@ -770,8 +770,7 @@ bool ConnectionGraph::add_final_edges_unsafe_access(Node* n, uint opcode) {
   if (adr_type->isa_oopptr()
       || ((opcode == Op_StoreP || opcode == Op_StoreN || opcode == Op_StoreNKlass)
            && adr_type == TypeRawPtr::NOTNULL
-           && adr->in(AddPNode::Address)->is_Proj()
-           && adr->in(AddPNode::Address)->in(0)->is_Allocate())) {
+           && is_captured_store_address(adr))) {
     // Point Address to Value
     PointsToNode* adr_ptn = ptnode_adr(adr->_idx);
     assert(adr_ptn != NULL &&
@@ -989,9 +988,13 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                   strcmp(call->as_CallLeaf()->_name, "aescrypt_decryptBlock") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "cipherBlockChaining_encryptAESCrypt") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "cipherBlockChaining_decryptAESCrypt") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "electronicCodeBook_encryptAESCrypt") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "electronicCodeBook_decryptAESCrypt") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "counterMode_AESCrypt") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "ghash_processBlocks") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "encodeBlock") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "md5_implCompress") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "md5_implCompressMB") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "sha1_implCompress") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "sha1_implCompressMB") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "sha256_implCompress") == 0 ||
@@ -1003,6 +1006,8 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                   strcmp(call->as_CallLeaf()->_name, "mulAdd") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "montgomery_multiply") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "montgomery_square") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "bigIntegerRightShiftWorker") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "bigIntegerLeftShiftWorker") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "vectorizedMismatch") == 0)
                  ))) {
             call->dump();
@@ -1411,7 +1416,7 @@ int ConnectionGraph::add_java_object_edges(JavaObjectNode* jobj, bool populate_w
     }
   }
   _worklist.clear();
-  _in_worklist.Reset();
+  _in_worklist.reset();
   return new_edges;
 }
 
@@ -1579,8 +1584,7 @@ int ConnectionGraph::find_init_values(JavaObjectNode* pta, PointsToNode* init_va
         // Raw pointers are used for initializing stores so skip it
         // since it should be recorded already
         Node* base = get_addp_base(field->ideal_node());
-        assert(adr_type->isa_rawptr() && base->is_Proj() &&
-               (base->in(0) == alloc),"unexpected pointer type");
+        assert(adr_type->isa_rawptr() && is_captured_store_address(field->ideal_node()), "unexpected pointer type");
 #endif
         continue;
       }
@@ -1726,6 +1730,18 @@ void ConnectionGraph::adjust_scalar_replaceable_state(JavaObjectNode* jobj) {
     // access its field since the field value is unknown after it.
     //
     Node* n = field->ideal_node();
+
+    // Test for an unsafe access that was parsed as maybe off heap
+    // (with a CheckCastPP to raw memory).
+    assert(n->is_AddP(), "expect an address computation");
+    if (n->in(AddPNode::Base)->is_top() &&
+        n->in(AddPNode::Address)->Opcode() == Op_CheckCastPP) {
+      assert(n->in(AddPNode::Address)->bottom_type()->isa_rawptr(), "raw address so raw cast expected");
+      assert(_igvn->type(n->in(AddPNode::Address)->in(1))->isa_oopptr(), "cast pattern at unsafe access expected");
+      jobj->set_scalar_replaceable(false);
+      return;
+    }
+
     for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
       Node* u = n->fast_out(i);
       if (u->is_LoadStore() || (u->is_Mem() && u->as_Mem()->is_mismatched_access())) {
@@ -1899,8 +1915,7 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
     Node *n = storestore_worklist.pop();
     MemBarStoreStoreNode *storestore = n ->as_MemBarStoreStore();
     Node *alloc = storestore->in(MemBarNode::Precedent)->in(0);
-    assert (alloc->is_Allocate(), "storestore should point to AllocateNode");
-    if (not_global_escape(alloc)) {
+    if (alloc->is_Allocate() && not_global_escape(alloc)) {
       MemBarNode* mb = MemBarNode::make(C, Op_MemBarCPUOrder, Compile::AliasIdxBot);
       mb->init_req(TypeFunc::Memory, storestore->in(TypeFunc::Memory));
       mb->init_req(TypeFunc::Control, storestore->in(TypeFunc::Control));
@@ -2098,7 +2113,8 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
       }
     }
   }
-  return (bt == T_OBJECT || bt == T_NARROWOOP || bt == T_ARRAY);
+  // Note: T_NARROWOOP is not classed as a real reference type
+  return (is_reference_type(bt) || bt == T_NARROWOOP);
 }
 
 // Returns unique pointed java object or NULL.
@@ -2110,6 +2126,9 @@ JavaObjectNode* ConnectionGraph::unique_java_object(Node *n) {
     return NULL;
   }
   PointsToNode* ptn = ptnode_adr(idx);
+  if (ptn == NULL) {
+    return NULL;
+  }
   if (ptn->is_JavaObject()) {
     return ptn->as_JavaObject();
   }
@@ -2163,6 +2182,9 @@ bool ConnectionGraph::not_global_escape(Node *n) {
     return false;
   }
   PointsToNode* ptn = ptnode_adr(idx);
+  if (ptn == NULL) {
+    return false; // not in congraph (e.g. ConI)
+  }
   PointsToNode::EscapeState es = ptn->escape_state();
   // If we have already computed a value, return it.
   if (es >= PointsToNode::GlobalEscape)
@@ -2227,11 +2249,29 @@ bool FieldNode::has_base(JavaObjectNode* jobj) const {
 }
 #endif
 
+bool ConnectionGraph::is_captured_store_address(Node* addp) {
+  // Handle simple case first.
+  assert(_igvn->type(addp)->isa_oopptr() == NULL, "should be raw access");
+  if (addp->in(AddPNode::Address)->is_Proj() && addp->in(AddPNode::Address)->in(0)->is_Allocate()) {
+    return true;
+  } else if (addp->in(AddPNode::Address)->is_Phi()) {
+    for (DUIterator_Fast imax, i = addp->fast_outs(imax); i < imax; i++) {
+      Node* addp_use = addp->fast_out(i);
+      if (addp_use->is_Store()) {
+        for (DUIterator_Fast jmax, j = addp_use->fast_outs(jmax); j < jmax; j++) {
+          if (addp_use->fast_out(j)->is_Initialize()) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
 int ConnectionGraph::address_offset(Node* adr, PhaseTransform *phase) {
   const Type *adr_type = phase->type(adr);
-  if (adr->is_AddP() && adr_type->isa_oopptr() == NULL &&
-      adr->in(AddPNode::Address)->is_Proj() &&
-      adr->in(AddPNode::Address)->in(0)->is_Allocate()) {
+  if (adr->is_AddP() && adr_type->isa_oopptr() == NULL && is_captured_store_address(adr)) {
     // We are computing a raw address for a store captured by an Initialize
     // compute an appropriate address type. AddP cases #3 and #5 (see below).
     int offs = (int)phase->find_intptr_t_con(adr->in(AddPNode::Offset), Type::OffsetBot);
@@ -2334,8 +2374,7 @@ Node* ConnectionGraph::get_addp_base(Node *addp) {
       assert(opcode == Op_ConP || opcode == Op_ThreadLocal ||
              opcode == Op_CastX2P || uncast_base->is_DecodeNarrowPtr() ||
              (uncast_base->is_Mem() && (uncast_base->bottom_type()->isa_rawptr() != NULL)) ||
-             (uncast_base->is_Proj() && uncast_base->in(0)->is_Allocate()) ||
-             BarrierSet::barrier_set()->barrier_set_c2()->escape_is_barrier_node(uncast_base), "sanity");
+             is_captured_store_address(addp), "sanity");
     }
   }
   return base;
@@ -2723,11 +2762,14 @@ Node* ConnectionGraph::find_inst_mem(Node *orig_mem, int alias_idx, GrowableArra
           result = proj_in->in(TypeFunc::Memory);
         }
       } else if (proj_in->is_MemBar()) {
-        if (proj_in->in(TypeFunc::Memory)->is_MergeMem() &&
-            proj_in->in(TypeFunc::Memory)->as_MergeMem()->in(Compile::AliasIdxRaw)->is_Proj() &&
-            proj_in->in(TypeFunc::Memory)->as_MergeMem()->in(Compile::AliasIdxRaw)->in(0)->is_ArrayCopy()) {
-          // clone
-          ArrayCopyNode* ac = proj_in->in(TypeFunc::Memory)->as_MergeMem()->in(Compile::AliasIdxRaw)->in(0)->as_ArrayCopy();
+        // Check if there is an array copy for a clone
+        // Step over GC barrier when ReduceInitialCardMarks is disabled
+        BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+        Node* control_proj_ac = bs->step_over_gc_barrier(proj_in->in(0));
+
+        if (control_proj_ac->is_Proj() && control_proj_ac->in(0)->is_ArrayCopy()) {
+          // Stop if it is a clone
+          ArrayCopyNode* ac = control_proj_ac->in(0)->as_ArrayCopy();
           if (ac->may_modify(toop, igvn)) {
             break;
           }
@@ -2909,8 +2951,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
   GrowableArray<PhiNode *>  orig_phis;
   PhaseIterGVN  *igvn = _igvn;
   uint new_index_start = (uint) _compile->num_alias_types();
-  Arena* arena = Thread::current()->resource_area();
-  VectorSet visited(arena);
+  VectorSet visited;
   ideal_nodes.clear(); // Reset for use with set_map/get_map.
   uint unique_old = _compile->unique();
 
@@ -2949,7 +2990,10 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         continue;
       }
       if (!n->is_CheckCastPP()) { // not unique CheckCastPP.
-        assert(!alloc->is_Allocate(), "allocation should have unique type");
+        // we could reach here for allocate case if one init is associated with many allocs.
+        if (alloc->is_Allocate()) {
+          alloc->as_Allocate()->_is_scalar_replaceable = false;
+        }
         continue;
       }
 
@@ -3010,6 +3054,11 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
       n->raise_bottom_type(tinst);
       igvn->hash_insert(n);
       record_for_optimizer(n);
+      // Allocate an alias index for the header fields. Accesses to
+      // the header emitted during macro expansion wouldn't have
+      // correct memory state otherwise.
+      _compile->get_alias_index(tinst->add_offset(oopDesc::mark_offset_in_bytes()));
+      _compile->get_alias_index(tinst->add_offset(oopDesc::klass_offset_in_bytes()));
       if (alloc->is_Allocate() && (t->isa_instptr() || t->isa_aryptr())) {
 
         // First, put on the worklist all Field edges from Connection Graph
@@ -3068,7 +3117,6 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
                n->is_CheckCastPP() ||
                n->is_EncodeP() ||
                n->is_DecodeN() ||
-               BarrierSet::barrier_set()->barrier_set_c2()->escape_is_barrier_node(n) ||
                (n->is_ConstraintCast() && n->Opcode() == Op_CastPP)) {
       if (visited.test_set(n->_idx)) {
         assert(n->is_Phi(), "loops only through Phi's");
@@ -3139,7 +3187,6 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
                  use->is_CheckCastPP() ||
                  use->is_EncodeNarrowPtr() ||
                  use->is_DecodeNarrowPtr() ||
-                 BarrierSet::barrier_set()->barrier_set_c2()->escape_is_barrier_node(use) ||
                  (use->is_ConstraintCast() && use->Opcode() == Op_CastPP)) {
         alloc_worklist.append_if_missing(use);
 #ifdef ASSERT
@@ -3170,6 +3217,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
               op == Op_FastLock || op == Op_AryEq || op == Op_StrComp || op == Op_HasNegatives ||
               op == Op_StrCompressedCopy || op == Op_StrInflatedCopy ||
               op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar ||
+              op == Op_SubTypeCheck ||
               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(use))) {
           n->dump();
           use->dump();

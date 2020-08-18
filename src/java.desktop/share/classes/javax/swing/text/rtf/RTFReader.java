@@ -133,6 +133,7 @@ class RTFReader extends RTFParser
   static boolean useNeXTForAnsi = false;
   static {
       characterSets = new Hashtable<String, char[]>();
+      defineCharacterSet("ansicpg", latin1TranslationTable);
   }
 
 /* TODO: per-font font encodings ( \fcharset control word ) ? */
@@ -486,6 +487,11 @@ public boolean handleKeyword(String keyword, int parameter)
     if (keyword.startsWith("NeXT") ||
         keyword.equals("private"))
         ignoreGroupIfUnknownKeywordSave = true;
+
+     if (keyword.contains("ansicpg")) {
+         setCharacterSet("ansicpg");
+         return true;
+     }
 
     if (rtfDestination != null) {
         if(rtfDestination.handleKeyword(keyword, parameter))
@@ -1182,6 +1188,10 @@ abstract class AttributeTrackingDestination implements Destination
             return true;
         }
         if (keyword.equals("cf")) {
+            parserState.put(keyword, Integer.valueOf(parameter));
+            return true;
+        }
+        if (keyword.equals("cb")) {
             parserState.put(keyword, Integer.valueOf(parameter));
             return true;
         }

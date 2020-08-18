@@ -1192,9 +1192,8 @@ uint PhaseChaitin::Split(uint maxlrg, ResourceArea* split_arena) {
               (deflrg._direct_conflict || deflrg._must_spill)) ||
              // Check for LRG being up in a register and we are inside a high
              // pressure area.  Spill it down immediately.
-             (defup && is_high_pressure(b,&deflrg,insidx))) ) {
+             (defup && is_high_pressure(b,&deflrg,insidx) && !n->is_SpillCopy())) ) {
           assert( !n->rematerialize(), "" );
-          assert( !n->is_SpillCopy(), "" );
           // Do a split at the def site.
           maxlrg = split_DEF( n, b, insidx, maxlrg, Reachblock, debug_defs, splits, slidx );
           // If it wasn't split bail
@@ -1272,10 +1271,12 @@ uint PhaseChaitin::Split(uint maxlrg, ResourceArea* split_arena) {
         // it contains no members which compress to defidx.  Finding such an
         // instance may be a case to add liveout adjustment in compress_uf_map().
         // See 5063219.
-        uint member;
-        IndexSetIterator isi(liveout);
-        while ((member = isi.next()) != 0) {
-          assert(defidx != _lrg_map.find_const(member), "Live out member has not been compressed");
+        if (!liveout->is_empty()) {
+          uint member;
+          IndexSetIterator isi(liveout);
+          while ((member = isi.next()) != 0) {
+            assert(defidx != _lrg_map.find_const(member), "Live out member has not been compressed");
+          }
         }
 #endif
         Reachblock[slidx] = NULL;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.util.Set;
 import java.util.HashSet;
 import sun.net.ext.ExtendedSocketOptions;
-import static sun.net.ext.ExtendedSocketOptions.SOCK_DGRAM;
 
 /*
  * On Unix systems we simply delegate to native methods.
@@ -38,48 +37,12 @@ import static sun.net.ext.ExtendedSocketOptions.SOCK_DGRAM;
 
 class PlainDatagramSocketImpl extends AbstractPlainDatagramSocketImpl
 {
+    PlainDatagramSocketImpl(boolean isMulticast) {
+        super(isMulticast);
+    }
+
     static {
         init();
-    }
-
-    static final ExtendedSocketOptions extendedOptions =
-            ExtendedSocketOptions.getInstance();
-
-    protected <T> void setOption(SocketOption<T> name, T value) throws IOException {
-        if (isClosed()) {
-            throw new SocketException("Socket closed");
-        }
-        if (supportedOptions().contains(name)) {
-            if (extendedOptions.isOptionSupported(name)) {
-                extendedOptions.setOption(fd, name, value);
-            } else {
-                super.setOption(name, value);
-            }
-        } else {
-            throw new UnsupportedOperationException("unsupported option");
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    protected <T> T getOption(SocketOption<T> name) throws IOException {
-        if (isClosed()) {
-            throw new SocketException("Socket closed");
-        }
-        if (supportedOptions().contains(name)) {
-            if (extendedOptions.isOptionSupported(name)) {
-                return (T) extendedOptions.getOption(fd, name);
-            } else {
-                return super.getOption(name);
-            }
-        } else {
-            throw new UnsupportedOperationException("unsupported option");
-        }
-    }
-
-    protected Set<SocketOption<?>> supportedOptions() {
-        HashSet<SocketOption<?>> options = new HashSet<>(super.supportedOptions());
-        options.addAll(ExtendedSocketOptions.options(SOCK_DGRAM));
-        return options;
     }
 
     protected void socketSetOption(int opt, Object val) throws SocketException {
@@ -98,7 +61,7 @@ class PlainDatagramSocketImpl extends AbstractPlainDatagramSocketImpl
     protected synchronized native void bind0(int lport, InetAddress laddr)
         throws SocketException;
 
-    protected native void send(DatagramPacket p) throws IOException;
+    protected native void send0(DatagramPacket p) throws IOException;
 
     protected synchronized native int peek(InetAddress i) throws IOException;
 

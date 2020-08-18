@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,13 @@
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/virtualspace.hpp"
-#include "oops/markOop.hpp"
+#include "oops/compressedOops.hpp"
+#include "oops/markWord.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/os.inline.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/align.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 // ReservedSpace
 
@@ -62,12 +64,6 @@ ReservedSpace::ReservedSpace(size_t size, size_t alignment,
                              bool large,
                              char* requested_address) : _fd_for_heap(-1) {
   initialize(size, alignment, large, requested_address, false);
-}
-
-ReservedSpace::ReservedSpace(size_t size, size_t alignment,
-                             bool large,
-                             bool executable) : _fd_for_heap(-1) {
-  initialize(size, alignment, large, NULL, executable);
 }
 
 ReservedSpace::ReservedSpace(char* base, size_t size, size_t alignment,
@@ -230,11 +226,10 @@ void ReservedSpace::initialize(size_t size, size_t alignment, bool large,
   }
 }
 
-ReservedSpace ReservedSpace::first_part(size_t partition_size, size_t alignment,
-                                        bool split, bool realloc) {
+ReservedSpace ReservedSpace::first_part(size_t partition_size, size_t alignment, bool split) {
   assert(partition_size <= size(), "partition failed");
-  if (split) {
-    os::split_reserved_memory(base(), size(), partition_size, realloc);
+  if (split && partition_size > 0 && partition_size < size()) {
+    os::split_reserved_memory(base(), size(), partition_size);
   }
   ReservedSpace result(base(), partition_size, alignment, special(),
                        executable());
@@ -263,11 +258,6 @@ size_t ReservedSpace::page_align_size_down(size_t size) {
 
 size_t ReservedSpace::allocation_align_size_up(size_t size) {
   return align_up(size, os::vm_allocation_granularity());
-}
-
-
-size_t ReservedSpace::allocation_align_size_down(size_t size) {
-  return align_down(size, os::vm_allocation_granularity());
 }
 
 
@@ -314,9 +304,9 @@ void ReservedHeapSpace::establish_noaccess_prefix() {
                                  PTR_FORMAT " / " INTX_FORMAT " bytes",
                                  p2i(_base),
                                  _noaccess_prefix);
-      assert(Universe::narrow_oop_use_implicit_null_checks() == true, "not initialized?");
+      assert(CompressedOops::use_implicit_null_checks() == true, "not initialized?");
     } else {
-      Universe::set_narrow_oop_use_implicit_null_checks(false);
+      CompressedOops::set_use_implicit_null_checks(false);
     }
   }
 
@@ -583,7 +573,7 @@ void ReservedHeapSpace::initialize_compressed_heap(const size_t size, size_t ali
     while (addresses[i] &&                                 // End of array not yet reached.
            ((_base == NULL) ||                             // No previous try succeeded.
             (_base + size >  (char *)OopEncodingHeapMax && // Not zerobased or unscaled address.
-             !Universe::is_disjoint_heap_base_address((address)_base)))) {  // Not disjoint address.
+             !CompressedOops::is_disjoint_heap_base_address((address)_base)))) {  // Not disjoint address.
       char* const attach_point = addresses[i];
       assert(attach_point >= aligned_heap_base_min_address, "Flag support broken");
       try_reserve_heap(size + noaccess_prefix, alignment, large, attach_point);
@@ -627,9 +617,9 @@ ReservedHeapSpace::ReservedHeapSpace(size_t size, size_t alignment, bool large, 
     initialize(size, alignment, large, NULL, false);
   }
 
-  assert(markOopDesc::encode_pointer_as_mark(_base)->decode_pointer() == _base,
+  assert(markWord::encode_pointer_as_mark(_base).decode_pointer() == _base,
          "area must be distinguishable from marks for mark-sweep");
-  assert(markOopDesc::encode_pointer_as_mark(&_base[size])->decode_pointer() == &_base[size],
+  assert(markWord::encode_pointer_as_mark(&_base[size]).decode_pointer() == &_base[size],
          "area must be distinguishable from marks for mark-sweep");
 
   if (base() != NULL) {
@@ -641,12 +631,16 @@ ReservedHeapSpace::ReservedHeapSpace(size_t size, size_t alignment, bool large, 
   }
 }
 
+MemRegion ReservedHeapSpace::region() const {
+  return MemRegion((HeapWord*)base(), (HeapWord*)end());
+}
+
 // Reserve space for code segment.  Same as Java heap only we mark this as
 // executable.
 ReservedCodeSpace::ReservedCodeSpace(size_t r_size,
                                      size_t rs_align,
-                                     bool large) :
-  ReservedSpace(r_size, rs_align, large, /*executable*/ true) {
+                                     bool large) : ReservedSpace() {
+  initialize(r_size, rs_align, large, /*requested address*/ NULL, /*executable*/ true);
   MemTracker::record_virtual_memory_type((address)base(), mtCode);
 }
 
@@ -1126,7 +1120,7 @@ class TestReservedSpace : AllStatic {
 
     bool large = maybe_large && UseLargePages && size >= os::large_page_size();
 
-    ReservedSpace rs(size, alignment, large, false);
+    ReservedSpace rs(size, alignment, large);
 
     assert(rs.base() != NULL, "Must be");
     assert(rs.size() == size, "Must be");
@@ -1254,7 +1248,7 @@ class TestVirtualSpace : AllStatic {
     case Commit:
       return ReservedSpace(reserve_size_aligned,
                            os::vm_allocation_granularity(),
-                           /* large */ false, /* exec */ false);
+                           /* large */ false);
     }
   }
 
@@ -1309,7 +1303,7 @@ class TestVirtualSpace : AllStatic {
 
     size_t large_page_size = os::large_page_size();
 
-    ReservedSpace reserved(large_page_size, large_page_size, true, false);
+    ReservedSpace reserved(large_page_size, large_page_size, true);
 
     assert(reserved.is_reserved(), "Must be");
 

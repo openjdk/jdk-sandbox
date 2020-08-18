@@ -195,6 +195,7 @@ class CmpLNode : public CmpNode {
 public:
   CmpLNode( Node *in1, Node *in2 ) : CmpNode(in1,in2) {}
   virtual int    Opcode() const;
+  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
   virtual const Type *sub( const Type *, const Type * ) const;
 };
 
@@ -300,7 +301,7 @@ struct BoolTest {
 // A Node to convert a Condition Codes to a Logical result.
 class BoolNode : public Node {
   virtual uint hash() const;
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const;
 
   // Try to optimize signed integer comparison
@@ -308,7 +309,7 @@ class BoolNode : public Node {
                   int cmp1_op, const TypeInt* cmp2_type);
 public:
   const BoolTest _test;
-  BoolNode( Node *cc, BoolTest::mask t): Node(0,cc), _test(t) {
+  BoolNode(Node *cc, BoolTest::mask t): Node(NULL,cc), _test(t) {
     init_class_id(Class_Bool);
   }
   // Convert an arbitrary int value to a Bool or other suitable predicate.
@@ -348,6 +349,17 @@ public:
   virtual int Opcode() const;
   const Type *bottom_type() const { return TypeInt::INT; }
   virtual uint ideal_reg() const { return Op_RegI; }
+};
+
+//------------------------------AbsLNode---------------------------------------
+// Absolute value a long.  Since a naive graph involves control flow, we
+// "match" it in the ideal world (so the control flow can be removed).
+class AbsLNode : public AbsNode {
+public:
+  AbsLNode( Node *in1 ) : AbsNode(in1) {}
+  virtual int Opcode() const;
+  const Type *bottom_type() const { return TypeLong::LONG; }
+  virtual uint ideal_reg() const { return Op_RegL; }
 };
 
 //------------------------------AbsFNode---------------------------------------

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,38 +45,45 @@ final class VarForm {
 
     VarForm(Class<?> implClass, Class<?> receiver, Class<?> value, Class<?>... intermediate) {
         this.methodType_table = new MethodType[VarHandle.AccessType.values().length];
+        if (receiver == null) {
+            initMethodTypes(value, intermediate);
+        } else {
+            Class<?>[] coordinates = new Class<?>[intermediate.length + 1];
+            coordinates[0] = receiver;
+            System.arraycopy(intermediate, 0, coordinates, 1, intermediate.length);
+            initMethodTypes(value, coordinates);
+        }
 
         // TODO lazily calculate
         this.memberName_table = linkFromStatic(implClass);
+    }
 
-        // (Receiver, <Intermediates>)
-        List<Class<?>> l = new ArrayList<>();
-        if (receiver != null)
-            l.add(receiver);
-        for (Class<?> c : intermediate)
-            l.add(c);
+    VarForm(Class<?> value, Class<?>[] coordinates) {
+        this.methodType_table = new MethodType[VarHandle.AccessType.values().length];
+        this.memberName_table = null;
+        initMethodTypes(value, coordinates);
+    }
 
+    void initMethodTypes(Class<?> value, Class<?>... coordinates) {
         // (Receiver, <Intermediates>)Value
         methodType_table[VarHandle.AccessType.GET.ordinal()] =
-                MethodType.methodType(value, l).erase();
+                MethodType.methodType(value, coordinates).erase();
 
         // (Receiver, <Intermediates>, Value)void
-        l.add(value);
         methodType_table[VarHandle.AccessType.SET.ordinal()] =
-                MethodType.methodType(void.class, l).erase();
+                MethodType.methodType(void.class, coordinates).appendParameterTypes(value).erase();
 
         // (Receiver, <Intermediates>, Value)Value
         methodType_table[VarHandle.AccessType.GET_AND_UPDATE.ordinal()] =
-                MethodType.methodType(value, l).erase();
+                MethodType.methodType(value, coordinates).appendParameterTypes(value).erase();
 
         // (Receiver, <Intermediates>, Value, Value)boolean
-        l.add(value);
         methodType_table[VarHandle.AccessType.COMPARE_AND_SET.ordinal()] =
-                MethodType.methodType(boolean.class, l).erase();
+                MethodType.methodType(boolean.class, coordinates).appendParameterTypes(value, value).erase();
 
         // (Receiver, <Intermediates>, Value, Value)Value
         methodType_table[VarHandle.AccessType.COMPARE_AND_EXCHANGE.ordinal()] =
-                MethodType.methodType(value, l).erase();
+                MethodType.methodType(value, coordinates).appendParameterTypes(value, value).erase();
     }
 
     @ForceInline

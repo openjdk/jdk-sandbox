@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.hpp"
+#include "oops/oopHandle.hpp"
 #include "utilities/hashtable.hpp"
 #include "utilities/ostream.hpp"
 
@@ -51,8 +52,6 @@ class Dictionary : public Hashtable<InstanceKlass*, mtClass> {
 
   DictionaryEntry* get_entry(int index, unsigned int hash, Symbol* name);
 
-  void clean_cached_protection_domains(DictionaryEntry* probe);
-
 public:
   Dictionary(ClassLoaderData* loader_data, int table_size, bool resizable = false);
   Dictionary(ClassLoaderData* loader_data, int table_size, HashtableBucket<mtClass>* t, int number_of_entries, bool resizable = false);
@@ -60,8 +59,6 @@ public:
 
   static bool does_any_dictionary_needs_resizing();
   bool resize_if_needed();
-
-  DictionaryEntry* new_entry(unsigned int hash, InstanceKlass* klass);
 
   void add_klass(unsigned int hash, Symbol* class_name, InstanceKlass* obj);
 
@@ -72,7 +69,7 @@ public:
   void all_entries_do(KlassClosure* closure);
   void classes_do(MetaspaceClosure* it);
 
-  void unlink();
+  void clean_cached_protection_domains();
 
   // Protection domains
   InstanceKlass* find(unsigned int hash, Symbol* name, Handle protection_domain);
@@ -85,6 +82,10 @@ public:
 
   void print_on(outputStream* st) const;
   void verify();
+
+ private:
+  DictionaryEntry* new_entry(unsigned int hash, InstanceKlass* klass);
+
   DictionaryEntry* bucket(int i) const {
     return (DictionaryEntry*)Hashtable<InstanceKlass*, mtClass>::bucket(i);
   }
@@ -153,42 +154,23 @@ class DictionaryEntry : public HashtableEntry<InstanceKlass*, mtClass> {
   ProtectionDomainEntry* pd_set() const            { return _pd_set; }
   void set_pd_set(ProtectionDomainEntry* new_head) {  _pd_set = new_head; }
 
-  ProtectionDomainEntry* pd_set_acquire() const;
-  void release_set_pd_set(ProtectionDomainEntry* new_head);
-
   // Tells whether the initiating class' protection domain can access the klass in this entry
   bool is_valid_protection_domain(Handle protection_domain) {
     if (!ProtectionDomainVerification) return true;
-    if (!SystemDictionary::has_checkPackageAccess()) return true;
 
     return protection_domain() == NULL
          ? true
          : contains_protection_domain(protection_domain());
   }
 
-  void verify_protection_domain_set() {
-    for (ProtectionDomainEntry* current = pd_set(); // accessed at a safepoint
-                                current != NULL;
-                                current = current->_next) {
-      guarantee(oopDesc::is_oop_or_null(current->_pd_cache->object_no_keepalive()), "Invalid oop");
-    }
-  }
+  void verify_protection_domain_set();
 
   bool equals(const Symbol* class_name) const {
     InstanceKlass* klass = (InstanceKlass*)literal();
     return (klass->name() == class_name);
   }
 
-  void print_count(outputStream *st) {
-    int count = 0;
-    for (ProtectionDomainEntry* current = pd_set();  // accessed inside SD lock
-                                current != NULL;
-                                current = current->_next) {
-      count++;
-    }
-    st->print_cr("pd set count = #%d", count);
-  }
-
+  void print_count(outputStream *st);
   void verify();
 };
 
@@ -199,7 +181,7 @@ class SymbolPropertyEntry : public HashtableEntry<Symbol*, mtSymbol> {
  private:
   intptr_t _symbol_mode;  // secondary key
   Method*   _method;
-  oop       _method_type;
+  OopHandle _method_type;
 
  public:
   Symbol* symbol() const            { return literal(); }
@@ -210,9 +192,13 @@ class SymbolPropertyEntry : public HashtableEntry<Symbol*, mtSymbol> {
   Method*        method() const     { return _method; }
   void set_method(Method* p)        { _method = p; }
 
-  oop      method_type() const      { return _method_type; }
-  oop*     method_type_addr()       { return &_method_type; }
-  void set_method_type(oop p)       { _method_type = p; }
+  oop      method_type() const;
+  void set_method_type(oop p);
+
+  // We need to clear the OopHandle because these hashtable entries are not constructed properly.
+  void clear_method_type() { _method_type = OopHandle(); }
+
+  void free_entry();
 
   SymbolPropertyEntry* next() const {
     return (SymbolPropertyEntry*)HashtableEntry<Symbol*, mtSymbol>::next();
@@ -264,7 +250,7 @@ private:
     symbol->increment_refcount();
     entry->set_symbol_mode(symbol_mode);
     entry->set_method(NULL);
-    entry->set_method_type(NULL);
+    entry->clear_method_type();
     return entry;
   }
 
@@ -272,11 +258,7 @@ public:
   SymbolPropertyTable(int table_size);
   SymbolPropertyTable(int table_size, HashtableBucket<mtSymbol>* t, int number_of_entries);
 
-  void free_entry(SymbolPropertyEntry* entry) {
-    // decrement Symbol refcount here because hashtable doesn't.
-    entry->literal()->decrement_refcount();
-    Hashtable<Symbol*, mtSymbol>::free_entry(entry);
-  }
+  void free_entry(SymbolPropertyEntry* entry);
 
   unsigned int compute_hash(Symbol* sym, intptr_t symbol_mode) {
     // Use the regular identity_hash.
@@ -292,9 +274,6 @@ public:
 
   // must be done under SystemDictionary_lock
   SymbolPropertyEntry* add_entry(int index, unsigned int hash, Symbol* name, intptr_t name_mode);
-
-  // GC support
-  void oops_do(OopClosure* f);
 
   void methods_do(void f(Method*));
 

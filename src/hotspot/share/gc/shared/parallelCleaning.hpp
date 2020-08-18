@@ -25,34 +25,20 @@
 #ifndef SHARE_GC_SHARED_PARALLELCLEANING_HPP
 #define SHARE_GC_SHARED_PARALLELCLEANING_HPP
 
-#include "classfile/classLoaderDataGraph.inline.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
+#include "code/codeCache.hpp"
 #include "gc/shared/oopStorageParState.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
 #include "gc/shared/workgroup.hpp"
 
-class ParallelCleaningTask;
-
-class StringCleaningTask : public AbstractGangTask {
-private:
-  BoolObjectClosure* _is_alive;
-  StringDedupUnlinkOrOopsDoClosure * const _dedup_closure;
-
-  OopStorage::ParState<false /* concurrent */, false /* const */> _par_state_string;
-
-  int _initial_string_table_size;
-
-  bool            _process_strings;
-  volatile size_t _strings_processed;
-  volatile size_t _strings_removed;
+class StringDedupCleaningTask : public AbstractGangTask {
+  StringDedupUnlinkOrOopsDoClosure _dedup_closure;
 
 public:
-  StringCleaningTask(BoolObjectClosure* is_alive, StringDedupUnlinkOrOopsDoClosure* dedup_closure, bool process_strings);
-  ~StringCleaningTask();
+  StringDedupCleaningTask(BoolObjectClosure* is_alive, OopClosure* keep_alive, bool resize_table);
+  ~StringDedupCleaningTask();
 
   void work(uint worker_id);
-
-  size_t strings_processed() const { return _strings_processed; }
-  size_t strings_removed()   const { return _strings_removed; }
 };
 
 class CodeCacheUnloadingTask {
@@ -97,22 +83,6 @@ public:
   }
 
   void work();
-};
-
-// To minimize the remark pause times, the tasks below are done in parallel.
-class ParallelCleaningTask : public AbstractGangTask {
-private:
-  bool                        _unloading_occurred;
-  StringCleaningTask          _string_task;
-  CodeCacheUnloadingTask      _code_cache_task;
-  KlassCleaningTask           _klass_cleaning_task;
-
-public:
-  // The constructor is run in the VMThread.
-  ParallelCleaningTask(BoolObjectClosure* is_alive, StringDedupUnlinkOrOopsDoClosure* dedup_closure,
-    uint num_workers, bool unloading_occurred);
-
-  void work(uint worker_id);
 };
 
 #endif // SHARE_GC_SHARED_PARALLELCLEANING_HPP

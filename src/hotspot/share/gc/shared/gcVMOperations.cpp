@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@
 #include "interpreter/oopMapCache.hpp"
 #include "logging/log.hpp"
 #include "memory/oopFactory.hpp"
+#include "memory/universe.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "utilities/dtrace.hpp"
@@ -54,12 +55,10 @@ VM_GC_Operation::~VM_GC_Operation() {
 void VM_GC_Operation::notify_gc_begin(bool full) {
   HOTSPOT_GC_BEGIN(
                    full);
-  HS_DTRACE_WORKAROUND_TAIL_CALL_BUG();
 }
 
 void VM_GC_Operation::notify_gc_end() {
   HOTSPOT_GC_END();
-  HS_DTRACE_WORKAROUND_TAIL_CALL_BUG();
 }
 
 // Allocations may fail in several threads at about the same time,
@@ -131,7 +130,6 @@ bool VM_GC_HeapInspection::collect() {
 }
 
 void VM_GC_HeapInspection::doit() {
-  HandleMark hm;
   Universe::heap()->ensure_parsability(false); // must happen, even if collection does
                                                // not happen (e.g. due to GCLocker)
                                                // or _full_gc being false
@@ -150,8 +148,7 @@ void VM_GC_HeapInspection::doit() {
       log_warning(gc)("GC locker is held; pre-dump GC was skipped");
     }
   }
-  HeapInspection inspect(_csv_format, _print_help, _print_class_stats,
-                         _columns);
+  HeapInspection inspect;
   inspect.heap_inspection(_out);
 }
 
@@ -162,7 +159,7 @@ void VM_GenCollectForAllocation::doit() {
   GenCollectedHeap* gch = GenCollectedHeap::heap();
   GCCauseSetter gccs(gch, _gc_cause);
   _result = gch->satisfy_failed_allocation(_word_size, _tlab);
-  assert(gch->is_in_reserved_or_null(_result), "result not in heap");
+  assert(_result == NULL || gch->is_in_reserved(_result), "result not in heap");
 
   if (_result == NULL && GCLocker::is_active_and_needs_gc()) {
     set_gc_locked();
@@ -191,26 +188,19 @@ VM_CollectForMetadataAllocation::VM_CollectForMetadataAllocation(ClassLoaderData
 
 // Returns true iff concurrent GCs unloads metadata.
 bool VM_CollectForMetadataAllocation::initiate_concurrent_GC() {
-#if INCLUDE_CMSGC
-  if (UseConcMarkSweepGC && CMSClassUnloadingEnabled) {
-    MetaspaceGC::set_should_concurrent_collect(true);
-    return true;
-  }
-#endif
-
 #if INCLUDE_G1GC
   if (UseG1GC && ClassUnloadingWithConcurrentMark) {
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
-    g1h->g1_policy()->collector_state()->set_initiate_conc_mark_if_possible(true);
+    g1h->policy()->collector_state()->set_initiate_conc_mark_if_possible(true);
 
     GCCauseSetter x(g1h, _gc_cause);
 
     // At this point we are supposed to start a concurrent cycle. We
     // will do so if one is not already in progress.
-    bool should_start = g1h->g1_policy()->force_initial_mark_if_outside_cycle(_gc_cause);
+    bool should_start = g1h->policy()->force_concurrent_start_if_outside_cycle(_gc_cause);
 
     if (should_start) {
-      double pause_target = g1h->g1_policy()->max_pause_time_ms();
+      double pause_target = g1h->policy()->max_pause_time_ms();
       g1h->do_collection_pause_at_safepoint(pause_target);
     }
     return true;
@@ -237,13 +227,13 @@ void VM_CollectForMetadataAllocation::doit() {
   }
 
   if (initiate_concurrent_GC()) {
-    // For CMS and G1 expand since the collection is going to be concurrent.
+    // For G1 expand since the collection is going to be concurrent.
     _result = _loader_data->metaspace_non_null()->expand_and_allocate(_size, _mdtype);
     if (_result != NULL) {
       return;
     }
 
-    log_debug(gc)("%s full GC for Metaspace", UseConcMarkSweepGC ? "CMS" : "G1");
+    log_debug(gc)("G1 full GC for Metaspace");
   }
 
   // Don't clear the soft refs yet.

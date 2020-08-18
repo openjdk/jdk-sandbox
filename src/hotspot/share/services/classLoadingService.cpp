@@ -26,7 +26,6 @@
 #include "classfile/systemDictionary.hpp"
 #include "memory/allocation.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "services/classLoadingService.hpp"
@@ -136,11 +135,6 @@ void ClassLoadingService::notify_class_unloaded(InstanceKlass* k) {
     for (int i = 0; i < methods->length(); i++) {
       _class_methods_size->inc(-methods->at(i)->size());
     }
-  }
-
-  if (log_is_enabled(Info, class, unload)) {
-    ResourceMark rm;
-    log_info(class, unload)("unloading class %s " INTPTR_FORMAT , k->external_name(), p2i(k));
   }
 }
 

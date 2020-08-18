@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 
 import com.sun.nio.sctp.*;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
@@ -36,21 +37,16 @@ import static java.nio.ByteBuffer.*;
 
 public class SendFailed {
 
-    static final SocketAddress remoteAddress = new InetSocketAddress("127.0.0.1", 3000);
+    static final SocketAddress remoteAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 3000);
 
     static final int[] bufferSizes =
             { 20, 49, 50, 51, 100, 101, 1024, 1025, 4095, 4096, 4097, 8191, 8192, 8193};
 
     void test(String[] args) throws IOException {
         SocketAddress address = null;
-        String os = System.getProperty("os.name").toLowerCase();
 
         if (!Util.isSCTPSupported()) {
             out.println("SCTP protocol is not supported");
-            out.println("Test cannot be run");
-            return;
-        } else if (os.startsWith("sunos")) {
-            out.println("Test not supported on Solaris");
             out.println("Test cannot be run");
             return;
         }
@@ -97,14 +93,19 @@ public class SendFailed {
                     new SendFailedNotificationHandler();
             ByteBuffer recvBuffer = direct ? allocateDirect(recvBufferSize)
                                            : allocate((recvBufferSize));
-            channel.receive(recvBuffer, null, handler);
+            MessageInfo info = channel.receive(recvBuffer, null, handler);
+            debug("receive returned info:" + info);
 
-            // verify sent buffer received by send failed notification
-            ByteBuffer buffer = handler.getSendFailedByteBuffer();
-            check(buffer.remaining() == sent);
-            check(buffer.position() == 0);
-            check(buffer.limit() == sent);
-            assertSameContent(sendBuffer, handler.getSendFailedByteBuffer());
+            if (handler.receivedSendFailed) {
+                // verify sent buffer received by send failed notification
+                ByteBuffer buffer = handler.getSendFailedByteBuffer();
+                check(buffer.remaining() == sent);
+                check(buffer.position() == 0);
+                check(buffer.limit() == sent);
+                assertSameContent(sendBuffer, handler.getSendFailedByteBuffer());
+            } else {
+                debug("Unexpected event or received data. Check output.");
+            }
         }
     }
 
@@ -112,6 +113,7 @@ public class SendFailed {
     {
         /** Reference to the buffer captured in send failed notification */
         private ByteBuffer sentBuffer;
+        boolean receivedSendFailed;
 
         @Override
         public HandlerResult handleNotification(
@@ -134,6 +136,7 @@ public class SendFailed {
         public HandlerResult handleNotification(
                 SendFailedNotification notification, Object attachment) {
             debug("%nSendFailedNotification: %s. ", notification);
+            receivedSendFailed = true;
             sentBuffer = notification.buffer();
             return HandlerResult.RETURN;
         }

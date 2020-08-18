@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -160,7 +160,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
     private final CookieHandler cookieHandler;
     private final Duration connectTimeout;
     private final Redirect followRedirects;
-    private final Optional<ProxySelector> userProxySelector;
+    private final ProxySelector userProxySelector;
     private final ProxySelector proxySelector;
     private final Authenticator authenticator;
     private final Version version;
@@ -286,12 +286,12 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         connectTimeout = builder.connectTimeout;
         followRedirects = builder.followRedirects == null ?
                 Redirect.NEVER : builder.followRedirects;
-        this.userProxySelector = Optional.ofNullable(builder.proxy);
-        this.proxySelector = userProxySelector
+        this.userProxySelector = builder.proxy;
+        this.proxySelector = Optional.ofNullable(userProxySelector)
                 .orElseGet(HttpClientImpl::getDefaultProxySelector);
         if (debug.on())
             debug.log("proxySelector is %s (user-supplied=%s)",
-                      this.proxySelector, userProxySelector.isPresent());
+                      this.proxySelector, userProxySelector != null);
         authenticator = builder.authenticator;
         if (builder.version == null) {
             version = HttpClient.Version.HTTP_2;
@@ -310,7 +310,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
             selmgr = new SelectorManager(this);
         } catch (IOException e) {
             // unlikely
-            throw new InternalError(e);
+            throw new UncheckedIOException(e);
         }
         selmgr.setDaemon(true);
         filters = new FilterFactory();
@@ -334,19 +334,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
     }
 
     private static SSLParameters getDefaultParams(SSLContext ctx) {
-        SSLParameters params = ctx.getSupportedSSLParameters();
-        String[] protocols = params.getProtocols();
-        boolean found13 = false;
-        for (String proto : protocols) {
-            if (proto.equals("TLSv1.3")) {
-                found13 = true;
-                break;
-            }
-        }
-        if (found13)
-            params.setProtocols(new String[] {"TLSv1.3", "TLSv1.2"});
-        else
-            params.setProtocols(new String[] {"TLSv1.2"});
+        SSLParameters params = ctx.getDefaultSSLParameters();
         return params;
     }
 
@@ -1149,7 +1137,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
 
     @Override
     public Optional<ProxySelector> proxy() {
-        return this.userProxySelector;
+        return Optional.ofNullable(userProxySelector);
     }
 
     // Return the effective proxy that this client uses.

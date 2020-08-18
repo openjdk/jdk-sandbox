@@ -23,6 +23,7 @@
 
 /**
  * @test
+ * @library /test/lib
  * @requires (os.family == "linux" | os.family == "mac" | os.family == "windows")
  * @bug 8209152
  * @run main PrintSupportedOptions
@@ -32,6 +33,9 @@
 import java.io.IOException;
 import java.net.SocketOption;
 import java.nio.channels.*;
+import java.util.*;
+
+import jdk.test.lib.net.IPSupport;
 
 public class PrintSupportedOptions {
 
@@ -41,6 +45,8 @@ public class PrintSupportedOptions {
     }
 
     public static void main(String[] args) throws IOException {
+        IPSupport.throwSkippedExceptionIfNonOperational();
+
         test(() -> SocketChannel.open());
         test(() -> ServerSocketChannel.open());
         test(() -> DatagramChannel.open());
@@ -48,6 +54,8 @@ public class PrintSupportedOptions {
         test(() -> AsynchronousSocketChannel.open());
         test(() -> AsynchronousServerSocketChannel.open());
     }
+
+    static final Set<String> READ_ONLY_OPTS = Set.of("SO_INCOMING_NAPI_ID");
 
     @SuppressWarnings("unchecked")
     static <T extends NetworkChannel>
@@ -57,8 +65,9 @@ public class PrintSupportedOptions {
             for (SocketOption<?> opt : ch.supportedOptions()) {
                 Object value = ch.getOption(opt);
                 System.out.format(" %s -> %s%n", opt.name(), value);
-                if (value != null) {
-                    ch.setOption((SocketOption<Object>) opt, value);
+                if (!READ_ONLY_OPTS.contains(opt.name())) {
+                    if (value != null)
+                        ch.setOption((SocketOption<Object>) opt, value);
                 }
             }
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,32 @@
 #include "precompiled.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointManager.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
+#include "jfr/utilities/jfrBlob.hpp"
 #include "jfr/writers/jfrBigEndianWriter.hpp"
 
 JfrCheckpointFlush::JfrCheckpointFlush(Type* old, size_t used, size_t requested, Thread* t) :
   _result(JfrCheckpointManager::flush(old, used, requested, t)) {}
 
-JfrCheckpointWriter::JfrCheckpointWriter(bool flushpoint, bool header, Thread* thread) :
-  JfrCheckpointWriterBase(JfrCheckpointManager::lease_buffer(thread), thread),
+JfrCheckpointWriter::JfrCheckpointWriter(JfrCheckpointType type /* GENERIC */) :
+  JfrCheckpointWriterBase(JfrCheckpointManager::lease(Thread::current()), Thread::current()),
   _time(JfrTicks::now()),
   _offset(0),
   _count(0),
-  _flushpoint(flushpoint),
+  _type(type),
+  _header(true) {
+  assert(this->is_acquired(), "invariant");
+  assert(0 == this->current_offset(), "invariant");
+  if (_header) {
+    reserve(sizeof(JfrCheckpointEntry));
+  }
+}
+
+JfrCheckpointWriter::JfrCheckpointWriter(Thread* thread, bool header /* true */, JfrCheckpointType type /* GENERIC */, bool global_lease /* true */) :
+  JfrCheckpointWriterBase(global_lease ? JfrCheckpointManager::lease(thread) : JfrCheckpointManager::lease_thread_local(thread), thread),
+  _time(JfrTicks::now()),
+  _offset(0),
+  _count(0),
+  _type(type),
   _header(header) {
   assert(this->is_acquired(), "invariant");
   assert(0 == this->current_offset(), "invariant");
@@ -44,13 +59,27 @@ JfrCheckpointWriter::JfrCheckpointWriter(bool flushpoint, bool header, Thread* t
   }
 }
 
-static void write_checkpoint_header(u1* pos, jlong size, jlong time, bool flushpoint, juint type_count) {
+JfrCheckpointWriter::JfrCheckpointWriter(bool previous_epoch, Thread* thread, JfrCheckpointType type /* GENERIC */) :
+  JfrCheckpointWriterBase(JfrCheckpointManager::lease(thread, previous_epoch), thread),
+  _time(JfrTicks::now()),
+  _offset(0),
+  _count(0),
+  _type(type),
+  _header(true) {
+  assert(this->is_acquired(), "invariant");
+  assert(0 == this->current_offset(), "invariant");
+  if (_header) {
+    reserve(sizeof(JfrCheckpointEntry));
+  }
+}
+
+static void write_checkpoint_header(u1* pos, int64_t size, jlong time, u4 checkpoint_type, u4 type_count) {
   assert(pos != NULL, "invariant");
   JfrBigEndianWriter be_writer(pos, sizeof(JfrCheckpointEntry));
   be_writer.write(size);
   be_writer.write(time);
   be_writer.write(JfrTicks::now().value() - time);
-  be_writer.write(flushpoint ? (juint)1 : (juint)0);
+  be_writer.write(checkpoint_type);
   be_writer.write(type_count);
   assert(be_writer.is_valid(), "invariant");
 }
@@ -71,25 +100,17 @@ JfrCheckpointWriter::~JfrCheckpointWriter() {
   assert(this->is_valid(), "invariant");
   assert(count() > 0, "invariant");
   assert(this->used_size() > sizeof(JfrCheckpointEntry), "invariant");
-  const jlong size = this->current_offset();
+  const int64_t size = this->current_offset();
   assert(size + this->start_pos() == this->current_pos(), "invariant");
-  write_checkpoint_header(const_cast<u1*>(this->start_pos()), size, _time, is_flushpoint(), count());
+  write_checkpoint_header(const_cast<u1*>(this->start_pos()), size, _time, (u4)_type, count());
   release();
 }
 
-void JfrCheckpointWriter::set_flushpoint(bool flushpoint) {
-  _flushpoint = flushpoint;
-}
-
-bool JfrCheckpointWriter::is_flushpoint() const {
-  return _flushpoint;
-}
-
-juint JfrCheckpointWriter::count() const {
+u4 JfrCheckpointWriter::count() const {
   return _count;
 }
 
-void JfrCheckpointWriter::set_count(juint count) {
+void JfrCheckpointWriter::set_count(u4 count) {
   _count = count;
 }
 
@@ -105,13 +126,14 @@ void JfrCheckpointWriter::release() {
 }
 
 void JfrCheckpointWriter::write_type(JfrTypeId type_id) {
-  assert(type_id < TYPES_END, "invariant");
+  assert(type_id <= LAST_TYPE_ID, "type id overflow invariant");
+  assert(type_id >= FIRST_TYPE_ID, "type id underflow invariant");
   write<u8>(type_id);
   increment();
 }
 
 void JfrCheckpointWriter::write_key(u8 key) {
-  write<u8>(key);
+  write(key);
 }
 
 void JfrCheckpointWriter::increment() {
@@ -119,14 +141,14 @@ void JfrCheckpointWriter::increment() {
 }
 
 void JfrCheckpointWriter::write_count(u4 nof_entries) {
-  write<u4>((u4)nof_entries);
+  write(nof_entries);
 }
 
-void JfrCheckpointWriter::write_count(u4 nof_entries, jlong offset) {
+void JfrCheckpointWriter::write_count(u4 nof_entries, int64_t offset) {
   write_padded_at_offset(nof_entries, offset);
 }
 
-const u1* JfrCheckpointWriter::session_data(size_t* size, const JfrCheckpointContext* ctx /* 0 */) {
+const u1* JfrCheckpointWriter::session_data(size_t* size, bool move /* false */, const JfrCheckpointContext* ctx /* 0 */) {
   assert(this->is_acquired(), "wrong state!");
   if (!this->is_valid()) {
     *size = 0;
@@ -139,9 +161,11 @@ const u1* JfrCheckpointWriter::session_data(size_t* size, const JfrCheckpointCon
   }
   *size = this->used_size();
   assert(this->start_pos() + *size == this->current_pos(), "invariant");
-  write_checkpoint_header(const_cast<u1*>(this->start_pos()), this->used_offset(), _time, is_flushpoint(), count());
-  this->seek(_offset + (_header ? sizeof(JfrCheckpointEntry) : 0));
-  set_count(0);
+  write_checkpoint_header(const_cast<u1*>(this->start_pos()), this->used_offset(), _time, (u4)_type, count());
+  _header = false; // the header was just written
+  if (move) {
+    this->seek(_offset);
+  }
   return this->start_pos();
 }
 
@@ -160,26 +184,19 @@ bool JfrCheckpointWriter::has_data() const {
   return this->used_size() > sizeof(JfrCheckpointEntry);
 }
 
-JfrCheckpointBlobHandle JfrCheckpointWriter::checkpoint_blob() {
+JfrBlobHandle JfrCheckpointWriter::copy(const JfrCheckpointContext* ctx /* 0 */) {
   size_t size = 0;
-  const u1* data = session_data(&size);
-  return JfrCheckpointBlob::make(data, size);
+  const u1* data = session_data(&size, false, ctx);
+  return JfrBlob::make(data, size);
 }
 
-JfrCheckpointBlobHandle JfrCheckpointWriter::copy(const JfrCheckpointContext* ctx /* 0 */) {
-  if (ctx == NULL) {
-    return checkpoint_blob();
-  }
+JfrBlobHandle JfrCheckpointWriter::move(const JfrCheckpointContext* ctx /* 0 */) {
   size_t size = 0;
-  const u1* data = session_data(&size, ctx);
-  return JfrCheckpointBlob::make(data, size);
-}
-
-JfrCheckpointBlobHandle JfrCheckpointWriter::move(const JfrCheckpointContext* ctx /* 0 */) {
-  JfrCheckpointBlobHandle data = copy(ctx);
+  const u1* data = session_data(&size, true, ctx);
+  JfrBlobHandle blob = JfrBlob::make(data, size);
   if (ctx != NULL) {
     const_cast<JfrCheckpointContext*>(ctx)->count = 0;
     set_context(*ctx);
   }
-  return data;
+  return blob;
 }

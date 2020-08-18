@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -394,7 +394,7 @@ public class UnixPrintJob implements CancelablePrintJob {
         String repClassName = flavor.getRepresentationClassName();
         String val = flavor.getParameter("charset");
         String encoding = "us-ascii";
-        if (val != null && !val.equals("")) {
+        if (val != null && !val.isEmpty()) {
             encoding = val;
         }
 
@@ -733,7 +733,7 @@ public class UnixPrintJob implements CancelablePrintJob {
         } catch (SecurityException se) {
         }
 
-        if (userName == null || userName.equals("")) {
+        if (userName == null || userName.isEmpty()) {
             RequestingUserName ruName =
                 (RequestingUserName)reqSet.get(RequestingUserName.class);
             if (ruName != null) {
@@ -865,15 +865,15 @@ public class UnixPrintJob implements CancelablePrintJob {
         int n = 0;
 
         // conveniently "lp" is the default destination for both lp and lpr.
-        if (printer != null && !printer.equals("") && !printer.equals("lp")) {
+        if (printer != null && !printer.isEmpty() && !printer.equals("lp")) {
             pFlags |= PRINTER;
             ncomps+=1;
         }
-        if (options != null && !options.equals("")) {
+        if (options != null && !options.isEmpty()) {
             pFlags |= OPTIONS;
             ncomps+=1;
         }
-        if (jobTitle != null && !jobTitle.equals("")) {
+        if (jobTitle != null && !jobTitle.isEmpty()) {
             pFlags |= JOBTITLE;
             ncomps+=1;
         }
@@ -888,51 +888,25 @@ public class UnixPrintJob implements CancelablePrintJob {
                         isAttributeCategorySupported(JobSheets.class)) {
             ncomps+=1;
         }
-        if (PrintServiceLookupProvider.osname.equals("SunOS")) {
-            ncomps+=1; // lp uses 1 more arg than lpr (make a copy)
-            execCmd = new String[ncomps];
-            execCmd[n++] = "/usr/bin/lp";
-            execCmd[n++] = "-c";           // make a copy of the spool file
-            if ((pFlags & PRINTER) != 0) {
-                execCmd[n++] = "-d" + printer;
-            }
-            if ((pFlags & JOBTITLE) != 0) {
-                String quoteChar = "\"";
-                execCmd[n++] = "-t "  + quoteChar+jobTitle+quoteChar;
-            }
-            if ((pFlags & COPIES) != 0) {
-                execCmd[n++] = "-n " + copies;
-            }
-            if ((pFlags & NOSHEET) != 0) {
-                execCmd[n++] = "-o nobanner";
-            } else if (getPrintService().
-                        isAttributeCategorySupported(JobSheets.class)) {
-                execCmd[n++] = "-o job-sheets=standard";
-            }
-            if ((pFlags & OPTIONS) != 0) {
-                execCmd[n++] = "-o " + options;
-            }
-        } else {
-            execCmd = new String[ncomps];
-            execCmd[n++] = "/usr/bin/lpr";
-            if ((pFlags & PRINTER) != 0) {
-                execCmd[n++] = "-P" + printer;
-            }
-            if ((pFlags & JOBTITLE) != 0) {
-                execCmd[n++] = "-J "  + jobTitle;
-            }
-            if ((pFlags & COPIES) != 0) {
-                execCmd[n++] = "-#" + copies;
-            }
-            if ((pFlags & NOSHEET) != 0) {
-                execCmd[n++] = "-h";
-            } else if (getPrintService().
-                        isAttributeCategorySupported(JobSheets.class)) {
-                execCmd[n++] = "-o job-sheets=standard";
-            }
-            if ((pFlags & OPTIONS) != 0) {
-                execCmd[n++] = "-o" + options;
-            }
+        execCmd = new String[ncomps];
+        execCmd[n++] = "/usr/bin/lpr";
+        if ((pFlags & PRINTER) != 0) {
+            execCmd[n++] = "-P" + printer;
+        }
+        if ((pFlags & JOBTITLE) != 0) {
+            execCmd[n++] = "-J "  + jobTitle;
+        }
+        if ((pFlags & COPIES) != 0) {
+            execCmd[n++] = "-#" + copies;
+        }
+        if ((pFlags & NOSHEET) != 0) {
+            execCmd[n++] = "-h";
+        } else if (getPrintService().
+                   isAttributeCategorySupported(JobSheets.class)) {
+            execCmd[n++] = "-o job-sheets=standard";
+        }
+        if ((pFlags & OPTIONS) != 0) {
+            execCmd[n++] = "-o" + options;
         }
         execCmd[n++] = spoolFile;
         if (IPPPrintService.debugPrint) {

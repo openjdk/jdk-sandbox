@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,12 +31,13 @@
  * object registry, and the <em>{@index rmid rmid tool}</em> tool to start
  * the activation system daemon.
  *
- * <dl style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif">
- * <dt class="simpleTagLabel">Tool Guides:</dt>
- * <dd> {@extLink rmiregistry_tool_reference rmiregistry},
- *      {@extLink rmid_tool_reference rmid}
- * </dd>
- * </dl>
+ * <p> <strong>Deprecation Notice:</strong> The RMI Activation mechanism has been
+ * deprecated and may be removed from a future version of the Java Platform. See the
+ * <a href="{@docRoot}/java.rmi/java/rmi/activation/package-summary.html">
+ * {@code java.rmi.activation}</a> package specification for further information.
+ *
+ * @toolGuide rmiregistry
+ * @toolGuide rmid
  *
  * @uses java.rmi.server.RMIClassLoaderSpi
  *

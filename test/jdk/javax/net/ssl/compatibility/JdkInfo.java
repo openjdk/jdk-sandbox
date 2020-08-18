@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,10 @@
  * questions.
  */
 
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /*
  * It represents a JDK with some specific attributes.
  * If two JdkInfo instances have the same version value, the instances are
@@ -28,32 +32,42 @@
  */
 public class JdkInfo {
 
-    public final String jdkPath;
+    public static final JdkInfo DEFAULT = new JdkInfo(Jdk.DEFAULT.getPath());
+
+    public final Path javaPath;
 
     public final String version;
-    public final boolean supportsECKey;
+    public final String supportedProtocols;
+    public final String enabledProtocols;
+    public final String supportedCipherSuites;
+    public final String enabledCipherSuites;
     public final boolean supportsSNI;
     public final boolean supportsALPN;
 
-    public JdkInfo(String jdkPath) throws Throwable {
-        this.jdkPath = jdkPath;
+    public JdkInfo(Path javaPath) {
+        this.javaPath = javaPath;
 
-        String output = jdkAttributes(jdkPath);
+        String output = jdkAttributes(javaPath);
         if (output == null || output.trim().isEmpty()) {
             throw new RuntimeException(
-                    "Cannot determine the JDK attributes: " + jdkPath);
+                    "Cannot determine the JDK attributes: " + javaPath);
         }
 
-        String[] attributes = Utils.split(output, Utils.PARAM_DELIMITER);
+        String[] attributes = Utilities.split(output, Utilities.PARAM_DELIMITER);
         version = attributes[0].replaceAll(".*=", "");
-        supportsECKey = Boolean.valueOf(attributes[1].replaceAll(".*=", ""));
-        supportsSNI = Boolean.valueOf(attributes[2].replaceAll(".*=", ""));
-        supportsALPN = Boolean.valueOf(attributes[3].replaceAll(".*=", ""));
+        supportedProtocols = attributes[1].replaceAll(".*=", "");
+        enabledProtocols = attributes[2].replaceAll(".*=", "");
+        supportedCipherSuites = attributes[3].replaceAll(".*=", "");
+        enabledCipherSuites = attributes[4].replaceAll(".*=", "");
+        supportsSNI = Boolean.valueOf(attributes[5].replaceAll(".*=", ""));
+        supportsALPN = Boolean.valueOf(attributes[6].replaceAll(".*=", ""));
     }
 
     // Determines the specific attributes for the specified JDK.
-    private static String jdkAttributes(String jdkPath) throws Throwable {
-        return ProcessUtils.java(jdkPath, null, JdkUtils.class).getOutput();
+    private static String jdkAttributes(Path javaPath) {
+        Map<String, String> props = new LinkedHashMap<>();
+        props.put("java.security.properties", Utils.SEC_PROPS_FILE);
+        return ProcUtils.java(javaPath, JdkInfoUtils.class, props).getOutput();
     }
 
     @Override
@@ -83,10 +97,19 @@ public class JdkInfo {
         return true;
     }
 
+    public boolean supportsProtocol(Protocol protocol) {
+        return supportedProtocols.contains(protocol.name);
+    }
+
+    public boolean enablesProtocol(Protocol protocol) {
+        return enabledProtocols.contains(protocol.name);
+    }
+
     public boolean supportsCipherSuite(CipherSuite cipherSuite) {
-        JdkRelease jdkRelease = JdkRelease.getRelease(version);
-        return cipherSuite.startJdk.sequence <= jdkRelease.sequence
-                && (cipherSuite.endJdk == null
-                        || cipherSuite.endJdk.sequence >= jdkRelease.sequence);
+        return supportedCipherSuites.contains(cipherSuite.name());
+    }
+
+    public boolean enablesCipherSuite(CipherSuite cipherSuite) {
+        return enabledCipherSuites.contains(cipherSuite.name());
     }
 }

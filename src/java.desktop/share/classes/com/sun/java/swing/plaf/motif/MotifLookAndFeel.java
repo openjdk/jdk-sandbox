@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,8 +60,12 @@ import sun.awt.OSInfo;
  * long term persistence.
  *
  * @author unattributed
+ * @deprecated The Motif Look and Feel is deprecated with the intent to remove
+ *             it in some future release. It is recommended to use
+ *             {@link javax.swing.plaf.metal.MetalLookAndFeel} instead.
  */
 @SuppressWarnings("serial") // Superclass is not serializable across versions
+@Deprecated(since="13", forRemoval=true)
 public class MotifLookAndFeel extends BasicLookAndFeel
 {
     public String getName() {
@@ -78,7 +82,7 @@ public class MotifLookAndFeel extends BasicLookAndFeel
 
 
     public boolean isNativeLookAndFeel() {
-        return OSInfo.getOSType() == OSInfo.OSType.SOLARIS;
+        return false;
     }
 
 

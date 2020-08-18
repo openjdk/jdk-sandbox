@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -112,14 +112,26 @@ import jdk.vm.ci.code.Architecture;
  */
 public class GraphEncoder {
 
-    /** The orderId that always represents {@code null}. */
+    /**
+     * The orderId that always represents {@code null}.
+     */
     public static final int NULL_ORDER_ID = 0;
-    /** The orderId of the {@link StructuredGraph#start() start node} of the encoded graph. */
+    /**
+     * The orderId of the {@link StructuredGraph#start() start node} of the encoded graph.
+     */
     public static final int START_NODE_ORDER_ID = 1;
     /**
      * The orderId of the first actual node after the {@link StructuredGraph#start() start node}.
      */
     public static final int FIRST_NODE_ORDER_ID = 2;
+    /**
+     * Maximum unsigned integer fitting on 1 byte.
+     */
+    public static final int MAX_INDEX_1_BYTE = 1 << 8 - 1;
+    /**
+     * Maximum unsigned integer fitting on 2 bytes.
+     */
+    public static final int MAX_INDEX_2_BYTES = 1 << 16 - 1;
 
     /**
      * The known offset between the orderId of a {@link AbstractBeginNode} and its
@@ -148,6 +160,8 @@ public class GraphEncoder {
     /** The last snapshot of {@link #nodeClasses} that was retrieved. */
     protected NodeClass<?>[] nodeClassesArray;
 
+    protected DebugContext debug;
+
     /**
      * Utility method that does everything necessary to encode a single graph.
      */
@@ -160,7 +174,12 @@ public class GraphEncoder {
     }
 
     public GraphEncoder(Architecture architecture) {
+        this(architecture, null);
+    }
+
+    public GraphEncoder(Architecture architecture, DebugContext debug) {
         this.architecture = architecture;
+        this.debug = debug;
         objects = FrequencyEncoder.createEqualityEncoder();
         nodeClasses = FrequencyEncoder.createIdentityEncoder();
         writer = UnsafeArrayTypeWriter.create(architecture.supportsUnalignedMemoryAccess());
@@ -170,6 +189,7 @@ public class GraphEncoder {
      * Must be invoked before {@link #finishPrepare()} and {@link #encode}.
      */
     public void prepare(StructuredGraph graph) {
+        objects.addObject(graph.getGuardsStage());
         for (Node node : graph.getNodes()) {
             NodeClass<? extends Node> nodeClass = node.getNodeClass();
             nodeClasses.addObject(nodeClass);
@@ -288,9 +308,10 @@ public class GraphEncoder {
         for (int i = 0; i < nodeCount; i++) {
             writer.putUV(metadataStart - nodeStartOffsets[i]);
         }
+        writeObjectId(graph.getGuardsStage());
 
         /* Check that the decoding of the encode graph is the same as the input. */
-        assert verifyEncoding(graph, new EncodedGraph(getEncoding(), metadataStart, getObjects(), getNodeClasses(), graph), architecture);
+        assert verifyEncoding(graph, new EncodedGraph(getEncoding(), metadataStart, getObjects(), getNodeClasses(), graph));
 
         return metadataStart;
     }
@@ -422,7 +443,14 @@ public class GraphEncoder {
     }
 
     protected void writeOrderId(Node node, NodeOrder nodeOrder) {
-        writer.putUV(node == null ? NULL_ORDER_ID : nodeOrder.orderIds.get(node));
+        int id = node == null ? NULL_ORDER_ID : nodeOrder.orderIds.get(node);
+        if (nodeOrder.nextOrderId <= MAX_INDEX_1_BYTE) {
+            writer.putU1(id);
+        } else if (nodeOrder.nextOrderId <= MAX_INDEX_2_BYTES) {
+            writer.putU2(id);
+        } else {
+            writer.putS4(id);
+        }
     }
 
     protected void writeObjectId(Object object) {
@@ -434,10 +462,10 @@ public class GraphEncoder {
      * original graph.
      */
     @SuppressWarnings("try")
-    public static boolean verifyEncoding(StructuredGraph originalGraph, EncodedGraph encodedGraph, Architecture architecture) {
-        DebugContext debug = originalGraph.getDebug();
+    public boolean verifyEncoding(StructuredGraph originalGraph, EncodedGraph encodedGraph) {
+        DebugContext debugContext = debug != null ? debug : originalGraph.getDebug();
         // @formatter:off
-        StructuredGraph decodedGraph = new StructuredGraph.Builder(originalGraph.getOptions(), debug, AllowAssumptions.YES).
+        StructuredGraph decodedGraph = new StructuredGraph.Builder(originalGraph.getOptions(), debugContext, AllowAssumptions.YES).
                         method(originalGraph.method()).
                         setIsSubstitution(originalGraph.isSubstitution()).
                         trackNodeSourcePosition(originalGraph.trackNodeSourcePosition()).
@@ -451,9 +479,9 @@ public class GraphEncoder {
             GraphComparison.verifyGraphsEqual(originalGraph, decodedGraph);
         } catch (Throwable ex) {
             originalGraph.getDebug();
-            try (DebugContext.Scope scope = debug.scope("GraphEncoder")) {
-                debug.dump(DebugContext.VERBOSE_LEVEL, originalGraph, "Original Graph");
-                debug.dump(DebugContext.VERBOSE_LEVEL, decodedGraph, "Decoded Graph");
+            try (DebugContext.Scope scope = debugContext.scope("GraphEncoder")) {
+                debugContext.dump(DebugContext.VERBOSE_LEVEL, originalGraph, "Original Graph");
+                debugContext.dump(DebugContext.VERBOSE_LEVEL, decodedGraph, "Decoded Graph");
             }
             throw ex;
         }
@@ -499,8 +527,8 @@ class GraphComparison {
 
             if (expectedNode instanceof EndNode) {
                 /* Visit the merge node, which is the one and only usage of the EndNode. */
-                assert expectedNode.usages().count() == 1;
-                assert actualNode.usages().count() == 1;
+                assert expectedNode.hasExactlyOneUsage();
+                assert actualNode.hasExactlyOneUsage();
                 verifyNodesEqual(expectedNode.usages(), actualNode.usages(), nodeMapping, workList, false);
             }
 

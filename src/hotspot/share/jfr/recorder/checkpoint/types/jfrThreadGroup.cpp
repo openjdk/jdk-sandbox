@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,14 @@
 #include "precompiled.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
 #include "jfr/recorder/checkpoint/types/jfrThreadGroup.hpp"
-#include "jfr/utilities/jfrResourceManager.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/semaphore.hpp"
 #include "utilities/growableArray.hpp"
+
+static const int initial_array_size = 30;
 
 class ThreadGroupExclusiveAccess : public StackObj {
  private:
@@ -105,7 +106,7 @@ class JfrThreadGroupsHelper : public ResourceObj {
 };
 
 JfrThreadGroupsHelper::JfrThreadGroupsHelper(const JavaThread* jt, Thread* current) {
-  _thread_group_hierarchy = new GrowableArray<JfrThreadGroupPointers*>(10, false, mtTracing);
+  _thread_group_hierarchy = new GrowableArray<JfrThreadGroupPointers*>(10);
   _current_iterator_pos = populate_thread_group_hierarchy(jt, current) - 1;
 }
 
@@ -238,9 +239,8 @@ void JfrThreadGroup::JfrThreadGroupEntry::set_thread_group_name(const char* tgna
   assert(_thread_group_name == NULL, "invariant");
   if (tgname != NULL) {
     size_t len = strlen(tgname);
-    _thread_group_name = JfrCHeapObj::new_array<char>(len+1);
-    strncpy(_thread_group_name, tgname, len);
-    _thread_group_name[len] = '\0';
+    _thread_group_name = JfrCHeapObj::new_array<char>(len + 1);
+    strncpy(_thread_group_name, tgname, len + 1);
   }
 }
 
@@ -258,12 +258,10 @@ void JfrThreadGroup::JfrThreadGroupEntry::set_thread_group(JfrThreadGroupPointer
   }
 }
 
-JfrThreadGroup::JfrThreadGroup() : _list(NULL) {
-  _list = new (ResourceObj::C_HEAP, mtTracing) GrowableArray<JfrThreadGroupEntry*>(30, true);
-}
+JfrThreadGroup::JfrThreadGroup() :
+  _list(new (ResourceObj::C_HEAP, mtTracing) GrowableArray<JfrThreadGroupEntry*>(initial_array_size, mtTracing)) {}
 
 JfrThreadGroup::~JfrThreadGroup() {
-  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
   if (_list != NULL) {
     for (int i = 0; i < _list->length(); i++) {
       JfrThreadGroupEntry* e = _list->at(i);
@@ -282,14 +280,11 @@ void JfrThreadGroup::set_instance(JfrThreadGroup* new_instance) {
 }
 
 traceid JfrThreadGroup::thread_group_id(const JavaThread* jt, Thread* current) {
-  ResourceMark rm(current);
-  HandleMark hm(current);
   JfrThreadGroupsHelper helper(jt, current);
   return helper.is_valid() ? thread_group_id_internal(helper) : 0;
 }
 
 traceid JfrThreadGroup::thread_group_id(JavaThread* const jt) {
-  assert(!JfrStream_lock->owned_by_self(), "holding stream lock but should not hold it here");
   return thread_group_id(jt, jt);
 }
 
@@ -397,9 +392,7 @@ void JfrThreadGroup::serialize(JfrCheckpointWriter& writer) {
   ThreadGroupExclusiveAccess lock;
   JfrThreadGroup* tg_instance = instance();
   assert(tg_instance != NULL, "invariant");
-  ResourceManager<JfrThreadGroup> tg_handle(tg_instance);
-  set_instance(NULL);
-  tg_handle->write_thread_group_entries(writer);
+  tg_instance->write_thread_group_entries(writer);
 }
 
 // for writing a particular thread group

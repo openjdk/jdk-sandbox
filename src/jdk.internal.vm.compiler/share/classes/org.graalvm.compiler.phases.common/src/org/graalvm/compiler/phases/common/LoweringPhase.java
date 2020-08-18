@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.graalvm.compiler.core.common.spi.ConstantFieldProvider;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.debug.DebugCloseable;
 import org.graalvm.compiler.debug.GraalError;
@@ -45,6 +44,7 @@ import org.graalvm.compiler.graph.Graph.Mark;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.NodeBitMap;
 import org.graalvm.compiler.graph.NodeClass;
+import org.graalvm.compiler.graph.NodeMap;
 import org.graalvm.compiler.graph.NodeSourcePosition;
 import org.graalvm.compiler.graph.iterators.NodeIterable;
 import org.graalvm.compiler.nodeinfo.InputType;
@@ -67,30 +67,28 @@ import org.graalvm.compiler.nodes.cfg.Block;
 import org.graalvm.compiler.nodes.extended.AnchoringNode;
 import org.graalvm.compiler.nodes.extended.GuardedNode;
 import org.graalvm.compiler.nodes.extended.GuardingNode;
-import org.graalvm.compiler.nodes.memory.MemoryCheckpoint;
+import org.graalvm.compiler.nodes.memory.MemoryKill;
+import org.graalvm.compiler.nodes.memory.MultiMemoryKill;
+import org.graalvm.compiler.nodes.memory.SingleMemoryKill;
+import org.graalvm.compiler.nodes.spi.CoreProviders;
+import org.graalvm.compiler.nodes.spi.CoreProvidersDelegate;
 import org.graalvm.compiler.nodes.spi.Lowerable;
-import org.graalvm.compiler.nodes.spi.LoweringProvider;
 import org.graalvm.compiler.nodes.spi.LoweringTool;
-import org.graalvm.compiler.nodes.spi.Replacements;
-import org.graalvm.compiler.nodes.spi.StampProvider;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.phases.BasePhase;
 import org.graalvm.compiler.phases.Phase;
 import org.graalvm.compiler.phases.schedule.SchedulePhase;
-import org.graalvm.compiler.phases.tiers.PhaseContext;
 import jdk.internal.vm.compiler.word.LocationIdentity;
 
-import jdk.vm.ci.meta.ConstantReflectionProvider;
 import jdk.vm.ci.meta.DeoptimizationAction;
 import jdk.vm.ci.meta.DeoptimizationReason;
-import jdk.vm.ci.meta.MetaAccessProvider;
 import jdk.vm.ci.meta.SpeculationLog;
 import jdk.vm.ci.meta.SpeculationLog.Speculation;
 
 /**
  * Processes all {@link Lowerable} nodes to do their lowering.
  */
-public class LoweringPhase extends BasePhase<PhaseContext> {
+public class LoweringPhase extends BasePhase<CoreProviders> {
 
     @NodeInfo(cycles = CYCLES_IGNORED, size = SIZE_IGNORED)
     static final class DummyGuardHandle extends ValueNode implements GuardedNode {
@@ -124,48 +122,24 @@ public class LoweringPhase extends BasePhase<PhaseContext> {
         return false;
     }
 
-    final class LoweringToolImpl implements LoweringTool {
+    final class LoweringToolImpl extends CoreProvidersDelegate implements LoweringTool {
 
-        private final PhaseContext context;
         private final NodeBitMap activeGuards;
         private AnchoringNode guardAnchor;
         private FixedWithNextNode lastFixedNode;
+        private NodeMap<Block> nodeMap;
 
-        LoweringToolImpl(PhaseContext context, AnchoringNode guardAnchor, NodeBitMap activeGuards, FixedWithNextNode lastFixedNode) {
-            this.context = context;
+        LoweringToolImpl(CoreProviders context, AnchoringNode guardAnchor, NodeBitMap activeGuards, FixedWithNextNode lastFixedNode, NodeMap<Block> nodeMap) {
+            super(context);
             this.guardAnchor = guardAnchor;
             this.activeGuards = activeGuards;
             this.lastFixedNode = lastFixedNode;
+            this.nodeMap = nodeMap;
         }
 
         @Override
         public LoweringStage getLoweringStage() {
             return loweringStage;
-        }
-
-        @Override
-        public ConstantReflectionProvider getConstantReflection() {
-            return context.getConstantReflection();
-        }
-
-        @Override
-        public ConstantFieldProvider getConstantFieldProvider() {
-            return context.getConstantFieldProvider();
-        }
-
-        @Override
-        public MetaAccessProvider getMetaAccess() {
-            return context.getMetaAccess();
-        }
-
-        @Override
-        public LoweringProvider getLowerer() {
-            return context.getLowerer();
-        }
-
-        @Override
-        public Replacements getReplacements() {
-            return context.getReplacements();
         }
 
         @Override
@@ -179,17 +153,13 @@ public class LoweringPhase extends BasePhase<PhaseContext> {
         }
 
         @Override
-        public StampProvider getStampProvider() {
-            return context.getStampProvider();
-        }
-
-        @Override
         public GuardingNode createGuard(FixedNode before, LogicNode condition, DeoptimizationReason deoptReason, DeoptimizationAction action, Speculation speculation, boolean negated,
                         NodeSourcePosition noDeoptSucccessorPosition) {
             StructuredGraph graph = before.graph();
             if (OptEliminateGuards.getValue(graph.getOptions())) {
                 for (Node usage : condition.usages()) {
-                    if (!activeGuards.isNew(usage) && activeGuards.isMarked(usage) && ((GuardNode) usage).isNegated() == negated) {
+                    if (!activeGuards.isNew(usage) && activeGuards.isMarked(usage) && ((GuardNode) usage).isNegated() == negated &&
+                                    (!before.graph().hasValueProxies() || nodeMap.get(((GuardNode) usage).getAnchor().asNode()).isInSameOrOuterLoopOf(nodeMap.get(before)))) {
                         return (GuardNode) usage;
                     }
                 }
@@ -241,7 +211,7 @@ public class LoweringPhase extends BasePhase<PhaseContext> {
      * @param graph a graph that was just {@linkplain #lower lowered}
      * @throws AssertionError if the check fails
      */
-    private boolean checkPostLowering(StructuredGraph graph, PhaseContext context) {
+    private boolean checkPostLowering(StructuredGraph graph, CoreProviders context) {
         Mark expectedMark = graph.getMark();
         lower(graph, context, LoweringMode.VERIFY_LOWERING);
         Mark mark = graph.getMark();
@@ -250,13 +220,13 @@ public class LoweringPhase extends BasePhase<PhaseContext> {
     }
 
     @Override
-    protected void run(final StructuredGraph graph, PhaseContext context) {
+    protected void run(final StructuredGraph graph, CoreProviders context) {
         lower(graph, context, LoweringMode.LOWERING);
         assert checkPostLowering(graph, context);
     }
 
-    private void lower(StructuredGraph graph, PhaseContext context, LoweringMode mode) {
-        IncrementalCanonicalizerPhase<PhaseContext> incrementalCanonicalizer = new IncrementalCanonicalizerPhase<>(canonicalizer);
+    private void lower(StructuredGraph graph, CoreProviders context, LoweringMode mode) {
+        IncrementalCanonicalizerPhase<CoreProviders> incrementalCanonicalizer = new IncrementalCanonicalizerPhase<>(canonicalizer);
         incrementalCanonicalizer.appendPhase(new Round(context, mode, graph.getOptions()));
         incrementalCanonicalizer.apply(graph, context);
         assert graph.verify();
@@ -292,21 +262,23 @@ public class LoweringPhase extends BasePhase<PhaseContext> {
                 assert postLoweringMark.equals(mark) : graph + ": lowering of " + node + " produced lowerable " + n + " that should have been recursively lowered as it introduces these new nodes: " +
                                 graph.getNewNodes(postLoweringMark).snapshot();
             }
-            if (graph.isAfterFloatingReadPhase() && n instanceof MemoryCheckpoint && !(node instanceof MemoryCheckpoint) && !(node instanceof ControlSinkNode)) {
+            if (graph.isAfterFloatingReadPhase() && n instanceof MemoryKill && !(node instanceof MemoryKill) && !(node instanceof ControlSinkNode)) {
                 /*
                  * The lowering introduced a MemoryCheckpoint but the current node isn't a
                  * checkpoint. This is only OK if the locations involved don't affect the memory
                  * graph or if the new kill location doesn't connect into the existing graph.
                  */
                 boolean isAny = false;
-                if (n instanceof MemoryCheckpoint.Single) {
-                    isAny = ((MemoryCheckpoint.Single) n).getLocationIdentity().isAny();
-                } else {
-                    for (LocationIdentity ident : ((MemoryCheckpoint.Multi) n).getLocationIdentities()) {
+                if (n instanceof SingleMemoryKill) {
+                    isAny = ((SingleMemoryKill) n).getKilledLocationIdentity().isAny();
+                } else if (n instanceof MultiMemoryKill) {
+                    for (LocationIdentity ident : ((MultiMemoryKill) n).getKilledLocationIdentities()) {
                         if (ident.isAny()) {
                             isAny = true;
                         }
                     }
+                } else {
+                    throw GraalError.shouldNotReachHere("Unknown type of memory kill " + n);
                 }
                 if (isAny && n instanceof FixedWithNextNode) {
                     /*
@@ -340,12 +312,12 @@ public class LoweringPhase extends BasePhase<PhaseContext> {
 
     private final class Round extends Phase {
 
-        private final PhaseContext context;
+        private final CoreProviders context;
         private final LoweringMode mode;
         private ScheduleResult schedule;
         private final SchedulePhase schedulePhase;
 
-        private Round(PhaseContext context, LoweringMode mode, OptionValues options) {
+        private Round(CoreProviders context, LoweringMode mode, OptionValues options) {
             this.context = context;
             this.mode = mode;
 
@@ -437,7 +409,7 @@ public class LoweringPhase extends BasePhase<PhaseContext> {
         @SuppressWarnings("try")
         private AnchoringNode process(final Block b, final NodeBitMap activeGuards, final AnchoringNode startAnchor) {
 
-            final LoweringToolImpl loweringTool = new LoweringToolImpl(context, startAnchor, activeGuards, b.getBeginNode());
+            final LoweringToolImpl loweringTool = new LoweringToolImpl(context, startAnchor, activeGuards, b.getBeginNode(), this.schedule.getNodeToBlockMap());
 
             // Lower the instructions of this block.
             List<Node> nodes = schedule.nodesFor(b);
@@ -587,69 +559,6 @@ public class LoweringPhase extends BasePhase<PhaseContext> {
                     } else {
                         f = f.enter(n);
                         assert f.block.getDominator() == f.parent.block;
-                        nextState = ST_PROCESS;
-                    }
-                } else {
-                    nextState = ST_LEAVE;
-                }
-            } else if (state == ST_LEAVE) {
-                f.postprocess();
-                f = f.parent;
-                nextState = ST_ENTER;
-            } else {
-                throw GraalError.shouldNotReachHere();
-            }
-            state = nextState;
-        }
-    }
-
-    public static void processBlockBounded(final Frame<?> rootFrame) {
-        ProcessBlockState state = ST_PROCESS;
-        Frame<?> f = rootFrame;
-        while (f != null) {
-            ProcessBlockState nextState;
-            if (state == ST_PROCESS || state == ST_PROCESS_ALWAYS_REACHED) {
-                f.preprocess();
-                nextState = state == ST_PROCESS_ALWAYS_REACHED ? ST_ENTER : ST_ENTER_ALWAYS_REACHED;
-            } else if (state == ST_ENTER_ALWAYS_REACHED) {
-                if (f.alwaysReachedBlock != null && f.alwaysReachedBlock.getDominator() == f.block) {
-                    Frame<?> continueRecur = f.enterAlwaysReached(f.alwaysReachedBlock);
-                    if (continueRecur == null) {
-                        // stop recursion here
-                        f.postprocess();
-                        f = f.parent;
-                        state = ST_ENTER;
-                        continue;
-                    }
-                    f = continueRecur;
-                    nextState = ST_PROCESS;
-                } else {
-                    nextState = ST_ENTER;
-                }
-            } else if (state == ST_ENTER) {
-                if (f.dominated != null) {
-                    Block n = f.dominated;
-                    f.dominated = n.getDominatedSibling();
-                    if (n == f.alwaysReachedBlock) {
-                        if (f.dominated != null) {
-                            n = f.dominated;
-                            f.dominated = n.getDominatedSibling();
-                        } else {
-                            n = null;
-                        }
-                    }
-                    if (n == null) {
-                        nextState = ST_LEAVE;
-                    } else {
-                        Frame<?> continueRecur = f.enter(n);
-                        if (continueRecur == null) {
-                            // stop recursion here
-                            f.postprocess();
-                            f = f.parent;
-                            state = ST_ENTER;
-                            continue;
-                        }
-                        f = continueRecur;
                         nextState = ST_PROCESS;
                     }
                 } else {

@@ -185,6 +185,21 @@ class GTKPainter extends SynthPainter {
         }
     }
 
+    //This is workaround used to draw the highlight
+    // when the MENU or MenuItem is selected on some platforms
+    //This should be properly fixed by reading color from css
+    private void paintComponentBackground(SynthContext context,
+                                          Graphics g, int x, int y,
+                                          int w, int h) {
+        GTKStyle style = (GTKStyle) context.getStyle();
+        Color highlightColor =
+                style.getGTKColor(GTKEngine.WidgetType.TEXT_AREA.ordinal(),
+                GTKLookAndFeel.synthStateToGTKStateType(SynthConstants.SELECTED).ordinal(),
+                ColorType.BACKGROUND.getID());
+        g.setColor(highlightColor);
+        g.fillRect(x, y, w, h);
+    }
+
     //
     // RADIO_BUTTON_MENU_ITEM
     //
@@ -196,6 +211,10 @@ class GTKPainter extends SynthPainter {
         int gtkState = GTKLookAndFeel.synthStateToGTKState(
                 id, context.getComponentState());
         if (gtkState == SynthConstants.MOUSE_OVER) {
+            if (GTKLookAndFeel.is3()) {
+                paintComponentBackground(context, g, x, y, w, h);
+                return;
+            }
             synchronized (UNIXToolkit.GTK_LOCK) {
                 if (! ENGINE.paintCachedImage(g, x, y, w, h, id)) {
                     ShadowType shadow = (GTKLookAndFeel.is2_2() ?
@@ -551,6 +570,10 @@ class GTKPainter extends SynthPainter {
         int gtkState = GTKLookAndFeel.synthStateToGTKState(
                 context.getRegion(), context.getComponentState());
         if (gtkState == SynthConstants.MOUSE_OVER) {
+            if (GTKLookAndFeel.is3()) {
+                paintComponentBackground(context, g, x, y, w, h);
+                return;
+            }
             Region id = Region.MENU_ITEM;
             synchronized (UNIXToolkit.GTK_LOCK) {
                 if (! ENGINE.paintCachedImage(g, x, y, w, h, id)) {

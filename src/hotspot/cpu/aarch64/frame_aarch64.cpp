@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, Red Hat Inc. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,8 @@
 #include "precompiled.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
-#include "oops/markOop.hpp"
+#include "memory/universe.hpp"
+#include "oops/markWord.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
@@ -34,7 +35,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/monitorChunk.hpp"
-#include "runtime/os.hpp"
+#include "runtime/os.inline.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/stubCodeGenerator.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -58,16 +59,8 @@ bool frame::safe_for_sender(JavaThread *thread) {
   address   unextended_sp = (address)_unextended_sp;
 
   // consider stack guards when trying to determine "safe" stack pointers
-  static size_t stack_guard_size = os::uses_stack_guard_pages() ?
-    (JavaThread::stack_red_zone_size() + JavaThread::stack_yellow_zone_size()) : 0;
-  size_t usable_stack_size = thread->stack_size() - stack_guard_size;
-
   // sp must be within the usable part of the stack (not in guards)
-  bool sp_safe = (sp < thread->stack_base()) &&
-                 (sp >= thread->stack_base() - usable_stack_size);
-
-
-  if (!sp_safe) {
+  if (!thread->is_in_usable_stack(sp)) {
     return false;
   }
 
@@ -83,16 +76,14 @@ bool frame::safe_for_sender(JavaThread *thread) {
 
   // So unextended sp must be within the stack but we need not to check
   // that unextended sp >= sp
-
-  bool unextended_sp_safe = (unextended_sp < thread->stack_base());
-
-  if (!unextended_sp_safe) {
+  if (!thread->is_in_full_stack_checked(unextended_sp)) {
     return false;
   }
 
   // an fp must be within the stack and above (but not equal) sp
   // second evaluation on fp+ is added to handle situation where fp is -1
-  bool fp_safe = (fp < thread->stack_base() && (fp > sp) && (((fp + (return_addr_offset * sizeof(void*))) < thread->stack_base())));
+  bool fp_safe = thread->is_in_stack_range_excl(fp, sp) &&
+                 thread->is_in_full_stack_checked(fp + (return_addr_offset * sizeof(void*)));
 
   // We know sp/unextended_sp are safe only fp is questionable here
 
@@ -154,7 +145,7 @@ bool frame::safe_for_sender(JavaThread *thread) {
 
       sender_sp = _unextended_sp + _cb->frame_size();
       // Is sender_sp safe?
-      if ((address)sender_sp >= thread->stack_base()) {
+      if (!thread->is_in_full_stack_checked((address)sender_sp)) {
         return false;
       }
       sender_unextended_sp = sender_sp;
@@ -171,9 +162,7 @@ bool frame::safe_for_sender(JavaThread *thread) {
       // only if the sender is interpreted/call_stub (c1 too?) are we certain that the saved fp
       // is really a frame pointer.
 
-      bool saved_fp_safe = ((address)saved_fp < thread->stack_base()) && (saved_fp > sender_sp);
-
-      if (!saved_fp_safe) {
+      if (!thread->is_in_stack_range_excl((address)saved_fp, (address)sender_sp)) {
         return false;
       }
 
@@ -208,9 +197,7 @@ bool frame::safe_for_sender(JavaThread *thread) {
 
     // Could be the call_stub
     if (StubRoutines::returns_to_call_stub(sender_pc)) {
-      bool saved_fp_safe = ((address)saved_fp < thread->stack_base()) && (saved_fp > sender_sp);
-
-      if (!saved_fp_safe) {
+      if (!thread->is_in_stack_range_excl((address)saved_fp, (address)sender_sp)) {
         return false;
       }
 
@@ -221,9 +208,7 @@ bool frame::safe_for_sender(JavaThread *thread) {
       // Validate the JavaCallWrapper an entry frame must have
       address jcw = (address)sender.entry_frame_call_wrapper();
 
-      bool jcw_safe = (jcw < thread->stack_base()) && (jcw > (address)sender.fp());
-
-      return jcw_safe;
+      return thread->is_in_stack_range_excl(jcw, (address)sender.fp());
     }
 
     CompiledMethod* nm = sender_blob->as_compiled_method_or_null();
@@ -279,6 +264,7 @@ bool frame::safe_for_sender(JavaThread *thread) {
 }
 
 void frame::patch_pc(Thread* thread, address pc) {
+  assert(_cb == CodeCache::find_blob(pc), "unexpected pc");
   address* pc_addr = &(((address*) sp())[-1]);
   if (TracePcPatching) {
     tty->print_cr("patch_pc at address " INTPTR_FORMAT " [" INTPTR_FORMAT " -> " INTPTR_FORMAT "]",
@@ -288,7 +274,6 @@ void frame::patch_pc(Thread* thread, address pc) {
   // patch in the same address that's already there.
   assert(_pc == *pc_addr || pc == *pc_addr, "must be");
   *pc_addr = pc;
-  _cb = CodeCache::find_blob(pc);
   address original_pc = CompiledMethod::get_deopt_original_pc(this);
   if (original_pc != NULL) {
     assert(original_pc == _pc, "expected original PC to be stored before patching");
@@ -559,16 +544,12 @@ bool frame::is_interpreted_frame_valid(JavaThread* thread) const {
 
   // validate constantPoolCache*
   ConstantPoolCache* cp = *interpreter_frame_cache_addr();
-  if (cp == NULL || !cp->is_metaspace_object()) return false;
+  if (MetaspaceObj::is_valid(cp) == false) return false;
 
   // validate locals
 
   address locals =  (address) *interpreter_frame_locals_addr();
-
-  if (locals > thread->stack_base() || locals < (address) fp()) return false;
-
-  // We'd have to be pretty unlucky to be mislead at this point
-  return true;
+  return thread->is_in_stack_range_incl(locals, (address)fp());
 }
 
 BasicType frame::interpreter_frame_result(oop* oop_result, jvalue* value_result) {
@@ -672,15 +653,15 @@ intptr_t* frame::real_fp() const {
 
 #define DESCRIBE_FP_OFFSET(name)                                        \
   {                                                                     \
-    unsigned long *p = (unsigned long *)fp;                             \
-    printf("0x%016lx 0x%016lx %s\n", (unsigned long)(p + frame::name##_offset), \
+    uintptr_t *p = (uintptr_t *)fp;                                     \
+    printf("0x%016lx 0x%016lx %s\n", (uintptr_t)(p + frame::name##_offset), \
            p[frame::name##_offset], #name);                             \
   }
 
-static __thread unsigned long nextfp;
-static __thread unsigned long nextpc;
-static __thread unsigned long nextsp;
-static __thread RegisterMap *reg_map;
+static THREAD_LOCAL uintptr_t nextfp;
+static THREAD_LOCAL uintptr_t nextpc;
+static THREAD_LOCAL uintptr_t nextsp;
+static THREAD_LOCAL RegisterMap *reg_map;
 
 static void printbc(Method *m, intptr_t bcx) {
   const char *name;
@@ -698,7 +679,7 @@ static void printbc(Method *m, intptr_t bcx) {
   printf("%s : %s ==> %s\n", m->name_and_sig_as_C_string(), buf, name);
 }
 
-void internal_pf(unsigned long sp, unsigned long fp, unsigned long pc, unsigned long bcx) {
+void internal_pf(uintptr_t sp, uintptr_t fp, uintptr_t pc, uintptr_t bcx) {
   if (! fp)
     return;
 
@@ -712,7 +693,7 @@ void internal_pf(unsigned long sp, unsigned long fp, unsigned long pc, unsigned 
   DESCRIBE_FP_OFFSET(interpreter_frame_locals);
   DESCRIBE_FP_OFFSET(interpreter_frame_bcp);
   DESCRIBE_FP_OFFSET(interpreter_frame_initial_sp);
-  unsigned long *p = (unsigned long *)fp;
+  uintptr_t *p = (uintptr_t *)fp;
 
   // We want to see all frames, native and Java.  For compiled and
   // interpreted frames we have special information that allows us to
@@ -722,16 +703,16 @@ void internal_pf(unsigned long sp, unsigned long fp, unsigned long pc, unsigned 
   if (this_frame.is_compiled_frame() ||
       this_frame.is_interpreted_frame()) {
     frame sender = this_frame.sender(reg_map);
-    nextfp = (unsigned long)sender.fp();
-    nextpc = (unsigned long)sender.pc();
-    nextsp = (unsigned long)sender.unextended_sp();
+    nextfp = (uintptr_t)sender.fp();
+    nextpc = (uintptr_t)sender.pc();
+    nextsp = (uintptr_t)sender.unextended_sp();
   } else {
     nextfp = p[frame::link_offset];
     nextpc = p[frame::return_addr_offset];
-    nextsp = (unsigned long)&p[frame::sender_sp_offset];
+    nextsp = (uintptr_t)&p[frame::sender_sp_offset];
   }
 
-  if (bcx == -1ul)
+  if (bcx == -1ULL)
     bcx = p[frame::interpreter_frame_bcp_offset];
 
   if (Interpreter::contains((address)pc)) {
@@ -765,13 +746,15 @@ extern "C" void npf() {
   internal_pf (nextsp, nextfp, nextpc, -1);
 }
 
-extern "C" void pf(unsigned long sp, unsigned long fp, unsigned long pc,
-                   unsigned long bcx, unsigned long thread) {
-  RegisterMap map((JavaThread*)thread, false);
+extern "C" void pf(uintptr_t sp, uintptr_t fp, uintptr_t pc,
+                   uintptr_t bcx, uintptr_t thread) {
   if (!reg_map) {
-    reg_map = (RegisterMap*)os::malloc(sizeof map, mtNone);
+    reg_map = NEW_C_HEAP_OBJ(RegisterMap, mtInternal);
+    ::new (reg_map) RegisterMap((JavaThread*)thread, false);
+  } else {
+    *reg_map = RegisterMap((JavaThread*)thread, false);
   }
-  memcpy(reg_map, &map, sizeof map);
+
   {
     CodeBlob *cb = CodeCache::find_blob((address)pc);
     if (cb && cb->frame_size())
@@ -783,9 +766,9 @@ extern "C" void pf(unsigned long sp, unsigned long fp, unsigned long pc,
 // support for printing out where we are in a Java method
 // needs to be passed current fp and bcp register values
 // prints method name, bc index and bytecode name
-extern "C" void pm(unsigned long fp, unsigned long bcx) {
+extern "C" void pm(uintptr_t fp, uintptr_t bcx) {
   DESCRIBE_FP_OFFSET(interpreter_frame_method);
-  unsigned long *p = (unsigned long *)fp;
+  uintptr_t *p = (uintptr_t *)fp;
   Method* m = (Method*)p[frame::interpreter_frame_method_offset];
   printbc(m, bcx);
 }

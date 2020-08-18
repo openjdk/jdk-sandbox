@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -120,7 +120,6 @@ class TreeList : public FreeList_t {
   // node to point to the new node.
   TreeList<Chunk_t, FreeList_t>* remove_chunk_replace_if_needed(TreeChunk<Chunk_t, FreeList_t>* tc);
   // See FreeList.
-  void return_chunk_at_head(TreeChunk<Chunk_t, FreeList_t>* tc);
   void return_chunk_at_tail(TreeChunk<Chunk_t, FreeList_t>* tc);
 };
 
@@ -159,7 +158,7 @@ class TreeChunk : public Chunk_t {
 
   Chunk_t* next() const { return Chunk_t::next(); }
   Chunk_t* prev() const { return Chunk_t::prev(); }
-  size_t size() const volatile { return Chunk_t::size(); }
+  size_t size() const { return Chunk_t::size(); }
 
   static size_t min_size();
 
@@ -236,7 +235,6 @@ class BinaryTreeDictionary: public CHeapObj<mtGC> {
   size_t     num_free_blocks()  const;
   size_t     tree_height() const;
   size_t     tree_height_helper(TreeList<Chunk_t, FreeList_t>* tl) const;
-  size_t     total_nodes_in_tree(TreeList<Chunk_t, FreeList_t>* tl) const;
   size_t     total_nodes_helper(TreeList<Chunk_t, FreeList_t>* tl) const;
 
  public:

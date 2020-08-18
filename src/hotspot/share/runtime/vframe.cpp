@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/javaClasses.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
@@ -43,6 +43,7 @@
 #include "runtime/signature.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.hpp"
+#include "runtime/thread.inline.hpp"
 #include "runtime/vframe.inline.hpp"
 #include "runtime/vframeArray.hpp"
 #include "runtime/vframe_hp.hpp"
@@ -121,8 +122,14 @@ GrowableArray<MonitorInfo*>* javaVFrame::locked_monitors() {
   if (mons->is_empty()) return result;
 
   bool found_first_monitor = false;
-  ObjectMonitor *pending_monitor = thread()->current_pending_monitor();
+  // The ObjectMonitor* can't be async deflated since we are either
+  // at a safepoint or the calling thread is operating on itself so
+  // it cannot exit the ObjectMonitor so it remains busy.
   ObjectMonitor *waiting_monitor = thread()->current_waiting_monitor();
+  ObjectMonitor *pending_monitor = NULL;
+  if (waiting_monitor == NULL) {
+    pending_monitor = thread()->current_pending_monitor();
+  }
   oop pending_obj = (pending_monitor != NULL ? (oop) pending_monitor->object() : (oop) NULL);
   oop waiting_obj = (waiting_monitor != NULL ? (oop) waiting_monitor->object() : (oop) NULL);
 
@@ -134,7 +141,7 @@ GrowableArray<MonitorInfo*>* javaVFrame::locked_monitors() {
     //
     // Skip the monitor that the thread is blocked to enter or waiting on
     //
-    if (!found_first_monitor && (oopDesc::equals(obj, pending_obj) || oopDesc::equals(obj, waiting_obj))) {
+    if (!found_first_monitor && (obj == pending_obj || obj == waiting_obj)) {
       continue;
     }
     found_first_monitor = true;
@@ -158,6 +165,7 @@ void javaVFrame::print_locked_object_class_name(outputStream* st, Handle obj, co
 void javaVFrame::print_lock_info_on(outputStream* st, int frame_count) {
   Thread* THREAD = Thread::current();
   ResourceMark rm(THREAD);
+  HandleMark hm(THREAD);
 
   // If this is the first frame and it is java.lang.Object.wait(...)
   // then print out the receiver. Locals are not always available,
@@ -210,7 +218,6 @@ void javaVFrame::print_lock_info_on(outputStream* st, int frame_count) {
       if (monitor->eliminated() && is_compiled_frame()) { // Eliminated in compiled code
         if (monitor->owner_is_scalar_replaced()) {
           Klass* k = java_lang_Class::as_Klass(monitor->owner_klass());
-          // format below for lockbits matches this one.
           st->print("\t- eliminated <owner is scalar replaced> (a %s)", k->external_name());
         } else {
           Handle obj(THREAD, monitor->owner());
@@ -223,7 +230,6 @@ void javaVFrame::print_lock_info_on(outputStream* st, int frame_count) {
       if (monitor->owner() != NULL) {
         // the monitor is associated with an object, i.e., it is locked
 
-        markOop mark = NULL;
         const char *lock_state = "locked"; // assume we have the monitor locked
         if (!found_first_monitor && frame_count == 0) {
           // If this is the first frame and we haven't found an owned
@@ -231,18 +237,16 @@ void javaVFrame::print_lock_info_on(outputStream* st, int frame_count) {
           // the lock or if we are blocked trying to acquire it. Only
           // an inflated monitor that is first on the monitor list in
           // the first frame can block us on a monitor enter.
-          mark = monitor->owner()->mark();
-          if (mark->has_monitor() &&
+          markWord mark = monitor->owner()->mark();
+          // The first stage of async deflation does not affect any field
+          // used by this comparison so the ObjectMonitor* is usable here.
+          if (mark.has_monitor() &&
               ( // we have marked ourself as pending on this monitor
-                mark->monitor() == thread()->current_pending_monitor() ||
+                mark.monitor() == thread()->current_pending_monitor() ||
                 // we are not the owner of this monitor
-                !mark->monitor()->is_entered(thread())
+                !mark.monitor()->is_entered(thread())
               )) {
             lock_state = "waiting to lock";
-          } else {
-            // We own the monitor which is not as interesting so
-            // disable the extra printing below.
-            mark = NULL;
           }
         }
         print_locked_object_class_name(st, Handle(THREAD, monitor->owner()), lock_state);
@@ -444,6 +448,21 @@ void interpretedVFrame::set_locals(StackValueCollection* values) const {
 entryVFrame::entryVFrame(const frame* fr, const RegisterMap* reg_map, JavaThread* thread)
 : externalVFrame(fr, reg_map, thread) {}
 
+MonitorInfo::MonitorInfo(oop owner, BasicLock* lock, bool eliminated, bool owner_is_scalar_replaced) {
+  Thread* thread = Thread::current();
+  if (!owner_is_scalar_replaced) {
+    _owner = Handle(thread, owner);
+    _owner_klass = Handle();
+  } else {
+    assert(eliminated, "monitor should be eliminated for scalar replaced object");
+    _owner = Handle();
+    _owner_klass = Handle(thread, owner);
+  }
+  _lock = lock;
+  _eliminated = eliminated;
+  _owner_is_scalar_replaced = owner_is_scalar_replaced;
+}
+
 #ifdef ASSERT
 void vframeStreamCommon::found_bad_method_frame() const {
   // 6379830 Cut point for an assertion that occasionally fires when
@@ -499,7 +518,6 @@ void vframeStreamCommon::security_next() {
 
 void vframeStreamCommon::skip_prefixed_method_and_wrappers() {
   ResourceMark rm;
-  HandleMark hm;
 
   int    method_prefix_count = 0;
   char** method_prefixes = JvmtiExport::get_all_native_method_prefixes(&method_prefix_count);
@@ -608,7 +626,10 @@ static void print_stack_values(const char* title, StackValueCollection* values) 
 
 
 void javaVFrame::print() {
-  ResourceMark rm;
+  Thread* current_thread = Thread::current();
+  ResourceMark rm(current_thread);
+  HandleMark hm(current_thread);
+
   vframe::print();
   tty->print("\t");
   method()->print_value();

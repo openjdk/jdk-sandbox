@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,15 +27,15 @@ package jdk.jfr.internal.instrument;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.Socket;
 
-import jdk.jfr.events.SocketReadEvent;
+import jdk.jfr.events.Handlers;
+import jdk.jfr.internal.handlers.EventHandler;
 
 /**
  * See {@link JITracer} for an explanation of this code.
  */
-@JIInstrumentationTarget("java.net.SocketInputStream")
-@JITypeMapping(from = "jdk.jfr.internal.instrument.SocketInputStreamInstrumentor$AbstractPlainSocketImpl",
-            to = "java.net.AbstractPlainSocketImpl")
+@JIInstrumentationTarget("java.net.Socket$SocketInputStream")
 final class SocketInputStreamInstrumentor {
 
     private SocketInputStreamInstrumentor() {
@@ -43,46 +43,34 @@ final class SocketInputStreamInstrumentor {
 
     @SuppressWarnings("deprecation")
     @JIInstrumentationMethod
-    int read(byte b[], int off, int length, int timeout) throws IOException {
-        SocketReadEvent event = SocketReadEvent.EVENT.get();
-        if (!event.isEnabled()) {
-            return read(b, off, length, timeout);
+    public int read(byte b[], int off, int length) throws IOException {
+        EventHandler handler = Handlers.SOCKET_READ;
+        if (!handler.isEnabled()) {
+            return read(b, off, length);
         }
         int bytesRead = 0;
+        long start = 0;
         try {
-            event.begin();
-            bytesRead = read(b, off, length, timeout);
+            start = EventHandler.timestamp();
+            bytesRead = read(b, off, length);
         } finally {
-            event.end();
-            if (event.shouldCommit()) {
-                String hostString  = impl.address.toString();
-                int delimiterIndex = hostString.lastIndexOf('/');
-
-                event.host      = hostString.substring(0, delimiterIndex);
-                event.address   = hostString.substring(delimiterIndex + 1);
-                event.port      = impl.port;
+            long duration = EventHandler.timestamp() - start;
+            if (handler.shouldCommit(duration)) {
+                InetAddress remote = parent.getInetAddress();
+                String host = remote.getHostName();
+                String address = remote.getHostAddress();
+                int port = parent.getPort();
+                int timeout = parent.getSoTimeout();
                 if (bytesRead < 0) {
-                    event.endOfStream = true;
+                    handler.write(start, duration, host, address, port, timeout, 0L, true);
                 } else {
-                    event.bytesRead = bytesRead;
+                    handler.write(start, duration, host, address, port, timeout, bytesRead, false);
                 }
-                event.timeout   = timeout;
-
-                event.commit();
-                event.reset();
             }
         }
         return bytesRead;
     }
 
-    private AbstractPlainSocketImpl impl = null;
-
-    void silenceFindBugsUnwrittenField(InetAddress dummy) {
-        impl.address = dummy;
-    }
-
-    static class AbstractPlainSocketImpl {
-        InetAddress address;
-        int port;
-    }
+    // private field in java.net.Socket$SocketInputStream
+    private Socket parent;
 }

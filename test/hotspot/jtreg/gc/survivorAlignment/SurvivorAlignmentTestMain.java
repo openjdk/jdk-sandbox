@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+package gc.survivorAlignment;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
@@ -69,21 +71,12 @@ public class SurvivorAlignmentTestMain {
     private static final String G1_EDEN = "G1 Eden Space";
     private static final String G1_SURVIVOR = "G1 Survivor Space";
     private static final String SERIAL_TENURED = "Tenured Gen";
-    private static final String CMS_TENURED = "CMS Old Gen";
     private static final String PS_TENURED = "PS Old Gen";
     private static final String G1_TENURED = "G1 Old Gen";
 
     private static final long G1_HEAP_REGION_SIZE = Optional.ofNullable(
             SurvivorAlignmentTestMain.WHITE_BOX.getUintxVMFlag(
                     "G1HeapRegionSize")).orElse(-1L);
-
-    /**
-     * Min size of free chunk in CMS generation.
-     * An object allocated in CMS generation will at least occupy this amount
-     * of bytes.
-     */
-    private static final long CMS_MIN_FREE_CHUNK_SIZE
-            = 3L * Unsafe.ADDRESS_SIZE;
 
     private static final AlignmentHelper EDEN_SPACE_HELPER;
     private static final AlignmentHelper SURVIVOR_SPACE_HELPER;
@@ -122,11 +115,6 @@ public class SurvivorAlignmentTestMain {
      * expected to be equal to {@code SurvivorAlignmentInBytes} value and
      * alignment in other spaces is expected to be equal to
      * {@code ObjectAlignmentInBytes} value.
-     *
-     * In CMS generation we can't allocate less then {@code MinFreeChunk} value,
-     * for other CGs we expect that object of size {@code MIN_OBJECT_SIZE}
-     * could be allocated as it is (of course, its size could be aligned
-     * according to alignment value used in a particular space).
      *
      * For G1 GC MXBeans could report memory usage only with region size
      * precision (if an object allocated in some G1 heap region, then all region
@@ -184,15 +172,6 @@ public class SurvivorAlignmentTestMain {
                             AlignmentHelper.OBJECT_ALIGNMENT_IN_BYTES,
                             AlignmentHelper.OBJECT_ALIGNMENT_IN_BYTES,
                             AlignmentHelper.MIN_OBJECT_SIZE, pool);
-                    break;
-                case SurvivorAlignmentTestMain.CMS_TENURED:
-                    Asserts.assertNull(tenuredHelper,
-                            "Only one bean for tenured space is expected.");
-                    tenuredHelper = new AlignmentHelper(
-                            AlignmentHelper.OBJECT_ALIGNMENT_IN_BYTES,
-                            AlignmentHelper.OBJECT_ALIGNMENT_IN_BYTES,
-                            SurvivorAlignmentTestMain.CMS_MIN_FREE_CHUNK_SIZE,
-                            pool);
                     break;
             }
         }

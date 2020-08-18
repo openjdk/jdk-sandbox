@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,40 +23,21 @@
  */
 
 #include "precompiled.hpp"
+#include "jfr/leakprofiler/chains/bitset.inline.hpp"
 #include "jfr/leakprofiler/chains/dfsClosure.hpp"
 #include "jfr/leakprofiler/chains/edge.hpp"
 #include "jfr/leakprofiler/chains/edgeStore.hpp"
-#include "jfr/leakprofiler/utilities/granularTimer.hpp"
-#include "jfr/leakprofiler/chains/bitset.hpp"
-#include "jfr/leakprofiler/utilities/unifiedOop.hpp"
-#include "jfr/leakprofiler/utilities/rootType.hpp"
 #include "jfr/leakprofiler/chains/rootSetClosure.hpp"
+#include "jfr/leakprofiler/utilities/granularTimer.hpp"
+#include "jfr/leakprofiler/utilities/rootType.hpp"
+#include "jfr/leakprofiler/utilities/unifiedOopRef.inline.hpp"
 #include "memory/iterator.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/align.hpp"
 
-// max dfs depth should not exceed size of stack
-static const size_t max_dfs_depth = 5000;
-
-EdgeStore* DFSClosure::_edge_store = NULL;
-BitSet* DFSClosure::_mark_bits = NULL;
-const Edge* DFSClosure::_start_edge = NULL;
-size_t DFSClosure::_max_depth = max_dfs_depth;
-bool DFSClosure::_ignore_root_set = false;
-
-DFSClosure::DFSClosure() :
-  _parent(NULL),
-  _reference(NULL),
-  _depth(0) {
-}
-
-DFSClosure::DFSClosure(DFSClosure* parent, size_t depth) :
-  _parent(parent),
-  _reference(NULL),
-  _depth(depth) {
-}
+UnifiedOopRef DFSClosure::_reference_stack[max_dfs_depth];
 
 void DFSClosure::find_leaks_from_edge(EdgeStore* edge_store,
                                       BitSet* mark_bits,
@@ -65,14 +46,8 @@ void DFSClosure::find_leaks_from_edge(EdgeStore* edge_store,
   assert(mark_bits != NULL," invariant");
   assert(start_edge != NULL, "invariant");
 
-  _edge_store = edge_store;
-  _mark_bits = mark_bits;
-  _start_edge = start_edge;
-  _ignore_root_set = false;
-  assert(_max_depth == max_dfs_depth, "invariant");
-
   // Depth-first search, starting from a BFS egde
-  DFSClosure dfs;
+  DFSClosure dfs(edge_store, mark_bits, start_edge);
   start_edge->pointee()->oop_iterate(&dfs);
 }
 
@@ -81,98 +56,103 @@ void DFSClosure::find_leaks_from_root_set(EdgeStore* edge_store,
   assert(edge_store != NULL, "invariant");
   assert(mark_bits != NULL, "invariant");
 
-  _edge_store = edge_store;
-  _mark_bits = mark_bits;
-  _start_edge = NULL;
-
   // Mark root set, to avoid going sideways
-  _max_depth = 1;
-  _ignore_root_set = false;
-  DFSClosure dfs1;
-  RootSetClosure::process_roots(&dfs1);
+  DFSClosure dfs(edge_store, mark_bits, NULL);
+  dfs._max_depth = 1;
+  RootSetClosure<DFSClosure> rs(&dfs);
+  rs.process();
 
   // Depth-first search
-  _max_depth = max_dfs_depth;
-  _ignore_root_set = true;
-  assert(_start_edge == NULL, "invariant");
-  DFSClosure dfs2;
-  RootSetClosure::process_roots(&dfs2);
+  dfs._max_depth = max_dfs_depth;
+  dfs._ignore_root_set = true;
+  rs.process();
 }
 
-void DFSClosure::closure_impl(const oop* reference, const oop pointee) {
+DFSClosure::DFSClosure(EdgeStore* edge_store, BitSet* mark_bits, const Edge* start_edge)
+  :_edge_store(edge_store), _mark_bits(mark_bits), _start_edge(start_edge),
+  _max_depth(max_dfs_depth), _depth(0), _ignore_root_set(false) {
+}
+
+void DFSClosure::closure_impl(UnifiedOopRef reference, const oop pointee) {
   assert(pointee != NULL, "invariant");
-  assert(reference != NULL, "invariant");
+  assert(!reference.is_null(), "invariant");
 
   if (GranularTimer::is_finished()) {
-     return;
+    return;
   }
   if (_depth == 0 && _ignore_root_set) {
     // Root set is already marked, but we want
     // to continue, so skip is_marked check.
     assert(_mark_bits->is_marked(pointee), "invariant");
-  } else {
+  }  else {
     if (_mark_bits->is_marked(pointee)) {
       return;
     }
   }
-
-  _reference = reference;
+  _reference_stack[_depth] = reference;
   _mark_bits->mark_obj(pointee);
   assert(_mark_bits->is_marked(pointee), "invariant");
 
   // is the pointee a sample object?
-  if (NULL == pointee->mark()) {
+  if (pointee->mark().is_marked()) {
     add_chain();
   }
 
   assert(_max_depth >= 1, "invariant");
   if (_depth < _max_depth - 1) {
-    DFSClosure next_level(this, _depth + 1);
-    pointee->oop_iterate(&next_level);
+    _depth++;
+    pointee->oop_iterate(this);
+    assert(_depth > 0, "invariant");
+    _depth--;
   }
 }
 
 void DFSClosure::add_chain() {
-  const size_t length = _start_edge == NULL ? _depth + 1 :
-                        _start_edge->distance_to_root() + 1 + _depth + 1;
+  const size_t array_length = _depth + 2;
 
   ResourceMark rm;
-  Edge* const chain = NEW_RESOURCE_ARRAY(Edge, length);
+  Edge* const chain = NEW_RESOURCE_ARRAY(Edge, array_length);
   size_t idx = 0;
 
   // aggregate from depth-first search
-  const DFSClosure* c = this;
-  while (c != NULL) {
-    chain[idx++] = Edge(NULL, c->reference());
-    c = c->parent();
+  for (size_t i = 0; i <= _depth; i++) {
+    const size_t next = idx + 1;
+    const size_t depth = _depth - i;
+    chain[idx++] = Edge(&chain[next], _reference_stack[depth]);
   }
-
-  assert(idx == _depth + 1, "invariant");
+  assert(_depth + 1 == idx, "invariant");
+  assert(array_length == idx + 1, "invariant");
 
   // aggregate from breadth-first search
-  const Edge* current = _start_edge;
-  while (current != NULL) {
-    chain[idx++] = Edge(NULL, current->reference());
-    current = current->parent();
+  if (_start_edge != NULL) {
+    chain[idx++] = *_start_edge;
+  } else {
+    chain[idx - 1] = Edge(NULL, chain[idx - 1].reference());
   }
-  assert(idx == length, "invariant");
-  _edge_store->add_chain(chain, length);
+  _edge_store->put_chain(chain, idx + (_start_edge != NULL ? _start_edge->distance_to_root() : 0));
 }
 
 void DFSClosure::do_oop(oop* ref) {
   assert(ref != NULL, "invariant");
   assert(is_aligned(ref, HeapWordSize), "invariant");
-  const oop pointee = *ref;
+  const oop pointee = HeapAccess<AS_NO_KEEPALIVE>::oop_load(ref);
   if (pointee != NULL) {
-    closure_impl(ref, pointee);
+    closure_impl(UnifiedOopRef::encode_in_heap(ref), pointee);
   }
 }
 
 void DFSClosure::do_oop(narrowOop* ref) {
   assert(ref != NULL, "invariant");
   assert(is_aligned(ref, sizeof(narrowOop)), "invariant");
-  const oop pointee = RawAccess<>::oop_load(ref);
+  const oop pointee = HeapAccess<AS_NO_KEEPALIVE>::oop_load(ref);
   if (pointee != NULL) {
-    closure_impl(UnifiedOop::encode(ref), pointee);
+    closure_impl(UnifiedOopRef::encode_in_heap(ref), pointee);
   }
+}
+
+void DFSClosure::do_root(UnifiedOopRef ref) {
+  assert(!ref.is_null(), "invariant");
+  const oop pointee = ref.dereference();
+  assert(pointee != NULL, "invariant");
+  closure_impl(ref, pointee);
 }

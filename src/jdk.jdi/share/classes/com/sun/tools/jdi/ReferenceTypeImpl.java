@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -607,23 +607,20 @@ public abstract class ReferenceTypeImpl extends TypeImpl implements ReferenceTyp
     }
 
     public List<ReferenceType> nestedTypes() {
-        List<ReferenceType> all = vm.allClasses();
         List<ReferenceType> nested = new ArrayList<ReferenceType>();
         String outername = name();
         int outerlen = outername.length();
-        Iterator<ReferenceType> iter = all.iterator();
-        while (iter.hasNext()) {
-            ReferenceType refType = iter.next();
+        vm.forEachClass(refType -> {
             String name = refType.name();
             int len = name.length();
             /* The separator is historically '$' but could also be '#' */
             if ( len > outerlen && name.startsWith(outername) ) {
                 char c = name.charAt(outerlen);
-                if ( c =='$' || c== '#' ) {
+                if ( c == '$' || c == '#' ) {
                     nested.add(refType);
                 }
             }
-        }
+        });
         return nested;
     }
 
@@ -1154,40 +1151,28 @@ public abstract class ReferenceTypeImpl extends TypeImpl implements ReferenceTyp
     }
 
     private static boolean isOneDimensionalPrimitiveArray(String signature) {
-        int i = signature.lastIndexOf('[');
-        /*
-         * TO DO: Centralize JNI signature knowledge.
-         *
-         * Ref:
-         *  jdk1.4/doc/guide/jpda/jdi/com/sun/jdi/doc-files/signature.html
-         */
-        boolean isPA;
-        if (i < 0 || signature.startsWith("[[")) {
-            isPA = false;
-        } else {
-            char c = signature.charAt(i + 1);
-            isPA = (c != 'L');
+        JNITypeParser sig = new JNITypeParser(signature);
+        if (sig.isArray()) {
+            JNITypeParser componentSig = new JNITypeParser(sig.componentSignature());
+            return componentSig.isPrimitive();
         }
-        return isPA;
+        return false;
     }
 
     Type findType(String signature) throws ClassNotLoadedException {
         Type type;
-        if (signature.length() == 1) {
-            /* OTI FIX: Must be a primitive type or the void type */
-            char sig = signature.charAt(0);
-            if (sig == 'V') {
-                type = vm.theVoidType();
-            } else {
-                type = vm.primitiveTypeMirror((byte)sig);
-            }
+        JNITypeParser sig = new JNITypeParser(signature);
+        if (sig.isVoid()) {
+            type = vm.theVoidType();
+        } else if (sig.isPrimitive()) {
+            type = vm.primitiveTypeMirror(sig.jdwpTag());
         } else {
             // Must be a reference type.
             ClassLoaderReferenceImpl loader =
-                       (ClassLoaderReferenceImpl)classLoader();
+                    (ClassLoaderReferenceImpl) classLoader();
             if ((loader == null) ||
-                (isOneDimensionalPrimitiveArray(signature)) //Work around 4450091
-                ) {
+                    (isOneDimensionalPrimitiveArray(signature)) //Work around 4450091
+            ) {
                 // Caller wants type of boot class field
                 type = vm.findBootType(signature);
             } else {

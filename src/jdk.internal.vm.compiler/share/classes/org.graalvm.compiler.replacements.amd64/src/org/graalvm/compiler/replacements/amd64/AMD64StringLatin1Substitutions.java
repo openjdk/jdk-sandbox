@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,21 @@
 
 package org.graalvm.compiler.replacements.amd64;
 
+import static org.graalvm.compiler.api.directives.GraalDirectives.LIKELY_PROBABILITY;
+import static org.graalvm.compiler.api.directives.GraalDirectives.UNLIKELY_PROBABILITY;
+import static org.graalvm.compiler.api.directives.GraalDirectives.SLOWPATH_PROBABILITY;
+import static org.graalvm.compiler.api.directives.GraalDirectives.injectBranchProbability;
+import static org.graalvm.compiler.replacements.ReplacementsUtil.byteArrayBaseOffset;
+import static org.graalvm.compiler.replacements.ReplacementsUtil.byteArrayIndexScale;
+import static org.graalvm.compiler.replacements.ReplacementsUtil.charArrayBaseOffset;
+import static org.graalvm.compiler.replacements.ReplacementsUtil.charArrayIndexScale;
+
 import org.graalvm.compiler.api.replacements.ClassSubstitution;
-import org.graalvm.compiler.api.replacements.Fold;
 import org.graalvm.compiler.api.replacements.Fold.InjectedParameter;
 import org.graalvm.compiler.api.replacements.MethodSubstitution;
 import org.graalvm.compiler.nodes.DeoptimizeNode;
 import org.graalvm.compiler.replacements.nodes.ArrayCompareToNode;
+import org.graalvm.compiler.replacements.nodes.ArrayRegionEqualsNode;
 import org.graalvm.compiler.word.Word;
 import jdk.internal.vm.compiler.word.Pointer;
 
@@ -47,26 +56,6 @@ import jdk.vm.ci.meta.MetaAccessProvider;
  */
 @ClassSubstitution(className = "java.lang.StringLatin1", optional = true)
 public class AMD64StringLatin1Substitutions {
-
-    @Fold
-    static int byteArrayBaseOffset(@InjectedParameter MetaAccessProvider metaAccess) {
-        return metaAccess.getArrayBaseOffset(JavaKind.Byte);
-    }
-
-    @Fold
-    static int byteArrayIndexScale(@InjectedParameter MetaAccessProvider metaAccess) {
-        return metaAccess.getArrayIndexScale(JavaKind.Byte);
-    }
-
-    @Fold
-    static int charArrayBaseOffset(@InjectedParameter MetaAccessProvider metaAccess) {
-        return metaAccess.getArrayBaseOffset(JavaKind.Char);
-    }
-
-    @Fold
-    static int charArrayIndexScale(@InjectedParameter MetaAccessProvider metaAccess) {
-        return metaAccess.getArrayIndexScale(JavaKind.Char);
-    }
 
     /** Marker value for the {@link InjectedParameter} injected parameter. */
     static final MetaAccessProvider INJECTED = null;
@@ -89,26 +78,72 @@ public class AMD64StringLatin1Substitutions {
         return ArrayCompareToNode.compareTo(value, other, value.length, other.length, JavaKind.Byte, JavaKind.Char);
     }
 
-    @MethodSubstitution(optional = true)
+    private static Word pointer(byte[] target) {
+        return Word.objectToTrackedPointer(target).add(byteArrayBaseOffset(INJECTED));
+    }
+
+    private static Word byteOffsetPointer(byte[] source, int offset) {
+        return pointer(source).add(offset * byteArrayIndexScale(INJECTED));
+    }
+
+    @MethodSubstitution
     public static int indexOf(byte[] value, int ch, int origFromIndex) {
         int fromIndex = origFromIndex;
-        if (ch >>> 8 != 0) {
+        if (injectBranchProbability(UNLIKELY_PROBABILITY, ch >>> 8 != 0)) {
             // search value must be a byte value
             return -1;
         }
         int length = value.length;
-        if (fromIndex < 0) {
+        if (injectBranchProbability(UNLIKELY_PROBABILITY, fromIndex < 0)) {
             fromIndex = 0;
-        } else if (fromIndex >= length) {
+        } else if (injectBranchProbability(UNLIKELY_PROBABILITY, fromIndex >= length)) {
             // Note: fromIndex might be near -1>>>1.
             return -1;
         }
-        Pointer sourcePointer = Word.objectToTrackedPointer(value).add(byteArrayBaseOffset(INJECTED)).add(fromIndex);
-        int result = AMD64ArrayIndexOf.indexOf1Byte(sourcePointer, length - fromIndex, (byte) ch);
-        if (result != -1) {
-            return result + fromIndex;
+        return AMD64ArrayIndexOf.indexOf1Byte(value, length, fromIndex, (byte) ch);
+    }
+
+    @MethodSubstitution
+    public static int indexOf(byte[] source, int sourceCount, byte[] target, int targetCount, int origFromIndex) {
+        int fromIndex = origFromIndex;
+        if (injectBranchProbability(UNLIKELY_PROBABILITY, fromIndex >= sourceCount)) {
+            return (targetCount == 0 ? sourceCount : -1);
         }
-        return result;
+        if (injectBranchProbability(UNLIKELY_PROBABILITY, fromIndex < 0)) {
+            fromIndex = 0;
+        }
+        if (injectBranchProbability(UNLIKELY_PROBABILITY, targetCount == 0)) {
+            // The empty string is in every string.
+            return fromIndex;
+        }
+        if (injectBranchProbability(UNLIKELY_PROBABILITY, sourceCount - fromIndex < targetCount)) {
+            // The empty string contains nothing except the empty string.
+            return -1;
+        }
+        if (injectBranchProbability(UNLIKELY_PROBABILITY, targetCount == 1)) {
+            return AMD64ArrayIndexOf.indexOf1Byte(source, sourceCount, fromIndex, target[0]);
+        } else {
+            int haystackLength = sourceCount - (targetCount - 2);
+            int offset = fromIndex;
+            while (injectBranchProbability(LIKELY_PROBABILITY, offset < haystackLength)) {
+                int indexOfResult = AMD64ArrayIndexOf.indexOfTwoConsecutiveBytes(source, haystackLength, offset, target[0], target[1]);
+                if (injectBranchProbability(UNLIKELY_PROBABILITY, indexOfResult < 0)) {
+                    return -1;
+                }
+                offset = indexOfResult;
+                if (injectBranchProbability(UNLIKELY_PROBABILITY, targetCount == 2)) {
+                    return offset;
+                } else {
+                    Pointer cmpSourcePointer = byteOffsetPointer(source, offset);
+                    Pointer targetPointer = pointer(target);
+                    if (injectBranchProbability(UNLIKELY_PROBABILITY, ArrayRegionEqualsNode.regionEquals(cmpSourcePointer, targetPointer, targetCount, JavaKind.Byte))) {
+                        return offset;
+                    }
+                }
+                offset++;
+            }
+            return -1;
+        }
     }
 
     /**
@@ -121,7 +156,11 @@ public class AMD64StringLatin1Substitutions {
      */
     @MethodSubstitution
     public static void inflate(byte[] src, int srcIndex, char[] dest, int destIndex, int len) {
-        if (len < 0 || srcIndex < 0 || (srcIndex + len > src.length) || destIndex < 0 || (destIndex + len > dest.length)) {
+        if (injectBranchProbability(SLOWPATH_PROBABILITY, len < 0) ||
+                        injectBranchProbability(SLOWPATH_PROBABILITY, srcIndex < 0) ||
+                        injectBranchProbability(SLOWPATH_PROBABILITY, srcIndex + len > src.length) ||
+                        injectBranchProbability(SLOWPATH_PROBABILITY, destIndex < 0) ||
+                        injectBranchProbability(SLOWPATH_PROBABILITY, destIndex + len > dest.length)) {
             DeoptimizeNode.deopt(DeoptimizationAction.None, DeoptimizationReason.BoundsCheckException);
         }
 
@@ -145,7 +184,11 @@ public class AMD64StringLatin1Substitutions {
      */
     @MethodSubstitution
     public static void inflate(byte[] src, int srcIndex, byte[] dest, int destIndex, int len) {
-        if (len < 0 || srcIndex < 0 || (srcIndex + len > src.length) || destIndex < 0 || (destIndex * 2 + len * 2 > dest.length)) {
+        if (injectBranchProbability(SLOWPATH_PROBABILITY, len < 0) ||
+                        injectBranchProbability(SLOWPATH_PROBABILITY, srcIndex < 0) ||
+                        injectBranchProbability(SLOWPATH_PROBABILITY, srcIndex + len > src.length) ||
+                        injectBranchProbability(SLOWPATH_PROBABILITY, destIndex < 0) ||
+                        injectBranchProbability(SLOWPATH_PROBABILITY, destIndex * 2 + len * 2 > dest.length)) {
             DeoptimizeNode.deopt(DeoptimizationAction.None, DeoptimizationReason.BoundsCheckException);
         }
 

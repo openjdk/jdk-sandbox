@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -215,8 +215,6 @@ public class Modules extends JCTree.Visitor {
         limitModsOpt = options.get(Option.LIMIT_MODULES);
         moduleVersionOpt = options.get(Option.MODULE_VERSION);
     }
-    //where
-        private static final String XMODULES_PREFIX = "-Xmodule:";
 
     int depth = -1;
 
@@ -355,7 +353,7 @@ public class Modules extends JCTree.Visitor {
     private void setCompilationUnitModules(List<JCCompilationUnit> trees, Set<ModuleSymbol> rootModules, ClassSymbol c) {
         // update the module for each compilation unit
         if (multiModuleMode) {
-            checkNoAllModulePath();
+            boolean patchesAutomaticModules = false;
             for (JCCompilationUnit tree: trees) {
                 if (tree.defs.isEmpty()) {
                     tree.modle = syms.unnamedModule;
@@ -375,6 +373,7 @@ public class Modules extends JCTree.Visitor {
                         ModuleSymbol msym = moduleFinder.findModule(name);
                         tree.modle = msym;
                         rootModules.add(msym);
+                        patchesAutomaticModules |= (msym.flags_field & Flags.AUTOMATIC_MODULE) != 0;
 
                         if (msplocn != null) {
                             Name mspname = names.fromString(fileManager.inferModuleName(msplocn));
@@ -438,6 +437,9 @@ public class Modules extends JCTree.Visitor {
                     log.useSource(prev);
                 }
             }
+            if (!patchesAutomaticModules) {
+                checkNoAllModulePath();
+            }
             if (syms.unnamedModule.sourceLocation == null) {
                 syms.unnamedModule.completer = getUnnamedModuleCompleter();
                 syms.unnamedModule.sourceLocation = StandardLocation.SOURCE_PATH;
@@ -458,9 +460,11 @@ public class Modules extends JCTree.Visitor {
                         }
                         if (defaultModule == syms.unnamedModule) {
                             if (moduleOverride != null) {
-                                checkNoAllModulePath();
                                 defaultModule = moduleFinder.findModule(names.fromString(moduleOverride));
                                 defaultModule.patchOutputLocation = StandardLocation.CLASS_OUTPUT;
+                                if ((defaultModule.flags_field & Flags.AUTOMATIC_MODULE) == 0) {
+                                    checkNoAllModulePath();
+                                }
                             } else {
                                 // Question: why not do findAllModules and initVisiblePackages here?
                                 // i.e. body of unnamedModuleCompleter
@@ -504,12 +508,8 @@ public class Modules extends JCTree.Visitor {
                 module.completer = sym -> completeModule((ModuleSymbol) sym);
             } else {
                 Assert.check(rootModules.isEmpty());
-                String moduleOverride = singleModuleOverride(trees);
-                if (moduleOverride != null) {
-                    module = moduleFinder.findModule(names.fromString(moduleOverride));
-                } else {
-                    module = defaultModule;
-                }
+                Assert.checkNonNull(c);
+                module = c.packge().modle;
                 rootModules.add(module);
             }
 
@@ -630,15 +630,19 @@ public class Modules extends JCTree.Visitor {
 
             if (msym.kind == ERR) {
                 //make sure the module is initialized:
-                msym.directives = List.nil();
-                msym.exports = List.nil();
-                msym.provides = List.nil();
-                msym.requires = List.nil();
-                msym.uses = List.nil();
+                initErrModule(msym);
             } else if ((msym.flags_field & Flags.AUTOMATIC_MODULE) != 0) {
                 setupAutomaticModule(msym);
             } else {
-                msym.module_info.complete();
+                try {
+                    msym.module_info.complete();
+                } catch (CompletionFailure cf) {
+                    msym.kind = ERR;
+                    //make sure the module is initialized:
+                    initErrModule(msym);
+                    completeModule(msym);
+                    throw cf;
+                }
             }
 
             // If module-info comes from a .java file, the underlying
@@ -651,6 +655,14 @@ public class Modules extends JCTree.Visitor {
             if (msym.module_info.classfile == null || msym.module_info.classfile.getKind() == Kind.CLASS) {
                 completeModule(msym);
             }
+        }
+
+        private void initErrModule(ModuleSymbol msym) {
+            msym.directives = List.nil();
+            msym.exports = List.nil();
+            msym.provides = List.nil();
+            msym.requires = List.nil();
+            msym.uses = List.nil();
         }
 
         @Override
@@ -1158,7 +1170,7 @@ public class Modules extends JCTree.Visitor {
                      */
                     PackageSymbol implementationDefiningPackage = impl.packge();
                     if (implementationDefiningPackage.modle != msym) {
-                        // TODO: should use tree for the implentation name, not the entire provides tree
+                        // TODO: should use tree for the implementation name, not the entire provides tree
                         // TODO: should improve error message to identify the implementation type
                         log.error(tree.pos(), Errors.ServiceImplementationNotInRightModule(implementationDefiningPackage.modle));
                     }
@@ -1796,6 +1808,7 @@ public class Modules extends JCTree.Visitor {
     public void newRound() {
         allModules = null;
         rootModules = null;
+        defaultModule = null;
         warnedMissing.clear();
     }
 

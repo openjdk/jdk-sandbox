@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,77 +24,95 @@
 #ifndef SHARE_GC_Z_ZPHYSICALMEMORY_HPP
 #define SHARE_GC_Z_ZPHYSICALMEMORY_HPP
 
+#include "gc/z/zMemory.hpp"
 #include "memory/allocation.hpp"
-#include OS_CPU_HEADER(gc/z/zPhysicalMemoryBacking)
+#include OS_HEADER(gc/z/zPhysicalMemoryBacking)
 
-class ZPhysicalMemorySegment {
+class ZPhysicalMemorySegment : public CHeapObj<mtGC> {
 private:
   uintptr_t _start;
   uintptr_t _end;
+  bool      _committed;
 
 public:
-  ZPhysicalMemorySegment(uintptr_t start, size_t size);
+  ZPhysicalMemorySegment();
+  ZPhysicalMemorySegment(uintptr_t start, size_t size, bool committed);
 
   uintptr_t start() const;
   uintptr_t end() const;
   size_t size() const;
 
-  void expand(size_t size);
-  ZPhysicalMemorySegment split(size_t size);
+  bool is_committed() const;
+  void set_committed(bool committed);
 };
 
 class ZPhysicalMemory {
 private:
-  size_t                  _nsegments;
+  uint32_t                _nsegments_max;
+  uint32_t                _nsegments;
   ZPhysicalMemorySegment* _segments;
+
+  void insert_segment(uint32_t index, uintptr_t start, size_t size, bool committed);
+  void replace_segment(uint32_t index, uintptr_t start, size_t size, bool committed);
+  void remove_segment(uint32_t index);
 
 public:
   ZPhysicalMemory();
-  ZPhysicalMemory(size_t size);
   ZPhysicalMemory(const ZPhysicalMemorySegment& segment);
+  ZPhysicalMemory(const ZPhysicalMemory& pmem);
+  const ZPhysicalMemory& operator=(const ZPhysicalMemory& pmem);
+  ~ZPhysicalMemory();
 
   bool is_null() const;
   size_t size() const;
 
-  size_t nsegments() const;
-  ZPhysicalMemorySegment segment(size_t index) const;
-  void add_segment(ZPhysicalMemorySegment segment);
+  uint32_t nsegments() const;
+  const ZPhysicalMemorySegment& segment(uint32_t index) const;
+
+  void add_segments(const ZPhysicalMemory& pmem);
+  void remove_segments();
+
+  void add_segment(const ZPhysicalMemorySegment& segment);
+  bool commit_segment(uint32_t index, size_t size);
+  bool uncommit_segment(uint32_t index, size_t size);
 
   ZPhysicalMemory split(size_t size);
-  void clear();
+  ZPhysicalMemory split_committed();
 };
 
 class ZPhysicalMemoryManager {
-  friend class VMStructs;
-
 private:
   ZPhysicalMemoryBacking _backing;
-  const size_t           _max_capacity;
-  size_t                 _current_max_capacity;
-  size_t                 _capacity;
-  size_t                 _used;
+  ZMemoryManager         _manager;
 
-  void nmt_commit(ZPhysicalMemory pmem, uintptr_t offset);
-  void nmt_uncommit(ZPhysicalMemory pmem, uintptr_t offset);
+  void nmt_commit(uintptr_t offset, size_t size) const;
+  void nmt_uncommit(uintptr_t offset, size_t size) const;
+
+  void pretouch_view(uintptr_t addr, size_t size) const;
+  void map_view(uintptr_t addr, const ZPhysicalMemory& pmem) const;
+  void unmap_view(uintptr_t addr, size_t size) const;
 
 public:
-  ZPhysicalMemoryManager(size_t max_capacity, size_t granule_size);
+  ZPhysicalMemoryManager(size_t max_capacity);
 
   bool is_initialized() const;
 
-  size_t max_capacity() const;
-  size_t current_max_capacity() const;
-  size_t capacity() const;
-  size_t unused_capacity() const;
+  void warn_commit_limits(size_t max_capacity) const;
+  void try_enable_uncommit(size_t min_capacity, size_t max_capacity);
 
-  void try_ensure_unused_capacity(size_t size);
+  void alloc(ZPhysicalMemory& pmem, size_t size);
+  void free(const ZPhysicalMemory& pmem);
 
-  ZPhysicalMemory alloc(size_t size);
-  void free(ZPhysicalMemory pmem);
+  bool commit(ZPhysicalMemory& pmem);
+  bool uncommit(ZPhysicalMemory& pmem);
 
-  void map(ZPhysicalMemory pmem, uintptr_t offset);
-  void unmap(ZPhysicalMemory pmem, uintptr_t offset);
-  void flip(ZPhysicalMemory pmem, uintptr_t offset);
+  void pretouch(uintptr_t offset, size_t size) const;
+
+  void map(uintptr_t offset, const ZPhysicalMemory& pmem) const;
+  void unmap(uintptr_t offset, size_t size) const;
+
+  void debug_map(uintptr_t offset, const ZPhysicalMemory& pmem) const;
+  void debug_unmap(uintptr_t offset, size_t size) const;
 };
 
 #endif // SHARE_GC_Z_ZPHYSICALMEMORY_HPP

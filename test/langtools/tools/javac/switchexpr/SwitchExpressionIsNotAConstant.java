@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,8 @@
  * @bug 8214113
  * @summary Verify the switch expression's type does not have a constant attached,
  *          and so the switch expression is not elided.
- * @compile --enable-preview --source 13 SwitchExpressionIsNotAConstant.java
- * @run main/othervm --enable-preview SwitchExpressionIsNotAConstant
+ * @compile SwitchExpressionIsNotAConstant.java
+ * @run main SwitchExpressionIsNotAConstant
  */
 public class SwitchExpressionIsNotAConstant {
 
@@ -38,7 +38,7 @@ public class SwitchExpressionIsNotAConstant {
             int dummy = 1 + switch (i) {
                 default -> {
                     i++;
-                    break 1;
+                    yield 1;
                 }
             };
             if (i != 1) {
@@ -51,7 +51,7 @@ public class SwitchExpressionIsNotAConstant {
                 case -1 -> 1;
                 default -> {
                     i++;
-                    break 1;
+                    yield 1;
                 }
             };
             if (i != 1) {
@@ -63,7 +63,7 @@ public class SwitchExpressionIsNotAConstant {
             int dummy = 1 + switch (i) {
                  default :
                     i++;
-                    break 1;
+                    yield 1;
             };
             if (i != 1) {
                 throw new IllegalStateException("Side effects missing.");
@@ -72,10 +72,10 @@ public class SwitchExpressionIsNotAConstant {
         {
             i = 0;
             int dummy = 1 + switch (i) {
-                case -1: break 1;
+                case -1: yield 1;
                 default:
                     i++;
-                    break 1;
+                    yield 1;
             };
             if (i != 1) {
                 throw new IllegalStateException("Side effects missing.");

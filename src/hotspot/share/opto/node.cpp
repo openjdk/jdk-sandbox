@@ -28,6 +28,7 @@
 #include "libadt/vectset.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "opto/ad.hpp"
 #include "opto/castnode.hpp"
 #include "opto/cfgnode.hpp"
 #include "opto/connode.hpp"
@@ -41,6 +42,7 @@
 #include "opto/type.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 class RegMask;
 // #include "phase.hpp"
@@ -65,21 +67,27 @@ extern int nodes_created;
 void Node::verify_construction() {
   _debug_orig = NULL;
   int old_debug_idx = Compile::debug_idx();
-  int new_debug_idx = old_debug_idx+1;
+  int new_debug_idx = old_debug_idx + 1;
   if (new_debug_idx > 0) {
     // Arrange that the lowest five decimal digits of _debug_idx
     // will repeat those of _idx. In case this is somehow pathological,
     // we continue to assign negative numbers (!) consecutively.
     const int mod = 100000;
     int bump = (int)(_idx - new_debug_idx) % mod;
-    if (bump < 0)  bump += mod;
+    if (bump < 0) {
+      bump += mod;
+    }
     assert(bump >= 0 && bump < mod, "");
     new_debug_idx += bump;
   }
   Compile::set_debug_idx(new_debug_idx);
-  set_debug_idx( new_debug_idx );
-  assert(Compile::current()->unique() < (INT_MAX - 1), "Node limit exceeded INT_MAX");
-  assert(Compile::current()->live_nodes() < Compile::current()->max_node_limit(), "Live Node limit exceeded limit");
+  set_debug_idx(new_debug_idx);
+  Compile* C = Compile::current();
+  assert(C->unique() < (INT_MAX - 1), "Node limit exceeded INT_MAX");
+  if (!C->phase_optimize_finished()) {
+    // Only check assert during parsing and optimization phase. Skip it while generating code.
+    assert(C->live_nodes() <= C->max_node_limit(), "Live Node limit exceeded limit");
+  }
   if (BreakAtNode != 0 && (_debug_idx == BreakAtNode || (int)_idx == BreakAtNode)) {
     tty->print_cr("BreakAtNode: _idx=%d _debug_idx=%d", _idx, _debug_idx);
     BREAKPOINT;
@@ -564,7 +572,6 @@ void Node::setup_is_top() {
   }
 }
 
-
 //------------------------------~Node------------------------------------------
 // Fancy destructor; eagerly attempt to reclaim Node numberings and storage
 void Node::destruct() {
@@ -654,7 +661,7 @@ void Node::grow( uint len ) {
     to[3] = NULL;
     return;
   }
-  while( new_max <= len ) new_max <<= 1; // Find next power-of-2
+  new_max = next_power_of_2(len);
   // Trimming to limit allows a uint8 to handle up to 255 edges.
   // Previously I was using only powers-of-2 which peaked at 128 edges.
   //if( new_max >= limit ) new_max = limit-1;
@@ -677,7 +684,7 @@ void Node::out_grow( uint len ) {
     _out = (Node **)arena->Amalloc(4*sizeof(Node*));
     return;
   }
-  while( new_max <= len ) new_max <<= 1; // Find next power-of-2
+  new_max = next_power_of_2(len);
   // Trimming to limit allows a uint8 to handle up to 255 edges.
   // Previously I was using only powers-of-2 which peaked at 128 edges.
   //if( new_max >= limit ) new_max = limit-1;
@@ -702,8 +709,25 @@ bool Node::is_dead() const {
   dump();
   return true;
 }
-#endif
 
+bool Node::is_reachable_from_root() const {
+  ResourceMark rm;
+  Unique_Node_List wq;
+  wq.push((Node*)this);
+  RootNode* root = Compile::current()->root();
+  for (uint i = 0; i < wq.size(); i++) {
+    Node* m = wq.at(i);
+    if (m == root) {
+      return true;
+    }
+    for (DUIterator_Fast jmax, j = m->fast_outs(jmax); j < jmax; j++) {
+      Node* u = m->fast_out(j);
+      wq.push(u);
+    }
+  }
+  return false;
+}
+#endif
 
 //------------------------------is_unreachable---------------------------------
 bool Node::is_unreachable(PhaseIterGVN &igvn) const {
@@ -891,13 +915,15 @@ int Node::disconnect_inputs(Node *n, Compile* C) {
 //-----------------------------uncast---------------------------------------
 // %%% Temporary, until we sort out CheckCastPP vs. CastPP.
 // Strip away casting.  (It is depth-limited.)
-Node* Node::uncast() const {
+// Optionally, keep casts with dependencies.
+Node* Node::uncast(bool keep_deps) const {
   // Should be inline:
   //return is_ConstraintCast() ? uncast_helper(this) : (Node*) this;
-  if (is_ConstraintCast())
-    return uncast_helper(this);
-  else
+  if (is_ConstraintCast()) {
+    return uncast_helper(this, keep_deps);
+  } else {
     return (Node*) this;
+  }
 }
 
 // Find out of current node that matches opcode.
@@ -929,7 +955,7 @@ bool Node::has_out_with(int opcode1, int opcode2, int opcode3, int opcode4) {
 
 
 //---------------------------uncast_helper-------------------------------------
-Node* Node::uncast_helper(const Node* p) {
+Node* Node::uncast_helper(const Node* p, bool keep_deps) {
 #ifdef ASSERT
   uint depth_count = 0;
   const Node* orig_p = p;
@@ -947,6 +973,9 @@ Node* Node::uncast_helper(const Node* p) {
     if (p == NULL || p->req() != 2) {
       break;
     } else if (p->is_ConstraintCast()) {
+      if (keep_deps && p->as_ConstraintCast()->carry_dependency()) {
+        break; // stop at casts with dependencies
+      }
       p = p->in(1);
     } else {
       break;
@@ -1011,7 +1040,12 @@ bool Node::verify_jvms(const JVMState* using_jvms) const {
 //------------------------------init_NodeProperty------------------------------
 void Node::init_NodeProperty() {
   assert(_max_classes <= max_jushort, "too many NodeProperty classes");
-  assert(_max_flags <= max_jushort, "too many NodeProperty flags");
+  assert(max_flags() <= max_jushort, "too many NodeProperty flags");
+}
+
+//-----------------------------max_flags---------------------------------------
+juint Node::max_flags() {
+  return (PD::_last_flag << 1) - 1; // allow flags combination
 }
 #endif
 
@@ -1144,7 +1178,7 @@ bool Node::has_special_unique_user() const {
     // See IfProjNode::Identity()
     return true;
   } else {
-    return BarrierSet::barrier_set()->barrier_set_c2()->has_special_unique_user(this);
+    return false;
   }
 };
 
@@ -1221,12 +1255,10 @@ bool Node::dominates(Node* sub, Node_List &nlist) {
     if (sub == up && sub->is_Loop()) {
       // Take loop entry path on the way up to 'dom'.
       up = sub->in(1); // in(LoopNode::EntryControl);
-    } else if (sub == up && sub->is_Region() && sub->req() != 3) {
-      // Always take in(1) path on the way up to 'dom' for clone regions
-      // (with only one input) or regions which merge > 2 paths
-      // (usually used to merge fast/slow paths).
+    } else if (sub == up && sub->is_Region() && sub->req() == 2) {
+      // Take in(1) path on the way up to 'dom' for regions with only one input
       up = sub->in(1);
-    } else if (sub == up && sub->is_Region()) {
+    } else if (sub == up && sub->is_Region() && sub->req() == 3) {
       // Try both paths for Regions with 2 input paths (it may be a loop head).
       // It could give conservative 'false' answer without information
       // which region's input is the entry path.
@@ -1301,9 +1333,8 @@ static void kill_dead_code( Node *dead, PhaseIterGVN *igvn ) {
   // Con's are a popular node to re-hit in the hash table again.
   if( dead->is_Con() ) return;
 
-  // Can't put ResourceMark here since igvn->_worklist uses the same arena
-  // for verify pass with +VerifyOpto and we add/remove elements in it here.
-  Node_List  nstack(Thread::current()->resource_area());
+  ResourceMark rm;
+  Node_List nstack;
 
   Node *top = igvn->C->top();
   nstack.push(dead);
@@ -1433,8 +1464,8 @@ uint Node::hash() const {
 
 //------------------------------cmp--------------------------------------------
 // Compare special parts of simple Nodes
-uint Node::cmp( const Node &n ) const {
-  return 1;                     // Must be same
+bool Node::cmp( const Node &n ) const {
+  return true;                  // Must be same
 }
 
 //------------------------------rematerialize-----------------------------------
@@ -1449,12 +1480,11 @@ bool Node::rematerialize() const {
 //------------------------------needs_anti_dependence_check---------------------
 // Nodes which use memory without consuming it, hence need antidependences.
 bool Node::needs_anti_dependence_check() const {
-  if( req() < 2 || (_flags & Flag_needs_anti_dependence_check) == 0 )
+  if (req() < 2 || (_flags & Flag_needs_anti_dependence_check) == 0) {
     return false;
-  else
-    return in(1)->bottom_type()->has_memory();
+  }
+  return in(1)->bottom_type()->has_memory();
 }
-
 
 // Get an integer constant from a ConNode (or CastIINode).
 // Return a default value if there is no apparent constant here.
@@ -1524,75 +1554,95 @@ jfloat Node::getf() const {
 
 #ifndef PRODUCT
 
-//------------------------------find------------------------------------------
-// Find a neighbor of this Node with the given _idx
-// If idx is negative, find its absolute value, following both _in and _out.
-static void find_recur(Compile* C,  Node* &result, Node *n, int idx, bool only_ctrl,
-                        VectorSet* old_space, VectorSet* new_space ) {
-  int node_idx = (idx >= 0) ? idx : -idx;
-  if (NotANode(n))  return;  // Gracefully handle NULL, -1, 0xabababab, etc.
-  // Contained in new_space or old_space?   Check old_arena first since it's mostly empty.
-  VectorSet *v = C->old_arena()->contains(n) ? old_space : new_space;
-  if( v->test(n->_idx) ) return;
-  if( (int)n->_idx == node_idx
-      debug_only(|| n->debug_idx() == node_idx) ) {
-    if (result != NULL)
-      tty->print("find: " INTPTR_FORMAT " and " INTPTR_FORMAT " both have idx==%d\n",
-                 (uintptr_t)result, (uintptr_t)n, node_idx);
-    result = n;
-  }
-  v->set(n->_idx);
-  for( uint i=0; i<n->len(); i++ ) {
-    if( only_ctrl && !(n->is_Region()) && (n->Opcode() != Op_Root) && (i != TypeFunc::Control) ) continue;
-    find_recur(C, result, n->in(i), idx, only_ctrl, old_space, new_space );
-  }
-  // Search along forward edges also:
-  if (idx < 0 && !only_ctrl) {
-    for( uint j=0; j<n->outcnt(); j++ ) {
-      find_recur(C, result, n->raw_out(j), idx, only_ctrl, old_space, new_space );
-    }
-  }
-#ifdef ASSERT
-  // Search along debug_orig edges last, checking for cycles
-  Node* orig = n->debug_orig();
-  if (orig != NULL) {
-    do {
-      if (NotANode(orig))  break;
-      find_recur(C, result, orig, idx, only_ctrl, old_space, new_space );
-      orig = orig->debug_orig();
-    } while (orig != NULL && orig != n->debug_orig());
-  }
-#endif //ASSERT
-}
-
-// call this from debugger:
-Node* find_node(Node* n, int idx) {
+// Call this from debugger:
+Node* find_node(Node* n, const int idx) {
   return n->find(idx);
 }
 
-//------------------------------find-------------------------------------------
-Node* Node::find(int idx) const {
-  ResourceArea *area = Thread::current()->resource_area();
-  VectorSet old_space(area), new_space(area);
-  Node* result = NULL;
-  find_recur(Compile::current(), result, (Node*) this, idx, false, &old_space, &new_space );
-  return result;
+// Call this from debugger with root node as default:
+Node* find_node(const int idx) {
+  return Compile::current()->root()->find(idx);
+}
+
+// Call this from debugger:
+Node* find_ctrl(Node* n, const int idx) {
+  return n->find_ctrl(idx);
+}
+
+// Call this from debugger with root node as default:
+Node* find_ctrl(const int idx) {
+  return Compile::current()->root()->find_ctrl(idx);
 }
 
 //------------------------------find_ctrl--------------------------------------
 // Find an ancestor to this node in the control history with given _idx
-Node* Node::find_ctrl(int idx) const {
-  ResourceArea *area = Thread::current()->resource_area();
-  VectorSet old_space(area), new_space(area);
+Node* Node::find_ctrl(int idx) {
+  return find(idx, true);
+}
+
+//------------------------------find-------------------------------------------
+// Tries to find the node with the index |idx| starting from this node. If idx is negative,
+// the search also includes forward (out) edges. Returns NULL if not found.
+// If only_ctrl is set, the search will only be done on control nodes. Returns NULL if
+// not found or if the node to be found is not a control node (search will not find it).
+Node* Node::find(const int idx, bool only_ctrl) {
+  ResourceMark rm;
+  VectorSet old_space;
+  VectorSet new_space;
+  Node_List worklist;
+  Arena* old_arena = Compile::current()->old_arena();
+  add_to_worklist(this, &worklist, old_arena, &old_space, &new_space);
   Node* result = NULL;
-  find_recur(Compile::current(), result, (Node*) this, idx, true, &old_space, &new_space );
+  int node_idx = (idx >= 0) ? idx : -idx;
+
+  for (uint list_index = 0; list_index < worklist.size(); list_index++) {
+    Node* n = worklist[list_index];
+
+    if ((int)n->_idx == node_idx debug_only(|| n->debug_idx() == node_idx)) {
+      if (result != NULL) {
+        tty->print("find: " INTPTR_FORMAT " and " INTPTR_FORMAT " both have idx==%d\n",
+                  (uintptr_t)result, (uintptr_t)n, node_idx);
+      }
+      result = n;
+    }
+
+    for (uint i = 0; i < n->len(); i++) {
+      if (!only_ctrl || n->is_Region() || (n->Opcode() == Op_Root) || (i == TypeFunc::Control)) {
+        // If only_ctrl is set: Add regions, the root node, or control inputs only
+        add_to_worklist(n->in(i), &worklist, old_arena, &old_space, &new_space);
+      }
+    }
+
+    // Also search along forward edges if idx is negative and the search is not done on control nodes only
+    if (idx < 0 && !only_ctrl) {
+      for (uint i = 0; i < n->outcnt(); i++) {
+        add_to_worklist(n->raw_out(i), &worklist, old_arena, &old_space, &new_space);
+      }
+    }
+#ifdef ASSERT
+    // Search along debug_orig edges last
+    Node* orig = n->debug_orig();
+    while (orig != NULL && add_to_worklist(orig, &worklist, old_arena, &old_space, &new_space)) {
+      orig = orig->debug_orig();
+    }
+#endif // ASSERT
+  }
   return result;
 }
-#endif
 
+bool Node::add_to_worklist(Node* n, Node_List* worklist, Arena* old_arena, VectorSet* old_space, VectorSet* new_space) {
+  if (NotANode(n)) {
+    return false; // Gracefully handle NULL, -1, 0xabababab, etc.
+  }
 
-
-#ifndef PRODUCT
+  // Contained in new_space or old_space? Check old_arena first since it's mostly empty.
+  VectorSet* v = old_arena->contains(n) ? old_space : new_space;
+  if (!v->test_set(n->_idx)) {
+    worklist->push(n);
+    return true;
+  }
+  return false;
+}
 
 // -----------------------------Name-------------------------------------------
 extern const char *NodeClassNames[];
@@ -1606,12 +1656,15 @@ static bool is_disconnected(const Node* n) {
 }
 
 #ifdef ASSERT
-static void dump_orig(Node* orig, outputStream *st) {
+void Node::dump_orig(outputStream *st, bool print_key) const {
   Compile* C = Compile::current();
+  Node* orig = _debug_orig;
   if (NotANode(orig)) orig = NULL;
   if (orig != NULL && !C->node_arena()->contains(orig)) orig = NULL;
   if (orig == NULL) return;
-  st->print(" !orig=");
+  if (print_key) {
+    st->print(" !orig=");
+  }
   Node* fast = orig->debug_orig(); // tortoise & hare algorithm to detect loops
   if (NotANode(fast)) fast = NULL;
   while (orig != NULL) {
@@ -1676,7 +1729,7 @@ void Node::dump(const char* suffix, bool mark, outputStream *st) const {
   if (is_disconnected(this)) {
 #ifdef ASSERT
     st->print("  [%d]",debug_idx());
-    dump_orig(debug_orig(), st);
+    dump_orig(st);
 #endif
     st->cr();
     C->_in_dump_cnt--;
@@ -1724,7 +1777,7 @@ void Node::dump(const char* suffix, bool mark, outputStream *st) const {
     t->dump_on(st);
   }
   if (is_new) {
-    debug_only(dump_orig(debug_orig(), st));
+    DEBUG_ONLY(dump_orig(st));
     Node_Notes* nn = C->node_notes_at(_idx);
     if (nn != NULL && !nn->is_clear()) {
       if (nn->jvms() != NULL) {
@@ -2105,7 +2158,9 @@ void Node::verify_edges(Unique_Node_List &visited) {
       }
       assert( cnt == 0,"Mismatched edge count.");
     } else if (n == NULL) {
-      assert(i >= req() || i == 0 || is_Region() || is_Phi(), "only regions or phis have null data edges");
+      assert(i >= req() || i == 0 || is_Region() || is_Phi() || is_ArrayCopy() || (is_Unlock() && i == req()-1)
+              || (is_MemBar() && i == 5), // the precedence edge to a membar can be removed during macro node expansion
+              "only region, phi, arraycopy, unlock or membar nodes have null data edges");
     } else {
       assert(n->is_top(), "sanity");
       // Nothing to check.
@@ -2119,70 +2174,82 @@ void Node::verify_edges(Unique_Node_List &visited) {
   }
 }
 
-//------------------------------verify_recur-----------------------------------
-static const Node *unique_top = NULL;
-
-void Node::verify_recur(const Node *n, int verify_depth,
-                        VectorSet &old_space, VectorSet &new_space) {
-  if ( verify_depth == 0 )  return;
-  if (verify_depth > 0)  --verify_depth;
-
+// Verify all nodes if verify_depth is negative
+void Node::verify(Node* n, int verify_depth) {
+  assert(verify_depth != 0, "depth should not be 0");
+  ResourceMark rm;
+  VectorSet old_space;
+  VectorSet new_space;
+  Node_List worklist;
+  worklist.push(n);
   Compile* C = Compile::current();
+  uint last_index_on_current_depth = 0;
+  verify_depth--; // Visiting the first node on depth 1
+  // Only add nodes to worklist if verify_depth is negative (visit all nodes) or greater than 0
+  bool add_to_worklist = verify_depth != 0;
 
-  // Contained in new_space or old_space?
-  VectorSet *v = C->node_arena()->contains(n) ? &new_space : &old_space;
-  // Check for visited in the proper space.  Numberings are not unique
-  // across spaces so we need a separate VectorSet for each space.
-  if( v->test_set(n->_idx) ) return;
 
-  if (n->is_Con() && n->bottom_type() == Type::TOP) {
-    if (C->cached_top_node() == NULL)
-      C->set_cached_top_node((Node*)n);
-    assert(C->cached_top_node() == n, "TOP node must be unique");
-  }
+  for (uint list_index = 0; list_index < worklist.size(); list_index++) {
+    n = worklist[list_index];
 
-  for( uint i = 0; i < n->len(); i++ ) {
-    Node *x = n->in(i);
-    if (!x || x->is_top()) continue;
-
-    // Verify my input has a def-use edge to me
-    if (true /*VerifyDefUse*/) {
-      // Count use-def edges from n to x
-      int cnt = 0;
-      for( uint j = 0; j < n->len(); j++ )
-        if( n->in(j) == x )
-          cnt++;
-      // Count def-use edges from x to n
-      uint max = x->_outcnt;
-      for( uint k = 0; k < max; k++ )
-        if (x->_out[k] == n)
-          cnt--;
-      assert( cnt == 0, "mismatched def-use edge counts" );
+    if (n->is_Con() && n->bottom_type() == Type::TOP) {
+      if (C->cached_top_node() == NULL) {
+        C->set_cached_top_node((Node*)n);
+      }
+      assert(C->cached_top_node() == n, "TOP node must be unique");
     }
 
-    verify_recur(x, verify_depth, old_space, new_space);
+    for (uint i = 0; i < n->len(); i++) {
+      Node* x = n->in(i);
+      if (!x || x->is_top()) {
+        continue;
+      }
+
+      // Verify my input has a def-use edge to me
+      // Count use-def edges from n to x
+      int cnt = 0;
+      for (uint j = 0; j < n->len(); j++) {
+        if (n->in(j) == x) {
+          cnt++;
+        }
+      }
+
+      // Count def-use edges from x to n
+      uint max = x->_outcnt;
+      for (uint k = 0; k < max; k++) {
+        if (x->_out[k] == n) {
+          cnt--;
+        }
+      }
+      assert(cnt == 0, "mismatched def-use edge counts");
+
+      // Contained in new_space or old_space?
+      VectorSet* v = C->node_arena()->contains(x) ? &new_space : &old_space;
+      // Check for visited in the proper space. Numberings are not unique
+      // across spaces so we need a separate VectorSet for each space.
+      if (add_to_worklist && !v->test_set(x->_idx)) {
+        worklist.push(x);
+      }
+    }
+
+    if (verify_depth > 0 && list_index == last_index_on_current_depth) {
+      // All nodes on this depth were processed and its inputs are on the worklist. Decrement verify_depth and
+      // store the current last list index which is the last node in the list with the new depth. All nodes
+      // added afterwards will have a new depth again. Stop adding new nodes if depth limit is reached (=0).
+      verify_depth--;
+      if (verify_depth == 0) {
+        add_to_worklist = false;
+      }
+      last_index_on_current_depth = worklist.size() - 1;
+    }
   }
-
 }
-
-//------------------------------verify-----------------------------------------
-// Check Def-Use info for my subgraph
-void Node::verify() const {
-  Compile* C = Compile::current();
-  Node* old_top = C->cached_top_node();
-  ResourceMark rm;
-  ResourceArea *area = Thread::current()->resource_area();
-  VectorSet old_space(area), new_space(area);
-  verify_recur(this, -1, old_space, new_space);
-  C->set_cached_top_node(old_top);
-}
-#endif
-
+#endif // not PRODUCT
 
 //------------------------------walk-------------------------------------------
 // Graph walk, with both pre-order and post-order functions
 void Node::walk(NFunc pre, NFunc post, void *env) {
-  VectorSet visited(Thread::current()->resource_area()); // Setup for local walk
+  VectorSet visited; // Setup for local walk
   walk_(pre, post, env, visited);
 }
 
@@ -2239,7 +2306,7 @@ void Node_Array::grow( uint i ) {
     _nodes[0] = NULL;
   }
   uint old = _max;
-  while( i >= _max ) _max <<= 1;        // Double to fit
+  _max = next_power_of_2(i);
   _nodes = (Node**)_a->Arealloc( _nodes, old*sizeof(Node*),_max*sizeof(Node*));
   Copy::zero_to_bytes( &_nodes[old], (_max-old)*sizeof(Node*) );
 }
@@ -2382,14 +2449,15 @@ void Node_List::dump_simple() const {
 
 //=============================================================================
 //------------------------------remove-----------------------------------------
-void Unique_Node_List::remove( Node *n ) {
-  if( _in_worklist[n->_idx] ) {
-    for( uint i = 0; i < size(); i++ )
-      if( _nodes[i] == n ) {
-        map(i,Node_List::pop());
-        _in_worklist >>= n->_idx;
+void Unique_Node_List::remove(Node* n) {
+  if (_in_worklist.test(n->_idx)) {
+    for (uint i = 0; i < size(); i++) {
+      if (_nodes[i] == n) {
+        map(i, Node_List::pop());
+        _in_worklist.remove(n->_idx);
         return;
       }
+    }
     ShouldNotReachHere();
   }
 }
@@ -2398,11 +2466,11 @@ void Unique_Node_List::remove( Node *n ) {
 // Remove useless nodes from worklist
 void Unique_Node_List::remove_useless_nodes(VectorSet &useful) {
 
-  for( uint i = 0; i < size(); ++i ) {
+  for (uint i = 0; i < size(); ++i) {
     Node *n = at(i);
     assert( n != NULL, "Did not expect null entries in worklist");
-    if( ! useful.test(n->_idx) ) {
-      _in_worklist >>= n->_idx;
+    if (!useful.test(n->_idx)) {
+      _in_worklist.remove(n->_idx);
       map(i,Node_List::pop());
       // Node *replacement = Node_List::pop();
       // if( i != size() ) { // Check if removing last entry
@@ -2452,7 +2520,7 @@ void TypeNode::dump_compact_spec(outputStream *st) const {
 uint TypeNode::hash() const {
   return Node::hash() + _type->hash();
 }
-uint TypeNode::cmp( const Node &n ) const
+bool TypeNode::cmp( const Node &n ) const
 { return !Type::cmp( _type, ((TypeNode&)n)._type ); }
 const Type *TypeNode::bottom_type() const { return _type; }
 const Type* TypeNode::Value(PhaseGVN* phase) const { return _type; }

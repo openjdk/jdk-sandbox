@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 #ifndef SHARE_OPTO_C2_GLOBALS_HPP
 #define SHARE_OPTO_C2_GLOBALS_HPP
 
-#include "runtime/globals.hpp"
+#include "runtime/globals_shared.hpp"
 #include "utilities/macros.hpp"
 
 #include CPU_HEADER(c2_globals)
@@ -44,8 +44,7 @@
                  experimental, \
                  notproduct, \
                  range, \
-                 constraint, \
-                 writeable) \
+                 constraint) \
                                                                             \
   diagnostic(bool, StressLCM, false,                                        \
           "Randomize instruction scheduling in LCM")                        \
@@ -106,9 +105,6 @@
                                                                             \
   notproduct(bool, PrintOptoInlining, false,                                \
           "Print compiler2 inlining decisions")                             \
-                                                                            \
-  notproduct(bool, VerifyOpto, false,                                       \
-          "Apply more time consuming verification during compilation")      \
                                                                             \
   notproduct(bool, VerifyIdealNodeCount, false,                             \
           "Verify that tracked dead ideal node count is accurate")          \
@@ -190,6 +186,9 @@
   notproduct(bool, TraceSuperWordLoopUnrollAnalysis, false,                 \
           "Trace what Superword Level Parallelism analysis applies")        \
                                                                             \
+  diagnostic(bool, UseVectorMacroLogic, true,                               \
+          "Use ternary macro logic instructions")                           \
+                                                                            \
   product(intx,  LoopUnrollMin, 4,                                          \
           "Minimum number of unroll loop bodies before checking progress"   \
           "of rounds of unroll,optimize,..")                                \
@@ -246,9 +245,6 @@
                                                                             \
   develop(bool, UseUniqueSubclasses, true,                                  \
           "Narrow an abstract reference to the unique concrete subclass")   \
-                                                                            \
-  develop(bool, UseExactTypes, true,                                        \
-          "Use exact types to eliminate array store checks and v-calls")    \
                                                                             \
   product(intx, TrackedInitializationLimit, 50,                             \
           "When initializing fields, track up to this many words")          \
@@ -358,13 +354,6 @@
           "Limit of ops to make speculative when using CMOVE")              \
           range(0, max_jint)                                                \
                                                                             \
-  /* Set BranchOnRegister == false. See 4965987. */                         \
-  product(bool, BranchOnRegister, false,                                    \
-          "Use Sparc V9 branch-on-register opcodes")                        \
-                                                                            \
-  develop(bool, SparcV9RegsHiBitsZero, true,                                \
-          "Assume Sparc V9 I&L registers on V8+ systems are zero-extended") \
-                                                                            \
   product(bool, UseRDPCForConstantTableBase, false,                         \
           "Use Sparc RDPC instruction for the constant table base.")        \
                                                                             \
@@ -374,10 +363,12 @@
                                                                             \
   notproduct(intx, PrintIdealGraphLevel, 0,                                 \
           "Level of detail of the ideal graph printout. "                   \
-          "System-wide value, 0=nothing is printed, 4=all details printed. "\
+          "System-wide value, -1=printing is disabled, "                    \
+          "0=print nothing except IGVPrintLevel directives, "               \
+          "4=all details printed. "                                         \
           "Level of detail of printouts can be set on a per-method level "  \
           "as well by using CompileCommand=option.")                        \
-          range(0, 4)                                                       \
+          range(-1, 4)                                                      \
                                                                             \
   notproduct(intx, PrintIdealGraphPort, 4444,                               \
           "Ideal graph printer to network port")                            \
@@ -498,7 +489,8 @@
           "Print precise statistics on the dynamic lock usage")             \
                                                                             \
   diagnostic(bool, PrintPreciseBiasedLockingStatistics, false,              \
-          "Print per-lock-site statistics of biased locking in JVM")        \
+          "(Deprecated) Print per-lock-site statistics of biased locking "  \
+          "in JVM")                                                         \
                                                                             \
   diagnostic(bool, PrintPreciseRTMLockingStatistics, false,                 \
           "Print per-lock-site statistics of rtm locking in JVM")           \
@@ -509,14 +501,11 @@
   product(bool, EliminateAutoBox, true,                                     \
           "Control optimizations for autobox elimination")                  \
                                                                             \
-  diagnostic(bool, UseImplicitStableValues, true,                           \
-          "Mark well-known stable fields as such (e.g. String.value)")      \
-                                                                            \
   product(intx, AutoBoxCacheMax, 128,                                       \
           "Sets max value cached by the java.lang.Integer autobox cache")   \
           range(0, max_jint)                                                \
                                                                             \
-  experimental(bool, AggressiveUnboxing, false,                             \
+  diagnostic(bool, AggressiveUnboxing, true,                                \
           "Control optimizations for aggressive boxing elimination")        \
                                                                             \
   develop(bool, TracePostallocExpand, false, "Trace expanding nodes after"  \
@@ -555,7 +544,7 @@
           "Verify Connection Graph construction in Escape Analysis")        \
                                                                             \
   product(bool, UseOptoBiasInlining, true,                                  \
-          "Generate biased locking code in C2 ideal graph")                 \
+          "(Deprecated) Generate biased locking code in C2 ideal graph")    \
                                                                             \
   product(bool, OptimizeStringConcat, true,                                 \
           "Optimize the construction of Strings by StringBuilder")          \
@@ -617,12 +606,6 @@
                                                                             \
   develop(bool, ConvertFloat2IntClipping, true,                             \
           "Convert float2int clipping idiom to integer clipping")           \
-                                                                            \
-  develop(bool, Use24BitFPMode, true,                                       \
-          "Set 24-bit FPU mode on a per-compile basis ")                    \
-                                                                            \
-  develop(bool, Use24BitFP, true,                                           \
-          "use FP instructions that produce 24-bit precise results")        \
                                                                             \
   develop(bool, MonomorphicArrayCheck, true,                                \
           "Uncommon-trap array store checks that require full type check")  \
@@ -694,6 +677,35 @@
   develop(bool, VerifyAliases, false,                                       \
           "perform extra checks on the results of alias analysis")          \
                                                                             \
+  product(intx, MaxInlineLevel, 15,                                         \
+          "maximum number of nested calls that are inlined by high tier "   \
+          "compiler")                                                       \
+          range(0, max_jint)                                                \
+                                                                            \
+  product(intx, MaxRecursiveInlineLevel, 1,                                 \
+          "maximum number of nested recursive calls that are inlined by "   \
+          "high tier compiler")                                             \
+          range(0, max_jint)                                                \
+                                                                            \
+  product_pd(intx, InlineSmallCode,                                         \
+          "Only inline already compiled methods if their code size is "     \
+          "less than this")                                                 \
+          range(0, max_jint)                                                \
+                                                                            \
+  product(intx, MaxInlineSize, 35,                                          \
+          "The maximum bytecode size of a method to be inlined by high "    \
+          "tier compiler")                                                  \
+          range(0, max_jint)                                                \
+                                                                            \
+  product_pd(intx, FreqInlineSize,                                          \
+          "The maximum bytecode size of a frequent method to be inlined")   \
+          range(0, max_jint)                                                \
+                                                                            \
+  product(intx, MaxTrivialSize, 6,                                          \
+          "The maximum bytecode size of a trivial method to be inlined by " \
+          "high tier compiler")                                             \
+          range(0, max_jint)                                                \
+                                                                            \
   product(bool, IncrementalInline, true,                                    \
           "do post parse inlining")                                         \
                                                                             \
@@ -759,18 +771,9 @@
           range(0, max_juint)                                               \
                                                                             \
   product(bool, UseProfiledLoopPredicate, true,                             \
-          "move predicates out of loops based on profiling data")           \
-
-C2_FLAGS(DECLARE_DEVELOPER_FLAG, \
-         DECLARE_PD_DEVELOPER_FLAG, \
-         DECLARE_PRODUCT_FLAG, \
-         DECLARE_PD_PRODUCT_FLAG, \
-         DECLARE_DIAGNOSTIC_FLAG, \
-         DECLARE_PD_DIAGNOSTIC_FLAG, \
-         DECLARE_EXPERIMENTAL_FLAG, \
-         DECLARE_NOTPRODUCT_FLAG, \
-         IGNORE_RANGE, \
-         IGNORE_CONSTRAINT, \
-         IGNORE_WRITEABLE)
+          "Move predicates out of loops based on profiling data")           \
+                                                                            \
+  diagnostic(bool, ExpandSubTypeCheckAtParseTime, false,                    \
+          "Do not use subtype check macro node")                            \
 
 #endif // SHARE_OPTO_C2_GLOBALS_HPP

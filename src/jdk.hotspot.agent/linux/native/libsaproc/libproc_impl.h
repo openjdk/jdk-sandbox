@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,10 +34,21 @@
 
 #define BUF_SIZE     (PATH_MAX + NAME_MAX + 1)
 
+// .eh_frame data
+typedef struct eh_frame_info {
+  uintptr_t library_base_addr;
+  uintptr_t v_addr;
+  unsigned char* data;
+  int size;
+} eh_frame_info;
+
 // list of shared objects
 typedef struct lib_info {
   char             name[BUF_SIZE];
   uintptr_t        base;
+  uintptr_t        exec_start;
+  uintptr_t        exec_end;
+  eh_frame_info    eh_frame;
   struct symtab*   symtab;
   int              fd;        // file descriptor for lib
   struct lib_info* next;
@@ -46,7 +57,6 @@ typedef struct lib_info {
 // list of threads
 typedef struct thread_info {
    lwpid_t                  lwp_id;
-   pthread_t                pthread_id; // not used cores, always -1
    struct user_regs_struct  regs;       // not for process, core uses for caching regset
    struct thread_info*      next;
 } thread_info;
@@ -57,6 +67,7 @@ typedef struct map_info {
    off_t            offset;   // file offset of this mapping
    uintptr_t        vaddr;    // starting virtual address
    size_t           memsz;    // size of the mapping
+   uint32_t         flags;    // acces flags
    struct map_info* next;
 } map_info;
 
@@ -102,16 +113,15 @@ struct ps_prochandle {
    struct core_data*  core;      // data only used for core dumps, NULL for process
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int pathmap_open(const char* name);
 
 void print_debug(const char* format,...);
 void print_error(const char* format,...);
 bool is_debug();
-
-typedef bool (*thread_info_callback)(struct ps_prochandle* ph, pthread_t pid, lwpid_t lwpid);
-
-// reads thread info using libthread_db and calls above callback for each thread
-bool read_thread_info(struct ps_prochandle* ph, thread_info_callback cb);
 
 // deletes a thread from the thread list
 void delete_thread_info(struct ps_prochandle* ph, thread_info* thr);
@@ -124,9 +134,13 @@ lib_info* add_lib_info_fd(struct ps_prochandle* ph, const char* libname, int fd,
                           uintptr_t base);
 
 // adds a new thread to threads list, returns NULL on failure
-thread_info* add_thread_info(struct ps_prochandle* ph, pthread_t pthread_id, lwpid_t lwp_id);
+thread_info* add_thread_info(struct ps_prochandle* ph, lwpid_t lwp_id);
 
 // a test for ELF signature without using libelf
 bool is_elf_file(int fd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //_LIBPROC_IMPL_H_

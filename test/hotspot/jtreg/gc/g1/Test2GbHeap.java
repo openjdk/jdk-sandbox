@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,9 +21,10 @@
  * questions.
  */
 
+package gc.g1;
+
 /*
  * @test Test2GbHeap
- * @key gc regression
  * @bug 8031686
  * @summary Regression test to ensure we can start G1 with 2gb heap.
  * Skip test on 32 bit system: it typically does not support the many and large virtual memory reservations needed.
@@ -32,6 +33,7 @@
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
+ * @run driver gc.g1.Test2GbHeap
  */
 
 import java.util.ArrayList;
@@ -47,7 +49,7 @@ public class Test2GbHeap {
     testArguments.add("-Xmx2g");
     testArguments.add("-version");
 
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(testArguments.toArray(new String[0]));
+    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(testArguments);
 
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
     output.shouldHaveExitValue(0);

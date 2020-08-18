@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,10 @@ import static jdk.vm.ci.code.BytecodeFrame.AFTER_BCI;
 import static jdk.vm.ci.code.BytecodeFrame.AFTER_EXCEPTION_BCI;
 import static jdk.vm.ci.code.BytecodeFrame.BEFORE_BCI;
 import static jdk.vm.ci.code.BytecodeFrame.INVALID_FRAMESTATE_BCI;
+import static jdk.vm.ci.services.Services.IS_IN_NATIVE_IMAGE;
 import static org.graalvm.compiler.nodes.graphbuilderconf.IntrinsicContext.CompilationContext.INLINE_AFTER_PARSING;
 import static org.graalvm.compiler.nodes.graphbuilderconf.IntrinsicContext.CompilationContext.ROOT_COMPILATION;
+import static org.graalvm.compiler.nodes.graphbuilderconf.IntrinsicContext.CompilationContext.ROOT_COMPILATION_ENCODING;
 
 import org.graalvm.compiler.api.replacements.MethodSubstitution;
 import org.graalvm.compiler.bytecode.BytecodeProvider;
@@ -87,7 +89,7 @@ public class IntrinsicContext {
         this.compilationContext = compilationContext;
         this.allowPartialIntrinsicArgumentMismatch = allowPartialIntrinsicArgumentMismatch;
         assert !isCompilationRoot() || method.hasBytecodes() : "Cannot root compile intrinsic for native or abstract method " + method.format("%H.%n(%p)");
-        assert !method.equals(intrinsic) || method.getAnnotation(MethodSubstitution.class) == null : "method and intrinsic must be different: " + method + " " + intrinsic;
+        assert IS_IN_NATIVE_IMAGE || !method.equals(intrinsic) || method.getAnnotation(MethodSubstitution.class) == null : "method and intrinsic must be different: " + method + " " + intrinsic;
     }
 
     /**
@@ -136,7 +138,11 @@ public class IntrinsicContext {
     }
 
     public boolean isCompilationRoot() {
-        return compilationContext.equals(ROOT_COMPILATION);
+        return compilationContext.equals(ROOT_COMPILATION) || compilationContext.equals(ROOT_COMPILATION_ENCODING);
+    }
+
+    public boolean isIntrinsicEncoding() {
+        return compilationContext.equals(ROOT_COMPILATION_ENCODING);
     }
 
     public NodeSourcePosition getNodeSourcePosition() {
@@ -166,7 +172,12 @@ public class IntrinsicContext {
         /**
          * An intrinsic is the root of compilation.
          */
-        ROOT_COMPILATION
+        ROOT_COMPILATION,
+
+        /**
+         * An intrinsic is the root of a compilation done for graph encoding.
+         */
+        ROOT_COMPILATION_ENCODING
     }
 
     /**
@@ -191,6 +202,11 @@ public class IntrinsicContext {
         void addSideEffect(StateSplit sideEffect);
     }
 
+    @SuppressWarnings("unused")
+    public boolean isDeferredInvoke(StateSplit stateSplit) {
+        return false;
+    }
+
     public FrameState createFrameState(StructuredGraph graph, SideEffectsState sideEffects, StateSplit forStateSplit, NodeSourcePosition sourcePosition) {
         assert forStateSplit != graph.start();
         if (forStateSplit.hasSideEffect()) {
@@ -205,12 +221,16 @@ public class IntrinsicContext {
                     lastSideEffect.setStateAfter(invalid);
                 }
             }
-            sideEffects.addSideEffect(forStateSplit);
             FrameState frameState;
-            if (forStateSplit instanceof ExceptionObjectNode) {
-                frameState = graph.add(new FrameState(AFTER_EXCEPTION_BCI, (ExceptionObjectNode) forStateSplit));
+            if (isDeferredInvoke(forStateSplit)) {
+                frameState = graph.add(new FrameState(INVALID_FRAMESTATE_BCI));
             } else {
-                frameState = graph.add(new FrameState(AFTER_BCI));
+                sideEffects.addSideEffect(forStateSplit);
+                if (forStateSplit instanceof ExceptionObjectNode) {
+                    frameState = graph.add(new FrameState(AFTER_EXCEPTION_BCI, (ExceptionObjectNode) forStateSplit));
+                } else {
+                    frameState = graph.add(new FrameState(AFTER_BCI));
+                }
             }
             if (graph.trackNodeSourcePosition()) {
                 frameState.setNodeSourcePosition(sourcePosition);
@@ -243,6 +263,7 @@ public class IntrinsicContext {
 
     @Override
     public String toString() {
-        return "Intrinsic{original: " + originalMethod.format("%H.%n(%p)") + ", intrinsic: " + intrinsicMethod.format("%H.%n(%p)") + ", context: " + compilationContext + "}";
+        return "Intrinsic{original: " + originalMethod.format("%H.%n(%p)") + ", intrinsic: " + (intrinsicMethod != null ? intrinsicMethod.format("%H.%n(%p)") : "null") + ", context: " +
+                        compilationContext + "}";
     }
 }

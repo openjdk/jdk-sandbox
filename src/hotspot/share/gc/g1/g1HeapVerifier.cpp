@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@
 #include "logging/logStream.hpp"
 #include "memory/iterator.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -325,7 +326,7 @@ void G1HeapVerifier::verify_ready_for_archiving() {
   if (cl.has_holes()) {
     log_warning(gc, verify)("All free regions should be at the top end of the heap, but"
                             " we found holes. This is probably caused by (unmovable) humongous"
-                            " allocations, and may lead to fragmentation while"
+                            " allocations or active GCLocker, and may lead to fragmentation while"
                             " writing archive heap memory regions.");
   }
   if (cl.has_humongous()) {
@@ -333,7 +334,6 @@ void G1HeapVerifier::verify_ready_for_archiving() {
                             " may lead to fragmentation while"
                             " writing archive heap memory regions.");
   }
-  assert(!cl.has_unexpected_holes(), "all holes should have been caused by humongous regions");
 }
 
 class VerifyArchivePointerRegionClosure: public HeapRegionClosure {
@@ -371,6 +371,7 @@ public:
   }
 
   bool do_heap_region(HeapRegion* r) {
+    guarantee(!r->has_index_in_opt_cset(), "Region %u still has opt collection set index %u", r->hrm_index(), r->index_in_opt_cset());
     guarantee(!r->is_young() || r->rem_set()->is_complete(), "Remembered set for Young region %u must be complete, is %s", r->hrm_index(), r->rem_set()->get_state_str());
     // Humongous and old regions regions might be of any state, so can't check here.
     guarantee(!r->is_free() || !r->rem_set()->is_tracked(), "Remembered set for free region %u must be untracked, is %s", r->hrm_index(), r->rem_set()->get_state_str());
@@ -448,7 +449,6 @@ public:
   }
 
   void work(uint worker_id) {
-    HandleMark hm;
     VerifyRegionClosure blk(true, _vo);
     _g1h->heap_region_par_iterate_from_worker_offset(&blk, &_hrclaimer, worker_id);
     if (blk.failures()) {
@@ -490,14 +490,12 @@ void G1HeapVerifier::verify(VerifyOption vo) {
 
   {
     G1RootProcessor root_processor(_g1h, 1);
-    root_processor.process_all_roots(&rootsCl,
-                                     &cldCl,
-                                     &blobsCl);
+    root_processor.process_all_roots(&rootsCl, &cldCl, &blobsCl);
   }
 
   bool failures = rootsCl.failures() || codeRootsCl.failures();
 
-  if (!_g1h->g1_policy()->collector_state()->in_full_gc()) {
+  if (!_g1h->policy()->collector_state()->in_full_gc()) {
     // If we're verifying during a full GC then the region sets
     // will have been torn down at the start of the GC. Therefore
     // verifying the region sets will fail. So we only verify
@@ -620,7 +618,6 @@ double G1HeapVerifier::verify(G1VerifyType type, VerifyOption vo, const char* ms
 
   if (should_verify(type) && _g1h->total_collections() >= VerifyGCStartAt) {
     double verify_start = os::elapsedTime();
-    HandleMark hm;  // Discard invalid handles created during verification
     prepare_for_verify();
     Universe::verify(vo, msg);
     verify_time_ms = (os::elapsedTime() - verify_start) * 1000;
@@ -632,14 +629,14 @@ double G1HeapVerifier::verify(G1VerifyType type, VerifyOption vo, const char* ms
 void G1HeapVerifier::verify_before_gc(G1VerifyType type) {
   if (VerifyBeforeGC) {
     double verify_time_ms = verify(type, VerifyOption_G1UsePrevMarking, "Before GC");
-    _g1h->g1_policy()->phase_times()->record_verify_before_time_ms(verify_time_ms);
+    _g1h->phase_times()->record_verify_before_time_ms(verify_time_ms);
   }
 }
 
 void G1HeapVerifier::verify_after_gc(G1VerifyType type) {
   if (VerifyAfterGC) {
     double verify_time_ms = verify(type, VerifyOption_G1UsePrevMarking, "After GC");
-    _g1h->g1_policy()->phase_times()->record_verify_after_time_ms(verify_time_ms);
+    _g1h->phase_times()->record_verify_after_time_ms(verify_time_ms);
   }
 }
 
@@ -782,58 +779,59 @@ void G1HeapVerifier::check_bitmaps(const char* caller) {
   guarantee(!cl.failures(), "bitmap verification");
 }
 
-class G1CheckCSetFastTableClosure : public HeapRegionClosure {
- private:
+class G1CheckRegionAttrTableClosure : public HeapRegionClosure {
+private:
   bool _failures;
- public:
-  G1CheckCSetFastTableClosure() : HeapRegionClosure(), _failures(false) { }
+
+public:
+  G1CheckRegionAttrTableClosure() : HeapRegionClosure(), _failures(false) { }
 
   virtual bool do_heap_region(HeapRegion* hr) {
     uint i = hr->hrm_index();
-    InCSetState cset_state = (InCSetState) G1CollectedHeap::heap()->_in_cset_fast_test.get_by_index(i);
+    G1HeapRegionAttr region_attr = (G1HeapRegionAttr) G1CollectedHeap::heap()->_region_attr.get_by_index(i);
     if (hr->is_humongous()) {
       if (hr->in_collection_set()) {
         log_error(gc, verify)("## humongous region %u in CSet", i);
         _failures = true;
         return true;
       }
-      if (cset_state.is_in_cset()) {
-        log_error(gc, verify)("## inconsistent cset state " CSETSTATE_FORMAT " for humongous region %u", cset_state.value(), i);
+      if (region_attr.is_in_cset()) {
+        log_error(gc, verify)("## inconsistent region attr type %s for humongous region %u", region_attr.get_type_str(), i);
         _failures = true;
         return true;
       }
-      if (hr->is_continues_humongous() && cset_state.is_humongous()) {
-        log_error(gc, verify)("## inconsistent cset state " CSETSTATE_FORMAT " for continues humongous region %u", cset_state.value(), i);
+      if (hr->is_continues_humongous() && region_attr.is_humongous()) {
+        log_error(gc, verify)("## inconsistent region attr type %s for continues humongous region %u", region_attr.get_type_str(), i);
         _failures = true;
         return true;
       }
     } else {
-      if (cset_state.is_humongous()) {
-        log_error(gc, verify)("## inconsistent cset state " CSETSTATE_FORMAT " for non-humongous region %u", cset_state.value(), i);
+      if (region_attr.is_humongous()) {
+        log_error(gc, verify)("## inconsistent region attr type %s for non-humongous region %u", region_attr.get_type_str(), i);
         _failures = true;
         return true;
       }
-      if (hr->in_collection_set() != cset_state.is_in_cset()) {
-        log_error(gc, verify)("## in CSet %d / cset state " CSETSTATE_FORMAT " inconsistency for region %u",
-                             hr->in_collection_set(), cset_state.value(), i);
+      if (hr->in_collection_set() != region_attr.is_in_cset()) {
+        log_error(gc, verify)("## in CSet %d / region attr type %s inconsistency for region %u",
+                             hr->in_collection_set(), region_attr.get_type_str(), i);
         _failures = true;
         return true;
       }
-      if (cset_state.is_in_cset()) {
+      if (region_attr.is_in_cset()) {
         if (hr->is_archive()) {
           log_error(gc, verify)("## is_archive in collection set for region %u", i);
           _failures = true;
           return true;
         }
-        if (hr->is_young() != (cset_state.is_young())) {
-          log_error(gc, verify)("## is_young %d / cset state " CSETSTATE_FORMAT " inconsistency for region %u",
-                               hr->is_young(), cset_state.value(), i);
+        if (hr->is_young() != (region_attr.is_young())) {
+          log_error(gc, verify)("## is_young %d / region attr type %s inconsistency for region %u",
+                               hr->is_young(), region_attr.get_type_str(), i);
           _failures = true;
           return true;
         }
-        if (hr->is_old() != (cset_state.is_old())) {
-          log_error(gc, verify)("## is_old %d / cset state " CSETSTATE_FORMAT " inconsistency for region %u",
-                               hr->is_old(), cset_state.value(), i);
+        if (hr->is_old() != (region_attr.is_old())) {
+          log_error(gc, verify)("## is_old %d / region attr type %s inconsistency for region %u",
+                               hr->is_old(), region_attr.get_type_str(), i);
           _failures = true;
           return true;
         }
@@ -845,8 +843,8 @@ class G1CheckCSetFastTableClosure : public HeapRegionClosure {
   bool failures() const { return _failures; }
 };
 
-bool G1HeapVerifier::check_cset_fast_test() {
-  G1CheckCSetFastTableClosure cl;
+bool G1HeapVerifier::check_region_attr_table() {
+  G1CheckRegionAttrTableClosure cl;
   _g1h->_hrm->iterate(&cl);
   return !cl.failures();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,19 +26,18 @@
 package java.net;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.Set;
+import java.nio.channels.DatagramChannel;
+import java.nio.channels.MulticastChannel;
 
 /**
  * The multicast datagram socket class is useful for sending
- * and receiving IP multicast packets.  A MulticastSocket is
+ * and receiving IP multicast packets. A MulticastSocket is
  * a (UDP) DatagramSocket, with additional capabilities for
  * joining "groups" of other multicast hosts on the internet.
  * <P>
  * A multicast group is specified by a class D IP address
  * and by a standard UDP port number. Class D IP addresses
- * are in the range <CODE>224.0.0.0</CODE> to <CODE>239.255.255.255</CODE>,
+ * are in the range {@code 224.0.0.0} to {@code 239.255.255.255},
  * inclusive. The address 224.0.0.0 is reserved and should not be used.
  * <P>
  * One would join a multicast group by first creating a MulticastSocket
@@ -49,11 +48,15 @@ import java.util.Set;
  * // join a Multicast group and send the group salutations
  * ...
  * String msg = "Hello";
- * InetAddress group = InetAddress.getByName("228.5.6.7");
+ * InetAddress mcastaddr = InetAddress.getByName("228.5.6.7");
+ * InetSocketAddress group = new InetSocketAddress(mcastaddr, port);
+ * NetworkInterface netIf = NetworkInterface.getByName("bge0");
  * MulticastSocket s = new MulticastSocket(6789);
- * s.joinGroup(group);
- * DatagramPacket hi = new DatagramPacket(msg.getBytes(), msg.length(),
- *                             group, 6789);
+ *
+ * s.joinGroup(group, netIf);
+ * byte[] msgBytes = msg.getBytes(StandardCharsets.UTF_8);
+ * DatagramPacket hi = new DatagramPacket(msgBytes, msgBytes.length,
+ *                                        group, 6789);
  * s.send(hi);
  * // get their responses!
  * byte[] buf = new byte[1000];
@@ -61,37 +64,92 @@ import java.util.Set;
  * s.receive(recv);
  * ...
  * // OK, I'm done talking - leave the group...
- * s.leaveGroup(group);
+ * s.leaveGroup(group, netIf);
  * </PRE>
  *
  * When one sends a message to a multicast group, <B>all</B> subscribing
  * recipients to that host and port receive the message (within the
- * time-to-live range of the packet, see below).  The socket needn't
+ * time-to-live range of the packet, see below). The socket needn't
  * be a member of the multicast group to send messages to it.
  * <P>
  * When a socket subscribes to a multicast group/port, it receives
  * datagrams sent by other hosts to the group/port, as do all other
  * members of the group and port.  A socket relinquishes membership
- * in a group by the leaveGroup(InetAddress addr) method.  <B>
- * Multiple MulticastSocket's</B> may subscribe to a multicast group
+ * in a group by the leaveGroup(SocketAddress mcastaddr, NetworkInterface netIf)
+ * method.
+ * <B>Multiple MulticastSockets</B> may subscribe to a multicast group
  * and port concurrently, and they will all receive group datagrams.
- * <P>
- * Currently applets are not allowed to use multicast sockets.
+ *
+ * <p> The {@code DatagramSocket} and {@code MulticastSocket}
+ * classes define convenience methods to set and get several
+ * socket options. Like {@code DatagramSocket} this class also
+ * supports the {@link #setOption(SocketOption, Object) setOption}
+ * and {@link #getOption(SocketOption) getOption} methods to set
+ * and query socket options.
+ * In addition to the socket options supported by
+ * <a href="DatagramSocket.html#SocketOptions">{@code DatagramSocket}</a>, a
+ * {@code MulticastSocket} supports the following socket options:
+ * <blockquote>
+ * <a id="MulticastOptions"></a>
+ * <table class="striped">
+ * <caption style="display:none">Socket options</caption>
+ * <thead>
+ *   <tr>
+ *     <th scope="col">Option Name</th>
+ *     <th scope="col">Description</th>
+ *   </tr>
+ * </thead>
+ * <tbody>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#IP_MULTICAST_IF IP_MULTICAST_IF} </th>
+ *     <td> The network interface for Internet Protocol (IP) multicast datagrams </td>
+ *   </tr>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#IP_MULTICAST_TTL
+ *       IP_MULTICAST_TTL} </th>
+ *     <td> The <em>time-to-live</em> for Internet Protocol (IP) multicast
+ *       datagrams </td>
+ *   </tr>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#IP_MULTICAST_LOOP
+ *       IP_MULTICAST_LOOP} </th>
+ *     <td> Loopback for Internet Protocol (IP) multicast datagrams </td>
+ *   </tr>
+ * </tbody>
+ * </table>
+ * </blockquote>
+ * Additional (implementation specific) options may also be supported.
+ *
+ * @apiNote {@link DatagramChannel} implements the {@link MulticastChannel} interface
+ *          and provides an alternative API for sending and receiving multicast datagrams.
+ *          The {@link MulticastChannel} API supports both {@linkplain
+ *          MulticastChannel#join(InetAddress, NetworkInterface) any-source} and
+ *          {@linkplain MulticastChannel#join(InetAddress, NetworkInterface, InetAddress)
+ *          source-specific} multicast.
  *
  * @author Pavani Diwanji
- * @since  1.1
+ * @since 1.1
  */
-public
-class MulticastSocket extends DatagramSocket {
+public class MulticastSocket extends DatagramSocket {
+
+    @Override
+    final MulticastSocket delegate() {
+        return (MulticastSocket) super.delegate();
+    }
 
     /**
-     * Used on some platforms to record if an outgoing interface
-     * has been set for this socket.
+     * Create a MulticastSocket that delegates to the given delegate if not null.
+     * @param delegate the delegate, can be null.
      */
-    private boolean interfaceSet;
+    MulticastSocket(MulticastSocket delegate)  {
+        super(delegate);
+    }
+
 
     /**
-     * Create a multicast socket.
+     * Constructs a multicast socket and binds it to any available port
+     * on the local host machine.  The socket will be bound to the
+     * {@link InetAddress#isAnyLocalAddress wildcard} address.
      *
      * <p>
      * If there is a security manager, its {@code checkListen} method is first
@@ -102,9 +160,9 @@ class MulticastSocket extends DatagramSocket {
      * {@link DatagramSocket#setReuseAddress(boolean)} method is called to
      * enable the SO_REUSEADDR socket option.
      *
-     * @exception IOException if an I/O exception occurs while creating the
+     * @throws    IOException if an I/O exception occurs while creating the
      * MulticastSocket
-     * @exception SecurityException if a security manager exists and its
+     * @throws    SecurityException if a security manager exists and its
      * {@code checkListen} method doesn't allow the operation.
      * @see SecurityManager#checkListen
      * @see java.net.DatagramSocket#setReuseAddress(boolean)
@@ -115,7 +173,9 @@ class MulticastSocket extends DatagramSocket {
     }
 
     /**
-     * Create a multicast socket and bind it to a specific port.
+     * Constructs a multicast socket and binds it to the specified port
+     * on the local host machine. The socket will be bound to the
+     * {@link InetAddress#isAnyLocalAddress wildcard} address.
      *
      * <p>If there is a security manager,
      * its {@code checkListen} method is first called
@@ -127,22 +187,26 @@ class MulticastSocket extends DatagramSocket {
      * {@link DatagramSocket#setReuseAddress(boolean)} method is
      * called to enable the SO_REUSEADDR socket option.
      *
-     * @param port port to use
-     * @exception IOException if an I/O exception occurs
-     * while creating the MulticastSocket
-     * @exception  SecurityException  if a security manager exists and its
-     *             {@code checkListen} method doesn't allow the operation.
-     * @see SecurityManager#checkListen
-     * @see java.net.DatagramSocket#setReuseAddress(boolean)
+     * @param     port port to use
+     * @throws    IOException if an I/O exception occurs
+     *            while creating the MulticastSocket
+     * @throws    SecurityException  if a security manager exists and its
+     *            {@code checkListen} method doesn't allow the operation.
+     * @throws    IllegalArgumentException  if port is  <a href="DatagramSocket.html#PortRange">
+     *            out of range.</a>
+     *
+     * @see       SecurityManager#checkListen
+     * @see       java.net.DatagramSocket#setReuseAddress(boolean)
      */
     public MulticastSocket(int port) throws IOException {
         this(new InetSocketAddress(port));
     }
 
     /**
-     * Create a MulticastSocket bound to the specified socket address.
+     * Creates a multicast socket, bound to the specified local
+     * socket address.
      * <p>
-     * Or, if the address is {@code null}, create an unbound socket.
+     * If the address is {@code null} an unbound socket will be created.
      *
      * <p>If there is a security manager,
      * its {@code checkListen} method is first called
@@ -153,51 +217,20 @@ class MulticastSocket extends DatagramSocket {
      * {@link DatagramSocket#setReuseAddress(boolean)} method is
      * called to enable the SO_REUSEADDR socket option.
      *
-     * @param bindaddr Socket address to bind to, or {@code null} for
-     *                 an unbound socket.
-     * @exception IOException if an I/O exception occurs
-     * while creating the MulticastSocket
-     * @exception  SecurityException  if a security manager exists and its
-     *             {@code checkListen} method doesn't allow the operation.
-     * @see SecurityManager#checkListen
-     * @see java.net.DatagramSocket#setReuseAddress(boolean)
+     * @param    bindaddr Socket address to bind to, or {@code null} for
+     *           an unbound socket.
+     * @throws   IOException if an I/O exception occurs
+     *           while creating the MulticastSocket
+     * @throws   SecurityException  if a security manager exists and its
+     *           {@code checkListen} method doesn't allow the operation.
+     * @see      SecurityManager#checkListen
+     * @see      java.net.DatagramSocket#setReuseAddress(boolean)
      *
      * @since 1.4
      */
     public MulticastSocket(SocketAddress bindaddr) throws IOException {
-        super((SocketAddress) null);
-
-        // Enable SO_REUSEADDR before binding
-        setReuseAddress(true);
-
-        if (bindaddr != null) {
-            try {
-                bind(bindaddr);
-            } finally {
-                if (!isBound()) {
-                    close();
-                }
-            }
-        }
+        this(createDelegate(bindaddr, MulticastSocket.class));
     }
-
-    /**
-     * The lock on the socket's TTL. This is for set/getTTL and
-     * send(packet,ttl).
-     */
-    private Object ttlLock = new Object();
-
-    /**
-     * The lock on the socket's interface - used by setInterface
-     * and getInterface
-     */
-    private Object infLock = new Object();
-
-    /**
-     * The "last" interface set by setInterface on this MulticastSocket
-     */
-    private InetAddress infAddress = null;
-
 
     /**
      * Set the default time-to-live for multicast packets sent out
@@ -207,18 +240,16 @@ class MulticastSocket extends DatagramSocket {
      * <p>The ttl is an <b>unsigned</b> 8-bit quantity, and so <B>must</B> be
      * in the range {@code 0 <= ttl <= 0xFF }.
      *
-     * @param ttl the time-to-live
-     * @exception IOException if an I/O exception occurs
-     * while setting the default time-to-live value
+     * @param      ttl the time-to-live
+     * @throws     IOException if an I/O exception occurs
+     *             while setting the default time-to-live value
      * @deprecated use the setTimeToLive method instead, which uses
-     * <b>int</b> instead of <b>byte</b> as the type for ttl.
+     *             <b>int</b> instead of <b>byte</b> as the type for ttl.
      * @see #getTTL()
      */
     @Deprecated
     public void setTTL(byte ttl) throws IOException {
-        if (isClosed())
-            throw new SocketException("Socket is closed");
-        getImpl().setTTL(ttl);
+        delegate().setTTL(ttl);
     }
 
     /**
@@ -239,21 +270,17 @@ class MulticastSocket extends DatagramSocket {
      *          default time-to-live value
      *
      * @see #getTimeToLive()
+     * @since 1.2
      */
     public void setTimeToLive(int ttl) throws IOException {
-        if (ttl < 0 || ttl > 255) {
-            throw new IllegalArgumentException("ttl out of range");
-        }
-        if (isClosed())
-            throw new SocketException("Socket is closed");
-        getImpl().setTimeToLive(ttl);
+        delegate().setTimeToLive(ttl);
     }
 
     /**
      * Get the default time-to-live for multicast packets sent out on
      * the socket.
      *
-     * @exception IOException if an I/O exception occurs
+     * @throws    IOException if an I/O exception occurs
      * while getting the default time-to-live value
      * @return the default time-to-live value
      * @deprecated use the getTimeToLive method instead, which returns
@@ -262,23 +289,20 @@ class MulticastSocket extends DatagramSocket {
      */
     @Deprecated
     public byte getTTL() throws IOException {
-        if (isClosed())
-            throw new SocketException("Socket is closed");
-        return getImpl().getTTL();
+        return delegate().getTTL();
     }
 
     /**
      * Get the default time-to-live for multicast packets sent out on
      * the socket.
-     * @exception IOException if an I/O exception occurs while
+     * @throws    IOException if an I/O exception occurs while
      * getting the default time-to-live value
      * @return the default time-to-live value
      * @see #setTimeToLive(int)
+     * @since 1.2
      */
     public int getTimeToLive() throws IOException {
-        if (isClosed())
-            throw new SocketException("Socket is closed");
-        return getImpl().getTimeToLive();
+        return delegate().getTimeToLive();
     }
 
     /**
@@ -286,46 +310,23 @@ class MulticastSocket extends DatagramSocket {
      * {@code setInterface} or {@code setNetworkInterface}.
      *
      * <p>If there is a security manager, this method first
-     * calls its {@code checkMulticast} method
-     * with the {@code mcastaddr} argument
-     * as its argument.
+     * calls its {@code checkMulticast} method with the
+     * {@code mcastaddr} argument as its argument.
      *
-     * @param mcastaddr is the multicast address to join
-     *
-     * @exception IOException if there is an error joining, or when the address
-     *            is not a multicast address, or the platform does not support
-     *            multicasting
-     * @exception  SecurityException  if a security manager exists and its
-     * {@code checkMulticast} method doesn't allow the join.
-     *
-     * @see SecurityManager#checkMulticast(InetAddress)
+     * @param      mcastaddr is the multicast address to join
+     * @throws     IOException if there is an error joining,
+     *             or when the address is not a multicast address,
+     *             or the platform does not support multicasting
+     * @throws     SecurityException if a security manager exists and its
+     *             {@code checkMulticast} method doesn't allow the join.
+     * @deprecated This method does not accept the network interface on
+     *             which to join the multicast group. Use
+     *             {@link #joinGroup(SocketAddress, NetworkInterface)} instead.
+     * @see        SecurityManager#checkMulticast(InetAddress)
      */
+    @Deprecated(since="14")
     public void joinGroup(InetAddress mcastaddr) throws IOException {
-        if (isClosed()) {
-            throw new SocketException("Socket is closed");
-        }
-
-        checkAddress(mcastaddr, "joinGroup");
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkMulticast(mcastaddr);
-        }
-
-        if (!mcastaddr.isMulticastAddress()) {
-            throw new SocketException("Not a multicast address");
-        }
-
-        /**
-         * required for some platforms where it's not possible to join
-         * a group without setting the interface first.
-         */
-        NetworkInterface defaultInterface = NetworkInterface.getDefault();
-
-        if (!interfaceSet && defaultInterface != null) {
-            setNetworkInterface(defaultInterface);
-        }
-
-        getImpl().join(mcastaddr);
+        delegate().joinGroup(mcastaddr);
     }
 
     /**
@@ -333,34 +334,22 @@ class MulticastSocket extends DatagramSocket {
      * {@code setInterface} or {@code setNetworkInterface}.
      *
      * <p>If there is a security manager, this method first
-     * calls its {@code checkMulticast} method
-     * with the {@code mcastaddr} argument
-     * as its argument.
+     * calls its {@code checkMulticast} method with the
+     * {@code mcastaddr} argument as its argument.
      *
-     * @param mcastaddr is the multicast address to leave
-     * @exception IOException if there is an error leaving
-     * or when the address is not a multicast address.
-     * @exception  SecurityException  if a security manager exists and its
-     * {@code checkMulticast} method doesn't allow the operation.
-     *
-     * @see SecurityManager#checkMulticast(InetAddress)
+     * @param      mcastaddr is the multicast address to leave
+     * @throws     IOException if there is an error leaving
+     *             or when the address is not a multicast address.
+     * @throws     SecurityException if a security manager exists and its
+     *             {@code checkMulticast} method doesn't allow the operation.
+     * @deprecated This method does not accept the network interface on which
+     *             to leave the multicast group. Use
+     *             {@link #leaveGroup(SocketAddress, NetworkInterface)} instead.
+     * @see        SecurityManager#checkMulticast(InetAddress)
      */
+    @Deprecated(since="14")
     public void leaveGroup(InetAddress mcastaddr) throws IOException {
-        if (isClosed()) {
-            throw new SocketException("Socket is closed");
-        }
-
-        checkAddress(mcastaddr, "leaveGroup");
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkMulticast(mcastaddr);
-        }
-
-        if (!mcastaddr.isMulticastAddress()) {
-            throw new SocketException("Not a multicast address");
-        }
-
-        getImpl().leave(mcastaddr);
+        delegate().leaveGroup(mcastaddr);
     }
 
     /**
@@ -371,176 +360,95 @@ class MulticastSocket extends DatagramSocket {
      * with the {@code mcastaddr} argument
      * as its argument.
      *
-     * @param mcastaddr is the multicast address to join
-     * @param netIf specifies the local interface to receive multicast
-     *        datagram packets, or <i>null</i> to defer to the interface set by
-     *       {@link MulticastSocket#setInterface(InetAddress)} or
-     *       {@link MulticastSocket#setNetworkInterface(NetworkInterface)}
-     *
-     * @exception IOException if there is an error joining, or when the address
-     *            is not a multicast address, or the platform does not support
-     *            multicasting
-     * @exception  SecurityException  if a security manager exists and its
-     * {@code checkMulticast} method doesn't allow the join.
-     * @throws  IllegalArgumentException if mcastaddr is null or is a
-     *          SocketAddress subclass not supported by this socket
-     *
-     * @see SecurityManager#checkMulticast(InetAddress)
-     * @since 1.4
+     * @param  mcastaddr is the multicast address to join
+     * @param  netIf specifies the local interface to receive multicast
+     *         datagram packets, or {@code null} to defer to the interface set by
+     *         {@link MulticastSocket#setInterface(InetAddress)} or
+     *         {@link MulticastSocket#setNetworkInterface(NetworkInterface)}.
+     *         If {@code null}, and no interface has been set, the behaviour is
+     *         unspecified: any interface may be selected or the operation may fail
+     *         with a {@code SocketException}.
+     * @throws IOException if there is an error joining, or when the address
+     *         is not a multicast address, or the platform does not support
+     *         multicasting
+     * @throws SecurityException if a security manager exists and its
+     *         {@code checkMulticast} method doesn't allow the join.
+     * @throws IllegalArgumentException if mcastaddr is {@code null} or is a
+     *         SocketAddress subclass not supported by this socket
+     * @see    SecurityManager#checkMulticast(InetAddress)
+     * @see    DatagramChannel#join(InetAddress, NetworkInterface)
+     * @since  1.4
      */
     public void joinGroup(SocketAddress mcastaddr, NetworkInterface netIf)
         throws IOException {
-        if (isClosed())
-            throw new SocketException("Socket is closed");
-
-        if (mcastaddr == null || !(mcastaddr instanceof InetSocketAddress))
-            throw new IllegalArgumentException("Unsupported address type");
-
-        if (oldImpl)
-            throw new UnsupportedOperationException();
-
-        checkAddress(((InetSocketAddress)mcastaddr).getAddress(), "joinGroup");
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkMulticast(((InetSocketAddress)mcastaddr).getAddress());
-        }
-
-        if (!((InetSocketAddress)mcastaddr).getAddress().isMulticastAddress()) {
-            throw new SocketException("Not a multicast address");
-        }
-
-        getImpl().joinGroup(mcastaddr, netIf);
+        delegate().joinGroup(mcastaddr, netIf);
     }
 
     /**
      * Leave a multicast group on a specified local interface.
      *
      * <p>If there is a security manager, this method first
-     * calls its {@code checkMulticast} method
-     * with the {@code mcastaddr} argument
-     * as its argument.
+     * calls its {@code checkMulticast} method with the
+     * {@code mcastaddr} argument as its argument.
      *
-     * @param mcastaddr is the multicast address to leave
-     * @param netIf specifies the local interface or <i>null</i> to defer
-     *             to the interface set by
-     *             {@link MulticastSocket#setInterface(InetAddress)} or
-     *             {@link MulticastSocket#setNetworkInterface(NetworkInterface)}
-     * @exception IOException if there is an error leaving
-     * or when the address is not a multicast address.
-     * @exception  SecurityException  if a security manager exists and its
-     * {@code checkMulticast} method doesn't allow the operation.
-     * @throws  IllegalArgumentException if mcastaddr is null or is a
-     *          SocketAddress subclass not supported by this socket
-     *
-     * @see SecurityManager#checkMulticast(InetAddress)
-     * @since 1.4
+     * @param  mcastaddr is the multicast address to leave
+     * @param  netIf specifies the local interface or {@code null} to defer
+     *         to the interface set by
+     *         {@link MulticastSocket#setInterface(InetAddress)} or
+     *         {@link MulticastSocket#setNetworkInterface(NetworkInterface)}.
+     *         If {@code null}, and no interface has been set, the behaviour
+     *         is unspecified: any interface may be selected or the operation
+     *         may fail with a {@code SocketException}.
+     * @throws IOException if there is an error leaving or when the address
+     *         is not a multicast address.
+     * @throws SecurityException if a security manager exists and its
+     *         {@code checkMulticast} method doesn't allow the operation.
+     * @throws IllegalArgumentException if mcastaddr is {@code null} or is a
+     *         SocketAddress subclass not supported by this socket.
+     * @see    SecurityManager#checkMulticast(InetAddress)
+     * @since  1.4
      */
     public void leaveGroup(SocketAddress mcastaddr, NetworkInterface netIf)
         throws IOException {
-        if (isClosed())
-            throw new SocketException("Socket is closed");
-
-        if (mcastaddr == null || !(mcastaddr instanceof InetSocketAddress))
-            throw new IllegalArgumentException("Unsupported address type");
-
-        if (oldImpl)
-            throw new UnsupportedOperationException();
-
-        checkAddress(((InetSocketAddress)mcastaddr).getAddress(), "leaveGroup");
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            security.checkMulticast(((InetSocketAddress)mcastaddr).getAddress());
-        }
-
-        if (!((InetSocketAddress)mcastaddr).getAddress().isMulticastAddress()) {
-            throw new SocketException("Not a multicast address");
-        }
-
-        getImpl().leaveGroup(mcastaddr, netIf);
+        delegate().leaveGroup(mcastaddr, netIf);
      }
 
     /**
      * Set the multicast network interface used by methods
      * whose behavior would be affected by the value of the
      * network interface. Useful for multihomed hosts.
-     * @param inf the InetAddress
-     * @exception SocketException if there is an error in
-     * the underlying protocol, such as a TCP error.
-     * @see #getInterface()
+     *
+     * @param      inf the InetAddress
+     * @throws     SocketException if there is an error in
+     *             the underlying protocol, such as a TCP error.
+     * @deprecated The InetAddress may not uniquely identify
+     *             the network interface. Use
+     *             {@link #setNetworkInterface(NetworkInterface)} instead.
+     * @see        #getInterface()
      */
+    @Deprecated(since="14")
     public void setInterface(InetAddress inf) throws SocketException {
-        if (isClosed()) {
-            throw new SocketException("Socket is closed");
-        }
-        checkAddress(inf, "setInterface");
-        synchronized (infLock) {
-            getImpl().setOption(SocketOptions.IP_MULTICAST_IF, inf);
-            infAddress = inf;
-            interfaceSet = true;
-        }
+        delegate().setInterface(inf);
     }
 
     /**
      * Retrieve the address of the network interface used for
      * multicast packets.
      *
-     * @return An {@code InetAddress} representing
-     *  the address of the network interface used for
-     *  multicast packets.
-     *
-     * @exception SocketException if there is an error in
-     * the underlying protocol, such as a TCP error.
-     *
-     * @see #setInterface(java.net.InetAddress)
+     * @return     An {@code InetAddress} representing the address
+     *             of the network interface used for multicast packets,
+     *             or if no interface has been set, an {@code InetAddress}
+     *             representing any local address.
+     * @throws     SocketException if there is an error in the
+     *             underlying protocol, such as a TCP error.
+     * @deprecated The network interface may not be uniquely identified by
+     *             the InetAddress returned.
+     *             Use {@link #getNetworkInterface()} instead.
+     * @see        #setInterface(java.net.InetAddress)
      */
+    @Deprecated(since="14")
     public InetAddress getInterface() throws SocketException {
-        if (isClosed()) {
-            throw new SocketException("Socket is closed");
-        }
-        synchronized (infLock) {
-            InetAddress ia =
-                (InetAddress)getImpl().getOption(SocketOptions.IP_MULTICAST_IF);
-
-            /**
-             * No previous setInterface or interface can be
-             * set using setNetworkInterface
-             */
-            if (infAddress == null) {
-                return ia;
-            }
-
-            /**
-             * Same interface set with setInterface?
-             */
-            if (ia.equals(infAddress)) {
-                return ia;
-            }
-
-            /**
-             * Different InetAddress from what we set with setInterface
-             * so enumerate the current interface to see if the
-             * address set by setInterface is bound to this interface.
-             */
-            try {
-                NetworkInterface ni = NetworkInterface.getByInetAddress(ia);
-                Enumeration<InetAddress> addrs = ni.getInetAddresses();
-                while (addrs.hasMoreElements()) {
-                    InetAddress addr = addrs.nextElement();
-                    if (addr.equals(infAddress)) {
-                        return infAddress;
-                    }
-                }
-
-                /**
-                 * No match so reset infAddress to indicate that the
-                 * interface has changed via means
-                 */
-                infAddress = null;
-                return ia;
-            } catch (Exception e) {
-                return ia;
-            }
-        }
+        return delegate().getInterface();
     }
 
     /**
@@ -548,44 +456,33 @@ class MulticastSocket extends DatagramSocket {
      * sent on this socket.
      *
      * @param netIf the interface
-     * @exception SocketException if there is an error in
+     * @throws    SocketException if there is an error in
      * the underlying protocol, such as a TCP error.
      * @see #getNetworkInterface()
      * @since 1.4
      */
     public void setNetworkInterface(NetworkInterface netIf)
         throws SocketException {
-
-        synchronized (infLock) {
-            getImpl().setOption(SocketOptions.IP_MULTICAST_IF2, netIf);
-            infAddress = null;
-            interfaceSet = true;
-        }
+        delegate().setNetworkInterface(netIf);
     }
 
     /**
      * Get the multicast network interface set.
      *
-     * @exception SocketException if there is an error in
-     * the underlying protocol, such as a TCP error.
-     * @return the multicast {@code NetworkInterface} currently set
-     * @see #setNetworkInterface(NetworkInterface)
-     * @since 1.4
+     * @throws SocketException if there is an error in
+     *         the underlying protocol, such as a TCP error.
+     * @return The multicast {@code NetworkInterface} currently set. A placeholder
+     *         NetworkInterface is returned when there is no interface set; it has
+     *         a single InetAddress to represent any local address.
+     * @see    #setNetworkInterface(NetworkInterface)
+     * @since  1.4
      */
     public NetworkInterface getNetworkInterface() throws SocketException {
-        NetworkInterface ni
-            = (NetworkInterface)getImpl().getOption(SocketOptions.IP_MULTICAST_IF2);
-        if ((ni.getIndex() == 0) || (ni.getIndex() == -1)) {
-            InetAddress[] addrs = new InetAddress[1];
-            addrs[0] = InetAddress.anyLocalAddress();
-            return new NetworkInterface(addrs[0].getHostName(), 0, addrs);
-        } else {
-            return ni;
-        }
+        return delegate().getNetworkInterface();
     }
 
     /**
-     * Disable/Enable local loopback of multicast datagrams
+     * Disable/Enable local loopback of multicast datagrams.
      * The option is used by the platform's networking code as a hint
      * for setting whether multicast data will be looped back to
      * the local socket.
@@ -593,30 +490,40 @@ class MulticastSocket extends DatagramSocket {
      * <p>Because this option is a hint, applications that want to
      * verify what loopback mode is set to should call
      * {@link #getLoopbackMode()}
-     * @param disable {@code true} to disable the LoopbackMode
-     * @throws SocketException if an error occurs while setting the value
-     * @since 1.4
-     * @see #getLoopbackMode
+     * @param      disable {@code true} to disable the LoopbackMode
+     * @throws     SocketException if an error occurs while setting the value
+     * @since      1.4
+     * @deprecated Use {@link #setOption(SocketOption, Object)} with
+     *             {@link java.net.StandardSocketOptions#IP_MULTICAST_LOOP}
+     *             instead. The loopback mode is enabled by default,
+     *             {@code MulticastSocket.setOption(StandardSocketOptions.IP_MULTICAST_LOOP, false)}
+     *             disables it.
+     * @see        #getLoopbackMode
      */
+    @Deprecated(since="14")
     public void setLoopbackMode(boolean disable) throws SocketException {
-        getImpl().setOption(SocketOptions.IP_MULTICAST_LOOP, Boolean.valueOf(disable));
+        delegate().setLoopbackMode(disable);
     }
 
     /**
      * Get the setting for local loopback of multicast datagrams.
      *
-     * @throws SocketException  if an error occurs while getting the value
-     * @return true if the LoopbackMode has been disabled
-     * @since 1.4
-     * @see #setLoopbackMode
+     * @throws     SocketException if an error occurs while getting the value
+     * @return     true if the LoopbackMode has been disabled
+     * @since      1.4
+     * @deprecated Use {@link #getOption(SocketOption)} with
+     *             {@link java.net.StandardSocketOptions#IP_MULTICAST_LOOP}
+     *             instead.
+     * @see        #setLoopbackMode
      */
+    @Deprecated(since="14")
     public boolean getLoopbackMode() throws SocketException {
-        return ((Boolean)getImpl().getOption(SocketOptions.IP_MULTICAST_LOOP)).booleanValue();
+        return delegate().getLoopbackMode();
     }
 
     /**
-     * Sends a datagram packet to the destination, with a TTL (time-
-     * to-live) other than the default for the socket.  This method
+     * Sends a datagram packet to the destination, with a TTL (time-to-live)
+     * other than the default for the socket.  This method
      * need only be used in instances where a particular TTL is desired;
      * otherwise it is preferable to set a TTL once on the socket, and
      * use that default TTL for all packets.  This method does <B>not
@@ -642,11 +549,19 @@ class MulticastSocket extends DatagramSocket {
      * @param ttl optional time to live for multicast packet.
      * default ttl is 1.
      *
-     * @exception IOException is raised if an error occurs i.e
-     * error while setting ttl.
-     * @exception  SecurityException  if a security manager exists and its
+     * @throws     IOException is raised if an error occurs i.e
+     *             error while setting ttl.
+     * @throws     SecurityException  if a security manager exists and its
      *             {@code checkMulticast} or {@code checkConnect}
      *             method doesn't allow the send.
+     * @throws     PortUnreachableException may be thrown if the socket is connected
+     *             to a currently unreachable destination. Note, there is no
+     *             guarantee that the exception will be thrown.
+     * @throws     IllegalArgumentException if the socket is connected,
+     *             and connected address and packet address differ, or
+     *             if the socket is not connected and the packet address
+     *             is not set or if its port is out of range.
+     *
      *
      * @deprecated Use the following code or its equivalent instead:
      *  ......
@@ -664,72 +579,6 @@ class MulticastSocket extends DatagramSocket {
     @Deprecated
     public void send(DatagramPacket p, byte ttl)
         throws IOException {
-            if (isClosed())
-                throw new SocketException("Socket is closed");
-            checkAddress(p.getAddress(), "send");
-            synchronized(ttlLock) {
-                synchronized(p) {
-                    if (connectState == ST_NOT_CONNECTED) {
-                        // Security manager makes sure that the multicast address
-                        // is allowed one and that the ttl used is less
-                        // than the allowed maxttl.
-                        SecurityManager security = System.getSecurityManager();
-                        if (security != null) {
-                            if (p.getAddress().isMulticastAddress()) {
-                                security.checkMulticast(p.getAddress(), ttl);
-                            } else {
-                                security.checkConnect(p.getAddress().getHostAddress(),
-                                                      p.getPort());
-                            }
-                        }
-                    } else {
-                        // we're connected
-                        InetAddress packetAddress = null;
-                        packetAddress = p.getAddress();
-                        if (packetAddress == null) {
-                            p.setAddress(connectedAddress);
-                            p.setPort(connectedPort);
-                        } else if ((!packetAddress.equals(connectedAddress)) ||
-                                   p.getPort() != connectedPort) {
-                            throw new SecurityException("connected address and packet address" +
-                                                        " differ");
-                        }
-                    }
-                    byte dttl = getTTL();
-                    try {
-                        if (ttl != dttl) {
-                            // set the ttl
-                            getImpl().setTTL(ttl);
-                        }
-                        // call the datagram method to send
-                        getImpl().send(p);
-                    } finally {
-                        // set it back to default
-                        if (ttl != dttl) {
-                            getImpl().setTTL(dttl);
-                        }
-                    }
-                } // synch p
-            }  //synch ttl
-    } //method
-
-    private static Set<SocketOption<?>> options;
-    private static boolean optionsSet = false;
-
-    @Override
-    public Set<SocketOption<?>> supportedOptions() {
-        synchronized (MulticastSocket.class) {
-            if (optionsSet) {
-                return options;
-            }
-            try {
-                DatagramSocketImpl impl = getImpl();
-                options = Collections.unmodifiableSet(impl.supportedOptions());
-            } catch (SocketException ex) {
-                options = Collections.emptySet();
-            }
-            optionsSet = true;
-            return options;
-        }
+        delegate().send(p, ttl);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,14 @@
 
 #include "precompiled.hpp"
 #include "jni.h"
+#include "classfile/classLoader.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "logging/log.hpp"
+#include "memory/filemap.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/oopHandle.inline.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/handles.inline.hpp"
@@ -53,6 +56,9 @@ void ModuleEntry::set_location(Symbol* location) {
 
   if (location != NULL) {
     location->increment_refcount();
+    CDS_ONLY(if (UseSharedSpaces) {
+        _shared_path_index = FileMapInfo::get_module_shared_path_index(location);
+      });
   }
 }
 
@@ -73,6 +79,7 @@ bool ModuleEntry::should_show_version() {
     const char* loc = location()->as_C_string();
     ClassLoaderData* cld = loader_data();
 
+    assert(!cld->has_class_mirror_holder(), "module's cld should have a ClassLoader holder not a Class holder");
     if ((cld->is_the_null_class_loader_data() || cld->is_platform_class_loader_data()) &&
         (strncmp(loc, "jrt:/java.", 10) == 0)) {
       return false;
@@ -133,6 +140,7 @@ bool ModuleEntry::can_read(ModuleEntry* m) const {
   // injecting dependencies that require the default read edges for resolution.
   if (this->has_default_read_edges() && !m->is_named()) {
     ClassLoaderData* cld = m->loader_data();
+    assert(!cld->has_class_mirror_holder(), "module's cld should have a ClassLoader holder not a Class holder");
     if (cld->is_the_null_class_loader_data() || cld->is_system_class_loader_data()) {
       return true; // default read edge
     }
@@ -157,7 +165,7 @@ void ModuleEntry::add_read(ModuleEntry* m) {
   } else {
     if (_reads == NULL) {
       // Lazily create a module's reads list
-      _reads = new (ResourceObj::C_HEAP, mtModule)GrowableArray<ModuleEntry*>(MODULE_READS_SIZE, true);
+      _reads = new (ResourceObj::C_HEAP, mtModule) GrowableArray<ModuleEntry*>(MODULE_READS_SIZE, mtModule);
     }
 
     // Determine, based on this newly established read edge to module m,
@@ -282,7 +290,7 @@ ModuleEntry* ModuleEntry::create_boot_unnamed_module(ClassLoaderData* cld) {
 // This is okay because the unnamed module gets created before the ClassLoaderData
 // is available to other threads.
 ModuleEntry* ModuleEntry::new_unnamed_module_entry(Handle module_handle, ClassLoaderData* cld) {
-  ModuleEntry* entry = (ModuleEntry*) NEW_C_HEAP_ARRAY(char, sizeof(ModuleEntry), mtModule);
+  ModuleEntry* entry = NEW_C_HEAP_OBJ(ModuleEntry, mtModule);
 
   // Initialize everything BasicHashtable would
   entry->set_next(NULL);
@@ -309,7 +317,7 @@ ModuleEntry* ModuleEntry::new_unnamed_module_entry(Handle module_handle, ClassLo
 
 void ModuleEntry::delete_unnamed_module() {
   // Do not need unlink_entry() since the unnamed module is not in the hashtable
-  FREE_C_HEAP_ARRAY(char, this);
+  FREE_C_HEAP_OBJ(this);
 }
 
 ModuleEntryTable::ModuleEntryTable(int table_size)
@@ -398,23 +406,22 @@ void ModuleEntryTable::add_entry(int index, ModuleEntry* new_entry) {
   Hashtable<Symbol*, mtModule>::add_entry(index, (HashtableEntry<Symbol*, mtModule>*)new_entry);
 }
 
-ModuleEntry* ModuleEntryTable::locked_create_entry_or_null(Handle module_handle,
-                                                           bool is_open,
-                                                           Symbol* module_name,
-                                                           Symbol* module_version,
-                                                           Symbol* module_location,
-                                                           ClassLoaderData* loader_data) {
-  assert(module_name != NULL, "ModuleEntryTable locked_create_entry_or_null should never be called for unnamed module.");
+// Create an entry in the class loader's module_entry_table.  It is the
+// caller's responsibility to ensure that the entry has not already been
+// created.
+ModuleEntry* ModuleEntryTable::locked_create_entry(Handle module_handle,
+                                                   bool is_open,
+                                                   Symbol* module_name,
+                                                   Symbol* module_version,
+                                                   Symbol* module_location,
+                                                   ClassLoaderData* loader_data) {
+  assert(module_name != NULL, "ModuleEntryTable locked_create_entry should never be called for unnamed module.");
   assert(Module_lock->owned_by_self(), "should have the Module_lock");
-  // Check if module already exists.
-  if (lookup_only(module_name) != NULL) {
-    return NULL;
-  } else {
-    ModuleEntry* entry = new_entry(compute_hash(module_name), module_handle, is_open, module_name,
-                                   module_version, module_location, loader_data);
-    add_entry(index_for(module_name), entry);
-    return entry;
-  }
+  assert(lookup_only(module_name) == NULL, "Module already exists");
+  ModuleEntry* entry = new_entry(compute_hash(module_name), module_handle, is_open, module_name,
+                                 module_version, module_location, loader_data);
+  add_entry(index_for(module_name), entry);
+  return entry;
 }
 
 // lookup_only by Symbol* to find a ModuleEntry.

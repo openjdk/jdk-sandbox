@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
@@ -131,15 +132,17 @@ void Exceptions::_throw_oop(Thread* thread, const char* file, int line, oop exce
 }
 
 void Exceptions::_throw(Thread* thread, const char* file, int line, Handle h_exception, const char* message) {
-  ResourceMark rm;
+  ResourceMark rm(thread);
   assert(h_exception() != NULL, "exception should not be NULL");
 
   // tracing (do this up front - so it works during boot strapping)
+  // Note, the print_value_string() argument is not called unless logging is enabled!
   log_info(exceptions)("Exception <%s%s%s> (" INTPTR_FORMAT ") \n"
                        "thrown [%s, line %d]\nfor thread " INTPTR_FORMAT,
                        h_exception->print_value_string(),
                        message ? ": " : "", message ? message : "",
                        p2i(h_exception()), file, line, p2i(thread));
+
   // for AbortVMOnException flag
   Exceptions::debug_check_abort(h_exception, message);
 
@@ -162,11 +165,7 @@ void Exceptions::_throw(Thread* thread, const char* file, int line, Handle h_exc
   thread->set_pending_exception(h_exception(), file, line);
 
   // vm log
-  if (LogEvents){
-    Events::log_exception(thread, "Exception <%s%s%s> (" INTPTR_FORMAT ") thrown at [%s, line %d]",
-                          h_exception->print_value_string(), message ? ": " : "", message ? message : "",
-                          p2i(h_exception()), file, line);
-  }
+  Events::log_exception(thread, h_exception, message, file, line);
 }
 
 
@@ -230,7 +229,7 @@ void Exceptions::throw_stack_overflow_exception(Thread* THREAD, const char* file
     exception = Handle(THREAD, e);  // fill_in_stack trace does gc
     assert(k->is_initialized(), "need to increase java_thread_min_stack_allowed calculation");
     if (StackTraceInThrowable) {
-      java_lang_Throwable::fill_in_stack_trace(exception, method());
+      java_lang_Throwable::fill_in_stack_trace(exception, method);
     }
     // Increment counter for hs_err file reporting
     Atomic::inc(&Exceptions::_stack_overflow_errors);
@@ -402,25 +401,36 @@ Handle Exceptions::new_exception(Thread* thread, Symbol* name,
 // dynamically computed constant uses wrap_dynamic_exception for:
 //    - bootstrap method resolution
 //    - post call to MethodHandleNatives::linkDynamicConstant
-void Exceptions::wrap_dynamic_exception(Thread* THREAD) {
+void Exceptions::wrap_dynamic_exception(bool is_indy, Thread* THREAD) {
   if (THREAD->has_pending_exception()) {
+    bool log_indy = log_is_enabled(Debug, methodhandles, indy) && is_indy;
+    bool log_condy = log_is_enabled(Debug, methodhandles, condy) && !is_indy;
+    LogStreamHandle(Debug, methodhandles, indy) lsh_indy;
+    LogStreamHandle(Debug, methodhandles, condy) lsh_condy;
+    LogStream* ls = NULL;
+    if (log_indy) {
+      ls = &lsh_indy;
+    } else if (log_condy) {
+      ls = &lsh_condy;
+    }
     oop exception = THREAD->pending_exception();
+
     // See the "Linking Exceptions" section for the invokedynamic instruction
     // in JVMS 6.5.
     if (exception->is_a(SystemDictionary::Error_klass())) {
       // Pass through an Error, including BootstrapMethodError, any other form
       // of linkage error, or say ThreadDeath/OutOfMemoryError
-      if (TraceMethodHandles) {
-        tty->print_cr("[constant/invoke]dynamic passes through an Error for " INTPTR_FORMAT, p2i((void *)exception));
-        exception->print();
+      if (ls != NULL) {
+        ls->print_cr("bootstrap method invocation wraps BSME around " INTPTR_FORMAT, p2i((void *)exception));
+        exception->print_on(ls);
       }
       return;
     }
 
     // Otherwise wrap the exception in a BootstrapMethodError
-    if (TraceMethodHandles) {
-      tty->print_cr("[constant/invoke]dynamic throws BSME for " INTPTR_FORMAT, p2i((void *)exception));
-      exception->print();
+    if (ls != NULL) {
+      ls->print_cr("%s throws BSME for " INTPTR_FORMAT, is_indy ? "invokedynamic" : "dynamic constant", p2i((void *)exception));
+      exception->print_on(ls);
     }
     Handle nested_exception(THREAD, exception);
     THREAD->clear_pending_exception();
@@ -436,9 +446,9 @@ volatile int Exceptions::_out_of_memory_error_metaspace_errors = 0;
 volatile int Exceptions::_out_of_memory_error_class_metaspace_errors = 0;
 
 void Exceptions::count_out_of_memory_exceptions(Handle exception) {
-  if (oopDesc::equals(exception(), Universe::out_of_memory_error_metaspace())) {
+  if (exception() == Universe::out_of_memory_error_metaspace()) {
      Atomic::inc(&_out_of_memory_error_metaspace_errors);
-  } else if (oopDesc::equals(exception(), Universe::out_of_memory_error_class_metaspace())) {
+  } else if (exception() == Universe::out_of_memory_error_class_metaspace()) {
      Atomic::inc(&_out_of_memory_error_class_metaspace_errors);
   } else {
      // everything else reported as java heap OOM
@@ -527,17 +537,17 @@ void Exceptions::debug_check_abort_helper(Handle exception, const char* message)
 }
 
 // for logging exceptions
-void Exceptions::log_exception(Handle exception, stringStream tempst) {
+void Exceptions::log_exception(Handle exception, const char* message) {
   ResourceMark rm;
-  Symbol* message = java_lang_Throwable::detail_message(exception());
-  if (message != NULL) {
+  Symbol* detail_message = java_lang_Throwable::detail_message(exception());
+  if (detail_message != NULL) {
     log_info(exceptions)("Exception <%s: %s>\n thrown in %s",
                          exception->print_value_string(),
-                         message->as_C_string(),
-                         tempst.as_string());
+                         detail_message->as_C_string(),
+                         message);
   } else {
     log_info(exceptions)("Exception <%s>\n thrown in %s",
                          exception->print_value_string(),
-                         tempst.as_string());
+                         message);
   }
 }

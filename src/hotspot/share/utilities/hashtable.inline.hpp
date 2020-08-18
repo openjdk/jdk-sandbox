@@ -26,7 +26,7 @@
 #define SHARE_UTILITIES_HASHTABLE_INLINE_HPP
 
 #include "memory/allocation.inline.hpp"
-#include "runtime/orderAccess.hpp"
+#include "runtime/atomic.hpp"
 #include "utilities/hashtable.hpp"
 #include "utilities/dtrace.hpp"
 
@@ -36,29 +36,32 @@
 
 // Initialize a table.
 
-template <MEMFLAGS F> inline BasicHashtable<F>::BasicHashtable(int table_size, int entry_size) {
+template <MEMFLAGS F> inline BasicHashtable<F>::BasicHashtable(int table_size, int entry_size) :
+    _entry_blocks(4) {
   // Called on startup, no locking needed
   initialize(table_size, entry_size, 0);
   _buckets = NEW_C_HEAP_ARRAY2(HashtableBucket<F>, table_size, F, CURRENT_PC);
   for (int index = 0; index < _table_size; index++) {
     _buckets[index].clear();
   }
+  _stats_rate = TableRateStatistics();
 }
 
 
 template <MEMFLAGS F> inline BasicHashtable<F>::BasicHashtable(int table_size, int entry_size,
                                       HashtableBucket<F>* buckets,
-                                      int number_of_entries) {
+                                      int number_of_entries) :
+    _entry_blocks(4) {
   // Called on startup, no locking needed
   initialize(table_size, entry_size, number_of_entries);
   _buckets = buckets;
+  _stats_rate = TableRateStatistics();
 }
 
 template <MEMFLAGS F> inline BasicHashtable<F>::~BasicHashtable() {
-  for (int i = 0; i < _entry_blocks->length(); i++) {
-    FREE_C_HEAP_ARRAY(char, _entry_blocks->at(i));
+  for (int i = 0; i < _entry_blocks.length(); i++) {
+    FREE_C_HEAP_ARRAY(char, _entry_blocks.at(i));
   }
-  delete _entry_blocks;
   free_buckets();
 }
 
@@ -71,7 +74,6 @@ template <MEMFLAGS F> inline void BasicHashtable<F>::initialize(int table_size, 
   _first_free_entry = NULL;
   _end_block = NULL;
   _number_of_entries = number_of_entries;
-  _entry_blocks = new(ResourceObj::C_HEAP, F) GrowableArray<char*>(4, true, F);
 }
 
 
@@ -86,7 +88,7 @@ template <MEMFLAGS F> inline void HashtableBucket<F>::set_entry(BasicHashtableEn
   //          SystemDictionary are read without locks.  The new entry must be
   //          complete before other threads can be allowed to see it
   //          via a store to _buckets[index].
-  OrderAccess::release_store(&_entry, l);
+  Atomic::release_store(&_entry, l);
 }
 
 
@@ -95,12 +97,17 @@ template <MEMFLAGS F> inline BasicHashtableEntry<F>* HashtableBucket<F>::get_ent
   //          SystemDictionary are read without locks.  The new entry must be
   //          complete before other threads can be allowed to see it
   //          via a store to _buckets[index].
-  return OrderAccess::load_acquire(&_entry);
+  return Atomic::load_acquire(&_entry);
 }
 
 
 template <MEMFLAGS F> inline void BasicHashtable<F>::set_entry(int index, BasicHashtableEntry<F>* entry) {
   _buckets[index].set_entry(entry);
+  if (entry != NULL) {
+    JFR_ONLY(_stats_rate.add();)
+  } else {
+    JFR_ONLY(_stats_rate.remove();)
+  }
 }
 
 
@@ -108,12 +115,14 @@ template <MEMFLAGS F> inline void BasicHashtable<F>::add_entry(int index, BasicH
   entry->set_next(bucket(index));
   _buckets[index].set_entry(entry);
   ++_number_of_entries;
+  JFR_ONLY(_stats_rate.add();)
 }
 
 template <MEMFLAGS F> inline void BasicHashtable<F>::free_entry(BasicHashtableEntry<F>* entry) {
   entry->set_next(_free_list);
   _free_list = entry;
   --_number_of_entries;
+  JFR_ONLY(_stats_rate.remove();)
 }
 
 #endif // SHARE_UTILITIES_HASHTABLE_INLINE_HPP

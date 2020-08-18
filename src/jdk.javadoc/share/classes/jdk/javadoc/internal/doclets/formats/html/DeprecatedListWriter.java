@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,12 +38,10 @@ import javax.lang.model.element.PackageElement;
 
 import com.sun.source.doctree.DocTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
+import jdk.javadoc.internal.doclets.formats.html.markup.TagName;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
-import jdk.javadoc.internal.doclets.formats.html.markup.Navigation;
-import jdk.javadoc.internal.doclets.formats.html.markup.Navigation.PageMode;
+import jdk.javadoc.internal.doclets.formats.html.Navigation.PageMode;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.util.DeprecatedAPIListBuilder;
@@ -62,8 +60,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
  *  deletion without notice.</b>
  *
  * @see java.util.List
- * @author Atul M Dambalkar
- * @author Bhavesh Patel (Modified)
  */
 public class DeprecatedListWriter extends SubWriterHolderWriter {
 
@@ -209,8 +205,6 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
 
     private EnumMap<DeprElementKind, AbstractMemberWriter> writerMap;
 
-    private HtmlConfiguration configuration;
-
     private final Navigation navBar;
 
     /**
@@ -222,8 +216,7 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
 
     public DeprecatedListWriter(HtmlConfiguration configuration, DocPath filename) {
         super(configuration, filename);
-        this.configuration = configuration;
-        this.navBar = new Navigation(null, configuration, fixedNavDiv, PageMode.DEPRECATED, path);
+        this.navBar = new Navigation(null, configuration, PageMode.DEPRECATED, path);
         NestedClassWriterImpl classW = new NestedClassWriterImpl(this);
         writerMap = new EnumMap<>(DeprElementKind.class);
         for (DeprElementKind kind : DeprElementKind.values()) {
@@ -262,7 +255,7 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
 
     /**
      * Get list of all the deprecated classes and members in all the Packages
-     * specified on the Command Line.
+     * specified on the command line.
      * Then instantiate DeprecatedListWriter and generate File.
      *
      * @param configuration the current configuration of the doclet.
@@ -284,48 +277,36 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
     protected void generateDeprecatedListFile(DeprecatedAPIListBuilder deprapi)
             throws DocFileIOException {
         HtmlTree body = getHeader();
-        HtmlTree htmlTree = (configuration.allowTag(HtmlTag.MAIN))
-                ? HtmlTree.MAIN()
-                : body;
-        htmlTree.addContent(getContentsList(deprapi));
+        bodyContents.addMainContent(getContentsList(deprapi));
         String memberTableSummary;
-        HtmlTree div = new HtmlTree(HtmlTag.DIV);
-        div.setStyle(HtmlStyle.contentContainer);
+        Content content = new ContentBuilder();
         for (DeprElementKind kind : DeprElementKind.values()) {
             if (deprapi.hasDocumentation(kind)) {
-                addAnchor(deprapi, kind, div);
                 memberTableSummary = resources.getText("doclet.Member_Table_Summary",
                         resources.getText(getHeadingKey(kind)),
                         resources.getText(getSummaryKey(kind)));
                 TableHeader memberTableHeader = new TableHeader(
                         contents.getContent(getHeaderKey(kind)), contents.descriptionLabel);
-                addDeprecatedAPI(deprapi.getSet(kind),
-                            getHeadingKey(kind), memberTableSummary, memberTableHeader, div);
+                addDeprecatedAPI(deprapi.getSet(kind), getAnchorName(kind),
+                            getHeadingKey(kind), memberTableSummary, memberTableHeader, content);
             }
         }
-        if (configuration.allowTag(HtmlTag.MAIN)) {
-            htmlTree.addContent(div);
-            body.addContent(htmlTree);
-        } else {
-            body.addContent(div);
-        }
-        htmlTree = (configuration.allowTag(HtmlTag.FOOTER))
-                ? HtmlTree.FOOTER()
-                : body;
+        bodyContents.addMainContent(content);
+        HtmlTree htmlTree = HtmlTree.FOOTER();
         navBar.setUserFooter(getUserHeaderFooter(false));
-        htmlTree.addContent(navBar.getContent(false));
+        htmlTree.add(navBar.getContent(Navigation.Position.BOTTOM));
         addBottom(htmlTree);
-        if (configuration.allowTag(HtmlTag.FOOTER)) {
-            body.addContent(htmlTree);
-        }
-        printHtmlDocument(null, true, body);
+        bodyContents.setFooter(htmlTree);
+        String description = "deprecated elements";
+        body.add(bodyContents);
+        printHtmlDocument(null, description, body);
     }
 
     /**
      * Add the index link.
      *
      * @param builder the deprecated list builder
-     * @param type the type of list being documented
+     * @param kind the kind of list being documented
      * @param contentTree the content tree to which the index link will be added
      */
     private void addIndexLink(DeprecatedAPIListBuilder builder,
@@ -333,7 +314,7 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
         if (builder.hasDocumentation(kind)) {
             Content li = HtmlTree.LI(links.createLink(getAnchorName(kind),
                     contents.getContent(getHeadingKey(kind))));
-            contentTree.addContent(li);
+            contentTree.add(li);
         }
     }
 
@@ -345,31 +326,18 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
      */
     public Content getContentsList(DeprecatedAPIListBuilder deprapi) {
         Content headContent = contents.deprecatedAPI;
-        Content heading = HtmlTree.HEADING(HtmlConstants.TITLE_HEADING, true,
+        Content heading = HtmlTree.HEADING_TITLE(Headings.PAGE_TITLE_HEADING,
                 HtmlStyle.title, headContent);
         Content div = HtmlTree.DIV(HtmlStyle.header, heading);
         Content headingContent = contents.contentsHeading;
-        div.addContent(HtmlTree.HEADING(HtmlConstants.CONTENT_HEADING, true,
+        div.add(HtmlTree.HEADING_TITLE(Headings.CONTENT_HEADING,
                 headingContent));
-        Content ul = new HtmlTree(HtmlTag.UL);
+        Content ul = new HtmlTree(TagName.UL);
         for (DeprElementKind kind : DeprElementKind.values()) {
             addIndexLink(deprapi, kind, ul);
         }
-        div.addContent(ul);
+        div.add(ul);
         return div;
-    }
-
-    /**
-     * Add the anchor.
-     *
-     * @param builder the deprecated list builder
-     * @param type the type of list being documented
-     * @param htmlTree the content tree to which the anchor will be added
-     */
-    private void addAnchor(DeprecatedAPIListBuilder builder, DeprElementKind kind, Content htmlTree) {
-        if (builder.hasDocumentation(kind)) {
-            htmlTree.addContent(links.createAnchor(getAnchorName(kind)));
-        }
     }
 
     /**
@@ -379,16 +347,12 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
      */
     public HtmlTree getHeader() {
         String title = resources.getText("doclet.Window_Deprecated_List");
-        HtmlTree bodyTree = getBody(true, getWindowTitle(title));
-        HtmlTree htmlTree = (configuration.allowTag(HtmlTag.HEADER))
-                ? HtmlTree.HEADER()
-                : bodyTree;
-        addTop(htmlTree);
+        HtmlTree bodyTree = getBody(getWindowTitle(title));
+        Content headerContent = new ContentBuilder();
+        addTop(headerContent);
         navBar.setUserHeader(getUserHeaderFooter(true));
-        htmlTree.addContent(navBar.getContent(true));
-        if (configuration.allowTag(HtmlTag.HEADER)) {
-            bodyTree.addContent(htmlTree);
-        }
+        headerContent.add(navBar.getContent(Navigation.Position.TOP));
+        bodyContents.setHeader(headerContent);
         return bodyTree;
     }
 
@@ -396,19 +360,20 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
      * Add deprecated information to the documentation tree
      *
      * @param deprList list of deprecated API elements
+     * @param id the id attribute of the table
      * @param headingKey the caption for the deprecated table
      * @param tableSummary the summary for the deprecated table
      * @param tableHeader table headers for the deprecated table
      * @param contentTree the content tree to which the deprecated table will be added
      */
-    protected void addDeprecatedAPI(SortedSet<Element> deprList, String headingKey,
+    protected void addDeprecatedAPI(SortedSet<Element> deprList, String id, String headingKey,
             String tableSummary, TableHeader tableHeader, Content contentTree) {
         if (deprList.size() > 0) {
             Content caption = contents.getContent(headingKey);
-            Table table = new Table(configuration.htmlVersion, HtmlStyle.deprecatedSummary)
-                    .setSummary(tableSummary)
+            Table table = new Table(HtmlStyle.deprecatedSummary, HtmlStyle.summaryTable)
                     .setCaption(caption)
                     .setHeader(tableHeader)
+                    .setId(id)
                     .setColumnStyles(HtmlStyle.colDeprecatedItemName, HtmlStyle.colLast);
             for (Element e : deprList) {
                 Content link;
@@ -429,13 +394,12 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
                 if (!tags.isEmpty()) {
                     addInlineDeprecatedComment(e, tags.get(0), desc);
                 } else {
-                    desc.addContent(HtmlTree.EMPTY);
+                    desc.add(HtmlTree.EMPTY);
                 }
                 table.addRow(link, desc);
             }
-            Content li = HtmlTree.LI(HtmlStyle.blockList, table.toContent());
-            Content ul = HtmlTree.UL(HtmlStyle.blockList, li);
-            contentTree.addContent(ul);
+            // note: singleton list
+            contentTree.add(HtmlTree.UL(HtmlStyle.blockList, HtmlTree.LI(table)));
         }
     }
 

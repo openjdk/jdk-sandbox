@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -95,12 +95,12 @@ endef
 # $1: The output file name
 # $2..$N: The lines to output to the file
 define CreateNewSpec
-  $(if $(strip $(31)), \
+  $(if $(strip $(33)), \
     $(error Internal makefile error: \
       Too many arguments to macro, please update CreateNewSpec in RunTestsPrebuilt.gmk) \
   ) \
   $(shell $(RM) $1) \
-  $(foreach i, $(call sequence, 2, 30), \
+  $(foreach i, $(call sequence, 2, 32), \
     $(if $(strip $($i)), \
       $(call AppendFile, $(strip $($i)), $1) \
     ) \
@@ -163,8 +163,6 @@ else
     OPENJDK_TARGET_OS := linux
   else ifeq ($(UNAME_OS), Darwin)
     OPENJDK_TARGET_OS := macosx
-  else ifeq ($(UNAME_OS), SunOS)
-    OPENJDK_TARGET_OS := solaris
   else
     OPENJDK_TARGET_OS := $(UNAME_OS)
   endif
@@ -174,38 +172,20 @@ endif
 # Assume little endian unless otherwise specified
 OPENJDK_TARGET_CPU_ENDIAN := little
 
-ifeq ($(OPENJDK_TARGET_OS), solaris)
-  # On solaris, use uname -p
-  UNAME_CPU := $(shell $(UNAME) -p)
-  # Assume 64-bit platform
-  OPENJDK_TARGET_CPU_BITS := 64
-  ifeq ($(UNAME_CPU), i386)
-    OPENJDK_TARGET_CPU := x86_64
-  else ifeq ($(UNAME_CPU), sparc)
-    OPENJDK_TARGET_CPU := sparcv9
-    OPENJDK_TARGET_CPU_ENDIAN := big
-  else
-    OPENJDK_TARGET_CPU := $(UNAME_CPU)
-  endif
+UNAME_CPU := $(shell $(UNAME) -m)
+ifeq ($(UNAME_CPU), i686)
+  OPENJDK_TARGET_CPU := x86
+  OPENJDK_TARGET_CPU_BITS := 32
 else
-  # ... all others use uname -m
-  UNAME_CPU := $(shell $(UNAME) -m)
-  ifeq ($(UNAME_CPU), i686)
-    OPENJDK_TARGET_CPU := x86
-    OPENJDK_TARGET_CPU_BITS := 32
-  else
-    # Assume all others are 64-bit. We use the same CPU name as uname for
-    # at least x86_64 and aarch64.
-    OPENJDK_TARGET_CPU := $(UNAME_CPU)
-    OPENJDK_TARGET_CPU_BITS := 64
-  endif
+  # Assume all others are 64-bit. We use the same CPU name as uname for
+  # at least x86_64 and aarch64.
+  OPENJDK_TARGET_CPU := $(UNAME_CPU)
+  OPENJDK_TARGET_CPU_BITS := 64
 endif
 
 OPENJDK_TARGET_CPU_ARCH := $(OPENJDK_TARGET_CPU)
 ifeq ($(OPENJDK_TARGET_CPU), x86_64)
   OPENJDK_TARGET_CPU_ARCH := x86
-else ifeq ($(OPENJDK_TARGET_CPU), sparcv9)
-  OPENJDK_TARGET_CPU_ARCH := sparc
 endif
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
@@ -229,11 +209,6 @@ ifeq ($(OPENJDK_TARGET_OS), linux)
 else ifeq ($(OPENJDK_TARGET_OS), macosx)
   NUM_CORES := $(shell /usr/sbin/sysctl -n hw.ncpu)
   MEMORY_SIZE := $(shell $(EXPR) `/usr/sbin/sysctl -n hw.memsize` / 1024 / 1024)
-else ifeq ($(OPENJDK_TARGET_OS), solaris)
-  NUM_CORES := $(shell LC_MESSAGES=C /usr/sbin/psrinfo -v | $(GREP) -c on-line)
-  MEMORY_SIZE := $(shell \
-      /usr/sbin/prtconf 2> /dev/null | $(GREP) "^Memory [Ss]ize" | $(AWK) '{print $$3}' \
-  )
 else ifeq ($(OPENJDK_TARGET_OS), windows)
   NUM_CORES := $(NUMBER_OF_PROCESSORS)
   MEMORY_SIZE := $(shell \
@@ -254,29 +229,28 @@ endif
 # Setup LD for AOT support
 ifneq ($(DEVKIT_HOME), )
   ifeq ($(OPENJDK_TARGET_OS), windows)
-    LD := $(DEVKIT_HOME)/VC/bin/x64/link
+    LD_JAOTC := $(DEVKIT_HOME)/VC/bin/x64/link.exe
     LIBRARY_PREFIX :=
     SHARED_LIBRARY_SUFFIX := .dll
-    EXE_SUFFIX := .exe
   else ifeq ($(OPENJDK_TARGET_OS), linux)
-    LD := $(DEVKIT_HOME)/bin/ld
+    LD_JAOTC := $(DEVKIT_HOME)/bin/ld
     LIBRARY_PREFIX := lib
     SHARED_LIBRARY_SUFFIX := .so
-    EXE_SUFFIX :=
   else ifeq ($(OPENJDK_TARGET_OS), macosx)
-    LD := $(DEVKIT_HOME)/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld
+    LD_JAOTC := $(DEVKIT_HOME)/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld
     LIBRARY_PREFIX := lib
     SHARED_LIBRARY_SUFFIX := .dylib
-    EXE_SUFFIX :=
-  else ifeq ($(OPENJDK_TARGET_OS), solaris)
-    # Prefer system linker for AOT on Solaris.
-    LD := ld
-    LIBRARY_PREFIX := lib
-    SHARED_LIBRARY_SUFFIX := .so
-    EXE_SUFFIX :=
   endif
 else
   LD := ld
+endif
+
+ifneq ($(wildcard $(JDK_IMAGE_DIR)/template.xml), )
+  TEST_OPTS_JCOV := true
+  JCOV_IMAGE_DIR := $(JDK_IMAGE_DIR)
+else
+  TEST_OPTS_JCOV := false
+  JCOV_IMAGE_DIR :=
 endif
 
 ################################################################################
@@ -299,6 +273,7 @@ $(call CreateNewSpec, $(NEW_SPEC), \
     BOOT_JDK := $(BOOT_JDK), \
     JT_HOME := $(JT_HOME), \
     JDK_IMAGE_DIR := $(JDK_IMAGE_DIR), \
+    JCOV_IMAGE_DIR := $(JCOV_IMAGE_DIR), \
     TEST_IMAGE_DIR := $(TEST_IMAGE_DIR), \
     SYMBOLS_IMAGE_DIR := $(SYMBOLS_IMAGE_DIR), \
     MAKE := $(MAKE), \
@@ -315,11 +290,11 @@ $(call CreateNewSpec, $(NEW_SPEC), \
     OPENJDK_TARGET_CPU_ENDIAN := $(OPENJDK_TARGET_CPU_ENDIAN), \
     NUM_CORES := $(NUM_CORES), \
     MEMORY_SIZE := $(MEMORY_SIZE), \
-    LD := $(LD), \
+    LD_JAOTC := $(LD_JAOTC), \
     LIBRARY_PREFIX := $(LIBRARY_PREFIX), \
     SHARED_LIBRARY_SUFFIX := $(SHARED_LIBRARY_SUFFIX), \
-    EXE_SUFFIX := $(EXE_SUFFIX), \
     include $(TOPDIR)/make/RunTestsPrebuiltSpec.gmk, \
+    TEST_OPTS_JCOV := $(TEST_OPTS_JCOV), \
     $(CUSTOM_NEW_SPEC_LINE), \
 )
 
@@ -331,11 +306,21 @@ SPEC := $(NEW_SPEC)
 
 default: all
 
-run-test-prebuilt:
+test-prebuilt:
+        # Need to make sure the failure logs output dir exists since
+        # ExecuteWithLog is called in RunTests.gmk. The PrepareFailureLogs macro
+        # is unfortunately not available at this point.
+	$(call MakeDir, $(MAKESUPPORT_OUTPUTDIR)/failure-logs)
 	@$(RM) -f $(MAKESUPPORT_OUTPUTDIR)/exit-with-error
+        # The lazy initialization of the cache file in FindTests.gmk does not
+        # always work with RunTests.gmk. To guarantee that the jtreg test groups
+        # are always found and parsed, call FindTests.gmk stand alone once
+        # before calling RunTests.gmk.
+	@cd $(TOPDIR) && $(MAKE) $(MAKE_ARGS) -f make/common/FindTests.gmk \
+	    SPEC=$(SPEC) FINDTESTS_STAND_ALONE=true
 	@cd $(TOPDIR) && $(MAKE) $(MAKE_ARGS) -f make/RunTests.gmk run-test \
 	    TEST="$(TEST)"
 
-all: run-test-prebuilt
+all: test-prebuilt
 
-.PHONY: default all
+.PHONY: default all test-prebuilt

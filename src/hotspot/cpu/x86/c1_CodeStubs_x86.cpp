@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
+#include "classfile/javaClasses.hpp"
 #include "nativeInst_x86.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
@@ -37,6 +38,7 @@
 
 #define __ ce->masm()->
 
+#ifndef _LP64
 float ConversionStub::float_zero = 0.0;
 double ConversionStub::double_zero = 0.0;
 
@@ -52,7 +54,6 @@ void ConversionStub::emit_code(LIR_Assembler* ce) {
     __ comisd(input()->as_xmm_double_reg(),
               ExternalAddress((address)&double_zero));
   } else {
-    LP64_ONLY(ShouldNotReachHere());
     __ push(rax);
     __ ftst();
     __ fnstsw_ax();
@@ -76,6 +77,7 @@ void ConversionStub::emit_code(LIR_Assembler* ce) {
   __ bind(do_return);
   __ jmp(_continuation);
 }
+#endif // !_LP64
 
 void CounterOverflowStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
@@ -360,7 +362,7 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
     __ push(tmp2);
     // Load without verification to keep code size small. We need it because
     // begin_initialized_entry_offset has to fit in a byte. Also, we know it's not null.
-    __ movptr(tmp2, Address(_obj, java_lang_Class::klass_offset_in_bytes()));
+    __ movptr(tmp2, Address(_obj, java_lang_Class::klass_offset()));
     __ get_thread(tmp);
     __ cmpptr(tmp, Address(tmp2, InstanceKlass::init_thread_offset()));
     __ pop(tmp2);

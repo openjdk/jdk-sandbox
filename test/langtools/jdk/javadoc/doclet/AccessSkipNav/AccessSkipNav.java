@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
  * @test
  * @bug 4638136 7198273 8025633 8081854 8182765
  * @summary  Add ability to skip over nav bar for accessibility
- * @author dkramer
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build javadoc.tester.*
@@ -51,34 +50,20 @@ public class AccessSkipNav extends JavadocTester {
         // Testing only for the presence of the <a href> and <a id>
         checkOutput("p1/C1.html", true,
                 // Top navbar <a href>
-                "<a href=\"#skip.navbar.top\" title=\"Skip navigation links\">Skip navigation links</a>",
-                // Top navbar <a name>
-                "<a id=\"skip.navbar.top\">\n"
-                + "<!--   -->\n"
-                + "</a>",
+                """
+                    <a href="#skip.navbar.top" title="Skip navigation links">Skip navigation links</a>""",
+                // Top navbar <span id>
+                """
+                    <span class="skip-nav" id="skip.navbar.top">
+                    <!--   -->
+                    </span>""",
                 // Bottom navbar <a href>
-                "<a href=\"#skip.navbar.bottom\" title=\"Skip navigation links\">Skip navigation links</a>",
-                // Bottom navbar <a name>
-                "<a id=\"skip.navbar.bottom\">\n"
-                + "<!--   -->\n"
-                + "</a>");
-    }
-
-    @Test
-    public void test_html4() {
-        javadoc("-d", "out-html4",
-                "-html4",
-                "-sourcepath", testSrc,
-                "p1", "p2");
-        checkExit(Exit.OK);
-
-        // Testing only for the presence of <a name>
-        checkOutput("p1/C1.html", true,
-                "<a name=\"skip.navbar.top\">\n"
-                + "<!--   -->\n"
-                + "</a>",
-                "<a name=\"skip.navbar.bottom\">\n"
-                + "<!--   -->\n"
-                + "</a>");
+                """
+                    <a href="#skip.navbar.bottom" title="Skip navigation links">Skip navigation links</a>""",
+                // Bottom navbar <span id>
+                """
+                    <span class="skip-nav" id="skip.navbar.bottom">
+                    <!--   -->
+                    </span>""");
     }
 }

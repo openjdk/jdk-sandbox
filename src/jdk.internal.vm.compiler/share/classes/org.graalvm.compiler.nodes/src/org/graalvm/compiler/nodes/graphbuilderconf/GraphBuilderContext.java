@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,28 +31,33 @@ import static org.graalvm.compiler.core.common.type.StampFactory.objectNonNull;
 import org.graalvm.compiler.bytecode.Bytecode;
 import org.graalvm.compiler.bytecode.BytecodeProvider;
 import org.graalvm.compiler.core.common.type.AbstractPointerStamp;
-import org.graalvm.compiler.core.common.type.ObjectStamp;
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.core.common.type.StampPair;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.nodes.AbstractBeginNode;
 import org.graalvm.compiler.nodes.AbstractMergeNode;
+import org.graalvm.compiler.nodes.BeginNode;
 import org.graalvm.compiler.nodes.CallTargetNode;
 import org.graalvm.compiler.nodes.CallTargetNode.InvokeKind;
 import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.DynamicPiNode;
 import org.graalvm.compiler.nodes.FixedGuardNode;
+import org.graalvm.compiler.nodes.IfNode;
+import org.graalvm.compiler.nodes.Invoke;
 import org.graalvm.compiler.nodes.LogicNode;
 import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.PiNode;
+import org.graalvm.compiler.nodes.PluginReplacementNode;
 import org.graalvm.compiler.nodes.StateSplit;
+import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.calc.IsNullNode;
 import org.graalvm.compiler.nodes.calc.NarrowNode;
 import org.graalvm.compiler.nodes.calc.SignExtendNode;
 import org.graalvm.compiler.nodes.calc.ZeroExtendNode;
 import org.graalvm.compiler.nodes.extended.BytecodeExceptionNode.BytecodeExceptionKind;
+import org.graalvm.compiler.nodes.extended.GuardingNode;
 import org.graalvm.compiler.nodes.java.InstanceOfDynamicNode;
 import org.graalvm.compiler.nodes.type.StampTool;
 
@@ -92,32 +97,15 @@ public interface GraphBuilderContext extends GraphBuilderTool {
     }
 
     /**
-     * Adds a node to the graph. If the node is in the graph, returns immediately. If the node is a
-     * {@link StateSplit} with a null {@linkplain StateSplit#stateAfter() frame state}, the frame
-     * state is initialized.
+     * Adds a node and all its inputs to the graph. If the node is in the graph, returns
+     * immediately. If the node is a {@link StateSplit} with a null
+     * {@linkplain StateSplit#stateAfter() frame state} , the frame state is initialized.
      *
      * @param value the value to add to the graph and push to the stack. The
      *            {@code value.getJavaKind()} kind is used when type checking this operation.
      * @return a node equivalent to {@code value} in the graph
      */
     default <T extends ValueNode> T add(T value) {
-        if (value.graph() != null) {
-            assert !(value instanceof StateSplit) || ((StateSplit) value).stateAfter() != null;
-            return value;
-        }
-        return GraphBuilderContextUtil.setStateAfterIfNecessary(this, append(value));
-    }
-
-    /**
-     * Adds a node and its inputs to the graph. If the node is in the graph, returns immediately. If
-     * the node is a {@link StateSplit} with a null {@linkplain StateSplit#stateAfter() frame state}
-     * , the frame state is initialized.
-     *
-     * @param value the value to add to the graph and push to the stack. The
-     *            {@code value.getJavaKind()} kind is used when type checking this operation.
-     * @return a node equivalent to {@code value} in the graph
-     */
-    default <T extends ValueNode> T addWithInputs(T value) {
         if (value.graph() != null) {
             assert !(value instanceof StateSplit) || ((StateSplit) value).stateAfter() != null;
             return value;
@@ -163,7 +151,7 @@ public interface GraphBuilderContext extends GraphBuilderTool {
      * @param forceInlineEverything specifies if all invocations encountered in the scope of
      *            handling the replaced invoke are to be force inlined
      */
-    void handleReplacedInvoke(InvokeKind invokeKind, ResolvedJavaMethod targetMethod, ValueNode[] args, boolean forceInlineEverything);
+    Invoke handleReplacedInvoke(InvokeKind invokeKind, ResolvedJavaMethod targetMethod, ValueNode[] args, boolean forceInlineEverything);
 
     void handleReplacedInvoke(CallTargetNode callTarget, JavaKind resultType);
 
@@ -180,6 +168,19 @@ public interface GraphBuilderContext extends GraphBuilderTool {
      * @return whether the intrinsification was successful
      */
     boolean intrinsify(BytecodeProvider bytecodeProvider, ResolvedJavaMethod targetMethod, ResolvedJavaMethod substitute, InvocationPlugin.Receiver receiver, ValueNode[] argsIncludingReceiver);
+
+    /**
+     * Intrinsifies an invocation of a given method by inlining the graph of a given substitution
+     * method.
+     *
+     * @param targetMethod the method being intrinsified
+     * @param substituteGraph the intrinsic implementation
+     * @param receiver the receiver, or null for static methods
+     * @param argsIncludingReceiver the arguments with which to inline the invocation
+     *
+     * @return whether the intrinsification was successful
+     */
+    boolean intrinsify(ResolvedJavaMethod targetMethod, StructuredGraph substituteGraph, InvocationPlugin.Receiver receiver, ValueNode[] argsIncludingReceiver);
 
     /**
      * Creates a snap shot of the current frame state with the BCI of the instruction after the one
@@ -261,6 +262,13 @@ public interface GraphBuilderContext extends GraphBuilderTool {
     }
 
     /**
+     * Determines if a graph builder plugin is enabled under current context.
+     */
+    default boolean isPluginEnabled(GraphBuilderPlugin plugin) {
+        return parsingIntrinsic() || !(plugin instanceof GeneratedInvocationPlugin && ((GeneratedInvocationPlugin) plugin).isGeneratedFromFoldOrNodeIntrinsic());
+    }
+
+    /**
      * Gets the intrinsic of the current parsing context or {@code null} if not
      * {@link #parsingIntrinsic() parsing an intrinsic}.
      */
@@ -279,10 +287,17 @@ public interface GraphBuilderContext extends GraphBuilderTool {
     default ValueNode nullCheckedValue(ValueNode value, DeoptimizationAction action) {
         if (!StampTool.isPointerNonNull(value)) {
             LogicNode condition = getGraph().unique(IsNullNode.create(value));
-            ObjectStamp receiverStamp = (ObjectStamp) value.stamp(NodeView.DEFAULT);
-            Stamp stamp = receiverStamp.join(objectNonNull());
-            FixedGuardNode fixedGuard = append(new FixedGuardNode(condition, NullCheckException, action, true));
-            ValueNode nonNullReceiver = getGraph().addOrUniqueWithInputs(PiNode.create(value, stamp, fixedGuard));
+            GuardingNode guardingNode;
+            if (needsExplicitException()) {
+                AbstractBeginNode exceptionPath = genExplicitExceptionEdge(BytecodeExceptionKind.NULL_POINTER);
+                IfNode ifNode = append(new IfNode(condition, exceptionPath, null, 0.01));
+                BeginNode nonNullPath = append(new BeginNode());
+                ifNode.setFalseSuccessor(nonNullPath);
+                guardingNode = nonNullPath;
+            } else {
+                guardingNode = append(new FixedGuardNode(condition, NullCheckException, action, true));
+            }
+            ValueNode nonNullReceiver = getGraph().addOrUniqueWithInputs(PiNode.create(value, objectNonNull(), guardingNode.asNode()));
             // TODO: Propogating the non-null into the frame state would
             // remove subsequent null-checks on the same value. However,
             // it currently causes an assertion failure when merging states.
@@ -362,6 +377,17 @@ public interface GraphBuilderContext extends GraphBuilderTool {
      */
     default AbstractBeginNode genExplicitExceptionEdge(@SuppressWarnings("ununsed") BytecodeExceptionKind exceptionKind) {
         return null;
+    }
+
+    /**
+     *
+     * @param plugin
+     * @param targetMethod
+     * @param args
+     * @param replacementFunction
+     */
+    default void replacePlugin(GeneratedInvocationPlugin plugin, ResolvedJavaMethod targetMethod, ValueNode[] args, PluginReplacementNode.ReplacementFunction replacementFunction) {
+        throw GraalError.unimplemented();
     }
 }
 

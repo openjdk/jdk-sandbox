@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,23 +41,21 @@
 //  }
 //
 
+class outputStream;
+
 class HeapDumper : public StackObj {
  private:
   char* _error;
-  bool _print_to_tty;
   bool _gc_before_heap_dump;
   bool _oome;
   elapsedTimer _t;
 
-  HeapDumper(bool gc_before_heap_dump, bool print_to_tty, bool oome) :
-    _error(NULL), _print_to_tty(print_to_tty), _gc_before_heap_dump(gc_before_heap_dump), _oome(oome) { }
+  HeapDumper(bool gc_before_heap_dump, bool oome) :
+    _error(NULL), _gc_before_heap_dump(gc_before_heap_dump), _oome(oome) { }
 
   // string representation of error
   char* error() const                   { return _error; }
-  void set_error(char* error);
-
-  // indicates if progress messages can be sent to tty
-  bool print_to_tty() const             { return _print_to_tty; }
+  void set_error(char const* error);
 
   // internal timer.
   elapsedTimer* timer()                 { return &_t; }
@@ -66,12 +64,14 @@ class HeapDumper : public StackObj {
 
  public:
   HeapDumper(bool gc_before_heap_dump) :
-    _error(NULL), _print_to_tty(false), _gc_before_heap_dump(gc_before_heap_dump), _oome(false) { }
+    _error(NULL), _gc_before_heap_dump(gc_before_heap_dump), _oome(false) { }
 
   ~HeapDumper();
 
   // dumps the heap to the specified file, returns 0 if success.
-  int dump(const char* path);
+  // additional info is written to out if not NULL.
+  // compression >= 0 creates a gzipped file with the given compression level.
+  int dump(const char* path, outputStream* out = NULL, int compression = -1);
 
   // returns error message (resource allocated), or NULL if no error
   char* error_as_C_string() const;

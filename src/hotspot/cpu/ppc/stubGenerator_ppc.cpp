@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2018, SAP SE. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/align.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
@@ -440,7 +441,6 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "StubRoutines", "forward_exception");
     address start = __ pc();
 
-#if !defined(PRODUCT)
     if (VerifyOops) {
       // Get pending exception oop.
       __ ld(R3_ARG1,
@@ -456,7 +456,6 @@ class StubGenerator: public StubCodeGenerator {
       }
       __ verify_oop(R3_ARG1, "StubRoutines::forward exception: not an oop");
     }
-#endif
 
     // Save LR/CR and copy exception pc (LR) into R4_ARG2.
     __ save_LR_CR(R4_ARG2);
@@ -548,7 +547,7 @@ class StubGenerator: public StubCodeGenerator {
     address frame_complete_pc = __ pc();
 
     if (restore_saved_exception_pc) {
-      __ unimplemented("StubGenerator::throw_exception with restore_saved_exception_pc", 74);
+      __ unimplemented("StubGenerator::throw_exception with restore_saved_exception_pc");
     }
 
     // Note that we always have a runtime stub frame on the top of
@@ -702,9 +701,9 @@ class StubGenerator: public StubCodeGenerator {
 #if !defined(PRODUCT)
   // Wrapper which calls oopDesc::is_oop_or_null()
   // Only called by MacroAssembler::verify_oop
-  static void verify_oop_helper(const char* message, oop o) {
+  static void verify_oop_helper(const char* message, oopDesc* o) {
     if (!oopDesc::is_oop_or_null(o)) {
-      fatal("%s", message);
+      fatal("%s. oop: " PTR_FORMAT, message, p2i(o));
     }
     ++ StubRoutines::_verify_oop_count;
   }
@@ -724,7 +723,6 @@ class StubGenerator: public StubCodeGenerator {
 
     return start;
   }
-
 
   // -XX:+OptimizeFill : convert fill/copy loops into intrinsic
   //
@@ -923,7 +921,7 @@ class StubGenerator: public StubCodeGenerator {
   inline void assert_positive_int(Register count) {
 #ifdef ASSERT
     __ srdi_(R0, count, 31);
-    __ asm_assert_eq("missing zero extend", 0xAFFE);
+    __ asm_assert_eq("missing zero extend");
 #endif
   }
 
@@ -950,6 +948,20 @@ class StubGenerator: public StubCodeGenerator {
     __ bc(Assembler::bcondCRbiIs1, Assembler::bi0(CCR0, Assembler::less), no_overlap_target);
 
     // need to copy backwards
+  }
+
+  // This is common errorexit stub for UnsafeCopyMemory.
+  address generate_unsafecopy_common_error_exit() {
+    address start_pc = __ pc();
+    Register tmp1 = R6_ARG4;
+    // probably copy stub would have changed value reset it.
+    if (VM_Version::has_mfdscr()) {
+      __ load_const_optimized(tmp1, VM_Version::_dscr_val);
+      __ mtdscr(tmp1);
+    }
+    __ li(R3_RET, 0); // return 0
+    __ blr();
+    return start_pc;
   }
 
   // The guideline in the implementations of generate_disjoint_xxx_copy
@@ -989,150 +1001,154 @@ class StubGenerator: public StubCodeGenerator {
     VectorSRegister tmp_vsr2  = VSR2;
 
     Label l_1, l_2, l_3, l_4, l_5, l_6, l_7, l_8, l_9, l_10;
+    {
+      // UnsafeCopyMemory page error: continue at UnsafeCopyMemory common_error_exit
+      UnsafeCopyMemoryMark ucmm(this, !aligned, false);
 
-    // Don't try anything fancy if arrays don't have many elements.
-    __ li(tmp3, 0);
-    __ cmpwi(CCR0, R5_ARG3, 17);
-    __ ble(CCR0, l_6); // copy 4 at a time
+      // Don't try anything fancy if arrays don't have many elements.
+      __ li(tmp3, 0);
+      __ cmpwi(CCR0, R5_ARG3, 17);
+      __ ble(CCR0, l_6); // copy 4 at a time
 
-    if (!aligned) {
-      __ xorr(tmp1, R3_ARG1, R4_ARG2);
-      __ andi_(tmp1, tmp1, 3);
-      __ bne(CCR0, l_6); // If arrays don't have the same alignment mod 4, do 4 element copy.
+      if (!aligned) {
+        __ xorr(tmp1, R3_ARG1, R4_ARG2);
+        __ andi_(tmp1, tmp1, 3);
+        __ bne(CCR0, l_6); // If arrays don't have the same alignment mod 4, do 4 element copy.
 
-      // Copy elements if necessary to align to 4 bytes.
-      __ neg(tmp1, R3_ARG1); // Compute distance to alignment boundary.
-      __ andi_(tmp1, tmp1, 3);
-      __ beq(CCR0, l_2);
+        // Copy elements if necessary to align to 4 bytes.
+        __ neg(tmp1, R3_ARG1); // Compute distance to alignment boundary.
+        __ andi_(tmp1, tmp1, 3);
+        __ beq(CCR0, l_2);
 
-      __ subf(R5_ARG3, tmp1, R5_ARG3);
-      __ bind(l_9);
-      __ lbz(tmp2, 0, R3_ARG1);
-      __ addic_(tmp1, tmp1, -1);
-      __ stb(tmp2, 0, R4_ARG2);
-      __ addi(R3_ARG1, R3_ARG1, 1);
-      __ addi(R4_ARG2, R4_ARG2, 1);
-      __ bne(CCR0, l_9);
+        __ subf(R5_ARG3, tmp1, R5_ARG3);
+        __ bind(l_9);
+        __ lbz(tmp2, 0, R3_ARG1);
+        __ addic_(tmp1, tmp1, -1);
+        __ stb(tmp2, 0, R4_ARG2);
+        __ addi(R3_ARG1, R3_ARG1, 1);
+        __ addi(R4_ARG2, R4_ARG2, 1);
+        __ bne(CCR0, l_9);
 
-      __ bind(l_2);
-    }
-
-    // copy 8 elements at a time
-    __ xorr(tmp2, R3_ARG1, R4_ARG2); // skip if src & dest have differing alignment mod 8
-    __ andi_(tmp1, tmp2, 7);
-    __ bne(CCR0, l_7); // not same alignment -> to or from is aligned -> copy 8
-
-    // copy a 2-element word if necessary to align to 8 bytes
-    __ andi_(R0, R3_ARG1, 7);
-    __ beq(CCR0, l_7);
-
-    __ lwzx(tmp2, R3_ARG1, tmp3);
-    __ addi(R5_ARG3, R5_ARG3, -4);
-    __ stwx(tmp2, R4_ARG2, tmp3);
-    { // FasterArrayCopy
-      __ addi(R3_ARG1, R3_ARG1, 4);
-      __ addi(R4_ARG2, R4_ARG2, 4);
-    }
-    __ bind(l_7);
-
-    { // FasterArrayCopy
-      __ cmpwi(CCR0, R5_ARG3, 31);
-      __ ble(CCR0, l_6); // copy 2 at a time if less than 32 elements remain
-
-      __ srdi(tmp1, R5_ARG3, 5);
-      __ andi_(R5_ARG3, R5_ARG3, 31);
-      __ mtctr(tmp1);
-
-     if (!VM_Version::has_vsx()) {
-
-      __ bind(l_8);
-      // Use unrolled version for mass copying (copy 32 elements a time)
-      // Load feeding store gets zero latency on Power6, however not on Power5.
-      // Therefore, the following sequence is made for the good of both.
-      __ ld(tmp1, 0, R3_ARG1);
-      __ ld(tmp2, 8, R3_ARG1);
-      __ ld(tmp3, 16, R3_ARG1);
-      __ ld(tmp4, 24, R3_ARG1);
-      __ std(tmp1, 0, R4_ARG2);
-      __ std(tmp2, 8, R4_ARG2);
-      __ std(tmp3, 16, R4_ARG2);
-      __ std(tmp4, 24, R4_ARG2);
-      __ addi(R3_ARG1, R3_ARG1, 32);
-      __ addi(R4_ARG2, R4_ARG2, 32);
-      __ bdnz(l_8);
-
-    } else { // Processor supports VSX, so use it to mass copy.
-
-      // Prefetch the data into the L2 cache.
-      __ dcbt(R3_ARG1, 0);
-
-      // If supported set DSCR pre-fetch to deepest.
-      if (VM_Version::has_mfdscr()) {
-        __ load_const_optimized(tmp2, VM_Version::_dscr_val | 7);
-        __ mtdscr(tmp2);
+        __ bind(l_2);
       }
 
-      __ li(tmp1, 16);
+      // copy 8 elements at a time
+      __ xorr(tmp2, R3_ARG1, R4_ARG2); // skip if src & dest have differing alignment mod 8
+      __ andi_(tmp1, tmp2, 7);
+      __ bne(CCR0, l_7); // not same alignment -> to or from is aligned -> copy 8
 
-      // Backbranch target aligned to 32-byte. Not 16-byte align as
-      // loop contains < 8 instructions that fit inside a single
-      // i-cache sector.
-      __ align(32);
+      // copy a 2-element word if necessary to align to 8 bytes
+      __ andi_(R0, R3_ARG1, 7);
+      __ beq(CCR0, l_7);
 
-      __ bind(l_10);
-      // Use loop with VSX load/store instructions to
-      // copy 32 elements a time.
-      __ lxvd2x(tmp_vsr1, R3_ARG1);        // Load src
-      __ stxvd2x(tmp_vsr1, R4_ARG2);       // Store to dst
-      __ lxvd2x(tmp_vsr2, tmp1, R3_ARG1);  // Load src + 16
-      __ stxvd2x(tmp_vsr2, tmp1, R4_ARG2); // Store to dst + 16
-      __ addi(R3_ARG1, R3_ARG1, 32);       // Update src+=32
-      __ addi(R4_ARG2, R4_ARG2, 32);       // Update dsc+=32
-      __ bdnz(l_10);                       // Dec CTR and loop if not zero.
+      __ lwzx(tmp2, R3_ARG1, tmp3);
+      __ addi(R5_ARG3, R5_ARG3, -4);
+      __ stwx(tmp2, R4_ARG2, tmp3);
+      { // FasterArrayCopy
+        __ addi(R3_ARG1, R3_ARG1, 4);
+        __ addi(R4_ARG2, R4_ARG2, 4);
+      }
+      __ bind(l_7);
 
-      // Restore DSCR pre-fetch value.
-      if (VM_Version::has_mfdscr()) {
-        __ load_const_optimized(tmp2, VM_Version::_dscr_val);
-        __ mtdscr(tmp2);
+      { // FasterArrayCopy
+        __ cmpwi(CCR0, R5_ARG3, 31);
+        __ ble(CCR0, l_6); // copy 2 at a time if less than 32 elements remain
+
+        __ srdi(tmp1, R5_ARG3, 5);
+        __ andi_(R5_ARG3, R5_ARG3, 31);
+        __ mtctr(tmp1);
+
+       if (!VM_Version::has_vsx()) {
+
+        __ bind(l_8);
+        // Use unrolled version for mass copying (copy 32 elements a time)
+        // Load feeding store gets zero latency on Power6, however not on Power5.
+        // Therefore, the following sequence is made for the good of both.
+        __ ld(tmp1, 0, R3_ARG1);
+        __ ld(tmp2, 8, R3_ARG1);
+        __ ld(tmp3, 16, R3_ARG1);
+        __ ld(tmp4, 24, R3_ARG1);
+        __ std(tmp1, 0, R4_ARG2);
+        __ std(tmp2, 8, R4_ARG2);
+        __ std(tmp3, 16, R4_ARG2);
+        __ std(tmp4, 24, R4_ARG2);
+        __ addi(R3_ARG1, R3_ARG1, 32);
+        __ addi(R4_ARG2, R4_ARG2, 32);
+        __ bdnz(l_8);
+
+      } else { // Processor supports VSX, so use it to mass copy.
+
+        // Prefetch the data into the L2 cache.
+        __ dcbt(R3_ARG1, 0);
+
+        // If supported set DSCR pre-fetch to deepest.
+        if (VM_Version::has_mfdscr()) {
+          __ load_const_optimized(tmp2, VM_Version::_dscr_val | 7);
+          __ mtdscr(tmp2);
+        }
+
+        __ li(tmp1, 16);
+
+        // Backbranch target aligned to 32-byte. Not 16-byte align as
+        // loop contains < 8 instructions that fit inside a single
+        // i-cache sector.
+        __ align(32);
+
+        __ bind(l_10);
+        // Use loop with VSX load/store instructions to
+        // copy 32 elements a time.
+        __ lxvd2x(tmp_vsr1, R3_ARG1);        // Load src
+        __ stxvd2x(tmp_vsr1, R4_ARG2);       // Store to dst
+        __ lxvd2x(tmp_vsr2, tmp1, R3_ARG1);  // Load src + 16
+        __ stxvd2x(tmp_vsr2, tmp1, R4_ARG2); // Store to dst + 16
+        __ addi(R3_ARG1, R3_ARG1, 32);       // Update src+=32
+        __ addi(R4_ARG2, R4_ARG2, 32);       // Update dsc+=32
+        __ bdnz(l_10);                       // Dec CTR and loop if not zero.
+
+        // Restore DSCR pre-fetch value.
+        if (VM_Version::has_mfdscr()) {
+          __ load_const_optimized(tmp2, VM_Version::_dscr_val);
+          __ mtdscr(tmp2);
+        }
+
+      } // VSX
+     } // FasterArrayCopy
+
+      __ bind(l_6);
+
+      // copy 4 elements at a time
+      __ cmpwi(CCR0, R5_ARG3, 4);
+      __ blt(CCR0, l_1);
+      __ srdi(tmp1, R5_ARG3, 2);
+      __ mtctr(tmp1); // is > 0
+      __ andi_(R5_ARG3, R5_ARG3, 3);
+
+      { // FasterArrayCopy
+        __ addi(R3_ARG1, R3_ARG1, -4);
+        __ addi(R4_ARG2, R4_ARG2, -4);
+        __ bind(l_3);
+        __ lwzu(tmp2, 4, R3_ARG1);
+        __ stwu(tmp2, 4, R4_ARG2);
+        __ bdnz(l_3);
+        __ addi(R3_ARG1, R3_ARG1, 4);
+        __ addi(R4_ARG2, R4_ARG2, 4);
       }
 
-    } // VSX
-   } // FasterArrayCopy
+      // do single element copy
+      __ bind(l_1);
+      __ cmpwi(CCR0, R5_ARG3, 0);
+      __ beq(CCR0, l_4);
 
-    __ bind(l_6);
+      { // FasterArrayCopy
+        __ mtctr(R5_ARG3);
+        __ addi(R3_ARG1, R3_ARG1, -1);
+        __ addi(R4_ARG2, R4_ARG2, -1);
 
-    // copy 4 elements at a time
-    __ cmpwi(CCR0, R5_ARG3, 4);
-    __ blt(CCR0, l_1);
-    __ srdi(tmp1, R5_ARG3, 2);
-    __ mtctr(tmp1); // is > 0
-    __ andi_(R5_ARG3, R5_ARG3, 3);
-
-    { // FasterArrayCopy
-      __ addi(R3_ARG1, R3_ARG1, -4);
-      __ addi(R4_ARG2, R4_ARG2, -4);
-      __ bind(l_3);
-      __ lwzu(tmp2, 4, R3_ARG1);
-      __ stwu(tmp2, 4, R4_ARG2);
-      __ bdnz(l_3);
-      __ addi(R3_ARG1, R3_ARG1, 4);
-      __ addi(R4_ARG2, R4_ARG2, 4);
-    }
-
-    // do single element copy
-    __ bind(l_1);
-    __ cmpwi(CCR0, R5_ARG3, 0);
-    __ beq(CCR0, l_4);
-
-    { // FasterArrayCopy
-      __ mtctr(R5_ARG3);
-      __ addi(R3_ARG1, R3_ARG1, -1);
-      __ addi(R4_ARG2, R4_ARG2, -1);
-
-      __ bind(l_5);
-      __ lbzu(tmp2, 1, R3_ARG1);
-      __ stbu(tmp2, 1, R4_ARG2);
-      __ bdnz(l_5);
+        __ bind(l_5);
+        __ lbzu(tmp2, 1, R3_ARG1);
+        __ stbu(tmp2, 1, R4_ARG2);
+        __ bdnz(l_5);
+      }
     }
 
     __ bind(l_4);
@@ -1167,15 +1183,17 @@ class StubGenerator: public StubCodeGenerator {
     // Do reverse copy. We assume the case of actual overlap is rare enough
     // that we don't have to optimize it.
     Label l_1, l_2;
-
-    __ b(l_2);
-    __ bind(l_1);
-    __ stbx(tmp1, R4_ARG2, R5_ARG3);
-    __ bind(l_2);
-    __ addic_(R5_ARG3, R5_ARG3, -1);
-    __ lbzx(tmp1, R3_ARG1, R5_ARG3);
-    __ bge(CCR0, l_1);
-
+    {
+      // UnsafeCopyMemory page error: continue at UnsafeCopyMemory common_error_exit
+      UnsafeCopyMemoryMark ucmm(this, !aligned, false);
+      __ b(l_2);
+      __ bind(l_1);
+      __ stbx(tmp1, R4_ARG2, R5_ARG3);
+      __ bind(l_2);
+      __ addic_(R5_ARG3, R5_ARG3, -1);
+      __ lbzx(tmp1, R3_ARG1, R5_ARG3);
+      __ bge(CCR0, l_1);
+    }
     __ li(R3_RET, 0); // return 0
     __ blr();
 
@@ -1252,155 +1270,159 @@ class StubGenerator: public StubCodeGenerator {
     assert_positive_int(R5_ARG3);
 
     Label l_1, l_2, l_3, l_4, l_5, l_6, l_7, l_8, l_9;
+    {
+      // UnsafeCopyMemory page error: continue at UnsafeCopyMemory common_error_exit
+      UnsafeCopyMemoryMark ucmm(this, !aligned, false);
+      // don't try anything fancy if arrays don't have many elements
+      __ li(tmp3, 0);
+      __ cmpwi(CCR0, R5_ARG3, 9);
+      __ ble(CCR0, l_6); // copy 2 at a time
 
-    // don't try anything fancy if arrays don't have many elements
-    __ li(tmp3, 0);
-    __ cmpwi(CCR0, R5_ARG3, 9);
-    __ ble(CCR0, l_6); // copy 2 at a time
+      if (!aligned) {
+        __ xorr(tmp1, R3_ARG1, R4_ARG2);
+        __ andi_(tmp1, tmp1, 3);
+        __ bne(CCR0, l_6); // if arrays don't have the same alignment mod 4, do 2 element copy
 
-    if (!aligned) {
-      __ xorr(tmp1, R3_ARG1, R4_ARG2);
-      __ andi_(tmp1, tmp1, 3);
-      __ bne(CCR0, l_6); // if arrays don't have the same alignment mod 4, do 2 element copy
+        // At this point it is guaranteed that both, from and to have the same alignment mod 4.
 
-      // At this point it is guaranteed that both, from and to have the same alignment mod 4.
+        // Copy 1 element if necessary to align to 4 bytes.
+        __ andi_(tmp1, R3_ARG1, 3);
+        __ beq(CCR0, l_2);
 
-      // Copy 1 element if necessary to align to 4 bytes.
-      __ andi_(tmp1, R3_ARG1, 3);
-      __ beq(CCR0, l_2);
+        __ lhz(tmp2, 0, R3_ARG1);
+        __ addi(R3_ARG1, R3_ARG1, 2);
+        __ sth(tmp2, 0, R4_ARG2);
+        __ addi(R4_ARG2, R4_ARG2, 2);
+        __ addi(R5_ARG3, R5_ARG3, -1);
+        __ bind(l_2);
 
-      __ lhz(tmp2, 0, R3_ARG1);
-      __ addi(R3_ARG1, R3_ARG1, 2);
-      __ sth(tmp2, 0, R4_ARG2);
-      __ addi(R4_ARG2, R4_ARG2, 2);
-      __ addi(R5_ARG3, R5_ARG3, -1);
-      __ bind(l_2);
+        // At this point the positions of both, from and to, are at least 4 byte aligned.
 
-      // At this point the positions of both, from and to, are at least 4 byte aligned.
+        // Copy 4 elements at a time.
+        // Align to 8 bytes, but only if both, from and to, have same alignment mod 8.
+        __ xorr(tmp2, R3_ARG1, R4_ARG2);
+        __ andi_(tmp1, tmp2, 7);
+        __ bne(CCR0, l_7); // not same alignment mod 8 -> copy 4, either from or to will be unaligned
 
-      // Copy 4 elements at a time.
-      // Align to 8 bytes, but only if both, from and to, have same alignment mod 8.
-      __ xorr(tmp2, R3_ARG1, R4_ARG2);
-      __ andi_(tmp1, tmp2, 7);
-      __ bne(CCR0, l_7); // not same alignment mod 8 -> copy 4, either from or to will be unaligned
+        // Copy a 2-element word if necessary to align to 8 bytes.
+        __ andi_(R0, R3_ARG1, 7);
+        __ beq(CCR0, l_7);
 
-      // Copy a 2-element word if necessary to align to 8 bytes.
-      __ andi_(R0, R3_ARG1, 7);
-      __ beq(CCR0, l_7);
+        __ lwzx(tmp2, R3_ARG1, tmp3);
+        __ addi(R5_ARG3, R5_ARG3, -2);
+        __ stwx(tmp2, R4_ARG2, tmp3);
+        { // FasterArrayCopy
+          __ addi(R3_ARG1, R3_ARG1, 4);
+          __ addi(R4_ARG2, R4_ARG2, 4);
+        }
+      }
 
-      __ lwzx(tmp2, R3_ARG1, tmp3);
-      __ addi(R5_ARG3, R5_ARG3, -2);
-      __ stwx(tmp2, R4_ARG2, tmp3);
+      __ bind(l_7);
+
+      // Copy 4 elements at a time; either the loads or the stores can
+      // be unaligned if aligned == false.
+
       { // FasterArrayCopy
+        __ cmpwi(CCR0, R5_ARG3, 15);
+        __ ble(CCR0, l_6); // copy 2 at a time if less than 16 elements remain
+
+        __ srdi(tmp1, R5_ARG3, 4);
+        __ andi_(R5_ARG3, R5_ARG3, 15);
+        __ mtctr(tmp1);
+
+        if (!VM_Version::has_vsx()) {
+
+          __ bind(l_8);
+          // Use unrolled version for mass copying (copy 16 elements a time).
+          // Load feeding store gets zero latency on Power6, however not on Power5.
+          // Therefore, the following sequence is made for the good of both.
+          __ ld(tmp1, 0, R3_ARG1);
+          __ ld(tmp2, 8, R3_ARG1);
+          __ ld(tmp3, 16, R3_ARG1);
+          __ ld(tmp4, 24, R3_ARG1);
+          __ std(tmp1, 0, R4_ARG2);
+          __ std(tmp2, 8, R4_ARG2);
+          __ std(tmp3, 16, R4_ARG2);
+          __ std(tmp4, 24, R4_ARG2);
+          __ addi(R3_ARG1, R3_ARG1, 32);
+          __ addi(R4_ARG2, R4_ARG2, 32);
+          __ bdnz(l_8);
+
+        } else { // Processor supports VSX, so use it to mass copy.
+
+          // Prefetch src data into L2 cache.
+          __ dcbt(R3_ARG1, 0);
+
+          // If supported set DSCR pre-fetch to deepest.
+          if (VM_Version::has_mfdscr()) {
+            __ load_const_optimized(tmp2, VM_Version::_dscr_val | 7);
+            __ mtdscr(tmp2);
+          }
+          __ li(tmp1, 16);
+
+          // Backbranch target aligned to 32-byte. It's not aligned 16-byte
+          // as loop contains < 8 instructions that fit inside a single
+          // i-cache sector.
+          __ align(32);
+
+          __ bind(l_9);
+          // Use loop with VSX load/store instructions to
+          // copy 16 elements a time.
+          __ lxvd2x(tmp_vsr1, R3_ARG1);        // Load from src.
+          __ stxvd2x(tmp_vsr1, R4_ARG2);       // Store to dst.
+          __ lxvd2x(tmp_vsr2, R3_ARG1, tmp1);  // Load from src + 16.
+          __ stxvd2x(tmp_vsr2, R4_ARG2, tmp1); // Store to dst + 16.
+          __ addi(R3_ARG1, R3_ARG1, 32);       // Update src+=32.
+          __ addi(R4_ARG2, R4_ARG2, 32);       // Update dsc+=32.
+          __ bdnz(l_9);                        // Dec CTR and loop if not zero.
+
+          // Restore DSCR pre-fetch value.
+          if (VM_Version::has_mfdscr()) {
+            __ load_const_optimized(tmp2, VM_Version::_dscr_val);
+            __ mtdscr(tmp2);
+          }
+
+        }
+      } // FasterArrayCopy
+      __ bind(l_6);
+
+      // copy 2 elements at a time
+      { // FasterArrayCopy
+        __ cmpwi(CCR0, R5_ARG3, 2);
+        __ blt(CCR0, l_1);
+        __ srdi(tmp1, R5_ARG3, 1);
+        __ andi_(R5_ARG3, R5_ARG3, 1);
+
+        __ addi(R3_ARG1, R3_ARG1, -4);
+        __ addi(R4_ARG2, R4_ARG2, -4);
+        __ mtctr(tmp1);
+
+        __ bind(l_3);
+        __ lwzu(tmp2, 4, R3_ARG1);
+        __ stwu(tmp2, 4, R4_ARG2);
+        __ bdnz(l_3);
+
         __ addi(R3_ARG1, R3_ARG1, 4);
         __ addi(R4_ARG2, R4_ARG2, 4);
       }
-    }
 
-    __ bind(l_7);
+      // do single element copy
+      __ bind(l_1);
+      __ cmpwi(CCR0, R5_ARG3, 0);
+      __ beq(CCR0, l_4);
 
-    // Copy 4 elements at a time; either the loads or the stores can
-    // be unaligned if aligned == false.
+      { // FasterArrayCopy
+        __ mtctr(R5_ARG3);
+        __ addi(R3_ARG1, R3_ARG1, -2);
+        __ addi(R4_ARG2, R4_ARG2, -2);
 
-    { // FasterArrayCopy
-      __ cmpwi(CCR0, R5_ARG3, 15);
-      __ ble(CCR0, l_6); // copy 2 at a time if less than 16 elements remain
-
-      __ srdi(tmp1, R5_ARG3, 4);
-      __ andi_(R5_ARG3, R5_ARG3, 15);
-      __ mtctr(tmp1);
-
-      if (!VM_Version::has_vsx()) {
-
-        __ bind(l_8);
-        // Use unrolled version for mass copying (copy 16 elements a time).
-        // Load feeding store gets zero latency on Power6, however not on Power5.
-        // Therefore, the following sequence is made for the good of both.
-        __ ld(tmp1, 0, R3_ARG1);
-        __ ld(tmp2, 8, R3_ARG1);
-        __ ld(tmp3, 16, R3_ARG1);
-        __ ld(tmp4, 24, R3_ARG1);
-        __ std(tmp1, 0, R4_ARG2);
-        __ std(tmp2, 8, R4_ARG2);
-        __ std(tmp3, 16, R4_ARG2);
-        __ std(tmp4, 24, R4_ARG2);
-        __ addi(R3_ARG1, R3_ARG1, 32);
-        __ addi(R4_ARG2, R4_ARG2, 32);
-        __ bdnz(l_8);
-
-      } else { // Processor supports VSX, so use it to mass copy.
-
-        // Prefetch src data into L2 cache.
-        __ dcbt(R3_ARG1, 0);
-
-        // If supported set DSCR pre-fetch to deepest.
-        if (VM_Version::has_mfdscr()) {
-          __ load_const_optimized(tmp2, VM_Version::_dscr_val | 7);
-          __ mtdscr(tmp2);
-        }
-        __ li(tmp1, 16);
-
-        // Backbranch target aligned to 32-byte. It's not aligned 16-byte
-        // as loop contains < 8 instructions that fit inside a single
-        // i-cache sector.
-        __ align(32);
-
-        __ bind(l_9);
-        // Use loop with VSX load/store instructions to
-        // copy 16 elements a time.
-        __ lxvd2x(tmp_vsr1, R3_ARG1);        // Load from src.
-        __ stxvd2x(tmp_vsr1, R4_ARG2);       // Store to dst.
-        __ lxvd2x(tmp_vsr2, R3_ARG1, tmp1);  // Load from src + 16.
-        __ stxvd2x(tmp_vsr2, R4_ARG2, tmp1); // Store to dst + 16.
-        __ addi(R3_ARG1, R3_ARG1, 32);       // Update src+=32.
-        __ addi(R4_ARG2, R4_ARG2, 32);       // Update dsc+=32.
-        __ bdnz(l_9);                        // Dec CTR and loop if not zero.
-
-        // Restore DSCR pre-fetch value.
-        if (VM_Version::has_mfdscr()) {
-          __ load_const_optimized(tmp2, VM_Version::_dscr_val);
-          __ mtdscr(tmp2);
-        }
-
+        __ bind(l_5);
+        __ lhzu(tmp2, 2, R3_ARG1);
+        __ sthu(tmp2, 2, R4_ARG2);
+        __ bdnz(l_5);
       }
-    } // FasterArrayCopy
-    __ bind(l_6);
-
-    // copy 2 elements at a time
-    { // FasterArrayCopy
-      __ cmpwi(CCR0, R5_ARG3, 2);
-      __ blt(CCR0, l_1);
-      __ srdi(tmp1, R5_ARG3, 1);
-      __ andi_(R5_ARG3, R5_ARG3, 1);
-
-      __ addi(R3_ARG1, R3_ARG1, -4);
-      __ addi(R4_ARG2, R4_ARG2, -4);
-      __ mtctr(tmp1);
-
-      __ bind(l_3);
-      __ lwzu(tmp2, 4, R3_ARG1);
-      __ stwu(tmp2, 4, R4_ARG2);
-      __ bdnz(l_3);
-
-      __ addi(R3_ARG1, R3_ARG1, 4);
-      __ addi(R4_ARG2, R4_ARG2, 4);
     }
 
-    // do single element copy
-    __ bind(l_1);
-    __ cmpwi(CCR0, R5_ARG3, 0);
-    __ beq(CCR0, l_4);
-
-    { // FasterArrayCopy
-      __ mtctr(R5_ARG3);
-      __ addi(R3_ARG1, R3_ARG1, -2);
-      __ addi(R4_ARG2, R4_ARG2, -2);
-
-      __ bind(l_5);
-      __ lhzu(tmp2, 2, R3_ARG1);
-      __ sthu(tmp2, 2, R4_ARG2);
-      __ bdnz(l_5);
-    }
     __ bind(l_4);
     __ li(R3_RET, 0); // return 0
     __ blr();
@@ -1432,15 +1454,18 @@ class StubGenerator: public StubCodeGenerator {
     array_overlap_test(nooverlap_target, 1);
 
     Label l_1, l_2;
-    __ sldi(tmp1, R5_ARG3, 1);
-    __ b(l_2);
-    __ bind(l_1);
-    __ sthx(tmp2, R4_ARG2, tmp1);
-    __ bind(l_2);
-    __ addic_(tmp1, tmp1, -2);
-    __ lhzx(tmp2, R3_ARG1, tmp1);
-    __ bge(CCR0, l_1);
-
+    {
+      // UnsafeCopyMemory page error: continue at UnsafeCopyMemory common_error_exit
+      UnsafeCopyMemoryMark ucmm(this, !aligned, false);
+      __ sldi(tmp1, R5_ARG3, 1);
+      __ b(l_2);
+      __ bind(l_1);
+      __ sthx(tmp2, R4_ARG2, tmp1);
+      __ bind(l_2);
+      __ addic_(tmp1, tmp1, -2);
+      __ lhzx(tmp2, R3_ARG1, tmp1);
+      __ bge(CCR0, l_1);
+    }
     __ li(R3_RET, 0); // return 0
     __ blr();
 
@@ -1588,7 +1613,11 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "StubRoutines", name);
     address start = __ function_entry();
     assert_positive_int(R5_ARG3);
-    generate_disjoint_int_copy_core(aligned);
+    {
+      // UnsafeCopyMemory page error: continue at UnsafeCopyMemory common_error_exit
+      UnsafeCopyMemoryMark ucmm(this, !aligned, false);
+      generate_disjoint_int_copy_core(aligned);
+    }
     __ li(R3_RET, 0); // return 0
     __ blr();
     return start;
@@ -1736,8 +1765,11 @@ class StubGenerator: public StubCodeGenerator {
       STUB_ENTRY(jint_disjoint_arraycopy);
 
     array_overlap_test(nooverlap_target, 2);
-
-    generate_conjoint_int_copy_core(aligned);
+    {
+      // UnsafeCopyMemory page error: continue at UnsafeCopyMemory common_error_exit
+      UnsafeCopyMemoryMark ucmm(this, !aligned, false);
+      generate_conjoint_int_copy_core(aligned);
+    }
 
     __ li(R3_RET, 0); // return 0
     __ blr();
@@ -1859,11 +1891,15 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "StubRoutines", name);
     address start = __ function_entry();
     assert_positive_int(R5_ARG3);
-    generate_disjoint_long_copy_core(aligned);
+    {
+      // UnsafeCopyMemory page error: continue at UnsafeCopyMemory common_error_exit
+      UnsafeCopyMemoryMark ucmm(this, !aligned, false);
+      generate_disjoint_long_copy_core(aligned);
+    }
     __ li(R3_RET, 0); // return 0
     __ blr();
 
-    return start;
+  return start;
   }
 
   // Generate core code for conjoint long copy (and oop copy on
@@ -1986,8 +2022,11 @@ class StubGenerator: public StubCodeGenerator {
       STUB_ENTRY(jlong_disjoint_arraycopy);
 
     array_overlap_test(nooverlap_target, 3);
-    generate_conjoint_long_copy_core(aligned);
-
+    {
+      // UnsafeCopyMemory page error: continue at UnsafeCopyMemory common_error_exit
+      UnsafeCopyMemoryMark ucmm(this, !aligned, false);
+      generate_conjoint_long_copy_core(aligned);
+    }
     __ li(R3_RET, 0); // return 0
     __ blr();
 
@@ -2142,7 +2181,7 @@ class StubGenerator: public StubCodeGenerator {
     // Overlaps if Src before dst and distance smaller than size.
     // Branch to forward copy routine otherwise.
     __ blt(CCR0, no_overlap);
-    __ stop("overlap in checkcast_copy", 0x9543);
+    __ stop("overlap in checkcast_copy");
     __ bind(no_overlap);
     }
 #endif
@@ -2988,8 +3027,8 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ function_entry();
 
     __ sha256 (multi_block);
-
     __ blr();
+
     return start;
   }
 
@@ -2999,14 +3038,45 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ function_entry();
 
     __ sha512 (multi_block);
-
     __ blr();
+
+    return start;
+  }
+
+  address generate_data_cache_writeback() {
+    const Register cacheline = R3_ARG1;
+    StubCodeMark mark(this, "StubRoutines", "_data_cache_writeback");
+    address start = __ pc();
+
+    __ cache_wb(Address(cacheline));
+    __ blr();
+
+    return start;
+  }
+
+  address generate_data_cache_writeback_sync() {
+    const Register is_presync = R3_ARG1;
+    Register temp = R4;
+    Label SKIP;
+
+    StubCodeMark mark(this, "StubRoutines", "_data_cache_writeback_sync");
+    address start = __ pc();
+
+    __ andi_(temp, is_presync, 1);
+    __ bne(CCR0, SKIP);
+    __ cache_wbsync(false); // post sync => emit 'sync'
+    __ bind(SKIP);          // pre sync => emit nothing
+    __ blr();
+
     return start;
   }
 
   void generate_arraycopy_stubs() {
     // Note: the disjoint stubs must be generated first, some of
     // the conjoint stubs use them.
+
+    address ucm_common_error_exit       =  generate_unsafecopy_common_error_exit();
+    UnsafeCopyMemory::set_common_exit_stub_pc(ucm_common_error_exit);
 
     // non-aligned disjoint versions
     StubRoutines::_jbyte_disjoint_arraycopy       = generate_disjoint_byte_copy(false, "jbyte_disjoint_arraycopy");
@@ -3059,6 +3129,7 @@ class StubGenerator: public StubCodeGenerator {
                                                              STUB_ENTRY(checkcast_arraycopy));
 
     // fill routines
+#ifdef COMPILER2
     if (OptimizeFill) {
       StubRoutines::_jbyte_fill          = generate_fill(T_BYTE,  false, "jbyte_fill");
       StubRoutines::_jshort_fill         = generate_fill(T_SHORT, false, "jshort_fill");
@@ -3067,6 +3138,7 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_arrayof_jshort_fill = generate_fill(T_SHORT, true, "arrayof_jshort_fill");
       StubRoutines::_arrayof_jint_fill   = generate_fill(T_INT,   true, "arrayof_jint_fill");
     }
+#endif
   }
 
   // Safefetch stubs.
@@ -3184,35 +3256,6 @@ class StubGenerator: public StubCodeGenerator {
     __ blr();  // Return to caller.
 
     return start;
-  }
-
-
-  // Compute CRC32/CRC32C function.
-  void generate_CRC_updateBytes(const char* name, Register table, bool invertCRC) {
-
-      // arguments to kernel_crc32:
-      const Register crc     = R3_ARG1;  // Current checksum, preset by caller or result from previous call.
-      const Register data    = R4_ARG2;  // source byte array
-      const Register dataLen = R5_ARG3;  // #bytes to process
-
-      const Register t0      = R2;
-      const Register t1      = R7;
-      const Register t2      = R8;
-      const Register t3      = R9;
-      const Register tc0     = R10;
-      const Register tc1     = R11;
-      const Register tc2     = R12;
-
-      BLOCK_COMMENT("Stub body {");
-      assert_different_registers(crc, data, dataLen, table);
-
-      __ kernel_crc32_1word(crc, data, dataLen, table, t0, t1, t2, t3, tc0, tc1, tc2, table, invertCRC);
-
-      BLOCK_COMMENT("return");
-      __ mr_if_needed(R3_RET, crc);      // Updated crc is function result. No copying required (R3_ARG1 == R3_RET).
-      __ blr();
-
-      BLOCK_COMMENT("} Stub body");
   }
 
   /**
@@ -3492,110 +3535,14 @@ class StubGenerator: public StubCodeGenerator {
    *   R3_RET     - int   crc result
    */
   // Compute CRC32 function.
-  address generate_CRC32_updateBytes(const char* name) {
+  address generate_CRC32_updateBytes(bool is_crc32c) {
     __ align(CodeEntryAlignment);
-    StubCodeMark mark(this, "StubRoutines", name);
+    StubCodeMark mark(this, "StubRoutines", is_crc32c ? "CRC32C_updateBytes" : "CRC32_updateBytes");
     address start = __ function_entry();  // Remember stub start address (is rtn value).
-
-    const Register table   = R6;       // crc table address
-
-    // arguments to kernel_crc32:
-    const Register crc     = R3_ARG1;  // Current checksum, preset by caller or result from previous call.
-    const Register data    = R4_ARG2;  // source byte array
-    const Register dataLen = R5_ARG3;  // #bytes to process
-
-    if (VM_Version::has_vpmsumb()) {
-      const Register constants    = R2;  // constants address
-      const Register bconstants   = R8;  // barret table address
-
-      const Register t0      = R9;
-      const Register t1      = R10;
-      const Register t2      = R11;
-      const Register t3      = R12;
-      const Register t4      = R7;
-
-      BLOCK_COMMENT("Stub body {");
-      assert_different_registers(crc, data, dataLen, table);
-
-      StubRoutines::ppc64::generate_load_crc_table_addr(_masm, table);
-      StubRoutines::ppc64::generate_load_crc_constants_addr(_masm, constants);
-      StubRoutines::ppc64::generate_load_crc_barret_constants_addr(_masm, bconstants);
-
-      __ kernel_crc32_1word_vpmsum(crc, data, dataLen, table, constants, bconstants, t0, t1, t2, t3, t4, true);
-
-      BLOCK_COMMENT("return");
-      __ mr_if_needed(R3_RET, crc);      // Updated crc is function result. No copying required (R3_ARG1 == R3_RET).
-      __ blr();
-
-      BLOCK_COMMENT("} Stub body");
-    } else {
-      StubRoutines::ppc64::generate_load_crc_table_addr(_masm, table);
-      generate_CRC_updateBytes(name, table, true);
-    }
-
+    __ crc32(R3_ARG1, R4_ARG2, R5_ARG3, R2, R6, R7, R8, R9, R10, R11, R12, is_crc32c);
+    __ blr();
     return start;
   }
-
-
-  /**
-   * Arguments:
-   *
-   * Inputs:
-   *   R3_ARG1    - int   crc
-   *   R4_ARG2    - byte* buf
-   *   R5_ARG3    - int   length (of buffer)
-   *
-   * scratch:
-   *   R2, R6-R12
-   *
-   * Ouput:
-   *   R3_RET     - int   crc result
-   */
-  // Compute CRC32C function.
-  address generate_CRC32C_updateBytes(const char* name) {
-    __ align(CodeEntryAlignment);
-    StubCodeMark mark(this, "StubRoutines", name);
-    address start = __ function_entry();  // Remember stub start address (is rtn value).
-
-    const Register table   = R6;       // crc table address
-
-    // arguments to kernel_crc32:
-    const Register crc     = R3_ARG1;  // Current checksum, preset by caller or result from previous call.
-    const Register data    = R4_ARG2;  // source byte array
-    const Register dataLen = R5_ARG3;  // #bytes to process
-
-    if (VM_Version::has_vpmsumb()) {
-      const Register constants    = R2;  // constants address
-      const Register bconstants   = R8;  // barret table address
-
-      const Register t0      = R9;
-      const Register t1      = R10;
-      const Register t2      = R11;
-      const Register t3      = R12;
-      const Register t4      = R7;
-
-      BLOCK_COMMENT("Stub body {");
-      assert_different_registers(crc, data, dataLen, table);
-
-      StubRoutines::ppc64::generate_load_crc32c_table_addr(_masm, table);
-      StubRoutines::ppc64::generate_load_crc32c_constants_addr(_masm, constants);
-      StubRoutines::ppc64::generate_load_crc32c_barret_constants_addr(_masm, bconstants);
-
-      __ kernel_crc32_1word_vpmsum(crc, data, dataLen, table, constants, bconstants, t0, t1, t2, t3, t4, false);
-
-      BLOCK_COMMENT("return");
-      __ mr_if_needed(R3_RET, crc);      // Updated crc is function result. No copying required (R3_ARG1 == R3_RET).
-      __ blr();
-
-      BLOCK_COMMENT("} Stub body");
-    } else {
-      StubRoutines::ppc64::generate_load_crc32c_table_addr(_masm, table);
-      generate_CRC_updateBytes(name, table, false);
-    }
-
-    return start;
-  }
-
 
   // Initialization
   void generate_initial() {
@@ -3621,15 +3568,23 @@ class StubGenerator: public StubCodeGenerator {
 
     // CRC32 Intrinsics.
     if (UseCRC32Intrinsics) {
-      StubRoutines::_crc_table_adr    = (address)StubRoutines::ppc64::_crc_table;
-      StubRoutines::_updateBytesCRC32 = generate_CRC32_updateBytes("CRC32_updateBytes");
+      StubRoutines::_crc_table_adr = StubRoutines::generate_crc_constants(REVERSE_CRC32_POLY);
+      StubRoutines::_updateBytesCRC32 = generate_CRC32_updateBytes(false);
     }
 
     // CRC32C Intrinsics.
     if (UseCRC32CIntrinsics) {
-      StubRoutines::_crc32c_table_addr = (address)StubRoutines::ppc64::_crc32c_table;
-      StubRoutines::_updateBytesCRC32C = generate_CRC32C_updateBytes("CRC32C_updateBytes");
+      StubRoutines::_crc32c_table_addr = StubRoutines::generate_crc_constants(REVERSE_CRC32C_POLY);
+      StubRoutines::_updateBytesCRC32C = generate_CRC32_updateBytes(true);
     }
+
+    // Safefetch stubs.
+    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
+                                                       &StubRoutines::_safefetch32_fault_pc,
+                                                       &StubRoutines::_safefetch32_continuation_pc);
+    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
+                                                       &StubRoutines::_safefetchN_fault_pc,
+                                                       &StubRoutines::_safefetchN_continuation_pc);
   }
 
   void generate_all() {
@@ -3648,20 +3603,10 @@ class StubGenerator: public StubCodeGenerator {
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();
 
-    // Safefetch stubs.
-    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
-                                                       &StubRoutines::_safefetch32_fault_pc,
-                                                       &StubRoutines::_safefetch32_continuation_pc);
-    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
-                                                       &StubRoutines::_safefetchN_fault_pc,
-                                                       &StubRoutines::_safefetchN_continuation_pc);
-
 #ifdef COMPILER2
     if (UseMultiplyToLenIntrinsic) {
       StubRoutines::_multiplyToLen = generate_multiplyToLen();
     }
-#endif
-
     if (UseSquareToLenIntrinsic) {
       StubRoutines::_squareToLen = generate_squareToLen();
     }
@@ -3675,6 +3620,13 @@ class StubGenerator: public StubCodeGenerator {
     if (UseMontgomerySquareIntrinsic) {
       StubRoutines::_montgomerySquare
         = CAST_FROM_FN_PTR(address, SharedRuntime::montgomery_square);
+    }
+#endif
+
+    // data cache line writeback
+    if (VM_Version::supports_data_cache_line_flush()) {
+      StubRoutines::_data_cache_writeback = generate_data_cache_writeback();
+      StubRoutines::_data_cache_writeback_sync = generate_data_cache_writeback_sync();
     }
 
     if (UseAESIntrinsics) {
@@ -3704,6 +3656,10 @@ class StubGenerator: public StubCodeGenerator {
   }
 };
 
+#define UCM_TABLE_MAX_ENTRIES 8
 void StubGenerator_generate(CodeBuffer* code, bool all) {
+  if (UnsafeCopyMemory::_table == NULL) {
+    UnsafeCopyMemory::create_table(UCM_TABLE_MAX_ENTRIES);
+  }
   StubGenerator g(code, all);
 }

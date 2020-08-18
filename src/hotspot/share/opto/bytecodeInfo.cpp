@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileBroker.hpp"
+#include "compiler/compilerEvent.hpp"
 #include "compiler/compileLog.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "jfr/jfrEvents.hpp"
@@ -41,13 +42,12 @@
 InlineTree::InlineTree(Compile* c,
                        const InlineTree *caller_tree, ciMethod* callee,
                        JVMState* caller_jvms, int caller_bci,
-                       float site_invoke_ratio, int max_inline_level) :
+                       int max_inline_level) :
   C(c),
   _caller_jvms(caller_jvms),
   _method(callee),
   _caller_tree((InlineTree*) caller_tree),
   _count_inline_bcs(method()->code_size_for_inlining()),
-  _site_invoke_ratio(site_invoke_ratio),
   _max_inline_level(max_inline_level),
   _subtrees(c->comp_arena(), 2, 0, NULL),
   _msg(NULL)
@@ -77,6 +77,8 @@ InlineTree::InlineTree(Compile* c,
  *  Return true when EA is ON and a java constructor is called or
  *  a super constructor is called from an inlined java constructor.
  *  Also return true for boxing methods.
+ *  Also return true for methods returning Iterator (including Iterable::iterator())
+ *  that is essential for forall-loops performance.
  */
 static bool is_init_with_ea(ciMethod* callee_method,
                             ciMethod* caller_method, Compile* C) {
@@ -92,6 +94,11 @@ static bool is_init_with_ea(ciMethod* callee_method,
     return true; // super constructor is called from inlined constructor
   }
   if (C->eliminate_boxing() && callee_method->is_boxing_method()) {
+    return true;
+  }
+  ciType *retType = callee_method->signature()->return_type();
+  ciKlass *iter = C->env()->Iterator_klass();
+  if(retType->is_loaded() && iter->is_loaded() && retType->is_subtype_of(iter)) {
     return true;
   }
   return false;
@@ -202,13 +209,15 @@ bool InlineTree::should_not_inline(ciMethod *callee_method,
   const char* fail_msg = NULL;
 
   // First check all inlining restrictions which are required for correctness
-  if ( callee_method->is_abstract()) {
+  if (callee_method->is_abstract()) {
     fail_msg = "abstract method"; // // note: we allow ik->is_abstract()
-  } else if (!callee_method->holder()->is_initialized()) {
+  } else if (!callee_method->holder()->is_initialized() &&
+             // access allowed in the context of static initializer
+             C->needs_clinit_barrier(callee_method->holder(), caller_method)) {
     fail_msg = "method holder not initialized";
-  } else if ( callee_method->is_native()) {
+  } else if (callee_method->is_native()) {
     fail_msg = "native method";
-  } else if ( callee_method->dont_inline()) {
+  } else if (callee_method->dont_inline()) {
     fail_msg = "don't inline by annotation";
   }
 
@@ -319,6 +328,35 @@ bool InlineTree::should_not_inline(ciMethod *callee_method,
   return false;
 }
 
+bool InlineTree::is_not_reached(ciMethod* callee_method, ciMethod* caller_method, int caller_bci, ciCallProfile& profile) {
+  if (!UseInterpreter) {
+    return false; // -Xcomp
+  }
+  if (profile.count() > 0) {
+    return false; // reachable according to profile
+  }
+  if (!callee_method->was_executed_more_than(0)) {
+    return true; // callee was never executed
+  }
+  if (caller_method->is_not_reached(caller_bci)) {
+    return true; // call site not resolved
+  }
+  if (profile.count() == -1) {
+    return false; // immature profile; optimistically treat as reached
+  }
+  assert(profile.count() == 0, "sanity");
+
+  // Profile info is scarce.
+  // Try to guess: check if the call site belongs to a start block.
+  // Call sites in a start block should be reachable if no exception is thrown earlier.
+  ciMethodBlocks* caller_blocks = caller_method->get_method_blocks();
+  bool is_start_block = caller_blocks->block_containing(caller_bci)->start_bci() == 0;
+  if (is_start_block) {
+    return false; // treat the call reached as part of start block
+  }
+  return true; // give up and treat the call site as not reached
+}
+
 //-----------------------------try_to_inline-----------------------------------
 // return true if ok
 // Relocated from "InliningClosure::try_to_inline"
@@ -370,7 +408,7 @@ bool InlineTree::try_to_inline(ciMethod* callee_method, ciMethod* caller_method,
       // inline constructors even if they are not reached.
     } else if (forced_inline()) {
       // Inlining was forced by CompilerOracle, ciReplay or annotation
-    } else if (profile.count() == 0) {
+    } else if (is_not_reached(callee_method, caller_method, caller_bci, profile)) {
       // don't inline unreached call sites
        set_msg("call site not reached");
        return false;
@@ -446,13 +484,21 @@ bool InlineTree::try_to_inline(ciMethod* callee_method, ciMethod* caller_method,
 }
 
 //------------------------------pass_initial_checks----------------------------
-bool pass_initial_checks(ciMethod* caller_method, int caller_bci, ciMethod* callee_method) {
-  ciInstanceKlass *callee_holder = callee_method ? callee_method->holder() : NULL;
+bool InlineTree::pass_initial_checks(ciMethod* caller_method, int caller_bci, ciMethod* callee_method) {
   // Check if a callee_method was suggested
-  if( callee_method == NULL )            return false;
+  if (callee_method == NULL) {
+    return false;
+  }
+  ciInstanceKlass *callee_holder = callee_method->holder();
   // Check if klass of callee_method is loaded
-  if( !callee_holder->is_loaded() )      return false;
-  if( !callee_holder->is_initialized() ) return false;
+  if (!callee_holder->is_loaded()) {
+    return false;
+  }
+  if (!callee_holder->is_initialized() &&
+      // access allowed in the context of static initializer
+      C->needs_clinit_barrier(callee_holder, caller_method)) {
+    return false;
+  }
   if( !UseInterpreter ) /* running Xcomp */ {
     // Checks that constant pool's call site has been visited
     // stricter than callee_holder->is_initialized()
@@ -485,25 +531,6 @@ const char* InlineTree::check_can_parse(ciMethod* callee) {
   return NULL;
 }
 
-static void post_inlining_event(int compile_id,const char* msg, bool success, int bci, ciMethod* caller, ciMethod* callee) {
-  assert(caller != NULL, "invariant");
-  assert(callee != NULL, "invariant");
-  EventCompilerInlining event;
-  if (event.should_commit()) {
-    JfrStructCalleeMethod callee_struct;
-    callee_struct.set_type(callee->holder()->name()->as_utf8());
-    callee_struct.set_name(callee->name()->as_utf8());
-    callee_struct.set_descriptor(callee->signature()->as_symbol()->as_utf8());
-    event.set_compileId(compile_id);
-    event.set_message(msg);
-    event.set_succeeded(success);
-    event.set_bci(bci);
-    event.set_caller(caller->get_Method());
-    event.set_callee(callee_struct);
-    event.commit();
-  }
-}
-
 //------------------------------print_inlining---------------------------------
 void InlineTree::print_inlining(ciMethod* callee_method, int caller_bci,
                                 ciMethod* caller_method, bool success) const {
@@ -520,14 +547,17 @@ void InlineTree::print_inlining(ciMethod* callee_method, int caller_bci,
                                                caller_bci, inline_msg);
   if (C->print_inlining()) {
     C->print_inlining(callee_method, inline_level(), caller_bci, inline_msg);
-    guarantee(callee_method != NULL, "would crash in post_inlining_event");
+    guarantee(callee_method != NULL, "would crash in CompilerEvent::InlineEvent::post");
     if (Verbose) {
       const InlineTree *top = this;
       while (top->caller_tree() != NULL) { top = top->caller_tree(); }
       //tty->print("  bcs: %d+%d  invoked: %d", top->count_inline_bcs(), callee_method->code_size(), callee_method->interpreter_invocation_count());
     }
   }
-  post_inlining_event(C->compile_id(), inline_msg, success, caller_bci, caller_method, callee_method);
+  EventCompilerInlining event;
+  if (event.should_commit()) {
+    CompilerEvent::InlineEvent::post(event, C->compile_id(), caller_method->get_Method(), callee_method, success, inline_msg, caller_bci);
+  }
 }
 
 //------------------------------ok_to_inline-----------------------------------
@@ -615,21 +645,8 @@ WarmCallInfo* InlineTree::ok_to_inline(ciMethod* callee_method, JVMState* jvms, 
   return NULL;
 }
 
-//------------------------------compute_callee_frequency-----------------------
-float InlineTree::compute_callee_frequency( int caller_bci ) const {
-  int count  = method()->interpreter_call_site_count(caller_bci);
-  int invcnt = method()->interpreter_invocation_count();
-  float freq = (float)count/(float)invcnt;
-  // Call-site count / interpreter invocation count, scaled recursively.
-  // Always between 0.0 and 1.0.  Represents the percentage of the method's
-  // total execution time used at this call site.
-
-  return freq;
-}
-
 //------------------------------build_inline_tree_for_callee-------------------
 InlineTree *InlineTree::build_inline_tree_for_callee( ciMethod* callee_method, JVMState* caller_jvms, int caller_bci) {
-  float recur_frequency = _site_invoke_ratio * compute_callee_frequency(caller_bci);
   // Attempt inlining.
   InlineTree* old_ilt = callee_at(caller_bci, callee_method);
   if (old_ilt != NULL) {
@@ -654,7 +671,7 @@ InlineTree *InlineTree::build_inline_tree_for_callee( ciMethod* callee_method, J
     }
   }
   // Allocate in the comp_arena to make sure the InlineTree is live when dumping a replay compilation file
-  InlineTree* ilt = new (C->comp_arena()) InlineTree(C, this, callee_method, caller_jvms, caller_bci, recur_frequency, _max_inline_level + max_inline_level_adjust);
+  InlineTree* ilt = new (C->comp_arena()) InlineTree(C, this, callee_method, caller_jvms, caller_bci, _max_inline_level + max_inline_level_adjust);
   _subtrees.append(ilt);
 
   NOT_PRODUCT( _count_inlines += 1; )
@@ -680,7 +697,7 @@ InlineTree *InlineTree::build_inline_tree_root() {
   Compile* C = Compile::current();
 
   // Root of inline tree
-  InlineTree* ilt = new InlineTree(C, NULL, C->method(), NULL, -1, 1.0F, MaxInlineLevel);
+  InlineTree* ilt = new InlineTree(C, NULL, C->method(), NULL, -1, MaxInlineLevel);
 
   return ilt;
 }

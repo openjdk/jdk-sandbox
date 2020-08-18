@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,8 +49,8 @@ static jvmtiError JNICALL IsClassUnloadingEnabled(const jvmtiEnv* env, jboolean*
 // event. The function and the event are registered here.
 //
 void JvmtiExtensions::register_extensions() {
-  _ext_functions = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<jvmtiExtensionFunctionInfo*>(1,true);
-  _ext_events = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<jvmtiExtensionEventInfo*>(1,true);
+  _ext_functions = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<jvmtiExtensionFunctionInfo*>(1, mtServiceability);
+  _ext_events = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<jvmtiExtensionEventInfo*>(1, mtServiceability);
 
   // register our extension function
   static jvmtiParamInfo func_params[] = {
@@ -70,9 +70,8 @@ void JvmtiExtensions::register_extensions() {
   // register our extension event
 
   static jvmtiParamInfo event_params[] = {
-    { (char*)"JNI Environment", JVMTI_KIND_IN, JVMTI_TYPE_JNIENV, JNI_FALSE },
-    { (char*)"Thread", JVMTI_KIND_IN, JVMTI_TYPE_JTHREAD, JNI_FALSE },
-    { (char*)"Class", JVMTI_KIND_IN, JVMTI_TYPE_JCLASS, JNI_FALSE }
+    { (char*)"JNI Environment", JVMTI_KIND_IN_PTR, JVMTI_TYPE_JNIENV, JNI_FALSE },
+    { (char*)"Class", JVMTI_KIND_IN_PTR, JVMTI_TYPE_CCHAR, JNI_FALSE }
   };
   static jvmtiExtensionEventInfo ext_event = {
     EXT_EVENT_CLASS_UNLOAD,

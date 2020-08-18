@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,7 +41,7 @@ import tests.Result;
 /*
  * @test
  * @bug 8152143 8152704 8155649 8165804 8185841 8176841 8190918
- *      8179071 8202537
+ *      8179071 8202537 8221432 8222098
  * @summary IncludeLocalesPlugin tests
  * @author Naoto Sato
  * @requires (vm.compMode != "Xcomp" & os.maxMemory >= 2g)
@@ -56,7 +56,7 @@ import tests.Result;
  *          jdk.compiler
  * @build tests.*
  * @build tools.jlink.plugins.GetAvailableLocales
- * @run main/othervm -Xmx1g IncludeLocalesPluginTest
+ * @run main/othervm/timeout=180 -Xmx1g IncludeLocalesPluginTest
  */
 public class IncludeLocalesPluginTest {
 
@@ -184,7 +184,7 @@ public class IncludeLocalesPluginTest {
                 "/jdk.localedata/sun/text/resources/cldr/ext/FormatData_th.class",
                 "/jdk.localedata/sun/text/resources/cldr/ext/FormatData_zh.class"),
             List.of(
-                "(root)", "en", "en_001", "en_150", "en_AG", "en_AI", "en_AS", "en_AT",
+                "(root)", "en", "en_001", "en_150", "en_AE", "en_AG", "en_AI", "en_AS", "en_AT",
                 "en_AU", "en_BB", "en_BE", "en_BI", "en_BM", "en_BS", "en_BW", "en_BZ",
                 "en_CA", "en_CC", "en_CH", "en_CK", "en_CM", "en_CX", "en_CY", "en_DE",
                 "en_DG", "en_DK", "en_DM", "en_ER", "en_FI", "en_FJ", "en_FK", "en_FM",
@@ -256,9 +256,11 @@ public class IncludeLocalesPluginTest {
             List.of(
                 "(root)", "as_IN", "as", "bn_IN", "bn", "bo_IN", "bo", "brx_IN", "brx",
                 "ccp", "ccp_IN","en", "en_001", "en_IN", "en_US", "en_US_POSIX", "gu_IN",
-                "gu", "hi_IN", "hi", "kn_IN", "kn", "kok_IN", "kok", "ks_IN", "ks", "ml_IN",
-                "ml", "mr_IN", "mr", "ne_IN", "ne", "or_IN", "or", "pa", "pa_IN_#Guru",
-                "pa__#Guru", "ta_IN", "ta", "te_IN", "te", "ur_IN", "ur"),
+                "gu", "hi_IN", "hi", "kn_IN", "kn", "kok_IN", "kok", "ks_IN", "ks", "mai",
+                "mai_IN", "mni", "mni_IN", "mni_IN_#Beng", "mni__#Beng", "ml_IN", "ml",
+                "mr_IN", "mr", "ne_IN", "ne", "or_IN", "or", "pa", "pa_IN_#Guru",
+                "pa__#Guru", "sat", "sat_IN", "sat_IN_#Olck", "sat__#Olck", "sd", "sd_IN",
+                "sd_IN_#Deva", "sd__#Deva", "ta_IN", "ta", "te_IN", "te", "ur_IN", "ur"),
             "",
         },
 
@@ -406,7 +408,7 @@ public class IncludeLocalesPluginTest {
                 "/jdk.localedata/sun/text/resources/cldr/ext/FormatData_ja.class",
                 "/jdk.localedata/sun/text/resources/ext/FormatData_th.class"),
             List.of(
-                "(root)", "en", "en_001", "en_150", "en_AG", "en_AI", "en_AS", "en_AT",
+                "(root)", "en", "en_001", "en_150", "en_AE", "en_AG", "en_AI", "en_AS", "en_AT",
                 "en_AU", "en_BB", "en_BE", "en_BI", "en_BM", "en_BS", "en_BW", "en_BZ",
                 "en_CA", "en_CC", "en_CH", "en_CK", "en_CM", "en_CX", "en_CY", "en_DE",
                 "en_DG", "en_DK", "en_DM", "en_ER", "en_FI", "en_FJ", "en_FK", "en_FM",

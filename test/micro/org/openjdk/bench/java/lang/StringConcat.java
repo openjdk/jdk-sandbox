@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,14 +24,15 @@ package org.openjdk.bench.java.lang;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.infra.Blackhole;
+import org.openjdk.jmh.annotations.Warmup;
 
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -40,9 +41,13 @@ import java.util.concurrent.TimeUnit;
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Thread)
+@Warmup(iterations = 10, time = 500, timeUnit = TimeUnit.MILLISECONDS)
+@Measurement(iterations = 5, time = 1000, timeUnit = TimeUnit.MILLISECONDS)
+@Fork(3)
 public class StringConcat {
 
-    public int intValue = 4711;
+    @Param("4711")
+    public int intValue;
 
     public String stringValue = String.valueOf(intValue);
 
@@ -52,6 +57,8 @@ public class StringConcat {
 
     public byte byteValue = (byte)-128;
 
+    public String emptyString = "";
+
     @Benchmark
     public String concatConstInt() {
         return "string" + intValue;
@@ -60,6 +67,31 @@ public class StringConcat {
     @Benchmark
     public String concatConstString() {
         return "string" + stringValue;
+    }
+
+    @Benchmark
+    public String concatEmptyRight() {
+        return stringValue + emptyString;
+    }
+
+    @Benchmark
+    public String concatEmptyLeft() {
+        return emptyString + stringValue;
+    }
+
+    @Benchmark
+    public String concatEmptyConstInt() {
+        return "" + intValue;
+    }
+
+    @Benchmark
+    public String concatEmptyConstString() {
+        return "" + stringValue;
+    }
+
+    @Benchmark
+    public String concatMethodConstString() {
+        return "string".concat(stringValue);
     }
 
     @Benchmark
@@ -73,8 +105,23 @@ public class StringConcat {
     }
 
     @Benchmark
+    public String concatMix4String() {
+        // Investigate "profile pollution" between shared LFs that might eliminate some JIT optimizations
+        String s1 = "string" + stringValue + stringValue + stringValue + stringValue;
+        String s2 = "string" + stringValue + "string" + stringValue + stringValue + stringValue;
+        String s3 = stringValue + stringValue + "string" + stringValue + "string" + stringValue + "string";
+        String s4 = "string" + stringValue + "string" + stringValue + "string" + stringValue + "string" + stringValue + "string";
+        return s1 + s2 + s3 + s4;
+    }
+
+    @Benchmark
     public String concatConst4String() {
         return "string" + stringValue + stringValue + stringValue + stringValue;
+    }
+
+    @Benchmark
+    public String concat4String() {
+        return stringValue + stringValue + stringValue + stringValue;
     }
 
     @Benchmark
@@ -90,6 +137,11 @@ public class StringConcat {
     @Benchmark
     public String concatConst6String() {
         return "string" + stringValue + stringValue + stringValue + stringValue + stringValue + stringValue;
+    }
+
+    @Benchmark
+    public String concat6String() {
+        return stringValue + stringValue + stringValue + stringValue + stringValue + stringValue;
     }
 
     @Benchmark

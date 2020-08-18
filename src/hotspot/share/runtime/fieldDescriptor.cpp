@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,11 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.hpp"
 #include "oops/annotations.hpp"
+#include "oops/constantPool.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/fieldStreams.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/signature.hpp"
@@ -56,6 +56,11 @@ Symbol* fieldDescriptor::generic_signature() const {
   }
   assert(false, "should never happen");
   return NULL;
+}
+
+bool fieldDescriptor::is_trusted_final() const {
+  InstanceKlass* ik = field_holder();
+  return is_final() && (is_static() || ik->is_hidden() || ik->is_record());
 }
 
 AnnotationArray* fieldDescriptor::annotations() const {
@@ -145,6 +150,8 @@ void fieldDescriptor::print_on(outputStream* st) const {
   }
 }
 
+void fieldDescriptor::print() const { print_on(tty); }
+
 void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
   print_on(st);
   BasicType ft = field_type();
@@ -191,7 +198,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       if (obj->obj_field(offset()) != NULL) {
         obj->obj_field(offset())->print_value_on(st);
       } else {
-        st->print_cr("NULL");
+        st->print("NULL");
       }
       break;
     case T_OBJECT:
@@ -200,7 +207,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       if (obj->obj_field(offset()) != NULL) {
         obj->obj_field(offset())->print_value_on(st);
       } else {
-        st->print_cr("NULL");
+        st->print("NULL");
       }
       break;
     default:
@@ -210,7 +217,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
   // Print a hint as to the underlying integer representation. This can be wrong for
   // pointers on an LP64 machine
 #ifdef _LP64
-  if ((ft == T_OBJECT || ft == T_ARRAY) && UseCompressedOops) {
+  if (is_reference_type(ft) && UseCompressedOops) {
     st->print(" (%x)", obj->int_field(offset()));
   }
   else // <- intended

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,9 +64,9 @@ public final class PKCS12Attribute implements KeyStore.Entry.Attribute {
      * @param name the attribute's identifier
      * @param value the attribute's value
      *
-     * @exception NullPointerException if {@code name} or {@code value}
+     * @throws    NullPointerException if {@code name} or {@code value}
      *     is {@code null}
-     * @exception IllegalArgumentException if {@code name} or
+     * @throws    IllegalArgumentException if {@code name} or
      *     {@code value} is incorrectly formatted
      */
     public PKCS12Attribute(String name, String value) {
@@ -76,7 +76,7 @@ public final class PKCS12Attribute implements KeyStore.Entry.Attribute {
         // Validate name
         ObjectIdentifier type;
         try {
-            type = new ObjectIdentifier(name);
+            type = ObjectIdentifier.of(name);
         } catch (IOException e) {
             throw new IllegalArgumentException("Incorrect format: name", e);
         }
@@ -115,11 +115,11 @@ public final class PKCS12Attribute implements KeyStore.Entry.Attribute {
      * </pre>
      *
      * @param encoded the attribute's ASN.1 DER encoding. It is cloned
-     *     to prevent subsequent modificaion.
+     *     to prevent subsequent modification.
      *
-     * @exception NullPointerException if {@code encoded} is
+     * @throws    NullPointerException if {@code encoded} is
      *     {@code null}
-     * @exception IllegalArgumentException if {@code encoded} is
+     * @throws    IllegalArgumentException if {@code encoded} is
      *     incorrectly formatted
      */
     public PKCS12Attribute(byte[] encoded) {
@@ -254,6 +254,9 @@ public final class PKCS12Attribute implements KeyStore.Entry.Attribute {
     private void parse(byte[] encoded) throws IOException {
         DerInputStream attributeValue = new DerInputStream(encoded);
         DerValue[] attrSeq = attributeValue.getSequence(2);
+        if (attrSeq.length != 2) {
+            throw new IOException("Invalid length for PKCS12Attribute");
+        }
         ObjectIdentifier type = attrSeq[0].getOID();
         DerInputStream attrContent =
             new DerInputStream(attrSeq[1].toByteArray());

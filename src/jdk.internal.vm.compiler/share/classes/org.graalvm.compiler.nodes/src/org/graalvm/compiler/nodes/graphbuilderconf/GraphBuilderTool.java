@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import org.graalvm.compiler.core.common.spi.ConstantFieldProvider;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.ValueNode;
+import org.graalvm.compiler.nodes.spi.Replacements;
 import org.graalvm.compiler.nodes.spi.StampProvider;
 import org.graalvm.compiler.options.OptionValues;
 
@@ -51,6 +52,8 @@ public interface GraphBuilderTool {
     StampProvider getStampProvider();
 
     MetaAccessProvider getMetaAccess();
+
+    Replacements getReplacements();
 
     default Assumptions getAssumptions() {
         return getGraph().getAssumptions();
@@ -81,6 +84,12 @@ public interface GraphBuilderTool {
 
     @SuppressWarnings("unused")
     default boolean canDeferPlugin(GeneratedInvocationPlugin plugin) {
+        // By default generated plugins must be completely processed during parsing.
+        return false;
+    }
+
+    @SuppressWarnings("unused")
+    default boolean shouldDeferPlugin(GeneratedInvocationPlugin plugin) {
         // By default generated plugins must be completely processed during parsing.
         return false;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@ import java.nio.ReadOnlyBufferException;
 
 import sun.security.util.Debug;
 import sun.security.jca.*;
+import sun.security.util.KnownOIDs;
 
 /**
  * This class provides the functionality of a cryptographic cipher for
@@ -147,10 +148,6 @@ import sun.security.jca.*;
  * <li>{@code AES/ECB/NoPadding} (128)</li>
  * <li>{@code AES/ECB/PKCS5Padding} (128)</li>
  * <li>{@code AES/GCM/NoPadding} (128)</li>
- * <li>{@code DES/CBC/NoPadding} (56)</li>
- * <li>{@code DES/CBC/PKCS5Padding} (56)</li>
- * <li>{@code DES/ECB/NoPadding} (56)</li>
- * <li>{@code DES/ECB/PKCS5Padding} (56)</li>
  * <li>{@code DESede/CBC/NoPadding} (168)</li>
  * <li>{@code DESede/CBC/PKCS5Padding} (168)</li>
  * <li>{@code DESede/ECB/NoPadding} (168)</li>
@@ -242,9 +239,6 @@ public class Cipher {
     // cipher has been initialized.
     private int opmode = 0;
 
-    // The OID for the KeyUsage extension in an X.509 v3 certificate
-    private static final String KEY_USAGE_EXTENSION_OID = "2.5.29.15";
-
     // next SPI  to try in provider selection
     // null once provider is selected
     private CipherSpi firstSpi;
@@ -268,15 +262,18 @@ public class Cipher {
      * @param cipherSpi the delegate
      * @param provider the provider
      * @param transformation the transformation
+     * @throws NullPointerException if {@code provider} is {@code null}
+     * @throws IllegalArgumentException if the supplied arguments
+     *         are deemed invalid for constructing the Cipher object
      */
     protected Cipher(CipherSpi cipherSpi,
                      Provider provider,
                      String transformation) {
         // See bug 4341369 & 4334690 for more info.
         // If the caller is trusted, then okay.
-        // Otherwise throw a NullPointerException.
+        // Otherwise throw an IllegalArgumentException.
         if (!JceSecurityManager.INSTANCE.isCallerTrusted(provider)) {
-            throw new NullPointerException();
+            throw new IllegalArgumentException("Cannot construct cipher");
         }
         this.spi = cipherSpi;
         this.provider = provider;
@@ -559,16 +556,16 @@ public class Cipher {
                 // does not support mode or padding we need, ignore
                 continue;
             }
-            if (canuse == S_YES) {
+            // S_YES, S_MAYBE
+            // even when mode and padding are both supported, they
+            // may not be used together, try out and see if it works
+            try {
+                CipherSpi spi = (CipherSpi)s.newInstance(null);
+                tr.setModePadding(spi);
+                // specify null instead of spi for delayed provider selection
                 return new Cipher(null, s, t, transformation, transforms);
-            } else { // S_MAYBE, try out if it works
-                try {
-                    CipherSpi spi = (CipherSpi)s.newInstance(null);
-                    tr.setModePadding(spi);
-                    return new Cipher(spi, s, t, transformation, transforms);
-                } catch (Exception e) {
-                    failure = e;
-                }
+            } catch (Exception e) {
+                failure = e;
             }
         }
         throw new NoSuchAlgorithmException
@@ -1743,7 +1740,7 @@ public class Cipher {
             Set<String> critSet = cert.getCriticalExtensionOIDs();
 
             if (critSet != null && !critSet.isEmpty()
-                && critSet.contains(KEY_USAGE_EXTENSION_OID)) {
+                && critSet.contains(KnownOIDs.KeyUsage.value())) {
                 boolean[] keyUsageInfo = cert.getKeyUsage();
                 // keyUsageInfo[2] is for keyEncipherment;
                 // keyUsageInfo[3] is for dataEncipherment.

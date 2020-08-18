@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 #ifndef SHARE_GC_G1_G1CONCURRENTMARKTHREAD_HPP
 #define SHARE_GC_G1_G1CONCURRENTMARKTHREAD_HPP
 
-#include "gc/shared/concurrentGCPhaseManager.hpp"
 #include "gc/shared/concurrentGCThread.hpp"
 
 class G1ConcurrentMark;
@@ -50,13 +49,10 @@ class G1ConcurrentMarkThread: public ConcurrentGCThread {
 
   volatile State _state;
 
-  // WhiteBox testing support.
-  ConcurrentGCPhaseManager::Stack _phase_manager_stack;
-
   void sleep_before_next_cycle();
   // Delay marking to meet MMU.
   void delay_to_keep_mmu(G1Policy* g1_policy, bool remark);
-  double mmu_sleep_time(G1Policy* g1_policy, bool remark);
+  double mmu_delay_end(G1Policy* g1_policy, bool remark);
 
   void run_service();
   void stop_service();
@@ -80,7 +76,7 @@ class G1ConcurrentMarkThread: public ConcurrentGCThread {
   bool in_progress()       { return _state == InProgress; }
 
   // Returns true from the moment a marking cycle is
-  // initiated (during the initial-mark pause when started() is set)
+  // initiated (during the concurrent start pause when started() is set)
   // to the moment when the cycle completes (just after the next
   // marking bitmap has been cleared and in_progress() is
   // cleared). While during_cycle() is true we will not start another cycle
@@ -88,14 +84,6 @@ class G1ConcurrentMarkThread: public ConcurrentGCThread {
   // as the CM thread might take some time to wake up before noticing
   // that started() is set and set in_progress().
   bool during_cycle()      { return !idle(); }
-
-  // WhiteBox testing support.
-  const char* const* concurrent_phases() const;
-  bool request_concurrent_phase(const char* phase);
-
-  ConcurrentGCPhaseManager::Stack* phase_manager_stack() {
-    return &_phase_manager_stack;
-  }
 };
 
 #endif // SHARE_GC_G1_G1CONCURRENTMARKTHREAD_HPP

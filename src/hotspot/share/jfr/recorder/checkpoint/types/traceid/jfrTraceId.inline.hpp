@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,78 +25,77 @@
 #ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEID_INLINE_HPP
 #define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEID_INLINE_HPP
 
-#include "classfile/classLoaderData.hpp"
-#include "classfile/moduleEntry.hpp"
-#include "classfile/packageEntry.hpp"
-#include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdMacros.hpp"
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceId.hpp"
-#include "oops/arrayKlass.hpp"
+#include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdLoadBarrier.inline.hpp"
+#include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdBits.inline.hpp"
+#include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdEpoch.hpp"
+#include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdMacros.hpp"
+#include "jfr/support/jfrKlassExtension.hpp"
 #include "oops/klass.hpp"
-#include "oops/instanceKlass.hpp"
-#include "oops/method.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/debug.hpp"
 
-template <typename T>
-inline traceid set_used_and_get(const T* type, bool leakp) {
-  assert(type != NULL, "invariant");
-  if (leakp) {
-    SET_LEAKP_USED_THIS_EPOCH(type);
-    assert(LEAKP_USED_THIS_EPOCH(type), "invariant");
-  }
-  SET_USED_THIS_EPOCH(type);
-  assert(USED_THIS_EPOCH(type), "invariant");
-  return TRACE_ID_MASKED_PTR(type);
+inline traceid JfrTraceId::load(jclass jc) {
+  return JfrTraceIdLoadBarrier::load(jc);
+}
+
+inline traceid JfrTraceId::load(const Klass* klass) {
+  return JfrTraceIdLoadBarrier::load(klass);
+}
+
+inline traceid JfrTraceId::load(const Method* method) {
+  return JfrTraceIdLoadBarrier::load(method);
+}
+
+inline traceid JfrTraceId::load(const Klass* klass, const Method* method) {
+  return JfrTraceIdLoadBarrier::load(klass, method);
+}
+
+inline traceid JfrTraceId::load(const ModuleEntry* module) {
+  return JfrTraceIdLoadBarrier::load(module);
+}
+
+inline traceid JfrTraceId::load(const PackageEntry* package) {
+  return JfrTraceIdLoadBarrier::load(package);
+}
+
+inline traceid JfrTraceId::load(const ClassLoaderData* cld) {
+  return JfrTraceIdLoadBarrier::load(cld);
+}
+
+inline traceid JfrTraceId::load_leakp(const Klass* klass, const Method* method) {
+  return JfrTraceIdLoadBarrier::load_leakp(klass, method);
 }
 
 template <typename T>
-inline traceid set_used_and_get_shifted(const T* type, bool leakp) {
-  assert(type != NULL, "invariant");
-  return set_used_and_get(type, leakp) >> TRACE_ID_SHIFT;
+inline traceid raw_load(const T* t) {
+  assert(t != NULL, "invariant");
+  return TRACE_ID(t);
 }
 
-inline traceid JfrTraceId::get(const Klass* klass) {
-  assert(klass != NULL, "invariant");
-  return TRACE_ID(klass);
+inline traceid JfrTraceId::load_raw(const Klass* klass) {
+  return raw_load(klass);
 }
 
-inline traceid JfrTraceId::get(const Thread* t) {
+inline traceid JfrTraceId::load_raw(const Thread* t) {
   assert(t != NULL, "invariant");
   return TRACE_ID_RAW(t->jfr_thread_local());
 }
 
-inline traceid JfrTraceId::use(const Klass* klass, bool leakp /* false */) {
-  assert(klass != NULL, "invariant");
-  return set_used_and_get_shifted(klass, leakp);
+inline traceid JfrTraceId::load_raw(const Method* method) {
+  return (METHOD_ID(method->method_holder(), method));
 }
 
-inline traceid JfrTraceId::use(const Method* method, bool leakp /* false */) {
-  assert(method != NULL, "invariant");
-  SET_METHOD_FLAG_USED_THIS_EPOCH(method);
-  const Klass* const klass = method->method_holder();
-  assert(klass != NULL, "invariant");
-  if (leakp) {
-    SET_LEAKP_USED_THIS_EPOCH(klass);
-    assert(LEAKP_USED_THIS_EPOCH(klass), "invariant");
-  }
-  SET_METHOD_AND_CLASS_USED_THIS_EPOCH(klass);
-  assert(METHOD_AND_CLASS_USED_THIS_EPOCH(klass), "invariant");
-  return (METHOD_ID(klass, method));
+inline traceid JfrTraceId::load_raw(const ModuleEntry* module) {
+  return raw_load(module);
 }
 
-inline traceid JfrTraceId::use(const ModuleEntry* module, bool leakp /* false */) {
-  assert(module != NULL, "invariant");
-  return set_used_and_get_shifted(module, leakp);
+inline traceid JfrTraceId::load_raw(const PackageEntry* package) {
+  return raw_load(package);
 }
 
-inline traceid JfrTraceId::use(const PackageEntry* package, bool leakp /* false */) {
-  assert(package != NULL, "invariant");
-  return set_used_and_get_shifted(package, leakp);
-}
-
-inline traceid JfrTraceId::use(const ClassLoaderData* cld, bool leakp /* false */) {
-  assert(cld != NULL, "invariant");
-  return cld->is_unsafe_anonymous() ? 0 : set_used_and_get_shifted(cld, leakp);
+inline traceid JfrTraceId::load_raw(const ClassLoaderData* cld) {
+  return raw_load(cld);
 }
 
 inline bool JfrTraceId::in_visible_set(const Klass* klass) {
@@ -112,7 +111,7 @@ inline bool JfrTraceId::is_jdk_jfr_event(const Klass* k) {
 
 inline void JfrTraceId::tag_as_jdk_jfr_event(const Klass* klass) {
   assert(klass != NULL, "invariant");
-  SET_TAG(klass, JDK_JFR_EVENT_KLASS);
+  SET_JDK_JFR_EVENT_KLASS(klass);
   assert(IS_JDK_JFR_EVENT_KLASS(klass), "invariant");
 }
 
@@ -124,7 +123,7 @@ inline bool JfrTraceId::is_jdk_jfr_event_sub(const Klass* k) {
 inline void JfrTraceId::tag_as_jdk_jfr_event_sub(const Klass* k) {
   assert(k != NULL, "invariant");
   if (IS_NOT_AN_EVENT_SUB_KLASS(k)) {
-    SET_TAG(k, JDK_JFR_EVENT_SUBKLASS);
+    SET_JDK_JFR_EVENT_SUBKLASS(k);
   }
   assert(IS_JDK_JFR_EVENT_SUBKLASS(k), "invariant");
 }
@@ -145,7 +144,7 @@ inline bool JfrTraceId::is_event_host(const Klass* k) {
 
 inline void JfrTraceId::tag_as_event_host(const Klass* k) {
   assert(k != NULL, "invariant");
-  SET_TAG(k, EVENT_HOST_KLASS);
+  SET_EVENT_HOST_KLASS(k);
   assert(IS_EVENT_HOST_KLASS(k), "invariant");
 }
 

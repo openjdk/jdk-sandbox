@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
 #include "aot/aotCompiledMethod.hpp"
 #include "classfile/symbolTable.hpp"
 #include "metaprogramming/integralConstant.hpp"
-#include "metaprogramming/isRegisteredEnum.hpp"
 #include "oops/metadata.hpp"
 #include "oops/method.hpp"
 
@@ -36,8 +35,6 @@ enum CodeState {
   in_use  = 1, // _aot field is set to corresponding AOTCompiledMethod
   invalid = 2  // AOT code is invalidated because dependencies failed
 };
-
-template<> struct IsRegisteredEnum<CodeState> : public TrueType {};
 
 typedef struct {
   AOTCompiledMethod* _aot;
@@ -92,28 +89,25 @@ typedef struct {
 } AOTHeader;
 
 typedef struct {
-  enum { CONFIG_SIZE = 8 * jintSize + 11 };
-  // 8 int values
+  enum { CONFIG_SIZE = 7 * jintSize + 9 };
+  // 7 int values
   int _config_size;
   int _narrowOopShift;
   int _narrowKlassShift;
   int _contendedPaddingWidth;
-  int _fieldsAllocationStyle;
   int _objectAlignment;
   int _codeSegmentSize;
   int _gc;
-  // byte[11] array map to boolean values here
+  // byte[9] array map to boolean values here
   bool _debug_VM;
   bool _useCompressedOops;
   bool _useCompressedClassPointers;
-  bool _compactFields;
   bool _useTLAB;
   bool _useBiasedLocking;
   bool _tieredAOT;
   bool _enableContended;
   bool _restrictContended;
   bool _omitAssertions;
-  bool _threadLocalHandshakes;
 } AOTConfiguration;
 
 class AOTLib : public CHeapObj<mtCode> {
@@ -220,7 +214,8 @@ class AOTCodeHeap : public CodeHeap {
   void link_graal_runtime_symbols();
 
   void link_global_lib_symbols();
-  void link_primitive_array_klasses();
+  void link_klass(const Klass* klass);
+  void link_known_klasses();
   void publish_aot(const methodHandle& mh, AOTMethodData* method_data, int code_id);
 
 
@@ -244,6 +239,7 @@ public:
   Klass* get_klass_from_got(const char* klass_name, int klass_len, const Method* method);
 
   bool is_dependent_method(Klass* dependee, AOTCompiledMethod* aot);
+  void mark_evol_dependent_methods(InstanceKlass* dependee);
 
   const char* get_name_at(int offset) {
     return _metaspace_names + offset;
@@ -251,8 +247,8 @@ public:
 
 
   void oops_do(OopClosure* f);
-  void metadata_do(void f(Metadata*));
-  void got_metadata_do(void f(Metadata*));
+  void metadata_do(MetadataClosure* f);
+  void got_metadata_do(MetadataClosure* f);
 
 #ifdef ASSERT
   bool got_contains(Metadata **p) {

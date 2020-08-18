@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "memory/allocation.hpp"
 #include "memory/metaspaceShared.hpp"
-#include "memory/universe.hpp"
+#include "oops/compressedOops.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.hpp"
 #include "oops/typeArrayKlass.hpp"
@@ -125,7 +125,7 @@ class HeapShared: AllStatic {
   static bool _archive_heap_region_fixed;
 
   static bool oop_equals(oop const& p1, oop const& p2) {
-    return oopDesc::equals(p1, p2);
+    return p1 == p2;
   }
   static unsigned oop_hash(oop const& p);
 
@@ -141,7 +141,8 @@ class HeapShared: AllStatic {
   }
 
   static unsigned klass_hash(Klass* const& klass) {
-    return primitive_hash<address>((address)klass);
+    // Generate deterministic hashcode even if SharedBaseAddress is changed due to ASLR.
+    return primitive_hash<address>(address(klass) - SharedBaseAddress);
   }
 
   class DumpTimeKlassSubGraphInfoTable
@@ -191,9 +192,6 @@ private:
   static void verify_subgraph_from(oop orig_obj) PRODUCT_RETURN;
 
   static KlassSubGraphInfo* get_subgraph_info(Klass *k);
-  static int num_of_subgraph_infos();
-
-  static void build_archived_subgraph_info_records(int num_records);
 
   static void init_subgraph_entry_fields(ArchivableStaticFieldInfo fields[],
                                          int num, Thread* THREAD);
@@ -279,6 +277,8 @@ private:
 #endif // INCLUDE_CDS_JAVA_HEAP
 
  public:
+  static void run_full_gc_in_vm_thread() NOT_CDS_JAVA_HEAP_RETURN;
+
   static bool is_heap_object_archiving_allowed() {
     CDS_JAVA_HEAP_ONLY(return (UseG1GC && UseCompressedOops && UseCompressedClassPointers);)
     NOT_CDS_JAVA_HEAP(return false;)
@@ -286,16 +286,6 @@ private:
 
   static bool is_heap_region(int idx) {
     CDS_JAVA_HEAP_ONLY(return (idx >= MetaspaceShared::first_closed_archive_heap_region &&
-                               idx <= MetaspaceShared::last_open_archive_heap_region));
-    NOT_CDS_JAVA_HEAP_RETURN_(false);
-  }
-  static bool is_closed_archive_heap_region(int idx) {
-    CDS_JAVA_HEAP_ONLY(return (idx >= MetaspaceShared::first_closed_archive_heap_region &&
-                               idx <= MetaspaceShared::last_closed_archive_heap_region));
-    NOT_CDS_JAVA_HEAP_RETURN_(false);
-  }
-  static bool is_open_archive_heap_region(int idx) {
-    CDS_JAVA_HEAP_ONLY(return (idx >= MetaspaceShared::first_open_archive_heap_region &&
                                idx <= MetaspaceShared::last_open_archive_heap_region));
     NOT_CDS_JAVA_HEAP_RETURN_(false);
   }
@@ -321,14 +311,10 @@ private:
 
   inline static bool is_archived_object(oop p) NOT_CDS_JAVA_HEAP_RETURN_(false);
 
-  static void archive_java_heap_objects() NOT_CDS_JAVA_HEAP_RETURN;
-
-  static char* read_archived_subgraph_infos(char* buffer) NOT_CDS_JAVA_HEAP_RETURN_(buffer);
-  static void write_archived_subgraph_infos() NOT_CDS_JAVA_HEAP_RETURN;
   static void initialize_from_archived_subgraph(Klass* k) NOT_CDS_JAVA_HEAP_RETURN;
 
   // NarrowOops stored in the CDS archive may use a different encoding scheme
-  // than Universe::narrow_oop_{base,shift} -- see FileMapInfo::map_heap_regions_impl.
+  // than CompressedOops::{base,shift} -- see FileMapInfo::map_heap_regions_impl.
   // To decode them, do not use CompressedOops::decode_not_null. Use this
   // function instead.
   inline static oop decode_from_archive(narrowOop v) NOT_CDS_JAVA_HEAP_RETURN_(NULL);

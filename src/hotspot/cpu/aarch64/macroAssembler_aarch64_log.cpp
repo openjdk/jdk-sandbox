@@ -65,7 +65,7 @@
 
 // Table with p(r) polynomial coefficients
 // and table representation of logarithm values (hi and low parts)
-__attribute__ ((aligned(64))) juint _L_tbl[] =
+ATTRIBUTE_ALIGNED(64) juint _L_tbl[] =
 {
     // coefficients of p(r) polynomial:
     // _coeff[]
@@ -260,9 +260,9 @@ void MacroAssembler::fast_log(FloatRegister vtmp0, FloatRegister vtmp1,
                               Register tmp4, Register tmp5) {
   Label DONE, CHECK_CORNER_CASES, SMALL_VALUE, MAIN,
       CHECKED_CORNER_CASES, RETURN_MINF_OR_NAN;
-  const long INF_OR_NAN_PREFIX = 0x7FF0;
-  const long MINF_OR_MNAN_PREFIX = 0xFFF0;
-  const long ONE_PREFIX = 0x3FF0;
+  const int64_t INF_OR_NAN_PREFIX = 0x7FF0;
+  const int64_t MINF_OR_MNAN_PREFIX = 0xFFF0;
+  const int64_t ONE_PREFIX = 0x3FF0;
     movz(tmp2, ONE_PREFIX, 48);
     movz(tmp4, 0x0010, 48);
     fmovd(rscratch1, v0); // rscratch1 = AS_LONG_BITS(X)
@@ -286,7 +286,7 @@ void MacroAssembler::fast_log(FloatRegister vtmp0, FloatRegister vtmp1,
     frecpe(vtmp5, vtmp5, S);                   // vtmp5 ~= 1/vtmp5
     lsr(tmp2, rscratch1, 48);
     movz(tmp4, 0x77f0, 48);
-    fmovd(vtmp4, 1.0d);
+    fmovd(vtmp4, 1.0);
     movz(tmp1, INF_OR_NAN_PREFIX, 48);
     bfm(tmp4, rscratch1, 0, 51);               // tmp4 = 0x77F0 << 48 | mantissa(X)
     // vtmp1 = AS_DOUBLE_BITS(0x77F0 << 48 | mantissa(X)) == mx
@@ -358,7 +358,7 @@ void MacroAssembler::fast_log(FloatRegister vtmp0, FloatRegister vtmp1,
       br(GE, DONE);
       cmp(rscratch1, tmp2);
       br(NE, CHECKED_CORNER_CASES);
-      fmovd(v0, 0.0d);
+      fmovd(v0, 0.0);
   }
   bind(DONE);
     ret(lr);

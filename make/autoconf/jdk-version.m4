@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@
 AC_DEFUN([JDKVER_CHECK_AND_SET_NUMBER],
 [
   # Additional [] needed to keep m4 from mangling shell constructs.
-  if [ ! [[ "$2" =~ ^0*([1-9][0-9]*)|(0)$ ]] ] ; then
+  if [ ! [[ "$2" =~ ^0*([1-9][0-9]*)$|^0*(0)$ ]] ] ; then
     AC_MSG_ERROR(["$2" is not a valid numerical value for $1])
   fi
   # Extract the version number without leading zeros.
@@ -66,8 +66,51 @@ AC_DEFUN_ONCE([JDKVER_SETUP_JDK_VERSION_NUMBERS],
   AC_SUBST(PRODUCT_SUFFIX)
   AC_SUBST(JDK_RC_PLATFORM_NAME)
   AC_SUBST(HOTSPOT_VM_DISTRO)
+
+  # Set the MACOSX Bundle Name base
+  AC_ARG_WITH(macosx-bundle-name-base, [AS_HELP_STRING([--with-macosx-bundle-name-base],
+      [Set the MacOSX Bundle Name base. This is the base name for calculating MacOSX Bundle Names.
+      @<:@not specified@:>@])])
+  if test "x$with_macosx_bundle_name_base" = xyes; then
+    AC_MSG_ERROR([--with-macosx-bundle-name-base must have a value])
+  elif [ ! [[ $with_macosx_bundle_name_base =~ ^[[:print:]]*$ ]] ]; then
+    AC_MSG_ERROR([--with-macosx-bundle-name-base contains non-printing characters: $with_macosx_bundle_name_base])
+  elif test "x$with_macosx_bundle_name_base" != x; then
+    # Set MACOSX_BUNDLE_NAME_BASE to the configured value.
+    MACOSX_BUNDLE_NAME_BASE="$with_macosx_bundle_name_base"
+  fi
   AC_SUBST(MACOSX_BUNDLE_NAME_BASE)
+
+  # Set the MACOSX Bundle ID base
+  AC_ARG_WITH(macosx-bundle-id-base, [AS_HELP_STRING([--with-macosx-bundle-id-base],
+      [Set the MacOSX Bundle ID base. This is the base ID for calculating MacOSX Bundle IDs.
+      @<:@not specified@:>@])])
+  if test "x$with_macosx_bundle_id_base" = xyes; then
+    AC_MSG_ERROR([--with-macosx-bundle-id-base must have a value])
+  elif [ ! [[ $with_macosx_bundle_id_base =~ ^[[:print:]]*$ ]] ]; then
+    AC_MSG_ERROR([--with-macosx-bundle-id-base contains non-printing characters: $with_macosx_bundle_id_base])
+  elif test "x$with_macosx_bundle_id_base" != x; then
+    # Set MACOSX_BUNDLE_ID_BASE to the configured value.
+    MACOSX_BUNDLE_ID_BASE="$with_macosx_bundle_id_base"
+  fi
   AC_SUBST(MACOSX_BUNDLE_ID_BASE)
+
+  # Set the JDK RC name
+  AC_ARG_WITH(jdk-rc-name, [AS_HELP_STRING([--with-jdk-rc-name],
+      [Set JDK RC name. This is used for FileDescription and ProductName properties
+       of MS Windows binaries. @<:@not specified@:>@])])
+  if test "x$with_jdk_rc_name" = xyes; then
+    AC_MSG_ERROR([--with-jdk-rc-name must have a value])
+  elif [ ! [[ $with_jdk_rc_name =~ ^[[:print:]]*$ ]] ]; then
+    AC_MSG_ERROR([--with-jdk-rc-name contains non-printing characters: $with_jdk_rc_name])
+  elif test "x$with_jdk_rc_name" != x; then
+    # Set JDK_RC_NAME to a custom value if '--with-jdk-rc-name' was used and is not empty.
+    JDK_RC_NAME="$with_jdk_rc_name"
+  else
+    # Otherwise calculate from "version-numbers" included above.
+    JDK_RC_NAME="$PRODUCT_NAME $JDK_RC_PLATFORM_NAME"
+  fi
+  AC_SUBST(JDK_RC_NAME)
 
   # The vendor name, if any
   AC_ARG_WITH(vendor-name, [AS_HELP_STRING([--with-vendor-name],
@@ -119,7 +162,9 @@ AC_DEFUN_ONCE([JDKVER_SETUP_JDK_VERSION_NUMBERS],
     AC_MSG_ERROR([--with-vendor-vm-bug-url must have a value])
   elif [ ! [[ $with_vendor_vm_bug_url =~ ^[[:print:]]*$ ]] ]; then
     AC_MSG_ERROR([--with-vendor-vm-bug-url contains non-printing characters: $with_vendor_vm_bug_url])
-  else
+  elif test "x$with_vendor_vm_bug_url" != x; then
+    # Only set VENDOR_URL_VM_BUG if '--with-vendor-vm-bug-url' was used and is not empty.
+    # Otherwise we will use the value from "version-numbers" included above.
     VENDOR_URL_VM_BUG="$with_vendor_vm_bug_url"
   fi
   AC_SUBST(VENDOR_URL_VM_BUG)
@@ -134,7 +179,7 @@ AC_DEFUN_ONCE([JDKVER_SETUP_JDK_VERSION_NUMBERS],
     AC_MSG_ERROR([--with-version-string must have a value])
   elif test "x$with_version_string" != x; then
     # Additional [] needed to keep m4 from mangling shell constructs.
-    if [ [[ $with_version_string =~ ^([0-9]+)(\.([0-9]+))?(\.([0-9]+))?(\.([0-9]+))?(\.([0-9]+))?(\.([0-9]+))?(\.([0-9]+))?(-([a-zA-Z]+))?((\+)([0-9]+)?(-([-a-zA-Z0-9.]+))?)?$ ]] ]; then
+    if [ [[ $with_version_string =~ ^([0-9]+)(\.([0-9]+))?(\.([0-9]+))?(\.([0-9]+))?(\.([0-9]+))?(\.([0-9]+))?(\.([0-9]+))?(-([a-zA-Z0-9]+))?(((\+)([0-9]*))?(-([-a-zA-Z0-9.]+))?)?$ ]] ]; then
       VERSION_FEATURE=${BASH_REMATCH[[1]]}
       VERSION_INTERIM=${BASH_REMATCH[[3]]}
       VERSION_UPDATE=${BASH_REMATCH[[5]]}
@@ -143,9 +188,9 @@ AC_DEFUN_ONCE([JDKVER_SETUP_JDK_VERSION_NUMBERS],
       VERSION_EXTRA2=${BASH_REMATCH[[11]]}
       VERSION_EXTRA3=${BASH_REMATCH[[13]]}
       VERSION_PRE=${BASH_REMATCH[[15]]}
-      version_plus_separator=${BASH_REMATCH[[17]]}
-      VERSION_BUILD=${BASH_REMATCH[[18]]}
-      VERSION_OPT=${BASH_REMATCH[[20]]}
+      version_plus_separator=${BASH_REMATCH[[18]]}
+      VERSION_BUILD=${BASH_REMATCH[[19]]}
+      VERSION_OPT=${BASH_REMATCH[[21]]}
       # Unspecified numerical fields are interpreted as 0.
       if test "x$VERSION_INTERIM" = x; then
         VERSION_INTERIM=0
@@ -188,8 +233,8 @@ AC_DEFUN_ONCE([JDKVER_SETUP_JDK_VERSION_NUMBERS],
       # Interpret --without-* as empty string instead of the literal "no"
       VERSION_PRE=
     else
-      # Only [a-zA-Z] is allowed in the VERSION_PRE. Outer [ ] to quote m4.
-      [ VERSION_PRE=`$ECHO "$with_version_pre" | $TR -c -d '[a-z][A-Z]'` ]
+      # Only [a-zA-Z0-9] is allowed in the VERSION_PRE. Outer [ ] to quote m4.
+      [ VERSION_PRE=`$ECHO "$with_version_pre" | $TR -c -d '[a-zA-Z0-9]'` ]
       if test "x$VERSION_PRE" != "x$with_version_pre"; then
         AC_MSG_WARN([--with-version-pre value has been sanitized from '$with_version_pre' to '$VERSION_PRE'])
       fi
@@ -460,6 +505,7 @@ AC_DEFUN_ONCE([JDKVER_SETUP_JDK_VERSION_NUMBERS],
   # We could define --with flags for these, if really needed
   VERSION_CLASSFILE_MAJOR="$DEFAULT_VERSION_CLASSFILE_MAJOR"
   VERSION_CLASSFILE_MINOR="$DEFAULT_VERSION_CLASSFILE_MINOR"
+  JDK_SOURCE_TARGET_VERSION="$DEFAULT_JDK_SOURCE_TARGET_VERSION"
 
   AC_MSG_CHECKING([for version string])
   AC_MSG_RESULT([$VERSION_STRING])
@@ -483,5 +529,5 @@ AC_DEFUN_ONCE([JDKVER_SETUP_JDK_VERSION_NUMBERS],
   AC_SUBST(VENDOR_VERSION_STRING)
   AC_SUBST(VERSION_CLASSFILE_MAJOR)
   AC_SUBST(VERSION_CLASSFILE_MINOR)
-
+  AC_SUBST(JDK_SOURCE_TARGET_VERSION)
 ])

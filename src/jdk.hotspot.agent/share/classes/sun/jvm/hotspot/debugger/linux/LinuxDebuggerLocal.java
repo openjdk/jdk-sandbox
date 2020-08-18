@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,7 @@ import sun.jvm.hotspot.debugger.DebuggerUtilities;
 import sun.jvm.hotspot.debugger.MachineDescription;
 import sun.jvm.hotspot.debugger.NotInHeapException;
 import sun.jvm.hotspot.debugger.OopHandle;
+import sun.jvm.hotspot.debugger.ProcessInfo;
 import sun.jvm.hotspot.debugger.ReadResult;
 import sun.jvm.hotspot.debugger.ThreadProxy;
 import sun.jvm.hotspot.debugger.UnalignedAddressException;
@@ -77,8 +78,8 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
     private LinuxCDebugger cdbg;
 
     // threadList and loadObjectList are filled by attach0 method
-    private List threadList;
-    private List loadObjectList;
+    private List<ThreadProxy> threadList;
+    private List<LoadObject> loadObjectList;
 
     // PID namespace support
     // It maps the LWPID in the host to the LWPID in the container.
@@ -102,7 +103,7 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
     private native static void init0()
                                 throws DebuggerException;
     private native void setSAAltRoot0(String altroot);
-    private native void attach0(int pid, boolean isInContainer)
+    private native void attach0(int pid)
                                 throws DebuggerException;
     private native void attach0(String execName, String coreName)
                                 throws DebuggerException;
@@ -117,6 +118,18 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
     private native byte[] readBytesFromProcess0(long address, long numBytes)
                                 throws DebuggerException;
     public native static int  getAddressSize() ;
+
+    @Override
+    public native String demangle(String sym);
+
+    public native long findLibPtrByAddress0(long pc);
+
+    @Override
+    public Address findLibPtrByAddress(Address pc) {
+      long ptr = findLibPtrByAddress0(pc.asLongValue());
+      return (ptr == 0L) ? null
+                         : new LinuxAddress(this, ptr);
+    }
 
     // Note on Linux threads are really processes. When target process is
     // attached by a serviceability agent thread, only that thread can do
@@ -173,7 +186,7 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
                 } catch (InterruptedException x) {}
              }
              if (lastException != null) {
-                throw new DebuggerException(lastException);
+                throw new DebuggerException(lastException.getMessage(), lastException);
              } else {
                 return task;
              }
@@ -236,7 +249,7 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
     }
 
     /** From the Debugger interface via JVMDebugger */
-    public List getProcessList() throws DebuggerException {
+    public List<ProcessInfo> getProcessList() throws DebuggerException {
         throw new DebuggerException("getProcessList not implemented yet");
     }
 
@@ -305,8 +318,8 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
     /** From the Debugger interface via JVMDebugger */
     public synchronized void attach(int processID) throws DebuggerException {
         checkAttached();
-        threadList = new ArrayList();
-        loadObjectList = new ArrayList();
+        threadList = new ArrayList<>();
+        loadObjectList = new ArrayList<>();
 
         Path proc = Paths.get("/proc", Integer.toString(processID));
         int NSpid = getNamespacePID(Paths.get(proc.toString(), "status"));
@@ -321,9 +334,8 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
 
         class AttachTask implements WorkerThreadTask {
            int pid;
-           boolean isInContainer;
            public void doit(LinuxDebuggerLocal debugger) {
-              debugger.attach0(pid, isInContainer);
+              debugger.attach0(pid);
               debugger.attached = true;
               debugger.isCore = false;
               findABIVersion();
@@ -332,15 +344,14 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
 
         AttachTask task = new AttachTask();
         task.pid = processID;
-        task.isInContainer = (processID != NSpid);
         workerThread.execute(task);
     }
 
     /** From the Debugger interface via JVMDebugger */
     public synchronized void attach(String execName, String coreName) {
         checkAttached();
-        threadList = new ArrayList();
-        loadObjectList = new ArrayList();
+        threadList = new ArrayList<>();
+        loadObjectList = new ArrayList<>();
         attach0(execName, coreName);
         attached = true;
         isCore = true;
@@ -583,13 +594,13 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
     }
 
     /** From the LinuxCDebugger interface */
-    public List/*<ThreadProxy>*/ getThreadList() {
+    public List<ThreadProxy> getThreadList() {
       requireAttach();
       return threadList;
     }
 
     /** From the LinuxCDebugger interface */
-    public List/*<LoadObject>*/ getLoadObjectList() {
+    public List<LoadObject> getLoadObjectList() {
       requireAttach();
       return loadObjectList;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,10 @@
 package jdk.test.lib.security;
 
 import java.util.List;
-import java.security.Security;
 
 public final class JDKSecurityProperties {
 
     public static final List<String> jdkProps = List.of(
-        "com.sun.CORBA.ORBIorTypeCheckRegistryFilter",
         "crypto.policy",
         "jceks.key.serialFilter",
         "jdk.certpath.disabledAlgorithms",
@@ -46,7 +44,7 @@ public final class JDKSecurityProperties {
         "sun.rmi.registry.registryFilter"
     );
 
-    public static List getKeys() {
+    public static List<String> getKeys() {
         return jdkProps;
     }
 }

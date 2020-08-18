@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,18 +23,14 @@
 
 /**
  * @test
- * @bug 7029048
- * @summary Checks for LD_LIBRARY_PATH on *nixes
+ * @bug 7029048 8217340 8217216
+ * @summary Ensure that the launcher defends against user settings of the
+ *          LD_LIBRARY_PATH environment variable on Unixes
  * @library /test/lib
  * @compile -XDignore.symbol.file ExecutionEnvironment.java Test7029048.java
  * @run main Test7029048
  */
 
-/*
- * 7029048: test for LD_LIBRARY_PATH set to different paths which may or
- * may not contain a libjvm.so, but we test to ensure that the launcher
- * behaves correctly in all cases.
- */
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -44,9 +40,6 @@ import java.util.List;
 import java.util.Map;
 
 public class Test7029048 extends TestHelper {
-
-    static int passes = 0;
-    static int errors = 0;
 
     private static final String LIBJVM = ExecutionEnvironment.LIBJVM;
     private static final String LD_LIBRARY_PATH =
@@ -66,9 +59,6 @@ public class Test7029048 extends TestHelper {
     private static final File dstClientDir = new File(dstLibDir, "client");
     private static final File dstClientLibjvm = new File(dstClientDir, LIBJVM);
 
-    private static final Map<String, String> env = new HashMap<>();
-
-
     static String getValue(String name, List<String> in) {
         for (String x : in) {
             String[] s = x.split("=");
@@ -79,8 +69,10 @@ public class Test7029048 extends TestHelper {
         return null;
     }
 
-    static void run(Map<String, String> env,
-            int nLLPComponents, String caseID) {
+    static boolean run(int nLLPComponents, File variantDir, String caseID) {
+
+        Map<String, String> env = new HashMap<>();
+        env.put(LD_LIBRARY_PATH, variantDir.getAbsolutePath());
         env.put(ExecutionEnvironment.JLDEBUG_KEY, "true");
         List<String> cmdsList = new ArrayList<>();
         cmdsList.add(javaCmd);
@@ -90,47 +82,46 @@ public class Test7029048 extends TestHelper {
         String[] cmds = new String[cmdsList.size()];
         TestResult tr = doExec(env, cmdsList.toArray(cmds));
         System.out.println(tr);
-        analyze(tr, nLLPComponents, caseID);
+        int len = getLLPComponents(tr);
+        if (len == nLLPComponents) {
+            System.out.printf("Test7029048 OK %s%n", caseID);
+            return true;
+        } else {
+            System.out.printf("Test7029048 FAIL %s: expected %d but got %d%n",
+                    caseID, nLLPComponents, len);
+            return false;
+        }
     }
 
-    static void analyze(TestResult tr, int nLLPComponents, String caseID) {
+    static int getLLPComponents(TestResult tr) {
         String envValue = getValue(LD_LIBRARY_PATH, tr.testOutput);
        /*
         * the envValue can never be null, since the test code should always
         * print a "null" string.
         */
         if (envValue == null) {
-            System.out.println(tr);
             throw new RuntimeException("NPE, likely a program crash ??");
         }
-        String values[] = envValue.split(File.pathSeparator);
-        if (values.length == nLLPComponents) {
-            System.out.println(caseID + " :OK");
-            passes++;
-        } else {
-            System.out.println("FAIL: test7029048, " + caseID);
-            System.out.println(" expected " + nLLPComponents
-                    + " but got " + values.length);
-            System.out.println(envValue);
-            System.out.println(tr);
-            errors++;
+
+        if (envValue.equals("null")) {
+            return 0;
         }
+
+        return envValue.split(File.pathSeparator).length;
     }
 
     /*
-     * A crucial piece, specifies what we should expect, given the conditions.
-     * That is for a given enum type, the value indicates how many absolute
-     * environment variables that can be expected. This value is used to base
-     * the actual expected values by adding the set environment variable usually
-     * it is 1, but it could be more if the test wishes to set more paths in
-     * the future.
+     * Describe the cases that we test.  Each case sets the environment
+     * variable LD_LIBRARY_PATH to a different value.  The value associated
+     * with a case is the number of path elements that we expect the launcher
+     * to add to that variable.
      */
-    private static enum LLP_VAR {
-        LLP_SET_NON_EXISTENT_PATH(0),   // env set, but the path does not exist
-        LLP_SET_EMPTY_PATH(0),          // env set, with a path but no libjvm.so
-        LLP_SET_WITH_JVM(3);            // env set, with a libjvm.so
+    private static enum TestCase {
+        NO_DIR(0),                      // Directory does not exist
+        NO_LIBJVM(0),                   // Directory exists, but no libjvm.so
+        LIBJVM(3);                      // Directory exists, with a libjvm.so
         private final int value;
-        LLP_VAR(int i) {
+        TestCase(int i) {
             this.value = i;
         }
     }
@@ -138,18 +129,19 @@ public class Test7029048 extends TestHelper {
     /*
      * test for 7029048
      */
-    static void test7029048() throws IOException {
+    static boolean runTest() throws IOException {
         String desc = null;
-        for (LLP_VAR v : LLP_VAR.values()) {
+        boolean pass = true;
+        for (TestCase v : TestCase.values()) {
             switch (v) {
-                case LLP_SET_WITH_JVM:
+                case LIBJVM:
                     // copy the files into the directory structures
                     copyFile(srcLibjvmSo, dstServerLibjvm);
                     // does not matter if it is client or a server
                     copyFile(srcLibjvmSo, dstClientLibjvm);
                     desc = "LD_LIBRARY_PATH should be set";
                     break;
-                case LLP_SET_EMPTY_PATH:
+                case NO_LIBJVM:
                     if (!dstClientDir.exists()) {
                         Files.createDirectories(dstClientDir.toPath());
                     } else {
@@ -162,43 +154,47 @@ public class Test7029048 extends TestHelper {
                         Files.deleteIfExists(dstServerLibjvm.toPath());
                     }
 
-                    desc = "LD_LIBRARY_PATH should not be set";
+                    desc = "LD_LIBRARY_PATH should not be set (no libjvm.so)";
+                    if (TestHelper.isAIX) {
+                        printSkipMessage(desc);
+                        continue;
+                    }
                     break;
-                case LLP_SET_NON_EXISTENT_PATH:
+                case NO_DIR:
                     if (dstLibDir.exists()) {
                         recursiveDelete(dstLibDir);
                     }
-                    desc = "LD_LIBRARY_PATH should not be set";
+                    desc = "LD_LIBRARY_PATH should not be set (no directory)";
+                    if (TestHelper.isAIX) {
+                        printSkipMessage(desc);
+                        continue;
+                    }
                     break;
                 default:
                     throw new RuntimeException("unknown case");
             }
 
+            // Add one to account for our setting
+            int nLLPComponents = v.value + 1;
+
             /*
              * Case 1: set the server path
              */
-            env.clear();
-            env.put(LD_LIBRARY_PATH, dstServerDir.getAbsolutePath());
-            run(env, v.value + 1, "Case 1: " + desc);
+            boolean pass1 = run(nLLPComponents, dstServerDir, "Case 1: " + desc);
 
             /*
              * Case 2: repeat with client path
              */
-            env.clear();
-            env.put(LD_LIBRARY_PATH, dstClientDir.getAbsolutePath());
-            run(env, v.value + 1, "Case 2: " + desc);
+            boolean pass2 = run(nLLPComponents, dstClientDir, "Case 2: " + desc);
 
-            if (isSolaris) {
-                /*
-                 * Case 3: set the appropriate LLP_XX flag,
-                 * java64 LLP_64 is relevant, LLP_32 is ignored
-                 */
-                env.clear();
-                env.put(LD_LIBRARY_PATH_64, dstServerDir.getAbsolutePath());
-                run(env, v.value + 1, "Case 3: " + desc);
-            }
+            pass &= pass1 && pass2;
         }
-        return;
+        return pass;
+    }
+
+    private static void printSkipMessage(String description) {
+        System.out.printf("Skipping test case '%s' because the Aix launcher" +
+                          " adds the paths in any case.%n", description);
     }
 
     public static void main(String... args) throws Exception {
@@ -213,19 +209,8 @@ public class Test7029048 extends TestHelper {
         // create our test jar first
         ExecutionEnvironment.createTestJar();
 
-        // run the tests
-        test7029048();
-        if (errors > 0) {
-            throw new Exception("Test7029048: FAIL: with "
-                    + errors + " errors and passes " + passes);
-        } else if (isSolaris && passes < 9) {
-            throw new Exception("Test7029048: FAIL: " +
-                    "all tests did not run, expected " + 9 + " got " + passes);
-        } else if (isLinux && passes < 6) {
-             throw new Exception("Test7029048: FAIL: " +
-                    "all tests did not run, expected " + 6 + " got " + passes);
-        } else {
-            System.out.println("Test7029048: PASS " + passes);
+        if (!runTest()) {
+            throw new Exception("Test7029048 fails");
         }
     }
 }

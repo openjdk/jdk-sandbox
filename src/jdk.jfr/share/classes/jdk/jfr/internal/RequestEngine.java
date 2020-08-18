@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -67,13 +68,15 @@ public final class RequestEngine {
                     } else {
                         jvm.emitEvent(type.getId(), JVM.counterTime(), 0);
                     }
-                    Logger.log(LogTag.JFR_SYSTEM_EVENT, LogLevel.DEBUG, ()-> "Executed periodic hook for " + type.getLogName());
+                    if (Logger.shouldLog(LogTag.JFR_SYSTEM_EVENT, LogLevel.DEBUG)) {
+                        Logger.log(LogTag.JFR_SYSTEM_EVENT, LogLevel.DEBUG, "Executed periodic hook for " + type.getLogName());
+                    }
                 } else {
                     executeSecure();
                 }
             } catch (Throwable e) {
                 // Prevent malicious user to propagate exception callback in the wrong context
-                Logger.log(LogTag.JFR_SYSTEM_EVENT, LogLevel.WARN, "Exception occured during execution of period hook for " + type.getLogName());
+                Logger.log(LogTag.JFR_SYSTEM_EVENT, LogLevel.WARN, "Exception occurred during execution of period hook for " + type.getLogName());
             }
         }
 
@@ -83,10 +86,12 @@ public final class RequestEngine {
                 public Void run() {
                     try {
                         hook.run();
-                        Logger.log(LogTag.JFR_EVENT, LogLevel.DEBUG, ()-> "Executed periodic hook for " + type.getLogName());
+                        if (Logger.shouldLog(LogTag.JFR_EVENT, LogLevel.DEBUG)) {
+                            Logger.log(LogTag.JFR_EVENT, LogLevel.DEBUG, "Executed periodic hook for " + type.getLogName());
+                        }
                     } catch (Throwable t) {
                         // Prevent malicious user to propagate exception callback in the wrong context
-                        Logger.log(LogTag.JFR_EVENT, LogLevel.WARN, "Exception occured during execution of period hook for " + type.getLogName());
+                        Logger.log(LogTag.JFR_EVENT, LogLevel.WARN, "Exception occurred during execution of period hook for " + type.getLogName());
                     }
                     return null;
                 }
@@ -96,6 +101,8 @@ public final class RequestEngine {
 
     private final static List<RequestHook> entries = new CopyOnWriteArrayList<>();
     private static long lastTimeMillis;
+    private static long flushInterval = Long.MAX_VALUE;
+    private static long streamDelta;
 
     public static void addHook(AccessControlContext acc, PlatformEventType type, Runnable hook) {
         Objects.requireNonNull(acc);
@@ -209,7 +216,9 @@ public final class RequestEngine {
             lastTimeMillis = now;
             return 0;
         }
-        for (RequestHook he : entries) {
+        Iterator<RequestHook> hookIterator = entries.iterator();
+        while(hookIterator.hasNext()) {
+            RequestHook he = hookIterator.next();
             long left = 0;
             PlatformEventType es = he.type;
             // Not enabled, skip.
@@ -228,13 +237,12 @@ public final class RequestEngine {
                 // for wait > period
                 r_delta = 0;
                 he.execute();
-                ;
             }
 
             // calculate time left
             left = (r_period - r_delta);
 
-            /**
+            /*
              * nothing outside checks that a period is >= 0, so left can end up
              * negative here. ex. (r_period =(-1)) - (r_delta = 0) if it is,
              * handle it.
@@ -250,7 +258,40 @@ public final class RequestEngine {
                 min = left;
             }
         }
+        // Flush should happen after all periodic events has been emitted
+        // Repeat of the above algorithm, but using the stream interval.
+        if (flushInterval != Long.MAX_VALUE) {
+            long r_period = flushInterval;
+            long r_delta = streamDelta;
+            r_delta += delta;
+            if (r_delta >= r_period) {
+                r_delta = 0;
+                MetadataRepository.getInstance().flush();
+                Utils.notifyFlush();
+            }
+            long left = (r_period - r_delta);
+            if (left < 0) {
+                left = 0;
+            }
+            streamDelta = r_delta;
+            if (min == 0 || left < min) {
+                min = left;
+            }
+        }
+
         lastTimeMillis = now;
         return min;
+    }
+
+    static void setFlushInterval(long millis) {
+        // Don't accept shorter interval than 1 s.
+        long interval = millis < 1000 ? 1000 : millis;
+        boolean needNotify = interval < flushInterval;
+        flushInterval = interval;
+        if (needNotify) {
+            synchronized (JVM.FILE_DELTA_CHANGE) {
+                JVM.FILE_DELTA_CHANGE.notifyAll();
+            }
+        }
     }
 }

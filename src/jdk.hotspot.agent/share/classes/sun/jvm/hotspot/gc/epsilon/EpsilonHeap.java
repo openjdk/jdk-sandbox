@@ -33,6 +33,8 @@ import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.memory.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class EpsilonHeap extends CollectedHeap {
 
@@ -66,8 +68,23 @@ public class EpsilonHeap extends CollectedHeap {
     return CollectedHeapName.EPSILON;
   }
 
+  @Override
+  public long capacity() {
+    return space.capacity();
+  }
+
+  @Override
+  public long used() {
+    return space.used();
+  }
+
   public ContiguousSpace space() {
     return space;
+  }
+
+  @Override
+  public void liveRegionsIterate(LiveRegionsClosure closure) {
+    closure.doLiveRegions(space());
   }
 
   @Override

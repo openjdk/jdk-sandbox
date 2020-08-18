@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@ import java.util.Map;
 import javax.security.auth.x500.X500Principal;
 
 import sun.security.util.IOUtils;
+import sun.security.util.KnownOIDs;
 import sun.security.util.ObjectIdentifier;
 import sun.security.x509.InvalidityDateExtension;
 
@@ -50,6 +51,7 @@ import sun.security.x509.InvalidityDateExtension;
  */
 public class CertificateRevokedException extends CertificateException {
 
+    @java.io.Serial
     private static final long serialVersionUID = 7839996631571608627L;
 
     /**
@@ -148,7 +150,7 @@ public class CertificateRevokedException extends CertificateException {
      * @return the invalidity date, or {@code null} if not specified
      */
     public Date getInvalidityDate() {
-        Extension ext = getExtensions().get("2.5.29.24");
+        Extension ext = getExtensions().get(KnownOIDs.InvalidityDate.value());
         if (ext == null) {
             return null;
         } else {
@@ -191,6 +193,7 @@ public class CertificateRevokedException extends CertificateException {
      * flag (boolean), the length of the encoded extension value byte array
      * (int), and the encoded extension value bytes.
      */
+    @java.io.Serial
     private void writeObject(ObjectOutputStream oos) throws IOException {
         // Write out the non-transient fields
         // (revocationDate, reason, authority)
@@ -217,6 +220,7 @@ public class CertificateRevokedException extends CertificateException {
     /**
      * Deserialize the {@code CertificateRevokedException} instance.
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream ois)
         throws IOException, ClassNotFoundException {
         // Read in the non-transient fields
@@ -241,9 +245,9 @@ public class CertificateRevokedException extends CertificateException {
         for (int i = 0; i < size; i++) {
             String oid = (String) ois.readObject();
             boolean critical = ois.readBoolean();
-            byte[] extVal = IOUtils.readNBytes(ois, ois.readInt());
+            byte[] extVal = IOUtils.readExactlyNBytes(ois, ois.readInt());
             Extension ext = sun.security.x509.Extension.newExtension
-                (new ObjectIdentifier(oid), critical, extVal);
+                (ObjectIdentifier.of(oid), critical, extVal);
             extensions.put(oid, ext);
         }
     }

@@ -48,9 +48,8 @@ public class bug4337267 {
     TestJPanel p1, p2;
     TestBufferedImage i1, i2;
     JComponent[] printq;
-    JFrame window;
+    static JFrame window;
     static boolean testFailed = false;
-    static boolean done = false;
 
     String shaped =
             "000 (E) 111 (A) \u0641\u0642\u0643 \u0662\u0662\u0662 (E) 333";
@@ -62,7 +61,6 @@ public class bug4337267 {
         testNonTextComponentHTML();
         testNonTextComponentPlain();
 
-        doneTask();
     }
 
     void initUI() {
@@ -73,33 +71,6 @@ public class bug4337267 {
         window.add(content);
         window.setVisible(true);
     }
-
-    Runnable printComponents = new Runnable() {
-        public void run() {
-            printComponent(printq[0], i1);
-            printComponent(printq[1], i2);
-        }
-    };
-
-    Runnable compareRasters = new Runnable() {
-        public void run() {
-            assertEquals(p1.image, p2.image);
-            assertEquals(i1, i2);
-        }
-    };
-
-    void doneTask() {
-        final Object monitor = this;
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                done = true;
-                synchronized(monitor) {
-                    monitor.notify();
-                }
-            }
-        });
-    }
-
 
     void fail(String message) {
         testFailed = true;
@@ -126,8 +97,10 @@ public class bug4337267 {
         area2.setText(text);
         window.repaint();
         printq = new JComponent[] { area1, area2 };
-        SwingUtilities.invokeLater(printComponents);
-        SwingUtilities.invokeLater(compareRasters);
+        printComponent(printq[0], i1);
+        printComponent(printq[1], i2);
+        assertEquals(p1.image, p2.image);
+        assertEquals(i1, i2);
     }
 
     void testNonTextComponentHTML() {
@@ -140,12 +113,14 @@ public class bug4337267 {
         label2.setText("<html>" + text);
         window.repaint();
         printq = new JComponent[] { label1, label2 };
-        SwingUtilities.invokeLater(printComponents);
-        SwingUtilities.invokeLater(compareRasters);
+        printComponent(printq[0], i1);
+        printComponent(printq[1], i2);
+        assertEquals(p1.image, p2.image);
+        assertEquals(i1, i2);
     }
 
     void testNonTextComponentPlain() {
-        System.out.println("testNonTextComponentHTML:");
+        System.out.println("testNonTextComponentPlain:");
         JLabel label1 = new JLabel();
         injectComponent(p1, label1, false);
         label1.setText(shaped);
@@ -154,8 +129,10 @@ public class bug4337267 {
         label2.setText(text);
         window.repaint();
         printq = new JComponent[] { label1, label2 };
-        SwingUtilities.invokeLater(printComponents);
-        SwingUtilities.invokeLater(compareRasters);
+        printComponent(printq[0], i1);
+        printComponent(printq[1], i2);
+        assertEquals(p1.image, p2.image);
+        assertEquals(i1, i2);
     }
 
     void setShaping(JComponent c) {
@@ -246,33 +223,26 @@ public class bug4337267 {
             Graphics g0 = image.getGraphics();
             super.paint(g0);
             g.drawImage(image, 0, 0, this);
-        }
-    }
+        } }
 
 
 
-    public static void main(String[] args) throws Throwable {
-        final bug4337267 test = new bug4337267();
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                test.run();
-            }
-        });
-
-         synchronized(test) {
-            while (!done) {
-                try {
-                    test.wait();
-                } catch (InterruptedException ex) {
-                    // do nothing
+    public static void main(String[] args) throws Exception {
+        try {
+            final bug4337267 test = new bug4337267();
+            SwingUtilities.invokeAndWait(new Runnable() {
+                public void run() {
+                    test.run();
                 }
+            });
+
+            if (testFailed) {
+                throw new RuntimeException("FAIL");
             }
-        }
 
-        if (testFailed) {
-            throw new RuntimeException("FAIL");
+            System.out.println("OK");
+        } finally {
+            if (window != null) SwingUtilities.invokeAndWait(() -> window.dispose());
         }
-
-        System.out.println("OK");
     }
 }

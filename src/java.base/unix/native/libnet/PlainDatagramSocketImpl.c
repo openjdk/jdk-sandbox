@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,6 @@
 #include <string.h>
 #include <sys/ioctl.h>
 
-#if defined(__solaris__)
-#include <sys/filio.h>
-#endif
-
 #include "net_util.h"
 
 #include "java_net_PlainDatagramSocketImpl.h"
@@ -52,11 +48,10 @@
 #endif
 #endif  //  __linux__
 
-#ifdef __solaris__
-#ifndef BSD_COMP
-#define BSD_COMP
-#endif
-#endif
+#ifdef __APPLE__
+#define IPV4_SNDBUF_LIMIT 65507
+#define IPV6_SNDBUF_LIMIT 65527
+#endif  // __APPLE__
 
 #ifndef IPTOS_TOS_MASK
 #define IPTOS_TOS_MASK 0x1e
@@ -78,10 +73,6 @@ static jfieldID pdsi_localPortID;
 static jfieldID pdsi_connected;
 static jfieldID pdsi_connectedAddress;
 static jfieldID pdsi_connectedPort;
-
-extern void setDefaultScopeID(JNIEnv *env, struct sockaddr *him);
-extern int getDefaultScopeID(JNIEnv *env);
-
 
 /*
  * Returns a java.lang.Integer based on 'i'
@@ -200,7 +191,6 @@ Java_java_net_PlainDatagramSocketImpl_bind0(JNIEnv *env, jobject this,
                                   JNI_TRUE) != 0) {
       return;
     }
-    setDefaultScopeID(env, &sa.sa);
 
     if (NET_Bind(fd, &sa, len) < 0)  {
         if (errno == EADDRINUSE || errno == EADDRNOTAVAIL ||
@@ -265,8 +255,6 @@ Java_java_net_PlainDatagramSocketImpl_connect0(JNIEnv *env, jobject this,
                                   JNI_TRUE) != 0) {
       return;
     }
-
-    setDefaultScopeID(env, &rmtaddr.sa);
 
     if (NET_Connect(fd, &rmtaddr.sa, len) == -1) {
         NET_ThrowByNameWithLastError(env, JNU_JAVANETPKG "ConnectException",
@@ -334,11 +322,11 @@ Java_java_net_PlainDatagramSocketImpl_disconnect0(JNIEnv *env, jobject this, jin
 
 /*
  * Class:     java_net_PlainDatagramSocketImpl
- * Method:    send
+ * Method:    send0
  * Signature: (Ljava/net/DatagramPacket;)V
  */
 JNIEXPORT void JNICALL
-Java_java_net_PlainDatagramSocketImpl_send(JNIEnv *env, jobject this,
+Java_java_net_PlainDatagramSocketImpl_send0(JNIEnv *env, jobject this,
                                            jobject packet) {
 
     char BUF[MAX_BUFFER_LEN];
@@ -393,7 +381,6 @@ Java_java_net_PlainDatagramSocketImpl_send(JNIEnv *env, jobject this,
         }
         rmtaddrP = &rmtaddr.sa;
     }
-    setDefaultScopeID(env, &rmtaddr.sa);
 
     if (packetBufferLen > MAX_BUFFER_LEN) {
         /* When JNI-ifying the JDK's IO routines, we turned
@@ -506,14 +493,6 @@ Java_java_net_PlainDatagramSocketImpl_peek(JNIEnv *env, jobject this,
     n = NET_RecvFrom(fd, buf, 1, MSG_PEEK, &rmtaddr.sa, &slen);
 
     if (n == -1) {
-
-#ifdef __solaris__
-        if (errno == ECONNREFUSED) {
-            int orig_errno = errno;
-            recv(fd, buf, 1, 0);
-            errno = orig_errno;
-        }
-#endif
         if (errno == ECONNREFUSED) {
             JNU_ThrowByName(env, JNU_JAVANETPKG "PortUnreachableException",
                             "ICMP Port Unreachable");
@@ -640,14 +619,6 @@ Java_java_net_PlainDatagramSocketImpl_peekData(JNIEnv *env, jobject this,
         n = packetBufferLen;
     }
     if (n == -1) {
-
-#ifdef __solaris__
-        if (errno == ECONNREFUSED) {
-            int orig_errno = errno;
-            (void) recv(fd, fullPacket, 1, 0);
-            errno = orig_errno;
-        }
-#endif
         (*env)->SetIntField(env, packet, dp_offsetID, 0);
         (*env)->SetIntField(env, packet, dp_lengthID, 0);
         if (errno == ECONNREFUSED) {
@@ -915,8 +886,10 @@ Java_java_net_PlainDatagramSocketImpl_datagramSocketCreate(JNIEnv *env,
         return;
     }
 
-    /* Disable IPV6_V6ONLY to ensure dual-socket support */
-    if (domain == AF_INET6) {
+    /*
+     * If IPv4 is available, disable IPV6_V6ONLY to ensure dual-socket support.
+     */
+    if (domain == AF_INET6 && ipv4_available()) {
         arg = 0;
         if (setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&arg,
                        sizeof(int)) < 0) {
@@ -927,15 +900,8 @@ Java_java_net_PlainDatagramSocketImpl_datagramSocketCreate(JNIEnv *env,
     }
 
 #ifdef __APPLE__
-    arg = 65507;
+    arg = (domain == AF_INET6) ? IPV6_SNDBUF_LIMIT : IPV4_SNDBUF_LIMIT;
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF,
-                   (char *)&arg, sizeof(arg)) < 0) {
-        getErrorString(errno, tmpbuf, sizeof(tmpbuf));
-        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", tmpbuf);
-        close(fd);
-        return;
-    }
-    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
                    (char *)&arg, sizeof(arg)) < 0) {
         getErrorString(errno, tmpbuf, sizeof(tmpbuf));
         JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", tmpbuf);
@@ -1084,7 +1050,7 @@ static void mcast_set_if_by_if_v6(JNIEnv *env, jobject this, int fd, jobject val
 
     if (setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
                    (const char*)&index, sizeof(index)) < 0) {
-        if (errno == EINVAL && index > 0) {
+        if ((errno == EINVAL || errno == EADDRNOTAVAIL) && index > 0) {
             JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException",
                 "IPV6_MULTICAST_IF failed (interface has IPv4 "
                 "address only?)");
@@ -1496,28 +1462,11 @@ jobject getMulticastInterface(JNIEnv *env, jobject this, int fd, jint opt) {
             CHECK_NULL_RETURN(ni_class, NULL);
         }
         ni = Java_java_net_NetworkInterface_getByInetAddress0(env, ni_class, addr);
+        JNU_CHECK_EXCEPTION_RETURN(env, NULL);
         if (ni) {
             return ni;
         }
-
-        /*
-         * The address doesn't appear to be bound at any known
-         * NetworkInterface. Therefore we construct a NetworkInterface
-         * with this address.
-         */
-        ni = (*env)->NewObject(env, ni_class, ni_ctrID, 0);
-        CHECK_NULL_RETURN(ni, NULL);
-
-        (*env)->SetIntField(env, ni, ni_indexID, -1);
-        addrArray = (*env)->NewObjectArray(env, 1, inet4_class, NULL);
-        CHECK_NULL_RETURN(addrArray, NULL);
-        (*env)->SetObjectArrayElement(env, addrArray, 0, addr);
-        (*env)->SetObjectField(env, ni, ni_addrsID, addrArray);
-        ni_name = (*env)->NewStringUTF(env, "");
-        if (ni_name != NULL) {
-            (*env)->SetObjectField(env, ni, ni_nameID, ni_name);
-        }
-        return ni;
+        return NULL;
     }
 
 
@@ -1624,19 +1573,6 @@ jobject getMulticastInterface(JNIEnv *env, jobject this, int fd, jint opt) {
         if (opt == java_net_SocketOptions_IP_MULTICAST_IF) {
             return addr;
         }
-
-        ni = (*env)->NewObject(env, ni_class, ni_ctrID, 0);
-        CHECK_NULL_RETURN(ni, NULL);
-        (*env)->SetIntField(env, ni, ni_indexID, -1);
-        addrArray = (*env)->NewObjectArray(env, 1, ia_class, NULL);
-        CHECK_NULL_RETURN(addrArray, NULL);
-        (*env)->SetObjectArrayElement(env, addrArray, 0, addr);
-        (*env)->SetObjectField(env, ni, ni_addrsID, addrArray);
-        ni_name = (*env)->NewStringUTF(env, "");
-        if (ni_name != NULL) {
-            (*env)->SetObjectField(env, ni, ni_nameID, ni_name);
-        }
-        return ni;
     }
     return NULL;
 }
@@ -1889,10 +1825,9 @@ Java_java_net_PlainDatagramSocketImpl_getTimeToLive(JNIEnv *env, jobject this) {
  * we must use the IPv4 socket options. This is because the IPv6 socket options
  * don't support IPv4-mapped addresses. This is true as per 2.2.19 and 2.4.7
  * kernel releases. In the future it's possible that IP_ADD_MEMBERSHIP
- * will be updated to return ENOPROTOOPT if uses with an IPv6 socket (Solaris
- * already does this). Thus to cater for this we first try with the IPv4
- * socket options and if they fail we use the IPv6 socket options. This
- * seems a reasonable failsafe solution.
+ * will be updated to return ENOPROTOOPT if uses with an IPv6 socket. Thus to
+ * cater for this we first try with the IPv4 socket options and if they fail we
+ * use the IPv6 socket options. This seems a reasonable failsafe solution.
  */
 static void mcast_join_leave(JNIEnv *env, jobject this,
                              jobject iaObj, jobject niObj,
@@ -2142,26 +2077,6 @@ static void mcast_join_leave(JNIEnv *env, jobject this,
                 NET_ThrowCurrent(env, "getsockopt IPV6_MULTICAST_IF failed");
                 return;
             }
-
-#ifdef __linux__
-            /*
-             * On 2.4.8+ if we join a group with the interface set to 0
-             * then the kernel records the interface it decides. This causes
-             * subsequent leave groups to fail as there is no match. Thus we
-             * pick the interface if there is a matching route.
-             */
-            if (index == 0) {
-                int rt_index = getDefaultIPv6Interface(&(mname6.ipv6mr_multiaddr));
-                if (rt_index > 0) {
-                    index = rt_index;
-                }
-            }
-#endif
-#ifdef MACOSX
-            if (family == AF_INET6 && index == 0) {
-                index = getDefaultScopeID(env);
-            }
-#endif
             mname6.ipv6mr_interface = index;
         } else {
             jint idx = (*env)->GetIntField(env, niObj, ni_indexID);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -202,8 +202,6 @@ PhaseChaitin::PhaseChaitin(uint unique, PhaseCFG &cfg, Matcher &matcher, bool sc
 #endif
        )
   , _live(0)
-  , _spilled_once(Thread::current()->resource_area())
-  , _spilled_twice(Thread::current()->resource_area())
   , _lo_degree(0), _lo_stk_degree(0), _hi_degree(0), _simplified(0)
   , _oldphi(unique)
 #ifndef PRODUCT
@@ -749,14 +747,6 @@ void PhaseChaitin::gather_lrg_masks( bool after_aggressive ) {
       LRG& lrg = lrgs(vreg);
       if (vreg) {              // No vreg means un-allocable (e.g. memory)
 
-        // Collect has-copy bit
-        if (idx) {
-          lrg._has_copy = 1;
-          uint clidx = _lrg_map.live_range_id(n->in(idx));
-          LRG& copy_src = lrgs(clidx);
-          copy_src._has_copy = 1;
-        }
-
         // Check for float-vs-int live range (used in register-pressure
         // calculations)
         const Type *n_type = n->bottom_type();
@@ -775,6 +765,17 @@ void PhaseChaitin::gather_lrg_masks( bool after_aggressive ) {
         }
 
 #ifndef PRODUCT
+        // Collect bits not used by product code, but which may be useful for
+        // debugging.
+
+        // Collect has-copy bit
+        if (idx) {
+          lrg._has_copy = 1;
+          uint clidx = _lrg_map.live_range_id(n->in(idx));
+          LRG& copy_src = lrgs(clidx);
+          copy_src._has_copy = 1;
+        }
+
         if (trace_spilling() && lrg._def != NULL) {
           // collect defs for MultiDef printing
           if (lrg._defs == NULL) {
@@ -866,11 +867,7 @@ void PhaseChaitin::gather_lrg_masks( bool after_aggressive ) {
           // SPARCV9  2     2     2          2    2         48 (24)     52 (26)
           // AMD64    1     1     1          1    1         14          15
           // -----------------------------------------------------
-#if defined(SPARC)
-          lrg.set_reg_pressure(2);  // use for v9 as well
-#else
           lrg.set_reg_pressure(1);  // normally one value per register
-#endif
           if( n_type->isa_oop_ptr() ) {
             lrg._is_oop = 1;
           }
@@ -879,7 +876,7 @@ void PhaseChaitin::gather_lrg_masks( bool after_aggressive ) {
         case Op_RegD:
           lrg.set_num_regs(2);
           // Define platform specific register pressure
-#if defined(SPARC) || defined(ARM32)
+#if defined(ARM32)
           lrg.set_reg_pressure(2);
 #elif defined(IA32)
           if( ireg == Op_RegL ) {
@@ -906,11 +903,7 @@ void PhaseChaitin::gather_lrg_masks( bool after_aggressive ) {
         case Op_RegFlags:
         case 0:                 // not an ideal register
           lrg.set_num_regs(1);
-#ifdef SPARC
-          lrg.set_reg_pressure(2);
-#else
           lrg.set_reg_pressure(1);
-#endif
           break;
         case Op_VecS:
           assert(Matcher::vector_size_supported(T_BYTE,4), "sanity");
@@ -1109,8 +1102,6 @@ void PhaseChaitin::set_was_low() {
 #endif
 }
 
-#define REGISTER_CONSTRAINED 16
-
 // Compute cost/area ratio, in case we spill.  Build the lo-degree list.
 void PhaseChaitin::cache_lrg_info( ) {
   Compile::TracePhase tp("chaitinCacheLRG", &timers[_t_chaitinCacheLRG]);
@@ -1145,56 +1136,6 @@ void PhaseChaitin::cache_lrg_info( ) {
   }
 }
 
-// Simplify the IFG by removing LRGs of low degree that have NO copies
-void PhaseChaitin::Pre_Simplify( ) {
-
-  // Warm up the lo-degree no-copy list
-  int lo_no_copy = 0;
-  for (uint i = 1; i < _lrg_map.max_lrg_id(); i++) {
-    if ((lrgs(i).lo_degree() && !lrgs(i)._has_copy) ||
-        !lrgs(i).alive() ||
-        lrgs(i)._must_spill) {
-      lrgs(i)._next = lo_no_copy;
-      lo_no_copy = i;
-    }
-  }
-
-  while( lo_no_copy ) {
-    uint lo = lo_no_copy;
-    lo_no_copy = lrgs(lo)._next;
-    int size = lrgs(lo).num_regs();
-
-    // Put the simplified guy on the simplified list.
-    lrgs(lo)._next = _simplified;
-    _simplified = lo;
-
-    // Yank this guy from the IFG.
-    IndexSet *adj = _ifg->remove_node( lo );
-
-    // If any neighbors' degrees fall below their number of
-    // allowed registers, then put that neighbor on the low degree
-    // list.  Note that 'degree' can only fall and 'numregs' is
-    // unchanged by this action.  Thus the two are equal at most once,
-    // so LRGs hit the lo-degree worklists at most once.
-    IndexSetIterator elements(adj);
-    uint neighbor;
-    while ((neighbor = elements.next()) != 0) {
-      LRG *n = &lrgs(neighbor);
-      assert( _ifg->effective_degree(neighbor) == n->degree(), "" );
-
-      // Check for just becoming of-low-degree
-      if( n->just_lo_degree() && !n->_has_copy ) {
-        assert(!(*_ifg->_yanked)[neighbor],"Cannot move to lo degree twice");
-        // Put on lo-degree list
-        n->_next = lo_no_copy;
-        lo_no_copy = neighbor;
-      }
-    }
-  } // End of while lo-degree no_copy worklist not empty
-
-  // No more lo-degree no-copy live ranges to simplify
-}
-
 // Simplify the IFG by removing LRGs of low degree.
 void PhaseChaitin::Simplify( ) {
   Compile::TracePhase tp("chaitinSimplify", &timers[_t_chaitinSimplify]);
@@ -1218,7 +1159,7 @@ void PhaseChaitin::Simplify( ) {
       lrgs(lo)._next = _simplified;
       _simplified = lo;
       // If this guy is "at risk" then mark his current neighbors
-      if( lrgs(lo)._at_risk ) {
+      if (lrgs(lo)._at_risk && !_ifg->neighbors(lo)->is_empty()) {
         IndexSetIterator elements(_ifg->neighbors(lo));
         uint datum;
         while ((datum = elements.next()) != 0) {
@@ -1227,7 +1168,10 @@ void PhaseChaitin::Simplify( ) {
       }
 
       // Yank this guy from the IFG.
-      IndexSet *adj = _ifg->remove_node( lo );
+      IndexSet *adj = _ifg->remove_node(lo);
+      if (adj->is_empty()) {
+        continue;
+      }
 
       // If any neighbors' degrees fall below their number of
       // allowed registers, then put that neighbor on the low degree
@@ -1239,20 +1183,23 @@ void PhaseChaitin::Simplify( ) {
       while ((neighbor = elements.next()) != 0) {
         LRG *n = &lrgs(neighbor);
 #ifdef ASSERT
-        if( VerifyOpto || VerifyRegisterAllocator ) {
+        if (VerifyRegisterAllocator) {
           assert( _ifg->effective_degree(neighbor) == n->degree(), "" );
         }
 #endif
 
         // Check for just becoming of-low-degree just counting registers.
         // _must_spill live ranges are already on the low degree list.
-        if( n->just_lo_degree() && !n->_must_spill ) {
-          assert(!(*_ifg->_yanked)[neighbor],"Cannot move to lo degree twice");
+        if (n->just_lo_degree() && !n->_must_spill) {
+          assert(!_ifg->_yanked->test(neighbor), "Cannot move to lo degree twice");
           // Pull from hi-degree list
           uint prev = n->_prev;
           uint next = n->_next;
-          if( prev ) lrgs(prev)._next = next;
-          else _hi_degree = next;
+          if (prev) {
+            lrgs(prev)._next = next;
+          } else {
+            _hi_degree = next;
+          }
           lrgs(next)._prev = prev;
           n->_next = _lo_degree;
           _lo_degree = neighbor;
@@ -1261,7 +1208,7 @@ void PhaseChaitin::Simplify( ) {
     } // End of while lo-degree/lo_stk_degree worklist not empty
 
     // Check for got everything: is hi-degree list empty?
-    if( !_hi_degree ) break;
+    if (!_hi_degree) break;
 
     // Time to pick a potential spill guy
     uint lo_score = _hi_degree;
@@ -1272,8 +1219,8 @@ void PhaseChaitin::Simplify( ) {
 
     // Find cheapest guy
     debug_only( int lo_no_simplify=0; );
-    for( uint i = _hi_degree; i; i = lrgs(i)._next ) {
-      assert( !(*_ifg->_yanked)[i], "" );
+    for (uint i = _hi_degree; i; i = lrgs(i)._next) {
+      assert(!_ifg->_yanked->test(i), "");
       // It's just vaguely possible to move hi-degree to lo-degree without
       // going through a just-lo-degree stage: If you remove a double from
       // a float live range it's degree will drop by 2 and you can skip the
@@ -1298,7 +1245,7 @@ void PhaseChaitin::Simplify( ) {
       // one block. In which case their area is 0 and score set to max.
       // In such case choose bound live range over unbound to free registers
       // or with smaller cost to spill.
-      if( iscore < score ||
+      if ( iscore < score ||
           (iscore == score && iarea > area && lrgs(lo_score)._was_spilled2) ||
           (iscore == score && iarea == area &&
            ( (ibound && !bound) || (ibound == bound && (icost < cost)) )) ) {
@@ -1363,7 +1310,7 @@ OptoReg::Name PhaseChaitin::bias_color( LRG &lrg, int chunk ) {
 
   // Check for "at_risk" LRG's
   uint risk_lrg = _lrg_map.find(lrg._risk_bias);
-  if( risk_lrg != 0 ) {
+  if (risk_lrg != 0 && !_ifg->neighbors(risk_lrg)->is_empty()) {
     // Walk the colored neighbors of the "at_risk" candidate
     // Choose a color which is both legal and already taken by a neighbor
     // of the "at_risk" candidate in order to improve the chances of the
@@ -1379,9 +1326,9 @@ OptoReg::Name PhaseChaitin::bias_color( LRG &lrg, int chunk ) {
   }
 
   uint copy_lrg = _lrg_map.find(lrg._copy_bias);
-  if( copy_lrg != 0 ) {
+  if (copy_lrg != 0) {
     // If he has a color,
-    if( !(*(_ifg->_yanked))[copy_lrg] ) {
+    if(!_ifg->_yanked->test(copy_lrg)) {
       OptoReg::Name reg = lrgs(copy_lrg).reg();
       //  And it is legal for you,
       if (is_legal_reg(lrg, reg, chunk))
@@ -1481,41 +1428,43 @@ uint PhaseChaitin::Select( ) {
 
     // Remove neighbor colors
     IndexSet *s = _ifg->neighbors(lidx);
-
     debug_only(RegMask orig_mask = lrg->mask();)
-    IndexSetIterator elements(s);
-    uint neighbor;
-    while ((neighbor = elements.next()) != 0) {
-      // Note that neighbor might be a spill_reg.  In this case, exclusion
-      // of its color will be a no-op, since the spill_reg chunk is in outer
-      // space.  Also, if neighbor is in a different chunk, this exclusion
-      // will be a no-op.  (Later on, if lrg runs out of possible colors in
-      // its chunk, a new chunk of color may be tried, in which case
-      // examination of neighbors is started again, at retry_next_chunk.)
-      LRG &nlrg = lrgs(neighbor);
-      OptoReg::Name nreg = nlrg.reg();
-      // Only subtract masks in the same chunk
-      if( nreg >= chunk && nreg < chunk + RegMask::CHUNK_SIZE ) {
+
+    if (!s->is_empty()) {
+      IndexSetIterator elements(s);
+      uint neighbor;
+      while ((neighbor = elements.next()) != 0) {
+        // Note that neighbor might be a spill_reg.  In this case, exclusion
+        // of its color will be a no-op, since the spill_reg chunk is in outer
+        // space.  Also, if neighbor is in a different chunk, this exclusion
+        // will be a no-op.  (Later on, if lrg runs out of possible colors in
+        // its chunk, a new chunk of color may be tried, in which case
+        // examination of neighbors is started again, at retry_next_chunk.)
+        LRG &nlrg = lrgs(neighbor);
+        OptoReg::Name nreg = nlrg.reg();
+        // Only subtract masks in the same chunk
+        if (nreg >= chunk && nreg < chunk + RegMask::CHUNK_SIZE) {
 #ifndef PRODUCT
-        uint size = lrg->mask().Size();
-        RegMask rm = lrg->mask();
+          uint size = lrg->mask().Size();
+          RegMask rm = lrg->mask();
 #endif
-        lrg->SUBTRACT(nlrg.mask());
+          lrg->SUBTRACT(nlrg.mask());
 #ifndef PRODUCT
-        if (trace_spilling() && lrg->mask().Size() != size) {
-          ttyLocker ttyl;
-          tty->print("L%d ", lidx);
-          rm.dump();
-          tty->print(" intersected L%d ", neighbor);
-          nlrg.mask().dump();
-          tty->print(" removed ");
-          rm.SUBTRACT(lrg->mask());
-          rm.dump();
-          tty->print(" leaving ");
-          lrg->mask().dump();
-          tty->cr();
+          if (trace_spilling() && lrg->mask().Size() != size) {
+            ttyLocker ttyl;
+            tty->print("L%d ", lidx);
+            rm.dump();
+            tty->print(" intersected L%d ", neighbor);
+            nlrg.mask().dump();
+            tty->print(" removed ");
+            rm.SUBTRACT(lrg->mask());
+            rm.dump();
+            tty->print(" leaving ");
+            lrg->mask().dump();
+            tty->cr();
+          }
+#endif
         }
-#endif
       }
     }
     //assert(is_allstack == lrg->mask().is_AllStack(), "nbrs must not change AllStackedness");
@@ -1527,10 +1476,6 @@ uint PhaseChaitin::Select( ) {
 
     // Check if a color is available and if so pick the color
     OptoReg::Name reg = choose_color( *lrg, chunk );
-#ifdef SPARC
-    debug_only(lrg->compute_set_mask_size());
-    assert(lrg->num_regs() < 2 || lrg->is_bound() || is_even(reg-1), "allocate all doubles aligned");
-#endif
 
     //---------------
     // If we fail to color and the AllStack flag is set, trigger
@@ -1614,18 +1559,6 @@ uint PhaseChaitin::Select( ) {
   }
 
   return spill_reg-LRG::SPILL_REG;      // Return number of spills
-}
-
-// Copy 'was_spilled'-edness from the source Node to the dst Node.
-void PhaseChaitin::copy_was_spilled( Node *src, Node *dst ) {
-  if( _spilled_once.test(src->_idx) ) {
-    _spilled_once.set(dst->_idx);
-    lrgs(_lrg_map.find(dst))._was_spilled1 = 1;
-    if( _spilled_twice.test(src->_idx) ) {
-      _spilled_twice.set(dst->_idx);
-      lrgs(_lrg_map.find(dst))._was_spilled2 = 1;
-    }
-  }
 }
 
 // Set the 'spilled_once' or 'spilled_twice' flag on a node.
@@ -1888,7 +1821,7 @@ bool PhaseChaitin::stretch_base_pointer_live_ranges(ResourceArea *a) {
 
       // Found a safepoint?
       JVMState *jvms = n->jvms();
-      if( jvms ) {
+      if (jvms && !liveout.is_empty()) {
         // Now scan for a live derived pointer
         IndexSetIterator elements(&liveout);
         uint neighbor;
@@ -1957,7 +1890,7 @@ void PhaseChaitin::add_reference(const Node *node, const Node *old_node) {
 }
 
 #ifndef PRODUCT
-void PhaseChaitin::dump(const Node *n) const {
+void PhaseChaitin::dump(const Node* n) const {
   uint r = (n->_idx < _lrg_map.size()) ? _lrg_map.find_const(n) : 0;
   tty->print("L%d",r);
   if (r && n->Opcode() != Op_Phi) {
@@ -2035,7 +1968,7 @@ void PhaseChaitin::dump(const Node *n) const {
   tty->print("\n");
 }
 
-void PhaseChaitin::dump(const Block *b) const {
+void PhaseChaitin::dump(const Block* b) const {
   b->dump_head(&_cfg);
 
   // For all instructions
@@ -2131,7 +2064,7 @@ void PhaseChaitin::dump_simplified() const {
   tty->cr();
 }
 
-static char *print_reg( OptoReg::Name reg, const PhaseChaitin *pc, char *buf ) {
+static char *print_reg(OptoReg::Name reg, const PhaseChaitin* pc, char* buf) {
   if ((int)reg < 0)
     sprintf(buf, "<OptoReg::%d>", (int)reg);
   else if (OptoReg::is_reg(reg))
@@ -2144,10 +2077,8 @@ static char *print_reg( OptoReg::Name reg, const PhaseChaitin *pc, char *buf ) {
 
 // Dump a register name into a buffer.  Be intelligent if we get called
 // before allocation is complete.
-char *PhaseChaitin::dump_register( const Node *n, char *buf  ) const {
-  if( this == NULL ) {          // Not got anything?
-    sprintf(buf,"N%d",n->_idx); // Then use Node index
-  } else if( _node_regs ) {
+char *PhaseChaitin::dump_register(const Node* n, char* buf) const {
+  if( _node_regs ) {
     // Post allocation, use direct mappings, no LRG info available
     print_reg( get_reg_first(n), this, buf );
   } else {
@@ -2295,7 +2226,7 @@ void PhaseChaitin::dump_frame() const {
   tty->print_cr("#");
 }
 
-void PhaseChaitin::dump_bb( uint pre_order ) const {
+void PhaseChaitin::dump_bb(uint pre_order) const {
   tty->print_cr("---dump of B%d---",pre_order);
   for (uint i = 0; i < _cfg.number_of_blocks(); i++) {
     Block* block = _cfg.get_block(i);
@@ -2305,7 +2236,7 @@ void PhaseChaitin::dump_bb( uint pre_order ) const {
   }
 }
 
-void PhaseChaitin::dump_lrg( uint lidx, bool defs_only ) const {
+void PhaseChaitin::dump_lrg(uint lidx, bool defs_only) const {
   tty->print_cr("---dump of L%d---",lidx);
 
   if (_ifg) {
@@ -2362,6 +2293,102 @@ void PhaseChaitin::dump_lrg( uint lidx, bool defs_only ) const {
   tty->cr();
 }
 #endif // not PRODUCT
+
+#ifdef ASSERT
+// Verify that base pointers and derived pointers are still sane.
+void PhaseChaitin::verify_base_ptrs(ResourceArea* a) const {
+  Unique_Node_List worklist(a);
+  for (uint i = 0; i < _cfg.number_of_blocks(); i++) {
+    Block* block = _cfg.get_block(i);
+    for (uint j = block->end_idx() + 1; j > 1; j--) {
+      Node* n = block->get_node(j-1);
+      if (n->is_Phi()) {
+        break;
+      }
+      // Found a safepoint?
+      if (n->is_MachSafePoint()) {
+        MachSafePointNode* sfpt = n->as_MachSafePoint();
+        JVMState* jvms = sfpt->jvms();
+        if (jvms != NULL) {
+          // Now scan for a live derived pointer
+          if (jvms->oopoff() < sfpt->req()) {
+            // Check each derived/base pair
+            for (uint idx = jvms->oopoff(); idx < sfpt->req(); idx++) {
+              Node* check = sfpt->in(idx);
+              bool is_derived = ((idx - jvms->oopoff()) & 1) == 0;
+              // search upwards through spills and spill phis for AddP
+              worklist.clear();
+              worklist.push(check);
+              uint k = 0;
+              while (k < worklist.size()) {
+                check = worklist.at(k);
+                assert(check, "Bad base or derived pointer");
+                // See PhaseChaitin::find_base_for_derived() for all cases.
+                int isc = check->is_Copy();
+                if (isc) {
+                  worklist.push(check->in(isc));
+                } else if (check->is_Phi()) {
+                  for (uint m = 1; m < check->req(); m++) {
+                    worklist.push(check->in(m));
+                  }
+                } else if (check->is_Con()) {
+                  if (is_derived) {
+                    // Derived is NULL+offset
+                    assert(!is_derived || check->bottom_type()->is_ptr()->ptr() == TypePtr::Null, "Bad derived pointer");
+                  } else {
+                    assert(check->bottom_type()->is_ptr()->_offset == 0, "Bad base pointer");
+                    // Base either ConP(NULL) or loadConP
+                    if (check->is_Mach()) {
+                      assert(check->as_Mach()->ideal_Opcode() == Op_ConP, "Bad base pointer");
+                    } else {
+                      assert(check->Opcode() == Op_ConP &&
+                             check->bottom_type()->is_ptr()->ptr() == TypePtr::Null, "Bad base pointer");
+                    }
+                  }
+                } else if (check->bottom_type()->is_ptr()->_offset == 0) {
+                  if (check->is_Proj() || (check->is_Mach() &&
+                     (check->as_Mach()->ideal_Opcode() == Op_CreateEx ||
+                      check->as_Mach()->ideal_Opcode() == Op_ThreadLocal ||
+                      check->as_Mach()->ideal_Opcode() == Op_CMoveP ||
+                      check->as_Mach()->ideal_Opcode() == Op_CheckCastPP ||
+#ifdef _LP64
+                      (UseCompressedOops && check->as_Mach()->ideal_Opcode() == Op_CastPP) ||
+                      (UseCompressedOops && check->as_Mach()->ideal_Opcode() == Op_DecodeN) ||
+                      (UseCompressedClassPointers && check->as_Mach()->ideal_Opcode() == Op_DecodeNKlass) ||
+#endif // _LP64
+                      check->as_Mach()->ideal_Opcode() == Op_LoadP ||
+                      check->as_Mach()->ideal_Opcode() == Op_LoadKlass))) {
+                    // Valid nodes
+                  } else {
+                    check->dump();
+                    assert(false, "Bad base or derived pointer");
+                  }
+                } else {
+                  assert(is_derived, "Bad base pointer");
+                  assert(check->is_Mach() && check->as_Mach()->ideal_Opcode() == Op_AddP, "Bad derived pointer");
+                }
+                k++;
+                assert(k < 100000, "Derived pointer checking in infinite loop");
+              } // End while
+            }
+          } // End of check for derived pointers
+        } // End of Kcheck for debug info
+      } // End of if found a safepoint
+    } // End of forall instructions in block
+  } // End of forall blocks
+}
+
+// Verify that graphs and base pointers are still sane.
+void PhaseChaitin::verify(ResourceArea* a, bool verify_ifg) const {
+  if (VerifyRegisterAllocator) {
+    _cfg.verify();
+    verify_base_ptrs(a);
+    if (verify_ifg) {
+      _ifg->verify(this);
+    }
+  }
+}
+#endif // ASSERT
 
 int PhaseChaitin::_final_loads  = 0;
 int PhaseChaitin::_final_stores = 0;

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2017, SAP SE. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@
 #include "ci/ciTypeArrayKlass.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "utilities/powerOfTwo.hpp"
 #include "vmreg_ppc.inline.hpp"
 
 #ifdef ASSERT
@@ -308,7 +309,7 @@ void LIRGenerator::store_stack_parameter(LIR_Opr item, ByteSize offset_from_sp) 
   BasicType t = item->type();
   LIR_Opr sp_opr = FrameMap::SP_opr;
   if ((t == T_LONG || t == T_DOUBLE) &&
-      ((in_bytes(offset_from_sp) - STACK_BIAS) % 8 != 0)) {
+      (in_bytes(offset_from_sp) % 8 != 0)) {
     __ unaligned_move(item, new LIR_Address(sp_opr, in_bytes(offset_from_sp), t));
   } else {
     __ move(item, new LIR_Address(sp_opr, in_bytes(offset_from_sp), t));
@@ -439,7 +440,7 @@ void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
     if (divisor->is_register()) {
       CodeEmitInfo* null_check_info = state_for(x);
       __ cmp(lir_cond_equal, divisor, LIR_OprFact::longConst(0));
-      __ branch(lir_cond_equal, T_LONG, new DivByZeroStub(null_check_info));
+      __ branch(lir_cond_equal, new DivByZeroStub(null_check_info));
     } else {
       jlong const_divisor = divisor->as_constant_ptr()->as_jlong();
       if (const_divisor == 0) {
@@ -493,7 +494,7 @@ void LIRGenerator::do_ArithmeticOp_Int(ArithmeticOp* x) {
     if (divisor->is_register()) {
       CodeEmitInfo* null_check_info = state_for(x);
       __ cmp(lir_cond_equal, divisor, LIR_OprFact::intConst(0));
-      __ branch(lir_cond_equal, T_INT, new DivByZeroStub(null_check_info));
+      __ branch(lir_cond_equal, new DivByZeroStub(null_check_info));
     } else {
       jint const_divisor = divisor->as_constant_ptr()->as_jint();
       if (const_divisor == 0) {
@@ -574,13 +575,13 @@ inline bool can_handle_logic_op_as_uimm(ValueType *type, Bytecodes::Code bc) {
 
   // see Assembler::andi
   if (bc == Bytecodes::_iand &&
-      (is_power_of_2_long(int_or_long_const+1) ||
-       is_power_of_2_long(int_or_long_const) ||
-       is_power_of_2_long(-int_or_long_const))) return true;
+      (is_power_of_2(int_or_long_const+1) ||
+       is_power_of_2(int_or_long_const) ||
+       is_power_of_2(-int_or_long_const))) return true;
   if (bc == Bytecodes::_land &&
-      (is_power_of_2_long(int_or_long_const+1) ||
-       (Assembler::is_uimm(int_or_long_const, 32) && is_power_of_2_long(int_or_long_const)) ||
-       (int_or_long_const != min_jlong && is_power_of_2_long(-int_or_long_const)))) return true;
+      (is_power_of_2(int_or_long_const+1) ||
+       (Assembler::is_uimm(int_or_long_const, 32) && is_power_of_2(int_or_long_const)) ||
+       (int_or_long_const != min_jlong && is_power_of_2(-int_or_long_const)))) return true;
 
   // special case: xor -1
   if ((bc == Bytecodes::_ixor || bc == Bytecodes::_lxor) &&
@@ -648,7 +649,7 @@ LIR_Opr LIRGenerator::atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_
     __ membar_release();
   }
 
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
     if (UseCompressedOops) {
       t1 = new_register(T_OBJECT);
       t2 = new_register(T_OBJECT);
@@ -1170,9 +1171,9 @@ void LIRGenerator::do_If(If* x) {
   profile_branch(x, cond);
   move_to_phi(x->state());
   if (x->x()->type()->is_float_kind()) {
-    __ branch(lir_cond(cond), right->type(), x->tsux(), x->usux());
+    __ branch(lir_cond(cond), x->tsux(), x->usux());
   } else {
-    __ branch(lir_cond(cond), right->type(), x->tsux());
+    __ branch(lir_cond(cond), x->tsux());
   }
   assert(x->default_sux() == x->fsux(), "wrong destination above");
   __ jump(x->default_sux());

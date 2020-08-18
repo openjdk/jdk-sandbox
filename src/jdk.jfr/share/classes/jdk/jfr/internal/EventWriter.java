@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 package jdk.jfr.internal;
 
 import jdk.internal.misc.Unsafe;
-import jdk.jfr.internal.consumer.RecordingInput;
+import jdk.jfr.internal.consumer.StringParser;
 
 /**
  * Class must reside in a package with package restriction.
@@ -35,21 +35,25 @@ import jdk.jfr.internal.consumer.RecordingInput;
  *
  */
 public final class EventWriter {
+
+    // Event may not exceed size for a padded integer
+    private static final long MAX_EVENT_SIZE = (1 << 28) -1;
     private static final Unsafe unsafe = Unsafe.getUnsafe();
     private final static JVM jvm = JVM.getJVM();
 
+    // The JVM needs access to these values. Don't remove
+    private final long threadID;
     private long startPosition;
     private long startPositionAddress;
     private long currentPosition;
     private long maxPosition;
-    private final long threadID;
-    private PlatformEventType eventType;
-    private int maxEventSize;
-    private boolean started;
     private boolean valid;
+    boolean notified; // Not private to avoid being optimized away
+
+    private PlatformEventType eventType;
+    private boolean started;
     private boolean flushOnEnd;
-    // set by the JVM, not private to avoid being optimized out
-    boolean notified;
+    private boolean largeSize = false;
 
     public static EventWriter getEventWriter() {
         EventWriter ew = (EventWriter)JVM.getEventWriter();
@@ -115,18 +119,18 @@ public final class EventWriter {
 
     public void putString(String s, StringPool pool) {
         if (s == null) {
-            putByte(RecordingInput.STRING_ENCODING_NULL);
+            putByte(StringParser.Encoding.NULL.byteValue());
             return;
         }
         int length = s.length();
         if (length == 0) {
-            putByte(RecordingInput.STRING_ENCODING_EMPTY_STRING);
+            putByte(StringParser.Encoding.EMPTY_STRING.byteValue());
             return;
         }
         if (length > StringPool.MIN_LIMIT && length < StringPool.MAX_LIMIT) {
             long l = StringPool.addString(s);
             if (l > 0) {
-                putByte(RecordingInput.STRING_ENCODING_CONSTANT_POOL);
+                putByte(StringParser.Encoding.CONSTANT_POOL.byteValue());
                 putLong(l);
                 return;
             }
@@ -138,7 +142,7 @@ public final class EventWriter {
     private void putStringValue(String s) {
         int length = s.length();
         if (isValidForSize(1 + 5 + 3 * length)) {
-            putUncheckedByte(RecordingInput.STRING_ENCODING_CHAR_ARRAY); // 1 byte
+            putUncheckedByte(StringParser.Encoding.CHAR_ARRAY.byteValue()); // 1 byte
             putUncheckedInt(length); // max 5 bytes
             for (int i = 0; i < length; i++) {
                 putUncheckedChar(s.charAt(i)); // max 3 bytes
@@ -175,9 +179,15 @@ public final class EventWriter {
     }
 
     private void reserveEventSizeField() {
-        // move currentPosition Integer.Bytes offset from start position
-        if (isValidForSize(Integer.BYTES)) {
-            currentPosition += Integer.BYTES;
+        this.largeSize = eventType.isLargeSize();
+        if (largeSize) {
+            if (isValidForSize(Integer.BYTES)) {
+                currentPosition +=  Integer.BYTES;
+            }
+        } else {
+            if (isValidForSize(1)) {
+                currentPosition += 1;
+            }
         }
     }
 
@@ -197,11 +207,7 @@ public final class EventWriter {
         if (currentPosition + requestedSize > maxPosition) {
             flushOnEnd = flush(usedSize(), requestedSize);
             // retry
-            if (currentPosition + requestedSize > maxPosition) {
-                Logger.log(LogTag.JFR_SYSTEM,
-                           LogLevel.WARN, () ->
-                               "Unable to commit. Requested size " + requestedSize + " too large");
-                valid = false;
+            if (!valid) {
                 return false;
             }
         }
@@ -246,11 +252,25 @@ public final class EventWriter {
             return true;
         }
         final int eventSize = usedSize();
-        if (eventSize > maxEventSize) {
+        if (eventSize > MAX_EVENT_SIZE) {
             reset();
             return true;
         }
-        Bits.putInt(startPosition, makePaddedInt(eventSize));
+
+        if (largeSize) {
+            Bits.putInt(startPosition, makePaddedInt(eventSize));
+        } else {
+            if (eventSize < 128) {
+                Bits.putByte(startPosition, (byte) eventSize);
+            } else {
+                eventType.setLargeSize();
+                reset();
+                // returning false will trigger restart of the
+                // event write attempt
+                return false;
+            }
+        }
+
         if (isNotified()) {
             resetNotified();
             reset();
@@ -258,7 +278,8 @@ public final class EventWriter {
             return false;
         }
         startPosition = currentPosition;
-        unsafe.putAddress(startPositionAddress, startPosition);
+        unsafe.storeStoreFence();
+        unsafe.putAddress(startPositionAddress, currentPosition);
         // the event is now committed
         if (flushOnEnd) {
             flushOnEnd = flush();
@@ -276,8 +297,6 @@ public final class EventWriter {
         flushOnEnd = false;
         this.valid = valid;
         notified = false;
-        // event may not exceed size for a padded integer
-        maxEventSize = (1 << 28) -1;
     }
 
     private static int makePaddedInt(int v) {

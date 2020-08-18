@@ -132,6 +132,48 @@ typedef enum {
     CAIRO_FORMAT_RGB16_565 = 4
 } cairo_format_t;
 
+typedef enum _cairo_status {
+    CAIRO_STATUS_SUCCESS = 0,
+
+    CAIRO_STATUS_NO_MEMORY,
+    CAIRO_STATUS_INVALID_RESTORE,
+    CAIRO_STATUS_INVALID_POP_GROUP,
+    CAIRO_STATUS_NO_CURRENT_POINT,
+    CAIRO_STATUS_INVALID_MATRIX,
+    CAIRO_STATUS_INVALID_STATUS,
+    CAIRO_STATUS_NULL_POINTER,
+    CAIRO_STATUS_INVALID_STRING,
+    CAIRO_STATUS_INVALID_PATH_DATA,
+    CAIRO_STATUS_READ_ERROR,
+    CAIRO_STATUS_WRITE_ERROR,
+    CAIRO_STATUS_SURFACE_FINISHED,
+    CAIRO_STATUS_SURFACE_TYPE_MISMATCH,
+    CAIRO_STATUS_PATTERN_TYPE_MISMATCH,
+    CAIRO_STATUS_INVALID_CONTENT,
+    CAIRO_STATUS_INVALID_FORMAT,
+    CAIRO_STATUS_INVALID_VISUAL,
+    CAIRO_STATUS_FILE_NOT_FOUND,
+    CAIRO_STATUS_INVALID_DASH,
+    CAIRO_STATUS_INVALID_DSC_COMMENT,
+    CAIRO_STATUS_INVALID_INDEX,
+    CAIRO_STATUS_CLIP_NOT_REPRESENTABLE,
+    CAIRO_STATUS_TEMP_FILE_ERROR,
+    CAIRO_STATUS_INVALID_STRIDE,
+    CAIRO_STATUS_FONT_TYPE_MISMATCH,
+    CAIRO_STATUS_USER_FONT_IMMUTABLE,
+    CAIRO_STATUS_USER_FONT_ERROR,
+    CAIRO_STATUS_NEGATIVE_COUNT,
+    CAIRO_STATUS_INVALID_CLUSTERS,
+    CAIRO_STATUS_INVALID_SLANT,
+    CAIRO_STATUS_INVALID_WEIGHT,
+    CAIRO_STATUS_INVALID_SIZE,
+    CAIRO_STATUS_USER_FONT_NOT_IMPLEMENTED,
+    CAIRO_STATUS_DEVICE_TYPE_MISMATCH,
+    CAIRO_STATUS_DEVICE_ERROR,
+
+    CAIRO_STATUS_LAST_STATUS
+} cairo_status_t;
+
 /* We define all structure pointers to be void* */
 typedef void GdkPixbuf;
 typedef void GMainContext;
@@ -162,6 +204,8 @@ typedef void GtkAdjustment;
 typedef void GtkRange;
 typedef void GtkProgressBar;
 typedef void GtkProgress;
+typedef void GtkWidgetPath;
+typedef void GtkPaned;
 
 /* Some real structures */
 typedef struct
@@ -238,7 +282,6 @@ typedef struct {
   GType    owner_type;
 } GParamSpec;
 
-
 static gchar* (*fp_glib_check_version)(guint required_major,
                            guint required_minor, guint required_micro);
 
@@ -253,6 +296,7 @@ static gchar* (*fp_gtk_check_version)(guint required_major, guint
 static void (*fp_g_free)(gpointer mem);
 static void (*fp_g_object_unref)(gpointer object);
 static GdkWindow *(*fp_gdk_get_default_root_window) (void);
+static int (*fp_gdk_window_get_scale_factor) (GdkWindow *window);
 
 static int (*fp_gdk_pixbuf_get_bits_per_sample)(const GdkPixbuf *pixbuf);
 static guchar *(*fp_gdk_pixbuf_get_pixels)(const GdkPixbuf *pixbuf);
@@ -362,8 +406,10 @@ static void (*fp_g_strfreev)(gchar **str_array);
 static cairo_surface_t* (*fp_cairo_image_surface_create)(cairo_format_t format,
                                int width, int height);
 static void (*fp_cairo_surface_destroy)(cairo_surface_t *surface);
+static cairo_status_t (*fp_cairo_surface_status)(cairo_surface_t *surface);
 static cairo_t* (*fp_cairo_create)(cairo_surface_t *target);
 static void (*fp_cairo_destroy)(cairo_t *cr);
+static cairo_status_t (*fp_cairo_status)(cairo_t *cr);
 static void (*fp_cairo_fill)(cairo_t *cr);
 static void (*fp_cairo_surface_flush)(cairo_surface_t *surface);
 static void (*fp_cairo_rectangle)(cairo_t *cr, double x, double y, double width,
@@ -502,8 +548,7 @@ static GtkWidget* (*fp_gtk_combo_box_entry_new)();
 static GtkWidget* (*fp_gtk_entry_new)();
 static GtkWidget* (*fp_gtk_fixed_new)();
 static GtkWidget* (*fp_gtk_handle_box_new)();
-static GtkWidget* (*fp_gtk_hpaned_new)();
-static GtkWidget* (*fp_gtk_vpaned_new)();
+static GtkWidget* (*fp_gtk_paned_new)(GtkOrientation orientation);
 static GtkWidget* (*fp_gtk_scale_new)(GtkOrientation  orientation,
                                        GtkAdjustment* adjustment);
 static GtkWidget* (*fp_gtk_hscrollbar_new)(GtkAdjustment* adjustment);
@@ -573,5 +618,18 @@ static void (*fp_gtk_arrow_set)(GtkWidget* arrow,
 static void (*fp_gtk_widget_size_request)(GtkWidget *widget,
                                           GtkRequisition *requisition);
 static GtkAdjustment* (*fp_gtk_range_get_adjustment)(GtkRange* range);
+static GtkWidgetPath* (*fp_gtk_widget_path_copy)
+        (const GtkWidgetPath *path);
+static const GtkWidgetPath* (*fp_gtk_style_context_get_path)
+        (GtkStyleContext *context);
+static GtkWidgetPath* (*fp_gtk_widget_path_new) (void);
+static gint (*fp_gtk_widget_path_append_type)
+        (GtkWidgetPath *path, GType type);
+static void (*fp_gtk_widget_path_iter_set_object_name)
+        (GtkWidgetPath *path, gint pos, const char *name);
+static void (*fp_gtk_style_context_set_path)
+        (GtkStyleContext *context, GtkWidgetPath *path);
+static void (*fp_gtk_widget_path_unref) (GtkWidgetPath *path);
+static GtkStyleContext* (*fp_gtk_style_context_new) (void);
 
 #endif /* !_GTK3_INTERFACE_H */

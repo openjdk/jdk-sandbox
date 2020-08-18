@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -333,7 +333,6 @@ private:
 
   bool               _verify;  // verify graph
 
-  JavaObjectNode* phantom_obj; // Unknown object
   JavaObjectNode*    null_obj;
   Node*             _pcmp_neq; // ConI(#CC_GT)
   Node*              _pcmp_eq; // ConI(#CC_EQ)
@@ -343,6 +342,10 @@ private:
 
   Unique_Node_List ideal_nodes; // Used by CG construction and types splitting.
 
+public:
+  JavaObjectNode* phantom_obj; // Unknown object
+
+private:
   // Address of an element in _nodes.  Used when the element is to be modified
   PointsToNode* ptnode_adr(int idx) const {
     // There should be no new ideal nodes during ConnectionGraph build,
@@ -364,12 +367,6 @@ private:
 
   // Add PointsToNode node corresponding to a call
   void add_call_node(CallNode* call);
-
-  // Map ideal node to existing PointsTo node (usually phantom_object).
-  void map_ideal_node(Node *n, PointsToNode* ptn) {
-    assert(ptn != NULL, "only existing PointsTo node");
-    _nodes.at_put(n->_idx, ptn);
-  }
 
   // Create PointsToNode node and add it to Connection Graph.
   void add_node_to_connection_graph(Node *n, Unique_Node_List *delayed_worklist);
@@ -515,6 +512,7 @@ private:
   // offset of a field reference
   int address_offset(Node* adr, PhaseTransform *phase);
 
+  bool is_captured_store_address(Node* addp);
 
   // Propagate unique types created for unescaped allocated objects
   // through the graph
@@ -592,6 +590,12 @@ public:
       assert(ptn != NULL, "node should be registered");
     }
     add_edge(ptnode_adr(n->_idx), ptn);
+  }
+
+  // Map ideal node to existing PointsTo node (usually phantom_object).
+  void map_ideal_node(Node *n, PointsToNode* ptn) {
+    assert(ptn != NULL, "only existing PointsTo node");
+    _nodes.at_put(n->_idx, ptn);
   }
 
   void add_to_congraph_unsafe_access(Node* n, uint opcode, Unique_Node_List* delayed_worklist);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -22,11 +22,11 @@
  * questions.
  */
 
+package gc.logging;
+
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.List;
-import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
@@ -39,15 +39,15 @@ import sun.hotspot.WhiteBox;
  * @test TestMetaSpaceLog
  * @bug 8211123
  * @summary Ensure that the Metaspace is updated in the log
- * @requires vm.gc=="null"
- * @key gc
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
+ * @requires vm.gc != "Epsilon"
+ * @requires vm.gc != "Z"
  *
  * @compile TestMetaSpaceLog.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main TestMetaSpaceLog
+ * @run driver gc.logging.TestMetaSpaceLog
  */
 
 public class TestMetaSpaceLog {
@@ -55,19 +55,16 @@ public class TestMetaSpaceLog {
 
   static {
     // Do this once here.
+    // Scan for Metaspace update notices as part of the GC log, e.g. in this form:
+    // [gc,metaspace   ] GC(0) Metaspace: 11895K(14208K)->11895K(14208K) NonClass: 10552K(12544K)->10552K(12544K) Class: 1343K(1664K)->1343K(1664K)
     metaSpaceRegexp = Pattern.compile(".*Metaspace: ([0-9]+).*->([0-9]+).*");
   }
 
   public static void main(String[] args) throws Exception {
-    testMetaSpaceUpdate("UseParallelGC");
-    testMetaSpaceUpdate("UseG1GC");
-    testMetaSpaceUpdate("UseConcMarkSweepGC");
-    testMetaSpaceUpdate("UseSerialGC");
+    testMetaSpaceUpdate();
   }
 
   private static void verifyContainsMetaSpaceUpdate(OutputAnalyzer output) {
-    Predicate<String> collectedMetaSpace = line -> check(line);
-
     // At least one metaspace line from GC should show GC being collected.
     boolean foundCollectedMetaSpace = output.asLines().stream()
         .filter(s -> s.contains("[gc,metaspace"))
@@ -77,20 +74,21 @@ public class TestMetaSpaceLog {
 
   private static boolean check(String line) {
     Matcher m = metaSpaceRegexp.matcher(line);
-    Asserts.assertTrue(m.matches(), "Unexpected line for metaspace logging: " + line);
-    long before = Long.parseLong(m.group(1));
-    long after  = Long.parseLong(m.group(2));
-    return before > after;
+    if (m.matches()) {
+      // Numbers for Metaspace occupation should grow.
+      long before = Long.parseLong(m.group(1));
+      long after = Long.parseLong(m.group(2));
+      return before > after;
+    }
+    return false;
   }
 
-  private static void testMetaSpaceUpdate(String gcFlag) throws Exception {
+  private static void testMetaSpaceUpdate() throws Exception {
     // Propagate test.src for the jar file.
     String testSrc= "-Dtest.src=" + System.getProperty("test.src", ".");
 
-    System.err.println("Testing with GC Flag: " + gcFlag);
     ProcessBuilder pb =
-      ProcessTools.createJavaProcessBuilder(
-          "-XX:+" + gcFlag,
+      ProcessTools.createTestJvm(
           "-Xlog:gc*",
           "-Xbootclasspath/a:.",
           "-XX:+UnlockDiagnosticVMOptions",

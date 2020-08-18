@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,16 +21,18 @@
  * questions.
  */
 
+package gc.arguments;
+
 /*
  * @test TestArrayAllocatorMallocLimit
  * @summary Sanity check that the ArrayAllocatorMallocLimit flag can be set.
  * The test helps verifying that size_t flags can be set/read.
  * @bug 8054823
- * @key gc
  * @library /test/lib
+ * @library /
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run driver TestArrayAllocatorMallocLimit
+ * @run driver gc.arguments.TestArrayAllocatorMallocLimit
  */
 
 import jdk.test.lib.Asserts;
@@ -50,7 +52,7 @@ public class TestArrayAllocatorMallocLimit {
   private static final String printFlagsFinalPattern = " *size_t *" + flagName + " *:?= *(\\d+) *\\{experimental\\} *";
 
   public static void testDefaultValue()  throws Exception {
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+    ProcessBuilder pb = GCArguments.createJavaProcessBuilder(
       "-XX:+UnlockExperimentalVMOptions", "-XX:+PrintFlagsFinal", "-version");
 
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
@@ -76,7 +78,7 @@ public class TestArrayAllocatorMallocLimit {
   public static void testSetValue() throws Exception {
     long flagValue = 2048;
 
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+    ProcessBuilder pb = GCArguments.createJavaProcessBuilder(
       "-XX:+UnlockExperimentalVMOptions", "-XX:" + flagName + "=" + flagValue, "-XX:+PrintFlagsFinal", "-version");
 
     OutputAnalyzer output = new OutputAnalyzer(pb.start());

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,23 +41,23 @@ template <class T> void G1ParScanThreadState::do_oop_evac(T* p) {
   // than one thread might claim the same card. So the same card may be
   // processed multiple times, and so we might get references into old gen here.
   // So we need to redo this check.
-  const InCSetState in_cset_state = _g1h->in_cset_state(obj);
+  const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   // References pushed onto the work stack should never point to a humongous region
   // as they are not added to the collection set due to above precondition.
-  assert(!in_cset_state.is_humongous(),
+  assert(!region_attr.is_humongous(),
          "Obj " PTR_FORMAT " should not refer to humongous region %u from " PTR_FORMAT,
-         p2i(obj), _g1h->addr_to_region((HeapWord*)obj), p2i(p));
+         p2i(obj), _g1h->addr_to_region(cast_from_oop<HeapWord*>(obj)), p2i(p));
 
-  if (!in_cset_state.is_in_cset()) {
+  if (!region_attr.is_in_cset()) {
     // In this case somebody else already did all the work.
     return;
   }
 
-  markOop m = obj->mark_raw();
-  if (m->is_marked()) {
-    obj = (oop) m->decode_pointer();
+  markWord m = obj->mark_raw();
+  if (m.is_marked()) {
+    obj = (oop) m.decode_pointer();
   } else {
-    obj = copy_to_survivor_space(in_cset_state, obj, m);
+    obj = copy_to_survivor_space(region_attr, obj, m);
   }
   RawAccess<IS_NOT_NULL>::oop_store(p, obj);
 
@@ -67,18 +67,17 @@ template <class T> void G1ParScanThreadState::do_oop_evac(T* p) {
   }
   HeapRegion* from = _g1h->heap_region_containing(p);
   if (!from->is_young()) {
-    enqueue_card_if_tracked(p, obj);
+    enqueue_card_if_tracked(_g1h->region_attr(obj), p, obj);
   }
 }
 
-template <class T> inline void G1ParScanThreadState::push_on_queue(T* ref) {
-  assert(verify_ref(ref), "sanity");
-  _refs->push(ref);
+inline void G1ParScanThreadState::push_on_queue(ScannerTask task) {
+  verify_task(task);
+  _task_queue->push(task);
 }
 
-inline void G1ParScanThreadState::do_oop_partial_array(oop* p) {
-  assert(has_partial_array_mask(p), "invariant");
-  oop from_obj = clear_partial_array_mask(p);
+inline void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
+  oop from_obj = task.to_source_array();
 
   assert(_g1h->is_in_reserved(from_obj), "must be in heap.");
   assert(from_obj->is_objArray(), "must be obj array");
@@ -105,8 +104,7 @@ inline void G1ParScanThreadState::do_oop_partial_array(oop* p) {
     to_obj_array->set_length(end);
     // Push the remainder before we process the range in case another
     // worker has run out of things to do and can steal it.
-    oop* from_obj_p = set_partial_array_mask(from_obj);
-    push_on_queue(from_obj_p);
+    push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
   } else {
     assert(length == end, "sanity");
     // We'll process the final range for this object. Restore the length
@@ -127,35 +125,23 @@ inline void G1ParScanThreadState::do_oop_partial_array(oop* p) {
   to_obj_array->oop_iterate_range(&_scanner, start, end);
 }
 
-inline void G1ParScanThreadState::deal_with_reference(oop* ref_to_scan) {
-  if (!has_partial_array_mask(ref_to_scan)) {
-    do_oop_evac(ref_to_scan);
+inline void G1ParScanThreadState::dispatch_task(ScannerTask task) {
+  verify_task(task);
+  if (task.is_narrow_oop_ptr()) {
+    do_oop_evac(task.to_narrow_oop_ptr());
+  } else if (task.is_oop_ptr()) {
+    do_oop_evac(task.to_oop_ptr());
   } else {
-    do_oop_partial_array(ref_to_scan);
+    do_partial_array(task.to_partial_array_task());
   }
 }
 
-inline void G1ParScanThreadState::deal_with_reference(narrowOop* ref_to_scan) {
-  assert(!has_partial_array_mask(ref_to_scan), "NarrowOop* elements should never be partial arrays.");
-  do_oop_evac(ref_to_scan);
-}
-
-inline void G1ParScanThreadState::dispatch_reference(StarTask ref) {
-  assert(verify_task(ref), "sanity");
-  if (ref.is_narrow()) {
-    deal_with_reference((narrowOop*)ref);
-  } else {
-    deal_with_reference((oop*)ref);
-  }
-}
-
-void G1ParScanThreadState::steal_and_trim_queue(RefToScanQueueSet *task_queues) {
-  StarTask stolen_task;
+void G1ParScanThreadState::steal_and_trim_queue(G1ScannerTasksQueueSet *task_queues) {
+  ScannerTask stolen_task;
   while (task_queues->steal(_worker_id, stolen_task)) {
-    assert(verify_task(stolen_task), "sanity");
-    dispatch_reference(stolen_task);
+    dispatch_task(stolen_task);
 
-    // We've just processed a reference and we might have made
+    // We've just processed a task and we might have made
     // available new entries on the queues. So we have to make sure
     // we drain the queues as necessary.
     trim_queue();
@@ -163,24 +149,26 @@ void G1ParScanThreadState::steal_and_trim_queue(RefToScanQueueSet *task_queues) 
 }
 
 inline bool G1ParScanThreadState::needs_partial_trimming() const {
-  return !_refs->overflow_empty() || _refs->size() > _stack_trim_upper_threshold;
+  return !_task_queue->overflow_empty() ||
+         (_task_queue->size() > _stack_trim_upper_threshold);
 }
 
 inline bool G1ParScanThreadState::is_partially_trimmed() const {
-  return _refs->overflow_empty() && _refs->size() <= _stack_trim_lower_threshold;
+  return _task_queue->overflow_empty() &&
+         (_task_queue->size() <= _stack_trim_lower_threshold);
 }
 
 inline void G1ParScanThreadState::trim_queue_to_threshold(uint threshold) {
-  StarTask ref;
+  ScannerTask task;
   // Drain the overflow stack first, so other threads can potentially steal.
-  while (_refs->pop_overflow(ref)) {
-    if (!_refs->try_push_to_taskqueue(ref)) {
-      dispatch_reference(ref);
+  while (_task_queue->pop_overflow(task)) {
+    if (!_task_queue->try_push_to_taskqueue(task)) {
+      dispatch_task(task);
     }
   }
 
-  while (_refs->pop_local(ref, threshold)) {
-    dispatch_reference(ref);
+  while (_task_queue->pop_local(task, threshold)) {
+    dispatch_task(task);
   }
 }
 
@@ -208,6 +196,8 @@ template <typename T>
 inline void G1ParScanThreadState::remember_root_into_optional_region(T* p) {
   oop o = RawAccess<IS_NOT_NULL>::oop_load(p);
   uint index = _g1h->heap_region_containing(o)->index_in_opt_cset();
+  assert(index < _num_optional_regions,
+         "Trying to access optional region idx %u beyond " SIZE_FORMAT, index, _num_optional_regions);
   _oops_into_optional_regions[index].push_root(p);
 }
 
@@ -215,12 +205,43 @@ template <typename T>
 inline void G1ParScanThreadState::remember_reference_into_optional_region(T* p) {
   oop o = RawAccess<IS_NOT_NULL>::oop_load(p);
   uint index = _g1h->heap_region_containing(o)->index_in_opt_cset();
+  assert(index < _num_optional_regions,
+         "Trying to access optional region idx %u beyond " SIZE_FORMAT, index, _num_optional_regions);
   _oops_into_optional_regions[index].push_oop(p);
-  DEBUG_ONLY(verify_ref(p);)
+  verify_task(p);
 }
 
 G1OopStarChunkedList* G1ParScanThreadState::oops_into_optional_region(const HeapRegion* hr) {
+  assert(hr->index_in_opt_cset() < _num_optional_regions,
+         "Trying to access optional region idx %u beyond " SIZE_FORMAT " " HR_FORMAT,
+         hr->index_in_opt_cset(), _num_optional_regions, HR_FORMAT_PARAMS(hr));
   return &_oops_into_optional_regions[hr->index_in_opt_cset()];
+}
+
+void G1ParScanThreadState::initialize_numa_stats() {
+  if (_numa->is_enabled()) {
+    LogTarget(Info, gc, heap, numa) lt;
+
+    if (lt.is_enabled()) {
+      uint num_nodes = _numa->num_active_nodes();
+      // Record only if there are multiple active nodes.
+      _obj_alloc_stat = NEW_C_HEAP_ARRAY(size_t, num_nodes, mtGC);
+      memset(_obj_alloc_stat, 0, sizeof(size_t) * num_nodes);
+    }
+  }
+}
+
+void G1ParScanThreadState::flush_numa_stats() {
+  if (_obj_alloc_stat != NULL) {
+    uint node_index = _numa->index_of_current_thread();
+    _numa->copy_statistics(G1NUMAStats::LocalObjProcessAtCopyToSurv, node_index, _obj_alloc_stat);
+  }
+}
+
+void G1ParScanThreadState::update_numa_stats(uint node_index) {
+  if (_obj_alloc_stat != NULL) {
+    _obj_alloc_stat[node_index]++;
+  }
 }
 
 #endif // SHARE_GC_G1_G1PARSCANTHREADSTATE_INLINE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,48 +31,20 @@
 
 int PeriodicTask::_num_tasks = 0;
 PeriodicTask* PeriodicTask::_tasks[PeriodicTask::max_tasks];
-#ifndef PRODUCT
-elapsedTimer PeriodicTask::_timer;
-int PeriodicTask::_intervalHistogram[PeriodicTask::max_interval];
-int PeriodicTask::_ticks;
-
-void PeriodicTask::print_intervals() {
-  if (ProfilerCheckIntervals) {
-    for (int i = 0; i < PeriodicTask::max_interval; i++) {
-      int n = _intervalHistogram[i];
-      if (n > 0) tty->print_cr("%3d: %5d (%4.1f%%)", i, n, 100.0 * n / _ticks);
-    }
-  }
-}
-#endif
 
 void PeriodicTask::real_time_tick(int delay_time) {
   assert(Thread::current()->is_Watcher_thread(), "must be WatcherThread");
 
-#ifndef PRODUCT
-  if (ProfilerCheckIntervals) {
-    _ticks++;
-    _timer.stop();
-    int ms = (int)_timer.milliseconds();
-    _timer.reset();
-    _timer.start();
-    if (ms >= PeriodicTask::max_interval) ms = PeriodicTask::max_interval - 1;
-    _intervalHistogram[ms]++;
-  }
-#endif
+  // The WatcherThread does not participate in the safepoint protocol
+  // for the PeriodicTask_lock because it is not a JavaThread.
+  MutexLocker ml(PeriodicTask_lock, Mutex::_no_safepoint_check_flag);
+  int orig_num_tasks = _num_tasks;
 
-  {
-    // The WatcherThread does not participate in the safepoint protocol
-    // for the PeriodicTask_lock because it is not a JavaThread.
-    MutexLockerEx ml(PeriodicTask_lock, Mutex::_no_safepoint_check_flag);
-    int orig_num_tasks = _num_tasks;
-
-    for(int index = 0; index < _num_tasks; index++) {
-      _tasks[index]->execute_if_pending(delay_time);
-      if (_num_tasks < orig_num_tasks) { // task dis-enrolled itself
-        index--;  // re-do current slot as it has changed
-        orig_num_tasks = _num_tasks;
-      }
+  for(int index = 0; index < _num_tasks; index++) {
+    _tasks[index]->execute_if_pending(delay_time);
+    if (_num_tasks < orig_num_tasks) { // task dis-enrolled itself
+      index--;  // re-do current slot as it has changed
+      orig_num_tasks = _num_tasks;
     }
   }
 }
@@ -112,8 +84,7 @@ void PeriodicTask::enroll() {
   // not already own the PeriodicTask_lock. Otherwise, we don't try to
   // enter it again because VM internal Mutexes do not support recursion.
   //
-  MutexLockerEx ml(PeriodicTask_lock->owned_by_self() ? NULL
-                                                      : PeriodicTask_lock);
+  MutexLocker ml(PeriodicTask_lock->owned_by_self() ? NULL : PeriodicTask_lock);
 
   if (_num_tasks == PeriodicTask::max_tasks) {
     fatal("Overflow in PeriodicTask table");
@@ -135,8 +106,7 @@ void PeriodicTask::disenroll() {
   // not already own the PeriodicTask_lock. Otherwise, we don't try to
   // enter it again because VM internal Mutexes do not support recursion.
   //
-  MutexLockerEx ml(PeriodicTask_lock->owned_by_self() ? NULL
-                                                      : PeriodicTask_lock);
+  MutexLocker ml(PeriodicTask_lock->owned_by_self() ? NULL : PeriodicTask_lock);
 
   int index;
   for(index = 0; index < _num_tasks && _tasks[index] != this; index++)

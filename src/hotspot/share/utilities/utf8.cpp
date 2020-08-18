@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -228,7 +228,9 @@ void UTF8::as_quoted_ascii(const char* utf8_str, int utf8_length, char* buf, int
   *p = '\0';
 }
 
-
+#ifndef PRODUCT
+// converts a quoted ascii string back to utf8
+// no longer used, but could be useful to test output of UTF8::as_quoted_ascii
 const char* UTF8::from_quoted_ascii(const char* quoted_ascii_str) {
   const char *ptr = quoted_ascii_str;
   char* result = NULL;
@@ -302,17 +304,7 @@ const char* UTF8::from_quoted_ascii(const char* quoted_ascii_str) {
   }
   return buffer;
 }
-
-
-// Returns NULL if 'c' it not found. This only works as long
-// as 'c' is an ASCII character
-const jbyte* UTF8::strrchr(const jbyte* base, int length, jbyte c) {
-  assert(length >= 0, "sanity check");
-  assert(c >= 0, "does not work for non-ASCII characters");
-  // Skip backwards in string until 'c' is found or end is reached
-  while(--length >= 0 && base[length] != c);
-  return (length < 0) ? NULL : &base[length];
-}
+#endif // !PRODUCT
 
 bool UTF8::equal(const jbyte* base1, int length1, const jbyte* base2, int length2) {
   // Length must be the same
@@ -468,7 +460,6 @@ char* UNICODE::as_utf8(const jchar* base, int length, char* buf, int buflen) {
 
 char* UNICODE::as_utf8(const jbyte* base, int length, char* buf, int buflen) {
   u_char* p = (u_char*)buf;
-  u_char* end = (u_char*)buf + buflen;
   for (int index = 0; index < length; index++) {
     jbyte c = base[index];
     int sz = utf8_size(c);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,9 +37,6 @@
 #ifdef LINUX
 #include <sys/syscall.h>
 #include <unistd.h>
-#endif
-#ifdef SOLARIS
-#include <thread.h>
 #endif
 #ifdef AIX
 #include <unistd.h>
@@ -132,8 +129,9 @@ static void crash_handler(int sig, siginfo_t* info, void* ucVoid) {
   // Needed because asserts may happen in error handling too.
 #ifdef CAN_SHOW_REGISTERS_ON_ASSERT
   if ((sig == SIGSEGV || sig == SIGBUS) && info != NULL && info->si_addr == g_assert_poison) {
-    handle_assert_poison_fault(ucVoid, info->si_addr);
-    return;
+    if (handle_assert_poison_fault(ucVoid, info->si_addr)) {
+      return;
+    }
   }
 #endif // CAN_SHOW_REGISTERS_ON_ASSERT
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,30 +21,33 @@
  * questions.
  */
 
-import jdk.test.lib.JDKToolFinder;
+package gc;
+
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.Platform;
 
 /*
  * @test TestCardTablePageCommits
- * @key gc
  * @bug 8059066
  * @summary Tests that the card table does not commit the same page twice
  * @requires vm.gc.Parallel
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
- * @run driver TestCardTablePageCommits
+ * @run driver gc.TestCardTablePageCommits
  */
 public class TestCardTablePageCommits {
     public static void main(String args[]) throws Exception {
         // The test is run with a small heap to make sure all pages in the card
         // table gets committed. Need 8 MB heap to trigger the bug on SPARC
         // because of 8kB pages, assume 4 KB pages for all other CPUs.
-        String Xmx = Platform.isSparc() ? "-Xmx8m" : "-Xmx4m";
+        String Xmx = "-Xmx4m";
 
-        String[] opts = {Xmx, "-XX:NativeMemoryTracking=detail", "-XX:+UseParallelGC", "-version"};
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(opts);
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+            Xmx,
+            "-XX:NativeMemoryTracking=detail",
+            "-XX:+UseParallelGC",
+            "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldHaveExitValue(0);
     }

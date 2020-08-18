@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,8 +37,6 @@ class Bsd {
   static bool libjsig_is_loaded;        // libjsig that interposes sigaction(),
                                         // __sigaction(), signal() is loaded
   static struct sigaction *(*get_signal_action)(int);
-  static struct sigaction *get_preinstalled_handler(int);
-  static void save_preinstalled_handler(int, struct sigaction&);
 
   static void check_signal_handler(int sig);
 
@@ -83,14 +81,6 @@ class Bsd {
   static void ucontext_set_pc(ucontext_t* uc, address pc);
   static intptr_t* ucontext_get_sp(const ucontext_t* uc);
   static intptr_t* ucontext_get_fp(const ucontext_t* uc);
-
-  // For Analyzer Forte AsyncGetCallTrace profiling support:
-  //
-  // This interface should be declared in os_bsd_i486.hpp, but
-  // that file provides extensions to the os class and not the
-  // Bsd class.
-  static ExtendedPC fetch_frame_from_ucontext(Thread* thread, const ucontext_t* uc,
-                                              intptr_t** ret_sp, intptr_t** ret_fp);
 
   static bool get_frame_at_stack_banging_point(JavaThread* thread, ucontext_t* uc, frame* fr);
 
@@ -157,6 +147,8 @@ class Bsd {
     }
   }
   static int get_node_by_cpu(int cpu_id);
+
+  static void print_uptime_info(outputStream* st);
 };
 
 #endif // OS_BSD_OS_BSD_HPP

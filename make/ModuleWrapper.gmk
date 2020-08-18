@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -39,10 +39,10 @@ include MakeBase.gmk
 TARGETS :=
 
 # Include the file being wrapped.
-include $(MAKEFILE_PREFIX)-$(MODULE).gmk
+include modules/$(MODULE)/$(MAKEFILE_PREFIX).gmk
 
 # Setup copy rules from the modules directories to the jdk image directory.
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
   TO_BIN_FILTER := %$(SHARED_LIBRARY_SUFFIX) %.diz %.pdb %.map
 
   $(eval $(call SetupCopyFiles, COPY_LIBS_TO_BIN, \

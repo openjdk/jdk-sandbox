@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,12 +33,8 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/time.h>
-#ifdef __solaris__
-#include <thread.h>
-#else
 #include <pthread.h>
 #include <poll.h>
-#endif
 
 #include "socket_md.h"
 #include "sysSocket.h"
@@ -127,10 +123,15 @@ dbgsysSend(int fd, char *buf, size_t nBytes, int flags) {
 }
 
 int
-dbgsysGetAddrInfo(char *hostname, char *service,
-                  struct addrinfo *hints,
+dbgsysGetAddrInfo(const char *hostname, const char *service,
+                  const struct addrinfo *hints,
                   struct addrinfo **results) {
     return getaddrinfo(hostname, service, hints, results);
+}
+
+void
+dbgsysFreeAddrInfo(struct addrinfo *info) {
+    freeaddrinfo(info);
 }
 
 unsigned short
@@ -161,11 +162,6 @@ int dbgsysSocketClose(int fd) {
 int
 dbgsysBind(int fd, struct sockaddr *name, socklen_t namelen) {
     return bind(fd, name, namelen);
-}
-
-uint32_t
-dbgsysInetAddr(const char* cp) {
-    return (uint32_t)inet_addr(cp);
 }
 
 uint32_t
@@ -277,37 +273,8 @@ dbgsysGetLastIOError(char *buf, jint size) {
     return 0;
 }
 
-#ifdef __solaris__
 int
 dbgsysTlsAlloc(void) {
-    thread_key_t tk;
-    if (thr_keycreate(&tk, NULL)) {
-        perror("thr_keycreate");
-        exit(-1);
-    }
-    return (int)tk;
-}
-
-void
-dbgsysTlsFree(int index) {
-   /* no-op */
-}
-
-void
-dbgsysTlsPut(int index, void *value) {
-    thr_setspecific((thread_key_t)index, value) ;
-}
-
-void *
-dbgsysTlsGet(int index) {
-    void* r = NULL;
-    thr_getspecific((thread_key_t)index, &r);
-    return r;
-}
-
-#else
-int
-dbgsysTlsAlloc() {
     pthread_key_t key;
     if (pthread_key_create(&key, NULL)) {
         perror("pthread_key_create");
@@ -330,8 +297,6 @@ void *
 dbgsysTlsGet(int index) {
     return pthread_getspecific((pthread_key_t)index);
 }
-
-#endif
 
 long
 dbgsysCurrentTimeMillis(void) {

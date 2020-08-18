@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,7 +70,7 @@ import sun.awt.AWTAccessor;
  * are notified when the look and feel changes, look and feel defaults, and
  * convenience methods for obtaining various default values.
  *
- * <h3>Specifying the look and feel</h3>
+ * <h2>Specifying the look and feel</h2>
  *
  * The look and feel can be specified in two distinct ways: by
  * specifying the fully qualified name of the class for the look and
@@ -94,7 +94,7 @@ import sun.awt.AWTAccessor;
  * unspecified. It is very possible to receive unexpected exceptions,
  * painting problems, or worse.
  *
- * <h3>Default look and feel</h3>
+ * <h2>Default look and feel</h2>
  *
  * The class used for the default look and feel is chosen in the following
  * manner:
@@ -114,7 +114,7 @@ import sun.awt.AWTAccessor;
  *   <li>Otherwise use the cross platform look and feel.
  * </ol>
  *
- * <h3>Defaults</h3>
+ * <h2>Defaults</h2>
  *
  * {@code UIManager} manages three sets of {@code UIDefaults}. In order, they
  * are:
@@ -168,7 +168,7 @@ import sun.awt.AWTAccessor;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -657,22 +657,20 @@ public class UIManager implements Serializable
         if (osType == OSInfo.OSType.WINDOWS) {
             return "com.sun.java.swing.plaf.windows.WindowsLookAndFeel";
         } else {
-            String desktop = AccessController.doPrivileged(new GetPropertyAction("sun.desktop"));
             Toolkit toolkit = Toolkit.getDefaultToolkit();
-            if ("gnome".equals(desktop) &&
-                    toolkit instanceof SunToolkit &&
-                    ((SunToolkit) toolkit).isNativeGTKAvailable()) {
-                // May be set on Linux and Solaris boxs.
-                return "com.sun.java.swing.plaf.gtk.GTKLookAndFeel";
+            if (toolkit instanceof SunToolkit) {
+                SunToolkit suntk = (SunToolkit)toolkit;
+                String desktop = suntk.getDesktop();
+                boolean gtkAvailable = suntk.isNativeGTKAvailable();
+                if ("gnome".equals(desktop) && gtkAvailable) {
+                    return "com.sun.java.swing.plaf.gtk.GTKLookAndFeel";
+                }
             }
             if (osType == OSInfo.OSType.MACOSX) {
                 if (toolkit.getClass() .getName()
                                        .equals("sun.lwawt.macosx.LWCToolkit")) {
                     return "com.apple.laf.AquaLookAndFeel";
                 }
-            }
-            if (osType == OSInfo.OSType.SOLARIS) {
-                return "com.sun.java.swing.plaf.motif.MotifLookAndFeel";
             }
         }
         return getCrossPlatformLookAndFeelClassName();

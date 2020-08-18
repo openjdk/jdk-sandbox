@@ -63,7 +63,7 @@ class FastLockNode;
 //------------------------------StartNode--------------------------------------
 // The method start node
 class StartNode : public MultiNode {
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
 public:
   const TypeTuple *_domain;
@@ -321,7 +321,7 @@ public:
 // potential code sharing) only - conceptually it is independent of
 // the Node semantics.
 class SafePointNode : public MultiNode {
-  virtual uint           cmp( const Node &n ) const;
+  virtual bool           cmp( const Node &n ) const;
   virtual uint           size_of() const;       // Size is bigger
 
 public:
@@ -497,7 +497,7 @@ class SafePointScalarObjectNode: public TypeNode {
   DEBUG_ONLY(AllocateNode* _alloc;)
 
   virtual uint hash() const ; // { return NO_HASH; }
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
 
   uint first_index() const { return _first_index; }
 
@@ -598,7 +598,7 @@ public:
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
   virtual Node* Identity(PhaseGVN* phase) { return this; }
-  virtual uint        cmp( const Node &n ) const;
+  virtual bool        cmp( const Node &n ) const;
   virtual uint        size_of() const = 0;
   virtual void        calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const;
   virtual Node       *match( const ProjNode *proj, const Matcher *m );
@@ -654,7 +654,7 @@ public:
 class CallJavaNode : public CallNode {
   friend class VMStructs;
 protected:
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
 
   bool    _optimized_virtual;
@@ -683,6 +683,8 @@ public:
   void  set_override_symbolic_info(bool f) { _override_symbolic_info = f; }
   bool  override_symbolic_info() const     { return _override_symbolic_info; }
 
+  DEBUG_ONLY( bool validate_symbolic_info() const; )
+
 #ifndef PRODUCT
   virtual void  dump_spec(outputStream *st) const;
   virtual void  dump_compact_spec(outputStream *st) const;
@@ -694,7 +696,7 @@ public:
 // calls and optimized virtual calls, plus calls to wrappers for run-time
 // routines); generates static stub.
 class CallStaticJavaNode : public CallJavaNode {
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
 public:
   CallStaticJavaNode(Compile* C, const TypeFunc* tf, address addr, ciMethod* method, int bci)
@@ -748,7 +750,7 @@ public:
 //------------------------------CallDynamicJavaNode----------------------------
 // Make a dispatched call using Java calling convention.
 class CallDynamicJavaNode : public CallJavaNode {
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
 public:
   CallDynamicJavaNode( const TypeFunc *tf , address addr, ciMethod* method, int vtable_index, int bci ) : CallJavaNode(tf,addr,method,bci), _vtable_index(vtable_index) {
@@ -765,7 +767,7 @@ public:
 //------------------------------CallRuntimeNode--------------------------------
 // Make a direct subroutine call node into compiled C++ code.
 class CallRuntimeNode : public CallNode {
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
 public:
   CallRuntimeNode(const TypeFunc* tf, address addr, const char* name,
@@ -934,6 +936,8 @@ public:
   // allocation node.
   void compute_MemBar_redundancy(ciMethod* initializer);
   bool is_allocation_MemBar_redundant() { return _is_allocation_MemBar_redundant; }
+
+  Node* make_ideal_mark(PhaseGVN *phase, Node* obj, Node* control, Node* mem);
 };
 
 //------------------------------AllocateArray---------------------------------

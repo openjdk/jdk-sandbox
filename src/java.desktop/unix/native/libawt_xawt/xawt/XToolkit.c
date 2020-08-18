@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,6 @@
 #include <X11/Xutil.h>
 #include <X11/Xos.h>
 #include <X11/Xatom.h>
-#ifdef __linux__
-#include <execinfo.h>
-#endif
 
 #include <jvm.h>
 #include <jni.h>
@@ -39,7 +36,6 @@
 #include "awt_p.h"
 #include "awt_Component.h"
 #include "awt_MenuComponent.h"
-#include "awt_Font.h"
 #include "awt_util.h"
 
 #include "sun_awt_X11_XToolkit.h"
@@ -79,16 +75,6 @@ struct MenuComponentIDs menuComponentIDs;
 extern Display* awt_init_Display(JNIEnv *env, jobject this);
 extern void freeNativeStringArray(char **array, jsize length);
 extern char** stringArrayToNative(JNIEnv *env, jobjectArray array, jsize * ret_length);
-
-struct XFontPeerIDs xFontPeerIDs;
-
-JNIEXPORT void JNICALL
-Java_sun_awt_X11_XFontPeer_initIDs
-  (JNIEnv *env, jclass cls)
-{
-    xFontPeerIDs.xfsname =
-      (*env)->GetFieldID(env, cls, "xfsname", "Ljava/lang/String;");
-}
 #endif /* !HEADLESS */
 
 /* This function gets called from the static initializer for FileDialog.java
@@ -138,13 +124,6 @@ JNIEXPORT jlong JNICALL Java_sun_awt_X11_XToolkit_getDefaultXColormap
 
     return (jlong) defaultConfig->awt_cmap;
 }
-
-JNIEXPORT jlong JNICALL Java_sun_awt_X11_XToolkit_getDefaultScreenData
-  (JNIEnv *env, jclass clazz)
-{
-    return ptr_to_jlong(getDefaultConfig(DefaultScreen(awt_display)));
-}
-
 
 JNIEXPORT jint JNICALL
 DEF_JNI_OnLoad(JavaVM *vm, void *reserved)
@@ -790,26 +769,6 @@ JNIEXPORT jstring JNICALL Java_sun_awt_X11_XToolkit_getEnv
     }
     return ret;
 }
-
-#ifdef __linux__
-void print_stack(void)
-{
-  void *array[10];
-  size_t size;
-  char **strings;
-  size_t i;
-
-  size = backtrace (array, 10);
-  strings = backtrace_symbols (array, size);
-
-  fprintf (stderr, "Obtained %zd stack frames.\n", size);
-
-  for (i = 0; i < size; i++)
-     fprintf (stderr, "%s\n", strings[i]);
-
-  free (strings);
-}
-#endif
 
 Window get_xawt_root_shell(JNIEnv *env) {
   static jclass classXRootWindow = NULL;

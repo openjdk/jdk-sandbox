@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,4 +64,11 @@ public @interface MatchableNode {
      * Can a node with multiple uses be safely matched by a rule.
      */
     boolean shareable() default false;
+
+    boolean ignoresSideEffects() default false;
+
+    /**
+     * Can a node be consumed by a matched rule regardless of whether it is shareable.
+     */
+    boolean consumable() default true;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,16 +21,18 @@
  * questions.
  */
 
+package gc.g1;
+
 /*
  * @test TestEagerReclaimHumongousRegions
  * @bug 8027959
  * @summary Test to make sure that eager reclaim of humongous objects work. We simply try to fill
  * up the heap with humongous objects that should be eagerly reclaimable to avoid Full GC.
- * @key gc
  * @requires vm.gc.G1
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
+ * @run driver gc.g1.TestEagerReclaimHumongousRegions
  */
 
 import java.util.regex.Pattern;
@@ -41,7 +43,7 @@ import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.Asserts;
 
-class ReclaimRegionFast {
+class TestEagerReclaimHumongousRegionsReclaimRegionFast {
     public static final int M = 1024*1024;
 
     public static LinkedList<Object> garbageList = new LinkedList<Object>();
@@ -84,7 +86,7 @@ public class TestEagerReclaimHumongousRegions {
             "-Xmx128M",
             "-Xmn16M",
             "-Xlog:gc",
-            ReclaimRegionFast.class.getName());
+            TestEagerReclaimHumongousRegionsReclaimRegionFast.class.getName());
 
         Pattern p = Pattern.compile("Full GC");
 

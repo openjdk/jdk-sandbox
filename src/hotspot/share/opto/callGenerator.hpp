@@ -124,7 +124,7 @@ class CallGenerator : public ResourceObj {
   static CallGenerator* for_direct_call(ciMethod* m, bool separate_io_projs = false);   // static, special
   static CallGenerator* for_virtual_call(ciMethod* m, int vtable_index);  // virtual, interface
 
-  static CallGenerator* for_method_handle_call(  JVMState* jvms, ciMethod* caller, ciMethod* callee, bool delayed_forbidden);
+  static CallGenerator* for_method_handle_call(  JVMState* jvms, ciMethod* caller, ciMethod* callee);
   static CallGenerator* for_method_handle_inline(JVMState* jvms, ciMethod* caller, ciMethod* callee, bool& input_not_const);
 
   // How to generate a replace a direct call with an inline version
@@ -143,6 +143,10 @@ class CallGenerator : public ResourceObj {
                                            CallGenerator* if_missed,
                                            CallGenerator* if_hit,
                                            float hit_prob);
+
+  static CallGenerator* for_guarded_call(ciKlass* predicted_receiver,
+                                         CallGenerator* if_missed,
+                                         CallGenerator* if_hit);
 
   // How to make a call that optimistically assumes a MethodHandle target:
   static CallGenerator* for_predicted_dynamic_call(ciMethodHandle* predicted_method_handle,
@@ -176,6 +180,8 @@ class CallGenerator : public ResourceObj {
   }
 
   static bool is_inlined_method_handle_intrinsic(JVMState* jvms, ciMethod* m);
+  static bool is_inlined_method_handle_intrinsic(ciMethod* caller, int bci, ciMethod* m);
+  static bool is_inlined_method_handle_intrinsic(ciMethod* symbolic_info, ciMethod* m);
 };
 
 

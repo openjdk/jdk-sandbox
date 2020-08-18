@@ -119,21 +119,24 @@ class JProjNode : public ProjNode {
 // can turn PhiNodes into copys in-place by NULL'ing out their RegionNode
 // input in slot 0.
 class PhiNode : public TypeNode {
+  friend class PhaseRenumberLive;
+
   const TypePtr* const _adr_type; // non-null only for Type::MEMORY nodes.
   // The following fields are only used for data PhiNodes to indicate
   // that the PhiNode represents the value of a known instance field.
         int _inst_mem_id; // Instance memory id (node index of the memory Phi)
-  const int _inst_id;     // Instance id of the memory slice.
+        int _inst_id;     // Instance id of the memory slice.
   const int _inst_index;  // Alias index of the instance memory slice.
   // Array elements references have the same alias_idx but different offset.
   const int _inst_offset; // Offset of the instance memory slice.
   // Size is bigger to hold the _adr_type field.
   virtual uint hash() const;    // Check the type
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const { return sizeof(*this); }
 
   // Determine if CMoveNode::is_cmove_id can be used at this join point.
   Node* is_cmove_id(PhaseTransform* phase, int true_path);
+  bool wait_for_region_igvn(PhaseGVN* phase);
 
 public:
   // Node layout (parallels RegionNode):
@@ -287,7 +290,7 @@ class IfNode : public MultiBranchNode {
 
 private:
   // Helper methods for fold_compares
-  bool cmpi_folds(PhaseIterGVN* igvn);
+  bool cmpi_folds(PhaseIterGVN* igvn, bool fold_ne = false);
   bool is_ctrl_folds(Node* ctrl, PhaseIterGVN* igvn);
   bool has_shared_region(ProjNode* proj, ProjNode*& success, ProjNode*& fail);
   bool has_only_uncommon_traps(ProjNode* proj, ProjNode*& success, ProjNode*& fail, PhaseIterGVN* igvn);
@@ -305,6 +308,8 @@ protected:
   ProjNode* range_check_trap_proj(int& flip, Node*& l, Node*& r);
   Node* Ideal_common(PhaseGVN *phase, bool can_reshape);
   Node* search_identical(int dist);
+
+  Node* simple_subsuming(PhaseIterGVN* igvn);
 
 public:
 
@@ -463,7 +468,7 @@ protected:
 // Undefined behavior if passed-in index is not inside the table.
 class PCTableNode : public MultiBranchNode {
   virtual uint hash() const;    // Target count; table size
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const { return sizeof(*this); }
 
 public:
@@ -505,7 +510,7 @@ public:
 
 class JumpProjNode : public JProjNode {
   virtual uint hash() const;
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const { return sizeof(*this); }
 
  private:
@@ -548,7 +553,7 @@ public:
 // the projection doesn't lead to an exception handler.
 class CatchProjNode : public CProjNode {
   virtual uint hash() const;
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const { return sizeof(*this); }
 
 private:

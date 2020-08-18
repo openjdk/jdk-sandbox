@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,7 +80,6 @@ JLI_GetAppArgIndex();
 #define JLI_StrSpn(p1, p2)      strspn((p1), (p2))
 #define JLI_StrCSpn(p1, p2)     strcspn((p1), (p2))
 #define JLI_StrPBrk(p1, p2)     strpbrk((p1), (p2))
-#define JLI_StrTok(p1, p2)      strtok((p1), (p2))
 
 /* On Windows lseek() is in io.h rather than the location dictated by POSIX. */
 #ifdef _WIN32
@@ -89,7 +88,8 @@ JLI_GetAppArgIndex();
 #include <process.h>
 #define JLI_StrCaseCmp(p1, p2)          stricmp((p1), (p2))
 #define JLI_StrNCaseCmp(p1, p2, p3)     strnicmp((p1), (p2), (p3))
-int  JLI_Snprintf(char *buffer, size_t size, const char *format, ...);
+int JLI_Snprintf(char *buffer, size_t size, const char *format, ...);
+int JLI_Open(const char* name, int flags);
 JNIEXPORT void JNICALL
 JLI_CmdToArgs(char *cmdline);
 #define JLI_Lseek                       _lseeki64
@@ -101,11 +101,9 @@ JLI_CmdToArgs(char *cmdline);
 #define JLI_StrCaseCmp(p1, p2)          strcasecmp((p1), (p2))
 #define JLI_StrNCaseCmp(p1, p2, p3)     strncasecmp((p1), (p2), (p3))
 #define JLI_Snprintf                    snprintf
+#define JLI_Open                        open
 #define JLI_PutEnv                      putenv
 #define JLI_GetPid                      getpid
-#ifdef __solaris__
-#define JLI_Lseek                       llseek
-#endif
 #ifdef __linux__
 #define _LARGFILE64_SOURCE
 #define JLI_Lseek                       lseek64

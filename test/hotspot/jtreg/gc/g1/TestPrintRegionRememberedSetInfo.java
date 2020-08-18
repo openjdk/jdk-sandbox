@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,16 +21,17 @@
  * questions.
  */
 
+package gc.g1;
+
 /**
  * @test TestPrintRegionRememberedSetInfo
- * @key gc
  * @bug 8014240
  * @summary Test output of G1PrintRegionRememberedSetInfo
  * @requires vm.gc.G1
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main TestPrintRegionRememberedSetInfo
+ * @run driver gc.g1.TestPrintRegionRememberedSetInfo
  * @author thomas.schatzl@oracle.com
  */
 
@@ -68,8 +69,7 @@ public class TestPrintRegionRememberedSetInfo {
 
         finalargs.add(RunAndWaitForMarking.class.getName());
 
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-            finalargs.toArray(new String[0]));
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(finalargs);
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldHaveExitValue(0);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,20 +43,12 @@ jlong handleGetLength(FD fd);
 FD handleOpen(const char *path, int oflag, int mode);
 
 /*
- * Macros to set/get fd from the java.io.FileDescriptor.  These
- * macros rely on having an appropriately defined 'this' object
- * within the scope in which they're used.
- * If GetObjectField returns null, SET_FD will stop and GET_FD
- * will simply return -1 to avoid crashing VM.
+ * Functions to get fd from the java.io.FileDescriptor field
+ * of an object.  These functions rely on having an appropriately
+ * defined object with a FileDescriptor object at the fid offset.
+ * If the FD object is null, return -1 to avoid crashing VM.
  */
-
-#define SET_FD(this, fd, fid) \
-    if ((*env)->GetObjectField(env, (this), (fid)) != NULL) \
-        (*env)->SetIntField(env, (*env)->GetObjectField(env, (this), (fid)),IO_fd_fdID, (fd))
-
-#define GET_FD(this, fid) \
-    (*env)->GetObjectField(env, (this), (fid)) == NULL ? \
-        -1 : (*env)->GetIntField(env, (*env)->GetObjectField(env, (this), (fid)), IO_fd_fdID)
+FD getFD(JNIEnv *env, jobject cur, jfieldID fid);
 
 /*
  * Macros to set/get fd when inside java.io.FileDescriptor
@@ -93,11 +85,10 @@ FD handleOpen(const char *path, int oflag, int mode);
 /*
  * Retry the operation if it is interrupted
  */
-#define RESTARTABLE(_cmd, _result) do { \
-    do { \
-        _result = _cmd; \
-    } while((_result == -1) && (errno == EINTR)); \
-} while(0)
+#define RESTARTABLE(_cmd, _result)                \
+    do {                                          \
+        _result = _cmd;                           \
+    } while ((_result == -1) && (errno == EINTR))
 
 void fileDescriptorClose(JNIEnv *env, jobject this);
 

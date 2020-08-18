@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -96,19 +96,25 @@ import java.util.stream.StreamSupport;
 
 public abstract class PermissionCollection implements java.io.Serializable {
 
+    @java.io.Serial
     private static final long serialVersionUID = -6727011328946861783L;
 
     // when set, add will throw an exception.
     private volatile boolean readOnly;
 
     /**
+     * Constructor for subclasses to call.
+     */
+    public PermissionCollection() {}
+
+    /**
      * Adds a permission object to the current collection of permission objects.
      *
      * @param permission the Permission object to add.
      *
-     * @exception SecurityException -  if this PermissionCollection object
+     * @throws    SecurityException    if this PermissionCollection object
      *                                 has been marked readonly
-     * @exception IllegalArgumentException - if this PermissionCollection
+     * @throws    IllegalArgumentException   if this PermissionCollection
      *                object is a homogeneous collection and the permission
      *                is not of the correct type.
      */

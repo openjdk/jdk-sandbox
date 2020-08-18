@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,6 +98,10 @@ public class IntegerExactExceptionTest extends GraalCompilerTest {
         }
     }
 
+    public void testIntegerExactOverflowWithoutUse3() {
+        Math.addExact(Integer.MAX_VALUE, 1);
+    }
+
     @Test
     public void testIntegerExactWithoutUse1() throws InvalidInstalledCodeException {
         ResolvedJavaMethod method = getResolvedJavaMethod("testIntegerExactOverflowWithoutUse1");
@@ -120,6 +124,20 @@ public class IntegerExactExceptionTest extends GraalCompilerTest {
         boolean gotException = false;
         try {
             code.executeVarargs(this, Integer.MAX_VALUE, true);
+        } catch (ArithmeticException e) {
+            gotException = true;
+        }
+        assertTrue(gotException);
+    }
+
+    @Test
+    public void testIntegerExactWithoutUse3() throws InvalidInstalledCodeException {
+        ResolvedJavaMethod method = getResolvedJavaMethod("testIntegerExactOverflowWithoutUse3");
+        InstalledCode code = getCode(method);
+
+        boolean gotException = false;
+        try {
+            code.executeVarargs(this);
         } catch (ArithmeticException e) {
             gotException = true;
         }

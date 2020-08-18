@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,8 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiImpl.hpp"
 #include "prims/jvmtiThreadState.inline.hpp"
-#include "runtime/frame.hpp"
+#include "runtime/deoptimization.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vframe.hpp"
@@ -189,61 +190,38 @@ JvmtiEnvEventEnable::~JvmtiEnvEventEnable() {
 
 ///////////////////////////////////////////////////////////////
 //
-// VM_EnterInterpOnlyMode
+// EnterInterpOnlyModeClosure
 //
 
-class VM_EnterInterpOnlyMode : public VM_Operation {
-private:
-  JvmtiThreadState *_state;
+class EnterInterpOnlyModeClosure : public HandshakeClosure {
 
 public:
-  VM_EnterInterpOnlyMode(JvmtiThreadState *state);
+  EnterInterpOnlyModeClosure() : HandshakeClosure("EnterInterpOnlyMode") { }
+  void do_thread(Thread* th) {
+    JavaThread* jt = (JavaThread*) th;
+    JvmtiThreadState* state = jt->jvmti_thread_state();
 
-  bool allow_nested_vm_operations() const        { return true; }
-  VMOp_Type type() const { return VMOp_EnterInterpOnlyMode; }
-  void doit();
+    // Set up the current stack depth for later tracking
+    state->invalidate_cur_stack_depth();
 
-  // to do: this same function is in jvmtiImpl - should be in one place
-  bool can_be_deoptimized(vframe* vf) {
-    return (vf->is_compiled_frame() && vf->fr().can_be_deoptimized());
-  }
-};
+    state->enter_interp_only_mode();
 
-VM_EnterInterpOnlyMode::VM_EnterInterpOnlyMode(JvmtiThreadState *state)
-  : _state(state)
-{
-}
-
-
-void VM_EnterInterpOnlyMode::doit() {
-  // Set up the current stack depth for later tracking
-  _state->invalidate_cur_stack_depth();
-
-  _state->enter_interp_only_mode();
-
-  JavaThread *thread = _state->get_thread();
-  if (thread->has_last_Java_frame()) {
-    // If running in fullspeed mode, single stepping is implemented
-    // as follows: first, the interpreter does not dispatch to
-    // compiled code for threads that have single stepping enabled;
-    // second, we deoptimize all methods on the thread's stack when
-    // interpreted-only mode is enabled the first time for a given
-    // thread (nothing to do if no Java frames yet).
-    int num_marked = 0;
-    ResourceMark resMark;
-    RegisterMap rm(thread, false);
-    for (vframe* vf = thread->last_java_vframe(&rm); vf; vf = vf->sender()) {
-      if (can_be_deoptimized(vf)) {
-        ((compiledVFrame*) vf)->code()->mark_for_deoptimization();
-        ++num_marked;
+    if (jt->has_last_Java_frame()) {
+      // If running in fullspeed mode, single stepping is implemented
+      // as follows: first, the interpreter does not dispatch to
+      // compiled code for threads that have single stepping enabled;
+      // second, we deoptimize all compiled java frames on the thread's stack when
+      // interpreted-only mode is enabled the first time for a given
+      // thread (nothing to do if no Java frames yet).
+      ResourceMark resMark;
+      for (StackFrameStream fst(jt, false); !fst.is_done(); fst.next()) {
+        if (fst.current()->can_be_deoptimized()) {
+          Deoptimization::deoptimize(jt, *fst.current());
+        }
       }
     }
-    if (num_marked > 0) {
-      VM_Deoptimize op;
-      VMThread::execute(&op);
-    }
   }
-}
+};
 
 
 ///////////////////////////////////////////////////////////////
@@ -264,7 +242,7 @@ public:
 
 
 VM_ChangeSingleStep::VM_ChangeSingleStep(bool on)
-  : _on(on != 0)
+  : _on(on)
 {
 }
 
@@ -331,18 +309,20 @@ void JvmtiEventControllerPrivate::set_should_post_single_step(bool on) {
 }
 
 
-// This change must always be occur when at a safepoint.
-// Being at a safepoint causes the interpreter to use the
-// safepoint dispatch table which we overload to find single
-// step points.  Just to be sure that it has been set, we
-// call notice_safepoints when turning on single stepping.
-// When we leave our current safepoint, should_post_single_step
-// will be checked by the interpreter, and the table kept
-// or changed accordingly.
+// When _on == true, we use the safepoint interpreter dispatch table
+// to allow us to find the single step points. Otherwise, we switch
+// back to the regular interpreter dispatch table.
+// Note: We call Interpreter::notice_safepoints() and ignore_safepoints()
+// in a VM_Operation to safely make the dispatch table switch. We
+// no longer rely on the safepoint mechanism to do any of this work
+// for us.
 void VM_ChangeSingleStep::doit() {
+  log_debug(interpreter, safepoint)("changing single step to '%s'", _on ? "on" : "off");
   JvmtiEventControllerPrivate::set_should_post_single_step(_on);
   if (_on) {
     Interpreter::notice_safepoints();
+  } else {
+    Interpreter::ignore_safepoints();
   }
 }
 
@@ -350,9 +330,12 @@ void VM_ChangeSingleStep::doit() {
 void JvmtiEventControllerPrivate::enter_interp_only_mode(JvmtiThreadState *state) {
   EC_TRACE(("[%s] # Entering interpreter only mode",
             JvmtiTrace::safe_get_thread_name(state->get_thread())));
-
-  VM_EnterInterpOnlyMode op(state);
-  VMThread::execute(&op);
+  EnterInterpOnlyModeClosure hs;
+  if (SafepointSynchronize::is_at_safepoint()) {
+    hs.do_thread(state->get_thread());
+  } else {
+    Handshake::execute_direct(&hs, state->get_thread());
+  }
 }
 
 
@@ -997,21 +980,21 @@ JvmtiEventController::set_extension_event_callback(JvmtiEnvBase *env,
 
 void
 JvmtiEventController::set_frame_pop(JvmtiEnvThreadState *ets, JvmtiFramePop fpop) {
-  MutexLockerEx mu(SafepointSynchronize::is_at_safepoint() ? NULL : JvmtiThreadState_lock);
+  MutexLocker mu(SafepointSynchronize::is_at_safepoint() ? NULL : JvmtiThreadState_lock);
   JvmtiEventControllerPrivate::set_frame_pop(ets, fpop);
 }
 
 
 void
 JvmtiEventController::clear_frame_pop(JvmtiEnvThreadState *ets, JvmtiFramePop fpop) {
-  MutexLockerEx mu(SafepointSynchronize::is_at_safepoint() ? NULL : JvmtiThreadState_lock);
+  MutexLocker mu(SafepointSynchronize::is_at_safepoint() ? NULL : JvmtiThreadState_lock);
   JvmtiEventControllerPrivate::clear_frame_pop(ets, fpop);
 }
 
 
 void
 JvmtiEventController::clear_to_frame_pop(JvmtiEnvThreadState *ets, JvmtiFramePop fpop) {
-  MutexLockerEx mu(SafepointSynchronize::is_at_safepoint() ? NULL : JvmtiThreadState_lock);
+  MutexLocker mu(SafepointSynchronize::is_at_safepoint() ? NULL : JvmtiThreadState_lock);
   JvmtiEventControllerPrivate::clear_to_frame_pop(ets, fpop);
 }
 

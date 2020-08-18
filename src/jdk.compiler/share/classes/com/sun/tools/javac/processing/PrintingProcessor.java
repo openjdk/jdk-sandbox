@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@ import javax.lang.model.*;
 import javax.lang.model.element.*;
 import static javax.lang.model.element.ElementKind.*;
 import static javax.lang.model.element.NestingKind.*;
-import static javax.lang.model.element.ModuleElement.DirectiveKind.*;
 import static javax.lang.model.element.ModuleElement.*;
 import javax.lang.model.type.*;
 import javax.lang.model.util.*;
@@ -39,6 +38,7 @@ import java.io.PrintWriter;
 import java.io.Writer;
 import java.util.*;
 import java.util.stream.Collectors;
+
 
 import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
@@ -55,7 +55,7 @@ import com.sun.tools.javac.util.StringUtils;
  * deletion without notice.</b>
  */
 @SupportedAnnotationTypes("*")
-@SupportedSourceVersion(SourceVersion.RELEASE_13)
+@SupportedSourceVersion(SourceVersion.RELEASE_16)
 public class PrintingProcessor extends AbstractProcessor {
     PrintWriter writer;
 
@@ -88,8 +88,9 @@ public class PrintingProcessor extends AbstractProcessor {
     /**
      * Used for the -Xprint option and called by Elements.printElements
      */
+    @SuppressWarnings("preview")
     public static class PrintingElementVisitor
-        extends SimpleElementVisitor9<PrintingElementVisitor, Boolean> {
+        extends SimpleElementVisitor14<PrintingElementVisitor, Boolean> {
         int indentation; // Indentation level;
         final PrintWriter writer;
         final Elements elementUtils;
@@ -111,6 +112,13 @@ public class PrintingProcessor extends AbstractProcessor {
         }
 
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
+        public PrintingElementVisitor visitRecordComponent(RecordComponentElement e, Boolean p) {
+                // Do nothing; printing of component information done by
+                // printing the record type itself
+            return this;
+        }
+
+        @Override @DefinedBy(Api.LANGUAGE_MODEL)
         public PrintingElementVisitor visitExecutable(ExecutableElement e, Boolean p) {
             ElementKind kind = e.getKind();
 
@@ -123,7 +131,7 @@ public class PrintingProcessor extends AbstractProcessor {
                     enclosing != null &&
                     NestingKind.ANONYMOUS ==
                     // Use an anonymous class to determine anonymity!
-                    (new SimpleElementVisitor9<NestingKind, Void>() {
+                    (new SimpleElementVisitor14<NestingKind, Void>() {
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
                         public NestingKind visitType(TypeElement e, Void p) {
                             return e.getNestingKind();
@@ -216,6 +224,16 @@ public class PrintingProcessor extends AbstractProcessor {
 
                 printFormalTypeParameters(e, false);
 
+                if (kind == RECORD) {
+                    // Print out record components
+                    writer.print("(");
+                    writer.print(e.getRecordComponents()
+                                 .stream()
+                                 .map(recordDes -> recordDes.asType().toString() + " " + recordDes.getSimpleName())
+                                 .collect(Collectors.joining(", ")));
+                    writer.print(")");
+                }
+
                 // Print superclass information if informative
                 if (kind == CLASS) {
                     TypeMirror supertype = e.getSuperclass();
@@ -228,6 +246,7 @@ public class PrintingProcessor extends AbstractProcessor {
                 }
 
                 printInterfaces(e);
+                printPermittedSubclasses(e);
             }
             writer.println(" {");
             indentation++;
@@ -255,7 +274,13 @@ public class PrintingProcessor extends AbstractProcessor {
                 for(Element element : enclosedElements)
                     this.visit(element);
             } else {
-                for(Element element : e.getEnclosedElements())
+                for(Element element :
+                        (kind != RECORD ?
+                         e.getEnclosedElements() :
+                         e.getEnclosedElements()
+                         .stream()
+                         .filter(elt -> elementUtils.getOrigin(elt) == Elements.Origin.EXPLICIT )
+                         .collect(Collectors.toList()) ) )
                     this.visit(element);
             }
 
@@ -424,7 +449,8 @@ public class PrintingProcessor extends AbstractProcessor {
         private void printModifiers(Element e) {
             ElementKind kind = e.getKind();
             if (kind == PARAMETER) {
-                printAnnotationsInline(e);
+                // Print annotation inline
+                writer.print(annotationsToString(e));
             } else {
                 printAnnotations(e);
                 indent();
@@ -445,6 +471,11 @@ public class PrintingProcessor extends AbstractProcessor {
             case ENUM:
                 modifiers.remove(Modifier.FINAL);
                 modifiers.remove(Modifier.ABSTRACT);
+                modifiers.remove(Modifier.SEALED);
+                break;
+
+            case RECORD:
+                modifiers.remove(Modifier.FINAL);
                 break;
 
             case METHOD:
@@ -460,39 +491,32 @@ public class PrintingProcessor extends AbstractProcessor {
                 break;
 
             }
-
-            for(Modifier m: modifiers) {
-                writer.print(m.toString() + " ");
+            if (!modifiers.isEmpty()) {
+                writer.print(modifiers.stream()
+                             .map(Modifier::toString)
+                             .collect(Collectors.joining(" ", "", " ")));
             }
         }
 
         private void printFormalTypeParameters(Parameterizable e,
                                                boolean pad) {
             List<? extends TypeParameterElement> typeParams = e.getTypeParameters();
-            if (typeParams.size() > 0) {
-                writer.print("<");
-
-                boolean first = true;
-                for(TypeParameterElement tpe: typeParams) {
-                    if (!first)
-                        writer.print(", ");
-                    printAnnotationsInline(tpe);
-                    writer.print(tpe.toString());
-                    first = false;
-                }
-
-                writer.print(">");
+            if (!typeParams.isEmpty()) {
+                writer.print(typeParams.stream()
+                             .map(tpe -> annotationsToString(tpe) + tpe.toString())
+                             .collect(Collectors.joining(", ", "<", ">")));
                 if (pad)
                     writer.print(" ");
             }
         }
 
-        private void printAnnotationsInline(Element e) {
-            List<? extends AnnotationMirror> annots = e.getAnnotationMirrors();
-            for(AnnotationMirror annotationMirror : annots) {
-                writer.print(annotationMirror);
-                writer.print(" ");
-            }
+        private String annotationsToString(Element e) {
+            List<? extends AnnotationMirror> annotations = e.getAnnotationMirrors();
+            return annotations.isEmpty() ?
+                "" :
+                annotations.stream()
+                .map(AnnotationMirror::toString)
+                .collect(Collectors.joining(" ", "", " "));
         }
 
         private void printAnnotations(Element e) {
@@ -569,18 +593,23 @@ public class PrintingProcessor extends AbstractProcessor {
 
             if(kind != ANNOTATION_TYPE) {
                 List<? extends TypeMirror> interfaces = e.getInterfaces();
-                if (interfaces.size() > 0) {
-                    writer.print((kind.isClass() ? " implements" : " extends"));
-
-                    boolean first = true;
-                    for(TypeMirror interf: interfaces) {
-                        if (!first)
-                            writer.print(",");
-                        writer.print(" ");
-                        writer.print(interf.toString());
-                        first = false;
-                    }
+                if (!interfaces.isEmpty()) {
+                    writer.print((kind.isClass() ? " implements " : " extends "));
+                    writer.print(interfaces.stream()
+                                 .map(TypeMirror::toString)
+                                 .collect(Collectors.joining(", ")));
                 }
+            }
+        }
+
+        private void printPermittedSubclasses(TypeElement e) {
+            List<? extends TypeMirror> subtypes = e.getPermittedSubclasses();
+            if (!subtypes.isEmpty()) { // could remove this check with more complicated joining call
+                writer.print(" permits ");
+                writer.print(subtypes
+                             .stream()
+                             .map(subtype -> subtype.toString())
+                             .collect(Collectors.joining(", ")));
             }
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,6 @@
 
 #include "precompiled.hpp"
 #include "interpreter/interpreter.hpp"
-#include "memory/heapInspection.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/resourceArea.hpp"
@@ -68,7 +67,7 @@ ConstMethod::ConstMethod(int byte_code_size,
   set_max_locals(0);
   set_method_idnum(0);
   set_size_of_parameters(0);
-  set_result_type(T_VOID);
+  set_result_type((BasicType)0);
 }
 
 // Accessor that copies to metadata.
@@ -420,13 +419,14 @@ void ConstMethod::metaspace_pointers_do(MetaspaceClosure* it) {
   if (has_default_annotations()) {
       it->push(default_annotations_addr());
   }
+  ConstMethod* this_ptr = this;
+  it->push_method_entry(&this_ptr, (intptr_t*)&_adapter_trampoline);
 }
 
 // Printing
 
 void ConstMethod::print_on(outputStream* st) const {
   ResourceMark rm;
-  assert(is_constMethod(), "must be constMethod");
   st->print_cr("%s", internal_name());
   Method* m = method();
   st->print(" - method:       " INTPTR_FORMAT " ", p2i((address)m));
@@ -444,7 +444,6 @@ void ConstMethod::print_on(outputStream* st) const {
 // Short version of printing ConstMethod* - just print the name of the
 // method it belongs to.
 void ConstMethod::print_value_on(outputStream* st) const {
-  assert(is_constMethod(), "must be constMethod");
   st->print(" const part of method " );
   Method* m = method();
   if (m != NULL) {
@@ -454,41 +453,9 @@ void ConstMethod::print_value_on(outputStream* st) const {
   }
 }
 
-#if INCLUDE_SERVICES
-// Size Statistics
-void ConstMethod::collect_statistics(KlassSizeStats *sz) const {
-  int n1, n2, n3;
-  sz->_const_method_bytes += (n1 = sz->count(this));
-  sz->_bytecode_bytes     += (n2 = code_size());
-  sz->_stackmap_bytes     += (n3 = sz->count_array(stackmap_data()));
-
-  // Count method annotations
-  int a1 = 0, a2 = 0, a3 = 0, a4 = 0;
-  if (has_method_annotations()) {
-    sz->_methods_annotations_bytes += (a1 = sz->count_array(method_annotations()));
-  }
-  if (has_parameter_annotations()) {
-    sz->_methods_parameter_annotations_bytes += (a2 = sz->count_array(parameter_annotations()));
-  }
-  if (has_type_annotations()) {
-    sz->_methods_type_annotations_bytes += (a3 = sz->count_array(type_annotations()));
-  }
-  if (has_default_annotations()) {
-    sz->_methods_default_annotations_bytes += (a4 = sz->count_array(default_annotations()));
-  }
-
-  int size_annotations = a1 + a2 + a3 + a4;
-
-  sz->_method_all_bytes += n1 + n3 + size_annotations; // note: n2 is part of n3
-  sz->_ro_bytes += n1 + n3 + size_annotations;
-}
-#endif // INCLUDE_SERVICES
-
 // Verification
 
 void ConstMethod::verify_on(outputStream* st) {
-  guarantee(is_constMethod(), "object must be constMethod");
-
   // Verification can occur during oop construction before the method or
   // other fields have been initialized.
   guarantee(method() != NULL && method()->is_method(), "should be method");

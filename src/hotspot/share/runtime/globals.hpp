@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,123 +25,23 @@
 #ifndef SHARE_RUNTIME_GLOBALS_HPP
 #define SHARE_RUNTIME_GLOBALS_HPP
 
+#include "compiler/compiler_globals.hpp"
 #include "gc/shared/gc_globals.hpp"
+#include "runtime/globals_shared.hpp"
 #include "utilities/align.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
-
-#include <float.h> // for DBL_MAX
-
-// The larger HeapWordSize for 64bit requires larger heaps
-// for the same application running in 64bit.  See bug 4967770.
-// The minimum alignment to a heap word size is done.  Other
-// parts of the memory system may require additional alignment
-// and are responsible for those alignments.
-#ifdef _LP64
-#define ScaleForWordSize(x) align_down_((x) * 13 / 10, HeapWordSize)
-#else
-#define ScaleForWordSize(x) (x)
-#endif
-
-// use this for flags that are true per default in the tiered build
-// but false in non-tiered builds, and vice versa
-#ifdef TIERED
-#define  trueInTiered true
-#define falseInTiered false
-#else
-#define  trueInTiered false
-#define falseInTiered true
-#endif
-
-// Default and minimum StringTable and SymbolTable size values
-// Must be powers of 2
-const size_t defaultStringTableSize = NOT_LP64(1024) LP64_ONLY(65536);
-const size_t minimumStringTableSize = 128;
-const size_t defaultSymbolTableSize = 32768; // 2^15
-const size_t minimumSymbolTableSize = 1024;
-
 #include CPU_HEADER(globals)
 #include OS_HEADER(globals)
 #include OS_CPU_HEADER(globals)
-#ifdef COMPILER1
-#include CPU_HEADER(c1_globals)
-#include OS_HEADER(c1_globals)
-#endif
-#ifdef COMPILER2
-#include CPU_HEADER(c2_globals)
-#include OS_HEADER(c2_globals)
-#endif
-
-#if !defined(COMPILER1) && !defined(COMPILER2) && !INCLUDE_JVMCI
-define_pd_global(bool, BackgroundCompilation,        false);
-define_pd_global(bool, UseTLAB,                      false);
-define_pd_global(bool, CICompileOSR,                 false);
-define_pd_global(bool, UseTypeProfile,               false);
-define_pd_global(bool, UseOnStackReplacement,        false);
-define_pd_global(bool, InlineIntrinsics,             false);
-define_pd_global(bool, PreferInterpreterNativeStubs, true);
-define_pd_global(bool, ProfileInterpreter,           false);
-define_pd_global(bool, ProfileTraps,                 false);
-define_pd_global(bool, TieredCompilation,            false);
-
-define_pd_global(intx, CompileThreshold,             0);
-
-define_pd_global(intx,   OnStackReplacePercentage,   0);
-define_pd_global(bool,   ResizeTLAB,                 false);
-define_pd_global(intx,   FreqInlineSize,             0);
-define_pd_global(size_t, NewSizeThreadIncrease,      4*K);
-define_pd_global(bool,   InlineClassNatives,         true);
-define_pd_global(bool,   InlineUnsafeOps,            true);
-define_pd_global(uintx,  InitialCodeCacheSize,       160*K);
-define_pd_global(uintx,  ReservedCodeCacheSize,      32*M);
-define_pd_global(uintx,  NonProfiledCodeHeapSize,    0);
-define_pd_global(uintx,  ProfiledCodeHeapSize,       0);
-define_pd_global(uintx,  NonNMethodCodeHeapSize,     32*M);
-
-define_pd_global(uintx,  CodeCacheExpansionSize,     32*K);
-define_pd_global(uintx,  CodeCacheMinBlockLength,    1);
-define_pd_global(uintx,  CodeCacheMinimumUseSpace,   200*K);
-define_pd_global(size_t, MetaspaceSize,              ScaleForWordSize(4*M));
-define_pd_global(bool, NeverActAsServerClassMachine, true);
-define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
-#define CI_COMPILER_COUNT 0
-#else
-
-#if COMPILER2_OR_JVMCI
-#define CI_COMPILER_COUNT 2
-#else
-#define CI_COMPILER_COUNT 1
-#endif // COMPILER2_OR_JVMCI
-
-#endif // no compilers
-
-// use this for flags that are true by default in the debug version but
-// false in the optimized version, and vice versa
-#ifdef ASSERT
-#define trueInDebug  true
-#define falseInDebug false
-#else
-#define trueInDebug  false
-#define falseInDebug true
-#endif
-
-// use this for flags that are true per default in the product build
-// but false in development builds, and vice versa
-#ifdef PRODUCT
-#define trueInProduct  true
-#define falseInProduct false
-#else
-#define trueInProduct  false
-#define falseInProduct true
-#endif
 
 // develop flags are settable / visible only during development and are constant in the PRODUCT version
 // product flags are always settable / visible
 // notproduct flags are settable / visible only during development and are not declared in the PRODUCT version
 
 // A flag must be declared with one of the following types:
-// bool, int, uint, intx, uintx, size_t, ccstr, double, or uint64_t.
-// The type "ccstr" is an alias for "const char*" and is used
+// bool, int, uint, intx, uintx, size_t, ccstr, ccstrlist, double, or uint64_t.
+// The type "ccstr" and "ccstrlist" are an alias for "const char*" and is used
 // only in this file, because the macrology requires single-token type names.
 
 // Note: Diagnostic options not meant for VM tuning or for product modes.
@@ -204,18 +104,13 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
 //
 // constraint is a macro that will expand to custom function call
 //    for constraint checking if provided - see jvmFlagConstraintList.hpp
-//
-// writeable is a macro that controls if and how the value can change during the runtime
-//
-// writeable(Always) is optional and allows the flag to have its value changed
-//    without any limitations at any time
-//
-// writeable(Once) flag value's can be only set once during the lifetime of VM
-//
-// writeable(CommandLineOnly) flag value's can be only set from command line
-//    (multiple times allowed)
-//
 
+// Default and minimum StringTable and SymbolTable size values
+// Must be powers of 2
+const size_t defaultStringTableSize = NOT_LP64(1024) LP64_ONLY(65536);
+const size_t minimumStringTableSize = 128;
+const size_t defaultSymbolTableSize = 32768; // 2^15
+const size_t minimumSymbolTableSize = 1024;
 
 #define RUNTIME_FLAGS(develop, \
                       develop_pd, \
@@ -229,8 +124,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                       product_rw, \
                       lp64_product, \
                       range, \
-                      constraint, \
-                      writeable) \
+                      constraint) \
                                                                             \
   lp64_product(bool, UseCompressedOops, false,                              \
           "Use 32-bit object references in 64-bit VM. "                     \
@@ -256,10 +150,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   develop(bool, CleanChunkPoolAsync, true,                                  \
           "Clean the chunk pool asynchronously")                            \
-                                                                            \
-  product_pd(bool, ThreadLocalHandshakes,                                   \
-          "Use thread-local polls instead of global poll for safepoints.")  \
-          constraint(ThreadLocalHandshakesConstraintFunc,AfterErgo)         \
                                                                             \
   diagnostic(uint, HandshakeTimeout, 0,                                     \
           "If nonzero set a timeout in milliseconds for handshakes")        \
@@ -288,7 +178,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Fail large pages individual allocation")                         \
                                                                             \
   product(bool, UseLargePagesInMetaspace, false,                            \
-          "Use large page memory in metaspace. "                            \
+          "(Deprecated) Use large page memory in metaspace. "               \
           "Only used if UseLargePages is enabled.")                         \
                                                                             \
   product(bool, UseNUMA, false,                                             \
@@ -302,7 +192,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           range(os::vm_allocation_granularity(), NOT_LP64(2*G) LP64_ONLY(8192*G)) \
                                                                             \
   product(bool, ForceNUMA, false,                                           \
-          "Force NUMA optimizations on single-node/UMA systems")            \
+          "(Deprecated) Force NUMA optimizations on single-node/UMA systems") \
                                                                             \
   product(uintx, NUMAChunkResizeWeight, 20,                                 \
           "Percentage (0-100) used to weight the current sample when "      \
@@ -323,13 +213,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(uintx, NUMAPageScanRate, 256,                                     \
           "Maximum number of pages to include in the page scan procedure")  \
           range(0, max_uintx)                                               \
-                                                                            \
-  product_pd(bool, NeedsDeoptSuspend,                                       \
-          "True for register window machines (sparc/ia64)")                 \
-                                                                            \
-  product(intx, UseSSE, 99,                                                 \
-          "Highest supported SSE instructions set on x86/x64")              \
-          range(0, 99)                                                      \
                                                                             \
   product(bool, UseAES, false,                                              \
           "Control whether AES instructions are used when available")       \
@@ -367,16 +250,17 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Print out every time compilation is longer than "                \
           "a given threshold")                                              \
                                                                             \
-  develop(bool, SafepointALot, false,                                       \
+  diagnostic(bool, SafepointALot, false,                                    \
           "Generate a lot of safepoints. This works with "                  \
+          "GuaranteedSafepointInterval")                                    \
+                                                                            \
+  diagnostic(bool, HandshakeALot, false,                                    \
+          "Generate a lot of handshakes. This works with "                  \
           "GuaranteedSafepointInterval")                                    \
                                                                             \
   product_pd(bool, BackgroundCompilation,                                   \
           "A thread requesting compilation is not blocked during "          \
           "compilation")                                                    \
-                                                                            \
-  product(bool, PrintVMQWaitTime, false,                                    \
-          "Print out the waiting time in VM operation queue")               \
                                                                             \
   product(bool, MethodFlushing, true,                                       \
           "Reclamation of zombie and not-entrant methods")                  \
@@ -397,9 +281,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   notproduct(bool, TraceCodeBlobStacks, false,                              \
           "Trace stack-walk of codeblobs")                                  \
-                                                                            \
-  product(bool, PrintJNIResolving, false,                                   \
-          "Used to implement -v:jni")                                       \
                                                                             \
   notproduct(bool, PrintRewrites, false,                                    \
           "Print methods that are being rewritten")                         \
@@ -442,6 +323,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   diagnostic(bool, UseAESCTRIntrinsics, false,                              \
           "Use intrinsics for the paralleled version of AES/CTR crypto")    \
                                                                             \
+  diagnostic(bool, UseMD5Intrinsics, false,                                 \
+          "Use intrinsics for MD5 crypto hash function")                    \
+                                                                            \
   diagnostic(bool, UseSHA1Intrinsics, false,                                \
           "Use intrinsics for SHA-1 crypto hash function. "                 \
           "Requires that UseSHA is enabled.")                               \
@@ -469,6 +353,10 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   diagnostic(ccstrlist, DisableIntrinsic, "",                               \
          "do not expand intrinsics whose (internal) names appear here")     \
                                                                             \
+  diagnostic(ccstrlist, ControlIntrinsic, "",                               \
+         "Control intrinsics using a list of +/- (internal) names, "        \
+         "separated by commas")                                             \
+                                                                            \
   develop(bool, TraceCallFixup, false,                                      \
           "Trace all call fixups")                                          \
                                                                             \
@@ -478,7 +366,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   notproduct(ccstrlist, DeoptimizeOnlyAt, "",                               \
           "A comma separated list of bcis to deoptimize at")                \
                                                                             \
-  product(bool, DeoptimizeRandom, false,                                    \
+  develop(bool, DeoptimizeRandom, false,                                    \
           "Deoptimize random frames on random exit from the runtime system")\
                                                                             \
   notproduct(bool, ZombieALot, false,                                       \
@@ -491,15 +379,8 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Set when executing debug methods in debug.cpp "                  \
           "(to prevent triggering assertions)")                             \
                                                                             \
-  notproduct(bool, StrictSafepointChecks, trueInDebug,                      \
-          "Enable strict checks that safepoints cannot happen for threads " \
-          "that use NoSafepointVerifier")                                   \
-                                                                            \
   notproduct(bool, VerifyLastFrame, false,                                  \
           "Verify oops on last frame on entry to VM")                       \
-                                                                            \
-  product(bool, FailOverToOldVerifier, true,                                \
-          "Fail over to old verifier when split verifier fails")            \
                                                                             \
   product(bool, SafepointTimeout, false,                                    \
           "Time out and warn or fail after SafepointTimeoutDelay "          \
@@ -532,19 +413,19 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Trace external suspend wait failures")                           \
                                                                             \
   product(bool, MaxFDLimit, true,                                           \
-          "Bump the number of file descriptors to maximum in Solaris")      \
+          "Bump the number of file descriptors to maximum (Unix only)")     \
                                                                             \
   diagnostic(bool, LogEvents, true,                                         \
           "Enable the various ring buffer event logs")                      \
                                                                             \
-  diagnostic(uintx, LogEventsBufferEntries, 10,                             \
+  diagnostic(uintx, LogEventsBufferEntries, 20,                             \
           "Number of ring buffer event logs")                               \
           range(1, NOT_LP64(1*K) LP64_ONLY(1*M))                            \
                                                                             \
-  product(bool, BytecodeVerificationRemote, true,                           \
+  diagnostic(bool, BytecodeVerificationRemote, true,                        \
           "Enable the Java bytecode verifier for remote classes")           \
                                                                             \
-  product(bool, BytecodeVerificationLocal, false,                           \
+  diagnostic(bool, BytecodeVerificationLocal, false,                        \
           "Enable the Java bytecode verifier for local classes")            \
                                                                             \
   develop(bool, ForceFloatExceptions, trueInDebug,                          \
@@ -561,9 +442,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   develop(bool, UseMallocOnly, false,                                       \
           "Use only malloc/free for allocation (no resource area/arena)")   \
-                                                                            \
-  develop(bool, PrintMallocStatistics, false,                               \
-          "Print malloc/free statistics")                                   \
                                                                             \
   develop(bool, ZapResourceArea, trueInDebug,                               \
           "Zap freed resource/arena space with 0xABABABAB")                 \
@@ -651,9 +529,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   develop(bool, BreakAtWarning, false,                                      \
           "Execute breakpoint upon encountering VM warning")                \
                                                                             \
-  develop(bool, UseFakeTimers, false,                                       \
-          "Tell whether the VM should use system time or a fake timer")     \
-                                                                            \
   product(ccstr, NativeMemoryTracking, "off",                               \
           "Native memory tracking options")                                 \
                                                                             \
@@ -666,11 +541,12 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(bool, PrintCompilation, false,                                    \
           "Print compilations")                                             \
                                                                             \
+  diagnostic(intx, RepeatCompilation, 0,                                    \
+          "Repeat compilation without installing code (number of times)")   \
+          range(0, max_jint)                                                 \
+                                                                            \
   product(bool, PrintExtendedThreadInfo, false,                             \
           "Print more information in thread dump")                          \
-                                                                            \
-  diagnostic(bool, TraceNMethodInstalls, false,                             \
-          "Trace nmethod installation")                                     \
                                                                             \
   diagnostic(intx, ScavengeRootsInCode, 2,                                  \
           "0: do not allow scavengable oops in the code cache; "            \
@@ -749,21 +625,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(bool, OmitStackTraceInFastThrow, true,                            \
           "Omit backtraces for some 'hot' exceptions in optimized code")    \
                                                                             \
-  product(bool, ProfilerPrintByteCodeStatistics, false,                     \
-          "Print bytecode statistics when dumping profiler output")         \
-                                                                            \
-  product(bool, ProfilerRecordPC, false,                                    \
-          "Collect ticks for each 16 byte interval of compiled code")       \
-                                                                            \
-  product(bool, ProfileVM, false,                                           \
-          "Profile ticks that fall within VM (either in the VM Thread "     \
-          "or VM code called through stubs)")                               \
-                                                                            \
-  product(bool, ProfileIntervals, false,                                    \
-          "Print profiles for each interval (see ProfileIntervalsTicks)")   \
-                                                                            \
-  notproduct(bool, ProfilerCheckIntervals, false,                           \
-          "Collect and print information on spacing of profiler ticks")     \
+  manageable(bool, ShowCodeDetailsInExceptionMessages, true,                \
+          "Show exception messages from RuntimeExceptions that contain "    \
+          "snippets of the failing code. Disable this to improve privacy.") \
                                                                             \
   product(bool, PrintWarnings, true,                                        \
           "Print JVM warnings to output stream")                            \
@@ -823,26 +687,22 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product_pd(bool, DontYieldALot,                                           \
           "Throw away obvious excess yield calls")                          \
                                                                             \
-  develop(bool, UseDetachedThreads, true,                                   \
-          "Use detached threads that are recycled upon termination "        \
-          "(for Solaris only)")                                             \
-                                                                            \
   experimental(bool, DisablePrimordialThreadGuardPages, false,              \
                "Disable the use of stack guard pages if the JVM is loaded " \
                "on the primordial process thread")                          \
                                                                             \
-  product(bool, UseLWPSynchronization, true,                                \
-          "Use LWP-based instead of libthread-based synchronization "       \
-          "(SPARC only)")                                                   \
-                                                                            \
-  product(intx, MonitorBound, 0, "Bound Monitor population")                \
+  /* notice: the max range value here is max_jint, not max_intx  */         \
+  /* because of overflow issue                                   */         \
+  diagnostic(intx, AsyncDeflationInterval, 250,                             \
+          "Async deflate idle monitors every so many milliseconds when "    \
+          "MonitorUsedDeflationThreshold is exceeded (0 is off).")          \
           range(0, max_jint)                                                \
                                                                             \
   experimental(intx, MonitorUsedDeflationThreshold, 90,                     \
-                "Percentage of used monitors before triggering cleanup "    \
-                "safepoint which deflates monitors (0 is off). "            \
-                "The check is performed on GuaranteedSafepointInterval.")   \
-                range(0, 100)                                               \
+          "Percentage of used monitors before triggering deflation (0 is "  \
+          "off). The check is performed on GuaranteedSafepointInterval "    \
+          "or AsyncDeflationInterval.")                                     \
+          range(0, 100)                                                     \
                                                                             \
   experimental(intx, hashCode, 5,                                           \
                "(Unstable) select hashCode generation algorithm")           \
@@ -851,15 +711,8 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "When true prevents OS-level spurious, or premature, wakeups "    \
           "from Object.wait (Ignored for Windows)")                         \
                                                                             \
-  develop(bool, UsePthreads, false,                                         \
-          "Use pthread-based instead of libthread-based synchronization "   \
-          "(SPARC only)")                                                   \
-                                                                            \
   product(bool, ReduceSignalUsage, false,                                   \
           "Reduce the use of OS signals in Java and/or the VM")             \
-                                                                            \
-  develop_pd(bool, ShareVtableStubs,                                        \
-          "Share vtable stubs (smaller code but worse branch prediction")   \
                                                                             \
   develop(bool, LoadLineNumberTables, true,                                 \
           "Tell whether the class file parser loads line number tables")    \
@@ -873,14 +726,11 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   product(bool, AllowUserSignalHandlers, false,                             \
           "Do not complain if the application installs signal handlers "    \
-          "(Solaris & Linux only)")                                         \
+          "(Unix only)")                                                    \
                                                                             \
   product(bool, UseSignalChaining, true,                                    \
           "Use signal-chaining to invoke signal handlers installed "        \
-          "by the application (Solaris & Linux only)")                      \
-                                                                            \
-  product(bool, AllowJNIEnvProxy, false,                                    \
-          "Allow JNIEnv proxies for jdbx")                                  \
+          "by the application (Unix only)")                                 \
                                                                             \
   product(bool, RestoreMXCSROnJNICalls, false,                              \
           "Restore MXCSR when returning from JNI calls")                    \
@@ -912,15 +762,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(bool, UseXMMForArrayCopy, false,                                  \
           "Use SSE2 MOVQ instruction for Arraycopy")                        \
                                                                             \
-  product(intx, FieldsAllocationStyle, 1,                                   \
-          "0 - type based with oops first, "                                \
-          "1 - with oops last, "                                            \
-          "2 - oops in super and sub classes are together")                 \
-          range(0, 2)                                                       \
-                                                                            \
-  product(bool, CompactFields, true,                                        \
-          "Allocate nonstatic fields in gaps between previous fields")      \
-                                                                            \
   notproduct(bool, PrintFieldLayout, false,                                 \
           "Print field layout for each class")                              \
                                                                             \
@@ -939,32 +780,34 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(bool, RestrictContended, true,                                    \
           "Restrict @Contended to trusted classes")                         \
                                                                             \
-  product(bool, UseBiasedLocking, true,                                     \
-          "Enable biased locking in JVM")                                   \
+  product(bool, UseBiasedLocking, false,                                    \
+          "(Deprecated) Enable biased locking in JVM")                      \
                                                                             \
   product(intx, BiasedLockingStartupDelay, 0,                               \
-          "Number of milliseconds to wait before enabling biased locking")  \
+          "(Deprecated) Number of milliseconds to wait before enabling "    \
+          "biased locking")                                                 \
           range(0, (intx)(max_jint-(max_jint%PeriodicTask::interval_gran))) \
           constraint(BiasedLockingStartupDelayFunc,AfterErgo)               \
                                                                             \
   diagnostic(bool, PrintBiasedLockingStatistics, false,                     \
-          "Print statistics of biased locking in JVM")                      \
+          "(Deprecated) Print statistics of biased locking in JVM")         \
                                                                             \
   product(intx, BiasedLockingBulkRebiasThreshold, 20,                       \
-          "Threshold of number of revocations per type to try to "          \
-          "rebias all objects in the heap of that type")                    \
+          "(Deprecated) Threshold of number of revocations per type to "    \
+          "try to rebias all objects in the heap of that type")             \
           range(0, max_intx)                                                \
           constraint(BiasedLockingBulkRebiasThresholdFunc,AfterErgo)        \
                                                                             \
   product(intx, BiasedLockingBulkRevokeThreshold, 40,                       \
-          "Threshold of number of revocations per type to permanently "     \
-          "revoke biases of all objects in the heap of that type")          \
+          "(Deprecated) Threshold of number of revocations per type to "    \
+          "permanently revoke biases of all objects in the heap of that "   \
+          "type")                                                           \
           range(0, max_intx)                                                \
           constraint(BiasedLockingBulkRevokeThresholdFunc,AfterErgo)        \
                                                                             \
   product(intx, BiasedLockingDecayTime, 25000,                              \
-          "Decay time (in milliseconds) to re-enable bulk rebiasing of a "  \
-          "type after previous bulk rebias")                                \
+          "(Deprecated) Decay time (in milliseconds) to re-enable bulk "    \
+          "rebiasing of a type after previous bulk rebias")                 \
           range(500, max_intx)                                              \
           constraint(BiasedLockingDecayTimeFunc,AfterErgo)                  \
                                                                             \
@@ -992,6 +835,10 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   /* change to false by default sometime after Mustang */                   \
   product(bool, VerifyMergedCPBytecodes, true,                              \
           "Verify bytecodes after RedefineClasses constant pool merging")   \
+                                                                            \
+  product(bool, AllowRedefinitionToAddDeleteMethods, false,                 \
+          "(Deprecated) Allow redefinition to add and delete private "      \
+          "static or final methods for compatibility with old releases")    \
                                                                             \
   develop(bool, TraceBytecodes, false,                                      \
           "Trace bytecode execution")                                       \
@@ -1024,7 +871,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Time calls to GenerateOopMap::compute_map() individually")       \
                                                                             \
   develop(bool, TraceOopMapRewrites, false,                                 \
-          "Trace rewriting of method oops during oop map generation")       \
+          "Trace rewriting of methods during oop map generation")           \
                                                                             \
   develop(bool, TraceICBuffer, false,                                       \
           "Trace usage of IC buffer")                                       \
@@ -1051,7 +898,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   product(size_t, InitialBootClassLoaderMetaspaceSize,                      \
           NOT_LP64(2200*K) LP64_ONLY(4*M),                                  \
-          "Initial size of the boot class loader data metaspace")           \
+          "(Deprecated) Initial size of the boot class loader data metaspace") \
           range(30*K, max_uintx/BytesPerWord)                               \
           constraint(InitialBootClassLoaderMetaspaceSizeConstraintFunc, AfterErgo)\
                                                                             \
@@ -1140,17 +987,10 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Inject thread creation failures for "                            \
           "UseDynamicNumberOfCompilerThreads")                              \
                                                                             \
-  product(intx, CompilationPolicyChoice, 0,                                 \
-          "which compilation policy (0-2)")                                 \
-          range(0, 2)                                                       \
-                                                                            \
   develop(bool, UseStackBanging, true,                                      \
           "use stack banging for stack overflow checks (required for "      \
           "proper StackOverflow handling; disable only to measure cost "    \
           "of stackbanging)")                                               \
-                                                                            \
-  develop(bool, UseStrictFP, true,                                          \
-          "use strict fp if modifier strictfp is set")                      \
                                                                             \
   develop(bool, GenerateSynchronizationCode, true,                          \
           "generate locking/unlocking code for synchronized methods and "   \
@@ -1173,6 +1013,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   diagnostic(bool, EnableThreadSMRStatistics, trueInDebug,                  \
              "Enable Thread SMR Statistics")                                \
+                                                                            \
+  product(bool, UseNotificationThread, true,                                \
+          "Use Notification Thread")                                        \
                                                                             \
   product(bool, Inline, true,                                               \
           "Enable inlining")                                                \
@@ -1253,7 +1096,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "exit")                                                           \
                                                                             \
   product(bool, PrintFlagsRanges, false,                                    \
-          "Print VM flags and their ranges and exit VM")                    \
+          "Print VM flags and their ranges")                                \
                                                                             \
   diagnostic(bool, SerializeVMOutput, true,                                 \
           "Use a mutex to serialize output to tty and LogFile")             \
@@ -1281,6 +1124,12 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   product(bool, DisplayVMOutputToStdout, false,                             \
           "If DisplayVMOutput is true, display all VM output to stdout")    \
+                                                                            \
+  product(bool, ErrorFileToStderr, false,                                   \
+          "If true, error data is printed to stderr instead of a file")     \
+                                                                            \
+  product(bool, ErrorFileToStdout, false,                                   \
+          "If true, error data is printed to stdout instead of a file")     \
                                                                             \
   product(bool, UseHeavyMonitors, false,                                    \
           "use heavyweight instead of lightweight Java monitors")           \
@@ -1314,9 +1163,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   develop(bool, TraceCreateZombies, false,                                  \
           "trace creation of zombie nmethods")                              \
-                                                                            \
-  notproduct(bool, IgnoreLockingAssertions, false,                          \
-          "disable locking assertions (for speed)")                         \
                                                                             \
   product(bool, RangeCheckElimination, true,                                \
           "Eliminate range checks")                                         \
@@ -1531,7 +1377,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(intx,  AllocatePrefetchDistance, -1,                              \
           "Distance to prefetch ahead of allocation pointer. "              \
           "-1: use system-specific value (automatically determined")        \
-          constraint(AllocatePrefetchDistanceConstraintFunc, AfterMemoryInit)\
+          constraint(AllocatePrefetchDistanceConstraintFunc,AfterMemoryInit)\
                                                                             \
   product(intx,  AllocatePrefetchLines, 3,                                  \
           "Number of lines to prefetch ahead of array allocation pointer")  \
@@ -1612,34 +1458,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   notproduct(intx, MaxSubklassPrintSize, 4,                                 \
           "maximum number of subklasses to print when printing klass")      \
                                                                             \
-  product(intx, MaxInlineLevel, 9,                                          \
-          "maximum number of nested calls that are inlined")                \
-          range(0, max_jint)                                                \
-                                                                            \
-  product(intx, MaxRecursiveInlineLevel, 1,                                 \
-          "maximum number of nested recursive calls that are inlined")      \
-          range(0, max_jint)                                                \
-                                                                            \
   develop(intx, MaxForceInlineLevel, 100,                                   \
           "maximum number of nested calls that are forced for inlining "    \
           "(using CompileCommand or marked w/ @ForceInline)")               \
-          range(0, max_jint)                                                \
-                                                                            \
-  product_pd(intx, InlineSmallCode,                                         \
-          "Only inline already compiled methods if their code size is "     \
-          "less than this")                                                 \
-          range(0, max_jint)                                                \
-                                                                            \
-  product(intx, MaxInlineSize, 35,                                          \
-          "The maximum bytecode size of a method to be inlined")            \
-          range(0, max_jint)                                                \
-                                                                            \
-  product_pd(intx, FreqInlineSize,                                          \
-          "The maximum bytecode size of a frequent method to be inlined")   \
-          range(0, max_jint)                                                \
-                                                                            \
-  product(intx, MaxTrivialSize, 6,                                          \
-          "The maximum bytecode size of a trivial method to be inlined")    \
           range(0, max_jint)                                                \
                                                                             \
   product(intx, MinInliningThreshold, 250,                                  \
@@ -1650,28 +1471,8 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   develop(intx, MethodHistogramCutoff, 100,                                 \
           "The cutoff value for method invocation histogram (+CountCalls)") \
                                                                             \
-  diagnostic(intx, ProfilerNumberOfInterpretedMethods, 25,                  \
-          "Number of interpreted methods to show in profile")               \
-                                                                            \
-  diagnostic(intx, ProfilerNumberOfCompiledMethods, 25,                     \
-          "Number of compiled methods to show in profile")                  \
-                                                                            \
-  diagnostic(intx, ProfilerNumberOfStubMethods, 25,                         \
-          "Number of stub methods to show in profile")                      \
-                                                                            \
-  diagnostic(intx, ProfilerNumberOfRuntimeStubNodes, 25,                    \
-          "Number of runtime stub nodes to show in profile")                \
-                                                                            \
-  product(intx, ProfileIntervalsTicks, 100,                                 \
-          "Number of ticks between printing of interval profile "           \
-          "(+ProfileIntervals)")                                            \
-          range(0, max_intx)                                                \
-                                                                            \
   develop(intx, DontYieldALotInterval,    10,                               \
           "Interval between which yields will be dropped (milliseconds)")   \
-                                                                            \
-  develop(intx, ProfilerPCTickThreshold,    15,                             \
-          "Number of ticks in a PC buckets to be a hotspot")                \
                                                                             \
   notproduct(intx, DeoptimizeALotInterval,     5,                           \
           "Number of exits until DeoptimizeALot kicks in")                  \
@@ -1896,6 +1697,11 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(bool, UseCodeCacheFlushing, true,                                 \
           "Remove cold/old nmethods from the code cache")                   \
                                                                             \
+  product(double, SweeperThreshold, 0.5,                                    \
+          "Threshold controlling when code cache sweeper is invoked."       \
+          "Value is percentage of ReservedCodeCacheSize.")                  \
+          range(0.0, 100.0)                                                 \
+                                                                            \
   product(uintx, StartAggressiveSweepingAt, 10,                             \
           "Start aggressive sweeping if X[%] of the code cache is free."    \
           "Segmented code cache: X[%] of the non-profiled heap."            \
@@ -1903,13 +1709,13 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           range(0, 100)                                                     \
                                                                             \
   /* AOT parameters */                                                      \
-  product(bool, UseAOT, AOT_ONLY(true) NOT_AOT(false),                      \
+  experimental(bool, UseAOT, false,                                         \
           "Use AOT compiled files")                                         \
                                                                             \
-  product(ccstrlist, AOTLibrary, NULL,                                      \
+  experimental(ccstrlist, AOTLibrary, NULL,                                 \
           "AOT library")                                                    \
                                                                             \
-  product(bool, PrintAOT, false,                                            \
+  experimental(bool, PrintAOT, false,                                       \
           "Print used AOT klasses and methods")                             \
                                                                             \
   notproduct(bool, PrintAOTStatistics, false,                               \
@@ -1994,10 +1800,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(bool, CICompilerCountPerCPU, false,                               \
           "1 compiler thread for log(N CPUs)")                              \
                                                                             \
-  develop(intx, CIFireOOMAt,    -1,                                         \
-          "Fire OutOfMemoryErrors throughout CI for testing the compiler "  \
-          "(non-negative value throws OOM after this many CI accesses "     \
-          "in each compile)")                                               \
   notproduct(intx, CICrashAt, -1,                                           \
           "id of compilation to trigger assert in compiler thread for "     \
           "the purpose of testing, e.g. generation of replay data")         \
@@ -2013,10 +1815,8 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(intx, ThreadPriorityPolicy, 0,                                    \
           "0 : Normal.                                                     "\
           "    VM chooses priorities that are appropriate for normal       "\
-          "    applications. On Solaris NORM_PRIORITY and above are mapped "\
-          "    to normal native priority. Java priorities below "           \
-          "    NORM_PRIORITY map to lower native priority values. On       "\
-          "    Windows applications are allowed to use higher native       "\
+          "    applications.                                               "\
+          "    On Windows applications are allowed to use higher native    "\
           "    priorities. However, with ThreadPriorityPolicy=0, VM will   "\
           "    not use the highest possible native priority,               "\
           "    THREAD_PRIORITY_TIME_CRITICAL, as it may interfere with     "\
@@ -2041,7 +1841,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "The native priority at which compiler threads should run "       \
           "(-1 means no change)")                                           \
           range(min_jint, max_jint)                                         \
-          constraint(CompilerThreadPriorityConstraintFunc, AfterErgo)       \
                                                                             \
   product(intx, VMThreadPriority, -1,                                       \
           "The native priority at which the VM thread should run "          \
@@ -2093,9 +1892,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   experimental(bool, UseCriticalCompilerThreadPriority, false,              \
           "Compiler thread(s) run at critical scheduling priority")         \
-                                                                            \
-  experimental(bool, UseCriticalCMSThreadPriority, false,                   \
-          "ConcurrentMarkSweep thread runs at critical scheduling priority")\
                                                                             \
   develop(intx, NewCodeParameter,      0,                                   \
           "Testing Only: Create a dedicated integer parameter before "      \
@@ -2203,6 +1999,35 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "if coming from AOT")                                             \
           range(0, max_jint)                                                \
                                                                             \
+  diagnostic(intx, Tier0AOTInvocationThreshold, 200,                        \
+          "Switch to interpreter to profile if the number of method "       \
+          "invocations crosses this threshold if coming from AOT "          \
+          "(applicable only with "                                          \
+          "CompilationMode=high-only|high-only-quick-internal)")            \
+          range(0, max_jint)                                                \
+                                                                            \
+  diagnostic(intx, Tier0AOTMinInvocationThreshold, 100,                     \
+          "Minimum number of invocations to switch to interpreter "         \
+          "to profile if coming from AOT "                                  \
+          "(applicable only with "                                          \
+          "CompilationMode=high-only|high-only-quick-internal)")            \
+          range(0, max_jint)                                                \
+                                                                            \
+  diagnostic(intx, Tier0AOTCompileThreshold, 2000,                          \
+          "Threshold at which to switch to interpreter to profile "         \
+          "if coming from AOT "                                             \
+          "(invocation minimum must be satisfied, "                         \
+          "applicable only with "                                           \
+          "CompilationMode=high-only|high-only-quick-internal)")            \
+          range(0, max_jint)                                                \
+                                                                            \
+  diagnostic(intx, Tier0AOTBackEdgeThreshold,  60000,                       \
+          "Back edge threshold at which to switch to interpreter "          \
+          "to profile if coming from AOT "                                  \
+          "(applicable only with "                                          \
+          "CompilationMode=high-only|high-only-quick-internal)")            \
+          range(0, max_jint)                                                \
+                                                                            \
   product(intx, Tier4InvocationThreshold, 5000,                             \
           "Compile if number of method invocations crosses this "           \
           "threshold")                                                      \
@@ -2214,11 +2039,42 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   product(intx, Tier4CompileThreshold, 15000,                               \
           "Threshold at which tier 4 compilation is invoked (invocation "   \
-          "minimum must be satisfied")                                      \
+          "minimum must be satisfied)")                                     \
           range(0, max_jint)                                                \
                                                                             \
   product(intx, Tier4BackEdgeThreshold, 40000,                              \
           "Back edge threshold at which tier 4 OSR compilation is invoked") \
+          range(0, max_jint)                                                \
+                                                                            \
+  diagnostic(intx, Tier40InvocationThreshold, 5000,                         \
+          "Compile if number of method invocations crosses this "           \
+          "threshold (applicable only with "                                \
+          "CompilationMode=high-only|high-only-quick-internal)")            \
+          range(0, max_jint)                                                \
+                                                                            \
+  diagnostic(intx, Tier40MinInvocationThreshold, 600,                       \
+          "Minimum number of invocations to compile at tier 4 "             \
+          "(applicable only with "                                          \
+          "CompilationMode=high-only|high-only-quick-internal)")            \
+          range(0, max_jint)                                                \
+                                                                            \
+  diagnostic(intx, Tier40CompileThreshold, 10000,                           \
+          "Threshold at which tier 4 compilation is invoked (invocation "   \
+          "minimum must be satisfied, applicable only with "                \
+          "CompilationMode=high-only|high-only-quick-internal)")            \
+          range(0, max_jint)                                                \
+                                                                            \
+  diagnostic(intx, Tier40BackEdgeThreshold, 15000,                          \
+          "Back edge threshold at which tier 4 OSR compilation is invoked " \
+          "(applicable only with "                                          \
+          "CompilationMode=high-only|high-only-quick-internal)")            \
+          range(0, max_jint)                                                \
+                                                                            \
+  diagnostic(intx, Tier0Delay, 5,                                           \
+          "If C2 queue size grows over this amount per compiler thread "    \
+          "do not start profiling in the interpreter "                      \
+          "(applicable only with "                                          \
+          "CompilationMode=high-only|high-only-quick-internal)")            \
           range(0, max_jint)                                                \
                                                                             \
   product(intx, Tier3DelayOn, 5,                                            \
@@ -2252,7 +2108,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   product(intx, Tier0ProfilingStartPercentage, 200,                         \
           "Start profiling in interpreter if the counters exceed tier 3 "   \
-          "thresholds by the specified percentage")                         \
+          "thresholds (tier 4 thresholds with "                             \
+          "CompilationMode=high-only|high-only-quick-internal)"             \
+          "by the specified percentage")                                    \
           range(0, max_jint)                                                \
                                                                             \
   product(uintx, IncreaseFirstTierCompileThresholdAt, 50,                   \
@@ -2267,6 +2125,14 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(intx, TieredRateUpdateMaxTime, 25,                                \
           "Maximum rate sampling interval (in milliseconds)")               \
           range(0, max_intx)                                                \
+                                                                            \
+  product(ccstr, CompilationMode, "default",                                \
+          "Compilation modes: "                                             \
+          "default: normal tiered compilation; "                            \
+          "quick-only: C1-only mode; "                                      \
+          "high-only: C2/JVMCI-only mode; "                                 \
+          "high-only-quick-internal: C2/JVMCI-only mode, "                  \
+          "with JVMCI compiler compiled with C1.")                          \
                                                                             \
   product_pd(bool, TieredCompilation,                                       \
           "Enable tiered compilation")                                      \
@@ -2283,14 +2149,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "NON_TIERED number of method invocations/branches (expressed as " \
           "% of CompileThreshold) before profiling in the interpreter")     \
           range(0, 100)                                                     \
-                                                                            \
-  develop(intx, MaxRecompilationSearchLength,    10,                        \
-          "The maximum number of frames to inspect when searching for "     \
-          "recompilee")                                                     \
-                                                                            \
-  develop(intx, MaxInterpretedSearchLength,     3,                          \
-          "The maximum number of interpreted frames to skip when searching "\
-          "for recompilee")                                                 \
                                                                             \
   develop(intx, DesiredMethodLimit,  8000,                                  \
           "The desired maximum method size (in bytecodes) after inlining")  \
@@ -2381,8 +2239,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Use shared spaces for metadata")                                 \
                                                                             \
   product(bool, VerifySharedSpaces, false,                                  \
-          "Verify shared spaces (false for default archive, true for "      \
-          "archive specified by -XX:SharedArchiveFile)")                    \
+          "Verify integrity of shared spaces")                              \
                                                                             \
   product(bool, RequireSharedSpaces, false,                                 \
           "Require shared spaces for metadata")                             \
@@ -2391,6 +2248,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Special mode: JVM reads a class list, loads classes, builds "    \
           "shared spaces, and dumps the shared spaces to a file to be "     \
           "used in future JVM runs")                                        \
+                                                                            \
+  product(bool, DynamicDumpSharedSpaces, false,                             \
+          "Dynamic archive")                                                \
                                                                             \
   product(bool, PrintSharedArchiveAndExit, false,                           \
           "Print shared archive file contents")                             \
@@ -2417,9 +2277,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   diagnostic(bool, PrintMethodHandleStubs, false,                           \
           "Print generated stub code for method handles")                   \
                                                                             \
-  develop(bool, TraceMethodHandles, false,                                  \
-          "trace internal method handle operations")                        \
-                                                                            \
   diagnostic(bool, VerifyMethodHandles, trueInDebug,                        \
           "perform extra checks when constructing method handles")          \
                                                                             \
@@ -2431,9 +2288,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   diagnostic(bool, FoldStableValues, true,                                  \
           "Optimize loads from stable fields (marked w/ @Stable)")          \
-                                                                            \
-  develop(bool, TraceInvokeDynamic, false,                                  \
-          "trace internal invoke dynamic operations")                       \
                                                                             \
   diagnostic(int, UseBootstrapCallInfo, 1,                                  \
           "0: when resolving InDy or ConDy, force all BSM arguments to be " \
@@ -2472,11 +2326,11 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(uintx, StringTableSize, defaultStringTableSize,                   \
           "Number of buckets in the interned String table "                 \
           "(will be rounded to nearest higher power of 2)")                 \
-          range(minimumStringTableSize, 16777216ul)                         \
+          range(minimumStringTableSize, 16777216ul /* 2^24 */)              \
                                                                             \
   experimental(uintx, SymbolTableSize, defaultSymbolTableSize,              \
           "Number of buckets in the JVM internal Symbol table")             \
-          range(minimumSymbolTableSize, 111*defaultSymbolTableSize)         \
+          range(minimumSymbolTableSize, 16777216ul /* 2^24 */)              \
                                                                             \
   product(bool, UseStringDeduplication, false,                              \
           "Use string deduplication")                                       \
@@ -2484,7 +2338,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(uintx, StringDeduplicationAgeThreshold, 3,                        \
           "A string must reach this age (or be promoted to an old region) " \
           "to be considered for deduplication")                             \
-          range(1, markOopDesc::max_age)                                    \
+          range(1, markWord::max_age)                                       \
                                                                             \
   diagnostic(bool, StringDeduplicationResizeALot, false,                    \
           "Force table resize every time the table is scanned")             \
@@ -2497,6 +2351,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   experimental(intx, SurvivorAlignmentInBytes, 0,                           \
            "Default survivor space alignment in bytes")                     \
+           range(8, 256)                                                    \
            constraint(SurvivorAlignmentInBytesConstraintFunc,AfterErgo)     \
                                                                             \
   product(ccstr, DumpLoadedClassList, NULL,                                 \
@@ -2509,11 +2364,21 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(ccstr, SharedArchiveFile, NULL,                                   \
           "Override the default location of the CDS archive file")          \
                                                                             \
+  product(ccstr, ArchiveClassesAtExit, NULL,                                \
+          "The path and name of the dynamic archive file")                  \
+                                                                            \
   product(ccstr, ExtraSharedClassListFile, NULL,                            \
           "Extra classlist for building the CDS archive file")              \
                                                                             \
-  experimental(size_t, ArrayAllocatorMallocLimit,                           \
-          SOLARIS_ONLY(64*K) NOT_SOLARIS((size_t)-1),                       \
+  diagnostic(intx, ArchiveRelocationMode, 0,                                \
+           "(0) first map at preferred address, and if "                    \
+           "unsuccessful, map at alternative address (default); "           \
+           "(1) always map at alternative address; "                        \
+           "(2) always map at preferred address, and if unsuccessful, "     \
+           "do not map the archive")                                        \
+           range(0, 2)                                                      \
+                                                                            \
+  experimental(size_t, ArrayAllocatorMallocLimit, (size_t)-1,               \
           "Allocation less than this value will be allocated "              \
           "using malloc. Larger allocations will use mmap.")                \
                                                                             \
@@ -2565,17 +2430,21 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "File of size Xmx is pre-allocated for performance reason, so"    \
           "we need that much space available")                              \
                                                                             \
-  develop(bool, VerifyMetaspace, false,                                     \
-          "Verify metaspace on chunk movements.")                           \
+  develop(int, VerifyMetaspaceInterval, DEBUG_ONLY(500) NOT_DEBUG(0),       \
+               "Run periodic metaspace verifications (0 - none, "           \
+               "1 - always, >1 every nth interval)")                        \
                                                                             \
   diagnostic(bool, ShowRegistersOnAssert, true,                             \
           "On internal errors, include registers in error report.")         \
                                                                             \
-  experimental(bool, UseSwitchProfiling, true,                              \
+  diagnostic(bool, UseSwitchProfiling, true,                                \
           "leverage profiling for table/lookup switch")                     \
                                                                             \
+  develop(bool, TraceMemoryWriteback, false,                                \
+          "Trace memory writeback operations")                              \
+                                                                            \
   JFR_ONLY(product(bool, FlightRecorder, false,                             \
-          "Enable Flight Recorder"))                                        \
+          "(Deprecated) Enable Flight Recorder"))                           \
                                                                             \
   JFR_ONLY(product(ccstr, FlightRecorderOptions, NULL,                      \
           "Flight Recorder options"))                                       \
@@ -2584,58 +2453,13 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Start flight recording with options"))                           \
                                                                             \
   experimental(bool, UseFastUnorderedTimeStamps, false,                     \
-          "Use platform unstable time where supported for timestamps only")
-
-#define VM_FLAGS(develop,                                                   \
-                 develop_pd,                                                \
-                 product,                                                   \
-                 product_pd,                                                \
-                 diagnostic,                                                \
-                 diagnostic_pd,                                             \
-                 experimental,                                              \
-                 notproduct,                                                \
-                 manageable,                                                \
-                 product_rw,                                                \
-                 lp64_product,                                              \
-                 range,                                                     \
-                 constraint,                                                \
-                 writeable)                                                 \
+          "Use platform unstable time where supported for timestamps only") \
                                                                             \
-  RUNTIME_FLAGS(                                                            \
-    develop,                                                                \
-    develop_pd,                                                             \
-    product,                                                                \
-    product_pd,                                                             \
-    diagnostic,                                                             \
-    diagnostic_pd,                                                          \
-    experimental,                                                           \
-    notproduct,                                                             \
-    manageable,                                                             \
-    product_rw,                                                             \
-    lp64_product,                                                           \
-    range,                                                                  \
-    constraint,                                                             \
-    writeable)                                                              \
+  product(bool, UseEmptySlotsInSupers, true,                                \
+                "Allow allocating fields in empty slots of super-classes")  \
                                                                             \
-  GC_FLAGS(                                                                 \
-    develop,                                                                \
-    develop_pd,                                                             \
-    product,                                                                \
-    product_pd,                                                             \
-    diagnostic,                                                             \
-    diagnostic_pd,                                                          \
-    experimental,                                                           \
-    notproduct,                                                             \
-    manageable,                                                             \
-    product_rw,                                                             \
-    lp64_product,                                                           \
-    range,                                                                  \
-    constraint,                                                             \
-    writeable)                                                              \
-
-/*
- *  Macros for factoring of globals
- */
+  diagnostic(bool, DeoptimizeNMethodBarriersALot, false,                    \
+                "Make nmethod barriers deoptimise a lot.")                  \
 
 // Interface macros
 #define DECLARE_PRODUCT_FLAG(type, name, value, doc)      extern "C" type name;
@@ -2661,73 +2485,18 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
 #define DECLARE_LP64_PRODUCT_FLAG(type, name, value, doc) const type name = value;
 #endif // _LP64
 
-// Implementation macros
-#define MATERIALIZE_PRODUCT_FLAG(type, name, value, doc)      type name = value;
-#define MATERIALIZE_PD_PRODUCT_FLAG(type, name, doc)          type name = pd_##name;
-#define MATERIALIZE_DIAGNOSTIC_FLAG(type, name, value, doc)   type name = value;
-#define MATERIALIZE_PD_DIAGNOSTIC_FLAG(type, name, doc)       type name = pd_##name;
-#define MATERIALIZE_EXPERIMENTAL_FLAG(type, name, value, doc) type name = value;
-#define MATERIALIZE_MANAGEABLE_FLAG(type, name, value, doc)   type name = value;
-#define MATERIALIZE_PRODUCT_RW_FLAG(type, name, value, doc)   type name = value;
-#ifdef PRODUCT
-#define MATERIALIZE_DEVELOPER_FLAG(type, name, value, doc)
-#define MATERIALIZE_PD_DEVELOPER_FLAG(type, name, doc)
-#define MATERIALIZE_NOTPRODUCT_FLAG(type, name, value, doc)
-#else
-#define MATERIALIZE_DEVELOPER_FLAG(type, name, value, doc)    type name = value;
-#define MATERIALIZE_PD_DEVELOPER_FLAG(type, name, doc)        type name = pd_##name;
-#define MATERIALIZE_NOTPRODUCT_FLAG(type, name, value, doc)   type name = value;
-#endif // PRODUCT
-#ifdef _LP64
-#define MATERIALIZE_LP64_PRODUCT_FLAG(type, name, value, doc) type name = value;
-#else
-#define MATERIALIZE_LP64_PRODUCT_FLAG(type, name, value, doc) /* flag is constant */
-#endif // _LP64
-
-// Only materialize src code for range checking when required, ignore otherwise
-#define IGNORE_RANGE(a, b)
-// Only materialize src code for contraint checking when required, ignore otherwise
-#define IGNORE_CONSTRAINT(func,type)
-
-#define IGNORE_WRITEABLE(type)
-
-VM_FLAGS(DECLARE_DEVELOPER_FLAG, \
-         DECLARE_PD_DEVELOPER_FLAG, \
-         DECLARE_PRODUCT_FLAG, \
-         DECLARE_PD_PRODUCT_FLAG, \
-         DECLARE_DIAGNOSTIC_FLAG, \
-         DECLARE_PD_DIAGNOSTIC_FLAG, \
-         DECLARE_EXPERIMENTAL_FLAG, \
-         DECLARE_NOTPRODUCT_FLAG, \
-         DECLARE_MANAGEABLE_FLAG, \
-         DECLARE_PRODUCT_RW_FLAG, \
-         DECLARE_LP64_PRODUCT_FLAG, \
-         IGNORE_RANGE, \
-         IGNORE_CONSTRAINT, \
-         IGNORE_WRITEABLE)
-
-RUNTIME_OS_FLAGS(DECLARE_DEVELOPER_FLAG, \
-                 DECLARE_PD_DEVELOPER_FLAG, \
-                 DECLARE_PRODUCT_FLAG, \
-                 DECLARE_PD_PRODUCT_FLAG, \
-                 DECLARE_DIAGNOSTIC_FLAG, \
-                 DECLARE_PD_DIAGNOSTIC_FLAG, \
-                 DECLARE_NOTPRODUCT_FLAG, \
-                 IGNORE_RANGE, \
-                 IGNORE_CONSTRAINT, \
-                 IGNORE_WRITEABLE)
-
-ARCH_FLAGS(DECLARE_DEVELOPER_FLAG, \
-           DECLARE_PRODUCT_FLAG, \
-           DECLARE_DIAGNOSTIC_FLAG, \
-           DECLARE_EXPERIMENTAL_FLAG, \
-           DECLARE_NOTPRODUCT_FLAG, \
-           IGNORE_RANGE, \
-           IGNORE_CONSTRAINT, \
-           IGNORE_WRITEABLE)
-
-// Extensions
-
-#include "runtime/globals_ext.hpp"
+ALL_FLAGS(DECLARE_DEVELOPER_FLAG,     \
+          DECLARE_PD_DEVELOPER_FLAG,  \
+          DECLARE_PRODUCT_FLAG,       \
+          DECLARE_PD_PRODUCT_FLAG,    \
+          DECLARE_DIAGNOSTIC_FLAG,    \
+          DECLARE_PD_DIAGNOSTIC_FLAG, \
+          DECLARE_EXPERIMENTAL_FLAG,  \
+          DECLARE_NOTPRODUCT_FLAG,    \
+          DECLARE_MANAGEABLE_FLAG,    \
+          DECLARE_PRODUCT_RW_FLAG,    \
+          DECLARE_LP64_PRODUCT_FLAG,  \
+          IGNORE_RANGE,               \
+          IGNORE_CONSTRAINT)
 
 #endif // SHARE_RUNTIME_GLOBALS_HPP

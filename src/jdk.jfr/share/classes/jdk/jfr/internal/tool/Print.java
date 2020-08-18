@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package jdk.jfr.internal.tool;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -92,9 +93,10 @@ final class Print extends Command {
         stream.println();
         stream.println(" jfr print --events CPULoad,GarbageCollection recording.jfr");
         stream.println();
-        stream.println(" jfr print --categories \"GC,JVM,Java*\" recording.jfr");
+        char q = quoteCharacter();
+        stream.println(" jfr print --categories " + q + "GC,JVM,Java*" + q + " recording.jfr");
         stream.println();
-        stream.println(" jfr print --events \"jdk.*\" --stack-depth 64 recording.jfr");
+        stream.println(" jfr print --events "+ q + "jdk.*" + q +" --stack-depth 64 recording.jfr");
         stream.println();
         stream.println(" jfr print --json --events CPULoad recording.jfr");
     }
@@ -107,13 +109,23 @@ final class Print extends Command {
         int stackDepth = 5;
         EventPrintWriter eventWriter = null;
         int optionCount = options.size();
+        boolean foundEventFilter = false;
+        boolean foundCategoryFilter = false;
         while (optionCount > 0) {
             if (acceptFilterOption(options, "--events")) {
+                if (foundEventFilter) {
+                    throw new UserSyntaxException("use --events event1,event2,event3 to include multiple events");
+                }
+                foundEventFilter = true;
                 String filter = options.remove();
                 warnForWildcardExpansion("--events", filter);
                 eventFilter = addEventFilter(filter, eventFilter);
             }
             if (acceptFilterOption(options, "--categories")) {
+                if (foundCategoryFilter) {
+                    throw new UserSyntaxException("use --categories category1,category2 to include multiple categories");
+                }
+                foundCategoryFilter = true;
                 String filter = options.remove();
                 warnForWildcardExpansion("--categories", filter);
                 eventFilter = addCategoryFilter(filter, eventFilter);
@@ -137,6 +149,8 @@ final class Print extends Command {
             }
             if (optionCount == options.size()) {
                 // No progress made
+                checkCommonError(options, "--event", "--events");
+                checkCommonError(options, "--category", "--categories");
                 throw new UserSyntaxException("unknown option " + options.peek());
             }
             optionCount = options.size();
@@ -155,6 +169,12 @@ final class Print extends Command {
             couldNotReadError(file, ioe);
         }
         pw.flush();
+    }
+
+    private void checkCommonError(Deque<String> options, String typo, String correct) throws UserSyntaxException {
+       if (typo.equals(options.peek())) {
+           throw new UserSyntaxException("unknown option " + typo + ", did you mean " + correct + "?");
+       }
     }
 
     private static boolean acceptFormatterOption(Deque<String> options, EventPrintWriter eventWriter, String expected) throws UserSyntaxException {
@@ -179,7 +199,7 @@ final class Print extends Command {
 
     private static Predicate<EventType> addCategoryFilter(String filterText, Predicate<EventType> eventFilter) throws UserSyntaxException {
         List<String> filters = explodeFilter(filterText);
-        return recurseIfPossible(eventType -> {
+        Predicate<EventType> newFilter = recurseIfPossible(eventType -> {
             for (String category : eventType.getCategoryNames()) {
                 for (String filter : filters) {
                     if (match(category, filter)) {
@@ -192,6 +212,7 @@ final class Print extends Command {
             }
             return false;
         });
+        return eventFilter == null ? newFilter : eventFilter.or(newFilter);
     }
 
     private static String acronomify(String multipleWords) {
@@ -210,7 +231,7 @@ final class Print extends Command {
 
     private static Predicate<EventType> addEventFilter(String filterText, final Predicate<EventType> eventFilter) throws UserSyntaxException {
         List<String> filters = explodeFilter(filterText);
-        return recurseIfPossible(eventType -> {
+        Predicate<EventType> newFilter = recurseIfPossible(eventType -> {
             for (String filter : filters) {
                 String fullEventName = eventType.getName();
                 if (match(fullEventName, filter)) {
@@ -223,6 +244,7 @@ final class Print extends Command {
             }
             return false;
         });
+        return eventFilter == null ? newFilter : eventFilter.or(newFilter);
     }
 
     private static boolean match(String text, String filter) {
@@ -258,5 +280,9 @@ final class Print extends Command {
             }
         }
         return list;
+    }
+
+    static char quoteCharacter() {
+        return File.pathSeparatorChar == ';' ? '"' : '\'';
     }
 }

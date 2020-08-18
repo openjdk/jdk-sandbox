@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2015, Red Hat Inc. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,18 +28,15 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/java.hpp"
+#include "runtime/os.hpp"
 #include "runtime/stubCodeGenerator.hpp"
+#include "runtime/vm_version.hpp"
 #include "utilities/macros.hpp"
-#include "vm_version_aarch64.hpp"
 
 #include OS_HEADER_INLINE(os)
 
-#ifndef BUILTIN_SIM
 #include <sys/auxv.h>
 #include <asm/hwcap.h>
-#else
-#define getauxval(hwcap) 0
-#endif
 
 #ifndef HWCAP_AES
 #define HWCAP_AES   (1<<3)
@@ -65,12 +62,17 @@
 #define HWCAP_ATOMICS (1<<8)
 #endif
 
+#ifndef HWCAP_SHA512
+#define HWCAP_SHA512 (1 << 21)
+#endif
+
 int VM_Version::_cpu;
 int VM_Version::_model;
 int VM_Version::_model2;
 int VM_Version::_variant;
 int VM_Version::_revision;
 int VM_Version::_stepping;
+bool VM_Version::_dcpop;
 VM_Version::PsrInfo VM_Version::_psr_info   = { 0, };
 
 static BufferBlob* stub_blob;
@@ -91,10 +93,6 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "VM_Version", "getPsrInfo_stub");
 #   define __ _masm->
     address start = __ pc();
-
-#ifdef BUILTIN_SIM
-    __ c_stub_prolog(1, 0, MacroAssembler::ret_type_void);
-#endif
 
     // void getPsrInfo(VM_Version::PsrInfo* psr_info);
 
@@ -129,8 +127,11 @@ void VM_Version::get_processor_features() {
 
   int dcache_line = VM_Version::dcache_line_size();
 
+  // Limit AllocatePrefetchDistance so that it does not exceed the
+  // constraint in AllocatePrefetchDistanceConstraintFunc.
   if (FLAG_IS_DEFAULT(AllocatePrefetchDistance))
-    FLAG_SET_DEFAULT(AllocatePrefetchDistance, 3*dcache_line);
+    FLAG_SET_DEFAULT(AllocatePrefetchDistance, MIN2(512, 3*dcache_line));
+
   if (FLAG_IS_DEFAULT(AllocatePrefetchStepSize))
     FLAG_SET_DEFAULT(AllocatePrefetchStepSize, dcache_line);
   if (FLAG_IS_DEFAULT(PrefetchScanIntervalInBytes))
@@ -164,7 +165,7 @@ void VM_Version::get_processor_features() {
     SoftwarePrefetchHintDistance &= ~7;
   }
 
-  unsigned long auxv = getauxval(AT_HWCAP);
+  uint64_t auxv = getauxval(AT_HWCAP);
 
   char buf[512];
 
@@ -172,9 +173,10 @@ void VM_Version::get_processor_features() {
 
   int cpu_lines = 0;
   if (FILE *f = fopen("/proc/cpuinfo", "r")) {
-    char buf[128], *p;
+    // need a large buffer as the flags line may include lots of text
+    char buf[1024], *p;
     while (fgets(buf, sizeof (buf), f) != NULL) {
-      if (p = strchr(buf, ':')) {
+      if ((p = strchr(buf, ':')) != NULL) {
         long v = strtol(p+1, NULL, 0);
         if (strncmp(buf, "CPU implementer", sizeof "CPU implementer" - 1) == 0) {
           _cpu = v;
@@ -186,17 +188,43 @@ void VM_Version::get_processor_features() {
           _model = v;
         } else if (strncmp(buf, "CPU revision", sizeof "CPU revision" - 1) == 0) {
           _revision = v;
+        } else if (strncmp(buf, "flags", sizeof("flags") - 1) == 0) {
+          if (strstr(p+1, "dcpop")) {
+            _dcpop = true;
+          }
         }
       }
     }
     fclose(f);
   }
 
+  if (os::supports_map_sync()) {
+    // if dcpop is available publish data cache line flush size via
+    // generic field, otherwise let if default to zero thereby
+    // disabling writeback
+    if (_dcpop) {
+      _data_cache_line_flush_size = dcache_line;
+    }
+  }
+
   // Enable vendor specific features
+
+  // Ampere eMAG
+  if (_cpu == CPU_AMCC && (_model == 0) && (_variant == 0x3)) {
+    if (FLAG_IS_DEFAULT(AvoidUnalignedAccesses)) {
+      FLAG_SET_DEFAULT(AvoidUnalignedAccesses, true);
+    }
+    if (FLAG_IS_DEFAULT(UseSIMDForMemoryOps)) {
+      FLAG_SET_DEFAULT(UseSIMDForMemoryOps, true);
+    }
+    if (FLAG_IS_DEFAULT(UseSIMDForArrayEquals)) {
+      FLAG_SET_DEFAULT(UseSIMDForArrayEquals, !(_revision == 1 || _revision == 2));
+    }
+  }
 
   // ThunderX
   if (_cpu == CPU_CAVIUM && (_model == 0xA1)) {
-    if (_variant == 0) _features |= CPU_DMB_ATOMICS;
+    guarantee(_variant != 0, "Pre-release hardware no longer supported.");
     if (FLAG_IS_DEFAULT(AvoidUnalignedAccesses)) {
       FLAG_SET_DEFAULT(AvoidUnalignedAccesses, true);
     }
@@ -211,6 +239,16 @@ void VM_Version::get_processor_features() {
   // ThunderX2
   if ((_cpu == CPU_CAVIUM && (_model == 0xAF)) ||
       (_cpu == CPU_BROADCOM && (_model == 0x516))) {
+    if (FLAG_IS_DEFAULT(AvoidUnalignedAccesses)) {
+      FLAG_SET_DEFAULT(AvoidUnalignedAccesses, true);
+    }
+    if (FLAG_IS_DEFAULT(UseSIMDForMemoryOps)) {
+      FLAG_SET_DEFAULT(UseSIMDForMemoryOps, true);
+    }
+  }
+
+  // HiSilicon TSV110
+  if (_cpu == CPU_HISILICON && _model == 0xd01) {
     if (FLAG_IS_DEFAULT(AvoidUnalignedAccesses)) {
       FLAG_SET_DEFAULT(AvoidUnalignedAccesses, true);
     }
@@ -251,6 +289,7 @@ void VM_Version::get_processor_features() {
   if (auxv & HWCAP_AES)   strcat(buf, ", aes");
   if (auxv & HWCAP_SHA1)  strcat(buf, ", sha1");
   if (auxv & HWCAP_SHA2)  strcat(buf, ", sha256");
+  if (auxv & HWCAP_SHA512) strcat(buf, ", sha512");
   if (auxv & HWCAP_ATOMICS) strcat(buf, ", lse");
 
   _features_string = os::strdup(buf);
@@ -258,8 +297,10 @@ void VM_Version::get_processor_features() {
   if (FLAG_IS_DEFAULT(UseCRC32)) {
     UseCRC32 = (auxv & HWCAP_CRC32) != 0;
   }
+
   if (UseCRC32 && (auxv & HWCAP_CRC32) == 0) {
     warning("UseCRC32 specified, but not supported on this CPU");
+    FLAG_SET_DEFAULT(UseCRC32, false);
   }
 
   if (FLAG_IS_DEFAULT(UseAdler32Intrinsics)) {
@@ -277,6 +318,7 @@ void VM_Version::get_processor_features() {
   } else {
     if (UseLSE) {
       warning("UseLSE specified, but not supported on this CPU");
+      FLAG_SET_DEFAULT(UseLSE, false);
     }
   }
 
@@ -290,10 +332,12 @@ void VM_Version::get_processor_features() {
     }
   } else {
     if (UseAES) {
-      warning("UseAES specified, but not supported on this CPU");
+      warning("AES instructions are not available on this CPU");
+      FLAG_SET_DEFAULT(UseAES, false);
     }
     if (UseAESIntrinsics) {
-      warning("UseAESIntrinsics specified, but not supported on this CPU");
+      warning("AES intrinsics are not available on this CPU");
+      FLAG_SET_DEFAULT(UseAESIntrinsics, false);
     }
   }
 
@@ -317,6 +361,11 @@ void VM_Version::get_processor_features() {
 
   if (FLAG_IS_DEFAULT(UseFMA)) {
     FLAG_SET_DEFAULT(UseFMA, true);
+  }
+
+  if (UseMD5Intrinsics) {
+    warning("MD5 intrinsics are not available on this CPU");
+    FLAG_SET_DEFAULT(UseMD5Intrinsics, false);
   }
 
   if (auxv & (HWCAP_SHA1 | HWCAP_SHA2)) {
@@ -346,7 +395,12 @@ void VM_Version::get_processor_features() {
     FLAG_SET_DEFAULT(UseSHA256Intrinsics, false);
   }
 
-  if (UseSHA512Intrinsics) {
+  if (UseSHA && (auxv & HWCAP_SHA512)) {
+    // Do not auto-enable UseSHA512Intrinsics until it has been fully tested on hardware
+    // if (FLAG_IS_DEFAULT(UseSHA512Intrinsics)) {
+      // FLAG_SET_DEFAULT(UseSHA512Intrinsics, true);
+    // }
+  } else if (UseSHA512Intrinsics) {
     warning("Intrinsics for SHA-384 and SHA-512 crypto hash functions not available on this CPU.");
     FLAG_SET_DEFAULT(UseSHA512Intrinsics, false);
   }
@@ -381,11 +435,12 @@ void VM_Version::get_processor_features() {
     FLAG_SET_DEFAULT(UseUnalignedAccesses, true);
   }
 
-  if (FLAG_IS_DEFAULT(UseBarriersForVolatile)) {
-    UseBarriersForVolatile = (_features & CPU_DMB_ATOMICS) != 0;
+  if (FLAG_IS_DEFAULT(UsePopCountInstruction)) {
+    FLAG_SET_DEFAULT(UsePopCountInstruction, true);
   }
 
-  if (FLAG_IS_DEFAULT(UsePopCountInstruction)) {
+  if (!UsePopCountInstruction) {
+    warning("UsePopCountInstruction is always enabled on this CPU");
     UsePopCountInstruction = true;
   }
 
@@ -411,6 +466,10 @@ void VM_Version::get_processor_features() {
 
   if (FLAG_IS_DEFAULT(OptoScheduling)) {
     OptoScheduling = true;
+  }
+
+  if (FLAG_IS_DEFAULT(AlignVector)) {
+    AlignVector = AvoidUnalignedAccesses;
   }
 #endif
 }

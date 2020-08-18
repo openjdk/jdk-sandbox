@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertFalse;
 
 public class Support {
 
@@ -41,6 +42,10 @@ public class Support {
     public static void assertFails(Class<? extends Throwable> clazz,
                                     CompletionStage<?> stage) {
         Support.assertCompletesExceptionally(clazz, stage);
+    }
+
+    public static void assertNotDone(CompletableFuture<?> future) {
+        assertFalse(future.isDone());
     }
 
     public static void assertCompletesExceptionally(Class<? extends Throwable> clazz,
@@ -79,16 +84,32 @@ public class Support {
     }
 
     public static DummyWebSocketServer serverWithCannedData(int... data) {
+        return serverWithCannedDataAndAuthentication(null, null, data);
+    }
+
+    public static DummyWebSocketServer serverWithCannedDataAndAuthentication(
+            String username,
+            String password,
+            int... data)
+    {
         byte[] copy = new byte[data.length];
         for (int i = 0; i < data.length; i++) {
             copy[i] = (byte) data[i];
         }
-        return serverWithCannedData(copy);
+        return serverWithCannedDataAndAuthentication(username, password, copy);
     }
 
     public static DummyWebSocketServer serverWithCannedData(byte... data) {
+       return serverWithCannedDataAndAuthentication(null, null, data);
+    }
+
+    public static DummyWebSocketServer serverWithCannedDataAndAuthentication(
+            String username,
+            String password,
+            byte... data)
+    {
         byte[] copy = Arrays.copyOf(data, data.length);
-        return new DummyWebSocketServer() {
+        return new DummyWebSocketServer(username, password) {
             @Override
             protected void write(SocketChannel ch) throws IOException {
                 int off = 0; int n = 1; // 1 byte at a time

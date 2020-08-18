@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -338,20 +338,25 @@ struct JvmtiCachedClassFileData {
 class VM_RedefineClasses: public VM_Operation {
  private:
   // These static fields are needed by ClassLoaderDataGraph::classes_do()
-  // facility and the AdjustCpoolCacheAndVtable helper:
+  // facility and the CheckClass and AdjustAndCleanMetadata helpers.
   static Array<Method*>* _old_methods;
   static Array<Method*>* _new_methods;
-  static Method**      _matching_old_methods;
-  static Method**      _matching_new_methods;
-  static Method**      _deleted_methods;
-  static Method**      _added_methods;
+  static Method**        _matching_old_methods;
+  static Method**        _matching_new_methods;
+  static Method**        _deleted_methods;
+  static Method**        _added_methods;
   static int             _matching_methods_length;
   static int             _deleted_methods_length;
   static int             _added_methods_length;
-  static Klass*          _the_class;
+  static bool            _has_redefined_Object;
+  static bool            _has_null_class_loader;
+
+  // Used by JFR to group class redefininition events together.
+  static u8              _id_counter;
 
   // The instance fields are used to pass information from
   // doit_prologue() to doit() and doit_epilogue().
+  Klass*                      _the_class;
   jint                        _class_count;
   const jvmtiClassDefinition *_class_defs;  // ptr to _class_count defs
 
@@ -386,6 +391,9 @@ class VM_RedefineClasses: public VM_Operation {
   elapsedTimer  _timer_rsc_phase2;
   elapsedTimer  _timer_vm_op_prologue;
 
+  // Redefinition id used by JFR
+  u8 _id;
+
   // These routines are roughly in call order unless otherwise noted.
 
   // Load the caller's new class definition(s) into _scratch_classes.
@@ -405,7 +413,7 @@ class VM_RedefineClasses: public VM_Operation {
   void compute_added_deleted_matching_methods();
 
   // Change jmethodIDs to point to the new methods
-  void update_jmethod_ids();
+  void update_jmethod_ids(Thread* thread);
 
   // In addition to marking methods as old and/or obsolete, this routine
   // counts the number of methods that are EMCP (Equivalent Module Constant Pool).
@@ -470,6 +478,8 @@ class VM_RedefineClasses: public VM_Operation {
   bool rewrite_cp_refs_in_fields_annotations(
     InstanceKlass* scratch_class, TRAPS);
   bool rewrite_cp_refs_in_nest_attributes(InstanceKlass* scratch_class);
+  bool rewrite_cp_refs_in_record_attribute(InstanceKlass* scratch_class, TRAPS);
+  bool rewrite_cp_refs_in_permitted_subclasses_attribute(InstanceKlass* scratch_class);
   void rewrite_cp_refs_in_method(methodHandle method,
     methodHandle * new_method_p, TRAPS);
   bool rewrite_cp_refs_in_methods(InstanceKlass* scratch_class, TRAPS);
@@ -493,11 +503,14 @@ class VM_RedefineClasses: public VM_Operation {
          InstanceKlass* scratch_class,
          constantPoolHandle scratch_cp, int scratch_cp_length, TRAPS);
 
-  void flush_dependent_code(InstanceKlass* ik, TRAPS);
+  void flush_dependent_code();
+  void mark_dependent_code(InstanceKlass* ik);
 
   // lock classes to redefine since constant pool merging isn't thread safe.
   void lock_classes();
   void unlock_classes();
+
+  u8 next_id();
 
   static void dump_methods();
 
@@ -512,20 +525,14 @@ class VM_RedefineClasses: public VM_Operation {
   // Unevolving classes may point to methods of the_class directly
   // from their constant pool caches, itables, and/or vtables. We
   // use the ClassLoaderDataGraph::classes_do() facility and this helper
-  // to fix up these pointers.
-  class AdjustCpoolCacheAndVtable : public KlassClosure {
+  // to fix up these pointers and clean MethodData out.
+  class AdjustAndCleanMetadata : public KlassClosure {
     Thread* _thread;
    public:
-    AdjustCpoolCacheAndVtable(Thread* t) : _thread(t) {}
+    AdjustAndCleanMetadata(Thread* t) : _thread(t) {}
     void do_klass(Klass* k);
   };
 
-  // Clean MethodData out
-  class MethodDataCleaner : public KlassClosure {
-   public:
-    MethodDataCleaner() {}
-    void do_klass(Klass* k);
-  };
  public:
   VM_RedefineClasses(jint class_count,
                      const jvmtiClassDefinition *class_defs,
@@ -537,6 +544,7 @@ class VM_RedefineClasses: public VM_Operation {
 
   bool allow_nested_vm_operations() const        { return true; }
   jvmtiError check_error()                       { return _res; }
+  u8 id()                                        { return _id; }
 
   // Modifiable test must be shared between IsModifiableClass query
   // and redefine implementation

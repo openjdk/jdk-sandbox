@@ -27,6 +27,7 @@
 #define OS_AIX_OS_AIX_INLINE_HPP
 
 #include "runtime/os.hpp"
+#include "os_posix.inline.hpp"
 
 // System includes
 
@@ -35,11 +36,6 @@
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <netdb.h>
-
-// File names are case-insensitive on windows only.
-inline int os::file_name_strncmp(const char* s1, const char* s2, size_t num) {
-  return strncmp(s1, s2, num);
-}
 
 inline bool os::uses_stack_guard_pages() {
   return true;
@@ -53,13 +49,6 @@ inline bool os::must_commit_stack_guard_pages() {
   return false;
 }
 
-// On Aix, reservations are made on a page by page basis, nothing to do.
-inline void os::pd_split_reserved_memory(char *base, size_t size,
-                                         size_t split, bool realloc) {
-  // TODO: Determine whether Sys V memory is split. If yes, we need to treat
-  // this the same way Windows treats its VirtualAlloc allocations.
-}
-
 // Bang the shadow pages if they need to be touched to be mapped.
 inline void os::map_stack_shadow_pages(address sp) {
 }
@@ -67,8 +56,6 @@ inline void os::map_stack_shadow_pages(address sp) {
 inline void os::dll_unload(void *lib) {
   ::dlclose(lib);
 }
-
-inline const int os::default_file_open_flags() { return 0;}
 
 inline jlong os::lseek(int fd, jlong offset, int whence) {
   return (jlong) ::lseek64(fd, offset, whence);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #define SHARE_GC_Z_ZSERVICEABILITY_HPP
 
 #include "gc/shared/collectorCounters.hpp"
+#include "gc/shared/gcVMOperations.hpp"
 #include "memory/allocation.hpp"
 #include "services/memoryManager.hpp"
 #include "services/memoryPool.hpp"
@@ -63,44 +64,22 @@ public:
   ZServiceabilityCounters* counters();
 };
 
-class ZServiceabilityMemoryUsageTracker {
-public:
-  ~ZServiceabilityMemoryUsageTracker();
-};
-
-class ZServiceabilityManagerStatsTracer {
+class ZServiceabilityCycleTracer : public StackObj {
 private:
-  TraceMemoryManagerStats _stats;
+  TraceMemoryManagerStats _memory_manager_stats;
 
 public:
-  ZServiceabilityManagerStatsTracer(bool is_gc_begin, bool is_gc_end);
+  ZServiceabilityCycleTracer();
 };
 
-class ZServiceabilityCountersTracer {
+class ZServiceabilityPauseTracer : public StackObj {
 private:
-  TraceCollectorStats _stats;
+  SvcGCMarker         _svc_gc_marker;
+  TraceCollectorStats _counters_stats;
 
 public:
-  ZServiceabilityCountersTracer();
-  ~ZServiceabilityCountersTracer();
+  ZServiceabilityPauseTracer();
+  ~ZServiceabilityPauseTracer();
 };
-
-template <bool IsGCStart, bool IsGCEnd>
-class ZServiceabilityTracer : public StackObj {
-private:
-  ZServiceabilityMemoryUsageTracker _memory_usage_tracker;
-  ZServiceabilityManagerStatsTracer _manager_stats_tracer;
-  ZServiceabilityCountersTracer     _counters_tracer;
-
-public:
-  ZServiceabilityTracer() :
-      _memory_usage_tracker(),
-      _manager_stats_tracer(IsGCStart, IsGCEnd),
-      _counters_tracer() {}
-};
-
-typedef ZServiceabilityTracer<true,  false> ZServiceabilityMarkStartTracer;
-typedef ZServiceabilityTracer<false, false> ZServiceabilityMarkEndTracer;
-typedef ZServiceabilityTracer<false, true>  ZServiceabilityRelocateStartTracer;
 
 #endif // SHARE_GC_Z_ZSERVICEABILITY_HPP

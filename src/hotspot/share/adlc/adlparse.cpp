@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,6 +123,7 @@ void ADLParser::parse() {
     parse_err(SEMERR, "Did not declare 'register' definitions");
   }
   regBlock->addSpillRegClass();
+  regBlock->addDynamicRegClass();
 
   // Done with parsing, check consistency.
 
@@ -1149,7 +1150,7 @@ void ADLParser::inline_cache_parse(FrameForm *frame, bool native) {
 
 //------------------------------interpreter_method_oop_parse------------------
 void ADLParser::interpreter_method_oop_parse(FrameForm *frame, bool native) {
-  frame->_interpreter_method_oop_reg = parse_one_arg("method oop reg entry");
+  frame->_interpreter_method_oop_reg = parse_one_arg("method reg entry");
 }
 
 //------------------------------cisc_spilling_operand_parse---------------------
@@ -2880,7 +2881,7 @@ void ADLParser::ins_encode_parse_block(InstructForm& inst) {
     // name is chosen to match the __ idiom used for assembly in other
     // parts of hotspot and assumes the existence of the standard
     // #define __ _masm.
-    encoding->add_code("    MacroAssembler _masm(&cbuf);\n");
+    encoding->add_code("    C2_MacroAssembler _masm(&cbuf);\n");
   }
 
   // Parse the following %{ }% block
@@ -3003,9 +3004,9 @@ void ADLParser::ins_encode_parse_block_impl(InstructForm& inst, EncClass* encodi
 // which synthesizes a new encoding class taking the same arguments as
 // the InstructForm, and automatically prefixes the definition with:
 //
-//    MacroAssembler masm(&cbuf);\n");
+//    C2_MacroAssembler masm(&cbuf);\n");
 //
-//  making it more compact to take advantage of the MacroAssembler and
+//  making it more compact to take advantage of the C2_MacroAssembler and
 //  placing the assembly closer to it's use by instructions.
 void ADLParser::ins_encode_parse(InstructForm& inst) {
 
@@ -3373,7 +3374,7 @@ void ADLParser::constant_parse_expression(EncClass* encoding, char* ec_name) {
   }
 
   // Start code line.
-  encoding->add_code("    _constant = C->constant_table().add");
+  encoding->add_code("    _constant = C->output()->constant_table().add");
 
   // Parse everything in ( ) expression.
   encoding->add_code("(this, ");

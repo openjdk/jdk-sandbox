@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,8 @@ import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.classfile.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /** <P> This class encapsulates the global state of the VM; the
     universe, object heap, interpreter, etc. It is a Singleton and
@@ -67,14 +69,13 @@ import sun.jvm.hotspot.classfile.*;
 
 public class VM {
   private static VM    soleInstance;
-  private static List  vmInitializedObservers = new ArrayList();
-  private List         vmResumedObservers   = new ArrayList();
-  private List         vmSuspendedObservers = new ArrayList();
+  private static List<Observer> vmInitializedObservers = new ArrayList<>();
+  private List<Observer> vmResumedObservers   = new ArrayList<>();
+  private List<Observer> vmSuspendedObservers = new ArrayList<>();
   private TypeDataBase db;
   private boolean      isBigEndian;
   /** This is only present if in a debugging system */
   private JVMDebugger  debugger;
-  private long         stackBias;
   private long         logAddressSize;
   private Universe     universe;
   private ObjectHeap   heap;
@@ -104,7 +105,18 @@ public class VM {
   private int          heapOopSize;
   private int          klassPtrSize;
   private int          oopSize;
-  private final int    IndexSetSize;
+  /** -XX flags (value origin) */
+  public static int    Flags_DEFAULT;
+  public static int    Flags_COMMAND_LINE;
+  public static int    Flags_ENVIRON_VAR;
+  public static int    Flags_CONFIG_FILE;
+  public static int    Flags_MANAGEMENT;
+  public static int    Flags_ERGONOMIC;
+  public static int    Flags_ATTACH_ON_DEMAND;
+  public static int    Flags_INTERNAL;
+  public static int    Flags_JIMAGE_RESOURCE;
+  private static int   Flags_VALUE_ORIGIN_MASK;
+  private static int   Flags_ORIG_COMMAND_LINE;
   /** This is only present in a non-core build */
   private CodeCache    codeCache;
   /** This is only present in a C1 build */
@@ -123,13 +135,14 @@ public class VM {
   private String       vmInternalInfo;
 
   private Flag[] commandLineFlags;
-  private Map flagsMap;
+  private Map<String, Flag> flagsMap;
 
   private static Type intType;
   private static Type uintType;
   private static Type intxType;
   private static Type uintxType;
   private static Type sizetType;
+  private static Type uint64tType;
   private static CIntegerType boolType;
   private Boolean sharingEnabled;
   private Boolean compressedOopsEnabled;
@@ -162,7 +175,38 @@ public class VM {
      }
 
      public int getOrigin() {
-        return flags & 0xF;  // XXX can we get the mask bits from somewhere?
+        return flags & Flags_VALUE_ORIGIN_MASK;
+     }
+
+     // See JVMFlag::print_origin() in HotSpot
+     public String getOriginString() {
+        var origin = flags & Flags_VALUE_ORIGIN_MASK;
+        if (origin == Flags_DEFAULT) {
+            return "default";
+        } else if (origin == Flags_COMMAND_LINE) {
+            return "command line";
+        } else if (origin == Flags_ENVIRON_VAR) {
+            return "environment";
+        } else if (origin == Flags_CONFIG_FILE) {
+            return "config file";
+        } else if (origin == Flags_MANAGEMENT) {
+            return "management";
+        } else if (origin == Flags_ERGONOMIC) {
+            String result = "";
+            if ((flags & Flags_ORIG_COMMAND_LINE) == Flags_ORIG_COMMAND_LINE) {
+                result = "command line, ";
+            }
+            return result + "ergonomic";
+        } else if (origin == Flags_ATTACH_ON_DEMAND) {
+            return "attach";
+        } else if (origin == Flags_INTERNAL) {
+            return "internal";
+        } else if (origin == Flags_JIMAGE_RESOURCE) {
+            return "jimage";
+        } else {
+            throw new IllegalStateException(
+                "Unknown flag origin " + origin + " is detected in " + name);
+        }
      }
 
      public boolean isBool() {
@@ -231,6 +275,50 @@ public class VM {
         return addr.getCIntegerAt(0, sizetType.getSize(), true);
      }
 
+     public boolean isCcstr() {
+        return type.equals("ccstr");
+     }
+
+     public String getCcstr() {
+        if (Assert.ASSERTS_ENABLED) {
+           Assert.that(isCcstr(), "not a ccstr flag!");
+        }
+        return CStringUtilities.getString(addr.getAddressAt(0));
+     }
+
+     public boolean isCcstrlist() {
+        return type.equals("ccstrlist");
+     }
+
+     public String getCcstrlist() {
+        if (Assert.ASSERTS_ENABLED) {
+           Assert.that(isCcstrlist(), "not a ccstrlist flag!");
+        }
+        return CStringUtilities.getString(addr.getAddressAt(0));
+     }
+
+     public boolean isDouble() {
+        return type.equals("double");
+     }
+
+     public double getDouble() {
+        if (Assert.ASSERTS_ENABLED) {
+           Assert.that(isDouble(), "not a double flag!");
+        }
+        return addr.getJDoubleAt(0);
+     }
+
+     public boolean isUint64t() {
+        return type.equals("uint64_t");
+     }
+
+     public long getUint64t() {
+        if (Assert.ASSERTS_ENABLED) {
+           Assert.that(isUint64t(), "not an uint64_t flag!");
+        }
+        return addr.getCIntegerAt(0, uint64tType.getSize(), true);
+     }
+
      public String getValue() {
         if (isBool()) {
            return Boolean.toString(getBool());
@@ -241,11 +329,27 @@ public class VM {
         } else if (isIntx()) {
            return Long.toString(getIntx());
         } else if (isUIntx()) {
-           return Long.toString(getUIntx());
+           return Long.toUnsignedString(getUIntx());
         } else if (isSizet()) {
-            return Long.toString(getSizet());
+           return Long.toUnsignedString(getSizet());
+        } else if (isCcstr()) {
+           var str = getCcstr();
+           if (str != null) {
+               str = "\"" + str + "\"";
+           }
+           return str;
+        } else if (isCcstrlist()) {
+           var str = getCcstrlist();
+           if (str != null) {
+               str = "\"" + str + "\"";
+           }
+           return str;
+        } else if (isDouble()) {
+           return Double.toString(getDouble());
+        } else if (isUint64t()) {
+           return Long.toUnsignedString(getUint64t());
         } else {
-           return null;
+           throw new WrongTypeException("Unknown type: " + type + " (" + name + ")");
         }
      }
   };
@@ -338,7 +442,6 @@ public class VM {
 
     checkVMVersion(vmRelease);
 
-    stackBias    = db.lookupIntConstant("STACK_BIAS").intValue();
     invocationEntryBCI = db.lookupIntConstant("InvocationEntryBci").intValue();
 
     // We infer the presence of JVMTI from the presence of the InstanceKlass::_breakpoints field.
@@ -375,14 +478,25 @@ public class VM {
     bytesPerLong = db.lookupIntConstant("BytesPerLong").intValue();
     bytesPerWord = db.lookupIntConstant("BytesPerWord").intValue();
     heapWordSize = db.lookupIntConstant("HeapWordSize").intValue();
+    Flags_DEFAULT = db.lookupIntConstant("JVMFlag::DEFAULT").intValue();
+    Flags_COMMAND_LINE = db.lookupIntConstant("JVMFlag::COMMAND_LINE").intValue();
+    Flags_ENVIRON_VAR = db.lookupIntConstant("JVMFlag::ENVIRON_VAR").intValue();
+    Flags_CONFIG_FILE = db.lookupIntConstant("JVMFlag::CONFIG_FILE").intValue();
+    Flags_MANAGEMENT = db.lookupIntConstant("JVMFlag::MANAGEMENT").intValue();
+    Flags_ERGONOMIC = db.lookupIntConstant("JVMFlag::ERGONOMIC").intValue();
+    Flags_ATTACH_ON_DEMAND = db.lookupIntConstant("JVMFlag::ATTACH_ON_DEMAND").intValue();
+    Flags_INTERNAL = db.lookupIntConstant("JVMFlag::INTERNAL").intValue();
+    Flags_JIMAGE_RESOURCE = db.lookupIntConstant("JVMFlag::JIMAGE_RESOURCE").intValue();
+    Flags_VALUE_ORIGIN_MASK = db.lookupIntConstant("JVMFlag::VALUE_ORIGIN_MASK").intValue();
+    Flags_ORIG_COMMAND_LINE = db.lookupIntConstant("JVMFlag::ORIG_COMMAND_LINE").intValue();
     oopSize  = db.lookupIntConstant("oopSize").intValue();
-    IndexSetSize = db.lookupIntConstant("CompactibleFreeListSpace::IndexSetSize").intValue();
 
     intType = db.lookupType("int");
     uintType = db.lookupType("uint");
     intxType = db.lookupType("intx");
     uintxType = db.lookupType("uintx");
     sizetType = db.lookupType("size_t");
+    uint64tType = db.lookupType("uint64_t");
     boolType = (CIntegerType) db.lookupType("bool");
 
     minObjAlignmentInBytes = getObjectAlignmentInBytes();
@@ -432,8 +546,8 @@ public class VM {
     }
 
     debugger.putHeapConst(soleInstance.getHeapOopSize(), soleInstance.getKlassPtrSize(),
-                          Universe.getNarrowOopBase(), Universe.getNarrowOopShift(),
-                          Universe.getNarrowKlassBase(), Universe.getNarrowKlassShift());
+                          CompressedOops.getBase(), CompressedOops.getShift(),
+                          CompressedKlassPointers.getBase(), CompressedKlassPointers.getShift());
   }
 
   /** This is used by the debugging system */
@@ -556,11 +670,6 @@ public class VM {
     return db.getJIntType().getSize();
   }
 
-  /** NOTE: this offset is in BYTES in this system! */
-  public long getStackBias() {
-    return stackBias;
-  }
-
   /** Indicates whether the underlying machine supports the LP64 data
       model. This is needed for conditionalizing code in a few places */
   public boolean isLP64() {
@@ -593,10 +702,6 @@ public class VM {
 
   public int getHeapOopSize() {
     return heapOopSize;
-  }
-
-  public int getIndexSetSize() {
-    return IndexSetSize;
   }
 
   public int getKlassPtrSize() {
@@ -888,7 +993,7 @@ public class VM {
 
   public Flag getCommandLineFlag(String name) {
     if (flagsMap == null) {
-      flagsMap = new HashMap();
+      flagsMap = new HashMap<>();
       Flag[] flags = getCommandLineFlags();
       for (int i = 0; i < flags.length; i++) {
         flagsMap.put(flags[i].getName(), flags[i]);
@@ -925,10 +1030,8 @@ public class VM {
     }
 
     // sort flags by name
-    Arrays.sort(commandLineFlags, new Comparator() {
-        public int compare(Object o1, Object o2) {
-          Flag f1 = (Flag) o1;
-          Flag f2 = (Flag) o2;
+    Arrays.sort(commandLineFlags, new Comparator<>() {
+        public int compare(Flag f1, Flag f2) {
           return f1.getName().compareTo(f2.getName());
         }
       });

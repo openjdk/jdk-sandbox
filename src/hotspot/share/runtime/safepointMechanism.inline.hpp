@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ bool SafepointMechanism::local_poll_armed(JavaThread* thread) {
 }
 
 bool SafepointMechanism::global_poll() {
-  return SafepointSynchronize::do_call_back();
+  return (SafepointSynchronize::_state != SafepointSynchronize::_not_synchronized);
 }
 
 bool SafepointMechanism::local_poll(Thread* thread) {
@@ -48,35 +48,14 @@ bool SafepointMechanism::local_poll(Thread* thread) {
 }
 
 bool SafepointMechanism::should_block(Thread* thread) {
-  if (uses_thread_local_poll()) {
-    return local_poll(thread);
-  } else {
-    return global_poll();
-  }
-}
-
-void SafepointMechanism::block_if_requested_local_poll(JavaThread *thread) {
-  bool armed = local_poll_armed(thread); // load acquire, polling page -> op / global state
-  if(armed) {
-    // We could be armed for either a handshake operation or a safepoint
-    if (global_poll()) {
-      SafepointSynchronize::block(thread);
-    }
-    if (thread->has_handshake()) {
-      thread->handshake_process_by_self();
-    }
-  }
+  return local_poll(thread);
 }
 
 void SafepointMechanism::block_if_requested(JavaThread *thread) {
-  if (uses_thread_local_poll()) {
-    block_if_requested_local_poll(thread);
-  } else {
-    // If we don't have per thread poll this could a handshake or a safepoint
-    if (global_poll()) {
-      SafepointSynchronize::block(thread);
-    }
+  if (!local_poll_armed(thread)) {
+    return;
   }
+  block_if_requested_slow(thread);
 }
 
 void SafepointMechanism::arm_local_poll(JavaThread* thread) {

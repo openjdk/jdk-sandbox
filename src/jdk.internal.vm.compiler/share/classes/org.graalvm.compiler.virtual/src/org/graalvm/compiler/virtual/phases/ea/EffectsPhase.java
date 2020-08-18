@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,19 +31,19 @@ import org.graalvm.compiler.core.common.util.CompilationAlarm;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.graph.Graph.NodeEventScope;
 import org.graalvm.compiler.graph.Node;
-import org.graalvm.compiler.graph.spi.Simplifiable;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.StructuredGraph.ScheduleResult;
 import org.graalvm.compiler.nodes.cfg.ControlFlowGraph;
+import org.graalvm.compiler.nodes.spi.CoreProviders;
 import org.graalvm.compiler.phases.BasePhase;
 import org.graalvm.compiler.phases.common.CanonicalizerPhase;
 import org.graalvm.compiler.phases.common.DeadCodeEliminationPhase;
 import org.graalvm.compiler.phases.common.util.EconomicSetNodeEventListener;
 import org.graalvm.compiler.phases.graph.ReentrantBlockIterator;
 import org.graalvm.compiler.phases.schedule.SchedulePhase;
-import org.graalvm.compiler.phases.tiers.PhaseContext;
+import org.graalvm.compiler.phases.schedule.SchedulePhase.SchedulingStrategy;
 
-public abstract class EffectsPhase<PhaseContextT extends PhaseContext> extends BasePhase<PhaseContextT> {
+public abstract class EffectsPhase<CoreProvidersT extends CoreProviders> extends BasePhase<CoreProvidersT> {
 
     public abstract static class Closure<T> extends ReentrantBlockIterator.BlockIteratorClosure<T> {
 
@@ -57,24 +57,31 @@ public abstract class EffectsPhase<PhaseContextT extends PhaseContext> extends B
     private final int maxIterations;
     protected final CanonicalizerPhase canonicalizer;
     private final boolean unscheduled;
+    private final SchedulePhase.SchedulingStrategy strategy;
 
     protected EffectsPhase(int maxIterations, CanonicalizerPhase canonicalizer) {
-        this(maxIterations, canonicalizer, false);
+        this(maxIterations, canonicalizer, false, SchedulingStrategy.EARLIEST);
     }
 
-    protected EffectsPhase(int maxIterations, CanonicalizerPhase canonicalizer, boolean unscheduled) {
+    protected EffectsPhase(int maxIterations, CanonicalizerPhase canonicalizer, boolean unscheduled, SchedulingStrategy strategy) {
+        this.strategy = strategy;
         this.maxIterations = maxIterations;
         this.canonicalizer = canonicalizer;
         this.unscheduled = unscheduled;
     }
 
+    protected EffectsPhase(int maxIterations, CanonicalizerPhase canonicalizer, boolean unscheduled) {
+        this(maxIterations, canonicalizer, unscheduled, unscheduled ? null : SchedulingStrategy.EARLIEST);
+    }
+
     @Override
-    protected void run(StructuredGraph graph, PhaseContextT context) {
+    protected void run(StructuredGraph graph, CoreProvidersT context) {
         runAnalysis(graph, context);
     }
 
     @SuppressWarnings("try")
-    public boolean runAnalysis(StructuredGraph graph, PhaseContextT context) {
+    public boolean runAnalysis(StructuredGraph graph, CoreProvidersT context) {
+        assert unscheduled || strategy != null;
         boolean changed = false;
         CompilationAlarm compilationAlarm = CompilationAlarm.current();
         DebugContext debug = graph.getDebug();
@@ -86,7 +93,7 @@ public abstract class EffectsPhase<PhaseContextT extends PhaseContext> extends B
                     schedule = null;
                     cfg = ControlFlowGraph.compute(graph, true, true, false, false);
                 } else {
-                    new SchedulePhase(SchedulePhase.SchedulingStrategy.EARLIEST).apply(graph, false);
+                    new SchedulePhase(strategy).apply(graph, false);
                     schedule = graph.getLastSchedule();
                     cfg = schedule.getCFG();
                 }
@@ -99,21 +106,15 @@ public abstract class EffectsPhase<PhaseContextT extends PhaseContext> extends B
                         EconomicSetNodeEventListener listener = new EconomicSetNodeEventListener();
                         try (NodeEventScope nes = graph.trackNodeEvents(listener)) {
                             closure.applyEffects();
-                        }
 
-                        if (debug.isDumpEnabled(DebugContext.VERBOSE_LEVEL)) {
-                            debug.dump(DebugContext.VERBOSE_LEVEL, graph, "%s iteration", getName());
-                        }
-
-                        new DeadCodeEliminationPhase(Required).apply(graph);
-
-                        EconomicSet<Node> changedNodes = listener.getNodes();
-                        for (Node node : graph.getNodes()) {
-                            if (node instanceof Simplifiable) {
-                                changedNodes.add(node);
+                            if (debug.isDumpEnabled(DebugContext.VERBOSE_LEVEL)) {
+                                debug.dump(DebugContext.VERBOSE_LEVEL, graph, "%s iteration", getName());
                             }
+
+                            new DeadCodeEliminationPhase(Required).apply(graph);
                         }
-                        postIteration(graph, context, changedNodes);
+
+                        postIteration(graph, context, listener.getNodes());
                     }
 
                     if (closure.hasChanged()) {
@@ -129,11 +130,11 @@ public abstract class EffectsPhase<PhaseContextT extends PhaseContext> extends B
         return changed;
     }
 
-    protected void postIteration(final StructuredGraph graph, final PhaseContextT context, EconomicSet<Node> changedNodes) {
+    protected void postIteration(final StructuredGraph graph, final CoreProvidersT context, EconomicSet<Node> changedNodes) {
         if (canonicalizer != null) {
             canonicalizer.applyIncremental(graph, context, changedNodes);
         }
     }
 
-    protected abstract Closure<?> createEffectsClosure(PhaseContextT context, ScheduleResult schedule, ControlFlowGraph cfg);
+    protected abstract Closure<?> createEffectsClosure(CoreProvidersT context, ScheduleResult schedule, ControlFlowGraph cfg);
 }

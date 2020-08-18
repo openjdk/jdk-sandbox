@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@
  * If the first sentence of "method" is parsed correctly, the test passes.
  * Correct Answer: "This is a class (i.e. it is indeed a class)."
  * Wrong Answer: "This is a class (i.e."
- * @author jamieh
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build javadoc.tester.*
@@ -53,24 +52,29 @@ public class TestBreakIterator extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("pkg/BreakIteratorTest.html", true,
-            "<div class=\"block\">This is a class (i.e. it is indeed a class).</div>");
+            """
+                <div class="block">This is a class (i.e. it is indeed a class).</div>""");
 
         checkOutput("pkg/BreakIteratorTest.html", true,
-                "<div class=\"block\">tests the breakiterator (i.e. how the firstSentence is broken up).</div>");
+                """
+                    <div class="block">tests the breakiterator (i.e. how the firstSentence is broken up).</div>""");
 
         checkOutput("pkg/BreakIteratorTest.html", true,
-                "<div class=\"block\">with an inline tag <code>jdk.javadoc.taglet.Taglet</code> does it work.</div>");
+                """
+                    <div class="block">with an inline tag <code>jdk.javadoc.taglet.Taglet</code> does it work.</div>""");
 
         checkOutput("pkg/BreakIteratorTest.html", true,
-                "<div class=\"block\">with a block tag</div>");
+                """
+                    <div class="block">with a block tag</div>""");
 
         checkOutput("pkg/BreakIteratorTest.html", true,
-                "<div class=\"block\">Return methods to the specified\n" +
-                " <a href=\"../com/sun/javadoc/package-summary.html#included\">access\n" +
-                " modifier option</a>.</div>");
+                """
+                    <div class="block">with an anchor for the
+                     <a href="../index-all.html">top level index</a>.</div>""");
 
         checkOutput("pkg/BreakIteratorTest.html", true,
-                "<div class=\"block\">A constant indicating that the keyLocation is indeterminate\n" +
-                " or not relevant.</div>");
+                """
+                    <div class="block">A constant indicating that the keyLocation is indeterminate
+                     or not relevant.</div>""");
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,19 +29,28 @@
 #include "interpreter/templateInterpreter.hpp"
 #include "interpreter/templateInterpreterGenerator.hpp"
 #include "interpreter/templateTable.hpp"
+#include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
+#include "runtime/safepoint.hpp"
 #include "runtime/timerTrace.hpp"
-
-#ifndef CC_INTERP
+#include "utilities/copy.hpp"
 
 # define __ _masm->
 
-void TemplateInterpreter::initialize() {
-  if (_code != NULL) return;
+void TemplateInterpreter::initialize_stub() {
   // assertions
+  assert(_code == NULL, "must only initialize once");
   assert((int)Bytecodes::number_of_codes <= (int)DispatchTable::length,
          "dispatch table too small");
 
+  // allocate interpreter
+  int code_size = InterpreterCodeSize;
+  NOT_PRODUCT(code_size *= 4;)  // debug uses extra interpreter code space
+  _code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
+                        "Interpreter");
+}
+
+void TemplateInterpreter::initialize_code() {
   AbstractInterpreter::initialize();
 
   TemplateTable::initialize();
@@ -49,10 +58,6 @@ void TemplateInterpreter::initialize() {
   // generate interpreter
   { ResourceMark rm;
     TraceTime timer("Interpreter generation", TRACETIME_LOG(Info, startuptime));
-    int code_size = InterpreterCodeSize;
-    NOT_PRODUCT(code_size *= 4;)  // debug uses extra interpreter code space
-    _code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
-                          "Interpreter");
     TemplateInterpreterGenerator g(_code);
     // Free the unused memory not occupied by the interpreter and the stubs
     _code->deallocate_unused_tail();
@@ -274,18 +279,28 @@ int TemplateInterpreter::TosState_as_index(TosState state) {
 
 
 //------------------------------------------------------------------------------------------------------------------------
-// Safepoint suppport
+// Safepoint support
 
 static inline void copy_table(address* from, address* to, int size) {
-  // Copy non-overlapping tables. The copy has to occur word wise for MT safety.
-  while (size-- > 0) *to++ = *from++;
+  // Copy non-overlapping tables.
+  if (SafepointSynchronize::is_at_safepoint()) {
+    // Nothing is using the table at a safepoint so skip atomic word copy.
+    Copy::disjoint_words((HeapWord*)from, (HeapWord*)to, (size_t)size);
+  } else {
+    // Use atomic word copy when not at a safepoint for safety.
+    Copy::disjoint_words_atomic((HeapWord*)from, (HeapWord*)to, (size_t)size);
+  }
 }
 
 void TemplateInterpreter::notice_safepoints() {
   if (!_notice_safepoints) {
+    log_debug(interpreter, safepoint)("switching active_table to safept_table.");
     // switch to safepoint dispatch table
     _notice_safepoints = true;
     copy_table((address*)&_safept_table, (address*)&_active_table, sizeof(_active_table) / sizeof(address));
+  } else {
+    log_debug(interpreter, safepoint)("active_table is already safept_table; "
+                                      "notice_safepoints() call is no-op.");
   }
 }
 
@@ -297,10 +312,17 @@ void TemplateInterpreter::notice_safepoints() {
 void TemplateInterpreter::ignore_safepoints() {
   if (_notice_safepoints) {
     if (!JvmtiExport::should_post_single_step()) {
+      log_debug(interpreter, safepoint)("switching active_table to normal_table.");
       // switch to normal dispatch table
       _notice_safepoints = false;
       copy_table((address*)&_normal_table, (address*)&_active_table, sizeof(_active_table) / sizeof(address));
+    } else {
+      log_debug(interpreter, safepoint)("single stepping is still active; "
+                                        "ignoring ignore_safepoints() call.");
     }
+  } else {
+    log_debug(interpreter, safepoint)("active_table is already normal_table; "
+                                      "ignore_safepoints() call is no-op.");
   }
 }
 
@@ -345,5 +367,3 @@ bool TemplateInterpreter::bytecode_should_reexecute(Bytecodes::Code code) {
 InterpreterCodelet* TemplateInterpreter::codelet_containing(address pc) {
   return (InterpreterCodelet*)_code->stub_containing(pc);
 }
-
-#endif // !CC_INTERP

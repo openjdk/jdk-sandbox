@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,8 @@
 
 #include "ci/ciCallSite.hpp"
 #include "ci/ciKlass.hpp"
+#include "ci/ciMethod.hpp"
 #include "ci/ciMethodHandle.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "code/compressedStream.hpp"
 #include "code/nmethod.hpp"
 #include "memory/resourceArea.hpp"
@@ -341,6 +341,9 @@ class Dependencies: public ResourceObj {
     check_ctxk(ctxk);
     assert(!is_concrete_klass(ctxk->as_instance_klass()), "must be abstract");
   }
+  static void check_unique_method(ciKlass* ctxk, ciMethod* m) {
+    assert(!m->can_be_statically_bound(ctxk->as_instance_klass()), "redundant");
+  }
 
   void assert_common_1(DepType dept, ciBaseObject* x);
   void assert_common_2(DepType dept, ciBaseObject* x0, ciBaseObject* x1);
@@ -368,6 +371,10 @@ class Dependencies: public ResourceObj {
     check_ctxk(ctxk);
     assert(ctxk->is_abstract(), "must be abstract");
   }
+  static void check_unique_method(Klass* ctxk, Method* m) {
+    assert(!m->can_be_statically_bound(InstanceKlass::cast(ctxk)), "redundant");
+  }
+
   void assert_common_1(DepType dept, DepValue x);
   void assert_common_2(DepType dept, DepValue x0, DepValue x1);
 
@@ -468,7 +475,7 @@ class Dependencies: public ResourceObj {
 
   void copy_to(nmethod* nm);
 
-  DepType validate_dependencies(CompileTask* task, bool counter_changed, char** failure_detail = NULL);
+  DepType validate_dependencies(CompileTask* task, char** failure_detail = NULL);
 
   void log_all_dependencies();
 

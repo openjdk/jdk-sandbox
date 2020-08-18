@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,18 +42,15 @@ class CompileTask : public CHeapObj<mtCompiler> {
 
  public:
   // Different reasons for a compilation
-  // The order is important - Reason_Whitebox and higher can not become
-  // stale, see CompileTask::can_become_stale()
-  // Also mapped to reason_names[]
+  // The order is important - mapped to reason_names[]
   enum CompileReason {
       Reason_None,
       Reason_InvocationCount,  // Simple/StackWalk-policy
       Reason_BackedgeCount,    // Simple/StackWalk-policy
       Reason_Tiered,           // Tiered-policy
-      Reason_CTW,              // Compile the world
       Reason_Replay,           // ciReplay
       Reason_Whitebox,         // Whitebox API
-      Reason_MustBeCompiled,   // Java callHelper, LinkResolver
+      Reason_MustBeCompiled,   // Used for -Xcomp or AlwaysCompileLoopMethods (see CompilationPolicy::must_be_compiled())
       Reason_Bootstrap,        // JVMCI bootstrap
       Reason_Count
   };
@@ -64,7 +61,6 @@ class CompileTask : public CHeapObj<mtCompiler> {
       "count",
       "backedge_count",
       "tiered",
-      "CTW",
       "replay",
       "whitebox",
       "must_be_compiled",
@@ -75,10 +71,6 @@ class CompileTask : public CHeapObj<mtCompiler> {
 
  private:
   static CompileTask* _task_free_list;
-#ifdef ASSERT
-  static int          _num_allocated_tasks;
-#endif
-
   Monitor*     _lock;
   uint         _compile_id;
   Method*      _method;
@@ -98,15 +90,18 @@ class CompileTask : public CHeapObj<mtCompiler> {
   CompileTask* _next, *_prev;
   bool         _is_free;
   // Fields used for logging why the compilation was initiated:
-  jlong        _time_queued;  // in units of os::elapsed_counter()
+  jlong        _time_queued;  // time when task was enqueued
+  jlong        _time_started; // time when compilation started
   Method*      _hot_method;   // which method actually triggered this task
   jobject      _hot_method_holder;
   int          _hot_count;    // information about its invocation counter
   CompileReason _compile_reason;      // more info about the task
   const char*  _failure_reason;
+  // Specifies if _failure_reason is on the C heap.
+  bool         _failure_reason_on_C_heap;
 
  public:
-  CompileTask() {
+  CompileTask() : _failure_reason(NULL), _failure_reason_on_C_heap(false) {
     _lock = new Monitor(Mutex::nonleaf+2, "CompileTaskLock");
   }
 
@@ -135,6 +130,18 @@ class CompileTask : public CHeapObj<mtCompiler> {
     }
   }
 #if INCLUDE_JVMCI
+  bool         should_wait_for_compilation() const {
+    // Wait for blocking compilation to finish.
+    switch (_compile_reason) {
+        case Reason_Replay:
+        case Reason_Whitebox:
+        case Reason_Bootstrap:
+          return _is_blocking;
+        default:
+          return false;
+    }
+  }
+
   bool         has_waiter() const                { return _has_waiter; }
   void         clear_waiter()                    { _has_waiter = false; }
   CompilerThread* jvmci_compiler_thread() const  { return _jvmci_compiler_thread; }
@@ -154,11 +161,13 @@ class CompileTask : public CHeapObj<mtCompiler> {
 
   void         mark_complete()                   { _is_complete = true; }
   void         mark_success()                    { _is_success = true; }
+  void         mark_started(jlong time)          { _time_started = time; }
 
   int          comp_level()                      { return _comp_level;}
   void         set_comp_level(int comp_level)    { _comp_level = comp_level;}
 
   AbstractCompiler* compiler();
+  CompileTask*      select_for_compilation();
 
   int          num_inlined_bytecodes() const     { return _num_inlined_bytecodes; }
   void         set_num_inlined_bytecodes(int n)  { _num_inlined_bytecodes = n; }
@@ -169,15 +178,17 @@ class CompileTask : public CHeapObj<mtCompiler> {
   void         set_prev(CompileTask* prev)       { _prev = prev; }
   bool         is_free() const                   { return _is_free; }
   void         set_is_free(bool val)             { _is_free = val; }
+  bool         is_unloaded() const;
 
   // RedefineClasses support
-  void         metadata_do(void f(Metadata*));
+  void         metadata_do(MetadataClosure* f);
   void         mark_on_stack();
 
 private:
   static void  print_impl(outputStream* st, Method* method, int compile_id, int comp_level,
                                       bool is_osr_method = false, int osr_bci = -1, bool is_blocking = false,
-                                      const char* msg = NULL, bool short_form = false, bool cr = true);
+                                      const char* msg = NULL, bool short_form = false, bool cr = true,
+                                      jlong time_queued = 0, jlong time_started = 0);
 
 public:
   void         print(outputStream* st = tty, const char* msg = NULL, bool short_form = false, bool cr = true);
@@ -199,8 +210,9 @@ public:
   void         log_task_start(CompileLog* log);
   void         log_task_done(CompileLog* log);
 
-  void         set_failure_reason(const char* reason) {
+  void         set_failure_reason(const char* reason, bool on_C_heap = false) {
     _failure_reason = reason;
+    _failure_reason_on_C_heap = on_C_heap;
   }
 
   bool         check_break_at_flags();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,10 +71,6 @@ static jmethodID ss_ctrID;     /* sun.nio.ch.sctp.Shutdown.<init>            */
 jobject SockAddrToInetSocketAddress(JNIEnv* env, struct sockaddr* addr);
 
 jint handleSocketError(JNIEnv *env, jint errorValue);
-
-/* use SocketChannelImpl's checkConnect implementation */
-extern jint Java_sun_nio_ch_SocketChannelImpl_checkConnect(JNIEnv* env,
-    jobject this, jobject fdo, jboolean block, jboolean ready);
 
 /*
  * Class:     sun_nio_ch_sctp_SctpChannelImpl
@@ -330,10 +326,11 @@ void handlePeerAddrChange
             break;
         case SCTP_ADDR_MADE_PRIM :
             event = sun_nio_ch_sctp_PeerAddrChange_SCTP_ADDR_MADE_PRIM;
-#ifdef __linux__  /* Solaris currently doesn't support SCTP_ADDR_CONFIRMED */
             break;
+#ifdef __linux__
         case SCTP_ADDR_CONFIRMED :
             event = sun_nio_ch_sctp_PeerAddrChange_SCTP_ADDR_CONFIRMED;
+            break;
 #endif  /* __linux__ */
     }
 
@@ -483,20 +480,6 @@ JNIEXPORT jint JNICALL Java_sun_nio_ch_sctp_SctpChannelImpl_receive0
                 bufp = newBuf;
                 rv += rvSAVE;
             }
-#ifdef __sparc
-              else if ((intptr_t)addr & 0x3) {
-                /* the given buffer is not 4 byte aligned */
-                char* newBuf;
-                if ((newBuf = malloc(SCTP_NOTIFICATION_SIZE)) == NULL) {
-                    JNU_ThrowOutOfMemoryError(env, "Out of native heap space.");
-                    return -1;
-                }
-                allocated = JNI_TRUE;
-
-                memcpy(newBuf, addr, rv);
-                bufp = newBuf;
-            }
-#endif
             snp = (union sctp_notification *) bufp;
             if (handleNotification(env, fd, resultContainerObj, snp, rv,
                                    (msg->msg_flags & MSG_EOR),
@@ -598,13 +581,3 @@ JNIEXPORT jint JNICALL Java_sun_nio_ch_sctp_SctpChannelImpl_send0
     return rv;
 }
 
-/*
- * Class:     sun_nio_ch_sctp_SctpChannelImpl
- * Method:    checkConnect
- * Signature: (Ljava/io/FileDescriptor;ZZ)I
- */
-JNIEXPORT jint JNICALL Java_sun_nio_ch_sctp_SctpChannelImpl_checkConnect
-  (JNIEnv* env, jobject this, jobject fdo, jboolean block, jboolean ready) {
-    return Java_sun_nio_ch_SocketChannelImpl_checkConnect(env, this,
-                                                          fdo, block, ready);
-}

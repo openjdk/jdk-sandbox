@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,8 +62,27 @@ enum CompLevel {
   CompLevel_full_optimization = 4          // C2 or JVMCI
 };
 
+#ifdef TIERED
+class CompilationModeFlag : AllStatic {
+  static bool _quick_only;
+  static bool _high_only;
+  static bool _high_only_quick_internal;
+
+public:
+  static bool initialize();
+  static bool normal()                   { return !quick_only() && !high_only() && !high_only_quick_internal(); }
+  static bool quick_only()               { return _quick_only;               }
+  static bool high_only()                { return _high_only;                }
+  static bool high_only_quick_internal() { return _high_only_quick_internal; }
+
+  static bool disable_intermediate()     { return high_only() || high_only_quick_internal(); }
+  static bool quick_internal()           { return !high_only(); }
+
+  static void set_high_only_quick_internal(bool x) { _high_only_quick_internal = x; }
+};
+#endif
+
 extern CompLevel CompLevel_highest_tier;
-extern CompLevel CompLevel_initial_compile;
 
 enum CompMode {
   CompMode_none = 0,
@@ -97,6 +116,8 @@ inline bool is_compile(int comp_level) {
   return is_c1_compile(comp_level) || is_c2_compile(comp_level);
 }
 
+bool is_c1_or_interpreter_only();
+
 // States of Restricted Transactional Memory usage.
 enum RTMState {
   NoRTM      = 0x2, // Don't use RTM
@@ -129,7 +150,7 @@ public:
   static void ergo_initialize();
 
 private:
-  static void set_tiered_flags();
+  TIERED_ONLY(static void set_tiered_flags();)
 };
 
 #endif // SHARE_COMPILER_COMPILERDEFINITIONS_HPP

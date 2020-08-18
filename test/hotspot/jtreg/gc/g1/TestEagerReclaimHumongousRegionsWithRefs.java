@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+package gc.g1;
+
 /*
  * @test TestEagerReclaimHumongousRegionsWithRefs
  * @bug 8048179
@@ -29,11 +31,11 @@
  * up the heap with humongous objects and create a remembered set entry from an object by
  * referencing that we know is in the old gen. After changing this reference, the object
  * should still be eagerly reclaimable to avoid Full GC.
- * @key gc
  * @requires vm.gc.G1
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
+ * @run driver gc.g1.TestEagerReclaimHumongousRegionsWithRefs
  */
 
 import java.util.regex.Pattern;
@@ -48,7 +50,7 @@ class RefHolder {
   Object ref;
 }
 
-class ReclaimRegionFast {
+class TestEagerReclaimHumongousRegionsWithRefsReclaimRegionFast {
 
     public static final int M = 1024*1024;
 
@@ -96,7 +98,7 @@ public class TestEagerReclaimHumongousRegionsWithRefs {
             "-Xmx128M",
             "-Xmn16M",
             "-Xlog:gc",
-            ReclaimRegionFast.class.getName());
+            TestEagerReclaimHumongousRegionsWithRefsReclaimRegionFast.class.getName());
 
         Pattern p = Pattern.compile("Full GC");
 

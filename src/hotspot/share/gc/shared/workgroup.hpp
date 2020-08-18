@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,7 @@
 
 class AbstractGangWorker;
 class Semaphore;
+class ThreadClosure;
 class WorkGang;
 
 // An abstract task to be worked on by a gang.
@@ -89,7 +90,8 @@ class GangTaskDispatcher : public CHeapObj<mtGC> {
 
   // Distributes the task out to num_workers workers.
   // Returns when the task has been completed by all workers.
-  virtual void coordinator_execute_on_workers(AbstractGangTask* task, uint num_workers) = 0;
+  virtual void coordinator_execute_on_workers(AbstractGangTask* task, uint num_workers,
+                                              bool add_foreground_work) = 0;
 
   // Worker API.
 
@@ -187,12 +189,6 @@ class AbstractWorkGang : public CHeapObj<mtInternal> {
   // Debugging.
   const char* name() const { return _name; }
 
-  // Printing
-  void print_worker_threads_on(outputStream *st) const;
-  void print_worker_threads() const {
-    print_worker_threads_on(tty);
-  }
-
  protected:
   virtual AbstractGangWorker* allocate_worker(uint which) = 0;
 };
@@ -220,8 +216,9 @@ public:
   // Run a task with the given number of workers, returns
   // when the task is done. The number of workers must be at most the number of
   // active workers.  Additional workers may be created if an insufficient
-  // number currently exists.
-  void run_task(AbstractGangTask* task, uint num_workers);
+  // number currently exists. If the add_foreground_work flag is true, the current thread
+  // is used to run the task too.
+  void run_task(AbstractGangTask* task, uint num_workers, bool add_foreground_work = false);
 
 protected:
   virtual AbstractGangWorker* allocate_worker(uint which);
@@ -239,7 +236,7 @@ public:
   virtual bool is_ConcurrentGC_thread() const;
   // Printing
   void print_on(outputStream* st) const;
-  virtual void print() const { print_on(tty); }
+  virtual void print() const;
 
 protected:
   AbstractWorkGang* _gang;
@@ -322,6 +319,8 @@ class SubTasksDone: public CHeapObj<mtInternal> {
 
   // Set all tasks to unclaimed.
   void clear();
+
+  NONCOPYABLE(SubTasksDone);
 
 public:
   // Initializes "this" to a state in which there are "n" tasks to be

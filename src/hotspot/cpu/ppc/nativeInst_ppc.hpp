@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -60,17 +60,12 @@ class NativeInstruction {
     return MacroAssembler::is_trap_null_check(long_at(0));
   }
 
-  // We use a special trap for marking a method as not_entrant or zombie
-  // iff UseSIGTRAP.
-  bool is_sigtrap_zombie_not_entrant() {
-    assert(UseSIGTRAP, "precondition");
-    return MacroAssembler::is_trap_zombie_not_entrant(long_at(0));
+  int get_stop_type() {
+    return MacroAssembler::tdi_get_si16(long_at(0), Assembler::traptoUnconditional, 0);
   }
 
-  // We use an illtrap for marking a method as not_entrant or zombie
-  // iff !UseSIGTRAP.
+  // We use an illtrap for marking a method as not_entrant or zombie.
   bool is_sigill_zombie_not_entrant() {
-    assert(!UseSIGTRAP, "precondition");
     // Work around a C++ compiler bug which changes 'this'.
     return NativeInstruction::is_sigill_zombie_not_entrant_at(addr_at(0));
   }
@@ -84,15 +79,10 @@ class NativeInstruction {
   }
 #endif
 
-  // 'should not reach here'.
-  bool is_sigtrap_should_not_reach_here() {
-    return MacroAssembler::is_trap_should_not_reach_here(long_at(0));
-  }
-
   bool is_safepoint_poll() {
     // Is the current instruction a POTENTIAL read access to the polling page?
     // The current arguments of the instruction are not checked!
-    if (SafepointMechanism::uses_thread_local_poll() && USE_POLL_BIT_ONLY) {
+    if (USE_POLL_BIT_ONLY) {
       int encoding = SafepointMechanism::poll_bit();
       return MacroAssembler::is_tdi(long_at(0), Assembler::traptoGreaterThanUnsigned | Assembler::traptoEqual,
                                     -1, encoding);
@@ -461,6 +451,8 @@ class NativeMovRegMem: public NativeInstruction {
   };
 
   address instruction_address() const { return addr_at(0); }
+
+  int num_bytes_to_end_of_patch() const { return instruction_size; }
 
   intptr_t offset() const {
 #ifdef VM_LITTLE_ENDIAN

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -448,6 +448,7 @@ void TemplateTable::fast_aldc(bool wide) {
     Label notNull;
     ExternalAddress null_sentinel((address)Universe::the_null_sentinel_addr());
     __ movptr(tmp, null_sentinel);
+    __ resolve_oop_handle(tmp);
     __ cmpoop(tmp, result);
     __ jccb(Assembler::notEqual, notNull);
     __ xorptr(result, result);  // NULL object reference
@@ -1128,10 +1129,11 @@ void TemplateTable::aastore() {
   __ testptr(rax, rax);
   __ jcc(Assembler::zero, is_null);
 
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
   // Move subklass into rbx
-  __ load_klass(rbx, rax);
+  __ load_klass(rbx, rax, tmp_load_klass);
   // Move superklass into rax
-  __ load_klass(rax, rdx);
+  __ load_klass(rax, rdx, tmp_load_klass);
   __ movptr(rax, Address(rax,
                          ObjArrayKlass::element_klass_offset()));
 
@@ -1174,7 +1176,8 @@ void TemplateTable::bastore() {
   index_check(rdx, rbx); // prefer index in rbx
   // Need to check whether array is boolean or byte
   // since both types share the bastore bytecode.
-  __ load_klass(rcx, rdx);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  __ load_klass(rcx, rdx, tmp_load_klass);
   __ movl(rcx, Address(rcx, Klass::layout_helper_offset()));
   int diffbit = Klass::layout_helper_boolean_diffbit();
   __ testl(rcx, diffbit);
@@ -2644,7 +2647,8 @@ void TemplateTable::_return(TosState state) {
     assert(state == vtos, "only valid state");
     Register robj = LP64_ONLY(c_rarg1) NOT_LP64(rax);
     __ movptr(robj, aaddress(0));
-    __ load_klass(rdi, robj);
+    Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+    __ load_klass(rdi, robj, tmp_load_klass);
     __ movl(rdi, Address(rdi, Klass::access_flags_offset()));
     __ testl(rdi, JVM_ACC_HAS_FINALIZER);
     Label skip_register_finalizer;
@@ -2655,7 +2659,7 @@ void TemplateTable::_return(TosState state) {
     __ bind(skip_register_finalizer);
   }
 
-  if (SafepointMechanism::uses_thread_local_poll() && _desc->bytecode() != Bytecodes::_return_register_finalizer) {
+  if (_desc->bytecode() != Bytecodes::_return_register_finalizer) {
     Label no_safepoint;
     NOT_PRODUCT(__ block_comment("Thread-local Safepoint poll"));
 #ifdef _LP64
@@ -2719,12 +2723,13 @@ void TemplateTable::volatile_barrier(Assembler::Membar_mask_bits order_constrain
 }
 
 void TemplateTable::resolve_cache_and_index(int byte_no,
-                                            Register Rcache,
+                                            Register cache,
                                             Register index,
                                             size_t index_size) {
   const Register temp = rbx;
-  assert_different_registers(Rcache, index, temp);
+  assert_different_registers(cache, index, temp);
 
+  Label L_clinit_barrier_slow;
   Label resolved;
 
   Bytecodes::Code code = bytecode();
@@ -2735,17 +2740,32 @@ void TemplateTable::resolve_cache_and_index(int byte_no,
   }
 
   assert(byte_no == f1_byte || byte_no == f2_byte, "byte_no out of range");
-  __ get_cache_and_index_and_bytecode_at_bcp(Rcache, index, temp, byte_no, 1, index_size);
+  __ get_cache_and_index_and_bytecode_at_bcp(cache, index, temp, byte_no, 1, index_size);
   __ cmpl(temp, code);  // have we resolved this bytecode?
   __ jcc(Assembler::equal, resolved);
 
   // resolve first time through
+  // Class initialization barrier slow path lands here as well.
+  __ bind(L_clinit_barrier_slow);
   address entry = CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_from_cache);
   __ movl(temp, code);
   __ call_VM(noreg, entry, temp);
   // Update registers with resolved info
-  __ get_cache_and_index_at_bcp(Rcache, index, 1, index_size);
+  __ get_cache_and_index_at_bcp(cache, index, 1, index_size);
+
   __ bind(resolved);
+
+  // Class initialization barrier for static methods
+  if (VM_Version::supports_fast_class_init_checks() && bytecode() == Bytecodes::_invokestatic) {
+    const Register method = temp;
+    const Register klass  = temp;
+    const Register thread = LP64_ONLY(r15_thread) NOT_LP64(noreg);
+    assert(thread != noreg, "x86_32 not supported");
+
+    __ load_resolved_method_at_index(byte_no, method, cache, index);
+    __ load_method_holder(klass, method);
+    __ clinit_barrier(klass, thread, NULL /*L_fast_path*/, &L_clinit_barrier_slow);
+  }
 }
 
 // The cache and index registers must be set before call
@@ -2794,11 +2814,6 @@ void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
   assert_different_registers(itable_index, cache, index);
   // determine constant pool cache field offsets
   assert(is_invokevirtual == (byte_no == f2_byte), "is_invokevirtual flag redundant");
-  const int method_offset = in_bytes(
-    ConstantPoolCache::base_offset() +
-      ((byte_no == f2_byte)
-       ? ConstantPoolCacheEntry::f2_offset()
-       : ConstantPoolCacheEntry::f1_offset()));
   const int flags_offset = in_bytes(ConstantPoolCache::base_offset() +
                                     ConstantPoolCacheEntry::flags_offset());
   // access constant pool cache fields
@@ -2807,7 +2822,7 @@ void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
 
   size_t index_size = (is_invokedynamic ? sizeof(u4) : sizeof(u2));
   resolve_cache_and_index(byte_no, cache, index, index_size);
-    __ movptr(method, Address(cache, index, Address::times_ptr, method_offset));
+  __ load_resolved_method_at_index(byte_no, method, cache, index);
 
   if (itable_index != noreg) {
     // pick up itable or appendix index from f2 also:
@@ -2986,7 +3001,8 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ jcc(Assembler::notEqual, notDouble);
 #endif
   // dtos
-  __ access_load_at(T_DOUBLE, IN_HEAP, noreg /* dtos */, field, noreg, noreg);
+  // MO_RELAXED: for the case of volatile field, in fact it adds no extra work for the underlying implementation
+  __ access_load_at(T_DOUBLE, IN_HEAP | MO_RELAXED, noreg /* dtos */, field, noreg, noreg);
   __ push(dtos);
   // Rewrite bytecode to be faster
   if (!is_static && rc == may_rewrite) {
@@ -3255,7 +3271,8 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
   {
     __ pop(ltos);
     if (!is_static) pop_and_check_object(obj);
-    __ access_store_at(T_LONG, IN_HEAP, field, noreg /* ltos*/, noreg, noreg);
+    // MO_RELAXED: generate atomic store for the case of volatile field (important for x86_32)
+    __ access_store_at(T_LONG, IN_HEAP | MO_RELAXED, field, noreg /* ltos*/, noreg, noreg);
 #ifdef _LP64
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_lputfield, bc, rbx, true, byte_no);
@@ -3290,7 +3307,8 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
   {
     __ pop(dtos);
     if (!is_static) pop_and_check_object(obj);
-    __ access_store_at(T_DOUBLE, IN_HEAP, field, noreg /* dtos */, noreg, noreg);
+    // MO_RELAXED: for the case of volatile field, in fact it adds no extra work for the underlying implementation
+    __ access_store_at(T_DOUBLE, IN_HEAP | MO_RELAXED, field, noreg /* dtos */, noreg, noreg);
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_dputfield, bc, rbx, true, byte_no);
     }
@@ -3643,7 +3661,6 @@ void TemplateTable::prepare_invoke(int byte_no,
     // since the parameter_size includes it.
     __ push(rbx);
     __ mov(rbx, index);
-    assert(ConstantPoolCacheEntry::_indy_resolved_references_appendix_offset == 0, "appendix expected at index+0");
     __ load_resolved_reference_at_index(index, rbx);
     __ pop(rbx);
     __ push(index);  // push appendix (MethodType, CallSite, etc.)
@@ -3724,13 +3741,13 @@ void TemplateTable::invokevirtual_helper(Register index,
 
   // get receiver klass
   __ null_check(recv, oopDesc::klass_offset_in_bytes());
-  __ load_klass(rax, recv);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  __ load_klass(rax, recv, tmp_load_klass);
 
   // profile this call
   __ profile_virtual_call(rax, rlocals, rdx);
   // get target Method* & entry point
   __ lookup_virtual_method(rax, index, method);
-  __ profile_called_method(method, rdx, rbcp);
 
   __ profile_arguments_type(rdx, method, rbcp, true);
   __ jump_from_interpreted(method, rdx);
@@ -3817,7 +3834,8 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   // Get receiver klass into rlocals - also a null check
   __ null_check(rcx, oopDesc::klass_offset_in_bytes());
-  __ load_klass(rlocals, rcx);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  __ load_klass(rlocals, rcx, tmp_load_klass);
 
   Label subtype;
   __ check_klass_subtype(rlocals, rax, rbcp, subtype);
@@ -3840,7 +3858,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   // Get receiver klass into rdx - also a null check
   __ restore_locals();  // restore r14
   __ null_check(rcx, oopDesc::klass_offset_in_bytes());
-  __ load_klass(rdx, rcx);
+  __ load_klass(rdx, rcx, tmp_load_klass);
 
   Label no_such_method;
 
@@ -3860,9 +3878,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ profile_virtual_call(rdx, rbcp, rlocals);
 
   // Get declaring interface class from method, and itable index
-  __ movptr(rax, Address(rbx, Method::const_offset()));
-  __ movptr(rax, Address(rax, ConstMethod::constants_offset()));
-  __ movptr(rax, Address(rax, ConstantPool::pool_holder_offset_in_bytes()));
+  __ load_method_holder(rax, rbx);
   __ movl(rbx, Address(rbx, Method::itable_index_offset()));
   __ subl(rbx, Method::itable_index_max);
   __ negl(rbx);
@@ -3884,7 +3900,6 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ testptr(rbx, rbx);
   __ jcc(Assembler::zero, no_such_method);
 
-  __ profile_called_method(rbx, rbcp, rdx);
   __ profile_arguments_type(rdx, rbx, rbcp, true);
 
   // do the call
@@ -4001,7 +4016,7 @@ void TemplateTable::_new() {
   __ jcc(Assembler::notEqual, slow_case_no_pop);
 
   // get InstanceKlass
-  __ load_resolved_klass_at_index(rcx, rdx, rcx);
+  __ load_resolved_klass_at_index(rcx, rcx, rdx);
   __ push(rcx);  // save the contexts of klass for initializing the header
 
   // make sure klass is initialized & doesn't have finalizer
@@ -4097,14 +4112,15 @@ void TemplateTable::_new() {
       __ movptr(Address(rax, oopDesc::mark_offset_in_bytes ()), rbx);
     } else {
       __ movptr(Address(rax, oopDesc::mark_offset_in_bytes ()),
-                (intptr_t)markOopDesc::prototype()); // header
+                (intptr_t)markWord::prototype().value()); // header
       __ pop(rcx);   // get saved klass back in the register.
     }
 #ifdef _LP64
     __ xorl(rsi, rsi); // use zero reg to clear memory (shorter code)
     __ store_klass_gap(rax, rsi);  // zero klass gap for compressed oops
 #endif
-    __ store_klass(rax, rcx);  // klass
+    Register tmp_store_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+    __ store_klass(rax, rcx, tmp_store_klass);  // klass
 
     {
       SkipIfEqual skip_if(_masm, &DTraceAllocProbes, 0);
@@ -4195,10 +4211,11 @@ void TemplateTable::checkcast() {
   // Get superklass in rax and subklass in rbx
   __ bind(quicked);
   __ mov(rdx, rax); // Save object in rdx; rax needed for subtype check
-  __ load_resolved_klass_at_index(rcx, rbx, rax);
+  __ load_resolved_klass_at_index(rax, rcx, rbx);
 
   __ bind(resolved);
-  __ load_klass(rbx, rdx);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  __ load_klass(rbx, rdx, tmp_load_klass);
 
   // Generate subtype check.  Blows rcx, rdi.  Object in rdx.
   // Superklass in rax.  Subklass in rbx.
@@ -4255,13 +4272,14 @@ void TemplateTable::instanceof() {
 
   __ pop_ptr(rdx); // restore receiver
   __ verify_oop(rdx);
-  __ load_klass(rdx, rdx);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  __ load_klass(rdx, rdx, tmp_load_klass);
   __ jmpb(resolved);
 
   // Get superklass in rax and subklass in rdx
   __ bind(quicked);
-  __ load_klass(rdx, rax);
-  __ load_resolved_klass_at_index(rcx, rbx, rax);
+  __ load_klass(rdx, rax, tmp_load_klass);
+  __ load_resolved_klass_at_index(rax, rcx, rbx);
 
   __ bind(resolved);
 

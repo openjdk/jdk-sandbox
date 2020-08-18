@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@ import java.util.*;
  * @see DebugeeProcess
  */
 abstract public class Debugee extends DebugeeProcess {
+
     /**
      * Mirror of the debugee VM. This must be initialized by every
      * particular non-abstract class extending Debugee class.
@@ -238,6 +239,19 @@ abstract public class Debugee extends DebugeeProcess {
             throw new TestBug(
                 "found " + count + " such threads: " + name);
         return threads[index];
+    }
+
+
+    public ThreadReference threadByNameOrThrow(String name) throws JDITestRuntimeException {
+
+        List all = vm.allThreads();
+        ListIterator li = all.listIterator();
+        for (; li.hasNext(); ) {
+            ThreadReference thread = (ThreadReference) li.next();
+            if (thread.name().equals(name))
+                return thread;
+        }
+        throw new JDITestRuntimeException("** Thread IS NOT found ** : " + name);
     }
 
     // --------------------------------------------------- //
@@ -557,6 +571,7 @@ abstract public class Debugee extends DebugeeProcess {
      * exit status code.
      */
     public int endDebugee() {
+        int status = waitFor();
         if (vm != null) {
             try {
                 vm.dispose();
@@ -564,7 +579,7 @@ abstract public class Debugee extends DebugeeProcess {
             }
             vm = null;
         }
-        return waitFor();
+        return status;
     }
 
     /*
@@ -635,13 +650,4 @@ abstract public class Debugee extends DebugeeProcess {
         }
     }
 
-    public boolean isJFR_active() {
-        String opts = argumentHandler.getLaunchOptions();
-        int jfrPos = opts.indexOf("-XX:+FlightRecorder");
-
-        if (jfrPos >= 0)
-            return true;
-        else
-            return false;
-    }
 }

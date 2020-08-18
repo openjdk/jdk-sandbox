@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -147,12 +147,14 @@ public final class Year
     /**
      * Serialization version.
      */
+    @java.io.Serial
     private static final long serialVersionUID = -23038383694477807L;
     /**
      * Parser.
      */
     private static final DateTimeFormatter PARSER = new DateTimeFormatterBuilder()
-        .appendValue(YEAR, 4, 10, SignStyle.EXCEEDS_PAD)
+        .parseLenient()
+        .appendValue(YEAR, 1, 10, SignStyle.NORMAL)
         .toFormatter();
 
     /**
@@ -267,7 +269,6 @@ public final class Year
      * Obtains an instance of {@code Year} from a text string such as {@code 2007}.
      * <p>
      * The string must represent a valid year.
-     * Years outside the range 0000 to 9999 must be prefixed by the plus or minus symbol.
      *
      * @param text  the text to parse such as "2007", not null
      * @return the parsed year, not null
@@ -1097,6 +1098,7 @@ public final class Year
      *
      * @return the instance of {@code Ser}, not null
      */
+    @java.io.Serial
     private Object writeReplace() {
         return new Ser(Ser.YEAR_TYPE, this);
     }
@@ -1107,6 +1109,7 @@ public final class Year
      * @param s the stream to read
      * @throws InvalidObjectException always
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream s) throws InvalidObjectException {
         throw new InvalidObjectException("Deserialization via serialization delegate");
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@ public class Resources extends java.util.ListResourceBundle {
 
         // shared (from jarsigner)
         {"SPACE", " "},
-        {"2SPACE", "  "},
         {"6SPACE", "      "},
         {"COMMA", ", "},
 
@@ -45,7 +44,7 @@ public class Resources extends java.util.ListResourceBundle {
         {"provider.class.not.found", "Provider \"%s\" not found"},
         {"jarsigner.error.", "jarsigner error: "},
         {"Illegal.option.", "Illegal option: "},
-        {"This.option.is.deprecated", "This option is deprecated: "},
+        {"This.option.is.forremoval", "This option is deprecated and will be removed in a future release: "},
         {".keystore.must.be.NONE.if.storetype.is.{0}",
                 "-keystore must be NONE if -storetype is {0}"},
         {".keypass.can.not.be.specified.if.storetype.is.{0}",
@@ -84,6 +83,8 @@ public class Resources extends java.util.ListResourceBundle {
                 "                            suboptions can be all, grouped or summary"},
         {".certs.display.certificates.when.verbose.and.verifying",
                 "[-certs]                    display certificates when verbose and verifying"},
+        {".certs.revocation.check",
+                "[-revCheck]                 Enable certificate revocation check"},
         {".tsa.url.location.of.the.Timestamping.Authority",
                 "[-tsa <url>]                location of the Timestamping Authority"},
         {".tsacert.alias.public.key.certificate.for.Timestamping.Authority",
@@ -94,10 +95,10 @@ public class Resources extends java.util.ListResourceBundle {
                 "[-tsadigestalg <algorithm>] algorithm of digest data in timestamping request"},
         {".altsigner.class.class.name.of.an.alternative.signing.mechanism",
                 "[-altsigner <class>]        class name of an alternative signing mechanism\n" +
-                "                            (This option has been deprecated.)"},
+                "                            (This option is deprecated and will be removed in a future release.)"},
         {".altsignerpath.pathlist.location.of.an.alternative.signing.mechanism",
                 "[-altsignerpath <pathlist>] location of an alternative signing mechanism\n" +
-                "                            (This option has been deprecated.)"},
+                "                            (This option is deprecated and will be removed in a future release.)"},
         {".internalsf.include.the.SF.file.inside.the.signature.block",
                 "[-internalsf]               include the .SF file inside the signature block"},
         {".sectionsonly.don.t.compute.hash.of.entire.manifest",
@@ -164,9 +165,12 @@ public class Resources extends java.util.ListResourceBundle {
         {"history.nobk", "- Missing block file for signature-related file META-INF/%s.SF"},
 
         {"with.weak", "%s (weak)"},
+        {"with.disabled", "%s (disabled)"},
         {"key.bit", "%d-bit key"},
         {"key.bit.weak", "%d-bit key (weak)"},
+        {"key.bit.disabled", "%d-bit key (disabled)"},
         {"unknown.size", "unknown size"},
+        {"posix.attributes.detected", "POSIX file permission attributes detected. These attributes are ignored when signing and are not protected by the signature."},
 
         {"jarsigner.", "jarsigner: "},
         {"signature.filename.must.consist.of.the.following.characters.A.Z.0.9.or.",
@@ -196,7 +200,6 @@ public class Resources extends java.util.ListResourceBundle {
                 "Certificate chain not found in the file specified."},
         {"found.non.X.509.certificate.in.signer.s.chain",
                 "found non-X.509 certificate in signer's chain"},
-        {"incomplete.certificate.chain", "incomplete certificate chain"},
         {"Enter.key.password.for.alias.", "Enter key password for {0}: "},
         {"unable.to.recover.key.from.keystore",
                 "unable to recover key from keystore"},
@@ -240,8 +243,6 @@ public class Resources extends java.util.ListResourceBundle {
                 "This jar contains entries whose signer certificate is not yet valid. "},
         {"This.jar.contains.entries.whose.signer.certificate.is.self.signed.",
                 "This jar contains entries whose signer certificate is self-signed."},
-        {"Re.run.with.the.verbose.option.for.more.details.",
-                "Re-run with the -verbose option for more details."},
         {"Re.run.with.the.verbose.and.certs.options.for.more.details.",
                 "Re-run with the -verbose and -certs options for more details."},
         {"The.signer.certificate.has.expired.",
@@ -278,10 +279,20 @@ public class Resources extends java.util.ListResourceBundle {
                 "The TSA certificate chain is invalid. Reason: %s"},
         {"The.signer.s.certificate.is.self.signed.",
                 "The signer's certificate is self-signed."},
-        {"The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk.",
-                "The %1$s algorithm specified for the %2$s option is considered a security risk."},
-        {"The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk.",
-                "The %1$s signing key has a keysize of %2$d which is considered a security risk."},
+        {"The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update.",
+                "The %1$s algorithm specified for the %2$s option is considered a security risk. This algorithm will be disabled in a future update."},
+        {"The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk.and.is.disabled.",
+                "The %1$s algorithm specified for the %2$s option is considered a security risk and is disabled."},
+        {"The.timestamp.digest.algorithm.1.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update.",
+                "The %1$s timestamp digest algorithm is considered a security risk. This algorithm will be disabled in a future update."},
+        {"The.digest.algorithm.1.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update.",
+                "The %1$s digest algorithm is considered a security risk. This algorithm will be disabled in a future update."},
+        {"The.signature.algorithm.1.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update.",
+                "The %1$s signature algorithm is considered a security risk. This algorithm will be disabled in a future update."},
+        {"The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk..This.key.size.will.be.disabled.in.a.future.update.",
+                "The %1$s signing key has a keysize of %2$d which is considered a security risk. This key size will be disabled in a future update."},
+        {"The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk.and.is.disabled.",
+                "The %1$s signing key has a keysize of %2$d which is considered a security risk and is disabled."},
         {"This.jar.contains.entries.whose.certificate.chain.is.invalid.reason.1",
                  "This jar contains entries whose certificate chain is invalid. Reason: %s"},
         {"This.jar.contains.entries.whose.tsa.certificate.chain.is.invalid.reason.1",
@@ -304,6 +315,8 @@ public class Resources extends java.util.ListResourceBundle {
         {"Cannot.find.environment.variable.",
                 "Cannot find environment variable: "},
         {"Cannot.find.file.", "Cannot find file: "},
+        {"event.ocsp.check", "Contacting OCSP server at %s ..."},
+        {"event.crl.check", "Downloading CRL from %s ..."},
     };
 
     /**

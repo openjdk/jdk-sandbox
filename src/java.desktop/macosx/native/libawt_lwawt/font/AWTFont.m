@@ -42,31 +42,8 @@
     if (self) {
         fFont = [font retain];
         fNativeCGFont = CTFontCopyGraphicsFont((CTFontRef)font, NULL);
-        layoutTableCache = NULL;
     }
     return self;
-}
-
-static TTLayoutTableCache* newCFontLayoutTableCache() {
-  TTLayoutTableCache* ltc = calloc(1, sizeof(TTLayoutTableCache));
-  if (ltc) {
-    int i;
-    for(i=0;i<LAYOUTCACHE_ENTRIES;i++) {
-      ltc->entries[i].len = -1;
-    }
-  }
-  return ltc;
-}
-
-static void freeCFontLayoutTableCache(TTLayoutTableCache* ltc) {
-  if (ltc) {
-    int i;
-    for(i=0;i<LAYOUTCACHE_ENTRIES;i++) {
-      if(ltc->entries[i].ptr) free (ltc->entries[i].ptr);
-    }
-    if (ltc->kernPairs) free(ltc->kernPairs);
-    free(ltc);
-  }
 }
 
 - (void) dealloc {
@@ -76,10 +53,6 @@ static void freeCFontLayoutTableCache(TTLayoutTableCache* ltc) {
     if (fNativeCGFont) {
         CGFontRelease(fNativeCGFont);
     fNativeCGFont = NULL;
-    if (layoutTableCache != NULL) {
-        freeCFontLayoutTableCache(layoutTableCache);
-        layoutTableCache = NULL;
-    }
     }
 
     [super dealloc];
@@ -90,18 +63,35 @@ static void freeCFontLayoutTableCache(TTLayoutTableCache* ltc) {
         CGFontRelease(fNativeCGFont);
     fNativeCGFont = NULL;
     }
-    if (layoutTableCache != NULL) {
-        freeCFontLayoutTableCache(layoutTableCache);
-        layoutTableCache = NULL;
-    }
     [super finalize];
 }
+
+static NSString* uiName = nil;
+static NSString* uiBoldName = nil;
 
 + (AWTFont *) awtFontForName:(NSString *)name
                        style:(int)style
 {
     // create font with family & size
-    NSFont *nsFont = [NSFont fontWithName:name size:1.0];
+    NSFont *nsFont = nil;
+
+    if ((uiName != nil && [name isEqualTo:uiName]) ||
+        (uiBoldName != nil && [name isEqualTo:uiBoldName])) {
+        if (style & java_awt_Font_BOLD) {
+            nsFont = [NSFont boldSystemFontOfSize:1.0];
+        } else {
+            nsFont = [NSFont systemFontOfSize:1.0];
+        }
+#ifdef DEBUG
+        NSLog(@"nsFont-name is : %@", nsFont.familyName);
+        NSLog(@"nsFont-family is : %@", nsFont.fontName);
+        NSLog(@"nsFont-desc-name is : %@", nsFont.fontDescriptor.postscriptName);
+#endif
+
+
+    } else {
+           nsFont = [NSFont fontWithName:name size:1.0];
+    }
 
     if (nsFont == nil) {
         // if can't get font of that name, substitute system default font
@@ -193,7 +183,7 @@ GetFamilyNameForFontName(NSString* fontname)
     return [sFontFamilyTable objectForKey:fontname];
 }
 
-static void addFont(CTFontUIFontType uiType, 
+static void addFont(CTFontUIFontType uiType,
                     NSMutableArray *allFonts,
                     NSMutableDictionary* fontFamilyTable) {
 
@@ -219,6 +209,12 @@ static void addFont(CTFontUIFontType uiType,
             CFRelease(font);
             return;
         }
+        if (uiType == kCTFontUIFontSystem) {
+            uiName = (NSString*)name;
+        }
+        if (uiType == kCTFontUIFontEmphasizedSystem) {
+            uiBoldName = (NSString*)name;
+        }
         [allFonts addObject:name];
         [fontFamilyTable setObject:family forKey:name];
 #ifdef DEBUG
@@ -230,7 +226,7 @@ static void addFont(CTFontUIFontType uiType,
         CFRelease(desc);
         CFRelease(font);
 }
- 
+
 static NSArray*
 GetFilteredFonts()
 {
@@ -273,7 +269,6 @@ GetFilteredFonts()
          */
         addFont(kCTFontUIFontSystem, allFonts, fontFamilyTable);
         addFont(kCTFontUIFontEmphasizedSystem, allFonts, fontFamilyTable);
-        addFont(kCTFontUIFontUserFixedPitch, allFonts, fontFamilyTable);
 
         sFilteredFonts = allFonts;
         sFontFamilyTable = fontFamilyTable;
@@ -429,23 +424,6 @@ Java_sun_font_CFont_getCGFontPtrNative
 {
     AWTFont *awtFont = (AWTFont *)jlong_to_ptr(awtFontPtr);
     return (jlong)(awtFont->fNativeCGFont);
-}
-
-/*
- * Class:     sun_font_CFont
- * Method:    getLayoutTableCacheNative
- * Signature: (J)J
- */
-JNIEXPORT jlong JNICALL
-Java_sun_font_CFont_getLayoutTableCacheNative
-    (JNIEnv *env, jclass clazz,
-     jlong awtFontPtr)
-{
-    AWTFont *awtFont = (AWTFont *)jlong_to_ptr(awtFontPtr);
-    if (awtFont->layoutTableCache == NULL) {
-        awtFont->layoutTableCache = newCFontLayoutTableCache();
-    }
-    return (jlong)(awtFont->layoutTableCache);
 }
 
 /*
@@ -658,7 +636,7 @@ Java_sun_font_CFont_getCascadeList
         NSLog(@"Font is : %@", (NSString*)fontname);
 #endif
         jstring jFontName = (jstring)JNFNSToJavaString(env, fontname);
-        (*env)->CallBooleanMethod(env, arrayListOfString, addMID, jFontName); 
+        (*env)->CallBooleanMethod(env, arrayListOfString, addMID, jFontName);
         (*env)->DeleteLocalRef(env, jFontName);
     }
 }

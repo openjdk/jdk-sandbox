@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8080357 8167643 8187359 8199762
+ * @bug 8080357 8167643 8187359 8199762 8080353 8246353
  * @summary Tests for EvaluationState.methods
  * @build KullaTesting TestingInputStream ExpectedDiagnostic
  * @run testng MethodsTest
@@ -237,6 +237,11 @@ public class MethodsTest extends KullaTesting {
         assertNumberOfActiveMethods(0);
         assertActiveKeys();
 
+        assertDeclareFail("default void f() { }",
+                new ExpectedDiagnostic("jdk.eval.error.illegal.modifiers", 0, 7, 0, -1, -1, Diagnostic.Kind.ERROR));
+        assertNumberOfActiveMethods(0);
+        assertActiveKeys();
+
         assertDeclareFail("int f() {}", "compiler.err.missing.ret.stmt",
                 added(REJECTED));
         assertNumberOfActiveMethods(0);
@@ -293,8 +298,8 @@ public class MethodsTest extends KullaTesting {
         assertActiveKeys();
 
         assertDeclareWarn1("final String f() {return null;}",
-                new ExpectedDiagnostic("jdk.eval.warn.illegal.modifiers", 0, 5, 0, -1, -1, Diagnostic.Kind.WARNING),
-                ste(MAIN_SNIPPET, VALID, VALID, false, null),
+                null,
+                ste(MAIN_SNIPPET, VALID, VALID, true, null),
                 ste(f, VALID, OVERWRITTEN, false, MAIN_SNIPPET));
         assertNumberOfActiveMethods(1);
         assertActiveKeys();

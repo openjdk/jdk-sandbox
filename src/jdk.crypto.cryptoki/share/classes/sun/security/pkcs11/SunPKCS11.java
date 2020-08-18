@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@ import javax.security.auth.callback.TextOutputCallback;
 import sun.security.util.Debug;
 import sun.security.util.ResourcesMgr;
 import static sun.security.util.SecurityConstants.PROVIDER_VER;
+import static sun.security.util.SecurityProviderConstants.getAliases;
 
 import sun.security.pkcs11.Secmod.*;
 
@@ -62,7 +63,6 @@ public final class SunPKCS11 extends AuthProvider {
     private static final long serialVersionUID = -1354835039035306505L;
 
     static final Debug debug = Debug.getInstance("sunpkcs11");
-
     // the PKCS11 object through which we make the native calls
     final PKCS11 p11;
 
@@ -406,19 +406,15 @@ public final class SunPKCS11 extends AuthProvider {
         return System.identityHashCode(this);
     }
 
-    private static String[] s(String ...aliases) {
-        return aliases;
-    }
-
     private static final class Descriptor {
         final String type;
         final String algorithm;
         final String className;
-        final String[] aliases;
+        final List<String> aliases;
         final int[] mechanisms;
 
         private Descriptor(String type, String algorithm, String className,
-                String[] aliases, int[] mechanisms) {
+                List<String> aliases, int[] mechanisms) {
             this.type = type;
             this.algorithm = algorithm;
             this.className = className;
@@ -461,8 +457,14 @@ public final class SunPKCS11 extends AuthProvider {
     }
 
     private static void d(String type, String algorithm, String className,
-            String[] aliases, int[] m) {
+            List<String> aliases, int[] m) {
         register(new Descriptor(type, algorithm, className, aliases, m));
+    }
+
+    private static void dA(String type, String algorithm, String className,
+            int[] m) {
+        register(new Descriptor(type, algorithm, className,
+                getAliases(algorithm), m));
     }
 
     private static void register(Descriptor d) {
@@ -516,7 +518,9 @@ public final class SunPKCS11 extends AuthProvider {
         String P11SecretKeyFactory = "sun.security.pkcs11.P11SecretKeyFactory";
         String P11Cipher           = "sun.security.pkcs11.P11Cipher";
         String P11RSACipher        = "sun.security.pkcs11.P11RSACipher";
+        String P11AEADCipher       = "sun.security.pkcs11.P11AEADCipher";
         String P11Signature        = "sun.security.pkcs11.P11Signature";
+        String P11PSSSignature     = "sun.security.pkcs11.P11PSSSignature";
 
         // XXX register all aliases
 
@@ -524,56 +528,59 @@ public final class SunPKCS11 extends AuthProvider {
                 m(CKM_MD2));
         d(MD, "MD5",            P11Digest,
                 m(CKM_MD5));
-        d(MD, "SHA1",           P11Digest,
-                s("SHA", "SHA-1", "1.3.14.3.2.26", "OID.1.3.14.3.2.26"),
+        dA(MD, "SHA-1",           P11Digest,
                 m(CKM_SHA_1));
 
-        d(MD, "SHA-224",        P11Digest,
-                s("2.16.840.1.101.3.4.2.4", "OID.2.16.840.1.101.3.4.2.4"),
+        dA(MD, "SHA-224",        P11Digest,
                 m(CKM_SHA224));
-        d(MD, "SHA-256",        P11Digest,
-                s("2.16.840.1.101.3.4.2.1", "OID.2.16.840.1.101.3.4.2.1"),
+        dA(MD, "SHA-256",        P11Digest,
                 m(CKM_SHA256));
-        d(MD, "SHA-384",        P11Digest,
-                s("2.16.840.1.101.3.4.2.2", "OID.2.16.840.1.101.3.4.2.2"),
+        dA(MD, "SHA-384",        P11Digest,
                 m(CKM_SHA384));
-        d(MD, "SHA-512",        P11Digest,
-                s("2.16.840.1.101.3.4.2.3", "OID.2.16.840.1.101.3.4.2.3"),
+        dA(MD, "SHA-512",        P11Digest,
                 m(CKM_SHA512));
+        dA(MD, "SHA-512/224",        P11Digest,
+                m(CKM_SHA512_224));
+        dA(MD, "SHA-512/256",        P11Digest,
+                m(CKM_SHA512_256));
 
         d(MAC, "HmacMD5",       P11MAC,
                 m(CKM_MD5_HMAC));
-        d(MAC, "HmacSHA1",      P11MAC,
-                s("1.2.840.113549.2.7", "OID.1.2.840.113549.2.7"),
+        dA(MAC, "HmacSHA1",      P11MAC,
                 m(CKM_SHA_1_HMAC));
-        d(MAC, "HmacSHA224",    P11MAC,
-                s("1.2.840.113549.2.8", "OID.1.2.840.113549.2.8"),
+        dA(MAC, "HmacSHA224",    P11MAC,
                 m(CKM_SHA224_HMAC));
-        d(MAC, "HmacSHA256",    P11MAC,
-                s("1.2.840.113549.2.9", "OID.1.2.840.113549.2.9"),
+        dA(MAC, "HmacSHA256",    P11MAC,
                 m(CKM_SHA256_HMAC));
-        d(MAC, "HmacSHA384",    P11MAC,
-                s("1.2.840.113549.2.10", "OID.1.2.840.113549.2.10"),
+        dA(MAC, "HmacSHA384",    P11MAC,
                 m(CKM_SHA384_HMAC));
-        d(MAC, "HmacSHA512",    P11MAC,
-                s("1.2.840.113549.2.11", "OID.1.2.840.113549.2.11"),
+        dA(MAC, "HmacSHA512",    P11MAC,
                 m(CKM_SHA512_HMAC));
+        dA(MAC, "HmacSHA512/224",    P11MAC,
+                m(CKM_SHA512_224_HMAC));
+        dA(MAC, "HmacSHA512/256",    P11MAC,
+                m(CKM_SHA512_256_HMAC));
+
         d(MAC, "SslMacMD5",     P11MAC,
                 m(CKM_SSL3_MD5_MAC));
         d(MAC, "SslMacSHA1",    P11MAC,
                 m(CKM_SSL3_SHA1_MAC));
 
         d(KPG, "RSA",           P11KeyPairGenerator,
+                getAliases("PKCS1"),
                 m(CKM_RSA_PKCS_KEY_PAIR_GEN));
-        d(KPG, "DSA",           P11KeyPairGenerator,
-                s("1.3.14.3.2.12", "1.2.840.10040.4.1", "OID.1.2.840.10040.4.1"),
+
+        List<String> dhAlias = List.of("DiffieHellman");
+
+        dA(KPG, "DSA",           P11KeyPairGenerator,
                 m(CKM_DSA_KEY_PAIR_GEN));
-        d(KPG, "DH",            P11KeyPairGenerator,    s("DiffieHellman"),
+        d(KPG, "DH",            P11KeyPairGenerator,
+                dhAlias,
                 m(CKM_DH_PKCS_KEY_PAIR_GEN));
         d(KPG, "EC",            P11KeyPairGenerator,
                 m(CKM_EC_KEY_PAIR_GEN));
 
-        d(KG,  "ARCFOUR",       P11KeyGenerator,        s("RC4"),
+        dA(KG,  "ARCFOUR",       P11KeyGenerator,
                 m(CKM_RC4_KEY_GEN));
         d(KG,  "DES",           P11KeyGenerator,
                 m(CKM_DES_KEY_GEN));
@@ -587,11 +594,12 @@ public final class SunPKCS11 extends AuthProvider {
         // register (Secret)KeyFactories if there are any mechanisms
         // for a particular algorithm that we support
         d(KF, "RSA",            P11RSAKeyFactory,
+                getAliases("PKCS1"),
                 m(CKM_RSA_PKCS_KEY_PAIR_GEN, CKM_RSA_PKCS, CKM_RSA_X_509));
-        d(KF, "DSA",            P11DSAKeyFactory,
-                s("1.3.14.3.2.12", "1.2.840.10040.4.1", "OID.1.2.840.10040.4.1"),
+        dA(KF, "DSA",            P11DSAKeyFactory,
                 m(CKM_DSA_KEY_PAIR_GEN, CKM_DSA, CKM_DSA_SHA1));
-        d(KF, "DH",             P11DHKeyFactory,        s("DiffieHellman"),
+        d(KF, "DH",             P11DHKeyFactory,
+                dhAlias,
                 m(CKM_DH_PKCS_KEY_PAIR_GEN, CKM_DH_PKCS_DERIVE));
         d(KF, "EC",             P11DHKeyFactory,
                 m(CKM_EC_KEY_PAIR_GEN, CKM_ECDH1_DERIVE,
@@ -599,30 +607,33 @@ public final class SunPKCS11 extends AuthProvider {
 
         // AlgorithmParameters for EC.
         // Only needed until we have an EC implementation in the SUN provider.
-        d(AGP, "EC",            "sun.security.util.ECParameters",
-                                                s("1.2.840.10045.2.1"),
+        dA(AGP, "EC",            "sun.security.util.ECParameters",
                 m(CKM_EC_KEY_PAIR_GEN, CKM_ECDH1_DERIVE,
                     CKM_ECDSA, CKM_ECDSA_SHA1));
 
-        d(KA, "DH",             P11KeyAgreement,        s("DiffieHellman"),
+
+        d(AGP, "GCM",            "sun.security.util.GCMParameters",
+                m(CKM_AES_GCM));
+
+        d(KA, "DH",             P11KeyAgreement,
+                dhAlias,
                 m(CKM_DH_PKCS_DERIVE));
         d(KA, "ECDH",           "sun.security.pkcs11.P11ECDHKeyAgreement",
                 m(CKM_ECDH1_DERIVE));
 
-        d(SKF, "ARCFOUR",       P11SecretKeyFactory,    s("RC4"),
+        dA(SKF, "ARCFOUR",       P11SecretKeyFactory,
                 m(CKM_RC4));
         d(SKF, "DES",           P11SecretKeyFactory,
                 m(CKM_DES_CBC));
         d(SKF, "DESede",        P11SecretKeyFactory,
                 m(CKM_DES3_CBC));
-        d(SKF, "AES",           P11SecretKeyFactory,
-                s("2.16.840.1.101.3.4.1", "OID.2.16.840.1.101.3.4.1"),
+        dA(SKF, "AES",           P11SecretKeyFactory,
                 m(CKM_AES_CBC));
         d(SKF, "Blowfish",      P11SecretKeyFactory,
                 m(CKM_BLOWFISH_CBC));
 
         // XXX attributes for Ciphers (supported modes, padding)
-        d(CIP, "ARCFOUR",                       P11Cipher,      s("RC4"),
+        dA(CIP, "ARCFOUR",                      P11Cipher,
                 m(CKM_RC4));
         d(CIP, "DES/CBC/NoPadding",             P11Cipher,
                 m(CKM_DES_CBC));
@@ -630,7 +641,8 @@ public final class SunPKCS11 extends AuthProvider {
                 m(CKM_DES_CBC_PAD, CKM_DES_CBC));
         d(CIP, "DES/ECB/NoPadding",             P11Cipher,
                 m(CKM_DES_ECB));
-        d(CIP, "DES/ECB/PKCS5Padding",          P11Cipher,      s("DES"),
+        d(CIP, "DES/ECB/PKCS5Padding",          P11Cipher,
+                List.of("DES"),
                 m(CKM_DES_ECB));
 
         d(CIP, "DESede/CBC/NoPadding",          P11Cipher,
@@ -639,75 +651,84 @@ public final class SunPKCS11 extends AuthProvider {
                 m(CKM_DES3_CBC_PAD, CKM_DES3_CBC));
         d(CIP, "DESede/ECB/NoPadding",          P11Cipher,
                 m(CKM_DES3_ECB));
-        d(CIP, "DESede/ECB/PKCS5Padding",       P11Cipher,      s("DESede"),
+        d(CIP, "DESede/ECB/PKCS5Padding",       P11Cipher,
+                List.of("DESede"),
                 m(CKM_DES3_ECB));
         d(CIP, "AES/CBC/NoPadding",             P11Cipher,
                 m(CKM_AES_CBC));
-        d(CIP, "AES_128/CBC/NoPadding",          P11Cipher,
-                s("2.16.840.1.101.3.4.1.2", "OID.2.16.840.1.101.3.4.1.2"),
+        dA(CIP, "AES_128/CBC/NoPadding",          P11Cipher,
                 m(CKM_AES_CBC));
-        d(CIP, "AES_192/CBC/NoPadding",          P11Cipher,
-                s("2.16.840.1.101.3.4.1.22", "OID.2.16.840.1.101.3.4.1.22"),
+        dA(CIP, "AES_192/CBC/NoPadding",          P11Cipher,
                 m(CKM_AES_CBC));
-        d(CIP, "AES_256/CBC/NoPadding",          P11Cipher,
-                s("2.16.840.1.101.3.4.1.42", "OID.2.16.840.1.101.3.4.1.42"),
+        dA(CIP, "AES_256/CBC/NoPadding",          P11Cipher,
                 m(CKM_AES_CBC));
         d(CIP, "AES/CBC/PKCS5Padding",          P11Cipher,
                 m(CKM_AES_CBC_PAD, CKM_AES_CBC));
         d(CIP, "AES/ECB/NoPadding",             P11Cipher,
                 m(CKM_AES_ECB));
-        d(CIP, "AES_128/ECB/NoPadding",          P11Cipher,
-                s("2.16.840.1.101.3.4.1.1", "OID.2.16.840.1.101.3.4.1.1"),
+        dA(CIP, "AES_128/ECB/NoPadding",          P11Cipher,
                 m(CKM_AES_ECB));
-        d(CIP, "AES_192/ECB/NoPadding",          P11Cipher,
-                s("2.16.840.1.101.3.4.1.21", "OID.2.16.840.1.101.3.4.1.21"),
+        dA(CIP, "AES_192/ECB/NoPadding",          P11Cipher,
                 m(CKM_AES_ECB));
-        d(CIP, "AES_256/ECB/NoPadding",          P11Cipher,
-                s("2.16.840.1.101.3.4.1.41", "OID.2.16.840.1.101.3.4.1.41"),
+        dA(CIP, "AES_256/ECB/NoPadding",          P11Cipher,
                 m(CKM_AES_ECB));
-        d(CIP, "AES/ECB/PKCS5Padding",          P11Cipher,      s("AES"),
+        d(CIP, "AES/ECB/PKCS5Padding",          P11Cipher,
+                List.of("AES"),
                 m(CKM_AES_ECB));
         d(CIP, "AES/CTR/NoPadding",             P11Cipher,
                 m(CKM_AES_CTR));
+
+        d(CIP, "AES/GCM/NoPadding",             P11AEADCipher,
+                m(CKM_AES_GCM));
+        dA(CIP, "AES_128/GCM/NoPadding",          P11AEADCipher,
+                m(CKM_AES_GCM));
+        dA(CIP, "AES_192/GCM/NoPadding",          P11AEADCipher,
+                m(CKM_AES_GCM));
+        dA(CIP, "AES_256/GCM/NoPadding",          P11AEADCipher,
+                m(CKM_AES_GCM));
+
         d(CIP, "Blowfish/CBC/NoPadding",        P11Cipher,
                 m(CKM_BLOWFISH_CBC));
         d(CIP, "Blowfish/CBC/PKCS5Padding",     P11Cipher,
                 m(CKM_BLOWFISH_CBC));
 
-        // XXX RSA_X_509, RSA_OAEP not yet supported
-        d(CIP, "RSA/ECB/PKCS1Padding",          P11RSACipher,   s("RSA"),
+        d(CIP, "RSA/ECB/PKCS1Padding",          P11RSACipher,
+                List.of("RSA"),
                 m(CKM_RSA_PKCS));
         d(CIP, "RSA/ECB/NoPadding",             P11RSACipher,
                 m(CKM_RSA_X_509));
 
-        d(SIG, "RawDSA",        P11Signature,   s("NONEwithDSA"),
+        d(SIG, "RawDSA",        P11Signature,
+                List.of("NONEwithDSA"),
                 m(CKM_DSA));
-        d(SIG, "DSA",           P11Signature,
-                s("SHA1withDSA", "1.3.14.3.2.13", "1.3.14.3.2.27",
-                  "1.2.840.10040.4.3", "OID.1.2.840.10040.4.3"),
+        dA(SIG, "SHA1withDSA",           P11Signature,
                 m(CKM_DSA_SHA1, CKM_DSA));
+        dA(SIG, "SHA224withDSA", P11Signature,
+                m(CKM_DSA_SHA224));
+        dA(SIG, "SHA256withDSA", P11Signature,
+                m(CKM_DSA_SHA256));
+        dA(SIG, "SHA384withDSA", P11Signature,
+                m(CKM_DSA_SHA384));
+        dA(SIG, "SHA512withDSA", P11Signature,
+                m(CKM_DSA_SHA512));
         d(SIG, "RawDSAinP1363Format",   P11Signature,
-                s("NONEwithDSAinP1363Format"),
+                List.of("NONEwithDSAinP1363Format"),
                 m(CKM_DSA));
         d(SIG, "DSAinP1363Format",      P11Signature,
-                s("SHA1withDSAinP1363Format"),
+                List.of("SHA1withDSAinP1363Format"),
                 m(CKM_DSA_SHA1, CKM_DSA));
+
         d(SIG, "NONEwithECDSA", P11Signature,
                 m(CKM_ECDSA));
-        d(SIG, "SHA1withECDSA", P11Signature,
-                s("ECDSA", "1.2.840.10045.4.1", "OID.1.2.840.10045.4.1"),
+        dA(SIG, "SHA1withECDSA", P11Signature,
                 m(CKM_ECDSA_SHA1, CKM_ECDSA));
-        d(SIG, "SHA224withECDSA",       P11Signature,
-                s("1.2.840.10045.4.3.1", "OID.1.2.840.10045.4.3.1"),
+        dA(SIG, "SHA224withECDSA",       P11Signature,
                 m(CKM_ECDSA));
-        d(SIG, "SHA256withECDSA",       P11Signature,
-                s("1.2.840.10045.4.3.2", "OID.1.2.840.10045.4.3.2"),
+        dA(SIG, "SHA256withECDSA",       P11Signature,
                 m(CKM_ECDSA));
-        d(SIG, "SHA384withECDSA",       P11Signature,
-                s("1.2.840.10045.4.3.3", "OID.1.2.840.10045.4.3.3"),
+        dA(SIG, "SHA384withECDSA",       P11Signature,
                 m(CKM_ECDSA));
-        d(SIG, "SHA512withECDSA",       P11Signature,
-                s("1.2.840.10045.4.3.4", "OID.1.2.840.10045.4.3.4"),
+        dA(SIG, "SHA512withECDSA",       P11Signature,
                 m(CKM_ECDSA));
         d(SIG, "NONEwithECDSAinP1363Format",   P11Signature,
                 m(CKM_ECDSA));
@@ -721,32 +742,36 @@ public final class SunPKCS11 extends AuthProvider {
                 m(CKM_ECDSA));
         d(SIG, "SHA512withECDSAinP1363Format", P11Signature,
                 m(CKM_ECDSA));
-        d(SIG, "MD2withRSA",    P11Signature,
-                s("1.2.840.113549.1.1.2", "OID.1.2.840.113549.1.1.2"),
+        dA(SIG, "MD2withRSA",    P11Signature,
                 m(CKM_MD2_RSA_PKCS, CKM_RSA_PKCS, CKM_RSA_X_509));
-        d(SIG, "MD5withRSA",    P11Signature,
-                s("1.2.840.113549.1.1.4", "OID.1.2.840.113549.1.1.4"),
+        dA(SIG, "MD5withRSA",    P11Signature,
                 m(CKM_MD5_RSA_PKCS, CKM_RSA_PKCS, CKM_RSA_X_509));
-        d(SIG, "SHA1withRSA",   P11Signature,
-                s("1.2.840.113549.1.1.5", "OID.1.2.840.113549.1.1.5",
-                  "1.3.14.3.2.29"),
+        dA(SIG, "SHA1withRSA",   P11Signature,
                 m(CKM_SHA1_RSA_PKCS, CKM_RSA_PKCS, CKM_RSA_X_509));
-        d(SIG, "SHA224withRSA", P11Signature,
-                s("1.2.840.113549.1.1.14", "OID.1.2.840.113549.1.1.14"),
+        dA(SIG, "SHA224withRSA", P11Signature,
                 m(CKM_SHA224_RSA_PKCS, CKM_RSA_PKCS, CKM_RSA_X_509));
-        d(SIG, "SHA256withRSA", P11Signature,
-                s("1.2.840.113549.1.1.11", "OID.1.2.840.113549.1.1.11"),
+        dA(SIG, "SHA256withRSA", P11Signature,
                 m(CKM_SHA256_RSA_PKCS, CKM_RSA_PKCS, CKM_RSA_X_509));
-        d(SIG, "SHA384withRSA", P11Signature,
-                s("1.2.840.113549.1.1.12", "OID.1.2.840.113549.1.1.12"),
+        dA(SIG, "SHA384withRSA", P11Signature,
                 m(CKM_SHA384_RSA_PKCS, CKM_RSA_PKCS, CKM_RSA_X_509));
-        d(SIG, "SHA512withRSA", P11Signature,
-                s("1.2.840.113549.1.1.13", "OID.1.2.840.113549.1.1.13"),
+        dA(SIG, "SHA512withRSA", P11Signature,
                 m(CKM_SHA512_RSA_PKCS, CKM_RSA_PKCS, CKM_RSA_X_509));
+        dA(SIG, "RSASSA-PSS", P11PSSSignature,
+                m(CKM_RSA_PKCS_PSS));
+        d(SIG, "SHA1withRSASSA-PSS", P11PSSSignature,
+                m(CKM_SHA1_RSA_PKCS_PSS));
+        d(SIG, "SHA224withRSASSA-PSS", P11PSSSignature,
+                m(CKM_SHA224_RSA_PKCS_PSS));
+        d(SIG, "SHA256withRSASSA-PSS", P11PSSSignature,
+                m(CKM_SHA256_RSA_PKCS_PSS));
+        d(SIG, "SHA384withRSASSA-PSS", P11PSSSignature,
+                m(CKM_SHA384_RSA_PKCS_PSS));
+        d(SIG, "SHA512withRSASSA-PSS", P11PSSSignature,
+                m(CKM_SHA512_RSA_PKCS_PSS));
 
         d(KG, "SunTlsRsaPremasterSecret",
                     "sun.security.pkcs11.P11TlsRsaPremasterSecretGenerator",
-                    s("SunTls12RsaPremasterSecret"),
+                List.of("SunTls12RsaPremasterSecret"),
                 m(CKM_SSL3_PRE_MASTER_KEY_GEN, CKM_TLS_PRE_MASTER_KEY_GEN));
         d(KG, "SunTlsMasterSecret",
                     "sun.security.pkcs11.P11TlsMasterSecretGenerator",
@@ -853,6 +878,25 @@ public final class SunPKCS11 extends AuthProvider {
         createPoller();
     }
 
+    private static boolean isLegacy(CK_MECHANISM_INFO mechInfo)
+            throws PKCS11Exception {
+        // assume full support if no mech info available
+        // For vendor-specific mechanisms, often no mech info is provided
+        boolean partialSupport = false;
+
+        if (mechInfo != null) {
+            if ((mechInfo.flags & CKF_DECRYPT) != 0) {
+                // non-legacy cipher mechs should support encryption
+                partialSupport |= ((mechInfo.flags & CKF_ENCRYPT) == 0);
+            }
+            if ((mechInfo.flags & CKF_VERIFY) != 0) {
+                // non-legacy signature mechs should support signing
+                partialSupport |= ((mechInfo.flags & CKF_SIGN) == 0);
+            }
+        }
+        return partialSupport;
+    }
+
     // test if a token is present and initialize this provider for it if so.
     // does nothing if no token is found
     // called from constructor and by poller
@@ -886,24 +930,35 @@ public final class SunPKCS11 extends AuthProvider {
         // return a CKM_DES_CBC_PAD.
         final Map<Descriptor,Integer> supportedAlgs =
                                         new HashMap<Descriptor,Integer>();
+
         for (int i = 0; i < supportedMechanisms.length; i++) {
             long longMech = supportedMechanisms[i];
-            boolean isEnabled = config.isEnabled(longMech);
+            CK_MECHANISM_INFO mechInfo = token.getMechanismInfo(longMech);
             if (showInfo) {
-                CK_MECHANISM_INFO mechInfo =
-                        p11.C_GetMechanismInfo(slotID, longMech);
                 System.out.println("Mechanism " +
-                        Functions.getMechanismName(longMech) + ":");
-                if (isEnabled == false) {
+                    Functions.getMechanismName(longMech) + ":");
+                System.out.println(mechInfo == null?
+                    (Constants.INDENT + "info n/a") :
+                    mechInfo);
+            }
+            if (!config.isEnabled(longMech)) {
+                if (showInfo) {
                     System.out.println("DISABLED in configuration");
                 }
-                System.out.println(mechInfo);
-            }
-            if (isEnabled == false) {
                 continue;
             }
+            if (isLegacy(mechInfo)) {
+                if (showInfo) {
+                    System.out.println("DISABLED due to legacy");
+                }
+                continue;
+            }
+
             // we do not know of mechs with the upper 32 bits set
             if (longMech >>> 32 != 0) {
+                if (showInfo) {
+                    System.out.println("DISABLED due to unknown mech value");
+                }
                 continue;
             }
             int mech = (int)longMech;
@@ -959,7 +1014,7 @@ public final class SunPKCS11 extends AuthProvider {
                 if (config.isEnabled(PCKM_KEYSTORE)) {
                     putService(new P11Service(token, KS, "PKCS11",
                         "sun.security.pkcs11.P11KeyStore",
-                        s("PKCS11-" + config.getName()),
+                        List.of("PKCS11-" + config.getName()),
                         PCKM_KEYSTORE));
                 }
                 return null;
@@ -976,15 +1031,11 @@ public final class SunPKCS11 extends AuthProvider {
         private final long mechanism;
 
         P11Service(Token token, String type, String algorithm,
-                String className, String[] al, long mechanism) {
-            super(token.provider, type, algorithm, className, toList(al),
+                String className, List<String> al, long mechanism) {
+            super(token.provider, type, algorithm, className, al,
                     type.equals(SR) ? Map.of("ThreadSafe", "true") : null);
             this.token = token;
             this.mechanism = mechanism & 0xFFFFFFFFL;
-        }
-
-        private static List<String> toList(String[] aliases) {
-            return (aliases == null) ? null : Arrays.asList(aliases);
         }
 
         public Object newInstance(Object param)
@@ -1008,11 +1059,17 @@ public final class SunPKCS11 extends AuthProvider {
             } else if (type == CIP) {
                 if (algorithm.startsWith("RSA")) {
                     return new P11RSACipher(token, algorithm, mechanism);
+                } else if (algorithm.endsWith("GCM/NoPadding")) {
+                    return new P11AEADCipher(token, algorithm, mechanism);
                 } else {
                     return new P11Cipher(token, algorithm, mechanism);
                 }
             } else if (type == SIG) {
-                return new P11Signature(token, algorithm, mechanism);
+                if (algorithm.indexOf("RSASSA-PSS") != -1) {
+                    return new P11PSSSignature(token, algorithm, mechanism);
+                } else {
+                    return new P11Signature(token, algorithm, mechanism);
+                }
             } else if (type == MAC) {
                 return new P11Mac(token, algorithm, mechanism);
             } else if (type == KPG) {
@@ -1051,7 +1108,14 @@ public final class SunPKCS11 extends AuthProvider {
             } else if (type == KS) {
                 return token.getKeyStore();
             } else if (type == AGP) {
-                return new sun.security.util.ECParameters();
+                if (algorithm == "EC") {
+                    return new sun.security.util.ECParameters();
+                } else if (algorithm == "GCM") {
+                    return new sun.security.util.GCMParameters();
+                } else {
+                    throw new NoSuchAlgorithmException("Unsupported algorithm: "
+                            + algorithm);
+                }
             } else {
                 throw new NoSuchAlgorithmException("Unknown type: " + type);
             }
@@ -1070,7 +1134,7 @@ public final class SunPKCS11 extends AuthProvider {
             String keyAlgorithm = key.getAlgorithm();
             // RSA signatures and cipher
             if (((type == CIP) && algorithm.startsWith("RSA"))
-                    || (type == SIG) && algorithm.endsWith("RSA")) {
+                    || (type == SIG) && (algorithm.indexOf("RSA") != -1)) {
                 if (keyAlgorithm.equals("RSA") == false) {
                     return false;
                 }

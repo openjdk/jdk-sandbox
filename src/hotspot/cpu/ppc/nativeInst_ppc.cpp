@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,10 +39,9 @@
 #include "c1/c1_Runtime1.hpp"
 #endif
 
-// We use an illtrap for marking a method as not_entrant or zombie iff !UseSIGTRAP
+// We use an illtrap for marking a method as not_entrant or zombie
 // Work around a C++ compiler bug which changes 'this'
 bool NativeInstruction::is_sigill_zombie_not_entrant_at(address addr) {
-  assert(!UseSIGTRAP, "precondition");
   if (*(int*)addr != 0 /*illtrap*/) return false;
   CodeBlob* cb = CodeCache::find_blob_unsafe(addr);
   if (cb == NULL || !cb->is_nmethod()) return false;
@@ -335,13 +334,8 @@ void NativeJump::patch_verified_entry(address entry, address verified_entry, add
     a->b(dest);
   } else {
     // The signal handler will continue at dest=OptoRuntime::handle_wrong_method_stub().
-    if (TrapBasedNotEntrantChecks) {
-      // We use a special trap for marking a method as not_entrant or zombie.
-      a->trap_zombie_not_entrant();
-    } else {
-      // We use an illtrap for marking a method as not_entrant or zombie.
-      a->illtrap();
-    }
+    // We use an illtrap for marking a method as not_entrant or zombie.
+    a->illtrap();
   }
   ICache::ppc64_flush_icache_bytes(verified_entry, code_size);
 }
@@ -362,8 +356,8 @@ void NativeJump::verify() {
 
 void NativeGeneralJump::insert_unconditional(address code_pos, address entry) {
   CodeBuffer cb(code_pos, BytesPerInstWord + 1);
-  MacroAssembler* a = new MacroAssembler(&cb);
-  a->b(entry);
+  MacroAssembler a(&cb);
+  a.b(entry);
   ICache::ppc64_flush_icache_bytes(code_pos, NativeGeneralJump::instruction_size);
 }
 
@@ -374,7 +368,7 @@ void NativeGeneralJump::replace_mt_safe(address instr_addr, address code_buffer)
   // Finally patch out the jump.
   volatile juint *jump_addr = (volatile juint*)instr_addr;
   // Release not needed because caller uses invalidate_range after copying the remaining bytes.
-  //OrderAccess::release_store(jump_addr, *((juint*)code_buffer));
+  //Atomic::release_store(jump_addr, *((juint*)code_buffer));
   *jump_addr = *((juint*)code_buffer); // atomically store code over branch instruction
   ICache::ppc64_flush_icache_bytes(instr_addr, NativeGeneralJump::instruction_size);
 }

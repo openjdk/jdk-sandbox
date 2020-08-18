@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 #define CPU_ARM_MACROASSEMBLER_ARM_HPP
 
 #include "code/relocInfo.hpp"
-#include "code/relocInfo_ext.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 class BiasedLockingCounters;
 
@@ -436,6 +436,26 @@ public:
     fldmias(SP, FloatRegisterSet(fd), writeback, cond);
   }
 
+  void fpush(FloatRegisterSet reg_set) {
+    fstmdbd(SP, reg_set, writeback);
+  }
+
+  void fpop(FloatRegisterSet reg_set) {
+    fldmiad(SP, reg_set, writeback);
+  }
+
+  void fpush_hardfp(FloatRegisterSet reg_set) {
+#ifndef __SOFTFP__
+    fpush(reg_set);
+#endif
+  }
+
+  void fpop_hardfp(FloatRegisterSet reg_set) {
+#ifndef __SOFTFP__
+    fpop(reg_set);
+#endif
+  }
+
   // Order access primitives
   enum Membar_mask_bits {
     StoreStore = 1 << 3,
@@ -513,15 +533,13 @@ public:
     }
   }
 
-  // Runtime address that may vary from one execution to another. The
-  // symbolic_reference describes what the address is, allowing
-  // the address to be resolved in a different execution context.
+  // Runtime address that may vary from one execution to another.
   // Warning: do not implement as a PC relative address.
-  void mov_address(Register rd, address addr, symbolic_Relocation::symbolic_reference t) {
+  void mov_address(Register rd, address addr) {
     mov_address(rd, addr, RelocationHolder::none);
   }
 
-  // rspec can be RelocationHolder::none (for ignored symbolic_Relocation).
+  // rspec can be RelocationHolder::none (for ignored symbolic Relocation).
   // In that case, the address is absolute and the generated code need
   // not be relocable.
   void mov_address(Register rd, address addr, RelocationHolder const& rspec) {
@@ -1050,11 +1068,6 @@ public:
                                Register temp_reg2,
                                Label& L_no_such_interface);
 
-  // Compare char[] arrays aligned to 4 bytes.
-  void char_arrays_equals(Register ary1, Register ary2,
-                          Register limit, Register result,
-                          Register chr1, Register chr2, Label& Ldone);
-
 
   void floating_cmp(Register dst);
 
@@ -1072,12 +1085,9 @@ public:
 
   void restore_default_fp_mode();
 
-#ifdef COMPILER2
-  void fast_lock(Register obj, Register box, Register scratch, Register scratch2, Register scratch3 = noreg);
-  void fast_unlock(Register obj, Register box, Register scratch, Register scratch2);
-#endif
-
-
+  void safepoint_poll(Register tmp1, Label& slow_path);
+  void get_polling_page(Register dest);
+  void read_polling_page(Register dest, relocInfo::relocType rtype);
 };
 
 

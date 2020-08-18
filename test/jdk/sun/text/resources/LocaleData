@@ -614,8 +614,6 @@ FormatData/es_PE/DatePatterns/1=d' de 'MMMM' de 'yyyy
 FormatData/es_PE/DatePatterns/2=dd/MM/yyyy
 FormatData/es_PE/DatePatterns/3=dd/MM/yy
 FormatData/es_PE/DateTimePatterns/0={1} {0}
-FormatData/es_PE/NumberElements/0=,
-FormatData/es_PE/NumberElements/1=.
 FormatData/es_PE/NumberElements/2=;
 FormatData/es_PR/NumberPatterns/0=#,##0.###;-#,##0.###
 # FormatData/es_PR/NumberPatterns/1=$#,##0.00;($#,##0.00) # Changed; see bug 4122840
@@ -1189,7 +1187,7 @@ FormatData/ar_JO/MonthNames/0=\u0643\u0627\u0646\u0648\u0646 \u0627\u0644\u062b\
 FormatData/ar_JO/MonthNames/1=\u0634\u0628\u0627\u0637
 FormatData/ar_JO/MonthNames/2=\u0622\u0630\u0627\u0631
 FormatData/ar_JO/MonthNames/3=\u0646\u064a\u0633\u0627\u0646
-FormatData/ar_JO/MonthNames/4=\u0646\u0648\u0627\u0631
+FormatData/ar_JO/MonthNames/4=\u0623\u064a\u0627\u0631
 FormatData/ar_JO/MonthNames/5=\u062d\u0632\u064a\u0631\u0627\u0646
 FormatData/ar_JO/MonthNames/6=\u062a\u0645\u0648\u0632
 FormatData/ar_JO/MonthNames/7=\u0622\u0628
@@ -1202,7 +1200,7 @@ FormatData/ar_JO/MonthAbbreviations/0=\u0643\u0627\u0646\u0648\u0646 \u0627\u064
 FormatData/ar_JO/MonthAbbreviations/1=\u0634\u0628\u0627\u0637
 FormatData/ar_JO/MonthAbbreviations/2=\u0622\u0630\u0627\u0631
 FormatData/ar_JO/MonthAbbreviations/3=\u0646\u064a\u0633\u0627\u0646
-FormatData/ar_JO/MonthAbbreviations/4=\u0646\u0648\u0627\u0631
+FormatData/ar_JO/MonthAbbreviations/4=\u0623\u064a\u0627\u0631
 FormatData/ar_JO/MonthAbbreviations/5=\u062d\u0632\u064a\u0631\u0627\u0646
 FormatData/ar_JO/MonthAbbreviations/6=\u062a\u0645\u0648\u0632
 FormatData/ar_JO/MonthAbbreviations/7=\u0622\u0628
@@ -1365,7 +1363,7 @@ FormatData/ar_LB/MonthNames/0=\u0643\u0627\u0646\u0648\u0646 \u0627\u0644\u062b\
 FormatData/ar_LB/MonthNames/1=\u0634\u0628\u0627\u0637
 FormatData/ar_LB/MonthNames/2=\u0622\u0630\u0627\u0631
 FormatData/ar_LB/MonthNames/3=\u0646\u064a\u0633\u0627\u0646
-FormatData/ar_LB/MonthNames/4=\u0646\u0648\u0627\u0631
+FormatData/ar_LB/MonthNames/4=\u0623\u064a\u0627\u0631
 FormatData/ar_LB/MonthNames/5=\u062d\u0632\u064a\u0631\u0627\u0646
 FormatData/ar_LB/MonthNames/6=\u062a\u0645\u0648\u0632
 FormatData/ar_LB/MonthNames/7=\u0622\u0628
@@ -1378,7 +1376,7 @@ FormatData/ar_LB/MonthAbbreviations/0=\u0643\u0627\u0646\u0648\u0646 \u0627\u064
 FormatData/ar_LB/MonthAbbreviations/1=\u0634\u0628\u0627\u0637
 FormatData/ar_LB/MonthAbbreviations/2=\u0622\u0630\u0627\u0631
 FormatData/ar_LB/MonthAbbreviations/3=\u0646\u064a\u0633\u0627\u0646
-FormatData/ar_LB/MonthAbbreviations/4=\u0646\u0648\u0627\u0631
+FormatData/ar_LB/MonthAbbreviations/4=\u0623\u064a\u0627\u0631
 FormatData/ar_LB/MonthAbbreviations/5=\u062d\u0632\u064a\u0631\u0627\u0646
 FormatData/ar_LB/MonthAbbreviations/6=\u062a\u0645\u0648\u0632
 FormatData/ar_LB/MonthAbbreviations/7=\u0622\u0628
@@ -1982,8 +1980,8 @@ FormatData/ar_SY/MonthNames/0=\u0643\u0627\u0646\u0648\u0646 \u0627\u0644\u062b\
 FormatData/ar_SY/MonthNames/1=\u0634\u0628\u0627\u0637
 FormatData/ar_SY/MonthNames/2=\u0622\u0630\u0627\u0631
 FormatData/ar_SY/MonthNames/3=\u0646\u064a\u0633\u0627\u0646
-FormatData/ar_SY/MonthNames/4=\u0646\u0648\u0627\u0631\u0627\u0646
-FormatData/ar_SY/MonthNames/5=\u062d\u0632\u064a\u0631
+FormatData/ar_SY/MonthNames/4=\u0623\u064a\u0627\u0631
+FormatData/ar_SY/MonthNames/5=\u062d\u0632\u064a\u0631\u0627\u0646
 FormatData/ar_SY/MonthNames/6=\u062a\u0645\u0648\u0632
 FormatData/ar_SY/MonthNames/7=\u0622\u0628
 FormatData/ar_SY/MonthNames/8=\u0623\u064a\u0644\u0648\u0644
@@ -1995,7 +1993,7 @@ FormatData/ar_SY/MonthAbbreviations/0=\u0643\u0627\u0646\u0648\u0646 \u0627\u064
 FormatData/ar_SY/MonthAbbreviations/1=\u0634\u0628\u0627\u0637
 FormatData/ar_SY/MonthAbbreviations/2=\u0622\u0630\u0627\u0631
 FormatData/ar_SY/MonthAbbreviations/3=\u0646\u064a\u0633\u0627\u0646
-FormatData/ar_SY/MonthAbbreviations/4=\u0646\u0648\u0627\u0631
+FormatData/ar_SY/MonthAbbreviations/4=\u0623\u064a\u0627\u0631
 FormatData/ar_SY/MonthAbbreviations/5=\u062d\u0632\u064a\u0631\u0627\u0646
 FormatData/ar_SY/MonthAbbreviations/6=\u062a\u0645\u0648\u0632
 FormatData/ar_SY/MonthAbbreviations/7=\u0622\u0628
@@ -8323,3 +8321,30 @@ CurrencyNames//mru=Mauritanian Ouguiya
 
 # bug #8208746
 CurrencyNames//ves=Venezuelan Bol\u00edvar Soberano
+
+# bug #8206879
+# For Peru decimal separator is changed to dot(.) and grouping separator is changed to comma(,)
+FormatData/es_PE/NumberElements/0=.
+FormatData/es_PE/NumberElements/1=,
+
+# bug #8227127
+FormatData/ja/short.Eras/0=\u7d00\u5143\u524d
+FormatData/ja/short.Eras/1=\u897f\u66a6
+FormatData/zh/short.Eras/0=\u516c\u5143\u524d
+FormatData/zh/short.Eras/1=\u516c\u5143
+FormatData/zh_TW/short.Eras/0=\u897f\u5143\u524d
+FormatData/zh_TW/short.Eras/1=\u897f\u5143
+
+# bug 8234288
+TimeZoneNames/en/Asia\/Istanbul/1=Turkey Time
+TimeZoneNames/en/Asia\/Istanbul/2=TRT
+TimeZoneNames/en/Asia\/Istanbul/3=Turkey Summer Time
+TimeZoneNames/en/Asia\/Istanbul/4=TRST
+TimeZoneNames/en/Europe\/Istanbul/1=Turkey Time
+TimeZoneNames/en/Europe\/Istanbul/2=TRT
+TimeZoneNames/en/Europe\/Istanbul/3=Turkey Summer Time
+TimeZoneNames/en/Europe\/Istanbul/4=TRST
+TimeZoneNames/en/Turkey/1=Turkey Time
+TimeZoneNames/en/Turkey/2=TRT
+TimeZoneNames/en/Turkey/3=Turkey Summer Time
+TimeZoneNames/en/Turkey/4=TRST

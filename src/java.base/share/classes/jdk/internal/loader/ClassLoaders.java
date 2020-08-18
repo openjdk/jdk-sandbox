@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -114,7 +114,7 @@ public class ClassLoaders {
         }
 
         @Override
-        protected Class<?> loadClassOrNull(String cn) {
+        protected Class<?> loadClassOrNull(String cn, boolean resolve) {
             return JLA.findBootstrapClassOrNull(this, cn);
         }
     };
@@ -131,16 +131,6 @@ public class ClassLoaders {
 
         PlatformClassLoader(BootClassLoader parent) {
             super("platform", parent, null);
-        }
-
-        /**
-         * Called by the VM to support define package for AppCDS.
-         *
-         * Shared classes are returned in ClassLoader::findLoadedClass
-         * that bypass the defineClass call.
-         */
-        private Package definePackage(String pn, Module module) {
-            return JLA.definePackage(this, pn, module);
         }
     }
 
@@ -192,16 +182,6 @@ public class ClassLoaders {
          */
         void appendToClassPathForInstrumentation(String path) {
             ucp.addFile(path);
-        }
-
-        /**
-         * Called by the VM to support define package for AppCDS
-         *
-         * Shared classes are returned in ClassLoader::findLoadedClass
-         * that bypass the defineClass call.
-         */
-        private Package definePackage(String pn, Module module) {
-            return JLA.definePackage(this, pn, module);
         }
 
         /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -197,14 +197,16 @@ public class NewSocketMethods {
             /**
              * test some new methods of java.net.Socket added to merlin.
              */
-            socket.setTrafficClass(8);
-            socket.setReuseAddress(true);
-            System.out.println("Client getTrafficClass(): "
-                        + socket.getTrafficClass());
             System.out.println("Client isInputShutdown() "
                         + socket.isInputShutdown());
+            socket.setReuseAddress(true);
             System.out.println("Client getReuseAddress(): "
                         + socket.getReuseAddress());
+
+            socket.setTrafficClass(8);
+            System.out.println("Client getTrafficClass(): "
+                    + socket.getTrafficClass());
+
             os.write(237);
             os.flush();
             System.out.println("Client read: " + is.read());

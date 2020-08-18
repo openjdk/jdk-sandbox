@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,16 +36,7 @@
                          diagnostic_pd, \
                          notproduct, \
                          range, \
-                         constraint, \
-                         writeable) \
-                                                                                \
-  product(bool, UseOprofile, false,                                             \
-        "enable support for Oprofile profiler")                                 \
-                                                                                \
-  /*  NB: The default value of UseBsdPosixThreadCPUClocks may be  */            \
-  /*  overridden in Arguments::parse_each_vm_init_arg.            */            \
-  product(bool, UseBsdPosixThreadCPUClocks, true,                               \
-          "enable fast Bsd Posix clocks where available")                       \
+                         constraint)
 
 //
 // Defines Bsd-specific default values. The flags are available on all

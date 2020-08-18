@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,8 +37,13 @@ class Thread;
 class JNIHandles : AllStatic {
   friend class VMStructs;
  private:
+  // These are used by the serviceability agent.
   static OopStorage* _global_handles;
   static OopStorage* _weak_global_handles;
+  friend void jni_handles_init();
+
+  static OopStorage* global_handles();
+  static OopStorage* weak_global_handles();
 
   inline static bool is_jweak(jobject handle);
   inline static oop* jobject_ptr(jobject handle); // NOT jweak!
@@ -79,16 +84,18 @@ class JNIHandles : AllStatic {
 
   // Local handles
   static jobject make_local(oop obj);
-  static jobject make_local(JNIEnv* env, oop obj);    // Fast version when env is known
-  static jobject make_local(Thread* thread, oop obj); // Even faster version when current thread is known
+  static jobject make_local(Thread* thread, oop obj,  // Faster version when current thread is known
+                            AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
   inline static void destroy_local(jobject handle);
 
   // Global handles
-  static jobject make_global(Handle  obj, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+  static jobject make_global(Handle  obj,
+                             AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
   static void destroy_global(jobject handle);
 
   // Weak global handles
-  static jobject make_weak_global(Handle obj, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+  static jobject make_weak_global(Handle obj,
+                                  AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
   static void destroy_weak_global(jobject handle);
   static bool is_global_weak_cleared(jweak handle); // Test jweak without resolution
 
@@ -97,7 +104,7 @@ class JNIHandles : AllStatic {
 
   // Debugging
   static void print_on(outputStream* st);
-  static void print()           { print_on(tty); }
+  static void print();
   static void verify();
   // The category predicates all require handle != NULL.
   static bool is_local_handle(Thread* thread, jobject handle);
@@ -123,8 +130,7 @@ class JNIHandles : AllStatic {
   // Traversal of weak global handles.
   static void weak_oops_do(OopClosure* f);
 
-  static OopStorage* global_handles();
-  static OopStorage* weak_global_handles();
+  static bool is_global_storage(const OopStorage* storage);
 };
 
 
@@ -133,14 +139,14 @@ class JNIHandles : AllStatic {
 
 class JNIHandleBlock : public CHeapObj<mtInternal> {
   friend class VMStructs;
-  friend class CppInterpreter;
+  friend class ZeroInterpreter;
 
  private:
   enum SomeConstants {
     block_size_in_oops  = 32                    // Number of handles per handle block
   };
 
-  oop             _handles[block_size_in_oops]; // The handles
+  uintptr_t       _handles[block_size_in_oops]; // The handles
   int             _top;                         // Index of next unused handle
   JNIHandleBlock* _next;                        // Link to next block
 
@@ -148,7 +154,7 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
   // Having two types of blocks complicates the code and the space overhead in negligible.
   JNIHandleBlock* _last;                        // Last block in use
   JNIHandleBlock* _pop_frame_link;              // Block to restore on PopLocalFrame call
-  oop*            _free_list;                   // Handle free list
+  uintptr_t*      _free_list;                   // Handle free list
   int             _allocate_before_rebuild;     // Number of blocks to allocate before rebuilding free list
 
   // Check JNI, "planned capacity" for current frame (or push/ensure)
@@ -173,10 +179,10 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
 
  public:
   // Handle allocation
-  jobject allocate_handle(oop obj);
+  jobject allocate_handle(oop obj, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
 
   // Block allocation and block free list management
-  static JNIHandleBlock* allocate_block(Thread* thread = NULL);
+  static JNIHandleBlock* allocate_block(Thread* thread = NULL, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
   static void release_block(JNIHandleBlock* block, Thread* thread = NULL);
 
   // JNI PushLocalFrame/PopLocalFrame support

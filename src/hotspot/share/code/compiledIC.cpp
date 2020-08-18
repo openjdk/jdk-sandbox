@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@
 #include "memory/metadataFactory.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
@@ -51,7 +52,7 @@
 CompiledICLocker::CompiledICLocker(CompiledMethod* method)
   : _method(method),
     _behaviour(CompiledICProtectionBehaviour::current()),
-    _locked(_behaviour->lock(_method)){
+    _locked(_behaviour->lock(_method)) {
 }
 
 CompiledICLocker::~CompiledICLocker() {
@@ -286,7 +287,7 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
 
   if (TraceICs) {
     ResourceMark rm;
-    assert(!call_info->selected_method().is_null(), "Unexpected null selected method");
+    assert(call_info->selected_method() != NULL, "Unexpected null selected method");
     tty->print_cr ("IC@" INTPTR_FORMAT ": to megamorphic %s entry: " INTPTR_FORMAT,
                    p2i(instruction_address()), call_info->selected_method()->print_value_string(), p2i(entry));
   }
@@ -482,10 +483,10 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
     if (TraceICs) {
       ResourceMark rm(thread);
       assert(info.cached_metadata() == NULL || info.cached_metadata()->is_klass(), "must be");
-      tty->print_cr ("IC@" INTPTR_FORMAT ": monomorphic to compiled (rcvr klass) %s: %s",
+      tty->print_cr ("IC@" INTPTR_FORMAT ": monomorphic to compiled (rcvr klass = %s) %s",
         p2i(instruction_address()),
-        ((Klass*)info.cached_metadata())->print_value_string(),
-        (safe) ? "" : "via stub");
+        (info.cached_metadata() != NULL) ? ((Klass*)info.cached_metadata())->print_value_string() : "NULL",
+        (safe) ? "" : " via stub");
     }
   }
   // We can't check this anymore. With lazy deopt we could have already
@@ -581,17 +582,6 @@ bool CompiledIC::is_icholder_call_site(virtual_call_Relocation* call_site, const
   // This call site might have become stale so inspect it carefully.
   address dest = cm->call_wrapper_at(call_site->addr())->destination();
   return is_icholder_entry(dest);
-}
-
-// Release the CompiledICHolder* associated with this call site is there is one.
-void CompiledIC::cleanup_call_site(virtual_call_Relocation* call_site, const CompiledMethod* cm) {
-  assert(cm->is_nmethod(), "must be nmethod");
-  // This call site might have become stale so inspect it carefully.
-  NativeCall* call = nativeCall_at(call_site->addr());
-  if (is_icholder_entry(call->destination())) {
-    NativeMovConstReg* value = nativeMovConstReg_at(call_site->cached_value());
-    InlineCacheBuffer::queue_for_release((CompiledICHolder*)value->data());
-  }
 }
 
 // ----------------------------------------------------------------------------
@@ -751,4 +741,24 @@ void CompiledDirectStaticCall::print() {
   tty->cr();
 }
 
+void CompiledDirectStaticCall::verify_mt_safe(const methodHandle& callee, address entry,
+                                              NativeMovConstReg* method_holder,
+                                              NativeJump*        jump) {
+  // A generated lambda form might be deleted from the Lambdaform
+  // cache in MethodTypeForm.  If a jit compiled lambdaform method
+  // becomes not entrant and the cache access returns null, the new
+  // resolve will lead to a new generated LambdaForm.
+  Method* old_method = reinterpret_cast<Method*>(method_holder->data());
+  assert(old_method == NULL || old_method == callee() ||
+         callee->is_compiled_lambda_form() ||
+         !old_method->method_holder()->is_loader_alive() ||
+         old_method->is_old(),  // may be race patching deoptimized nmethod due to redefinition.
+         "a) MT-unsafe modification of inline cache");
+
+  address destination = jump->jump_destination();
+  assert(destination == (address)-1 || destination == entry
+         || old_method == NULL || !old_method->method_holder()->is_loader_alive() // may have a race due to class unloading.
+         || old_method->is_old(),  // may be race patching deoptimized nmethod due to redefinition.
+         "b) MT-unsafe modification of inline cache");
+}
 #endif // !PRODUCT

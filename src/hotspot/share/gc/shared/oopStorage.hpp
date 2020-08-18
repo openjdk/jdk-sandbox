@@ -74,7 +74,7 @@ class outputStream;
 
 class OopStorage : public CHeapObj<mtGC> {
 public:
-  OopStorage(const char* name, Mutex* allocation_mutex, Mutex* active_mutex);
+  explicit OopStorage(const char* name);
   ~OopStorage();
 
   // These count and usage accessors are racy unless at a safepoint.
@@ -151,19 +151,45 @@ public:
   // Other clients must use serial iteration.
   template<bool concurrent, bool is_const> class ParState;
 
-  // Service thread cleanup support.
-  // Stops deleting if there is an in-progress concurrent iteration.
-  // Locks both the _allocation_mutex and the _active_mutex, and may
-  // safepoint.  Deletion may be throttled, with only some available
-  // work performed, in order to allow other Service thread subtasks
-  // to run.  Returns true if there may be more work to do, false if
-  // nothing to do.
-  bool delete_empty_blocks();
+  // Support GC callbacks reporting dead entries.  This lets clients respond
+  // to entries being cleared.
+
+  typedef void (*NumDeadCallback)(size_t num_dead);
+
+  // Used by a client to register a callback function with the GC.
+  // precondition: No more than one registration per storage object.
+  void register_num_dead_callback(NumDeadCallback f);
+
+  // Called by the GC after an iteration that may clear dead referents.
+  // This calls the registered callback function, if any.  num_dead is the
+  // number of entries which were either already NULL or were cleared by the
+  // iteration.
+  void report_num_dead(size_t num_dead) const;
+
+  // Used by the GC to test whether a callback function has been registered.
+  bool should_report_num_dead() const;
 
   // Service thread cleanup support.
+
+  // Called by the service thread to process any pending cleanups for this
+  // storage object.  Drains the _deferred_updates list, and deletes empty
+  // blocks.  Stops deleting if there is an in-progress concurrent
+  // iteration.  Locks both the _allocation_mutex and the _active_mutex, and
+  // may safepoint.  Deletion may be throttled, with only some available
+  // work performed, in order to allow other Service thread subtasks to run.
+  // Returns true if there may be more work to do, false if nothing to do.
+  bool delete_empty_blocks();
+
+  // Called by safepoint cleanup to notify the service thread (via
+  // Service_lock) that there may be some OopStorage objects with pending
+  // cleanups to process.
+  static void trigger_cleanup_if_needed();
+
   // Called by the service thread (while holding Service_lock) to test
-  // whether a call to delete_empty_blocks should be made.
-  bool needs_delete_empty_blocks() const;
+  // for pending cleanup requests, and resets the request state to allow
+  // recognition of new requests.  Returns true if there was a pending
+  // request.
+  static bool has_cleanup_work_and_reset();
 
   // Debugging and logging support.
   const char* name() const;
@@ -175,10 +201,7 @@ public:
   // private types by providing public typedefs for them.
   class TestAccess;
 
-  // xlC on AIX can't compile test_oopStorage.cpp with following private
-  // classes. C++03 introduced access for nested classes with DR45, but xlC
-  // version 12 rejects it.
-NOT_AIX( private: )
+private:
   class Block;                  // Fixed-size array of oops, plus bookkeeping.
   class ActiveArray;            // Array of Blocks, plus bookkeeping.
   class AllocationListEntry;    // Provides AllocationList links in a Block.
@@ -188,9 +211,7 @@ NOT_AIX( private: )
     const Block* _head;
     const Block* _tail;
 
-    // Noncopyable.
-    AllocationList(const AllocationList&);
-    AllocationList& operator=(const AllocationList&);
+    NONCOPYABLE(AllocationList);
 
   public:
     AllocationList();
@@ -216,12 +237,10 @@ private:
   const char* _name;
   ActiveArray* _active_array;
   AllocationList _allocation_list;
-AIX_ONLY(public:)               // xlC 12 on AIX doesn't implement C++ DR45.
   Block* volatile _deferred_updates;
-AIX_ONLY(private:)
-
   Mutex* _allocation_mutex;
   Mutex* _active_mutex;
+  NumDeadCallback _num_dead_callback;
 
   // Volatile for racy unlocked accesses.
   volatile size_t _allocation_count;
@@ -232,7 +251,7 @@ AIX_ONLY(private:)
   // mutable because this gets set even for const iteration.
   mutable int _concurrent_iteration_count;
 
-  volatile uint _needs_cleanup;
+  volatile bool _needs_cleanup;
 
   bool try_add_block();
   Block* block_for_allocation();
@@ -240,10 +259,7 @@ AIX_ONLY(private:)
   Block* find_block_or_null(const oop* ptr) const;
   void delete_empty_block(const Block& block);
   bool reduce_deferred_updates();
-  void notify_needs_cleanup();
-AIX_ONLY(public:)               // xlC 12 on AIX doesn't implement C++ DR45.
   void record_needs_cleanup();
-AIX_ONLY(private:)
 
   // Managing _active_array.
   bool expand_active_array();

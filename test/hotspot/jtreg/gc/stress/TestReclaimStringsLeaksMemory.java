@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,20 +21,20 @@
  * questions.
  */
 
+package gc.stress;
+
 /*
  * @test TestReclaimStringsLeaksMemory
  * @bug 8180048
  * @summary Ensure that during a Full GC interned string memory is reclaimed completely.
- * @requires vm.gc=="null" & !vm.graal.enabled & !vm.debug
- * @key gc
+ * @requires vm.gc == "null"
+ * @requires !vm.debug
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
- * @run main/othervm TestReclaimStringsLeaksMemory
- * @run main/othervm TestReclaimStringsLeaksMemory -XX:+UseSerialGC
- * @run main/othervm TestReclaimStringsLeaksMemory -XX:+UseParallelGC
- * @run main/othervm TestReclaimStringsLeaksMemory -XX:+UseParallelGC -XX:-UseParallelOldGC
- * @run main/othervm TestReclaimStringsLeaksMemory -XX:+UseConcMarkSweepGC
- * @run main/othervm TestReclaimStringsLeaksMemory -XX:+UseG1GC
+ * @run driver gc.stress.TestReclaimStringsLeaksMemory
+ * @run driver gc.stress.TestReclaimStringsLeaksMemory -XX:+UseSerialGC
+ * @run driver gc.stress.TestReclaimStringsLeaksMemory -XX:+UseParallelGC
+ * @run driver gc.stress.TestReclaimStringsLeaksMemory -XX:+UseG1GC
  */
 
 import java.util.Arrays;
@@ -53,17 +53,16 @@ public class TestReclaimStringsLeaksMemory {
     public static final int ReservedThreshold = 70000;
 
     public static void main(String[] args) throws Exception {
-        ArrayList<String> baseargs = new ArrayList(Arrays.asList( "-Xms256M",
-                                                                  "-Xmx256M",
-                                                                  "-Xlog:gc*",
-                                                                  "-XX:NativeMemoryTracking=summary",
-                                                                  "-XX:+UnlockDiagnosticVMOptions",
-                                                                  "-XX:+PrintNMTStatistics" ));
+        ArrayList<String> baseargs = new ArrayList<>(Arrays.asList("-Xms256M",
+                                                                   "-Xmx256M",
+                                                                   "-Xlog:gc*,stringtable*=debug:gc.log",
+                                                                   "-XX:NativeMemoryTracking=summary",
+                                                                   "-XX:+UnlockDiagnosticVMOptions",
+                                                                   "-XX:+PrintNMTStatistics" ));
         baseargs.addAll(Arrays.asList(args));
         baseargs.add(GCTest.class.getName());
-        ProcessBuilder pb_default =
-            ProcessTools.createJavaProcessBuilder(baseargs.toArray(new String[] {}));
-        verifySymbolMemoryUsageNotTooHigh(new OutputAnalyzer(pb_default.start()));
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(baseargs);
+        verifySymbolMemoryUsageNotTooHigh(new OutputAnalyzer(pb.start()));
     }
 
     private static void verifySymbolMemoryUsageNotTooHigh(OutputAnalyzer output) throws Exception {
@@ -93,9 +92,19 @@ public class TestReclaimStringsLeaksMemory {
                     lastString = (BaseName + i).intern();
                 }
                 if (++iterations % 5 == 0) {
-                   System.gc();
+                    System.gc();
                 }
             }
+            // Do one last GC and sleep to give ServiceThread a chance to run.
+            System.out.println("One last gc");
+            System.gc();
+            for (int i = 0; i < 100; i++) {
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException ex) {
+                }
+            }
+            System.out.println("End of test");
         }
     }
 }

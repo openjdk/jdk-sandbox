@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -147,6 +147,13 @@ public class FloatStamp extends PrimitiveStamp {
      */
     public boolean isNonNaN() {
         return nonNaN;
+    }
+
+    /**
+     * Returns true if NaN is included in the value described by this stamp.
+     */
+    public boolean canBeNaN() {
+        return !nonNaN;
     }
 
     /**
@@ -318,8 +325,10 @@ public class FloatStamp extends PrimitiveStamp {
         /*
          * There are many forms of NaNs and any operations on them can silently convert them into
          * the canonical NaN.
+         *
+         * We need to exclude 0 here since it can contain -0.0 && 0.0 .
          */
-        return (Double.compare(lowerBound, upperBound) == 0 && nonNaN);
+        return (Double.compare(lowerBound, upperBound) == 0 && nonNaN) && lowerBound != 0;
     }
 
     private static FloatStamp stampForConstant(Constant constant) {
@@ -330,14 +339,14 @@ public class FloatStamp extends PrimitiveStamp {
                 if (Float.isNaN(value.asFloat())) {
                     result = new FloatStamp(32, Double.NaN, Double.NaN, false);
                 } else {
-                    result = new FloatStamp(32, value.asFloat(), value.asFloat(), !Float.isNaN(value.asFloat()));
+                    result = new FloatStamp(32, value.asFloat(), value.asFloat(), true);
                 }
                 break;
             case Double:
                 if (Double.isNaN(value.asDouble())) {
                     result = new FloatStamp(64, Double.NaN, Double.NaN, false);
                 } else {
-                    result = new FloatStamp(64, value.asDouble(), value.asDouble(), !Double.isNaN(value.asDouble()));
+                    result = new FloatStamp(64, value.asDouble(), value.asDouble(), true);
                 }
                 break;
             default:

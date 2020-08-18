@@ -34,7 +34,7 @@
 #include "utilities/align.hpp"
 
 MutableNUMASpace::MutableNUMASpace(size_t alignment) : MutableSpace(alignment), _must_use_large_pages(false) {
-  _lgrp_spaces = new (ResourceObj::C_HEAP, mtGC) GrowableArray<LGRPSpace*>(0, true);
+  _lgrp_spaces = new (ResourceObj::C_HEAP, mtGC) GrowableArray<LGRPSpace*>(0, mtGC);
   _page_size = os::vm_page_size();
   _adaptation_cycles = 0;
   _samples_count = 0;
@@ -864,7 +864,7 @@ HeapWord* MutableNUMASpace::cas_allocate(size_t size) {
   if (p != NULL) {
     HeapWord* cur_top, *cur_chunk_top = p + size;
     while ((cur_top = top()) < cur_chunk_top) { // Keep _top updated.
-      if (Atomic::cmpxchg(cur_chunk_top, top_addr(), cur_top) == cur_top) {
+      if (Atomic::cmpxchg(top_addr(), cur_top, cur_chunk_top) == cur_top) {
         break;
       }
     }

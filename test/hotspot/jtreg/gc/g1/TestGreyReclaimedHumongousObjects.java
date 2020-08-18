@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,18 +21,19 @@
  * questions.
  */
 
+package gc.g1;
+
 /*
  * @test TestGreyReclaimedHumongousObjects.java
  * @bug 8069367 8185278
  * @requires vm.gc.G1
  * @summary Test handling of marked but unscanned reclaimed humongous objects.
- * @key gc
  * @modules jdk.management
  * @run main/othervm -XX:+UseG1GC -Xss32m -Xmx128m -XX:G1HeapRegionSize=1m
  *      -XX:+UnlockExperimentalVMOptions
  *          -XX:+G1EagerReclaimHumongousObjects
  *          -XX:+G1EagerReclaimHumongousObjectsWithStaleRefs
- *      TestGreyReclaimedHumongousObjects 1048576 90
+ *      gc.g1.TestGreyReclaimedHumongousObjects 1048576 90
  */
 
 // This test spawns a bunch of threads, each of them rapidly

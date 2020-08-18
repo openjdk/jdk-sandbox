@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 package org.graalvm.compiler.replacements.test;
 
+import static org.graalvm.compiler.debug.DebugOptions.DumpOnError;
 import static org.graalvm.compiler.java.BytecodeParserOptions.InlinePartialIntrinsicExitDuringParsing;
 
 import java.util.function.Function;
@@ -33,28 +34,29 @@ import org.graalvm.compiler.api.replacements.ClassSubstitution;
 import org.graalvm.compiler.api.replacements.MethodSubstitution;
 import org.graalvm.compiler.api.replacements.SnippetReflectionProvider;
 import org.graalvm.compiler.bytecode.BytecodeProvider;
-import org.graalvm.compiler.core.common.LIRKind;
 import org.graalvm.compiler.core.common.spi.ForeignCallDescriptor;
-import org.graalvm.compiler.core.common.spi.ForeignCallLinkage;
-import org.graalvm.compiler.core.common.spi.ForeignCallsProvider;
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.debug.DebugContext;
+import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.graph.GraalGraphError;
 import org.graalvm.compiler.graph.Node.ConstantNodeParameter;
 import org.graalvm.compiler.graph.Node.NodeIntrinsic;
+import org.graalvm.compiler.java.BytecodeParser.BytecodeParserError;
 import org.graalvm.compiler.nodes.FrameState;
 import org.graalvm.compiler.nodes.PiNode;
 import org.graalvm.compiler.nodes.StructuredGraph;
+import org.graalvm.compiler.nodes.StructuredGraph.AllowAssumptions;
+import org.graalvm.compiler.nodes.StructuredGraph.Builder;
 import org.graalvm.compiler.nodes.ValueNode;
-import org.graalvm.compiler.nodes.extended.OpaqueNode;
 import org.graalvm.compiler.nodes.extended.ForeignCallNode;
+import org.graalvm.compiler.nodes.extended.OpaqueNode;
+import org.graalvm.compiler.nodes.graphbuilderconf.GeneratedPluginInjectionProvider;
 import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderContext;
 import org.graalvm.compiler.nodes.graphbuilderconf.InlineInvokePlugin;
 import org.graalvm.compiler.nodes.graphbuilderconf.InvocationPlugin.Receiver;
 import org.graalvm.compiler.nodes.graphbuilderconf.InvocationPlugins;
 import org.graalvm.compiler.nodes.graphbuilderconf.InvocationPlugins.Registration;
-import org.graalvm.compiler.nodes.graphbuilderconf.NodeIntrinsicPluginFactory;
 import org.graalvm.compiler.nodes.spi.LoweringTool;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.phases.common.CanonicalizerPhase;
@@ -64,8 +66,10 @@ import org.graalvm.compiler.phases.common.FrameStateAssignmentPhase;
 import org.graalvm.compiler.phases.common.GuardLoweringPhase;
 import org.graalvm.compiler.phases.common.LoweringPhase;
 import org.graalvm.compiler.phases.tiers.HighTierContext;
+import org.graalvm.compiler.serviceprovider.JavaVersionUtil;
 import jdk.internal.vm.compiler.word.LocationIdentity;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -190,6 +194,16 @@ public class ReplacementsParseTest extends ReplacementsTest {
         static int nonVoidIntrinsicWithOptimizedSplit(int x) {
             return x;
         }
+
+        static int div(int x, int y) {
+            return x / y;
+        }
+    }
+
+    static class TestForeignCallDescriptor extends ForeignCallDescriptor {
+        TestForeignCallDescriptor(boolean reexecutable, boolean canDeoptimize, boolean safepoint, String name, Class<?> resultType, Class<?>... argumentTypes) {
+            super(name, resultType, argumentTypes, reexecutable, new LocationIdentity[0], canDeoptimize, safepoint);
+        }
     }
 
     @ClassSubstitution(TestObject.class)
@@ -287,11 +301,17 @@ public class ReplacementsParseTest extends ReplacementsTest {
             return x;
         }
 
+        @MethodSubstitution
+        static int div(int x, int y) {
+            assert y != 0;
+            return x / y;
+        }
+
         public static void nonVoidIntrinsicWithCallStub(int zLen) {
             nonVoidIntrinsicWithCallStub(STUB_CALL, zLen);
         }
 
-        static final ForeignCallDescriptor STUB_CALL = new ForeignCallDescriptor("stubCall", void.class, int.class);
+        static final ForeignCallDescriptor STUB_CALL = new ForeignCallDescriptor("stubCall", void.class, new Class<?>[]{int.class}, false, new LocationIdentity[0], false, false);
 
         @NodeIntrinsic(ForeignCallNode.class)
         private static native void nonVoidIntrinsicWithCallStub(@ConstantNodeParameter ForeignCallDescriptor descriptor, int zLen);
@@ -301,8 +321,8 @@ public class ReplacementsParseTest extends ReplacementsTest {
     @Override
     protected void registerInvocationPlugins(InvocationPlugins invocationPlugins) {
         BytecodeProvider replacementBytecodeProvider = getSystemClassLoaderBytecodeProvider();
-        Registration r = new Registration(invocationPlugins, TestObject.class, replacementBytecodeProvider);
-        NodeIntrinsicPluginFactory.InjectionProvider injections = new DummyInjectionProvider();
+        Registration r = new Registration(invocationPlugins, TestObject.class, getReplacements(), replacementBytecodeProvider);
+        GeneratedPluginInjectionProvider injections = new DummyInjectionProvider();
         new PluginFactory_ReplacementsParseTest().registerPlugins(invocationPlugins, injections);
         r.registerMethodSubstitution(TestObjectSubstitutions.class, "nextAfter", double.class, double.class);
         r.registerMethodSubstitution(TestObjectSubstitutions.class, "stringize", Object.class);
@@ -311,6 +331,7 @@ public class ReplacementsParseTest extends ReplacementsTest {
         r.registerMethodSubstitution(TestObjectSubstitutions.class, "copyFirstL2R", byte[].class, byte[].class);
         r.registerMethodSubstitution(TestObjectSubstitutions.class, "nonVoidIntrinsicWithCall", int.class, int.class);
         r.registerMethodSubstitution(TestObjectSubstitutions.class, "nonVoidIntrinsicWithOptimizedSplit", int.class);
+        r.registerMethodSubstitution(TestObjectSubstitutions.class, "div", int.class, int.class);
 
         if (replacementBytecodeProvider.supportsInvokedynamic()) {
             r.registerMethodSubstitution(TestObjectSubstitutions.class, "identity", String.class);
@@ -357,6 +378,7 @@ public class ReplacementsParseTest extends ReplacementsTest {
 
     @Test
     public void testNextAfter() {
+        Assume.assumeFalse(JavaVersionUtil.JAVA_SPEC <= 8);
         double[] inArray = new double[1024];
         double[] outArray = new double[1024];
         for (int i = 0; i < inArray.length; i++) {
@@ -411,7 +433,7 @@ public class ReplacementsParseTest extends ReplacementsTest {
         String compiledReturnValue = IN_COMPILED_HANDLER_MARKER;
         forceCompileOverride = true;
         inlineInvokeDecision = InlineInvokePlugin.InlineInfo.DO_NOT_INLINE_WITH_EXCEPTION;
-        inlineInvokeMethodName = "stringizeId";
+        inlineInvokeMethodName = "stringize";
         try {
             testWithDifferentReturnValues(options, standardReturnValue, compiledReturnValue, "callStringize", THROW_EXCEPTION_MARKER);
         } finally {
@@ -590,6 +612,23 @@ public class ReplacementsParseTest extends ReplacementsTest {
         testGraph("nonVoidIntrinsicWithOptimizedSplit");
     }
 
+    public static int div(int x, int y) {
+        return TestObject.div(x, y);
+    }
+
+    @Test
+    public void testAssertionInMethodSubstitution() {
+        try {
+            ResolvedJavaMethod method = getResolvedJavaMethod("div");
+            // avoid dumping graphs and printing exception since and exception is expected
+            OptionValues options = new OptionValues(getInitialOptions(), DumpOnError, false);
+            parse(new Builder(options, getDebugContext(options, null, method), AllowAssumptions.YES).method(method).compilationId(getCompilationId(method)), getEagerGraphBuilderSuite());
+            throw GraalError.shouldNotReachHere("BytecodeParser should have complained about using assertion in an intrinsic.");
+        } catch (BytecodeParserError e) {
+            // Expected behavior
+        }
+    }
+
     @SuppressWarnings("try")
     private void testGraph(String name) {
         StructuredGraph graph = parseEager(name, StructuredGraph.AllowAssumptions.YES);
@@ -598,7 +637,7 @@ public class ReplacementsParseTest extends ReplacementsTest {
                 node.remove();
             }
             HighTierContext context = getDefaultHighTierContext();
-            CanonicalizerPhase canonicalizer = new CanonicalizerPhase();
+            CanonicalizerPhase canonicalizer = createCanonicalizerPhase();
             new LoweringPhase(canonicalizer, LoweringTool.StandardLoweringStage.HIGH_TIER).apply(graph, context);
             new FloatingReadPhase().apply(graph);
             canonicalizer.apply(graph, context);
@@ -610,47 +649,14 @@ public class ReplacementsParseTest extends ReplacementsTest {
         }
     }
 
-    private class DummyInjectionProvider implements NodeIntrinsicPluginFactory.InjectionProvider {
+    private class DummyInjectionProvider implements GeneratedPluginInjectionProvider {
         @SuppressWarnings("unchecked")
         @Override
         public <T> T getInjectedArgument(Class<T> type) {
-            if (type == ForeignCallsProvider.class) {
-                return (T) new ForeignCallsProvider() {
-                    @Override
-                    public LIRKind getValueKind(JavaKind javaKind) {
-                        return null;
-                    }
-
-                    @Override
-                    public boolean isReexecutable(ForeignCallDescriptor descriptor) {
-                        return false;
-                    }
-
-                    @Override
-                    public LocationIdentity[] getKilledLocations(ForeignCallDescriptor descriptor) {
-                        return new LocationIdentity[0];
-                    }
-
-                    @Override
-                    public boolean canDeoptimize(ForeignCallDescriptor descriptor) {
-                        return false;
-                    }
-
-                    @Override
-                    public boolean isGuaranteedSafepoint(ForeignCallDescriptor descriptor) {
-                        return false;
-                    }
-
-                    @Override
-                    public ForeignCallLinkage lookupForeignCall(ForeignCallDescriptor descriptor) {
-                        return null;
-                    }
-                };
-            }
             if (type == SnippetReflectionProvider.class) {
                 return (T) getSnippetReflection();
             }
-            return null;
+            throw new InternalError("missing injection " + type);
         }
 
         @Override

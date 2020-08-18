@@ -32,13 +32,13 @@
 // A very simple data structure representing a contigous region
 // region of address space.
 
-// Note that MemRegions are passed by value, not by reference.
+// Note that MemRegions are typically passed by value, not by reference.
 // The intent is that they remain very small and contain no
-// objects. These should never be allocated in heap but we do
-// create MemRegions (in CardTableBarrierSet) in heap so operator
-// new and operator new [] added for this special case.
-
-class MetaWord;
+// objects. The copy constructor and destructor must be trivial,
+// to support optimization for pass-by-value.
+// These should almost never be allocated in heap but we do
+// create MemRegions (in CardTable and G1CMRootMemRegions) on the heap so operator
+// new and operator new [] were added for these special cases.
 
 class MemRegion {
   friend class VMStructs;
@@ -58,8 +58,6 @@ public:
     _start((HeapWord*)start), _word_size(pointer_delta(end, start)) {
     assert(end >= start, "incorrect constructor arguments");
   }
-
-  MemRegion(const MemRegion& mr): _start(mr._start), _word_size(mr._word_size) {}
 
   MemRegion intersection(const MemRegion mr2) const;
   // regions must overlap or be adjacent
@@ -94,10 +92,10 @@ public:
   size_t word_size() const { return _word_size; }
 
   bool is_empty() const { return word_size() == 0; }
-  void* operator new(size_t size) throw();
-  void* operator new [](size_t size) throw();
-  void  operator delete(void* p);
-  void  operator delete [](void* p);
+
+  // Creates and initializes an array of MemRegions of the given length.
+  static MemRegion* create_array(size_t length, MEMFLAGS flags);
+  static void destroy_array(MemRegion* array, size_t length);
 };
 
 // For iteration over MemRegion's.

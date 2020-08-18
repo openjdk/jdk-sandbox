@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2465,17 +2465,6 @@ Java_sun_awt_windows_WToolkit_initIDs(JNIEnv *env, jclass cls)
     CATCH_BAD_ALLOC;
 }
 
-
-/*
- * Class:     sun_awt_windows_Toolkit
- * Method:    disableCustomPalette
- * Signature: ()V
- */
-JNIEXPORT void JNICALL
-Java_sun_awt_windows_WToolkit_disableCustomPalette(JNIEnv *env, jclass cls) {
-    AwtPalette::DisableCustomPalette();
-}
-
 /*
  * Class:     sun_awt_windows_WToolkit
  * Method:    embeddedInit
@@ -2693,13 +2682,14 @@ Java_sun_awt_windows_WToolkit_getScreenInsets(JNIEnv *env,
         jclass insetsClass = env->FindClass("java/awt/Insets");
         DASSERT(insetsClass != NULL);
         CHECK_NULL_RETURN(insetsClass, NULL);
-
+        Devices::InstanceAccess devices;
+        AwtWin32GraphicsDevice *device = devices->GetDevice(screen);
         insets = env->NewObject(insetsClass,
                 AwtToolkit::insetsMID,
-                rect.top,
-                rect.left,
-                rect.bottom,
-                rect.right);
+                device == NULL ? rect.top : device->ScaleDownY(rect.top),
+                device == NULL ? rect.left : device->ScaleDownX(rect.left),
+                device == NULL ? rect.bottom : device->ScaleDownY(rect.bottom),
+                device == NULL ? rect.right : device->ScaleDownX(rect.right));
     }
 
     if (safe_ExceptionOccurred(env)) {

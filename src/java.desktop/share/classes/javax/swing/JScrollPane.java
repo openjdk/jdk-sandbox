@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,16 +55,12 @@ import java.beans.Transient;
  * a section in <em>The Java Tutorial</em>.  Note that
  * <code>JScrollPane</code> does not support heavyweight components.
  *
- * <table class="borderless" style="float:right">
- * <caption>Example</caption>
- *    <TR>
- *    <TD style="text-align:center">
- *      <P STYLE="TEXT-ALIGN:CENTER"><IMG SRC="doc-files/JScrollPane-1.gif"
- *      alt="The following text describes this image."
- *      WIDTH="256" HEIGHT="248" STYLE="FLOAT:BOTTOM; BORDER:0px">
- *    </TD>
- *    </TR>
- * </TABLE>
+ * <div style="float:right;text-align:center">
+ *   <p><b>Example:</b>
+ *   <p><img src="doc-files/JScrollPane-1.gif"
+ *       alt="The following text describes this image."
+ *       width="256" height="248">
+ * </div>
  * The <code>JViewport</code> provides a window,
  * or &quot;viewport&quot; onto a data
  * source -- for example, a text file. That data source is the
@@ -148,7 +144,7 @@ import java.beans.Transient;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -660,7 +656,7 @@ public class JScrollPane extends JComponent implements ScrollPaneConstants, Acce
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      *
@@ -1405,7 +1401,7 @@ public class JScrollPane extends JComponent implements ScrollPaneConstants, Acce
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */

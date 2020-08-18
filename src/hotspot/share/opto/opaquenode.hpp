@@ -33,11 +33,12 @@
 // Stops value-numbering, Ideal calls or Identity functions.
 class Opaque1Node : public Node {
   virtual uint hash() const ;                  // { return NO_HASH; }
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   public:
   Opaque1Node(Compile* C, Node *n) : Node(NULL, n) {
     // Put it on the Macro nodes list to removed during macro nodes expansion.
     init_flags(Flag_is_macro);
+    init_class_id(Class_Opaque1);
     C->add_macro_node(this);
   }
   // Special version for the pre-loop to hold the original loop limit
@@ -45,12 +46,28 @@ class Opaque1Node : public Node {
   Opaque1Node(Compile* C, Node *n, Node* orig_limit) : Node(NULL, n, orig_limit) {
     // Put it on the Macro nodes list to removed during macro nodes expansion.
     init_flags(Flag_is_macro);
+    init_class_id(Class_Opaque1);
     C->add_macro_node(this);
   }
   Node* original_loop_limit() { return req()==3 ? in(2) : NULL; }
   virtual int Opcode() const;
   virtual const Type *bottom_type() const { return TypeInt::INT; }
   virtual Node* Identity(PhaseGVN* phase);
+};
+
+// Opaque nodes specific to range check elimination handling
+class OpaqueLoopInitNode : public Opaque1Node {
+  public:
+  OpaqueLoopInitNode(Compile* C, Node *n) : Opaque1Node(C, n) {
+  }
+  virtual int Opcode() const;
+};
+
+class OpaqueLoopStrideNode : public Opaque1Node {
+  public:
+  OpaqueLoopStrideNode(Compile* C, Node *n) : Opaque1Node(C, n) {
+  }
+  virtual int Opcode() const;
 };
 
 //------------------------------Opaque2Node------------------------------------
@@ -64,7 +81,7 @@ class Opaque1Node : public Node {
 // it's OK to be slightly sloppy on optimizations here.
 class Opaque2Node : public Node {
   virtual uint hash() const ;                  // { return NO_HASH; }
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   public:
   Opaque2Node( Compile* C, Node *n ) : Node(0,n) {
     // Put it on the Macro nodes list to removed during macro nodes expansion.
@@ -117,7 +134,7 @@ class ProfileBooleanNode : public Node {
   bool _consumed;
   bool _delay_removal;
   virtual uint hash() const ;                  // { return NO_HASH; }
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   public:
   ProfileBooleanNode(Node *n, uint false_cnt, uint true_cnt) : Node(0, n),
           _false_cnt(false_cnt), _true_cnt(true_cnt), _consumed(false), _delay_removal(true) {}

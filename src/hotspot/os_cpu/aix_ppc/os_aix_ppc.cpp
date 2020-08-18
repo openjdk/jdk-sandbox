@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -40,7 +40,6 @@
 #include "prims/jvm_misc.hpp"
 #include "porting_aix.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
@@ -110,19 +109,18 @@ static address ucontext_get_lr(const ucontext_t * uc) {
   return (address)uc->uc_mcontext.jmp_context.lr;
 }
 
-ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
-                                        intptr_t** ret_sp, intptr_t** ret_fp) {
+address os::fetch_frame_from_context(const void* ucVoid,
+                                     intptr_t** ret_sp, intptr_t** ret_fp) {
 
-  ExtendedPC  epc;
+  address epc;
   const ucontext_t* uc = (const ucontext_t*)ucVoid;
 
   if (uc != NULL) {
-    epc = ExtendedPC(os::Aix::ucontext_get_pc(uc));
+    epc = os::Aix::ucontext_get_pc(uc);
     if (ret_sp) *ret_sp = os::Aix::ucontext_get_sp(uc);
     if (ret_fp) *ret_fp = os::Aix::ucontext_get_fp(uc);
   } else {
-    // construct empty ExtendedPC for return value checking
-    epc = ExtendedPC(NULL);
+    epc = NULL;
     if (ret_sp) *ret_sp = (intptr_t *)NULL;
     if (ret_fp) *ret_fp = (intptr_t *)NULL;
   }
@@ -133,10 +131,10 @@ ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
 frame os::fetch_frame_from_context(const void* ucVoid) {
   intptr_t* sp;
   intptr_t* fp;
-  ExtendedPC epc = fetch_frame_from_context(ucVoid, &sp, &fp);
+  address epc = fetch_frame_from_context(ucVoid, &sp, &fp);
   // Avoid crash during crash if pc broken.
-  if (epc.pc()) {
-    frame fr(sp, epc.pc());
+  if (epc) {
+    frame fr(sp, epc);
     return fr;
   }
   frame fr(sp);
@@ -266,7 +264,7 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
   if (thread != NULL) {
 
     // Handle ALL stack overflow variations here
-    if (sig == SIGSEGV && thread->on_local_stack(addr)) {
+    if (sig == SIGSEGV && thread->is_in_full_stack(addr)) {
       // stack overflow
       //
       // If we are in a yellow zone and we are inside java, we disable the yellow zone and
@@ -365,22 +363,22 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
         goto report_and_die;
       }
 
+      int stop_type = -1;
       // Handle signal from NativeJump::patch_verified_entry().
-      if (( TrapBasedNotEntrantChecks && sig == SIGTRAP && nativeInstruction_at(pc)->is_sigtrap_zombie_not_entrant()) ||
-          (!TrapBasedNotEntrantChecks && sig == SIGILL  && nativeInstruction_at(pc)->is_sigill_zombie_not_entrant())) {
+      if (sig == SIGILL && nativeInstruction_at(pc)->is_sigill_zombie_not_entrant()) {
         if (TraceTraps) {
-          tty->print_cr("trap: zombie_not_entrant (%s)", (sig == SIGTRAP) ? "SIGTRAP" : "SIGILL");
+          tty->print_cr("trap: zombie_not_entrant");
         }
         stub = SharedRuntime::get_handle_wrong_method_stub();
         goto run_stub;
       }
 
-      else if ((SafepointMechanism::uses_thread_local_poll() && USE_POLL_BIT_ONLY)
+      else if (USE_POLL_BIT_ONLY
                ? (sig == SIGTRAP && ((NativeInstruction*)pc)->is_safepoint_poll())
-               : (sig == SIGSEGV && os::is_poll_address(addr))) {
+               : (sig == SIGSEGV && SafepointMechanism::is_poll_address(addr))) {
         if (TraceTraps) {
           tty->print_cr("trap: safepoint_poll at " INTPTR_FORMAT " (%s)", p2i(pc),
-                        (SafepointMechanism::uses_thread_local_poll() && USE_POLL_BIT_ONLY) ? "SIGTRAP" : "SIGSEGV");
+                        USE_POLL_BIT_ONLY ? "SIGTRAP" : "SIGSEGV");
         }
         stub = SharedRuntime::get_poll_stub(pc);
         goto run_stub;
@@ -436,13 +434,44 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
         goto run_stub;
       }
 
+      // stop on request
+      else if (sig == SIGTRAP && (stop_type = nativeInstruction_at(pc)->get_stop_type()) != -1) {
+        bool msg_present = (stop_type & MacroAssembler::stop_msg_present);
+        stop_type = (stop_type &~ MacroAssembler::stop_msg_present);
+
+        const char *msg = NULL;
+        switch (stop_type) {
+          case MacroAssembler::stop_stop              : msg = "stop"; break;
+          case MacroAssembler::stop_untested          : msg = "untested"; break;
+          case MacroAssembler::stop_unimplemented     : msg = "unimplemented"; break;
+          case MacroAssembler::stop_shouldnotreachhere: msg = "shouldnotreachhere"; break;
+          default: msg = "unknown"; break;
+        }
+
+        const char **detail_msg_ptr = (const char**)(pc + 4);
+        const char *detail_msg = msg_present ? *detail_msg_ptr : "no details provided";
+
+        if (TraceTraps) {
+          tty->print_cr("trap: %s: %s (SIGTRAP, stop type %d)", msg, detail_msg, stop_type);
+        }
+
+        va_list detail_args;
+        VMError::report_and_die(INTERNAL_ERROR, msg, detail_msg, detail_args, thread,
+                                pc, info, ucVoid, NULL, 0, 0);
+        va_end(detail_args);
+      }
+
       else if (sig == SIGBUS) {
         // BugId 4454115: A read from a MappedByteBuffer can fault here if the
         // underlying file has been truncated. Do not crash the VM in such a case.
         CodeBlob* cb = CodeCache::find_blob_unsafe(pc);
         CompiledMethod* nm = cb->as_compiled_method_or_null();
-        if (nm != NULL && nm->has_unsafe_access()) {
+        bool is_unsafe_arraycopy = (thread->doing_unsafe_access() && UnsafeCopyMemory::contains_pc(pc));
+        if ((nm != NULL && nm->has_unsafe_access()) || is_unsafe_arraycopy) {
           address next_pc = pc + 4;
+          if (is_unsafe_arraycopy) {
+            next_pc = UnsafeCopyMemory::page_error_continue_pc(pc);
+          }
           next_pc = SharedRuntime::handle_unsafe_access(thread, next_pc);
           os::Aix::ucontext_set_pc(uc, next_pc);
           return 1;
@@ -461,12 +490,25 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
         stub = pc + 4;  // continue with next instruction.
         goto run_stub;
       }
-      else if (thread->thread_state() == _thread_in_vm &&
+      else if ((thread->thread_state() == _thread_in_vm ||
+                thread->thread_state() == _thread_in_native) &&
                sig == SIGBUS && thread->doing_unsafe_access()) {
         address next_pc = pc + 4;
+        if (UnsafeCopyMemory::contains_pc(pc)) {
+          next_pc = UnsafeCopyMemory::page_error_continue_pc(pc);
+        }
         next_pc = SharedRuntime::handle_unsafe_access(thread, next_pc);
         os::Aix::ucontext_set_pc(uc, next_pc);
         return 1;
+      }
+    }
+
+    // jni_fast_Get<Primitive>Field can trap at certain pc's if a GC kicks in
+    // and the heap gets shrunk before the field access.
+    if ((sig == SIGSEGV) || (sig == SIGBUS)) {
+      address addr = JNI_FastGetField::find_slowcase_pc(pc);
+      if (addr != (address)-1) {
+        stub = addr;
       }
     }
   }
@@ -561,8 +603,7 @@ void os::print_context(outputStream *st, const void *context) {
   // point to garbage if entry point in an nmethod is corrupted. Leave
   // this at the end, and hope for the best.
   address pc = os::Aix::ucontext_get_pc(uc);
-  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", pc);
-  print_hex_dump(st, pc - 64, pc + 64, /*instrsize=*/4);
+  print_instructions(st, pc, /*instrsize=*/4);
   st->cr();
 
   // Try to decode the instructions.

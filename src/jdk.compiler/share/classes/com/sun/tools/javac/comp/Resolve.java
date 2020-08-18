@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,7 @@ import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
+import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.JCTree.JCMemberReference.ReferenceKind;
@@ -52,6 +53,7 @@ import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
+import com.sun.tools.javac.util.JCDiagnostic.Warning;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -63,6 +65,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -102,9 +105,11 @@ public class Resolve {
     JCDiagnostic.Factory diags;
     public final boolean allowFunctionalInterfaceMostSpecific;
     public final boolean allowModules;
+    public final boolean allowRecords;
     public final boolean checkVarargsAccessAfterResolution;
     private final boolean compactMethodDiags;
     private final boolean allowLocalVariableTypeInference;
+    private final boolean allowYieldStatement;
     final EnumSet<VerboseResolutionMode> verboseResolutionMode;
 
     WriteableScope polymorphicSignatureScope;
@@ -128,6 +133,7 @@ public class Resolve {
         moduleFinder = ModuleFinder.instance(context);
         types = Types.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
+        Preview preview = Preview.instance(context);
         Source source = Source.instance(context);
         Options options = Options.instance(context);
         compactMethodDiags = options.isSet(Option.XDIAGS, "compact") ||
@@ -136,10 +142,14 @@ public class Resolve {
         Target target = Target.instance(context);
         allowFunctionalInterfaceMostSpecific = Feature.FUNCTIONAL_INTERFACE_MOST_SPECIFIC.allowedInSource(source);
         allowLocalVariableTypeInference = Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source);
+        allowYieldStatement = (!preview.isPreview(Feature.SWITCH_EXPRESSION) || preview.isEnabled()) &&
+                Feature.SWITCH_EXPRESSION.allowedInSource(source);
         checkVarargsAccessAfterResolution =
                 Feature.POST_APPLICABILITY_VARARGS_ACCESS_CHECK.allowedInSource(source);
         polymorphicSignatureScope = WriteableScope.create(syms.noSymbol);
         allowModules = Feature.MODULES.allowedInSource(source);
+        allowRecords = (!preview.isPreview(Feature.RECORDS) || preview.isEnabled()) &&
+                Feature.RECORDS.allowedInSource(source);
     }
 
     /** error symbols, which are returned when resolution fails
@@ -289,7 +299,7 @@ public class Resolve {
             (owner.flags() & STATIC) == 0;
     }
 
-    /** Is class accessible in given evironment?
+    /** Is class accessible in given environment?
      *  @param env    The current environment.
      *  @param c      The class whose accessibility is checked.
      */
@@ -1380,7 +1390,7 @@ public class Resolve {
     public static class InapplicableMethodException extends RuntimeException {
         private static final long serialVersionUID = 0;
 
-        JCDiagnostic diagnostic;
+        transient JCDiagnostic diagnostic;
 
         InapplicableMethodException(JCDiagnostic diag) {
             this.diagnostic = diag;
@@ -1481,9 +1491,18 @@ public class Resolve {
             }
             if (sym.exists()) {
                 if (staticOnly &&
+                   (sym.flags() & STATIC) == 0 &&
                     sym.kind == VAR &&
-                    sym.owner.kind == TYP &&
-                    (sym.flags() & STATIC) == 0)
+                        // if it is a field
+                        (sym.owner.kind == TYP ||
+                        // or it is a local variable but it is not declared inside of the static local type
+                        // then error
+                        allowRecords &&
+                        (sym.owner.kind == MTH) &&
+                        env1 != env &&
+                        !isInnerClassOfMethod(sym.owner, env.tree.hasTag(CLASSDEF) ?
+                                ((JCClassDecl)env.tree).sym :
+                                env.enclClass.sym)))
                     return new StaticError(sym);
                 else
                     return sym;
@@ -2248,17 +2267,33 @@ public class Resolve {
         return bestSoFar;
     }
 
-    Symbol findTypeVar(Env<AttrContext> env, Name name, boolean staticOnly) {
-        for (Symbol sym : env.info.scope.getSymbolsByName(name)) {
+    Symbol findTypeVar(Env<AttrContext> currentEnv, Env<AttrContext> originalEnv, Name name, boolean staticOnly) {
+        for (Symbol sym : currentEnv.info.scope.getSymbolsByName(name)) {
             if (sym.kind == TYP) {
                 if (staticOnly &&
                     sym.type.hasTag(TYPEVAR) &&
-                    sym.owner.kind == TYP)
+                    ((sym.owner.kind == TYP) ||
+                    // are we trying to access a TypeVar defined in a method from a local static type: interface, enum or record?
+                    allowRecords &&
+                    (sym.owner.kind == MTH &&
+                    currentEnv != originalEnv &&
+                    !isInnerClassOfMethod(sym.owner, originalEnv.tree.hasTag(CLASSDEF) ?
+                            ((JCClassDecl)originalEnv.tree).sym :
+                            originalEnv.enclClass.sym)))) {
                     return new StaticError(sym);
+                }
                 return sym;
             }
         }
         return typeNotFound;
+    }
+
+    boolean isInnerClassOfMethod(Symbol msym, Symbol csym) {
+        while (csym.owner != msym) {
+            if (csym.isStatic()) return false;
+            csym = csym.owner.enclClass();
+        }
+        return (csym.owner == msym && !csym.isStatic());
     }
 
     /** Find an unqualified type symbol.
@@ -2274,7 +2309,7 @@ public class Resolve {
         for (Env<AttrContext> env1 = env; env1.outer != null; env1 = env1.outer) {
             if (isStatic(env1)) staticOnly = true;
             // First, look for a type variable and the first member type
-            final Symbol tyvar = findTypeVar(env1, name, staticOnly);
+            final Symbol tyvar = findTypeVar(env1, env, name, staticOnly);
             sym = findImmediateMemberType(env1, env1.enclClass.sym.type,
                                           name, env1.enclClass.sym);
 
@@ -2330,13 +2365,15 @@ public class Resolve {
     }
 
     /** Find an unqualified identifier which matches a specified kind set.
+     *  @param pos       position on which report warnings, if any;
+     *                   null warnings should not be reported
      *  @param env       The current environment.
      *  @param name      The identifier's name.
      *  @param kind      Indicates the possible symbol kinds
      *                   (a subset of VAL, TYP, PCK).
      */
-    Symbol findIdent(Env<AttrContext> env, Name name, KindSelector kind) {
-        return checkVarType(findIdentInternal(env, name, kind), name);
+    Symbol findIdent(DiagnosticPosition pos, Env<AttrContext> env, Name name, KindSelector kind) {
+        return checkRestrictedType(pos, findIdentInternal(env, name, kind), name);
     }
 
     Symbol findIdentInternal(Env<AttrContext> env, Name name, KindSelector kind) {
@@ -2362,14 +2399,17 @@ public class Resolve {
     }
 
     /** Find an identifier in a package which matches a specified kind set.
+     *  @param pos       position on which report warnings, if any;
+     *                   null warnings should not be reported
      *  @param env       The current environment.
      *  @param name      The identifier's name.
      *  @param kind      Indicates the possible symbol kinds
      *                   (a nonempty subset of TYP, PCK).
      */
-    Symbol findIdentInPackage(Env<AttrContext> env, TypeSymbol pck,
+    Symbol findIdentInPackage(DiagnosticPosition pos,
+                              Env<AttrContext> env, TypeSymbol pck,
                               Name name, KindSelector kind) {
-        return checkVarType(findIdentInPackageInternal(env, pck, name, kind), name);
+        return checkRestrictedType(pos, findIdentInPackageInternal(env, pck, name, kind), name);
     }
 
     Symbol findIdentInPackageInternal(Env<AttrContext> env, TypeSymbol pck,
@@ -2379,7 +2419,7 @@ public class Resolve {
         if (kind.contains(KindSelector.TYP)) {
             RecoveryLoadClass recoveryLoadClass =
                     allowModules && !kind.contains(KindSelector.PCK) &&
-                    !pck.exists() && !env.info.isSpeculative ?
+                    !pck.exists() && !env.info.attributionMode.isSpeculative ?
                         doRecoveryLoadClass : noRecovery;
             Symbol sym = loadClass(env, fullname, recoveryLoadClass);
             if (sym.exists()) {
@@ -2395,15 +2435,18 @@ public class Resolve {
     }
 
     /** Find an identifier among the members of a given type `site'.
+     *  @param pos       position on which report warnings, if any;
+     *                   null warnings should not be reported
      *  @param env       The current environment.
      *  @param site      The type containing the symbol to be found.
      *  @param name      The identifier's name.
      *  @param kind      Indicates the possible symbol kinds
      *                   (a subset of VAL, TYP).
      */
-    Symbol findIdentInType(Env<AttrContext> env, Type site,
+    Symbol findIdentInType(DiagnosticPosition pos,
+                           Env<AttrContext> env, Type site,
                            Name name, KindSelector kind) {
-        return checkVarType(findIdentInTypeInternal(env, site, name, kind), name);
+        return checkRestrictedType(pos, findIdentInTypeInternal(env, site, name, kind), name);
     }
 
     Symbol findIdentInTypeInternal(Env<AttrContext> env, Type site,
@@ -2424,10 +2467,17 @@ public class Resolve {
         return bestSoFar;
     }
 
-    private Symbol checkVarType(Symbol bestSoFar, Name name) {
-        if (allowLocalVariableTypeInference && name.equals(names.var) &&
-                (bestSoFar.kind == TYP || bestSoFar.kind == ABSENT_TYP)) {
-            bestSoFar = new BadVarTypeError();
+    private Symbol checkRestrictedType(DiagnosticPosition pos, Symbol bestSoFar, Name name) {
+        if (bestSoFar.kind == TYP || bestSoFar.kind == ABSENT_TYP) {
+            if (allowLocalVariableTypeInference && name.equals(names.var)) {
+                bestSoFar = new BadRestrictedTypeError(names.var);
+            } else if (name.equals(names.yield)) {
+                if (allowYieldStatement) {
+                    bestSoFar = new BadRestrictedTypeError(names.yield);
+                } else if (pos != null) {
+                    log.warning(pos, Warnings.IllegalRefToRestrictedType(names.yield));
+                }
+            }
         }
         return bestSoFar;
     }
@@ -2597,7 +2647,7 @@ public class Resolve {
     Symbol resolveIdent(DiagnosticPosition pos, Env<AttrContext> env,
                         Name name, KindSelector kind) {
         return accessBase(
-            findIdent(env, name, kind),
+            findIdent(pos, env, name, kind),
             pos, env.enclClass.sym.type, name, false);
     }
 
@@ -2797,6 +2847,7 @@ public class Resolve {
                                     typeargtypes, allowBoxing,
                                     useVarargs);
         chk.checkDeprecated(pos, env.info.scope.owner, sym);
+        chk.checkPreview(pos, sym);
         return sym;
     }
 
@@ -3201,7 +3252,7 @@ public class Resolve {
         @Override
         ReferenceLookupResult unboundResult(ReferenceLookupResult boundRes, ReferenceLookupResult unboundRes) {
             if (boundRes.isSuccess() && !boundRes.hasKind(StaticKind.NON_STATIC)) {
-                //the first serach has at least one applicable static method
+                //the first search has at least one applicable static method
                 return boundRes;
             } else if (unboundRes.isSuccess() && !unboundRes.hasKind(StaticKind.STATIC)) {
                 //the second search has at least one applicable non-static method
@@ -3833,14 +3884,16 @@ public class Resolve {
         }
     }
 
-    class BadVarTypeError extends ResolveError {
-        BadVarTypeError() {
-            super(Kind.BAD_VAR, "bad var use");
+    class BadRestrictedTypeError extends ResolveError {
+        private final Name typeName;
+        BadRestrictedTypeError(Name typeName) {
+            super(Kind.BAD_RESTRICTED_TYPE, "bad var use");
+            this.typeName = typeName;
         }
 
         @Override
         JCDiagnostic getDiagnostic(DiagnosticType dkind, DiagnosticPosition pos, Symbol location, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes) {
-            return diags.create(dkind, log.currentSource(), pos, "illegal.ref.to.var.type");
+            return diags.create(dkind, log.currentSource(), pos, "illegal.ref.to.restricted.type", typeName);
         }
     }
 
@@ -4562,7 +4615,7 @@ public class Resolve {
          */
         interface DiagnosticRewriter {
             JCDiagnostic rewriteDiagnostic(JCDiagnostic.Factory diags,
-                    DiagnosticPosition preferedPos, DiagnosticSource preferredSource,
+                    DiagnosticPosition preferredPos, DiagnosticSource preferredSource,
                     DiagnosticType preferredKind, JCDiagnostic d);
         }
 
@@ -4618,12 +4671,12 @@ public class Resolve {
 
             @Override
             public JCDiagnostic rewriteDiagnostic(JCDiagnostic.Factory diags,
-                    DiagnosticPosition preferedPos, DiagnosticSource preferredSource,
+                    DiagnosticPosition preferredPos, DiagnosticSource preferredSource,
                     DiagnosticType preferredKind, JCDiagnostic d) {
                 JCDiagnostic cause = (JCDiagnostic)d.getArgs()[causeIndex];
                 DiagnosticPosition pos = d.getDiagnosticPosition();
                 if (pos == null) {
-                    pos = preferedPos;
+                    pos = preferredPos;
                 }
                 return diags.create(preferredKind, preferredSource, pos,
                         "prob.found.req", cause);

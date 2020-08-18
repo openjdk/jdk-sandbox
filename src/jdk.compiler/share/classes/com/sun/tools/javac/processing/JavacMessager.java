@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.*;
+import java.util.Set;
 import javax.lang.model.element.*;
 import javax.tools.JavaFileObject;
 import javax.tools.Diagnostic;
@@ -94,7 +95,7 @@ public class JavacMessager implements Messager {
      * @param kind the kind of message
      * @param msg  the message, or an empty string if none
      * @param e    the annotated element
-     * @param a    the annotation containing the annotaiton value
+     * @param a    the annotation containing the annotation value
      * @param v    the annotation value to use as a position hint
      */
     @DefinedBy(Api.ANNOTATION_PROCESSING)
@@ -117,7 +118,7 @@ public class JavacMessager implements Messager {
             switch (kind) {
             case ERROR:
                 errorCount++;
-                log.error(DiagnosticFlag.MULTIPLE, pos, Errors.ProcMessager(msg.toString()));
+                log.error(DiagnosticFlag.API, pos, Errors.ProcMessager(msg.toString()));
                 break;
 
             case WARNING:

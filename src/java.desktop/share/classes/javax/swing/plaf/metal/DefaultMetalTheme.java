@@ -42,7 +42,7 @@ import sun.swing.SwingUtilities2;
  * All colors returned by {@code DefaultMetalTheme} are completely
  * opaque.
  *
- * <h3><a id="fontStyle"></a>Font Style</h3>
+ * <h2><a id="fontStyle"></a>Font Style</h2>
  *
  * {@code DefaultMetalTheme} uses bold fonts for many controls.  To make all
  * controls (with the exception of the internal frame title bars and
@@ -79,7 +79,7 @@ import sun.swing.SwingUtilities2;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *

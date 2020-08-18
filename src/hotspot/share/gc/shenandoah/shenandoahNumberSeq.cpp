@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -121,18 +122,22 @@ double HdrSeq::percentile(double level) const {
 
 BinaryMagnitudeSeq::BinaryMagnitudeSeq() {
   _mags = NEW_C_HEAP_ARRAY(size_t, BitsPerSize_t, mtInternal);
-  for (int c = 0; c < BitsPerSize_t; c++) {
-    _mags[c] = 0;
-  }
-  _sum = 0;
+  clear();
 }
 
 BinaryMagnitudeSeq::~BinaryMagnitudeSeq() {
   FREE_C_HEAP_ARRAY(size_t, _mags);
 }
 
+void BinaryMagnitudeSeq::clear() {
+  for (int c = 0; c < BitsPerSize_t; c++) {
+    _mags[c] = 0;
+  }
+  _sum = 0;
+}
+
 void BinaryMagnitudeSeq::add(size_t val) {
-  Atomic::add(val, &_sum);
+  Atomic::add(&_sum, val);
 
   int mag = log2_intptr(val) + 1;
 
@@ -147,7 +152,7 @@ void BinaryMagnitudeSeq::add(size_t val) {
     mag = BitsPerSize_t - 1;
   }
 
-  Atomic::add((size_t)1, &_mags[mag]);
+  Atomic::add(&_mags[mag], (size_t)1);
 }
 
 size_t BinaryMagnitudeSeq::level(int level) const {

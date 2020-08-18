@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,13 +37,13 @@
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/osThread.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/timer.hpp"
@@ -141,34 +141,19 @@ bool is_safe_for_fp(address pc) {
 #endif
 }
 
-// For Forte Analyzer AsyncGetCallTrace profiling support - thread
-// is currently interrupted by SIGPROF.
-// os::Solaris::fetch_frame_from_ucontext() tries to skip nested signal
-// frames. Currently we don't do that on Linux, so it's the same as
-// os::fetch_frame_from_context().
-ExtendedPC os::Linux::fetch_frame_from_ucontext(Thread* thread,
-  const ucontext_t* uc, intptr_t** ret_sp, intptr_t** ret_fp) {
-
-  assert(thread != NULL, "just checking");
-  assert(ret_sp != NULL, "just checking");
-  assert(ret_fp != NULL, "just checking");
-
-  return os::fetch_frame_from_context(uc, ret_sp, ret_fp);
-}
-
-ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
+address os::fetch_frame_from_context(const void* ucVoid,
                     intptr_t** ret_sp, intptr_t** ret_fp) {
 
-  ExtendedPC  epc;
+  address epc;
   const ucontext_t* uc = (const ucontext_t*)ucVoid;
 
   if (uc != NULL) {
-    epc = ExtendedPC(os::Linux::ucontext_get_pc(uc));
+    epc = os::Linux::ucontext_get_pc(uc);
     if (ret_sp) *ret_sp = os::Linux::ucontext_get_sp(uc);
     if (ret_fp) {
       intptr_t* fp = os::Linux::ucontext_get_fp(uc);
 #ifndef __thumb__
-      if (CodeCache::find_blob(epc.pc()) == NULL) {
+      if (CodeCache::find_blob(epc) == NULL) {
         // It's a C frame. We need to adjust the fp.
         fp += os::C_frame_offset;
       }
@@ -177,15 +162,14 @@ ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
       // the frame created will not be walked.
       // However, ensure FP is set correctly when reliable and
       // potentially necessary.
-      if (!is_safe_for_fp(epc.pc())) {
+      if (!is_safe_for_fp(epc)) {
         // FP unreliable
         fp = (intptr_t *)NULL;
       }
       *ret_fp = fp;
     }
   } else {
-    // construct empty ExtendedPC for return value checking
-    epc = ExtendedPC(NULL);
+    epc = NULL;
     if (ret_sp) *ret_sp = (intptr_t *)NULL;
     if (ret_fp) *ret_fp = (intptr_t *)NULL;
   }
@@ -196,8 +180,8 @@ ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
 frame os::fetch_frame_from_context(const void* ucVoid) {
   intptr_t* sp;
   intptr_t* fp;
-  ExtendedPC epc = fetch_frame_from_context(ucVoid, &sp, &fp);
-  return frame(sp, fp, epc.pc());
+  address epc = fetch_frame_from_context(ucVoid, &sp, &fp);
+  return frame(sp, fp, epc);
 }
 
 frame os::get_sender_for_C_frame(frame* fr) {
@@ -248,11 +232,13 @@ frame os::current_frame() {
 
 extern "C" address check_vfp_fault_instr;
 extern "C" address check_vfp3_32_fault_instr;
+extern "C" address check_simd_fault_instr;
+extern "C" address check_mp_ext_fault_instr;
 
 address check_vfp_fault_instr = NULL;
 address check_vfp3_32_fault_instr = NULL;
-extern "C" address check_simd_fault_instr;
 address check_simd_fault_instr = NULL;
+address check_mp_ext_fault_instr = NULL;
 
 // Utility functions
 
@@ -271,7 +257,8 @@ extern "C" int JVM_handle_linux_signal(int sig, siginfo_t* info,
   if (sig == SIGILL &&
       ((info->si_addr == (caddr_t)check_simd_fault_instr)
        || info->si_addr == (caddr_t)check_vfp_fault_instr
-       || info->si_addr == (caddr_t)check_vfp3_32_fault_instr)) {
+       || info->si_addr == (caddr_t)check_vfp3_32_fault_instr
+       || info->si_addr == (caddr_t)check_mp_ext_fault_instr)) {
     // skip faulty instruction + instruction that sets return value to
     // success and set return value to failure.
     os::Linux::ucontext_set_pc(uc, (address)info->si_addr + 8);
@@ -298,8 +285,9 @@ extern "C" int JVM_handle_linux_signal(int sig, siginfo_t* info,
 
 #ifdef CAN_SHOW_REGISTERS_ON_ASSERT
   if ((sig == SIGSEGV || sig == SIGBUS) && info != NULL && info->si_addr == g_assert_poison) {
-    handle_assert_poison_fault(ucVoid, info->si_addr);
-    return 1;
+    if (handle_assert_poison_fault(ucVoid, info->si_addr)) {
+      return 1;
+    }
   }
 #endif
 
@@ -332,8 +320,7 @@ extern "C" int JVM_handle_linux_signal(int sig, siginfo_t* info,
         return 1;
       }
       // check if fault address is within thread stack
-      if (addr < thread->stack_base() &&
-          addr >= thread->stack_base() - thread->stack_size()) {
+      if (thread->is_in_full_stack(addr)) {
         // stack overflow
         if (thread->in_stack_yellow_reserved_zone(addr)) {
           thread->disable_stack_yellow_reserved_zone();
@@ -373,7 +360,7 @@ extern "C" int JVM_handle_linux_signal(int sig, siginfo_t* info,
       // Java thread running in Java code => find exception handler if any
       // a fault inside compiled code, the interpreter, or a stub
 
-      if (sig == SIGSEGV && os::is_poll_address((address)info->si_addr)) {
+      if (sig == SIGSEGV && SafepointMechanism::is_poll_address((address)info->si_addr)) {
         stub = SharedRuntime::get_poll_stub(pc);
       } else if (sig == SIGBUS) {
         // BugId 4454115: A read from a MappedByteBuffer can fault
@@ -381,7 +368,7 @@ extern "C" int JVM_handle_linux_signal(int sig, siginfo_t* info,
         // Do not crash the VM in such a case.
         CodeBlob* cb = CodeCache::find_blob_unsafe(pc);
         CompiledMethod* nm = (cb != NULL) ? cb->as_compiled_method_or_null() : NULL;
-        if (nm != NULL && nm->has_unsafe_access()) {
+        if ((nm != NULL && nm->has_unsafe_access()) || (thread->doing_unsafe_access() && UnsafeCopyMemory::contains_pc(pc))) {
           unsafe_access = true;
         }
       } else if (sig == SIGSEGV &&
@@ -395,7 +382,8 @@ extern "C" int JVM_handle_linux_signal(int sig, siginfo_t* info,
         // Zombie
         stub = SharedRuntime::get_handle_wrong_method_stub();
       }
-    } else if (thread->thread_state() == _thread_in_vm &&
+    } else if ((thread->thread_state() == _thread_in_vm ||
+                thread->thread_state() == _thread_in_native) &&
                sig == SIGBUS && thread->doing_unsafe_access()) {
         unsafe_access = true;
     }
@@ -415,6 +403,9 @@ extern "C" int JVM_handle_linux_signal(int sig, siginfo_t* info,
     // any other suitable exception reason,
     // so assume it is an unsafe access.
     address next_pc = pc + Assembler::InstructionSize;
+    if (UnsafeCopyMemory::contains_pc(pc)) {
+      next_pc = UnsafeCopyMemory::page_error_continue_pc(pc);
+    }
 #ifdef __thumb__
     if (uc->uc_mcontext.arm_cpsr & PSR_T_BIT) {
       next_pc = (address)((intptr_t)next_pc | 0x1);
@@ -543,8 +534,8 @@ void os::print_context(outputStream *st, const void *context) {
   // point to garbage if entry point in an nmethod is corrupted. Leave
   // this at the end, and hope for the best.
   address pc = os::Linux::ucontext_get_pc(uc);
-  st->print_cr("Instructions: (pc=" INTPTR_FORMAT ")", p2i(pc));
-  print_hex_dump(st, pc - 32, pc + 32, Assembler::InstructionSize);
+  print_instructions(st, pc, Assembler::InstructionSize);
+  st->cr();
 }
 
 void os::print_register_info(outputStream *st, const void *context) {

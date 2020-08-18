@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,24 +21,26 @@
  * questions.
  */
 
+package gc.g1;
+
 /*
  * @test TestGCLogMessages
  * @bug 8035406 8027295 8035398 8019342 8027959 8048179 8027962 8069330 8076463 8150630 8160055 8177059 8166191
  * @summary Ensure the output for a minor GC with G1
  * includes the expected necessary messages.
- * @key gc
  * @requires vm.gc.G1
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main TestGCLogMessages
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   gc.g1.TestGCLogMessages
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
-import jdk.test.lib.Platform;
+import sun.hotspot.code.Compiler;
 
 public class TestGCLogMessages {
 
@@ -83,7 +85,7 @@ public class TestGCLogMessages {
         }
 
         public boolean isAvailable() {
-            return Platform.isGraal() || Platform.isServer();
+            return Compiler.isC2OrJVMCIIncludedInVmBuild();
         }
     }
 
@@ -93,47 +95,63 @@ public class TestGCLogMessages {
         new LogMessageWithLevel("Post Evacuate Collection Set", Level.INFO),
         new LogMessageWithLevel("Other", Level.INFO),
 
-        // Update RS
-        new LogMessageWithLevel("Update RS", Level.DEBUG),
-        new LogMessageWithLevel("Processed Buffers", Level.DEBUG),
-        new LogMessageWithLevel("Scanned Cards", Level.DEBUG),
+        // Merge Heap Roots
+        new LogMessageWithLevel("Merge Heap Roots", Level.INFO),
+        new LogMessageWithLevel("Prepare Merge Heap Roots", Level.DEBUG),
+        new LogMessageWithLevel("Eager Reclaim", Level.DEBUG),
+        new LogMessageWithLevel("Remembered Sets", Level.DEBUG),
+        new LogMessageWithLevel("Merged Sparse", Level.DEBUG),
+        new LogMessageWithLevel("Merged Fine", Level.DEBUG),
+        new LogMessageWithLevel("Merged Coarse", Level.DEBUG),
+        new LogMessageWithLevel("Hot Card Cache", Level.DEBUG),
+        new LogMessageWithLevel("Log Buffers", Level.DEBUG),
+        new LogMessageWithLevel("Dirty Cards", Level.DEBUG),
         new LogMessageWithLevel("Skipped Cards", Level.DEBUG),
-        new LogMessageWithLevel("Scan HCC", Level.TRACE),
-        // Scan RS
-        new LogMessageWithLevel("Scan RS", Level.DEBUG),
+        // Scan Heap Roots
+        new LogMessageWithLevel("Scan Heap Roots", Level.DEBUG),
         new LogMessageWithLevel("Scanned Cards", Level.DEBUG),
-        new LogMessageWithLevel("Claimed Cards", Level.DEBUG),
-        new LogMessageWithLevel("Skipped Cards", Level.DEBUG),
+        new LogMessageWithLevel("Scanned Blocks", Level.DEBUG),
+        new LogMessageWithLevel("Claimed Chunks", Level.DEBUG),
+        // Code Roots Scan
+        new LogMessageWithLevel("Code Root Scan", Level.DEBUG),
+        // Object Copy
+        new LogMessageWithLevel("Object Copy", Level.DEBUG),
+        new LogMessageWithLevel("Copied Bytes", Level.DEBUG),
+        new LogMessageWithLevel("LAB Waste", Level.DEBUG),
+        new LogMessageWithLevel("LAB Undo Waste", Level.DEBUG),
         // Ext Root Scan
         new LogMessageWithLevel("Thread Roots", Level.TRACE),
-        new LogMessageWithLevel("StringTable Roots", Level.TRACE),
-        new LogMessageWithLevel("Universe Roots", Level.TRACE),
-        new LogMessageWithLevel("JNI Handles Roots", Level.TRACE),
         new LogMessageWithLevel("ObjectSynchronizer Roots", Level.TRACE),
-        new LogMessageWithLevel("Management Roots", Level.TRACE),
-        new LogMessageWithLevel("SystemDictionary Roots", Level.TRACE),
         new LogMessageWithLevel("CLDG Roots", Level.TRACE),
-        new LogMessageWithLevel("JVMTI Roots", Level.TRACE),
-        new LogMessageWithLevel("SATB Filtering", Level.TRACE),
         new LogMessageWithLevel("CM RefProcessor Roots", Level.TRACE),
-        new LogMessageWithLevel("Wait For Strong CLD", Level.TRACE),
-        new LogMessageWithLevel("Weak CLD Roots", Level.TRACE),
+        new LogMessageWithLevel("JNI Global Roots", Level.TRACE),
+        new LogMessageWithLevel("VM Global Roots", Level.TRACE),
         // Redirty Cards
         new LogMessageWithLevel("Redirty Cards", Level.DEBUG),
         new LogMessageWithLevel("Parallel Redirty", Level.TRACE),
         new LogMessageWithLevel("Redirtied Cards", Level.TRACE),
         // Misc Top-level
         new LogMessageWithLevel("Code Roots Purge", Level.DEBUG),
-        new LogMessageWithLevel("String Dedup Fixup", Level.DEBUG),
+        new LogMessageWithLevel("String Deduplication", Level.DEBUG),
+        new LogMessageWithLevel("Queue Fixup", Level.DEBUG),
+        new LogMessageWithLevel("Table Fixup", Level.DEBUG),
         new LogMessageWithLevel("Expand Heap After Collection", Level.DEBUG),
+        new LogMessageWithLevel("Region Register", Level.DEBUG),
+        new LogMessageWithLevel("Prepare Heap Roots", Level.DEBUG),
+        new LogMessageWithLevel("Concatenate Dirty Card Logs", Level.DEBUG),
         // Free CSet
         new LogMessageWithLevel("Free Collection Set", Level.DEBUG),
-        new LogMessageWithLevel("Free Collection Set Serial", Level.TRACE),
+        new LogMessageWithLevel("Serial Free Collection Set", Level.TRACE),
+        new LogMessageWithLevel("Parallel Free Collection Set", Level.TRACE),
         new LogMessageWithLevel("Young Free Collection Set", Level.TRACE),
         new LogMessageWithLevel("Non-Young Free Collection Set", Level.TRACE),
+        // Rebuild Free List
+        new LogMessageWithLevel("Rebuild Free List", Level.DEBUG),
+        new LogMessageWithLevel("Serial Rebuild Free List", Level.TRACE),
+        new LogMessageWithLevel("Parallel Rebuild Free List", Level.TRACE),
+
         // Humongous Eager Reclaim
         new LogMessageWithLevel("Humongous Reclaim", Level.DEBUG),
-        new LogMessageWithLevel("Humongous Register", Level.DEBUG),
         // Merge PSS
         new LogMessageWithLevel("Merge Per-Thread State", Level.DEBUG),
         // TLAB handling
@@ -143,6 +161,10 @@ public class TestGCLogMessages {
         new LogMessageWithLevel("Reference Processing", Level.DEBUG),
         // VM internal reference processing
         new LogMessageWithLevel("Weak Processing", Level.DEBUG),
+        new LogMessageWithLevel("JNI Weak", Level.DEBUG),
+        new LogMessageWithLevel("StringTable Weak", Level.DEBUG),
+        new LogMessageWithLevel("ResolvedMethodTable Weak", Level.DEBUG),
+        new LogMessageWithLevel("VM Weak", Level.DEBUG),
 
         new LogMessageWithLevelC2OrJVMCIOnly("DerivedPointerTable Update", Level.DEBUG),
         new LogMessageWithLevel("Start New Collection Set", Level.DEBUG),
@@ -160,8 +182,9 @@ public class TestGCLogMessages {
 
     public static void main(String[] args) throws Exception {
         new TestGCLogMessages().testNormalLogs();
+        new TestGCLogMessages().testConcurrentRefinementLogs();
         new TestGCLogMessages().testWithToSpaceExhaustionLogs();
-        new TestGCLogMessages().testWithInitialMark();
+        new TestGCLogMessages().testWithConcurrentStart();
         new TestGCLogMessages().testExpandHeap();
     }
 
@@ -195,6 +218,23 @@ public class TestGCLogMessages {
         output.shouldHaveExitValue(0);
     }
 
+    LogMessageWithLevel concRefineMessages[] = new LogMessageWithLevel[] {
+        new LogMessageWithLevel("Mutator refinement: ", Level.DEBUG),
+        new LogMessageWithLevel("Concurrent refinement: ", Level.DEBUG),
+        new LogMessageWithLevel("Total refinement: ", Level.DEBUG),
+        // "Concurrent refinement rate" optionally printed if any.
+        // "Generate dirty cards rate" optionally printed if any.
+    };
+
+    private void testConcurrentRefinementLogs() throws Exception {
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-XX:+UseG1GC",
+                                                                  "-Xmx10M",
+                                                                  "-Xlog:gc+refine+stats=debug",
+                                                                  GCTest.class.getName());
+        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        checkMessagesAtLevel(output, concRefineMessages, Level.DEBUG);
+    }
+
     LogMessageWithLevel exhFailureMessages[] = new LogMessageWithLevel[] {
         new LogMessageWithLevel("Evacuation Failure", Level.DEBUG),
         new LogMessageWithLevel("Recalculate Used", Level.TRACE),
@@ -223,14 +263,14 @@ public class TestGCLogMessages {
         output.shouldHaveExitValue(0);
     }
 
-    private void testWithInitialMark() throws Exception {
+    private void testWithConcurrentStart() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-XX:+UseG1GC",
                                                                   "-Xmx10M",
                                                                   "-Xbootclasspath/a:.",
                                                                   "-Xlog:gc*=debug",
                                                                   "-XX:+UnlockDiagnosticVMOptions",
                                                                   "-XX:+WhiteBoxAPI",
-                                                                  GCTestWithInitialMark.class.getName());
+                                                                  GCTestWithConcurrentStart.class.getName());
 
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldContain("Clear Claimed Marks");
@@ -280,7 +320,7 @@ public class TestGCLogMessages {
         }
     }
 
-    static class GCTestWithInitialMark {
+    static class GCTestWithConcurrentStart {
         public static void main(String [] args) {
             sun.hotspot.WhiteBox WB = sun.hotspot.WhiteBox.getWhiteBox();
             WB.g1StartConcMarkCycle();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@ import org.graalvm.compiler.debug.Assertions;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.debug.Indent;
+import org.graalvm.compiler.lir.InstructionStateProcedure;
 import org.graalvm.compiler.lir.InstructionValueConsumer;
 import org.graalvm.compiler.lir.LIRInstruction;
 import org.graalvm.compiler.lir.LIRInstruction.OperandFlag;
@@ -60,6 +61,7 @@ import org.graalvm.compiler.lir.alloc.lsra.Interval.SpillState;
 import org.graalvm.compiler.lir.alloc.lsra.LinearScan.BlockData;
 import org.graalvm.compiler.lir.gen.LIRGenerationResult;
 import org.graalvm.compiler.lir.phases.AllocationPhase.AllocationContext;
+import org.graalvm.compiler.lir.util.IndexedValueMap;
 
 import jdk.vm.ci.code.Register;
 import jdk.vm.ci.code.RegisterArray;
@@ -158,8 +160,17 @@ public class LinearScanLifetimeAnalysisPhase extends LinearScanAllocationPhase {
     @SuppressWarnings("try")
     void computeLocalLiveSets() {
         int liveSize = allocator.liveSetSize();
-
-        intervalInLoop = new BitMap2D(allocator.operandSize(), allocator.numLoops());
+        int variables = allocator.operandSize();
+        int loops = allocator.numLoops();
+        long nBits = (long) variables * loops;
+        try {
+            if (nBits > Integer.MAX_VALUE) {
+                throw new OutOfMemoryError();
+            }
+            intervalInLoop = new BitMap2D(variables, loops);
+        } catch (OutOfMemoryError e) {
+            throw new PermanentBailoutException(e, "Cannot handle %d variables in %d loops", variables, loops);
+        }
 
         try {
             final BitSet liveGenScratch = new BitSet(liveSize);
@@ -176,7 +187,7 @@ public class LinearScanLifetimeAnalysisPhase extends LinearScanAllocationPhase {
 
                     ValueConsumer useConsumer = (operand, mode, flags) -> {
                         if (isVariable(operand)) {
-                            int operandNum = allocator.operandNumber(operand);
+                            int operandNum = getOperandNumber(operand);
                             if (!liveKillScratch.get(operandNum)) {
                                 liveGenScratch.set(operandNum);
                                 if (debug.isLogEnabled()) {
@@ -194,7 +205,7 @@ public class LinearScanLifetimeAnalysisPhase extends LinearScanAllocationPhase {
                     };
                     ValueConsumer stateConsumer = (operand, mode, flags) -> {
                         if (LinearScan.isVariableOrRegister(operand)) {
-                            int operandNum = allocator.operandNumber(operand);
+                            int operandNum = getOperandNumber(operand);
                             if (!liveKillScratch.get(operandNum)) {
                                 liveGenScratch.set(operandNum);
                                 if (debug.isLogEnabled()) {
@@ -205,7 +216,7 @@ public class LinearScanLifetimeAnalysisPhase extends LinearScanAllocationPhase {
                     };
                     ValueConsumer defConsumer = (operand, mode, flags) -> {
                         if (isVariable(operand)) {
-                            int varNum = allocator.operandNumber(operand);
+                            int varNum = getOperandNumber(operand);
                             liveKillScratch.set(varNum);
                             if (debug.isLogEnabled()) {
                                 debug.log("liveKill for operand %d(%s)", varNum, operand);
@@ -268,7 +279,7 @@ public class LinearScanLifetimeAnalysisPhase extends LinearScanAllocationPhase {
          */
         if (isRegister(operand)) {
             if (allocator.isProcessed(operand)) {
-                liveKill.set(allocator.operandNumber(operand));
+                liveKill.set(getOperandNumber(operand));
             }
         }
     }
@@ -281,9 +292,13 @@ public class LinearScanLifetimeAnalysisPhase extends LinearScanAllocationPhase {
          */
         if (isRegister(operand) && block != allocator.getLIR().getControlFlowGraph().getStartBlock()) {
             if (allocator.isProcessed(operand)) {
-                assert liveKill.get(allocator.operandNumber(operand)) : "using fixed register " + asRegister(operand) + " that is not defined in this block " + block;
+                assert liveKill.get(getOperandNumber(operand)) : "using fixed register " + asRegister(operand) + " that is not defined in this block " + block;
             }
         }
+    }
+
+    protected int getOperandNumber(Value operand) {
+        return allocator.operandNumber(operand);
     }
 
     /**
@@ -384,8 +399,22 @@ public class LinearScanLifetimeAnalysisPhase extends LinearScanAllocationPhase {
                 if (Assertions.detailedAssertionsEnabled(allocator.getOptions())) {
                     reportFailure(numBlocks);
                 }
+                BitSet bs = allocator.getBlockData(startBlock).liveIn;
+                StringBuilder sb = new StringBuilder();
+                for (int i = bs.nextSetBit(0); i >= 0; i = bs.nextSetBit(i + 1)) {
+                    int variableNumber = allocator.getVariableNumber(i);
+                    if (variableNumber >= 0) {
+                        sb.append("v").append(variableNumber);
+                    } else {
+                        sb.append(allocator.getRegisters().get(i));
+                    }
+                    sb.append(System.lineSeparator());
+                    if (i == Integer.MAX_VALUE) {
+                        break;
+                    }
+                }
                 // bailout if this occurs in product mode.
-                throw new GraalError("liveIn set of first block must be empty: " + allocator.getBlockData(startBlock).liveIn);
+                throw new GraalError("liveIn set of first block must be empty: " + allocator.getBlockData(startBlock).liveIn + " Live operands:" + sb.toString());
             }
         }
     }
@@ -745,12 +774,34 @@ public class LinearScanLifetimeAnalysisPhase extends LinearScanAllocationPhase {
                 }
             };
 
-            InstructionValueConsumer stateProc = (op, operand, mode, flags) -> {
+            InstructionValueConsumer nonBasePointersStateProc = (op, operand, mode, flags) -> {
                 if (LinearScan.isVariableOrRegister(operand)) {
                     int opId = op.id();
                     int blockFrom = allocator.getFirstLirInstructionId((allocator.blockForId(opId)));
                     addUse((AllocatableValue) operand, blockFrom, opId + 1, RegisterPriority.None, operand.getValueKind(), detailedAsserts);
                 }
+            };
+            InstructionValueConsumer basePointerStateProc = (op, operand, mode, flags) -> {
+                if (LinearScan.isVariableOrRegister(operand)) {
+                    int opId = op.id();
+                    int blockFrom = allocator.getFirstLirInstructionId((allocator.blockForId(opId)));
+                    /*
+                     * Setting priority of base pointers to ShouldHaveRegister to avoid
+                     * rematerialization (see #getMaterializedValue).
+                     */
+                    addUse((AllocatableValue) operand, blockFrom, opId + 1, RegisterPriority.ShouldHaveRegister, operand.getValueKind(), detailedAsserts);
+                }
+            };
+
+            InstructionStateProcedure stateProc = (op, state) -> {
+                IndexedValueMap liveBasePointers = state.getLiveBasePointers();
+                // temporarily unset the base pointers to that the procedure will not visit them
+                state.setLiveBasePointers(null);
+                state.visitEachState(op, nonBasePointersStateProc);
+                // visit the base pointers explicitly
+                liveBasePointers.visitEach(op, OperandMode.ALIVE, null, basePointerStateProc);
+                // reset the base pointers
+                state.setLiveBasePointers(liveBasePointers);
             };
 
             // create a list with all caller-save registers (cpu, fpu, xmm)
@@ -824,7 +875,7 @@ public class LinearScanLifetimeAnalysisPhase extends LinearScanAllocationPhase {
                              * the live range is extended to a call site, the value would be in a
                              * register at the call otherwise).
                              */
-                            op.visitEachState(stateProc);
+                            op.forEachState(stateProc);
 
                             // special steps for some instructions (especially moves)
                             handleMethodArguments(op);
@@ -877,7 +928,12 @@ public class LinearScanLifetimeAnalysisPhase extends LinearScanAllocationPhase {
                     }
                 }
             }
-            return move.getConstant();
+            Constant constant = move.getConstant();
+            if (!(constant instanceof JavaConstant)) {
+                // Other kinds of constants might not be supported by the generic move operation.
+                return null;
+            }
+            return constant;
         }
         return null;
     }

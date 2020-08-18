@@ -30,7 +30,6 @@
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
 #include "memory/memRegion.hpp"
-#include "memory/universe.hpp"
 #include "memory/virtualspace.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/perfData.hpp"
@@ -42,19 +41,12 @@
 //
 // Generation                      - abstract base class
 // - DefNewGeneration              - allocation area (copy collected)
-//   - ParNewGeneration            - a DefNewGeneration that is collected by
-//                                   several threads
 // - CardGeneration                 - abstract class adding offset array behavior
 //   - TenuredGeneration             - tenured (old object) space (markSweepCompact)
-//   - ConcurrentMarkSweepGeneration - Mostly Concurrent Mark Sweep Generation
-//                                       (Detlefs-Printezis refinement of
-//                                       Boehm-Demers-Schenker)
 //
-// The system configurations currently allowed are:
+// The system configuration currently allowed is:
 //
 //   DefNewGeneration + TenuredGeneration
-//
-//   ParNewGeneration + ConcurrentMarkSweepGeneration
 //
 
 class DefNewGeneration;
@@ -83,7 +75,6 @@ struct ScratchBlock {
 class Generation: public CHeapObj<mtGC> {
   friend class VMStructs;
  private:
-  jlong _time_of_last_gc; // time when last gc on this generation happened (ms)
   MemRegion _prev_used_region; // for collectors that want to "remember" a value for
                                // used region at some specific point during collection.
 
@@ -123,9 +114,7 @@ class Generation: public CHeapObj<mtGC> {
   // The set of possible generation kinds.
   enum Name {
     DefNew,
-    ParNew,
     MarkSweepCompact,
-    ConcurrentMarkSweep,
     Other
   };
 
@@ -301,7 +290,7 @@ class Generation: public CHeapObj<mtGC> {
   // word of "obj" may have been overwritten with a forwarding pointer, and
   // also taking care to copy the klass pointer *last*.  Returns the new
   // object if successful, or else NULL.
-  virtual oop par_promote(int thread_num, oop obj, markOop m, size_t word_sz);
+  virtual oop par_promote(int thread_num, oop obj, markWord m, size_t word_sz);
 
   // Informs the current generation that all par_promote_alloc's in the
   // collection have been completed; any supporting data structures can be
@@ -372,25 +361,6 @@ class Generation: public CHeapObj<mtGC> {
   // Some generations may need to be "fixed-up" after some allocation
   // activity to make them parsable again. The default is to do nothing.
   virtual void ensure_parsability() {}
-
-  // Time (in ms) when we were last collected or now if a collection is
-  // in progress.
-  virtual jlong time_of_last_gc(jlong now) {
-    // Both _time_of_last_gc and now are set using a time source
-    // that guarantees monotonically non-decreasing values provided
-    // the underlying platform provides such a source. So we still
-    // have to guard against non-monotonicity.
-    NOT_PRODUCT(
-      if (now < _time_of_last_gc) {
-        log_warning(gc)("time warp: " JLONG_FORMAT " to " JLONG_FORMAT, _time_of_last_gc, now);
-      }
-    )
-    return _time_of_last_gc;
-  }
-
-  virtual void update_time_of_last_gc(jlong now)  {
-    _time_of_last_gc = now;
-  }
 
   // Generations may keep statistics about collection. This method
   // updates those statistics. current_generation is the generation
@@ -479,11 +449,6 @@ class Generation: public CHeapObj<mtGC> {
   // Iterate over all objects in the generation, calling "cl.do_object" on
   // each.
   virtual void object_iterate(ObjectClosure* cl);
-
-  // Iterate over all safe objects in the generation, calling "cl.do_object" on
-  // each.  An object is safe if its references point to other objects in
-  // the heap.  This defaults to object_iterate() unless overridden.
-  virtual void safe_object_iterate(ObjectClosure* cl);
 
   // Apply "cl->do_oop" to (the address of) all and only all the ref fields
   // in the current generation that contain pointers to objects in younger

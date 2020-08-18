@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/javaClasses.hpp"
 #include "compiler/compileLog.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callGenerator.hpp"
@@ -379,7 +380,7 @@ Node_List PhaseStringOpts::collect_toString_calls() {
   Node_List string_calls;
   Node_List worklist;
 
-  _visited.Clear();
+  _visited.clear();
 
   // Prime the worklist
   for (uint i = 1; i < C->root()->len(); i++) {
@@ -539,6 +540,15 @@ StringConcat* PhaseStringOpts::build_candidate(CallStaticJavaNode* call) {
                 cnode->method()->signature()->as_symbol() == int_sig)) {
       sc->add_control(cnode);
       Node* arg = cnode->in(TypeFunc::Parms + 1);
+      if (arg == NULL || arg->is_top()) {
+#ifndef PRODUCT
+        if (PrintOptimizeStringConcat) {
+          tty->print("giving up because the call is effectively dead");
+          cnode->jvms()->dump_spec(tty); tty->cr();
+        }
+#endif
+        break;
+      }
       if (cnode->method()->signature()->as_symbol() == int_sig) {
         sc->push_int(arg);
       } else if (cnode->method()->signature()->as_symbol() == char_sig) {
@@ -584,8 +594,7 @@ StringConcat* PhaseStringOpts::build_candidate(CallStaticJavaNode* call) {
 
 PhaseStringOpts::PhaseStringOpts(PhaseGVN* gvn, Unique_Node_List*):
   Phase(StringOpts),
-  _gvn(gvn),
-  _visited(Thread::current()->resource_area()) {
+  _gvn(gvn) {
 
   assert(OptimizeStringConcat, "shouldn't be here");
 
@@ -1033,7 +1042,7 @@ bool StringConcat::validate_control_flow() {
   // Validate that all these results produced are contained within
   // this cluster of objects.  First collect all the results produced
   // by calls in the region.
-  _stringopts->_visited.Clear();
+  _stringopts->_visited.clear();
   Node_List worklist;
   Node* final_result = _end->proj_out_or_null(TypeFunc::Parms);
   for (uint i = 0; i < _control.size(); i++) {
@@ -1200,7 +1209,7 @@ Node* PhaseStringOpts::int_stringSize(GraphKit& kit, Node* arg) {
     //     return i+1;
 
     // Add loop predicate first.
-    kit.add_predicate();
+    kit.add_empty_predicates();
 
     RegionNode *loop = new RegionNode(3);
     loop->init_req(1, kit.control());
@@ -1212,7 +1221,6 @@ Node* PhaseStringOpts::int_stringSize(GraphKit& kit, Node* arg) {
     kit.set_control(loop);
     Node* sizeTable = fetch_static_field(kit, size_table_field);
 
-    sizeTable = kit.access_resolve(sizeTable, ACCESS_READ);
     Node* value = kit.load_array_element(NULL, sizeTable, index, TypeAryPtr::INTS);
     C->record_for_igvn(value);
     Node* limit = __ CmpI(phi, value);
@@ -1277,7 +1285,7 @@ void PhaseStringOpts::getChars(GraphKit& kit, Node* arg, Node* dst_array, BasicT
   // }
 
   // Add loop predicate first.
-  kit.add_predicate();
+  kit.add_empty_predicates();
 
   RegionNode* head = new RegionNode(3);
   head->init_req(1, kit.control());
@@ -1548,7 +1556,6 @@ void PhaseStringOpts::copy_constant_string(GraphKit& kit, IdealKit& ideal, ciTyp
 // Compress copy contents of the byte/char String str into dst_array starting at index start.
 Node* PhaseStringOpts::copy_string(GraphKit& kit, Node* str, Node* dst_array, Node* dst_coder, Node* start) {
   Node* src_array = kit.load_String_value(str, true);
-  src_array = kit.access_resolve(src_array, ACCESS_READ);
 
   IdealKit ideal(&kit, true, true);
   IdealVariable count(ideal); __ declarations_done();
@@ -1668,7 +1675,7 @@ jbyte PhaseStringOpts::get_constant_coder(GraphKit& kit, Node* str) {
   assert(str->is_Con(), "String must be constant");
   const TypeOopPtr* str_type = kit.gvn().type(str)->isa_oopptr();
   ciInstance* str_instance = str_type->const_oop()->as_instance();
-  jbyte coder = str_instance->field_value_by_offset(java_lang_String::coder_offset_in_bytes()).as_byte();
+  jbyte coder = str_instance->field_value_by_offset(java_lang_String::coder_offset()).as_byte();
   assert(CompactStrings || (coder == java_lang_String::CODER_UTF16), "Strings must be UTF16 encoded");
   return coder;
 }
@@ -1682,7 +1689,7 @@ ciTypeArray* PhaseStringOpts::get_constant_value(GraphKit& kit, Node* str) {
   assert(str->is_Con(), "String must be constant");
   const TypeOopPtr* str_type = kit.gvn().type(str)->isa_oopptr();
   ciInstance* str_instance = str_type->const_oop()->as_instance();
-  ciObject* src_array = str_instance->field_value_by_offset(java_lang_String::value_offset_in_bytes()).as_object();
+  ciObject* src_array = str_instance->field_value_by_offset(java_lang_String::value_offset()).as_object();
   return src_array->as_type_array();
 }
 

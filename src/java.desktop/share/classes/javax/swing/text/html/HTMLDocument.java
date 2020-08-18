@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -262,7 +262,7 @@ import static sun.swing.SwingUtilities2.IMPLIED_CR;
  * not be compatible with future Swing releases. The current
  * serialization support is appropriate for short term storage or RMI
  * between applications running the same version of Swing.  As of 1.4,
- * support for long term storage of all JavaBeans&trade;
+ * support for long term storage of all JavaBeans
  * has been added to the
  * <code>java.beans</code> package.  Please see {@link
  * java.beans.XMLEncoder}.</p>
@@ -3577,7 +3577,7 @@ public class HTMLDocument extends DefaultStyledDocument {
          *     <td>{@link DefaultComboBoxModel} or an {@link DefaultListModel},
          *     with an item type of Option
          *   <tr>
-         *     <td>textarea
+         *     <th scope="row">textarea
          *     <td>{@link PlainDocument}
          * </tbody>
          * </table>

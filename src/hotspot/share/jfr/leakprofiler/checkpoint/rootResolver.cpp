@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,17 +26,18 @@
 #include "aot/aotLoader.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/stringTable.hpp"
+#include "gc/shared/oopStorage.inline.hpp"
+#include "gc/shared/oopStorageSet.hpp"
 #include "gc/shared/strongRootsScope.hpp"
-#include "jfr/leakprofiler/utilities/unifiedOop.hpp"
+#include "jfr/leakprofiler/utilities/unifiedOopRef.inline.hpp"
 #include "jfr/leakprofiler/checkpoint/rootResolver.hpp"
+#include "jfr/utilities/jfrThreadIterator.hpp"
 #include "memory/iterator.hpp"
 #include "oops/klass.hpp"
-#include "oops/markOop.hpp"
 #include "oops/oop.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "runtime/threadSMR.inline.hpp"
 #include "runtime/vframe_hp.hpp"
 #include "services/management.hpp"
 #include "utilities/growableArray.hpp"
@@ -47,7 +48,7 @@ class ReferenceLocateClosure : public OopClosure {
   RootCallbackInfo _info;
   bool _complete;
 
-  void do_oop_shared(const void* ref);
+  void do_oop_shared(UnifiedOopRef ref);
 
  public:
   ReferenceLocateClosure(RootCallback& callback,
@@ -71,20 +72,20 @@ class ReferenceLocateClosure : public OopClosure {
   }
 };
 
-void ReferenceLocateClosure::do_oop_shared(const void* ref) {
-  assert(ref != NULL, "invariant");
+void ReferenceLocateClosure::do_oop_shared(UnifiedOopRef ref) {
+  assert(!ref.is_null(), "invariant");
   if (!_complete) {
-    _info._high = ref;
+    _info._high = ref.addr<address>();
     _complete = _callback.process(_info);
   }
 }
 
 void ReferenceLocateClosure::do_oop(oop* ref) {
-  do_oop_shared(ref);
+  do_oop_shared(UnifiedOopRef::encode_in_native(ref));
 }
 
 void ReferenceLocateClosure::do_oop(narrowOop* ref) {
-  do_oop_shared(ref);
+  do_oop_shared(UnifiedOopRef::encode_in_native(ref));
 }
 
 class ReferenceToRootClosure : public StackObj {
@@ -95,11 +96,7 @@ class ReferenceToRootClosure : public StackObj {
 
   bool do_cldg_roots();
   bool do_object_synchronizer_roots();
-  bool do_universe_roots();
-  bool do_jni_handle_roots();
-  bool do_jvmti_roots();
-  bool do_system_dictionary_roots();
-  bool do_management_roots();
+  bool do_oop_storage_roots();
   bool do_string_table_roots();
   bool do_aot_loader_roots();
 
@@ -127,7 +124,7 @@ class ReferenceToRootClosure : public StackObj {
 bool ReferenceToRootClosure::do_cldg_roots() {
   assert(!complete(), "invariant");
   ReferenceLocateClosure rlc(_callback, OldObjectRoot::_class_loader_data, OldObjectRoot::_type_undetermined, NULL);
-  CLDToOopClosure cldt_closure(&rlc, ClassLoaderData::_claim_strong);
+  CLDToOopClosure cldt_closure(&rlc, ClassLoaderData::_claim_none);
   ClassLoaderDataGraph::always_strong_cld_do(&cldt_closure);
   return rlc.complete();
 }
@@ -139,46 +136,22 @@ bool ReferenceToRootClosure::do_object_synchronizer_roots() {
   return rlc.complete();
 }
 
-bool ReferenceToRootClosure::do_universe_roots() {
-  assert(!complete(), "invariant");
-  ReferenceLocateClosure rlc(_callback, OldObjectRoot::_universe, OldObjectRoot::_type_undetermined, NULL);
-  Universe::oops_do(&rlc);
-  return rlc.complete();
-}
-
-bool ReferenceToRootClosure::do_jni_handle_roots() {
-  assert(!complete(), "invariant");
-  ReferenceLocateClosure rlc(_callback, OldObjectRoot::_global_jni_handles, OldObjectRoot::_global_jni_handle, NULL);
-  JNIHandles::oops_do(&rlc);
-  return rlc.complete();
-}
-
-bool ReferenceToRootClosure::do_jvmti_roots() {
-  assert(!complete(), "invariant");
-  ReferenceLocateClosure rlc(_callback, OldObjectRoot::_jvmti, OldObjectRoot::_global_jni_handle, NULL);
-  JvmtiExport::oops_do(&rlc);
-  return rlc.complete();
-}
-
-bool ReferenceToRootClosure::do_system_dictionary_roots() {
-  assert(!complete(), "invariant");
-  ReferenceLocateClosure rlc(_callback, OldObjectRoot::_system_dictionary, OldObjectRoot::_type_undetermined, NULL);
-  SystemDictionary::oops_do(&rlc);
-  return rlc.complete();
-}
-
-bool ReferenceToRootClosure::do_management_roots() {
-  assert(!complete(), "invariant");
-  ReferenceLocateClosure rlc(_callback, OldObjectRoot::_management, OldObjectRoot::_type_undetermined, NULL);
-  Management::oops_do(&rlc);
-  return rlc.complete();
-}
-
-bool ReferenceToRootClosure::do_string_table_roots() {
-  assert(!complete(), "invariant");
-  ReferenceLocateClosure rlc(_callback, OldObjectRoot::_string_table, OldObjectRoot::_type_undetermined, NULL);
-  StringTable::oops_do(&rlc);
-  return rlc.complete();
+bool ReferenceToRootClosure::do_oop_storage_roots() {
+  int i = 0;
+  for (OopStorageSet::Iterator it = OopStorageSet::strong_iterator(); !it.is_end(); ++it, ++i) {
+    assert(!complete(), "invariant");
+    OopStorage* oop_storage = *it;
+    OldObjectRoot::Type type = JNIHandles::is_global_storage(oop_storage) ?
+                               OldObjectRoot::_global_jni_handle :
+                               OldObjectRoot::_global_oop_handle;
+    OldObjectRoot::System system = OldObjectRoot::System(OldObjectRoot::_strong_oop_storage_set_first + i);
+    ReferenceLocateClosure rlc(_callback, system, type, NULL);
+    oop_storage->oops_do(&rlc);
+    if (rlc.complete()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool ReferenceToRootClosure::do_aot_loader_roots() {
@@ -203,32 +176,7 @@ bool ReferenceToRootClosure::do_roots() {
     return true;
   }
 
-  if (do_universe_roots()) {
-   _complete = true;
-    return true;
-  }
-
-  if (do_jni_handle_roots()) {
-   _complete = true;
-    return true;
-  }
-
-  if (do_jvmti_roots()) {
-   _complete = true;
-    return true;
-  }
-
-  if (do_system_dictionary_roots()) {
-   _complete = true;
-    return true;
-  }
-
-  if (do_management_roots()) {
-   _complete = true;
-    return true;
-  }
-
-  if (do_string_table_roots()) {
+  if (do_oop_storage_roots()) {
    _complete = true;
     return true;
   }
@@ -256,8 +204,9 @@ class ReferenceToThreadRootClosure : public StackObj {
  public:
   ReferenceToThreadRootClosure(RootCallback& callback) :_callback(callback), _complete(false) {
     assert_locked_or_safepoint(Threads_lock);
-    for (JavaThreadIteratorWithHandle jtiwh; JavaThread *jt = jtiwh.next(); ) {
-      if (do_thread_roots(jt)) {
+    JfrJavaThreadIterator iter;
+    while (iter.has_next()) {
+      if (do_thread_roots(iter.next())) {
         return;
       }
     }
@@ -302,7 +251,7 @@ bool ReferenceToThreadRootClosure::do_thread_stack_fast(JavaThread* jt) {
   info._type = OldObjectRoot::_stack_variable;
 
   for (int i = 0; i < _callback.entries(); ++i) {
-    const address adr = (address)_callback.at(i);
+    const address adr = _callback.at(i).addr<address>();
     if (jt->is_in_usable_stack(adr)) {
       info._high = adr;
       _complete = _callback.process(info);
@@ -369,7 +318,7 @@ bool ReferenceToThreadRootClosure::do_thread_stack_detailed(JavaThread* jt) {
 
   JvmtiThreadState* const jvmti_thread_state = jt->jvmti_thread_state();
   if (jvmti_thread_state != NULL) {
-    jvmti_thread_state->oops_do(&rcl);
+    jvmti_thread_state->oops_do(&rcl, NULL);
   }
 
   return rcl.complete();
@@ -414,9 +363,6 @@ class RootResolverMarkScope : public MarkScope {
 };
 
 void RootResolver::resolve(RootCallback& callback) {
-
-  // Need to clear cld claim bit before starting
-  ClassLoaderDataGraph::clear_claimed_marks();
   RootResolverMarkScope mark_scope;
 
   // thread local roots

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,25 +41,26 @@
 package jdk.internal.vm.compiler.collections;
 
 /**
- * Unmodifiable memory efficient map data structure.
+ * Unmodifiable memory efficient map. See {@link EconomicMap} for the underlying data structure and
+ * its properties.
  *
- * @since 1.0
+ * @since 19.0
  */
 public interface UnmodifiableEconomicMap<K, V> {
 
     /**
      * Returns the value to which {@code key} is mapped, or {@code null} if this map contains no
-     * mapping for {@code key}.
+     * mapping for {@code key}. The {@code key} must not be {@code null}.
      *
-     * @since 1.0
+     * @since 19.0
      */
     V get(K key);
 
     /**
      * Returns the value to which {@code key} is mapped, or {@code defaultValue} if this map
-     * contains no mapping for {@code key}.
+     * contains no mapping for {@code key}. The {@code key} must not be {@code null}.
      *
-     * @since 1.0
+     * @since 19.0
      */
     default V get(K key, V defaultValue) {
         V v = get(key);
@@ -70,44 +71,45 @@ public interface UnmodifiableEconomicMap<K, V> {
     }
 
     /**
-     * Returns {@code true} if this map contains a mapping for {@code key}.
+     * Returns {@code true} if this map contains a mapping for {@code key}. Returns always
+     * {@code false} if the {@code key} is {@code null}.
      *
-     * @since 1.0
+     * @since 19.0
      */
     boolean containsKey(K key);
 
     /**
      * Returns the number of key-value mappings in this map.
      *
-     * @since 1.0
+     * @since 19.0
      */
     int size();
 
     /**
      * Returns {@code true} if this map contains no key-value mappings.
      *
-     * @since 1.0
+     * @since 19.0
      */
     boolean isEmpty();
 
     /**
      * Returns a {@link Iterable} view of the values contained in this map.
      *
-     * @since 1.0
+     * @since 19.0
      */
     Iterable<V> getValues();
 
     /**
      * Returns a {@link Iterable} view of the keys contained in this map.
      *
-     * @since 1.0
+     * @since 19.0
      */
     Iterable<K> getKeys();
 
     /**
      * Returns a {@link UnmodifiableMapCursor} view of the mappings contained in this map.
      *
-     * @since 1.0
+     * @since 19.0
      */
     UnmodifiableMapCursor<K, V> getEntries();
 }

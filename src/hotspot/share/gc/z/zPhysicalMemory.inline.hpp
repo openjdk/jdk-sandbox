@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,15 @@
 #include "gc/z/zPhysicalMemory.hpp"
 #include "utilities/debug.hpp"
 
-inline ZPhysicalMemorySegment::ZPhysicalMemorySegment(uintptr_t start, size_t size) :
+inline ZPhysicalMemorySegment::ZPhysicalMemorySegment() :
+    _start(UINTPTR_MAX),
+    _end(UINTPTR_MAX),
+    _committed(false) {}
+
+inline ZPhysicalMemorySegment::ZPhysicalMemorySegment(uintptr_t start, size_t size, bool committed) :
     _start(start),
-    _end(start + size) {}
+    _end(start + size),
+    _committed(committed) {}
 
 inline uintptr_t ZPhysicalMemorySegment::start() const {
   return _start;
@@ -40,47 +46,28 @@ inline uintptr_t ZPhysicalMemorySegment::end() const {
 }
 
 inline size_t ZPhysicalMemorySegment::size() const {
-  return end() - start();
+  return _end - _start;
 }
 
-inline void ZPhysicalMemorySegment::expand(size_t size) {
-  _end += size;
+inline bool ZPhysicalMemorySegment::is_committed() const {
+  return _committed;
 }
 
-inline ZPhysicalMemorySegment ZPhysicalMemorySegment::split(size_t split_size) {
-  assert(split_size <= size(), "Invalid size");
-  ZPhysicalMemorySegment segment(_start, split_size);
-  _start += split_size;
-  return segment;
+inline void ZPhysicalMemorySegment::set_committed(bool committed) {
+  _committed = committed;
 }
 
 inline bool ZPhysicalMemory::is_null() const {
   return _nsegments == 0;
 }
 
-inline size_t ZPhysicalMemory::nsegments() const {
+inline uint32_t ZPhysicalMemory::nsegments() const {
   return _nsegments;
 }
 
-inline ZPhysicalMemorySegment ZPhysicalMemory::segment(size_t index) const {
+inline const ZPhysicalMemorySegment& ZPhysicalMemory::segment(uint32_t index) const {
   assert(index < _nsegments, "Invalid segment index");
   return _segments[index];
-}
-
-inline size_t ZPhysicalMemoryManager::max_capacity() const {
-  return _max_capacity;
-}
-
-inline size_t ZPhysicalMemoryManager::current_max_capacity() const {
-  return _current_max_capacity;
-}
-
-inline size_t ZPhysicalMemoryManager::capacity() const {
-  return _capacity;
-}
-
-inline size_t ZPhysicalMemoryManager::unused_capacity() const {
-  return _capacity - _used;
 }
 
 #endif // SHARE_GC_Z_ZPHYSICALMEMORY_INLINE_HPP

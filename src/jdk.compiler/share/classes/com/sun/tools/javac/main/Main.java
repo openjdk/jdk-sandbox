@@ -217,8 +217,9 @@ public class Main {
         }
 
         // prefix argv with contents of environment variable and expand @-files
+        Iterable<String> allArgs;
         try {
-            argv = CommandLine.parse(ENV_OPT_NAME, argv);
+            allArgs = CommandLine.parse(ENV_OPT_NAME, List.from(argv));
         } catch (UnmatchedQuote ex) {
             reportDiag(Errors.UnmatchedQuote(ex.variableName));
             return Result.CMDERR;
@@ -232,7 +233,7 @@ public class Main {
         }
 
         Arguments args = Arguments.instance(context);
-        args.init(ownName, argv);
+        args.init(ownName, allArgs);
 
         if (log.nerrors > 0)
             return Result.CMDERR;
@@ -284,12 +285,11 @@ public class Main {
             Dependencies.GraphDependencies.preRegister(context);
         }
 
+        BasicJavacTask t = (BasicJavacTask) BasicJavacTask.instance(context);
+
         // init plugins
         Set<List<String>> pluginOpts = args.getPluginOpts();
-        if (!pluginOpts.isEmpty() || context.get(PlatformDescription.class) != null) {
-            BasicJavacTask t = (BasicJavacTask) BasicJavacTask.instance(context);
-            t.initPlugins(pluginOpts);
-        }
+        t.initPlugins(pluginOpts);
 
         // init multi-release jar handling
         if (fileManager.isSupportedOption(Option.MULTIRELEASE.primaryName) == 1) {
@@ -304,7 +304,6 @@ public class Main {
         // init doclint
         List<String> docLintOpts = args.getDocLintOpts();
         if (!docLintOpts.isEmpty()) {
-            BasicJavacTask t = (BasicJavacTask) BasicJavacTask.instance(context);
             t.initDocLint(docLintOpts);
         }
 
@@ -477,7 +476,7 @@ public class Main {
         }
 
         try (InputStream in = getClass().getResourceAsStream('/' + className.replace('.', '/') + ".class")) {
-            final String algorithm = "MD5";
+            final String algorithm = "SHA-256";
             byte[] digest;
             MessageDigest md = MessageDigest.getInstance(algorithm);
             try (DigestInputStream din = new DigestInputStream(in, md)) {
