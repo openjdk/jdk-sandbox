@@ -348,11 +348,11 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * accepts replacing elements. The mapping function operates on the consumer,
      * zero or more times, for acceptance of replacing elements.
      *
-     * <p>The results of this method are undefined if the {@link Consumer}
-     * argument is called outside the scope of the mapper function.
-     *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
+     * <p>The results of this intermediate operation are undefined if the
+     * {@code consumer} argument is operated on outside the scope of
+     * its application to the mapping function.
      *
      * @implSpec
      * The default implementation accumulates accepted elements into an internal
@@ -443,11 +443,11 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * that accepts replacing elements. The mapping function operates on the
      * consumer, zero or more times, for acceptance of replacing elements.
      *
-     * <p>The results of this method are undefined if the {@link IntConsumer}
-     * argument is called outside the scope of the mapper function.
-     *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
+     * <p>The results of this intermediate operation are undefined if the
+     * {@code consumer} argument is operated on outside the scope of
+     * its application to the mapping function.
      *
      * @implSpec
      * The default implementation accumulates accepted elements into an internal
@@ -482,11 +482,11 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * that accepts replacing elements. The mapping function operates on the
      * consumer, zero or more times, for acceptance of replacing elements.
      *
-     * <p>The results of this method are undefined if the {@link LongConsumer}
-     * argument is called outside the scope of the mapper function.
-     *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
+     * <p>The results of this intermediate operation are undefined if the
+     * {@code consumer} argument is operated on outside the scope of
+     * its application to the mapping function.
      *
      * @implSpec
      * The default implementation accumulates accepted elements into an internal
@@ -521,11 +521,11 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * that accepts replacing elements. The mapping function operates on the
      * consumer, zero or more times, for acceptance of replacing elements.
      *
-     * <p>The results of this method are undefined if the {@link DoubleConsumer}
-     * argument is called outside the scope of the mapper function.
-     *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
+     * <p>The results of this intermediate operation are undefined if the
+     * {@code consumer} argument is operated on outside the scope of
+     * its application to the mapping function.
      *
      * @implSpec
      * The default implementation accumulates accepted elements into an internal
