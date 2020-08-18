@@ -24,7 +24,6 @@
 package gc.nvdimm;
 
 /* @test TestAllocateOldGenAtError.java
- * @key gc
  * @summary Test to check correct handling of non-existent directory passed to AllocateOldGenAt option
  * @requires vm.gc=="null" & os.family != "aix"
  * @requires test.vm.gc.nvdimm
@@ -89,7 +88,7 @@ public class TestAllocateOldGenAtError {
     Collections.addAll(flags, commonFlags);
     Collections.addAll(flags, extraFlags);
 
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true, flags);
+    ProcessBuilder pb = ProcessTools.createTestJvm(flags);
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
     return output;
   }

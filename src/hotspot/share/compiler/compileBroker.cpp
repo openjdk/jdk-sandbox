@@ -37,6 +37,7 @@
 #include "compiler/compilerOracle.hpp"
 #include "compiler/directivesParser.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
@@ -179,6 +180,8 @@ int CompileBroker::_sum_nmethod_size               = 0;
 int CompileBroker::_sum_nmethod_code_size          = 0;
 
 long CompileBroker::_peak_compilation_time         = 0;
+
+CompilerStatistics CompileBroker::_stats_per_level[CompLevel_full_optimization];
 
 CompileQueue* CompileBroker::_c2_compile_queue     = NULL;
 CompileQueue* CompileBroker::_c1_compile_queue     = NULL;
@@ -686,7 +689,7 @@ void CompileBroker::compilation_init_phase1(Thread* THREAD) {
   // Start the compiler thread(s) and the sweeper thread
   init_compiler_sweeper_threads();
   // totalTime performance counter is always created as it is required
-  // by the implementation of java.lang.management.CompilationMBean.
+  // by the implementation of java.lang.management.CompilationMXBean.
   {
     // Ensure OOM leads to vm_exit_during_initialization.
     EXCEPTION_MARK;
@@ -884,6 +887,9 @@ JavaThread* CompileBroker::make_thread(jobject thread_handle, CompileQueue* queu
 
 
 void CompileBroker::init_compiler_sweeper_threads() {
+  NMethodSweeper::set_sweep_threshold_bytes(static_cast<size_t>(SweeperThreshold * ReservedCodeCacheSize / 100.0));
+  log_info(codecache, sweep)("Sweeper threshold: " SIZE_FORMAT " bytes", NMethodSweeper::sweep_threshold_bytes());
+
   // Ensure any exceptions lead to vm_exit_during_initialization.
   EXCEPTION_MARK;
 #if !defined(ZERO)
@@ -1197,7 +1203,7 @@ void CompileBroker::compile_method_base(const methodHandle& method,
       // Don't allow blocking compilation requests if we are in JVMCIRuntime::shutdown
       // to avoid deadlock between compiler thread(s) and threads run at shutdown
       // such as the DestroyJavaVM thread.
-      if (JVMCI::shutdown_called()) {
+      if (JVMCI::in_shutdown()) {
         blocking = false;
       }
     }
@@ -1595,6 +1601,7 @@ static const int JVMCI_COMPILATION_PROGRESS_WAIT_ATTEMPTS = 10;
  * @return true if this thread needs to free/recycle the task
  */
 bool CompileBroker::wait_for_jvmci_completion(JVMCICompiler* jvmci, CompileTask* task, JavaThread* thread) {
+  assert(UseJVMCICompiler, "sanity");
   MonitorLocker ml(thread, task->lock());
   int progress_wait_attempts = 0;
   int methods_compiled = jvmci->methods_compiled();
@@ -1651,7 +1658,8 @@ void CompileBroker::wait_for_completion(CompileTask* task) {
   bool free_task;
 #if INCLUDE_JVMCI
   AbstractCompiler* comp = compiler(task->comp_level());
-  if (comp->is_jvmci()) {
+  if (comp->is_jvmci() && !task->should_wait_for_compilation()) {
+    // It may return before compilation is completed.
     free_task = wait_for_jvmci_completion((JVMCICompiler*) comp, task, thread);
   } else
 #endif
@@ -2144,17 +2152,23 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
 
     TraceTime t1("compilation", &time);
     EventCompilation event;
+    JVMCICompileState compile_state(task);
+    JVMCIRuntime *runtime = NULL;
 
-    // Skip redefined methods
-    if (target_handle->is_old()) {
+    if (JVMCI::in_shutdown()) {
+      failure_reason = "in JVMCI shutdown";
+      retry_message = "not retryable";
+      compilable = ciEnv::MethodCompilable_never;
+    } else if (compile_state.target_method_is_old()) {
+      // Skip redefined methods
       failure_reason = "redefined method";
       retry_message = "not retryable";
       compilable = ciEnv::MethodCompilable_never;
     } else {
-      JVMCICompileState compile_state(task);
       JVMCIEnv env(thread, &compile_state, __FILE__, __LINE__);
       methodHandle method(thread, target_handle);
-      env.runtime()->compile_method(&env, jvmci, method, osr_bci);
+      runtime = env.runtime();
+      runtime->compile_method(&env, jvmci, method, osr_bci);
 
       failure_reason = compile_state.failure_reason();
       failure_reason_on_C_heap = compile_state.failure_reason_on_C_heap();
@@ -2188,7 +2202,12 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     // The thread-env() field is cleared in ~CompileTaskWrapper.
 
     // Cache Jvmti state
-    ci_env.cache_jvmti_state();
+    bool method_is_old = ci_env.cache_jvmti_state();
+
+    // Skip redefined methods
+    if (method_is_old) {
+      ci_env.record_method_not_compilable("redefined method", true);
+    }
 
     // Cache DTrace flags
     ci_env.cache_dtrace_flags();
@@ -2200,14 +2219,22 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
 
     if (comp == NULL) {
       ci_env.record_method_not_compilable("no compiler", !TieredCompilation);
-    } else {
+    } else if (!ci_env.failing()) {
       if (WhiteBoxAPI && WhiteBox::compilation_locked) {
         MonitorLocker locker(Compilation_lock, Mutex::_no_safepoint_check_flag);
         while (WhiteBox::compilation_locked) {
           locker.wait();
         }
       }
-      comp->compile_method(&ci_env, target, osr_bci, directive);
+      comp->compile_method(&ci_env, target, osr_bci, true, directive);
+
+      /* Repeat compilation without installing code for profiling purposes */
+      int repeat_compilation_count = directive->RepeatCompilationOption;
+      while (repeat_compilation_count > 0) {
+        task->print_ul("NO CODE INSTALLED");
+        comp->compile_method(&ci_env, target, osr_bci, false , directive);
+        repeat_compilation_count--;
+      }
     }
 
     if (!ci_env.failing() && task->code() == NULL) {
@@ -2434,6 +2461,7 @@ void CompileBroker::collect_statistics(CompilerThread* thread, elapsedTimer time
   methodHandle method (thread, task->method());
   uint compile_id = task->compile_id();
   bool is_osr = (task->osr_bci() != standard_entry_bci);
+  const int comp_level = task->comp_level();
   nmethod* code = task->code();
   CompilerCounters* counters = thread->counters();
 
@@ -2468,7 +2496,7 @@ void CompileBroker::collect_statistics(CompilerThread* thread, elapsedTimer time
     // Compilation succeeded
 
     // update compilation ticks - used by the implementation of
-    // java.lang.management.CompilationMBean
+    // java.lang.management.CompilationMXBean
     _perf_total_compilation->inc(time.ticks());
     _peak_compilation_time = time.milliseconds() > _peak_compilation_time ? time.milliseconds() : _peak_compilation_time;
 
@@ -2482,25 +2510,34 @@ void CompileBroker::collect_statistics(CompilerThread* thread, elapsedTimer time
         _sum_standard_bytes_compiled += method->code_size() + task->num_inlined_bytecodes();
       }
 
-#if INCLUDE_JVMCI
-      AbstractCompiler* comp = compiler(task->comp_level());
+      // Collect statistic per compilation level
+      if (comp_level > CompLevel_none && comp_level <= CompLevel_full_optimization) {
+        CompilerStatistics* stats = &_stats_per_level[comp_level-1];
+        if (is_osr) {
+          stats->_osr.update(time, bytes_compiled);
+        } else {
+          stats->_standard.update(time, bytes_compiled);
+        }
+        stats->_nmethods_size += code->total_size();
+        stats->_nmethods_code_size += code->insts_size();
+      } else {
+        assert(false, "CompilerStatistics object does not exist for compilation level %d", comp_level);
+      }
+
+      // Collect statistic per compiler
+      AbstractCompiler* comp = compiler(comp_level);
       if (comp) {
         CompilerStatistics* stats = comp->stats();
-        if (stats) {
-          if (is_osr) {
-            stats->_osr.update(time, bytes_compiled);
-          } else {
-            stats->_standard.update(time, bytes_compiled);
-          }
-          stats->_nmethods_size += code->total_size();
-          stats->_nmethods_code_size += code->insts_size();
-        } else { // if (!stats)
-          assert(false, "Compiler statistics object must exist");
+        if (is_osr) {
+          stats->_osr.update(time, bytes_compiled);
+        } else {
+          stats->_standard.update(time, bytes_compiled);
         }
+        stats->_nmethods_size += code->total_size();
+        stats->_nmethods_code_size += code->insts_size();
       } else { // if (!comp)
         assert(false, "Compiler object must exist");
       }
-#endif // INCLUDE_JVMCI
     }
 
     if (UsePerfData) {
@@ -2519,9 +2556,10 @@ void CompileBroker::collect_statistics(CompilerThread* thread, elapsedTimer time
     }
 
     if (CITimeEach) {
-      float bytes_per_sec = 1.0 * (method->code_size() + task->num_inlined_bytecodes()) / time.seconds();
-      tty->print_cr("%3d   seconds: %f bytes/sec : %f (bytes %d + %d inlined)",
-                    compile_id, time.seconds(), bytes_per_sec, method->code_size(), task->num_inlined_bytecodes());
+      double compile_time = time.seconds();
+      double bytes_per_sec = compile_time == 0.0 ? 0.0 : (double)(method->code_size() + task->num_inlined_bytecodes()) / compile_time;
+      tty->print_cr("%3d   seconds: %6.3f bytes/sec : %f (bytes %d + %d inlined)",
+                    compile_id, compile_time, bytes_per_sec, method->code_size(), task->num_inlined_bytecodes());
     }
 
     // Collect counts of successful compilations
@@ -2556,81 +2594,53 @@ const char* CompileBroker::compiler_name(int comp_level) {
   }
 }
 
-#if INCLUDE_JVMCI
-void CompileBroker::print_times(AbstractCompiler* comp) {
-  CompilerStatistics* stats = comp->stats();
-  if (stats) {
-    tty->print_cr("  %s {speed: %d bytes/s; standard: %6.3f s, %d bytes, %d methods; osr: %6.3f s, %d bytes, %d methods; nmethods_size: %d bytes; nmethods_code_size: %d bytes}",
-                comp->name(), stats->bytes_per_second(),
+void CompileBroker::print_times(const char* name, CompilerStatistics* stats) {
+  tty->print_cr("  %s {speed: %6.3f bytes/s; standard: %6.3f s, %d bytes, %d methods; osr: %6.3f s, %d bytes, %d methods; nmethods_size: %d bytes; nmethods_code_size: %d bytes}",
+                name, stats->bytes_per_second(),
                 stats->_standard._time.seconds(), stats->_standard._bytes, stats->_standard._count,
                 stats->_osr._time.seconds(), stats->_osr._bytes, stats->_osr._count,
                 stats->_nmethods_size, stats->_nmethods_code_size);
-  } else { // if (!stats)
-    assert(false, "Compiler statistics object must exist");
-  }
-  comp->print_timers();
 }
-#endif // INCLUDE_JVMCI
 
 void CompileBroker::print_times(bool per_compiler, bool aggregate) {
-#if INCLUDE_JVMCI
-  elapsedTimer standard_compilation;
-  elapsedTimer total_compilation;
-  elapsedTimer osr_compilation;
-
-  int standard_bytes_compiled = 0;
-  int osr_bytes_compiled = 0;
-
-  int standard_compile_count = 0;
-  int osr_compile_count = 0;
-  int total_compile_count = 0;
-
-  int nmethods_size = 0;
-  int nmethods_code_size = 0;
-  bool printedHeader = false;
-
-  for (unsigned int i = 0; i < sizeof(_compilers) / sizeof(AbstractCompiler*); i++) {
-    AbstractCompiler* comp = _compilers[i];
-    if (comp != NULL) {
-      if (per_compiler && aggregate && !printedHeader) {
-        printedHeader = true;
-        tty->cr();
-        tty->print_cr("Individual compiler times (for compiled methods only)");
-        tty->print_cr("------------------------------------------------");
-        tty->cr();
-      }
-      CompilerStatistics* stats = comp->stats();
-
-      if (stats) {
-        standard_compilation.add(stats->_standard._time);
-        osr_compilation.add(stats->_osr._time);
-
-        standard_bytes_compiled += stats->_standard._bytes;
-        osr_bytes_compiled += stats->_osr._bytes;
-
-        standard_compile_count += stats->_standard._count;
-        osr_compile_count += stats->_osr._count;
-
-        nmethods_size += stats->_nmethods_size;
-        nmethods_code_size += stats->_nmethods_code_size;
-      } else { // if (!stats)
-        assert(false, "Compiler statistics object must exist");
-      }
-
-      if (per_compiler) {
-        print_times(comp);
+  if (per_compiler) {
+    if (aggregate) {
+      tty->cr();
+      tty->print_cr("Individual compiler times (for compiled methods only)");
+      tty->print_cr("------------------------------------------------");
+      tty->cr();
+    }
+    for (unsigned int i = 0; i < sizeof(_compilers) / sizeof(AbstractCompiler*); i++) {
+      AbstractCompiler* comp = _compilers[i];
+      if (comp != NULL) {
+        print_times(comp->name(), comp->stats());
       }
     }
+    if (aggregate) {
+      tty->cr();
+      tty->print_cr("Individual compilation Tier times (for compiled methods only)");
+      tty->print_cr("------------------------------------------------");
+      tty->cr();
+    }
+    char tier_name[256];
+    for (int tier = CompLevel_simple; tier <= CompLevel_highest_tier; tier++) {
+      CompilerStatistics* stats = &_stats_per_level[tier-1];
+      sprintf(tier_name, "Tier%d", tier);
+      print_times(tier_name, stats);
+    }
   }
-  total_compile_count = osr_compile_count + standard_compile_count;
-  total_compilation.add(osr_compilation);
-  total_compilation.add(standard_compilation);
 
+#if INCLUDE_JVMCI
   // In hosted mode, print the JVMCI compiler specific counters manually.
-  if (!UseJVMCICompiler) {
+  if (EnableJVMCI && !UseJVMCICompiler) {
     JVMCICompiler::print_compilation_timers();
   }
-#else // INCLUDE_JVMCI
+#endif
+
+  if (!aggregate) {
+    return;
+  }
+
   elapsedTimer standard_compilation = CompileBroker::_t_standard_compilation;
   elapsedTimer osr_compilation = CompileBroker::_t_osr_compilation;
   elapsedTimer total_compilation = CompileBroker::_t_total_compilation;
@@ -2641,14 +2651,12 @@ void CompileBroker::print_times(bool per_compiler, bool aggregate) {
   int standard_compile_count = CompileBroker::_total_standard_compile_count;
   int osr_compile_count = CompileBroker::_total_osr_compile_count;
   int total_compile_count = CompileBroker::_total_compile_count;
+  int total_bailout_count = CompileBroker::_total_bailout_count;
+  int total_invalidated_count = CompileBroker::_total_invalidated_count;
 
   int nmethods_size = CompileBroker::_sum_nmethod_code_size;
   int nmethods_code_size = CompileBroker::_sum_nmethod_size;
-#endif // INCLUDE_JVMCI
 
-  if (!aggregate) {
-    return;
-  }
   tty->cr();
   tty->print_cr("Accumulated compiler times");
   tty->print_cr("----------------------------------------------------------");
@@ -2657,16 +2665,16 @@ void CompileBroker::print_times(bool per_compiler, bool aggregate) {
   tty->print_cr("  Total compilation time   : %7.3f s", total_compilation.seconds());
   tty->print_cr("    Standard compilation   : %7.3f s, Average : %2.3f s",
                 standard_compilation.seconds(),
-                standard_compilation.seconds() / standard_compile_count);
+                standard_compile_count == 0 ? 0.0 : standard_compilation.seconds() / standard_compile_count);
   tty->print_cr("    Bailed out compilation : %7.3f s, Average : %2.3f s",
                 CompileBroker::_t_bailedout_compilation.seconds(),
-                CompileBroker::_t_bailedout_compilation.seconds() / CompileBroker::_total_bailout_count);
+                total_bailout_count == 0 ? 0.0 : CompileBroker::_t_bailedout_compilation.seconds() / total_bailout_count);
   tty->print_cr("    On stack replacement   : %7.3f s, Average : %2.3f s",
                 osr_compilation.seconds(),
-                osr_compilation.seconds() / osr_compile_count);
+                osr_compile_count == 0 ? 0.0 : osr_compilation.seconds() / osr_compile_count);
   tty->print_cr("    Invalidated            : %7.3f s, Average : %2.3f s",
                 CompileBroker::_t_invalidated_compilation.seconds(),
-                CompileBroker::_t_invalidated_compilation.seconds() / CompileBroker::_total_invalidated_count);
+                total_invalidated_count == 0 ? 0.0 : CompileBroker::_t_invalidated_compilation.seconds() / total_invalidated_count);
 
   AbstractCompiler *comp = compiler(CompLevel_simple);
   if (comp != NULL) {

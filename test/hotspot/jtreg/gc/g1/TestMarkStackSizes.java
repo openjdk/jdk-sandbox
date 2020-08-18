@@ -25,14 +25,13 @@ package gc.g1;
 
 /*
  * @test TestMarkStackSizes
- * @key gc regression
  * @bug 8238855
  * @summary Consistency checks for marking flag related options.
  * @requires vm.gc.G1
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main gc.g1.TestMarkStackSizes
+ * @run driver gc.g1.TestMarkStackSizes
  */
 
 import java.util.ArrayList;

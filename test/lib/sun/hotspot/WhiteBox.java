@@ -110,6 +110,8 @@ public class WhiteBox {
 
   public  native int getSymbolRefcount(String name);
 
+  public native boolean deflateIdleMonitors();
+
   private native boolean isMonitorInflated0(Object obj);
   public         boolean isMonitorInflated(Object obj) {
     Objects.requireNonNull(obj);
@@ -613,4 +615,7 @@ public class WhiteBox {
   public native int aotLibrariesCount();
 
   public native int getKlassMetadataSize(Class<?> c);
+
+  // ThreadSMR GC safety check for threadObj
+  public native void checkThreadObjOfTerminatingThread(Thread target);
 }

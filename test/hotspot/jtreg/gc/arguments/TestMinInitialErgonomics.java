@@ -25,7 +25,6 @@ package gc.arguments;
 
 /**
  * @test TestMinInitialErgonomics
- * @key gc
  * @bug 8006088
  * @requires vm.gc.Parallel
  * @summary Test Parallel GC ergonomics decisions related to minimum and initial heap size.
@@ -35,7 +34,7 @@ package gc.arguments;
  *          java.management
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm gc.arguments.TestMinInitialErgonomics
+ * @run driver gc.arguments.TestMinInitialErgonomics
  * @author thomas.schatzl@oracle.com
  */
 

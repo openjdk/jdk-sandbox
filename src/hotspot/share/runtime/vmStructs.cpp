@@ -46,7 +46,6 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/shared/vmStructs_gc.hpp"
-#include "interpreter/bytecodeInterpreter.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/allocation.hpp"
@@ -94,6 +93,7 @@
 #include "runtime/serviceThread.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/synchronizer.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vframeArray.hpp"
@@ -218,7 +218,7 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   nonstatic_field(ConstantPoolCache,           _reference_map,                                Array<u2>*)                            \
   nonstatic_field(ConstantPoolCache,           _length,                                       int)                                   \
   nonstatic_field(ConstantPoolCache,           _constant_pool,                                ConstantPool*)                         \
-  volatile_nonstatic_field(InstanceKlass,      _array_klasses,                                Klass*)                                \
+  volatile_nonstatic_field(InstanceKlass,      _array_klasses,                                ObjArrayKlass*)                        \
   nonstatic_field(InstanceKlass,               _methods,                                      Array<Method*>*)                       \
   nonstatic_field(InstanceKlass,               _default_methods,                              Array<Method*>*)                       \
   nonstatic_field(InstanceKlass,               _local_interfaces,                             Array<InstanceKlass*>*)                \
@@ -369,23 +369,7 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   /************/                                                                                                                     \
   /* Universe */                                                                                                                     \
   /************/                                                                                                                     \
-                                                                                                                                     \
-     static_field(Universe,                    _mirrors[0],                                   oop)                                   \
-     static_field(Universe,                    _main_thread_group,                            oop)                                   \
-     static_field(Universe,                    _system_thread_group,                          oop)                                   \
-     static_field(Universe,                    _the_empty_class_klass_array,                  objArrayOop)                           \
-     static_field(Universe,                    _null_ptr_exception_instance,                  oop)                                   \
-     static_field(Universe,                    _arithmetic_exception_instance,                oop)                                   \
-     static_field(Universe,                    _vm_exception,                                 oop)                                   \
      static_field(Universe,                    _collectedHeap,                                CollectedHeap*)                        \
-     static_field(Universe,                    _base_vtable_size,                             int)                                   \
-     static_field(Universe,                    _bootstrapping,                                bool)                                  \
-     static_field(Universe,                    _fully_initialized,                            bool)                                  \
-     static_field(Universe,                    _verify_count,                                 int)                                   \
-     static_field(Universe,                    _verify_oop_mask,                              uintptr_t)                             \
-     static_field(Universe,                    _verify_oop_bits,                              uintptr_t)                             \
-     static_field(Universe,                    _non_oop_bits,                                 intptr_t)                              \
-                                                                                                                                     \
   /******************/                                                                                                               \
   /* CompressedOops */                                                                                                               \
   /******************/                                                                                                               \
@@ -469,7 +453,6 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   /* SystemDictionary */                                                                                                             \
   /********************/                                                                                                             \
                                                                                                                                      \
-     static_field(SystemDictionary,            _system_loader_lock_obj,                       oop)                                   \
      static_field(SystemDictionary,            WK_KLASS(Object_klass),                        InstanceKlass*)                        \
      static_field(SystemDictionary,            WK_KLASS(String_klass),                        InstanceKlass*)                        \
      static_field(SystemDictionary,            WK_KLASS(Class_klass),                         InstanceKlass*)                        \
@@ -478,7 +461,6 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
      static_field(SystemDictionary,            WK_KLASS(Thread_klass),                        InstanceKlass*)                        \
      static_field(SystemDictionary,            WK_KLASS(ThreadGroup_klass),                   InstanceKlass*)                        \
      static_field(SystemDictionary,            WK_KLASS(MethodHandle_klass),                  InstanceKlass*)                        \
-     static_field(SystemDictionary,            _java_system_loader,                           oop)                                   \
                                                                                                                                      \
   /*************/                                                                                                                    \
   /* vmSymbols */                                                                                                                    \
@@ -533,9 +515,8 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   /* GrowableArrays  */                                                                                                              \
   /*******************/                                                                                                              \
                                                                                                                                      \
-  nonstatic_field(GenericGrowableArray,        _len,                                          int)                                   \
-  nonstatic_field(GenericGrowableArray,        _max,                                          int)                                   \
-  nonstatic_field(GenericGrowableArray,        _arena,                                        Arena*)                                \
+  nonstatic_field(GrowableArrayBase,           _len,                                          int)                                   \
+  nonstatic_field(GrowableArrayBase,           _max,                                          int)                                   \
   nonstatic_field(GrowableArray<int>,          _data,                                         int*)                                  \
                                                                                                                                      \
   /********************************/                                                                                                 \
@@ -759,7 +740,7 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   nonstatic_field(Thread,                      _current_waiting_monitor,                      ObjectMonitor*)                        \
   nonstatic_field(NamedThread,                 _name,                                         char*)                                 \
   nonstatic_field(NamedThread,                 _processed_thread,                             JavaThread*)                           \
-  nonstatic_field(JavaThread,                  _threadObj,                                    oop)                                   \
+  nonstatic_field(JavaThread,                  _threadObj,                                    OopHandle)                             \
   nonstatic_field(JavaThread,                  _anchor,                                       JavaFrameAnchor)                       \
   nonstatic_field(JavaThread,                  _vm_result,                                    oop)                                   \
   nonstatic_field(JavaThread,                  _vm_result_2,                                  Metadata*)                             \
@@ -899,14 +880,14 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   volatile_nonstatic_field(ObjectMonitor,      _header,                                       markWord)                              \
   unchecked_nonstatic_field(ObjectMonitor,     _object,                                       sizeof(void *)) /* NOTE: no type */    \
   unchecked_nonstatic_field(ObjectMonitor,     _owner,                                        sizeof(void *)) /* NOTE: no type */    \
-  volatile_nonstatic_field(ObjectMonitor,      _contentions,                                  jint)                                  \
+  volatile_nonstatic_field(ObjectMonitor,      _next_om,                                      ObjectMonitor*)                        \
+  volatile_nonstatic_field(BasicLock,          _displaced_header,                             markWord)                              \
+  nonstatic_field(ObjectMonitor,               _contentions,                                  jint)                                  \
   volatile_nonstatic_field(ObjectMonitor,      _waiters,                                      jint)                                  \
   volatile_nonstatic_field(ObjectMonitor,      _recursions,                                   intx)                                  \
-  nonstatic_field(ObjectMonitor,               _next_om,                                      ObjectMonitor*)                        \
-  volatile_nonstatic_field(BasicLock,          _displaced_header,                             markWord)                              \
   nonstatic_field(BasicObjectLock,             _lock,                                         BasicLock)                             \
   nonstatic_field(BasicObjectLock,             _obj,                                          oop)                                   \
-  static_ptr_volatile_field(ObjectSynchronizer, g_block_list,                                 PaddedObjectMonitor*)                  \
+  static_field(ObjectSynchronizer,             g_block_list,                                  PaddedObjectMonitor*)                  \
                                                                                                                                      \
   /*********************/                                                                                                            \
   /* Matcher (C2 only) */                                                                                                            \
@@ -921,7 +902,7 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   c2_nonstatic_field(Node,                     _outcnt,                                       node_idx_t)                            \
   c2_nonstatic_field(Node,                     _outmax,                                       node_idx_t)                            \
   c2_nonstatic_field(Node,                     _idx,                                          const node_idx_t)                      \
-  c2_nonstatic_field(Node,                     _class_id,                                     jushort)                               \
+  c2_nonstatic_field(Node,                     _class_id,                                     juint)                                 \
   c2_nonstatic_field(Node,                     _flags,                                        jushort)                               \
                                                                                                                                      \
   c2_nonstatic_field(Compile,                  _root,                                         RootNode*)                             \
@@ -1340,7 +1321,7 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   declare_toplevel_type(SystemDictionary)                                 \
   declare_toplevel_type(vmSymbols)                                        \
                                                                           \
-  declare_toplevel_type(GenericGrowableArray)                             \
+  declare_toplevel_type(GrowableArrayBase)                                \
   declare_toplevel_type(GrowableArray<int>)                               \
   declare_toplevel_type(Arena)                                            \
     declare_type(ResourceArea, Arena)                                     \
@@ -2035,12 +2016,6 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   /******************/                                                    \
                                                                           \
   declare_preprocessor_constant("ASSERT", DEBUG_ONLY(1) NOT_DEBUG(0))     \
-                                                                          \
-  /**************/                                                        \
-  /* Stack bias */                                                        \
-  /**************/                                                        \
-                                                                          \
-  declare_preprocessor_constant("STACK_BIAS", STACK_BIAS)                 \
                                                                           \
   /****************/                                                      \
   /* Object sizes */                                                      \

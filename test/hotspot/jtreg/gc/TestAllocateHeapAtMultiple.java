@@ -24,7 +24,6 @@
 package gc;
 
 /* @test TestAllocateHeapAtMultiple.java
- * @key gc
  * @summary Test to check allocation of Java Heap with AllocateHeapAt option. Has multiple sub-tests to cover different code paths.
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
@@ -62,7 +61,7 @@ public class TestAllocateHeapAtMultiple {
                                               "-Xlog:gc+heap=info",
                                               "-version"});
 
-      ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true, flags);
+      ProcessBuilder pb = ProcessTools.createTestJvm(flags);
       OutputAnalyzer output = new OutputAnalyzer(pb.start());
 
       System.out.println("Output:\n" + output.getOutput());

@@ -132,6 +132,7 @@ class ClassFileParser {
   Array<u2>* _inner_classes;
   Array<u2>* _nest_members;
   u2 _nest_host;
+  Array<u2>* _permitted_subclasses;
   Array<RecordComponent*>* _record_components;
   Array<InstanceKlass*>* _local_interfaces;
   Array<InstanceKlass*>* _transitive_interfaces;
@@ -327,11 +328,16 @@ class ClassFileParser {
                                             const u1* const nest_members_attribute_start,
                                             TRAPS);
 
+  u2 parse_classfile_permitted_subclasses_attribute(const ClassFileStream* const cfs,
+                                                    const u1* const permitted_subclasses_attribute_start,
+                                                    TRAPS);
+
   u2 parse_classfile_record_attribute(const ClassFileStream* const cfs,
                                       const ConstantPool* cp,
                                       const u1* const record_attribute_start,
                                       TRAPS);
 
+  bool supports_sealed_types();
   bool supports_records();
 
   void parse_classfile_attributes(const ClassFileStream* const cfs,
@@ -526,13 +532,6 @@ class ClassFileParser {
                                const u1* annotation_default,
                                int annotation_default_length,
                                TRAPS);
-
-  // lays out fields in class and returns the total oopmap count
-  void layout_fields(ConstantPool* cp,
-                     const FieldAllocationCount* fac,
-                     const ClassAnnotationCollector* parsed_annotations,
-                     FieldLayoutInfo* info,
-                     TRAPS);
 
   void update_class_name(Symbol* new_name);
 

@@ -201,6 +201,8 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ENUM      = 0x00004000;
     private static final int SYNTHETIC = 0x00001000;
 
+    private static final ClassDesc[] EMPTY_CLASS_DESC_ARRAY = new ClassDesc[0];
+
     private static native void registerNatives();
     static {
         registerNatives();
@@ -411,7 +413,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * Note that this method throws errors related to loading, linking
      * or initializing as specified in Sections {@jls 12.2}, {@jls
-     * 12.3}, and {@jls 12.4} of <cite>The Java&trade; Language
+     * 12.3}, and {@jls 12.4} of <cite>The Java Language
      * Specification</cite>.
      * Note that this method does not check whether the requested class
      * is accessible to its caller.
@@ -420,7 +422,7 @@ public final class Class<T> implements java.io.Serializable,
 
      * @param initialize if {@code true} the class will be initialized
      *                   (which implies linking). See Section {@jls
-     *                   12.4} of <cite>The Java&trade; Language
+     *                   12.4} of <cite>The Java Language
      *                   Specification</cite>.
      * @param loader     class loader from which the class must be loaded
      * @return           class object representing the desired class
@@ -698,7 +700,7 @@ public final class Class<T> implements java.io.Serializable,
      * <p> Specifically, this method tests whether the type represented by the
      * specified {@code Class} parameter can be converted to the type
      * represented by this {@code Class} object via an identity conversion
-     * or via a widening reference conversion. See <cite>The Java&trade; Language
+     * or via a widening reference conversion. See <cite>The Java Language
      * Specification</cite>, sections {@jls 5.1.1} and {@jls 5.1.4},
      * for details.
      *
@@ -950,7 +952,7 @@ public final class Class<T> implements java.io.Serializable,
      * @throws java.lang.reflect.GenericSignatureFormatError if the generic
      *     signature of this generic declaration does not conform to
      *     the format specified in section {@jvms 4.7.9} of
-     *     <cite>The Java&trade; Virtual Machine Specification</cite>
+     *     <cite>The Java Virtual Machine Specification</cite>
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
@@ -998,7 +1000,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @throws java.lang.reflect.GenericSignatureFormatError if the generic
      *     class signature does not conform to the format specified in
-     *     section {@jvms 4.7.9} of <cite>The Java&trade; Virtual
+     *     section {@jvms 4.7.9} of <cite>The Java Virtual
      *     Machine Specification</cite>
      * @throws TypeNotPresentException if the generic superclass
      *     refers to a non-existent type declaration
@@ -1195,7 +1197,7 @@ public final class Class<T> implements java.io.Serializable,
      * @throws java.lang.reflect.GenericSignatureFormatError
      *     if the generic class signature does not conform to the
      *     format specified in section {@jvms 4.7.9} of <cite>The
-     *     Java&trade; Virtual Machine Specification</cite>
+     *     Java Virtual Machine Specification</cite>
      * @throws TypeNotPresentException if any of the generic
      *     superinterfaces refers to a non-existent type declaration
      * @throws java.lang.reflect.MalformedParameterizedTypeException
@@ -1267,7 +1269,7 @@ public final class Class<T> implements java.io.Serializable,
      * by this specification.
      *
      * <p> The modifier encodings are defined in section {@jvms 4.1}
-     * of <cite>The Java&trade; Virtual Machine Specification</cite>.
+     * of <cite>The Java Virtual Machine Specification</cite>.
      *
      * @return the {@code int} representing the modifiers for this class
      * @see     java.lang.reflect.Modifier
@@ -1676,7 +1678,7 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * Returns the canonical name of the underlying class as
-     * defined by <cite>The Java&trade; Language Specification</cite>.
+     * defined by <cite>The Java Language Specification</cite>.
      * Returns {@code null} if the underlying class does not have a canonical
      * name. Classes without canonical names include:
      * <ul>
@@ -2476,7 +2478,7 @@ public final class Class<T> implements java.io.Serializable,
      * object represents an interface, a primitive type, an array class, or
      * void.
      *
-     * <p> See <cite>The Java&trade; Language Specification</cite>,
+     * <p> See <cite>The Java Language Specification</cite>,
      * section {@jls 8.2}.
      *
      * @return  the array of {@code Constructor} objects representing all the
@@ -4382,4 +4384,71 @@ public final class Class<T> implements java.io.Serializable,
     @HotSpotIntrinsicCandidate
     public native boolean isHidden();
 
+    /**
+     * {@preview Associated with sealed classes, a preview feature of the Java language.
+     *
+     *           This method is associated with <i>sealed classes</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     *
+     * Returns an array containing {@code ClassDesc} objects representing all the
+     * direct subclasses or direct implementation classes permitted to extend or
+     * implement this class or interface if it is sealed. The order of such elements
+     * is unspecified. If this {@code Class} object represents a primitive type,
+     * {@code void}, an array type, or a class or interface that is not sealed,
+     * an empty array is returned.
+     *
+     * @return an array of class descriptors of all the permitted subclasses of this class or interface
+     *
+     * @jls 8.1 Class Declarations
+     * @jls 9.1 Interface Declarations
+     * @since 15
+     */
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SEALED_CLASSES, essentialAPI=false)
+    public ClassDesc[] permittedSubclasses() {
+        String[] subclassNames;
+        if (isArray() || isPrimitive() || (subclassNames = getPermittedSubclasses0()).length == 0) {
+            return EMPTY_CLASS_DESC_ARRAY;
+        }
+        ClassDesc[] constants = new ClassDesc[subclassNames.length];
+        int i = 0;
+        for (String subclassName : subclassNames) {
+            try {
+                constants[i++] = ClassDesc.of(subclassName.replace('/', '.'));
+            } catch (IllegalArgumentException iae) {
+                throw new InternalError("Invalid type in permitted subclasses information: " + subclassName, iae);
+            }
+        }
+        return constants;
+    }
+
+    /**
+     * * {@preview Associated with sealed classes, a preview feature of the Java language.
+     *
+     *           This method is associated with <i>sealed classes</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     *
+     * Returns {@code true} if and only if this {@code Class} object represents a sealed class or interface.
+     * If this {@code Class} object represents a primitive type, {@code void}, or an array type, this method returns
+     * {@code false}.
+     *
+     * @return {@code true} if and only if this {@code Class} object represents a sealed class or interface.
+     *
+     * @jls 8.1 Class Declarations
+     * @jls 9.1 Interface Declarations
+     * @since 15
+     */
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SEALED_CLASSES, essentialAPI=false)
+    @SuppressWarnings("preview")
+    public boolean isSealed() {
+        if (isArray() || isPrimitive()) {
+            return false;
+        }
+        return permittedSubclasses().length != 0;
+    }
+
+    private native String[] getPermittedSubclasses0();
 }

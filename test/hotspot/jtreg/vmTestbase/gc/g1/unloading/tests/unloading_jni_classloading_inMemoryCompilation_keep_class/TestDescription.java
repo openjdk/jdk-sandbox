@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @key stress gc
+ * @key stress randomness
  *
  * @summary converted from VM Testbase gc/g1/unloading/tests/unloading_jni_classloading_inMemoryCompilation_keep_class.
  * VM Testbase keywords: [gc, stress, stressopt, nonconcurrent, javac]
@@ -33,7 +33,6 @@
  * @library /vmTestbase
  *          /test/lib
  *
- * @run driver jdk.test.lib.FileInstaller . .
  *
  * @comment generate HumongousTemplateClass and compile it to test.classes
  * @run driver gc.g1.unloading.bytecode.GenClassesBuilder

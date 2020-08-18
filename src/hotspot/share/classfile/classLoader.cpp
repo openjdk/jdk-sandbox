@@ -95,6 +95,7 @@ static FindEntry_t       FindEntry          = NULL;
 static ReadEntry_t       ReadEntry          = NULL;
 static GetNextEntry_t    GetNextEntry       = NULL;
 static Crc32_t           Crc32              = NULL;
+int ClassLoader::_libzip_loaded = 0;
 
 // Entry points for jimage.dll for loading jimage file entries
 
@@ -582,7 +583,7 @@ void ClassLoader::setup_patch_mod_entries() {
   int num_of_entries = patch_mod_args->length();
 
   // Set up the boot loader's _patch_mod_entries list
-  _patch_mod_entries = new (ResourceObj::C_HEAP, mtModule) GrowableArray<ModuleClassPathList*>(num_of_entries, true);
+  _patch_mod_entries = new (ResourceObj::C_HEAP, mtModule) GrowableArray<ModuleClassPathList*>(num_of_entries, mtModule);
 
   for (int i = 0; i < num_of_entries; i++) {
     const char* module_name = (patch_mod_args->at(i))->module_name();
@@ -747,6 +748,7 @@ ClassPathEntry* ClassLoader::create_class_path_entry(const char *path, const str
         // enable call to C land
         ThreadToNativeFromVM ttn(thread);
         HandleMark hm(thread);
+        load_zip_library_if_needed();
         zip = (*ZipOpen)(canonical_path, &error_msg);
       }
       if (zip != NULL && error_msg == NULL) {
@@ -796,6 +798,7 @@ ClassPathZipEntry* ClassLoader::create_class_path_zip_entry(const char *path, bo
           JavaThread* thread = JavaThread::current();
           ThreadToNativeFromVM ttn(thread);
           HandleMark hm(thread);
+          load_zip_library_if_needed();
           zip = (*ZipOpen)(canonical_path, &error_msg);
         }
         if (zip != NULL && error_msg == NULL) {
@@ -967,6 +970,14 @@ void ClassLoader::load_java_library() {
   CanonicalizeEntry = CAST_TO_FN_PTR(canonicalize_fn_t, dll_lookup(javalib_handle, "JDK_Canonicalize", NULL));
 }
 
+void ClassLoader::release_load_zip_library() {
+  MutexLocker locker(Zip_lock, Monitor::_no_safepoint_check_flag);
+  if (_libzip_loaded == 0) {
+    load_zip_library();
+    Atomic::release_store(&_libzip_loaded, 1);
+  }
+}
+
 void ClassLoader::load_zip_library() {
   assert(ZipOpen == NULL, "should not load zip library twice");
   char path[JVM_MAXPATHLEN];
@@ -1008,6 +1019,7 @@ void ClassLoader::load_jimage_library() {
 }
 
 int ClassLoader::crc32(int crc, const char* buf, int len) {
+  load_zip_library_if_needed();
   return (*Crc32)(crc, (const jbyte*)buf, len);
 }
 
@@ -1466,8 +1478,6 @@ void ClassLoader::initialize() {
 
   // lookup java library entry points
   load_java_library();
-  // lookup zip library entry points
-  load_zip_library();
   // jimage library entry points are loaded below, in lookup_vm_options
   setup_bootstrap_search_path();
 }
@@ -1517,6 +1527,19 @@ void ClassLoader::initialize_module_path(TRAPS) {
     ClassLoaderExt::setup_module_paths(THREAD);
     FileMapInfo::allocate_shared_path_table();
   }
+}
+
+// Helper function used by CDS code to get the number of module path
+// entries during shared classpath setup time.
+int ClassLoader::num_module_path_entries() {
+  Arguments::assert_is_dumping_archive();
+  int num_entries = 0;
+  ClassPathEntry* e= ClassLoader::_module_path_entries;
+  while (e != NULL) {
+    num_entries ++;
+    e = e->next();
+  }
+  return num_entries;
 }
 #endif
 
@@ -1586,7 +1609,7 @@ void ClassLoader::classLoader_init2(TRAPS) {
     // subsequently do the first class load. So, no lock is needed for this.
     assert(_exploded_entries == NULL, "Should only get initialized once");
     _exploded_entries = new (ResourceObj::C_HEAP, mtModule)
-      GrowableArray<ModuleClassPathList*>(EXPLODED_ENTRY_SIZE, true);
+      GrowableArray<ModuleClassPathList*>(EXPLODED_ENTRY_SIZE, mtModule);
     add_to_exploded_build_list(vmSymbols::java_base(), CHECK);
   }
 }

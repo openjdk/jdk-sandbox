@@ -27,6 +27,7 @@
 #include "gc/shenandoah/shenandoahCollectionSet.hpp"
 #include "gc/shenandoah/heuristics/shenandoahCompactHeuristics.hpp"
 #include "gc/shenandoah/shenandoahFreeSet.hpp"
+#include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.inline.hpp"
 #include "logging/log.hpp"
 #include "logging/logTag.hpp"
@@ -91,16 +92,4 @@ void ShenandoahCompactHeuristics::choose_collection_set_from_regiondata(Shenando
       cset->add_region(r);
     }
   }
-}
-
-const char* ShenandoahCompactHeuristics::name() {
-  return "compact";
-}
-
-bool ShenandoahCompactHeuristics::is_diagnostic() {
-  return false;
-}
-
-bool ShenandoahCompactHeuristics::is_experimental() {
-  return false;
 }

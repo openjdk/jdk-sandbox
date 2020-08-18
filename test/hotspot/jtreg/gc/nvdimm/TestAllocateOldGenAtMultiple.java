@@ -24,7 +24,6 @@
 package gc.nvdimm;
 
 /* @test TestAllocateOldGenAtMultiple.java
- * @key gc
  * @summary Test to check allocation of Java Heap with AllocateOldGenAt option. Has multiple sub-tests to cover different code paths.
  * @requires vm.gc=="null" & os.family != "aix"
  * @requires test.vm.gc.nvdimm
@@ -63,7 +62,7 @@ public class TestAllocateOldGenAtMultiple {
       Collections.addAll(flags, new String[] {"-XX:+UnlockExperimentalVMOptions",
                                                "-XX:AllocateOldGenAt=" + test_dir,
                                                "-version"});
-      ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true, flags);
+      ProcessBuilder pb = ProcessTools.createTestJvm(flags);
       OutputAnalyzer output = new OutputAnalyzer(pb.start());
 
       System.out.println("Output:\n" + output.getOutput());

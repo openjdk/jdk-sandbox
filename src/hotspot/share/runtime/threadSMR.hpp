@@ -81,8 +81,7 @@ class ThreadClosure;
 // remains in scope. The target JavaThread * may have logically exited,
 // but that target JavaThread * will not be deleted until it is no
 // longer protected by a ThreadsListHandle.
-
-
+//
 // SMR Support for the Threads class.
 //
 class ThreadsSMRSupport : AllStatic {

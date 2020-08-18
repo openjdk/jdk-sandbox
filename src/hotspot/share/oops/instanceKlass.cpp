@@ -218,6 +218,57 @@ bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
   return false;
 }
 
+// Called to verify that k is a permitted subclass of this class
+bool InstanceKlass::has_as_permitted_subclass(const InstanceKlass* k) const {
+  Thread* THREAD = Thread::current();
+  assert(k != NULL, "sanity check");
+  assert(_permitted_subclasses != NULL && _permitted_subclasses != Universe::the_empty_short_array(),
+         "unexpected empty _permitted_subclasses array");
+
+  if (log_is_enabled(Trace, class, sealed)) {
+    ResourceMark rm(THREAD);
+    log_trace(class, sealed)("Checking for permitted subclass of %s in %s",
+                             k->external_name(), this->external_name());
+  }
+
+  // Check that the class and its super are in the same module.
+  if (k->module() != this->module()) {
+    ResourceMark rm(THREAD);
+    log_trace(class, sealed)("Check failed for same module of permitted subclass %s and sealed class %s",
+                             k->external_name(), this->external_name());
+    return false;
+  }
+
+  if (!k->is_public() && !is_same_class_package(k)) {
+    ResourceMark rm(THREAD);
+    log_trace(class, sealed)("Check failed, subclass %s not public and not in the same package as sealed class %s",
+                             k->external_name(), this->external_name());
+    return false;
+  }
+
+  // Check for a resolved cp entry, else fall back to a name check.
+  // We don't want to resolve any class other than the one being checked.
+  for (int i = 0; i < _permitted_subclasses->length(); i++) {
+    int cp_index = _permitted_subclasses->at(i);
+    if (_constants->tag_at(cp_index).is_klass()) {
+      Klass* k2 = _constants->klass_at(cp_index, THREAD);
+      assert(!HAS_PENDING_EXCEPTION, "Unexpected exception");
+      if (k2 == k) {
+        log_trace(class, sealed)("- class is listed at permitted_subclasses[%d] => cp[%d]", i, cp_index);
+        return true;
+      }
+    } else {
+      Symbol* name = _constants->klass_name_at(cp_index);
+      if (name == k->name()) {
+        log_trace(class, sealed)("- Found it at permitted_subclasses[%d] => cp[%d]", i, cp_index);
+        return true;
+      }
+    }
+  }
+  log_trace(class, sealed)("- class is NOT a permitted subclass!");
+  return false;
+}
+
 // Return nest-host class, resolving, validating and saving it if needed.
 // In cases where this is called from a thread that cannot do classloading
 // (such as a native JIT thread) then we simply return NULL, which in turn
@@ -484,6 +535,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   Klass(id),
   _nest_members(NULL),
   _nest_host(NULL),
+  _permitted_subclasses(NULL),
   _record_components(NULL),
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
@@ -504,10 +556,6 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   assert(NULL == _methods, "underlying memory not zeroed?");
   assert(is_instance_klass(), "is layout incorrect?");
   assert(size_helper() == parser.layout_size(), "incorrect size_helper?");
-
-  if (Arguments::is_dumping_archive()) {
-    SystemDictionaryShared::init_dumptime_info(this);
-  }
 
   // Set biased locking bit for all instances of this class; it will be
   // cleared if revocation occurs too often for this type
@@ -669,6 +717,13 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   }
   set_nest_members(NULL);
 
+  if (permitted_subclasses() != NULL &&
+      permitted_subclasses() != Universe::the_empty_short_array() &&
+      !permitted_subclasses()->is_shared()) {
+    MetadataFactory::free_array<jushort>(loader_data, permitted_subclasses());
+  }
+  set_permitted_subclasses(NULL);
+
   // We should deallocate the Annotations instance if it's not in shared spaces.
   if (annotations() != NULL && !annotations()->is_shared()) {
     MetadataFactory::free_metadata(loader_data, annotations());
@@ -678,6 +733,12 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   if (Arguments::is_dumping_archive()) {
     SystemDictionaryShared::remove_dumptime_info(this);
   }
+}
+
+bool InstanceKlass::is_sealed() const {
+  return _permitted_subclasses != NULL &&
+         _permitted_subclasses != Universe::the_empty_short_array() &&
+         _permitted_subclasses->length() > 0;
 }
 
 bool InstanceKlass::should_be_initialized() const {
@@ -738,7 +799,7 @@ oop InstanceKlass::init_lock() const {
 void InstanceKlass::fence_and_clear_init_lock() {
   // make sure previous stores are all done, notably the init_state.
   OrderAccess::storestore();
-  java_lang_Class::set_init_lock(java_mirror(), NULL);
+  java_lang_Class::clear_init_lock(java_mirror());
   assert(!is_not_initialized(), "class must be initialized now");
 }
 
@@ -919,20 +980,22 @@ bool InstanceKlass::link_class_impl(TRAPS) {
       // fabricate new Method*s.
       // also does loader constraint checking
       //
-      // initialize_vtable and initialize_itable need to be rerun for
-      // a shared class if the class is not loaded by the NULL classloader.
-      ClassLoaderData * loader_data = class_loader_data();
-      if (!(is_shared() &&
-            loader_data->is_the_null_class_loader_data())) {
+      // initialize_vtable and initialize_itable need to be rerun
+      // for a shared class if
+      // 1) the class is loaded by custom class loader or
+      // 2) the class is loaded by built-in class loader but failed to add archived loader constraints
+      bool need_init_table = true;
+      if (is_shared() && SystemDictionaryShared::check_linking_constraints(this, THREAD)) {
+        need_init_table = false;
+      }
+      if (need_init_table) {
         vtable().initialize_vtable(true, CHECK_false);
         itable().initialize_itable(true, CHECK_false);
       }
 #ifdef ASSERT
-      else {
-        vtable().verify(tty, true);
-        // In case itable verification is ever added.
-        // itable().verify(tty, true);
-      }
+      vtable().verify(tty, true);
+      // In case itable verification is ever added.
+      // itable().verify(tty, true);
 #endif
       set_init_state(linked);
       if (JvmtiExport::should_post_class_prepare()) {
@@ -1094,15 +1157,23 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Step 8
   {
     DTRACE_CLASSINIT_PROBE_WAIT(clinit, -1, wait);
-    // Timer includes any side effects of class initialization (resolution,
-    // etc), but not recursive entry into call_class_initializer().
-    PerfClassTraceTime timer(ClassLoader::perf_class_init_time(),
-                             ClassLoader::perf_class_init_selftime(),
-                             ClassLoader::perf_classes_inited(),
-                             jt->get_thread_stat()->perf_recursion_counts_addr(),
-                             jt->get_thread_stat()->perf_timers_addr(),
-                             PerfClassTraceTime::CLASS_CLINIT);
-    call_class_initializer(THREAD);
+    if (class_initializer() != NULL) {
+      // Timer includes any side effects of class initialization (resolution,
+      // etc), but not recursive entry into call_class_initializer().
+      PerfClassTraceTime timer(ClassLoader::perf_class_init_time(),
+                               ClassLoader::perf_class_init_selftime(),
+                               ClassLoader::perf_classes_inited(),
+                               jt->get_thread_stat()->perf_recursion_counts_addr(),
+                               jt->get_thread_stat()->perf_timers_addr(),
+                               PerfClassTraceTime::CLASS_CLINIT);
+      call_class_initializer(THREAD);
+    } else {
+      // The elapsed time is so small it's not worth counting.
+      if (UsePerfData) {
+        ClassLoader::perf_classes_inited()->inc();
+      }
+      call_class_initializer(THREAD);
+    }
   }
 
   // Step 9
@@ -1378,14 +1449,14 @@ Klass* InstanceKlass::array_klass_impl(bool or_null, int n, TRAPS) {
 
       // Check if update has already taken place
       if (array_klasses() == NULL) {
-        Klass*    k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, CHECK_NULL);
+        ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, CHECK_NULL);
         // use 'release' to pair with lock-free load
         release_set_array_klasses(k);
       }
     }
   }
   // _this will always be set at this point
-  ObjArrayKlass* oak = (ObjArrayKlass*)array_klasses();
+  ObjArrayKlass* oak = array_klasses();
   if (or_null) {
     return oak->array_klass_or_null(n);
   }
@@ -1624,12 +1695,12 @@ void InstanceKlass::do_nonstatic_fields(FieldClosure* cl) {
 
 void InstanceKlass::array_klasses_do(void f(Klass* k, TRAPS), TRAPS) {
   if (array_klasses() != NULL)
-    ArrayKlass::cast(array_klasses())->array_klasses_do(f, THREAD);
+    array_klasses()->array_klasses_do(f, THREAD);
 }
 
 void InstanceKlass::array_klasses_do(void f(Klass* k)) {
   if (array_klasses() != NULL)
-    ArrayKlass::cast(array_klasses())->array_klasses_do(f);
+    array_klasses()->array_klasses_do(f);
 }
 
 #ifdef ASSERT
@@ -1698,7 +1769,10 @@ inline int InstanceKlass::quick_search(const Array<Method*>* methods, const Symb
 // find_method looks up the name/signature in the local methods array
 Method* InstanceKlass::find_method(const Symbol* name,
                                    const Symbol* signature) const {
-  return find_method_impl(name, signature, find_overpass, find_static, find_private);
+  return find_method_impl(name, signature,
+                          OverpassLookupMode::find,
+                          StaticLookupMode::find,
+                          PrivateLookupMode::find);
 }
 
 Method* InstanceKlass::find_method_impl(const Symbol* name,
@@ -1723,8 +1797,8 @@ Method* InstanceKlass::find_instance_method(const Array<Method*>* methods,
   Method* const meth = InstanceKlass::find_method_impl(methods,
                                                  name,
                                                  signature,
-                                                 find_overpass,
-                                                 skip_static,
+                                                 OverpassLookupMode::find,
+                                                 StaticLookupMode::skip,
                                                  private_mode);
   assert(((meth == NULL) || !meth->is_static()),
     "find_instance_method should have skipped statics");
@@ -1782,9 +1856,9 @@ Method* InstanceKlass::find_method(const Array<Method*>* methods,
   return InstanceKlass::find_method_impl(methods,
                                          name,
                                          signature,
-                                         find_overpass,
-                                         find_static,
-                                         find_private);
+                                         OverpassLookupMode::find,
+                                         StaticLookupMode::find,
+                                         PrivateLookupMode::find);
 }
 
 Method* InstanceKlass::find_method_impl(const Array<Method*>* methods,
@@ -1827,9 +1901,9 @@ int InstanceKlass::find_method_index(const Array<Method*>* methods,
                                      OverpassLookupMode overpass_mode,
                                      StaticLookupMode static_mode,
                                      PrivateLookupMode private_mode) {
-  const bool skipping_overpass = (overpass_mode == skip_overpass);
-  const bool skipping_static = (static_mode == skip_static);
-  const bool skipping_private = (private_mode == skip_private);
+  const bool skipping_overpass = (overpass_mode == OverpassLookupMode::skip);
+  const bool skipping_static = (static_mode == StaticLookupMode::skip);
+  const bool skipping_private = (private_mode == PrivateLookupMode::skip);
   const int hit = quick_search(methods, name);
   if (hit != -1) {
     const Method* const m = methods->at(hit);
@@ -1905,13 +1979,13 @@ Method* InstanceKlass::uncached_lookup_method(const Symbol* name,
     Method* const method = InstanceKlass::cast(klass)->find_method_impl(name,
                                                                         signature,
                                                                         overpass_local_mode,
-                                                                        find_static,
+                                                                        StaticLookupMode::find,
                                                                         private_mode);
     if (method != NULL) {
       return method;
     }
     klass = klass->super();
-    overpass_local_mode = skip_overpass;   // Always ignore overpass methods in superclasses
+    overpass_local_mode = OverpassLookupMode::skip;   // Always ignore overpass methods in superclasses
   }
   return NULL;
 }
@@ -1941,7 +2015,7 @@ Method* InstanceKlass::lookup_method_in_ordered_interfaces(Symbol* name,
   }
   // Look up interfaces
   if (m == NULL) {
-    m = lookup_method_in_all_interfaces(name, signature, find_defaults);
+    m = lookup_method_in_all_interfaces(name, signature, DefaultsLookupMode::find);
   }
   return m;
 }
@@ -1959,7 +2033,7 @@ Method* InstanceKlass::lookup_method_in_all_interfaces(Symbol* name,
     ik = all_ifs->at(i);
     Method* m = ik->lookup_method(name, signature);
     if (m != NULL && m->is_public() && !m->is_static() &&
-        ((defaults_mode != skip_defaults) || !m->is_default_method())) {
+        ((defaults_mode != DefaultsLookupMode::skip) || !m->is_default_method())) {
       return m;
     }
   }
@@ -2416,6 +2490,7 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   }
 
   it->push(&_nest_members);
+  it->push(&_permitted_subclasses);
   it->push(&_record_components);
 }
 
@@ -2512,7 +2587,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   if (array_klasses() != NULL) {
     // Array classes have null protection domain.
     // --> see ArrayKlass::complete_create_array_klass()
-    ArrayKlass::cast(array_klasses())->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
+    array_klasses()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
   }
 
   // Initialize current biased locking state.
@@ -2535,6 +2610,19 @@ void InstanceKlass::set_shared_class_loader_type(s2 loader_type) {
   default:
     ShouldNotReachHere();
     break;
+  }
+}
+
+void InstanceKlass::assign_class_loader_type() {
+  ClassLoaderData *cld = class_loader_data();
+  if (cld->is_boot_class_loader_data()) {
+    set_shared_class_loader_type(ClassLoader::BOOT_LOADER);
+  }
+  else if (cld->is_platform_class_loader_data()) {
+    set_shared_class_loader_type(ClassLoader::PLATFORM_LOADER);
+  }
+  else if (cld->is_system_class_loader_data()) {
+    set_shared_class_loader_type(ClassLoader::APP_LOADER);
   }
 }
 
@@ -2740,7 +2828,17 @@ void InstanceKlass::set_package(ClassLoaderData* loader_data, PackageEntry* pkg_
     check_prohibited_package(name(), loader_data, CHECK);
   }
 
-  TempNewSymbol pkg_name = pkg_entry != NULL ? pkg_entry->name() : ClassLoader::package_from_class_name(name());
+  // ClassLoader::package_from_class_name has already incremented the refcount of the symbol
+  // it returns, so we need to decrement it when the current function exits.
+  TempNewSymbol from_class_name =
+      (pkg_entry != NULL) ? NULL : ClassLoader::package_from_class_name(name());
+
+  Symbol* pkg_name;
+  if (pkg_entry != NULL) {
+    pkg_name = pkg_entry->name();
+  } else {
+    pkg_name = from_class_name;
+  }
 
   if (pkg_name != NULL && loader_data != NULL) {
 
@@ -3089,9 +3187,9 @@ void InstanceKlass::add_osr_nmethod(nmethod* n) {
   assert_lock_strong(CompiledMethod_lock);
 #ifndef PRODUCT
   if (TieredCompilation) {
-      nmethod * prev = lookup_osr_nmethod(n->method(), n->osr_entry_bci(), n->comp_level(), true);
-      assert(prev == NULL || !prev->is_in_use(),
-      "redundunt OSR recompilation detected. memory leak in CodeCache!");
+    nmethod* prev = lookup_osr_nmethod(n->method(), n->osr_entry_bci(), n->comp_level(), true);
+    assert(prev == NULL || !prev->is_in_use() COMPILER2_PRESENT(|| StressRecompilation),
+           "redundant OSR recompilation detected. memory leak in CodeCache!");
   }
 #endif
   // only one compilation can be active
@@ -3344,6 +3442,7 @@ void InstanceKlass::print_on(outputStream* st) const {
   if (record_components() != NULL) {
     st->print(BULLET"record components:     "); record_components()->print_value_on(st);     st->cr();
   }
+  st->print(BULLET"permitted subclasses:     "); permitted_subclasses()->print_value_on(st);     st->cr();
   if (java_mirror() != NULL) {
     st->print(BULLET"java mirror:       ");
     java_mirror()->print_value_on(st);
@@ -3714,9 +3813,6 @@ void InstanceKlass::verify_on(outputStream* st) {
   }
 
   // Verify other fields
-  if (array_klasses() != NULL) {
-    guarantee(array_klasses()->is_klass(), "should be klass");
-  }
   if (constants() != NULL) {
     guarantee(constants()->is_constantPool(), "should be constant pool");
   }

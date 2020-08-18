@@ -25,7 +25,6 @@ package gc.arguments;
 
 /*
  * @test TestMaxRAMFlags
- * @key gc
  * @bug 8222252
  * @summary Verify correct MaxHeapSize and UseCompressedOops when MaxRAM and MaxRAMPercentage
  * are specified.
@@ -36,7 +35,7 @@ package gc.arguments;
  *          java.management
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main gc.arguments.TestMaxRAMFlags
+ * @run driver gc.arguments.TestMaxRAMFlags
  * @author bob.vandette@oracle.com
  */
 

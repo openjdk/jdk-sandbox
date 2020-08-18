@@ -37,7 +37,6 @@
 #include "gc/shenandoah/shenandoahHeapRegionSet.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.inline.hpp"
-#include "gc/shenandoah/shenandoahHeuristics.hpp"
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
 #include "gc/shenandoah/shenandoahRootProcessor.inline.hpp"
 #include "gc/shenandoah/shenandoahTaskqueue.inline.hpp"
@@ -45,6 +44,7 @@
 #include "gc/shenandoah/shenandoahVerifier.hpp"
 #include "gc/shenandoah/shenandoahVMOperations.hpp"
 #include "gc/shenandoah/shenandoahWorkerPolicy.hpp"
+#include "gc/shenandoah/heuristics/shenandoahHeuristics.hpp"
 #include "memory/metaspace.hpp"
 #include "memory/universe.hpp"
 #include "oops/compressedOops.inline.hpp"
@@ -118,21 +118,26 @@ void ShenandoahMarkCompact::do_it(GCCause::Cause gc_cause) {
     }
     assert(!heap->is_concurrent_mark_in_progress(), "sanity");
 
-    // c. Reset the bitmaps for new marking
+    // c. Update roots if this full GC is due to evac-oom, which may carry from-space pointers in roots.
+    if (has_forwarded_objects) {
+      heap->concurrent_mark()->update_roots(ShenandoahPhaseTimings::full_gc_update_roots);
+    }
+
+    // d. Reset the bitmaps for new marking
     heap->reset_mark_bitmap();
     assert(heap->marking_context()->is_bitmap_clear(), "sanity");
     assert(!heap->marking_context()->is_complete(), "sanity");
 
-    // d. Abandon reference discovery and clear all discovered references.
+    // e. Abandon reference discovery and clear all discovered references.
     ReferenceProcessor* rp = heap->ref_processor();
     rp->disable_discovery();
     rp->abandon_partial_discovery();
     rp->verify_no_references_recorded();
 
-    // e. Set back forwarded objects bit back, in case some steps above dropped it.
+    // f. Set back forwarded objects bit back, in case some steps above dropped it.
     heap->set_has_forwarded_objects(has_forwarded_objects);
 
-    // f. Sync pinned region status from the CP marks
+    // g. Sync pinned region status from the CP marks
     heap->sync_pinned_region_status();
 
     // The rest of prologue:
@@ -140,7 +145,10 @@ void ShenandoahMarkCompact::do_it(GCCause::Cause gc_cause) {
     _preserved_marks->init(heap->workers()->active_workers());
   }
 
-  heap->make_parsable(true);
+  if (UseTLAB) {
+    heap->gclabs_retire(ResizeTLAB);
+    heap->tlabs_retire(ResizeTLAB);
+  }
 
   OrderAccess::fence();
 
@@ -242,7 +250,6 @@ void ShenandoahMarkCompact::phase1_mark_heap() {
   rp->setup_policy(true); // forcefully purge all soft references
   rp->set_active_mt_degree(heap->workers()->active_workers());
 
-  cm->update_roots(ShenandoahPhaseTimings::full_gc_update_roots);
   cm->mark_roots(ShenandoahPhaseTimings::full_gc_scan_roots);
   cm->finish_mark_from_roots(/* full_gc = */ true);
   heap->mark_complete_marking_context();
@@ -348,6 +355,7 @@ public:
   }
 
   void work(uint worker_id) {
+    ShenandoahParallelWorkerSession worker_session(worker_id);
     ShenandoahHeapRegionSet* slice = _worker_slices[worker_id];
     ShenandoahHeapRegionSetIterator it(slice);
     ShenandoahHeapRegion* from_region = it.next();
@@ -727,6 +735,7 @@ public:
   }
 
   void work(uint worker_id) {
+    ShenandoahParallelWorkerSession worker_session(worker_id);
     ShenandoahAdjustPointersObjectClosure obj_cl;
     ShenandoahHeapRegion* r = _regions.next();
     while (r != NULL) {
@@ -749,6 +758,7 @@ public:
     _preserved_marks(preserved_marks) {}
 
   void work(uint worker_id) {
+    ShenandoahParallelWorkerSession worker_session(worker_id);
     ShenandoahAdjustPointersClosure cl;
     _rp->roots_do(worker_id, &cl);
     _preserved_marks->get(worker_id)->adjust_during_full_gc();
@@ -814,6 +824,7 @@ public:
   }
 
   void work(uint worker_id) {
+    ShenandoahParallelWorkerSession worker_session(worker_id);
     ShenandoahHeapRegionSetIterator slice(_worker_slices[worker_id]);
 
     ShenandoahCompactObjectsClosure cl(worker_id);
@@ -960,6 +971,7 @@ public:
   }
 
   void work(uint worker_id) {
+    ShenandoahParallelWorkerSession worker_session(worker_id);
     ShenandoahHeapRegion* region = _regions.next();
     ShenandoahHeap* heap = ShenandoahHeap::heap();
     ShenandoahMarkingContext* const ctx = heap->complete_marking_context();

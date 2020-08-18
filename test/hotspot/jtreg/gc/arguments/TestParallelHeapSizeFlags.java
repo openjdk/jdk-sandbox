@@ -25,7 +25,6 @@ package gc.arguments;
 
 /*
  * @test TestParallelHeapSizeFlags
- * @key gc
  * @bug 8006088
  * @summary Tests argument processing for initial and maximum heap size for the
  * parallel collectors.
@@ -36,7 +35,7 @@ package gc.arguments;
  *          java.management
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm gc.arguments.TestParallelHeapSizeFlags
+ * @run driver gc.arguments.TestParallelHeapSizeFlags
  * @author thomas.schatzl@oracle.com
  */
 

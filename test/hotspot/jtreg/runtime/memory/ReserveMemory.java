@@ -24,7 +24,6 @@
 // Aix commits on touch, so this test won't work.
 /*
  * @test
- * @key regression
  * @bug 8012015
  * @requires !(os.family == "aix")
  * @summary Make sure reserved (but uncommitted) memory is not accessible
@@ -33,7 +32,7 @@
  *          java.management
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main ReserveMemory
+ * @run driver ReserveMemory
  */
 
 import jdk.test.lib.process.ProcessTools;

@@ -923,10 +923,12 @@ void ThreadsSMRSupport::release_stable_list_wake_up(bool is_nested) {
 }
 
 void ThreadsSMRSupport::remove_thread(JavaThread *thread) {
+
   if (ThreadIdTable::is_initialized()) {
     jlong tid = SharedRuntime::get_java_tid(thread);
     ThreadIdTable::remove_thread(tid);
   }
+
   ThreadsList *new_list = ThreadsList::remove_thread(ThreadsSMRSupport::get_java_thread_list(), thread);
   if (EnableThreadSMRStatistics) {
     ThreadsSMRSupport::inc_java_thread_list_alloc_cnt();

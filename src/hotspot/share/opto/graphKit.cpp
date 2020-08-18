@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "ci/ciUtilities.hpp"
+#include "classfile/javaClasses.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
@@ -1613,7 +1614,7 @@ Node* GraphKit::access_load(Node* adr,   // actual adress to load val at
     return top(); // Dead path ?
   }
 
-  C2AccessValuePtr addr(adr, NULL);
+  C2AccessValuePtr addr(adr, adr->bottom_type()->is_ptr());
   C2ParseAccess access(this, decorators | C2_READ_ACCESS, bt, NULL, addr);
   if (access.is_raw()) {
     return _barrier_set->BarrierSetC2::load_at(access, val_type);
@@ -2113,7 +2114,8 @@ void GraphKit::uncommon_trap(int trap_request,
   // The debug info is the only real input to this call.
 
   // Halt-and-catch fire here.  The above call should never return!
-  HaltNode* halt = new HaltNode(control(), frameptr(), "uncommon trap returned which should never happen");
+  HaltNode* halt = new HaltNode(control(), frameptr(), "uncommon trap returned which should never happen"
+                                                       PRODUCT_ONLY(COMMA /*reachable*/false));
   _gvn.set_type_bottom(halt);
   root()->add_req(halt);
 
@@ -3985,7 +3987,7 @@ Node* GraphKit::load_String_length(Node* str, bool set_ctrl) {
 }
 
 Node* GraphKit::load_String_value(Node* str, bool set_ctrl) {
-  int value_offset = java_lang_String::value_offset_in_bytes();
+  int value_offset = java_lang_String::value_offset();
   const TypeInstPtr* string_type = TypeInstPtr::make(TypePtr::NotNull, C->env()->String_klass(),
                                                      false, NULL, 0);
   const TypePtr* value_field_type = string_type->add_offset(value_offset);
@@ -4002,7 +4004,7 @@ Node* GraphKit::load_String_coder(Node* str, bool set_ctrl) {
   if (!CompactStrings) {
     return intcon(java_lang_String::CODER_UTF16);
   }
-  int coder_offset = java_lang_String::coder_offset_in_bytes();
+  int coder_offset = java_lang_String::coder_offset();
   const TypeInstPtr* string_type = TypeInstPtr::make(TypePtr::NotNull, C->env()->String_klass(),
                                                      false, NULL, 0);
   const TypePtr* coder_field_type = string_type->add_offset(coder_offset);
@@ -4014,7 +4016,7 @@ Node* GraphKit::load_String_coder(Node* str, bool set_ctrl) {
 }
 
 void GraphKit::store_String_value(Node* str, Node* value) {
-  int value_offset = java_lang_String::value_offset_in_bytes();
+  int value_offset = java_lang_String::value_offset();
   const TypeInstPtr* string_type = TypeInstPtr::make(TypePtr::NotNull, C->env()->String_klass(),
                                                      false, NULL, 0);
   const TypePtr* value_field_type = string_type->add_offset(value_offset);
@@ -4024,7 +4026,7 @@ void GraphKit::store_String_value(Node* str, Node* value) {
 }
 
 void GraphKit::store_String_coder(Node* str, Node* value) {
-  int coder_offset = java_lang_String::coder_offset_in_bytes();
+  int coder_offset = java_lang_String::coder_offset();
   const TypeInstPtr* string_type = TypeInstPtr::make(TypePtr::NotNull, C->env()->String_klass(),
                                                      false, NULL, 0);
   const TypePtr* coder_field_type = string_type->add_offset(coder_offset);

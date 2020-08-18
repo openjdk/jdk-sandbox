@@ -27,6 +27,7 @@
 #include "gc/shenandoah/heuristics/shenandoahAdaptiveHeuristics.hpp"
 #include "gc/shenandoah/shenandoahCollectionSet.hpp"
 #include "gc/shenandoah/shenandoahFreeSet.hpp"
+#include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.inline.hpp"
 #include "logging/log.hpp"
 #include "logging/logTag.hpp"
@@ -159,16 +160,4 @@ bool ShenandoahAdaptiveHeuristics::should_start_gc() const {
   }
 
   return ShenandoahHeuristics::should_start_gc();
-}
-
-const char* ShenandoahAdaptiveHeuristics::name() {
-  return "adaptive";
-}
-
-bool ShenandoahAdaptiveHeuristics::is_diagnostic() {
-  return false;
-}
-
-bool ShenandoahAdaptiveHeuristics::is_experimental() {
-  return false;
 }

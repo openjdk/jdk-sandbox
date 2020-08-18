@@ -24,8 +24,8 @@
 
 package org.graalvm.compiler.hotspot.replacements;
 
-import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfigBase.INJECTED_METAACCESS;
-import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfigBase.INJECTED_VMCONFIG;
+import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfig.INJECTED_METAACCESS;
+import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfig.INJECTED_VMCONFIG;
 import static org.graalvm.compiler.hotspot.meta.HotSpotForeignCallsProviderImpl.VERIFY_OOP;
 
 import java.lang.ref.Reference;
@@ -307,6 +307,8 @@ public class HotSpotReplacementsUtil {
      * JavaThread is created, before it is published. After that, it is never changed.
      */
     public static final LocationIdentity JAVA_THREAD_THREAD_OBJECT_LOCATION = NamedLocationIdentity.immutable("JavaThread::_threadObj");
+
+    public static final LocationIdentity JAVA_THREAD_THREAD_OBJECT_HANDLE_LOCATION = NamedLocationIdentity.immutable("JavaThread::_threadObj handle");
 
     @Fold
     public static int threadObjectOffset(@InjectedParameter GraalHotSpotVMConfig config) {
@@ -605,6 +607,11 @@ public class HotSpotReplacementsUtil {
         return WordFactory.unsigned(ComputeObjectAddressNode.get(a, ReplacementsUtil.getArrayBaseOffset(INJECTED_METAACCESS, JavaKind.Int)));
     }
 
+    @Fold
+    public static boolean verifyBeforeOrAfterGC(@InjectedParameter GraalHotSpotVMConfig config) {
+        return config.verifyBeforeGC || config.verifyAfterGC;
+    }
+
     /**
      * Idiom for making {@link GraalHotSpotVMConfig} a constant.
      */
@@ -872,6 +879,10 @@ public class HotSpotReplacementsUtil {
         return config.gcTotalCollectionsAddress();
     }
 
+    public static String referentFieldName() {
+        return "referent";
+    }
+
     @Fold
     public static long referentOffset(@InjectedParameter MetaAccessProvider metaAccessProvider) {
         return referentField(metaAccessProvider).getOffset();
@@ -879,7 +890,7 @@ public class HotSpotReplacementsUtil {
 
     @Fold
     public static ResolvedJavaField referentField(@InjectedParameter MetaAccessProvider metaAccessProvider) {
-        return getField(metaAccessProvider.lookupJavaType(Reference.class), "referent");
+        return getField(referenceType(metaAccessProvider), referentFieldName());
     }
 
     @Fold

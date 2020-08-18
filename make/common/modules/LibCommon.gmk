@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,6 @@ include JdkNativeCompilation.gmk
 
 ################################################################################
 
-GLOBAL_VERSION_INFO_RESOURCE := $(TOPDIR)/src/java.base/windows/native/common/version.rc
-
 # Absolute paths to lib files on windows for use in LIBS. Should figure out a more
 # elegant solution to this.
 WIN_JAVA_LIB := $(SUPPORT_OUTPUTDIR)/native/java.base/libjava/java.lib
@@ -49,10 +47,6 @@ else ifeq ($(TOOLCHAIN_TYPE), clang)
   CFLAGS_JDKLIB += -fvisibility=hidden
   CXXFLAGS_JDKLIB += -fvisibility=hidden
   EXPORT_ALL_SYMBOLS := -fvisibility=default
-else ifeq ($(TOOLCHAIN_TYPE), solstudio)
-  CFLAGS_JDKLIB += -xldscope=hidden
-  CXXFLAGS_JDKLIB += -xldscope=hidden
-  EXPORT_ALL_SYMBOLS := -xldscope=global
 endif
 
 # Put the libraries here.

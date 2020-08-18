@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h,
                                            size_t young_cset_length,
                                            size_t optional_cset_length)
   : _g1h(g1h),
-    _refs(g1h->task_queue(worker_id)),
+    _task_queue(g1h->task_queue(worker_id)),
     _rdcq(rdcqs),
     _ct(g1h->card_table()),
     _closures(NULL),
@@ -68,9 +68,11 @@ G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h,
   // entries, since entry 0 keeps track of surviving bytes for non-young regions.
   // We also add a few elements at the beginning and at the end in
   // an attempt to eliminate cache contention
-  size_t array_length = PADDING_ELEM_NUM + _surviving_words_length + PADDING_ELEM_NUM;
+  const size_t padding_elem_num = (DEFAULT_CACHE_LINE_SIZE / sizeof(size_t));
+  size_t array_length = padding_elem_num + _surviving_words_length + padding_elem_num;
+
   _surviving_young_words_base = NEW_C_HEAP_ARRAY(size_t, array_length, mtGC);
-  _surviving_young_words = _surviving_young_words_base + PADDING_ELEM_NUM;
+  _surviving_young_words = _surviving_young_words_base + padding_elem_num;
   memset(_surviving_young_words, 0, _surviving_words_length * sizeof(size_t));
 
   _plab_allocator = new G1PLABAllocator(_g1h->allocator());
@@ -119,46 +121,45 @@ size_t G1ParScanThreadState::lab_undo_waste_words() const {
 }
 
 #ifdef ASSERT
-bool G1ParScanThreadState::verify_ref(narrowOop* ref) const {
-  assert(ref != NULL, "invariant");
+void G1ParScanThreadState::verify_task(narrowOop* task) const {
+  assert(task != NULL, "invariant");
   assert(UseCompressedOops, "sanity");
-  assert(!has_partial_array_mask(ref), "ref=" PTR_FORMAT, p2i(ref));
-  oop p = RawAccess<>::oop_load(ref);
+  oop p = RawAccess<>::oop_load(task);
   assert(_g1h->is_in_g1_reserved(p),
-         "ref=" PTR_FORMAT " p=" PTR_FORMAT, p2i(ref), p2i(p));
-  return true;
+         "task=" PTR_FORMAT " p=" PTR_FORMAT, p2i(task), p2i(p));
 }
 
-bool G1ParScanThreadState::verify_ref(oop* ref) const {
-  assert(ref != NULL, "invariant");
-  if (has_partial_array_mask(ref)) {
-    // Must be in the collection set--it's already been copied.
-    oop p = clear_partial_array_mask(ref);
-    assert(_g1h->is_in_cset(p),
-           "ref=" PTR_FORMAT " p=" PTR_FORMAT, p2i(ref), p2i(p));
-  } else {
-    oop p = RawAccess<>::oop_load(ref);
-    assert(_g1h->is_in_g1_reserved(p),
-           "ref=" PTR_FORMAT " p=" PTR_FORMAT, p2i(ref), p2i(p));
-  }
-  return true;
+void G1ParScanThreadState::verify_task(oop* task) const {
+  assert(task != NULL, "invariant");
+  oop p = RawAccess<>::oop_load(task);
+  assert(_g1h->is_in_g1_reserved(p),
+         "task=" PTR_FORMAT " p=" PTR_FORMAT, p2i(task), p2i(p));
 }
 
-bool G1ParScanThreadState::verify_task(StarTask ref) const {
-  if (ref.is_narrow()) {
-    return verify_ref((narrowOop*) ref);
+void G1ParScanThreadState::verify_task(PartialArrayScanTask task) const {
+  // Must be in the collection set--it's already been copied.
+  oop p = task.to_source_array();
+  assert(_g1h->is_in_cset(p), "p=" PTR_FORMAT, p2i(p));
+}
+
+void G1ParScanThreadState::verify_task(ScannerTask task) const {
+  if (task.is_narrow_oop_ptr()) {
+    verify_task(task.to_narrow_oop_ptr());
+  } else if (task.is_oop_ptr()) {
+    verify_task(task.to_oop_ptr());
+  } else if (task.is_partial_array_task()) {
+    verify_task(task.to_partial_array_task());
   } else {
-    return verify_ref((oop*) ref);
+    ShouldNotReachHere();
   }
 }
 #endif // ASSERT
 
 void G1ParScanThreadState::trim_queue() {
-  StarTask ref;
   do {
     // Fully drain the queue.
     trim_queue_to_threshold(0);
-  } while (!_refs->is_empty());
+  } while (!_task_queue->is_empty());
 }
 
 HeapWord* G1ParScanThreadState::allocate_in_next_plab(G1HeapRegionAttr* dest,
@@ -330,8 +331,7 @@ oop G1ParScanThreadState::copy_to_survivor_space(G1HeapRegionAttr const region_a
       // the to-space object. The actual length can be found in the
       // length field of the from-space object.
       arrayOop(obj)->set_length(0);
-      oop* old_p = set_partial_array_mask(old);
-      do_oop_partial_array(old_p);
+      do_partial_array(PartialArrayScanTask(old));
     } else {
       G1ScanInYoungSetter x(&_scanner, dest_attr.is_young());
       obj->oop_iterate_backwards(&_scanner);

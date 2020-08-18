@@ -27,6 +27,7 @@
 #include <new>
 
 #include "classfile/classLoaderDataGraph.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/modules.hpp"
 #include "classfile/protectionDomainCache.hpp"
 #include "classfile/stringTable.hpp"
@@ -40,6 +41,7 @@
 #include "gc/shared/genArguments.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
+#include "logging/log.hpp"
 #include "memory/filemap.hpp"
 #include "memory/heapShared.inline.hpp"
 #include "memory/metaspaceShared.hpp"
@@ -72,6 +74,7 @@
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sweeper.hpp"
+#include "runtime/synchronizer.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vm_version.hpp"
@@ -384,7 +387,7 @@ WB_END
 
 WB_ENTRY(jlong, WB_GetObjectSize(JNIEnv* env, jobject o, jobject obj))
   oop p = JNIHandles::resolve(obj);
-  return Universe::heap()->obj_size(p) * HeapWordSize;
+  return p->size() * HeapWordSize;
 WB_END
 
 WB_ENTRY(jlong, WB_GetHeapSpaceAlignment(JNIEnv* env, jobject o))
@@ -628,7 +631,7 @@ WB_ENTRY(jobject, WB_G1AuxiliaryMemoryUsage(JNIEnv* env))
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
     MemoryUsage usage = g1h->get_auxiliary_data_memory_usage();
     Handle h = MemoryService::create_MemoryUsage_obj(usage, CHECK_NULL);
-    return JNIHandles::make_local(env, h());
+    return JNIHandles::make_local(THREAD, h());
   }
   THROW_MSG_0(vmSymbols::java_lang_UnsupportedOperationException(), "WB_G1AuxiliaryMemoryUsage: G1 GC is not enabled");
 WB_END
@@ -651,7 +654,7 @@ WB_ENTRY(jintArray, WB_G1MemoryNodeIds(JNIEnv* env, jobject o))
     for (int i = 0; i < num_node_ids; i++) {
       result->int_at_put(i, (jint)node_ids[i]);
     }
-    return (jintArray) JNIHandles::make_local(env, result);
+    return (jintArray) JNIHandles::make_local(THREAD, result);
   }
   THROW_MSG_NULL(vmSymbols::java_lang_UnsupportedOperationException(), "WB_G1MemoryNodeIds: G1 GC is not enabled");
 WB_END
@@ -712,7 +715,7 @@ WB_ENTRY(jlongArray, WB_G1GetMixedGCInfo(JNIEnv* env, jobject o, jint liveness))
   result->long_at_put(0, rli.total_count());
   result->long_at_put(1, rli.total_memory());
   result->long_at_put(2, rli.total_memory_to_free());
-  return (jlongArray) JNIHandles::make_local(env, result);
+  return (jlongArray) JNIHandles::make_local(THREAD, result);
 WB_END
 
 #endif // INCLUDE_G1GC
@@ -1675,12 +1678,11 @@ WB_ENTRY(jlong, WB_GetMethodData(JNIEnv* env, jobject wv, jobject method))
 WB_END
 
 WB_ENTRY(jlong, WB_GetThreadStackSize(JNIEnv* env, jobject o))
-  return (jlong) Thread::current()->stack_size();
+  return (jlong) thread->stack_size();
 WB_END
 
 WB_ENTRY(jlong, WB_GetThreadRemainingStackSize(JNIEnv* env, jobject o))
-  JavaThread* t = JavaThread::current();
-  return (jlong) t->stack_available(os::current_stack_pointer()) - (jlong)JavaThread::stack_shadow_zone_size();
+  return (jlong) thread->stack_available(os::current_stack_pointer()) - (jlong)JavaThread::stack_shadow_zone_size();
 WB_END
 
 
@@ -1787,12 +1789,17 @@ WB_ENTRY(void, WB_AssertSpecialLock(JNIEnv* env, jobject o, jboolean allowVMBloc
 
   MutexLocker ml(new Mutex(Mutex::special, "SpecialTest_lock", allowVMBlock, sfpt_check_required), safepoint_check);
   // If the lock above succeeds, try to safepoint to test the NSV implied with this special lock.
-  ThreadBlockInVM tbivm(JavaThread::current());
+  ThreadBlockInVM tbivm(thread);
 WB_END
 
 WB_ENTRY(jboolean, WB_IsMonitorInflated(JNIEnv* env, jobject wb, jobject obj))
   oop obj_oop = JNIHandles::resolve(obj);
   return (jboolean) obj_oop->mark().has_monitor();
+WB_END
+
+WB_ENTRY(jboolean, WB_DeflateIdleMonitors(JNIEnv* env, jobject wb))
+  log_info(monitorinflation)("WhiteBox initiated DeflateIdleMonitors");
+  return ObjectSynchronizer::request_deflate_idle_monitors();
 WB_END
 
 WB_ENTRY(void, WB_ForceSafepoint(JNIEnv* env, jobject wb))
@@ -1949,7 +1956,7 @@ WB_ENTRY(jobject, WB_GetResolvedReferences(JNIEnv* env, jobject wb, jclass clazz
     InstanceKlass *ik = InstanceKlass::cast(k);
     ConstantPool *cp = ik->constants();
     objArrayOop refs =  cp->resolved_references();
-    return (jobject)JNIHandles::make_local(env, refs);
+    return (jobject)JNIHandles::make_local(THREAD, refs);
   } else {
     return NULL;
   }
@@ -2024,11 +2031,11 @@ WB_ENTRY(jint, WB_HandshakeWalkStack(JNIEnv* env, jobject wb, jobject thread_han
     }
 
   public:
-    TraceSelfClosure() : HandshakeClosure("WB_TraceSelf"), _num_threads_completed(0) {}
+    TraceSelfClosure(Thread* thread) : HandshakeClosure("WB_TraceSelf"), _num_threads_completed(0) {}
 
     jint num_threads_completed() const { return _num_threads_completed; }
   };
-  TraceSelfClosure tsc;
+  TraceSelfClosure tsc(Thread::current());
 
   if (all_threads) {
     Handshake::execute(&tsc);
@@ -2221,6 +2228,60 @@ WB_ENTRY(jint, WB_GetKlassMetadataSize(JNIEnv* env, jobject wb, jclass mirror))
   return k->size() * wordSize;
 WB_END
 
+// See test/hotspot/jtreg/runtime/Thread/ThreadObjAccessAtExit.java.
+// It explains how the thread's priority field is used for test state coordination.
+//
+WB_ENTRY(void, WB_CheckThreadObjOfTerminatingThread(JNIEnv* env, jobject wb, jobject target_handle))
+  oop target_oop = JNIHandles::resolve_non_null(target_handle);
+  jlong tid = java_lang_Thread::thread_id(target_oop);
+  JavaThread* target = java_lang_Thread::thread(target_oop);
+
+  // Grab a ThreadsListHandle to protect the target thread whilst terminating
+  ThreadsListHandle tlh;
+
+  // Look up the target thread by tid to ensure it is present
+  JavaThread* t = tlh.list()->find_JavaThread_from_java_tid(tid);
+  if (t == NULL) {
+    THROW_MSG(vmSymbols::java_lang_RuntimeException(), "Target thread not found in ThreadsList!");
+  }
+
+  tty->print_cr("WB_CheckThreadObjOfTerminatingThread: target thread is protected");
+  // Allow target to terminate by boosting priority
+  java_lang_Thread::set_priority(t->threadObj(), ThreadPriority(NormPriority + 1));
+
+  // Now wait for the target to terminate
+  while (!target->is_terminated()) {
+    ThreadBlockInVM tbivm(thread);  // just in case target is involved in a safepoint
+    os::naked_short_sleep(0);
+  }
+
+  tty->print_cr("WB_CheckThreadObjOfTerminatingThread: target thread is terminated");
+
+  // Now release the GC inducing thread - we have to re-resolve the external oop that
+  // was passed in as GC may have occurred and we don't know if we can trust t->threadObj() now.
+  oop original = JNIHandles::resolve_non_null(target_handle);
+  java_lang_Thread::set_priority(original, ThreadPriority(NormPriority + 2));
+
+  tty->print_cr("WB_CheckThreadObjOfTerminatingThread: GC has been initiated - checking threadObj:");
+
+  // The Java code should be creating garbage and triggering GC, which would potentially move
+  // the threadObj oop. If the exiting thread is properly protected then its threadObj should
+  // remain valid and equal to our initial target_handle. Loop a few times to give GC a chance to
+  // kick in.
+  for (int i = 0; i < 5; i++) {
+    oop original = JNIHandles::resolve_non_null(target_handle);
+    oop current = t->threadObj();
+    if (original != current) {
+      tty->print_cr("WB_CheckThreadObjOfTerminatingThread: failed comparison on iteration %d", i);
+      THROW_MSG(vmSymbols::java_lang_RuntimeException(), "Target thread oop has changed!");
+    } else {
+      tty->print_cr("WB_CheckThreadObjOfTerminatingThread: successful comparison on iteration %d", i);
+      ThreadBlockInVM tbivm(thread);
+      os::naked_short_sleep(50);
+    }
+  }
+WB_END
+
 #define CC (char*)
 
 static JNINativeMethod methods[] = {
@@ -2405,6 +2466,7 @@ static JNINativeMethod methods[] = {
                                                       (void*)&WB_AddModuleExportsToAll },
   {CC"assertMatchingSafepointCalls", CC"(ZZ)V",       (void*)&WB_AssertMatchingSafepointCalls },
   {CC"assertSpecialLock",  CC"(ZZ)V",                 (void*)&WB_AssertSpecialLock },
+  {CC"deflateIdleMonitors", CC"()Z",                  (void*)&WB_DeflateIdleMonitors },
   {CC"isMonitorInflated0", CC"(Ljava/lang/Object;)Z", (void*)&WB_IsMonitorInflated  },
   {CC"forceSafepoint",     CC"()V",                   (void*)&WB_ForceSafepoint     },
   {CC"getConstantPool0",   CC"(Ljava/lang/Class;)J",  (void*)&WB_GetConstantPool    },
@@ -2446,6 +2508,7 @@ static JNINativeMethod methods[] = {
 
   {CC"clearInlineCaches0",  CC"(Z)V",                 (void*)&WB_ClearInlineCaches },
   {CC"handshakeWalkStack", CC"(Ljava/lang/Thread;Z)I", (void*)&WB_HandshakeWalkStack },
+  {CC"checkThreadObjOfTerminatingThread", CC"(Ljava/lang/Thread;)V", (void*)&WB_CheckThreadObjOfTerminatingThread },
   {CC"addCompilerDirective",    CC"(Ljava/lang/String;)I",
                                                       (void*)&WB_AddCompilerDirective },
   {CC"removeCompilerDirective",   CC"(I)V",           (void*)&WB_RemoveCompilerDirective },
@@ -2479,7 +2542,7 @@ JVM_ENTRY(void, JVM_RegisterWhiteBoxMethods(JNIEnv* env, jclass wbclass))
   {
     if (WhiteBoxAPI) {
       // Make sure that wbclass is loaded by the null classloader
-      InstanceKlass* ik = InstanceKlass::cast(JNIHandles::resolve(wbclass)->klass());
+      InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve(wbclass)));
       Handle loader(THREAD, ik->class_loader());
       if (loader.is_null()) {
         WhiteBox::register_methods(env, wbclass, thread, methods, sizeof(methods) / sizeof(methods[0]));

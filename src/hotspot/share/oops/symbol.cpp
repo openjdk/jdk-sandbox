@@ -30,11 +30,13 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
+#include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
+#include "runtime/signature.hpp"
 #include "utilities/utf8.hpp"
 
 uint32_t Symbol::pack_hash_and_refcount(short hash, int refcount) {
@@ -49,13 +51,32 @@ uint32_t Symbol::pack_hash_and_refcount(short hash, int refcount) {
 Symbol::Symbol(const u1* name, int length, int refcount) {
   _hash_and_refcount =  pack_hash_and_refcount((short)os::random(), refcount);
   _length = length;
-  _body[0] = 0;  // in case length == 0
-  for (int i = 0; i < length; i++) {
-    byte_at_put(i, name[i]);
-  }
+  // _body[0..1] are allocated in the header just by coincidence in the current
+  // implementation of Symbol. They are read by identity_hash(), so make sure they
+  // are initialized.
+  // No other code should assume that _body[0..1] are always allocated. E.g., do
+  // not unconditionally read base()[0] as that will be invalid for an empty Symbol.
+  _body[0] = _body[1] = 0;
+  memcpy(_body, name, length);
 }
 
 void* Symbol::operator new(size_t sz, int len) throw() {
+#if INCLUDE_CDS
+ if (DumpSharedSpaces) {
+    // To get deterministic output from -Xshare:dump, we ensure that Symbols are allocated in
+    // increasing addresses. When the symbols are copied into the archive, we preserve their
+    // relative address order (see SortedSymbolClosure in metaspaceShared.cpp)
+    //
+    // We cannot use arena because arena chunks are allocated by the OS. As a result, for example,
+    // the archived symbol of "java/lang/Object" may sometimes be lower than "java/lang/String", and
+    // sometimes be higher. This would cause non-deterministic contents in the archive.
+   DEBUG_ONLY(static void* last = 0);
+   void* p = (void*)MetaspaceShared::symbol_space_alloc(size(len)*wordSize);
+   assert(p > last, "must increase monotonically");
+   DEBUG_ONLY(last = p);
+   return p;
+ }
+#endif
   int alloc_size = size(len)*wordSize;
   address res = (address) AllocateHeap(alloc_size, mtSymbol);
   return res;
@@ -72,11 +93,21 @@ void Symbol::operator delete(void *p) {
   FreeHeap(p);
 }
 
+#if INCLUDE_CDS
+void Symbol::update_identity_hash() {
+  // This is called at a safepoint during dumping of a static CDS archive. The caller should have
+  // called os::init_random() with a deterministic seed and then iterate all archived Symbols in
+  // a deterministic order.
+  assert(SafepointSynchronize::is_at_safepoint(), "must be at a safepoint");
+  _hash_and_refcount =  pack_hash_and_refcount((short)os::random(), PERM_REFCOUNT);
+}
+
 void Symbol::set_permanent() {
   // This is called at a safepoint during dumping of a dynamic CDS archive.
   assert(SafepointSynchronize::is_at_safepoint(), "must be at a safepoint");
   _hash_and_refcount =  pack_hash_and_refcount(extract_hash(_hash_and_refcount), PERM_REFCOUNT);
 }
+#endif
 
 // ------------------------------------------------------------------
 // Symbol::index_of

@@ -176,7 +176,8 @@ private:
   // Flags of the current shared class.
   u2     _shared_class_flags;
   enum {
-    _has_raw_archived_mirror = 1
+    _has_raw_archived_mirror = 1,
+    _archived_lambda_proxy_is_available = 2
   };
 #endif
 
@@ -195,12 +196,12 @@ protected:
  public:
   int id() { return _id; }
 
-  enum DefaultsLookupMode { find_defaults, skip_defaults };
-  enum OverpassLookupMode { find_overpass, skip_overpass };
-  enum StaticLookupMode   { find_static,   skip_static };
-  enum PrivateLookupMode  { find_private,  skip_private };
+  enum class DefaultsLookupMode { find, skip };
+  enum class OverpassLookupMode { find, skip };
+  enum class StaticLookupMode   { find, skip };
+  enum class PrivateLookupMode  { find, skip };
 
-  bool is_klass() const volatile { return true; }
+  virtual bool is_klass() const { return true; }
 
   // super() cannot be InstanceKlass* -- Java arrays are covariant, and _super is used
   // to implement that. NB: the _super of "[Ljava/lang/Integer;" is "[Ljava/lang/Number;"
@@ -266,12 +267,11 @@ protected:
   void set_archived_java_mirror_raw(oop m) NOT_CDS_JAVA_HEAP_RETURN; // no GC barrier
 
   // Temporary mirror switch used by RedefineClasses
-  // Both mirrors are on the ClassLoaderData::_handles list already so no
-  // barriers are needed.
-  void set_java_mirror_handle(OopHandle mirror) { _java_mirror = mirror; }
-  OopHandle java_mirror_handle() const          {
-    return _java_mirror;
-  }
+  void replace_java_mirror(oop mirror);
+
+  // Set java mirror OopHandle to NULL for CDS
+  // This leaves the OopHandle in the CLD, but that's ok, you can't release them.
+  void clear_java_mirror_handle() { _java_mirror = OopHandle(); }
 
   // modifier flags
   jint modifier_flags() const          { return _modifier_flags; }
@@ -293,6 +293,7 @@ protected:
 
   void set_next_link(Klass* k) { _next_link = k; }
   Klass* next_link() const { return _next_link; }   // The next klass defined by the class loader.
+  Klass** next_link_addr() { return &_next_link; }
 
   // class loader data
   ClassLoaderData* class_loader_data() const               { return _class_loader_data; }
@@ -314,6 +315,17 @@ protected:
   }
   bool has_raw_archived_mirror() const {
     CDS_ONLY(return (_shared_class_flags & _has_raw_archived_mirror) != 0;)
+    NOT_CDS(return false;)
+  }
+
+  void set_lambda_proxy_is_available() {
+    CDS_ONLY(_shared_class_flags |= _archived_lambda_proxy_is_available;)
+  }
+  void clear_lambda_proxy_is_available() {
+    CDS_ONLY(_shared_class_flags &= ~_archived_lambda_proxy_is_available;)
+  }
+  bool lambda_proxy_is_available() const {
+    CDS_ONLY(return (_shared_class_flags & _archived_lambda_proxy_is_available) != 0;)
     NOT_CDS(return false;)
   }
 
@@ -470,10 +482,10 @@ protected:
   virtual Klass* find_field(Symbol* name, Symbol* signature, fieldDescriptor* fd) const;
   virtual Method* uncached_lookup_method(const Symbol* name, const Symbol* signature,
                                          OverpassLookupMode overpass_mode,
-                                         PrivateLookupMode = find_private) const;
+                                         PrivateLookupMode = PrivateLookupMode::find) const;
  public:
   Method* lookup_method(const Symbol* name, const Symbol* signature) const {
-    return uncached_lookup_method(name, signature, find_overpass);
+    return uncached_lookup_method(name, signature, OverpassLookupMode::find);
   }
 
   // array class with specific rank

@@ -49,6 +49,9 @@
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
+#include "gc/shared/oopStorage.inline.hpp"
+#include "gc/shared/oopStorageSet.inline.hpp"
+#include "gc/shared/oopStorageSetParState.inline.hpp"
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
@@ -72,7 +75,6 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/vmThread.hpp"
-#include "services/management.hpp"
 #include "services/memTracker.hpp"
 #include "services/memoryService.hpp"
 #include "utilities/align.hpp"
@@ -841,7 +843,6 @@ ParallelOldTracer   PSParallelCompact::_gc_tracer;
 elapsedTimer        PSParallelCompact::_accumulated_time;
 unsigned int        PSParallelCompact::_total_invocations = 0;
 unsigned int        PSParallelCompact::_maximum_compaction_gc_num = 0;
-jlong               PSParallelCompact::_time_of_last_gc = 0;
 CollectorCounters*  PSParallelCompact::_counters = NULL;
 ParMarkBitMap       PSParallelCompact::_mark_bitmap;
 ParallelCompactData PSParallelCompact::_summary_data;
@@ -1005,7 +1006,6 @@ void PSParallelCompact::pre_compact()
   heap->ensure_parsability(true);  // retire TLABs
 
   if (VerifyBeforeGC && heap->total_collections() >= VerifyGCStartAt) {
-    HandleMark hm;  // Discard invalid handles created during verification
     Universe::verify("Before GC");
   }
 
@@ -1069,8 +1069,8 @@ void PSParallelCompact::post_compact()
     heap->gen_mangle_unused_area();
   }
 
-  // Update time of last GC
-  reset_millis_since_last_gc();
+  // Signal that we have completed a visit to all live objects.
+  Universe::heap()->record_whole_heap_examined_timestamp();
 }
 
 HeapWord*
@@ -1786,7 +1786,6 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
 
   {
     ResourceMark rm;
-    HandleMark hm;
 
     const uint active_workers =
       WorkerPolicy::calc_active_workers(ParallelScavengeHeap::heap()->workers().total_workers(),
@@ -1864,7 +1863,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
         }
 
         // Calculate optimal free space amounts
-        assert(young_gen->max_size() >
+        assert(young_gen->max_gen_size() >
           young_gen->from_space()->capacity_in_bytes() +
           young_gen->to_space()->capacity_in_bytes(),
           "Sizes of space in young gen are out-of-bounds");
@@ -1874,7 +1873,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
         size_t old_live = old_gen->used_in_bytes();
         size_t cur_eden = young_gen->eden_space()->capacity_in_bytes();
         size_t max_old_gen_size = old_gen->max_gen_size();
-        size_t max_eden_size = young_gen->max_size() -
+        size_t max_eden_size = young_gen->max_gen_size() -
           young_gen->from_space()->capacity_in_bytes() -
           young_gen->to_space()->capacity_in_bytes();
 
@@ -1943,7 +1942,6 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
 #endif // ASSERT
 
   if (VerifyAfterGC && heap->total_collections() >= VerifyGCStartAt) {
-    HandleMark hm;  // Discard invalid handles created during verification
     Universe::verify("After GC");
   }
 
@@ -2009,28 +2007,8 @@ static void mark_from_roots_work(ParallelRootType::Value root_type, uint worker_
   PCMarkAndPushClosure mark_and_push_closure(cm);
 
   switch (root_type) {
-    case ParallelRootType::universe:
-      Universe::oops_do(&mark_and_push_closure);
-      break;
-
-    case ParallelRootType::jni_handles:
-      JNIHandles::oops_do(&mark_and_push_closure);
-      break;
-
     case ParallelRootType::object_synchronizer:
       ObjectSynchronizer::oops_do(&mark_and_push_closure);
-      break;
-
-    case ParallelRootType::management:
-      Management::oops_do(&mark_and_push_closure);
-      break;
-
-    case ParallelRootType::jvmti:
-      JvmtiExport::oops_do(&mark_and_push_closure);
-      break;
-
-    case ParallelRootType::system_dictionary:
-      SystemDictionary::oops_do(&mark_and_push_closure);
       break;
 
     case ParallelRootType::class_loader_data:
@@ -2079,6 +2057,7 @@ static void steal_marking_work(TaskTerminator& terminator, uint worker_id) {
 class MarkFromRootsTask : public AbstractGangTask {
   typedef AbstractRefProcTaskExecutor::ProcessTask ProcessTask;
   StrongRootsScope _strong_roots_scope; // needed for Threads::possibly_parallel_threads_do
+  OopStorageSetStrongParState<false /* concurrent */, false /* is_const */> _oop_storage_set_par_state;
   SequentialSubTasksDone _subtasks;
   TaskTerminator _terminator;
   uint _active_workers;
@@ -2102,6 +2081,15 @@ public:
 
     PCAddThreadRootsMarkingTaskClosure closure(worker_id);
     Threads::possibly_parallel_threads_do(true /*parallel */, &closure);
+
+    // Mark from OopStorages
+    {
+      ParCompactionManager* cm = ParCompactionManager::gc_thread_compaction_manager(worker_id);
+      PCMarkAndPushClosure closure(cm);
+      _oop_storage_set_par_state.oops_do(&closure);
+      // Do the real work
+      cm->follow_marking_stacks();
+    }
 
     if (_active_workers > 1) {
       steal_marking_work(_terminator, worker_id);
@@ -2232,13 +2220,9 @@ void PSParallelCompact::adjust_roots(ParCompactionManager* cm) {
   PCAdjustPointerClosure oop_closure(cm);
 
   // General strong roots.
-  Universe::oops_do(&oop_closure);
-  JNIHandles::oops_do(&oop_closure);   // Global (strong) JNI handles
   Threads::oops_do(&oop_closure, NULL);
   ObjectSynchronizer::oops_do(&oop_closure);
-  Management::oops_do(&oop_closure);
-  JvmtiExport::oops_do(&oop_closure);
-  SystemDictionary::oops_do(&oop_closure);
+  OopStorageSet::strong_oops_do(&oop_closure);
   CLDToOopClosure cld_closure(&oop_closure, ClassLoaderData::_claim_strong);
   ClassLoaderDataGraph::cld_do(&cld_closure);
 
@@ -3205,25 +3189,6 @@ void PSParallelCompact::fill_blocks(size_t region_idx)
       return;
     }
   }
-}
-
-jlong PSParallelCompact::millis_since_last_gc() {
-  // We need a monotonically non-decreasing time in ms but
-  // os::javaTimeMillis() does not guarantee monotonicity.
-  jlong now = os::javaTimeNanos() / NANOSECS_PER_MILLISEC;
-  jlong ret_val = now - _time_of_last_gc;
-  // XXX See note in genCollectedHeap::millis_since_last_gc().
-  if (ret_val < 0) {
-    NOT_PRODUCT(log_warning(gc)("time warp: " JLONG_FORMAT, ret_val);)
-    return 0;
-  }
-  return ret_val;
-}
-
-void PSParallelCompact::reset_millis_since_last_gc() {
-  // We need a monotonically non-decreasing time in ms but
-  // os::javaTimeMillis() does not guarantee monotonicity.
-  _time_of_last_gc = os::javaTimeNanos() / NANOSECS_PER_MILLISEC;
 }
 
 ParMarkBitMap::IterationStatus MoveAndUpdateClosure::copy_until_full()

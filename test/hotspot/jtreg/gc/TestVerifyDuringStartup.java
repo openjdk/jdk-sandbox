@@ -24,7 +24,6 @@
 package gc;
 
 /* @test TestVerifyDuringStartup.java
- * @key gc
  * @bug 8010463 8011343 8011898
  * @summary Simple test run with -XX:+VerifyDuringStartup -XX:-UseTLAB to verify 8010463
  * @requires vm.gc != "Z"
@@ -38,8 +37,7 @@ import jdk.test.lib.process.OutputAnalyzer;
 
 public class TestVerifyDuringStartup {
   public static void main(String args[]) throws Exception {
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-        true,
+    ProcessBuilder pb = ProcessTools.createTestJvm(
         "-XX:-UseTLAB",
         "-XX:+UnlockDiagnosticVMOptions",
         "-XX:+VerifyDuringStartup",

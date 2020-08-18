@@ -24,13 +24,13 @@
 
 /*
  * @test
+ * @key randomness
  *
  * @summary converted from VM Testbase metaspace/stressHierarchy/stressHierarchy014.
  * VM Testbase keywords: [nonconcurrent, javac, no_cds]
  *
  * @requires vm.opt.final.ClassUnloading
  * @library /vmTestbase /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm

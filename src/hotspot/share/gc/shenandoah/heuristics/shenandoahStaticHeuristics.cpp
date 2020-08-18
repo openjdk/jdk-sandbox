@@ -27,6 +27,7 @@
 #include "gc/shenandoah/heuristics/shenandoahStaticHeuristics.hpp"
 #include "gc/shenandoah/shenandoahCollectionSet.hpp"
 #include "gc/shenandoah/shenandoahFreeSet.hpp"
+#include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.inline.hpp"
 #include "logging/log.hpp"
 #include "logging/logTag.hpp"
@@ -65,16 +66,4 @@ void ShenandoahStaticHeuristics::choose_collection_set_from_regiondata(Shenandoa
       cset->add_region(r);
     }
   }
-}
-
-const char* ShenandoahStaticHeuristics::name() {
-  return "static";
-}
-
-bool ShenandoahStaticHeuristics::is_diagnostic() {
-  return false;
-}
-
-bool ShenandoahStaticHeuristics::is_experimental() {
-  return false;
 }

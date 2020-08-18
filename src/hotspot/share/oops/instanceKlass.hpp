@@ -170,7 +170,7 @@ class InstanceKlass: public Klass {
   // Package this class is defined in
   PackageEntry*   _package_entry;
   // Array classes holding elements of this class.
-  Klass* volatile _array_klasses;
+  ObjArrayKlass* volatile _array_klasses;
   // Constant pool for this class.
   ConstantPool* _constants;
   // The InnerClasses attribute and EnclosingMethod attribute. The
@@ -197,6 +197,10 @@ class InstanceKlass: public Klass {
   // relationships.
   // By always being set it makes nest-member access checks simpler.
   InstanceKlass* _nest_host;
+
+  // The PermittedSubclasses attribute. An array of shorts, where each is a
+  // class info index for the class that is a permitted subclass.
+  Array<jushort>* _permitted_subclasses;
 
   // The contents of the Record attribute.
   Array<RecordComponent*>* _record_components;
@@ -364,6 +368,8 @@ class InstanceKlass: public Klass {
 
   void set_shared_class_loader_type(s2 loader_type);
 
+  void assign_class_loader_type();
+
   bool has_nonstatic_fields() const        {
     return (_misc_flags & _misc_has_nonstatic_fields) != 0;
   }
@@ -390,10 +396,10 @@ class InstanceKlass: public Klass {
   void set_itable_length(int len)          { _itable_len = len; }
 
   // array klasses
-  Klass* array_klasses() const             { return _array_klasses; }
-  inline Klass* array_klasses_acquire() const; // load with acquire semantics
-  void set_array_klasses(Klass* k)         { _array_klasses = k; }
-  inline void release_set_array_klasses(Klass* k); // store with release semantics
+  ObjArrayKlass* array_klasses() const     { return _array_klasses; }
+  inline ObjArrayKlass* array_klasses_acquire() const; // load with acquire semantics
+  void set_array_klasses(ObjArrayKlass* k) { _array_klasses = k; }
+  inline void release_set_array_klasses(ObjArrayKlass* k); // store with release semantics
 
   // methods
   Array<Method*>* methods() const          { return _methods; }
@@ -469,6 +475,10 @@ class InstanceKlass: public Klass {
   }
   bool is_record() const { return _record_components != NULL; }
 
+  // permitted subclasses
+  Array<u2>* permitted_subclasses() const     { return _permitted_subclasses; }
+  void set_permitted_subclasses(Array<u2>* s) { _permitted_subclasses = s; }
+
 private:
   // Called to verify that k is a member of this nest - does not look at k's nest-host
   bool has_nest_member(InstanceKlass* k, TRAPS) const;
@@ -483,6 +493,9 @@ public:
   InstanceKlass* nest_host(TRAPS);
   // Check if this klass is a nestmate of k - resolves this nest-host and k's
   bool has_nestmate_access_to(InstanceKlass* k, TRAPS);
+
+  // Called to verify that k is a permitted subclass of this class
+  bool has_as_permitted_subclass(const InstanceKlass* k) const;
 
   enum InnerClassAttributeOffset {
     // From http://mirror.eng/products/jdk/1.1/docs/guide/innerclasses/spec/innerclasses.doc10.html#18814
@@ -540,6 +553,9 @@ public:
   bool is_reentrant_initialization(Thread *thread)  { return thread == _init_thread; }
   ClassState  init_state()                 { return (ClassState)_init_state; }
   bool is_rewritten() const                { return (_misc_flags & _misc_rewritten) != 0; }
+
+  // is this a sealed class
+  bool is_sealed() const;
 
   // defineClass specified verification
   bool should_verify_class() const         {
@@ -646,7 +662,7 @@ public:
   Method* uncached_lookup_method(const Symbol* name,
                                  const Symbol* signature,
                                  OverpassLookupMode overpass_mode,
-                                 PrivateLookupMode private_mode = find_private) const;
+                                 PrivateLookupMode private_mode = PrivateLookupMode::find) const;
 
   // lookup a method in all the interfaces that this class implements
   // (returns NULL if not found)
@@ -958,6 +974,7 @@ public:
   }
   // allocation
   instanceOop allocate_instance(TRAPS);
+  static instanceOop allocate_instance(oop cls, TRAPS);
 
   // additional member function to return a handle
   instanceHandle allocate_instance_handle(TRAPS);

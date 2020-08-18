@@ -28,12 +28,12 @@ package gc.g1;
  * @bug 8051973
  * @summary Test to make sure that eager reclaim of humongous objects correctly clears
  * mark bitmaps at reclaim.
- * @key gc randomness
+ * @key randomness
  * @requires vm.gc.G1
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main gc.g1.TestEagerReclaimHumongousRegionsClearMarkBits
+ * @run driver gc.g1.TestEagerReclaimHumongousRegionsClearMarkBits
  */
 
 import java.util.ArrayList;
@@ -124,7 +124,7 @@ public class TestEagerReclaimHumongousRegionsClearMarkBits {
             "-Xmx128M",
             "-Xmn2M",
             "-XX:G1HeapRegionSize=1M",
-            "-XX:InitiatingHeapOccupancyPercent=0", // Want to have as much as possible initial marks.
+            "-XX:InitiatingHeapOccupancyPercent=0", // Want to have as much as possible mark cycles.
             "-Xlog:gc",
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+VerifyAfterGC",

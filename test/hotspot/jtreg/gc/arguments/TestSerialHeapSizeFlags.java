@@ -25,7 +25,6 @@ package gc.arguments;
 
 /*
  * @test TestSerialHeapSizeFlags
- * @key gc
  * @bug 8006088
  * @summary Tests argument processing for initial and maximum heap size for the Serial collector
  * @library /test/lib
@@ -34,7 +33,7 @@ package gc.arguments;
  *          java.management
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm gc.arguments.TestSerialHeapSizeFlags
+ * @run driver gc.arguments.TestSerialHeapSizeFlags
  * @author thomas.schatzl@oracle.com
  */
 

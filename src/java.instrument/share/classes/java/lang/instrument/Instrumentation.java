@@ -222,13 +222,8 @@ public interface Instrumentation {
      * Instances of the retransformed class are not affected.
      *
      * <P>
-     * The retransformation may change method bodies, the constant pool and
-     * attributes (unless explicitly prohibited).
-     * The retransformation must not add, remove or rename fields or methods, change the
-     * signatures of methods, or change inheritance.
-     * The retransformation must not change the <code>NestHost</code>,
-     * <code>NestMembers</code>, or <code>Record</code> attributes.
-     * These restrictions may be lifted in future versions.
+     * The supported class file changes are described in
+     * <a href="{@docRoot}/../specs/jvmti.html#RetransformClasses">JVM TI RetransformClasses</a>.
      * The class file bytes are not checked, verified and installed
      * until after the transformations have been applied, if the resultant bytes are in
      * error this method will throw an exception.
@@ -313,13 +308,8 @@ public interface Instrumentation {
      * Instances of the redefined class are not affected.
      *
      * <P>
-     * The redefinition may change method bodies, the constant pool and attributes
-     * (unless explicitly prohibited).
-     * The redefinition must not add, remove or rename fields or methods, change the
-     * signatures of methods, or change inheritance.
-     * The redefinition must not change the <code>NestHost</code>,
-     * <code>NestMembers</code>, or <code>Record</code> attributes.
-     * These restrictions may be lifted in future versions.
+     * The supported class file changes are described in
+     * <a href="{@docRoot}/../specs/jvmti.html#RedefineClasses">JVM TI RedefineClasses</a>.
      * The class file bytes are not checked, verified and installed
      * until after the transformations have been applied, if the resultant bytes are in
      * error this method will throw an exception.
@@ -460,7 +450,7 @@ public interface Instrumentation {
      * instrumentation classes.
      *
      * <p>
-     * <cite>The Java&trade; Virtual Machine Specification</cite>
+     * <cite>The Java Virtual Machine Specification</cite>
      * specifies that a subsequent attempt to resolve a symbolic
      * reference that the Java virtual machine has previously unsuccessfully attempted
      * to resolve always fails with the same error that was thrown as a result of the
@@ -514,7 +504,7 @@ public interface Instrumentation {
      * parameter to the <code>appendToClassPathForInstrumentation</code> method.
      *
      * <p>
-     * <cite>The Java&trade; Virtual Machine Specification</cite>
+     * <cite>The Java Virtual Machine Specification</cite>
      * specifies that a subsequent attempt to resolve a symbolic
      * reference that the Java virtual machine has previously unsuccessfully attempted
      * to resolve always fails with the same error that was thrown as a result of the
@@ -707,7 +697,7 @@ public interface Instrumentation {
      * to export. The {@code extraOpens} parameter is the map of additional
      * packages to open. In both cases, the map key is the fully-qualified name
      * of the package as defined in section 6.5.3 of
-     * <cite>The Java&trade; Language Specification </cite>, for example, {@code
+     * <cite>The Java Language Specification </cite>, for example, {@code
      * "java.lang"}. The map value is the non-empty set of modules that the
      * package should be exported or opened to. </p>
      *

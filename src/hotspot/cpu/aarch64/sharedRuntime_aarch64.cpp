@@ -26,6 +26,7 @@
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "code/codeCache.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
@@ -402,7 +403,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     // 3    8 T_BOOL
     // -    0 return address
     //
-    // However to make thing extra confusing. Because we can fit a long/double in
+    // However to make thing extra confusing. Because we can fit a Java long/double in
     // a single slot on a 64 bt vm and it would be silly to break them up, the interpreter
     // leaves one slot empty and only stores to a single slot. In this case the
     // slot that is occupied is the T_VOID slot. See I said it was confusing.
@@ -435,7 +436,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           __ str(rscratch1, Address(sp, next_off));
 #ifdef ASSERT
           // Overwrite the unused slot with known junk
-          __ mov(rscratch1, 0xdeadffffdeadaaaaul);
+          __ mov(rscratch1, (uint64_t)0xdeadffffdeadaaaaull);
           __ str(rscratch1, Address(sp, st_off));
 #endif /* ASSERT */
         } else {
@@ -452,10 +453,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         // Two VMREgs|OptoRegs can be T_OBJECT, T_ADDRESS, T_DOUBLE, T_LONG
         // T_DOUBLE and T_LONG use two slots in the interpreter
         if ( sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
-          // long/double in gpr
+          // jlong/double in gpr
 #ifdef ASSERT
           // Overwrite the unused slot with known junk
-          __ mov(rscratch1, 0xdeadffffdeadaaabul);
+          __ mov(rscratch1, (uint64_t)0xdeadffffdeadaaabull);
           __ str(rscratch1, Address(sp, st_off));
 #endif /* ASSERT */
           __ str(r, Address(sp, next_off));
@@ -471,7 +472,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       } else {
 #ifdef ASSERT
         // Overwrite the unused slot with known junk
-        __ mov(rscratch1, 0xdeadffffdeadaaacul);
+        __ mov(rscratch1, (uint64_t)0xdeadffffdeadaaacull);
         __ str(rscratch1, Address(sp, st_off));
 #endif /* ASSERT */
         __ strd(r_1->as_FloatRegister(), Address(sp, next_off));
@@ -1129,13 +1130,11 @@ class ComputeMoveOrder: public StackObj {
 };
 
 
-static void rt_call(MacroAssembler* masm, address dest, int gpargs, int fpargs, int type) {
+static void rt_call(MacroAssembler* masm, address dest) {
   CodeBlob *cb = CodeCache::find_blob(dest);
   if (cb) {
     __ far_call(RuntimeAddress(dest));
   } else {
-    assert((unsigned)gpargs < 256, "eek!");
-    assert((unsigned)fpargs < 32, "eek!");
     __ lea(rscratch1, RuntimeAddress(dest));
     __ blr(rscratch1);
     __ maybe_isb();
@@ -1702,7 +1701,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   Label dtrace_method_entry, dtrace_method_entry_done;
   {
-    unsigned long offset;
+    uint64_t offset;
     __ adrp(rscratch1, ExternalAddress((address)&DTraceMethodProbes), offset);
     __ ldrb(rscratch1, Address(rscratch1, offset));
     __ cbnzw(rscratch1, dtrace_method_entry);
@@ -1803,33 +1802,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
   __ stlrw(rscratch1, rscratch2);
 
-  {
-    int return_type = 0;
-    switch (ret_type) {
-    case T_VOID: break;
-      return_type = 0; break;
-    case T_CHAR:
-    case T_BYTE:
-    case T_SHORT:
-    case T_INT:
-    case T_BOOLEAN:
-    case T_LONG:
-      return_type = 1; break;
-    case T_ARRAY:
-    case T_OBJECT:
-      return_type = 1; break;
-    case T_FLOAT:
-      return_type = 2; break;
-    case T_DOUBLE:
-      return_type = 3; break;
-    default:
-      ShouldNotReachHere();
-    }
-    rt_call(masm, native_func,
-            int_args + 2, // AArch64 passes up to 8 args in int registers
-            float_args,   // and up to 8 float args
-            return_type);
-  }
+  rt_call(masm, native_func);
 
   __ bind(native_return);
 
@@ -1942,7 +1915,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   Label dtrace_method_exit, dtrace_method_exit_done;
   {
-    unsigned long offset;
+    uint64_t offset;
     __ adrp(rscratch1, ExternalAddress((address)&DTraceMethodProbes), offset);
     __ ldrb(rscratch1, Address(rscratch1, offset));
     __ cbnzw(rscratch1, dtrace_method_exit);
@@ -2039,7 +2012,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ ldr(r19, Address(rthread, in_bytes(Thread::pending_exception_offset())));
     __ str(zr, Address(rthread, in_bytes(Thread::pending_exception_offset())));
 
-    rt_call(masm, CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_unlocking_C), 3, 0, 1);
+    rt_call(masm, CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_unlocking_C));
 
 #ifdef ASSERT
     {
@@ -2066,7 +2039,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   __ bind(reguard);
   save_native_result(masm, ret_type, stack_slots);
-  rt_call(masm, CAST_FROM_FN_PTR(address, SharedRuntime::reguard_yellow_pages), 0, 0, 0);
+  rt_call(masm, CAST_FROM_FN_PTR(address, SharedRuntime::reguard_yellow_pages));
   restore_native_result(masm, ret_type, stack_slots);
   // and continue
   __ b(reguard_done);

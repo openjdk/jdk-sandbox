@@ -41,9 +41,11 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/compilerEvent.hpp"
 #include "compiler/compileLog.hpp"
+#include "compiler/compileTask.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
@@ -229,7 +231,7 @@ ciEnv::~ciEnv() {
 
 // ------------------------------------------------------------------
 // Cache Jvmti state
-void ciEnv::cache_jvmti_state() {
+bool ciEnv::cache_jvmti_state() {
   VM_ENTRY_MARK;
   // Get Jvmti capabilities under lock to get consistant values.
   MutexLocker mu(JvmtiThreadState_lock);
@@ -239,6 +241,7 @@ void ciEnv::cache_jvmti_state() {
   _jvmti_can_post_on_exceptions         = JvmtiExport::can_post_on_exceptions();
   _jvmti_can_pop_frame                  = JvmtiExport::can_pop_frame();
   _jvmti_can_get_owned_monitor_info     = JvmtiExport::can_get_owned_monitor_info();
+  return _task != NULL && _task->method()->is_old();
 }
 
 bool ciEnv::jvmti_state_changed() const {
@@ -758,7 +761,7 @@ Method* ciEnv::lookup_method(ciInstanceKlass* accessor,
   InstanceKlass* accessor_klass = accessor->get_instanceKlass();
   Klass* holder_klass = holder->get_Klass();
   Method* dest_method;
-  LinkInfo link_info(holder_klass, name, sig, accessor_klass, LinkInfo::needs_access_check, tag);
+  LinkInfo link_info(holder_klass, name, sig, accessor_klass, LinkInfo::AccessCheck::required, tag);
   switch (bc) {
   case Bytecodes::_invokestatic:
     dest_method =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@ package gc.arguments;
 
 /*
  * @test TestMaxNewSizeSerial
- * @key gc
  * @bug 7057939
  * @summary Make sure that MaxNewSize always has a useful value after argument
  * processing.
@@ -34,13 +33,12 @@ package gc.arguments;
  * @library /
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main gc.arguments.TestMaxNewSize -XX:+UseSerialGC
+ * @run driver gc.arguments.TestMaxNewSize -XX:+UseSerialGC
  * @author thomas.schatzl@oracle.com, jesper.wilhelmsson@oracle.com
  */
 
 /*
  * @test TestMaxNewSizeParallel
- * @key gc
  * @bug 7057939
  * @summary Make sure that MaxNewSize always has a useful value after argument
  * processing.
@@ -49,13 +47,12 @@ package gc.arguments;
  * @library /
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main gc.arguments.TestMaxNewSize -XX:+UseParallelGC
+ * @run driver gc.arguments.TestMaxNewSize -XX:+UseParallelGC
  * @author thomas.schatzl@oracle.com, jesper.wilhelmsson@oracle.com
  */
 
 /*
  * @test TestMaxNewSizeG1
- * @key gc
  * @bug 7057939
  * @summary Make sure that MaxNewSize always has a useful value after argument
  * processing.
@@ -64,7 +61,7 @@ package gc.arguments;
  * @library /
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main gc.arguments.TestMaxNewSize -XX:+UseG1GC
+ * @run driver gc.arguments.TestMaxNewSize -XX:+UseG1GC
  * @author thomas.schatzl@oracle.com, jesper.wilhelmsson@oracle.com
  */
 

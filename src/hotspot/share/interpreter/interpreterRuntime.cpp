@@ -74,21 +74,6 @@
 #include "opto/runtime.hpp"
 #endif
 
-class UnlockFlagSaver {
-  private:
-    JavaThread* _thread;
-    bool _do_not_unlock;
-  public:
-    UnlockFlagSaver(JavaThread* t) {
-      _thread = t;
-      _do_not_unlock = t->do_not_unlock_if_synchronized();
-      t->set_do_not_unlock_if_synchronized(false);
-    }
-    ~UnlockFlagSaver() {
-      _thread->set_do_not_unlock_if_synchronized(_do_not_unlock);
-    }
-};
-
 // Helper class to access current interpreter state
 class LastFrameAccessor : public StackObj {
   frame _last_frame;
@@ -214,7 +199,7 @@ JRT_ENTRY(void, InterpreterRuntime::resolve_ldc(JavaThread* thread, Bytecodes::C
   if (!is_fast_aldc) {
     // Tell the interpreter how to unbox the primitive.
     guarantee(java_lang_boxing_object::is_instance(result, type), "");
-    int offset = java_lang_boxing_object::value_offset_in_bytes(type);
+    int offset = java_lang_boxing_object::value_offset(type);
     intptr_t flags = ((as_TosState(type) << ConstantPoolCacheEntry::tos_state_shift)
                       | (offset & ConstantPoolCacheEntry::field_index_mask));
     thread->set_vm_result_2((Metadata*)flags);
@@ -353,28 +338,6 @@ void InterpreterRuntime::note_trap(JavaThread* thread, int reason, TRAPS) {
   note_trap_inner(thread, reason, trap_method, trap_bci, THREAD);
 }
 
-#ifdef CC_INTERP
-// As legacy note_trap, but we have more arguments.
-JRT_ENTRY(void, InterpreterRuntime::note_trap(JavaThread* thread, int reason, Method *method, int trap_bci))
-  methodHandle trap_method(thread, method);
-  note_trap_inner(thread, reason, trap_method, trap_bci, THREAD);
-JRT_END
-
-// Class Deoptimization is not visible in BytecodeInterpreter, so we need a wrapper
-// for each exception.
-void InterpreterRuntime::note_nullCheck_trap(JavaThread* thread, Method *method, int trap_bci)
-  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_null_check, method, trap_bci); }
-void InterpreterRuntime::note_div0Check_trap(JavaThread* thread, Method *method, int trap_bci)
-  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_div0_check, method, trap_bci); }
-void InterpreterRuntime::note_rangeCheck_trap(JavaThread* thread, Method *method, int trap_bci)
-  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_range_check, method, trap_bci); }
-void InterpreterRuntime::note_classCheck_trap(JavaThread* thread, Method *method, int trap_bci)
-  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_class_check, method, trap_bci); }
-void InterpreterRuntime::note_arrayCheck_trap(JavaThread* thread, Method *method, int trap_bci)
-  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_array_check, method, trap_bci); }
-#endif // CC_INTERP
-
-
 static Handle get_preinitialized_exception(Klass* k, TRAPS) {
   // get klass
   InstanceKlass* klass = InstanceKlass::cast(k);
@@ -501,11 +464,7 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     // during deoptimization so the interpreter needs to skip it when
     // the frame is popped.
     thread->set_do_not_unlock_if_synchronized(true);
-#ifdef CC_INTERP
-    return (address) -1;
-#else
     return Interpreter::remove_activation_entry();
-#endif
   }
 
   // Need to do this check first since when _do_not_unlock_if_synchronized
@@ -516,11 +475,7 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     ResourceMark rm;
     assert(current_bci == 0,  "bci isn't zero for do_not_unlock_if_synchronized");
     thread->set_vm_result(exception);
-#ifdef CC_INTERP
-    return (address) -1;
-#else
     return Interpreter::remove_activation_entry();
-#endif
   }
 
   do {
@@ -590,19 +545,13 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     JvmtiExport::post_exception_throw(thread, h_method(), last_frame.bcp(), h_exception());
   }
 
-#ifdef CC_INTERP
-  address continuation = (address)(intptr_t) handler_bci;
-#else
   address continuation = NULL;
-#endif
   address handler_pc = NULL;
   if (handler_bci < 0 || !thread->reguard_stack((address) &continuation)) {
     // Forward exception to callee (leaving bci/bcp untouched) because (a) no
     // handler in this method, or (b) after a stack overflow there is not yet
     // enough stack space available to reprotect the stack.
-#ifndef CC_INTERP
     continuation = Interpreter::remove_activation_entry();
-#endif
 #if COMPILER2_OR_JVMCI
     // Count this for compilation purposes
     h_method->interpreter_throwout_increment(THREAD);
@@ -610,11 +559,14 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
   } else {
     // handler in this method => change bci/bcp to handler bci/bcp and continue there
     handler_pc = h_method->code_base() + handler_bci;
-#ifndef CC_INTERP
+#ifndef ZERO
     set_bcp_and_mdp(handler_pc, thread);
     continuation = Interpreter::dispatch_table(vtos)[*handler_pc];
+#else
+    continuation = (address)(intptr_t) handler_bci;
 #endif
   }
+
   // notify debugger of an exception catch
   // (this is good for exceptions caught in native methods as well)
   if (JvmtiExport::can_post_on_exceptions()) {
@@ -1064,6 +1016,9 @@ nmethod* InterpreterRuntime::frequency_counter_overflow(JavaThread* thread, addr
 
 JRT_ENTRY(nmethod*,
           InterpreterRuntime::frequency_counter_overflow_inner(JavaThread* thread, address branch_bcp))
+  if (HAS_PENDING_EXCEPTION) {
+    return NULL;
+  }
   // use UnlockFlagSaver to clear and restore the _do_not_unlock_if_synchronized
   // flag, in case this method triggers classloading which will call into Java.
   UnlockFlagSaver fs(thread);
@@ -1074,7 +1029,6 @@ JRT_ENTRY(nmethod*,
   const int branch_bci = branch_bcp != NULL ? method->bci_from(branch_bcp) : InvocationEntryBci;
   const int bci = branch_bcp != NULL ? method->bci_from(last_frame.bcp()) : InvocationEntryBci;
 
-  assert(!HAS_PENDING_EXCEPTION, "Should not have any exceptions pending");
   nmethod* osr_nm = CompilationPolicy::policy()->event(method, method, branch_bci, bci, CompLevel_none, NULL, thread);
   assert(!HAS_PENDING_EXCEPTION, "Event handler should not throw any exceptions");
 
@@ -1117,6 +1071,9 @@ JRT_LEAF(jint, InterpreterRuntime::bcp_to_di(Method* method, address cur_bcp))
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::profile_method(JavaThread* thread))
+  if (HAS_PENDING_EXCEPTION) {
+    return;
+  }
   // use UnlockFlagSaver to clear and restore the _do_not_unlock_if_synchronized
   // flag, in case this method triggers classloading which will call into Java.
   UnlockFlagSaver fs(thread);
@@ -1146,8 +1103,6 @@ JRT_LEAF(void, InterpreterRuntime::verify_mdp(Method* method, address bcp, addre
   address mdp2 = mdo->bci_to_dp(bci);
   if (mdp != mdp2) {
     ResourceMark rm;
-    ResetNoHandleMark rnm; // In a LEAF entry.
-    HandleMark hm;
     tty->print_cr("FAILED verify : actual mdp %p   expected mdp %p @ bci %d", mdp, mdp2, bci);
     int current_di = mdo->dp_to_di(mdp);
     int expected_di  = mdo->dp_to_di(mdp2);
@@ -1168,7 +1123,6 @@ JRT_END
 JRT_ENTRY(void, InterpreterRuntime::update_mdp_for_ret(JavaThread* thread, int return_bci))
   assert(ProfileInterpreter, "must be profiling interpreter");
   ResourceMark rm(thread);
-  HandleMark hm(thread);
   LastFrameAccessor last_frame(thread);
   assert(last_frame.is_interpreted_frame(), "must come from interpreter");
   MethodData* h_mdo = last_frame.method()->method_data();
@@ -1344,8 +1298,8 @@ void SignatureHandlerLibrary::initialize() {
                                       SignatureHandlerLibrary::buffer_size);
   _buffer = bb->code_begin();
 
-  _fingerprints = new(ResourceObj::C_HEAP, mtCode)GrowableArray<uint64_t>(32, true);
-  _handlers     = new(ResourceObj::C_HEAP, mtCode)GrowableArray<address>(32, true);
+  _fingerprints = new(ResourceObj::C_HEAP, mtCode)GrowableArray<uint64_t>(32, mtCode);
+  _handlers     = new(ResourceObj::C_HEAP, mtCode)GrowableArray<address>(32, mtCode);
 }
 
 address SignatureHandlerLibrary::set_handler(CodeBuffer* buffer) {
@@ -1522,8 +1476,6 @@ JRT_LEAF(void, InterpreterRuntime::popframe_move_outgoing_args(JavaThread* threa
   if (src_address == dest_address) {
     return;
   }
-  ResetNoHandleMark rnm; // In a LEAF entry.
-  HandleMark hm;
   ResourceMark rm;
   LastFrameAccessor last_frame(thread);
   assert(last_frame.is_interpreted_frame(), "");

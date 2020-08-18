@@ -490,8 +490,6 @@ void SafepointSynchronize::end() {
 }
 
 bool SafepointSynchronize::is_cleanup_needed() {
-  // Need a safepoint if there are many monitors to deflate.
-  if (ObjectSynchronizer::is_cleanup_needed()) return true;
   // Need a safepoint if some inline cache buffers is non-empty
   if (!InlineCacheBuffer::is_empty()) return true;
   if (StringTable::needs_rehashing()) return true;
@@ -499,54 +497,24 @@ bool SafepointSynchronize::is_cleanup_needed() {
   return false;
 }
 
-bool SafepointSynchronize::is_forced_cleanup_needed() {
-  return ObjectSynchronizer::needs_monitor_scavenge();
-}
-
-class ParallelSPCleanupThreadClosure : public ThreadClosure {
-private:
-  CodeBlobClosure* _nmethod_cl;
-  DeflateMonitorCounters* _counters;
-
-public:
-  ParallelSPCleanupThreadClosure(DeflateMonitorCounters* counters) :
-    _nmethod_cl(UseCodeAging ? NMethodSweeper::prepare_reset_hotness_counters() : NULL),
-    _counters(counters) {}
-
-  void do_thread(Thread* thread) {
-    ObjectSynchronizer::deflate_thread_local_monitors(thread, _counters);
-    if (_nmethod_cl != NULL && thread->is_Java_thread() &&
-        ! thread->is_Code_cache_sweeper_thread()) {
-      JavaThread* jt = (JavaThread*) thread;
-      jt->nmethods_do(_nmethod_cl);
-    }
-  }
-};
-
 class ParallelSPCleanupTask : public AbstractGangTask {
 private:
   SubTasksDone _subtasks;
-  ParallelSPCleanupThreadClosure _cleanup_threads_cl;
   uint _num_workers;
-  DeflateMonitorCounters* _counters;
 public:
-  ParallelSPCleanupTask(uint num_workers, DeflateMonitorCounters* counters) :
+  ParallelSPCleanupTask(uint num_workers) :
     AbstractGangTask("Parallel Safepoint Cleanup"),
     _subtasks(SafepointSynchronize::SAFEPOINT_CLEANUP_NUM_TASKS),
-    _cleanup_threads_cl(ParallelSPCleanupThreadClosure(counters)),
-    _num_workers(num_workers),
-    _counters(counters) {}
+    _num_workers(num_workers) {}
 
   void work(uint worker_id) {
     uint64_t safepoint_id = SafepointSynchronize::safepoint_id();
-    // All threads deflate monitors and mark nmethods (if necessary).
-    Threads::possibly_parallel_threads_do(true, &_cleanup_threads_cl);
 
     if (_subtasks.try_claim_task(SafepointSynchronize::SAFEPOINT_CLEANUP_DEFLATE_MONITORS)) {
-      const char* name = "deflating global idle monitors";
+      const char* name = "deflating idle monitors";
       EventSafepointCleanupTask event;
       TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
-      ObjectSynchronizer::deflate_idle_monitors(_counters);
+      ObjectSynchronizer::do_safepoint_work();
 
       post_safepoint_cleanup_task_event(event, safepoint_id, name);
     }
@@ -617,23 +585,17 @@ void SafepointSynchronize::do_cleanup_tasks() {
 
   TraceTime timer("safepoint cleanup tasks", TRACETIME_LOG(Info, safepoint, cleanup));
 
-  // Prepare for monitor deflation.
-  DeflateMonitorCounters deflate_counters;
-  ObjectSynchronizer::prepare_deflate_idle_monitors(&deflate_counters);
-
   CollectedHeap* heap = Universe::heap();
   assert(heap != NULL, "heap not initialized yet?");
   WorkGang* cleanup_workers = heap->get_safepoint_workers();
   if (cleanup_workers != NULL) {
     // Parallel cleanup using GC provided thread pool.
     uint num_cleanup_workers = cleanup_workers->active_workers();
-    ParallelSPCleanupTask cleanup(num_cleanup_workers, &deflate_counters);
-    StrongRootsScope srs(num_cleanup_workers);
+    ParallelSPCleanupTask cleanup(num_cleanup_workers);
     cleanup_workers->run_task(&cleanup);
   } else {
     // Serial cleanup using VMThread.
-    ParallelSPCleanupTask cleanup(1, &deflate_counters);
-    StrongRootsScope srs(1);
+    ParallelSPCleanupTask cleanup(1);
     cleanup.work(0);
   }
 
@@ -645,9 +607,6 @@ void SafepointSynchronize::do_cleanup_tasks() {
     TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
     ClassLoaderDataGraph::walk_metadata_and_clean_metaspaces();
   }
-
-  // Finish monitor deflation.
-  ObjectSynchronizer::finish_deflate_idle_monitors(&deflate_counters);
 
   assert(InlineCacheBuffer::is_empty(), "should have cleaned up ICBuffer");
 }
@@ -1176,8 +1135,6 @@ void SafepointTracing::statistics_exit_log() {
     }
   }
 
-  log_info(safepoint, stats)("VM operations coalesced during safepoint " INT64_FORMAT,
-                              VMThread::get_coalesced_count());
   log_info(safepoint, stats)("Maximum sync time  " INT64_FORMAT" ns",
                               (int64_t)(_max_sync_time));
   log_info(safepoint, stats)("Maximum vm operation time (except for Exit VM operation)  "

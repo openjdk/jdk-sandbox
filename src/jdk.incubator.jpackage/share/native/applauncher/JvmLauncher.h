@@ -37,7 +37,7 @@ public:
     Jvm& initFromConfigFile(const CfgFile& cfgFile);
 
     Jvm& addArgument(const tstring& value) {
-        args.push_back(tstrings::any(value).str());
+        args.push_back(value);
         return *this;
     }
 
@@ -46,11 +46,15 @@ public:
         return *this;
     }
 
+    tstring getPath() const {
+        return jvmPath;
+    }
+
     void launch();
 
 private:
     tstring jvmPath;
-    std::vector<std::string> args;
+    tstring_array args;
 };
 
 #endif // JvmLauncher_h
