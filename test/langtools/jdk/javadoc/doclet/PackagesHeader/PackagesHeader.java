@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,18 @@
 
 /*
  * @test
- * @bug      4766385
+ * @bug      4766385 8196202
  * @summary  Test that the header option for upper left frame
  *           is present for three sets of options: (1) -header,
  *           (2) -packagesheader, and (3) -header -packagesheader
  * @author   dkramer
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main PackagesHeader
  */
+
+import javadoc.tester.JavadocTester;
 
 public class PackagesHeader extends JavadocTester {
 
@@ -42,10 +44,11 @@ public class PackagesHeader extends JavadocTester {
     }
 
     @Test
-    void testHeader() {
+    public void testHeader() {
         // First test with -header only
         javadoc("-d", "out-header",
                 "-header", "Main Frame Header",
+                "--frames",
                 "-sourcepath", testSrc,
                 "p1", "p2");
         checkExit(Exit.OK);
@@ -56,10 +59,11 @@ public class PackagesHeader extends JavadocTester {
     }
 
     @Test
-    void testPackagesHeader() {
+    public void testPackagesHeader() {
         // Second test with -packagesheader only
         javadoc("-d", "out-packages-header",
                 "-packagesheader", "Packages Frame Header",
+                "--frames",
                 "-sourcepath", testSrc,
                 "p1", "p2");
         checkExit(Exit.OK);
@@ -71,11 +75,12 @@ public class PackagesHeader extends JavadocTester {
     }
 
     @Test
-    void testBothHeaders() {
+    public void testBothHeaders() {
         // Third test with both -packagesheader and -header
         javadoc("-d", "out-both",
                 "-packagesheader", "Packages Frame Header",
                 "-header", "Main Frame Header",
+                "--frames",
                 "-sourcepath", testSrc,
                 "p1", "p2");
         checkExit(Exit.OK);

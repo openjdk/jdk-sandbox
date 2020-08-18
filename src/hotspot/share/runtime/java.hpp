@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_JAVA_HPP
-#define SHARE_VM_RUNTIME_JAVA_HPP
+#ifndef SHARE_RUNTIME_JAVA_HPP
+#define SHARE_RUNTIME_JAVA_HPP
 
 #include "runtime/os.hpp"
 
@@ -51,12 +51,14 @@ extern void vm_exit_during_initialization(Symbol* exception_name, const char* me
 extern void vm_exit_during_initialization(const char* error, const char* message = NULL);
 extern void vm_shutdown_during_initialization(const char* error, const char* message = NULL);
 
+extern void vm_exit_during_cds_dumping(const char* error, const char* message = NULL);
+
 /**
  * With the integration of the changes to handle the version string
  * as defined by JEP-223, most of the code related to handle the version
  * string prior to JDK 1.6 was removed (partial initialization)
  */
-class JDK_Version VALUE_OBJ_CLASS_SPEC {
+class JDK_Version {
   friend class VMStructs;
   friend class Universe;
   friend void JDK_Version_init();
@@ -155,4 +157,4 @@ class JDK_Version VALUE_OBJ_CLASS_SPEC {
 
 };
 
-#endif // SHARE_VM_RUNTIME_JAVA_HPP
+#endif // SHARE_RUNTIME_JAVA_HPP

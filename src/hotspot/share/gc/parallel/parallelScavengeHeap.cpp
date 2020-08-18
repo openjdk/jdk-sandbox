@@ -25,29 +25,31 @@
 #include "precompiled.hpp"
 #include "code/codeCache.hpp"
 #include "gc/parallel/adjoiningGenerations.hpp"
+#include "gc/parallel/adjoiningGenerationsForHeteroHeap.hpp"
 #include "gc/parallel/adjoiningVirtualSpaces.hpp"
-#include "gc/parallel/cardTableExtension.hpp"
 #include "gc/parallel/gcTaskManager.hpp"
 #include "gc/parallel/generationSizer.hpp"
 #include "gc/parallel/objectStartArray.inline.hpp"
 #include "gc/parallel/parallelScavengeHeap.inline.hpp"
 #include "gc/parallel/psAdaptiveSizePolicy.hpp"
-#include "gc/parallel/psMarkSweep.hpp"
+#include "gc/parallel/psMarkSweepProxy.hpp"
 #include "gc/parallel/psMemoryPool.hpp"
 #include "gc/parallel/psParallelCompact.inline.hpp"
 #include "gc/parallel/psPromotionManager.hpp"
 #include "gc/parallel/psScavenge.hpp"
-#include "gc/parallel/vmPSOperations.hpp"
+#include "gc/parallel/psVMOperations.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcWhen.hpp"
 #include "logging/log.hpp"
+#include "memory/metaspaceCounters.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/vmThread.hpp"
 #include "services/memoryManager.hpp"
 #include "services/memTracker.hpp"
+#include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
 
 PSYoungGen*  ParallelScavengeHeap::_young_gen = NULL;
@@ -57,7 +59,7 @@ PSGCAdaptivePolicyCounters* ParallelScavengeHeap::_gc_policy_counters = NULL;
 GCTaskManager* ParallelScavengeHeap::_gc_task_manager = NULL;
 
 jint ParallelScavengeHeap::initialize() {
-  const size_t heap_size = _collector_policy->max_heap_byte_size();
+  size_t heap_size = _collector_policy->heap_reserved_size_bytes();
 
   ReservedSpace heap_rs = Universe::reserve_heap(heap_size, _collector_policy->heap_alignment());
 
@@ -70,9 +72,11 @@ jint ParallelScavengeHeap::initialize() {
 
   initialize_reserved_region((HeapWord*)heap_rs.base(), (HeapWord*)(heap_rs.base() + heap_rs.size()));
 
-  CardTableExtension* const barrier_set = new CardTableExtension(reserved_region());
+  PSCardTable* card_table = new PSCardTable(reserved_region());
+  card_table->initialize();
+  CardTableBarrierSet* const barrier_set = new CardTableBarrierSet(card_table);
   barrier_set->initialize();
-  set_barrier_set(barrier_set);
+  BarrierSet::set_barrier_set(barrier_set);
 
   // Make up the generations
   // Calculate the maximum size that a generation can grow.  This
@@ -83,7 +87,7 @@ jint ParallelScavengeHeap::initialize() {
   double max_gc_pause_sec = ((double) MaxGCPauseMillis)/1000.0;
   double max_gc_minor_pause_sec = ((double) MaxGCMinorPauseMillis)/1000.0;
 
-  _gens = new AdjoiningGenerations(heap_rs, _collector_policy, generation_alignment());
+  _gens = AdjoiningGenerations::create_adjoining_generations(heap_rs, _collector_policy, generation_alignment());
 
   _old_gen = _gens->old_gen();
   _young_gen = _gens->young_gen();
@@ -101,7 +105,7 @@ jint ParallelScavengeHeap::initialize() {
                              GCTimeRatio
                              );
 
-  assert(!UseAdaptiveGCBoundary ||
+  assert(_collector_policy->is_hetero_heap() || !UseAdaptiveGCBoundary ||
     (old_gen()->virtual_space()->high_boundary() ==
      young_gen()->virtual_space()->low_boundary()),
     "Boundaries must meet");
@@ -153,7 +157,7 @@ void ParallelScavengeHeap::post_initialize() {
   if (UseParallelOldGC) {
     PSParallelCompact::post_initialize();
   } else {
-    PSMarkSweep::initialize();
+    PSMarkSweepProxy::initialize();
   }
   PSPromotionManager::initialize();
 }
@@ -404,7 +408,7 @@ void ParallelScavengeHeap::do_full_collection(bool clear_all_soft_refs) {
     bool maximum_compaction = clear_all_soft_refs;
     PSParallelCompact::invoke(maximum_compaction);
   } else {
-    PSMarkSweep::invoke(clear_all_soft_refs);
+    PSMarkSweepProxy::invoke(clear_all_soft_refs);
   }
 }
 
@@ -476,12 +480,13 @@ size_t ParallelScavengeHeap::unsafe_max_tlab_alloc(Thread* thr) const {
   return young_gen()->eden_space()->unsafe_max_tlab_alloc(thr);
 }
 
-HeapWord* ParallelScavengeHeap::allocate_new_tlab(size_t size) {
-  return young_gen()->allocate(size);
-}
+HeapWord* ParallelScavengeHeap::allocate_new_tlab(size_t min_size, size_t requested_size, size_t* actual_size) {
+  HeapWord* result = young_gen()->allocate(requested_size);
+  if (result != NULL) {
+    *actual_size = requested_size;
+  }
 
-void ParallelScavengeHeap::accumulate_statistics_all_tlabs() {
-  CollectedHeap::accumulate_statistics_all_tlabs();
+  return result;
 }
 
 void ParallelScavengeHeap::resize_all_tlabs() {
@@ -538,7 +543,7 @@ bool ParallelScavengeHeap::block_is_obj(const HeapWord* addr) const {
 jlong ParallelScavengeHeap::millis_since_last_gc() {
   return UseParallelOldGC ?
     PSParallelCompact::millis_since_last_gc() :
-    PSMarkSweep::millis_since_last_gc();
+    PSMarkSweepProxy::millis_since_last_gc();
 }
 
 void ParallelScavengeHeap::prepare_for_verify() {
@@ -571,7 +576,7 @@ PSHeapSummary ParallelScavengeHeap::create_ps_heap_summary() {
 void ParallelScavengeHeap::print_on(outputStream* st) const {
   young_gen()->print_on(st);
   old_gen()->print_on(st);
-  MetaspaceAux::print_on(st);
+  MetaspaceUtils::print_on(st);
 }
 
 void ParallelScavengeHeap::print_on_error(outputStream* st) const {
@@ -595,7 +600,7 @@ void ParallelScavengeHeap::print_tracing_info() const {
   AdaptiveSizePolicyOutput::print();
   log_debug(gc, heap, exit)("Accumulated young generation GC time %3.7f secs", PSScavenge::accumulated_time()->seconds());
   log_debug(gc, heap, exit)("Accumulated old generation GC time %3.7f secs",
-      UseParallelOldGC ? PSParallelCompact::accumulated_time()->seconds() : PSMarkSweep::accumulated_time()->seconds());
+      UseParallelOldGC ? PSParallelCompact::accumulated_time()->seconds() : PSMarkSweepProxy::accumulated_time()->seconds());
 }
 
 
@@ -621,8 +626,16 @@ void ParallelScavengeHeap::trace_heap(GCWhen::Type when, const GCTracer* gc_trac
 ParallelScavengeHeap* ParallelScavengeHeap::heap() {
   CollectedHeap* heap = Universe::heap();
   assert(heap != NULL, "Uninitialized access to ParallelScavengeHeap::heap()");
-  assert(heap->kind() == CollectedHeap::ParallelScavengeHeap, "Not a ParallelScavengeHeap");
+  assert(heap->kind() == CollectedHeap::Parallel, "Invalid name");
   return (ParallelScavengeHeap*)heap;
+}
+
+CardTableBarrierSet* ParallelScavengeHeap::barrier_set() {
+  return barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
+}
+
+PSCardTable* ParallelScavengeHeap::card_table() {
+  return static_cast<PSCardTable*>(barrier_set()->card_table());
 }
 
 // Before delegating the resize to the young generation,

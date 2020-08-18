@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,12 @@
 #include "gc/g1/dirtyCardQueue.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1RemSet.hpp"
+#include "gc/g1/g1ThreadLocalData.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
+#include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/shared/workgroup.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/flags/flagSetting.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/thread.inline.hpp"
@@ -134,7 +137,9 @@ DirtyCardQueueSet::DirtyCardQueueSet(bool notify_when_complete) :
   PtrQueueSet(notify_when_complete),
   _shared_dirty_card_queue(this, true /* permanent */),
   _free_ids(NULL),
-  _processed_buffers_mut(0), _processed_buffers_rs_thread(0)
+  _processed_buffers_mut(0),
+  _processed_buffers_rs_thread(0),
+  _cur_par_buffer_node(NULL)
 {
   _all_active = true;
 }
@@ -145,26 +150,18 @@ uint DirtyCardQueueSet::num_par_ids() {
 }
 
 void DirtyCardQueueSet::initialize(Monitor* cbl_mon,
-                                   Mutex* fl_lock,
-                                   int process_completed_threshold,
-                                   int max_completed_queue,
+                                   BufferNode::Allocator* allocator,
                                    Mutex* lock,
-                                   DirtyCardQueueSet* fl_owner,
                                    bool init_free_ids) {
-  PtrQueueSet::initialize(cbl_mon,
-                          fl_lock,
-                          process_completed_threshold,
-                          max_completed_queue,
-                          fl_owner);
-  set_buffer_size(G1UpdateBufferSize);
+  PtrQueueSet::initialize(cbl_mon, allocator);
   _shared_dirty_card_queue.set_lock(lock);
   if (init_free_ids) {
-    _free_ids = new FreeIdSet(num_par_ids(), _cbl_mon);
+    _free_ids = new FreeIdSet(num_par_ids(), cbl_mon);
   }
 }
 
 void DirtyCardQueueSet::handle_zero_index_for_thread(JavaThread* t) {
-  t->dirty_card_queue().handle_zero_index();
+  G1ThreadLocalData::dirty_card_queue(t).handle_zero_index();
 }
 
 bool DirtyCardQueueSet::apply_closure_to_buffer(CardTableEntryClosure* cl,
@@ -220,37 +217,13 @@ bool DirtyCardQueueSet::mut_process_buffer(BufferNode* node) {
   return result;
 }
 
-
-BufferNode* DirtyCardQueueSet::get_completed_buffer(size_t stop_at) {
-  BufferNode* nd = NULL;
-  MutexLockerEx x(_cbl_mon, Mutex::_no_safepoint_check_flag);
-
-  if (_n_completed_buffers <= stop_at) {
-    _process_completed = false;
-    return NULL;
-  }
-
-  if (_completed_buffers_head != NULL) {
-    nd = _completed_buffers_head;
-    assert(_n_completed_buffers > 0, "Invariant");
-    _completed_buffers_head = nd->next();
-    _n_completed_buffers--;
-    if (_completed_buffers_head == NULL) {
-      assert(_n_completed_buffers == 0, "Invariant");
-      _completed_buffers_tail = NULL;
-    }
-  }
-  DEBUG_ONLY(assert_completed_buffer_list_len_correct_locked());
-  return nd;
-}
-
 bool DirtyCardQueueSet::refine_completed_buffer_concurrently(uint worker_i, size_t stop_at) {
   G1RefineCardConcurrentlyClosure cl;
   return apply_closure_to_completed_buffer(&cl, worker_i, stop_at, false);
 }
 
 bool DirtyCardQueueSet::apply_closure_during_gc(CardTableEntryClosure* cl, uint worker_i) {
-  assert_at_safepoint(false);
+  assert_at_safepoint();
   return apply_closure_to_completed_buffer(cl, worker_i, 0, true);
 }
 
@@ -271,7 +244,7 @@ bool DirtyCardQueueSet::apply_closure_to_completed_buffer(CardTableEntryClosure*
     } else {
       // Return partially processed buffer to the queue.
       guarantee(!during_pause, "Should never stop early");
-      enqueue_complete_buffer(nd);
+      enqueue_completed_buffer(nd);
     }
     return true;
   }
@@ -292,36 +265,13 @@ void DirtyCardQueueSet::par_apply_closure_to_all_completed_buffers(CardTableEntr
   }
 }
 
-// Deallocates any completed log buffers
-void DirtyCardQueueSet::clear() {
-  BufferNode* buffers_to_delete = NULL;
-  {
-    MutexLockerEx x(_cbl_mon, Mutex::_no_safepoint_check_flag);
-    while (_completed_buffers_head != NULL) {
-      BufferNode* nd = _completed_buffers_head;
-      _completed_buffers_head = nd->next();
-      nd->set_next(buffers_to_delete);
-      buffers_to_delete = nd;
-    }
-    _n_completed_buffers = 0;
-    _completed_buffers_tail = NULL;
-    DEBUG_ONLY(assert_completed_buffer_list_len_correct_locked());
-  }
-  while (buffers_to_delete != NULL) {
-    BufferNode* nd = buffers_to_delete;
-    buffers_to_delete = nd->next();
-    deallocate_buffer(nd);
-  }
-
-}
-
 void DirtyCardQueueSet::abandon_logs() {
   assert(SafepointSynchronize::is_at_safepoint(), "Must be at safepoint.");
-  clear();
+  abandon_completed_buffers();
   // Since abandon is done only at safepoints, we can safely manipulate
   // these queues.
   for (JavaThreadIteratorWithHandle jtiwh; JavaThread *t = jtiwh.next(); ) {
-    t->dirty_card_queue().reset();
+    G1ThreadLocalData::dirty_card_queue(t).reset();
   }
   shared_dirty_card_queue()->reset();
 }
@@ -336,13 +286,12 @@ void DirtyCardQueueSet::concatenate_logs() {
   // Iterate over all the threads, if we find a partial log add it to
   // the global list of logs.  Temporarily turn off the limit on the number
   // of outstanding buffers.
-  int save_max_completed_queue = _max_completed_queue;
-  _max_completed_queue = max_jint;
   assert(SafepointSynchronize::is_at_safepoint(), "Must be at safepoint.");
+  size_t old_limit = max_completed_buffers();
+  set_max_completed_buffers(MaxCompletedBuffersUnlimited);
   for (JavaThreadIteratorWithHandle jtiwh; JavaThread *t = jtiwh.next(); ) {
-    concatenate_log(t->dirty_card_queue());
+    concatenate_log(G1ThreadLocalData::dirty_card_queue(t));
   }
   concatenate_log(_shared_dirty_card_queue);
-  // Restore the completed buffer queue limit.
-  _max_completed_queue = save_max_completed_queue;
+  set_max_completed_buffers(old_limit);
 }

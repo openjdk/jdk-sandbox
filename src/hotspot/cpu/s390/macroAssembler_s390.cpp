@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2017, SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,15 @@
 #include "asm/codeBuffer.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "compiler/disassembler.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/interpreter.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/accessDecorators.hpp"
+#include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "opto/compile.hpp"
 #include "opto/intrinsicnode.hpp"
@@ -40,7 +44,7 @@
 #include "registerSaver_s390.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/icache.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepoint.hpp"
@@ -49,11 +53,6 @@
 #include "runtime/stubRoutines.hpp"
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#include "gc/g1/heapRegion.hpp"
-#endif
 
 #include <ucontext.h>
 
@@ -466,19 +465,8 @@ void MacroAssembler::not_(Register r1, Register r2, bool wide) {
       z_xihf(r1, -1);
     }
   } else { // Distinct src and dst registers.
-    if (VM_Version::has_DistinctOpnds()) {
-      load_const_optimized(r1, -1);
-      z_xgrk(r1, r2, r1);
-    } else {
-      if (wide) {
-        z_lgr(r1, r2);
-        z_xilf(r1, -1);
-        z_xihf(r1, -1);
-      } else {
-        z_lr(r1, r2);
-        z_xilf(r1, -1);
-      }
-    }
+    load_const_optimized(r1, -1);
+    z_xgr(r1, r2);
   }
 }
 
@@ -1159,8 +1147,10 @@ void MacroAssembler::load_absolute_address(Register d, address addr) {
 // Make sure to keep code size constant -> no value-dependent optimizations.
 // Do not kill condition code.
 void MacroAssembler::load_const(Register t, long x) {
-  Assembler::z_iihf(t, (int)(x >> 32));
-  Assembler::z_iilf(t, (int)(x & 0xffffffff));
+  // Note: Right shift is only cleanly defined for unsigned types
+  //       or for signed types with nonnegative values.
+  Assembler::z_iihf(t, (long)((unsigned long)x >> 32));
+  Assembler::z_iilf(t, (long)((unsigned long)x & 0xffffffffUL));
 }
 
 // Load a 32bit constant into a 64bit register, sign-extend or zero-extend.
@@ -1257,8 +1247,10 @@ bool MacroAssembler::is_compare_immediate_narrow_klass(address pos) {
 // CPU-version dependend patching of load_const.
 void MacroAssembler::patch_const(address a, long x) {
   assert(is_load_const(a), "not a load of a constant");
-  set_imm32((address)a, (int) ((x >> 32) & 0xffffffff));
-  set_imm32((address)(a + 6), (int)(x & 0xffffffff));
+  // Note: Right shift is only cleanly defined for unsigned types
+  //       or for signed types with nonnegative values.
+  set_imm32((address)a, (long)((unsigned long)x >> 32));
+  set_imm32((address)(a + 6), (long)((unsigned long)x & 0xffffffffUL));
 }
 
 // Patching the value of CPU version dependent load_const_32to64 sequence.
@@ -1284,7 +1276,7 @@ int MacroAssembler::patch_compare_immediate_32(address pos, int64_t np) {
 int MacroAssembler::patch_load_narrow_oop(address pos, oop o) {
   assert(UseCompressedOops, "Can only patch compressed oops");
 
-  narrowOop no = oopDesc::encode_heap_oop(o);
+  narrowOop no = CompressedOops::encode(o);
   return patch_load_const_32to64(pos, no);
 }
 
@@ -1302,7 +1294,7 @@ int MacroAssembler::patch_load_narrow_klass(address pos, Klass* k) {
 int MacroAssembler::patch_compare_immediate_narrow_oop(address pos, oop o) {
   assert(UseCompressedOops, "Can only patch compressed oops");
 
-  narrowOop no = oopDesc::encode_heap_oop(o);
+  narrowOop no = CompressedOops::encode(o);
   return patch_compare_immediate_32(pos, no);
 }
 
@@ -1462,13 +1454,17 @@ int MacroAssembler::load_const_optimized_rtn_len(Register t, long x, bool emit) 
 
   // 64 bit value: | part1 | part2 | part3 | part4 |
   // At least one part is not zero!
-  int part1 = ((x >> 32) & 0xffff0000) >> 16;
-  int part2 = (x >> 32) & 0x0000ffff;
-  int part3 = (x & 0xffff0000) >> 16;
-  int part4 = (x & 0x0000ffff);
+  // Note: Right shift is only cleanly defined for unsigned types
+  //       or for signed types with nonnegative values.
+  int part1 = (int)((unsigned long)x >> 48) & 0x0000ffff;
+  int part2 = (int)((unsigned long)x >> 32) & 0x0000ffff;
+  int part3 = (int)((unsigned long)x >> 16) & 0x0000ffff;
+  int part4 = (int)x & 0x0000ffff;
+  int part12 = (int)((unsigned long)x >> 32);
+  int part34 = (int)x;
 
   // Lower word only (unsigned).
-  if ((part1 == 0) && (part2 == 0)) {
+  if (part12 == 0) {
     if (part3 == 0) {
       if (emit) z_llill(t, part4);
       return 4;
@@ -1477,12 +1473,12 @@ int MacroAssembler::load_const_optimized_rtn_len(Register t, long x, bool emit) 
       if (emit) z_llilh(t, part3);
       return 4;
     }
-    if (emit) z_llilf(t, (int)(x & 0xffffffff));
+    if (emit) z_llilf(t, part34);
     return 6;
   }
 
   // Upper word only.
-  if ((part3 == 0) && (part4 == 0)) {
+  if (part34 == 0) {
     if (part1 == 0) {
       if (emit) z_llihl(t, part2);
       return 4;
@@ -1491,13 +1487,13 @@ int MacroAssembler::load_const_optimized_rtn_len(Register t, long x, bool emit) 
       if (emit) z_llihh(t, part1);
       return 4;
     }
-    if (emit) z_llihf(t, (int)(x >> 32));
+    if (emit) z_llihf(t, part12);
     return 6;
   }
 
   // Lower word only (signed).
   if ((part1 == 0x0000ffff) && (part2 == 0x0000ffff) && ((part3 & 0x00008000) != 0)) {
-    if (emit) z_lgfi(t, (int)(x & 0xffffffff));
+    if (emit) z_lgfi(t, part34);
     return 6;
   }
 
@@ -1512,7 +1508,7 @@ int MacroAssembler::load_const_optimized_rtn_len(Register t, long x, bool emit) 
       len += 4;
     }
   } else {
-    if (emit) z_llihf(t, (int)(x >> 32));
+    if (emit) z_llihf(t, part12);
     len += 6;
   }
 
@@ -1525,7 +1521,7 @@ int MacroAssembler::load_const_optimized_rtn_len(Register t, long x, bool emit) 
       len += 4;
     }
   } else {
-    if (emit) z_iilf(t, (int)(x & 0xffffffff));
+    if (emit) z_iilf(t, part34);
     len += 6;
   }
   return len;
@@ -1905,7 +1901,7 @@ unsigned long MacroAssembler::patched_branch(address dest_pos, unsigned long ins
 
 // Only called when binding labels (share/vm/asm/assembler.cpp)
 // Pass arguments as intended. Do not pre-calculate distance.
-void MacroAssembler::pd_patch_instruction(address branch, address target) {
+void MacroAssembler::pd_patch_instruction(address branch, address target, const char* file, int line) {
   unsigned long stub_inst;
   int           inst_len = get_instruction(branch, &stub_inst);
 
@@ -2689,33 +2685,6 @@ uint MacroAssembler::get_poll_register(address instr_loc) {
   return 0;
 }
 
-bool MacroAssembler::is_memory_serialization(int instruction, JavaThread* thread, void* ucontext) {
-  ShouldNotCallThis();
-  return false;
-}
-
-// Write serialization page so VM thread can do a pseudo remote membar
-// We use the current thread pointer to calculate a thread specific
-// offset to write to within the page. This minimizes bus traffic
-// due to cache line collision.
-void MacroAssembler::serialize_memory(Register thread, Register tmp1, Register tmp2) {
-  assert_different_registers(tmp1, tmp2);
-  z_sllg(tmp2, thread, os::get_serialize_page_shift_count());
-  load_const_optimized(tmp1, (long) os::get_memory_serialize_page());
-
-  int mask = os::get_serialize_page_mask();
-  if (Immediate::is_uimm16(mask)) {
-    z_nill(tmp2, mask);
-    z_llghr(tmp2, tmp2);
-  } else {
-    z_nilf(tmp2, mask);
-    z_llgfr(tmp2, tmp2);
-  }
-
-  z_release();
-  z_st(Z_R0, 0, tmp2, tmp1);
-}
-
 void MacroAssembler::safepoint_poll(Label& slow_path, Register temp_reg) {
   if (SafepointMechanism::uses_thread_local_poll()) {
     const Address poll_byte_addr(Z_thread, in_bytes(Thread::polling_page_offset()) + 7 /* Big Endian */);
@@ -3083,7 +3052,7 @@ void MacroAssembler::check_klass_subtype_slow_path(Register Rsubklass,
   // Input registers must not overlap.
   // Also check for R1 which is explicitely used here.
   assert_different_registers(Z_R1, Rsubklass, Rsuperklass, Rarray_ptr, Rlength);
-  NearLabel L_fallthrough, L_loop;
+  NearLabel L_fallthrough;
   int label_nulls = 0;
   if (L_success == NULL) { L_success = &L_fallthrough; label_nulls++; }
   if (L_failure == NULL) { L_failure = &L_fallthrough; label_nulls++; }
@@ -3375,13 +3344,11 @@ void MacroAssembler::compiler_fast_lock_object(Register oop, Register box, Regis
   }
 
   // Handle existing monitor.
-  if ((EmitSync & 0x01) == 0) {
-    // The object has an existing monitor iff (mark & monitor_value) != 0.
-    guarantee(Immediate::is_uimm16(markOopDesc::monitor_value), "must be half-word");
-    z_lr(temp, displacedHeader);
-    z_nill(temp, markOopDesc::monitor_value);
-    z_brne(object_has_monitor);
-  }
+  // The object has an existing monitor iff (mark & monitor_value) != 0.
+  guarantee(Immediate::is_uimm16(markOopDesc::monitor_value), "must be half-word");
+  z_lr(temp, displacedHeader);
+  z_nill(temp, markOopDesc::monitor_value);
+  z_brne(object_has_monitor);
 
   // Set mark to markOop | markOopDesc::unlocked_value.
   z_oill(displacedHeader, markOopDesc::unlocked_value);
@@ -3412,28 +3379,26 @@ void MacroAssembler::compiler_fast_lock_object(Register oop, Register box, Regis
 
   z_bru(done);
 
-  if ((EmitSync & 0x01) == 0) {
-    Register zero = temp;
-    Register monitor_tagged = displacedHeader; // Tagged with markOopDesc::monitor_value.
-    bind(object_has_monitor);
-    // The object's monitor m is unlocked iff m->owner == NULL,
-    // otherwise m->owner may contain a thread or a stack address.
-    //
-    // Try to CAS m->owner from NULL to current thread.
-    z_lghi(zero, 0);
-    // If m->owner is null, then csg succeeds and sets m->owner=THREAD and CR=EQ.
-    z_csg(zero, Z_thread, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), monitor_tagged);
-    // Store a non-null value into the box.
-    z_stg(box, BasicLock::displaced_header_offset_in_bytes(), box);
+  Register zero = temp;
+  Register monitor_tagged = displacedHeader; // Tagged with markOopDesc::monitor_value.
+  bind(object_has_monitor);
+  // The object's monitor m is unlocked iff m->owner == NULL,
+  // otherwise m->owner may contain a thread or a stack address.
+  //
+  // Try to CAS m->owner from NULL to current thread.
+  z_lghi(zero, 0);
+  // If m->owner is null, then csg succeeds and sets m->owner=THREAD and CR=EQ.
+  z_csg(zero, Z_thread, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), monitor_tagged);
+  // Store a non-null value into the box.
+  z_stg(box, BasicLock::displaced_header_offset_in_bytes(), box);
 #ifdef ASSERT
-      z_brne(done);
-      // We've acquired the monitor, check some invariants.
-      // Invariant 1: _recursions should be 0.
-      asm_assert_mem8_is_zero(OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions), monitor_tagged,
-                              "monitor->_recursions should be 0", -1);
-      z_ltgr(zero, zero); // Set CR=EQ.
+  z_brne(done);
+  // We've acquired the monitor, check some invariants.
+  // Invariant 1: _recursions should be 0.
+  asm_assert_mem8_is_zero(OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions), monitor_tagged,
+                          "monitor->_recursions should be 0", -1);
+  z_ltgr(zero, zero); // Set CR=EQ.
 #endif
-  }
   bind(done);
 
   BLOCK_COMMENT("} compiler_fast_lock_object");
@@ -3462,13 +3427,11 @@ void MacroAssembler::compiler_fast_unlock_object(Register oop, Register box, Reg
   z_bre(done);
 
   // Handle existing monitor.
-  if ((EmitSync & 0x02) == 0) {
-    // The object has an existing monitor iff (mark & monitor_value) != 0.
-    z_lg(currentHeader, oopDesc::mark_offset_in_bytes(), oop);
-    guarantee(Immediate::is_uimm16(markOopDesc::monitor_value), "must be half-word");
-    z_nill(currentHeader, markOopDesc::monitor_value);
-    z_brne(object_has_monitor);
-  }
+  // The object has an existing monitor iff (mark & monitor_value) != 0.
+  z_lg(currentHeader, oopDesc::mark_offset_in_bytes(), oop);
+  guarantee(Immediate::is_uimm16(markOopDesc::monitor_value), "must be half-word");
+  z_nill(currentHeader, markOopDesc::monitor_value);
+  z_brne(object_has_monitor);
 
   // Check if it is still a light weight lock, this is true if we see
   // the stack address of the basicLock in the markOop of the object
@@ -3478,20 +3441,18 @@ void MacroAssembler::compiler_fast_unlock_object(Register oop, Register box, Reg
   z_bru(done); // Csg sets CR as desired.
 
   // Handle existing monitor.
-  if ((EmitSync & 0x02) == 0) {
-    bind(object_has_monitor);
-    z_lg(currentHeader, oopDesc::mark_offset_in_bytes(), oop);    // CurrentHeader is tagged with monitor_value set.
-    load_and_test_long(temp, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)));
-    z_brne(done);
-    load_and_test_long(temp, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-    z_brne(done);
-    load_and_test_long(temp, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(EntryList)));
-    z_brne(done);
-    load_and_test_long(temp, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(cxq)));
-    z_brne(done);
-    z_release();
-    z_stg(temp/*=0*/, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), currentHeader);
-  }
+  bind(object_has_monitor);
+  z_lg(currentHeader, oopDesc::mark_offset_in_bytes(), oop);    // CurrentHeader is tagged with monitor_value set.
+  load_and_test_long(temp, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)));
+  z_brne(done);
+  load_and_test_long(temp, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
+  z_brne(done);
+  load_and_test_long(temp, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(EntryList)));
+  z_brne(done);
+  load_and_test_long(temp, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(cxq)));
+  z_brne(done);
+  z_release();
+  z_stg(temp/*=0*/, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), currentHeader);
 
   bind(done);
 
@@ -3500,313 +3461,10 @@ void MacroAssembler::compiler_fast_unlock_object(Register oop, Register box, Reg
   // flag == NE indicates failure
 }
 
-// Write to card table for modification at store_addr - register is destroyed afterwards.
-void MacroAssembler::card_write_barrier_post(Register store_addr, Register tmp) {
-  CardTableModRefBS* bs = (CardTableModRefBS*) Universe::heap()->barrier_set();
-  assert(bs->kind() == BarrierSet::CardTableForRS ||
-         bs->kind() == BarrierSet::CardTableExtension, "wrong barrier");
-  assert_different_registers(store_addr, tmp);
-  z_srlg(store_addr, store_addr, CardTableModRefBS::card_shift);
-  load_absolute_address(tmp, (address)bs->byte_map_base);
-  z_agr(store_addr, tmp);
-  z_mvi(0, store_addr, 0); // Store byte 0.
-}
-
 void MacroAssembler::resolve_jobject(Register value, Register tmp1, Register tmp2) {
-  NearLabel Ldone;
-  z_ltgr(tmp1, value);
-  z_bre(Ldone);          // Use NULL result as-is.
-
-  z_nill(value, ~JNIHandles::weak_tag_mask);
-  z_lg(value, 0, value); // Resolve (untagged) jobject.
-
-#if INCLUDE_ALL_GCS
-  if (UseG1GC) {
-    NearLabel Lnot_weak;
-    z_tmll(tmp1, JNIHandles::weak_tag_mask); // Test for jweak tag.
-    z_braz(Lnot_weak);
-    verify_oop(value);
-    g1_write_barrier_pre(noreg /* obj */,
-                         noreg /* offset */,
-                         value /* pre_val */,
-                         noreg /* val */,
-                         tmp1  /* tmp1 */,
-                         tmp2  /* tmp2 */,
-                         true  /* pre_val_needed */);
-    bind(Lnot_weak);
-  }
-#endif // INCLUDE_ALL_GCS
-  verify_oop(value);
-  bind(Ldone);
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->resolve_jobject(this, value, tmp1, tmp2);
 }
-
-#if INCLUDE_ALL_GCS
-
-//------------------------------------------------------
-// General G1 pre-barrier generator.
-// Purpose: record the previous value if it is not null.
-// All non-tmps are preserved.
-//------------------------------------------------------
-// Note: Rpre_val needs special attention.
-//   The flag pre_val_needed indicated that the caller of this emitter function
-//   relies on Rpre_val containing the correct value, that is:
-//     either the value it contained on entry to this code segment
-//     or the value that was loaded into the register from (Robj+offset).
-//
-//   Independent from this requirement, the contents of Rpre_val must survive
-//   the push_frame() operation. push_frame() uses Z_R0_scratch by default
-//   to temporarily remember the frame pointer.
-//   If Rpre_val is assigned Z_R0_scratch by the caller, code must be emitted to
-//   save it's value.
-void MacroAssembler::g1_write_barrier_pre(Register           Robj,
-                                          RegisterOrConstant offset,
-                                          Register           Rpre_val,      // Ideally, this is a non-volatile register.
-                                          Register           Rval,          // Will be preserved.
-                                          Register           Rtmp1,         // If Rpre_val is volatile, either Rtmp1
-                                          Register           Rtmp2,         // or Rtmp2 has to be non-volatile..
-                                          bool               pre_val_needed // Save Rpre_val across runtime call, caller uses it.
-                                       ) {
-  Label callRuntime, filtered;
-  const int active_offset = in_bytes(JavaThread::satb_mark_queue_offset() + SATBMarkQueue::byte_offset_of_active());
-  const int buffer_offset = in_bytes(JavaThread::satb_mark_queue_offset() + SATBMarkQueue::byte_offset_of_buf());
-  const int index_offset  = in_bytes(JavaThread::satb_mark_queue_offset() + SATBMarkQueue::byte_offset_of_index());
-  assert_different_registers(Rtmp1, Rtmp2, Z_R0_scratch); // None of the Rtmp<i> must be Z_R0!!
-  assert_different_registers(Robj, Z_R0_scratch);         // Used for addressing. Furthermore, push_frame destroys Z_R0!!
-  assert_different_registers(Rval, Z_R0_scratch);         // push_frame destroys Z_R0!!
-
-#ifdef ASSERT
-  // make sure the register is not Z_R0. Used for addressing. Furthermore, would be destroyed by push_frame.
-  if (offset.is_register() && offset.as_register()->encoding() == 0) {
-    tty->print_cr("Roffset(g1_write_barrier_pre)  = %%r%d", offset.as_register()->encoding());
-    assert(false, "bad register for offset");
-  }
-#endif
-
-  BLOCK_COMMENT("g1_write_barrier_pre {");
-
-  // Is marking active?
-  // Note: value is loaded for test purposes only. No further use here.
-  if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
-    load_and_test_int(Rtmp1, Address(Z_thread, active_offset));
-  } else {
-    guarantee(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
-    load_and_test_byte(Rtmp1, Address(Z_thread, active_offset));
-  }
-  z_bre(filtered); // Activity indicator is zero, so there is no marking going on currently.
-
-  assert(Rpre_val != noreg, "must have a real register");
-
-
-  // If an object is given, we need to load the previous value into Rpre_val.
-  if (Robj != noreg) {
-    // Load the previous value...
-    Register ixReg = offset.is_register() ? offset.register_or_noreg() : Z_R0;
-    if (UseCompressedOops) {
-      z_llgf(Rpre_val, offset.constant_or_zero(), ixReg, Robj);
-    } else {
-      z_lg(Rpre_val, offset.constant_or_zero(), ixReg, Robj);
-    }
-  }
-
-  // Is the previous value NULL?
-  // If so, we don't need to record it and we're done.
-  // Note: pre_val is loaded, decompressed and stored (directly or via runtime call).
-  //       Register contents is preserved across runtime call if caller requests to do so.
-  z_ltgr(Rpre_val, Rpre_val);
-  z_bre(filtered); // previous value is NULL, so we don't need to record it.
-
-  // Decode the oop now. We know it's not NULL.
-  if (Robj != noreg && UseCompressedOops) {
-    oop_decoder(Rpre_val, Rpre_val, /*maybeNULL=*/false);
-  }
-
-  // OK, it's not filtered, so we'll need to call enqueue.
-
-  // We can store the original value in the thread's buffer
-  // only if index > 0. Otherwise, we need runtime to handle.
-  // (The index field is typed as size_t.)
-  Register Rbuffer = Rtmp1, Rindex = Rtmp2;
-  assert_different_registers(Rbuffer, Rindex, Rpre_val);
-
-  z_lg(Rbuffer, buffer_offset, Z_thread);
-
-  load_and_test_long(Rindex, Address(Z_thread, index_offset));
-  z_bre(callRuntime); // If index == 0, goto runtime.
-
-  add2reg(Rindex, -wordSize); // Decrement index.
-  z_stg(Rindex, index_offset, Z_thread);
-
-  // Record the previous value.
-  z_stg(Rpre_val, 0, Rbuffer, Rindex);
-  z_bru(filtered);  // We are done.
-
-  Rbuffer = noreg;  // end of life
-  Rindex  = noreg;  // end of life
-
-  bind(callRuntime);
-
-  // Save some registers (inputs and result) over runtime call
-  // by spilling them into the top frame.
-  if (Robj != noreg && Robj->is_volatile()) {
-    z_stg(Robj, Robj->encoding()*BytesPerWord, Z_SP);
-  }
-  if (offset.is_register() && offset.as_register()->is_volatile()) {
-    Register Roff = offset.as_register();
-    z_stg(Roff, Roff->encoding()*BytesPerWord, Z_SP);
-  }
-  if (Rval != noreg && Rval->is_volatile()) {
-    z_stg(Rval, Rval->encoding()*BytesPerWord, Z_SP);
-  }
-
-  // Save Rpre_val (result) over runtime call.
-  Register Rpre_save = Rpre_val;
-  if ((Rpre_val == Z_R0_scratch) || (pre_val_needed && Rpre_val->is_volatile())) {
-    guarantee(!Rtmp1->is_volatile() || !Rtmp2->is_volatile(), "oops!");
-    Rpre_save = !Rtmp1->is_volatile() ? Rtmp1 : Rtmp2;
-  }
-  lgr_if_needed(Rpre_save, Rpre_val);
-
-  // Push frame to protect top frame with return pc and spilled register values.
-  save_return_pc();
-  push_frame_abi160(0); // Will use Z_R0 as tmp.
-
-  // Rpre_val may be destroyed by push_frame().
-  call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_pre), Rpre_save, Z_thread);
-
-  pop_frame();
-  restore_return_pc();
-
-  // Restore spilled values.
-  if (Robj != noreg && Robj->is_volatile()) {
-    z_lg(Robj, Robj->encoding()*BytesPerWord, Z_SP);
-  }
-  if (offset.is_register() && offset.as_register()->is_volatile()) {
-    Register Roff = offset.as_register();
-    z_lg(Roff, Roff->encoding()*BytesPerWord, Z_SP);
-  }
-  if (Rval != noreg && Rval->is_volatile()) {
-    z_lg(Rval, Rval->encoding()*BytesPerWord, Z_SP);
-  }
-  if (pre_val_needed && Rpre_val->is_volatile()) {
-    lgr_if_needed(Rpre_val, Rpre_save);
-  }
-
-  bind(filtered);
-  BLOCK_COMMENT("} g1_write_barrier_pre");
-}
-
-// General G1 post-barrier generator.
-// Purpose: Store cross-region card.
-void MacroAssembler::g1_write_barrier_post(Register Rstore_addr,
-                                           Register Rnew_val,
-                                           Register Rtmp1,
-                                           Register Rtmp2,
-                                           Register Rtmp3) {
-  Label callRuntime, filtered;
-
-  assert_different_registers(Rstore_addr, Rnew_val, Rtmp1, Rtmp2); // Most probably, Rnew_val == Rtmp3.
-
-  G1SATBCardTableModRefBS* bs = (G1SATBCardTableModRefBS*) Universe::heap()->barrier_set();
-  assert(bs->kind() == BarrierSet::G1SATBCTLogging, "wrong barrier");
-
-  BLOCK_COMMENT("g1_write_barrier_post {");
-
-  // Does store cross heap regions?
-  // It does if the two addresses specify different grain addresses.
-  if (G1RSBarrierRegionFilter) {
-    if (VM_Version::has_DistinctOpnds()) {
-      z_xgrk(Rtmp1, Rstore_addr, Rnew_val);
-    } else {
-      z_lgr(Rtmp1, Rstore_addr);
-      z_xgr(Rtmp1, Rnew_val);
-    }
-    z_srag(Rtmp1, Rtmp1, HeapRegion::LogOfHRGrainBytes);
-    z_bre(filtered);
-  }
-
-  // Crosses regions, storing NULL?
-#ifdef ASSERT
-  z_ltgr(Rnew_val, Rnew_val);
-  asm_assert_ne("null oop not allowed (G1)", 0x255); // TODO: also on z? Checked by caller on PPC64, so following branch is obsolete:
-  z_bre(filtered);  // Safety net: don't break if we have a NULL oop.
-#endif
-  Rnew_val = noreg; // end of lifetime
-
-  // Storing region crossing non-NULL, is card already dirty?
-  assert(sizeof(*bs->byte_map_base) == sizeof(jbyte), "adjust this code");
-  assert_different_registers(Rtmp1, Rtmp2, Rtmp3);
-  // Make sure not to use Z_R0 for any of these registers.
-  Register Rcard_addr = (Rtmp1 != Z_R0_scratch) ? Rtmp1 : Rtmp3;
-  Register Rbase      = (Rtmp2 != Z_R0_scratch) ? Rtmp2 : Rtmp3;
-
-  // calculate address of card
-  load_const_optimized(Rbase, (address)bs->byte_map_base);        // Card table base.
-  z_srlg(Rcard_addr, Rstore_addr, CardTableModRefBS::card_shift); // Index into card table.
-  z_algr(Rcard_addr, Rbase);                                      // Explicit calculation needed for cli.
-  Rbase = noreg; // end of lifetime
-
-  // Filter young.
-  assert((unsigned int)G1SATBCardTableModRefBS::g1_young_card_val() <= 255, "otherwise check this code");
-  z_cli(0, Rcard_addr, (int)G1SATBCardTableModRefBS::g1_young_card_val());
-  z_bre(filtered);
-
-  // Check the card value. If dirty, we're done.
-  // This also avoids false sharing of the (already dirty) card.
-  z_sync(); // Required to support concurrent cleaning.
-  assert((unsigned int)CardTableModRefBS::dirty_card_val() <= 255, "otherwise check this code");
-  z_cli(0, Rcard_addr, CardTableModRefBS::dirty_card_val()); // Reload after membar.
-  z_bre(filtered);
-
-  // Storing a region crossing, non-NULL oop, card is clean.
-  // Dirty card and log.
-  z_mvi(0, Rcard_addr, CardTableModRefBS::dirty_card_val());
-
-  Register Rcard_addr_x = Rcard_addr;
-  Register Rqueue_index = (Rtmp2 != Z_R0_scratch) ? Rtmp2 : Rtmp1;
-  Register Rqueue_buf   = (Rtmp3 != Z_R0_scratch) ? Rtmp3 : Rtmp1;
-  const int qidx_off    = in_bytes(JavaThread::dirty_card_queue_offset() + SATBMarkQueue::byte_offset_of_index());
-  const int qbuf_off    = in_bytes(JavaThread::dirty_card_queue_offset() + SATBMarkQueue::byte_offset_of_buf());
-  if ((Rcard_addr == Rqueue_buf) || (Rcard_addr == Rqueue_index)) {
-    Rcard_addr_x = Z_R0_scratch;  // Register shortage. We have to use Z_R0.
-  }
-  lgr_if_needed(Rcard_addr_x, Rcard_addr);
-
-  load_and_test_long(Rqueue_index, Address(Z_thread, qidx_off));
-  z_bre(callRuntime); // Index == 0 then jump to runtime.
-
-  z_lg(Rqueue_buf, qbuf_off, Z_thread);
-
-  add2reg(Rqueue_index, -wordSize); // Decrement index.
-  z_stg(Rqueue_index, qidx_off, Z_thread);
-
-  z_stg(Rcard_addr_x, 0, Rqueue_index, Rqueue_buf); // Store card.
-  z_bru(filtered);
-
-  bind(callRuntime);
-
-  // TODO: do we need a frame? Introduced to be on the safe side.
-  bool needs_frame = true;
-  lgr_if_needed(Rcard_addr, Rcard_addr_x); // copy back asap. push_frame will destroy Z_R0_scratch!
-
-  // VM call need frame to access(write) O register.
-  if (needs_frame) {
-    save_return_pc();
-    push_frame_abi160(0); // Will use Z_R0 as tmp on old CPUs.
-  }
-
-  // Save the live input values.
-  call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_post), Rcard_addr, Z_thread);
-
-  if (needs_frame) {
-    pop_frame();
-    restore_return_pc();
-  }
-
-  bind(filtered);
-
-  BLOCK_COMMENT("} g1_write_barrier_post");
-}
-#endif // INCLUDE_ALL_GCS
 
 // Last_Java_sp must comply to the rules in frame_s390.hpp.
 void MacroAssembler::set_last_Java_frame(Register last_Java_sp, Register last_Java_pc, bool allow_relocation) {
@@ -4352,68 +4010,54 @@ void MacroAssembler::compare_heap_oop(Register Rop1, Address mem, bool maybeNULL
   BLOCK_COMMENT("} compare heap oop");
 }
 
-// Load heap oop and decompress, if necessary.
-void  MacroAssembler::load_heap_oop(Register dest, const Address &a) {
-  if (UseCompressedOops) {
-    z_llgf(dest, a.disp(), a.indexOrR0(), a.baseOrR0());
-    oop_decoder(dest, dest, true);
+void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators,
+                                     const Address& addr, Register val,
+                                     Register tmp1, Register tmp2, Register tmp3) {
+  assert((decorators & ~(AS_RAW | IN_HEAP | IN_NATIVE | IS_ARRAY | IS_NOT_NULL |
+                         ON_UNKNOWN_OOP_REF)) == 0, "unsupported decorator");
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  decorators = AccessInternal::decorator_fixup(decorators);
+  bool as_raw = (decorators & AS_RAW) != 0;
+  if (as_raw) {
+    bs->BarrierSetAssembler::store_at(this, decorators, type,
+                                      addr, val,
+                                      tmp1, tmp2, tmp3);
   } else {
-    z_lg(dest, a.disp(), a.indexOrR0(), a.baseOrR0());
+    bs->store_at(this, decorators, type,
+                 addr, val,
+                 tmp1, tmp2, tmp3);
   }
 }
 
-// Load heap oop and decompress, if necessary.
-void MacroAssembler::load_heap_oop(Register dest, int64_t disp, Register base) {
-  if (UseCompressedOops) {
-    z_llgf(dest, disp, base);
-    oop_decoder(dest, dest, true);
+void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators,
+                                    const Address& addr, Register dst,
+                                    Register tmp1, Register tmp2, Label *is_null) {
+  assert((decorators & ~(AS_RAW | IN_HEAP | IN_NATIVE | IS_ARRAY | IS_NOT_NULL |
+                         ON_PHANTOM_OOP_REF | ON_WEAK_OOP_REF)) == 0, "unsupported decorator");
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  decorators = AccessInternal::decorator_fixup(decorators);
+  bool as_raw = (decorators & AS_RAW) != 0;
+  if (as_raw) {
+    bs->BarrierSetAssembler::load_at(this, decorators, type,
+                                     addr, dst,
+                                     tmp1, tmp2, is_null);
   } else {
-    z_lg(dest, disp, base);
+    bs->load_at(this, decorators, type,
+                addr, dst,
+                tmp1, tmp2, is_null);
   }
 }
 
-// Load heap oop and decompress, if necessary.
-void MacroAssembler::load_heap_oop_not_null(Register dest, int64_t disp, Register base) {
-  if (UseCompressedOops) {
-    z_llgf(dest, disp, base);
-    oop_decoder(dest, dest, false);
-  } else {
-    z_lg(dest, disp, base);
-  }
+void MacroAssembler::load_heap_oop(Register dest, const Address &a,
+                                   Register tmp1, Register tmp2,
+                                   DecoratorSet decorators, Label *is_null) {
+  access_load_at(T_OBJECT, IN_HEAP | decorators, a, dest, tmp1, tmp2, is_null);
 }
 
-// Compress, if necessary, and store oop to heap.
-void MacroAssembler::store_heap_oop(Register Roop, RegisterOrConstant offset, Register base) {
-  Register Ridx = offset.is_register() ? offset.register_or_noreg() : Z_R0;
-  if (UseCompressedOops) {
-    assert_different_registers(Roop, offset.register_or_noreg(), base);
-    encode_heap_oop(Roop);
-    z_st(Roop, offset.constant_or_zero(), Ridx, base);
-  } else {
-    z_stg(Roop, offset.constant_or_zero(), Ridx, base);
-  }
-}
-
-// Compress, if necessary, and store oop to heap. Oop is guaranteed to be not NULL.
-void MacroAssembler::store_heap_oop_not_null(Register Roop, RegisterOrConstant offset, Register base) {
-  Register Ridx = offset.is_register() ? offset.register_or_noreg() : Z_R0;
-  if (UseCompressedOops) {
-    assert_different_registers(Roop, offset.register_or_noreg(), base);
-    encode_heap_oop_not_null(Roop);
-    z_st(Roop, offset.constant_or_zero(), Ridx, base);
-  } else {
-    z_stg(Roop, offset.constant_or_zero(), Ridx, base);
-  }
-}
-
-// Store NULL oop to heap.
-void MacroAssembler::store_heap_oop_null(Register zero, RegisterOrConstant offset, Register base) {
-  Register Ridx = offset.is_register() ? offset.register_or_noreg() : Z_R0;
-  if (UseCompressedOops) {
-    z_st(zero, offset.constant_or_zero(), Ridx, base);
-  } else {
-    z_stg(zero, offset.constant_or_zero(), Ridx, base);
-  }
+void MacroAssembler::store_heap_oop(Register Roop, const Address &a,
+                                    Register tmp1, Register tmp2, Register tmp3,
+                                    DecoratorSet decorators) {
+  access_store_at(T_OBJECT, IN_HEAP | decorators, a, Roop, tmp1, tmp2, tmp3);
 }
 
 //-------------------------------------------------
@@ -6679,75 +6323,6 @@ void MacroAssembler::update_1word_crc32(Register crc, Register buf, Register tab
   z_xy(t0, Address(table, t1, (intptr_t)ix2));
   z_xr(t0, t2);           // Now t0 contains the updated CRC value.
   lgr_if_needed(crc, t0);
-}
-
-/**
- * @param crc   register containing existing CRC (32-bit)
- * @param buf   register pointing to input byte buffer (byte*)
- * @param len   register containing number of bytes
- * @param table register pointing to CRC table
- *
- * uses Z_R10..Z_R13 as work register. Must be saved/restored by caller!
- */
-void MacroAssembler::kernel_crc32_2word(Register crc, Register buf, Register len, Register table,
-                                        Register t0,  Register t1,  Register t2,  Register t3,
-                                        bool invertCRC) {
-  assert_different_registers(crc, buf, len, table);
-
-  Label L_mainLoop, L_tail;
-  Register  data = t0;
-  Register  ctr  = Z_R0;
-  const int mainLoop_stepping = 8;
-  const int tailLoop_stepping = 1;
-  const int log_stepping      = exact_log2(mainLoop_stepping);
-
-  // Don't test for len <= 0 here. This pathological case should not occur anyway.
-  // Optimizing for it by adding a test and a branch seems to be a waste of CPU cycles.
-  // The situation itself is detected and handled correctly by the conditional branches
-  // following aghi(len, -stepping) and aghi(len, +stepping).
-
-  if (invertCRC) {
-    not_(crc, noreg, false);           // 1s complement of crc
-  }
-
-#if 0
-  {
-    // Pre-mainLoop alignment did not show any positive effect on performance.
-    // We leave the code in for reference. Maybe the vector instructions in z13 depend on alignment.
-
-    z_cghi(len, mainLoop_stepping);    // Alignment is useless for short data streams.
-    z_brnh(L_tail);
-
-    // Align buf to word (4-byte) boundary.
-    z_lcr(ctr, buf);
-    rotate_then_insert(ctr, ctr, 62, 63, 0, true); // TODO: should set cc
-    z_sgfr(len, ctr);                  // Remaining len after alignment.
-
-    update_byteLoop_crc32(crc, buf, ctr, table, data);
-  }
-#endif
-
-  // Check for short (<mainLoop_stepping bytes) buffer.
-  z_srag(ctr, len, log_stepping);
-  z_brnh(L_tail);
-
-  z_lrvr(crc, crc);          // Revert byte order because we are dealing with big-endian data.
-  rotate_then_insert(len, len, 64-log_stepping, 63, 0, true); // #bytes for tailLoop
-
-  BIND(L_mainLoop);
-    update_1word_crc32(crc, buf, table, 0, 0, crc, t1, t2, t3);
-    update_1word_crc32(crc, buf, table, 4, mainLoop_stepping, crc, t1, t2, t3);
-    z_brct(ctr, L_mainLoop); // Iterate.
-
-  z_lrvr(crc, crc);          // Revert byte order back to original.
-
-  // Process last few (<8) bytes of buffer.
-  BIND(L_tail);
-  update_byteLoop_crc32(crc, buf, len, table, data);
-
-  if (invertCRC) {
-    not_(crc, noreg, false);           // 1s complement of crc
-  }
 }
 
 /**

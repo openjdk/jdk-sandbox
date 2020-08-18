@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1ALLOCREGION_INLINE_HPP
-#define SHARE_VM_GC_G1_G1ALLOCREGION_INLINE_HPP
+#ifndef SHARE_GC_G1_G1ALLOCREGION_INLINE_HPP
+#define SHARE_GC_G1_G1ALLOCREGION_INLINE_HPP
 
 #include "gc/g1/g1AllocRegion.hpp"
 #include "gc/g1/heapRegion.inline.hpp"
@@ -35,6 +35,10 @@
            p2i(_alloc_region), _used_bytes_before);                      \
   } while (0)
 
+
+inline void G1AllocRegion::reset_alloc_region() {
+  _alloc_region = _dummy_region;
+}
 
 inline HeapWord* G1AllocRegion::allocate(HeapRegion* alloc_region,
                                          size_t word_size) {
@@ -126,4 +130,17 @@ inline HeapWord* G1AllocRegion::attempt_allocation_force(size_t word_size) {
   return NULL;
 }
 
-#endif // SHARE_VM_GC_G1_G1ALLOCREGION_INLINE_HPP
+inline HeapWord* MutatorAllocRegion::attempt_retained_allocation(size_t min_word_size,
+                                                                 size_t desired_word_size,
+                                                                 size_t* actual_word_size) {
+  if (_retained_alloc_region != NULL) {
+    HeapWord* result = par_allocate(_retained_alloc_region, min_word_size, desired_word_size, actual_word_size);
+    if (result != NULL) {
+      trace("alloc retained", min_word_size, desired_word_size, *actual_word_size, result);
+      return result;
+    }
+  }
+  return NULL;
+}
+
+#endif // SHARE_GC_G1_G1ALLOCREGION_INLINE_HPP

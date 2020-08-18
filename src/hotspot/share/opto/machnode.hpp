@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_MACHNODE_HPP
-#define SHARE_VM_OPTO_MACHNODE_HPP
+#ifndef SHARE_OPTO_MACHNODE_HPP
+#define SHARE_OPTO_MACHNODE_HPP
 
 #include "opto/callnode.hpp"
 #include "opto/matcher.hpp"
@@ -569,7 +569,7 @@ private:
   const SpillType _spill_type;
 public:
   MachSpillCopyNode(SpillType spill_type, Node *n, const RegMask &in, const RegMask &out ) :
-    MachIdealNode(), _spill_type(spill_type), _in(&in), _out(&out), _type(n->bottom_type()) {
+    MachIdealNode(), _in(&in), _out(&out), _type(n->bottom_type()), _spill_type(spill_type) {
     init_class_id(Class_MachSpillCopy);
     init_flags(Flag_is_Copy);
     add_req(NULL);
@@ -748,6 +748,16 @@ public:
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;
 #endif
+};
+
+//------------------------------MachJumpNode-----------------------------------
+// Machine-specific versions of JumpNodes
+class MachJumpNode : public MachConstantNode {
+public:
+  float* _probs;
+  MachJumpNode() : MachConstantNode() {
+    init_class_id(Class_MachJump);
+  }
 };
 
 //------------------------------MachGotoNode-----------------------------------
@@ -990,6 +1000,19 @@ public:
   virtual JVMState* jvms() const;
 };
 
+class MachMemBarNode : public MachNode {
+  virtual uint size_of() const; // Size is bigger
+public:
+  const TypePtr* _adr_type;     // memory effects
+  MachMemBarNode() : MachNode() {
+    init_class_id(Class_MachMemBar);
+    _adr_type = TypePtr::BOTTOM; // the default: all of memory
+  }
+
+  void set_adr_type(const TypePtr* atp) { _adr_type = atp; }
+  virtual const TypePtr *adr_type() const;
+};
+
 
 //------------------------------MachTempNode-----------------------------------
 // Node used by the adlc to construct inputs to represent temporary registers
@@ -1030,7 +1053,7 @@ public:
 
   uint _block_num;
 
-  labelOper() : _block_num(0), _label(0) {}
+  labelOper() : _label(0), _block_num(0) {}
 
   labelOper(Label* label, uint block_num) : _label(label), _block_num(block_num) {}
 
@@ -1079,4 +1102,4 @@ public:
 #endif
 };
 
-#endif // SHARE_VM_OPTO_MACHNODE_HPP
+#endif // SHARE_OPTO_MACHNODE_HPP

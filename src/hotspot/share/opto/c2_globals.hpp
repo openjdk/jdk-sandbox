@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_C2_GLOBALS_HPP
-#define SHARE_VM_OPTO_C2_GLOBALS_HPP
+#ifndef SHARE_OPTO_C2_GLOBALS_HPP
+#define SHARE_OPTO_C2_GLOBALS_HPP
 
 #include "runtime/globals.hpp"
 #include "utilities/macros.hpp"
@@ -52,6 +52,9 @@
                                                                             \
   diagnostic(bool, StressGCM, false,                                        \
           "Randomize instruction scheduling in GCM")                        \
+                                                                            \
+  develop(bool, StressMethodHandleLinkerInlining, false,                    \
+          "Stress inlining through method handle linkers")                  \
                                                                             \
   develop(intx, OptoPrologueNops, 0,                                        \
           "Insert this many extra nop instructions "                        \
@@ -707,6 +710,9 @@
   diagnostic(bool, UseMathExactIntrinsics, true,                            \
           "Enables intrinsification of various java.lang.Math functions")   \
                                                                             \
+  diagnostic(bool, UseCharacterCompareIntrinsics, false,                    \
+          "Enables intrinsification of java.lang.Character functions")      \
+                                                                            \
   diagnostic(bool, UseMultiplyToLenIntrinsic, false,                        \
           "Enables intrinsification of BigInteger.multiplyToLen()")         \
                                                                             \
@@ -751,6 +757,9 @@
   product(uintx, LoopStripMiningIterShortLoop, 0,                           \
           "Loop with fewer iterations are not strip mined")                 \
           range(0, max_juint)                                               \
+                                                                            \
+  product(bool, UseProfiledLoopPredicate, true,                             \
+          "move predicates out of loops based on profiling data")           \
 
 C2_FLAGS(DECLARE_DEVELOPER_FLAG, \
          DECLARE_PD_DEVELOPER_FLAG, \
@@ -764,4 +773,4 @@ C2_FLAGS(DECLARE_DEVELOPER_FLAG, \
          IGNORE_CONSTRAINT, \
          IGNORE_WRITEABLE)
 
-#endif // SHARE_VM_OPTO_C2_GLOBALS_HPP
+#endif // SHARE_OPTO_C2_GLOBALS_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,11 @@
  * @test
  * @bug 8028994
  * @author Staffan Larsen
- * @library /lib/testlibrary
+ * @comment Graal does not support CMS
+ * @requires !vm.graal.enabled
+ * @library /test/lib
  * @modules jdk.attach/sun.tools.attach
  *          jdk.management
- * @build jdk.testlibrary.*
  * @run main CheckOrigin
  */
 
@@ -42,7 +43,7 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.util.Map;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.ProcessTools;
 import sun.tools.attach.HotSpotVirtualMachine;
 
 public class CheckOrigin {
@@ -56,7 +57,7 @@ public class CheckOrigin {
             File flagsFile = File.createTempFile("CheckOriginFlags", null);
             try (PrintWriter pw =
                    new PrintWriter(new FileWriter(flagsFile))) {
-                pw.println("+PrintSafepointStatistics");
+                pw.println("+PrintVMQWaitTime");
             }
 
             ProcessBuilder pb = ProcessTools.
@@ -106,7 +107,7 @@ public class CheckOrigin {
             checkOrigin("IgnoreUnrecognizedVMOptions", Origin.ENVIRON_VAR);
             checkOrigin("PrintVMOptions", Origin.ENVIRON_VAR);
             // Set in -XX:Flags file
-            checkOrigin("PrintSafepointStatistics", Origin.CONFIG_FILE);
+            checkOrigin("PrintVMQWaitTime", Origin.CONFIG_FILE);
             // Set through j.l.m
             checkOrigin("HeapDumpOnOutOfMemoryError", Origin.MANAGEMENT);
             // Should be set by the VM, when we set UseConcMarkSweepGC

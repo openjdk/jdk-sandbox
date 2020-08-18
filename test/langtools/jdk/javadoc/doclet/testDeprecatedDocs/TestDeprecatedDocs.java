@@ -24,14 +24,16 @@
 /*
  * @test
  * @bug      4927552 8026567 8071982 8162674 8175200 8175218 8183511 8186332
- *           8169819 8074407 8191030
+ *           8169819 8074407 8191030 8182765 8184205
  * @summary  test generated docs for deprecated items
  * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestDeprecatedDocs
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestDeprecatedDocs extends JavadocTester {
 
@@ -41,7 +43,7 @@ public class TestDeprecatedDocs extends JavadocTester {
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg");
@@ -86,7 +88,7 @@ public class TestDeprecatedDocs extends JavadocTester {
                 "<pre>@Deprecated(forRemoval=true)\n"
                 + "public&nbsp;DeprecatedClassByAnnotation()</pre>\n"
                 + "<div class=\"deprecationBlock\"><span class=\"deprecatedLabel\">Deprecated, for removal: This API element is subject to removal in a future version.</span></div>",
-                "<pre>@Deprecated\n"
+                "<pre class=\"methodSignature\">@Deprecated\n"
                 + "public&nbsp;void&nbsp;method()</pre>\n"
                 + "<div class=\"deprecationBlock\"><span class=\"deprecatedLabel\">Deprecated.</span></div>");
 
@@ -209,14 +211,16 @@ public class TestDeprecatedDocs extends JavadocTester {
                 + "<li><a href=\"#enum.constant\">Enum Constants</a></li>\n"
                 + "<li><a href=\"#annotation.type.member\">Annotation Type Elements</a></li>\n"
                 + "</ul>",
-                "<a name=\"forRemoval\">",
-                "<table class=\"deprecatedSummary\" summary=\"For Removal table, listing for removal, and an explanation\">\n"
+                "<a id=\"forRemoval\">",
+                "<div class=\"deprecatedSummary\">\n"
+                + "<table>\n"
                 + "<caption><span>For Removal</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Element</th>\n"
                 + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
                 + "</tr>",
-                "<table class=\"deprecatedSummary\" summary=\"Enums table, listing enums, and an explanation\">\n"
+                "<div class=\"deprecatedSummary\">\n"
+                + "<table>\n"
                 + "<caption><span>Enums</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Enum</th>\n"
@@ -230,8 +234,10 @@ public class TestDeprecatedDocs extends JavadocTester {
                 + "</td>\n"
                 + "</tr>\n"
                 + "</tbody>\n"
-                + "</table>",
-                "<table class=\"deprecatedSummary\" summary=\"Exceptions table, listing exceptions, and an explanation\">\n"
+                + "</table>\n"
+                + "</div>",
+                "<div class=\"deprecatedSummary\">\n"
+                + "<table>\n"
                 + "<caption><span>Exceptions</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Exceptions</th>\n"
@@ -245,8 +251,10 @@ public class TestDeprecatedDocs extends JavadocTester {
                 + "</td>\n"
                 + "</tr>\n"
                 + "</tbody>\n"
-                + "</table>",
-                "<table class=\"deprecatedSummary\" summary=\"Fields table, listing fields, and an explanation\">\n"
+                + "</table>\n"
+                + "</div>",
+                "<div class=\"deprecatedSummary\">\n"
+                + "<table>\n"
                 + "<caption><span>Fields</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Field</th>\n"
@@ -288,6 +296,105 @@ public class TestDeprecatedDocs extends JavadocTester {
                 + "</td>\n"
                 + "</tr>\n"
                 + "</tbody>\n"
-                + "</table>");
+                + "</table>\n"
+                + "</div>");
+    }
+
+    @Test
+    public void test_html4() {
+        javadoc("-d", "out-html4",
+                "-html4",
+                "-sourcepath", testSrc,
+                "pkg");
+        checkExit(Exit.OK);
+
+        checkOutput("deprecated-list.html", true,
+                "<a name=\"forRemoval\">",
+                "<div class=\"deprecatedSummary\">\n"
+                + "<table summary=\"For Removal table, listing for removal, and an explanation\">\n"
+                + "<caption><span>For Removal</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
+                + "<tr>\n"
+                + "<th class=\"colFirst\" scope=\"col\">Element</th>\n"
+                + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
+                + "</tr>",
+                "<div class=\"deprecatedSummary\">\n"
+                + "<table summary=\"Enums table, listing enums, and an explanation\">\n"
+                + "<caption><span>Enums</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
+                + "<tr>\n"
+                + "<th class=\"colFirst\" scope=\"col\">Enum</th>\n"
+                + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
+                + "</tr>\n"
+                + "<tbody>\n"
+                + "<tr class=\"altColor\">\n"
+                + "<th class=\"colDeprecatedItemName\" scope=\"row\"><a href=\"pkg/TestEnum.html\" title=\"enum in pkg\">pkg.TestEnum</a></th>\n"
+                + "<td class=\"colLast\">\n"
+                + "<div class=\"deprecationComment\">enum_test1 passes.</div>\n"
+                + "</td>\n"
+                + "</tr>\n"
+                + "</tbody>\n"
+                + "</table>\n"
+                + "</div>",
+                "<div class=\"deprecatedSummary\">\n"
+                + "<table summary=\"Exceptions table, listing exceptions, and an explanation\">\n"
+                + "<caption><span>Exceptions</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
+                + "<tr>\n"
+                + "<th class=\"colFirst\" scope=\"col\">Exceptions</th>\n"
+                + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
+                + "</tr>\n"
+                + "<tbody>\n"
+                + "<tr class=\"altColor\">\n"
+                + "<th class=\"colDeprecatedItemName\" scope=\"row\"><a href=\"pkg/TestException.html\" title=\"class in pkg\">pkg.TestException</a></th>\n"
+                + "<td class=\"colLast\">\n"
+                + "<div class=\"deprecationComment\">exception_test1 passes.</div>\n"
+                + "</td>\n"
+                + "</tr>\n"
+                + "</tbody>\n"
+                + "</table>\n"
+                + "</div>",
+                "<div class=\"deprecatedSummary\">\n"
+                + "<table summary=\"Fields table, listing fields, and an explanation\">\n"
+                + "<caption><span>Fields</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
+                + "<tr>\n"
+                + "<th class=\"colFirst\" scope=\"col\">Field</th>\n"
+                + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
+                + "</tr>\n"
+                + "<tbody>\n"
+                + "<tr class=\"altColor\">\n"
+                + "<th class=\"colDeprecatedItemName\" scope=\"row\"><a href=\"pkg/DeprecatedClassByAnnotation.html#field\">pkg.DeprecatedClassByAnnotation.field</a></th>\n"
+                + "<td class=\"colLast\"></td>\n"
+                + "</tr>\n"
+                + "<tr class=\"rowColor\">\n"
+                + "<th class=\"colDeprecatedItemName\" scope=\"row\"><a href=\"pkg/TestAnnotationType.html#field\">pkg.TestAnnotationType.field</a></th>\n"
+                + "<td class=\"colLast\">\n"
+                + "<div class=\"deprecationComment\">annotation_test4 passes.</div>\n"
+                + "</td>\n"
+                + "</tr>\n"
+                + "<tr class=\"altColor\">\n"
+                + "<th class=\"colDeprecatedItemName\" scope=\"row\"><a href=\"pkg/TestClass.html#field\">pkg.TestClass.field</a></th>\n"
+                + "<td class=\"colLast\">\n"
+                + "<div class=\"deprecationComment\">class_test2 passes. This is the second sentence of deprecated description for a field.</div>\n"
+                + "</td>\n"
+                + "</tr>\n"
+                + "<tr class=\"rowColor\">\n"
+                + "<th class=\"colDeprecatedItemName\" scope=\"row\"><a href=\"pkg/TestError.html#field\">pkg.TestError.field</a></th>\n"
+                + "<td class=\"colLast\">\n"
+                + "<div class=\"deprecationComment\">error_test2 passes.</div>\n"
+                + "</td>\n"
+                + "</tr>\n"
+                + "<tr class=\"altColor\">\n"
+                + "<th class=\"colDeprecatedItemName\" scope=\"row\"><a href=\"pkg/TestException.html#field\">pkg.TestException.field</a></th>\n"
+                + "<td class=\"colLast\">\n"
+                + "<div class=\"deprecationComment\">exception_test2 passes.</div>\n"
+                + "</td>\n"
+                + "</tr>\n"
+                + "<tr class=\"rowColor\">\n"
+                + "<th class=\"colDeprecatedItemName\" scope=\"row\"><a href=\"pkg/TestInterface.html#field\">pkg.TestInterface.field</a></th>\n"
+                + "<td class=\"colLast\">\n"
+                + "<div class=\"deprecationComment\">interface_test2 passes.</div>\n"
+                + "</td>\n"
+                + "</tr>\n"
+                + "</tbody>\n"
+                + "</table>\n"
+                + "</div>");
     }
 }

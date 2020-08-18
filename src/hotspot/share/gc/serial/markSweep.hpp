@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SERIAL_MARKSWEEP_HPP
-#define SHARE_VM_GC_SERIAL_MARKSWEEP_HPP
+#ifndef SHARE_GC_SERIAL_MARKSWEEP_HPP
+#define SHARE_GC_SERIAL_MARKSWEEP_HPP
 
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/genOopClosures.hpp"
@@ -56,7 +56,7 @@ class MarkSweep : AllStatic {
   //
   // Inline closure decls
   //
-  class FollowRootClosure: public OopsInGenClosure {
+  class FollowRootClosure: public BasicOopsInGenClosure {
    public:
     virtual void do_oop(oop* p);
     virtual void do_oop(narrowOop* p);
@@ -87,7 +87,6 @@ class MarkSweep : AllStatic {
   friend class AdjustPointerClosure;
   friend class KeepAliveClosure;
   friend class VM_MarkSweep;
-  friend void marksweep_init();
 
   //
   // Vars
@@ -117,6 +116,8 @@ class MarkSweep : AllStatic {
   static KeepAliveClosure keep_alive;
 
  public:
+  static void initialize();
+
   // Public closures
   static IsAliveClosure       is_alive;
   static FollowRootClosure    follow_root_closure;
@@ -169,29 +170,24 @@ class MarkSweep : AllStatic {
   static void follow_array_chunk(objArrayOop array, int index);
 };
 
-class MarkAndPushClosure: public ExtendedOopClosure {
+class MarkAndPushClosure: public OopIterateClosure {
 public:
-  template <typename T> void do_oop_nv(T* p);
+  template <typename T> void do_oop_work(T* p);
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
 
-  virtual bool do_metadata();
-  bool do_metadata_nv();
-
+  virtual bool do_metadata() { return true; }
   virtual void do_klass(Klass* k);
-  void do_klass_nv(Klass* k);
-
   virtual void do_cld(ClassLoaderData* cld);
-  void do_cld_nv(ClassLoaderData* cld);
 
-  void set_ref_processor(ReferenceProcessor* rp) {
-    set_ref_processor_internal(rp);
+  void set_ref_discoverer(ReferenceDiscoverer* rd) {
+    set_ref_discoverer_internal(rd);
   }
 };
 
-class AdjustPointerClosure: public OopsInGenClosure {
+class AdjustPointerClosure: public BasicOopsInGenClosure {
  public:
-  template <typename T> void do_oop_nv(T* p);
+  template <typename T> void do_oop_work(T* p);
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
   virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
@@ -200,7 +196,7 @@ class AdjustPointerClosure: public OopsInGenClosure {
   debug_only(virtual bool should_verify_oops() { return false; })
 };
 
-class PreservedMark VALUE_OBJ_CLASS_SPEC {
+class PreservedMark {
 private:
   oop _obj;
   markOop _mark;
@@ -215,4 +211,4 @@ public:
   void restore();
 };
 
-#endif // SHARE_VM_GC_SERIAL_MARKSWEEP_HPP
+#endif // SHARE_GC_SERIAL_MARKSWEEP_HPP

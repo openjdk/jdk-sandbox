@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -145,7 +145,7 @@ DEF_JNI_OnLoad(JavaVM *jvm, void *reserved) {
     return JNI_ERR;
   }
   CLS_GSSNameElement = (*env)->NewGlobalRef(env, cls);
-  if (CLS_GSSException == NULL) {
+  if (CLS_GSSNameElement == NULL) {
     return JNI_ERR;
   }
   cls = (*env)->FindClass(env, "sun/security/jgss/wrapper/GSSCredElement");
@@ -469,7 +469,7 @@ jstring getJavaString(JNIEnv *env, gss_buffer_t bytes) {
   if (bytes != NULL) {
     /* constructs the String object with new String(byte[])
        NOTE: do NOT include the trailing NULL */
-    len = bytes->length;
+    len = (int) bytes->length;
     jbytes = (*env)->NewByteArray(env, len);
     if (jbytes == NULL) {
       goto finish;
@@ -497,7 +497,6 @@ jstring getMinorMessage(JNIEnv *env, jobject jstub, OM_uint32 statusValue) {
   OM_uint32 messageContext, minor, major;
   gss_buffer_desc statusString;
   gss_OID mech;
-  jstring msg;
 
   messageContext = 0;
   if (jstub != NULL) {
@@ -636,11 +635,11 @@ jbyteArray getJavaBuffer(JNIEnv *env, gss_buffer_t cbytes) {
 
   if (cbytes != NULL) {
     if ((cbytes != GSS_C_NO_BUFFER) && (cbytes->length != 0)) {
-      result = (*env)->NewByteArray(env, cbytes->length);
+      result = (*env)->NewByteArray(env, (int) cbytes->length);
       if (result == NULL) {
         goto finish;
       }
-      (*env)->SetByteArrayRegion(env, result, 0, cbytes->length,
+      (*env)->SetByteArrayRegion(env, result, 0, (int) cbytes->length,
                                  cbytes->value);
       if ((*env)->ExceptionCheck(env)) {
         result = NULL;
@@ -661,7 +660,6 @@ jbyteArray getJavaBuffer(JNIEnv *env, gss_buffer_t cbytes) {
 gss_OID newGSSOID(JNIEnv *env, jobject jOid) {
   jbyteArray jbytes;
   gss_OID cOid;
-  jthrowable gssEx;
   if (jOid != NULL) {
     jbytes = (*env)->CallObjectMethod(env, jOid, MID_Oid_getDER);
     if ((*env)->ExceptionCheck(env)) {
@@ -726,17 +724,14 @@ jobject getJavaOID(JNIEnv *env, gss_OID cOid) {
   if (jbytes == NULL) {
     return NULL;
   }
-  (*env)->SetByteArrayRegion(env, jbytes, 0, 2, (jbyte *) oidHdr);
-  if ((*env)->ExceptionCheck(env)) {
-    return NULL;
+  if (!(*env)->ExceptionCheck(env)) {
+    (*env)->SetByteArrayRegion(env, jbytes, 0, 2, (jbyte *) oidHdr);
   }
-  (*env)->SetByteArrayRegion(env, jbytes, 2, cLen, (jbyte *) cOid->elements);
-  if ((*env)->ExceptionCheck(env)) {
-    return NULL;
+  if (!(*env)->ExceptionCheck(env)) {
+    (*env)->SetByteArrayRegion(env, jbytes, 2, cLen, (jbyte *) cOid->elements);
   }
-  result = (*env)->NewObject(env, CLS_Oid, MID_Oid_ctor1, jbytes);
-  if ((*env)->ExceptionCheck(env)) {
-    return NULL;
+  if (!(*env)->ExceptionCheck(env)) {
+    result = (*env)->NewObject(env, CLS_Oid, MID_Oid_ctor1, jbytes);
   }
   (*env)->DeleteLocalRef(env, jbytes);
   return result;
@@ -783,10 +778,9 @@ jobjectArray getJavaOIDArray(JNIEnv *env, gss_OID_set cOidSet) {
   jobjectArray jOidSet;
   jobject jOid;
   int i;
-  jthrowable gssEx;
 
   if (cOidSet != NULL && cOidSet != GSS_C_NO_OID_SET) {
-    numOfOids = cOidSet->count;
+    numOfOids = (int) cOidSet->count;
     jOidSet = (*env)->NewObjectArray(env, numOfOids, CLS_Oid, NULL);
     if ((*env)->ExceptionCheck(env)) {
       return NULL;

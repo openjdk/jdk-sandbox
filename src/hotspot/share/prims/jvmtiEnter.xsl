@@ -1,6 +1,6 @@
 <?xml version="1.0"?> 
 <!--
- Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -37,14 +37,16 @@
   <xsl:call-template name="sourceHeader"/>
   <xsl:text>
 # include "precompiled.hpp"
+# include "classfile/javaClasses.inline.hpp"
 # include "memory/resourceArea.hpp"
 # include "utilities/macros.hpp"
 #if INCLUDE_JVMTI
 # include "logging/log.hpp"
 # include "oops/oop.inline.hpp"
-# include "prims/jvmtiEnter.hpp"
+# include "prims/jvmtiEnter.inline.hpp"
 # include "prims/jvmtiRawMonitor.hpp"
 # include "prims/jvmtiUtil.hpp"
+# include "runtime/fieldDescriptor.inline.hpp"
 # include "runtime/threadSMR.hpp"
 
 </xsl:text>
@@ -404,7 +406,7 @@ struct jvmtiInterface_1_ jvmti</xsl:text>
     <xsl:otherwise> 
       <xsl:choose>
         <xsl:when test="count(@phase)=0 or contains(@phase,'live') or contains(@phase,'start')">
-	  <xsl:text>if (this_thread == NULL || (!this_thread->is_Java_thread() &amp;&amp; !this_thread->is_VM_thread())) {</xsl:text>
+	  <xsl:text>if (this_thread == NULL || (!this_thread->is_Java_thread() &amp;&amp; !this_thread->is_Named_thread())) {</xsl:text>
         </xsl:when>
         <xsl:otherwise>
           <xsl:text>if (!this_thread->is_Java_thread()) {</xsl:text> 
@@ -571,7 +573,7 @@ static jvmtiError JNICALL
     transition = false;
   } else {
     this_thread = Thread::current_or_null();
-    transition = ((this_thread != NULL) &amp;&amp; !this_thread->is_VM_thread() &amp;&amp; !this_thread->is_ConcurrentGC_thread());
+    transition = ((this_thread != NULL) &amp;&amp; !this_thread->is_Named_thread());
   }
   if (transition) {</xsl:text>
 	</xsl:otherwise>

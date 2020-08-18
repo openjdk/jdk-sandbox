@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,21 +20,28 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import org.graalvm.compiler.debug.GraalError;
 
 import jdk.vm.ci.meta.DeoptimizationAction;
 import jdk.vm.ci.meta.DeoptimizationReason;
-import jdk.vm.ci.meta.JavaConstant;
+import jdk.vm.ci.meta.SpeculationLog;
+import jdk.vm.ci.meta.SpeculationLog.Speculation;
 
 public interface StaticDeoptimizingNode extends ValueNodeInterface {
 
     DeoptimizationReason getReason();
 
+    void setReason(DeoptimizationReason reason);
+
     DeoptimizationAction getAction();
 
-    JavaConstant getSpeculation();
+    void setAction(DeoptimizationAction action);
+
+    Speculation getSpeculation();
 
     /**
      * Describes how much information is gathered when deoptimization triggers.
@@ -61,7 +68,8 @@ public interface StaticDeoptimizingNode extends ValueNodeInterface {
     }
 
     default GuardPriority computePriority() {
-        if (getSpeculation() != null && getSpeculation().isNonNull()) {
+        assert getSpeculation() != null;
+        if (!getSpeculation().equals(SpeculationLog.NO_SPECULATION)) {
             return GuardNode.GuardPriority.Speculation;
         }
         switch (getAction()) {
@@ -74,5 +82,16 @@ public interface StaticDeoptimizingNode extends ValueNodeInterface {
                 return GuardNode.GuardPriority.None;
         }
         throw GraalError.shouldNotReachHere();
+    }
+
+    static DeoptimizationAction mergeActions(DeoptimizationAction a1, DeoptimizationAction a2) {
+        if (a1 == a2) {
+            return a1;
+        }
+        if (a1 == DeoptimizationAction.InvalidateRecompile && a2 == DeoptimizationAction.InvalidateReprofile ||
+                        a1 == DeoptimizationAction.InvalidateReprofile && a2 == DeoptimizationAction.InvalidateRecompile) {
+            return DeoptimizationAction.InvalidateReprofile;
+        }
+        return null;
     }
 }

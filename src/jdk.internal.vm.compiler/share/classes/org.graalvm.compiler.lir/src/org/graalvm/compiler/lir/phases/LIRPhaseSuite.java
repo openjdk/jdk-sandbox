@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir.phases;
 
 import java.util.ArrayList;
@@ -37,6 +39,13 @@ public class LIRPhaseSuite<C> extends LIRPhase<C> {
 
     public LIRPhaseSuite() {
         phases = new ArrayList<>();
+    }
+
+    /**
+     * Gets an unmodifiable view on the phases in this suite.
+     */
+    public List<LIRPhase<C>> getPhases() {
+        return Collections.unmodifiableList(phases);
     }
 
     /**

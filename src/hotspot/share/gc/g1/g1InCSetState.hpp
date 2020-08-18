@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1INCSETSTATE_HPP
-#define SHARE_VM_GC_G1_G1INCSETSTATE_HPP
+#ifndef SHARE_GC_G1_G1INCSETSTATE_HPP
+#define SHARE_GC_G1_G1INCSETSTATE_HPP
 
 #include "gc/g1/g1BiasedArray.hpp"
 #include "gc/g1/heapRegion.hpp"
-#include "memory/allocation.hpp"
 
 // Per-region state during garbage collection.
 struct InCSetState {
@@ -57,8 +56,8 @@ struct InCSetState {
     // makes getting the next generation fast by a simple increment. They are also
     // used to index into arrays.
     // The negative values are used for objects requiring various special cases,
-    // for example eager reclamation of humongous objects.
-    Ext          = -2,    // Extension point
+    // for example eager reclamation of humongous objects or optional regions.
+    Optional     = -2,    // The region is optional
     Humongous    = -1,    // The region is humongous
     NotInCSet    =  0,    // The region is not in the collection set.
     Young        =  1,    // The region is in the collection set and a young region.
@@ -80,11 +79,11 @@ struct InCSetState {
   bool is_humongous() const            { return _value == Humongous; }
   bool is_young() const                { return _value == Young; }
   bool is_old() const                  { return _value == Old; }
-  bool is_ext() const                  { return _value == Ext; }
+  bool is_optional() const             { return _value == Optional; }
 
 #ifdef ASSERT
   bool is_default() const              { return _value == NotInCSet; }
-  bool is_valid() const                { return (_value >= Ext) && (_value < Num); }
+  bool is_valid() const                { return (_value >= Optional) && (_value < Num); }
   bool is_valid_gen() const            { return (_value >= Young && _value <= Old); }
 #endif
 };
@@ -104,16 +103,16 @@ class G1InCSetStateFastTestBiasedMappedArray : public G1BiasedMappedArray<InCSet
  protected:
   InCSetState default_value() const { return InCSetState::NotInCSet; }
  public:
+  void set_optional(uintptr_t index) {
+    assert(get_by_index(index).is_default(),
+           "State at index " INTPTR_FORMAT " should be default but is " CSETSTATE_FORMAT, index, get_by_index(index).value());
+    set_by_index(index, InCSetState::Optional);
+  }
+
   void set_humongous(uintptr_t index) {
     assert(get_by_index(index).is_default(),
            "State at index " INTPTR_FORMAT " should be default but is " CSETSTATE_FORMAT, index, get_by_index(index).value());
     set_by_index(index, InCSetState::Humongous);
-  }
-
-  void set_ext(uintptr_t index) {
-    assert(get_by_index(index).is_default(),
-           "State at index " INTPTR_FORMAT " should be default but is " CSETSTATE_FORMAT, index, get_by_index(index).value());
-    set_by_index(index, InCSetState::Ext);
   }
 
   void clear_humongous(uintptr_t index) {
@@ -140,4 +139,4 @@ class G1InCSetStateFastTestBiasedMappedArray : public G1BiasedMappedArray<InCSet
   void clear(const HeapRegion* hr) { return set_by_index(hr->hrm_index(), InCSetState::NotInCSet); }
 };
 
-#endif // SHARE_VM_GC_G1_G1INCSETSTATE_HPP
+#endif // SHARE_GC_G1_G1INCSETSTATE_HPP

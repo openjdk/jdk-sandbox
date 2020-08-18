@@ -43,13 +43,14 @@ import javax.swing.LookAndFeel;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 import sun.swing.DefaultLookup;
+import sun.swing.SwingUtilities2;
 
 /**
  * Displays an entry in a tree.
  * <code>DefaultTreeCellRenderer</code> is not opaque and
  * unless you subclass paint you should not change this.
  * See <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/tree.html">How to Use Trees</a>
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/tree.html">How to Use Trees</a>
  * in <em>The Java Tutorial</em>
  * for examples of customizing node display using this class.
  * <p>
@@ -690,9 +691,10 @@ public class DefaultTreeCellRenderer extends JLabel implements TreeCellRenderer
     protected void firePropertyChange(String propertyName, Object oldValue, Object newValue) {
         // Strings get interned...
         if (propertyName == "text"
-                || ((propertyName == "font" || propertyName == "foreground")
-                    && oldValue != newValue
-                    && getClientProperty(javax.swing.plaf.basic.BasicHTML.propertyKey) != null)) {
+            || ((SwingUtilities2.isScaleChanged(propertyName, oldValue, newValue)
+                    || propertyName == "font" || propertyName == "foreground")
+                && oldValue != newValue
+                && getClientProperty(javax.swing.plaf.basic.BasicHTML.propertyKey) != null)) {
 
             super.firePropertyChange(propertyName, oldValue, newValue);
         }

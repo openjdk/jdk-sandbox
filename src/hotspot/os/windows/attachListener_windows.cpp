@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,8 @@
  */
 
 #include "precompiled.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "logging/log.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/os.hpp"
 #include "services/attachListener.hpp"
 #include "services/dtraceAttacher.hpp"
@@ -131,12 +132,12 @@ class Win32AttachOperation: public AttachOperation {
     pipe_name_max = 256             // maximum pipe name
   };
 
-  char _pipe[pipe_name_max+1];
+  char _pipe[pipe_name_max + 1];
 
   const char* pipe() const                              { return _pipe; }
   void set_pipe(const char* pipe) {
-    assert(strlen(pipe) <= pipe_name_max, "execeds maximum length of pipe name");
-    strcpy(_pipe, pipe);
+    assert(strlen(pipe) <= pipe_name_max, "exceeds maximum length of pipe name");
+    os::snprintf(_pipe, sizeof(_pipe), "%s", pipe);
   }
 
   HANDLE open_pipe();
@@ -183,9 +184,14 @@ int Win32AttachListener::init() {
 // Also we need to be careful not to execute anything that results in more than a 4k stack.
 //
 int Win32AttachListener::enqueue(char* cmd, char* arg0, char* arg1, char* arg2, char* pipename) {
-  // listener not running
-  if (!AttachListener::is_initialized()) {
-    return ATTACH_ERROR_DISABLED;
+  // wait up to 10 seconds for listener to be up and running
+  int sleep_count = 0;
+  while (!AttachListener::is_initialized()) {
+    Sleep(1000); // 1 second
+    sleep_count++;
+    if (sleep_count > 10) { // try for 10 seconds
+      return ATTACH_ERROR_DISABLED;
+    }
   }
 
   // check that all paramteres to the operation
@@ -329,12 +335,20 @@ void Win32AttachOperation::complete(jint result, bufferedStream* result_stream) 
 
     fSuccess = write_pipe(hPipe, msg, (int)strlen(msg));
     if (fSuccess) {
-      write_pipe(hPipe, (char*) result_stream->base(), (int)(result_stream->size()));
+      fSuccess = write_pipe(hPipe, (char*)result_stream->base(), (int)(result_stream->size()));
     }
 
     // Need to flush buffers
     FlushFileBuffers(hPipe);
     CloseHandle(hPipe);
+
+    if (fSuccess) {
+      log_debug(attach)("wrote result of attach operation %s to pipe %s", name(), pipe());
+    } else {
+      log_error(attach)("failure writing result of operation %s to pipe %s", name(), pipe());
+    }
+  } else {
+    log_error(attach)("could not open pipe %s to send result of operation %s", pipe(), name());
   }
 
   DWORD res = ::WaitForSingleObject(Win32AttachListener::mutex(), INFINITE);

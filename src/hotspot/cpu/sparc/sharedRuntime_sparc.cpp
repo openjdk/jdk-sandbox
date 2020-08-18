@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,12 @@
 #include "code/debugInfoRec.hpp"
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/compiledICHolder.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/vframeArray.hpp"
 #include "utilities/align.hpp"
@@ -2369,18 +2371,9 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     //     didn't see any synchronization is progress, and escapes.
     __ set(_thread_in_native_trans, G3_scratch);
     __ st(G3_scratch, G2_thread, JavaThread::thread_state_offset());
-    if(os::is_MP()) {
-      if (UseMembar) {
-        // Force this write out before the read below
-        __ membar(Assembler::StoreLoad);
-      } else {
-        // Write serialization page so VM thread can do a pseudo remote membar.
-        // We use the current thread pointer to calculate a thread specific
-        // offset to write to within the page. This minimizes bus traffic
-        // due to cache line collision.
-        __ serialize_memory(G2_thread, G1_scratch, G3_scratch);
-      }
-    }
+
+    // Force this write out before the read below
+    __ membar(Assembler::StoreLoad);
 
     Label L;
     Address suspend_state(G2_thread, JavaThread::suspend_flags_offset());
@@ -2514,28 +2507,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   // Unbox oop result, e.g. JNIHandles::resolve value in I0.
   if (ret_type == T_OBJECT || ret_type == T_ARRAY) {
-    Label done, not_weak;
-    __ br_null(I0, false, Assembler::pn, done); // Use NULL as-is.
-    __ delayed()->andcc(I0, JNIHandles::weak_tag_mask, G0); // Test for jweak
-    __ brx(Assembler::zero, true, Assembler::pt, not_weak);
-    __ delayed()->ld_ptr(I0, 0, I0); // Maybe resolve (untagged) jobject.
-    // Resolve jweak.
-    __ ld_ptr(I0, -JNIHandles::weak_tag_value, I0);
-#if INCLUDE_ALL_GCS
-    if (UseG1GC) {
-      // Copy to O0 because macro doesn't allow pre_val in input reg.
-      __ mov(I0, O0);
-      __ g1_write_barrier_pre(noreg /* obj */,
-                              noreg /* index */,
-                              0 /* offset */,
-                              O0 /* pre_val */,
-                              G3_scratch /* tmp */,
-                              true /* preserve_o_regs */);
-    }
-#endif // INCLUDE_ALL_GCS
-    __ bind(not_weak);
-    __ verify_oop(I0);
-    __ bind(done);
+    __ resolve_jobject(I0, G3_scratch);
   }
 
   if (CheckJNICalls) {

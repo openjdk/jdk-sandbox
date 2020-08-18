@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package javax.swing;
 
 import java.applet.Applet;
@@ -46,7 +47,7 @@ import javax.accessibility.AccessibleContext;
  * in <em>The Java Tutorial</em>,
  * in the section
  * <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/applet.html">How to Make Applets</a>.
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/applet.html">How to Make Applets</a>.
  * <p>
  * The <code>JApplet</code> class is slightly incompatible with
  * <code>java.applet.Applet</code>.  <code>JApplet</code> contains a
@@ -93,11 +94,8 @@ import javax.accessibility.AccessibleContext;
  * @author Arnaud Weber
  * @since 1.2
  *
- * @deprecated  The Applet API is deprecated. See the
- * <a href="../../java/applet/package-summary.html"> java.applet package documentation</a>
- * for further information.
+ * @deprecated The Applet API is deprecated, no replacement.
  */
-
 @Deprecated(since = "9")
 @JavaBean(defaultProperty = "JMenuBar", description = "Swing's Applet subclass.")
 @SwingContainer(delegate = "getContentPane")
@@ -199,7 +197,7 @@ public class JApplet extends Applet implements Accessible,
      * are currently typed to {@code JComponent}.
      * <p>
      * Please see
-     * <a href="http://docs.oracle.com/javase/tutorial/uiswing/dnd/index.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/dnd/index.html">
      * How to Use Drag and Drop and Data Transfer</a>, a section in
      * <em>The Java Tutorial</em>, for more information.
      *

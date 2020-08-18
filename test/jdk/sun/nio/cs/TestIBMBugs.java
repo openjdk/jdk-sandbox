@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
  */
 
 /* @test
- * @bug 6371437 6371422 6371416 6371619 5058184 6371431 6639450 6569191 6577466
+ * @bug 6371437 6371422 6371416 6371619 5058184 6371431 6639450 6569191 6577466 8212794
  * @summary Check if the problems reported in above bugs have been fixed
  * @modules jdk.charsets
  */
@@ -30,6 +30,7 @@
 import java.io.*;
 import java.nio.*;
 import java.nio.charset.*;
+import java.util.Arrays;
 
 public class TestIBMBugs {
 
@@ -173,6 +174,82 @@ public class TestIBMBugs {
         }
     }
 
+    private static void bug8213618 () throws Exception {
+        String cs = "x-IBM970";
+        byte[] ba = new byte[]{(byte)0xA2,(byte)0xC1};
+        String s = "\u25C9";
+        if (!(new String(ba, cs)).equals(s))
+            throw new Exception("Cp970 failed");
+        if (!Arrays.equals(ba, s.getBytes(cs)))
+            throw new Exception("Cp970 failed");
+        ba = new byte[]{0x3f,0x3f,0x3f};
+        if (!Arrays.equals(ba, "\u6950\u84f1\ucf7f".getBytes(cs)))
+            throw new Exception("Cp970 failed");
+    }
+
+    private static void bug8202329() throws Exception {
+        String original = "\\\u007E\u00A5\u203E"; // [backslash][tilde][yen][overscore]
+        byte[] expectedBytes; // bytes after conversion
+        String expectedStringfromBytes; // String constructed from bytes
+
+        Charset charset; // charset used for conversion
+
+        ByteBuffer bb; // Buffer that holds encoded bytes
+        byte[]  ba; // byte array that holds encoded bytes
+
+        CharBuffer cb; // Buffer that holds decoded chars
+
+
+        // Test IBM943, where \ and ~ are encoded to unmappable i.e., 0x3f
+        // and [yen] and [overscore] are encoded to 0x5c and 0x7e
+        charset = Charset.forName("IBM943");
+        expectedBytes = new byte[] {0x3f, 0x3f, 0x5c, 0x7e};
+        expectedStringfromBytes = "??\u00A5\u203E";
+        bb = charset.encode(original);
+        ba = new byte[bb.remaining()];
+        bb.get(ba, 0, ba.length);
+        if(!Arrays.equals(ba, expectedBytes)) {
+            throw new Exception("IBM943 failed to encode");
+        }
+        cb = charset.decode(ByteBuffer.wrap(expectedBytes));
+        if(!cb.toString().equals(expectedStringfromBytes)) {
+            throw new Exception("IBM943 failed to decode");
+        }
+
+
+        // Test IBM943C, where \ and ~ are encoded to 0x5c and 0x7e
+        // and [yen] and [overscore] are encoded to 0x5c and 0x7e
+        charset = Charset.forName("IBM943C");
+        expectedBytes = new byte[] {0x5c, 0x7e, 0x5c, 0x7e};
+        expectedStringfromBytes = "\\~\\~";
+        bb = charset.encode(original);
+        ba = new byte[bb.remaining()];
+        bb.get(ba, 0, ba.length);
+        if(!Arrays.equals(ba, expectedBytes)) {
+            throw new Exception("IBM943C failed to encode");
+        }
+        cb = charset.decode(ByteBuffer.wrap(expectedBytes));
+        if(!cb.toString().equals(expectedStringfromBytes)) {
+            throw new Exception("IBM943C failed to decode");
+        }
+    }
+
+    private static void bug8212794 () throws Exception {
+        Charset cs = Charset.forName("x-IBM964");
+        byte[] ba = new byte[] {(byte)0x5c, (byte)0x90, (byte)0xa1, (byte)0xa1};
+        char[] ca = new char[] {'\\', '\u0090', '\u3000'};
+        ByteBuffer bb = ByteBuffer.wrap(ba);
+        CharBuffer cb = cs.decode(bb);
+        if(!Arrays.equals(ca, Arrays.copyOf(cb.array(), cb.limit()))) {
+            throw new Exception("IBM964 failed to decode");
+        }
+        cb = CharBuffer.wrap(ca);
+        bb = cs.encode(cb);
+        if(!Arrays.equals(ba, Arrays.copyOf(bb.array(), bb.limit()))) {
+            throw new Exception("IBM964 failed to encode");
+        }
+    }
+
     public static void main (String[] args) throws Exception {
         bug6577466();
         // need to be tested before any other IBM949C test case
@@ -183,5 +260,8 @@ public class TestIBMBugs {
         bug6371619();
         bug6371431();
         bug6569191();
+        bug8202329();
+        bug8212794();
+        bug8213618();
     }
 }

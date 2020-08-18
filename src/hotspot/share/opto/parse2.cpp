@@ -29,7 +29,7 @@
 #include "compiler/compileLog.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
@@ -51,29 +51,60 @@ extern int explicit_null_checks_inserted,
 #endif
 
 //---------------------------------array_load----------------------------------
-void Parse::array_load(BasicType elem_type) {
-  const Type* elem = Type::TOP;
-  Node* adr = array_addressing(elem_type, 0, &elem);
+void Parse::array_load(BasicType bt) {
+  const Type* elemtype = Type::TOP;
+  bool big_val = bt == T_DOUBLE || bt == T_LONG;
+  Node* adr = array_addressing(bt, 0, &elemtype);
   if (stopped())  return;     // guaranteed null or range check
-  dec_sp(2);                  // Pop array and index
-  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(elem_type);
-  Node* ld = make_load(control(), adr, elem, elem_type, adr_type, MemNode::unordered);
-  push(ld);
+
+  pop();                      // index (already used)
+  Node* array = pop();        // the array itself
+
+  if (elemtype == TypeInt::BOOL) {
+    bt = T_BOOLEAN;
+  } else if (bt == T_OBJECT) {
+    elemtype = _gvn.type(array)->is_aryptr()->elem()->make_oopptr();
+  }
+
+  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+
+  Node* ld = access_load_at(array, adr, adr_type, elemtype, bt,
+                            IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
+  if (big_val) {
+    push_pair(ld);
+  } else {
+    push(ld);
+  }
 }
 
 
 //--------------------------------array_store----------------------------------
-void Parse::array_store(BasicType elem_type) {
-  const Type* elem = Type::TOP;
-  Node* adr = array_addressing(elem_type, 1, &elem);
+void Parse::array_store(BasicType bt) {
+  const Type* elemtype = Type::TOP;
+  bool big_val = bt == T_DOUBLE || bt == T_LONG;
+  Node* adr = array_addressing(bt, big_val ? 2 : 1, &elemtype);
   if (stopped())  return;     // guaranteed null or range check
-  Node* val = pop();
-  dec_sp(2);                  // Pop array and index
-  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(elem_type);
-  if (elem == TypeInt::BOOL) {
-    elem_type = T_BOOLEAN;
+  if (bt == T_OBJECT) {
+    array_store_check();
   }
-  store_to_memory(control(), adr, val, elem_type, adr_type, StoreNode::release_if_reference(elem_type));
+  Node* val;                  // Oop to store
+  if (big_val) {
+    val = pop_pair();
+  } else {
+    val = pop();
+  }
+  pop();                      // index (already used)
+  Node* array = pop();        // the array itself
+
+  if (elemtype == TypeInt::BOOL) {
+    bt = T_BOOLEAN;
+  } else if (bt == T_OBJECT) {
+    elemtype = _gvn.type(array)->is_aryptr()->elem()->make_oopptr();
+  }
+
+  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+
+  access_store_at(array, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
 }
 
 
@@ -186,10 +217,10 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type* *result2) {
 
 
 // returns IfNode
-IfNode* Parse::jump_if_fork_int(Node* a, Node* b, BoolTest::mask mask) {
-  Node   *cmp = _gvn.transform( new CmpINode( a, b)); // two cases: shiftcount > 32 and shiftcount <= 32
-  Node   *tst = _gvn.transform( new BoolNode( cmp, mask));
-  IfNode *iff = create_and_map_if( control(), tst, ((mask == BoolTest::eq) ? PROB_STATIC_INFREQUENT : PROB_FAIR), COUNT_UNKNOWN );
+IfNode* Parse::jump_if_fork_int(Node* a, Node* b, BoolTest::mask mask, float prob, float cnt) {
+  Node   *cmp = _gvn.transform(new CmpINode(a, b)); // two cases: shiftcount > 32 and shiftcount <= 32
+  Node   *tst = _gvn.transform(new BoolNode(cmp, mask));
+  IfNode *iff = create_and_map_if(control(), tst, prob, cnt);
   return iff;
 }
 
@@ -205,15 +236,27 @@ Node* Parse::jump_if_join(Node* iffalse, Node* iftrue) {
   return region;
 }
 
+// sentinel value for the target bci to mark never taken branches
+// (according to profiling)
+static const int never_reached = INT_MAX;
 
 //------------------------------helper for tableswitch-------------------------
-void Parse::jump_if_true_fork(IfNode *iff, int dest_bci_if_true, int prof_table_index) {
+void Parse::jump_if_true_fork(IfNode *iff, int dest_bci_if_true, int prof_table_index, bool unc) {
   // True branch, use existing map info
   { PreserveJVMState pjvms(this);
     Node *iftrue  = _gvn.transform( new IfTrueNode (iff) );
     set_control( iftrue );
-    profile_switch_case(prof_table_index);
-    merge_new_path(dest_bci_if_true);
+    if (unc) {
+      repush_if_args();
+      uncommon_trap(Deoptimization::Reason_unstable_if,
+                    Deoptimization::Action_reinterpret,
+                    NULL,
+                    "taken always");
+    } else {
+      assert(dest_bci_if_true != never_reached, "inconsistent dest");
+      profile_switch_case(prof_table_index);
+      merge_new_path(dest_bci_if_true);
+    }
   }
 
   // False branch
@@ -221,13 +264,22 @@ void Parse::jump_if_true_fork(IfNode *iff, int dest_bci_if_true, int prof_table_
   set_control( iffalse );
 }
 
-void Parse::jump_if_false_fork(IfNode *iff, int dest_bci_if_true, int prof_table_index) {
+void Parse::jump_if_false_fork(IfNode *iff, int dest_bci_if_true, int prof_table_index, bool unc) {
   // True branch, use existing map info
   { PreserveJVMState pjvms(this);
     Node *iffalse  = _gvn.transform( new IfFalseNode (iff) );
     set_control( iffalse );
-    profile_switch_case(prof_table_index);
-    merge_new_path(dest_bci_if_true);
+    if (unc) {
+      repush_if_args();
+      uncommon_trap(Deoptimization::Reason_unstable_if,
+                    Deoptimization::Action_reinterpret,
+                    NULL,
+                    "taken never");
+    } else {
+      assert(dest_bci_if_true != never_reached, "inconsistent dest");
+      profile_switch_case(prof_table_index);
+      merge_new_path(dest_bci_if_true);
+    }
   }
 
   // False branch
@@ -235,10 +287,19 @@ void Parse::jump_if_false_fork(IfNode *iff, int dest_bci_if_true, int prof_table
   set_control( iftrue );
 }
 
-void Parse::jump_if_always_fork(int dest_bci, int prof_table_index) {
+void Parse::jump_if_always_fork(int dest_bci, int prof_table_index, bool unc) {
   // False branch, use existing map and control()
-  profile_switch_case(prof_table_index);
-  merge_new_path(dest_bci);
+  if (unc) {
+    repush_if_args();
+    uncommon_trap(Deoptimization::Reason_unstable_if,
+                  Deoptimization::Action_reinterpret,
+                  NULL,
+                  "taken never");
+  } else {
+    assert(dest_bci != never_reached, "inconsistent dest");
+    profile_switch_case(prof_table_index);
+    merge_new_path(dest_bci);
+  }
 }
 
 
@@ -261,6 +322,7 @@ class SwitchRange : public StackObj {
   jint _hi;                     // inclusive upper limit
   int _dest;
   int _table_index;             // index into method data table
+  float _cnt;                   // how many times this range was hit according to profiling
 
 public:
   jint lo() const              { return _lo;   }
@@ -268,44 +330,111 @@ public:
   int  dest() const            { return _dest; }
   int  table_index() const     { return _table_index; }
   bool is_singleton() const    { return _lo == _hi; }
+  float cnt() const            { return _cnt; }
 
-  void setRange(jint lo, jint hi, int dest, int table_index) {
+  void setRange(jint lo, jint hi, int dest, int table_index, float cnt) {
     assert(lo <= hi, "must be a non-empty range");
-    _lo = lo, _hi = hi; _dest = dest; _table_index = table_index;
+    _lo = lo, _hi = hi; _dest = dest; _table_index = table_index; _cnt = cnt;
+    assert(_cnt >= 0, "");
   }
-  bool adjoinRange(jint lo, jint hi, int dest, int table_index) {
+  bool adjoinRange(jint lo, jint hi, int dest, int table_index, float cnt, bool trim_ranges) {
     assert(lo <= hi, "must be a non-empty range");
-    if (lo == _hi+1 && dest == _dest && table_index == _table_index) {
+    if (lo == _hi+1 && table_index == _table_index) {
+      // see merge_ranges() comment below
+      if (trim_ranges) {
+        if (cnt == 0) {
+          if (_cnt != 0) {
+            return false;
+          }
+          if (dest != _dest) {
+            _dest = never_reached;
+          }
+        } else {
+          if (_cnt == 0) {
+            return false;
+          }
+          if (dest != _dest) {
+            return false;
+          }
+        }
+      } else {
+        if (dest != _dest) {
+          return false;
+        }
+      }
       _hi = hi;
+      _cnt += cnt;
       return true;
     }
     return false;
   }
 
-  void set (jint value, int dest, int table_index) {
-    setRange(value, value, dest, table_index);
+  void set (jint value, int dest, int table_index, float cnt) {
+    setRange(value, value, dest, table_index, cnt);
   }
-  bool adjoin(jint value, int dest, int table_index) {
-    return adjoinRange(value, value, dest, table_index);
+  bool adjoin(jint value, int dest, int table_index, float cnt, bool trim_ranges) {
+    return adjoinRange(value, value, dest, table_index, cnt, trim_ranges);
+  }
+  bool adjoin(SwitchRange& other) {
+    return adjoinRange(other._lo, other._hi, other._dest, other._table_index, other._cnt, false);
   }
 
   void print() {
     if (is_singleton())
-      tty->print(" {%d}=>%d", lo(), dest());
+      tty->print(" {%d}=>%d (cnt=%f)", lo(), dest(), cnt());
     else if (lo() == min_jint)
-      tty->print(" {..%d}=>%d", hi(), dest());
+      tty->print(" {..%d}=>%d (cnt=%f)", hi(), dest(), cnt());
     else if (hi() == max_jint)
-      tty->print(" {%d..}=>%d", lo(), dest());
+      tty->print(" {%d..}=>%d (cnt=%f)", lo(), dest(), cnt());
     else
-      tty->print(" {%d..%d}=>%d", lo(), hi(), dest());
+      tty->print(" {%d..%d}=>%d (cnt=%f)", lo(), hi(), dest(), cnt());
   }
 };
 
+// We try to minimize the number of ranges and the size of the taken
+// ones using profiling data. When ranges are created,
+// SwitchRange::adjoinRange() only allows 2 adjoining ranges to merge
+// if both were never hit or both were hit to build longer unreached
+// ranges. Here, we now merge adjoining ranges with the same
+// destination and finally set destination of unreached ranges to the
+// special value never_reached because it can help minimize the number
+// of tests that are necessary.
+//
+// For instance:
+// [0, 1] to target1 sometimes taken
+// [1, 2] to target1 never taken
+// [2, 3] to target2 never taken
+// would lead to:
+// [0, 1] to target1 sometimes taken
+// [1, 3] never taken
+//
+// (first 2 ranges to target1 are not merged)
+static void merge_ranges(SwitchRange* ranges, int& rp) {
+  if (rp == 0) {
+    return;
+  }
+  int shift = 0;
+  for (int j = 0; j < rp; j++) {
+    SwitchRange& r1 = ranges[j-shift];
+    SwitchRange& r2 = ranges[j+1];
+    if (r1.adjoin(r2)) {
+      shift++;
+    } else if (shift > 0) {
+      ranges[j+1-shift] = r2;
+    }
+  }
+  rp -= shift;
+  for (int j = 0; j <= rp; j++) {
+    SwitchRange& r = ranges[j];
+    if (r.cnt() == 0 && r.dest() != never_reached) {
+      r.setRange(r.lo(), r.hi(), never_reached, r.table_index(), r.cnt());
+    }
+  }
+}
 
 //-------------------------------do_tableswitch--------------------------------
 void Parse::do_tableswitch() {
   Node* lookup = pop();
-
   // Get information about tableswitch
   int default_dest = iter().get_dest_table(0);
   int lo_index     = iter().get_int_table(1);
@@ -319,30 +448,57 @@ void Parse::do_tableswitch() {
     return;
   }
 
+  ciMethodData* methodData = method()->method_data();
+  ciMultiBranchData* profile = NULL;
+  if (methodData->is_mature() && UseSwitchProfiling) {
+    ciProfileData* data = methodData->bci_to_data(bci());
+    if (data != NULL && data->is_MultiBranchData()) {
+      profile = (ciMultiBranchData*)data;
+    }
+  }
+  bool trim_ranges = !method_data_update() && !C->too_many_traps(method(), bci(), Deoptimization::Reason_unstable_if);
+
   // generate decision tree, using trichotomy when possible
   int rnum = len+2;
   bool makes_backward_branch = false;
   SwitchRange* ranges = NEW_RESOURCE_ARRAY(SwitchRange, rnum);
   int rp = -1;
   if (lo_index != min_jint) {
-    ranges[++rp].setRange(min_jint, lo_index-1, default_dest, NullTableIndex);
+    uint cnt = 1;
+    if (profile != NULL) {
+      cnt = profile->default_count() / (hi_index != max_jint ? 2 : 1);
+    }
+    ranges[++rp].setRange(min_jint, lo_index-1, default_dest, NullTableIndex, cnt);
   }
   for (int j = 0; j < len; j++) {
     jint match_int = lo_index+j;
     int  dest      = iter().get_dest_table(j+3);
     makes_backward_branch |= (dest <= bci());
     int  table_index = method_data_update() ? j : NullTableIndex;
-    if (rp < 0 || !ranges[rp].adjoin(match_int, dest, table_index)) {
-      ranges[++rp].set(match_int, dest, table_index);
+    uint cnt = 1;
+    if (profile != NULL) {
+      cnt = profile->count_at(j);
+    }
+    if (rp < 0 || !ranges[rp].adjoin(match_int, dest, table_index, cnt, trim_ranges)) {
+      ranges[++rp].set(match_int, dest, table_index, cnt);
     }
   }
   jint highest = lo_index+(len-1);
   assert(ranges[rp].hi() == highest, "");
-  if (highest != max_jint
-      && !ranges[rp].adjoinRange(highest+1, max_jint, default_dest, NullTableIndex)) {
-    ranges[++rp].setRange(highest+1, max_jint, default_dest, NullTableIndex);
+  if (highest != max_jint) {
+    uint cnt = 1;
+    if (profile != NULL) {
+      cnt = profile->default_count() / (lo_index != min_jint ? 2 : 1);
+    }
+    if (!ranges[rp].adjoinRange(highest+1, max_jint, default_dest, NullTableIndex, cnt, trim_ranges)) {
+      ranges[++rp].setRange(highest+1, max_jint, default_dest, NullTableIndex, cnt);
+    }
   }
   assert(rp < len+2, "not too many ranges");
+
+  if (trim_ranges) {
+    merge_ranges(ranges, rp);
+  }
 
   // Safepoint in case if backward branch observed
   if( makes_backward_branch && UseLoopSafepoints )
@@ -365,46 +521,261 @@ void Parse::do_lookupswitch() {
     return;
   }
 
-  // generate decision tree, using trichotomy when possible
-  jint* table = NEW_RESOURCE_ARRAY(jint, len*2);
-  {
-    for( int j = 0; j < len; j++ ) {
-      table[j+j+0] = iter().get_int_table(2+j+j);
-      table[j+j+1] = iter().get_dest_table(2+j+j+1);
+  ciMethodData* methodData = method()->method_data();
+  ciMultiBranchData* profile = NULL;
+  if (methodData->is_mature() && UseSwitchProfiling) {
+    ciProfileData* data = methodData->bci_to_data(bci());
+    if (data != NULL && data->is_MultiBranchData()) {
+      profile = (ciMultiBranchData*)data;
     }
-    qsort( table, len, 2*sizeof(table[0]), jint_cmp );
+  }
+  bool trim_ranges = !method_data_update() && !C->too_many_traps(method(), bci(), Deoptimization::Reason_unstable_if);
+
+  // generate decision tree, using trichotomy when possible
+  jint* table = NEW_RESOURCE_ARRAY(jint, len*3);
+  {
+    for (int j = 0; j < len; j++) {
+      table[3*j+0] = iter().get_int_table(2+2*j);
+      table[3*j+1] = iter().get_dest_table(2+2*j+1);
+      table[3*j+2] = profile == NULL ? 1 : profile->count_at(j);
+    }
+    qsort(table, len, 3*sizeof(table[0]), jint_cmp);
+  }
+
+  float defaults = 0;
+  jint prev = min_jint;
+  for (int j = 0; j < len; j++) {
+    jint match_int = table[3*j+0];
+    if (match_int != prev) {
+      defaults += (float)match_int - prev;
+    }
+    prev = match_int+1;
+  }
+  if (prev-1 != max_jint) {
+    defaults += (float)max_jint - prev + 1;
+  }
+  float default_cnt = 1;
+  if (profile != NULL) {
+    default_cnt = profile->default_count()/defaults;
   }
 
   int rnum = len*2+1;
   bool makes_backward_branch = false;
   SwitchRange* ranges = NEW_RESOURCE_ARRAY(SwitchRange, rnum);
   int rp = -1;
-  for( int j = 0; j < len; j++ ) {
-    jint match_int   = table[j+j+0];
-    int  dest        = table[j+j+1];
+  for (int j = 0; j < len; j++) {
+    jint match_int   = table[3*j+0];
+    int  dest        = table[3*j+1];
+    int  cnt         = table[3*j+2];
     int  next_lo     = rp < 0 ? min_jint : ranges[rp].hi()+1;
     int  table_index = method_data_update() ? j : NullTableIndex;
     makes_backward_branch |= (dest <= bci());
-    if( match_int != next_lo ) {
-      ranges[++rp].setRange(next_lo, match_int-1, default_dest, NullTableIndex);
+    float c = default_cnt * ((float)match_int - next_lo);
+    if (match_int != next_lo && (rp < 0 || !ranges[rp].adjoinRange(next_lo, match_int-1, default_dest, NullTableIndex, c, trim_ranges))) {
+      assert(default_dest != never_reached, "sentinel value for dead destinations");
+      ranges[++rp].setRange(next_lo, match_int-1, default_dest, NullTableIndex, c);
     }
-    if( rp < 0 || !ranges[rp].adjoin(match_int, dest, table_index) ) {
-      ranges[++rp].set(match_int, dest, table_index);
+    if (rp < 0 || !ranges[rp].adjoin(match_int, dest, table_index, cnt, trim_ranges)) {
+      assert(dest != never_reached, "sentinel value for dead destinations");
+      ranges[++rp].set(match_int, dest, table_index, cnt);
     }
   }
-  jint highest = table[2*(len-1)];
+  jint highest = table[3*(len-1)];
   assert(ranges[rp].hi() == highest, "");
-  if( highest != max_jint
-      && !ranges[rp].adjoinRange(highest+1, max_jint, default_dest, NullTableIndex) ) {
-    ranges[++rp].setRange(highest+1, max_jint, default_dest, NullTableIndex);
+  if (highest != max_jint &&
+      !ranges[rp].adjoinRange(highest+1, max_jint, default_dest, NullTableIndex, default_cnt * ((float)max_jint - highest), trim_ranges)) {
+    ranges[++rp].setRange(highest+1, max_jint, default_dest, NullTableIndex, default_cnt * ((float)max_jint - highest));
   }
   assert(rp < rnum, "not too many ranges");
 
+  if (trim_ranges) {
+    merge_ranges(ranges, rp);
+  }
+
   // Safepoint in case backward branch observed
-  if( makes_backward_branch && UseLoopSafepoints )
+  if (makes_backward_branch && UseLoopSafepoints)
     add_safepoint();
 
   jump_switch_ranges(lookup, &ranges[0], &ranges[rp]);
+}
+
+static float if_prob(float taken_cnt, float total_cnt) {
+  assert(taken_cnt <= total_cnt, "");
+  if (total_cnt == 0) {
+    return PROB_FAIR;
+  }
+  float p = taken_cnt / total_cnt;
+  return MIN2(MAX2(p, PROB_MIN), PROB_MAX);
+}
+
+static float if_cnt(float cnt) {
+  if (cnt == 0) {
+    return COUNT_UNKNOWN;
+  }
+  return cnt;
+}
+
+static float sum_of_cnts(SwitchRange *lo, SwitchRange *hi) {
+  float total_cnt = 0;
+  for (SwitchRange* sr = lo; sr <= hi; sr++) {
+    total_cnt += sr->cnt();
+  }
+  return total_cnt;
+}
+
+class SwitchRanges : public ResourceObj {
+public:
+  SwitchRange* _lo;
+  SwitchRange* _hi;
+  SwitchRange* _mid;
+  float _cost;
+
+  enum {
+    Start,
+    LeftDone,
+    RightDone,
+    Done
+  } _state;
+
+  SwitchRanges(SwitchRange *lo, SwitchRange *hi)
+    : _lo(lo), _hi(hi), _mid(NULL),
+      _cost(0), _state(Start) {
+  }
+
+  SwitchRanges()
+    : _lo(NULL), _hi(NULL), _mid(NULL),
+      _cost(0), _state(Start) {}
+};
+
+// Estimate cost of performing a binary search on lo..hi
+static float compute_tree_cost(SwitchRange *lo, SwitchRange *hi, float total_cnt) {
+  GrowableArray<SwitchRanges> tree;
+  SwitchRanges root(lo, hi);
+  tree.push(root);
+
+  float cost = 0;
+  do {
+    SwitchRanges& r = *tree.adr_at(tree.length()-1);
+    if (r._hi != r._lo) {
+      if (r._mid == NULL) {
+        float r_cnt = sum_of_cnts(r._lo, r._hi);
+
+        if (r_cnt == 0) {
+          tree.pop();
+          cost = 0;
+          continue;
+        }
+
+        SwitchRange* mid = NULL;
+        mid = r._lo;
+        for (float cnt = 0; ; ) {
+          assert(mid <= r._hi, "out of bounds");
+          cnt += mid->cnt();
+          if (cnt > r_cnt / 2) {
+            break;
+          }
+          mid++;
+        }
+        assert(mid <= r._hi, "out of bounds");
+        r._mid = mid;
+        r._cost = r_cnt / total_cnt;
+      }
+      r._cost += cost;
+      if (r._state < SwitchRanges::LeftDone && r._mid > r._lo) {
+        cost = 0;
+        r._state = SwitchRanges::LeftDone;
+        tree.push(SwitchRanges(r._lo, r._mid-1));
+      } else if (r._state < SwitchRanges::RightDone) {
+        cost = 0;
+        r._state = SwitchRanges::RightDone;
+        tree.push(SwitchRanges(r._mid == r._lo ? r._mid+1 : r._mid, r._hi));
+      } else {
+        tree.pop();
+        cost = r._cost;
+      }
+    } else {
+      tree.pop();
+      cost = r._cost;
+    }
+  } while (tree.length() > 0);
+
+
+  return cost;
+}
+
+// It sometimes pays off to test most common ranges before the binary search
+void Parse::linear_search_switch_ranges(Node* key_val, SwitchRange*& lo, SwitchRange*& hi) {
+  uint nr = hi - lo + 1;
+  float total_cnt = sum_of_cnts(lo, hi);
+
+  float min = compute_tree_cost(lo, hi, total_cnt);
+  float extra = 1;
+  float sub = 0;
+
+  SwitchRange* array1 = lo;
+  SwitchRange* array2 = NEW_RESOURCE_ARRAY(SwitchRange, nr);
+
+  SwitchRange* ranges = NULL;
+
+  while (nr >= 2) {
+    assert(lo == array1 || lo == array2, "one the 2 already allocated arrays");
+    ranges = (lo == array1) ? array2 : array1;
+
+    // Find highest frequency range
+    SwitchRange* candidate = lo;
+    for (SwitchRange* sr = lo+1; sr <= hi; sr++) {
+      if (sr->cnt() > candidate->cnt()) {
+        candidate = sr;
+      }
+    }
+    SwitchRange most_freq = *candidate;
+    if (most_freq.cnt() == 0) {
+      break;
+    }
+
+    // Copy remaining ranges into another array
+    int shift = 0;
+    for (uint i = 0; i < nr; i++) {
+      SwitchRange* sr = &lo[i];
+      if (sr != candidate) {
+        ranges[i-shift] = *sr;
+      } else {
+        shift++;
+        if (i > 0 && i < nr-1) {
+          SwitchRange prev = lo[i-1];
+          prev.setRange(prev.lo(), sr->hi(), prev.dest(), prev.table_index(), prev.cnt());
+          if (prev.adjoin(lo[i+1])) {
+            shift++;
+            i++;
+          }
+          ranges[i-shift] = prev;
+        }
+      }
+    }
+    nr -= shift;
+
+    // Evaluate cost of testing the most common range and performing a
+    // binary search on the other ranges
+    float cost = extra + compute_tree_cost(&ranges[0], &ranges[nr-1], total_cnt);
+    if (cost >= min) {
+      break;
+    }
+    // swap arrays
+    lo = &ranges[0];
+    hi = &ranges[nr-1];
+
+    // It pays off: emit the test for the most common range
+    assert(most_freq.cnt() > 0, "must be taken");
+    Node* val = _gvn.transform(new SubINode(key_val, _gvn.intcon(most_freq.lo())));
+    Node* cmp = _gvn.transform(new CmpUNode(val, _gvn.intcon(most_freq.hi() - most_freq.lo())));
+    Node* tst = _gvn.transform(new BoolNode(cmp, BoolTest::le));
+    IfNode* iff = create_and_map_if(control(), tst, if_prob(most_freq.cnt(), total_cnt), if_cnt(most_freq.cnt()));
+    jump_if_true_fork(iff, most_freq.dest(), most_freq.table_index(), false);
+
+    sub += most_freq.cnt() / total_cnt;
+    extra += 1 - sub;
+    min = cost;
+  }
 }
 
 //----------------------------create_jump_tables-------------------------------
@@ -417,6 +788,8 @@ bool Parse::create_jump_tables(Node* key_val, SwitchRange* lo, SwitchRange* hi) 
 
   // Don't make jump table if profiling
   if (method_data_update())  return false;
+
+  bool trim_ranges = !C->too_many_traps(method(), bci(), Deoptimization::Reason_unstable_if);
 
   // Decide if a guard is needed to lop off big ranges at either (or
   // both) end(s) of the input set. We'll call this the default target
@@ -439,12 +812,22 @@ bool Parse::create_jump_tables(Node* key_val, SwitchRange* lo, SwitchRange* hi) 
     default_dest = hi->dest();
   }
 
+  float total = sum_of_cnts(lo, hi);
+  float cost = compute_tree_cost(lo, hi, total);
+
   // If a guard test will eliminate very sparse end ranges, then
   // it is worth the cost of an extra jump.
+  float trimmed_cnt = 0;
   if (total_outlier_size > (MaxJumpTableSparseness * 4)) {
     needs_guard = true;
-    if (default_dest == lo->dest()) lo++;
-    if (default_dest == hi->dest()) hi--;
+    if (default_dest == lo->dest()) {
+      trimmed_cnt += lo->cnt();
+      lo++;
+    }
+    if (default_dest == hi->dest()) {
+      trimmed_cnt += hi->cnt();
+      hi--;
+    }
   }
 
   // Find the total number of cases and ranges
@@ -452,8 +835,23 @@ bool Parse::create_jump_tables(Node* key_val, SwitchRange* lo, SwitchRange* hi) 
   int num_range = hi - lo + 1;
 
   // Don't create table if: too large, too small, or too sparse.
-  if (num_cases < MinJumpTableSize || num_cases > MaxJumpTableSize)
+  if (num_cases > MaxJumpTableSize)
     return false;
+  if (UseSwitchProfiling) {
+    // MinJumpTableSize is set so with a well balanced binary tree,
+    // when the number of ranges is MinJumpTableSize, it's cheaper to
+    // go through a JumpNode that a tree of IfNodes. Average cost of a
+    // tree of IfNodes with MinJumpTableSize is
+    // log2f(MinJumpTableSize) comparisons. So if the cost computed
+    // from profile data is less than log2f(MinJumpTableSize) then
+    // going with the binary search is cheaper.
+    if (cost < log2f(MinJumpTableSize)) {
+      return false;
+    }
+  } else {
+    if (num_cases < MinJumpTableSize)
+      return false;
+  }
   if (num_cases > (MaxJumpTableSparseness * num_range))
     return false;
 
@@ -465,10 +863,12 @@ bool Parse::create_jump_tables(Node* key_val, SwitchRange* lo, SwitchRange* hi) 
   // in the switch domain.
   if (needs_guard) {
     Node*   size = _gvn.intcon(num_cases);
-    Node*   cmp = _gvn.transform( new CmpUNode(key_val, size) );
-    Node*   tst = _gvn.transform( new BoolNode(cmp, BoolTest::ge) );
-    IfNode* iff = create_and_map_if( control(), tst, PROB_FAIR, COUNT_UNKNOWN);
-    jump_if_true_fork(iff, default_dest, NullTableIndex);
+    Node*   cmp = _gvn.transform(new CmpUNode(key_val, size));
+    Node*   tst = _gvn.transform(new BoolNode(cmp, BoolTest::ge));
+    IfNode* iff = create_and_map_if(control(), tst, if_prob(trimmed_cnt, total), if_cnt(trimmed_cnt));
+    jump_if_true_fork(iff, default_dest, NullTableIndex, trim_ranges && trimmed_cnt == 0);
+
+    total -= trimmed_cnt;
   }
 
   // Create an ideal node JumpTable that has projections
@@ -489,17 +889,44 @@ bool Parse::create_jump_tables(Node* key_val, SwitchRange* lo, SwitchRange* hi) 
   key_val = _gvn.transform( new MulXNode( key_val, shiftWord));
 
   // Create the JumpNode
-  Node* jtn = _gvn.transform( new JumpNode(control(), key_val, num_cases) );
+  Arena* arena = C->comp_arena();
+  float* probs = (float*)arena->Amalloc(sizeof(float)*num_cases);
+  int i = 0;
+  if (total == 0) {
+    for (SwitchRange* r = lo; r <= hi; r++) {
+      for (int64_t j = r->lo(); j <= r->hi(); j++, i++) {
+        probs[i] = 1.0F / num_cases;
+      }
+    }
+  } else {
+    for (SwitchRange* r = lo; r <= hi; r++) {
+      float prob = r->cnt()/total;
+      for (int64_t j = r->lo(); j <= r->hi(); j++, i++) {
+        probs[i] = prob / (r->hi() - r->lo() + 1);
+      }
+    }
+  }
+
+  ciMethodData* methodData = method()->method_data();
+  ciMultiBranchData* profile = NULL;
+  if (methodData->is_mature()) {
+    ciProfileData* data = methodData->bci_to_data(bci());
+    if (data != NULL && data->is_MultiBranchData()) {
+      profile = (ciMultiBranchData*)data;
+    }
+  }
+
+  Node* jtn = _gvn.transform(new JumpNode(control(), key_val, num_cases, probs, profile == NULL ? COUNT_UNKNOWN : total));
 
   // These are the switch destinations hanging off the jumpnode
-  int i = 0;
+  i = 0;
   for (SwitchRange* r = lo; r <= hi; r++) {
     for (int64_t j = r->lo(); j <= r->hi(); j++, i++) {
       Node* input = _gvn.transform(new JumpProjNode(jtn, i, r->dest(), (int)(j - lowval)));
       {
         PreserveJVMState pjvms(this);
         set_control(input);
-        jump_if_always_fork(r->dest(), r->table_index());
+        jump_if_always_fork(r->dest(), r->table_index(), trim_ranges && r->cnt() == 0);
       }
     }
   }
@@ -511,6 +938,7 @@ bool Parse::create_jump_tables(Node* key_val, SwitchRange* lo, SwitchRange* hi) 
 //----------------------------jump_switch_ranges-------------------------------
 void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, int switch_depth) {
   Block* switch_block = block();
+  bool trim_ranges = !method_data_update() && !C->too_many_traps(method(), bci(), Deoptimization::Reason_unstable_if);
 
   if (switch_depth == 0) {
     // Do special processing for the top-level call.
@@ -519,21 +947,23 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
 
     // Decrement pred-numbers for the unique set of nodes.
 #ifdef ASSERT
-    // Ensure that the block's successors are a (duplicate-free) set.
-    int successors_counted = 0;  // block occurrences in [hi..lo]
-    int unique_successors = switch_block->num_successors();
-    for (int i = 0; i < unique_successors; i++) {
-      Block* target = switch_block->successor_at(i);
+    if (!trim_ranges) {
+      // Ensure that the block's successors are a (duplicate-free) set.
+      int successors_counted = 0;  // block occurrences in [hi..lo]
+      int unique_successors = switch_block->num_successors();
+      for (int i = 0; i < unique_successors; i++) {
+        Block* target = switch_block->successor_at(i);
 
-      // Check that the set of successors is the same in both places.
-      int successors_found = 0;
-      for (SwitchRange* p = lo; p <= hi; p++) {
-        if (p->dest() == target->start())  successors_found++;
+        // Check that the set of successors is the same in both places.
+        int successors_found = 0;
+        for (SwitchRange* p = lo; p <= hi; p++) {
+          if (p->dest() == target->start())  successors_found++;
+        }
+        assert(successors_found > 0, "successor must be known");
+        successors_counted += successors_found;
       }
-      assert(successors_found > 0, "successor must be known");
-      successors_counted += successors_found;
+      assert(successors_counted == (hi-lo)+1, "no unexpected successors");
     }
-    assert(successors_counted == (hi-lo)+1, "no unexpected successors");
 #endif
 
     // Maybe prune the inputs, based on the type of key_val.
@@ -545,10 +975,20 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
       max_val = ti->_hi;
       assert(min_val <= max_val, "invalid int type");
     }
-    while (lo->hi() < min_val)  lo++;
-    if (lo->lo() < min_val)  lo->setRange(min_val, lo->hi(), lo->dest(), lo->table_index());
-    while (hi->lo() > max_val)  hi--;
-    if (hi->hi() > max_val)  hi->setRange(hi->lo(), max_val, hi->dest(), hi->table_index());
+    while (lo->hi() < min_val) {
+      lo++;
+    }
+    if (lo->lo() < min_val)  {
+      lo->setRange(min_val, lo->hi(), lo->dest(), lo->table_index(), lo->cnt());
+    }
+    while (hi->lo() > max_val) {
+      hi--;
+    }
+    if (hi->hi() > max_val) {
+      hi->setRange(hi->lo(), max_val, hi->dest(), hi->table_index(), hi->cnt());
+    }
+
+    linear_search_switch_ranges(key_val, lo, hi);
   }
 
 #ifndef PRODUCT
@@ -560,42 +1000,57 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
 
   assert(lo <= hi, "must be a non-empty set of ranges");
   if (lo == hi) {
-    jump_if_always_fork(lo->dest(), lo->table_index());
+    jump_if_always_fork(lo->dest(), lo->table_index(), trim_ranges && lo->cnt() == 0);
   } else {
     assert(lo->hi() == (lo+1)->lo()-1, "contiguous ranges");
     assert(hi->lo() == (hi-1)->hi()+1, "contiguous ranges");
 
     if (create_jump_tables(key_val, lo, hi)) return;
 
+    SwitchRange* mid = NULL;
+    float total_cnt = sum_of_cnts(lo, hi);
+
     int nr = hi - lo + 1;
+    if (UseSwitchProfiling) {
+      // Don't keep the binary search tree balanced: pick up mid point
+      // that split frequencies in half.
+      float cnt = 0;
+      for (SwitchRange* sr = lo; sr <= hi; sr++) {
+        cnt += sr->cnt();
+        if (cnt >= total_cnt / 2) {
+          mid = sr;
+          break;
+        }
+      }
+    } else {
+      mid = lo + nr/2;
 
-    SwitchRange* mid = lo + nr/2;
-    // if there is an easy choice, pivot at a singleton:
-    if (nr > 3 && !mid->is_singleton() && (mid-1)->is_singleton())  mid--;
+      // if there is an easy choice, pivot at a singleton:
+      if (nr > 3 && !mid->is_singleton() && (mid-1)->is_singleton())  mid--;
 
-    assert(lo < mid && mid <= hi, "good pivot choice");
-    assert(nr != 2 || mid == hi,   "should pick higher of 2");
-    assert(nr != 3 || mid == hi-1, "should pick middle of 3");
+      assert(lo < mid && mid <= hi, "good pivot choice");
+      assert(nr != 2 || mid == hi,   "should pick higher of 2");
+      assert(nr != 3 || mid == hi-1, "should pick middle of 3");
+    }
 
-    Node *test_val = _gvn.intcon(mid->lo());
+
+    Node *test_val = _gvn.intcon(mid == lo ? mid->hi() : mid->lo());
 
     if (mid->is_singleton()) {
-      IfNode *iff_ne = jump_if_fork_int(key_val, test_val, BoolTest::ne);
-      jump_if_false_fork(iff_ne, mid->dest(), mid->table_index());
+      IfNode *iff_ne = jump_if_fork_int(key_val, test_val, BoolTest::ne, 1-if_prob(mid->cnt(), total_cnt), if_cnt(mid->cnt()));
+      jump_if_false_fork(iff_ne, mid->dest(), mid->table_index(), trim_ranges && mid->cnt() == 0);
 
       // Special Case:  If there are exactly three ranges, and the high
       // and low range each go to the same place, omit the "gt" test,
       // since it will not discriminate anything.
-      bool eq_test_only = (hi == lo+2 && hi->dest() == lo->dest());
-      if (eq_test_only) {
-        assert(mid == hi-1, "");
-      }
+      bool eq_test_only = (hi == lo+2 && hi->dest() == lo->dest() && mid == hi-1) || mid == lo;
 
       // if there is a higher range, test for it and process it:
       if (mid < hi && !eq_test_only) {
         // two comparisons of same values--should enable 1 test for 2 branches
         // Use BoolTest::le instead of BoolTest::gt
-        IfNode *iff_le  = jump_if_fork_int(key_val, test_val, BoolTest::le);
+        float cnt = sum_of_cnts(lo, mid-1);
+        IfNode *iff_le  = jump_if_fork_int(key_val, test_val, BoolTest::le, if_prob(cnt, total_cnt), if_cnt(cnt));
         Node   *iftrue  = _gvn.transform( new IfTrueNode(iff_le) );
         Node   *iffalse = _gvn.transform( new IfFalseNode(iff_le) );
         { PreserveJVMState pjvms(this);
@@ -607,24 +1062,33 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
 
     } else {
       // mid is a range, not a singleton, so treat mid..hi as a unit
-      IfNode *iff_ge = jump_if_fork_int(key_val, test_val, BoolTest::ge);
+      float cnt = sum_of_cnts(mid == lo ? mid+1 : mid, hi);
+      IfNode *iff_ge = jump_if_fork_int(key_val, test_val, mid == lo ? BoolTest::gt : BoolTest::ge, if_prob(cnt, total_cnt), if_cnt(cnt));
 
       // if there is a higher range, test for it and process it:
       if (mid == hi) {
-        jump_if_true_fork(iff_ge, mid->dest(), mid->table_index());
+        jump_if_true_fork(iff_ge, mid->dest(), mid->table_index(), trim_ranges && cnt == 0);
       } else {
         Node *iftrue  = _gvn.transform( new IfTrueNode(iff_ge) );
         Node *iffalse = _gvn.transform( new IfFalseNode(iff_ge) );
         { PreserveJVMState pjvms(this);
           set_control(iftrue);
-          jump_switch_ranges(key_val, mid, hi, switch_depth+1);
+          jump_switch_ranges(key_val, mid == lo ? mid+1 : mid, hi, switch_depth+1);
         }
         set_control(iffalse);
       }
     }
 
     // in any case, process the lower range
-    jump_switch_ranges(key_val, lo, mid-1, switch_depth+1);
+    if (mid == lo) {
+      if (mid->is_singleton()) {
+        jump_switch_ranges(key_val, lo+1, hi, switch_depth+1);
+      } else {
+        jump_if_always_fork(lo->dest(), lo->table_index(), trim_ranges && lo->cnt() == 0);
+      }
+    } else {
+      jump_switch_ranges(key_val, lo, mid-1, switch_depth+1);
+    }
   }
 
   // Decrease pred_count for each successor after all is done.
@@ -724,7 +1188,7 @@ void Parse::do_irem() {
         Node *mask = _gvn.intcon((divisor - 1));
         // Sigh, must handle negative dividends
         Node *zero = _gvn.intcon(0);
-        IfNode *ifff = jump_if_fork_int(a, zero, BoolTest::lt);
+        IfNode *ifff = jump_if_fork_int(a, zero, BoolTest::lt, PROB_FAIR, COUNT_UNKNOWN);
         Node *iff = _gvn.transform( new IfFalseNode(ifff) );
         Node *ift = _gvn.transform( new IfTrueNode (ifff) );
         Node *reg = jump_if_join(ift, iff);
@@ -882,7 +1346,7 @@ float Parse::dynamic_branch_prediction(float &cnt, BoolTest::mask btest, Node* t
     if (prob <= PROB_MIN)  prob_str = (prob == PROB_MIN) ? "min" : "never";
     char prob_str_buf[30];
     if (prob_str == NULL) {
-      sprintf(prob_str_buf, "%g", prob);
+      jio_snprintf(prob_str_buf, sizeof(prob_str_buf), "%20.2f", prob);
       prob_str = prob_str_buf;
     }
     C->log()->elem("branch target_bci='%d' taken='%d' not_taken='%d' cnt='%f' prob='%s'",
@@ -1185,6 +1649,18 @@ bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {
   return (seems_never_taken(prob) && seems_stable_comparison());
 }
 
+void Parse::maybe_add_predicate_after_if(Block* path) {
+  if (path->is_SEL_head() && path->preds_parsed() == 0) {
+    // Add predicates at bci of if dominating the loop so traps can be
+    // recorded on the if's profile data
+    int bc_depth = repush_if_args();
+    add_predicate();
+    dec_sp(bc_depth);
+    path->set_has_predicates();
+  }
+}
+
+
 //----------------------------adjust_map_after_if------------------------------
 // Adjust the JVM state to reflect the result of taking this path.
 // Basically, it means inspecting the CmpNode controlling this
@@ -1193,8 +1669,14 @@ bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {
 // as graph nodes in the current abstract interpretation map.
 void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob,
                                 Block* path, Block* other_path) {
-  if (stopped() || !c->is_Cmp() || btest == BoolTest::illegal)
+  if (!c->is_Cmp()) {
+    maybe_add_predicate_after_if(path);
+    return;
+  }
+
+  if (stopped() || btest == BoolTest::illegal) {
     return;                             // nothing to do
+  }
 
   bool is_fallthrough = (path == successor_for_bci(iter().next_bci()));
 
@@ -1226,10 +1708,13 @@ void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob,
       have_con = false;
     }
   }
-  if (!have_con)                        // remaining adjustments need a con
+  if (!have_con) {                        // remaining adjustments need a con
+    maybe_add_predicate_after_if(path);
     return;
+  }
 
   sharpen_type_after_if(btest, con, tcon, val, tval);
+  maybe_add_predicate_after_if(path);
 }
 
 
@@ -1708,61 +2193,23 @@ void Parse::do_one_bytecode() {
     break;
   }
 
-  case Bytecodes::_baload: array_load(T_BYTE);   break;
-  case Bytecodes::_caload: array_load(T_CHAR);   break;
-  case Bytecodes::_iaload: array_load(T_INT);    break;
-  case Bytecodes::_saload: array_load(T_SHORT);  break;
-  case Bytecodes::_faload: array_load(T_FLOAT);  break;
-  case Bytecodes::_aaload: array_load(T_OBJECT); break;
-  case Bytecodes::_laload: {
-    a = array_addressing(T_LONG, 0);
-    if (stopped())  return;     // guaranteed null or range check
-    dec_sp(2);                  // Pop array and index
-    push_pair(make_load(control(), a, TypeLong::LONG, T_LONG, TypeAryPtr::LONGS, MemNode::unordered));
-    break;
-  }
-  case Bytecodes::_daload: {
-    a = array_addressing(T_DOUBLE, 0);
-    if (stopped())  return;     // guaranteed null or range check
-    dec_sp(2);                  // Pop array and index
-    push_pair(make_load(control(), a, Type::DOUBLE, T_DOUBLE, TypeAryPtr::DOUBLES, MemNode::unordered));
-    break;
-  }
-  case Bytecodes::_bastore: array_store(T_BYTE);  break;
-  case Bytecodes::_castore: array_store(T_CHAR);  break;
-  case Bytecodes::_iastore: array_store(T_INT);   break;
-  case Bytecodes::_sastore: array_store(T_SHORT); break;
-  case Bytecodes::_fastore: array_store(T_FLOAT); break;
-  case Bytecodes::_aastore: {
-    d = array_addressing(T_OBJECT, 1);
-    if (stopped())  return;     // guaranteed null or range check
-    array_store_check();
-    c = pop();                  // Oop to store
-    b = pop();                  // index (already used)
-    a = pop();                  // the array itself
-    const TypeOopPtr* elemtype  = _gvn.type(a)->is_aryptr()->elem()->make_oopptr();
-    const TypeAryPtr* adr_type = TypeAryPtr::OOPS;
-    Node* store = store_oop_to_array(control(), a, d, adr_type, c, elemtype, T_OBJECT,
-                                     StoreNode::release_if_reference(T_OBJECT));
-    break;
-  }
-  case Bytecodes::_lastore: {
-    a = array_addressing(T_LONG, 2);
-    if (stopped())  return;     // guaranteed null or range check
-    c = pop_pair();
-    dec_sp(2);                  // Pop array and index
-    store_to_memory(control(), a, c, T_LONG, TypeAryPtr::LONGS, MemNode::unordered);
-    break;
-  }
-  case Bytecodes::_dastore: {
-    a = array_addressing(T_DOUBLE, 2);
-    if (stopped())  return;     // guaranteed null or range check
-    c = pop_pair();
-    dec_sp(2);                  // Pop array and index
-    c = dstore_rounding(c);
-    store_to_memory(control(), a, c, T_DOUBLE, TypeAryPtr::DOUBLES, MemNode::unordered);
-    break;
-  }
+  case Bytecodes::_baload:  array_load(T_BYTE);    break;
+  case Bytecodes::_caload:  array_load(T_CHAR);    break;
+  case Bytecodes::_iaload:  array_load(T_INT);     break;
+  case Bytecodes::_saload:  array_load(T_SHORT);   break;
+  case Bytecodes::_faload:  array_load(T_FLOAT);   break;
+  case Bytecodes::_aaload:  array_load(T_OBJECT);  break;
+  case Bytecodes::_laload:  array_load(T_LONG);    break;
+  case Bytecodes::_daload:  array_load(T_DOUBLE);  break;
+  case Bytecodes::_bastore: array_store(T_BYTE);   break;
+  case Bytecodes::_castore: array_store(T_CHAR);   break;
+  case Bytecodes::_iastore: array_store(T_INT);    break;
+  case Bytecodes::_sastore: array_store(T_SHORT);  break;
+  case Bytecodes::_fastore: array_store(T_FLOAT);  break;
+  case Bytecodes::_aastore: array_store(T_OBJECT); break;
+  case Bytecodes::_lastore: array_store(T_LONG);   break;
+  case Bytecodes::_dastore: array_store(T_DOUBLE); break;
+
   case Bytecodes::_getfield:
     do_getfield();
     break;
@@ -2300,8 +2747,8 @@ void Parse::do_one_bytecode() {
   handle_if_acmp:
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
-    a = pop();
-    b = pop();
+    a = access_resolve(pop(), 0);
+    b = access_resolve(pop(), 0);
     c = _gvn.transform( new CmpPNode(b, a) );
     c = optimize_cmp_with_klass(c);
     do_if(btest, c);
@@ -2407,7 +2854,7 @@ void Parse::do_one_bytecode() {
   IdealGraphPrinter *printer = C->printer();
   if (printer && printer->should_print(1)) {
     char buffer[256];
-    sprintf(buffer, "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
+    jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
     bool old = printer->traverse_outs();
     printer->set_traverse_outs(true);
     printer->print_method(buffer, 4);

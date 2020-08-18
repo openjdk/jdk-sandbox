@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_VM_OPTO_VECTORNODE_HPP
-#define SHARE_VM_OPTO_VECTORNODE_HPP
+#ifndef SHARE_OPTO_VECTORNODE_HPP
+#define SHARE_OPTO_VECTORNODE_HPP
 
 #include "opto/matcher.hpp"
 #include "opto/memnode.hpp"
@@ -67,6 +67,9 @@ class VectorNode : public TypeNode {
   static int  opcode(int opc, BasicType bt);
   static bool implemented(int opc, uint vlen, BasicType bt);
   static bool is_shift(Node* n);
+  static bool is_type_transition_short_to_int(Node* n);
+  static bool is_type_transition_to_int(Node* n);
+  static bool is_muladds2i(Node* n);
   static bool is_invariant_vector(Node* n);
   // [Start, end) half-open range defining which operands are vectors
   static void vector_operands(Node* n, uint* start, uint* end);
@@ -261,6 +264,14 @@ public:
   virtual int Opcode() const;
 };
 
+//------------------------------MulAddVS2VINode--------------------------------
+// Vector multiply shorts to int and add adjacent ints.
+class MulAddVS2VINode : public VectorNode {
+  public:
+    MulAddVS2VINode(Node* in1, Node* in2, const TypeVect* vt) : VectorNode(in1, in2, vt) {}
+    virtual int Opcode() const;
+};
+
 //------------------------------FmaVDNode--------------------------------------
 // Vector multiply double
 class FmaVDNode : public VectorNode {
@@ -378,6 +389,14 @@ class NegVFNode : public VectorNode {
 class NegVDNode : public VectorNode {
  public:
   NegVDNode(Node* in, const TypeVect* vt) : VectorNode(in,vt) {}
+  virtual int Opcode() const;
+};
+
+//------------------------------PopCountVINode---------------------------------
+// Vector popcount integer bits
+class PopCountVINode : public VectorNode {
+ public:
+  PopCountVINode(Node* in, const TypeVect* vt) : VectorNode(in,vt) {}
   virtual int Opcode() const;
 };
 
@@ -545,6 +564,7 @@ class LoadVectorNode : public LoadNode {
   LoadVectorNode(Node* c, Node* mem, Node* adr, const TypePtr* at, const TypeVect* vt, ControlDependency control_dependency = LoadNode::DependsOnlyOnTest)
     : LoadNode(c, mem, adr, at, vt, MemNode::unordered, control_dependency) {
     init_class_id(Class_LoadVector);
+    set_mismatched_access();
   }
 
   const TypeVect* vect_type() const { return type()->is_vect(); }
@@ -573,6 +593,7 @@ class StoreVectorNode : public StoreNode {
     : StoreNode(c, mem, adr, at, val, MemNode::unordered) {
     assert(val->is_Vector() || val->is_LoadVector(), "sanity");
     init_class_id(Class_StoreVector);
+    set_mismatched_access();
   }
 
   const TypeVect* vect_type() const { return in(MemNode::ValueIn)->bottom_type()->is_vect(); }
@@ -838,4 +859,4 @@ public:
   virtual const Type *Value(PhaseGVN *phase) const { return TypeInt::INT; }
 };
 
-#endif // SHARE_VM_OPTO_VECTORNODE_HPP
+#endif // SHARE_OPTO_VECTORNODE_HPP

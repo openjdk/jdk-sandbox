@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_SOLARIS_VM_OS_SOLARIS_HPP
-#define OS_SOLARIS_VM_OS_SOLARIS_HPP
+#ifndef OS_SOLARIS_OS_SOLARIS_HPP
+#define OS_SOLARIS_OS_SOLARIS_HPP
 
 // Solaris_OS defines the interface to Solaris operating systems
 
@@ -102,8 +102,6 @@ class Solaris {
   static size_t page_size_for_alignment(size_t alignment);
   static bool setup_large_pages(caddr_t start, size_t bytes, size_t align);
 
-  static void init_thread_fpu_state(void);
-
   static void try_enable_extended_io();
 
   static struct sigaction *(*get_signal_action)(int);
@@ -148,6 +146,9 @@ class Solaris {
 
   // SR_handler
   static void SR_handler(Thread* thread, ucontext_t* uc);
+
+  static void init_thread_fpu_state(void);
+
  protected:
   // Solaris-specific interface goes here
   static julong available_memory();
@@ -188,7 +189,6 @@ class Solaris {
   static void install_signal_handlers();
   static void set_signal_handler(int sig, bool set_installed, bool oktochain);
   static void init_signal_mem();
-  static bool is_sig_ignored(int sig);
   static void set_our_sigflags(int, int);
   static int get_our_sigflags(int);
 
@@ -269,6 +269,7 @@ class Solaris {
   static          jint  _os_thread_limit;
   static volatile jint  _os_thread_count;
 
+  static void correct_stack_boundaries_for_primordial_thread(Thread* thr);
 
   // Stack overflow handling
 
@@ -334,4 +335,4 @@ class PlatformParker : public CHeapObj<mtInternal> {
   }
 };
 
-#endif // OS_SOLARIS_VM_OS_SOLARIS_HPP
+#endif // OS_SOLARIS_OS_SOLARIS_HPP

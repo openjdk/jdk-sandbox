@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #include "jvmci/jvmciRuntime.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/globals_extension.hpp"
+#include "runtime/handles.inline.hpp"
 
 JVMCICompiler* JVMCICompiler::_instance = NULL;
 elapsedTimer JVMCICompiler::_codeInstallTimer;
@@ -53,10 +54,6 @@ void JVMCICompiler::initialize() {
   }
 
   set_state(initialized);
-
-  // JVMCI is considered as application code so we need to
-  // stop the VM deferring compilation now.
-  CompilationPolicy::completed_vm_startup();
 }
 
 void JVMCICompiler::bootstrap(TRAPS) {
@@ -64,12 +61,6 @@ void JVMCICompiler::bootstrap(TRAPS) {
     // Nothing to do in -Xint mode
     return;
   }
-#ifndef PRODUCT
-  // We turn off CompileTheWorld so that compilation requests are not
-  // ignored during bootstrap or that JVMCI can be compiled by C1/C2.
-  FlagSetting ctwOff(CompileTheWorld, false);
-#endif
-
   _bootstrapping = true;
   ResourceMark rm;
   HandleMark hm;
@@ -214,8 +205,10 @@ void JVMCICompiler::exit_on_pending_exception(oop exception, const char* message
     Handle ex(THREAD, exception);
     java_lang_Throwable::java_printStackTrace(ex, THREAD);
   } else {
-    // Allow error reporting thread to print the stack trace.
-    os::sleep(THREAD, 200, false);
+    // Allow error reporting thread to print the stack trace.  Windows
+    // doesn't allow uninterruptible wait for JavaThreads
+    const bool interruptible = true;
+    os::sleep(THREAD, 200, interruptible);
   }
 
   before_exit(THREAD);
@@ -225,13 +218,6 @@ void JVMCICompiler::exit_on_pending_exception(oop exception, const char* message
 // Compilation entry point for methods
 void JVMCICompiler::compile_method(ciEnv* env, ciMethod* target, int entry_bci, DirectiveSet* directive) {
   ShouldNotReachHere();
-}
-
-bool JVMCICompiler::is_trivial(Method* method) {
-  if (_bootstrapping) {
-    return false;
-  }
-  return JVMCIRuntime::treat_as_trivial(method);
 }
 
 // Print compilation timers and statistics

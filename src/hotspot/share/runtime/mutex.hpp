@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_MUTEX_HPP
-#define SHARE_VM_RUNTIME_MUTEX_HPP
+#ifndef SHARE_RUNTIME_MUTEX_HPP
+#define SHARE_RUNTIME_MUTEX_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/os.hpp"
@@ -87,6 +87,8 @@ class Monitor : public CHeapObj<mtInternal> {
   // The rank 'access' is similar to 'special' and has the same restrictions on usage.
   // It is reserved for locks that may be required in order to perform memory accesses
   // that require special barriers, e.g. SATB GC barriers, that in turn uses locks.
+  // The rank 'tty' is also similar to 'special' and has the same restrictions.
+  // It is reserved for the tty_lock.
   // Since memory accesses should be able to be performed pretty much anywhere
   // in the code, that requires locks required for performing accesses being
   // inherently a bit more special than even locks of the 'special' rank.
@@ -104,9 +106,11 @@ class Monitor : public CHeapObj<mtInternal> {
   enum lock_types {
        event,
        access         = event          +   1,
-       special        = access         +   2,
+       tty            = access         +   2,
+       special        = tty            +   1,
        suspend_resume = special        +   1,
-       leaf           = suspend_resume +   2,
+       vmweak         = suspend_resume +   2,
+       leaf           = vmweak         +   2,
        safepoint      = leaf           +  10,
        barrier        = safepoint      +   1,
        nonleaf        = barrier        +   1,
@@ -129,22 +133,21 @@ class Monitor : public CHeapObj<mtInternal> {
   volatile intptr_t _WaitLock [1] ;      // Protects _WaitSet
   ParkEvent * volatile  _WaitSet ;       // LL of ParkEvents
   volatile bool     _snuck;              // Used for sneaky locking (evil).
-  int NotifyCount ;                      // diagnostic assist
   char _name[MONITOR_NAME_LEN];          // Name of mutex
 
   // Debugging fields for naming, deadlock detection, etc. (some only used in debug mode)
 #ifndef PRODUCT
   bool      _allow_vm_block;
-  debug_only(int _rank;)                 // rank (to avoid/detect potential deadlocks)
-  debug_only(Monitor * _next;)           // Used by a Thread to link up owned locks
-  debug_only(Thread* _last_owner;)       // the last thread to own the lock
-  debug_only(static bool contains(Monitor * locks, Monitor * lock);)
-  debug_only(static Monitor * get_least_ranked_lock(Monitor * locks);)
-  debug_only(Monitor * get_least_ranked_lock_besides_this(Monitor * locks);)
+  DEBUG_ONLY(int _rank;)                 // rank (to avoid/detect potential deadlocks)
+  DEBUG_ONLY(Monitor * _next;)           // Used by a Thread to link up owned locks
+  DEBUG_ONLY(Thread* _last_owner;)       // the last thread to own the lock
+  DEBUG_ONLY(static bool contains(Monitor * locks, Monitor * lock);)
+  DEBUG_ONLY(static Monitor * get_least_ranked_lock(Monitor * locks);)
+  DEBUG_ONLY(Monitor * get_least_ranked_lock_besides_this(Monitor * locks);)
 #endif
 
   void set_owner_implementation(Thread* owner)                        PRODUCT_RETURN;
-  void check_prelock_state     (Thread* thread)                       PRODUCT_RETURN;
+  void check_prelock_state     (Thread* thread, bool safepoint_check) PRODUCT_RETURN;
   void check_block_state       (Thread* thread)                       PRODUCT_RETURN;
 
   // platform-dependent support code can go here (in os_<os_family>.cpp)
@@ -236,18 +239,18 @@ class Monitor : public CHeapObj<mtInternal> {
 
   #ifndef PRODUCT
     void print_on(outputStream* st) const;
-    void print() const                      { print_on(tty); }
-    debug_only(int    rank() const          { return _rank; })
+    void print() const                      { print_on(::tty); }
+    DEBUG_ONLY(int    rank() const          { return _rank; })
     bool   allow_vm_block()                 { return _allow_vm_block; }
 
-    debug_only(Monitor *next()  const         { return _next; })
-    debug_only(void   set_next(Monitor *next) { _next = next; })
+    DEBUG_ONLY(Monitor *next()  const         { return _next; })
+    DEBUG_ONLY(void   set_next(Monitor *next) { _next = next; })
   #endif
 
   void set_owner(Thread* owner) {
   #ifndef PRODUCT
     set_owner_implementation(owner);
-    debug_only(void verify_Monitor(Thread* thr));
+    DEBUG_ONLY(void verify_Monitor(Thread* thr);)
   #else
     _owner = owner;
   #endif
@@ -317,4 +320,4 @@ public:
     Mutex(rank, name, allow_vm_block, safepoint_check_required) {};
 };
 
-#endif // SHARE_VM_RUNTIME_MUTEX_HPP
+#endif // SHARE_RUNTIME_MUTEX_HPP

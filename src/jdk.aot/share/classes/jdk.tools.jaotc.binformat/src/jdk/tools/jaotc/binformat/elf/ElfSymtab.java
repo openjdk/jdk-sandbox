@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,14 +21,14 @@
  * questions.
  */
 
+
+
 package jdk.tools.jaotc.binformat.elf;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
 import jdk.tools.jaotc.binformat.elf.Elf.Elf64_Sym;
-import jdk.tools.jaotc.binformat.elf.ElfSymbol;
-import jdk.tools.jaotc.binformat.elf.ElfByteBuffer;
 
 final class ElfSymtab {
 
@@ -36,12 +36,12 @@ final class ElfSymtab {
     private final ArrayList<ElfSymbol> globalSymbols = new ArrayList<>();
 
     /**
-     * number of symbols added
+     * Number of symbols added.
      */
     private int symbolCount;
 
     /**
-     * String holding symbol table strings
+     * String holding symbol table strings.
      */
     private final StringBuilder strTabContent = new StringBuilder();
 
@@ -77,10 +77,11 @@ final class ElfSymtab {
             strTabNrOfBytes += (name.getBytes().length + 1);
 
             sym = new ElfSymbol(symbolCount, index, type, bind, secHdrIndex, offset, size);
-            if ((bind & Elf64_Sym.STB_GLOBAL) != 0)
+            if ((bind & Elf64_Sym.STB_GLOBAL) != 0) {
                 globalSymbols.add(sym);
-            else
+            } else {
                 localSymbols.add(sym);
+            }
         }
         symbolCount++;
         return (sym);

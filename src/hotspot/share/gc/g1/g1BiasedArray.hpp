@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,16 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1BIASEDARRAY_HPP
-#define SHARE_VM_GC_G1_G1BIASEDARRAY_HPP
+#ifndef SHARE_GC_G1_G1BIASEDARRAY_HPP
+#define SHARE_GC_G1_G1BIASEDARRAY_HPP
 
-#include "memory/allocation.hpp"
 #include "memory/memRegion.hpp"
 #include "utilities/debug.hpp"
 
 // Implements the common base functionality for arrays that contain provisions
 // for accessing its elements using a biased index.
 // The element type is defined by the instantiating the template.
-class G1BiasedMappedArrayBase VALUE_OBJ_CLASS_SPEC {
+class G1BiasedMappedArrayBase {
   friend class VMStructs;
 public:
   typedef size_t idx_t;
@@ -195,4 +194,4 @@ public:
   }
 };
 
-#endif // SHARE_VM_GC_G1_G1BIASEDARRAY_HPP
+#endif // SHARE_GC_G1_G1BIASEDARRAY_HPP

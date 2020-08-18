@@ -40,7 +40,7 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * algorithms are available from the well-known network library
  * {@code netlib} as the package "Freely Distributable Math
  * Library," <a
- * href="ftp://ftp.netlib.org/fdlibm.tar">{@code fdlibm}</a>. These
+ * href="https://www.netlib.org/fdlibm/">{@code fdlibm}</a>. These
  * algorithms, which are written in the C programming language, are
  * then to be understood as executed with all floating-point
  * operations following the rules of Java floating-point arithmetic.
@@ -1154,6 +1154,7 @@ public final class StrictMath {
      * @param   b   another argument.
      * @return  the larger of {@code a} and {@code b}.
      */
+    @HotSpotIntrinsicCandidate
     public static float max(float a, float b) {
         return Math.max(a, b);
     }
@@ -1172,6 +1173,7 @@ public final class StrictMath {
      * @param   b   another argument.
      * @return  the larger of {@code a} and {@code b}.
      */
+    @HotSpotIntrinsicCandidate
     public static double max(double a, double b) {
         return Math.max(a, b);
     }
@@ -1219,6 +1221,7 @@ public final class StrictMath {
      * @param   b   another argument.
      * @return  the smaller of {@code a} and {@code b.}
      */
+    @HotSpotIntrinsicCandidate
     public static float min(float a, float b) {
         return Math.min(a, b);
     }
@@ -1237,6 +1240,7 @@ public final class StrictMath {
      * @param   b   another argument.
      * @return  the smaller of {@code a} and {@code b}.
      */
+    @HotSpotIntrinsicCandidate
     public static double min(double a, double b) {
         return Math.min(a, b);
     }

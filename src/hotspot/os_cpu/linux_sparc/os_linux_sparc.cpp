@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -49,6 +49,7 @@
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/timer.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
 
@@ -157,8 +158,6 @@ char* os::non_memory_address_word() {
   // allocation in the first 1Kb of the virtual address space.
   return (char*) 0;
 }
-
-void os::initialize_thread(Thread* thr) {}
 
 void os::print_context(outputStream *st, const void *context) {
   if (context == NULL) return;
@@ -373,7 +372,7 @@ inline static bool checkOverflow(sigcontext* uc,
 }
 
 inline static bool checkPollingPage(address pc, address fault, address* stub) {
-  if (fault == os::get_polling_page()) {
+  if (os::is_poll_address(fault)) {
     *stub = SharedRuntime::get_poll_stub(pc);
     return true;
   }
@@ -417,9 +416,9 @@ inline static bool checkFPFault(address pc, int code,
   return false;
 }
 
-inline static bool checkNullPointer(address pc, intptr_t fault,
+inline static bool checkNullPointer(address pc, void* fault,
                                     JavaThread* thread, address* stub) {
-  if (!MacroAssembler::needs_explicit_null_check(fault)) {
+  if (MacroAssembler::uses_implicit_null_check(fault)) {
     // Determination of interpreter/vtable stub/compiled code null
     // exception
     *stub =
@@ -438,10 +437,6 @@ inline static bool checkFastJNIAccess(address pc, address* stub) {
     return true;
   }
   return false;
-}
-
-inline static bool checkSerializePage(JavaThread* thread, address addr) {
-  return os::is_memory_serialize_page(thread, addr);
 }
 
 inline static bool checkZombie(sigcontext* uc, address* pc, address* stub) {
@@ -513,6 +508,13 @@ JVM_handle_linux_signal(int sig,
     }
   }
 
+#ifdef CAN_SHOW_REGISTERS_ON_ASSERT
+  if ((sig == SIGSEGV || sig == SIGBUS) && info != NULL && info->si_addr == g_assert_poison) {
+    handle_assert_poison_fault(ucVoid, info->si_addr);
+    return 1;
+  }
+#endif
+
   JavaThread* thread = NULL;
   VMThread* vmthread = NULL;
   if (os::Linux::signal_handlers_are_installed) {
@@ -535,16 +537,6 @@ JVM_handle_linux_signal(int sig,
   if (info != NULL && uc != NULL && thread != NULL) {
     pc = address(SIG_PC(uc));
     npc = address(SIG_NPC(uc));
-
-    // Check to see if we caught the safepoint code in the
-    // process of write protecting the memory serialization page.
-    // It write enables the page immediately after protecting it
-    // so we can just return to retry the write.
-    if ((sig == SIGSEGV) && checkSerializePage(thread, (address)info->si_addr)) {
-      // Block current thread until the memory serialize page permission restored.
-      os::block_on_serialize_page_trap();
-      return 1;
-    }
 
     if (checkPrefetch(uc, pc)) {
       return 1;
@@ -594,7 +586,7 @@ JVM_handle_linux_signal(int sig,
         }
 
         if ((sig == SIGSEGV) &&
-            checkNullPointer(pc, (intptr_t)info->si_addr, thread, &stub)) {
+            checkNullPointer(pc, info->si_addr, thread, &stub)) {
           break;
         }
       } while (0);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,15 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_X86_VM_THREAD_LINUX_X86_HPP
-#define OS_CPU_LINUX_X86_VM_THREAD_LINUX_X86_HPP
+#ifndef OS_CPU_LINUX_X86_THREAD_LINUX_X86_HPP
+#define OS_CPU_LINUX_X86_THREAD_LINUX_X86_HPP
 
  private:
   void pd_initialize() {
     _anchor.clear();
   }
 
-  frame pd_last_frame() {
-    assert(has_last_Java_frame(), "must have last_Java_sp() when suspended");
-    vmassert(_anchor.last_Java_pc() != NULL, "not walkable");
-    return frame(_anchor.last_Java_sp(), _anchor.last_Java_fp(), _anchor.last_Java_pc());
-  }
+  frame pd_last_frame();
 
  public:
   // Mutators are highly dangerous....
@@ -68,4 +64,4 @@ public:
   static void enable_register_stack_guard() {}
   static void disable_register_stack_guard() {}
 
-#endif // OS_CPU_LINUX_X86_VM_THREAD_LINUX_X86_HPP
+#endif // OS_CPU_LINUX_X86_THREAD_LINUX_X86_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2009, 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_ZERO_VM_FRAME_ZERO_INLINE_HPP
-#define CPU_ZERO_VM_FRAME_ZERO_INLINE_HPP
+#ifndef CPU_ZERO_FRAME_ZERO_INLINE_HPP
+#define CPU_ZERO_FRAME_ZERO_INLINE_HPP
 
 #include "code/codeCache.hpp"
 
@@ -130,10 +130,6 @@ inline intptr_t* frame::interpreter_frame_expression_stack() const {
   return monitor_end - 1;
 }
 
-inline jint frame::interpreter_frame_expression_stack_direction() {
-  return -1;
-}
-
 // Return a unique id for this frame. The id must have a value where
 // we can distinguish identity and younger/older relationship. NULL
 // represents an invalid (incomparable) frame.
@@ -168,4 +164,4 @@ inline intptr_t* frame::unextended_sp() const {
   return (intptr_t *) -1;
 }
 
-#endif // CPU_ZERO_VM_FRAME_ZERO_INLINE_HPP
+#endif // CPU_ZERO_FRAME_ZERO_INLINE_HPP

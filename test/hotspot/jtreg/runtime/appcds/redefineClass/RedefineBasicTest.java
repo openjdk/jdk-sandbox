@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,9 +33,9 @@
  *          jdk.jartool/sun.tools.jar
  *          java.base/jdk.internal.misc
  *          java.management
- * @run main RedefineClassHelper
+ * @run driver RedefineClassHelper
  * @build sun.hotspot.WhiteBox RedefineBasic
- * @run main RedefineBasicTest
+ * @run driver RedefineBasicTest
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
@@ -43,7 +43,7 @@ import jdk.test.lib.process.OutputAnalyzer;
 public class RedefineBasicTest {
     public static String sharedClasses[] = {
         "RedefineBasic",
-        "RedefineBasic$B",
+        "RedefineBasic_B",
         "RedefineBasic$SubclassOfB",
         "RedefineBasic$Subclass2OfB",
         "RedefineClassHelper",
@@ -63,7 +63,7 @@ public class RedefineBasicTest {
         OutputAnalyzer output;
         TestCommon.testDump(appJar, sharedClasses, useWb);
 
-        // redefineagent.jar is created by executing "@run main RedefineClassHelper"
+        // redefineagent.jar is created by executing "@run driver RedefineClassHelper"
         // which should be called before executing RedefineBasicTest
         output = TestCommon.exec(appJar, useWb,
                                  "-XX:+UnlockDiagnosticVMOptions",

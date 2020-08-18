@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,8 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classLoaderStats.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -57,7 +59,7 @@ void ClassLoaderStatsClosure::do_cld(ClassLoaderData* cld) {
     cls = *cls_ptr;
   }
 
-  if (!cld->is_anonymous()) {
+  if (!cld->is_unsafe_anonymous()) {
     cls->_cld = cld;
   }
 
@@ -69,16 +71,16 @@ void ClassLoaderStatsClosure::do_cld(ClassLoaderData* cld) {
 
   ClassStatsClosure csc;
   cld->classes_do(&csc);
-  if(cld->is_anonymous()) {
+  if(cld->is_unsafe_anonymous()) {
     cls->_anon_classes_count += csc._num_classes;
   } else {
     cls->_classes_count = csc._num_classes;
   }
   _total_classes += csc._num_classes;
 
-  Metaspace* ms = cld->metaspace_or_null();
+  ClassLoaderMetaspace* ms = cld->metaspace_or_null();
   if (ms != NULL) {
-    if(cld->is_anonymous()) {
+    if(cld->is_unsafe_anonymous()) {
       cls->_anon_chunk_sz += ms->allocated_chunks_bytes();
       cls->_anon_block_sz += ms->allocated_blocks_bytes();
     } else {
@@ -138,7 +140,7 @@ void ClassLoaderStatsClosure::print() {
 
 
 void ClassLoaderStatsClosure::addEmptyParents(oop cl) {
-  while (cl != NULL && java_lang_ClassLoader::loader_data(cl) == NULL) {
+  while (cl != NULL && java_lang_ClassLoader::loader_data_acquire(cl) == NULL) {
     // This classloader has not loaded any classes
     ClassLoaderStats** cls_ptr = _stats->get(cl);
     if (cls_ptr == NULL) {
@@ -157,7 +159,7 @@ void ClassLoaderStatsClosure::addEmptyParents(oop cl) {
 
 void ClassLoaderStatsVMOperation::doit() {
   ClassLoaderStatsClosure clsc (_out);
-  ClassLoaderDataGraph::cld_do(&clsc);
+  ClassLoaderDataGraph::loaded_cld_do(&clsc);
   clsc.print();
 }
 

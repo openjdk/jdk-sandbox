@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_COMPILER_ABSTRACTCOMPILER_HPP
-#define SHARE_VM_COMPILER_ABSTRACTCOMPILER_HPP
+#ifndef SHARE_COMPILER_ABSTRACTCOMPILER_HPP
+#define SHARE_COMPILER_ABSTRACTCOMPILER_HPP
 
 #include "ci/compilerInterface.hpp"
 #include "compiler/compilerDefinitions.hpp"
@@ -33,10 +33,10 @@ typedef void (*initializer)(void);
 
 #if INCLUDE_JVMCI
 // Per-compiler statistics
-class CompilerStatistics VALUE_OBJ_CLASS_SPEC {
+class CompilerStatistics {
   friend class VMStructs;
 
-  class Data VALUE_OBJ_CLASS_SPEC {
+  class Data {
     friend class VMStructs;
   public:
     elapsedTimer _time;  // time spent compiling
@@ -91,7 +91,7 @@ class AbstractCompiler : public CHeapObj<mtCompiler> {
 #endif
 
  public:
-  AbstractCompiler(CompilerType type) : _type(type), _compiler_state(uninitialized), _num_compiler_threads(0) {}
+  AbstractCompiler(CompilerType type) : _num_compiler_threads(0), _compiler_state(uninitialized), _type(type) {}
 
   // This function determines the compiler thread that will perform the
   // shutdown of the corresponding compiler runtime.
@@ -184,4 +184,4 @@ class AbstractCompiler : public CHeapObj<mtCompiler> {
 #endif
 };
 
-#endif // SHARE_VM_COMPILER_ABSTRACTCOMPILER_HPP
+#endif // SHARE_COMPILER_ABSTRACTCOMPILER_HPP

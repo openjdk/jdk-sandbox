@@ -27,22 +27,26 @@
  * @summary Basic shared string test with large pages
  * @requires vm.cds.archived.java.heap
  * @library /test/lib /test/hotspot/jtreg/runtime/appcds
- * @modules java.base/jdk.internal.misc
- * @modules java.management
- *          jdk.jartool/sun.tools.jar
+ * @modules jdk.jartool/sun.tools.jar
  * @build HelloString
- * @run main LargePages
+ * @run driver LargePages
  */
 public class LargePages {
+    static final String CDS_LOGGING = "-Xlog:cds,cds+hashtables";
+
     public static void main(String[] args) throws Exception {
+        SharedStringsUtils.run(args, LargePages::test);
+    }
+
+    public static void test(String[] args) throws Exception {
         SharedStringsUtils.buildJar("HelloString");
 
         SharedStringsUtils.dump(TestCommon.list("HelloString"),
-            "SharedStringsBasic.txt", "-XX:+UseLargePages");
+            "SharedStringsBasic.txt", "-XX:+UseLargePages", CDS_LOGGING);
         SharedStringsUtils.runWithArchive("HelloString", "-XX:+UseLargePages");
 
         SharedStringsUtils.dump(TestCommon.list("HelloString"),
-            "SharedStringsBasic.txt",
+            "SharedStringsBasic.txt", CDS_LOGGING,
             "-XX:+UseLargePages", "-XX:+UseLargePagesInMetaspace");
         SharedStringsUtils.runWithArchive("HelloString",
             "-XX:+UseLargePages", "-XX:+UseLargePagesInMetaspace");

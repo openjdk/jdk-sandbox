@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,22 @@
  *
  */
 
-#ifndef OS_CPU_WINDOWS_X86_VM_THREAD_WINDOWS_X86_HPP
-#define OS_CPU_WINDOWS_X86_VM_THREAD_WINDOWS_X86_HPP
+#ifndef OS_CPU_WINDOWS_X86_THREAD_WINDOWS_X86_HPP
+#define OS_CPU_WINDOWS_X86_THREAD_WINDOWS_X86_HPP
 
  private:
+  // On windows, in the stubGenerator, there's nowhere to save callee saved regs
+  address          _windows_saved_rsi;
+  address          _windows_saved_rdi;
+
   void pd_initialize() {
     _anchor.clear();
+
+    _windows_saved_rsi = NULL;
+    _windows_saved_rdi = NULL;
   }
 
-  frame pd_last_frame() {
-    assert(has_last_Java_frame(), "must have last_Java_sp() when suspended");
-    vmassert(_anchor.last_Java_pc() != NULL, "not walkable");
-    return frame(_anchor.last_Java_sp(), _anchor.last_Java_fp(), _anchor.last_Java_pc());
-  }
+  frame pd_last_frame();
 
  public:
   // Mutators are highly dangerous....
@@ -56,6 +59,8 @@
 
    bool pd_get_top_frame_for_profiling(frame* fr_addr, void* ucontext, bool isInJava);
 
+  static ByteSize windows_saved_rsi_offset() { return byte_offset_of(JavaThread, _windows_saved_rsi); }
+  static ByteSize windows_saved_rdi_offset() { return byte_offset_of(JavaThread, _windows_saved_rdi); }
 private:
   bool pd_get_top_frame(frame* fr_addr, void* ucontext, bool isInJava);
 
@@ -66,4 +71,4 @@ private:
   static void enable_register_stack_guard() {}
   static void disable_register_stack_guard() {}
 
-#endif // OS_CPU_WINDOWS_X86_VM_THREAD_WINDOWS_X86_HPP
+#endif // OS_CPU_WINDOWS_X86_THREAD_WINDOWS_X86_HPP

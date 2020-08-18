@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 
 package org.graalvm.graphio;
 
@@ -149,8 +151,8 @@ final class GraphJavadocSnippets {
     static GraphOutput<AcmeGraph, ?> buildOutput(WritableByteChannel channel)
     throws IOException {
         return GraphOutput.newBuilder(acmeGraphStructure()).
-            // use the latest version; currently 5.0
-            protocolVersion(5, 0).
+            // use the latest version; currently 6.0
+            protocolVersion(6, 0).
             build(channel);
     }
     // END: org.graalvm.graphio.GraphJavadocSnippets#buildOutput
@@ -164,7 +166,7 @@ final class GraphJavadocSnippets {
         GraphTypes graphTypes = acmeTypes();
 
         return GraphOutput.newBuilder(acmeGraphStructure()).
-            protocolVersion(5, 0).
+            protocolVersion(6, 0).
             blocks(graphBlocks).
             elements(graphElements).
             types(graphTypes).

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.code;
 
 import static java.util.Collections.emptyList;
@@ -33,7 +35,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import org.graalvm.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.EconomicSet;
 import org.graalvm.compiler.core.common.CompilationIdentifier;
 import org.graalvm.compiler.graph.NodeSourcePosition;
 
@@ -189,6 +191,10 @@ public class CompilationResult {
 
     private StackSlot customStackArea = null;
 
+    /**
+     * A customized name that is unrelated to {@link #compilationId}. Can be null if
+     * {@link #compilationId} fully describes the compilation.
+     */
     private final String name;
 
     private final CompilationIdentifier compilationId;
@@ -226,7 +232,7 @@ public class CompilationResult {
     private boolean isImmutablePIC;
 
     public CompilationResult(CompilationIdentifier compilationId) {
-        this(compilationId, compilationId.toString(CompilationIdentifier.Verbosity.NAME), false);
+        this(compilationId, null, false);
     }
 
     public CompilationResult(CompilationIdentifier compilationId, String name) {
@@ -675,6 +681,10 @@ public class CompilationResult {
         return unmodifiableList(sourceMapping);
     }
 
+    /**
+     * Gets the name for this compilation result. This will only be non-null when it provides a
+     * value unrelated to {@link #getCompilationId()}.
+     */
     public String getName() {
         return name;
     }

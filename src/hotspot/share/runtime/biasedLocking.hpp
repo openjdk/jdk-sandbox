@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_BIASEDLOCKING_HPP
-#define SHARE_VM_RUNTIME_BIASEDLOCKING_HPP
+#ifndef SHARE_RUNTIME_BIASEDLOCKING_HPP
+#define SHARE_RUNTIME_BIASEDLOCKING_HPP
 
 #include "runtime/handles.hpp"
 #include "utilities/growableArray.hpp"
@@ -108,7 +108,7 @@
 // again, a bulk heap sweep.
 
 // Biased locking counters
-class BiasedLockingCounters VALUE_OBJ_CLASS_SPEC {
+class BiasedLockingCounters {
  private:
   int _total_entry_count;
   int _biased_lock_entry_count;
@@ -192,4 +192,4 @@ public:
   static void restore_marks();
 };
 
-#endif // SHARE_VM_RUNTIME_BIASEDLOCKING_HPP
+#endif // SHARE_RUNTIME_BIASEDLOCKING_HPP

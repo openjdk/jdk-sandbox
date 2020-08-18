@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,16 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_HEAPREGION_HPP
-#define SHARE_VM_GC_G1_HEAPREGION_HPP
+#ifndef SHARE_GC_G1_HEAPREGION_HPP
+#define SHARE_GC_G1_HEAPREGION_HPP
 
-#include "gc/g1/g1AllocationContext.hpp"
 #include "gc/g1/g1BlockOffsetTable.hpp"
 #include "gc/g1/g1HeapRegionTraceType.hpp"
 #include "gc/g1/heapRegionTracer.hpp"
 #include "gc/g1/heapRegionType.hpp"
 #include "gc/g1/survRateGroup.hpp"
 #include "gc/shared/ageTable.hpp"
+#include "gc/shared/cardTable.hpp"
 #include "gc/shared/spaceDecorator.hpp"
 #include "utilities/macros.hpp"
 
@@ -100,7 +100,6 @@ class G1ContiguousSpace: public CompactibleSpace {
  protected:
   G1BlockOffsetTablePart _bot_part;
   Mutex _par_alloc_lock;
-  volatile uint _gc_time_stamp;
   // When we need to retire an allocation region, while other threads
   // are also concurrently trying to allocate into it, we typically
   // allocate a dummy object at the end of the region to ensure that
@@ -146,10 +145,6 @@ class G1ContiguousSpace: public CompactibleSpace {
 
   void mangle_unused_area() PRODUCT_RETURN;
   void mangle_unused_area_complete() PRODUCT_RETURN;
-
-  void record_timestamp();
-  void reset_gc_time_stamp() { _gc_time_stamp = 0; }
-  uint get_gc_time_stamp() { return _gc_time_stamp; }
 
   // See the comment above in the declaration of _pre_dummy_top for an
   // explanation of what it is.
@@ -232,8 +227,6 @@ class HeapRegion: public G1ContiguousSpace {
   // The index of this region in the heap region sequence.
   uint  _hrm_index;
 
-  AllocationContext_t _allocation_context;
-
   HeapRegionType _type;
 
   // For a humongous region, region in which it starts.
@@ -257,6 +250,9 @@ class HeapRegion: public G1ContiguousSpace {
   // The calculated GC efficiency of the region.
   double _gc_efficiency;
 
+  // The index in the optional regions array, if this region
+  // is considered optional during a mixed collections.
+  uint _index_in_opt_cset;
   int  _young_index_in_cset;
   SurvRateGroup* _surv_rate_group;
   int  _age_index;
@@ -433,6 +429,8 @@ class HeapRegion: public G1ContiguousSpace {
 
   bool is_old_or_humongous() const { return _type.is_old_or_humongous(); }
 
+  bool is_old_or_humongous_or_archive() const { return _type.is_old_or_humongous_or_archive(); }
+
   // A pinned region contains objects which are not moved by garbage collections.
   // Humongous regions and archive regions are pinned.
   bool is_pinned() const { return _type.is_pinned(); }
@@ -472,14 +470,6 @@ class HeapRegion: public G1ContiguousSpace {
 
   inline bool in_collection_set() const;
 
-  void set_allocation_context(AllocationContext_t context) {
-    _allocation_context = context;
-  }
-
-  AllocationContext_t  allocation_context() const {
-    return _allocation_context;
-  }
-
   // Methods used by the HeapRegionSetBase class and subclasses.
 
   // Getter and setter for the next and prev fields used to link regions into
@@ -516,10 +506,11 @@ class HeapRegion: public G1ContiguousSpace {
 
   // Reset the HeapRegion to default values.
   // If skip_remset is true, do not clear the remembered set.
+  // If clear_space is true, clear the HeapRegion's memory.
+  // If locked is true, assume we are the only thread doing this operation.
   void hr_clear(bool skip_remset, bool clear_space, bool locked = false);
-  // Clear the parts skipped by skip_remset in hr_clear() in the HeapRegion during
-  // a concurrent phase.
-  void par_clear();
+  // Clear the card table corresponding to this region.
+  void clear_cardtable();
 
   // Get the start of the unmarked area in this region.
   HeapWord* prev_top_at_mark_start() const { return _prev_top_at_mark_start; }
@@ -538,14 +529,6 @@ class HeapRegion: public G1ContiguousSpace {
   // info fields.
   inline void note_end_of_marking();
 
-  // Notify the region that it will be used as to-space during a GC
-  // and we are about to start copying objects into it.
-  inline void note_start_of_copying(bool during_initial_mark);
-
-  // Notify the region that it ceases being to-space during a GC and
-  // we will not copy objects into it any more.
-  inline void note_end_of_copying(bool during_initial_mark);
-
   // Notify the region that we are about to start processing
   // self-forwarded objects during evac failure handling.
   void note_self_forwarding_removal_start(bool during_initial_mark,
@@ -554,10 +537,6 @@ class HeapRegion: public G1ContiguousSpace {
   // Notify the region that we have finished processing self-forwarded
   // objects during evac failure handling.
   void note_self_forwarding_removal_end(size_t marked_bytes);
-
-  // Returns "false" iff no object in the region was allocated when the
-  // last mark phase ended.
-  bool is_marked() { return _prev_top_at_mark_start != bottom(); }
 
   void reset_during_compaction() {
     assert(is_humongous(),
@@ -569,6 +548,9 @@ class HeapRegion: public G1ContiguousSpace {
 
   void calc_gc_efficiency(void);
   double gc_efficiency() { return _gc_efficiency;}
+
+  uint index_in_opt_cset() const { return _index_in_opt_cset; }
+  void set_index_in_opt_cset(uint index) { _index_in_opt_cset = index; }
 
   int  young_index_in_cset() const { return _young_index_in_cset; }
   void set_young_index_in_cset(int index) {
@@ -723,6 +705,7 @@ class HeapRegion: public G1ContiguousSpace {
 class HeapRegionClosure : public StackObj {
   friend class HeapRegionManager;
   friend class G1CollectionSet;
+  friend class CollectionSetChooser;
 
   bool _is_complete;
   void set_incomplete() { _is_complete = false; }
@@ -738,4 +721,4 @@ class HeapRegionClosure : public StackObj {
   bool is_complete() { return _is_complete; }
 };
 
-#endif // SHARE_VM_GC_G1_HEAPREGION_HPP
+#endif // SHARE_GC_G1_HEAPREGION_HPP

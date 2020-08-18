@@ -30,6 +30,12 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU],
 [
   # First argument is the cpu name from the trip/quad
   case "$1" in
+    x86_64*x32)
+      VAR_CPU=x32
+      VAR_CPU_ARCH=x86
+      VAR_CPU_BITS=32
+      VAR_CPU_ENDIAN=little
+      ;;
     x86_64)
       VAR_CPU=x86_64
       VAR_CPU_ARCH=x86
@@ -57,6 +63,12 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU],
     aarch64)
       VAR_CPU=aarch64
       VAR_CPU_ARCH=aarch64
+      VAR_CPU_BITS=64
+      VAR_CPU_ENDIAN=little
+      ;;
+    ia64)
+      VAR_CPU=ia64
+      VAR_CPU_ARCH=ia64
       VAR_CPU_BITS=64
       VAR_CPU_ENDIAN=little
       ;;
@@ -176,6 +188,10 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_OS],
       VAR_OS=windows
       VAR_OS_ENV=windows.cygwin
       ;;
+    *wsl*)
+      VAR_OS=windows
+      VAR_OS_ENV=windows.wsl
+      ;;
     *mingw*)
       VAR_OS=windows
       VAR_OS_ENV=windows.msys
@@ -256,9 +272,12 @@ AC_DEFUN([PLATFORM_EXTRACT_TARGET_AND_BUILD],
   OPENJDK_TARGET_CPU_ARCH="$VAR_CPU_ARCH"
   OPENJDK_TARGET_CPU_BITS="$VAR_CPU_BITS"
   OPENJDK_TARGET_CPU_ENDIAN="$VAR_CPU_ENDIAN"
+  OPENJDK_TARGET_OS_UPPERCASE=`$ECHO $OPENJDK_TARGET_OS | $TR 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'`
+
   AC_SUBST(OPENJDK_TARGET_OS)
   AC_SUBST(OPENJDK_TARGET_OS_TYPE)
   AC_SUBST(OPENJDK_TARGET_OS_ENV)
+  AC_SUBST(OPENJDK_TARGET_OS_UPPERCASE)
   AC_SUBST(OPENJDK_TARGET_CPU)
   AC_SUBST(OPENJDK_TARGET_CPU_ARCH)
   AC_SUBST(OPENJDK_TARGET_CPU_BITS)
@@ -446,6 +465,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS_HELPER],
     HOTSPOT_$1_CPU_DEFINE=IA32
   elif test "x$OPENJDK_$1_CPU" = xx86_64; then
     HOTSPOT_$1_CPU_DEFINE=AMD64
+  elif test "x$OPENJDK_$1_CPU" = xx32; then
+    HOTSPOT_$1_CPU_DEFINE=X32
   elif test "x$OPENJDK_$1_CPU" = xsparcv9; then
     HOTSPOT_$1_CPU_DEFINE=SPARC
   elif test "x$OPENJDK_$1_CPU" = xaarch64; then

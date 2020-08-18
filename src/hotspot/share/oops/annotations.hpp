@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_ANNOTATIONS_HPP
-#define SHARE_VM_OOPS_ANNOTATIONS_HPP
+#ifndef SHARE_OOPS_ANNOTATIONS_HPP
+#define SHARE_OOPS_ANNOTATIONS_HPP
 
 #include "oops/array.hpp"
 #include "oops/metadata.hpp"
-#include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -43,6 +42,8 @@ typedef Array<u1> AnnotationArray;
 // a type_annotation instance.
 
 class Annotations: public MetaspaceObj {
+ friend class JVMCIVMStructs;
+
   // If you add a new field that points to any metaspace object, you
   // must add this field to Annotations::metaspace_pointers_do().
 
@@ -105,4 +106,4 @@ class Annotations: public MetaspaceObj {
 #endif
   void print_value_on(outputStream* st) const;
 };
-#endif // SHARE_VM_OOPS_ANNOTATIONS_HPP
+#endif // SHARE_OOPS_ANNOTATIONS_HPP

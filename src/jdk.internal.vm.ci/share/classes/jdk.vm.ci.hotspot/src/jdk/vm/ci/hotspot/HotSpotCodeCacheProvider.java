@@ -41,14 +41,14 @@ import jdk.vm.ci.meta.SpeculationLog;
  */
 public class HotSpotCodeCacheProvider implements CodeCacheProvider {
 
-    protected final HotSpotJVMCIRuntimeProvider runtime;
-    protected final HotSpotVMConfig config;
+    protected final HotSpotJVMCIRuntime runtime;
+    private final HotSpotVMConfig config;
     protected final TargetDescription target;
     protected final RegisterConfig regConfig;
 
-    public HotSpotCodeCacheProvider(HotSpotJVMCIRuntimeProvider runtime, HotSpotVMConfig config, TargetDescription target, RegisterConfig regConfig) {
+    public HotSpotCodeCacheProvider(HotSpotJVMCIRuntime runtime, TargetDescription target, RegisterConfig regConfig) {
         this.runtime = runtime;
-        this.config = config;
+        this.config = runtime.getConfig();
         this.target = target;
         this.regConfig = regConfig;
     }
@@ -91,14 +91,15 @@ public class HotSpotCodeCacheProvider implements CodeCacheProvider {
 
     @Override
     public int getMinimumOutgoingSize() {
-        return runtime.getConfig().runtimeCallStackSize;
+        return config.runtimeCallStackSize;
     }
 
     private InstalledCode logOrDump(InstalledCode installedCode, CompiledCode compiledCode) {
-        ((HotSpotJVMCIRuntime) runtime).notifyInstall(this, installedCode, compiledCode);
+        runtime.notifyInstall(this, installedCode, compiledCode);
         return installedCode;
     }
 
+    @Override
     public InstalledCode installCode(ResolvedJavaMethod method, CompiledCode compiledCode, InstalledCode installedCode, SpeculationLog log, boolean isDefault) {
         InstalledCode resultInstalledCode;
         if (installedCode == null) {
@@ -136,6 +137,7 @@ public class HotSpotCodeCacheProvider implements CodeCacheProvider {
         return logOrDump(resultInstalledCode, compiledCode);
     }
 
+    @Override
     public void invalidateInstalledCode(InstalledCode installedCode) {
         runtime.getCompilerToVM().invalidateInstalledCode(installedCode);
     }
@@ -152,14 +154,17 @@ public class HotSpotCodeCacheProvider implements CodeCacheProvider {
         return null;
     }
 
+    @Override
     public SpeculationLog createSpeculationLog() {
         return new HotSpotSpeculationLog();
     }
 
+    @Override
     public long getMaxCallTargetOffset(long address) {
         return runtime.getCompilerToVM().getMaxCallTargetOffset(address);
     }
 
+    @Override
     public boolean shouldDebugNonSafepoints() {
         return runtime.getCompilerToVM().shouldDebugNonSafepoints();
     }

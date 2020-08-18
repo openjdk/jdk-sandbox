@@ -23,14 +23,16 @@
 
 /*
  * @test
- * @bug      6758050 8025633
+ * @bug      6758050 8025633 8182765
  * @summary  Test HTML output for nested generic types.
  * @author   bpatel
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestNestedGenerics
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestNestedGenerics extends JavadocTester {
 
@@ -40,8 +42,22 @@ public class TestNestedGenerics extends JavadocTester {
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
+                "-sourcepath", testSrc,
+                "pkg");
+        checkExit(Exit.OK);
+
+        checkOutput("pkg/NestedGenerics.html", true,
+            "<div class=\"block\">Contains <a " +
+            "href=\"#foo(java.util.Map)\"><code>foo" +
+            "(java.util.Map&lt;A, java.util.Map&lt;A, A&gt;&gt;)</code></a></div>");
+    }
+
+    @Test
+    public void test_html4() {
+        javadoc("-d", "out-html4",
+                "-html4",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);

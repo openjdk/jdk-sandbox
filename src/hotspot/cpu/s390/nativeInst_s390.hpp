@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -25,11 +25,10 @@
 
 // Major contributions by AHa, JL, LS
 
-#ifndef CPU_S390_VM_NATIVEINST_S390_HPP
-#define CPU_S390_VM_NATIVEINST_S390_HPP
+#ifndef CPU_S390_NATIVEINST_S390_HPP
+#define CPU_S390_NATIVEINST_S390_HPP
 
 #include "asm/macroAssembler.hpp"
-#include "memory/allocation.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/os.hpp"
 
@@ -72,7 +71,7 @@ NativeInstruction* nativeInstruction_at(address address);
 //  N a t i v e I n s t r u c t i o n
 //-------------------------------------
 
-class NativeInstruction VALUE_OBJ_CLASS_SPEC {
+class NativeInstruction {
   friend class Relocation;
 
  public:
@@ -103,12 +102,6 @@ class NativeInstruction VALUE_OBJ_CLASS_SPEC {
   uint get_poll_register() {
     // Extract poll register from instruction.
     return MacroAssembler::get_poll_register(addr_at(0));
-  }
-
-  bool is_memory_serialization(JavaThread *thread, void *ucontext) {
-    // Is the current instruction a write access of thread to the
-    // memory serialization page?
-    return MacroAssembler::is_memory_serialization(long_at(0), thread, ucontext);
   }
 
  public:
@@ -670,4 +663,4 @@ class NativeGeneralJump: public NativeInstruction {
   void verify() PRODUCT_RETURN;
 };
 
-#endif // CPU_S390_VM_NATIVEINST_S390_HPP
+#endif // CPU_S390_NATIVEINST_S390_HPP

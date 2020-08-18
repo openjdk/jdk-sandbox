@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,17 @@
  */
 
 import java.util.Arrays;
+import java.text.NumberFormat;
 
-import jdk.testlibrary.Utils;
-import static jdk.testlibrary.Asserts.*;
+import static jdk.test.lib.Asserts.*;
+import jdk.test.lib.Utils;
 
 /**
  * The helper class for parsing following output from command 'jstat -gcutil':
  *
- *  S0     S1     E      O      M     CCS    YGC     YGCT    FGC    FGCT     GCT
- *  100.00   0.00  64.68  13.17  73.39  33.46      2    0.003     1    0.156    0.158
- *  100.00   0.00  76.54  13.17  73.39  33.46      2    0.003     1    0.156    0.158
- *  100.00   0.00  83.49  13.17  73.39  33.46      2    0.003     1    0.156    0.158
- *  100.00   0.00  84.53  13.17  73.39  33.46      2    0.003     1    0.156    0.158
- *  100.00   0.00  85.57  13.17  73.39  33.46      2    0.003     1    0.156    0.158
+ *  S0     S1     E      O      M     CCS    YGC     YGCT    FGC    FGCT    CGC    CGCT     GCT
+ *  0.00   0.00  86.67   0.00   -      -      0      0.000     0    0.000     0    0.000    0.000
+ *  0.00   0.00  86.67   0.00   -      -      0      0.000     0    0.000     0    0.000    0.000
  *
  *  It will be verified that numerical values have defined types and are reasonable,
  *  for example percentage should fit within 0-100 interval.
@@ -50,12 +48,14 @@ public class JstatGCUtilParser {
         S1(GcStatisticsType.PERCENTAGE),
         E(GcStatisticsType.PERCENTAGE),
         O(GcStatisticsType.PERCENTAGE),
-        M(GcStatisticsType.PERCENTAGE),
+        M(GcStatisticsType.PERCENTAGE_OR_DASH),
         CCS(GcStatisticsType.PERCENTAGE_OR_DASH),
         YGC(GcStatisticsType.INTEGER),
         YGCT(GcStatisticsType.DOUBLE),
         FGC(GcStatisticsType.INTEGER),
         FGCT(GcStatisticsType.DOUBLE),
+        CGC(GcStatisticsType.INTEGER),
+        CGCT(GcStatisticsType.DOUBLE),
         GCT(GcStatisticsType.DOUBLE);
 
         private final GcStatisticsType type;
@@ -95,18 +95,18 @@ public class JstatGCUtilParser {
                 GcStatisticsType type = values()[i].getType();
                 String value = valueArray[i].trim();
                 if (type.equals(GcStatisticsType.INTEGER)) {
-                    Integer.parseInt(value);
+                    NumberFormat.getInstance().parse(value).intValue();
                     break;
                 }
                 if (type.equals(GcStatisticsType.DOUBLE)) {
-                    Double.parseDouble(value);
+                    NumberFormat.getInstance().parse(value).doubleValue();
                     break;
                 }
                 if (type.equals(GcStatisticsType.PERCENTAGE_OR_DASH) &&
                         value.equals("-")) {
                     break;
                 }
-                double percentage = Double.parseDouble(value);
+                double percentage = NumberFormat.getInstance().parse(value).doubleValue();
                 assertTrue(0 <= percentage && percentage <= 100,
                         "Not a percentage: " + value);
             }

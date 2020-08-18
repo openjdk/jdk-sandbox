@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import org.graalvm.compiler.debug.DebugContext;
@@ -33,9 +35,9 @@ import org.graalvm.compiler.nodes.spi.NodeLIRBuilderTool;
 
 import jdk.vm.ci.meta.DeoptimizationAction;
 import jdk.vm.ci.meta.DeoptimizationReason;
-import jdk.vm.ci.meta.JavaConstant;
-import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.MetaAccessProvider;
+import jdk.vm.ci.meta.SpeculationLog;
+import jdk.vm.ci.meta.SpeculationLog.Speculation;
 import jdk.vm.ci.meta.Value;
 
 @NodeInfo(shortName = "Deopt", nameTemplate = "Deopt {p#reason/s}")
@@ -43,27 +45,27 @@ public final class DeoptimizeNode extends AbstractDeoptimizeNode implements Lowe
     public static final int DEFAULT_DEBUG_ID = 0;
 
     public static final NodeClass<DeoptimizeNode> TYPE = NodeClass.create(DeoptimizeNode.class);
-    protected final DeoptimizationAction action;
-    protected final DeoptimizationReason reason;
+    protected DeoptimizationAction action;
+    protected DeoptimizationReason reason;
     protected int debugId;
-    protected final JavaConstant speculation;
+    protected final Speculation speculation;
 
     public DeoptimizeNode(DeoptimizationAction action, DeoptimizationReason reason) {
-        this(action, reason, DEFAULT_DEBUG_ID, JavaConstant.NULL_POINTER, null);
+        this(action, reason, DEFAULT_DEBUG_ID, SpeculationLog.NO_SPECULATION, null);
     }
 
-    public DeoptimizeNode(DeoptimizationAction action, DeoptimizationReason reason, JavaConstant speculation) {
+    public DeoptimizeNode(DeoptimizationAction action, DeoptimizationReason reason, Speculation speculation) {
         this(action, reason, DEFAULT_DEBUG_ID, speculation, null);
     }
 
-    public DeoptimizeNode(DeoptimizationAction action, DeoptimizationReason reason, int debugId, JavaConstant speculation, FrameState stateBefore) {
+    public DeoptimizeNode(DeoptimizationAction action, DeoptimizationReason reason, int debugId, Speculation speculation, FrameState stateBefore) {
         super(TYPE, stateBefore);
         assert action != null;
         assert reason != null;
-        assert speculation.getJavaKind() == JavaKind.Object;
         this.action = action;
         this.reason = reason;
         this.debugId = debugId;
+        assert speculation != null;
         this.speculation = speculation;
     }
 
@@ -73,8 +75,18 @@ public final class DeoptimizeNode extends AbstractDeoptimizeNode implements Lowe
     }
 
     @Override
+    public void setAction(DeoptimizationAction action) {
+        this.action = action;
+    }
+
+    @Override
     public DeoptimizationReason getReason() {
         return reason;
+    }
+
+    @Override
+    public void setReason(DeoptimizationReason reason) {
+        this.reason = reason;
     }
 
     @Override
@@ -103,7 +115,7 @@ public final class DeoptimizeNode extends AbstractDeoptimizeNode implements Lowe
     public void generate(NodeLIRBuilderTool gen) {
         LIRGeneratorTool tool = gen.getLIRGeneratorTool();
         Value actionAndReason = tool.emitJavaConstant(tool.getMetaAccess().encodeDeoptActionAndReason(action, reason, getDebugId()));
-        Value speculationValue = tool.emitJavaConstant(speculation);
+        Value speculationValue = tool.emitJavaConstant(tool.getMetaAccess().encodeSpeculation(speculation));
         gen.getLIRGeneratorTool().emitDeoptimize(actionAndReason, speculationValue, gen.state(this));
     }
 
@@ -114,11 +126,11 @@ public final class DeoptimizeNode extends AbstractDeoptimizeNode implements Lowe
 
     @Override
     public ValueNode getSpeculation(MetaAccessProvider metaAccess) {
-        return ConstantNode.forConstant(speculation, metaAccess, graph());
+        return ConstantNode.forConstant(metaAccess.encodeSpeculation(speculation), metaAccess, graph());
     }
 
     @Override
-    public JavaConstant getSpeculation() {
+    public Speculation getSpeculation() {
         return speculation;
     }
 

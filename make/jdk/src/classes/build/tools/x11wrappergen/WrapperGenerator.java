@@ -1306,19 +1306,12 @@ public class WrapperGenerator {
         writeNativeSizer(fp.getAbsolutePath());
     }
 
-    private boolean readSizeInfo(String file32, String file64) {
+    private boolean readFileSizeInfo(String filename, boolean wide) {
         try {
             boolean res = true;
-            if (!file32.equals("IGNORE")) {
-                FileInputStream fis = new FileInputStream(file32);
-                res = readSizeInfo(fis, false);
-                fis.close();
-            }
-            if (!file64.equals("IGNORE")) {
-                FileInputStream fis = new FileInputStream(file64);
-                res &= readSizeInfo(fis, true);
-                fis.close();
-            }
+            FileInputStream fis = new FileInputStream(filename);
+            res = readSizeInfo(fis, wide);
+            fis.close();
             return res;
         } catch (Exception e) {
             e.printStackTrace();
@@ -1326,8 +1319,8 @@ public class WrapperGenerator {
         }
     }
 
-    private void startGeneration(String outputDir, String file32, String file64) {
-        if (readSizeInfo(file32, file64))
+    private void startGeneration(String outputDir, String filename, boolean wide) {
+        if (readFileSizeInfo(filename, wide))
         {
             writeJavaWrapperClass(outputDir);
         }
@@ -1337,9 +1330,8 @@ public class WrapperGenerator {
     }
 
     public static void main(String[] args) {
-
         if (args.length < 4) {
-            System.out.println("Usage:\nWrapperGenerator gen_java <output_dir> <xlibtypes.txt> <sizes-32.txt|IGNORE> <sizes-64.txt|IGNORE>");
+            System.out.println("Usage:\nWrapperGenerator gen_java <output_dir> <xlibtypes.txt> <sizes-*.txt> <platform>");
             System.out.println("      or");
             System.out.println("WrapperGenerator gen_c_source <output_file> <xlibtypes.txt> <platform>");
             System.out.println("Where <platform>: 32, 64");
@@ -1352,7 +1344,8 @@ public class WrapperGenerator {
             xparser.wide = args[3].equals("64");
             xparser.makeSizer(args[1]);
         } else if (args[0].equals("gen_java")) {
-            xparser.startGeneration(args[1], args[3], args[4]);
+            boolean wide = args[4].equals("64");
+            xparser.startGeneration(args[1], args[3], wide);
         }
     }
 }

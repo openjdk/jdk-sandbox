@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -95,6 +95,13 @@ findTransportOnLoad(void *handle)
     if (handle == NULL) {
         return onLoad;
     }
+#if defined(_WIN32) && !defined(_WIN64)
+    onLoad = (jdwpTransport_OnLoad_t)
+                 dbgsysFindLibraryEntry(handle, "_jdwpTransport_OnLoad@16");
+    if (onLoad != NULL) {
+        return onLoad;
+    }
+#endif
     onLoad = (jdwpTransport_OnLoad_t)
                  dbgsysFindLibraryEntry(handle, "jdwpTransport_OnLoad");
     return onLoad;
@@ -211,7 +218,7 @@ loadTransport(const char *name, TransportInfo *info)
         JNI_FUNC_PTR(env,GetJavaVM)(env, &jvm);
 
         /* Try version 1.1 first, fallback to 1.0 on error */
-        for (i = 0; i < sizeof(supported_versions); ++i) {
+        for (i = 0; i < sizeof(supported_versions)/sizeof(jint); ++i) {
             rc = (*onLoad)(jvm, &callback, supported_versions[i], &t);
             if (rc != JNI_EVERSION) {
                 info->transportVersion = supported_versions[i];

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOGTAG_HPP
-#define SHARE_VM_LOGGING_LOGTAG_HPP
+#ifndef SHARE_LOGGING_LOGTAG_HPP
+#define SHARE_LOGGING_LOGTAG_HPP
 
 #include "logging/logTag_ext.hpp"
 #include "memory/allocation.hpp"
@@ -44,6 +44,7 @@
   LOG_TAG(blocks) \
   LOG_TAG(bot) \
   LOG_TAG(breakpoint) \
+  LOG_TAG(bytecode) \
   LOG_TAG(cds) \
   LOG_TAG(census) \
   LOG_TAG(class) \
@@ -60,10 +61,13 @@
   LOG_TAG(cset) \
   LOG_TAG(data) \
   LOG_TAG(datacreation) \
+  LOG_TAG(dcmd) \
   LOG_TAG(decoder) \
   LOG_TAG(defaultmethods) \
+  LOG_TAG(director) \
   LOG_TAG(dump) \
   LOG_TAG(ergo) \
+  LOG_TAG(event) \
   LOG_TAG(exceptions) \
   LOG_TAG(exit) \
   LOG_TAG(fingerprint) \
@@ -80,6 +84,7 @@
   LOG_TAG(inlining) \
   LOG_TAG(interpreter) \
   LOG_TAG(itables) \
+  LOG_TAG(jfr) \
   LOG_TAG(jit) \
   LOG_TAG(jni) \
   LOG_TAG(jvmti) \
@@ -99,19 +104,25 @@
   LOG_TAG(module) \
   LOG_TAG(monitorinflation) \
   LOG_TAG(monitormismatch) \
+  LOG_TAG(nestmates) \
   LOG_TAG(nmethod) \
   LOG_TAG(normalize) \
   LOG_TAG(objecttagging) \
   LOG_TAG(obsolete) \
+  LOG_TAG(oldobject) \
+  LOG_TAG(oom) \
   LOG_TAG(oopmap) \
+  LOG_TAG(oops) \
   LOG_TAG(oopstorage) \
   LOG_TAG(os) \
   LOG_TAG(pagesize) \
   LOG_TAG(patch) \
   LOG_TAG(path) \
   LOG_TAG(perf) \
+  LOG_TAG(periodic) \
   LOG_TAG(phases) \
   LOG_TAG(plab) \
+  LOG_TAG(preview)   /* Trace loading of preview feature types */ \
   LOG_TAG(promotion) \
   LOG_TAG(preorder) /* Trace all classes loaded in order referenced (not loaded) */ \
   LOG_TAG(protectiondomain) /* "Trace protection domain verification" */ \
@@ -119,12 +130,15 @@
   LOG_TAG(redefine) \
   LOG_TAG(refine) \
   LOG_TAG(region) \
+  LOG_TAG(reloc) \
   LOG_TAG(remset) \
+  LOG_TAG(parser) \
   LOG_TAG(purge) \
   LOG_TAG(resolve) \
   LOG_TAG(safepoint) \
+  LOG_TAG(sampling) \
   LOG_TAG(scavenge) \
-  LOG_TAG(scrub) \
+  LOG_TAG(setting) \
   LOG_TAG(smr) \
   LOG_TAG(stacktrace) \
   LOG_TAG(stackwalk) \
@@ -134,10 +148,12 @@
   LOG_TAG(stats) \
   LOG_TAG(stringdedup) \
   LOG_TAG(stringtable) \
+  LOG_TAG(symboltable) \
   LOG_TAG(stackmap) \
   LOG_TAG(subclass) \
   LOG_TAG(survivor) \
   LOG_TAG(sweep) \
+  LOG_TAG(system) \
   LOG_TAG(table) \
   LOG_TAG(task) \
   DEBUG_ONLY(LOG_TAG(test)) \
@@ -145,14 +161,17 @@
   LOG_TAG(tlab) \
   LOG_TAG(time) \
   LOG_TAG(timer) \
+  LOG_TAG(tracking) \
   LOG_TAG(update) \
   LOG_TAG(unload) /* Trace unloading of classes */ \
   LOG_TAG(unshareable) \
+  LOG_TAG(mirror) \
   LOG_TAG(verification) \
   LOG_TAG(verify) \
   LOG_TAG(vmoperation) \
   LOG_TAG(vmthread) \
   LOG_TAG(vtables) \
+  LOG_TAG(vtablestubs) \
   LOG_TAG(workgang) \
   LOG_TAG_LIST_EXT
 
@@ -192,6 +211,7 @@ class LogTag : public AllStatic {
   }
 
   static LogTag::type from_string(const char *str);
+  static LogTag::type fuzzy_match(const char *tag);
   static void list_tags(outputStream* out);
 
  private:
@@ -200,4 +220,4 @@ class LogTag : public AllStatic {
 
 typedef LogTag::type LogTagType;
 
-#endif // SHARE_VM_LOGGING_LOGTAG_HPP
+#endif // SHARE_LOGGING_LOGTAG_HPP

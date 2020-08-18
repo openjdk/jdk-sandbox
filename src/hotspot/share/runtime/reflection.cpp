@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
-#include "classfile/javaClasses.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
 #include "classfile/stringTable.hpp"
@@ -32,9 +32,10 @@
 #include "classfile/verifier.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "logging/log.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -42,12 +43,13 @@
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
-#include "runtime/vframe.hpp"
+#include "runtime/vframe.inline.hpp"
 
 static void trace_class_resolution(const Klass* to_class) {
   ResourceMark rm;
@@ -324,19 +326,12 @@ static Klass* basic_type_mirror_to_arrayklass(oop basic_type_mirror, TRAPS) {
   }
 }
 
-#ifdef ASSERT
-static oop basic_type_arrayklass_to_mirror(Klass* basic_type_arrayklass, TRAPS) {
-  BasicType type = TypeArrayKlass::cast(basic_type_arrayklass)->element_type();
-  return Universe::java_mirror(type);
-}
-#endif
-
 arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
   if (element_mirror == NULL) {
     THROW_0(vmSymbols::java_lang_NullPointerException());
   }
   if (length < 0) {
-    THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
+    THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", length));
   }
   if (java_lang_Class::is_primitive(element_mirror)) {
     Klass* tak = basic_type_mirror_to_arrayklass(element_mirror, CHECK_NULL);
@@ -368,7 +363,7 @@ arrayOop Reflection::reflect_new_multi_array(oop element_mirror, typeArrayOop di
   for (int i = 0; i < len; i++) {
     int d = dim_array->int_at(i);
     if (d < 0) {
-      THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
+      THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", d));
     }
     dimensions[i] = d;
   }
@@ -394,47 +389,18 @@ arrayOop Reflection::reflect_new_multi_array(oop element_mirror, typeArrayOop di
 }
 
 
-oop Reflection::array_component_type(oop mirror, TRAPS) {
-  if (java_lang_Class::is_primitive(mirror)) {
-    return NULL;
-  }
-
-  Klass* klass = java_lang_Class::as_Klass(mirror);
-  if (!klass->is_array_klass()) {
-    return NULL;
-  }
-
-  oop result = java_lang_Class::component_mirror(mirror);
-#ifdef ASSERT
-  oop result2 = NULL;
-  if (ArrayKlass::cast(klass)->dimension() == 1) {
-    if (klass->is_typeArray_klass()) {
-      result2 = basic_type_arrayklass_to_mirror(klass, CHECK_NULL);
-    } else {
-      result2 = ObjArrayKlass::cast(klass)->element_klass()->java_mirror();
-    }
-  } else {
-    Klass* lower_dim = ArrayKlass::cast(klass)->lower_dimension();
-    assert(lower_dim->is_array_klass(), "just checking");
-    result2 = lower_dim->java_mirror();
-  }
-  assert(result == result2, "results must be consistent");
-#endif //ASSERT
-  return result;
-}
-
-static bool under_host_klass(const InstanceKlass* ik, const InstanceKlass* host_klass) {
+static bool under_unsafe_anonymous_host(const InstanceKlass* ik, const InstanceKlass* unsafe_anonymous_host) {
   DEBUG_ONLY(int inf_loop_check = 1000 * 1000 * 1000);
   for (;;) {
-    const InstanceKlass* hc = ik->host_klass();
+    const InstanceKlass* hc = ik->unsafe_anonymous_host();
     if (hc == NULL)        return false;
-    if (hc == host_klass)  return true;
+    if (hc == unsafe_anonymous_host)  return true;
     ik = hc;
 
     // There's no way to make a host class loop short of patching memory.
     // Therefore there cannot be a loop here unless there's another bug.
     // Still, let's check for it.
-    assert(--inf_loop_check > 0, "no host_klass loop");
+    assert(--inf_loop_check > 0, "no unsafe_anonymous_host loop");
   }
 }
 
@@ -445,17 +411,15 @@ static bool can_relax_access_check_for(const Klass* accessor,
   const InstanceKlass* accessor_ik = InstanceKlass::cast(accessor);
   const InstanceKlass* accessee_ik = InstanceKlass::cast(accessee);
 
-  // If either is on the other's host_klass chain, access is OK,
+  // If either is on the other's unsafe_anonymous_host chain, access is OK,
   // because one is inside the other.
-  if (under_host_klass(accessor_ik, accessee_ik) ||
-    under_host_klass(accessee_ik, accessor_ik))
+  if (under_unsafe_anonymous_host(accessor_ik, accessee_ik) ||
+    under_unsafe_anonymous_host(accessee_ik, accessor_ik))
     return true;
 
-  if ((RelaxAccessControlCheck &&
+  if (RelaxAccessControlCheck &&
     accessor_ik->major_version() < Verifier::NO_RELAX_ACCESS_CTRL_CHECK_VERSION &&
-    accessee_ik->major_version() < Verifier::NO_RELAX_ACCESS_CTRL_CHECK_VERSION) ||
-    (accessor_ik->major_version() < Verifier::STRICTER_ACCESS_CTRL_CHECK_VERSION &&
-    accessee_ik->major_version() < Verifier::STRICTER_ACCESS_CTRL_CHECK_VERSION)) {
+    accessee_ik->major_version() < Verifier::NO_RELAX_ACCESS_CTRL_CHECK_VERSION) {
     return classloader_only &&
       Verifier::relax_access_for(accessor_ik->class_loader()) &&
       accessor_ik->protection_domain() == accessee_ik->protection_domain() &&
@@ -501,7 +465,8 @@ Reflection::VerifyClassAccessResults Reflection::verify_class_access(
   }
   // Allow all accesses from jdk/internal/reflect/MagicAccessorImpl subclasses to
   // succeed trivially.
-  if (current_class->is_subclass_of(SystemDictionary::reflect_MagicAccessorImpl_klass())) {
+  if (SystemDictionary::reflect_MagicAccessorImpl_klass_is_loaded() &&
+      current_class->is_subclass_of(SystemDictionary::reflect_MagicAccessorImpl_klass())) {
     return ACCESS_OK;
   }
 
@@ -649,51 +614,52 @@ char* Reflection::verify_class_access_msg(const Klass* current_class,
   return msg;
 }
 
-bool Reflection::verify_field_access(const Klass* current_class,
-                                     const Klass* resolved_class,
-                                     const Klass* field_class,
-                                     AccessFlags access,
-                                     bool classloader_only,
-                                     bool protected_restriction) {
-  // Verify that current_class can access a field of field_class, where that
+bool Reflection::verify_member_access(const Klass* current_class,
+                                      const Klass* resolved_class,
+                                      const Klass* member_class,
+                                      AccessFlags access,
+                                      bool classloader_only,
+                                      bool protected_restriction,
+                                      TRAPS) {
+  // Verify that current_class can access a member of member_class, where that
   // field's access bits are "access".  We assume that we've already verified
-  // that current_class can access field_class.
+  // that current_class can access member_class.
   //
   // If the classloader_only flag is set, we automatically allow any accesses
   // in which current_class doesn't have a classloader.
   //
-  // "resolved_class" is the runtime type of "field_class". Sometimes we don't
+  // "resolved_class" is the runtime type of "member_class". Sometimes we don't
   // need this distinction (e.g. if all we have is the runtime type, or during
   // class file parsing when we only care about the static type); in that case
-  // callers should ensure that resolved_class == field_class.
+  // callers should ensure that resolved_class == member_class.
   //
   if ((current_class == NULL) ||
-      (current_class == field_class) ||
+      (current_class == member_class) ||
       access.is_public()) {
     return true;
   }
 
   const Klass* host_class = current_class;
-  if (host_class->is_instance_klass() &&
-      InstanceKlass::cast(host_class)->is_anonymous()) {
-    host_class = InstanceKlass::cast(host_class)->host_klass();
-    assert(host_class != NULL, "Anonymous class has null host class");
+  if (current_class->is_instance_klass() &&
+      InstanceKlass::cast(current_class)->is_unsafe_anonymous()) {
+    host_class = InstanceKlass::cast(current_class)->unsafe_anonymous_host();
+    assert(host_class != NULL, "Unsafe anonymous class has null host class");
     assert(!(host_class->is_instance_klass() &&
-           InstanceKlass::cast(host_class)->is_anonymous()),
-           "host_class should not be anonymous");
+           InstanceKlass::cast(host_class)->is_unsafe_anonymous()),
+           "unsafe_anonymous_host should not be unsafe anonymous itself");
   }
-  if (host_class == field_class) {
+  if (host_class == member_class) {
     return true;
   }
 
   if (access.is_protected()) {
     if (!protected_restriction) {
-      // See if current_class (or outermost host class) is a subclass of field_class
+      // See if current_class (or outermost host class) is a subclass of member_class
       // An interface may not access protected members of j.l.Object
-      if (!host_class->is_interface() && host_class->is_subclass_of(field_class)) {
+      if (!host_class->is_interface() && host_class->is_subclass_of(member_class)) {
         if (access.is_static() || // static fields are ok, see 6622385
             current_class == resolved_class ||
-            field_class == resolved_class ||
+            member_class == resolved_class ||
             host_class->is_subclass_of(resolved_class) ||
             resolved_class->is_subclass_of(host_class)) {
           return true;
@@ -702,8 +668,25 @@ bool Reflection::verify_field_access(const Klass* current_class,
     }
   }
 
-  if (!access.is_private() && is_same_class_package(current_class, field_class)) {
+  // package access
+  if (!access.is_private() && is_same_class_package(current_class, member_class)) {
     return true;
+  }
+
+  // private access between different classes needs a nestmate check, but
+  // not for unsafe anonymous classes - so check host_class
+  if (access.is_private() && host_class == current_class) {
+    if (current_class->is_instance_klass() && member_class->is_instance_klass() ) {
+      InstanceKlass* cur_ik = const_cast<InstanceKlass*>(InstanceKlass::cast(current_class));
+      InstanceKlass* field_ik = const_cast<InstanceKlass*>(InstanceKlass::cast(member_class));
+      // Nestmate access checks may require resolution and validation of the nest-host.
+      // It is up to the caller to check for pending exceptions and handle appropriately.
+      bool access = cur_ik->has_nestmate_access_to(field_ik, CHECK_false);
+      if (access) {
+        guarantee(resolved_class->is_subclass_of(member_class), "must be!");
+        return true;
+      }
+    }
   }
 
   // Allow all accesses from jdk/internal/reflect/MagicAccessorImpl subclasses to
@@ -712,8 +695,8 @@ bool Reflection::verify_field_access(const Klass* current_class,
     return true;
   }
 
-  return can_relax_access_check_for(
-    current_class, field_class, classloader_only);
+  // Check for special relaxations
+  return can_relax_access_check_for(current_class, member_class, classloader_only);
 }
 
 bool Reflection::is_same_class_package(const Klass* class1, const Klass* class2) {
@@ -723,17 +706,19 @@ bool Reflection::is_same_class_package(const Klass* class1, const Klass* class2)
 // Checks that the 'outer' klass has declared 'inner' as being an inner klass. If not,
 // throw an incompatible class change exception
 // If inner_is_member, require the inner to be a member of the outer.
-// If !inner_is_member, require the inner to be anonymous (a non-member).
+// If !inner_is_member, require the inner to be unsafe anonymous (a non-member).
 // Caller is responsible for figuring out in advance which case must be true.
 void Reflection::check_for_inner_class(const InstanceKlass* outer, const InstanceKlass* inner,
                                        bool inner_is_member, TRAPS) {
   InnerClassesIterator iter(outer);
   constantPoolHandle cp   (THREAD, outer->constants());
   for (; !iter.done(); iter.next()) {
-     int ioff = iter.inner_class_info_index();
-     int ooff = iter.outer_class_info_index();
+    int ioff = iter.inner_class_info_index();
+    int ooff = iter.outer_class_info_index();
 
-     if (inner_is_member && ioff != 0 && ooff != 0) {
+    if (inner_is_member && ioff != 0 && ooff != 0) {
+      if (cp->klass_name_at_matches(outer, ooff) &&
+          cp->klass_name_at_matches(inner, ioff)) {
         Klass* o = cp->klass_at(ooff, CHECK);
         if (o == outer) {
           Klass* i = cp->klass_at(ioff, CHECK);
@@ -741,14 +726,16 @@ void Reflection::check_for_inner_class(const InstanceKlass* outer, const Instanc
             return;
           }
         }
-     }
-     if (!inner_is_member && ioff != 0 && ooff == 0 &&
-         cp->klass_name_at_matches(inner, ioff)) {
-        Klass* i = cp->klass_at(ioff, CHECK);
-        if (i == inner) {
-          return;
-        }
-     }
+      }
+    }
+
+    if (!inner_is_member && ioff != 0 && ooff == 0 &&
+        cp->klass_name_at_matches(inner, ioff)) {
+      Klass* i = cp->klass_at(ioff, CHECK);
+      if (i == inner) {
+        return;
+      }
+    }
   }
 
   // 'inner' not declared as an inner klass in outer
@@ -878,28 +865,17 @@ oop Reflection::new_method(const methodHandle& method, bool for_constant_pool_ac
   java_lang_reflect_Method::set_exception_types(mh(), exception_types());
   java_lang_reflect_Method::set_modifiers(mh(), modifiers);
   java_lang_reflect_Method::set_override(mh(), false);
-  if (java_lang_reflect_Method::has_signature_field() &&
-      method->generic_signature() != NULL) {
+  if (method->generic_signature() != NULL) {
     Symbol*  gs = method->generic_signature();
     Handle sig = java_lang_String::create_from_symbol(gs, CHECK_NULL);
     java_lang_reflect_Method::set_signature(mh(), sig());
   }
-  if (java_lang_reflect_Method::has_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->annotations(), CHECK_NULL);
-    java_lang_reflect_Method::set_annotations(mh(), an_oop);
-  }
-  if (java_lang_reflect_Method::has_parameter_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->parameter_annotations(), CHECK_NULL);
-    java_lang_reflect_Method::set_parameter_annotations(mh(), an_oop);
-  }
-  if (java_lang_reflect_Method::has_annotation_default_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->annotation_default(), CHECK_NULL);
-    java_lang_reflect_Method::set_annotation_default(mh(), an_oop);
-  }
-  if (java_lang_reflect_Method::has_type_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->type_annotations(), CHECK_NULL);
-    java_lang_reflect_Method::set_type_annotations(mh(), an_oop);
-  }
+  typeArrayOop an_oop = Annotations::make_java_array(method->annotations(), CHECK_NULL);
+  java_lang_reflect_Method::set_annotations(mh(), an_oop);
+  an_oop = Annotations::make_java_array(method->parameter_annotations(), CHECK_NULL);
+  java_lang_reflect_Method::set_parameter_annotations(mh(), an_oop);
+  an_oop = Annotations::make_java_array(method->annotation_default(), CHECK_NULL);
+  java_lang_reflect_Method::set_annotation_default(mh(), an_oop);
   return mh();
 }
 
@@ -928,24 +904,15 @@ oop Reflection::new_constructor(const methodHandle& method, TRAPS) {
   java_lang_reflect_Constructor::set_exception_types(ch(), exception_types());
   java_lang_reflect_Constructor::set_modifiers(ch(), modifiers);
   java_lang_reflect_Constructor::set_override(ch(), false);
-  if (java_lang_reflect_Constructor::has_signature_field() &&
-      method->generic_signature() != NULL) {
+  if (method->generic_signature() != NULL) {
     Symbol*  gs = method->generic_signature();
     Handle sig = java_lang_String::create_from_symbol(gs, CHECK_NULL);
     java_lang_reflect_Constructor::set_signature(ch(), sig());
   }
-  if (java_lang_reflect_Constructor::has_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->annotations(), CHECK_NULL);
-    java_lang_reflect_Constructor::set_annotations(ch(), an_oop);
-  }
-  if (java_lang_reflect_Constructor::has_parameter_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->parameter_annotations(), CHECK_NULL);
-    java_lang_reflect_Constructor::set_parameter_annotations(ch(), an_oop);
-  }
-  if (java_lang_reflect_Constructor::has_type_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->type_annotations(), CHECK_NULL);
-    java_lang_reflect_Constructor::set_type_annotations(ch(), an_oop);
-  }
+  typeArrayOop an_oop = Annotations::make_java_array(method->annotations(), CHECK_NULL);
+  java_lang_reflect_Constructor::set_annotations(ch(), an_oop);
+  an_oop = Annotations::make_java_array(method->parameter_annotations(), CHECK_NULL);
+  java_lang_reflect_Constructor::set_parameter_annotations(ch(), an_oop);
   return ch();
 }
 
@@ -966,20 +933,13 @@ oop Reflection::new_field(fieldDescriptor* fd, TRAPS) {
   // Note the ACC_ANNOTATION bit, which is a per-class access flag, is never set here.
   java_lang_reflect_Field::set_modifiers(rh(), fd->access_flags().as_int() & JVM_RECOGNIZED_FIELD_MODIFIERS);
   java_lang_reflect_Field::set_override(rh(), false);
-  if (java_lang_reflect_Field::has_signature_field() &&
-      fd->has_generic_signature()) {
+  if (fd->has_generic_signature()) {
     Symbol*  gs = fd->generic_signature();
     Handle sig = java_lang_String::create_from_symbol(gs, CHECK_NULL);
     java_lang_reflect_Field::set_signature(rh(), sig());
   }
-  if (java_lang_reflect_Field::has_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(fd->annotations(), CHECK_NULL);
-    java_lang_reflect_Field::set_annotations(rh(), an_oop);
-  }
-  if (java_lang_reflect_Field::has_type_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(fd->type_annotations(), CHECK_NULL);
-    java_lang_reflect_Field::set_type_annotations(rh(), an_oop);
-  }
+  typeArrayOop an_oop = Annotations::make_java_array(fd->annotations(), CHECK_NULL);
+  java_lang_reflect_Field::set_annotations(rh(), an_oop);
   return rh();
 }
 

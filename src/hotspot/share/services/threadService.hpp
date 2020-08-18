@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,20 +22,19 @@
  *
  */
 
-#ifndef SHARE_VM_SERVICES_THREADSERVICE_HPP
-#define SHARE_VM_SERVICES_THREADSERVICE_HPP
+#ifndef SHARE_SERVICES_THREADSERVICE_HPP
+#define SHARE_SERVICES_THREADSERVICE_HPP
 
 #include "classfile/javaClasses.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/init.hpp"
 #include "runtime/jniHandles.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/objectMonitor.inline.hpp"
 #include "runtime/perfData.hpp"
+#include "runtime/safepoint.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/threadSMR.hpp"
 #include "services/management.hpp"
-#include "services/serviceUtil.hpp"
 
 class OopClosure;
 class ThreadDumpResult;
@@ -60,10 +59,12 @@ private:
   static PerfVariable* _peak_threads_count;
   static PerfVariable* _daemon_threads_count;
 
-  // These 2 counters are atomically incremented once the thread is exiting.
-  // They will be atomically decremented when ThreadService::remove_thread is called.
-  static volatile int  _exiting_threads_count;
-  static volatile int  _exiting_daemon_threads_count;
+  // These 2 counters are like the above thread counts, but are
+  // atomically decremented in ThreadService::current_thread_exiting instead of
+  // ThreadService::remove_thread, so that the thread count is updated before
+  // Thread.join() returns.
+  static volatile int  _atomic_threads_count;
+  static volatile int  _atomic_daemon_threads_count;
 
   static bool          _thread_monitoring_contention_enabled;
   static bool          _thread_cpu_time_enabled;
@@ -74,11 +75,13 @@ private:
   // requested by multiple threads concurrently.
   static ThreadDumpResult* _threaddump_list;
 
+  static void decrement_thread_counts(JavaThread* jt, bool daemon);
+
 public:
   static void init();
   static void add_thread(JavaThread* thread, bool daemon);
   static void remove_thread(JavaThread* thread, bool daemon);
-  static void current_thread_exiting(JavaThread* jt);
+  static void current_thread_exiting(JavaThread* jt, bool daemon);
 
   static bool set_thread_monitoring_contention(bool flag);
   static bool is_thread_monitoring_contention() { return _thread_monitoring_contention_enabled; }
@@ -87,15 +90,12 @@ public:
   static bool is_thread_cpu_time_enabled()    { return _thread_cpu_time_enabled; }
 
   static bool set_thread_allocated_memory_enabled(bool flag);
-  static bool is_thread_allocated_memory_enabled() { return _thread_cpu_time_enabled; }
+  static bool is_thread_allocated_memory_enabled() { return _thread_allocated_memory_enabled; }
 
   static jlong get_total_thread_count()       { return _total_threads_count->get_value(); }
   static jlong get_peak_thread_count()        { return _peak_threads_count->get_value(); }
-  static jlong get_live_thread_count()        { return _live_threads_count->get_value() - _exiting_threads_count; }
-  static jlong get_daemon_thread_count()      { return _daemon_threads_count->get_value() - _exiting_daemon_threads_count; }
-
-  static int   exiting_threads_count()        { return _exiting_threads_count; }
-  static int   exiting_daemon_threads_count() { return _exiting_daemon_threads_count; }
+  static jlong get_live_thread_count()        { return _atomic_threads_count; }
+  static jlong get_daemon_thread_count()      { return _atomic_daemon_threads_count; }
 
   // Support for thread dump
   static void   add_thread_dump(ThreadDumpResult* dump);
@@ -215,8 +215,9 @@ private:
 
 public:
   // Dummy snapshot
-  ThreadSnapshot() : _thread(NULL), _threadObj(NULL), _stack_trace(NULL), _concurrent_locks(NULL), _next(NULL),
-                     _blocker_object(NULL), _blocker_object_owner(NULL) {};
+  ThreadSnapshot() : _thread(NULL), _threadObj(NULL),
+                     _blocker_object(NULL), _blocker_object_owner(NULL),
+                     _stack_trace(NULL), _concurrent_locks(NULL), _next(NULL) {};
   ThreadSnapshot(ThreadsList * t_list, JavaThread* thread);
   ~ThreadSnapshot();
 
@@ -379,7 +380,7 @@ class ThreadDumpResult : public StackObj {
   ThreadSnapshot*      snapshots()                      { return _snapshots; }
   void                 set_t_list()                     { _setter.set(); }
   ThreadsList*         t_list();
-  bool                 t_list_has_been_set()            { return _setter.target_needs_release(); }
+  bool                 t_list_has_been_set()            { return _setter.is_set(); }
   void                 oops_do(OopClosure* f);
   void                 metadata_do(void f(Metadata*));
 };
@@ -548,7 +549,7 @@ class JavaThreadBlockedOnMonitorEnterState : public JavaThreadStatusChanger {
   static bool wait_reenter_begin(JavaThread *java_thread, ObjectMonitor *obj_m) {
     assert((java_thread != NULL), "Java thread should not be null here");
     bool active = false;
-    if (is_alive(java_thread) && ServiceUtil::visible_oop((oop)obj_m->object())) {
+    if (is_alive(java_thread)) {
       active = contended_enter_begin(java_thread);
     }
     return active;
@@ -562,14 +563,14 @@ class JavaThreadBlockedOnMonitorEnterState : public JavaThreadStatusChanger {
   }
 
   JavaThreadBlockedOnMonitorEnterState(JavaThread *java_thread, ObjectMonitor *obj_m) :
-    _stat(NULL), _active(false), JavaThreadStatusChanger(java_thread) {
+    JavaThreadStatusChanger(java_thread), _stat(NULL), _active(false) {
     assert((java_thread != NULL), "Java thread should not be null here");
     // Change thread status and collect contended enter stats for monitor contended
     // enter done for external java world objects and it is contended. All other cases
     // like for vm internal objects and for external objects which are not contended
     // thread status is not changed and contended enter stat is not collected.
     _active = false;
-    if (is_alive() && ServiceUtil::visible_oop((oop)obj_m->object()) && obj_m->contentions() > 0) {
+    if (is_alive() && obj_m->contentions() > 0) {
       _stat = java_thread->get_thread_stat();
       _active = contended_enter_begin(java_thread);
     }
@@ -609,4 +610,4 @@ class JavaThreadSleepState : public JavaThreadStatusChanger {
   }
 };
 
-#endif // SHARE_VM_SERVICES_THREADSERVICE_HPP
+#endif // SHARE_SERVICES_THREADSERVICE_HPP

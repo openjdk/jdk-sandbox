@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_RTMLOCKING_HPP
-#define SHARE_VM_RUNTIME_RTMLOCKING_HPP
+#ifndef SHARE_RUNTIME_RTMLOCKING_HPP
+#define SHARE_RUNTIME_RTMLOCKING_HPP
 
 // Generate RTM (Restricted Transactional Memory) locking code for all inflated
 // locks when "UseRTMLocking" option is on with normal locking mechanism as fall back
@@ -62,7 +62,7 @@
 // supported for stack locks just like inflated locks.
 
 // RTM locking counters
-class RTMLockingCounters VALUE_OBJ_CLASS_SPEC {
+class RTMLockingCounters {
  private:
   uintx _total_count; // Total RTM locks count
   uintx _abort_count; // Total aborts count
@@ -110,4 +110,4 @@ class RTMLockingCounters VALUE_OBJ_CLASS_SPEC {
   void print() { print_on(tty); }
 };
 
-#endif // SHARE_VM_RUNTIME_RTMLOCKING_HPP
+#endif // SHARE_RUNTIME_RTMLOCKING_HPP

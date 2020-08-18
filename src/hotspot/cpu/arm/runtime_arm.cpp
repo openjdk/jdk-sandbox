@@ -32,7 +32,7 @@
 #include "memory/resourceArea.hpp"
 #include "nativeInst_arm.hpp"
 #include "opto/runtime.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/vframeArray.hpp"
@@ -126,15 +126,8 @@ void OptoRuntime::generate_exception_blob() {
 
   // Restore SP from its saved reg (FP) if the exception PC is a MethodHandle call site.
   __ ldr(Rtemp, Address(Rthread, JavaThread::is_method_handle_return_offset()));
-#ifdef AARCH64
-  Label skip;
-  __ cbz(Rtemp, skip);
-  __ mov(SP, Rmh_SP_save);
-  __ bind(skip);
-#else
   __ cmp(Rtemp, 0);
   __ mov(SP, Rmh_SP_save, ne);
-#endif
 
   // R0 contains handler address
   // Since this may be the deopt blob we must set R5 to look like we returned

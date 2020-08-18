@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SERIAL_TENUREDGENERATION_HPP
-#define SHARE_VM_GC_SERIAL_TENUREDGENERATION_HPP
+#ifndef SHARE_GC_SERIAL_TENUREDGENERATION_HPP
+#define SHARE_GC_SERIAL_TENUREDGENERATION_HPP
 
 #include "gc/serial/cSpaceCounters.hpp"
 #include "gc/shared/cardGeneration.hpp"
@@ -75,10 +75,8 @@ class TenuredGeneration: public CardGeneration {
   virtual inline HeapWord* allocate(size_t word_size, bool is_tlab);
   virtual inline HeapWord* par_allocate(size_t word_size, bool is_tlab);
 
-#define TenuredGen_SINCE_SAVE_MARKS_DECL(OopClosureType, nv_suffix)     \
-  void oop_since_save_marks_iterate##nv_suffix(OopClosureType* cl);
-  TenuredGen_SINCE_SAVE_MARKS_DECL(OopsInGenClosure,_v)
-  SPECIALIZED_SINCE_SAVE_MARKS_CLOSURES(TenuredGen_SINCE_SAVE_MARKS_DECL)
+  template <typename OopClosureType>
+  void oop_since_save_marks_iterate(OopClosureType* cl);
 
   void save_marks();
   void reset_saved_marks();
@@ -123,4 +121,4 @@ class TenuredGeneration: public CardGeneration {
   virtual void print_on(outputStream* st) const;
 };
 
-#endif // SHARE_VM_GC_SERIAL_TENUREDGENERATION_HPP
+#endif // SHARE_GC_SERIAL_TENUREDGENERATION_HPP

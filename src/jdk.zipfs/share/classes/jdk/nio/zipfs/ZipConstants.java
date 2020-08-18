@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,8 @@
 package jdk.nio.zipfs;
 
 /**
- *
  * @author Xueming Shen
  */
-
 class ZipConstants {
     /*
      * Compression methods
@@ -43,11 +41,11 @@ class ZipConstants {
     static final int METHOD_AES        = 99;
 
     /*
-     * General purpose big flag
+     * General purpose bit flag
      */
     static final int FLAG_ENCRYPTED  = 0x01;
     static final int FLAG_DATADESCR  = 0x08;    // crc, size and csize in dd
-    static final int FLAG_EFS        = 0x800;   // If this bit is set the filename and
+    static final int FLAG_USE_UTF8   = 0x800;   // If this bit is set the filename and
                                                 // comment fields for this file must be
                                                 // encoded using UTF-8.
     /*

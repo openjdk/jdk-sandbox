@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@ import propertiesparser.gen.ClassGenerator;
 
 import java.io.File;
 import java.io.PrintStream;
-import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.Map;
 
 /** Translates a .properties file into a .java file containing an enum-like Java class
@@ -96,12 +96,13 @@ public class PropertiesParser {
     }
 
     private Map<String, String> parseOptions(String args[]) {
-        Map<String, String> optionsMap = new HashMap<>(args.length);
+        /* Use TreeMap to guarantee stable forEach iteration */
+        Map<String, String> optionsMap = new TreeMap<>();
         for ( int i = 0; i < args.length ; i++ ) {
             if ( "-compile".equals(args[i]) && i+2 < args.length ) {
                 optionsMap.put(args[++i], args[++i]);
             } else {
-                return new HashMap<>();
+                return new TreeMap<>();
             }
         }
         return optionsMap;

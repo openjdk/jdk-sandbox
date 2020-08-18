@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.phases;
 
 import org.graalvm.compiler.lir.phases.AllocationPhase.AllocationContext;
@@ -36,6 +38,10 @@ import org.graalvm.compiler.phases.tiers.HighTierContext;
 import org.graalvm.compiler.phases.tiers.LowTierContext;
 import org.graalvm.compiler.phases.tiers.MidTierContext;
 
+/**
+ * A compiler configuration that performs fewer Graal IR optimizations while using the same backend
+ * as the {@link CommunityCompilerConfiguration}.
+ */
 public class EconomyCompilerConfiguration implements CompilerConfiguration {
 
     @Override

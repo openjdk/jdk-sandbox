@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.TextComponent;
 import java.awt.TrayIcon;
 import java.beans.PropertyChangeListener;
+import java.lang.ref.WeakReference;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import javax.swing.text.JTextComponent;
@@ -47,6 +48,7 @@ import sun.awt.AppContext;
 import sun.awt.AWTAutoShutdown;
 import sun.awt.AWTPermissions;
 import sun.awt.AppContext;
+import sun.awt.DisplayChangedListener;
 import sun.awt.LightweightFrame;
 import sun.awt.SunToolkit;
 import sun.awt.util.ThreadGroupUtils;
@@ -70,6 +72,8 @@ import java.util.Hashtable;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import sun.awt.util.PerformanceLogger;
 import sun.font.FontManager;
@@ -802,10 +806,13 @@ public final class WToolkit extends SunToolkit implements Runnable {
     public native int getMaximumCursorColors();
 
     static void paletteChanged() {
-        ((Win32GraphicsEnvironment)GraphicsEnvironment
-        .getLocalGraphicsEnvironment())
-        .paletteChanged();
+        Object lge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        if (lge instanceof DisplayChangedListener) {
+            ((DisplayChangedListener) lge).paletteChanged();
+        }
     }
+
+    private static ExecutorService displayChangeExecutor;
 
     /*
      * Called from Toolkit native code when a WM_DISPLAYCHANGE occurs.
@@ -813,14 +820,26 @@ public final class WToolkit extends SunToolkit implements Runnable {
      * Event thread.
      */
     public static void displayChanged() {
-        EventQueue.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                ((Win32GraphicsEnvironment)GraphicsEnvironment
-                .getLocalGraphicsEnvironment())
-                .displayChanged();
+        final Runnable runnable = () -> {
+            Object lge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            if (lge instanceof DisplayChangedListener) {
+                ((DisplayChangedListener) lge).displayChanged();
             }
-        });
+        };
+        if (AppContext.getAppContext() != null) {
+            // Common case, standalone application
+            EventQueue.invokeLater(runnable);
+        } else {
+            if (displayChangeExecutor == null) {
+                // No synchronization, called on the Toolkit thread only
+                displayChangeExecutor = Executors.newFixedThreadPool(1, r -> {
+                    Thread t = Executors.defaultThreadFactory().newThread(r);
+                    t.setDaemon(true);
+                    return t;
+                });
+            }
+            displayChangeExecutor.submit(runnable);
+        }
     }
 
     /**
@@ -1092,47 +1111,59 @@ public final class WToolkit extends SunToolkit implements Runnable {
     // The following code is used for support of automatic showing of the touch
     // keyboard for text components and is accessed only from EDT.
     ///////////////////////////////////////////////////////////////////////////
-    private volatile Component compOnTouchDownEvent;
-    private volatile Component compOnMousePressedEvent;
+    private static final WeakReference<Component> NULL_COMPONENT_WR =
+        new WeakReference<>(null);
+    private volatile WeakReference<Component> compOnTouchDownEvent =
+        NULL_COMPONENT_WR;
+    private volatile WeakReference<Component> compOnMousePressedEvent =
+        NULL_COMPONENT_WR;
+
+    private boolean isComponentValidForTouchKeyboard(Component comp) {
+        if ((comp != null) && comp.isEnabled() && comp.isFocusable() &&
+            (((comp instanceof TextComponent) &&
+                    ((TextComponent) comp).isEditable()) ||
+                ((comp instanceof JTextComponent) &&
+                    ((JTextComponent) comp).isEditable()))) {
+            return true;
+        }
+        return false;
+    }
 
     @Override
     public void showOrHideTouchKeyboard(Component comp, AWTEvent e) {
-        if ((comp == null) || (e == null) ||
-            (!(comp instanceof TextComponent) &&
-                !(comp instanceof JTextComponent))) {
+        if (!(comp instanceof TextComponent) &&
+            !(comp instanceof JTextComponent)) {
             return;
         }
 
-        if ((e instanceof MouseEvent) && comp.isEnabled() &&
-            (((comp instanceof TextComponent) &&
-                    ((TextComponent)comp).isEditable()) ||
-                ((comp instanceof JTextComponent) &&
-                    ((JTextComponent)comp).isEditable()))) {
-            MouseEvent me = (MouseEvent)e;
+        if ((e instanceof MouseEvent) && isComponentValidForTouchKeyboard(comp)) {
+            MouseEvent me = (MouseEvent) e;
             if (me.getID() == MouseEvent.MOUSE_PRESSED) {
-                if (AWTAccessor.getMouseEventAccessor()
-                        .isCausedByTouchEvent(me)) {
-                    compOnTouchDownEvent = comp;
+                if (AWTAccessor.getMouseEventAccessor().isCausedByTouchEvent(me)) {
+                    compOnTouchDownEvent = new WeakReference<>(comp);
                 } else {
-                    compOnMousePressedEvent = comp;
+                    compOnMousePressedEvent = new WeakReference<>(comp);
                 }
             } else if (me.getID() == MouseEvent.MOUSE_RELEASED) {
-                if (AWTAccessor.getMouseEventAccessor()
-                        .isCausedByTouchEvent(me)) {
-                    if (compOnTouchDownEvent == comp) {
+                if (AWTAccessor.getMouseEventAccessor().isCausedByTouchEvent(me)) {
+                    if (compOnTouchDownEvent.get() == comp) {
                         showTouchKeyboard(true);
                     }
-                    compOnTouchDownEvent = null;
+                    compOnTouchDownEvent = NULL_COMPONENT_WR;
                 } else {
-                    if (compOnMousePressedEvent == comp) {
+                    if (compOnMousePressedEvent.get() == comp) {
                         showTouchKeyboard(false);
                     }
-                    compOnMousePressedEvent = null;
+                    compOnMousePressedEvent = NULL_COMPONENT_WR;
                 }
             }
         } else if (e instanceof FocusEvent) {
-            if (e.getID() == FocusEvent.FOCUS_LOST) {
-                hideTouchKeyboard();
+            FocusEvent fe = (FocusEvent) e;
+            if (fe.getID() == FocusEvent.FOCUS_LOST) {
+                // Hide the touch keyboard, if not a text component gains focus.
+                if (!isComponentValidForTouchKeyboard(fe.getOppositeComponent())) {
+                    hideTouchKeyboard();
+                }
             }
         }
     }

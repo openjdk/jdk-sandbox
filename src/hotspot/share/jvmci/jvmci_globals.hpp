@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JVMCI_JVMCIGLOBALS_HPP
-#define SHARE_VM_JVMCI_JVMCIGLOBALS_HPP
+#ifndef SHARE_JVMCI_JVMCI_GLOBALS_HPP
+#define SHARE_JVMCI_JVMCI_GLOBALS_HPP
 
 #include "runtime/globals.hpp"
 
@@ -54,6 +54,9 @@
                                                                             \
   experimental(bool, BootstrapJVMCI, false,                                 \
           "Bootstrap JVMCI before running Java main method")                \
+                                                                            \
+  experimental(bool, EagerJVMCI, false,                                     \
+          "Force eager JVMCI initialization")                               \
                                                                             \
   experimental(bool, PrintBootstrap, true,                                  \
           "Print JVMCI bootstrap progress and summary")                     \
@@ -95,7 +98,22 @@
           "Number of methods to record in call profile")                    \
                                                                             \
   develop(bool, TraceUncollectedSpeculations, false,                        \
-          "Print message when a failed speculation was not collected")
+          "Print message when a failed speculation was not collected")      \
+                                                                            \
+  NOT_COMPILER2(diagnostic(bool, UseMultiplyToLenIntrinsic, false,          \
+          "Enables intrinsification of BigInteger.multiplyToLen()"))        \
+                                                                            \
+  NOT_COMPILER2(diagnostic(bool, UseSquareToLenIntrinsic, false,            \
+          "Enables intrinsification of BigInteger.squareToLen()"))          \
+                                                                            \
+  NOT_COMPILER2(diagnostic(bool, UseMulAddIntrinsic, false,                 \
+          "Enables intrinsification of BigInteger.mulAdd()"))               \
+                                                                            \
+  NOT_COMPILER2(diagnostic(bool, UseMontgomeryMultiplyIntrinsic, false,     \
+          "Enables intrinsification of BigInteger.montgomeryMultiply()"))   \
+                                                                            \
+  NOT_COMPILER2(diagnostic(bool, UseMontgomerySquareIntrinsic, false,       \
+          "Enables intrinsification of BigInteger.montgomerySquare()"))
 
 
 // Read default values for JVMCI globals
@@ -118,5 +136,8 @@ class JVMCIGlobals {
   // an error message describing the inconsistency is printed before
   // returning false.
   static bool check_jvmci_flags_are_consistent();
+
+  // Check and exit VM with error if selected GC is not supported by JVMCI.
+  static void check_jvmci_supported_gc();
 };
-#endif // SHARE_VM_JVMCI_JVMCIGLOBALS_HPP
+#endif // SHARE_JVMCI_JVMCI_GLOBALS_HPP

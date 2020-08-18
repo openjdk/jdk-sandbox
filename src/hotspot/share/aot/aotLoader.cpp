@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,9 @@
 #include "aot/aotCodeHeap.hpp"
 #include "aot/aotLoader.inline.hpp"
 #include "jvmci/jvmciRuntime.hpp"
+#include "memory/allocation.inline.hpp"
 #include "oops/method.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/timerTrace.hpp"
 
@@ -40,11 +42,13 @@ GrowableArray<AOTLib*>* AOTLoader::_libraries = new(ResourceObj::C_HEAP, mtCode)
 #define FOR_ALL_AOT_LIBRARIES(lib) for (GrowableArrayIterator<AOTLib*> lib = libraries()->begin(); lib != libraries()->end(); ++lib)
 
 void AOTLoader::load_for_klass(InstanceKlass* ik, Thread* thread) {
-  if (ik->is_anonymous()) {
+  if (ik->is_unsafe_anonymous()) {
     // don't even bother
     return;
   }
   if (UseAOT) {
+    // We allow hotswap to be enabled after the onload phase, but not breakpoints
+    assert(!JvmtiExport::can_post_breakpoint(), "AOT should have been disabled.");
     FOR_ALL_AOT_HEAPS(heap) {
       (*heap)->load_klass_data(ik, thread);
     }
@@ -52,7 +56,8 @@ void AOTLoader::load_for_klass(InstanceKlass* ik, Thread* thread) {
 }
 
 uint64_t AOTLoader::get_saved_fingerprint(InstanceKlass* ik) {
-  if (ik->is_anonymous()) {
+  assert(UseAOT, "called only when AOT is enabled");
+  if (ik->is_unsafe_anonymous()) {
     // don't even bother
     return 0;
   }
@@ -63,24 +68,6 @@ uint64_t AOTLoader::get_saved_fingerprint(InstanceKlass* ik) {
     }
   }
   return 0;
-}
-
-bool AOTLoader::find_klass(InstanceKlass* ik) {
-  FOR_ALL_AOT_HEAPS(heap) {
-    if ((*heap)->find_klass(ik) != NULL) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool AOTLoader::contains(address p) {
-  FOR_ALL_AOT_HEAPS(heap) {
-    if ((*heap)->contains(p)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 void AOTLoader::oops_do(OopClosure* f) {
@@ -97,15 +84,6 @@ void AOTLoader::metadata_do(void f(Metadata*)) {
       (*heap)->metadata_do(f);
     }
   }
-}
-
-// Flushing and deoptimization in case of evolution
-void AOTLoader::flush_evol_dependents_on(InstanceKlass* dependee) {
-  // make non entrant and mark for deoptimization
-  FOR_ALL_AOT_HEAPS(heap) {
-    (*heap)->flush_evol_dependents_on(dependee);
-  }
-  Deoptimization::deoptimize_dependents();
 }
 
 /**
@@ -137,6 +115,14 @@ void AOTLoader::initialize() {
       return;
     }
 
+    if (JvmtiExport::can_post_breakpoint()) {
+      if (PrintAOT) {
+        warning("JVMTI capability to post breakpoint is not compatible with AOT (switching AOT off)");
+      }
+      FLAG_SET_DEFAULT(UseAOT, false);
+      return;
+    }
+
     // -Xint is not compatible with AOT
     if (Arguments::is_interpreter_only()) {
       if (PrintAOT) {
@@ -145,6 +131,12 @@ void AOTLoader::initialize() {
       FLAG_SET_DEFAULT(UseAOT, false);
       return;
     }
+
+#ifdef _WINDOWS
+    const char pathSep = ';';
+#else
+    const char pathSep = ':';
+#endif
 
     // Scan the AOTLibrary option.
     if (AOTLibrary != NULL) {
@@ -156,7 +148,7 @@ void AOTLoader::initialize() {
         char* end = cp + len;
         while (cp < end) {
           const char* name = cp;
-          while ((*cp) != '\0' && (*cp) != '\n' && (*cp) != ',' && (*cp) != ':' && (*cp) != ';')  cp++;
+          while ((*cp) != '\0' && (*cp) != '\n' && (*cp) != ',' && (*cp) != pathSep) cp++;
           cp[0] = '\0';  // Terminate name
           cp++;
           load_library(name, true);
@@ -181,28 +173,21 @@ void AOTLoader::universe_init() {
     // Shifts are static values which initialized by 0 until java heap initialization.
     // AOT libs are loaded before heap initialized so shift values are not set.
     // It is okay since ObjectAlignmentInBytes flag which defines shifts value is set before AOT libs are loaded.
-    // Set shifts value based on first AOT library config.
+    // AOT sets shift values during heap and metaspace initialization.
+    // Check shifts value to make sure thay did not change.
     if (UseCompressedOops && AOTLib::narrow_oop_shift_initialized()) {
       int oop_shift = Universe::narrow_oop_shift();
-      if (oop_shift == 0) {
-        Universe::set_narrow_oop_shift(AOTLib::narrow_oop_shift());
-      } else {
-        FOR_ALL_AOT_LIBRARIES(lib) {
-          (*lib)->verify_flag(AOTLib::narrow_oop_shift(), oop_shift, "Universe::narrow_oop_shift");
-        }
+      FOR_ALL_AOT_LIBRARIES(lib) {
+        (*lib)->verify_flag((*lib)->config()->_narrowOopShift, oop_shift, "Universe::narrow_oop_shift");
       }
       if (UseCompressedClassPointers) { // It is set only if UseCompressedOops is set
         int klass_shift = Universe::narrow_klass_shift();
-        if (klass_shift == 0) {
-          Universe::set_narrow_klass_shift(AOTLib::narrow_klass_shift());
-        } else {
-          FOR_ALL_AOT_LIBRARIES(lib) {
-            (*lib)->verify_flag(AOTLib::narrow_klass_shift(), klass_shift, "Universe::narrow_klass_shift");
-          }
+        FOR_ALL_AOT_LIBRARIES(lib) {
+          (*lib)->verify_flag((*lib)->config()->_narrowKlassShift, klass_shift, "Universe::narrow_klass_shift");
         }
       }
     }
-    // Create heaps for all the libraries
+    // Create heaps for all valid libraries
     FOR_ALL_AOT_LIBRARIES(lib) {
       if ((*lib)->is_valid()) {
         AOTCodeHeap* heap = new AOTCodeHeap(*lib);
@@ -211,6 +196,9 @@ void AOTLoader::universe_init() {
           add_heap(heap);
           CodeCache::add_heap(heap);
         }
+      } else {
+        // Unload invalid libraries
+        os::dll_unload((*lib)->dl_handle());
       }
     }
   }
@@ -221,20 +209,29 @@ void AOTLoader::universe_init() {
   }
 }
 
+// Set shift value for compressed oops and classes based on first AOT library config.
+// AOTLoader::universe_init(), which is called later, will check the shift value again to make sure nobody change it.
+// This code is not executed during CDS dump because it runs in Interpreter mode and AOT is disabled in this mode.
+
+void AOTLoader::set_narrow_oop_shift() {
+  // This method is called from Universe::initialize_heap().
+  if (UseAOT && libraries_count() > 0 &&
+      UseCompressedOops && AOTLib::narrow_oop_shift_initialized()) {
+    if (Universe::narrow_oop_shift() == 0) {
+      // 0 is valid shift value for small heap but we can safely increase it
+      // at this point when nobody used it yet.
+      Universe::set_narrow_oop_shift(AOTLib::narrow_oop_shift());
+    }
+  }
+}
+
 void AOTLoader::set_narrow_klass_shift() {
-  // This method could be called from Metaspace::set_narrow_klass_base_and_shift().
-  // In case it is not called (during dump CDS, for example) the corresponding code in
-  // AOTLoader::universe_init(), which is called later, will set the shift value.
+  // This method is called from Metaspace::set_narrow_klass_base_and_shift().
   if (UseAOT && libraries_count() > 0 &&
       UseCompressedOops && AOTLib::narrow_oop_shift_initialized() &&
       UseCompressedClassPointers) {
-    int klass_shift = Universe::narrow_klass_shift();
-    if (klass_shift == 0) {
+    if (Universe::narrow_klass_shift() == 0) {
       Universe::set_narrow_klass_shift(AOTLib::narrow_klass_shift());
-    } else {
-      FOR_ALL_AOT_LIBRARIES(lib) {
-        (*lib)->verify_flag(AOTLib::narrow_klass_shift(), klass_shift, "Universe::narrow_klass_shift");
-      }
     }
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,16 @@
 
 #include "adlc.hpp"
 
+void* AllocateHeap(size_t size) {
+  unsigned char* ptr = (unsigned char*) malloc(size);
+  if (ptr == NULL && size != 0) {
+    fprintf(stderr, "Error: Out of memory in ADLC\n"); // logging can cause crash!
+    fflush(stderr);
+    exit(1);
+  }
+  return ptr;
+}
+
 void* Chunk::operator new(size_t requested_size, size_t length) throw() {
   return CHeapObj::operator new(requested_size + length);
 }
@@ -43,7 +53,7 @@ void Chunk::chop() {
   while( k ) {
     Chunk *tmp = k->_next;
     // clear out this chunk (to detect allocation bugs)
-    memset(k, 0xBAADBABE, k->_len);
+    memset(k, 0xBE, k->_len);
     free(k);                    // Free chunk (was malloc'd)
     k = tmp;
   }
@@ -79,7 +89,7 @@ Arena::Arena( Arena *a )
 // Total of all Chunks in arena
 size_t Arena::used() const {
   size_t sum = _chunk->_len - (_max-_hwm); // Size leftover in this Chunk
-  register Chunk *k = _first;
+  Chunk *k = _first;
   while( k != _chunk) {         // Whilst have Chunks in a row
     sum += k->_len;             // Total size of this Chunk
     k = k->_next;               // Bump along to next Chunk
@@ -93,7 +103,7 @@ void* Arena::grow( size_t x ) {
   // Get minimal required size.  Either real big, or even bigger for giant objs
   size_t len = max(x, Chunk::size);
 
-  register Chunk *k = _chunk;   // Get filled-up chunk address
+  Chunk *k = _chunk;            // Get filled-up chunk address
   _chunk = new (len) Chunk(len);
 
   if( k ) k->_next = _chunk;    // Append new chunk to end of linked list
@@ -164,7 +174,7 @@ bool Arena::contains( const void *ptr ) const {
 // CHeapObj
 
 void* CHeapObj::operator new(size_t size) throw() {
-  return (void *) malloc(size);
+  return (void *) AllocateHeap(size);
 }
 
 void CHeapObj::operator delete(void* p){

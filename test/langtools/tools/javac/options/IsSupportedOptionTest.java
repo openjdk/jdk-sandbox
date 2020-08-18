@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8189782
+ * @bug 8189782 8210555
  * @summary Test for isSupportedOption
  * @modules java.compiler
  *          jdk.compiler
@@ -44,6 +44,9 @@ public class IsSupportedOptionTest {
     public void run() throws Exception {
         JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         check(tool, "-source", 1);
+        check(tool, "--source", 1);
+        check(tool, "-target", 1);
+        check(tool, "--target", 1);
         check(tool, "--add-modules", 1);
         check(tool, "-verbose", 0);
         check(tool, "-proc:none", 0);
@@ -52,7 +55,7 @@ public class IsSupportedOptionTest {
         check(tool, "-Xdoclint", 0);
         check(tool, "-Xdoclint:stats", 0);
         check(tool, "-Xdoclint/package:foo", 0);
-        check(tool, "--debug:any", 0);
+        check(tool, "--debug=any", 1);
         check(tool, "-g", 0);
         check(tool, "-g:vars", 0);
         check(tool, "-g:none", 0);

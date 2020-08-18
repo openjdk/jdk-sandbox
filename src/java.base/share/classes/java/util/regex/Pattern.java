@@ -1193,14 +1193,23 @@ public final class Pattern
      *
      * <p> The {@code limit} parameter controls the number of times the
      * pattern is applied and therefore affects the length of the resulting
-     * array.  If the limit <i>n</i> is greater than zero then the pattern
-     * will be applied at most <i>n</i>&nbsp;-&nbsp;1 times, the array's
-     * length will be no greater than <i>n</i>, and the array's last entry
-     * will contain all input beyond the last matched delimiter.  If <i>n</i>
-     * is non-positive then the pattern will be applied as many times as
-     * possible and the array can have any length.  If <i>n</i> is zero then
-     * the pattern will be applied as many times as possible, the array can
-     * have any length, and trailing empty strings will be discarded.
+     * array.
+     * <ul>
+     *    <li><p>
+     *    If the <i>limit</i> is positive then the pattern will be applied
+     *    at most <i>limit</i>&nbsp;-&nbsp;1 times, the array's length will be
+     *    no greater than <i>limit</i>, and the array's last entry will contain
+     *    all input beyond the last matched delimiter.</p></li>
+     *
+     *    <li><p>
+     *    If the <i>limit</i> is zero then the pattern will be applied as
+     *    many times as possible, the array can have any length, and trailing
+     *    empty strings will be discarded.</p></li>
+     *
+     *    <li><p>
+     *    If the <i>limit</i> is negative then the pattern will be applied
+     *    as many times as possible and the array can have any length.</p></li>
+     * </ul>
      *
      * <p> The input {@code "boo:and:foo"}, for example, yields the following
      * results with these parameters:
@@ -1281,7 +1290,7 @@ public final class Pattern
         // Construct result
         int resultSize = matchList.size();
         if (limit == 0)
-            while (resultSize > 0 && matchList.get(resultSize-1).equals(""))
+            while (resultSize > 0 && matchList.get(resultSize-1).isEmpty())
                 resultSize--;
         String[] result = new String[resultSize];
         return matchList.subList(0, resultSize).toArray(result);
@@ -1381,7 +1390,7 @@ public final class Pattern
         localTCNCount = 0;
 
         // if length > 0, the Pattern is lazily compiled
-        if (pattern.length() == 0) {
+        if (pattern.isEmpty()) {
             root = new Start(lastAccept);
             matchRoot = lastAccept;
             compiled = true;
@@ -1414,7 +1423,7 @@ public final class Pattern
         localCount = 0;
         localTCNCount = 0;
 
-        if (pattern.length() > 0) {
+        if (!pattern.isEmpty()) {
             compile();
         } else {
             root = new Start(lastAccept);
@@ -1424,10 +1433,10 @@ public final class Pattern
 
     /**
      * The pattern is converted to normalized form ({@link
-     * java.text.Normalizer.Form.NFC NFC}, canonical decomposition,
+     * java.text.Normalizer.Form#NFC NFC}, canonical decomposition,
      * followed by canonical composition for the character class
-     * part, and {@link java.text.Normalizer.Form.NFD NFD},
-     * canonical decomposition) for the rest), and then a pure
+     * part, and {@link java.text.Normalizer.Form#NFD NFD},
+     * canonical decomposition for the rest), and then a pure
      * group is constructed to match canonical equivalences of the
      * characters.
      */
@@ -5809,13 +5818,44 @@ NEXT:       while (i <= last) {
     static final Node lastAccept = new LastNode();
 
     /**
-     * Creates a predicate which can be used to match a string.
+     * Creates a predicate that tests if this pattern is found in a given input
+     * string.
      *
-     * @return  The predicate which can be used for matching on a string
+     * @apiNote
+     * This method creates a predicate that behaves as if it creates a matcher
+     * from the input sequence and then calls {@code find}, for example a
+     * predicate of the form:
+     * <pre>{@code
+     *   s -> matcher(s).find();
+     * }</pre>
+     *
+     * @return  The predicate which can be used for finding a match on a
+     *          subsequence of a string
      * @since   1.8
+     * @see     Matcher#find
      */
     public Predicate<String> asPredicate() {
         return s -> matcher(s).find();
+    }
+
+    /**
+     * Creates a predicate that tests if this pattern matches a given input string.
+     *
+     * @apiNote
+     * This method creates a predicate that behaves as if it creates a matcher
+     * from the input sequence and then calls {@code matches}, for example a
+     * predicate of the form:
+     * <pre>{@code
+     *   s -> matcher(s).matches();
+     * }</pre>
+     *
+     * @return  The predicate which can be used for matching an input string
+     *          against this pattern.
+     * @since   11
+     * @see     Matcher#matches
+     */
+    public Predicate<String> asMatchPredicate() {
+        return s -> matcher(s).matches();
     }
 
     /**

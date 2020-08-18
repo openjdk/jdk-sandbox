@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_WORKERDATAARRAY_INLINE_HPP
-#define SHARE_VM_GC_SHARED_WORKERDATAARRAY_INLINE_HPP
+#ifndef SHARE_GC_SHARED_WORKERDATAARRAY_INLINE_HPP
+#define SHARE_GC_SHARED_WORKERDATAARRAY_INLINE_HPP
 
 #include "gc/shared/workerDataArray.hpp"
 #include "memory/allocation.inline.hpp"
@@ -31,10 +31,10 @@
 
 template <typename T>
 WorkerDataArray<T>::WorkerDataArray(uint length, const char* title) :
- _title(title),
- _length(0) {
+ _data(NULL),
+ _length(length),
+ _title(title) {
   assert(length > 0, "Must have some workers to store data for");
-  _length = length;
   _data = NEW_C_HEAP_ARRAY(T, _length, mtGC);
   for (uint i = 0; i < MaxThreadWorkItems; i++) {
     _thread_work_items[i] = NULL;
@@ -78,6 +78,17 @@ void WorkerDataArray<T>::add_thread_work_item(uint worker_i, size_t value, uint 
   assert(index < MaxThreadWorkItems, "Tried to access thread work item %u (max %u)", index, MaxThreadWorkItems);
   assert(_thread_work_items[index] != NULL, "No sub count");
   _thread_work_items[index]->add(worker_i, value);
+}
+
+template <typename T>
+void WorkerDataArray<T>::set_or_add_thread_work_item(uint worker_i, size_t value, uint index) {
+  assert(index < MaxThreadWorkItems, "Tried to access thread work item %u (max %u)", index, MaxThreadWorkItems);
+  assert(_thread_work_items[index] != NULL, "No sub count");
+  if (_thread_work_items[index]->get(worker_i) == _thread_work_items[index]->uninitialized()) {
+    _thread_work_items[index]->set(worker_i, value);
+  } else {
+    _thread_work_items[index]->add(worker_i, value);
+  }
 }
 
 template <typename T>
@@ -166,4 +177,4 @@ void WorkerDataArray<T>::reset() {
   }
 }
 
-#endif // SHARE_VM_GC_SHARED_WORKERDATAARRAY_INLINE_HPP
+#endif // SHARE_GC_SHARED_WORKERDATAARRAY_INLINE_HPP

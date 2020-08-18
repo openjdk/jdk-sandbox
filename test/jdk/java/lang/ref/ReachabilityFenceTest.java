@@ -25,6 +25,8 @@
  * @bug 8133348
  * @summary Tests if reachabilityFence is working
  *
+ * @requires vm.opt.DeoptimizeALot != true
+ *
  * @run main/othervm -Xint                   -Dpremature=false ReachabilityFenceTest
  * @run main/othervm -XX:TieredStopAtLevel=1 -Dpremature=true  ReachabilityFenceTest
  * @run main/othervm -XX:TieredStopAtLevel=2 -Dpremature=true  ReachabilityFenceTest
@@ -122,9 +124,11 @@ public class ReachabilityFenceTest {
             }
         }
 
-        Reference.reachabilityFence(o);
-
-        return finalized.get();
+        try {
+            return finalized.get();
+        } finally {
+            Reference.reachabilityFence(o);
+        }
     }
 
     private static class MyFinalizeable {

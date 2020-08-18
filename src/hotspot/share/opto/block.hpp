@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_BLOCK_HPP
-#define SHARE_VM_OPTO_BLOCK_HPP
+#ifndef SHARE_OPTO_BLOCK_HPP
+#define SHARE_OPTO_BLOCK_HPP
 
 #include "opto/multnode.hpp"
 #include "opto/node.hpp"
@@ -55,7 +55,7 @@ protected:
   void grow( uint i );          // Grow array node to fit
 
 public:
-  Block_Array(Arena *a) : _arena(a), _size(OptoBlockListSize) {
+  Block_Array(Arena *a) : _size(OptoBlockListSize), _arena(a) {
     debug_only(_limit=0);
     _blocks = NEW_ARENA_ARRAY( a, Block *, OptoBlockListSize );
     for( int i = 0; i < OptoBlockListSize; i++ ) {
@@ -661,7 +661,7 @@ public:
 
 //----------------------------BlockProbPair---------------------------
 // Ordered pair of Node*.
-class BlockProbPair VALUE_OBJ_CLASS_SPEC {
+class BlockProbPair {
 protected:
   Block* _target;      // block target
   double  _prob;        // probability of edge to block
@@ -752,7 +752,7 @@ class CFGEdge : public ResourceObj {
 
   CFGEdge(Block *from, Block *to, double freq, int from_pct, int to_pct) :
     _from(from), _to(to), _freq(freq),
-    _from_pct(from_pct), _to_pct(to_pct), _state(open) {
+    _state(open), _from_pct(from_pct), _to_pct(to_pct) {
     _infrequent = from_infrequent() || to_infrequent();
   }
 
@@ -800,11 +800,11 @@ class Trace : public ResourceObj {
  public:
 
   Trace(Block *b, Block **next_list, Block **prev_list) :
-    _first(b),
-    _last(b),
+    _id(b->_pre_order),
     _next_list(next_list),
     _prev_list(prev_list),
-    _id(b->_pre_order) {
+    _first(b),
+    _last(b) {
     set_next(b, NULL);
     set_prev(b, NULL);
   };
@@ -887,4 +887,4 @@ class PhaseBlockLayout : public Phase {
   void union_traces(Trace* from, Trace* to);
 };
 
-#endif // SHARE_VM_OPTO_BLOCK_HPP
+#endif // SHARE_OPTO_BLOCK_HPP

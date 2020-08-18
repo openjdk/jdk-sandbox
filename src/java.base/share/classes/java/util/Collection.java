@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.util;
 
+import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -188,7 +189,7 @@ import java.util.stream.StreamSupport;
  * unmodifiable view, the view can be considered effectively immutable.
  *
  * <p>This interface is a member of the
- * <a href="{@docRoot}/java/util/package-summary.html#CollectionsFramework">
+ * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
  * Java Collections Framework</a>.
  *
  * @implSpec
@@ -247,10 +248,10 @@ public interface Collection<E> extends Iterable<E> {
      *         element
      * @throws ClassCastException if the type of the specified element
      *         is incompatible with this collection
-     *         (<a href="{@docRoot}/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      * @throws NullPointerException if the specified element is null and this
      *         collection does not permit null elements
-     *         (<a href="{@docRoot}/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      */
     boolean contains(Object o);
 
@@ -276,8 +277,12 @@ public interface Collection<E> extends Iterable<E> {
      * allocate a new array even if this collection is backed by an array).
      * The caller is thus free to modify the returned array.
      *
-     * <p>This method acts as bridge between array-based and collection-based
-     * APIs.
+     * @apiNote
+     * This method acts as a bridge between array-based and collection-based APIs.
+     * It returns an array whose runtime type is {@code Object[]}.
+     * Use {@link #toArray(Object[]) toArray(T[])} to reuse an existing
+     * array, or use {@link #toArray(IntFunction)} to control the runtime type
+     * of the array.
      *
      * @return an array, whose {@linkplain Class#getComponentType runtime component
      * type} is {@code Object}, containing all of the elements in this collection
@@ -302,19 +307,27 @@ public interface Collection<E> extends Iterable<E> {
      * are returned by its iterator, this method must return the elements in
      * the same order.
      *
-     * <p>Like the {@link #toArray()} method, this method acts as bridge between
-     * array-based and collection-based APIs.  Further, this method allows
-     * precise control over the runtime type of the output array, and may,
-     * under certain circumstances, be used to save allocation costs.
+     * @apiNote
+     * This method acts as a bridge between array-based and collection-based APIs.
+     * It allows an existing array to be reused under certain circumstances.
+     * Use {@link #toArray()} to create an array whose runtime type is {@code Object[]},
+     * or use {@link #toArray(IntFunction)} to control the runtime type of
+     * the array.
      *
      * <p>Suppose {@code x} is a collection known to contain only strings.
-     * The following code can be used to dump the collection into a newly
-     * allocated array of {@code String}:
+     * The following code can be used to dump the collection into a previously
+     * allocated {@code String} array:
      *
      * <pre>
-     *     String[] y = x.toArray(new String[0]);</pre>
+     *     String[] y = new String[SIZE];
+     *     ...
+     *     y = x.toArray(y);</pre>
      *
-     * Note that {@code toArray(new Object[0])} is identical in function to
+     * <p>The return value is reassigned to the variable {@code y}, because a
+     * new array will be allocated and returned if the collection {@code x} has
+     * too many elements to fit into the existing array {@code y}.
+     *
+     * <p>Note that {@code toArray(new Object[0])} is identical in function to
      * {@code toArray()}.
      *
      * @param <T> the component type of the array to contain the collection
@@ -328,6 +341,45 @@ public interface Collection<E> extends Iterable<E> {
      * @throws NullPointerException if the specified array is null
      */
     <T> T[] toArray(T[] a);
+
+    /**
+     * Returns an array containing all of the elements in this collection,
+     * using the provided {@code generator} function to allocate the returned array.
+     *
+     * <p>If this collection makes any guarantees as to what order its elements
+     * are returned by its iterator, this method must return the elements in
+     * the same order.
+     *
+     * @apiNote
+     * This method acts as a bridge between array-based and collection-based APIs.
+     * It allows creation of an array of a particular runtime type. Use
+     * {@link #toArray()} to create an array whose runtime type is {@code Object[]},
+     * or use {@link #toArray(Object[]) toArray(T[])} to reuse an existing array.
+     *
+     * <p>Suppose {@code x} is a collection known to contain only strings.
+     * The following code can be used to dump the collection into a newly
+     * allocated array of {@code String}:
+     *
+     * <pre>
+     *     String[] y = x.toArray(String[]::new);</pre>
+     *
+     * @implSpec
+     * The default implementation calls the generator function with zero
+     * and then passes the resulting array to {@link #toArray(Object[]) toArray(T[])}.
+     *
+     * @param <T> the component type of the array to contain the collection
+     * @param generator a function which produces a new array of the desired
+     *                  type and the provided length
+     * @return an array containing all of the elements in this collection
+     * @throws ArrayStoreException if the runtime type of any element in this
+     *         collection is not assignable to the {@linkplain Class#getComponentType
+     *         runtime component type} of the generated array
+     * @throws NullPointerException if the generator function is null
+     * @since 11
+     */
+    default <T> T[] toArray(IntFunction<T[]> generator) {
+        return toArray(generator.apply(0));
+    }
 
     // Modification Operations
 
@@ -379,10 +431,10 @@ public interface Collection<E> extends Iterable<E> {
      * @return {@code true} if an element was removed as a result of this call
      * @throws ClassCastException if the type of the specified element
      *         is incompatible with this collection
-     *         (<a href="{@docRoot}/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      * @throws NullPointerException if the specified element is null and this
      *         collection does not permit null elements
-     *         (<a href="{@docRoot}/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      * @throws UnsupportedOperationException if the {@code remove} operation
      *         is not supported by this collection
      */
@@ -401,11 +453,11 @@ public interface Collection<E> extends Iterable<E> {
      * @throws ClassCastException if the types of one or more elements
      *         in the specified collection are incompatible with this
      *         collection
-     *         (<a href="{@docRoot}/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      * @throws NullPointerException if the specified collection contains one
      *         or more null elements and this collection does not permit null
      *         elements
-     *         (<a href="{@docRoot}/java/util/Collection.html#optional-restrictions">optional</a>),
+     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>),
      *         or if the specified collection is null.
      * @see    #contains(Object)
      */
@@ -451,11 +503,11 @@ public interface Collection<E> extends Iterable<E> {
      * @throws ClassCastException if the types of one or more elements
      *         in this collection are incompatible with the specified
      *         collection
-     *         (<a href="{@docRoot}/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      * @throws NullPointerException if this collection contains one or more
      *         null elements and the specified collection does not support
      *         null elements
-     *         (<a href="{@docRoot}/java/util/Collection.html#optional-restrictions">optional</a>),
+     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>),
      *         or if the specified collection is null
      * @see #remove(Object)
      * @see #contains(Object)
@@ -510,11 +562,11 @@ public interface Collection<E> extends Iterable<E> {
      * @throws ClassCastException if the types of one or more elements
      *         in this collection are incompatible with the specified
      *         collection
-     *         (<a href="{@docRoot}/java/util/Collection.html#optional-restrictions">optional</a>)
+     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>)
      * @throws NullPointerException if this collection contains one or more
      *         null elements and the specified collection does not permit null
      *         elements
-     *         (<a href="{@docRoot}/java/util/Collection.html#optional-restrictions">optional</a>),
+     *         (<a href="{@docRoot}/java.base/java/util/Collection.html#optional-restrictions">optional</a>),
      *         or if the specified collection is null
      * @see #remove(Object)
      * @see #contains(Object)

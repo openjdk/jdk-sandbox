@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_FIELDTYPE_HPP
-#define SHARE_VM_RUNTIME_FIELDTYPE_HPP
+#ifndef SHARE_RUNTIME_FIELDTYPE_HPP
+#define SHARE_RUNTIME_FIELDTYPE_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/symbol.hpp"
@@ -51,7 +51,6 @@ class FieldArrayInfo : public StackObj {
 
 class FieldType: public AllStatic {
  private:
-  static void skip_optional_size(Symbol* signature, int* index);
   static bool is_valid_array_signature(Symbol* signature);
  public:
 
@@ -59,18 +58,18 @@ class FieldType: public AllStatic {
   static BasicType basic_type(Symbol* signature);
 
   // Testing
-  static bool is_array(Symbol* signature) { return signature->utf8_length() > 1 && signature->byte_at(0) == '[' && is_valid_array_signature(signature); }
+  static bool is_array(Symbol* signature) { return signature->utf8_length() > 1 && signature->char_at(0) == '[' && is_valid_array_signature(signature); }
 
   static bool is_obj(Symbol* signature) {
      int sig_length = signature->utf8_length();
      // Must start with 'L' and end with ';'
      return (sig_length >= 2 &&
-             (signature->byte_at(0) == 'L') &&
-             (signature->byte_at(sig_length - 1) == ';'));
+             (signature->char_at(0) == 'L') &&
+             (signature->char_at(sig_length - 1) == ';'));
   }
 
   // Parse field and extract array information. Works for T_ARRAY only.
   static BasicType get_array_info(Symbol* signature, FieldArrayInfo& ai, TRAPS);
 };
 
-#endif // SHARE_VM_RUNTIME_FIELDTYPE_HPP
+#endif // SHARE_RUNTIME_FIELDTYPE_HPP

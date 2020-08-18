@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_INTERPRETER_BYTECODE_HPP
-#define SHARE_VM_INTERPRETER_BYTECODE_HPP
+#ifndef SHARE_INTERPRETER_BYTECODE_HPP
+#define SHARE_INTERPRETER_BYTECODE_HPP
 
 #include "interpreter/bytecodes.hpp"
 #include "memory/allocation.hpp"
@@ -129,7 +129,7 @@ class Bytecode: public StackObj {
 
 
 // Abstractions for lookupswitch bytecode
-class LookupswitchPair VALUE_OBJ_CLASS_SPEC {
+class LookupswitchPair {
  private:
   const address _bcp;
 
@@ -197,7 +197,7 @@ class Bytecode_member_ref: public Bytecode {
   BasicType    result_type() const;              // returns the result type of the getfield or invoke
 };
 
-// Abstraction for invoke_{virtual, static, interface, special}
+// Abstraction for invoke_{virtual, static, interface, special, dynamic, handle}
 
 class Bytecode_invoke: public Bytecode_member_ref {
  protected:
@@ -229,7 +229,9 @@ class Bytecode_invoke: public Bytecode_member_ref {
                                                           is_invokedynamic()   ||
                                                           is_invokehandle(); }
 
-  bool has_appendix()                            { return cpcache_entry()->has_appendix(); }
+  bool has_appendix();
+
+  int size_of_parameters() const;
 
  private:
   // Helper to skip verification.   Used is_valid() to check if the result is really an invoke
@@ -340,4 +342,4 @@ class Bytecode_loadconstant: public Bytecode {
   oop resolve_constant(TRAPS) const;
 };
 
-#endif // SHARE_VM_INTERPRETER_BYTECODE_HPP
+#endif // SHARE_INTERPRETER_BYTECODE_HPP

@@ -62,7 +62,8 @@ public class GCSharedStringsDuringDump {
         String appJar =
             ClassFileInstaller.writeJar("GCSharedStringsDuringDumpApp.jar", appClasses);
 
-        String gcLog = "-Xlog:gc*=info,gc+region=trace,gc+alloc+region=debug";
+        String gcLog = Boolean.getBoolean("test.cds.verbose.gc") ?
+            "-Xlog:gc*=info,gc+region=trace,gc+alloc+region=debug" : "-showversion";
 
         String sharedArchiveCfgFile =
             System.getProperty("user.dir") + File.separator + "GCSharedStringDuringDump_gen.txt";
@@ -87,11 +88,12 @@ public class GCSharedStringsDuringDump {
             // i = 1 -- run with agent = cause extra GCs
 
             String extraArg = (i == 0) ? "-showversion" : "-javaagent:" + agentJar;
-
+            String extraOption = (i == 0) ? "-showversion" : "-XX:+AllowArchivingWithJavaAgent";
             OutputAnalyzer output = TestCommon.dump(
                                 appJar, TestCommon.list("GCSharedStringsDuringDumpWb"),
                                 bootClassPath, extraArg, "-Xmx32m", gcLog,
-                                "-XX:SharedArchiveConfigFile=" + sharedArchiveCfgFile);
+                                "-XX:SharedArchiveConfigFile=" + sharedArchiveCfgFile,
+                                "-XX:+UnlockDiagnosticVMOptions", extraOption);
 
             if (output.getStdout().contains("Too many string space regions") ||
                 output.getStderr().contains("Unable to write archive heap memory regions") ||
@@ -103,15 +105,19 @@ public class GCSharedStringsDuringDump {
                 TestCommon.testDump(
                     appJar, TestCommon.list("GCSharedStringsDuringDumpWb"),
                     bootClassPath, extraArg, "-Xmx8g", "-XX:NewSize=8m", gcLog,
-                    "-XX:SharedArchiveConfigFile=" + sharedArchiveCfgFile);
+                    "-XX:SharedArchiveConfigFile=" + sharedArchiveCfgFile,
+                    "-XX:+UnlockDiagnosticVMOptions", extraOption);
             }
 
             TestCommon.run(
                 "-cp", appJar,
                 bootClassPath,
+                extraArg,
+                "-Xlog:cds=info,class+path=info",
                 "-Xmx32m",
                 "-XX:+PrintSharedSpaces",
                 "-XX:+UnlockDiagnosticVMOptions",
+                extraOption,
                 "-XX:+WhiteBoxAPI",
                 "-XX:SharedReadOnlySize=30m",
                 gcLog,

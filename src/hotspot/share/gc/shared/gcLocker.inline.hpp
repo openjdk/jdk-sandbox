@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,13 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_GCLOCKER_INLINE_HPP
-#define SHARE_VM_GC_SHARED_GCLOCKER_INLINE_HPP
+#ifndef SHARE_GC_SHARED_GCLOCKER_INLINE_HPP
+#define SHARE_GC_SHARED_GCLOCKER_INLINE_HPP
 
 #include "gc/shared/gcLocker.hpp"
+#include "runtime/thread.hpp"
 
-inline void GCLocker::lock_critical(JavaThread* thread) {
+void GCLocker::lock_critical(JavaThread* thread) {
   if (!thread->in_critical()) {
     if (needs_gc()) {
       // jni_lock call calls enter_critical under the lock so that the
@@ -40,7 +41,7 @@ inline void GCLocker::lock_critical(JavaThread* thread) {
   thread->enter_critical();
 }
 
-inline void GCLocker::unlock_critical(JavaThread* thread) {
+void GCLocker::unlock_critical(JavaThread* thread) {
   if (thread->in_last_critical()) {
     if (needs_gc()) {
       // jni_unlock call calls exit_critical under the lock so that
@@ -53,4 +54,4 @@ inline void GCLocker::unlock_critical(JavaThread* thread) {
   thread->exit_critical();
 }
 
-#endif // SHARE_VM_GC_SHARED_GCLOCKER_INLINE_HPP
+#endif // SHARE_GC_SHARED_GCLOCKER_INLINE_HPP

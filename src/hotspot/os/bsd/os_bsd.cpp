@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,12 +44,12 @@
 #include "runtime/atomic.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/globals.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
 #include "runtime/semaphore.hpp"
@@ -70,50 +70,38 @@
 #include "utilities/vmError.hpp"
 
 // put OS-includes here
-# include <sys/types.h>
-# include <sys/mman.h>
-# include <sys/stat.h>
-# include <sys/select.h>
-# include <pthread.h>
-# include <signal.h>
-# include <errno.h>
 # include <dlfcn.h>
-# include <stdio.h>
-# include <unistd.h>
-# include <sys/resource.h>
+# include <errno.h>
+# include <fcntl.h>
+# include <inttypes.h>
+# include <poll.h>
 # include <pthread.h>
+# include <pwd.h>
+# include <signal.h>
+# include <stdint.h>
+# include <stdio.h>
+# include <string.h>
+# include <sys/ioctl.h>
+# include <sys/mman.h>
+# include <sys/param.h>
+# include <sys/resource.h>
+# include <sys/socket.h>
 # include <sys/stat.h>
+# include <sys/syscall.h>
+# include <sys/sysctl.h>
 # include <sys/time.h>
 # include <sys/times.h>
-# include <sys/utsname.h>
-# include <sys/socket.h>
+# include <sys/types.h>
 # include <sys/wait.h>
 # include <time.h>
-# include <pwd.h>
-# include <poll.h>
-# include <fcntl.h>
-# include <string.h>
-# include <sys/param.h>
-# include <sys/sysctl.h>
-# include <sys/ipc.h>
-# include <sys/shm.h>
-#ifndef __APPLE__
-# include <link.h>
-#endif
-# include <stdint.h>
-# include <inttypes.h>
-# include <sys/ioctl.h>
-# include <sys/syscall.h>
+# include <unistd.h>
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
   #include <elf.h>
 #endif
 
 #ifdef __APPLE__
-  #include <mach/mach.h> // semaphore_* API
   #include <mach-o/dyld.h>
-  #include <sys/proc_info.h>
-  #include <objc/objc-auto.h>
 #endif
 
 #ifndef MAP_ANONYMOUS
@@ -124,8 +112,6 @@
 
 // for timer info max values which include all bits
 #define ALL_64_BITS CONST64(0xFFFFFFFFFFFFFFFF)
-
-#define LARGEPAGES_BIT (1 << 6)
 
 ////////////////////////////////////////////////////////////////////////////////
 // global variables
@@ -330,7 +316,11 @@ void os::init_system_properties_values() {
   //        ...
   //        7: The default directories, normally /lib and /usr/lib.
 #ifndef DEFAULT_LIBPATH
-  #define DEFAULT_LIBPATH "/lib:/usr/lib"
+  #ifndef OVERRIDE_LIBPATH
+    #define DEFAULT_LIBPATH "/lib:/usr/lib"
+  #else
+    #define DEFAULT_LIBPATH OVERRIDE_LIBPATH
+  #endif
 #endif
 
 // Base path of extensions installed on the system.
@@ -372,7 +362,9 @@ void os::init_system_properties_values() {
       }
     }
     Arguments::set_java_home(buf);
-    set_boot_path('/', ':');
+    if (!set_boot_path('/', ':')) {
+      vm_exit_during_initialization("Failed setting boot class path.", NULL);
+    }
   }
 
   // Where to look for native libraries.
@@ -533,18 +525,6 @@ extern "C" void breakpoint() {
 debug_only(static bool signal_sets_initialized = false);
 static sigset_t unblocked_sigs, vm_sigs;
 
-bool os::Bsd::is_sig_ignored(int sig) {
-  struct sigaction oact;
-  sigaction(sig, (struct sigaction*)NULL, &oact);
-  void* ohlr = oact.sa_sigaction ? CAST_FROM_FN_PTR(void*,  oact.sa_sigaction)
-                                 : CAST_FROM_FN_PTR(void*,  oact.sa_handler);
-  if (ohlr == CAST_FROM_FN_PTR(void*, SIG_IGN)) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
 void os::Bsd::signal_sets_init() {
   // Should also have an assertion stating we are still single-threaded.
   assert(!signal_sets_initialized, "Already initialized");
@@ -569,14 +549,14 @@ void os::Bsd::signal_sets_init() {
   sigaddset(&unblocked_sigs, SR_signum);
 
   if (!ReduceSignalUsage) {
-    if (!os::Bsd::is_sig_ignored(SHUTDOWN1_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN1_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN1_SIGNAL);
 
     }
-    if (!os::Bsd::is_sig_ignored(SHUTDOWN2_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN2_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN2_SIGNAL);
     }
-    if (!os::Bsd::is_sig_ignored(SHUTDOWN3_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN3_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN3_SIGNAL);
     }
   }
@@ -654,6 +634,9 @@ static uint64_t locate_unique_thread_id(mach_port_t mach_thread_port) {
 
 // Thread start routine for all newly created threads
 static void *thread_native_entry(Thread *thread) {
+
+  thread->record_stack_base_and_size();
+
   // Try to randomize the cache line index of hot stack frames.
   // This helps when threads of the same stack traces evict each other's
   // cache lines. The threads can be either from the same JVM instance, or
@@ -706,19 +689,14 @@ static void *thread_native_entry(Thread *thread) {
   }
 
   // call one more level start routine
-  thread->run();
+  thread->call_run();
+
+  // Note: at this point the thread object may already have deleted itself.
+  // Prevent dereferencing it from here on out.
+  thread = NULL;
 
   log_info(os, thread)("Thread finished (tid: " UINTX_FORMAT ", pthread id: " UINTX_FORMAT ").",
     os::current_thread_id(), (uintx) pthread_self());
-
-  // If a thread has not deleted itself ("delete this") as part of its
-  // termination sequence, we have to ensure thread-local-storage is
-  // cleared before we actually terminate. No threads should ever be
-  // deleted asynchronously with respect to their termination.
-  if (Thread::current_or_null_safe() != NULL) {
-    assert(Thread::current_or_null_safe() == thread, "current thread is wrong");
-    thread->clear_thread_current();
-  }
 
   return 0;
 }
@@ -1091,22 +1069,6 @@ void os::abort(bool dump_core, void* siginfo, const void* context) {
 void os::die() {
   // _exit() on BsdThreads only kills current thread
   ::abort();
-}
-
-// This method is a copy of JDK's sysGetLastErrorString
-// from src/solaris/hpi/src/system_md.c
-
-size_t os::lasterror(char *buf, size_t len) {
-  if (errno == 0)  return 0;
-
-  const char *s = os::strerror(errno);
-  size_t n = ::strlen(s);
-  if (n >= len) {
-    n = len - 1;
-  }
-  ::strncpy(buf, s, n);
-  buf[n] = '\0';
-  return n;
 }
 
 // Information of current thread in variety of formats
@@ -1830,7 +1792,7 @@ int os::sigexitnum_pd() {
 static volatile jint pending_signals[NSIG+1] = { 0 };
 static Semaphore* sig_sem = NULL;
 
-void os::signal_init_pd() {
+static void jdk_misc_signal_init() {
   // Initialize signal structures
   ::memset((void*)pending_signals, 0, sizeof(pending_signals));
 
@@ -1843,7 +1805,7 @@ void os::signal_notify(int sig) {
     Atomic::inc(&pending_signals[sig]);
     sig_sem->signal();
   } else {
-    // Signal thread is not created with ReduceSignalUsage and signal_init_pd
+    // Signal thread is not created with ReduceSignalUsage and jdk_misc_signal_init
     // initialization isn't called.
     assert(ReduceSignalUsage, "signal semaphore should be created");
   }
@@ -2144,95 +2106,27 @@ void os::large_page_init() {
 
 
 char* os::reserve_memory_special(size_t bytes, size_t alignment, char* req_addr, bool exec) {
-  fatal("This code is not used or maintained.");
-
-  // "exec" is passed in but not used.  Creating the shared image for
-  // the code cache doesn't have an SHM_X executable permission to check.
-  assert(UseLargePages && UseSHM, "only for SHM large pages");
-
-  key_t key = IPC_PRIVATE;
-  char *addr;
-
-  bool warn_on_failure = UseLargePages &&
-                         (!FLAG_IS_DEFAULT(UseLargePages) ||
-                          !FLAG_IS_DEFAULT(LargePageSizeInBytes));
-
-  // Create a large shared memory region to attach to based on size.
-  // Currently, size is the total size of the heap
-  int shmid = shmget(key, bytes, IPC_CREAT|SHM_R|SHM_W);
-  if (shmid == -1) {
-    // Possible reasons for shmget failure:
-    // 1. shmmax is too small for Java heap.
-    //    > check shmmax value: cat /proc/sys/kernel/shmmax
-    //    > increase shmmax value: echo "0xffffffff" > /proc/sys/kernel/shmmax
-    // 2. not enough large page memory.
-    //    > check available large pages: cat /proc/meminfo
-    //    > increase amount of large pages:
-    //          echo new_value > /proc/sys/vm/nr_hugepages
-    //      Note 1: different Bsd may use different name for this property,
-    //            e.g. on Redhat AS-3 it is "hugetlb_pool".
-    //      Note 2: it's possible there's enough physical memory available but
-    //            they are so fragmented after a long run that they can't
-    //            coalesce into large pages. Try to reserve large pages when
-    //            the system is still "fresh".
-    if (warn_on_failure) {
-      warning("Failed to reserve shared memory (errno = %d).", errno);
-    }
-    return NULL;
-  }
-
-  // attach to the region
-  addr = (char*)shmat(shmid, req_addr, 0);
-  int err = errno;
-
-  // Remove shmid. If shmat() is successful, the actual shared memory segment
-  // will be deleted when it's detached by shmdt() or when the process
-  // terminates. If shmat() is not successful this will remove the shared
-  // segment immediately.
-  shmctl(shmid, IPC_RMID, NULL);
-
-  if ((intptr_t)addr == -1) {
-    if (warn_on_failure) {
-      warning("Failed to attach shared memory (errno = %d).", err);
-    }
-    return NULL;
-  }
-
-  // The memory is committed
-  MemTracker::record_virtual_memory_reserve_and_commit((address)addr, bytes, CALLER_PC);
-
-  return addr;
+  fatal("os::reserve_memory_special should not be called on BSD.");
+  return NULL;
 }
 
 bool os::release_memory_special(char* base, size_t bytes) {
-  if (MemTracker::tracking_level() > NMT_minimal) {
-    Tracker tkr(Tracker::release);
-    // detaching the SHM segment will also delete it, see reserve_memory_special()
-    int rslt = shmdt(base);
-    if (rslt == 0) {
-      tkr.record((address)base, bytes);
-      return true;
-    } else {
-      return false;
-    }
-  } else {
-    return shmdt(base) == 0;
-  }
+  fatal("os::release_memory_special should not be called on BSD.");
+  return false;
 }
 
 size_t os::large_page_size() {
   return _large_page_size;
 }
 
-// HugeTLBFS allows application to commit large page memory on demand;
-// with SysV SHM the entire memory region must be allocated as shared
-// memory.
 bool os::can_commit_large_page_memory() {
-  return UseHugeTLBFS;
+  // Does not matter, we do not support huge pages.
+  return false;
 }
 
 bool os::can_execute_large_page_memory() {
-  return UseHugeTLBFS;
+  // Does not matter, we do not support huge pages.
+  return false;
 }
 
 char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr, int file_desc) {
@@ -2323,30 +2217,6 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
   }
 }
 
-size_t os::read(int fd, void *buf, unsigned int nBytes) {
-  RESTARTABLE_RETURN_INT(::read(fd, buf, nBytes));
-}
-
-size_t os::read_at(int fd, void *buf, unsigned int nBytes, jlong offset) {
-  RESTARTABLE_RETURN_INT(::pread(fd, buf, nBytes, offset));
-}
-
-void os::naked_short_sleep(jlong ms) {
-  struct timespec req;
-
-  assert(ms < 1000, "Un-interruptable sleep, short time use only");
-  req.tv_sec = 0;
-  if (ms > 0) {
-    req.tv_nsec = (ms % 1000) * 1000000;
-  } else {
-    req.tv_nsec = 1;
-  }
-
-  nanosleep(&req, NULL);
-
-  return;
-}
-
 // Sleep forever; naked call to OS-specific sleep; use with CAUTION
 void os::infinite_sleep() {
   while (true) {    // sleep forever ...
@@ -2378,7 +2248,8 @@ void os::naked_yield() {
 // not the entire user process, and user level threads are 1:1 mapped to kernel
 // threads. It has always been the case, but could change in the future. For
 // this reason, the code should not be used as default (ThreadPriorityPolicy=0).
-// It is only used when ThreadPriorityPolicy=1 and requires root privilege.
+// It is only used when ThreadPriorityPolicy=1 and may require system level permission
+// (e.g., root privilege or CAP_SYS_NICE capability).
 
 #if !defined(__APPLE__)
 int os::java_to_os_priority[CriticalPriority + 1] = {
@@ -2425,14 +2296,12 @@ int os::java_to_os_priority[CriticalPriority + 1] = {
 
 static int prio_init() {
   if (ThreadPriorityPolicy == 1) {
-    // Only root can raise thread priority. Don't allow ThreadPriorityPolicy=1
-    // if effective uid is not root. Perhaps, a more elegant way of doing
-    // this is to test CAP_SYS_NICE capability, but that will require libcap.so
     if (geteuid() != 0) {
       if (!FLAG_IS_DEFAULT(ThreadPriorityPolicy)) {
-        warning("-XX:ThreadPriorityPolicy requires root privilege on Bsd");
+        warning("-XX:ThreadPriorityPolicy=1 may require system level permission, " \
+                "e.g., being the root user. If the necessary permission is not " \
+                "possessed, changes to priority will be silently ignored.");
       }
-      ThreadPriorityPolicy = 0;
     }
   }
   if (UseCriticalJavaThreadPriority) {
@@ -2449,17 +2318,17 @@ OSReturn os::set_native_priority(Thread* thread, int newpri) {
   return OS_OK;
 #elif defined(__FreeBSD__)
   int ret = pthread_setprio(thread->osthread()->pthread_id(), newpri);
+  return (ret == 0) ? OS_OK : OS_ERR;
 #elif defined(__APPLE__) || defined(__NetBSD__)
   struct sched_param sp;
   int policy;
-  pthread_t self = pthread_self();
 
-  if (pthread_getschedparam(self, &policy, &sp) != 0) {
+  if (pthread_getschedparam(thread->osthread()->pthread_id(), &policy, &sp) != 0) {
     return OS_ERR;
   }
 
   sp.sched_priority = newpri;
-  if (pthread_setschedparam(self, policy, &sp) != 0) {
+  if (pthread_setschedparam(thread->osthread()->pthread_id(), policy, &sp) != 0) {
     return OS_ERR;
   }
 
@@ -2483,17 +2352,19 @@ OSReturn os::get_native_priority(const Thread* const thread, int *priority_ptr) 
   int policy;
   struct sched_param sp;
 
-  pthread_getschedparam(pthread_self(), &policy, &sp);
-  *priority_ptr = sp.sched_priority;
+  int res = pthread_getschedparam(thread->osthread()->pthread_id(), &policy, &sp);
+  if (res != 0) {
+    *priority_ptr = -1;
+    return OS_ERR;
+  } else {
+    *priority_ptr = sp.sched_priority;
+    return OS_OK;
+  }
 #else
   *priority_ptr = getpriority(PRIO_PROCESS, thread->osthread()->thread_id());
 #endif
   return (*priority_ptr != -1 || errno == 0 ? OS_OK : OS_ERR);
 }
-
-// Hint to the underlying OS that a task switch would not be good.
-// Void return because it's a hint and can fail.
-void os::hint_no_preempt() {}
 
 ////////////////////////////////////////////////////////////////////////////////
 // suspend/resume support
@@ -2773,7 +2644,7 @@ extern "C" JNIEXPORT int JVM_handle_bsd_signal(int signo, siginfo_t* siginfo,
                                                void* ucontext,
                                                int abort_if_unrecognized);
 
-void signalHandler(int sig, siginfo_t* info, void* uc) {
+static void signalHandler(int sig, siginfo_t* info, void* uc) {
   assert(info != NULL && uc != NULL, "it must be old kernel");
   int orig_errno = errno;  // Preserve errno value over signal handler.
   JVM_handle_bsd_signal(sig, info, uc, true);
@@ -3268,16 +3139,6 @@ void os::init(void) {
   Bsd::clock_init();
   initial_time_count = javaTimeNanos();
 
-#ifdef __APPLE__
-  // XXXDARWIN
-  // Work around the unaligned VM callbacks in hotspot's
-  // sharedRuntime. The callbacks don't use SSE2 instructions, and work on
-  // Linux, Solaris, and FreeBSD. On Mac OS X, dyld (rightly so) enforces
-  // alignment when doing symbol lookup. To work around this, we force early
-  // binding of all symbols now, thus binding when alignment is known-good.
-  _dyld_bind_fully_image_containing_address((const void *) &os::init);
-#endif
-
   os::Posix::init();
 }
 
@@ -3291,6 +3152,10 @@ extern "C" {
 // this is called _after_ the global arguments have been parsed
 jint os::init_2(void) {
 
+  // This could be set after os::Posix::init() but all platforms
+  // have to set it the same so we have to mirror Solaris.
+  DEBUG_ONLY(os::set_mutex_init_done();)
+
   os::Posix::init_2();
 
   // initialize suspend/resume support - must do this before signal_sets_init()
@@ -3301,6 +3166,10 @@ jint os::init_2(void) {
 
   Bsd::signal_sets_init();
   Bsd::install_signal_handlers();
+  // Initialize data for jdk.internal.misc.Signal
+  if (!ReduceSignalUsage) {
+    jdk_misc_signal_init();
+  }
 
   // Check and sets minimum stack sizes against command line options
   if (Posix::set_minimum_stack_sizes() == JNI_ERR) {
@@ -3497,20 +3366,10 @@ bool os::message_box(const char* title, const char* message) {
   return buf[0] == 'y' || buf[0] == 'Y';
 }
 
-int os::stat(const char *path, struct stat *sbuf) {
-  char pathbuf[MAX_PATH];
-  if (strlen(path) > MAX_PATH - 1) {
-    errno = ENAMETOOLONG;
-    return -1;
-  }
-  os::native_path(strcpy(pathbuf, path));
-  return ::stat(pathbuf, sbuf);
-}
-
 static inline struct timespec get_mtime(const char* filename) {
   struct stat st;
   int ret = os::stat(filename, &st);
-  assert(ret == 0, "failed to stat() file '%s': %s", filename, strerror(errno));
+  assert(ret == 0, "failed to stat() file '%s': %s", filename, os::strerror(errno));
 #ifdef __APPLE__
   return st.st_mtimespec;
 #else
@@ -3538,8 +3397,7 @@ bool os::dir_is_empty(const char* path) {
 
   // Scan the directory
   bool result = true;
-  char buf[sizeof(struct dirent) + MAX_PATH];
-  while (result && (ptr = ::readdir(dir)) != NULL) {
+  while (result && (ptr = readdir(dir)) != NULL) {
     if (strcmp(ptr->d_name, ".") != 0 && strcmp(ptr->d_name, "..") != 0) {
       result = false;
     }
@@ -3832,7 +3690,7 @@ extern char** environ;
 // or -1 on failure (e.g. can't fork a new process).
 // Unlike system(), this function can be called from signal handler. It
 // doesn't block SIGINT et al.
-int os::fork_and_exec(char* cmd) {
+int os::fork_and_exec(char* cmd, bool use_vfork_if_available) {
   const char * argv[4] = {"sh", "-c", cmd, NULL};
 
   // fork() in BsdThreads/NPTL is not async-safe. It needs to run

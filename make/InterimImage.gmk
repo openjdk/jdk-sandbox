@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@ $(INTERIM_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	$(RM) -r $(INTERIM_IMAGE_DIR)
 	$(JLINK_TOOL) \
 	    --output $(INTERIM_IMAGE_DIR) \
+	    --disable-plugin generate-jli-classes \
 	    --add-modules $(INTERIM_MODULES_LIST)
 	$(TOUCH) $@
 

@@ -52,6 +52,7 @@ import static javax.tools.StandardLocation.*;
 import com.sun.source.util.TaskEvent;
 import com.sun.tools.javac.api.MultiTaskListener;
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.DeferredCompletionFailureHandler.Handler;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.*;
@@ -177,6 +178,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
     private MultiTaskListener taskListener;
     private final Symtab symtab;
+    private final DeferredCompletionFailureHandler dcfh;
     private final Names names;
     private final Enter enter;
     private final Completer initialCompleter;
@@ -227,6 +229,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         messages = JavacMessages.instance(context);
         taskListener = MultiTaskListener.instance(context);
         symtab = Symtab.instance(context);
+        dcfh = DeferredCompletionFailureHandler.instance(context);
         names = Names.instance(context);
         enter = Enter.instance(context);
         initialCompleter = ClassFinder.instance(context).getCompleter();
@@ -240,15 +243,20 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     }
 
     private Set<String> initPlatformAnnotations() {
-        Set<String> platformAnnotations = new HashSet<>();
-        platformAnnotations.add("java.lang.Deprecated");
-        platformAnnotations.add("java.lang.Override");
-        platformAnnotations.add("java.lang.SuppressWarnings");
-        platformAnnotations.add("java.lang.annotation.Documented");
-        platformAnnotations.add("java.lang.annotation.Inherited");
-        platformAnnotations.add("java.lang.annotation.Retention");
-        platformAnnotations.add("java.lang.annotation.Target");
-        return Collections.unmodifiableSet(platformAnnotations);
+        final String module_prefix =
+            Feature.MODULES.allowedInSource(source) ? "java.base/" : "";
+        return Set.of(module_prefix + "java.lang.Deprecated",
+                      module_prefix + "java.lang.FunctionalInterface",
+                      module_prefix + "java.lang.Override",
+                      module_prefix + "java.lang.SafeVarargs",
+                      module_prefix + "java.lang.SuppressWarnings",
+
+                      module_prefix + "java.lang.annotation.Documented",
+                      module_prefix + "java.lang.annotation.Inherited",
+                      module_prefix + "java.lang.annotation.Native",
+                      module_prefix + "java.lang.annotation.Repeatable",
+                      module_prefix + "java.lang.annotation.Retention",
+                      module_prefix + "java.lang.annotation.Target");
     }
 
     private void initProcessorLoader() {
@@ -665,10 +673,12 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
         private ArrayList<Pattern> supportedAnnotationPatterns;
         private ArrayList<String>  supportedOptionNames;
 
-        ProcessorState(Processor p, Log log, Source source, boolean allowModules, ProcessingEnvironment env) {
+        ProcessorState(Processor p, Log log, Source source, DeferredCompletionFailureHandler dcfh,
+                       boolean allowModules, ProcessingEnvironment env) {
             processor = p;
             contributed = false;
 
+            Handler prevDeferredHandler = dcfh.setHandler(dcfh.userCodeHandler);
             try {
                 processor.init(env);
 
@@ -692,6 +702,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 throw e;
             } catch (Throwable t) {
                 throw new AnnotationProcessingError(t);
+            } finally {
+                dcfh.setHandler(prevDeferredHandler);
             }
         }
 
@@ -767,7 +779,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
 
                 if (psi.processorIterator.hasNext()) {
                     ProcessorState ps = new ProcessorState(psi.processorIterator.next(),
-                                                           log, source, Feature.MODULES.allowedInSource(source),
+                                                           log, source, dcfh,
+                                                           Feature.MODULES.allowedInSource(source),
                                                            JavacProcessingEnvironment.this);
                     psi.procStateList.add(ps);
                     return ps;
@@ -959,6 +972,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     private boolean callProcessor(Processor proc,
                                          Set<? extends TypeElement> tes,
                                          RoundEnvironment renv) {
+        Handler prevDeferredHandler = dcfh.setHandler(dcfh.userCodeHandler);
         try {
             return proc.process(tes, renv);
         } catch (ClassFinder.BadClassFile ex) {
@@ -973,6 +987,8 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             throw e;
         } catch (Throwable t) {
             throw new AnnotationProcessingError(t);
+        } finally {
+            dcfh.setHandler(prevDeferredHandler);
         }
     }
 
@@ -1168,7 +1184,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         cs.reset();
                         cs.classfile = file;
                         cs.completer = initialCompleter;
-                        cs.owner.members().enter(cs); //XXX - OverwriteBetweenCompilations; syms.getClass is not sufficient anymore
+                        if (cs.owner.kind == PCK) {
+                            cs.owner.members().enter(cs); //XXX - OverwriteBetweenCompilations; syms.getClass is not sufficient anymore
+                        }
                     }
                     list = list.prepend(cs);
                 }
@@ -1257,6 +1275,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             modules.newRound();
             types.newRound();
             annotate.newRound();
+            elementUtils.newRound();
 
             boolean foundError = false;
 
@@ -1271,7 +1290,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 for (ClassSymbol cs : symtab.getAllClasses()) {
                     if (cs.classfile != null || cs.kind == ERR) {
                         cs.reset();
-                        cs.type = new ClassType(cs.type.getEnclosingType(), null, cs);
+                        if (cs.kind == ERR) {
+                            cs.type = new ClassType(cs.type.getEnclosingType(), null, cs);
+                        }
                         if (cs.isCompleted()) {
                             cs.completer = initialCompleter;
                         }
@@ -1515,13 +1536,12 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             JCCompilationUnit topLevel;
             public void visitTopLevel(JCCompilationUnit node) {
                 if (node.packge != null) {
-                    if (node.packge.package_info != null) {
+                    if (isPkgInfo(node.sourcefile, Kind.SOURCE)) {
                         node.packge.package_info.reset();
                     }
                     node.packge.reset();
                 }
-                boolean isModuleInfo = node.sourcefile.isNameCompatible("module-info", Kind.SOURCE);
-                if (isModuleInfo) {
+                if (isModuleInfo(node.sourcefile, Kind.SOURCE)) {
                     node.modle.reset();
                     node.modle.completer = sym -> modules.enter(List.of(node), node.modle.module_info);
                     node.modle.module_info.reset();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_ARRAYOOP_HPP
-#define SHARE_VM_OOPS_ARRAYOOP_HPP
+#ifndef SHARE_OOPS_ARRAYOOP_HPP
+#define SHARE_OOPS_ARRAYOOP_HPP
 
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.hpp"
 #include "utilities/align.hpp"
 
@@ -62,6 +62,13 @@ class arrayOopDesc : public oopDesc {
     return (int)hs;
   }
 
+  // Check whether an element of a typeArrayOop with the given type must be
+  // aligned 0 mod 8.  The typeArrayOop itself must be aligned at least this
+  // strongly.
+  static bool element_type_should_be_aligned(BasicType type) {
+    return type == T_DOUBLE || type == T_LONG;
+  }
+
  public:
   // The _length field is not declared in C++.  It is allocated after the
   // declared nonstatic fields in arrayOopDesc if not compressed, otherwise
@@ -81,6 +88,18 @@ class arrayOopDesc : public oopDesc {
   inline void* base(BasicType type) const;
   inline void* base_raw(BasicType type) const; // GC barrier invariant
 
+  template <typename T>
+  static T* obj_offset_to_raw(arrayOop obj, size_t offset_in_bytes, T* raw) {
+    if (obj != NULL) {
+      assert(raw == NULL, "either raw or in-heap");
+      char* base = reinterpret_cast<char*>((void*) obj);
+      raw = reinterpret_cast<T*>(base + offset_in_bytes);
+    } else {
+      assert(raw != NULL, "either raw or in-heap");
+    }
+    return raw;
+  }
+
   // Tells whether index is within bounds.
   bool is_within_bounds(int index) const        { return 0 <= index && index < length(); }
 
@@ -90,7 +109,10 @@ class arrayOopDesc : public oopDesc {
     return *(int*)(((intptr_t)this) + length_offset_in_bytes());
   }
   void set_length(int length) {
-    *(int*)(((intptr_t)this) + length_offset_in_bytes()) = length;
+    set_length((HeapWord*)this, length);
+  }
+  static void set_length(HeapWord* mem, int length) {
+    *(int*)(((char*)mem) + length_offset_in_bytes()) = length;
   }
 
   // Should only be called with constants as argument
@@ -99,7 +121,7 @@ class arrayOopDesc : public oopDesc {
   // array object type.
   static int header_size(BasicType type) {
     size_t typesize_in_bytes = header_size_in_bytes();
-    return (int)(Universe::element_type_should_be_aligned(type)
+    return (int)(element_type_should_be_aligned(type)
       ? align_object_offset(typesize_in_bytes/HeapWordSize)
       : typesize_in_bytes/HeapWordSize);
   }
@@ -128,4 +150,4 @@ class arrayOopDesc : public oopDesc {
 
 };
 
-#endif // SHARE_VM_OOPS_ARRAYOOP_HPP
+#endif // SHARE_OOPS_ARRAYOOP_HPP

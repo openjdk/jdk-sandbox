@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,10 +20,17 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.replacements;
 
 import org.graalvm.compiler.api.replacements.ClassSubstitution;
 import org.graalvm.compiler.api.replacements.MethodSubstitution;
+import org.graalvm.compiler.core.common.spi.ForeignCallDescriptor;
+import org.graalvm.compiler.hotspot.meta.HotSpotHostForeignCallsProvider;
+import org.graalvm.compiler.graph.Node.ConstantNodeParameter;
+import org.graalvm.compiler.graph.Node.NodeIntrinsic;
+import org.graalvm.compiler.nodes.extended.ForeignCallNode;
 
 // JaCoCo Exclude
 
@@ -37,4 +44,21 @@ public class ObjectSubstitutions {
     public static int hashCode(final Object thisObj) {
         return IdentityHashCodeNode.identityHashCode(thisObj);
     }
+
+    @MethodSubstitution(isStatic = false)
+    public static void notify(final Object thisObj) {
+        if (!fastNotifyStub(HotSpotHostForeignCallsProvider.NOTIFY, thisObj)) {
+            notify(thisObj);
+        }
+    }
+
+    @MethodSubstitution(isStatic = false)
+    public static void notifyAll(final Object thisObj) {
+        if (!fastNotifyStub(HotSpotHostForeignCallsProvider.NOTIFY_ALL, thisObj)) {
+            notifyAll(thisObj);
+        }
+    }
+
+    @NodeIntrinsic(ForeignCallNode.class)
+    public static native boolean fastNotifyStub(@ConstantNodeParameter ForeignCallDescriptor descriptor, Object o);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_JAVACLASSES_INLINE_HPP
-#define SHARE_VM_CLASSFILE_JAVACLASSES_INLINE_HPP
+#ifndef SHARE_CLASSFILE_JAVACLASSES_INLINE_HPP
+#define SHARE_CLASSFILE_JAVACLASSES_INLINE_HPP
 
 #include "classfile/javaClasses.hpp"
 #include "oops/access.inline.hpp"
@@ -127,6 +127,9 @@ void java_lang_ref_Reference::set_discovered_raw(oop ref, oop value) {
 HeapWord* java_lang_ref_Reference::discovered_addr_raw(oop ref) {
   return ref->obj_field_addr_raw<HeapWord>(discovered_offset);
 }
+bool java_lang_ref_Reference::is_final(oop ref) {
+  return InstanceKlass::cast(ref->klass())->reference_type() == REF_FINAL;
+}
 bool java_lang_ref_Reference::is_phantom(oop ref) {
   return InstanceKlass::cast(ref->klass())->reference_type() == REF_PHANTOM;
 }
@@ -169,6 +172,22 @@ inline bool java_lang_invoke_MethodHandle::is_instance(oop obj) {
 
 inline bool java_lang_Class::is_instance(oop obj) {
   return obj != NULL && obj->klass() == SystemDictionary::Class_klass();
+}
+
+inline bool java_lang_Class::is_primitive(oop java_class) {
+  // should assert:
+  //assert(java_lang_Class::is_instance(java_class), "must be a Class object");
+  bool is_primitive = (java_class->metadata_field(_klass_offset) == NULL);
+
+#ifdef ASSERT
+  if (is_primitive) {
+    Klass* k = ((Klass*)java_class->metadata_field(_array_klass_offset));
+    assert(k == NULL || is_java_primitive(ArrayKlass::cast(k)->element_type()),
+        "Should be either the T_VOID primitive or a java primitive");
+  }
+#endif
+
+  return is_primitive;
 }
 
 inline bool java_lang_invoke_DirectMethodHandle::is_instance(oop obj) {
@@ -239,4 +258,4 @@ inline Symbol* Backtrace::get_source_file_name(InstanceKlass* holder, int versio
   }
 }
 
-#endif // SHARE_VM_CLASSFILE_JAVACLASSES_INLINE_HPP
+#endif // SHARE_CLASSFILE_JAVACLASSES_INLINE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_OOPSHIERARCHY_HPP
-#define SHARE_VM_OOPS_OOPSHIERARCHY_HPP
+#ifndef SHARE_OOPS_OOPSHIERARCHY_HPP
+#define SHARE_OOPS_OOPSHIERARCHY_HPP
 
 #include "metaprogramming/integralConstant.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
@@ -73,7 +73,7 @@ typedef class     typeArrayOopDesc*            typeArrayOop;
 
 class Thread;
 class PromotedObject;
-
+class oopDesc;
 
 class oop {
   oopDesc* _o;
@@ -101,9 +101,9 @@ public:
 
   // General access
   oopDesc*  operator->() const        { return obj(); }
-  bool operator==(const oop o) const  { return obj() == o.obj(); }
+  bool operator==(const oop o) const;
   bool operator==(void *p) const      { return obj() == p; }
-  bool operator!=(const volatile oop o) const  { return obj() != o.obj(); }
+  bool operator!=(const volatile oop o) const;
   bool operator!=(void *p) const      { return obj() != p; }
 
   // Assignment
@@ -192,6 +192,10 @@ template <class T> inline T cast_from_oop(oop o) {
   return (T)(CHECK_UNHANDLED_OOPS_ONLY((void*))o);
 }
 
+inline bool check_obj_alignment(oop obj) {
+  return (cast_from_oop<intptr_t>(obj) & MinObjAlignmentInBytesMask) == 0;
+}
+
 // The metadata hierarchy is separate from the oop hierarchy
 
 //      class MetaspaceObj
@@ -216,4 +220,4 @@ class   ArrayKlass;
 class     ObjArrayKlass;
 class     TypeArrayKlass;
 
-#endif // SHARE_VM_OOPS_OOPSHIERARCHY_HPP
+#endif // SHARE_OOPS_OOPSHIERARCHY_HPP

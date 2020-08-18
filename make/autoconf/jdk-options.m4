@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -33,19 +33,8 @@
 # modules to compile into the JDK.
 AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_VARIANT],
 [
-  AC_MSG_CHECKING([which variant of the JDK to build])
-  AC_ARG_WITH([jdk-variant], [AS_HELP_STRING([--with-jdk-variant],
-      [JDK variant to build (normal) @<:@normal@:>@])])
-
-  if test "x$with_jdk_variant" = xnormal || test "x$with_jdk_variant" = x; then
-    JDK_VARIANT="normal"
-  else
-    AC_MSG_ERROR([The available JDK variants are: normal])
-  fi
-
-  AC_SUBST(JDK_VARIANT)
-
-  AC_MSG_RESULT([$JDK_VARIANT])
+  # Deprecated in JDK 12
+  BASIC_DEPRECATED_ARG_WITH([jdk-variant])
 ])
 
 ###############################################################################
@@ -126,10 +115,6 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_OPEN_OR_CUSTOM],
   else
     AC_MSG_ERROR([Invalid value for --enable-openjdk-only: $enable_openjdk_only])
   fi
-
-  # custom-make-dir is deprecated. Please use your custom-hook.m4 to override
-  # the IncludeCustomExtension macro.
-  BASIC_DEPRECATED_ARG_WITH(custom-make-dir)
 ])
 
 AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
@@ -238,6 +223,9 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
   if test "x$OPENJDK_TARGET_OS" = xaix ; then
     INCLUDE_SA=false
   fi
+  if test "x$OPENJDK_TARGET_CPU" = xs390x ; then
+    INCLUDE_SA=false
+  fi
   AC_SUBST(INCLUDE_SA)
 
   # Compress jars
@@ -256,6 +244,28 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
     COPYRIGHT_YEAR=`$DATE +'%Y'`
   fi
   AC_SUBST(COPYRIGHT_YEAR)
+
+  # Override default library path
+  AC_ARG_WITH([jni-libpath], [AS_HELP_STRING([--with-jni-libpath],
+      [override default JNI library search path])])
+  AC_MSG_CHECKING([for jni library path])
+  if test "x${with_jni_libpath}" = "x" || test "x${with_jni_libpath}" = "xno"; then
+    AC_MSG_RESULT([default])
+  elif test "x${with_jni_libpath}" = "xyes"; then
+    AC_MSG_RESULT([invalid])
+    AC_MSG_ERROR([The --with-jni-libpath option requires an argument.])
+  else
+    HOTSPOT_OVERRIDE_LIBPATH=${with_jni_libpath}
+    if test "x$OPENJDK_TARGET_OS" != "xlinux" &&
+         test "x$OPENJDK_TARGET_OS" != "xbsd" &&
+         test "x$OPENJDK_TARGET_OS" != "xaix"; then
+      AC_MSG_RESULT([fail])
+      AC_MSG_ERROR([Overriding JNI library path is supported only on Linux, BSD and AIX.])
+    fi
+    AC_MSG_RESULT(${HOTSPOT_OVERRIDE_LIBPATH})
+  fi
+  AC_SUBST(HOTSPOT_OVERRIDE_LIBPATH)
+
 ])
 
 ###############################################################################
@@ -347,16 +357,6 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
     AC_MSG_ERROR([Allowed native debug symbols are: none, internal, external, zipped])
   fi
 
-  # --enable-debug-symbols is deprecated.
-  # Please use --with-native-debug-symbols=[internal,external,zipped] .
-  BASIC_DEPRECATED_ARG_ENABLE(debug-symbols, debug_symbols,
-        [Please use --with-native-debug-symbols=[[internal,external,zipped]] .])
-
-  # --enable-zip-debug-info is deprecated.
-  # Please use --with-native-debug-symbols=zipped .
-  BASIC_DEPRECATED_ARG_ENABLE(zip-debug-info, zip_debug_info,
-                              [Please use --with-native-debug-symbols=zipped .])
-
   AC_SUBST(COMPILE_WITH_DEBUG_SYMBOLS)
   AC_SUBST(COPY_DEBUG_SYMBOLS)
   AC_SUBST(ZIP_EXTERNAL_DEBUG_SYMBOLS)
@@ -395,8 +395,37 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
   elif test "x$enable_native_coverage" != "x"; then
     AC_MSG_ERROR([--enable-native-coverage can only be assigned "yes" or "no"])
   fi
-
   AC_SUBST(GCOV_ENABLED)
+
+  AC_ARG_WITH(jcov, [AS_HELP_STRING([--with-jcov],
+      [jcov library location])])
+  AC_ARG_WITH(jcov-input-jdk, [AS_HELP_STRING([--with-jcov-input-jdk],
+      [jdk image to instrument])])
+  JCOV_HOME=
+  JCOV_INPUT_JDK=
+  JCOV_ENABLED=
+  if test "x$with_jcov" = "x" ; then
+    JCOV_ENABLED="false"
+  else
+    JCOV_HOME="$with_jcov"
+    if test ! -f "$JCOV_HOME/lib/jcov.jar"; then
+      AC_MSG_RESULT([fail])
+      AC_MSG_ERROR([Invalid JCov bundle: "$JCOV_HOME/lib/jcov.jar" does not exist])
+    fi
+    JCOV_ENABLED="true"
+    BASIC_FIXUP_PATH(JCOV_HOME)
+    if test "x$with_jcov_input_jdk" != "x" ; then
+      JCOV_INPUT_JDK="$with_jcov_input_jdk"
+      if test ! -f "$JCOV_INPUT_JDK/bin/java$EXE_SUFFIX"; then
+        AC_MSG_RESULT([fail])
+        AC_MSG_ERROR([Invalid JDK bundle: "$JCOV_INPUT_JDK/bin/java$EXE_SUFFIX" does not exist])
+      fi
+      BASIC_FIXUP_PATH(JCOV_INPUT_JDK)
+    fi
+  fi
+  AC_SUBST(JCOV_ENABLED)
+  AC_SUBST(JCOV_HOME)
+  AC_SUBST(JCOV_INPUT_JDK)
 ])
 
 ###############################################################################
@@ -549,7 +578,7 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
 
   # Check if it's likely that it's possible to generate the classlist. Depending
   # on exact jvm configuration it could be possible anyway.
-  if test "x$ENABLE_CDS" = "xtrue" && (HOTSPOT_CHECK_JVM_VARIANT(server) || HOTSPOT_CHECK_JVM_VARIANT(client)); then
+  if test "x$ENABLE_CDS" = "xtrue" && (HOTSPOT_CHECK_JVM_VARIANT(server) || HOTSPOT_CHECK_JVM_VARIANT(client) || HOTSPOT_CHECK_JVM_FEATURE(cds)); then
     ENABLE_GENERATE_CLASSLIST_POSSIBLE="true"
   else
     ENABLE_GENERATE_CLASSLIST_POSSIBLE="false"
@@ -578,4 +607,86 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
   fi
 
   AC_SUBST(ENABLE_GENERATE_CLASSLIST)
+])
+
+################################################################################
+#
+# Optionally filter resource translations
+#
+AC_DEFUN([JDKOPT_EXCLUDE_TRANSLATIONS],
+[
+  AC_ARG_WITH([exclude-translations], [AS_HELP_STRING([--with-exclude-translations],
+      [a comma separated list of locales to exclude translations for. Default is
+      to include all translations present in the source.])])
+
+  EXCLUDE_TRANSLATIONS=""
+  AC_MSG_CHECKING([if any translations should be excluded])
+  if test "x$with_exclude_translations" != "x"; then
+    EXCLUDE_TRANSLATIONS="${with_exclude_translations//,/ }"
+    AC_MSG_RESULT([yes: $EXCLUDE_TRANSLATIONS])
+  else
+    AC_MSG_RESULT([no])
+  fi
+
+  AC_SUBST(EXCLUDE_TRANSLATIONS)
+])
+
+################################################################################
+#
+# Optionally disable man pages
+#
+AC_DEFUN([JDKOPT_ENABLE_DISABLE_MANPAGES],
+[
+  AC_ARG_ENABLE([manpages], [AS_HELP_STRING([--disable-manpages],
+      [Set to disable copy of static man pages @<:@enabled@:>@])])
+
+  BUILD_MANPAGES="true"
+  AC_MSG_CHECKING([if static man pages should be copied])
+  if test "x$enable_manpages" = "x"; then
+    AC_MSG_RESULT([yes])
+  elif test "x$enable_manpages" = "xyes"; then
+    AC_MSG_RESULT([yes, forced])
+  elif test "x$enable_manpages" = "xno"; then
+    AC_MSG_RESULT([no, forced])
+    BUILD_MANPAGES="false"
+  else
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([--enable-manpages can only yes/no or empty])
+  fi
+
+  AC_SUBST(BUILD_MANPAGES)
+])
+
+################################################################################
+#
+# Disable the default CDS archive generation
+#   cross compilation - disabled
+#
+AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE],
+[
+  AC_ARG_ENABLE([cds-archive], [AS_HELP_STRING([--disable-cds-archive],
+      [Set to disable generation of a default CDS archive in the product image @<:@enabled@:>@])])
+
+  AC_MSG_CHECKING([if a default CDS archive should be generated])
+  if test "x$ENABLE_CDS" = "xfalse"; then
+    AC_MSG_RESULT([no, because CDS is disabled])
+    BUILD_CDS_ARCHIVE="false"
+  elif test "x$COMPILE_TYPE" = "xcross"; then
+    AC_MSG_RESULT([no, not possible with cross compilation])
+    BUILD_CDS_ARCHIVE="false"
+  elif test "x$enable_cds_archive" = "xyes"; then
+    AC_MSG_RESULT([yes, forced])
+    BUILD_CDS_ARCHIVE="true"
+  elif test "x$enable_cds_archive" = "x"; then
+    AC_MSG_RESULT([yes])
+    BUILD_CDS_ARCHIVE="true"
+  elif test "x$enable_cds_archive" = "xno"; then
+    AC_MSG_RESULT([no, forced])
+    BUILD_CDS_ARCHIVE="false"
+  else
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([--enable-cds_archive can only be yes/no or empty])
+  fi
+
+  AC_SUBST(BUILD_CDS_ARCHIVE)
 ])

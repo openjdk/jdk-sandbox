@@ -37,8 +37,7 @@ package java.util;
 import java.io.Serializable;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * Resizable-array implementation of the {@link Deque} interface.  Array
@@ -80,7 +79,7 @@ import jdk.internal.misc.SharedSecrets;
  * Iterator} interfaces.
  *
  * <p>This class is a member of the
- * <a href="{@docRoot}/java/util/package-summary.html#CollectionsFramework">
+ * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
  * Java Collections Framework</a>.
  *
  * @author  Josh Bloch and Doug Lea
@@ -180,7 +179,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      * sufficient to hold 16 elements.
      */
     public ArrayDeque() {
-        elements = new Object[16];
+        elements = new Object[16 + 1];
     }
 
     /**
@@ -208,7 +207,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      */
     public ArrayDeque(Collection<? extends E> c) {
         this(c.size());
-        addAll(c);
+        copyElements(c);
     }
 
     /**
@@ -322,8 +321,12 @@ public class ArrayDeque<E> extends AbstractCollection<E>
         final int s, needed;
         if ((needed = (s = size()) + c.size() + 1 - elements.length) > 0)
             grow(needed);
-        c.forEach(this::addLast);
+        copyElements(c);
         return size() > s;
+    }
+
+    private void copyElements(Collection<? extends E> c) {
+        c.forEach(this::addLast);
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_NATIVE_CALL_STACK_HPP
-#define SHARE_VM_UTILITIES_NATIVE_CALL_STACK_HPP
+#ifndef SHARE_UTILITIES_NATIVECALLSTACK_HPP
+#define SHARE_UTILITIES_NATIVECALLSTACK_HPP
 
 #include "memory/allocation.hpp"
 #include "services/nmtCommon.hpp"
@@ -51,18 +51,21 @@
  * 2. The class is strict stack object, no heap or virtual memory can be allocated
  *    from it.
  */
-class NativeCallStack : public StackObj {
- public:
-  static const NativeCallStack EMPTY_STACK;
+class MemTracker;
 
- private:
+class NativeCallStack : public StackObj {
+private:
   address       _stack[NMT_TrackingStackDepth];
   unsigned int  _hash_value;
 
- public:
+public:
   NativeCallStack(int toSkip = 0, bool fillStack = false);
   NativeCallStack(address* pc, int frameCount);
 
+  static inline const NativeCallStack& empty_stack() {
+    static const NativeCallStack EMPTY_STACK(0, false);
+    return EMPTY_STACK;
+  }
 
   // if it is an empty stack
   inline bool is_empty() const {
@@ -95,4 +98,4 @@ class NativeCallStack : public StackObj {
   void print_on(outputStream* out, int indent) const;
 };
 
-#endif
+#endif // SHARE_UTILITIES_NATIVECALLSTACK_HPP

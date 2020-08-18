@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -22,6 +24,8 @@
  */
 
 package propertiesparser.gen;
+
+import static java.util.stream.Collectors.toList;
 
 import propertiesparser.parser.Message;
 import propertiesparser.parser.MessageFile;
@@ -42,11 +46,12 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.TreeSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -148,7 +153,11 @@ public class ClassGenerator {
     public void generateFactory(MessageFile messageFile, File outDir) {
         Map<FactoryKind, List<Map.Entry<String, Message>>> groupedEntries =
                 messageFile.messages.entrySet().stream()
-                        .collect(Collectors.groupingBy(e -> FactoryKind.parseFrom(e.getKey().split("\\.")[1])));
+                        .collect(
+                                Collectors.groupingBy(
+                                        e -> FactoryKind.parseFrom(e.getKey().split("\\.")[1]),
+                                        TreeMap::new,
+                                        toList()));
         //generate nested classes
         List<String> nestedDecls = new ArrayList<>();
         Set<String> importedTypes = new TreeSet<>();

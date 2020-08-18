@@ -31,9 +31,7 @@
 AC_DEFUN([FLAGS_SETUP_ARFLAGS],
 [
   # FIXME: figure out if we should select AR flags depending on OS or toolchain.
-  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    ARFLAGS="-r -mmacosx-version-min=$MACOSX_VERSION_MIN"
-  elif test "x$OPENJDK_TARGET_OS" = xaix; then
+  if test "x$OPENJDK_TARGET_OS" = xaix; then
     ARFLAGS="-X64"
   elif test "x$OPENJDK_TARGET_OS" = xwindows; then
     # lib.exe is used as AR to create static libraries.
@@ -120,6 +118,12 @@ AC_DEFUN([FLAGS_SETUP_ASFLAGS_CPU_DEP],
 [
   # Misuse EXTRA_CFLAGS to mimic old behavior
   $2JVM_ASFLAGS="$JVM_BASIC_ASFLAGS ${$2EXTRA_CFLAGS}"
+
+  if test "x$1" = "xTARGET" && \
+      test "x$TOOLCHAIN_TYPE" = xgcc && \
+      test "x$OPENJDK_TARGET_CPU" = xarm; then
+    $2JVM_ASFLAGS="${$2JVM_ASFLAGS} $ARM_ARCH_TYPE_ASFLAGS $ARM_FLOAT_TYPE_ASFLAGS"
+  fi
 
   AC_SUBST($2JVM_ASFLAGS)
 ])

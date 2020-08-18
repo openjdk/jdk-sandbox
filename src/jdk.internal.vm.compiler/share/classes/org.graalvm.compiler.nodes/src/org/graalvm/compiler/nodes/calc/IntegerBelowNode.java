@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.calc;
 
 import org.graalvm.compiler.core.common.NumUtil;
@@ -30,6 +32,7 @@ import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.graph.spi.CanonicalizerTool;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
+import org.graalvm.compiler.nodes.LogicNegationNode;
 import org.graalvm.compiler.nodes.LogicNode;
 import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.ValueNode;
@@ -38,6 +41,7 @@ import org.graalvm.compiler.options.OptionValues;
 import jdk.vm.ci.code.CodeUtil;
 import jdk.vm.ci.meta.ConstantReflectionProvider;
 import jdk.vm.ci.meta.MetaAccessProvider;
+import jdk.vm.ci.meta.TriState;
 
 @NodeInfo(shortName = "|<|")
 public final class IntegerBelowNode extends IntegerLowerThanNode {
@@ -78,6 +82,24 @@ public final class IntegerBelowNode extends IntegerLowerThanNode {
         protected CompareNode duplicateModified(ValueNode newX, ValueNode newY, boolean unorderedIsTrue, NodeView view) {
             assert newX.stamp(NodeView.DEFAULT) instanceof IntegerStamp && newY.stamp(NodeView.DEFAULT) instanceof IntegerStamp;
             return new IntegerBelowNode(newX, newY);
+        }
+
+        @Override
+        protected LogicNode findSynonym(ValueNode forX, ValueNode forY, NodeView view) {
+            LogicNode result = super.findSynonym(forX, forY, view);
+            if (result != null) {
+                return result;
+            }
+            if (forX.stamp(view) instanceof IntegerStamp) {
+                assert forY.stamp(view) instanceof IntegerStamp;
+                int bits = ((IntegerStamp) forX.stamp(view)).getBits();
+                assert ((IntegerStamp) forY.stamp(view)).getBits() == bits;
+                LogicNode logic = canonicalizeRangeFlip(forX, forY, bits, false, view);
+                if (logic != null) {
+                    return logic;
+                }
+            }
+            return null;
         }
 
         @Override
@@ -134,5 +156,37 @@ public final class IntegerBelowNode extends IntegerLowerThanNode {
         protected IntegerLowerThanNode createNode(ValueNode x, ValueNode y) {
             return new IntegerBelowNode(x, y);
         }
+    }
+
+    @Override
+    public TriState implies(boolean thisNegated, LogicNode other) {
+        if (other instanceof LogicNegationNode) {
+            // Unwrap negations.
+            TriState result = implies(thisNegated, ((LogicNegationNode) other).getValue());
+            if (result.isKnown()) {
+                return TriState.get(!result.toBoolean());
+            }
+        }
+        if (!thisNegated) {
+            if (other instanceof IntegerLessThanNode) {
+                IntegerLessThanNode integerLessThanNode = (IntegerLessThanNode) other;
+                IntegerStamp stampL = (IntegerStamp) this.getY().stamp(NodeView.DEFAULT);
+                // if L >= 0:
+                if (stampL.isPositive()) { // L >= 0
+                    if (this.getX() == integerLessThanNode.getX()) {
+                        // x |<| L implies x < L
+                        if (this.getY() == integerLessThanNode.getY()) {
+                            return TriState.TRUE;
+                        }
+                        // x |<| L implies !(x < 0)
+                        if (integerLessThanNode.getY().isConstant() &&
+                                        IntegerStamp.OPS.getAdd().isNeutral(integerLessThanNode.getY().asConstant())) {
+                            return TriState.FALSE;
+                        }
+                    }
+                }
+            }
+        }
+        return super.implies(thisNegated, other);
     }
 }

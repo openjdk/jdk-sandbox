@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -85,6 +83,8 @@ import com.sun.tools.classfile.ModuleMainClass_attribute;
 import com.sun.tools.classfile.ModuleResolution_attribute;
 import com.sun.tools.classfile.ModuleTarget_attribute;
 import com.sun.tools.classfile.ModulePackages_attribute;
+import com.sun.tools.classfile.NestHost_attribute;
+import com.sun.tools.classfile.NestMembers_attribute;
 import com.sun.tools.classfile.Opcode;
 import com.sun.tools.classfile.RuntimeInvisibleAnnotations_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleParameterAnnotations_attribute;
@@ -1564,6 +1564,30 @@ class AttributeVisitor implements Attribute.Visitor<Element, Element> {
         e.add(x.getCpString(attr.target_platform_index));
         e.trimToSize();
         p.add(e);
+        return null;
+    }
+
+    @Override
+    public Element visitNestHost(NestHost_attribute attr, Element p) {
+        String aname = x.getCpString(attr.attribute_name_index);
+        String hname = x.getCpString(attr.top_index);
+        Element se = new Element(aname);
+        se.add(hname);
+        se.trimToSize();
+        p.add(se);
+        return null;
+    }
+
+    @Override
+    public Element visitNestMembers(NestMembers_attribute attr, Element p) {
+        Element ee = new Element(x.getCpString(attr.attribute_name_index));
+        for (int idx : attr.members_indexes) {
+            Element n = new Element("Item");
+            n.setAttr("class", x.getCpString(idx));
+            ee.add(n);
+        }
+        ee.trimToSize();
+        p.add(ee);
         return null;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_GCUTIL_HPP
-#define SHARE_VM_GC_SHARED_GCUTIL_HPP
+#ifndef SHARE_GC_SHARED_GCUTIL_HPP
+#define SHARE_GC_SHARED_GCUTIL_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/timer.hpp"
@@ -73,8 +73,8 @@ class AdaptiveWeightedAverage : public CHeapObj<mtGC> {
  public:
   // Input weight must be between 0 and 100
   AdaptiveWeightedAverage(unsigned weight, float avg = 0.0) :
-    _average(avg), _sample_count(0), _weight(weight), _last_sample(0.0),
-    _is_old(false) {
+    _average(avg), _sample_count(0), _weight(weight),
+    _is_old(false), _last_sample(0.0) {
   }
 
   void clear() {
@@ -216,4 +216,4 @@ class LinearLeastSquareFit : public CHeapObj<mtGC> {
   bool increment_will_decrease();
 };
 
-#endif // SHARE_VM_GC_SHARED_GCUTIL_HPP
+#endif // SHARE_GC_SHARED_GCUTIL_HPP

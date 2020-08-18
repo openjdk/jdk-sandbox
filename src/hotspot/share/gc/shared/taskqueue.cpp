@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/taskqueue.hpp"
+#include "gc/shared/owstTaskTerminator.hpp"
 #include "oops/oop.inline.hpp"
 #include "logging/log.hpp"
 #include "runtime/atomic.hpp"
@@ -110,24 +111,6 @@ void TaskQueueStats::verify() const
 }
 #endif // ASSERT
 #endif // TASKQUEUE_STATS
-
-int TaskQueueSetSuper::randomParkAndMiller(int *seed0) {
-  const int a =      16807;
-  const int m = 2147483647;
-  const int q =     127773;  /* m div a */
-  const int r =       2836;  /* m mod a */
-  assert(sizeof(int) == 4, "I think this relies on that");
-  int seed = *seed0;
-  int hi   = seed / q;
-  int lo   = seed % q;
-  int test = a * lo - r * hi;
-  if (test > 0)
-    seed = test;
-  else
-    seed = test + m;
-  *seed0 = seed;
-  return seed;
-}
 
 ParallelTaskTerminator::
 ParallelTaskTerminator(uint n_threads, TaskQueueSetSuper* queue_set) :
@@ -265,3 +248,25 @@ void ParallelTaskTerminator::reset_for_reuse(uint n_threads) {
   reset_for_reuse();
   _n_threads = n_threads;
 }
+
+TaskTerminator::TaskTerminator(uint n_threads, TaskQueueSetSuper* queue_set) :
+  _terminator(UseOWSTTaskTerminator ? new OWSTTaskTerminator(n_threads, queue_set)
+                                    : new ParallelTaskTerminator(n_threads, queue_set)) {
+}
+
+TaskTerminator::~TaskTerminator() {
+  if (_terminator != NULL) {
+    delete _terminator;
+  }
+}
+
+// Move assignment
+TaskTerminator& TaskTerminator::operator=(const TaskTerminator& o) {
+  if (_terminator != NULL) {
+    delete _terminator;
+  }
+  _terminator = o.terminator();
+  const_cast<TaskTerminator&>(o)._terminator = NULL;
+  return *this;
+}
+

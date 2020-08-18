@@ -41,7 +41,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -51,6 +51,7 @@
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/timer.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
 
@@ -92,8 +93,6 @@ char* os::non_memory_address_word() {
 
   return (char*) -1;
 }
-
-void os::initialize_thread(Thread *thread) { }
 
 // Frame information (pc, sp, fp) retrieved via ucontext
 // always looks like a C-frame according to the frame
@@ -266,6 +265,13 @@ JVM_handle_linux_signal(int sig,
     }
   }
 
+#ifdef CAN_SHOW_REGISTERS_ON_ASSERT
+  if ((sig == SIGSEGV || sig == SIGBUS) && info != NULL && info->si_addr == g_assert_poison) {
+    handle_assert_poison_fault(ucVoid, info->si_addr);
+    return 1;
+  }
+#endif
+
   JavaThread* thread = NULL;
   VMThread* vmthread = NULL;
   if (os::Linux::signal_handlers_are_installed) {
@@ -425,7 +431,7 @@ JVM_handle_linux_signal(int sig,
       // SIGSEGV-based implicit null check in compiled code.
       else if (sig == SIGSEGV && ImplicitNullChecks &&
                CodeCache::contains((void*) pc) &&
-               !MacroAssembler::needs_explicit_null_check((intptr_t) info->si_addr)) {
+               MacroAssembler::uses_implicit_null_check(info->si_addr)) {
         if (TraceTraps) {
           tty->print_cr("trap: null_check at " INTPTR_FORMAT " (SIGSEGV)", p2i(pc));
         }
@@ -470,20 +476,6 @@ JVM_handle_linux_signal(int sig,
         os::Linux::ucontext_set_pc(uc, pc + 4);
         return true;
       }
-    }
-
-    // Check to see if we caught the safepoint code in the
-    // process of write protecting the memory serialization page.
-    // It write enables the page immediately after protecting it
-    // so we can just return to retry the write.
-    if ((sig == SIGSEGV) &&
-        // Si_addr may not be valid due to a bug in the linux-ppc64 kernel (see comment above).
-        // Use is_memory_serialization instead of si_addr.
-        ((NativeInstruction*)pc)->is_memory_serialization(thread, ucVoid)) {
-      // Synchronization problem in the pseudo memory barrier code (bug id 6546278)
-      // Block current thread until the memory serialize page permission restored.
-      os::block_on_serialize_page_trap();
-      return true;
     }
   }
 
@@ -595,7 +587,9 @@ void os::print_register_info(outputStream *st, const void *context) {
   st->print_cr("Register to memory mapping:");
   st->cr();
 
-  // this is only for the "general purpose" registers
+  st->print("pc ="); print_location(st, (intptr_t)uc->uc_mcontext.regs->nip);
+  st->print("lr ="); print_location(st, (intptr_t)uc->uc_mcontext.regs->link);
+  st->print("ctr ="); print_location(st, (intptr_t)uc->uc_mcontext.regs->ctr);
   for (int i = 0; i < 32; i++) {
     st->print("r%-2d=", i);
     print_location(st, uc->uc_mcontext.regs->gpr[i]);

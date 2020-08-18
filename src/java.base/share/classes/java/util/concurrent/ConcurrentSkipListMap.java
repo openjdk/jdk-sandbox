@@ -101,7 +101,7 @@ import java.util.concurrent.atomic.LongAdder;
  * elements.
  *
  * <p>This class is a member of the
- * <a href="{@docRoot}/java/util/package-summary.html#CollectionsFramework">
+ * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
  * Java Collections Framework</a>.
  *
  * @author Doug Lea
@@ -1764,9 +1764,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
                 }
                 return true;
             }
-        } catch (ClassCastException unused) {
-            return false;
-        } catch (NullPointerException unused) {
+        } catch (ClassCastException | NullPointerException unused) {
             return false;
         }
     }
@@ -3412,7 +3410,7 @@ public class ConcurrentSkipListMap<K,V> extends AbstractMap<K,V>
             VAL = l.findVarHandle(Node.class, "val", Object.class);
             RIGHT = l.findVarHandle(Index.class, "right", Index.class);
         } catch (ReflectiveOperationException e) {
-            throw new Error(e);
+            throw new ExceptionInInitializerError(e);
         }
     }
 }

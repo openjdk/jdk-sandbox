@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  */
 
 /**
- * library /lib/testlibrary/ /
- * build jdk.testlibrary.SimpleSSLContext ProxyServer
+ * library /test/lib /
+ * build jdk.test.lib.net.SimpleSSLContext ProxyServer
  * compile ../../../com/sun/net/httpserver/LogFilter.java
  * compile ../../../com/sun/net/httpserver/EchoHandler.java
  * compile ../../../com/sun/net/httpserver/FileServerHandler.java
@@ -38,6 +38,7 @@ import com.sun.net.httpserver.HttpsServer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.HashSet;
@@ -49,7 +50,7 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLContext;
-import jdk.testlibrary.SimpleSSLContext;
+import jdk.test.lib.net.SimpleSSLContext;
 
 public class LightWeightHttpServer {
 
@@ -81,7 +82,7 @@ public class LightWeightHttpServer {
         logger.addHandler(ch);
 
         String root = System.getProperty("test.src", ".") + "/docs";
-        InetSocketAddress addr = new InetSocketAddress(0);
+        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         httpServer = HttpServer.create(addr, 0);
         if (httpServer instanceof HttpsServer) {
             throw new RuntimeException("should not be httpsserver");
@@ -118,8 +119,8 @@ public class LightWeightHttpServer {
         System.out.println("HTTP server port = " + port);
         httpsport = httpsServer.getAddress().getPort();
         System.out.println("HTTPS server port = " + httpsport);
-        httproot = "http://127.0.0.1:" + port + "/";
-        httpsroot = "https://127.0.0.1:" + httpsport + "/";
+        httproot = "http://localhost:" + port + "/";
+        httpsroot = "https://localhost:" + httpsport + "/";
 
         proxy = new ProxyServer(0, false);
         proxyPort = proxy.getPort();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_LINUX_VM_OS_LINUX_INLINE_HPP
-#define OS_LINUX_VM_OS_LINUX_INLINE_HPP
+#ifndef OS_LINUX_OS_LINUX_INLINE_HPP
+#define OS_LINUX_OS_LINUX_INLINE_HPP
 
 #include "runtime/os.hpp"
 
@@ -34,13 +34,9 @@
 #include <poll.h>
 #include <netdb.h>
 
-// File names are case-sensitive on windows only
-inline int os::file_name_strcmp(const char* s1, const char* s2) {
-  return strcmp(s1, s2);
-}
-
-inline bool os::obsolete_option(const JavaVMOption *option) {
-  return false;
+// File names are case-insensitive on windows only
+inline int os::file_name_strncmp(const char* s1, const char* s2, size_t num) {
+  return strncmp(s1, s2, num);
 }
 
 inline bool os::uses_stack_guard_pages() {
@@ -69,17 +65,6 @@ inline void os::dll_unload(void *lib) {
 
 inline const int os::default_file_open_flags() { return 0;}
 
-inline DIR* os::opendir(const char* dirname)
-{
-  assert(dirname != NULL, "just checking");
-  return ::opendir(dirname);
-}
-
-inline int os::readdir_buf_size(const char *path)
-{
-  return NAME_MAX + sizeof(dirent) + 1;
-}
-
 inline jlong os::lseek(int fd, jlong offset, int whence) {
   return (jlong) ::lseek64(fd, offset, whence);
 }
@@ -88,41 +73,8 @@ inline int os::fsync(int fd) {
   return ::fsync(fd);
 }
 
-inline char* os::native_path(char *path) {
-  return path;
-}
-
 inline int os::ftruncate(int fd, jlong length) {
   return ::ftruncate64(fd, length);
-}
-
-inline struct dirent* os::readdir(DIR* dirp, dirent *dbuf)
-{
-// readdir_r has been deprecated since glibc 2.24.
-// See https://sourceware.org/bugzilla/show_bug.cgi?id=19056 for more details.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
-  dirent* p;
-  int status;
-  assert(dirp != NULL, "just checking");
-
-  // NOTE: Linux readdir_r (on RH 6.2 and 7.2 at least) is NOT like the POSIX
-  // version. Here is the doc for this function:
-  // http://www.gnu.org/manual/glibc-2.2.3/html_node/libc_262.html
-
-  if((status = ::readdir_r(dirp, dbuf, &p)) != 0) {
-    errno = status;
-    return NULL;
-  } else
-    return p;
-
-#pragma GCC diagnostic pop
-}
-
-inline int os::closedir(DIR *dirp) {
-  assert(dirp != NULL, "argument is NULL");
-  return ::closedir(dirp);
 }
 
 // macros for restartable system calls
@@ -139,12 +91,6 @@ inline int os::closedir(DIR *dirp) {
 
 inline bool os::numa_has_static_binding()   { return true; }
 inline bool os::numa_has_group_homing()     { return false;  }
-
-inline size_t os::restartable_read(int fd, void *buf, unsigned int nBytes) {
-  size_t res;
-  RESTARTABLE( (size_t) ::read(fd, buf, (size_t) nBytes), res);
-  return res;
-}
 
 inline size_t os::write(int fd, const void *buf, unsigned int nBytes) {
   size_t res;
@@ -185,11 +131,11 @@ inline struct hostent* os::get_host_by_name(char* name) {
 }
 
 inline bool os::supports_monotonic_clock() {
-  return Linux::_clock_gettime != NULL;
+  return os::Posix::supports_monotonic_clock();
 }
 
 inline void os::exit(int num) {
   ::exit(num);
 }
 
-#endif // OS_LINUX_VM_OS_LINUX_INLINE_HPP
+#endif // OS_LINUX_OS_LINUX_INLINE_HPP

@@ -24,6 +24,8 @@
 
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "memory/resourceArea.hpp"
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm_misc.hpp"
@@ -33,15 +35,13 @@
 
 #define BUFFER_SIZE 30*wordSize
 
-// Instead of issuing lfence for LoadLoad barrier, we create data dependency
-// between loads, which is more efficient than lfence.
-
 // Common register usage:
 // rax/xmm0: result
 // c_rarg0:    jni env
 // c_rarg1:    obj
 // c_rarg2:    jfield id
 
+static const Register rtmp          = r8;
 static const Register robj          = r9;
 static const Register rcounter      = r10;
 static const Register roffset       = r11;
@@ -74,18 +74,13 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
   __ mov   (robj, c_rarg1);
   __ testb (rcounter, 1);
   __ jcc (Assembler::notZero, slow);
-  if (os::is_MP()) {
-    __ xorptr(robj, rcounter);
-    __ xorptr(robj, rcounter);                   // obj, since
-                                                // robj ^ rcounter ^ rcounter == robj
-                                                // robj is data dependent on rcounter.
-  }
-
-  __ clear_jweak_tag(robj);
-
-  __ movptr(robj, Address(robj, 0));             // *obj
   __ mov   (roffset, c_rarg2);
   __ shrptr(roffset, 2);                         // offset
+
+  // Both robj and rtmp are clobbered by try_resolve_jobject_in_native.
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->try_resolve_jobject_in_native(masm, /* jni_env */ c_rarg0, robj, rtmp, slow);
+  DEBUG_ONLY(__ movl(rtmp, 0xDEADC0DE);)
 
   assert(count < LIST_CAPACITY, "LIST_CAPACITY too small");
   speculative_load_pclist[count] = __ pc();
@@ -99,15 +94,7 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
     default:        ShouldNotReachHere();
   }
 
-  if (os::is_MP()) {
-    __ lea(rcounter_addr, counter);
-    // ca is data dependent on rax.
-    __ xorptr(rcounter_addr, rax);
-    __ xorptr(rcounter_addr, rax);
-    __ cmpl (rcounter, Address(rcounter_addr, 0));
-  } else {
-    __ cmp32 (rcounter, counter);
-  }
+  __ cmp32 (rcounter, counter);
   __ jcc (Assembler::notEqual, slow);
 
   __ ret (0);
@@ -176,16 +163,12 @@ address JNI_FastGetField::generate_fast_get_float_field0(BasicType type) {
   __ mov   (robj, c_rarg1);
   __ testb (rcounter, 1);
   __ jcc (Assembler::notZero, slow);
-  if (os::is_MP()) {
-    __ xorptr(robj, rcounter);
-    __ xorptr(robj, rcounter);                   // obj, since
-                                                // robj ^ rcounter ^ rcounter == robj
-                                                // robj is data dependent on rcounter.
-  }
 
-  __ clear_jweak_tag(robj);
+  // Both robj and rtmp are clobbered by try_resolve_jobject_in_native.
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->try_resolve_jobject_in_native(masm, /* jni_env */ c_rarg0, robj, rtmp, slow);
+  DEBUG_ONLY(__ movl(rtmp, 0xDEADC0DE);)
 
-  __ movptr(robj, Address(robj, 0));             // *obj
   __ mov   (roffset, c_rarg2);
   __ shrptr(roffset, 2);                         // offset
 
@@ -196,17 +179,7 @@ address JNI_FastGetField::generate_fast_get_float_field0(BasicType type) {
     case T_DOUBLE: __ movdbl (xmm0, Address(robj, roffset, Address::times_1)); break;
     default:        ShouldNotReachHere();
   }
-
-  if (os::is_MP()) {
-    __ lea(rcounter_addr, counter);
-    __ movdq (rax, xmm0);
-    // counter address is data dependent on xmm0.
-    __ xorptr(rcounter_addr, rax);
-    __ xorptr(rcounter_addr, rax);
-    __ cmpl (rcounter, Address(rcounter_addr, 0));
-  } else {
-    __ cmp32 (rcounter, counter);
-  }
+  __ cmp32 (rcounter, counter);
   __ jcc (Assembler::notEqual, slow);
 
   __ ret (0);

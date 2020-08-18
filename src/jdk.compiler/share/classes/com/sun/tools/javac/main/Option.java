@@ -41,6 +41,7 @@ import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -59,6 +60,7 @@ import com.sun.tools.javac.jvm.Profile;
 import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.platform.PlatformProvider;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
+import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Log.PrefixKind;
@@ -134,9 +136,9 @@ public enum Option {
         }
 
         @Override
-        public void process(OptionHelper helper, String option) {
+        public void process(OptionHelper helper, String option, String arg) {
             String prev = helper.get(XDOCLINT_CUSTOM);
-            String next = (prev == null) ? option : (prev + " " + option);
+            String next = (prev == null) ? arg : (prev + " " + arg);
             helper.put(XDOCLINT_CUSTOM.primaryName, next);
         }
     },
@@ -149,9 +151,9 @@ public enum Option {
         }
 
         @Override
-        public void process(OptionHelper helper, String option) {
+        public void process(OptionHelper helper, String option, String arg) {
             String prev = helper.get(XDOCLINT_PACKAGE);
-            String next = (prev == null) ? option : (prev + " " + option);
+            String next = (prev == null) ? arg : (prev + "," + arg);
             helper.put(XDOCLINT_PACKAGE.primaryName, next);
         }
     },
@@ -180,7 +182,48 @@ public enum Option {
 
     SOURCE_PATH("--source-path -sourcepath", "opt.arg.path", "opt.sourcepath", STANDARD, FILEMANAGER),
 
-    MODULE_SOURCE_PATH("--module-source-path", "opt.arg.mspath", "opt.modulesourcepath", STANDARD, FILEMANAGER),
+    MODULE_SOURCE_PATH("--module-source-path", "opt.arg.mspath", "opt.modulesourcepath", STANDARD, FILEMANAGER) {
+        // The deferred filemanager diagnostics mechanism assumes a single value per option,
+        // but --module-source-path-module can be used multiple times, once in the old form
+        // and once per module in the new form.  Therefore we compose an overall value for the
+        // option containing the individual values given on the command line, separated by NULL.
+        // The standard file manager code knows to split apart the NULL-separated components.
+        @Override
+        public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
+            if (arg.isEmpty()) {
+                throw helper.newInvalidValueException(Errors.NoValueForOption(option));
+            }
+            Pattern moduleSpecificForm = getPattern();
+            String prev = helper.get(MODULE_SOURCE_PATH);
+            if (prev == null) {
+                super.process(helper, option, arg);
+            } else  if (moduleSpecificForm.matcher(arg).matches()) {
+                String argModule = arg.substring(0, arg.indexOf('='));
+                boolean isRepeated = Arrays.stream(prev.split("\0"))
+                        .filter(s -> moduleSpecificForm.matcher(s).matches())
+                        .map(s -> s.substring(0, s.indexOf('=')))
+                        .anyMatch(s -> s.equals(argModule));
+                if (isRepeated) {
+                    throw helper.newInvalidValueException(Errors.RepeatedValueForModuleSourcePath(argModule));
+                } else {
+                    super.process(helper, option, prev + '\0' + arg);
+                }
+            } else {
+                boolean isPresent = Arrays.stream(prev.split("\0"))
+                        .anyMatch(s -> !moduleSpecificForm.matcher(s).matches());
+                if (isPresent) {
+                    throw helper.newInvalidValueException(Errors.MultipleValuesForModuleSourcePath);
+                } else {
+                    super.process(helper, option, prev + '\0' + arg);
+                }
+            }
+        }
+
+        @Override
+        public Pattern getPattern() {
+            return Pattern.compile("([\\p{Alnum}$_.]+)=(.*)");
+        }
+    },
 
     MODULE_PATH("--module-path -p", "opt.arg.path", "opt.modulepath", STANDARD, FILEMANAGER),
 
@@ -192,12 +235,12 @@ public enum Option {
         // The deferred filemanager diagnostics mechanism assumes a single value per option,
         // but --patch-module can be used multiple times, once per module. Therefore we compose
         // a value for the option containing the last value specified for each module, and separate
-        // the the module=path pairs by an invalid path character, NULL.
+        // the module=path pairs by an invalid path character, NULL.
         // The standard file manager code knows to split apart the NULL-separated components.
         @Override
         public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
             if (arg.isEmpty()) {
-                throw helper.newInvalidValueException("err.no.value.for.option", option);
+                throw helper.newInvalidValueException(Errors.NoValueForOption(option));
             } else if (getPattern().matcher(arg).matches()) {
                 String prev = helper.get(PATCH_MODULE);
                 if (prev == null) {
@@ -209,13 +252,13 @@ public enum Option {
                             .collect(Collectors.toSet())
                             .contains(argModulePackage);
                     if (isRepeated) {
-                        throw helper.newInvalidValueException("err.repeated.value.for.patch.module", argModulePackage);
+                        throw helper.newInvalidValueException(Errors.RepeatedValueForPatchModule(argModulePackage));
                     } else {
                         super.process(helper, option, prev + '\0' + arg);
                     }
                 }
             } else {
-                throw helper.newInvalidValueException("err.bad.value.for.option", option, arg);
+                throw helper.newInvalidValueException(Errors.BadValueForOption(option, arg));
             }
         }
 
@@ -285,25 +328,45 @@ public enum Option {
 
     ENCODING("-encoding", "opt.arg.encoding", "opt.encoding", STANDARD, FILEMANAGER),
 
-    SOURCE("-source", "opt.arg.release", "opt.source", STANDARD, BASIC) {
+    SOURCE("--source -source", "opt.arg.release", "opt.source", STANDARD, BASIC) {
         @Override
         public void process(OptionHelper helper, String option, String operand) throws InvalidValueException {
             Source source = Source.lookup(operand);
             if (source == null) {
-                throw helper.newInvalidValueException("err.invalid.source", operand);
+                throw helper.newInvalidValueException(Errors.InvalidSource(operand));
             }
             super.process(helper, option, operand);
         }
+
+        @Override
+        protected void help(Log log) {
+            StringJoiner sj = new StringJoiner(", ");
+            for(Source source :  Source.values()) {
+                if (source.isSupported())
+                    sj.add(source.name);
+            }
+            super.help(log, log.localize(PrefixKind.JAVAC, descrKey, sj.toString()));
+        }
     },
 
-    TARGET("-target", "opt.arg.release", "opt.target", STANDARD, BASIC) {
+    TARGET("--target -target", "opt.arg.release", "opt.target", STANDARD, BASIC) {
         @Override
         public void process(OptionHelper helper, String option, String operand) throws InvalidValueException {
             Target target = Target.lookup(operand);
             if (target == null) {
-                throw helper.newInvalidValueException("err.invalid.target", operand);
+                throw helper.newInvalidValueException(Errors.InvalidTarget(operand));
             }
             super.process(helper, option, operand);
+        }
+
+        @Override
+        protected void help(Log log) {
+            StringJoiner sj = new StringJoiner(", ");
+            for(Target target :  Target.values()) {
+                if (target.isSupported())
+                    sj.add(target.name);
+            }
+            super.help(log, log.localize(PrefixKind.JAVAC, descrKey, sj.toString()));
         }
     },
 
@@ -316,7 +379,7 @@ public enum Option {
                                                  .flatMap(provider -> StreamSupport.stream(provider.getSupportedPlatformNames()
                                                                                                    .spliterator(),
                                                                                            false))
-                                                 .collect(Collectors.toCollection(TreeSet :: new));
+                                                 .collect(Collectors.toCollection(LinkedHashSet :: new));
 
             StringBuilder targets = new StringBuilder();
             String delim = "";
@@ -330,12 +393,14 @@ public enum Option {
         }
     },
 
+    PREVIEW("--enable-preview", "opt.preview", STANDARD, BASIC),
+
     PROFILE("-profile", "opt.arg.profile", "opt.profile", STANDARD, BASIC) {
         @Override
         public void process(OptionHelper helper, String option, String operand) throws InvalidValueException {
             Profile profile = Profile.lookup(operand);
             if (profile == null) {
-                throw helper.newInvalidValueException("err.invalid.profile", operand);
+                throw helper.newInvalidValueException(Errors.InvalidProfile(operand));
             }
             super.process(helper, option, operand);
         }
@@ -390,12 +455,12 @@ public enum Option {
         public void process(OptionHelper helper, String option) throws InvalidValueException {
             int argLength = option.length();
             if (argLength == 2) {
-                throw helper.newInvalidValueException("err.empty.A.argument");
+                throw helper.newInvalidValueException(Errors.EmptyAArgument);
             }
             int sepIndex = option.indexOf('=');
             String key = option.substring(2, (sepIndex != -1 ? sepIndex : argLength) );
             if (!JavacProcessingEnvironment.isValidOptionName(key)) {
-                throw helper.newInvalidValueException("err.invalid.A.key", option);
+                throw helper.newInvalidValueException(Errors.InvalidAKey(option));
             }
             helper.put(option, option);
         }
@@ -408,14 +473,13 @@ public enum Option {
         public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
             String prev = helper.get(DEFAULT_MODULE_FOR_CREATED_FILES);
             if (prev != null) {
-                throw helper.newInvalidValueException("err.option.too.many",
-                                                      DEFAULT_MODULE_FOR_CREATED_FILES.primaryName);
+                throw helper.newInvalidValueException(Errors.OptionTooMany(DEFAULT_MODULE_FOR_CREATED_FILES.primaryName));
             } else if (arg.isEmpty()) {
-                throw helper.newInvalidValueException("err.no.value.for.option", option);
+                throw helper.newInvalidValueException(Errors.NoValueForOption(option));
             } else if (getPattern().matcher(arg).matches()) {
                 helper.put(DEFAULT_MODULE_FOR_CREATED_FILES.primaryName, arg);
             } else {
-                throw helper.newInvalidValueException("err.bad.value.for.option", option, arg);
+                throw helper.newInvalidValueException(Errors.BadValueForOption(option, arg));
             }
         }
 
@@ -485,7 +549,7 @@ public enum Option {
                 Log log = helper.getLog();
                 log.setWriters(new PrintWriter(new FileWriter(arg), true));
             } catch (java.io.IOException e) {
-                throw helper.newInvalidValueException("err.error.writing.file", arg, e);
+                throw helper.newInvalidValueException(Errors.ErrorWritingFile(arg, e.getMessage()));
             }
             super.process(helper, option, arg);
         }
@@ -512,8 +576,7 @@ public enum Option {
 
     PLUGIN("-Xplugin:", "opt.arg.plugin", "opt.plugin", EXTENDED, BASIC) {
         @Override
-        public void process(OptionHelper helper, String option) {
-            String p = option.substring(option.indexOf(':') + 1).trim();
+        public void process(OptionHelper helper, String option, String p) {
             String prev = helper.get(PLUGIN);
             helper.put(PLUGIN.primaryName, (prev == null) ? p : prev + '\0' + p);
         }
@@ -521,24 +584,24 @@ public enum Option {
 
     XDIAGS("-Xdiags:", "opt.diags", EXTENDED, BASIC, ONEOF, "compact", "verbose"),
 
-    DEBUG("--debug:", null, HIDDEN, BASIC) {
+    DEBUG("--debug", null, HIDDEN, BASIC, ArgKind.REQUIRED) {
         @Override
-        public void process(OptionHelper helper, String option) throws InvalidValueException {
-            HiddenGroup.DEBUG.process(helper, option);
+        public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
+            HiddenGroup.DEBUG.process(helper, option, arg);
         }
     },
 
-    SHOULDSTOP("--should-stop:", null, HIDDEN, BASIC) {
+    SHOULDSTOP("--should-stop", null, HIDDEN, BASIC, ArgKind.REQUIRED) {
         @Override
-        public void process(OptionHelper helper, String option) throws InvalidValueException {
-            HiddenGroup.SHOULDSTOP.process(helper, option);
+        public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
+            HiddenGroup.SHOULDSTOP.process(helper, option, arg);
         }
     },
 
-    DIAGS("--diags:", null, HIDDEN, BASIC) {
+    DIAGS("--diags", null, HIDDEN, BASIC, ArgKind.REQUIRED) {
         @Override
-        public void process(OptionHelper helper, String option) throws InvalidValueException {
-            HiddenGroup.DIAGS.process(helper, option);
+        public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
+            HiddenGroup.DIAGS.process(helper, option, arg);
         }
     },
 
@@ -569,12 +632,12 @@ public enum Option {
         @Override
         public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
             if (arg.isEmpty()) {
-                throw helper.newInvalidValueException("err.no.value.for.option", option);
+                throw helper.newInvalidValueException(Errors.NoValueForOption(option));
             } else if (getPattern().matcher(arg).matches()) {
                 String prev = helper.get(ADD_EXPORTS);
                 helper.put(ADD_EXPORTS.primaryName, (prev == null) ? arg : prev + '\0' + arg);
             } else {
-                throw helper.newInvalidValueException("err.bad.value.for.option", option, arg);
+                throw helper.newInvalidValueException(Errors.BadValueForOption(option, arg));
             }
         }
 
@@ -590,12 +653,12 @@ public enum Option {
         @Override
         public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
             if (arg.isEmpty()) {
-                throw helper.newInvalidValueException("err.no.value.for.option", option);
+                throw helper.newInvalidValueException(Errors.NoValueForOption(option));
             } else if (getPattern().matcher(arg).matches()) {
                 String prev = helper.get(ADD_READS);
                 helper.put(ADD_READS.primaryName, (prev == null) ? arg : prev + '\0' + arg);
             } else {
-                throw helper.newInvalidValueException("err.bad.value.for.option", option, arg);
+                throw helper.newInvalidValueException(Errors.BadValueForOption(option, arg));
             }
         }
 
@@ -611,14 +674,14 @@ public enum Option {
         @Override
         public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
             if (arg.isEmpty()) {
-                throw helper.newInvalidValueException("err.no.value.for.option", option);
+                throw helper.newInvalidValueException(Errors.NoValueForOption(option));
             } else if (getPattern().matcher(arg).matches()) {
                 String prev = helper.get(ADD_MODULES);
                 // since the individual values are simple names, we can simply join the
                 // values of multiple --add-modules options with ','
                 helper.put(ADD_MODULES.primaryName, (prev == null) ? arg : prev + ',' + arg);
             } else {
-                throw helper.newInvalidValueException("err.bad.value.for.option", option, arg);
+                throw helper.newInvalidValueException(Errors.BadValueForOption(option, arg));
             }
         }
 
@@ -632,11 +695,11 @@ public enum Option {
         @Override
         public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
             if (arg.isEmpty()) {
-                throw helper.newInvalidValueException("err.no.value.for.option", option);
+                throw helper.newInvalidValueException(Errors.NoValueForOption(option));
             } else if (getPattern().matcher(arg).matches()) {
                 helper.put(LIMIT_MODULES.primaryName, arg); // last one wins
             } else {
-                throw helper.newInvalidValueException("err.bad.value.for.option", option, arg);
+                throw helper.newInvalidValueException(Errors.BadValueForOption(option, arg));
             }
         }
 
@@ -650,13 +713,13 @@ public enum Option {
         @Override
         public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
             if (arg.isEmpty()) {
-                throw helper.newInvalidValueException("err.no.value.for.option", option);
+                throw helper.newInvalidValueException(Errors.NoValueForOption(option));
             } else {
                 // use official parser if available
                 try {
                     ModuleDescriptor.Version.parse(arg);
                 } catch (IllegalArgumentException e) {
-                    throw helper.newInvalidValueException("err.bad.value.for.option", option, arg);
+                    throw helper.newInvalidValueException(Errors.BadValueForOption(option, arg));
                 }
             }
             super.process(helper, option, arg);
@@ -691,10 +754,10 @@ public enum Option {
             if (option.endsWith(".java") ) {
                 Path p = Paths.get(option);
                 if (!Files.exists(p)) {
-                    throw helper.newInvalidValueException("err.file.not.found", p);
+                    throw helper.newInvalidValueException(Errors.FileNotFound(p.toString()));
                 }
                 if (!Files.isRegularFile(p)) {
-                    throw helper.newInvalidValueException("err.file.not.file", p);
+                    throw helper.newInvalidValueException(Errors.FileNotFile(p));
                 }
                 helper.addFile(p);
             } else {
@@ -847,26 +910,18 @@ public enum Option {
         DEBUG("debug"),
         SHOULDSTOP("should-stop");
 
-        static final Set<String> skipSet = new java.util.HashSet<>(
-                Arrays.asList("--diags:", "--debug:", "--should-stop:"));
-
         final String text;
 
         HiddenGroup(String text) {
             this.text = text;
         }
 
-        public void process(OptionHelper helper, String option) throws InvalidValueException {
-            String p = option.substring(option.indexOf(':') + 1).trim();
-            String[] subOptions = p.split(";");
+        public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
+            String[] subOptions = arg.split(";");
             for (String subOption : subOptions) {
                 subOption = text + "." + subOption.trim();
                 XD.process(helper, subOption, subOption);
             }
-        }
-
-        static boolean skip(String name) {
-            return skipSet.contains(name);
         }
     }
 
@@ -958,6 +1013,11 @@ public enum Option {
         this(text, null, descrKey, kind, group, null, null, ArgKind.NONE);
     }
 
+    Option(String text, String descrKey,
+            OptionKind kind, OptionGroup group, ArgKind argKind) {
+        this(text, null, descrKey, kind, group, null, null, argKind);
+    }
+
     Option(String text, String argsNameKey, String descrKey,
             OptionKind kind, OptionGroup group) {
         this(text, argsNameKey, descrKey, kind, group, null, null, ArgKind.REQUIRED);
@@ -1026,7 +1086,7 @@ public enum Option {
     }
 
     private boolean matches(String option, String name) {
-        if (name.startsWith("--") && !HiddenGroup.skip(name)) {
+        if (name.startsWith("--")) {
             return option.equals(name)
                     || hasArg() && option.startsWith(name + "=");
         }
@@ -1080,7 +1140,7 @@ public enum Option {
                 operand = arg.substring(sep + 1);
             } else {
                 if (!rest.hasNext()) {
-                    throw helper.newInvalidValueException("err.req.arg", arg);
+                    throw helper.newInvalidValueException(Errors.ReqArg(this.primaryName));
                 }
                 option = arg;
                 operand = rest.next();

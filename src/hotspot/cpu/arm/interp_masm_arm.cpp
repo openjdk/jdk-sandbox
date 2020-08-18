@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,10 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
-#include "gc/shared/barrierSet.inline.hpp"
-#include "gc/shared/cardTableModRefBS.inline.hpp"
+#include "asm/macroAssembler.inline.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/cardTable.hpp"
+#include "gc/shared/cardTableBarrierSet.inline.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "interp_masm_arm.hpp"
 #include "interpreter/interpreter.hpp"
@@ -39,13 +41,8 @@
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
-
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#include "gc/g1/heapRegion.hpp"
-#endif // INCLUDE_ALL_GCS
 
 //--------------------------------------------------------------------
 // Implementation of InterpreterMacroAssembler
@@ -57,7 +54,7 @@ InterpreterMacroAssembler::InterpreterMacroAssembler(CodeBuffer* code) : MacroAs
 }
 
 void InterpreterMacroAssembler::call_VM_helper(Register oop_result, address entry_point, int number_of_arguments, bool check_exceptions) {
-#if defined(ASSERT) && !defined(AARCH64)
+#ifdef ASSERT
   // Ensure that last_sp is not filled.
   { Label L;
     ldr(Rtemp, Address(FP, frame::interpreter_frame_last_sp_offset * wordSize));
@@ -65,27 +62,15 @@ void InterpreterMacroAssembler::call_VM_helper(Register oop_result, address entr
     stop("InterpreterMacroAssembler::call_VM_helper: last_sp != NULL");
     bind(L);
   }
-#endif // ASSERT && !AARCH64
+#endif // ASSERT
 
   // Rbcp must be saved/restored since it may change due to GC.
   save_bcp();
 
-#ifdef AARCH64
-  check_no_cached_stack_top(Rtemp);
-  save_stack_top();
-  check_extended_sp(Rtemp);
-  cut_sp_before_call();
-#endif // AARCH64
 
   // super call
   MacroAssembler::call_VM_helper(oop_result, entry_point, number_of_arguments, check_exceptions);
 
-#ifdef AARCH64
-  // Restore SP to extended SP
-  restore_sp_after_call(Rtemp);
-  check_stack_top();
-  clear_cached_stack_top();
-#endif // AARCH64
 
   // Restore interpreter specific registers.
   restore_bcp();
@@ -131,10 +116,8 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
   const Address tos_addr(thread_state, JvmtiThreadState::earlyret_tos_offset());
   const Address oop_addr(thread_state, JvmtiThreadState::earlyret_oop_offset());
   const Address val_addr(thread_state, JvmtiThreadState::earlyret_value_offset());
-#ifndef AARCH64
   const Address val_addr_hi(thread_state, JvmtiThreadState::earlyret_value_offset()
                              + in_ByteSize(wordSize));
-#endif // !AARCH64
 
   Register zero = zero_register(Rtemp);
 
@@ -144,11 +127,7 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
                interp_verify_oop(R0_tos, state, __FILE__, __LINE__);
                break;
 
-#ifdef AARCH64
-    case ltos: ldr(R0_tos, val_addr);              break;
-#else
     case ltos: ldr(R1_tos_hi, val_addr_hi);        // fall through
-#endif // AARCH64
     case btos:                                     // fall through
     case ztos:                                     // fall through
     case ctos:                                     // fall through
@@ -166,9 +145,7 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
   }
   // Clean up tos value in the thread object
   str(zero, val_addr);
-#ifndef AARCH64
   str(zero, val_addr_hi);
-#endif // !AARCH64
 
   mov(Rtemp, (int) ilgl);
   str_32(Rtemp, tos_addr);
@@ -223,7 +200,6 @@ void InterpreterMacroAssembler::get_index_at_bcp(Register index, int bcp_offset,
     ldrb(tmp_reg, Address(Rbcp, bcp_offset));
     orr(index, tmp_reg, AsmOperand(index, lsl, BitsPerByte));
   } else if (index_size == sizeof(u4)) {
-    // TODO-AARCH64: consider using unaligned access here
     ldrb(index, Address(Rbcp, bcp_offset+3));
     ldrb(tmp_reg, Address(Rbcp, bcp_offset+2));
     orr(index, tmp_reg, AsmOperand(index, lsl, BitsPerByte));
@@ -255,7 +231,6 @@ void InterpreterMacroAssembler::get_cache_and_index_at_bcp(Register cache, Regis
 
   // convert from field index to ConstantPoolCacheEntry index
   assert(sizeof(ConstantPoolCacheEntry) == 4*wordSize, "adjust code below");
-  // TODO-AARCH64 merge this shift with shift "add(..., Rcache, AsmOperand(Rindex, lsl, LogBytesPerWord))" after this method is called
   logical_shift_left(index, index, 2);
 }
 
@@ -264,13 +239,8 @@ void InterpreterMacroAssembler::get_cache_and_index_and_bytecode_at_bcp(Register
   get_cache_and_index_at_bcp(cache, index, bcp_offset, index_size);
   // caution index and bytecode can be the same
   add(bytecode, cache, AsmOperand(index, lsl, LogBytesPerWord));
-#ifdef AARCH64
-  add(bytecode, bytecode, (1 + byte_no) + in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::indices_offset()));
-  ldarb(bytecode, bytecode);
-#else
   ldrb(bytecode, Address(bytecode, (1 + byte_no) + in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::indices_offset())));
   TemplateTable::volatile_barrier(MacroAssembler::LoadLoad, noreg, true);
-#endif // AARCH64
 }
 
 // Sets cache. Blows reg_tmp.
@@ -305,8 +275,9 @@ void InterpreterMacroAssembler::load_resolved_reference_at_index(
   // Add in the index
   // convert from field index to resolved_references() index and from
   // word index to byte offset. Since this is a java object, it can be compressed
-  add(cache, cache, AsmOperand(index, lsl, LogBytesPerHeapOop));
-  load_heap_oop(result, Address(cache, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
+  logical_shift_left(index, index, LogBytesPerHeapOop);
+  add(index, index, arrayOopDesc::base_offset_in_bytes(T_OBJECT));
+  load_heap_oop(result, Address(cache, index));
 }
 
 void InterpreterMacroAssembler::load_resolved_klass_at_offset(
@@ -367,31 +338,21 @@ void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
   ldr(supers_arr, Address(Rsub_klass, Klass::secondary_supers_offset()));
 
   ldr_u32(supers_cnt, Address(supers_arr, Array<Klass*>::length_offset_in_bytes())); // Load the array length
-#ifdef AARCH64
-  cbz(supers_cnt, not_subtype);
-  add(supers_arr, supers_arr, Array<Klass*>::base_offset_in_bytes());
-#else
   cmp(supers_cnt, 0);
 
   // Skip to the start of array elements and prefetch the first super-klass.
   ldr(cur_super, Address(supers_arr, Array<Klass*>::base_offset_in_bytes(), pre_indexed), ne);
   b(not_subtype, eq);
-#endif // AARCH64
 
   bind(loop);
 
-#ifdef AARCH64
-  ldr(cur_super, Address(supers_arr, wordSize, post_indexed));
-#endif // AARCH64
 
   cmp(cur_super, Rsuper_klass);
   b(update_cache, eq);
 
   subs(supers_cnt, supers_cnt, 1);
 
-#ifndef AARCH64
   ldr(cur_super, Address(supers_arr, wordSize, pre_indexed), ne);
-#endif // !AARCH64
 
   b(loop, ne);
 
@@ -404,86 +365,6 @@ void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
   bind(ok_is_subtype);
 }
 
-
-// The 1st part of the store check.
-// Sets card_table_base register.
-void InterpreterMacroAssembler::store_check_part1(Register card_table_base) {
-  // Check barrier set type (should be card table) and element size
-  BarrierSet* bs = Universe::heap()->barrier_set();
-  assert(bs->kind() == BarrierSet::CardTableForRS ||
-         bs->kind() == BarrierSet::CardTableExtension,
-         "Wrong barrier set kind");
-
-  CardTableModRefBS* ct = barrier_set_cast<CardTableModRefBS>(bs);
-  assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "Adjust store check code");
-
-  // Load card table base address.
-
-  /* Performance note.
-
-     There is an alternative way of loading card table base address
-     from thread descriptor, which may look more efficient:
-
-     ldr(card_table_base, Address(Rthread, JavaThread::card_table_base_offset()));
-
-     However, performance measurements of micro benchmarks and specJVM98
-     showed that loading of card table base from thread descriptor is
-     7-18% slower compared to loading of literal embedded into the code.
-     Possible cause is a cache miss (card table base address resides in a
-     rarely accessed area of thread descriptor).
-  */
-  // TODO-AARCH64 Investigate if mov_slow is faster than ldr from Rthread on AArch64
-  mov_address(card_table_base, (address)ct->byte_map_base, symbolic_Relocation::card_table_reference);
-}
-
-// The 2nd part of the store check.
-void InterpreterMacroAssembler::store_check_part2(Register obj, Register card_table_base, Register tmp) {
-  assert_different_registers(obj, card_table_base, tmp);
-
-  assert(CardTableModRefBS::dirty_card_val() == 0, "Dirty card value must be 0 due to optimizations.");
-#ifdef AARCH64
-  add(card_table_base, card_table_base, AsmOperand(obj, lsr, CardTableModRefBS::card_shift));
-  Address card_table_addr(card_table_base);
-#else
-  Address card_table_addr(card_table_base, obj, lsr, CardTableModRefBS::card_shift);
-#endif
-
-  if (UseCondCardMark) {
-    if (UseConcMarkSweepGC) {
-      membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreLoad), noreg);
-    }
-    Label already_dirty;
-
-    ldrb(tmp, card_table_addr);
-    cbz(tmp, already_dirty);
-
-    set_card(card_table_base, card_table_addr, tmp);
-    bind(already_dirty);
-
-  } else {
-    if (UseConcMarkSweepGC && CMSPrecleaningEnabled) {
-      membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreStore), noreg);
-    }
-    set_card(card_table_base, card_table_addr, tmp);
-  }
-}
-
-void InterpreterMacroAssembler::set_card(Register card_table_base, Address card_table_addr, Register tmp) {
-#ifdef AARCH64
-  strb(ZR, card_table_addr);
-#else
-  CardTableModRefBS* ct = barrier_set_cast<CardTableModRefBS>(Universe::heap()->barrier_set());
-  if ((((uintptr_t)ct->byte_map_base & 0xff) == 0)) {
-    // Card table is aligned so the lowest byte of the table address base is zero.
-    // This works only if the code is not saved for later use, possibly
-    // in a context where the base would no longer be aligned.
-    strb(card_table_base, card_table_addr);
-  } else {
-    mov(tmp, 0);
-    strb(tmp, card_table_addr);
-  }
-#endif // AARCH64
-}
 
 //////////////////////////////////////////////////////////////////////////////////
 
@@ -501,33 +382,18 @@ void InterpreterMacroAssembler::pop_i(Register r) {
   zap_high_non_significant_bits(r);
 }
 
-#ifdef AARCH64
-void InterpreterMacroAssembler::pop_l(Register r) {
-  assert(r != Rstack_top, "unpredictable instruction");
-  ldr(r, Address(Rstack_top, 2*wordSize, post_indexed));
-}
-#else
 void InterpreterMacroAssembler::pop_l(Register lo, Register hi) {
   assert_different_registers(lo, hi);
   assert(lo < hi, "lo must be < hi");
   pop(RegisterSet(lo) | RegisterSet(hi));
 }
-#endif // AARCH64
 
 void InterpreterMacroAssembler::pop_f(FloatRegister fd) {
-#ifdef AARCH64
-  ldr_s(fd, Address(Rstack_top, wordSize, post_indexed));
-#else
   fpops(fd);
-#endif // AARCH64
 }
 
 void InterpreterMacroAssembler::pop_d(FloatRegister fd) {
-#ifdef AARCH64
-  ldr_d(fd, Address(Rstack_top, 2*wordSize, post_indexed));
-#else
   fpopd(fd);
-#endif // AARCH64
 }
 
 
@@ -540,11 +406,7 @@ void InterpreterMacroAssembler::pop(TosState state) {
     case ctos:                                               // fall through
     case stos:                                               // fall through
     case itos: pop_i(R0_tos);                                break;
-#ifdef AARCH64
-    case ltos: pop_l(R0_tos);                                break;
-#else
     case ltos: pop_l(R0_tos_lo, R1_tos_hi);                  break;
-#endif // AARCH64
 #ifdef __SOFTFP__
     case ftos: pop_i(R0_tos);                                break;
     case dtos: pop_l(R0_tos_lo, R1_tos_hi);                  break;
@@ -570,36 +432,18 @@ void InterpreterMacroAssembler::push_i(Register r) {
   check_stack_top_on_expansion();
 }
 
-#ifdef AARCH64
-void InterpreterMacroAssembler::push_l(Register r) {
-  assert(r != Rstack_top, "unpredictable instruction");
-  stp(r, ZR, Address(Rstack_top, -2*wordSize, pre_indexed));
-  check_stack_top_on_expansion();
-}
-#else
 void InterpreterMacroAssembler::push_l(Register lo, Register hi) {
   assert_different_registers(lo, hi);
   assert(lo < hi, "lo must be < hi");
   push(RegisterSet(lo) | RegisterSet(hi));
 }
-#endif // AARCH64
 
 void InterpreterMacroAssembler::push_f() {
-#ifdef AARCH64
-  str_s(S0_tos, Address(Rstack_top, -wordSize, pre_indexed));
-  check_stack_top_on_expansion();
-#else
   fpushs(S0_tos);
-#endif // AARCH64
 }
 
 void InterpreterMacroAssembler::push_d() {
-#ifdef AARCH64
-  str_d(D0_tos, Address(Rstack_top, -2*wordSize, pre_indexed));
-  check_stack_top_on_expansion();
-#else
   fpushd(D0_tos);
-#endif // AARCH64
 }
 
 // Transition state -> vtos. Blows Rtemp.
@@ -612,11 +456,7 @@ void InterpreterMacroAssembler::push(TosState state) {
     case ctos:                                                // fall through
     case stos:                                                // fall through
     case itos: push_i(R0_tos);                                break;
-#ifdef AARCH64
-    case ltos: push_l(R0_tos);                                break;
-#else
     case ltos: push_l(R0_tos_lo, R1_tos_hi);                  break;
-#endif // AARCH64
 #ifdef __SOFTFP__
     case ftos: push_i(R0_tos);                                break;
     case dtos: push_l(R0_tos_lo, R1_tos_hi);                  break;
@@ -630,7 +470,6 @@ void InterpreterMacroAssembler::push(TosState state) {
 }
 
 
-#ifndef AARCH64
 
 // Converts return value in R0/R1 (interpreter calling conventions) to TOS cached value.
 void InterpreterMacroAssembler::convert_retval_to_tos(TosState state) {
@@ -658,7 +497,6 @@ void InterpreterMacroAssembler::convert_tos_to_retval(TosState state) {
 #endif // !__SOFTFP__ && !__ABI_HARD__
 }
 
-#endif // !AARCH64
 
 
 // Helpers for swap and dup
@@ -672,20 +510,12 @@ void InterpreterMacroAssembler::store_ptr(int n, Register val) {
 
 
 void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
-#ifdef AARCH64
-  check_no_cached_stack_top(Rtemp);
-  save_stack_top();
-  cut_sp_before_call();
-  mov(Rparams, Rstack_top);
-#endif // AARCH64
 
   // set sender sp
   mov(Rsender_sp, SP);
 
-#ifndef AARCH64
   // record last_sp
   str(Rsender_sp, Address(FP, frame::interpreter_frame_last_sp_offset * wordSize));
-#endif // !AARCH64
 }
 
 // Jump to from_interpreted entry of a call unless single stepping is possible
@@ -701,19 +531,8 @@ void InterpreterMacroAssembler::jump_from_interpreted(Register method) {
     // interp_only_mode if these events CAN be enabled.
 
     ldr_s32(Rtemp, Address(Rthread, JavaThread::interp_only_mode_offset()));
-#ifdef AARCH64
-    {
-      Label not_interp_only_mode;
-
-      cbz(Rtemp, not_interp_only_mode);
-      indirect_jump(Address(method, Method::interpreter_entry_offset()), Rtemp);
-
-      bind(not_interp_only_mode);
-    }
-#else
     cmp(Rtemp, 0);
     ldr(PC, Address(method, Method::interpreter_entry_offset()), ne);
-#endif // AARCH64
   }
 
   indirect_jump(Address(method, Method::from_interpreted_offset()), Rtemp);
@@ -740,12 +559,7 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
                                               bool verifyoop) {
   if (VerifyActivationFrameSize) {
     Label L;
-#ifdef AARCH64
-    mov(Rtemp, SP);
-    sub(Rtemp, FP, Rtemp);
-#else
     sub(Rtemp, FP, SP);
-#endif // AARCH64
     int min_frame_size = (frame::link_offset - frame::interpreter_frame_initial_sp_offset) * wordSize;
     cmp(Rtemp, min_frame_size);
     b(L, ge);
@@ -774,16 +588,10 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
     if (state == vtos) {
       indirect_jump(Address::indexed_ptr(RdispatchTable, R3_bytecode), Rtemp);
     } else {
-#ifdef AARCH64
-      sub(Rtemp, R3_bytecode, (Interpreter::distance_from_dispatch_table(vtos) -
-                           Interpreter::distance_from_dispatch_table(state)));
-      indirect_jump(Address::indexed_ptr(RdispatchTable, Rtemp), Rtemp);
-#else
       // on 32-bit ARM this method is faster than the one above.
       sub(Rtemp, RdispatchTable, (Interpreter::distance_from_dispatch_table(vtos) -
                            Interpreter::distance_from_dispatch_table(state)) * wordSize);
       indirect_jump(Address::indexed_ptr(Rtemp, R3_bytecode), Rtemp);
-#endif
     }
   } else {
     assert(table_mode == DispatchNormal, "invalid dispatch table mode");
@@ -979,25 +787,18 @@ void InterpreterMacroAssembler::remove_activation(TosState state, Register ret_a
                                  // points to word before bottom of monitor block
 
     cmp(Rcur, Rbottom);          // check if there are no monitors
-#ifndef AARCH64
     ldr(Rcur_obj, Address(Rcur, BasicObjectLock::obj_offset_in_bytes()), ne);
                                  // prefetch monitor's object
-#endif // !AARCH64
     b(no_unlock, eq);
 
     bind(loop);
-#ifdef AARCH64
-    ldr(Rcur_obj, Address(Rcur, BasicObjectLock::obj_offset_in_bytes()));
-#endif // AARCH64
     // check if current entry is used
     cbnz(Rcur_obj, exception_monitor_is_still_locked);
 
     add(Rcur, Rcur, entry_size);      // otherwise advance to next entry
     cmp(Rcur, Rbottom);               // check if bottom reached
-#ifndef AARCH64
     ldr(Rcur_obj, Address(Rcur, BasicObjectLock::obj_offset_in_bytes()), ne);
                                       // prefetch monitor's object
-#endif // !AARCH64
     b(loop, ne);                      // if not at bottom then check this entry
   }
 
@@ -1011,15 +812,9 @@ void InterpreterMacroAssembler::remove_activation(TosState state, Register ret_a
   }
 
   // remove activation
-#ifdef AARCH64
-  ldr(Rtemp, Address(FP, frame::interpreter_frame_sender_sp_offset * wordSize));
-  ldp(FP, LR, Address(FP));
-  mov(SP, Rtemp);
-#else
   mov(Rtemp, FP);
   ldmia(FP, RegisterSet(FP) | RegisterSet(LR));
   ldr(SP, Address(Rtemp, frame::interpreter_frame_sender_sp_offset * wordSize));
-#endif
 
   if (ret_addr != LR) {
     mov(ret_addr, LR);
@@ -1047,7 +842,7 @@ void InterpreterMacroAssembler::set_do_not_unlock_if_synchronized(bool flag, Reg
 //
 // Argument: R1 : Points to BasicObjectLock to be used for locking.
 // Must be initialized with object to lock.
-// Blows volatile registers (R0-R3 on 32-bit ARM, R0-R18 on AArch64), Rtemp, LR. Calls VM.
+// Blows volatile registers R0-R3, Rtemp, LR. Calls VM.
 void InterpreterMacroAssembler::lock_object(Register Rlock) {
   assert(Rlock == R1, "the second argument");
 
@@ -1073,15 +868,6 @@ void InterpreterMacroAssembler::lock_object(Register Rlock) {
       biased_locking_enter(Robj, Rmark/*scratched*/, R0, false, Rtemp, done, slow_case);
     }
 
-#ifdef AARCH64
-    assert(oopDesc::mark_offset_in_bytes() == 0, "must be");
-    ldr(Rmark, Robj);
-
-    // Test if object is already locked
-    assert(markOopDesc::unlocked_value == 1, "adjust this code");
-    tbz(Rmark, exact_log2(markOopDesc::unlocked_value), already_locked);
-
-#else // AARCH64
 
     // On MP platforms the next load could return a 'stale' value if the memory location has been modified by another thread.
     // That would be acceptable as ether CAS or slow case path is taken in that case.
@@ -1095,7 +881,6 @@ void InterpreterMacroAssembler::lock_object(Register Rlock) {
     tst(Rmark, markOopDesc::unlocked_value);
     b(already_locked, eq);
 
-#endif // !AARCH64
     // Save old object->mark() into BasicLock's displaced header
     str(Rmark, Address(Rlock, mark_offset));
 
@@ -1141,19 +926,6 @@ void InterpreterMacroAssembler::lock_object(Register Rlock) {
     // conditions into a single test:
     // => ((mark - SP) & (3 - os::pagesize())) == 0
 
-#ifdef AARCH64
-    // Use the single check since the immediate is OK for AARCH64
-    sub(R0, Rmark, Rstack_top);
-    intptr_t mask = ((intptr_t)3) - ((intptr_t)os::vm_page_size());
-    Assembler::LogicalImmediate imm(mask, false);
-    ands(R0, R0, imm);
-
-    // For recursive case store 0 into lock record.
-    // It is harmless to store it unconditionally as lock record contains some garbage
-    // value in its _displaced_header field by this moment.
-    str(ZR, Address(Rlock, mark_offset));
-
-#else // AARCH64
     // (3 - os::pagesize()) cannot be encoded as an ARM immediate operand.
     // Check independently the low bits and the distance to SP.
     // -1- test low 2 bits
@@ -1164,7 +936,6 @@ void InterpreterMacroAssembler::lock_object(Register Rlock) {
     // If still 'eq' then recursive locking OK: store 0 into lock record
     str(R0, Address(Rlock, mark_offset), eq);
 
-#endif // AARCH64
 
 #ifndef PRODUCT
     if (PrintBiasedLockingStatistics) {
@@ -1188,7 +959,7 @@ void InterpreterMacroAssembler::lock_object(Register Rlock) {
 //
 // Argument: R1: Points to BasicObjectLock structure for lock
 // Throw an IllegalMonitorException if object is not locked by current thread
-// Blows volatile registers (R0-R3 on 32-bit ARM, R0-R18 on AArch64), Rtemp, LR. Calls VM.
+// Blows volatile registers R0-R3, Rtemp, LR. Calls VM.
 void InterpreterMacroAssembler::unlock_object(Register Rlock) {
   assert(Rlock == R1, "the second argument");
 
@@ -1250,7 +1021,7 @@ void InterpreterMacroAssembler::test_method_data_pointer(Register mdp, Label& ze
 
 
 // Set the method data pointer for the current bcp.
-// Blows volatile registers (R0-R3 on 32-bit ARM, R0-R18 on AArch64), Rtemp, LR.
+// Blows volatile registers R0-R3, Rtemp, LR.
 void InterpreterMacroAssembler::set_method_data_pointer_for_bcp() {
   assert(ProfileInterpreter, "must be profiling interpreter");
   Label set_mdp;
@@ -1347,22 +1118,12 @@ void InterpreterMacroAssembler::increment_mdp_data_at(Address data,
     // Decrement the register. Set condition codes.
     subs(bumped_count, bumped_count, DataLayout::counter_increment);
     // Avoid overflow.
-#ifdef AARCH64
-    assert(DataLayout::counter_increment == 1, "required for cinc");
-    cinc(bumped_count, bumped_count, pl);
-#else
     add(bumped_count, bumped_count, DataLayout::counter_increment, pl);
-#endif // AARCH64
   } else {
     // Increment the register. Set condition codes.
     adds(bumped_count, bumped_count, DataLayout::counter_increment);
     // Avoid overflow.
-#ifdef AARCH64
-    assert(DataLayout::counter_increment == 1, "required for cinv");
-    cinv(bumped_count, bumped_count, mi); // inverts 0x80..00 back to 0x7f..ff
-#else
     sub(bumped_count, bumped_count, DataLayout::counter_increment, mi);
-#endif // AARCH64
   }
   str(bumped_count, data);
 }
@@ -1410,7 +1171,7 @@ void InterpreterMacroAssembler::update_mdp_by_constant(Register mdp_in, int cons
 }
 
 
-// Blows volatile registers (R0-R3 on 32-bit ARM, R0-R18 on AArch64, Rtemp, LR).
+// Blows volatile registers R0-R3, Rtemp, LR).
 void InterpreterMacroAssembler::update_mdp_for_ret(Register return_bci) {
   assert(ProfileInterpreter, "must be profiling interpreter");
   assert_different_registers(return_bci, R0, R1, R2, R3, Rtemp);
@@ -1624,7 +1385,7 @@ void InterpreterMacroAssembler::record_klass_in_profile(Register receiver,
   bind (done);
 }
 
-// Sets mdp, blows volatile registers (R0-R3 on 32-bit ARM, R0-R18 on AArch64, Rtemp, LR).
+// Sets mdp, blows volatile registers R0-R3, Rtemp, LR).
 void InterpreterMacroAssembler::profile_ret(Register mdp, Register return_bci) {
   assert_different_registers(mdp, return_bci, Rtemp, R0, R1, R2, R3);
 
@@ -1786,9 +1547,6 @@ void InterpreterMacroAssembler::profile_switch_case(Register mdp, Register index
 
 
 void InterpreterMacroAssembler::byteswap_u32(Register r, Register rtmp1, Register rtmp2) {
-#ifdef AARCH64
-  rev_w(r, r);
-#else
   if (VM_Version::supports_rev()) {
     rev(r, r);
   } else {
@@ -1797,7 +1555,6 @@ void InterpreterMacroAssembler::byteswap_u32(Register r, Register rtmp1, Registe
     andr(rtmp1, rtmp2, AsmOperand(rtmp1, lsr, 8));
     eor(r, rtmp1, AsmOperand(r, ror, 8));
   }
-#endif // AARCH64
 }
 
 
@@ -1805,7 +1562,7 @@ void InterpreterMacroAssembler::inc_global_counter(address address_of_counter, i
   const intx addr = (intx) (address_of_counter + offset);
 
   assert ((addr & 0x3) == 0, "address of counter should be aligned");
-  const intx offset_mask = right_n_bits(AARCH64_ONLY(12 + 2) NOT_AARCH64(12));
+  const intx offset_mask = right_n_bits(12);
 
   const address base = (address) (addr & ~offset_mask);
   const int offs = (int) (addr & offset_mask);
@@ -1818,14 +1575,7 @@ void InterpreterMacroAssembler::inc_global_counter(address address_of_counter, i
 
   if (avoid_overflow) {
     adds_32(val, val, 1);
-#ifdef AARCH64
-    Label L;
-    b(L, mi);
-    str_32(val, Address(addr_base, offs));
-    bind(L);
-#else
     str(val, Address(addr_base, offs), pl);
-#endif // AARCH64
   } else {
     add_32(val, val, 1);
     str_32(val, Address(addr_base, offs));
@@ -1905,17 +1655,9 @@ void InterpreterMacroAssembler::notify_method_exit(
     if (native) {
       // For c++ and template interpreter push both result registers on the
       // stack in native, we don't know the state.
-      // On AArch64 result registers are stored into the frame at known locations.
       // See frame::interpreter_frame_result for code that gets the result values from here.
       assert(result_lo != noreg, "result registers should be defined");
 
-#ifdef AARCH64
-      assert(result_hi == noreg, "result_hi is not used on AArch64");
-      assert(result_fp != fnoreg, "FP result register must be defined");
-
-      str_d(result_fp, Address(FP, frame::interpreter_frame_fp_saved_result_offset * wordSize));
-      str(result_lo, Address(FP, frame::interpreter_frame_gp_saved_result_offset * wordSize));
-#else
       assert(result_hi != noreg, "result registers should be defined");
 
 #ifdef __ABI_HARD__
@@ -1925,20 +1667,14 @@ void InterpreterMacroAssembler::notify_method_exit(
 #endif // __ABI_HARD__
 
       push(RegisterSet(result_lo) | RegisterSet(result_hi));
-#endif // AARCH64
 
       call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_exit));
 
-#ifdef AARCH64
-      ldr_d(result_fp, Address(FP, frame::interpreter_frame_fp_saved_result_offset * wordSize));
-      ldr(result_lo, Address(FP, frame::interpreter_frame_gp_saved_result_offset * wordSize));
-#else
       pop(RegisterSet(result_lo) | RegisterSet(result_hi));
 #ifdef __ABI_HARD__
       fldd(result_fp, Address(SP));
       add(SP, SP, 2 * wordSize);
 #endif // __ABI_HARD__
-#endif // AARCH64
 
     } else {
       // For the template interpreter, the value on tos is the size of the
@@ -2014,13 +1750,8 @@ void InterpreterMacroAssembler::increment_mask_and_jump(Address counter_addr,
   add(scratch, scratch, increment);
   str_32(scratch, counter_addr);
 
-#ifdef AARCH64
-  ldr_u32(scratch2, mask_addr);
-  ands_w(ZR, scratch, scratch2);
-#else
   ldr(scratch2, mask_addr);
   andrs(scratch, scratch, scratch2);
-#endif // AARCH64
   b(*where, cond);
 }
 
@@ -2041,26 +1772,15 @@ void InterpreterMacroAssembler::get_method_counters(Register method,
     // Save and restore in use caller-saved registers since they will be trashed by call_VM
     assert(reg1 != noreg, "must specify reg1");
     assert(reg2 != noreg, "must specify reg2");
-#ifdef AARCH64
-    assert(reg3 != noreg, "must specify reg3");
-    stp(reg1, reg2, Address(Rstack_top, -2*wordSize, pre_indexed));
-    stp(reg3, ZR, Address(Rstack_top, -2*wordSize, pre_indexed));
-#else
     assert(reg3 == noreg, "must not specify reg3");
     push(RegisterSet(reg1) | RegisterSet(reg2));
-#endif
   }
 
   mov(R1, method);
   call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::build_method_counters), R1);
 
   if (saveRegs) {
-#ifdef AARCH64
-    ldp(reg3, ZR, Address(Rstack_top, 2*wordSize, post_indexed));
-    ldp(reg1, reg2, Address(Rstack_top, 2*wordSize, post_indexed));
-#else
     pop(RegisterSet(reg1) | RegisterSet(reg2));
-#endif
   }
 
   ldr(Rcounters, method_counters);

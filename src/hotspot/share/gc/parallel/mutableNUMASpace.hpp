@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_MUTABLENUMASPACE_HPP
-#define SHARE_VM_GC_PARALLEL_MUTABLENUMASPACE_HPP
+#ifndef SHARE_GC_PARALLEL_MUTABLENUMASPACE_HPP
+#define SHARE_GC_PARALLEL_MUTABLENUMASPACE_HPP
 
 #include "gc/parallel/mutableSpace.hpp"
 #include "gc/shared/gcUtil.hpp"
@@ -89,7 +89,7 @@ class MutableNUMASpace : public MutableSpace {
     char* last_page_scanned()            { return _last_page_scanned; }
     void set_last_page_scanned(char* p)  { _last_page_scanned = p;    }
    public:
-    LGRPSpace(int l, size_t alignment) : _lgrp_id(l), _last_page_scanned(NULL), _allocation_failed(false) {
+    LGRPSpace(int l, size_t alignment) : _lgrp_id(l), _allocation_failed(false), _last_page_scanned(NULL) {
       _space = new MutableSpace(alignment);
       _alloc_rate = new AdaptiveWeightedAverage(NUMAChunkResizeWeight);
     }
@@ -232,4 +232,4 @@ class MutableNUMASpace : public MutableSpace {
   virtual void set_top(HeapWord* value);
 };
 
-#endif // SHARE_VM_GC_PARALLEL_MUTABLENUMASPACE_HPP
+#endif // SHARE_GC_PARALLEL_MUTABLENUMASPACE_HPP

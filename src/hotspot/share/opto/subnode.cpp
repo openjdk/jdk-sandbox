@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
 
 #include "precompiled.hpp"
 #include "compiler/compileLog.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.inline.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
@@ -878,15 +880,18 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
 
 static inline Node* isa_java_mirror_load(PhaseGVN* phase, Node* n) {
   // Return the klass node for (indirect load from OopHandle)
-  //   LoadP(LoadP(AddP(foo:Klass, #java_mirror)))
+  //   LoadBarrier?(LoadP(LoadP(AddP(foo:Klass, #java_mirror))))
   //   or NULL if not matching.
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+    n = bs->step_over_gc_barrier(n);
+
   if (n->Opcode() != Op_LoadP) return NULL;
 
   const TypeInstPtr* tp = phase->type(n)->isa_instptr();
   if (!tp || tp->klass() != phase->C->env()->Class_klass()) return NULL;
 
   Node* adr = n->in(MemNode::Address);
-  // First load from OopHandle
+  // First load from OopHandle: ((OopHandle)mirror)->resolve(); may need barrier.
   if (adr->Opcode() != Op_LoadP || !phase->type(adr)->isa_rawptr()) return NULL;
   adr = adr->in(MemNode::Address);
 
@@ -952,8 +957,14 @@ Node *CmpPNode::Ideal( PhaseGVN *phase, bool can_reshape ) {
     if (k1 && (k2 || conk2)) {
       Node* lhs = k1;
       Node* rhs = (k2 != NULL) ? k2 : conk2;
-      this->set_req(1, lhs);
-      this->set_req(2, rhs);
+      PhaseIterGVN* igvn = phase->is_IterGVN();
+      if (igvn != NULL) {
+        set_req_X(1, lhs, igvn);
+        set_req_X(2, rhs, igvn);
+      } else {
+        set_req(1, lhs);
+        set_req(2, rhs);
+      }
       return this;
     }
   }
@@ -1245,6 +1256,24 @@ void BoolTest::dump_on(outputStream *st) const {
   st->print("%s", msg[_test]);
 }
 
+// Returns the logical AND of two tests (or 'never' if both tests can never be true).
+// For example, a test for 'le' followed by a test for 'lt' is equivalent with 'lt'.
+BoolTest::mask BoolTest::merge(BoolTest other) const {
+  const mask res[illegal+1][illegal+1] = {
+    // eq,      gt,      of,      lt,      ne,      le,      nof,     ge,      never,   illegal
+      {eq,      never,   illegal, never,   never,   eq,      illegal, eq,      never,   illegal},  // eq
+      {never,   gt,      illegal, never,   gt,      never,   illegal, gt,      never,   illegal},  // gt
+      {illegal, illegal, illegal, illegal, illegal, illegal, illegal, illegal, never,   illegal},  // of
+      {never,   never,   illegal, lt,      lt,      lt,      illegal, never,   never,   illegal},  // lt
+      {never,   gt,      illegal, lt,      ne,      lt,      illegal, gt,      never,   illegal},  // ne
+      {eq,      never,   illegal, lt,      lt,      le,      illegal, eq,      never,   illegal},  // le
+      {illegal, illegal, illegal, illegal, illegal, illegal, illegal, illegal, never,   illegal},  // nof
+      {eq,      gt,      illegal, never,   gt,      eq,      illegal, ge,      never,   illegal},  // ge
+      {never,   never,   never,   never,   never,   never,   never,   never,   never,   illegal},  // never
+      {illegal, illegal, illegal, illegal, illegal, illegal, illegal, illegal, illegal, illegal}}; // illegal
+  return res[_test][other._test];
+}
+
 //=============================================================================
 uint BoolNode::hash() const { return (Node::hash() << 3)|(_test._test+1); }
 uint BoolNode::size_of() const { return sizeof(BoolNode); }
@@ -1341,6 +1370,15 @@ Node* BoolNode::fold_cmpI(PhaseGVN* phase, SubNode* cmp, Node* cmp1, int cmp_op,
   return NULL;
 }
 
+static bool is_counted_loop_cmp(Node *cmp) {
+  Node *n = cmp->in(1)->in(1);
+  return n != NULL &&
+         n->is_Phi() &&
+         n->in(0) != NULL &&
+         n->in(0)->is_CountedLoop() &&
+         n->in(0)->as_CountedLoop()->phi() == n;
+}
+
 //------------------------------Ideal------------------------------------------
 Node *BoolNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Change "bool tst (cmp con x)" into "bool ~tst (cmp x con)".
@@ -1399,7 +1437,7 @@ Node *BoolNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Change ((x & m) u<= m) or ((m & x) u<= m) to always true
   // Same with ((x & m) u< m+1) and ((m & x) u< m+1)
   if (cop == Op_CmpU &&
-      cmp1->Opcode() == Op_AndI) {
+      cmp1_op == Op_AndI) {
     Node* bound = NULL;
     if (_test._test == BoolTest::le) {
       bound = cmp2;
@@ -1417,7 +1455,7 @@ Node *BoolNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // This is the off-by-one variant of the above
   if (cop == Op_CmpU &&
       _test._test == BoolTest::lt &&
-      cmp1->Opcode() == Op_AndI) {
+      cmp1_op == Op_AndI) {
     Node* l = cmp1->in(1);
     Node* r = cmp1->in(2);
     for (int repeat = 0; repeat < 2; repeat++) {
@@ -1438,13 +1476,24 @@ Node *BoolNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
   }
 
+  // Change x u< 1 or x u<= 0 to x == 0
+  if (cop == Op_CmpU &&
+      cmp1_op != Op_LoadRange &&
+      ((_test._test == BoolTest::lt &&
+        cmp2->find_int_con(-1) == 1) ||
+       (_test._test == BoolTest::le &&
+        cmp2->find_int_con(-1) == 0))) {
+    Node* ncmp = phase->transform(new CmpINode(cmp1, phase->intcon(0)));
+    return new BoolNode(ncmp, BoolTest::eq);
+  }
+
   // Change (arraylength <= 0) or (arraylength == 0)
   //   into (arraylength u<= 0)
   // Also change (arraylength != 0) into (arraylength u> 0)
   // The latter version matches the code pattern generated for
   // array range checks, which will more likely be optimized later.
   if (cop == Op_CmpI &&
-      cmp1->Opcode() == Op_LoadRange &&
+      cmp1_op == Op_LoadRange &&
       cmp2->find_int_con(-1) == 0) {
     if (_test._test == BoolTest::le || _test._test == BoolTest::eq) {
       Node* ncmp = phase->transform(new CmpUNode(cmp1, cmp2));
@@ -1474,17 +1523,63 @@ Node *BoolNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // due to possible integer overflow.
   if ((_test._test == BoolTest::eq || _test._test == BoolTest::ne) &&
         (cop == Op_CmpI) &&
-        (cmp1->Opcode() == Op_SubI) &&
+        (cmp1_op == Op_SubI) &&
         ( cmp2_type == TypeInt::ZERO ) ) {
     Node *ncmp = phase->transform( new CmpINode(cmp1->in(1),cmp1->in(2)));
     return new BoolNode( ncmp, _test._test );
+  }
+
+  // Same as above but with and AddI of a constant
+  if ((_test._test == BoolTest::eq || _test._test == BoolTest::ne) &&
+      cop == Op_CmpI &&
+      cmp1_op == Op_AddI &&
+      cmp1->in(2) != NULL &&
+      phase->type(cmp1->in(2))->isa_int() &&
+      phase->type(cmp1->in(2))->is_int()->is_con() &&
+      cmp2_type == TypeInt::ZERO &&
+      !is_counted_loop_cmp(cmp) // modifying the exit test of a counted loop messes the counted loop shape
+      ) {
+    const TypeInt* cmp1_in2 = phase->type(cmp1->in(2))->is_int();
+    Node *ncmp = phase->transform( new CmpINode(cmp1->in(1),phase->intcon(-cmp1_in2->_hi)));
+    return new BoolNode( ncmp, _test._test );
+  }
+
+  // Change "bool eq/ne (cmp (phi (X -X) 0))" into "bool eq/ne (cmp X 0)"
+  // since zero check of conditional negation of an integer is equal to
+  // zero check of the integer directly.
+  if ((_test._test == BoolTest::eq || _test._test == BoolTest::ne) &&
+      (cop == Op_CmpI) &&
+      (cmp2_type == TypeInt::ZERO) &&
+      (cmp1_op == Op_Phi)) {
+    // There should be a diamond phi with true path at index 1 or 2
+    PhiNode *phi = cmp1->as_Phi();
+    int idx_true = phi->is_diamond_phi();
+    if (idx_true != 0) {
+      // True input is in(idx_true) while false input is in(3 - idx_true)
+      Node *tin = phi->in(idx_true);
+      Node *fin = phi->in(3 - idx_true);
+      if ((tin->Opcode() == Op_SubI) &&
+          (phase->type(tin->in(1)) == TypeInt::ZERO) &&
+          (tin->in(2) == fin)) {
+        // Found conditional negation at true path, create a new CmpINode without that
+        Node *ncmp = phase->transform(new CmpINode(fin, cmp2));
+        return new BoolNode(ncmp, _test._test);
+      }
+      if ((fin->Opcode() == Op_SubI) &&
+          (phase->type(fin->in(1)) == TypeInt::ZERO) &&
+          (fin->in(2) == tin)) {
+        // Found conditional negation at false path, create a new CmpINode without that
+        Node *ncmp = phase->transform(new CmpINode(tin, cmp2));
+        return new BoolNode(ncmp, _test._test);
+      }
+    }
   }
 
   // Change (-A vs 0) into (A vs 0) by commuting the test.  Disallow in the
   // most general case because negating 0x80000000 does nothing.  Needed for
   // the CmpF3/SubI/CmpI idiom.
   if( cop == Op_CmpI &&
-      cmp1->Opcode() == Op_SubI &&
+      cmp1_op == Op_SubI &&
       cmp2_type == TypeInt::ZERO &&
       phase->type( cmp1->in(1) ) == TypeInt::ZERO &&
       phase->type( cmp1->in(2) )->higher_equal(TypeInt::SYMINT) ) {

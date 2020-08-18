@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_CMS_CONCURRENTMARKSWEEPGENERATION_HPP
-#define SHARE_VM_GC_CMS_CONCURRENTMARKSWEEPGENERATION_HPP
+#ifndef SHARE_GC_CMS_CONCURRENTMARKSWEEPGENERATION_HPP
+#define SHARE_GC_CMS_CONCURRENTMARKSWEEPGENERATION_HPP
 
 #include "gc/cms/cmsOopClosures.hpp"
 #include "gc/cms/gSpaceCounters.hpp"
@@ -69,7 +69,6 @@ class FreeChunk;
 class ParNewGeneration;
 class PromotionInfo;
 class ScanMarkedObjectsAgainCarefullyClosure;
-class TenuredGeneration;
 class SerialOldTracer;
 
 // A generic CMS bit map. It's the basis for both the CMS marking bit map
@@ -77,9 +76,9 @@ class SerialOldTracer;
 // methods are used). This is essentially a wrapper around the BitMap class,
 // with one bit per (1<<_shifter) HeapWords. (i.e. for the marking bit map,
 // we have _shifter == 0. and for the mod union table we have
-// shifter == CardTableModRefBS::card_shift - LogHeapWordSize.)
+// shifter == CardTable::card_shift - LogHeapWordSize.)
 // XXX 64-bit issues in BitMap?
-class CMSBitMap VALUE_OBJ_CLASS_SPEC {
+class CMSBitMap {
   friend class VMStructs;
 
   HeapWord*    _bmStartWord;   // base address of range covered by map
@@ -331,7 +330,7 @@ class ChunkArray: public CHeapObj<mtGC> {
 // Timing, allocation and promotion statistics for gc scheduling and incremental
 // mode pacing.  Most statistics are exponential averages.
 //
-class CMSStats VALUE_OBJ_CLASS_SPEC {
+class CMSStats {
  private:
   ConcurrentMarkSweepGeneration* const _cms_gen;   // The cms (old) gen.
 
@@ -487,8 +486,7 @@ public:
   { }
 
   // Executes a task using worker threads.
-  virtual void execute(ProcessTask& task);
-  virtual void execute(EnqueueTask& task);
+  virtual void execute(ProcessTask& task, uint ergo_workers);
 private:
   CMSCollector& _collector;
 };
@@ -546,13 +544,12 @@ class CMSCollector: public CHeapObj<mtGC> {
   Stack<oop, mtGC>     _preserved_oop_stack;
   Stack<markOop, mtGC> _preserved_mark_stack;
 
-  int*             _hash_seed;
-
   // In support of multi-threaded concurrent phases
   YieldingFlexibleWorkGang* _conc_workers;
 
   // Performance Counters
   CollectorCounters* _gc_counters;
+  CollectorCounters* _cgc_counters;
 
   // Initialization Errors
   bool _completed_initialization;
@@ -616,7 +613,7 @@ class CMSCollector: public CHeapObj<mtGC> {
 
  protected:
   ConcurrentMarkSweepGeneration* _cmsGen;  // Old gen (CMS)
-  MemRegion                      _span;    // Span covering above two
+  MemRegion                      _span;    // Span covering above
   CardTableRS*                   _ct;      // Card table
 
   // CMS marking support structures
@@ -640,8 +637,9 @@ class CMSCollector: public CHeapObj<mtGC> {
   NOT_PRODUCT(ssize_t _num_par_pushes;)
 
   // ("Weak") Reference processing support.
-  ReferenceProcessor*            _ref_processor;
-  CMSIsAliveClosure              _is_alive_closure;
+  SpanSubjectToDiscoveryClosure _span_based_discoverer;
+  ReferenceProcessor*           _ref_processor;
+  CMSIsAliveClosure             _is_alive_closure;
   // Keep this textually after _markBitMap and _span; c'tor dependency.
 
   ConcurrentMarkSweepThread*     _cmsThread;   // The thread doing the work
@@ -713,7 +711,6 @@ class CMSCollector: public CHeapObj<mtGC> {
   bool stop_world_and_do(CMS_op_type op);
 
   OopTaskQueueSet* task_queues() { return _task_queues; }
-  int*             hash_seed(int i) { return &_hash_seed[i]; }
   YieldingFlexibleWorkGang* conc_workers() { return _conc_workers; }
 
   // Support for parallelizing Eden rescan in CMS remark phase
@@ -840,6 +837,7 @@ class CMSCollector: public CHeapObj<mtGC> {
                ConcurrentMarkSweepPolicy*     cp);
   ConcurrentMarkSweepThread* cmsThread() { return _cmsThread; }
 
+  MemRegion ref_processor_span() const { return _span_based_discoverer.span(); }
   ReferenceProcessor* ref_processor() { return _ref_processor; }
   void ref_processor_init();
 
@@ -927,7 +925,8 @@ class CMSCollector: public CHeapObj<mtGC> {
   NOT_PRODUCT(bool is_cms_reachable(HeapWord* addr);)
 
   // Performance Counter Support
-  CollectorCounters* counters()    { return _gc_counters; }
+  CollectorCounters* counters()     { return _gc_counters; }
+  CollectorCounters* cgc_counters() { return _cgc_counters; }
 
   // Timer stuff
   void    startTimer() { assert(!_timer.is_active(), "Error"); _timer.start();   }
@@ -1188,16 +1187,12 @@ class ConcurrentMarkSweepGeneration: public CardGeneration {
   void save_sweep_limit();
 
   // More iteration support
-  virtual void oop_iterate(ExtendedOopClosure* cl);
+  virtual void oop_iterate(OopIterateClosure* cl);
   virtual void safe_object_iterate(ObjectClosure* cl);
   virtual void object_iterate(ObjectClosure* cl);
 
-  // Need to declare the full complement of closures, whether we'll
-  // override them or not, or get message from the compiler:
-  //   oop_since_save_marks_iterate_nv hides virtual function...
-  #define CMS_SINCE_SAVE_MARKS_DECL(OopClosureType, nv_suffix) \
-    void oop_since_save_marks_iterate##nv_suffix(OopClosureType* cl);
-  ALL_SINCE_SAVE_MARKS_CLOSURES(CMS_SINCE_SAVE_MARKS_DECL)
+  template <typename OopClosureType>
+  void oop_since_save_marks_iterate(OopClosureType* cl);
 
   // Smart allocation  XXX -- move to CFLSpace?
   void setNearLargestChunk();
@@ -1309,7 +1304,7 @@ class ParMarkFromRootsClosure: public BitMapClosure {
 
 // The following closures are used to do certain kinds of verification of
 // CMS marking.
-class PushAndMarkVerifyClosure: public MetadataAwareOopClosure {
+class PushAndMarkVerifyClosure: public MetadataVisitingOopIterateClosure {
   CMSCollector*    _collector;
   MemRegion        _span;
   CMSBitMap*       _verification_bm;
@@ -1317,10 +1312,8 @@ class PushAndMarkVerifyClosure: public MetadataAwareOopClosure {
   CMSMarkStack*    _mark_stack;
  protected:
   void do_oop(oop p);
-  template <class T> inline void do_oop_work(T *p) {
-    oop obj = oopDesc::load_decode_heap_oop(p);
-    do_oop(obj);
-  }
+  template <class T> void do_oop_work(T *p);
+
  public:
   PushAndMarkVerifyClosure(CMSCollector* cms_collector,
                            MemRegion span,
@@ -1459,9 +1452,9 @@ class MarkFromDirtyCardsClosure: public MemRegionClosure {
                             CMSMarkStack* mark_stack,
                             MarkRefsIntoAndScanClosure* cl):
     _space(space),
-    _num_dirty_cards(0),
     _scan_cl(collector, span, collector->ref_processor(), bit_map,
-                 mark_stack, cl) { }
+                 mark_stack, cl),
+    _num_dirty_cards(0) { }
 
   MarkFromDirtyCardsClosure(CMSCollector* collector,
                             MemRegion span,
@@ -1470,9 +1463,9 @@ class MarkFromDirtyCardsClosure: public MemRegionClosure {
                             OopTaskQueue* work_queue,
                             ParMarkRefsIntoAndScanClosure* cl):
     _space(space),
-    _num_dirty_cards(0),
     _scan_cl(collector, span, collector->ref_processor(), bit_map,
-             work_queue, cl) { }
+             work_queue, cl),
+    _num_dirty_cards(0) { }
 
   void do_MemRegion(MemRegion mr);
   void set_space(CompactibleFreeListSpace* space) { _space = space; }
@@ -1714,8 +1707,8 @@ class CMSDrainMarkingStackClosure: public VoidClosure {
                       bool cpc):
     _collector(collector),
     _span(span),
-    _bit_map(bit_map),
     _mark_stack(mark_stack),
+    _bit_map(bit_map),
     _keep_alive(keep_alive),
     _concurrent_precleaning(cpc) {
     assert(_concurrent_precleaning == _keep_alive->concurrent_precleaning(),
@@ -1739,8 +1732,8 @@ class CMSParDrainMarkingStackClosure: public VoidClosure {
                                  OopTaskQueue* work_queue):
     _collector(collector),
     _span(span),
-    _bit_map(bit_map),
     _work_queue(work_queue),
+    _bit_map(bit_map),
     _mark_and_push(collector, span, bit_map, work_queue) { }
 
  public:
@@ -1800,4 +1793,4 @@ class TraceCMSMemoryManagerStats : public TraceMemoryManagerStats {
 };
 
 
-#endif // SHARE_VM_GC_CMS_CONCURRENTMARKSWEEPGENERATION_HPP
+#endif // SHARE_GC_CMS_CONCURRENTMARKSWEEPGENERATION_HPP

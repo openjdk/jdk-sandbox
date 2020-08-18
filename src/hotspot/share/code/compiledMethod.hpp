@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_COMPILEDMETHOD_HPP
-#define SHARE_VM_CODE_COMPILEDMETHOD_HPP
+#ifndef SHARE_CODE_COMPILEDMETHOD_HPP
+#define SHARE_CODE_COMPILEDMETHOD_HPP
 
 #include "code/codeBlob.hpp"
 #include "code/pcDesc.hpp"
@@ -36,6 +36,8 @@ class AbstractCompiler;
 class xmlStream;
 class CompiledStaticCall;
 class NativeCallWrapper;
+class ScopeDesc;
+class CompiledIC;
 
 // This class is used internally by nmethods, to cache
 // exception/pc/handler information.
@@ -48,23 +50,28 @@ class ExceptionCache : public CHeapObj<mtCode> {
   address  _pc[cache_size];
   address  _handler[cache_size];
   volatile int _count;
-  ExceptionCache* _next;
+  ExceptionCache* volatile _next;
+  ExceptionCache* _purge_list_next;
 
-  address pc_at(int index)                     { assert(index >= 0 && index < count(),""); return _pc[index]; }
-  void    set_pc_at(int index, address a)      { assert(index >= 0 && index < cache_size,""); _pc[index] = a; }
-  address handler_at(int index)                { assert(index >= 0 && index < count(),""); return _handler[index]; }
-  void    set_handler_at(int index, address a) { assert(index >= 0 && index < cache_size,""); _handler[index] = a; }
-  int     count()                              { return OrderAccess::load_acquire(&_count); }
+  inline address pc_at(int index);
+  void set_pc_at(int index, address a)      { assert(index >= 0 && index < cache_size,""); _pc[index] = a; }
+
+  inline address handler_at(int index);
+  void set_handler_at(int index, address a) { assert(index >= 0 && index < cache_size,""); _handler[index] = a; }
+
+  inline int count();
   // increment_count is only called under lock, but there may be concurrent readers.
-  void    increment_count()                    { OrderAccess::release_store(&_count, _count + 1); }
+  void increment_count();
 
  public:
 
   ExceptionCache(Handle exception, address pc, address handler);
 
   Klass*    exception_type()                { return _exception_type; }
-  ExceptionCache* next()                    { return _next; }
-  void      set_next(ExceptionCache *ec)    { _next = ec; }
+  ExceptionCache* next();
+  void      set_next(ExceptionCache *ec);
+  ExceptionCache* purge_list_next()                 { return _purge_list_next; }
+  void      set_purge_list_next(ExceptionCache *ec) { _purge_list_next = ec; }
 
   address match(Handle exception, address pc);
   bool    match_exception_with_space(Handle exception) ;
@@ -75,7 +82,7 @@ class ExceptionCache : public CHeapObj<mtCode> {
 class nmethod;
 
 // cache pc descs found in earlier inquiries
-class PcDescCache VALUE_OBJ_CLASS_SPEC {
+class PcDescCache {
   friend class VMStructs;
  private:
   enum { cache_size = 4 };
@@ -109,7 +116,7 @@ public:
   PcDesc* scopes_pcs_end() const { return _upper; }
 };
 
-class PcDescContainer VALUE_OBJ_CLASS_SPEC {
+class PcDescContainer {
 private:
   PcDescCache _pc_desc_cache;
 public:
@@ -145,6 +152,7 @@ protected:
 
   bool _is_far_code; // Code is far from CodeCache.
                      // Have to use far call instructions to call it from code in CodeCache.
+
   // set during construction
   unsigned int _has_unsafe_access:1;         // May fault due to unsafe access.
   unsigned int _has_method_handle_invokes:1; // Has this method MethodHandle invokes?
@@ -163,13 +171,23 @@ protected:
   PcDescContainer _pc_desc_container;
   ExceptionCache * volatile _exception_cache;
 
+  void* _gc_data;
+
   virtual void flush() = 0;
 protected:
   CompiledMethod(Method* method, const char* name, CompilerType type, const CodeBlobLayout& layout, int frame_complete_offset, int frame_size, ImmutableOopMapSet* oop_maps, bool caller_must_gc_arguments);
   CompiledMethod(Method* method, const char* name, CompilerType type, int size, int header_size, CodeBuffer* cb, int frame_complete_offset, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments);
 
 public:
+  // Only used by unit test.
+  CompiledMethod() {}
+
   virtual bool is_compiled() const                { return true; }
+
+  template<typename T>
+  T* gc_data() const                              { return reinterpret_cast<T*>(_gc_data); }
+  template<typename T>
+  void set_gc_data(T* gc_data)                    { _gc_data = reinterpret_cast<void*>(gc_data); }
 
   bool  has_unsafe_access() const                 { return _has_unsafe_access; }
   void  set_has_unsafe_access(bool z)             { _has_unsafe_access = z; }
@@ -236,6 +254,8 @@ public:
     return _mark_for_deoptimization_status != deoptimize_noupdate;
   }
 
+  static bool nmethod_access_is_safe(nmethod* nm);
+
   // tells whether frames described by this nmethod can be deoptimized
   // note: native wrappers cannot be deoptimized.
   bool can_be_deoptimized() const { return is_java_method(); }
@@ -286,14 +306,17 @@ public:
   virtual Metadata** metadata_addr_at(int index) const = 0;
   virtual void    set_original_pc(const frame* fr, address pc) = 0;
 
+protected:
   // Exception cache support
-  // Note: _exception_cache may be read concurrently. We rely on memory_order_consume here.
+  // Note: _exception_cache may be read and cleaned concurrently.
   ExceptionCache* exception_cache() const         { return _exception_cache; }
+  ExceptionCache* exception_cache_acquire() const;
   void set_exception_cache(ExceptionCache *ec)    { _exception_cache = ec; }
-  void release_set_exception_cache(ExceptionCache *ec) { OrderAccess::release_store(&_exception_cache, ec); }
+
+public:
   address handler_for_exception_and_pc(Handle exception, address pc);
   void add_handler_for_exception_and_pc(Handle exception, address pc, address handler);
-  void clean_exception_cache(BoolObjectClosure* is_alive);
+  void clean_exception_cache();
 
   void add_exception_cache_entry(ExceptionCache* new_entry);
   ExceptionCache* exception_cache_entry_for_exception(Handle exception);
@@ -306,9 +329,9 @@ public:
   virtual address get_original_pc(const frame* fr) = 0;
   // Deopt
   // Return true is the PC is one would expect if the frame is being deopted.
-  bool is_deopt_pc      (address pc) { return is_deopt_entry(pc) || is_deopt_mh_entry(pc); }
+  inline bool is_deopt_pc(address pc);
   bool is_deopt_mh_entry(address pc) { return pc == deopt_mh_handler_begin(); }
-  bool is_deopt_entry(address pc);
+  inline bool is_deopt_entry(address pc);
 
   virtual bool can_convert_to_zombie() = 0;
   virtual const char* compile_kind() const = 0;
@@ -329,8 +352,14 @@ public:
 
   static address get_deopt_original_pc(const frame* fr);
 
-  // Inline cache support
-  void cleanup_inline_caches(bool clean_all = false);
+  // Inline cache support for class unloading and nmethod unloading
+ private:
+  bool cleanup_inline_caches_impl(bool unloading_occurred, bool clean_all);
+
+ public:
+  // Serial version used by sweeper and whitebox test
+  void cleanup_inline_caches(bool clean_all);
+
   virtual void clear_inline_caches();
   void clear_ic_stubs();
 
@@ -358,50 +387,31 @@ public:
   virtual void metadata_do(void f(Metadata*)) = 0;
 
   // GC support
+ protected:
+  address oops_reloc_begin() const;
 
-  void set_unloading_next(CompiledMethod* next) { _unloading_next = next; }
-  CompiledMethod* unloading_next()              { return _unloading_next; }
+ private:
+  bool static clean_ic_if_metadata_is_dead(CompiledIC *ic);
 
-  void static clean_ic_if_metadata_is_dead(CompiledIC *ic, BoolObjectClosure *is_alive);
+  void clean_ic_stubs();
 
-  // Check that all metadata is still alive
-  void verify_metadata_loaders(address low_boundary, BoolObjectClosure* is_alive);
+ public:
+  // GC unloading support
+  // Cleans unloaded klasses and unloaded nmethods in inline caches
 
-  virtual void do_unloading(BoolObjectClosure* is_alive, bool unloading_occurred);
-  //  The parallel versions are used by G1.
-  virtual bool do_unloading_parallel(BoolObjectClosure* is_alive, bool unloading_occurred);
-  virtual void do_unloading_parallel_postponed(BoolObjectClosure* is_alive, bool unloading_occurred);
+  virtual bool is_unloading() = 0;
 
-  static unsigned char global_unloading_clock()   { return _global_unloading_clock; }
-  static void increase_unloading_clock();
-
-  void set_unloading_clock(unsigned char unloading_clock);
-  unsigned char unloading_clock();
-
-protected:
-  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive, bool unloading_occurred) = 0;
-#if INCLUDE_JVMCI
-  virtual bool do_unloading_jvmci(BoolObjectClosure* is_alive, bool unloading_occurred) = 0;
-#endif
+  bool unload_nmethod_caches(bool class_unloading_occurred);
+  virtual void do_unloading(bool unloading_occurred) = 0;
 
 private:
-  // GC support to help figure out if an nmethod has been
-  // cleaned/unloaded by the current GC.
-  static unsigned char _global_unloading_clock;
-
-  volatile unsigned char _unloading_clock;   // Incremented after GC unloaded/cleaned the nmethod
-
   PcDesc* find_pc_desc(address pc, bool approximate) {
     return _pc_desc_container.find_pc_desc(pc, approximate, PcDescSearch(code_begin(), scopes_pcs_begin(), scopes_pcs_end()));
   }
 
 protected:
-  union {
-    // Used by G1 to chain nmethods.
-    CompiledMethod* _unloading_next;
-    // Used by non-G1 GCs to chain nmethods.
-    nmethod* _scavenge_root_link; // from CodeCache::scavenge_root_nmethods
-  };
+  // Used by some GCs to chain nmethods.
+  nmethod* _scavenge_root_link; // from CodeCache::scavenge_root_nmethods
 };
 
-#endif //SHARE_VM_CODE_COMPILEDMETHOD_HPP
+#endif // SHARE_CODE_COMPILEDMETHOD_HPP

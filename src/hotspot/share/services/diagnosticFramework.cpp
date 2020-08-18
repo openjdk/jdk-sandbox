@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,16 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "services/diagnosticArgument.hpp"
 #include "services/diagnosticFramework.hpp"
 #include "services/management.hpp"
 
-CmdLine::CmdLine(const char* line, size_t len, bool no_command_name) {
+CmdLine::CmdLine(const char* line, size_t len, bool no_command_name)
+  : _cmd(line), _cmd_len(0), _args(NULL), _args_len(0)
+{
   assert(line != NULL, "Command line string should not be NULL");
   const char* line_end;
   const char* cmd_end;
@@ -250,7 +253,7 @@ void DCmdParser::check(TRAPS) {
   }
 }
 
-void DCmdParser::print_help(outputStream* out, const char* cmd_name) {
+void DCmdParser::print_help(outputStream* out, const char* cmd_name) const {
   out->print("Syntax : %s %s", cmd_name, _options == NULL ? "" : "[options]");
   GenDCmdArgument* arg = _arguments_list;
   while (arg != NULL) {
@@ -322,7 +325,7 @@ void DCmdParser::cleanup() {
   }
 }
 
-int DCmdParser::num_arguments() {
+int DCmdParser::num_arguments() const {
   GenDCmdArgument* arg = _arguments_list;
   int count = 0;
   while (arg != NULL) {
@@ -337,7 +340,7 @@ int DCmdParser::num_arguments() {
   return count;
 }
 
-GrowableArray<const char *>* DCmdParser::argument_name_array() {
+GrowableArray<const char *>* DCmdParser::argument_name_array() const {
   int count = num_arguments();
   GrowableArray<const char *>* array = new GrowableArray<const char *>(count);
   GenDCmdArgument* arg = _arguments_list;
@@ -353,7 +356,7 @@ GrowableArray<const char *>* DCmdParser::argument_name_array() {
   return array;
 }
 
-GrowableArray<DCmdArgumentInfo*>* DCmdParser::argument_info_array() {
+GrowableArray<DCmdArgumentInfo*>* DCmdParser::argument_info_array() const {
   int count = num_arguments();
   GrowableArray<DCmdArgumentInfo*>* array = new GrowableArray<DCmdArgumentInfo *>(count);
   int idx = 0;
@@ -398,6 +401,7 @@ void DCmd::parse_and_execute(DCmdSource source, outputStream* out,
       break;
     }
     if (line.is_executable()) {
+      ResourceMark rm;
       DCmd* command = DCmdFactory::create_local_DCmd(source, line, out, CHECK);
       assert(command != NULL, "command error must be handled before this line");
       DCmdMark mark(command);
@@ -412,7 +416,7 @@ void DCmdWithParser::parse(CmdLine* line, char delim, TRAPS) {
   _dcmdparser.parse(line, delim, CHECK);
 }
 
-void DCmdWithParser::print_help(const char* name) {
+void DCmdWithParser::print_help(const char* name) const {
   _dcmdparser.print_help(output(), name);
 }
 
@@ -424,11 +428,11 @@ void DCmdWithParser::cleanup() {
   _dcmdparser.cleanup();
 }
 
-GrowableArray<const char*>* DCmdWithParser::argument_name_array() {
+GrowableArray<const char*>* DCmdWithParser::argument_name_array() const {
   return _dcmdparser.argument_name_array();
 }
 
-GrowableArray<DCmdArgumentInfo*>* DCmdWithParser::argument_info_array() {
+GrowableArray<DCmdArgumentInfo*>* DCmdWithParser::argument_info_array() const {
   return _dcmdparser.argument_info_array();
 }
 
@@ -487,11 +491,10 @@ void DCmdFactory::send_notification_internal(TRAPS) {
   }
 }
 
-Mutex* DCmdFactory::_dcmdFactory_lock = new Mutex(Mutex::leaf, "DCmdFactory", true, Monitor::_safepoint_check_never);
 bool DCmdFactory::_send_jmx_notification = false;
 
 DCmdFactory* DCmdFactory::factory(DCmdSource source, const char* name, size_t len) {
-  MutexLockerEx ml(_dcmdFactory_lock, Mutex::_no_safepoint_check_flag);
+  MutexLockerEx ml(DCmdFactory_lock, Mutex::_no_safepoint_check_flag);
   DCmdFactory* factory = _DCmdFactoryList;
   while (factory != NULL) {
     if (strlen(factory->name()) == len &&
@@ -508,7 +511,7 @@ DCmdFactory* DCmdFactory::factory(DCmdSource source, const char* name, size_t le
 }
 
 int DCmdFactory::register_DCmdFactory(DCmdFactory* factory) {
-  MutexLockerEx ml(_dcmdFactory_lock, Mutex::_no_safepoint_check_flag);
+  MutexLockerEx ml(DCmdFactory_lock, Mutex::_no_safepoint_check_flag);
   factory->_next = _DCmdFactoryList;
   _DCmdFactoryList = factory;
   if (_send_jmx_notification && !factory->_hidden
@@ -516,20 +519,6 @@ int DCmdFactory::register_DCmdFactory(DCmdFactory* factory) {
     DCmdFactory::push_jmx_notification_request();
   }
   return 0; // Actually, there's no checks for duplicates
-}
-
-DCmd* DCmdFactory::create_global_DCmd(DCmdSource source, CmdLine &line,
-                                      outputStream* out, TRAPS) {
-  DCmdFactory* f = factory(source, line.cmd_addr(), line.cmd_len());
-  if (f != NULL) {
-    if (f->is_enabled()) {
-      THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(),
-                     f->disabled_message());
-    }
-    return f->create_Cheap_instance(out);
-  }
-  THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(),
-             "Unknown diagnostic command");
 }
 
 DCmd* DCmdFactory::create_local_DCmd(DCmdSource source, CmdLine &line,
@@ -547,7 +536,7 @@ DCmd* DCmdFactory::create_local_DCmd(DCmdSource source, CmdLine &line,
 }
 
 GrowableArray<const char*>* DCmdFactory::DCmd_list(DCmdSource source) {
-  MutexLockerEx ml(_dcmdFactory_lock, Mutex::_no_safepoint_check_flag);
+  MutexLockerEx ml(DCmdFactory_lock, Mutex::_no_safepoint_check_flag);
   GrowableArray<const char*>* array = new GrowableArray<const char*>();
   DCmdFactory* factory = _DCmdFactoryList;
   while (factory != NULL) {
@@ -560,7 +549,7 @@ GrowableArray<const char*>* DCmdFactory::DCmd_list(DCmdSource source) {
 }
 
 GrowableArray<DCmdInfo*>* DCmdFactory::DCmdInfo_list(DCmdSource source ) {
-  MutexLockerEx ml(_dcmdFactory_lock, Mutex::_no_safepoint_check_flag);
+  MutexLockerEx ml(DCmdFactory_lock, Mutex::_no_safepoint_check_flag);
   GrowableArray<DCmdInfo*>* array = new GrowableArray<DCmdInfo*>();
   DCmdFactory* factory = _DCmdFactoryList;
   while (factory != NULL) {

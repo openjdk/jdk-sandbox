@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@
 #include "ci/ciStreams.hpp"
 #include "ci/ciSymbol.hpp"
 #include "ci/ciReplay.hpp"
-#include "ci/ciUtilities.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/abstractCompiler.hpp"
 #include "compiler/methodLiveness.hpp"
@@ -42,12 +42,12 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/generateOopMap.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/deoptimization.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/xmlstream.hpp"
-#include "trace/tracing.hpp"
 #ifdef COMPILER2
 #include "ci/bcEscapeAnalyzer.hpp"
 #include "ci/ciTypeFlow.hpp"
@@ -166,16 +166,16 @@ ciMethod::ciMethod(ciInstanceKlass* holder,
   ciMetadata((Metadata*)NULL),
   _name(                   name),
   _holder(                 holder),
-  _intrinsic_id(           vmIntrinsics::_none),
-  _liveness(               NULL),
-  _can_be_statically_bound(false),
+  _method_data(            NULL),
   _method_blocks(          NULL),
-  _method_data(            NULL)
+  _intrinsic_id(           vmIntrinsics::_none),
+  _instructions_size(-1),
+  _can_be_statically_bound(false),
+  _liveness(               NULL)
 #if defined(COMPILER2)
   ,
   _flow(                   NULL),
-  _bcea(                   NULL),
-  _instructions_size(-1)
+  _bcea(                   NULL)
 #endif // COMPILER2
 {
   // Usually holder and accessor are the same type but in some cases
@@ -402,12 +402,14 @@ MethodLivenessResult ciMethod::raw_liveness_at_bci(int bci) {
 // will return true for all locals in some cases to improve debug
 // information.
 MethodLivenessResult ciMethod::liveness_at_bci(int bci) {
-  MethodLivenessResult result = raw_liveness_at_bci(bci);
-  if (CURRENT_ENV->should_retain_local_variables() || DeoptimizeALot || CompileTheWorld) {
+  if (CURRENT_ENV->should_retain_local_variables() || DeoptimizeALot) {
     // Keep all locals live for the user's edification and amusement.
-    result.at_put_range(0, result.size(), true);
+    MethodLivenessResult result(_max_locals);
+    result.set_range(0, _max_locals);
+    result.set_is_valid();
+    return result;
   }
-  return result;
+  return raw_liveness_at_bci(bci);
 }
 
 // ciMethod::live_local_oops_at_bci
@@ -1210,7 +1212,7 @@ bool ciMethod::is_klass_loaded(int refinfo_index, bool must_be_resolved) const {
 // ciMethod::check_call
 bool ciMethod::check_call(int refinfo_index, bool is_static) const {
   // This method is used only in C2 from InlineTree::ok_to_inline,
-  // and is only used under -Xcomp or -XX:CompileTheWorld.
+  // and is only used under -Xcomp.
   // It appears to fail when applied to an invokeinterface call site.
   // FIXME: Remove this method and resolve_method_statically; refactor to use the other LinkResolver entry points.
   VM_ENTRY_MARK;
@@ -1494,13 +1496,3 @@ bool ciMethod::is_consistent_info(ciMethod* declared_method, ciMethod* resolved_
 }
 
 // ------------------------------------------------------------------
-
-#if INCLUDE_TRACE
-TraceStructCalleeMethod ciMethod::to_trace_struct() const {
-  TraceStructCalleeMethod result;
-  result.set_type(holder()->name()->as_utf8());
-  result.set_name(name()->as_utf8());
-  result.set_descriptor(signature()->as_symbol()->as_utf8());
-  return result;
-}
-#endif

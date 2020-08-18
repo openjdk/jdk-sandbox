@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,8 +20,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.test;
 
+import static java.lang.reflect.Modifier.isStatic;
 import static jdk.vm.ci.runtime.JVMCICompiler.INVOCATION_ENTRY_BCI;
 import static org.graalvm.compiler.nodes.ConstantNode.getConstantNodes;
 import static org.graalvm.compiler.nodes.graphbuilderconf.InlineInvokePlugin.InlineInfo.DO_NOT_INLINE_NO_EXCEPTION;
@@ -40,11 +43,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import org.graalvm.compiler.api.directives.GraalDirectives;
@@ -80,6 +83,7 @@ import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.FixedWithNextNode;
 import org.graalvm.compiler.nodes.FrameState;
 import org.graalvm.compiler.nodes.FullInfopointNode;
+import org.graalvm.compiler.nodes.Invoke;
 import org.graalvm.compiler.nodes.InvokeNode;
 import org.graalvm.compiler.nodes.InvokeWithExceptionNode;
 import org.graalvm.compiler.nodes.ParameterNode;
@@ -108,6 +112,9 @@ import org.graalvm.compiler.phases.Phase;
 import org.graalvm.compiler.phases.PhaseSuite;
 import org.graalvm.compiler.phases.common.CanonicalizerPhase;
 import org.graalvm.compiler.phases.common.ConvertDeoptimizeToGuardPhase;
+import org.graalvm.compiler.phases.common.inlining.InliningPhase;
+import org.graalvm.compiler.phases.common.inlining.info.InlineInfo;
+import org.graalvm.compiler.phases.common.inlining.policy.GreedyInliningPolicy;
 import org.graalvm.compiler.phases.schedule.SchedulePhase;
 import org.graalvm.compiler.phases.schedule.SchedulePhase.SchedulingStrategy;
 import org.graalvm.compiler.phases.tiers.HighTierContext;
@@ -133,6 +140,7 @@ import jdk.vm.ci.code.TargetDescription;
 import jdk.vm.ci.meta.Assumptions.Assumption;
 import jdk.vm.ci.meta.ConstantReflectionProvider;
 import jdk.vm.ci.meta.DeoptimizationReason;
+import jdk.vm.ci.meta.JavaConstant;
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.JavaType;
 import jdk.vm.ci.meta.MetaAccessProvider;
@@ -593,11 +601,11 @@ public abstract class GraalCompilerTest extends GraalTest {
     }
 
     protected HighTierContext getDefaultHighTierContext() {
-        return new HighTierContext(getProviders(), getDefaultGraphBuilderSuite(), OptimisticOptimizations.ALL);
+        return new HighTierContext(getProviders(), getDefaultGraphBuilderSuite(), getOptimisticOptimizations());
     }
 
     protected MidTierContext getDefaultMidTierContext() {
-        return new MidTierContext(getProviders(), getTargetProvider(), OptimisticOptimizations.ALL, null);
+        return new MidTierContext(getProviders(), getTargetProvider(), getOptimisticOptimizations(), null);
     }
 
     protected SnippetReflectionProvider getSnippetReflection() {
@@ -626,6 +634,30 @@ public abstract class GraalCompilerTest extends GraalTest {
 
     protected LoweringProvider getLowerer() {
         return getProviders().getLowerer();
+    }
+
+    protected final BasePhase<HighTierContext> createInliningPhase() {
+        return createInliningPhase(new CanonicalizerPhase());
+    }
+
+    protected BasePhase<HighTierContext> createInliningPhase(CanonicalizerPhase canonicalizer) {
+        return createInliningPhase(null, canonicalizer);
+    }
+
+    static class GreedyTestInliningPolicy extends GreedyInliningPolicy {
+        GreedyTestInliningPolicy(Map<Invoke, Double> hints) {
+            super(hints);
+        }
+
+        @Override
+        protected int previousLowLevelGraphSize(InlineInfo info) {
+            // Ignore previous compiles for tests
+            return 0;
+        }
+    }
+
+    protected BasePhase<HighTierContext> createInliningPhase(Map<Invoke, Double> hints, CanonicalizerPhase canonicalizer) {
+        return new InliningPhase(new GreedyTestInliningPolicy(hints), canonicalizer);
     }
 
     protected CompilationIdentifier getCompilationId(ResolvedJavaMethod method) {
@@ -880,7 +912,7 @@ public abstract class GraalCompilerTest extends GraalTest {
         }
     }
 
-    private Map<ResolvedJavaMethod, InstalledCode> cache = new HashMap<>();
+    private Map<ResolvedJavaMethod, InstalledCode> cache = new ConcurrentHashMap<>();
 
     /**
      * Gets installed code for a given method, compiling it first if necessary. The graph is parsed
@@ -931,7 +963,8 @@ public abstract class GraalCompilerTest extends GraalTest {
      */
     @SuppressWarnings("try")
     protected InstalledCode getCode(final ResolvedJavaMethod installedCodeOwner, StructuredGraph graph, boolean forceCompile, boolean installAsDefault, OptionValues options) {
-        if (!forceCompile && graph == null) {
+        boolean useCache = !forceCompile && getArgumentToBind() == null;
+        if (useCache && graph == null) {
             InstalledCode cached = cache.get(installedCodeOwner);
             if (cached != null) {
                 if (cached.isValid()) {
@@ -964,7 +997,7 @@ public abstract class GraalCompilerTest extends GraalTest {
                             throw new GraalError("Could not install code for " + installedCodeOwner.format("%H.%n(%p)"));
                         }
                     } catch (BailoutException e) {
-                        if (retry <= BAILOUT_RETRY_LIMIT && graph == null && !e.isPermanent()) {
+                        if (retry < BAILOUT_RETRY_LIMIT && graph == null && !e.isPermanent()) {
                             // retry (if there is no predefined graph)
                             TTY.println(String.format("Restart compilation %s (%s) due to a non-permanent bailout!", installedCodeOwner, id));
                             continue;
@@ -978,7 +1011,7 @@ public abstract class GraalCompilerTest extends GraalTest {
                 throw debug.handle(e);
             }
 
-            if (!forceCompile) {
+            if (useCache) {
                 cache.put(installedCodeOwner, installedCode);
             }
             return installedCode;
@@ -1034,6 +1067,10 @@ public abstract class GraalCompilerTest extends GraalTest {
         return compile(installedCodeOwner, graph, new CompilationResult(compilationId), compilationId, options);
     }
 
+    protected OptimisticOptimizations getOptimisticOptimizations() {
+        return OptimisticOptimizations.ALL;
+    }
+
     /**
      * Compiles a given method.
      *
@@ -1050,12 +1087,26 @@ public abstract class GraalCompilerTest extends GraalTest {
         DebugContext debug = graphToCompile.getDebug();
         try (DebugContext.Scope s = debug.scope("Compile", graphToCompile)) {
             assert options != null;
-            Request<CompilationResult> request = new Request<>(graphToCompile, installedCodeOwner, getProviders(), getBackend(), getDefaultGraphBuilderSuite(), OptimisticOptimizations.ALL,
-                            graphToCompile.getProfilingInfo(), createSuites(options), createLIRSuites(options), compilationResult, CompilationResultBuilderFactory.Default);
+            Request<CompilationResult> request = new Request<>(graphToCompile, installedCodeOwner, getProviders(), getBackend(), getDefaultGraphBuilderSuite(), getOptimisticOptimizations(),
+                            graphToCompile.getProfilingInfo(), createSuites(options), createLIRSuites(options), compilationResult, CompilationResultBuilderFactory.Default, true);
             return GraalCompiler.compile(request);
         } catch (Throwable e) {
             throw debug.handle(e);
         }
+    }
+
+    protected StructuredGraph getFinalGraph(String method) {
+        return getFinalGraph(getResolvedJavaMethod(method));
+    }
+
+    protected StructuredGraph getFinalGraph(ResolvedJavaMethod method) {
+        StructuredGraph graph = parseForCompile(method);
+        applyFrontEnd(graph);
+        return graph;
+    }
+
+    protected void applyFrontEnd(StructuredGraph graph) {
+        GraalCompiler.emitFrontEnd(getProviders(), getBackend(), graph, getDefaultGraphBuilderSuite(), getOptimisticOptimizations(), graph.getProfilingInfo(), createSuites(graph.getOptions()));
     }
 
     protected StructuredGraph lastCompiledGraph;
@@ -1072,7 +1123,7 @@ public abstract class GraalCompilerTest extends GraalTest {
         return backend.createDefaultInstalledCode(debug, method, compilationResult);
     }
 
-    private final Map<ResolvedJavaMethod, Executable> methodMap = new HashMap<>();
+    private final Map<ResolvedJavaMethod, Executable> methodMap = new ConcurrentHashMap<>();
 
     /**
      * Converts a reflection {@link Method} to a {@link ResolvedJavaMethod}.
@@ -1103,6 +1154,7 @@ public abstract class GraalCompilerTest extends GraalTest {
         return methodMap.get(javaMethod);
     }
 
+    @SuppressWarnings("deprecation")
     protected Object invoke(ResolvedJavaMethod javaMethod, Object receiver, Object... args) throws IllegalAccessException, IllegalArgumentException, InvocationTargetException, InstantiationException {
         Executable method = lookupMethod(javaMethod);
         Assert.assertTrue(method != null);
@@ -1243,10 +1295,31 @@ public abstract class GraalCompilerTest extends GraalTest {
         DebugContext debug = graph.getDebug();
         try (DebugContext.Scope ds = debug.scope("Parsing", javaMethod, graph)) {
             graphBuilderSuite.apply(graph, getDefaultHighTierContext());
+            Object[] args = getArgumentToBind();
+            if (args != null) {
+                bindArguments(graph, args);
+            }
             return graph;
         } catch (Throwable e) {
             throw debug.handle(e);
         }
+    }
+
+    protected void bindArguments(StructuredGraph graph, Object[] argsToBind) {
+        ResolvedJavaMethod m = graph.method();
+        Object receiver = isStatic(m.getModifiers()) ? null : this;
+        Object[] args = argsWithReceiver(receiver, argsToBind);
+        JavaType[] parameterTypes = m.toParameterTypes();
+        assert parameterTypes.length == args.length;
+        for (ParameterNode param : graph.getNodes(ParameterNode.TYPE)) {
+            JavaConstant c = getSnippetReflection().forBoxed(parameterTypes[param.index()].getJavaKind(), args[param.index()]);
+            ConstantNode replacement = ConstantNode.forConstant(c, getMetaAccess(), graph);
+            param.replaceAtUsages(replacement);
+        }
+    }
+
+    protected Object[] getArgumentToBind() {
+        return null;
     }
 
     protected PhaseSuite<HighTierContext> getEagerGraphBuilderSuite() {
@@ -1416,14 +1489,5 @@ public abstract class GraalCompilerTest extends GraalTest {
      */
     protected boolean isArchitecture(String name) {
         return name.equals(backend.getTarget().arch.getName());
-    }
-
-    /**
-     * This method should be called in "timeout" tests which JUnit runs in a different thread.
-     */
-    public static void initializeForTimeout() {
-        // timeout tests run in a separate thread which needs the DebugEnvironment to be
-        // initialized
-        // DebugEnvironment.ensureInitialized(getInitialOptions());
     }
 }

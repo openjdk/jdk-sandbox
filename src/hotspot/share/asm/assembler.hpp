@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_ASM_ASSEMBLER_HPP
-#define SHARE_VM_ASM_ASSEMBLER_HPP
+#ifndef SHARE_ASM_ASSEMBLER_HPP
+#define SHARE_ASM_ASSEMBLER_HPP
 
 #include "asm/codeBuffer.hpp"
 #include "asm/register.hpp"
@@ -71,9 +71,9 @@ class Label;
  * Labels may only be used within a single CodeSection.  If you need
  * to create references between code sections, use explicit relocations.
  */
-class Label VALUE_OBJ_CLASS_SPEC {
+class Label {
  private:
-  enum { PatchCacheSize = 4 };
+  enum { PatchCacheSize = 4 debug_only( +4 ) };
 
   // _loc encodes both the binding state (via its sign)
   // and the binding locator (via its value) of a label.
@@ -98,6 +98,11 @@ class Label VALUE_OBJ_CLASS_SPEC {
   // The label will be bound to a location near its users.
   bool _is_near;
 
+#ifdef ASSERT
+  // Sourcre file and line location of jump instruction
+  int _lines[PatchCacheSize];
+  const char* _files[PatchCacheSize];
+#endif
  public:
 
   /**
@@ -141,7 +146,7 @@ class Label VALUE_OBJ_CLASS_SPEC {
    * @param cb         the code buffer being patched
    * @param branch_loc the locator of the branch instruction in the code buffer
    */
-  void add_patch_at(CodeBuffer* cb, int branch_loc);
+  void add_patch_at(CodeBuffer* cb, int branch_loc, const char* file = NULL, int line = 0);
 
   /**
    * Iterate over the list of patches, resolving the instructions
@@ -159,6 +164,14 @@ class Label VALUE_OBJ_CLASS_SPEC {
   Label() {
     init();
   }
+
+  ~Label() {
+    assert(is_bound() || is_unused(), "Label was never bound to a location, but it was used as a jmp target");
+  }
+
+  void reset() {
+    init(); //leave _patch_overflow because it points to CodeBuffer.
+  }
 };
 
 // A NearLabel must be bound to a location near its users. Users can
@@ -171,7 +184,7 @@ class NearLabel : public Label {
 // A union type for code which has to assemble both constant and
 // non-constant operands, when the distinction cannot be made
 // statically.
-class RegisterOrConstant VALUE_OBJ_CLASS_SPEC {
+class RegisterOrConstant {
  private:
   Register _r;
   intptr_t _c;
@@ -439,10 +452,10 @@ class AbstractAssembler : public ResourceObj  {
    * @param branch the location of the instruction to patch
    * @param masm the assembler which generated the branch
    */
-  void pd_patch_instruction(address branch, address target);
+  void pd_patch_instruction(address branch, address target, const char* file, int line);
 
 };
 
 #include CPU_HEADER(assembler)
 
-#endif // SHARE_VM_ASM_ASSEMBLER_HPP
+#endif // SHARE_ASM_ASSEMBLER_HPP

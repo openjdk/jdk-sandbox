@@ -33,6 +33,7 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.EndPosTable;
+import com.sun.tools.javac.tree.JCTree.JCSwitchExpression;
 
 /** This class contains the CharacterRangeTable for some method
  *  and the hashtable for mapping trees or lists of trees to their
@@ -311,9 +312,17 @@ implements CRTFlags {
             result = sr;
         }
 
+        @Override
+        public void visitSwitchExpression(JCSwitchExpression tree) {
+            SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
+            sr.mergeWith(csp(tree.selector));
+            sr.mergeWith(cspCases(tree.cases));
+            result = sr;
+        }
+
         public void visitCase(JCCase tree) {
             SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
-            sr.mergeWith(csp(tree.pat));
+            sr.mergeWith(csp(tree.pats));
             sr.mergeWith(csp(tree.stats));
             result = sr;
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOGOUTPUTLIST_HPP
-#define SHARE_VM_LOGGING_LOGOUTPUTLIST_HPP
+#ifndef SHARE_LOGGING_LOGOUTPUTLIST_HPP
+#define SHARE_LOGGING_LOGOUTPUTLIST_HPP
 
 #include "logging/logLevel.hpp"
 #include "memory/allocation.hpp"
@@ -44,7 +44,7 @@ class LogOutput;
 // To remove a node from the list the node must first be unlinked,
 // and the memory for that node can be freed whenever the removing
 // thread observes an active reader count of 0 (after unlinking it).
-class LogOutputList VALUE_OBJ_CLASS_SPEC {
+class LogOutputList {
  private:
   struct LogOutputNode : public CHeapObj<mtLogging> {
     LogOutput*      _value;
@@ -88,7 +88,7 @@ class LogOutputList VALUE_OBJ_CLASS_SPEC {
   // Set (add/update/remove) the output to the specified level.
   void set_output_level(LogOutput* output, LogLevelType level);
 
-  class Iterator VALUE_OBJ_CLASS_SPEC {
+  class Iterator {
     friend class LogOutputList;
    private:
     LogOutputNode*  _current;
@@ -128,4 +128,4 @@ class LogOutputList VALUE_OBJ_CLASS_SPEC {
   }
 };
 
-#endif // SHARE_VM_LOGGING_LOGOUTPUTLIST_HPP
+#endif // SHARE_LOGGING_LOGOUTPUTLIST_HPP

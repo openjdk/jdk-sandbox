@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,12 +84,12 @@ G1Analytics::G1Analytics(const G1Predictions* predictor) :
     _cost_per_entry_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
     _mixed_cost_per_entry_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
     _cost_per_byte_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
-    _cost_per_byte_ms_during_cm_seq(new TruncatedSeq(TruncatedSeqLength)),
     _constant_other_time_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
     _young_other_cost_per_region_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
     _non_young_other_cost_per_region_ms_seq(new TruncatedSeq(TruncatedSeqLength)),
     _pending_cards_seq(new TruncatedSeq(TruncatedSeqLength)),
     _rs_lengths_seq(new TruncatedSeq(TruncatedSeqLength)),
+    _cost_per_byte_ms_during_cm_seq(new TruncatedSeq(TruncatedSeqLength)),
     _recent_prev_end_times_for_all_gcs_sec(new TruncatedSeq(NumPrevPausesForHeuristics)),
     _recent_avg_pause_time_ratio(0.0),
     _last_pause_time_ratio(0.0) {
@@ -166,16 +166,16 @@ void G1Analytics::report_cost_scan_hcc(double cost_scan_hcc) {
   _cost_scan_hcc_seq->add(cost_scan_hcc);
 }
 
-void G1Analytics::report_cost_per_entry_ms(double cost_per_entry_ms, bool last_gc_was_young) {
-  if (last_gc_was_young) {
+void G1Analytics::report_cost_per_entry_ms(double cost_per_entry_ms, bool for_young_gc) {
+  if (for_young_gc) {
     _cost_per_entry_ms_seq->add(cost_per_entry_ms);
   } else {
     _mixed_cost_per_entry_ms_seq->add(cost_per_entry_ms);
   }
 }
 
-void G1Analytics::report_cards_per_entry_ratio(double cards_per_entry_ratio, bool last_gc_was_young) {
-  if (last_gc_was_young) {
+void G1Analytics::report_cards_per_entry_ratio(double cards_per_entry_ratio, bool for_young_gc) {
+  if (for_young_gc) {
     _young_cards_per_entry_ratio_seq->add(cards_per_entry_ratio);
   } else {
     _mixed_cards_per_entry_ratio_seq->add(cards_per_entry_ratio);
@@ -186,8 +186,8 @@ void G1Analytics::report_rs_length_diff(double rs_length_diff) {
   _rs_length_diff_seq->add(rs_length_diff);
 }
 
-void G1Analytics::report_cost_per_byte_ms(double cost_per_byte_ms, bool in_marking_window) {
-  if (in_marking_window) {
+void G1Analytics::report_cost_per_byte_ms(double cost_per_byte_ms, bool mark_or_rebuild_in_progress) {
+  if (mark_or_rebuild_in_progress) {
     _cost_per_byte_ms_during_cm_seq->add(cost_per_byte_ms);
   } else {
     _cost_per_byte_ms_seq->add(cost_per_byte_ms);
@@ -246,16 +246,16 @@ double G1Analytics::predict_mixed_cards_per_entry_ratio() const {
   }
 }
 
-size_t G1Analytics::predict_card_num(size_t rs_length, bool gcs_are_young) const {
-  if (gcs_are_young) {
+size_t G1Analytics::predict_card_num(size_t rs_length, bool for_young_gc) const {
+  if (for_young_gc) {
     return (size_t) (rs_length * predict_young_cards_per_entry_ratio());
   } else {
     return (size_t) (rs_length * predict_mixed_cards_per_entry_ratio());
   }
 }
 
-double G1Analytics::predict_rs_scan_time_ms(size_t card_num, bool gcs_are_young) const {
-  if (gcs_are_young) {
+double G1Analytics::predict_rs_scan_time_ms(size_t card_num, bool for_young_gc) const {
+  if (for_young_gc) {
     return card_num * get_new_prediction(_cost_per_entry_ms_seq);
   } else {
     return predict_mixed_rs_scan_time_ms(card_num);

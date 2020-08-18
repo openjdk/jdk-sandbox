@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@ import java.awt.Component;
 import java.awt.Robot;
 import java.awt.image.BufferedImage;
 
+import javax.swing.UIManager;
 import static com.sun.swingset3.demos.button.ButtonDemo.DEMO_TITLE;
 import static org.jemmy2ext.JemmyExt.*;
 
@@ -53,7 +54,7 @@ import static org.jemmy2ext.JemmyExt.*;
  *          java.logging
  * @build org.jemmy2ext.JemmyExt
  * @build com.sun.swingset3.demos.button.ButtonDemo
- * @run testng ButtonDemoScreenshotTest
+ * @run testng/timeout=600 ButtonDemoScreenshotTest
  */
 @Listeners(GuiTestListener.class)
 public class ButtonDemoScreenshotTest {
@@ -66,8 +67,9 @@ public class ButtonDemoScreenshotTest {
         sComparator = new StrictImageComparator();
     }
 
-    @Test
-    public void test() throws Exception {
+    @Test(dataProvider = "availableLookAndFeels", dataProviderClass = TestHelpers.class)
+    public void test(String lookAndFeel) throws Exception {
+        UIManager.setLookAndFeel(lookAndFeel);
         Robot rob = new Robot();
 
         new ClassReference(ButtonDemo.class.getCanonicalName()).startApplication();
@@ -83,6 +85,12 @@ public class ButtonDemoScreenshotTest {
 
     private void checkButton(JFrameOperator jfo, int i, Robot rob) {
         JButtonOperator button = new JButtonOperator(jfo, i);
+
+        //additional instrumentation for JDK-8198920. To be removed after the bug is fixed
+        java.util.concurrent.atomic.AtomicBoolean actionListenerCalled = new java.util.concurrent.atomic.AtomicBoolean(false);
+        button.addActionListener(e -> actionListenerCalled.set(true));
+        //end of instrumentation for JDK-8198920
+
         button.moveMouse(button.getCenterX(), button.getCenterY());
 
         BufferedImage initialButtonImage = capture(rob, button);
@@ -92,21 +100,39 @@ public class ButtonDemoScreenshotTest {
         BufferedImage[] pressedImage = new BufferedImage[1];
 
         button.pressMouse();
+        //additional instrumentation for JDK-8198920. To be removed after the bug is fixed
+        button.getOutput().printTrace("JDK-8198920: Button pressed at " + System.currentTimeMillis());
+        //end of instrumentation for JDK-8198920
         try {
             waitPressed(button);
+            //additional instrumentation for JDK-8198920. To be removed after the bug is fixed
+            button.getOutput().printTrace("JDK-8198920: Button press confirmed by " + System.currentTimeMillis());
+            //end of instrumentation for JDK-8198920
             button.waitState(new ComponentChooser() {
                 public boolean checkComponent(Component c) {
                     pressedImage[0] = capture(rob, button);
                     assertNotBlack(pressedImage[0]);
                     return !sComparator.compare(initialButtonImage, pressedImage[0]);
                 }
+
                 public String getDescription() {
                     return "Button with new image";
                 }
             });
         } finally {
-            if(pressedImage[0] != null) save(pressedImage[0], "button" + i + "_pressed.png");
+            if (pressedImage[0] != null) {
+                save(pressedImage[0], "button" + i + "_pressed.png");
+            }
             button.releaseMouse();
+            //additional instrumentation for JDK-8198920. To be removed after the bug is fixed
+            button.getOutput().printTrace("JDK-8198920: Button released at " + System.currentTimeMillis());
+            try {
+                button.waitState(comp -> actionListenerCalled.get());
+                button.getOutput().printTrace("JDK-8198920: Action listener was called by " + System.currentTimeMillis());
+            } catch (org.netbeans.jemmy.TimeoutExpiredException e) {
+                button.getOutput().printTrace("JDK-8198920: Action listener was not called by " + System.currentTimeMillis());
+            }
+            //end of instrumentation for JDK-8198920
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/basicLock.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/monitorChunk.hpp"
 #include "runtime/signature.hpp"
@@ -101,7 +102,8 @@ void compiledVFrame::update_monitor(int index, MonitorInfo* val) {
 }
 
 void compiledVFrame::update_deferred_value(BasicType type, int index, jvalue value) {
-  assert(fr().is_deoptimized_frame(), "frame must be scheduled for deoptimization");
+  assert(fr().is_deoptimized_frame() || thread()->must_deopt_id() == fr().id(),
+         "frame must be scheduled for deoptimization");
   GrowableArray<jvmtiDeferredLocalVariableSet*>* deferred = thread()->deferred_locals();
   jvmtiDeferredLocalVariableSet* locals = NULL;
   if (deferred != NULL ) {
@@ -250,6 +252,14 @@ compiledVFrame::compiledVFrame(const frame* fr, const RegisterMap* reg_map, Java
   guarantee(_scope != NULL, "scope must be present");
 }
 
+compiledVFrame* compiledVFrame::at_scope(int decode_offset, int vframe_id) {
+  if (scope()->decode_offset() != decode_offset) {
+    ScopeDesc* scope = this->scope()->at_offset(decode_offset);
+    return new compiledVFrame(frame_pointer(), register_map(), thread(), scope, vframe_id);
+  }
+  assert(_vframe_id == vframe_id, "wrong frame id");
+  return this;
+}
 
 bool compiledVFrame::is_top() const {
   // FIX IT: Remove this when new native stubs are in place

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import static jdk.vm.ci.hotspot.UnsafeAccess.UNSAFE;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.ByteOrder;
@@ -51,6 +52,8 @@ import jdk.vm.ci.meta.JavaType;
 import jdk.vm.ci.meta.ResolvedJavaField;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaType;
+import jdk.vm.ci.meta.UnresolvedJavaField;
+import jdk.vm.ci.meta.UnresolvedJavaType;
 
 /**
  * Implementation of {@link JavaType} for resolved non-primitive HotSpot classes.
@@ -71,6 +74,11 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     private HotSpotConstantPool constantPool;
     final HotSpotJVMCIMetaAccessContext context;
     private HotSpotResolvedObjectType arrayOfType;
+
+    /**
+     * Managed exclusively by {@link HotSpotResolvedJavaFieldImpl#toJava}.
+     */
+    HashMap<HotSpotResolvedJavaFieldImpl, Field> reflectionFieldCache;
 
     /**
      * Gets the JVMCI mirror for a {@link Class} object.
@@ -296,6 +304,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         return compilerToVM().getImplementor(this);
     }
 
+    @Override
     public HotSpotResolvedObjectTypeImpl getSupertype() {
         if (isArray()) {
             ResolvedJavaType componentType = getComponentType();
@@ -352,6 +361,11 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     @Override
     public boolean isArray() {
         return mirror().isArray();
+    }
+
+    @Override
+    public boolean isEnum() {
+        return mirror().isEnum();
     }
 
     @Override
@@ -447,6 +461,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         return compilerToVM().resolveMethod(this, hotSpotMethod, hotSpotCallerType);
     }
 
+    @Override
     public HotSpotConstantPool getConstantPool() {
         if (constantPool == null || !isArray() && UNSAFE.getAddress(getMetaspaceKlass() + config().instanceKlassConstantsOffset) != constantPool.getMetaspaceConstantPool()) {
             /*
@@ -465,6 +480,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
      * allocated, then the returned value is negative (its absolute value gives the size). Must not
      * be called if this is an array or interface type.
      */
+    @Override
     public int instanceSize() {
         assert !isArray();
         assert !isInterface();
@@ -482,6 +498,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         return needsSlowPath ? -size : size;
     }
 
+    @Override
     public int layoutHelper() {
         HotSpotVMConfig config = config();
         return UNSAFE.getInt(getMetaspaceKlass() + config.klassLayoutHelperOffset);
@@ -527,6 +544,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         }
     }
 
+    @Override
     public int getVtableLength() {
         HotSpotVMConfig config = config();
         if (isInterface() || isArray()) {
@@ -752,7 +770,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
 
                 // Make sure the result is sorted by offset.
                 int j;
-                for (j = resultIndex - 1; j >= prependLength && result[j].offset() > offset; j--) {
+                for (j = resultIndex - 1; j >= prependLength && result[j].getOffset() > offset; j--) {
                     result[j + 1] = result[j];
                 }
                 result[j + 1] = resolvedJavaField;
@@ -800,6 +818,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
      * {@linkplain HotSpotJVMCIRuntime#lookupType(String, HotSpotResolvedObjectType, boolean)
      * re-resolving} the type.
      */
+    @Override
     public boolean isDefinitelyResolvedWithRespectTo(ResolvedJavaType accessingClass) {
         assert accessingClass != null;
         ResolvedJavaType elementType = getElementalType();
@@ -829,19 +848,23 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     /**
      * Gets the metaspace Klass boxed in a {@link JavaConstant}.
      */
+    @Override
     public Constant klass() {
         return HotSpotMetaspaceConstantImpl.forMetaspaceObject(this, false);
     }
 
+    @Override
     public boolean isPrimaryType() {
         return config().secondarySuperCacheOffset != superCheckOffset();
     }
 
+    @Override
     public int superCheckOffset() {
         HotSpotVMConfig config = config();
         return UNSAFE.getInt(getMetaspaceKlass() + config.superCheckOffsetOffset);
     }
 
+    @Override
     public long prototypeMarkWord() {
         HotSpotVMConfig config = config();
         if (isArray()) {
@@ -865,7 +888,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     private static ResolvedJavaField findFieldWithOffset(long offset, JavaKind expectedEntryKind, ResolvedJavaField[] declaredFields) {
         for (ResolvedJavaField field : declaredFields) {
             HotSpotResolvedJavaField resolvedField = (HotSpotResolvedJavaField) field;
-            long resolvedFieldOffset = resolvedField.offset();
+            long resolvedFieldOffset = resolvedField.getOffset();
             // @formatter:off
             if (ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN  &&
                             expectedEntryKind.isPrimitive() &&
@@ -921,6 +944,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         return result;
     }
 
+    @Override
     public ResolvedJavaMethod getClassInitializer() {
         if (!isArray()) {
             return compilerToVM().getClassInitializer(this);
@@ -934,6 +958,30 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
+    public ResolvedJavaType lookupType(UnresolvedJavaType unresolvedJavaType, boolean resolve) {
+        JavaType javaType = HotSpotJVMCIRuntime.runtime().lookupType(unresolvedJavaType.getName(), this, resolve);
+        if (javaType instanceof ResolvedJavaType) {
+            return (ResolvedJavaType) javaType;
+        }
+        return null;
+    }
+
+    @Override
+    public ResolvedJavaField resolveField(UnresolvedJavaField unresolvedJavaField, ResolvedJavaType accessingClass) {
+        for (ResolvedJavaField field : getInstanceFields(false)) {
+            if (field.getName().equals(unresolvedJavaField.getName())) {
+                return field;
+            }
+        }
+        for (ResolvedJavaField field : getStaticFields()) {
+            if (field.getName().equals(unresolvedJavaField.getName())) {
+                return field;
+            }
+        }
+        throw new InternalError(unresolvedJavaField.toString());
+    }
+
+    @Override
     public boolean isCloneableWithAllocation() {
         return (getAccessFlags() & config().jvmAccIsCloneableFast) != 0;
     }
@@ -942,8 +990,9 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         return UNSAFE.getInt(getMetaspaceKlass() + config().instanceKlassMiscFlagsOffset);
     }
 
-    public boolean isAnonymous() {
-        return (getMiscFlags() & config().instanceKlassMiscIsAnonymous) != 0;
+    @Override
+    public boolean isUnsafeAnonymous() {
+        return (getMiscFlags() & config().instanceKlassMiscIsUnsafeAnonymous) != 0;
     }
 
 }

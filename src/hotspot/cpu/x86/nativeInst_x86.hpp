@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,10 @@
  *
  */
 
-#ifndef CPU_X86_VM_NATIVEINST_X86_HPP
-#define CPU_X86_VM_NATIVEINST_X86_HPP
+#ifndef CPU_X86_NATIVEINST_X86_HPP
+#define CPU_X86_NATIVEINST_X86_HPP
 
 #include "asm/assembler.hpp"
-#include "memory/allocation.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepointMechanism.hpp"
@@ -50,7 +49,7 @@
 // The base class for different kinds of native instruction abstractions.
 // Provides the primitive operations to manipulate code relative to this.
 
-class NativeInstruction VALUE_OBJ_CLASS_SPEC {
+class NativeInstruction {
   friend class Relocation;
 
  public:
@@ -150,6 +149,7 @@ inline NativePltCall* nativePltCall_before(address addr) {
   return nativePltCall_at(at);
 }
 
+class NativeCall;
 inline NativeCall* nativeCall_at(address address);
 // The NativeCall is an abstraction for accessing/manipulating native call imm32/rel32off
 // instructions (used to manipulate inline caches, primitive & dll calls, etc.).
@@ -354,6 +354,8 @@ class NativeMovRegMem: public NativeInstruction {
     instruction_code_xmm_load           = 0x10,
     instruction_code_xmm_store          = 0x11,
     instruction_code_xmm_lpd            = 0x12,
+
+    instruction_code_lea                = 0x8d,
 
     instruction_VEX_prefix_2bytes       = Assembler::VEX_2bytes,
     instruction_VEX_prefix_3bytes       = Assembler::VEX_3bytes,
@@ -751,4 +753,4 @@ inline bool NativeInstruction::is_mov_literal64() {
 #endif // AMD64
 }
 
-#endif // CPU_X86_VM_NATIVEINST_X86_HPP
+#endif // CPU_X86_NATIVEINST_X86_HPP

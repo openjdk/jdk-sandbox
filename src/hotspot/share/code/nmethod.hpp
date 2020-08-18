@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_NMETHOD_HPP
-#define SHARE_VM_CODE_NMETHOD_HPP
+#ifndef SHARE_CODE_NMETHOD_HPP
+#define SHARE_CODE_NMETHOD_HPP
 
 #include "code/compiledMethod.hpp"
 
 class DepChange;
 class DirectiveSet;
+class DebugInformationRecorder;
 
 // nmethods (native methods) are the compiled code versions of Java methods.
 //
@@ -78,7 +79,7 @@ class nmethod : public CompiledMethod {
   // That is, installed code other than a "default"
   // HotSpotNMethod causes nmethod unloading.
   // This field is ignored once _jvmci_installed_code is NULL.
-  bool _jvmci_installed_code_triggers_unloading;
+  bool _jvmci_installed_code_triggers_invalidation;
 #endif
 
   // To support simple linked-list chaining of nmethods:
@@ -157,6 +158,9 @@ class nmethod : public CompiledMethod {
   // is active while stack scanning (mark_active_nmethods()). The hotness
   // counter is decreased (by 1) while sweeping.
   int _hotness_counter;
+
+  // Local state used to keep track of whether unloading is happening or not
+  volatile uint8_t _is_unloading_state;
 
   // These are used for compiled synchronized native methods to
   // locate the owner and stack slot for the BasicLock so that we can
@@ -254,6 +258,14 @@ class nmethod : public CompiledMethod {
 #endif
   );
 
+  // Only used for unit tests.
+  nmethod()
+    : CompiledMethod(),
+      _is_unloading_state(0),
+      _native_receiver_sp_offset(in_ByteSize(-1)),
+      _native_basic_lock_sp_offset(in_ByteSize(-1)) {}
+
+
   static nmethod* new_native_nmethod(const methodHandle& method,
                                      int compile_id,
                                      CodeBuffer *code_buffer,
@@ -323,6 +335,10 @@ class nmethod : public CompiledMethod {
   bool  is_zombie() const                         { return _state == zombie; }
   bool  is_unloaded() const                       { return _state == unloaded; }
 
+  void clear_unloading_state();
+  virtual bool is_unloading();
+  virtual void do_unloading(bool unloading_occurred);
+
 #if INCLUDE_RTM_OPT
   // rtm state accessing and manipulating
   RTMState  rtm_state() const                     { return _rtm_state; }
@@ -349,10 +365,10 @@ class nmethod : public CompiledMethod {
     return _state;
   }
 
-  void  make_unloaded(BoolObjectClosure* is_alive, oop cause);
+  void  make_unloaded();
 
   bool has_dependencies()                         { return dependencies_size() != 0; }
-  void flush_dependencies(BoolObjectClosure* is_alive);
+  void flush_dependencies(bool delete_immediately);
   bool has_flushed_dependencies()                 { return _has_flushed_dependencies; }
   void set_has_flushed_dependencies()             {
     assert(!has_flushed_dependencies(), "should only happen once");
@@ -361,9 +377,11 @@ class nmethod : public CompiledMethod {
 
   int   comp_level() const                        { return _comp_level; }
 
+  void unlink_from_method(bool acquire_lock);
+
   // Support for oops in scopes and relocs:
   // Note: index 0 is reserved for null.
-  oop   oop_at(int index) const                   { return index == 0 ? (oop) NULL: *oop_addr_at(index); }
+  oop   oop_at(int index) const;
   oop*  oop_addr_at(int index) const {  // for GC
     // relocation indexes are biased by 1 (because 0 is reserved)
     assert(index > 0 && index <= oops_count(), "must be a valid non-zero index");
@@ -456,7 +474,7 @@ public:
   // Copies the value of the name field in the InstalledCode
   // object (if any) associated with this nmethod into buf.
   // Returns the value of buf if it was updated otherwise NULL.
-  char* jvmci_installed_code_name(char* buf, size_t buflen);
+  char* jvmci_installed_code_name(char* buf, size_t buflen) const;
 
   // Updates the state of the InstalledCode (if any) associated with
   // this nmethod based on the current value of _state.
@@ -483,20 +501,6 @@ public:
  public:
 #endif
 
- protected:
-  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive, bool unloading_occurred);
-#if INCLUDE_JVMCI
-  // See comment for _jvmci_installed_code_triggers_unloading field.
-  // Returns whether this nmethod was unloaded.
-  virtual bool do_unloading_jvmci(BoolObjectClosure* is_alive, bool unloading_occurred);
-#endif
-
- private:
-  bool do_unloading_scopes(BoolObjectClosure* is_alive, bool unloading_occurred);
-  //  Unload a nmethod if the *root object is dead.
-  bool can_unload(BoolObjectClosure* is_alive, oop* root, bool unloading_occurred);
-  bool unload_if_dead_at(RelocIterator *iter_at_oop, BoolObjectClosure* is_alive, bool unloading_occurred);
-
  public:
   void oops_do(OopClosure* f) { oops_do(f, false); }
   void oops_do(OopClosure* f, bool allow_zombie);
@@ -512,7 +516,7 @@ public:
  private:
   ScopeDesc* scope_desc_in(address begin, address end);
 
-  address* orig_pc_addr(const frame* fr) { return (address*) ((address)fr->unextended_sp() + _orig_pc_offset); }
+  address* orig_pc_addr(const frame* fr);
 
  public:
   // copying of debugging information
@@ -666,4 +670,4 @@ class nmethodLocker : public StackObj {
   }
 };
 
-#endif // SHARE_VM_CODE_NMETHOD_HPP
+#endif // SHARE_CODE_NMETHOD_HPP

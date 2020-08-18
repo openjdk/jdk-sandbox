@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_JAVACALLS_HPP
-#define SHARE_VM_RUNTIME_JAVACALLS_HPP
+#ifndef SHARE_RUNTIME_JAVACALLS_HPP
+#define SHARE_RUNTIME_JAVACALLS_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/method.hpp"
@@ -257,8 +257,15 @@ class JavaCalls: AllStatic {
   static void call_static(JavaValue* result, Klass* klass, Symbol* name, Symbol* signature, Handle arg1, Handle arg2, TRAPS);
   static void call_static(JavaValue* result, Klass* klass, Symbol* name, Symbol* signature, Handle arg1, Handle arg2, Handle arg3, TRAPS);
 
+  // Allocate instance + invoke constructor. This is equivalent to "new Klass(args ...)" expression in Java code.
+  static Handle construct_new_instance(InstanceKlass* klass, Symbol* constructor_signature, JavaCallArguments* args, TRAPS);
+
+  static Handle construct_new_instance(InstanceKlass* klass, Symbol* constructor_signature, TRAPS);
+  static Handle construct_new_instance(InstanceKlass* klass, Symbol* constructor_signature, Handle arg1, TRAPS);
+  static Handle construct_new_instance(InstanceKlass* klass, Symbol* constructor_signature, Handle arg1, Handle arg2, TRAPS);
+
   // Low-level interface
   static void call(JavaValue* result, const methodHandle& method, JavaCallArguments* args, TRAPS);
 };
 
-#endif // SHARE_VM_RUNTIME_JAVACALLS_HPP
+#endif // SHARE_RUNTIME_JAVACALLS_HPP

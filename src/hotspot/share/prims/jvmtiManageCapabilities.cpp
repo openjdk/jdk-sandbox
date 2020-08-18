@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -130,6 +130,7 @@ jvmtiCapabilities JvmtiManageCapabilities::init_always_solo_capabilities() {
 
   memset(&jc, 0, sizeof(jc));
   jc.can_suspend = 1;
+  jc.can_generate_sampled_object_alloc_events = 1;
   return jc;
 }
 
@@ -312,7 +313,10 @@ void JvmtiManageCapabilities::update() {
   }
 #endif // ZERO
 
-  if (avail.can_generate_breakpoint_events) {
+  if (avail.can_generate_breakpoint_events
+       || avail.can_generate_field_access_events
+       || avail.can_generate_field_modification_events)
+  {
     RewriteFrequentPairs = false;
   }
 
@@ -407,6 +411,8 @@ void JvmtiManageCapabilities:: print(const jvmtiCapabilities* cap) {
     log_trace(jvmti)("can_generate_frame_pop_events");
   if (cap->can_generate_breakpoint_events)
     log_trace(jvmti)("can_generate_breakpoint_events");
+  if (cap->can_generate_sampled_object_alloc_events)
+    log_trace(jvmti)("can_generate_sampled_object_alloc_events");
   if (cap->can_suspend)
     log_trace(jvmti)("can_suspend");
   if (cap->can_redefine_any_class )

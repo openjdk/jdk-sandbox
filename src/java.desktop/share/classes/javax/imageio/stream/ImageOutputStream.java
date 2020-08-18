@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,7 +87,7 @@ public interface ImageOutputStream extends ImageInputStream, DataOutput {
      * {@code null}.
      * @exception IOException if an I/O error occurs.
      */
-    void write(byte b[]) throws IOException;
+    void write(byte[] b) throws IOException;
 
     /**
      * Writes a sequence of bytes to the stream at the current
@@ -114,7 +114,7 @@ public interface ImageOutputStream extends ImageInputStream, DataOutput {
      * {@code null}.
      * @exception IOException if an I/O error occurs.
      */
-    void write(byte b[], int off, int len) throws IOException;
+    void write(byte[] b, int off, int len) throws IOException;
 
     /**
      * Writes a {@code boolean} value to the stream.  If
@@ -367,8 +367,8 @@ public interface ImageOutputStream extends ImageInputStream, DataOutput {
     /**
      * Writes two bytes of length information to the output stream in
      * network byte order, followed by the
-     * <a href="../../../java/io/DataInput.html#modified-utf-8">modified
-     * UTF-8</a>
+     * <a href="../../../../java.base/java/io/DataInput.html#modified-utf-8">
+     * modified UTF-8</a>
      * representation of every character in the string {@code s}.
      * If {@code s} is {@code null}, a
      * {@code NullPointerException} is thrown.  Each character in

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_COLLECTEDHEAP_HPP
-#define SHARE_VM_GC_SHARED_COLLECTEDHEAP_HPP
+#ifndef SHARE_GC_SHARED_COLLECTEDHEAP_HPP
+#define SHARE_GC_SHARED_COLLECTEDHEAP_HPP
 
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/gcWhen.hpp"
@@ -31,6 +31,7 @@
 #include "runtime/handles.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/safepoint.hpp"
+#include "services/memoryUsage.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/events.hpp"
 #include "utilities/formatBuffer.hpp"
@@ -89,11 +90,14 @@ class GCHeapLog : public EventLogBase<GCMessage> {
 //     CMSHeap
 //   G1CollectedHeap
 //   ParallelScavengeHeap
+//   ShenandoahHeap
+//   ZCollectedHeap
 //
 class CollectedHeap : public CHeapObj<mtInternal> {
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class IsGCActiveMark; // Block structured external access to _is_gc_active
+  friend class MemAllocator;
 
  private:
 #ifdef ASSERT
@@ -105,7 +109,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   MemRegion _reserved;
 
  protected:
-  BarrierSet* _barrier_set;
   bool _is_gc_active;
 
   // Used for filler objects (static, but initialized in ctor).
@@ -127,40 +130,23 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   CollectedHeap();
 
   // Create a new tlab. All TLAB allocations must go through this.
-  virtual HeapWord* allocate_new_tlab(size_t size);
-
-  // Accumulate statistics on all tlabs.
-  virtual void accumulate_statistics_all_tlabs();
+  // To allow more flexible TLAB allocations min_size specifies
+  // the minimum size needed, while requested_size is the requested
+  // size based on ergonomics. The actually allocated size will be
+  // returned in actual_size.
+  virtual HeapWord* allocate_new_tlab(size_t min_size,
+                                      size_t requested_size,
+                                      size_t* actual_size);
 
   // Reinitialize tlabs before resuming mutators.
   virtual void resize_all_tlabs();
 
-  // Allocate from the current thread's TLAB, with broken-out slow path.
-  inline static HeapWord* allocate_from_tlab(Klass* klass, Thread* thread, size_t size);
-  static HeapWord* allocate_from_tlab_slow(Klass* klass, Thread* thread, size_t size);
-
-  // Allocate an uninitialized block of the given size, or returns NULL if
-  // this is impossible.
-  inline static HeapWord* common_mem_allocate_noinit(Klass* klass, size_t size, TRAPS);
-
-  // Like allocate_init, but the block returned by a successful allocation
-  // is guaranteed initialized to zeros.
-  inline static HeapWord* common_mem_allocate_init(Klass* klass, size_t size, TRAPS);
-
-  // Helper functions for (VM) allocation.
-  inline static void post_allocation_setup_common(Klass* klass, HeapWord* obj);
-  inline static void post_allocation_setup_no_klass_install(Klass* klass,
-                                                            HeapWord* objPtr);
-
-  inline static void post_allocation_setup_obj(Klass* klass, HeapWord* obj, int size);
-
-  inline static void post_allocation_setup_array(Klass* klass,
-                                                 HeapWord* obj, int length);
-
-  inline static void post_allocation_setup_class(Klass* klass, HeapWord* obj, int size);
-
-  // Clears an allocated object.
-  inline static void init_obj(HeapWord* obj, size_t size);
+  // Raw memory allocation facilities
+  // The obj and array allocate methods are covers for these methods.
+  // mem_allocate() should never be
+  // called to allocate TLABs, only individual objects.
+  virtual HeapWord* mem_allocate(size_t size,
+                                 bool* gc_overhead_limit_was_exceeded) = 0;
 
   // Filler object utilities.
   static inline size_t filler_array_hdr_size();
@@ -179,18 +165,20 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   virtual void trace_heap(GCWhen::Type when, const GCTracer* tracer);
 
   // Verification functions
-  virtual void check_for_bad_heap_word_value(HeapWord* addr, size_t size)
-    PRODUCT_RETURN;
   virtual void check_for_non_bad_heap_word_value(HeapWord* addr, size_t size)
     PRODUCT_RETURN;
   debug_only(static void check_for_valid_allocation_state();)
 
  public:
   enum Name {
-    SerialHeap,
-    ParallelScavengeHeap,
-    G1CollectedHeap,
-    CMSHeap
+    None,
+    Serial,
+    Parallel,
+    CMS,
+    G1,
+    Epsilon,
+    Z,
+    Shenandoah
   };
 
   static inline size_t filler_array_max_size() {
@@ -297,18 +285,9 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   }
   GCCause::Cause gc_cause() { return _gc_cause; }
 
-  // General obj/array allocation facilities.
-  inline static oop obj_allocate(Klass* klass, int size, TRAPS);
-  inline static oop array_allocate(Klass* klass, int size, int length, TRAPS);
-  inline static oop array_allocate_nozero(Klass* klass, int size, int length, TRAPS);
-  inline static oop class_allocate(Klass* klass, int size, TRAPS);
-
-  // Raw memory allocation facilities
-  // The obj and array allocate methods are covers for these methods.
-  // mem_allocate() should never be
-  // called to allocate TLABs, only individual objects.
-  virtual HeapWord* mem_allocate(size_t size,
-                                 bool* gc_overhead_limit_was_exceeded) = 0;
+  virtual oop obj_allocate(Klass* klass, int size, TRAPS);
+  virtual oop array_allocate(Klass* klass, int size, int length, bool do_zero, TRAPS);
+  virtual oop class_allocate(Klass* klass, int size, TRAPS);
 
   // Utilities for turning raw memory into filler objects.
   //
@@ -330,6 +309,10 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   static void fill_with_object(HeapWord* start, HeapWord* end, bool zap = true) {
     fill_with_object(start, pointer_delta(end, start), zap);
   }
+
+  virtual void fill_with_dummy_object(HeapWord* start, HeapWord* end, bool zap);
+  virtual size_t min_dummy_object_size() const;
+  size_t tlab_alloc_reserve() const;
 
   // Return the address "addr" aligned by "alignment_in_bytes" if such
   // an address is below "end".  Return NULL otherwise.
@@ -416,10 +399,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
                                                        size_t size,
                                                        Metaspace::MetadataType mdtype);
 
-  // Returns the barrier set for this heap
-  BarrierSet* barrier_set() { return _barrier_set; }
-  void set_barrier_set(BarrierSet* barrier_set);
-
   // Returns "true" iff there is a stop-world GC in progress.  (I assume
   // that it should answer "false" for the concurrent part of a concurrent
   // collector -- dld).
@@ -446,6 +425,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // Return the SoftRefPolicy for the heap;
   virtual SoftRefPolicy* soft_ref_policy() = 0;
 
+  virtual MemoryUsage memory_usage();
   virtual GrowableArray<GCMemoryManager*> memory_managers() = 0;
   virtual GrowableArray<MemoryPool*> memory_pools() = 0;
 
@@ -588,18 +568,37 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // perform cleanup tasks serially in the VMThread.
   virtual WorkGang* get_safepoint_workers() { return NULL; }
 
+  // Support for object pinning. This is used by JNI Get*Critical()
+  // and Release*Critical() family of functions. If supported, the GC
+  // must guarantee that pinned objects never move.
+  virtual bool supports_object_pinning() const;
+  virtual oop pin_object(JavaThread* thread, oop obj);
+  virtual void unpin_object(JavaThread* thread, oop obj);
+
+  // Deduplicate the string, iff the GC supports string deduplication.
+  virtual void deduplicate_string(oop str);
+
+  virtual bool is_oop(oop object) const;
+
+  virtual size_t obj_size(oop obj) const;
+
+  // Cells are memory slices allocated by the allocator. Objects are initialized
+  // in cells. The cell itself may have a header, found at a negative offset of
+  // oops. Usually, the size of the cell header is 0, but it may be larger.
+  virtual ptrdiff_t cell_header_size() const { return 0; }
+
   // Non product verification and debugging.
 #ifndef PRODUCT
   // Support for PromotionFailureALot.  Return true if it's time to cause a
   // promotion failure.  The no-argument version uses
   // this->_promotion_failure_alot_count as the counter.
-  inline bool promotion_should_fail(volatile size_t* count);
-  inline bool promotion_should_fail();
+  bool promotion_should_fail(volatile size_t* count);
+  bool promotion_should_fail();
 
   // Reset the PromotionFailureALot counters.  Should be called at the end of a
   // GC in which promotion failure occurred.
-  inline void reset_promotion_should_fail(volatile size_t* count);
-  inline void reset_promotion_should_fail();
+  void reset_promotion_should_fail(volatile size_t* count);
+  void reset_promotion_should_fail();
 #endif  // #ifndef PRODUCT
 
 #ifdef ASSERT
@@ -626,4 +625,4 @@ class GCCauseSetter : StackObj {
   }
 };
 
-#endif // SHARE_VM_GC_SHARED_COLLECTEDHEAP_HPP
+#endif // SHARE_GC_SHARED_COLLECTEDHEAP_HPP

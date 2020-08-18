@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,38 +23,39 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.inline.hpp"
 #include "code/compiledIC.hpp"
 #include "code/nmethod.hpp"
 #include "code/scopeDesc.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/methodData.hpp"
-#include "oops/method.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/nativeLookup.hpp"
-#include "runtime/advancedThresholdPolicy.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/rframe.hpp"
-#include "runtime/simpleThresholdPolicy.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.hpp"
-#include "runtime/timer.hpp"
+#include "runtime/tieredThresholdPolicy.hpp"
 #include "runtime/vframe.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "utilities/events.hpp"
 #include "utilities/globalDefinitions.hpp"
 
+#ifdef COMPILER1
+#include "c1/c1_Compiler.hpp"
+#endif
+#ifdef COMPILER2
+#include "opto/c2compiler.hpp"
+#endif
+
 CompilationPolicy* CompilationPolicy::_policy;
-elapsedTimer       CompilationPolicy::_accumulated_time;
-bool               CompilationPolicy::_in_vm_startup;
 
 // Determine compilation policy based on command line argument
 void compilationPolicy_init() {
-  CompilationPolicy::set_in_vm_startup(DelayCompilationDuringStartup);
-
   switch(CompilationPolicyChoice) {
   case 0:
     CompilationPolicy::set_policy(new SimpleCompPolicy());
@@ -69,29 +70,15 @@ void compilationPolicy_init() {
     break;
   case 2:
 #ifdef TIERED
-    CompilationPolicy::set_policy(new SimpleThresholdPolicy());
-#else
-    Unimplemented();
-#endif
-    break;
-  case 3:
-#ifdef TIERED
-    CompilationPolicy::set_policy(new AdvancedThresholdPolicy());
+    CompilationPolicy::set_policy(new TieredThresholdPolicy());
 #else
     Unimplemented();
 #endif
     break;
   default:
-    fatal("CompilationPolicyChoice must be in the range: [0-3]");
+    fatal("CompilationPolicyChoice must be in the range: [0-2]");
   }
   CompilationPolicy::policy()->initialize();
-}
-
-void CompilationPolicy::completed_vm_startup() {
-  if (TraceCompilationPolicy) {
-    tty->print("CompilationPolicy: completed vm startup.\n");
-  }
-  _in_vm_startup = false;
 }
 
 // Returns true if m must be compiled before executing it
@@ -185,7 +172,7 @@ bool CompilationPolicy::can_be_osr_compiled(const methodHandle& m, int comp_leve
 
 bool CompilationPolicy::is_compilation_enabled() {
   // NOTE: CompileBroker::should_compile_new_jobs() checks for UseCompiler
-  return !delay_compilation_during_startup() && CompileBroker::should_compile_new_jobs();
+  return CompileBroker::should_compile_new_jobs();
 }
 
 CompileTask* CompilationPolicy::select_task_helper(CompileQueue* compile_queue) {
@@ -209,12 +196,6 @@ CompileTask* CompilationPolicy::select_task_helper(CompileQueue* compile_queue) 
 }
 
 #ifndef PRODUCT
-void CompilationPolicy::print_time() {
-  tty->print_cr ("Accumulated compilationPolicy times:");
-  tty->print_cr ("---------------------------");
-  tty->print_cr ("  Total: %3.3f sec.", _accumulated_time.seconds());
-}
-
 void NonTieredCompPolicy::trace_osr_completion(nmethod* osr_nm) {
   if (TraceOnStackReplacement) {
     if (osr_nm == NULL) tty->print_cr("compilation failed");
@@ -229,7 +210,20 @@ void NonTieredCompPolicy::initialize() {
     // Example: if CICompilerCountPerCPU is true, then we get
     // max(log2(8)-1,1) = 2 compiler threads on an 8-way machine.
     // May help big-app startup time.
-    _compiler_count = MAX2(log2_intptr(os::active_processor_count())-1,1);
+    _compiler_count = MAX2(log2_int(os::active_processor_count())-1,1);
+    // Make sure there is enough space in the code cache to hold all the compiler buffers
+    size_t buffer_size = 1;
+#ifdef COMPILER1
+    buffer_size = is_client_compilation_mode_vm() ? Compiler::code_buffer_size() : buffer_size;
+#endif
+#ifdef COMPILER2
+    buffer_size = is_server_compilation_mode_vm() ? C2Compiler::initial_code_buffer_size() : buffer_size;
+#endif
+    int max_count = (ReservedCodeCacheSize - (CodeCacheMinimumUseSpace DEBUG_ONLY(* 3))) / (int)buffer_size;
+    if (_compiler_count > max_count) {
+      // Lower the compiler count such that all buffers fit into the code cache
+      _compiler_count = MAX2(max_count, 1);
+    }
     FLAG_SET_ERGO(intx, CICompilerCount, _compiler_count);
   } else {
     _compiler_count = CICompilerCount;
@@ -408,7 +402,7 @@ nmethod* NonTieredCompPolicy::event(const methodHandle& method, const methodHand
       return NULL;
     }
   }
-  if (CompileTheWorld || ReplayCompiles) {
+  if (ReplayCompiles) {
     // Don't trigger other compiles in testing mode
     if (bci == InvocationEntryBci) {
       reset_counter_for_invocation_event(method);
@@ -535,11 +529,6 @@ void StackWalkCompPolicy::method_invocation_event(const methodHandle& m, JavaThr
     assert(fr.is_interpreted_frame(), "must be interpreted");
     assert(fr.interpreter_frame_method() == m(), "bad method");
 
-    if (TraceCompilationPolicy) {
-      tty->print("method invocation trigger: ");
-      m->print_short_name(tty);
-      tty->print(" ( interpreted " INTPTR_FORMAT ", size=%d ) ", p2i((address)m()), m->code_size());
-    }
     RegisterMap reg_map(thread, false);
     javaVFrame* triggerVF = thread->last_java_vframe(&reg_map);
     // triggerVF is the frame that triggered its counter
@@ -547,15 +536,11 @@ void StackWalkCompPolicy::method_invocation_event(const methodHandle& m, JavaThr
 
     if (first->top_method()->code() != NULL) {
       // called obsolete method/nmethod -- no need to recompile
-      if (TraceCompilationPolicy) tty->print_cr(" --> " INTPTR_FORMAT, p2i(first->top_method()->code()));
     } else {
-      if (TimeCompilationPolicy) accumulated_time()->start();
       GrowableArray<RFrame*>* stack = new GrowableArray<RFrame*>(50);
       stack->push(first);
       RFrame* top = findTopInlinableFrame(stack);
-      if (TimeCompilationPolicy) accumulated_time()->stop();
       assert(top != NULL, "findTopInlinableFrame returned null");
-      if (TraceCompilationPolicy) top->print();
       CompileBroker::compile_method(top->top_method(), InvocationEntryBci, comp_level,
                                     m, hot_count, CompileTask::Reason_InvocationCount, thread);
     }
@@ -589,12 +574,6 @@ RFrame* StackWalkCompPolicy::findTopInlinableFrame(GrowableArray<RFrame*>* stack
 
     Method* m = current->top_method();
     Method* next_m = next->top_method();
-
-    if (TraceCompilationPolicy && Verbose) {
-      tty->print("[caller: ");
-      next_m->print_short_name(tty);
-      tty->print("] ");
-    }
 
     if( !Inline ) {           // Inlining turned off
       msg = "Inlining turned off";
@@ -671,18 +650,10 @@ RFrame* StackWalkCompPolicy::findTopInlinableFrame(GrowableArray<RFrame*>* stack
       break;
     }
 
-    if (TraceCompilationPolicy && Verbose) {
-      tty->print("\n\t     check caller: ");
-      next_m->print_short_name(tty);
-      tty->print(" ( interpreted " INTPTR_FORMAT ", size=%d ) ", p2i((address)next_m), next_m->code_size());
-    }
-
     current = next;
   }
 
   assert( !current || !current->is_compiled(), "" );
-
-  if (TraceCompilationPolicy && msg) tty->print("(%s)\n", msg);
 
   return current;
 }

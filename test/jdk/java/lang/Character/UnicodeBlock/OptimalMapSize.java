@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,17 @@
 
 /**
  * @test
- * @bug 8080535
+ * @bug 8080535 8191410 8215194
  * @summary Expected size of Character.UnicodeBlock.map is not optimal
- * @library /lib/testlibrary
+ * @library /test/lib
  * @modules java.base/java.lang:open
  *          java.base/java.util:open
- * @build jdk.testlibrary.OptimalCapacity
+ * @build jdk.test.lib.util.OptimalCapacity
  * @run main OptimalMapSize
  */
 
-import jdk.testlibrary.OptimalCapacity;
+import java.lang.reflect.Field;
+import jdk.test.lib.util.OptimalCapacity;
 
 // What will be the number of the Unicode blocks in the future.
 //
@@ -41,17 +42,27 @@ import jdk.testlibrary.OptimalCapacity;
 // According to http://www.unicode.org/versions/beta-8.0.0.html ,
 // in Unicode 8 there will be added 10 more blocks (30 with aliases).
 //
-// After implementing support of Unicode 7 and 8 in Java, there will
-// be 510+96+30 = 636 entries in Character.UnicodeBlock.map.
+// After implementing support of Unicode 9 and 10 in Java, there will
+// be 638 entries in Character.UnicodeBlock.map.
+//
+// As of Unicode 11, 667 entries are expected.
 //
 // Initialization of the map and this test will have to be adjusted
 // accordingly then.
+//
+// Note that HashMap's implementation aligns the initial capacity to
+// a power of two size, so it will end up 1024 (and thus succeed) in
+// cases, such as 638 and 667.
 
 public class OptimalMapSize {
     public static void main(String[] args) throws Throwable {
         // The initial size of Character.UnicodeBlock.map.
         // See src/java.base/share/classes/java/lang/Character.java
-        int initialCapacity = (int)(510 / 0.75f + 1.0f);
+        Field f = Character.UnicodeBlock.class.getDeclaredField("NUM_ENTITIES");
+        f.setAccessible(true);
+        int num_entities = f.getInt(null);
+        assert num_entities == 667;
+        int initialCapacity = (int)(num_entities / 0.75f + 1.0f);
 
         OptimalCapacity.ofHashMap(Character.UnicodeBlock.class,
                 "map", initialCapacity);

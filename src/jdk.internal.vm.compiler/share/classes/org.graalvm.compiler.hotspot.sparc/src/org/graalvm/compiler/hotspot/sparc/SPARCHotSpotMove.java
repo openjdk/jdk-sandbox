@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.sparc;
 
 import static org.graalvm.compiler.asm.sparc.SPARCAssembler.BPR;
@@ -187,21 +189,26 @@ public class SPARCHotSpotMove {
         public void emitCode(CompilationResultBuilder crb, SPARCMacroAssembler masm) {
             Register inputRegister = asRegister(input);
             Register resReg = asRegister(result);
+            Register baseReg = encoding.hasBase() ? asRegister(baseRegister) : null;
+            emitUncompressCode(masm, inputRegister, resReg, baseReg, encoding.getShift(), nonNull);
+        }
+
+        public static void emitUncompressCode(SPARCMacroAssembler masm, Register inputRegister, Register resReg, Register baseReg, int shift, boolean nonNull) {
             Register secondaryInput;
-            if (encoding.getShift() != 0) {
-                masm.sll(inputRegister, encoding.getShift(), resReg);
+            if (shift != 0) {
+                masm.sll(inputRegister, shift, resReg);
                 secondaryInput = resReg;
             } else {
                 secondaryInput = inputRegister;
             }
 
-            if (encoding.hasBase()) {
+            if (baseReg != null) {
                 if (nonNull) {
-                    masm.add(secondaryInput, asRegister(baseRegister), resReg);
+                    masm.add(secondaryInput, baseReg, resReg);
                 } else {
                     Label done = new Label();
                     BPR.emit(masm, Rc_z, ANNUL, PREDICT_TAKEN, secondaryInput, done);
-                    masm.add(asRegister(baseRegister), secondaryInput, resReg);
+                    masm.add(baseReg, secondaryInput, resReg);
                     masm.bind(done);
                 }
             }

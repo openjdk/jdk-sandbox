@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2017 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,17 @@
 
 #include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "interpreter/templateTable.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.hpp"
@@ -190,98 +193,25 @@ static Assembler::branch_condition j_not(TemplateTable::Condition cc) {
 // Do an oop store like *(base + offset) = val
 // offset can be a register or a constant.
 static void do_oop_store(InterpreterMacroAssembler* _masm,
-                         Register base,
-                         RegisterOrConstant offset,
-                         Register val,
-                         bool val_is_null, // == false does not guarantee that val really is not equal NULL.
-                         Register tmp1,    // If tmp3 is volatile, either tmp1 or tmp2 must be
-                         Register tmp2,    // non-volatile to hold a copy of pre_val across runtime calls.
-                         Register tmp3,    // Ideally, this tmp register is non-volatile, as it is used to
-                                           // hold pre_val (must survive runtime calls).
-                         BarrierSet::Name barrier,
-                         bool precise) {
-  BLOCK_COMMENT("do_oop_store {");
-  assert(val != noreg, "val must always be valid, even if it is zero");
-  assert_different_registers(tmp1, tmp2, tmp3, val, base, offset.register_or_noreg());
-  __ verify_oop(val);
-  switch (barrier) {
-#if INCLUDE_ALL_GCS
-    case BarrierSet::G1SATBCTLogging:
-      {
-#ifdef ASSERT
-        if (val_is_null) { // Check if the flag setting reflects reality.
-          Label OK;
-          __ z_ltgr(val, val);
-          __ z_bre(OK);
-          __ z_illtrap(0x11);
-          __ bind(OK);
-        }
-#endif
-        Register pre_val = tmp3;
-        // Load and record the previous value.
-        __ g1_write_barrier_pre(base, offset, pre_val, val,
-                                tmp1, tmp2,
-                                false);  // Needs to hold pre_val in non_volatile register?
+                         const Address&     addr,
+                         Register           val,         // Noreg means always null.
+                         Register           tmp1,
+                         Register           tmp2,
+                         Register           tmp3,
+                         DecoratorSet       decorators) {
+  assert_different_registers(tmp1, tmp2, tmp3, val, addr.base());
+  __ store_heap_oop(val, addr, tmp1, tmp2, tmp3, decorators);
+}
 
-        if (val_is_null) {
-          __ store_heap_oop_null(val, offset, base);
-        } else {
-          Label Done;
-          // val_is_null == false does not guarantee that val really is not equal NULL.
-          // Checking for this case dynamically has some cost, but also some benefit (in GC).
-          // It's hard to say if cost or benefit is greater.
-          { Label OK;
-            __ z_ltgr(val, val);
-            __ z_brne(OK);
-            __ store_heap_oop_null(val, offset, base);
-            __ z_bru(Done);
-            __ bind(OK);
-          }
-          // G1 barrier needs uncompressed oop for region cross check.
-          // Store_heap_oop compresses the oop in the argument register.
-          Register val_work = val;
-          if (UseCompressedOops) {
-            val_work = tmp3;
-            __ z_lgr(val_work, val);
-          }
-          __ store_heap_oop_not_null(val_work, offset, base);
-
-          // We need precise card marks for oop array stores.
-          // Otherwise, cardmarking the object which contains the oop is sufficient.
-          if (precise && !(offset.is_constant() && offset.as_constant() == 0)) {
-            __ add2reg_with_index(base,
-                                  offset.constant_or_zero(),
-                                  offset.register_or_noreg(),
-                                  base);
-          }
-          __ g1_write_barrier_post(base /* store_adr */, val, tmp1, tmp2, tmp3);
-          __ bind(Done);
-        }
-      }
-      break;
-#endif // INCLUDE_ALL_GCS
-    case BarrierSet::CardTableForRS:
-    case BarrierSet::CardTableExtension:
-    {
-      if (val_is_null) {
-        __ store_heap_oop_null(val, offset, base);
-      } else {
-        __ store_heap_oop(val, offset, base);
-        // Flatten object address if needed.
-        if (precise && ((offset.register_or_noreg() != noreg) || (offset.constant_or_zero() != 0))) {
-          __ load_address(base, Address(base, offset.register_or_noreg(), offset.constant_or_zero()));
-        }
-        __ card_write_barrier_post(base, tmp1);
-      }
-    }
-    break;
-  case BarrierSet::ModRef:
-    // fall through
-  default:
-    ShouldNotReachHere();
-
-  }
-  BLOCK_COMMENT("} do_oop_store");
+static void do_oop_load(InterpreterMacroAssembler* _masm,
+                        const Address& addr,
+                        Register dst,
+                        Register tmp1,
+                        Register tmp2,
+                        DecoratorSet decorators) {
+  assert_different_registers(addr.base(), tmp1, tmp2);
+  assert_different_registers(dst, tmp1, tmp2);
+  __ load_heap_oop(dst, addr, tmp1, tmp2, decorators);
 }
 
 Address TemplateTable::at_bcp(int offset) {
@@ -852,7 +782,7 @@ void TemplateTable::index_check(Register array, Register index, unsigned int shi
   __ z_cl(index, Address(array, arrayOopDesc::length_offset_in_bytes()));
   __ z_brl(index_ok);
   __ lgr_if_needed(Z_ARG3, index); // See generate_ArrayIndexOutOfBounds_handler().
-  // Give back the array to create more detailed exceptions.
+  // Pass the array to create more detailed exceptions.
   __ lgr_if_needed(Z_ARG2, array); // See generate_ArrayIndexOutOfBounds_handler().
   __ load_absolute_address(Z_R1_scratch,
                            Interpreter::_throw_ArrayIndexOutOfBoundsException_entry);
@@ -922,8 +852,8 @@ void TemplateTable::aaload() {
   Register index = Z_tos;
   index_check(Z_tmp_1, index, shift);
   // Now load array element.
-  __ load_heap_oop(Z_tos,
-                   Address(Z_tmp_1, index, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
+  do_oop_load(_masm, Address(Z_tmp_1, index, arrayOopDesc::base_offset_in_bytes(T_OBJECT)), Z_tos,
+              Z_tmp_2, Z_tmp_3, IS_ARRAY);
   __ verify_oop(Z_tos);
 }
 
@@ -1259,22 +1189,23 @@ void TemplateTable::aastore() {
   __ load_absolute_address(tmp1, Interpreter::_throw_ArrayStoreException_entry);
   __ z_br(tmp1);
 
-  // Come here on success.
-  __ bind(ok_is_subtype);
-
-  // Now store using the appropriate barrier.
   Register tmp3 = Rsub_klass;
-  do_oop_store(_masm, Rstore_addr, (intptr_t)0/*offset*/, Rvalue, false/*val==null*/,
-               tmp3, tmp2, tmp1, _bs->kind(), true);
-  __ z_bru(done);
 
   // Have a NULL in Rvalue.
   __ bind(is_null);
   __ profile_null_seen(tmp1);
 
   // Store a NULL.
-  do_oop_store(_masm, Rstore_addr, (intptr_t)0/*offset*/, Rvalue, true/*val==null*/,
-               tmp3, tmp2, tmp1, _bs->kind(), true);
+  do_oop_store(_masm, Address(Rstore_addr, (intptr_t)0), noreg,
+               tmp3, tmp2, tmp1, IS_ARRAY);
+  __ z_bru(done);
+
+  // Come here on success.
+  __ bind(ok_is_subtype);
+
+  // Now store using the appropriate barrier.
+  do_oop_store(_masm, Address(Rstore_addr, (intptr_t)0), Rvalue,
+               tmp3, tmp2, tmp1, IS_ARRAY | IS_NOT_NULL);
 
   // Pop stack arguments.
   __ bind(done);
@@ -2486,6 +2417,8 @@ void TemplateTable::resolve_cache_and_index(int byte_no,
   switch (code) {
     case Bytecodes::_nofast_getfield: code = Bytecodes::_getfield; break;
     case Bytecodes::_nofast_putfield: code = Bytecodes::_putfield; break;
+    default:
+      break;
   }
 
   {
@@ -2830,7 +2763,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
                       // to here is compensated for by the fallthru to "Done".
   {
     unsigned int b_off = __ offset();
-    __ load_heap_oop(Z_tos, field);
+    do_oop_load(_masm, field, Z_tos, Z_tmp_2, Z_tmp_3, IN_HEAP);
     __ verify_oop(Z_tos);
     __ push(atos);
     if (do_rewrite) {
@@ -3159,8 +3092,8 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
       pop_and_check_object(obj);
     }
     // Store into the field
-    do_oop_store(_masm, obj, off, Z_tos, false,
-                 oopStore_tmp1, oopStore_tmp2, oopStore_tmp3, _bs->kind(), false);
+    do_oop_store(_masm, Address(obj, off), Z_tos,
+                 oopStore_tmp1, oopStore_tmp2, oopStore_tmp3, IN_HEAP);
     if (do_rewrite) {
       patch_bytecode(Bytecodes::_fast_aputfield, bc, Z_ARG5, true, byte_no);
     }
@@ -3282,6 +3215,8 @@ void TemplateTable::jvmti_post_fast_field_mod() {
     case Bytecodes::_fast_lputfield:
       __ pop_l(Z_tos);
       break;
+    default:
+      break;
   }
 
   __ bind(exit);
@@ -3321,8 +3256,8 @@ void TemplateTable::fast_storefield(TosState state) {
   // access field
   switch (bytecode()) {
     case Bytecodes::_fast_aputfield:
-      do_oop_store(_masm, obj, field_offset, Z_tos, false,
-                   Z_ARG2, Z_ARG3, Z_ARG4, _bs->kind(), false);
+      do_oop_store(_masm, Address(obj, field_offset), Z_tos,
+                   Z_ARG2, Z_ARG3, Z_ARG4, IN_HEAP);
       break;
     case Bytecodes::_fast_lputfield:
       __ reg2mem_opt(Z_tos, field);
@@ -3413,7 +3348,7 @@ void TemplateTable::fast_accessfield(TosState state) {
   // access field
   switch (bytecode()) {
     case Bytecodes::_fast_agetfield:
-      __ load_heap_oop(Z_tos, field);
+      do_oop_load(_masm, field, Z_tos, Z_tmp_1, Z_tmp_2, IN_HEAP);
       __ verify_oop(Z_tos);
       return;
     case Bytecodes::_fast_lgetfield:
@@ -3469,7 +3404,7 @@ void TemplateTable::fast_xaccess(TosState state) {
       __ mem2reg_opt(Z_tos, Address(receiver, index), false);
       break;
     case atos:
-      __ load_heap_oop(Z_tos, Address(receiver, index));
+      do_oop_load(_masm, Address(receiver, index), Z_tos, Z_tmp_1, Z_tmp_2, IN_HEAP);
       __ verify_oop(Z_tos);
       break;
     case ftos:
@@ -3679,23 +3614,45 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   BLOCK_COMMENT("invokeinterface {");
 
-  prepare_invoke(byte_no, interface, method,  // Get f1 klassOop, f2 itable index.
+  prepare_invoke(byte_no, interface, method,  // Get f1 klassOop, f2 Method*.
                  receiver, flags);
 
   // Z_R14 (== Z_bytecode) : return entry
 
+  // First check for Object case, then private interface method,
+  // then regular interface method.
+
   // Special case of invokeinterface called for virtual method of
-  // java.lang.Object. See cpCacheOop.cpp for details.
-  // This code isn't produced by javac, but could be produced by
-  // another compliant java compiler.
-  NearLabel notMethod, no_such_interface, no_such_method;
+  // java.lang.Object. See cpCache.cpp for details.
+  NearLabel notObjectMethod, no_such_method;
   __ testbit(flags, ConstantPoolCacheEntry::is_forced_virtual_shift);
-  __ z_brz(notMethod);
+  __ z_brz(notObjectMethod);
   invokevirtual_helper(method, receiver, flags);
-  __ bind(notMethod);
+  __ bind(notObjectMethod);
+
+  // Check for private method invocation - indicated by vfinal
+  NearLabel notVFinal;
+  __ testbit(flags, ConstantPoolCacheEntry::is_vfinal_shift);
+  __ z_brz(notVFinal);
 
   // Get receiver klass into klass - also a null check.
-  __ restore_locals();
+  __ load_klass(klass, receiver);
+
+  NearLabel subtype, no_such_interface;
+
+  __ check_klass_subtype(klass, interface, Z_tmp_2, flags/*scratch*/, subtype);
+  // If we get here the typecheck failed
+  __ z_bru(no_such_interface);
+  __ bind(subtype);
+
+  // do the call
+  __ profile_final_call(Z_tmp_2);
+  __ profile_arguments_type(Z_tmp_2, method, Z_ARG5, true);
+  __ jump_from_interpreted(method, Z_tmp_2);
+
+  __ bind(notVFinal);
+
+  // Get receiver klass into klass - also a null check.
   __ load_klass(klass, receiver);
 
   __ lookup_interface_method(klass, interface, noreg, noreg, /*temp*/Z_ARG1,
@@ -3726,7 +3683,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   // interpreter entry point and a conditional jump to it in case of a null
   // method.
   __ compareU64_and_branch(method2, (intptr_t) 0,
-                            Assembler::bcondZero, no_such_method);
+                           Assembler::bcondZero, no_such_method);
 
   __ profile_arguments_type(Z_tmp_1, method2, Z_tmp_2, true);
 
@@ -3741,20 +3698,23 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ bind(no_such_method);
 
   // Throw exception.
-  __ restore_bcp();      // Bcp must be correct for exception handler   (was destroyed).
-  __ restore_locals();   // Make sure locals pointer is correct as well (was destroyed).
+  // Pass arguments for generating a verbose error message.
+  __ z_lgr(Z_tmp_1, method); // Prevent register clash.
   __ call_VM(noreg,
-             CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodError));
+             CAST_FROM_FN_PTR(address,
+                              InterpreterRuntime::throw_AbstractMethodErrorVerbose),
+                              klass, Z_tmp_1);
   // The call_VM checks for exception, so we should never return here.
   __ should_not_reach_here();
 
   __ bind(no_such_interface);
 
   // Throw exception.
-  __ restore_bcp();      // Bcp must be correct for exception handler   (was destroyed).
-  __ restore_locals();   // Make sure locals pointer is correct as well (was destroyed).
+  // Pass arguments for generating a verbose error message.
   __ call_VM(noreg,
-             CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_IncompatibleClassChangeError));
+             CAST_FROM_FN_PTR(address,
+                              InterpreterRuntime::throw_IncompatibleClassChangeErrorVerbose),
+                              klass, interface);
   // The call_VM checks for exception, so we should never return here.
   __ should_not_reach_here();
 
@@ -3829,7 +3789,6 @@ void TemplateTable::_new() {
   Label slow_case;
   Label done;
   Label initialize_header;
-  Label allocate_shared;
 
   BLOCK_COMMENT("TemplateTable::_new {");
   __ get_2_byte_integer_at_bcp(offset/*dest*/, 1, InterpreterMacroAssembler::Unsigned);

@@ -23,14 +23,16 @@
 
 /*
  * @test
- * @bug      8017191
+ * @bug      8017191 8182765 8200432
  * @summary  Javadoc is confused by at-link to imported classes outside of the set of generated packages
  * @author   jjg
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestSeeTag
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestSeeTag extends JavadocTester {
 
@@ -40,8 +42,36 @@ public class TestSeeTag extends JavadocTester {
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
+                "-sourcepath", testSrc,
+                "pkg");
+        checkExit(Exit.OK);
+
+        checkOutput("pkg/Test.html", true,
+            "<code>List</code>",
+            "<dl>\n"
+            + "<dt><span class=\"seeLabel\">See Also:</span></dt>\n"
+            + "<dd><a href=\"Test.InnerOne.html#foo()\"><code>Test.InnerOne.foo()</code></a>, \n"
+            + "<a href=\"Test.InnerOne.html#bar(java.lang.Object)\"><code>Test.InnerOne.bar(Object)</code></a>, \n"
+            + "<a href=\"http://docs.oracle.com/javase/7/docs/technotes/tools/windows/javadoc.html#see\">Javadoc</a>, \n"
+            + "<a href=\"Test.InnerOne.html#baz(float)\"><code>something</code></a></dd>\n"
+            + "</dl>");
+
+        checkOutput("pkg/Test.html", false,
+          "&lt;code&gt;List&lt;/code&gt;");
+
+        checkOutput("pkg/Test2.html", true,
+           "<code>Serializable</code>");
+
+        checkOutput("pkg/Test2.html", false,
+           ">Serialized Form<");
+    }
+
+    @Test
+    public void test_html4() {
+        javadoc("-d", "out-html4",
+                "-html4",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
@@ -55,14 +85,20 @@ public class TestSeeTag extends JavadocTester {
             + "<a href=\"http://docs.oracle.com/javase/7/docs/technotes/tools/windows/javadoc.html#see\">Javadoc</a>, \n"
             + "<a href=\"Test.InnerOne.html#baz-float-\"><code>something</code></a></dd>\n"
             + "</dl>");
+    }
 
-        checkOutput("pkg/Test.html", false,
-          "&lt;code&gt;List&lt;/code&gt;");
+    @Test
+    public void testBadReference() {
+        javadoc("-d", "out-badref",
+                "-sourcepath", testSrc,
+                "badref");
+        checkExit(Exit.ERROR);
 
-        checkOutput("pkg/Test2.html", true,
-           "<code>Serializable</code>");
-
-        checkOutput("pkg/Test2.html", false,
-           ">Serialized Form<");
+        checkOutput("badref/Test.html", true,
+                "<dl>\n"
+                + "<dt><span class=\"seeLabel\">See Also:</span></dt>\n"
+                + "<dd><code>Object</code>, \n"
+                + "<code>Foo<String></code></dd>\n"
+                + "</dl>");
     }
 }

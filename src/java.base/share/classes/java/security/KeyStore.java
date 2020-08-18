@@ -314,14 +314,7 @@ public class KeyStore {
         /**
          * Gets the name of the protection algorithm.
          * If none was set then the keystore provider will use its default
-         * protection algorithm. The name of the default protection algorithm
-         * for a given keystore type is set using the
-         * {@code 'keystore.<type>.keyProtectionAlgorithm'} security property.
-         * For example, the
-         * {@code keystore.PKCS12.keyProtectionAlgorithm} property stores the
-         * name of the default key protection algorithm used for PKCS12
-         * keystores. If the security property is not set, an
-         * implementation-specific algorithm will be used.
+         * protection algorithm.
          *
          * @return the algorithm name, or {@code null} if none was set
          *
@@ -920,7 +913,7 @@ public class KeyStore {
         throws KeyStoreException, NoSuchProviderException
     {
         Objects.requireNonNull(type, "null type name");
-        if (provider == null || provider.length() == 0)
+        if (provider == null || provider.isEmpty())
             throw new IllegalArgumentException("missing provider");
         try {
             Object[] objs = Security.getImpl(type, "KeyStore", provider);
@@ -1807,13 +1800,14 @@ public class KeyStore {
                     keystore.load(dataStream, password);
                 } else {
                     keystore.keyStoreSpi.engineLoad(dataStream, param);
+                    keystore.initialized = true;
                 }
                 return keystore;
             }
         }
 
-        throw new KeyStoreException("Unrecognized keystore format: " +
-            keystore);
+        throw new KeyStoreException("Unrecognized keystore format. "
+                + "Please load it with a specified type");
     }
 
     /**

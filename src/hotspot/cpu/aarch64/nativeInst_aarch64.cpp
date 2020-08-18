@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1997, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2014, 2018, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
+#include "code/compiledIC.hpp"
 #include "memory/resourceArea.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/oop.inline.hpp"
@@ -36,7 +37,120 @@
 #include "c1/c1_Runtime1.hpp"
 #endif
 
-void NativeCall::verify() { ; }
+void NativeCall::verify() {
+  assert(NativeCall::is_call_at((address)this), "unexpected code at call site");
+}
+
+void NativeInstruction::wrote(int offset) {
+  ICache::invalidate_word(addr_at(offset));
+}
+
+void NativeLoadGot::report_and_fail() const {
+  tty->print_cr("Addr: " INTPTR_FORMAT, p2i(instruction_address()));
+  fatal("not a indirect rip mov to rbx");
+}
+
+void NativeLoadGot::verify() const {
+  assert(is_adrp_at((address)this), "must be adrp");
+}
+
+address NativeLoadGot::got_address() const {
+  return MacroAssembler::target_addr_for_insn((address)this);
+}
+
+intptr_t NativeLoadGot::data() const {
+  return *(intptr_t *) got_address();
+}
+
+address NativePltCall::destination() const {
+  NativeGotJump* jump = nativeGotJump_at(plt_jump());
+  return *(address*)MacroAssembler::target_addr_for_insn((address)jump);
+}
+
+address NativePltCall::plt_entry() const {
+  return MacroAssembler::target_addr_for_insn((address)this);
+}
+
+address NativePltCall::plt_jump() const {
+  address entry = plt_entry();
+  // Virtual PLT code has move instruction first
+  if (((NativeGotJump*)entry)->is_GotJump()) {
+    return entry;
+  } else {
+    return nativeLoadGot_at(entry)->next_instruction_address();
+  }
+}
+
+address NativePltCall::plt_load_got() const {
+  address entry = plt_entry();
+  if (!((NativeGotJump*)entry)->is_GotJump()) {
+    // Virtual PLT code has move instruction first
+    return entry;
+  } else {
+    // Static PLT code has move instruction second (from c2i stub)
+    return nativeGotJump_at(entry)->next_instruction_address();
+  }
+}
+
+address NativePltCall::plt_c2i_stub() const {
+  address entry = plt_load_got();
+  // This method should be called only for static calls which has C2I stub.
+  NativeLoadGot* load = nativeLoadGot_at(entry);
+  return entry;
+}
+
+address NativePltCall::plt_resolve_call() const {
+  NativeGotJump* jump = nativeGotJump_at(plt_jump());
+  address entry = jump->next_instruction_address();
+  if (((NativeGotJump*)entry)->is_GotJump()) {
+    return entry;
+  } else {
+    // c2i stub 2 instructions
+    entry = nativeLoadGot_at(entry)->next_instruction_address();
+    return nativeGotJump_at(entry)->next_instruction_address();
+  }
+}
+
+void NativePltCall::reset_to_plt_resolve_call() {
+  set_destination_mt_safe(plt_resolve_call());
+}
+
+void NativePltCall::set_destination_mt_safe(address dest) {
+  // rewriting the value in the GOT, it should always be aligned
+  NativeGotJump* jump = nativeGotJump_at(plt_jump());
+  address* got = (address *) jump->got_address();
+  *got = dest;
+}
+
+void NativePltCall::set_stub_to_clean() {
+  NativeLoadGot* method_loader = nativeLoadGot_at(plt_c2i_stub());
+  NativeGotJump* jump          = nativeGotJump_at(method_loader->next_instruction_address());
+  method_loader->set_data(0);
+  jump->set_jump_destination((address)-1);
+}
+
+void NativePltCall::verify() const {
+  assert(NativeCall::is_call_at((address)this), "unexpected code at call site");
+}
+
+address NativeGotJump::got_address() const {
+  return MacroAssembler::target_addr_for_insn((address)this);
+}
+
+address NativeGotJump::destination() const {
+  address *got_entry = (address *) got_address();
+  return *got_entry;
+}
+
+bool NativeGotJump::is_GotJump() const {
+  NativeInstruction *insn =
+    nativeInstruction_at(addr_at(3 * NativeInstruction::instruction_size));
+  return insn->encoding() == 0xd61f0200; // br x16
+}
+
+void NativeGotJump::verify() const {
+  assert(is_adrp_at((address)this), "must be adrp");
+}
 
 address NativeCall::destination() const {
   address addr = (address)this;
@@ -65,12 +179,14 @@ address NativeCall::destination() const {
 // during code generation, where no patching lock is needed.
 void NativeCall::set_destination_mt_safe(address dest, bool assert_lock) {
   assert(!assert_lock ||
-         (Patching_lock->is_locked() || SafepointSynchronize::is_at_safepoint()),
+         (Patching_lock->is_locked() || SafepointSynchronize::is_at_safepoint()) ||
+         CompiledICLocker::is_safe(addr_at(0)),
          "concurrent code patching");
 
   ResourceMark rm;
   int code_size = NativeInstruction::instruction_size;
   address addr_call = addr_at(0);
+  bool reachable = Assembler::reachable_from_branch_at(addr_call, dest);
   assert(NativeCall::is_call_at(addr_call), "unexpected code at call site");
 
   // Patch the constant in the call's trampoline stub.
@@ -81,7 +197,7 @@ void NativeCall::set_destination_mt_safe(address dest, bool assert_lock) {
   }
 
   // Patch the call.
-  if (Assembler::reachable_from_branch_at(addr_call, dest)) {
+  if (reachable) {
     set_destination(dest);
   } else {
     assert (trampoline_stub_addr != NULL, "we need a trampoline");
@@ -103,9 +219,11 @@ address NativeCall::get_trampoline() {
       is_NativeCallTrampolineStub_at(bl_destination))
     return bl_destination;
 
-  // If the codeBlob is not a nmethod, this is because we get here from the
-  // CodeBlob constructor, which is called within the nmethod constructor.
-  return trampoline_stub_Relocation::get_trampoline_for(call_addr, (nmethod*)code);
+  if (code->is_nmethod()) {
+    return trampoline_stub_Relocation::get_trampoline_for(call_addr, (nmethod*)code);
+  }
+
+  return NULL;
 }
 
 // Inserts a native call instruction at a given pc
@@ -133,8 +251,28 @@ void NativeMovConstReg::set_data(intptr_t x) {
     address addr = MacroAssembler::target_addr_for_insn(instruction_address());
     *(intptr_t*)addr = x;
   } else {
+    // Store x into the instruction stream.
     MacroAssembler::pd_patch_instruction(instruction_address(), (address)x);
     ICache::invalidate_range(instruction_address(), instruction_size);
+  }
+
+  // Find and replace the oop/metadata corresponding to this
+  // instruction in oops section.
+  CodeBlob* cb = CodeCache::find_blob(instruction_address());
+  nmethod* nm = cb->as_nmethod_or_null();
+  if (nm != NULL) {
+    RelocIterator iter(nm, instruction_address(), next_instruction_address());
+    while (iter.next()) {
+      if (iter.type() == relocInfo::oop_type) {
+        oop* oop_addr = iter.oop_reloc()->oop_addr();
+        *oop_addr = cast_to_oop(x);
+        break;
+      } else if (iter.type() == relocInfo::metadata_type) {
+        Metadata** metadata_addr = iter.metadata_reloc()->metadata_addr();
+        *metadata_addr = (Metadata*)x;
+        break;
+      }
+    }
   }
 }
 
@@ -320,9 +458,16 @@ void NativeIllegalInstruction::insert(address code_pos) {
 void NativeJump::patch_verified_entry(address entry, address verified_entry, address dest) {
 
   assert(dest == SharedRuntime::get_handle_wrong_method_stub(), "expected fixed destination of patch");
-  assert(nativeInstruction_at(verified_entry)->is_jump_or_nop()
-         || nativeInstruction_at(verified_entry)->is_sigill_zombie_not_entrant(),
-         "Aarch64 cannot replace non-jump with jump");
+
+#ifdef ASSERT
+  // This may be the temporary nmethod generated while we're AOT
+  // compiling.  Such an nmethod doesn't begin with a NOP but with an ADRP.
+  if (! (CalculateClassFingerprint && UseAOT && is_adrp_at(verified_entry))) {
+    assert(nativeInstruction_at(verified_entry)->is_jump_or_nop()
+           || nativeInstruction_at(verified_entry)->is_sigill_zombie_not_entrant(),
+           "Aarch64 cannot replace non-jump with jump");
+  }
+#endif
 
   // Patch this nmethod atomically.
   if (Assembler::reachable_from_branch_at(verified_entry, dest)) {
@@ -348,7 +493,7 @@ void NativeGeneralJump::insert_unconditional(address code_pos, address entry) {
   CodeBuffer cb(code_pos, instruction_size);
   MacroAssembler a(&cb);
 
-  a.mov(rscratch1, entry);
+  a.movptr(rscratch1, (uintptr_t)entry);
   a.br(rscratch1);
 
   ICache::invalidate_range(code_pos, instruction_size);

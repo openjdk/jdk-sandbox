@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,27 +22,19 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_ARM_VM_PREFETCH_LINUX_ARM_INLINE_HPP
-#define OS_CPU_LINUX_ARM_VM_PREFETCH_LINUX_ARM_INLINE_HPP
+#ifndef OS_CPU_LINUX_ARM_PREFETCH_LINUX_ARM_INLINE_HPP
+#define OS_CPU_LINUX_ARM_PREFETCH_LINUX_ARM_INLINE_HPP
 
 #include "runtime/prefetch.hpp"
 
 inline void Prefetch::read (void *loc, intx interval) {
-#ifdef AARCH64
-  __asm__ volatile ("prfm PLDL1KEEP, [%0]" : : "r" (loc));
-#else
 #if defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_5TE__)
   __asm__ volatile ("pld [%0]" : : "r" (loc));
 #endif
-#endif // AARCH64
 }
 
 inline void Prefetch::write(void *loc, intx interval) {
-#ifdef AARCH64
-  __asm__ volatile ("prfm PSTL1KEEP, [%0]" : : "r" (loc));
-#else
   // Not available on 32-bit ARM (prior to ARMv7 with MP extensions)
-#endif // AARCH64
 }
 
-#endif // OS_CPU_LINUX_ARM_VM_PREFETCH_LINUX_ARM_INLINE_HPP
+#endif // OS_CPU_LINUX_ARM_PREFETCH_LINUX_ARM_INLINE_HPP

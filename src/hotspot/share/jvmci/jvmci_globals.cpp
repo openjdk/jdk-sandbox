@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "jvm.h"
 #include "jvmci/jvmci_globals.hpp"
+#include "gc/shared/gcConfig.hpp"
 #include "utilities/defaultStream.hpp"
 #include "runtime/globals_extension.hpp"
 
@@ -80,6 +81,15 @@ bool JVMCIGlobals::check_jvmci_flags_are_consistent() {
     FLAG_SET_DEFAULT(EnableJVMCI, true);
   }
 
+  if (!EnableJVMCI) {
+    // Switch off eager JVMCI initialization if JVMCI is disabled.
+    // Don't throw error if EagerJVMCI is set to allow testing.
+    if (EagerJVMCI) {
+      FLAG_SET_DEFAULT(EagerJVMCI, false);
+    }
+  }
+  JVMCI_FLAG_CHECKED(EagerJVMCI)
+
   CHECK_NOT_SET(JVMCITraceLevel,              EnableJVMCI)
   CHECK_NOT_SET(JVMCICounterSize,             EnableJVMCI)
   CHECK_NOT_SET(JVMCICountersExcludeCompiler, EnableJVMCI)
@@ -103,4 +113,14 @@ bool JVMCIGlobals::check_jvmci_flags_are_consistent() {
 #endif
 #undef CHECK_NOT_SET
   return true;
+}
+void JVMCIGlobals::check_jvmci_supported_gc() {
+  if (EnableJVMCI) {
+    // Check if selected GC is supported by JVMCI and Java compiler
+    if (!(UseSerialGC || UseParallelGC || UseParallelOldGC || UseG1GC)) {
+      vm_exit_during_initialization("JVMCI Compiler does not support selected GC", GCConfig::hs_err_name());
+      FLAG_SET_DEFAULT(EnableJVMCI, false);
+      FLAG_SET_DEFAULT(UseJVMCICompiler, false);
+    }
+  }
 }

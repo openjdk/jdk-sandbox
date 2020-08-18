@@ -24,19 +24,19 @@
 /*
  * @test
  * @key headful
- * @bug 4397404 4720930 8197926
+ * @bug 4397404 4720930 8197926 8176556
  * @summary tests that images of all supported native image formats are
  * transferred properly
- * @library ../../../../lib/testlibrary
+ * @library /test/lib
  * @library ../../regtesthelpers/process/
- * @build jdk.testlibrary.OSInfo ProcessResults ProcessCommunicator
+ * @build jdk.test.lib.Platform ProcessResults ProcessCommunicator
  * @author gas@sparc.spb.su area=Clipboard
  * @run main/timeout=240 ImageTransferTest
  */
 
+import jdk.test.lib.Platform;
 import test.java.awt.regtesthelpers.process.ProcessCommunicator;
 import test.java.awt.regtesthelpers.process.ProcessResults;
-import jdk.testlibrary.OSInfo;
 
 import java.awt.*;
 import java.awt.datatransfer.DataFlavor;
@@ -134,21 +134,29 @@ class Util {
 
 abstract class ImageTransferer {
     Image image;
+    Image imageForJpeg;
     String[] formats;
     int fi; // current format index
     Frame frame = new Frame();
 
 
     ImageTransferer() {
-        image = createImage();
+        image = createImage(false);
+        imageForJpeg = createImage(true);
         frame.setSize(100, 100);
     }
 
-    private static Image createImage() {
+    private static Image createImage(boolean forJpeg) {
         int w = 100;
         int h = 100;
         int[] pix = new int[w * h];
 
+        BufferedImage img;
+        if (!forJpeg) {
+            img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        } else {
+            img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        }
         int index = 0;
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
@@ -160,12 +168,18 @@ abstract class ImageTransferer {
                     alpha = 0;
                     red = 0;
                 }
-                pix[index++] =
-                        (alpha << 24) | (red << 16) | (green << 8) | blue;
+                if (!forJpeg) {
+                    pix[index] =
+                        (alpha <<24) | (red << 16) | (green << 8) | blue;
+                } else {
+                    pix[index] =
+                        (red << 16) | (green << 8) | blue;
+                }
+                img.setRGB(x, y, pix[index]);
+                index++;
             }
         }
-        return Toolkit.getDefaultToolkit().
-                createImage(new MemoryImageSource(w, h, pix, 0, w));
+        return (Image)img;
     }
 
 
@@ -174,8 +188,7 @@ abstract class ImageTransferer {
                 (SystemFlavorMap) SystemFlavorMap.getDefaultFlavorMap();
         java.util.List<String> ln =
                 sfm.getNativesForFlavor(DataFlavor.imageFlavor);
-        if (OSInfo.OSType.WINDOWS.equals(OSInfo.getOSType()) &&
-            !ln.contains("METAFILEPICT"))
+        if (Platform.isWindows() &&  !ln.contains("METAFILEPICT"))
         {
             // for test failing on JDK without this fix
             ln.add("METAFILEPICT");
@@ -194,7 +207,7 @@ abstract class ImageTransferer {
 
     boolean areImagesIdentical(Image im1, Image im2) {
         if (formats[fi].equals("JFIF") || formats[fi].equals("image/jpeg") ||
-        formats[fi].equals("GIF") || formats[fi].equals("image/gif")) {
+            formats[fi].equals("GIF") || formats[fi].equals("image/gif")) {
             // JFIF and GIF are lossy formats
             return true;
         }
@@ -206,8 +219,8 @@ abstract class ImageTransferer {
         }
 
         if (formats[fi].equals("PNG") ||
-        formats[fi].equals("image/png") ||
-        formats[fi].equals("image/x-png")) {
+            formats[fi].equals("image/png") ||
+            formats[fi].equals("image/x-png")) {
             // check alpha as well
             for (int i = 0; i < ib1.length; i++) {
                 if (ib1[i] != ib2[i]) {
@@ -269,7 +282,13 @@ class ImageDragSource extends ImageTransferer {
 
         new DragSource().createDefaultDragGestureRecognizer(frame,
         DnDConstants.ACTION_COPY,
-        dge -> dge.startDrag(null, new ImageSelection(image), dsl));
+        dge -> {
+            if (formats[fi].equals("JFIF") || formats[fi].equals("image/jpeg")) {
+                dge.startDrag(null, new ImageSelection(imageForJpeg), dsl);
+            } else {
+                dge.startDrag(null, new ImageSelection(image), dsl);
+            }
+        });
         leaveFormat(formats[fi]);
     }
 
@@ -315,6 +334,14 @@ class ImageDropTarget extends ImageTransferer {
                 return;
             }
 
+            /*
+             * We are using RGB source image for jpeg
+             * because there is no support for alpha channel.
+             * Also we are not verifying pixel data for jpeg
+             * in areImagesIdentical() since it is a lossy format.
+             * So after image drop we are not handling any needed
+             * special cases for jpeg.
+             */
             if (im == null) {
                 System.err.println("getTransferData returned null");
                 dtde.dropComplete(false);

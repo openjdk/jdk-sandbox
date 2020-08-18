@@ -67,6 +67,7 @@ endef
 # In GNU Make 4.0 and higher, there is a file function for writing to files.
 ifeq (4.0, $(firstword $(sort 4.0 $(MAKE_VERSION))))
   HAS_FILE_FUNCTION := true
+  CORRECT_FUNCTION_IN_RECIPE_EVALUATION := true
 endif
 
 ##############################
@@ -346,6 +347,7 @@ SOURCE_REVISION_TRACKER := $(SUPPORT_OUTPUTDIR)/src-rev/source-revision-tracker
 FindAllReposAbs = \
     $(strip $(sort $(dir $(filter-out $(TOPDIR)/build/%, $(wildcard \
         $(addprefix $(TOPDIR)/, .hg */.hg */*/.hg */*/*/.hg */*/*/*/.hg) \
+        $(addprefix $(TOPDIR)/, .git */.git */*/.git */*/*/.git */*/*/*/.git) \
     )))))
 
 # Locate all hg repositories included in the forest, as relative paths
@@ -518,12 +520,14 @@ ifeq ($(OPENJDK_TARGET_OS),solaris)
   define install-file
 	$(call MakeTargetDir)
 	$(RM) '$(call DecodeSpace, $@)'
-	if [ '$(call DecodeSpace, $(dir $@))' != \
+	if [ '$(call DecodeSpace, $(dir $(call EncodeSpace, $@)))' != \
 	    '$(call DecodeSpace, $(dir $(call EncodeSpace, $<)))' ]; then \
-	  $(CP) -f -r -P '$(call DecodeSpace, $<)' '$(call DecodeSpace, $(@D))'; \
-	  if [ '$(call DecodeSpace, $(@F))' != \
+	  $(CP) -f -r -P '$(call DecodeSpace, $<)' \
+	      '$(call DecodeSpace, $(dir $(call EncodeSpace, $@)))'; \
+	  if [ '$(call DecodeSpace, $(notdir $(call EncodeSpace, $@)))' != \
 	      '$(call DecodeSpace, $(notdir $(call EncodeSpace, $(<))))' ]; then \
-	    $(MV) '$(call DecodeSpace, $(@D)/$(<F))' '$(call DecodeSpace, $@)'; \
+	    $(MV) '$(call DecodeSpace, $(dir $(call EncodeSpace, $@))/$(notdir $(call EncodeSpace, $<)))' \
+	        '$(call DecodeSpace, $@)'; \
 	  fi; \
 	else \
 	  if [ -L '$(call DecodeSpace, $<)' ]; then \
@@ -631,7 +635,7 @@ endef
 ################################################################################
 # Filter out duplicate sub strings while preserving order. Keeps the first occurance.
 uniq = \
-    $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
+    $(strip $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1))))
 
 # Returns all whitespace-separated words in $2 where at least one of the
 # whitespace-separated words in $1 is a substring.
@@ -652,8 +656,11 @@ dups = \
 
 # String equals
 equals = \
-    $(and $(findstring $(strip $1),$(strip $2)),\
-        $(findstring $(strip $2),$(strip $1)))
+    $(if $(strip $1)$(strip $2),$(strip \
+      $(and $(findstring $(strip $1),$(strip $2)),\
+        $(findstring $(strip $2),$(strip $1)))), \
+      true \
+    )
 
 # Remove a whole list of prefixes
 # $1 - List of prefixes
@@ -838,7 +845,7 @@ endef
 # Parameter 1 is the name of the rule, and is also the name of the variable.
 #
 # Remaining parameters are named arguments. These include:
-#   KEYWORDS          A list of valid keywords
+#   SINGLE_KEYWORDS   A list of valid keywords with single string values
 #   STRING_KEYWORDS   A list of valid keywords, processed as string. This means
 #       that '%20' will be replaced by ' ' to allow for multi-word strings.
 #
@@ -852,7 +859,7 @@ define ParseKeywordVariableBody
       $$(eval mangled_part_eval := $$(call DoubleDollar, $$(mangled_part))) \
       $$(eval part := $$$$(subst ||||,$$$$(SPACE),$$$$(mangled_part_eval))) \
       $$(eval $1_NO_MATCH := true) \
-      $$(foreach keyword, $$($1_KEYWORDS), \
+      $$(foreach keyword, $$($1_SINGLE_KEYWORDS), \
         $$(eval keyword_eval := $$(call DoubleDollar, $$(keyword))) \
         $$(if $$(filter $$(keyword)=%, $$(part)), \
           $$(eval $(strip $1)_$$$$(keyword_eval) := $$$$(strip $$$$(patsubst $$$$(keyword_eval)=%, %, $$$$(part)))) \
@@ -867,11 +874,11 @@ define ParseKeywordVariableBody
         ) \
       ) \
       $$(if $$($1_NO_MATCH), \
-        $$(if $$(filter $$(part), $$($1_KEYWORDS) $$($1_STRING_KEYWORDS)), \
+        $$(if $$(filter $$(part), $$($1_SINGLE_KEYWORDS) $$($1_STRING_KEYWORDS)), \
           $$(info Keyword $$(part) for $1 needs to be assigned a value.) \
         , \
           $$(info $$(part) is not a valid keyword for $1.) \
-          $$(info Valid keywords: $$($1_KEYWORDS) $$($1_STRING_KEYWORDS).) \
+          $$(info Valid keywords: $$($1_SINGLE_KEYWORDS) $$($1_STRING_KEYWORDS).) \
         ) \
         $$(error Cannot continue) \
       ) \
@@ -1012,7 +1019,7 @@ ExecuteWithLog = \
   $(call LogCmdlines, Exececuting: [$(strip $2)]) \
   $(call MakeDir, $(dir $(strip $1))) \
   $(call WriteFile, $2, $(strip $1).cmdline) \
-  ( $(strip $2) > >($(TEE) $(strip $1).log) 2> >($(TEE) $(strip $1).log >&2) || \
+  ( $(RM) $(strip $1).log && $(strip $2) > >($(TEE) -a $(strip $1).log) 2> >($(TEE) -a $(strip $1).log >&2) || \
       ( exitcode=$(DOLLAR)? && \
       $(CP) $(strip $1).log $(MAKESUPPORT_OUTPUTDIR)/failure-logs/$(subst /,_,$(patsubst $(OUTPUTDIR)/%,%,$(strip $1))).log && \
       $(CP) $(strip $1).cmdline $(MAKESUPPORT_OUTPUTDIR)/failure-logs/$(subst /,_,$(patsubst $(OUTPUTDIR)/%,%,$(strip $1))).cmdline && \
@@ -1023,6 +1030,12 @@ ExecuteWithLog = \
 # Param 1 - module name
 FindLibDirForModule = \
     $(SUPPORT_OUTPUTDIR)/modules_libs/$(strip $1)
+
+################################################################################
+# Find executable dir for module
+# Param 1 - module name
+FindExecutableDirForModule = \
+    $(SUPPORT_OUTPUTDIR)/modules_cmds/$(strip $1)
 
 ################################################################################
 # Return a string suitable for use after a -classpath or --module-path option. It
@@ -1064,6 +1077,22 @@ ColonList = \
   $(strip \
       $(subst ::,:,$(subst $(SPACE),:,$(strip $1))) \
   )
+
+################################################################################
+# Given a list of files, filters out locale specific files for translations
+# that should be excluded from this build.
+# $1 - The list of files to filter
+# $2 - The suffix of the files that should be considered (.java or .properties)
+FilterExcludedTranslations = \
+  $(strip $(if $(EXCLUDE_TRANSLATIONS), \
+    $(filter-out \
+        $(foreach suffix, $2, \
+          $(addprefix %_, $(addsuffix $(suffix), $(EXCLUDE_TRANSLATIONS))) \
+        ), \
+        $1 \
+    ), \
+    $1 \
+  ))
 
 ################################################################################
 

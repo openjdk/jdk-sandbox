@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,16 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_OS_HPP
-#define SHARE_VM_RUNTIME_OS_HPP
+#ifndef SHARE_RUNTIME_OS_HPP
+#define SHARE_RUNTIME_OS_HPP
 
 #include "jvm.h"
 #include "jvmtifiles/jvmti.h"
 #include "metaprogramming/isRegisteredEnum.hpp"
 #include "metaprogramming/integralConstant.hpp"
 #include "runtime/extendedPC.hpp"
-#include "runtime/handles.hpp"
+#include "utilities/exceptions.hpp"
+#include "utilities/ostream.hpp"
 #include "utilities/macros.hpp"
 #ifndef _WINDOWS
 # include <setjmp.h>
@@ -50,10 +51,10 @@ typedef void (*dll_func)(...);
 
 class Thread;
 class JavaThread;
-class Event;
-class DLL;
-class FileHandle;
 class NativeCallStack;
+class methodHandle;
+class OSThread;
+class Mutex;
 
 template<class E> class GrowableArray;
 
@@ -92,14 +93,21 @@ class os: AllStatic {
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class MallocTracker;
+
+#ifdef ASSERT
+ private:
+  static bool _mutex_init_done;
+ public:
+  static void set_mutex_init_done() { _mutex_init_done = true; }
+  static bool mutex_init_done() { return _mutex_init_done; }
+#endif
+
  public:
   enum { page_sizes_max = 9 }; // Size of _page_sizes array (8 plus a sentinel)
 
  private:
   static OSThread*          _starting_thread;
   static address            _polling_page;
-  static volatile int32_t * _mem_serialize_page;
-  static uintptr_t          _serialize_page_mask;
  public:
   static size_t             _page_sizes[page_sizes_max];
 
@@ -165,7 +173,7 @@ class os: AllStatic {
 
   // File names are case-insensitive on windows only
   // Override me as needed
-  static int    file_name_strcmp(const char* s1, const char* s2);
+  static int    file_name_strncmp(const char* s1, const char* s2, size_t num);
 
   // unset environment variable
   static bool unsetenv(const char* name);
@@ -224,12 +232,17 @@ class os: AllStatic {
     // the bootstrap routine for the stub generator needs to check
     // the processor count directly and leave the bootstrap routine
     // in place until called after initialization has ocurred.
-    return AssumeMP || (_processor_count != 1);
+    return (_processor_count != 1);
   }
+
   static julong available_memory();
   static julong physical_memory();
   static bool has_allocatable_memory_limit(julong* limit);
   static bool is_server_class_machine();
+
+  // Returns the id of the processor on which the calling thread is currently executing.
+  // The returned value is guaranteed to be between 0 and (os::processor_count() - 1).
+  static uint processor_id();
 
   // number of CPUs
   static int processor_count() {
@@ -271,6 +284,10 @@ class os: AllStatic {
   static void map_stack_shadow_pages(address sp);
   static bool stack_shadow_pages_available(Thread *thread, const methodHandle& method, address sp);
 
+  // Find committed memory region within specified range (start, start + size),
+  // return true if found any
+  static bool committed_in_range(address start, size_t size, address& committed_start, size_t& committed_size);
+
   // OS interface to Virtual Memory
 
   // Return the default page size.
@@ -291,6 +308,9 @@ class os: AllStatic {
     // The _page_sizes array is sorted in descending order.
     return _page_sizes[0];
   }
+
+  // Return a lower bound for page sizes. Also works before os::init completed.
+  static size_t min_page_size() { return 4 * K; }
 
   // Methods for tracing page sizes returned by the above method.
   // The region_{min,max}_size parameters should be the values
@@ -402,53 +422,9 @@ class os: AllStatic {
   static void    make_polling_page_unreadable();
   static void    make_polling_page_readable();
 
-  // Routines used to serialize the thread state without using membars
-  static void    serialize_thread_states();
-
-  // Since we write to the serialize page from every thread, we
-  // want stores to be on unique cache lines whenever possible
-  // in order to minimize CPU cross talk.  We pre-compute the
-  // amount to shift the thread* to make this offset unique to
-  // each thread.
-  static int     get_serialize_page_shift_count() {
-    return SerializePageShiftCount;
-  }
-
-  static void     set_serialize_page_mask(uintptr_t mask) {
-    _serialize_page_mask = mask;
-  }
-
-  static unsigned int  get_serialize_page_mask() {
-    return _serialize_page_mask;
-  }
-
-  static void    set_memory_serialize_page(address page);
-
-  static address get_memory_serialize_page() {
-    return (address)_mem_serialize_page;
-  }
-
-  static inline void write_memory_serialize_page(JavaThread *thread) {
-    uintptr_t page_offset = ((uintptr_t)thread >>
-                            get_serialize_page_shift_count()) &
-                            get_serialize_page_mask();
-    *(volatile int32_t *)((uintptr_t)_mem_serialize_page+page_offset) = 1;
-  }
-
-  static bool    is_memory_serialize_page(JavaThread *thread, address addr) {
-    if (UseMembar) return false;
-    // Previously this function calculated the exact address of this
-    // thread's serialize page, and checked if the faulting address
-    // was equal.  However, some platforms mask off faulting addresses
-    // to the page size, so now we just check that the address is
-    // within the page.  This makes the thread argument unnecessary,
-    // but we retain the NULL check to preserve existing behavior.
-    if (thread == NULL) return false;
-    address page = (address) _mem_serialize_page;
-    return addr >= page && addr < (page + os::vm_page_size());
-  }
-
-  static void block_on_serialize_page_trap();
+  // Check if pointer points to readable memory (by 4-byte read access)
+  static bool    is_readable_pointer(const void* p);
+  static bool    is_readable_range(const void* from, const void* to);
 
   // threads
 
@@ -487,7 +463,6 @@ class os: AllStatic {
   static void pd_start_thread(Thread* thread);
   static void start_thread(Thread* thread);
 
-  static void initialize_thread(Thread* thr);
   static void free_thread(OSThread* osthread);
 
   // thread id on Linux/64bit is 64bit, on Windows and Solaris, it's 32bit
@@ -498,6 +473,7 @@ class os: AllStatic {
   // Ignores Thread.interrupt() (so keep it short).
   // ms = 0, will sleep for the least amount of time allowed by the OS.
   static void naked_short_sleep(jlong ms);
+  static void naked_short_nanosleep(jlong ns);
   static void infinite_sleep(); // never returns, use with CAUTION
   static void naked_yield () ;
   static OSReturn set_priority(Thread* thread, ThreadPriority priority);
@@ -525,7 +501,7 @@ class os: AllStatic {
   static char* do_you_want_to_debug(const char* message);
 
   // run cmd in a separate process and return its exit code; or -1 on failures
-  static int fork_and_exec(char *cmd);
+  static int fork_and_exec(char *cmd, bool use_vfork_if_available = false);
 
   // Call ::exit() on all platforms but Windows
   static void exit(int num);
@@ -545,8 +521,12 @@ class os: AllStatic {
   static const int default_file_open_flags();
   static int open(const char *path, int oflag, int mode);
   static FILE* open(int fd, const char* mode);
+  static FILE* fopen(const char* path, const char* mode);
   static int close(int fd);
   static jlong lseek(int fd, jlong offset, int whence);
+  // This function, on Windows, canonicalizes a given path (see os_windows.cpp for details).
+  // On Posix, this function is a noop: it does not change anything and just returns
+  // the input pointer.
   static char* native_path(char *path);
   static int ftruncate(int fd, jlong length);
   static int fsync(int fd);
@@ -559,15 +539,13 @@ class os: AllStatic {
 
   //File i/o operations
 
-  static size_t read(int fd, void *buf, unsigned int nBytes);
-  static size_t read_at(int fd, void *buf, unsigned int nBytes, jlong offset);
-  static size_t restartable_read(int fd, void *buf, unsigned int nBytes);
+  static ssize_t read(int fd, void *buf, unsigned int nBytes);
+  static ssize_t read_at(int fd, void *buf, unsigned int nBytes, jlong offset);
   static size_t write(int fd, const void *buf, unsigned int nBytes);
 
   // Reading directories.
   static DIR*           opendir(const char* dirname);
-  static int            readdir_buf_size(const char *path);
-  static struct dirent* readdir(DIR* dirp, dirent* dbuf);
+  static struct dirent* readdir(DIR* dirp);
   static int            closedir(DIR* dirp);
 
   // Dynamic library extension
@@ -639,8 +617,10 @@ class os: AllStatic {
   static void *find_agent_function(AgentLibrary *agent_lib, bool check_lib,
                                    const char *syms[], size_t syms_len);
 
-  // Write to stream
-  static int log_vsnprintf(char* buf, size_t len, const char* fmt, va_list args) ATTRIBUTE_PRINTF(3, 0);
+  // Provide C99 compliant versions of these functions, since some versions
+  // of some platforms don't.
+  static int vsnprintf(char* buf, size_t len, const char* fmt, va_list args) ATTRIBUTE_PRINTF(3, 0);
+  static int snprintf(char* buf, size_t len, const char* fmt, ...) ATTRIBUTE_PRINTF(3, 4);
 
   // Get host name in buffer provided
   static bool get_host_name(char* buf, size_t buflen);
@@ -771,8 +751,7 @@ class os: AllStatic {
   static struct hostent* get_host_by_name(char* name);
 
   // Support for signals (see JVM_RaiseSignal, JVM_RegisterSignal)
-  static void  signal_init(TRAPS);
-  static void  signal_init_pd();
+  static void  initialize_jdk_signal_support(TRAPS);
   static void  signal_notify(int signal_number);
   static void* signal(int signal_number, void* handler);
   static void  signal_raise(int signal_number);
@@ -831,9 +810,6 @@ class os: AllStatic {
   // System loadavg support.  Returns -1 if load average cannot be obtained.
   static int loadavg(double loadavg[], int nelem);
 
-  // Hook for os specific jvm options that we don't want to abort on seeing
-  static bool obsolete_option(const JavaVMOption *option);
-
   // Amount beyond the callee frame size that we bang the stack.
   static int extra_bang_size_in_bytes();
 
@@ -880,7 +856,6 @@ class os: AllStatic {
   static int java_to_os_priority[CriticalPriority + 1];
   // Hint to the underlying OS that a task switch would not be good.
   // Void return because it's a hint and can fail.
-  static void hint_no_preempt();
   static const char* native_thread_creation_failed_msg() {
     return OS_NATIVE_THREAD_CREATION_FAILED_MSG;
   }
@@ -1019,4 +994,4 @@ template<> struct IsRegisteredEnum<os::SuspendResume::State> : public TrueType {
 
 extern "C" int SpinPause();
 
-#endif // SHARE_VM_RUNTIME_OS_HPP
+#endif // SHARE_RUNTIME_OS_HPP

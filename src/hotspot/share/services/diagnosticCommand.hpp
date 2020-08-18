@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_SERVICES_DIAGNOSTICCOMMAND_HPP
-#define SHARE_VM_SERVICES_DIAGNOSTICCOMMAND_HPP
+#ifndef SHARE_SERVICES_DIAGNOSTICCOMMAND_HPP
+#define SHARE_SERVICES_DIAGNOSTICCOMMAND_HPP
 
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
@@ -34,7 +34,6 @@
 #include "runtime/vmThread.hpp"
 #include "services/diagnosticArgument.hpp"
 #include "services/diagnosticCommand.hpp"
-#include "services/diagnosticCommand_ext.hpp"
 #include "services/diagnosticFramework.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
@@ -446,6 +445,7 @@ public:
 class ThreadDumpDCmd : public DCmdWithParser {
 protected:
   DCmdArgument<bool> _locks;
+  DCmdArgument<bool> _extended;
 public:
   ThreadDumpDCmd(outputStream* output, bool heap);
   static const char* name() { return "Thread.print"; }
@@ -640,6 +640,33 @@ public:
   static int num_arguments() { return 0; }
   virtual void execute(DCmdSource source, TRAPS);
 };
+
+//---<  BEGIN  >--- CodeHeap State Analytics.
+class CodeHeapAnalyticsDCmd : public DCmdWithParser {
+protected:
+  DCmdArgument<char*> _function;
+  DCmdArgument<char*> _granularity;
+public:
+  CodeHeapAnalyticsDCmd(outputStream* output, bool heap);
+  static const char* name() {
+    return "Compiler.CodeHeap_Analytics";
+  }
+  static const char* description() {
+    return "Print CodeHeap analytics";
+  }
+  static const char* impact() {
+    return "Low: Depends on code heap size and content. "
+           "Holds CodeCache_lock during analysis step, usually sub-second duration.";
+  }
+  static const JavaPermission permission() {
+    JavaPermission p = {"java.lang.management.ManagementPermission",
+                        "monitor", NULL};
+    return p;
+  }
+  static int num_arguments();
+  virtual void execute(DCmdSource source, TRAPS);
+};
+//---<  END  >--- CodeHeap State Analytics.
 
 class CompilerDirectivesPrintDCmd : public DCmd {
 public:
@@ -839,25 +866,26 @@ public:
   virtual void execute(DCmdSource source, TRAPS);
 };
 
-class MetaspaceDCmd : public DCmd {
+#if INCLUDE_JVMTI
+class DebugOnCmdStartDCmd : public DCmdWithParser {
 public:
-  MetaspaceDCmd(outputStream* output, bool heap);
+  DebugOnCmdStartDCmd(outputStream* output, bool heap);
   static const char* name() {
-    return "VM.metaspace";
+    return "VM.start_java_debugging";
   }
   static const char* description() {
-    return "Prints the statistics for the metaspace";
+    return "Starts up the Java debugging if the jdwp agentlib was enabled with the option onjcmd=y.";
   }
   static const char* impact() {
-      return "Medium: Depends on number of classes loaded.";
+    return "High: Switches the VM into Java debug mode.";
   }
   static const JavaPermission permission() {
-    JavaPermission p = {"java.lang.management.ManagementPermission",
-                        "monitor", NULL};
+    JavaPermission p = { "java.lang.management.ManagementPermission", "monitor", NULL };
     return p;
   }
   static int num_arguments() { return 0; }
   virtual void execute(DCmdSource source, TRAPS);
 };
+#endif // INCLUDE_JVMTI
 
-#endif // SHARE_VM_SERVICES_DIAGNOSTICCOMMAND_HPP
+#endif // SHARE_SERVICES_DIAGNOSTICCOMMAND_HPP

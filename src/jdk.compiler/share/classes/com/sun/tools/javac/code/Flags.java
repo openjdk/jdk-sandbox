@@ -313,6 +313,12 @@ public class Flags {
      */
     public static final long ANONCONSTR_BASED = 1L<<57;
 
+    /**
+     * Flag that marks finalize block as body-only, should not be copied into catch clauses.
+     * Used to implement try-with-resources.
+     */
+    public static final long BODY_ONLY_FINALIZE = 1L<<17; //blocks only
+
     /** Modifier masks.
      */
     public static final int
@@ -427,7 +433,9 @@ public class Flags {
         SYSTEM_MODULE(Flags.SYSTEM_MODULE),
         DEPRECATED_ANNOTATION(Flags.DEPRECATED_ANNOTATION),
         DEPRECATED_REMOVAL(Flags.DEPRECATED_REMOVAL),
-        HAS_RESOURCE(Flags.HAS_RESOURCE);
+        HAS_RESOURCE(Flags.HAS_RESOURCE),
+        POTENTIALLY_AMBIGUOUS(Flags.POTENTIALLY_AMBIGUOUS),
+        ANONCONSTR_BASED(Flags.ANONCONSTR_BASED);
 
         Flag(long flag) {
             this.value = flag;

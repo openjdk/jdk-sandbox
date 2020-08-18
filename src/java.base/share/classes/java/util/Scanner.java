@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1297,16 +1297,16 @@ public final class Scanner implements Iterator<String>, Closeable {
         nanString = "\\Q" + dfs.getNaN() + "\\E";
         infinityString = "\\Q" + dfs.getInfinity() + "\\E";
         positivePrefix = df.getPositivePrefix();
-        if (positivePrefix.length() > 0)
+        if (!positivePrefix.isEmpty())
             positivePrefix = "\\Q" + positivePrefix + "\\E";
         negativePrefix = df.getNegativePrefix();
-        if (negativePrefix.length() > 0)
+        if (!negativePrefix.isEmpty())
             negativePrefix = "\\Q" + negativePrefix + "\\E";
         positiveSuffix = df.getPositiveSuffix();
-        if (positiveSuffix.length() > 0)
+        if (!positiveSuffix.isEmpty())
             positiveSuffix = "\\Q" + positiveSuffix + "\\E";
         negativeSuffix = df.getNegativeSuffix();
-        if (negativeSuffix.length() > 0)
+        if (!negativeSuffix.isEmpty())
             negativeSuffix = "\\Q" + negativeSuffix + "\\E";
 
         // Force rebuilding and recompilation of locale dependent
@@ -2897,7 +2897,7 @@ public final class Scanner implements Iterator<String>, Closeable {
      * letters:
      *
      * <pre>{@code
-     * try (Scanner sc = new Scanner(Paths.get("input.txt"))) {
+     * try (Scanner sc = new Scanner(Path.of("input.txt"))) {
      *     Pattern pat = Pattern.compile("[A-Z]{7,}");
      *     List<String> capWords = sc.findAll(pat)
      *                               .map(MatchResult::group)

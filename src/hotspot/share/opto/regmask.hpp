@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_REGMASK_HPP
-#define SHARE_VM_OPTO_REGMASK_HPP
+#ifndef SHARE_OPTO_REGMASK_HPP
+#define SHARE_OPTO_REGMASK_HPP
 
 #include "code/vmreg.hpp"
 #include "opto/optoreg.hpp"
@@ -62,7 +62,7 @@ int find_hihghest_bit( uint32_t mask );
 // However, it means the ADLC can redefine the unroll macro and all loops
 // over register masks will be unrolled by the correct amount.
 
-class RegMask VALUE_OBJ_CLASS_SPEC {
+class RegMask {
   union {
     double _dummy_force_double_alignment[RM_SIZE>>1];
     // Array of Register Mask bits.  This array is large enough to cover
@@ -313,4 +313,4 @@ public:
 // Do not use this constant directly in client code!
 #undef RM_SIZE
 
-#endif // SHARE_VM_OPTO_REGMASK_HPP
+#endif // SHARE_OPTO_REGMASK_HPP

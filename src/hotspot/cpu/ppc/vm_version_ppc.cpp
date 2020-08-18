@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2017, SAP SE. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,15 @@
 #include "utilities/globalDefinitions.hpp"
 #include "vm_version_ppc.hpp"
 
-# include <sys/sysinfo.h>
+#include <sys/sysinfo.h>
+
+#if defined(LINUX) && defined(VM_LITTLE_ENDIAN)
+#include <sys/auxv.h>
+
+#ifndef PPC_FEATURE2_HTM_NOSC
+#define PPC_FEATURE2_HTM_NOSC (1 << 24)
+#endif
+#endif
 
 bool VM_Version::_is_determine_features_test_running = false;
 uint64_t VM_Version::_dscr_val = 0;
@@ -55,7 +63,9 @@ void VM_Version::initialize() {
 
   // If PowerArchitecturePPC64 hasn't been specified explicitly determine from features.
   if (FLAG_IS_DEFAULT(PowerArchitecturePPC64)) {
-    if (VM_Version::has_lqarx()) {
+    if (VM_Version::has_darn()) {
+      FLAG_SET_ERGO(uintx, PowerArchitecturePPC64, 9);
+    } else if (VM_Version::has_lqarx()) {
       FLAG_SET_ERGO(uintx, PowerArchitecturePPC64, 8);
     } else if (VM_Version::has_popcntw()) {
       FLAG_SET_ERGO(uintx, PowerArchitecturePPC64, 7);
@@ -70,6 +80,7 @@ void VM_Version::initialize() {
 
   bool PowerArchitecturePPC64_ok = false;
   switch (PowerArchitecturePPC64) {
+    case 9: if (!VM_Version::has_darn()   ) break;
     case 8: if (!VM_Version::has_lqarx()  ) break;
     case 7: if (!VM_Version::has_popcntw()) break;
     case 6: if (!VM_Version::has_cmpb()   ) break;
@@ -118,17 +129,34 @@ void VM_Version::initialize() {
     }
   }
   MaxVectorSize = SuperwordUseVSX ? 16 : 8;
+
+  if (PowerArchitecturePPC64 >= 9) {
+    if (FLAG_IS_DEFAULT(UseCountTrailingZerosInstructionsPPC64)) {
+      FLAG_SET_ERGO(bool, UseCountTrailingZerosInstructionsPPC64, true);
+    }
+    if (FLAG_IS_DEFAULT(UseCharacterCompareIntrinsics)) {
+      FLAG_SET_ERGO(bool, UseCharacterCompareIntrinsics, true);
+    }
+  } else {
+    if (UseCountTrailingZerosInstructionsPPC64) {
+      warning("UseCountTrailingZerosInstructionsPPC64 specified, but needs at least Power9.");
+      FLAG_SET_DEFAULT(UseCountTrailingZerosInstructionsPPC64, false);
+    }
+    if (UseCharacterCompareIntrinsics) {
+      warning("UseCharacterCompareIntrinsics specified, but needs at least Power9.");
+      FLAG_SET_DEFAULT(UseCharacterCompareIntrinsics, false);
+    }
+  }
 #endif
 
   // Create and print feature-string.
   char buf[(num_features+1) * 16]; // Max 16 chars per feature.
   jio_snprintf(buf, sizeof(buf),
-               "ppc64%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+               "ppc64%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
                (has_fsqrt()   ? " fsqrt"   : ""),
                (has_isel()    ? " isel"    : ""),
                (has_lxarxeh() ? " lxarxeh" : ""),
                (has_cmpb()    ? " cmpb"    : ""),
-               //(has_mftgpr()? " mftgpr"  : ""),
                (has_popcntb() ? " popcntb" : ""),
                (has_popcntw() ? " popcntw" : ""),
                (has_fcfids()  ? " fcfids"  : ""),
@@ -136,12 +164,13 @@ void VM_Version::initialize() {
                (has_lqarx()   ? " lqarx"   : ""),
                (has_vcipher() ? " aes"     : ""),
                (has_vpmsumb() ? " vpmsumb" : ""),
-               (has_tcheck()  ? " tcheck"  : ""),
                (has_mfdscr()  ? " mfdscr"  : ""),
                (has_vsx()     ? " vsx"     : ""),
                (has_ldbrx()   ? " ldbrx"   : ""),
                (has_stdbrx()  ? " stdbrx"  : ""),
-               (has_vshasig() ? " sha"     : "")
+               (has_vshasig() ? " sha"     : ""),
+               (has_tm()      ? " rtm"     : ""),
+               (has_darn()    ? " darn"    : "")
                // Make sure number of %s matches num_features!
               );
   _features_string = os::strdup(buf);
@@ -186,8 +215,7 @@ void VM_Version::initialize() {
 
   assert(AllocatePrefetchStyle >= 0, "AllocatePrefetchStyle should be positive");
 
-  // If defined(VM_LITTLE_ENDIAN) and running on Power8 or newer hardware,
-  // the implementation uses the vector instructions available with Power8.
+  // If running on Power8 or newer hardware, the implementation uses the available vector instructions.
   // In all other cases, the implementation uses only generally available instructions.
   if (!UseCRC32Intrinsics) {
     if (FLAG_IS_DEFAULT(UseCRC32Intrinsics)) {
@@ -305,52 +333,22 @@ void VM_Version::initialize() {
 
   // Adjust RTM (Restricted Transactional Memory) flags.
   if (UseRTMLocking) {
-    // If CPU or OS are too old:
+    // If CPU or OS do not support TM:
     // Can't continue because UseRTMLocking affects UseBiasedLocking flag
     // setting during arguments processing. See use_biased_locking().
     // VM_Version_init() is executed after UseBiasedLocking is used
     // in Thread::allocate().
-    if (!has_tcheck()) {
-      vm_exit_during_initialization("RTM instructions are not available on this CPU");
+    if (PowerArchitecturePPC64 < 8) {
+      vm_exit_during_initialization("RTM instructions are not available on this CPU.");
     }
-    bool os_too_old = true;
-#ifdef AIX
-    // Actually, this is supported since AIX 7.1.. Unfortunately, this first
-    // contained bugs, so that it can only be enabled after AIX 7.1.3.30.
-    // The Java property os.version, which is used in RTM tests to decide
-    // whether the feature is available, only knows major and minor versions.
-    // We don't want to change this property, as user code might depend on it.
-    // So the tests can not check on subversion 3.30, and we only enable RTM
-    // with AIX 7.2.
-    if (os::Aix::os_version() >= 0x07020000) { // At least AIX 7.2.
-      os_too_old = false;
-    }
-#endif
-#ifdef LINUX
-    // At least Linux kernel 4.2, as the problematic behavior of syscalls
-    // being called in the middle of a transaction has been addressed.
-    // Please, refer to commit b4b56f9ecab40f3b4ef53e130c9f6663be491894
-    // in Linux kernel source tree: https://goo.gl/Kc5i7A
-    if (os::Linux::os_version_is_known()) {
-      if (os::Linux::os_version() >= 0x040200)
-        os_too_old = false;
-    } else {
-      vm_exit_during_initialization("RTM can not be enabled: kernel version is unknown.");
-    }
-#endif
-    if (os_too_old) {
+
+    if (!has_tm()) {
       vm_exit_during_initialization("RTM is not supported on this OS version.");
     }
   }
 
   if (UseRTMLocking) {
 #if INCLUDE_RTM_OPT
-    if (!UnlockExperimentalVMOptions) {
-      vm_exit_during_initialization("UseRTMLocking is only available as experimental option on this platform. "
-                                    "It must be enabled via -XX:+UnlockExperimentalVMOptions flag.");
-    } else {
-      warning("UseRTMLocking is only available as experimental option on this platform.");
-    }
     if (!FLAG_IS_CMDLINE(UseRTMLocking)) {
       // RTM locking should be used only for applications with
       // high lock contention. For now we do not use it by default.
@@ -681,12 +679,13 @@ void VM_Version::determine_features() {
   a->lqarx_unchecked(R6, R3_ARG1, R4_ARG2, 1); // code[9]  -> lqarx_m
   a->vcipher(VR0, VR1, VR2);                   // code[10] -> vcipher
   a->vpmsumb(VR0, VR1, VR2);                   // code[11] -> vpmsumb
-  a->tcheck(0);                                // code[12] -> tcheck
-  a->mfdscr(R0);                               // code[13] -> mfdscr
-  a->lxvd2x(VSR0, R3_ARG1);                    // code[14] -> vsx
-  a->ldbrx(R7, R3_ARG1, R4_ARG2);              // code[15] -> ldbrx
-  a->stdbrx(R7, R3_ARG1, R4_ARG2);             // code[16] -> stdbrx
-  a->vshasigmaw(VR0, VR1, 1, 0xF);             // code[17] -> vshasig
+  a->mfdscr(R0);                               // code[12] -> mfdscr
+  a->lxvd2x(VSR0, R3_ARG1);                    // code[13] -> vsx
+  a->ldbrx(R7, R3_ARG1, R4_ARG2);              // code[14] -> ldbrx
+  a->stdbrx(R7, R3_ARG1, R4_ARG2);             // code[15] -> stdbrx
+  a->vshasigmaw(VR0, VR1, 1, 0xF);             // code[16] -> vshasig
+  // rtm is determined by OS
+  a->darn(R7);                                 // code[17] -> darn
   a->blr();
 
   // Emit function to set one cache line to zero. Emit function descriptor and get pointer to it.
@@ -733,12 +732,13 @@ void VM_Version::determine_features() {
   if (code[feature_cntr++]) features |= lqarx_m;
   if (code[feature_cntr++]) features |= vcipher_m;
   if (code[feature_cntr++]) features |= vpmsumb_m;
-  if (code[feature_cntr++]) features |= tcheck_m;
   if (code[feature_cntr++]) features |= mfdscr_m;
   if (code[feature_cntr++]) features |= vsx_m;
   if (code[feature_cntr++]) features |= ldbrx_m;
   if (code[feature_cntr++]) features |= stdbrx_m;
   if (code[feature_cntr++]) features |= vshasig_m;
+  // feature rtm_m is determined by OS
+  if (code[feature_cntr++]) features |= darn_m;
 
   // Print the detection code.
   if (PrintAssembly) {
@@ -748,6 +748,37 @@ void VM_Version::determine_features() {
   }
 
   _features = features;
+
+#ifdef AIX
+  // To enable it on AIX it's necessary POWER8 or above and at least AIX 7.2.
+  // Actually, this is supported since AIX 7.1.. Unfortunately, this first
+  // contained bugs, so that it can only be enabled after AIX 7.1.3.30.
+  // The Java property os.version, which is used in RTM tests to decide
+  // whether the feature is available, only knows major and minor versions.
+  // We don't want to change this property, as user code might depend on it.
+  // So the tests can not check on subversion 3.30, and we only enable RTM
+  // with AIX 7.2.
+  if (has_lqarx()) { // POWER8 or above
+    if (os::Aix::os_version() >= 0x07020000) { // At least AIX 7.2.
+      _features |= rtm_m;
+    }
+  }
+#endif
+#if defined(LINUX) && defined(VM_LITTLE_ENDIAN)
+  unsigned long auxv = getauxval(AT_HWCAP2);
+
+  if (auxv & PPC_FEATURE2_HTM_NOSC) {
+    if (auxv & PPC_FEATURE2_HAS_HTM) {
+      // TM on POWER8 and POWER9 in compat mode (VM) is supported by the JVM.
+      // TM on POWER9 DD2.1 NV (baremetal) is not supported by the JVM (TM on
+      // POWER9 DD2.1 NV has a few issues that need a couple of firmware
+      // and kernel workarounds, so there is a new mode only supported
+      // on non-virtualized P9 machines called HTM with no Suspend Mode).
+      // TM on POWER9 D2.2+ NV is not supported at all by Linux.
+      _features |= rtm_m;
+    }
+  }
+#endif
 }
 
 // Power 8: Configure Data Stream Control Register.

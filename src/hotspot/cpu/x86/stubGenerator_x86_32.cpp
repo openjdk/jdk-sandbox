@@ -25,6 +25,8 @@
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "nativeInst_x86.hpp"
 #include "oops/instanceOop.hpp"
@@ -85,8 +87,8 @@ class StubGenerator: public StubCodeGenerator {
     case T_INT:     inc_counter_np(SharedRuntime::_jint_array_copy_ctr); return;
     case T_LONG:    inc_counter_np(SharedRuntime::_jlong_array_copy_ctr); return;
     case T_OBJECT:  inc_counter_np(SharedRuntime::_oop_array_copy_ctr); return;
+    default:        ShouldNotReachHere();
     }
-    ShouldNotReachHere();
 #endif //PRODUCT
   }
 
@@ -150,12 +152,6 @@ class StubGenerator: public StubCodeGenerator {
     __ movptr(saved_rdi, rdi);
     __ movptr(saved_rsi, rsi);
     __ movptr(saved_rbx, rbx);
-
-    // provide initial value for required masks
-    if (UseAVX > 2) {
-      __ movl(rbx, 0xffff);
-      __ kmovwl(k1, rbx);
-    }
 
     // save and initialize %mxcsr
     if (sse_save) {
@@ -666,109 +662,6 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  //
-  //  Generate pre-barrier for array stores
-  //
-  //  Input:
-  //     start   -  starting address
-  //     count   -  element count
-  void  gen_write_ref_array_pre_barrier(Register start, Register count, bool uninitialized_target) {
-    assert_different_registers(start, count);
-    BarrierSet* bs = Universe::heap()->barrier_set();
-    switch (bs->kind()) {
-#if INCLUDE_ALL_GCS
-      case BarrierSet::G1SATBCTLogging:
-        // With G1, don't generate the call if we statically know that the target in uninitialized
-        if (!uninitialized_target) {
-          Register thread = rax;
-          Label filtered;
-          __ push(thread);
-          __ get_thread(thread);
-          Address in_progress(thread, in_bytes(JavaThread::satb_mark_queue_offset() +
-                                               SATBMarkQueue::byte_offset_of_active()));
-          // Is marking active?
-          if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
-            __ cmpl(in_progress, 0);
-          } else {
-            assert(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
-            __ cmpb(in_progress, 0);
-          }
-          __ pop(thread);
-          __ jcc(Assembler::equal, filtered);
-
-           __ pusha();                      // push registers
-           __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSet::static_write_ref_array_pre),
-                           start, count);
-           __ popa();
-
-           __ bind(filtered);
-         }
-        break;
-#endif // INCLUDE_ALL_GCS
-      case BarrierSet::CardTableForRS:
-      case BarrierSet::CardTableExtension:
-      case BarrierSet::ModRef:
-        break;
-      default      :
-        ShouldNotReachHere();
-
-    }
-  }
-
-
-  //
-  // Generate a post-barrier for an array store
-  //
-  //     start    -  starting address
-  //     count    -  element count
-  //
-  //  The two input registers are overwritten.
-  //
-  void  gen_write_ref_array_post_barrier(Register start, Register count) {
-    BarrierSet* bs = Universe::heap()->barrier_set();
-    assert_different_registers(start, count);
-    switch (bs->kind()) {
-#if INCLUDE_ALL_GCS
-      case BarrierSet::G1SATBCTLogging:
-        {
-          __ pusha();                      // push registers
-          __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSet::static_write_ref_array_post),
-                          start, count);
-          __ popa();
-        }
-        break;
-#endif // INCLUDE_ALL_GCS
-
-      case BarrierSet::CardTableForRS:
-      case BarrierSet::CardTableExtension:
-        {
-          CardTableModRefBS* ct = barrier_set_cast<CardTableModRefBS>(bs);
-          assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust this code");
-
-          Label L_loop;
-          const Register end = count;  // elements count; end == start+count-1
-          assert_different_registers(start, end);
-
-          __ lea(end,  Address(start, count, Address::times_ptr, -wordSize));
-          __ shrptr(start, CardTableModRefBS::card_shift);
-          __ shrptr(end,   CardTableModRefBS::card_shift);
-          __ subptr(end, start); // end --> count
-        __ BIND(L_loop);
-          intptr_t disp = (intptr_t) ct->byte_map_base;
-          Address cardtable(start, count, Address::times_1, disp);
-          __ movb(cardtable, 0);
-          __ decrement(count);
-          __ jcc(Assembler::greaterEqual, L_loop);
-        }
-        break;
-      case BarrierSet::ModRef:
-        break;
-      default      :
-        ShouldNotReachHere();
-
-    }
-  }
-
 
   // Copy 64 bytes chunks
   //
@@ -780,12 +673,7 @@ class StubGenerator: public StubCodeGenerator {
   void xmm_copy_forward(Register from, Register to_from, Register qword_count) {
     assert( UseSSE >= 2, "supported cpu only" );
     Label L_copy_64_bytes_loop, L_copy_64_bytes, L_copy_8_bytes, L_exit;
-    if (UseAVX > 2) {
-      __ push(rbx);
-      __ movl(rbx, 0xffff);
-      __ kmovwl(k1, rbx);
-      __ pop(rbx);
-    }
+
     // Copy 64-byte chunks
     __ jmpb(L_copy_64_bytes);
     __ align(OptoLoopAlignment);
@@ -936,9 +824,18 @@ class StubGenerator: public StubCodeGenerator {
     if (t == T_OBJECT) {
       __ testl(count, count);
       __ jcc(Assembler::zero, L_0_count);
-      gen_write_ref_array_pre_barrier(to, count, dest_uninitialized);
-      __ mov(saved_to, to);          // save 'to'
     }
+
+    DecoratorSet decorators = IN_HEAP | IS_ARRAY | ARRAYCOPY_DISJOINT;
+    if (dest_uninitialized) {
+      decorators |= IS_DEST_UNINITIALIZED;
+    }
+    if (aligned) {
+      decorators |= ARRAYCOPY_ALIGNED;
+    }
+
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
+    bs->arraycopy_prologue(_masm, decorators, t, from, to, count);
 
     __ subptr(to, from); // to --> to_from
     __ cmpl(count, 2<<shift); // Short arrays (< 8 bytes) copy by element
@@ -1024,10 +921,10 @@ class StubGenerator: public StubCodeGenerator {
     __ BIND(L_copy_2_bytes);
     }
 
+    __ movl(count, Address(rsp, 12+12)); // reread 'count'
+    bs->arraycopy_epilogue(_masm, decorators, t, from, to, count);
+
     if (t == T_OBJECT) {
-      __ movl(count, Address(rsp, 12+12)); // reread 'count'
-      __ mov(to, saved_to); // restore 'to'
-      gen_write_ref_array_post_barrier(to, count);
     __ BIND(L_0_count);
     }
     inc_copy_counter_np(t);
@@ -1116,8 +1013,18 @@ class StubGenerator: public StubCodeGenerator {
     if (t == T_OBJECT) {
       __ testl(count, count);
       __ jcc(Assembler::zero, L_0_count);
-      gen_write_ref_array_pre_barrier(dst, count, dest_uninitialized);
     }
+
+    DecoratorSet decorators = IN_HEAP | IS_ARRAY;
+    if (dest_uninitialized) {
+      decorators |= IS_DEST_UNINITIALIZED;
+    }
+    if (aligned) {
+      decorators |= ARRAYCOPY_ALIGNED;
+    }
+
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
+    bs->arraycopy_prologue(_masm, decorators, t, from, to, count);
 
     // copy from high to low
     __ cmpl(count, 2<<shift); // Short arrays (< 8 bytes) copy by element
@@ -1216,9 +1123,11 @@ class StubGenerator: public StubCodeGenerator {
     } else {
     __ BIND(L_copy_2_bytes);
     }
+
+    __ movl2ptr(count, Address(rsp, 12+12)); // reread count
+    bs->arraycopy_epilogue(_masm, decorators, t, from, to, count);
+
     if (t == T_OBJECT) {
-      __ movl2ptr(count, Address(rsp, 12+12)); // reread count
-      gen_write_ref_array_post_barrier(to, count);
     __ BIND(L_0_count);
     }
     inc_copy_counter_np(t);
@@ -1463,8 +1372,16 @@ class StubGenerator: public StubCodeGenerator {
     Address   to_element_addr(end_to,   count, Address::times_ptr, 0);
     Address elem_klass_addr(elem, oopDesc::klass_offset_in_bytes());
 
+    DecoratorSet decorators = IN_HEAP | IS_ARRAY | ARRAYCOPY_CHECKCAST;
+    if (dest_uninitialized) {
+      decorators |= IS_DEST_UNINITIALIZED;
+    }
+
+    BasicType type = T_OBJECT;
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
+    bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
+
     // Copy from low to high addresses, indexed from the end of each array.
-    gen_write_ref_array_pre_barrier(to, count, dest_uninitialized);
     __ lea(end_from, end_from_addr);
     __ lea(end_to,   end_to_addr);
     assert(length == count, "");        // else fix next line:
@@ -1521,7 +1438,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ BIND(L_post_barrier);
     __ movptr(to, to_arg);              // reload
-    gen_write_ref_array_post_barrier(to, count);
+    bs->arraycopy_epilogue(_masm, decorators, type, from, to, count);
 
     // Common exit point (success or failure).
     __ BIND(L_done);
@@ -2187,14 +2104,6 @@ class StubGenerator: public StubCodeGenerator {
 
     __ enter();   // required for proper stackwalking of RuntimeStub frame
 
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rdx, 0xffff);
-      __ kmovdl(k1, rdx);
-    }
-
     __ movptr(from, from_param);
     __ movptr(key, key_param);
 
@@ -2293,14 +2202,6 @@ class StubGenerator: public StubCodeGenerator {
     const XMMRegister xmm_temp4  = xmm5;
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rdx, 0xffff);
-      __ kmovdl(k1, rdx);
-    }
 
     __ movptr(from, from_param);
     __ movptr(key, key_param);
@@ -2427,14 +2328,6 @@ class StubGenerator: public StubCodeGenerator {
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
     handleSOERegisters(true /*saving*/);
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rdx, 0xffff);
-      __ kmovdl(k1, rdx);
-    }
 
     // load registers from incoming parameters
     const Address  from_param(rbp, 8+0);
@@ -2604,14 +2497,6 @@ class StubGenerator: public StubCodeGenerator {
     __ enter(); // required for proper stackwalking of RuntimeStub frame
     handleSOERegisters(true /*saving*/);
 
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rdx, 0xffff);
-      __ kmovdl(k1, rdx);
-    }
-
     // load registers from incoming parameters
     const Address  from_param(rbp, 8+0);
     const Address  to_param  (rbp, 8+4);
@@ -2764,14 +2649,6 @@ class StubGenerator: public StubCodeGenerator {
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
     handleSOERegisters(true /*saving*/); // save rbx, rsi, rdi
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rdx, 0xffff);
-      __ kmovdl(k1, rdx);
-    }
 
     // load registers from incoming parameters
     const Address  from_param(rbp, 8+0);
@@ -3225,14 +3102,6 @@ class StubGenerator: public StubCodeGenerator {
 
     __ enter();
     handleSOERegisters(true);  // Save registers
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rdx, 0xffff);
-      __ kmovdl(k1, rdx);
-    }
 
     __ movptr(state, state_param);
     __ movptr(subkeyH, subkeyH_param);

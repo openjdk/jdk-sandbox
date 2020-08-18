@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,8 @@
  *
  */
 
-#ifndef CPU_ARM_VM_INTERPRETERRT_ARM_HPP
-#define CPU_ARM_VM_INTERPRETERRT_ARM_HPP
-
-#include "memory/allocation.hpp"
+#ifndef CPU_ARM_INTERPRETERRT_ARM_HPP
+#define CPU_ARM_INTERPRETERRT_ARM_HPP
 
 // native method calls
 
@@ -36,12 +34,8 @@ class SignatureHandlerGenerator: public NativeSignatureIterator {
   int  _ireg;
 
 #ifdef __ABI_HARD__
-#ifdef AARCH64
-  int _freg;
-#else
   int _fp_slot; // number of FPR's with arguments loaded
   int _single_fpr_slot;
-#endif
 #endif
 
   void move(int from_offset, int to_offset);
@@ -56,29 +50,14 @@ class SignatureHandlerGenerator: public NativeSignatureIterator {
 #endif
  public:
   // Creation
-  SignatureHandlerGenerator(const methodHandle& method, CodeBuffer* buffer) : NativeSignatureIterator(method) {
-    _masm = new MacroAssembler(buffer);
-    _abi_offset = 0;
-    _ireg = is_static() ? 2 : 1;
-#ifdef __ABI_HARD__
-#ifdef AARCH64
-    _freg = 0;
-#else
-    _fp_slot = 0;
-    _single_fpr_slot = 0;
-#endif
-#endif
-  }
+  SignatureHandlerGenerator(const methodHandle& method, CodeBuffer* buffer);
 
   // Code generation
   void generate(uint64_t fingerprint);
-
 };
 
-#ifndef AARCH64
 // ARM provides a normalized fingerprint for native calls (to increase
 // sharing). See normalize_fast_native_fingerprint
 #define SHARING_FAST_NATIVE_FINGERPRINTS
-#endif
 
-#endif // CPU_ARM_VM_INTERPRETERRT_ARM_HPP
+#endif // CPU_ARM_INTERPRETERRT_ARM_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.virtual;
 
 import org.graalvm.compiler.graph.NodeClass;
@@ -53,14 +55,19 @@ public class VirtualBoxingNode extends VirtualInstanceNode {
 
     @Override
     public VirtualBoxingNode duplicate() {
-        return new VirtualBoxingNode(type(), boxingKind);
+        VirtualBoxingNode node = new VirtualBoxingNode(type(), boxingKind);
+        node.setNodeSourcePosition(this.getNodeSourcePosition());
+        return node;
     }
 
     @Override
     public ValueNode getMaterializedRepresentation(FixedNode fixed, ValueNode[] entries, LockState locks) {
         assert entries.length == 1;
         assert locks == null;
-        return new BoxNode(entries[0], type(), boxingKind);
+
+        BoxNode node = new BoxNode(entries[0], type(), boxingKind);
+        node.setNodeSourcePosition(this.getNodeSourcePosition());
+        return node;
     }
 
     public ValueNode getBoxedValue(VirtualizerTool tool) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include "gc/shared/workgroup.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/oop.inline.hpp"
 #include "utilities/macros.hpp"
 
 void PreservedMarks::restore() {
@@ -99,7 +100,7 @@ private:
 public:
   virtual void work(uint worker_id) {
     uint task_id = 0;
-    while (!_sub_tasks.is_task_claimed(/* reference */ task_id)) {
+    while (_sub_tasks.try_claim_task(/* reference */ task_id)) {
       _preserved_marks_set->get(task_id)->restore_and_increment(_total_size_addr);
     }
     _sub_tasks.all_tasks_completed();

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2017, SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 #include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/abstractInterpreter.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/interpreter.hpp"
@@ -458,7 +459,8 @@ address TemplateInterpreterGenerator::generate_abstract_entry(void) {
   __ save_return_pc();       // Save Z_R14.
   __ push_frame_abi160(0);   // Without new frame the RT call could overwrite the saved Z_R14.
 
-  __ call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodError), Z_thread);
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodErrorWithMethod),
+                  Z_thread, Z_method);
 
   __ pop_frame();
   __ restore_return_pc();    // Restore Z_R14.
@@ -478,73 +480,53 @@ address TemplateInterpreterGenerator::generate_abstract_entry(void) {
 }
 
 address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
-#if INCLUDE_ALL_GCS
-  if (UseG1GC) {
-    // Inputs:
-    //  Z_ARG1 - receiver
-    //
-    // What we do:
-    //  - Load the referent field address.
-    //  - Load the value in the referent field.
-    //  - Pass that value to the pre-barrier.
-    //
-    // In the case of G1 this will record the value of the
-    // referent in an SATB buffer if marking is active.
-    // This will cause concurrent marking to mark the referent
-    // field as live.
+  // Inputs:
+  //  Z_ARG1 - receiver
+  //
+  // What we do:
+  //  - Load the referent field address.
+  //  - Load the value in the referent field.
+  //  - Pass that value to the pre-barrier.
+  //
+  // In the case of G1 this will record the value of the
+  // referent in an SATB buffer if marking is active.
+  // This will cause concurrent marking to mark the referent
+  // field as live.
 
-    Register  scratch1 = Z_tmp_2;
-    Register  scratch2 = Z_tmp_3;
-    Register  pre_val  = Z_RET;   // return value
-    // Z_esp is callers operand stack pointer, i.e. it points to the parameters.
-    Register  Rargp    = Z_esp;
+  Register  scratch1 = Z_tmp_2;
+  Register  scratch2 = Z_tmp_3;
+  Register  pre_val  = Z_RET;   // return value
+  // Z_esp is callers operand stack pointer, i.e. it points to the parameters.
+  Register  Rargp    = Z_esp;
 
-    Label     slow_path;
-    address   entry = __ pc();
+  Label     slow_path;
+  address   entry = __ pc();
 
-    const int referent_offset = java_lang_ref_Reference::referent_offset;
-    guarantee(referent_offset > 0, "referent offset not initialized");
+  const int referent_offset = java_lang_ref_Reference::referent_offset;
+  guarantee(referent_offset > 0, "referent offset not initialized");
 
-    BLOCK_COMMENT("Reference_get {");
+  BLOCK_COMMENT("Reference_get {");
 
-    //  If the receiver is null then it is OK to jump to the slow path.
-    __ load_and_test_long(pre_val, Address(Rargp, Interpreter::stackElementSize)); // Get receiver.
-    __ z_bre(slow_path);
+  //  If the receiver is null then it is OK to jump to the slow path.
+  __ load_and_test_long(pre_val, Address(Rargp, Interpreter::stackElementSize)); // Get receiver.
+  __ z_bre(slow_path);
 
-    //  Load the value of the referent field.
-    __ load_heap_oop(pre_val, referent_offset, pre_val);
+  //  Load the value of the referent field.
+  __ load_heap_oop(pre_val, Address(pre_val, referent_offset), scratch1, scratch2, ON_WEAK_OOP_REF);
 
-    // Restore caller sp for c2i case.
-    __ resize_frame_absolute(Z_R10, Z_R0, true); // Cut the stack back to where the caller started.
+  // Restore caller sp for c2i case.
+  __ resize_frame_absolute(Z_R10, Z_R0, true); // Cut the stack back to where the caller started.
+  __ z_br(Z_R14);
 
-    // Generate the G1 pre-barrier code to log the value of
-    // the referent field in an SATB buffer.
-    // Note:
-    //   With these parameters the write_barrier_pre does not
-    //   generate instructions to load the previous value.
-    __ g1_write_barrier_pre(noreg,      // obj
-                            noreg,      // offset
-                            pre_val,    // pre_val
-                            noreg,      // no new val to preserve
-                            scratch1,   // tmp
-                            scratch2,   // tmp
-                            true);      // pre_val_needed
+  // Branch to previously generated regular method entry.
+  __ bind(slow_path);
 
-    __ z_br(Z_R14);
+  address meth_entry = Interpreter::entry_for_kind(Interpreter::zerolocals);
+  __ jump_to_entry(meth_entry, Z_R1);
 
-    // Branch to previously generated regular method entry.
-    __ bind(slow_path);
+  BLOCK_COMMENT("} Reference_get");
 
-    address meth_entry = Interpreter::entry_for_kind(Interpreter::zerolocals);
-    __ jump_to_entry(meth_entry, Z_R1);
-
-    BLOCK_COMMENT("} Reference_get");
-
-    return entry;
-  }
-#endif // INCLUDE_ALL_GCS
-
-  return NULL;
+  return entry;
 }
 
 address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
@@ -567,9 +549,10 @@ address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
 
 //
 // Args:
+//   Z_ARG2: oop of array
 //   Z_ARG3: aberrant index
 //
-address TemplateInterpreterGenerator::generate_ArrayIndexOutOfBounds_handler(const char * name) {
+address TemplateInterpreterGenerator::generate_ArrayIndexOutOfBounds_handler() {
   address entry = __ pc();
   address excp = CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_ArrayIndexOutOfBoundsException);
 
@@ -578,8 +561,7 @@ address TemplateInterpreterGenerator::generate_ArrayIndexOutOfBounds_handler(con
   __ empty_expression_stack();
 
   // Setup parameters.
-  // Leave out the name and use register for array to create more detailed exceptions.
-  __ load_absolute_address(Z_ARG2, (address) name);
+  // Pass register with array to create more detailed exceptions.
   __ call_VM(noreg, excp, Z_ARG2, Z_ARG3);
   return entry;
 }
@@ -686,7 +668,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for (TosState state,
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_deopt_entry_for (TosState state,
+address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state,
                                                                int step,
                                                                address continuation) {
   address entry = __ pc();
@@ -1616,15 +1598,8 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // synchronization is progress, and escapes.
 
   __ set_thread_state(_thread_in_native_trans);
-  if (UseMembar) {
-    __ z_fence();
-  } else {
-    // Write serialization page so VM thread can do a pseudo remote
-    // membar. We use the current thread pointer to calculate a thread
-    // specific offset to write to within the page. This minimizes bus
-    // traffic due to cache line collision.
-    __ serialize_memory(Z_thread, Z_R1, Z_R0);
-  }
+  __ z_fence();
+
   // Now before we return to java we must look for a current safepoint
   // (a new safepoint can not start since we entered native_trans).
   // We must check here because a current safepoint could be modifying
@@ -1699,7 +1674,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   __ z_lg(Z_R1/*active_handles*/, thread_(active_handles));
   __ clear_mem(Address(Z_R1, JNIHandleBlock::top_offset_in_bytes()), 4);
 
-  // Bandle exceptions (exception handling will handle unlocking!).
+  // Handle exceptions (exception handling will handle unlocking!).
   {
     Label L;
     __ load_and_test_long(Z_R0/*pending_exception*/, thread_(pending_exception));
@@ -1728,17 +1703,9 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   __ notify_method_exit(true/*native_method*/, ilgl, InterpreterMacroAssembler::NotifyJVMTI);
 
   // Move native method result back into proper registers and return.
-  // C++ interpreter does not use result handler. So do we need to here? TODO(ZASM): check if correct.
-  { NearLabel no_oop_or_null;
   __ mem2freg_opt(Z_FRET, Address(Z_fp, _z_ijava_state_neg(fresult)));
-  __ load_and_test_long(Z_RET, Address(Z_fp, _z_ijava_state_neg(lresult)));
-  __ z_bre(no_oop_or_null); // No unboxing if the result is NULL.
-  __ load_absolute_address(Z_R1, AbstractInterpreter::result_handler(T_OBJECT));
-  __ compareU64_and_branch(Z_R1, Rresult_handler, Assembler::bcondNotEqual, no_oop_or_null);
-  __ z_lg(Z_RET, oop_tmp_offset, Z_fp);
-  __ verify_oop(Z_RET);
-  __ bind(no_oop_or_null);
-  }
+  __ mem2reg_opt(Z_RET, Address(Z_fp, _z_ijava_state_neg(lresult)));
+  __ call_stub(Rresult_handler);
 
   // Pop the native method's interpreter frame.
   __ pop_interpreter_frame(Z_R14 /*return_pc*/, Z_ARG2/*tmp1*/, Z_ARG3/*tmp2*/);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_SPARC_VM_FRAME_SPARC_HPP
-#define CPU_SPARC_VM_FRAME_SPARC_HPP
+#ifndef CPU_SPARC_FRAME_SPARC_HPP
+#define CPU_SPARC_FRAME_SPARC_HPP
 
 #include "runtime/synchronizer.hpp"
 
@@ -240,4 +240,6 @@
   void interpreter_frame_set_monitors(BasicObjectLock* monitors);
  public:
 
-#endif // CPU_SPARC_VM_FRAME_SPARC_HPP
+  static jint interpreter_frame_expression_stack_direction() { return -1; }
+
+#endif // CPU_SPARC_FRAME_SPARC_HPP

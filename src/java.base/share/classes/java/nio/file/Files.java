@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,6 +77,7 @@ import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import sun.nio.ch.FileChannelImpl;
 import sun.nio.fs.AbstractFileSystemProvider;
 
 /**
@@ -90,6 +91,9 @@ import sun.nio.fs.AbstractFileSystemProvider;
  */
 
 public final class Files {
+    // buffer size used for reading and writing
+    private static final int BUFFER_SIZE = 8192;
+
     private Files() { }
 
     /**
@@ -410,8 +414,13 @@ public final class Files {
     public static SeekableByteChannel newByteChannel(Path path, OpenOption... options)
         throws IOException
     {
-        Set<OpenOption> set = new HashSet<>(options.length);
-        Collections.addAll(set, options);
+        Set<OpenOption> set;
+        if (options.length == 0) {
+            set = Collections.emptySet();
+        } else {
+            set = new HashSet<>();
+            Collections.addAll(set, options);
+        }
         return newByteChannel(path, set);
     }
 
@@ -599,6 +608,9 @@ public final class Files {
 
     // -- Creation and deletion --
 
+    private static final Set<OpenOption> DEFAULT_CREATE_OPTIONS =
+        Set.of(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+
     /**
      * Creates a new and empty file, failing if the file already exists. The
      * check for the existence of the file and the creation of the new file if
@@ -635,9 +647,7 @@ public final class Files {
     public static Path createFile(Path path, FileAttribute<?>... attrs)
         throws IOException
     {
-        EnumSet<StandardOpenOption> options =
-            EnumSet.<StandardOpenOption>of(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-        newByteChannel(path, options, attrs).close();
+        newByteChannel(path, DEFAULT_CREATE_OPTIONS, attrs).close();
         return path;
     }
 
@@ -1391,8 +1401,9 @@ public final class Files {
      *          specific exception)</i>
      * @throws  DirectoryNotEmptyException
      *          the {@code REPLACE_EXISTING} option is specified but the file
-     *          cannot be replaced because it is a non-empty directory
-     *          <i>(optional specific exception)</i>
+     *          cannot be replaced because it is a non-empty directory, or the
+     *          source is a non-empty directory containing entries that would
+     *          be required to be moved <i>(optional specific exceptions)</i>
      * @throws  AtomicMoveNotSupportedException
      *          if the options array contains the {@code ATOMIC_MOVE} option but
      *          the file cannot be moved as an atomic file system operation.
@@ -1520,6 +1531,80 @@ public final class Files {
      */
     public static boolean isSameFile(Path path, Path path2) throws IOException {
         return provider(path).isSameFile(path, path2);
+    }
+
+    /**
+     * Finds and returns the position of the first mismatched byte in the content
+     * of two files, or {@code -1L} if there is no mismatch. The position will be
+     * in the inclusive range of {@code 0L} up to the size (in bytes) of the
+     * smaller file.
+     *
+     * <p> Two files are considered to match if they satisfy one of the following
+     * conditions:
+     * <ul>
+     * <li> The two paths locate the {@linkplain #isSameFile(Path, Path) same file},
+     *      even if two {@linkplain Path#equals(Object) equal} paths locate a file
+     *      does not exist, or </li>
+     * <li> The two files are the same size, and every byte in the first file
+     *      is identical to the corresponding byte in the second file. </li>
+     * </ul>
+     *
+     * <p> Otherwise there is a mismatch between the two files and the value
+     * returned by this method is:
+     * <ul>
+     * <li> The position of the first mismatched byte, or </li>
+     * <li> The size of the smaller file (in bytes) when the files are different
+     *      sizes and every byte of the smaller file is identical to the
+     *      corresponding byte of the larger file. </li>
+     * </ul>
+     *
+     * <p> This method may not be atomic with respect to other file system
+     * operations. This method is always <i>reflexive</i> (for {@code Path f},
+     * {@code mismatch(f,f)} returns {@code -1L}). If the file system and files
+     * remain static, then this method is <i>symmetric</i> (for two {@code Paths f}
+     * and {@code g}, {@code mismatch(f,g)} will return the same value as
+     * {@code mismatch(g,f)}).
+     *
+     * @param   path
+     *          the path to the first file
+     * @param   path2
+     *          the path to the second file
+     *
+     * @return  the position of the first mismatch or {@code -1L} if no mismatch
+     *
+     * @throws  IOException
+     *          if an I/O error occurs
+     * @throws  SecurityException
+     *          In the case of the default provider, and a security manager is
+     *          installed, the {@link SecurityManager#checkRead(String) checkRead}
+     *          method is invoked to check read access to both files.
+     *
+     * @since 12
+     */
+    public static long mismatch(Path path, Path path2) throws IOException {
+        if (isSameFile(path, path2)) {
+            return -1;
+        }
+        byte[] buffer1 = new byte[BUFFER_SIZE];
+        byte[] buffer2 = new byte[BUFFER_SIZE];
+        try (InputStream in1 = Files.newInputStream(path);
+             InputStream in2 = Files.newInputStream(path2);) {
+            long totalRead = 0;
+            while (true) {
+                int nRead1 = in1.readNBytes(buffer1, 0, BUFFER_SIZE);
+                int nRead2 = in2.readNBytes(buffer2, 0, BUFFER_SIZE);
+
+                int i = Arrays.mismatch(buffer1, 0, nRead1, buffer2, 0, nRead2);
+                if (i > -1) {
+                    return totalRead + i;
+                }
+                if (nRead1 < BUFFER_SIZE) {
+                    // we've reached the end of the files, but found no mismatch
+                    return -1;
+                }
+                totalRead += nRead1;
+            }
+        }
     }
 
     /**
@@ -2794,8 +2879,6 @@ public final class Files {
 
     // -- Utility methods for simple usages --
 
-    // buffer size used for reading and writing
-    private static final int BUFFER_SIZE = 8192;
 
     /**
      * Opens a file for reading, returning a {@code BufferedReader} that may be
@@ -2984,7 +3067,7 @@ public final class Files {
      * it to a file:
      * <pre>
      *     Path path = ...
-     *     URI u = URI.create("http://java.sun.com/");
+     *     URI u = URI.create("http://www.example.com/");
      *     try (InputStream in = u.toURL().openStream()) {
      *         Files.copy(in, path);
      *     }
@@ -3120,6 +3203,9 @@ public final class Files {
      */
     private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
 
+    private static final jdk.internal.access.JavaLangAccess JLA =
+            jdk.internal.access.SharedSecrets.getJavaLangAccess();
+
     /**
      * Reads all the bytes from an input stream. Uses {@code initialSize} as a hint
      * about how many bytes the stream will have.
@@ -3193,12 +3279,84 @@ public final class Files {
     public static byte[] readAllBytes(Path path) throws IOException {
         try (SeekableByteChannel sbc = Files.newByteChannel(path);
              InputStream in = Channels.newInputStream(sbc)) {
+            if (sbc instanceof FileChannelImpl)
+                ((FileChannelImpl) sbc).setUninterruptible();
             long size = sbc.size();
-            if (size > (long)MAX_BUFFER_SIZE)
+            if (size > (long) MAX_BUFFER_SIZE)
                 throw new OutOfMemoryError("Required array size too large");
-
             return read(in, (int)size);
         }
+    }
+
+    /**
+     * Reads all content from a file into a string, decoding from bytes to characters
+     * using the {@link StandardCharsets#UTF_8 UTF-8} {@link Charset charset}.
+     * The method ensures that the file is closed when all content have been read
+     * or an I/O error, or other runtime exception, is thrown.
+     *
+     * <p> This method is equivalent to:
+     * {@code readString(path, StandardCharsets.UTF_8) }
+     *
+     * @param   path the path to the file
+     *
+     * @return  a String containing the content read from the file
+     *
+     * @throws  IOException
+     *          if an I/O error occurs reading from the file or a malformed or
+     *          unmappable byte sequence is read
+     * @throws  OutOfMemoryError
+     *          if the file is extremely large, for example larger than {@code 2GB}
+     * @throws  SecurityException
+     *          In the case of the default provider, and a security manager is
+     *          installed, the {@link SecurityManager#checkRead(String) checkRead}
+     *          method is invoked to check read access to the file.
+     *
+     * @since 11
+     */
+    public static String readString(Path path) throws IOException {
+        return readString(path, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Reads all characters from a file into a string, decoding from bytes to characters
+     * using the specified {@linkplain Charset charset}.
+     * The method ensures that the file is closed when all content have been read
+     * or an I/O error, or other runtime exception, is thrown.
+     *
+     * <p> This method reads all content including the line separators in the middle
+     * and/or at the end. The resulting string will contain line separators as they
+     * appear in the file.
+     *
+     * @apiNote
+     * This method is intended for simple cases where it is appropriate and convenient
+     * to read the content of a file into a String. It is not intended for reading
+     * very large files.
+     *
+     *
+     *
+     * @param   path the path to the file
+     * @param   cs the charset to use for decoding
+     *
+     * @return  a String containing the content read from the file
+     *
+     * @throws  IOException
+     *          if an I/O error occurs reading from the file or a malformed or
+     *          unmappable byte sequence is read
+     * @throws  OutOfMemoryError
+     *          if the file is extremely large, for example larger than {@code 2GB}
+     * @throws  SecurityException
+     *          In the case of the default provider, and a security manager is
+     *          installed, the {@link SecurityManager#checkRead(String) checkRead}
+     *          method is invoked to check read access to the file.
+     *
+     * @since 11
+     */
+    public static String readString(Path path, Charset cs) throws IOException {
+        Objects.requireNonNull(path);
+        Objects.requireNonNull(cs);
+
+        byte[] ba = readAllBytes(path);
+        return JLA.newStringNoRepl(ba, cs);
     }
 
     /**
@@ -3453,6 +3611,106 @@ public final class Files {
         throws IOException
     {
         return write(path, lines, StandardCharsets.UTF_8, options);
+    }
+
+    /**
+     * Write a {@linkplain java.lang.CharSequence CharSequence} to a file.
+     * Characters are encoded into bytes using the
+     * {@link StandardCharsets#UTF_8 UTF-8} {@link Charset charset}.
+     *
+     * <p> This method is equivalent to:
+     * {@code writeString(path, test, StandardCharsets.UTF_8, options) }
+     *
+     * @param   path
+     *          the path to the file
+     * @param   csq
+     *          the CharSequence to be written
+     * @param   options
+     *          options specifying how the file is opened
+     *
+     * @return  the path
+     *
+     * @throws  IllegalArgumentException
+     *          if {@code options} contains an invalid combination of options
+     * @throws  IOException
+     *          if an I/O error occurs writing to or creating the file, or the
+     *          text cannot be encoded using the specified charset
+     * @throws  UnsupportedOperationException
+     *          if an unsupported option is specified
+     * @throws  SecurityException
+     *          In the case of the default provider, and a security manager is
+     *          installed, the {@link SecurityManager#checkWrite(String) checkWrite}
+     *          method is invoked to check write access to the file. The {@link
+     *          SecurityManager#checkDelete(String) checkDelete} method is
+     *          invoked to check delete access if the file is opened with the
+     *          {@code DELETE_ON_CLOSE} option.
+     *
+     * @since 11
+     */
+    public static Path writeString(Path path, CharSequence csq, OpenOption... options)
+            throws IOException
+    {
+        return writeString(path, csq, StandardCharsets.UTF_8, options);
+    }
+
+    /**
+     * Write a {@linkplain java.lang.CharSequence CharSequence} to a file.
+     * Characters are encoded into bytes using the specified
+     * {@linkplain java.nio.charset.Charset charset}.
+     *
+     * <p> All characters are written as they are, including the line separators in
+     * the char sequence. No extra characters are added.
+     *
+     * <p> The {@code options} parameter specifies how the file is created
+     * or opened. If no options are present then this method works as if the
+     * {@link StandardOpenOption#CREATE CREATE}, {@link
+     * StandardOpenOption#TRUNCATE_EXISTING TRUNCATE_EXISTING}, and {@link
+     * StandardOpenOption#WRITE WRITE} options are present. In other words, it
+     * opens the file for writing, creating the file if it doesn't exist, or
+     * initially truncating an existing {@link #isRegularFile regular-file} to
+     * a size of {@code 0}.
+     *
+     *
+     * @param   path
+     *          the path to the file
+     * @param   csq
+     *          the CharSequence to be written
+     * @param   cs
+     *          the charset to use for encoding
+     * @param   options
+     *          options specifying how the file is opened
+     *
+     * @return  the path
+     *
+     * @throws  IllegalArgumentException
+     *          if {@code options} contains an invalid combination of options
+     * @throws  IOException
+     *          if an I/O error occurs writing to or creating the file, or the
+     *          text cannot be encoded using the specified charset
+     * @throws  UnsupportedOperationException
+     *          if an unsupported option is specified
+     * @throws  SecurityException
+     *          In the case of the default provider, and a security manager is
+     *          installed, the {@link SecurityManager#checkWrite(String) checkWrite}
+     *          method is invoked to check write access to the file. The {@link
+     *          SecurityManager#checkDelete(String) checkDelete} method is
+     *          invoked to check delete access if the file is opened with the
+     *          {@code DELETE_ON_CLOSE} option.
+     *
+     * @since 11
+     */
+    public static Path writeString(Path path, CharSequence csq, Charset cs, OpenOption... options)
+            throws IOException
+    {
+        // ensure the text is not null before opening file
+        Objects.requireNonNull(path);
+        Objects.requireNonNull(csq);
+        Objects.requireNonNull(cs);
+
+        byte[] bytes = JLA.getBytesNoRepl(String.valueOf(csq), cs);
+        write(path, bytes, options);
+
+        return path;
     }
 
     // -- Stream APIs --

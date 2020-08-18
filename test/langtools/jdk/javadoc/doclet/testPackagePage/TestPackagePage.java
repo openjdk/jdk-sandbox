@@ -23,16 +23,18 @@
 
 /*
  * @test
- * @bug 4492643 4689286
+ * @bug 4492643 4689286 8196201 8184205
  * @summary Test that a package page is properly generated when a .java file
  * passed to Javadoc.  Also test that the proper package links are generated
  * when single or multiple packages are documented.
  * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestPackagePage
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestPackagePage extends JavadocTester {
 
@@ -42,7 +44,7 @@ public class TestPackagePage extends JavadocTester {
     }
 
     @Test
-    void testSinglePackage() {
+    public void testSinglePackage() {
         javadoc("-d", "out-1",
                 "-sourcepath", testSrc,
                 testSrc("com/pkg/C.java"));
@@ -69,7 +71,7 @@ public class TestPackagePage extends JavadocTester {
 
 
     @Test
-    void testMultiplePackages() {
+    public void testMultiplePackages() {
         javadoc("-d", "out-2",
                 "-sourcepath", testSrc,
                 "com.pkg", "pkg2");
@@ -82,5 +84,26 @@ public class TestPackagePage extends JavadocTester {
             "<li>Package</li>");
         checkOutput("help-doc.html", true,
             "<li>Package</li>");
+        checkOutput("allclasses-index.html", true,
+                "<div class=\"typeSummary\">\n<table>\n"
+                + "<caption><span>Class Summary</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
+                + "<tr>\n"
+                + "<th class=\"colFirst\" scope=\"col\">Class</th>\n"
+                + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
+                + "</tr>\n");
+        checkOutput("allpackages-index.html", true,
+                "<div class=\"packagesSummary\">\n<table>\n"
+                + "<caption><span>Package Summary</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
+                + "<tr>\n"
+                + "<th class=\"colFirst\" scope=\"col\">Package</th>\n"
+                + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
+                + "</tr>\n");
+        checkOutput("type-search-index.js", true,
+                "{\"l\":\"All Classes\",\"url\":\"allclasses-index.html\"}");
+        checkOutput("package-search-index.js", true,
+                "{\"l\":\"All Packages\",\"url\":\"allpackages-index.html\"}");
+        checkOutput("index-all.html", true,
+                "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>&nbsp;"
+                + "<a href=\"allpackages-index.html\">All&nbsp;Packages</a>");
     }
 }

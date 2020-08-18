@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_SERVICES_HEAPDUMPER_HPP
-#define SHARE_VM_SERVICES_HEAPDUMPER_HPP
+#ifndef SHARE_SERVICES_HEAPDUMPER_HPP
+#define SHARE_SERVICES_HEAPDUMPER_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
@@ -50,7 +50,7 @@ class HeapDumper : public StackObj {
   elapsedTimer _t;
 
   HeapDumper(bool gc_before_heap_dump, bool print_to_tty, bool oome) :
-    _gc_before_heap_dump(gc_before_heap_dump), _error(NULL), _print_to_tty(print_to_tty), _oome(oome) { }
+    _error(NULL), _print_to_tty(print_to_tty), _gc_before_heap_dump(gc_before_heap_dump), _oome(oome) { }
 
   // string representation of error
   char* error() const                   { return _error; }
@@ -66,7 +66,7 @@ class HeapDumper : public StackObj {
 
  public:
   HeapDumper(bool gc_before_heap_dump) :
-    _gc_before_heap_dump(gc_before_heap_dump), _error(NULL), _print_to_tty(false), _oome(false) { }
+    _error(NULL), _print_to_tty(false), _gc_before_heap_dump(gc_before_heap_dump), _oome(false) { }
 
   ~HeapDumper();
 
@@ -81,4 +81,4 @@ class HeapDumper : public StackObj {
   static void dump_heap_from_oome()    NOT_SERVICES_RETURN;
 };
 
-#endif // SHARE_VM_SERVICES_HEAPDUMPER_HPP
+#endif // SHARE_SERVICES_HEAPDUMPER_HPP

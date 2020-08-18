@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,22 @@
  */
 
 #include "jvm.h"
+#include "logging/log.hpp"
+#include "memory/allocation.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/os.hpp"
+#include "services/memTracker.hpp"
 #include "utilities/align.hpp"
+#include "utilities/formatBuffer.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
 
+#include <dirent.h>
 #include <dlfcn.h>
+#include <grp.h>
+#include <pwd.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/mman.h>
@@ -46,6 +53,8 @@
 #define MAX_PID INT_MAX
 #endif
 #define IS_VALID_PID(p) (p > 0 && p < MAX_PID)
+
+#define ROOT_UID 0
 
 #ifndef MAP_ANONYMOUS
   #define MAP_ANONYMOUS MAP_ANON
@@ -142,6 +151,19 @@ bool os::unsetenv(const char* name) {
 
 int os::get_last_error() {
   return errno;
+}
+
+size_t os::lasterror(char *buf, size_t len) {
+  if (errno == 0)  return 0;
+
+  const char *s = os::strerror(errno);
+  size_t n = ::strlen(s);
+  if (n >= len) {
+    n = len - 1;
+  }
+  ::strncpy(buf, s, n);
+  buf[n] = '\0';
+  return n;
 }
 
 bool os::is_debugger_attached() {
@@ -331,8 +353,15 @@ char* os::reserve_memory_aligned(size_t size, size_t alignment, int file_desc) {
   return aligned_base;
 }
 
-int os::log_vsnprintf(char* buf, size_t len, const char* fmt, va_list args) {
-    return vsnprintf(buf, len, fmt, args);
+int os::vsnprintf(char* buf, size_t len, const char* fmt, va_list args) {
+  // All supported POSIX platforms provide C99 semantics.
+  int result = ::vsnprintf(buf, len, fmt, args);
+  // If an encoding error occurred (result < 0) then it's not clear
+  // whether the buffer is NUL terminated, so ensure it is.
+  if ((result < 0) && (len > 0)) {
+    buf[len - 1] = '\0';
+  }
+  return result;
 }
 
 int os::get_fileno(FILE* fp) {
@@ -414,6 +443,38 @@ void os::Posix::print_uname_info(outputStream* st) {
   st->cr();
 }
 
+void os::Posix::print_umask(outputStream* st, mode_t umsk) {
+  st->print((umsk & S_IRUSR) ? "r" : "-");
+  st->print((umsk & S_IWUSR) ? "w" : "-");
+  st->print((umsk & S_IXUSR) ? "x" : "-");
+  st->print((umsk & S_IRGRP) ? "r" : "-");
+  st->print((umsk & S_IWGRP) ? "w" : "-");
+  st->print((umsk & S_IXGRP) ? "x" : "-");
+  st->print((umsk & S_IROTH) ? "r" : "-");
+  st->print((umsk & S_IWOTH) ? "w" : "-");
+  st->print((umsk & S_IXOTH) ? "x" : "-");
+}
+
+void os::Posix::print_user_info(outputStream* st) {
+  unsigned id = (unsigned) ::getuid();
+  st->print("uid  : %u ", id);
+  id = (unsigned) ::geteuid();
+  st->print("euid : %u ", id);
+  id = (unsigned) ::getgid();
+  st->print("gid  : %u ", id);
+  id = (unsigned) ::getegid();
+  st->print_cr("egid : %u", id);
+  st->cr();
+
+  mode_t umsk = ::umask(0);
+  ::umask(umsk);
+  st->print("umask: %04o (", (unsigned) umsk);
+  print_umask(st, umsk);
+  st->print_cr(")");
+  st->cr();
+}
+
+
 bool os::get_host_name(char* buf, size_t buflen) {
   struct utsname name;
   uname(&name);
@@ -493,12 +554,31 @@ FILE* os::open(int fd, const char* mode) {
   return ::fdopen(fd, mode);
 }
 
+ssize_t os::read_at(int fd, void *buf, unsigned int nBytes, jlong offset) {
+  return ::pread(fd, buf, nBytes, offset);
+}
+
 void os::flockfile(FILE* fp) {
   ::flockfile(fp);
 }
 
 void os::funlockfile(FILE* fp) {
   ::funlockfile(fp);
+}
+
+DIR* os::opendir(const char* dirname) {
+  assert(dirname != NULL, "just checking");
+  return ::opendir(dirname);
+}
+
+struct dirent* os::readdir(DIR* dirp) {
+  assert(dirp != NULL, "just checking");
+  return ::readdir(dirp);
+}
+
+int os::closedir(DIR *dirp) {
+  assert(dirp != NULL, "just checking");
+  return ::closedir(dirp);
 }
 
 // Builds a platform dependent Agent_OnLoad_<lib_name> function name
@@ -617,6 +697,21 @@ int os::sleep(Thread* thread, jlong millis, bool interruptible) {
     }
     return OS_OK ;
   }
+}
+
+void os::naked_short_nanosleep(jlong ns) {
+  struct timespec req;
+  assert(ns > -1 && ns < NANOUNITS, "Un-interruptable sleep, short time use only");
+  req.tv_sec = 0;
+  req.tv_nsec = ns;
+  ::nanosleep(&req, NULL);
+  return;
+}
+
+void os::naked_short_sleep(jlong ms) {
+  assert(ms < MILLIUNITS, "Un-interruptable sleep, short time use only");
+  os::naked_short_nanosleep(ms * (NANOUNITS / MILLIUNITS));
+  return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -913,6 +1008,18 @@ bool os::Posix::is_valid_signal(int sig) {
   }
   return true;
 #endif
+}
+
+bool os::Posix::is_sig_ignored(int sig) {
+  struct sigaction oact;
+  sigaction(sig, (struct sigaction*)NULL, &oact);
+  void* ohlr = oact.sa_sigaction ? CAST_FROM_FN_PTR(void*,  oact.sa_sigaction)
+                                 : CAST_FROM_FN_PTR(void*,  oact.sa_handler);
+  if (ohlr == CAST_FROM_FN_PTR(void*, SIG_IGN)) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 // Returns:
@@ -1309,6 +1416,13 @@ char* os::Posix::realpath(const char* filename, char* outbuf, size_t outbuflen) 
 
 }
 
+int os::stat(const char *path, struct stat *sbuf) {
+  return ::stat(path, sbuf);
+}
+
+char * os::native_path(char *path) {
+  return path;
+}
 
 // Check minimum allowable stack sizes for thread creation and to initialize
 // the java system classes, including StackOverflowError - depends on page
@@ -1431,6 +1545,18 @@ size_t os::Posix::get_initial_stack_size(ThreadType thr_type, size_t req_stack_s
   return stack_size;
 }
 
+bool os::Posix::is_root(uid_t uid){
+    return ROOT_UID == uid;
+}
+
+bool os::Posix::matches_effective_uid_or_root(uid_t uid) {
+    return is_root(uid) || geteuid() == uid;
+}
+
+bool os::Posix::matches_effective_uid_and_gid_or_root(uid_t uid, gid_t gid) {
+    return is_root(uid) || (geteuid() == uid && getegid() == gid);
+}
+
 Thread* os::ThreadCrashProtection::_protected_thread = NULL;
 os::ThreadCrashProtection* os::ThreadCrashProtection::_crash_protection = NULL;
 volatile intptr_t os::ThreadCrashProtection::_crash_mux = 0;
@@ -1536,9 +1662,24 @@ static void pthread_init_common(void) {
 // This means we have clockid_t, clock_gettime et al and CLOCK_MONOTONIC
 
 static int (*_clock_gettime)(clockid_t, struct timespec *);
+static int (*_clock_getres)(clockid_t, struct timespec *);
 static int (*_pthread_condattr_setclock)(pthread_condattr_t *, clockid_t);
 
 static bool _use_clock_monotonic_condattr;
+
+// Exported clock functionality
+
+int os::Posix::clock_gettime(clockid_t clock_id, struct timespec *tp) {
+  return _clock_gettime != NULL ? _clock_gettime(clock_id, tp) : -1;
+}
+
+int os::Posix::clock_getres(clockid_t clock_id, struct timespec *tp) {
+  return _clock_getres != NULL ? _clock_getres(clock_id, tp) : -1;
+}
+
+bool os::Posix::supports_monotonic_clock() {
+  return _clock_gettime != NULL;
+}
 
 // Determine what POSIX API's are present and do appropriate
 // configuration.
@@ -1546,8 +1687,6 @@ void os::Posix::init(void) {
 
   // NOTE: no logging available when this is called. Put logging
   // statements in init_2().
-
-  // Copied from os::Linux::clock_init(). The duplication is temporary.
 
   // 1. Check for CLOCK_MONOTONIC support.
 
@@ -1569,6 +1708,7 @@ void os::Posix::init(void) {
   }
 
   _clock_gettime = NULL;
+  _clock_getres = NULL;
 
   int (*clock_getres_func)(clockid_t, struct timespec*) =
     (int(*)(clockid_t, struct timespec*))dlsym(handle, "clock_getres");
@@ -1583,6 +1723,7 @@ void os::Posix::init(void) {
         clock_gettime_func(CLOCK_MONOTONIC, &tp) == 0) {
       // Yes, monotonic clock is supported.
       _clock_gettime = clock_gettime_func;
+      _clock_getres = clock_getres_func;
     } else {
 #ifdef NEEDS_LIBRT
       // Close librt if there is no monotonic clock.

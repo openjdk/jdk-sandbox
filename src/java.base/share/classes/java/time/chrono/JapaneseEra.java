@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,6 +92,11 @@ import sun.util.calendar.CalendarDate;
  * Japan introduced the Gregorian calendar starting with Meiji 6.
  * Only Meiji and later eras are supported;
  * dates before Meiji 6, January 1 are not supported.
+ * The number of the valid eras may increase, as new eras may be
+ * defined by the Japanese government. Once an era is defined,
+ * future versions of the platform may add a singleton instance
+ * for it. The defined era is expected to have a consecutive integer
+ * associated with it.
  *
  * @implSpec
  * This class is immutable and thread-safe.
@@ -123,14 +128,19 @@ public final class JapaneseEra
      */
     public static final JapaneseEra SHOWA = new JapaneseEra(1, LocalDate.of(1926, 12, 25));
     /**
-     * The singleton instance for the 'Heisei' era (1989-01-08 - current)
+     * The singleton instance for the 'Heisei' era (1989-01-08 - 2019-04-30)
      * which has the value 2.
      */
     public static final JapaneseEra HEISEI = new JapaneseEra(2, LocalDate.of(1989, 1, 8));
+    /**
+     * The singleton instance for the 'NewEra' era (2019-05-01 - current)
+     * which has the value 3.
+     */
+    private static final JapaneseEra NEWERA = new JapaneseEra(3, LocalDate.of(2019, 5, 1));
 
     // The number of predefined JapaneseEra constants.
     // There may be a supplemental era defined by the property.
-    private static final int N_ERA_CONSTANTS = HEISEI.getValue() + ERA_OFFSET;
+    private static final int N_ERA_CONSTANTS = NEWERA.getValue() + ERA_OFFSET;
 
     /**
      * Serialization version.
@@ -148,6 +158,7 @@ public final class JapaneseEra
         KNOWN_ERAS[1] = TAISHO;
         KNOWN_ERAS[2] = SHOWA;
         KNOWN_ERAS[3] = HEISEI;
+        KNOWN_ERAS[4] = NEWERA;
         for (int i = N_ERA_CONSTANTS; i < ERA_CONFIG.length; i++) {
             CalendarDate date = ERA_CONFIG[i].getSinceDate();
             LocalDate isoDate = LocalDate.of(date.getYear(), date.getMonth(), date.getDayOfMonth());
@@ -189,9 +200,13 @@ public final class JapaneseEra
     /**
      * Obtains an instance of {@code JapaneseEra} from an {@code int} value.
      * <p>
-     * The {@link #SHOWA} era that contains 1970-01-01 (ISO calendar system) has the value 1
+     * The {@link #SHOWA} era that contains 1970-01-01 (ISO calendar system) has the value 1.
      * Later era is numbered 2 ({@link #HEISEI}). Earlier eras are numbered 0 ({@link #TAISHO}),
      * -1 ({@link #MEIJI}), only Meiji and later eras are supported.
+     * <p>
+     * In addition to the known era singletons, values for additional
+     * eras may be defined. Those values are the {@link Era#getValue()}
+     * of corresponding eras from the {@link #values()} method.
      *
      * @param japaneseEra  the era to represent
      * @return the {@code JapaneseEra} singleton, not null
@@ -210,6 +225,8 @@ public final class JapaneseEra
      * <p>
      * The string must match exactly the name of the era.
      * (Extraneous whitespace characters are not permitted.)
+     * <p>
+     * Valid era names are the names of eras returned from {@link #values()}.
      *
      * @param japaneseEra  the japaneseEra name; non-null
      * @return the {@code JapaneseEra} singleton, never null
@@ -226,7 +243,9 @@ public final class JapaneseEra
     }
 
     /**
-     * Returns an array of JapaneseEras.
+     * Returns an array of JapaneseEras. The array may contain eras defined
+     * by the Japanese government beyond the known era singletons.
+     *
      * <p>
      * This method may be used to iterate over the JapaneseEras as follows:
      * <pre>
@@ -389,7 +408,7 @@ public final class JapaneseEra
     //-----------------------------------------------------------------------
     /**
      * Writes the object using a
-     * <a href="../../../serialized-form.html#java.time.chrono.Ser">dedicated serialized form</a>.
+     * <a href="{@docRoot}/serialized-form.html#java.time.chrono.Ser">dedicated serialized form</a>.
      * @serialData
      * <pre>
      *  out.writeByte(5);        // identifies a JapaneseEra

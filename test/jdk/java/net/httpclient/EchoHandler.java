@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 import com.sun.net.httpserver.*;
 import java.net.*;
-import jdk.incubator.http.*;
+import java.net.http.*;
 import java.io.*;
 import java.util.concurrent.*;
 import javax.net.ssl.*;
@@ -32,14 +32,15 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
-import jdk.testlibrary.SimpleSSLContext;
-import static jdk.incubator.http.HttpRequest.*;
-import static jdk.incubator.http.HttpResponse.*;
+import jdk.test.lib.net.SimpleSSLContext;
+import static java.net.http.HttpRequest.*;
+import static java.net.http.HttpResponse.*;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class EchoHandler implements HttpHandler {
+    static final Path CWD = Paths.get(".");
     public EchoHandler() {}
 
     @Override
@@ -53,7 +54,7 @@ public class EchoHandler implements HttpHandler {
             map1.add("X-Hello", "world");
             map1.add("X-Bye", "universe");
             String fixedrequest = map.getFirst("XFixed");
-            File outfile = File.createTempFile("foo", "bar");
+            File outfile = Files.createTempFile(CWD, "foo", "bar").toFile();
             FileOutputStream fos = new FileOutputStream(outfile);
             int count = (int) is.transferTo(fos);
             is.close();

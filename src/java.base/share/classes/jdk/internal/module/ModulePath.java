@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,10 +43,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -218,7 +216,7 @@ public class ModulePath implements ModuleFinder {
         try {
             attrs = Files.readAttributes(entry, BasicFileAttributes.class);
         } catch (NoSuchFileException e) {
-            return Collections.emptyMap();
+            return Map.of();
         } catch (IOException ioe) {
             throw new FindException(ioe);
         }
@@ -237,7 +235,7 @@ public class ModulePath implements ModuleFinder {
             ModuleReference mref = readModule(entry, attrs);
             if (mref != null) {
                 String name = mref.descriptor().name();
-                return Collections.singletonMap(name, mref);
+                return Map.of(name, mref);
             }
 
             // not recognized
@@ -360,7 +358,7 @@ public class ModulePath implements ModuleFinder {
         URI uri = mref.location().orElse(null);
         if (uri != null) {
             if (uri.getScheme().equalsIgnoreCase("file")) {
-                Path file = Paths.get(uri);
+                Path file = Path.of(uri);
                 return file.getFileName().toString();
             } else {
                 return uri.toString();
@@ -548,7 +546,7 @@ public class ModulePath implements ModuleFinder {
                     = new BufferedReader(new InputStreamReader(in, "UTF-8"));
                 String cn;
                 while ((cn = nextLine(reader)) != null) {
-                    if (cn.length() > 0) {
+                    if (!cn.isEmpty()) {
                         String pn = packageName(cn);
                         if (!packages.contains(pn)) {
                             String msg = "Provider class " + cn + " not in module";
@@ -601,7 +599,7 @@ public class ModulePath implements ModuleFinder {
         mn = Patterns.REPEATING_DOTS.matcher(mn).replaceAll(".");
 
         // drop leading dots
-        if (mn.length() > 0 && mn.charAt(0) == '.')
+        if (!mn.isEmpty() && mn.charAt(0) == '.')
             mn = Patterns.LEADING_DOTS.matcher(mn).replaceAll("");
 
         // drop trailing dots

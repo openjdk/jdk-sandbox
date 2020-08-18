@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.jtt.jdk;
 
 import java.util.AbstractList;
@@ -67,6 +69,7 @@ public class UnsafeAllocateInstance01 extends JTTTest {
         runTest("testInstance");
     }
 
+    @Ignore("https://bugs.openjdk.java.net/browse/JDK-8153540")
     @Test
     public void run1() throws Throwable {
         runTest("testClassForException", UnsafeAllocateInstance01[].class);

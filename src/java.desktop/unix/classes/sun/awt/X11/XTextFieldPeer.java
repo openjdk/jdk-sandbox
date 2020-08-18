@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -281,13 +281,16 @@ final class XTextFieldPeer extends XComponentPeer implements TextFieldPeer {
 
     @Override
     public void setFont(Font f) {
+        boolean isChanged = false;
         synchronized (getStateLock()) {
             font = f;
             if (xtext != null && xtext.getFont() != f) {
                 xtext.setFont(font);
+                isChanged = true;
             }
         }
-        xtext.validate();
+        if (isChanged)
+            xtext.validate();
     }
 
     /**
@@ -407,14 +410,6 @@ final class XTextFieldPeer extends XComponentPeer implements TextFieldPeer {
             else
                 xtext.processMouseEventImpl(mouseEvent);
         }
-    }
-
-    /**
-     * DEPRECATED
-     */
-    @Override
-    public Dimension minimumSize() {
-        return getMinimumSize();
     }
 
     @Override

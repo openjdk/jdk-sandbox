@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSPROMOTIONMANAGER_HPP
-#define SHARE_VM_GC_PARALLEL_PSPROMOTIONMANAGER_HPP
+#ifndef SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_HPP
+#define SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_HPP
 
 #include "gc/parallel/psPromotionLAB.hpp"
 #include "gc/shared/copyFailedInfo.hpp"
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/preservedMarks.hpp"
 #include "gc/shared/taskqueue.hpp"
-#include "memory/allocation.hpp"
 #include "memory/padded.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -50,7 +49,7 @@ class MutableSpace;
 class PSOldGen;
 class ParCompactionManager;
 
-class PSPromotionManager VALUE_OBJ_CLASS_SPEC {
+class PSPromotionManager {
   friend class PSScavenge;
   friend class PSRefProcTaskExecutor;
  private:
@@ -160,7 +159,7 @@ class PSPromotionManager VALUE_OBJ_CLASS_SPEC {
   static PSPromotionManager* gc_thread_promotion_manager(uint index);
   static PSPromotionManager* vm_thread_promotion_manager();
 
-  static bool steal_depth(int queue_num, int* seed, StarTask& t);
+  static bool steal_depth(int queue_num, StarTask& t);
 
   PSPromotionManager();
 
@@ -213,4 +212,4 @@ class PSPromotionManager VALUE_OBJ_CLASS_SPEC {
   void push_contents(oop obj);
 };
 
-#endif // SHARE_VM_GC_PARALLEL_PSPROMOTIONMANAGER_HPP
+#endif // SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_HPP

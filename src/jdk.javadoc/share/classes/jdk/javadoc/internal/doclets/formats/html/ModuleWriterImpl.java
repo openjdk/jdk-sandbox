@@ -50,13 +50,14 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation.PageMode;
 import jdk.javadoc.internal.doclets.formats.html.markup.RawHtml;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.ModuleSummaryWriter;
 import jdk.javadoc.internal.doclets.toolkit.util.CommentHelper;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
-import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
 
 /**
  * Class to generate file for each module contents in the right-hand frame. This will list all the
@@ -171,6 +172,8 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
      */
     protected HtmlTree sectionTree = HtmlTree.SECTION();
 
+    private final Navigation navBar;
+
     /**
      * Constructor to construct ModuleWriter object and to generate "moduleName-summary.html" file.
      *
@@ -181,6 +184,7 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         super(configuration, configuration.docPaths.moduleSummary(mdle));
         this.mdle = mdle;
         this.moduleMode = configuration.docEnv.getModuleMode();
+        this.navBar = new Navigation(mdle, configuration, fixedNavDiv, PageMode.MODULE, path);
         computeModulesData();
     }
 
@@ -196,7 +200,13 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
                 ? HtmlTree.HEADER()
                 : bodyTree;
         addTop(htmlTree);
-        addNavLinks(true, htmlTree);
+        navBar.setDisplaySummaryModuleDescLink(!utils.getFullBody(mdle).isEmpty() && !configuration.nocomment);
+        navBar.setDisplaySummaryModulesLink(display(requires) || display(indirectModules));
+        navBar.setDisplaySummaryPackagesLink(display(packages) || display(indirectPackages)
+                || display(indirectOpenPackages));
+        navBar.setDisplaySummaryServicesLink(displayServices(uses, usesTrees) || displayServices(provides.keySet(), providesTrees));
+        navBar.setUserHeader(getUserHeaderFooter(true));
+        htmlTree.addContent(navBar.getContent(true));
         if (configuration.allowTag(HtmlTag.HEADER)) {
             bodyTree.addContent(htmlTree);
         }
@@ -386,14 +396,14 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         (utils.getBlockTags(mdle, DocTree.Kind.PROVIDES)).forEach((tree) -> {
             TypeElement t = ch.getServiceType(configuration, tree);
             if (t != null) {
-                providesTrees.put(t, commentTagsToContent(tree, mdle, ch.getDescription(configuration, tree), false));
+                providesTrees.put(t, commentTagsToContent(tree, mdle, ch.getDescription(configuration, tree), false, true));
             }
         });
         // Generate the map of all services listed using @uses, and the description.
         (utils.getBlockTags(mdle, DocTree.Kind.USES)).forEach((tree) -> {
             TypeElement t = ch.getServiceType(configuration, tree);
             if (t != null) {
-                usesTrees.put(t, commentTagsToContent(tree, mdle, ch.getDescription(configuration, tree), false));
+                usesTrees.put(t, commentTagsToContent(tree, mdle, ch.getDescription(configuration, tree), false, true));
             }
         });
     }
@@ -528,7 +538,7 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
                 String amrText = resources.getText("doclet.Indirect_Requires_Summary");
                 String amrTableSummary = resources.getText("doclet.Member_Table_Summary",
                         amrText,
-                        configuration.getText("doclet.modules"));
+                        resources.getText("doclet.modules"));
                 Content amrCaption = getTableCaption(new StringContent(amrText));
                 Table amrTable = getTable3(amrCaption, amrTableSummary, HtmlStyle.requiresSummary,
                             requiresTableHeader);
@@ -612,8 +622,7 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
                 .addTab(resources.getText("doclet.Exported_Packages_Summary"), this::isExported)
                 .addTab(resources.getText("doclet.Opened_Packages_Summary"), this::isOpened)
                 .addTab(resources.getText("doclet.Concealed_Packages_Summary"), this::isConcealed)
-                .setTabScript(i -> String.format("showPkgs(%d);", i))
-                .setTabScriptVariable("packages");
+                .setTabScript(i -> String.format("show(%d);", i));
 
         // Determine whether to show the "Exported To" and "Opened To" columns,
         // based on whether such columns would provide "useful" info.
@@ -914,47 +923,6 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
     }
 
     /**
-     * Add summary details to the navigation bar.
-     *
-     * @param subDiv the content tree to which the summary detail links will be added
-     */
-    @Override
-    protected void addSummaryDetailLinks(Content subDiv) {
-        Content div = HtmlTree.DIV(getNavSummaryLinks());
-        subDiv.addContent(div);
-    }
-
-    /**
-     * Get summary links for navigation bar.
-     *
-     * @return the content tree for the navigation summary links
-     */
-    protected Content getNavSummaryLinks() {
-        Content li = HtmlTree.LI(contents.moduleSubNavLabel);
-        li.addContent(Contents.SPACE);
-        Content ulNav = HtmlTree.UL(HtmlStyle.subNavList, li);
-        Content liNav = new HtmlTree(HtmlTag.LI);
-        liNav.addContent(!utils.getFullBody(mdle).isEmpty() && !configuration.nocomment
-                ? links.createLink(SectionName.MODULE_DESCRIPTION, contents.navModuleDescription)
-                : contents.navModuleDescription);
-        addNavGap(liNav);
-        liNav.addContent((display(requires) || display(indirectModules))
-                ? links.createLink(SectionName.MODULES, contents.navModules)
-                : contents.navModules);
-        addNavGap(liNav);
-        liNav.addContent((display(packages)
-                || display(indirectPackages) || display(indirectOpenPackages))
-                ? links.createLink(SectionName.PACKAGES, contents.navPackages)
-                : contents.navPackages);
-        addNavGap(liNav);
-        liNav.addContent((displayServices(uses, usesTrees) || displayServices(provides.keySet(), providesTrees))
-                ? links.createLink(SectionName.SERVICES, contents.navServices)
-                : contents.navServices);
-        ulNav.addContent(liNav);
-        return ulNav;
-    }
-
-    /**
      * {@inheritDoc}
      */
     @Override
@@ -975,7 +943,8 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         Content htmlTree = (configuration.allowTag(HtmlTag.FOOTER))
                 ? HtmlTree.FOOTER()
                 : contentTree;
-        addNavLinks(false, htmlTree);
+        navBar.setUserFooter(getUserHeaderFooter(false));
+        htmlTree.addContent(navBar.getContent(false));
         addBottom(htmlTree);
         if (configuration.allowTag(HtmlTag.FOOTER)) {
             contentTree.addContent(htmlTree);
@@ -1016,16 +985,5 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
             }
             li.addContent(deprDiv);
         }
-    }
-
-    /**
-     * Get this module link.
-     *
-     * @return a content tree for the module link
-     */
-    @Override
-    protected Content getNavLinkModule() {
-        Content li = HtmlTree.LI(HtmlStyle.navBarCell1Rev, contents.moduleLabel);
-        return li;
     }
 }

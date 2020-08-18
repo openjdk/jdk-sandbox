@@ -321,9 +321,9 @@ LIR_OpTypeCheck::LIR_OpTypeCheck(LIR_Code code, LIR_Opr result, LIR_Opr object, 
   , _tmp2(tmp2)
   , _tmp3(tmp3)
   , _fast_check(fast_check)
-  , _stub(stub)
   , _info_for_patch(info_for_patch)
   , _info_for_exception(info_for_exception)
+  , _stub(stub)
   , _profiled_method(NULL)
   , _profiled_bci(-1)
   , _should_profile(false)
@@ -348,9 +348,9 @@ LIR_OpTypeCheck::LIR_OpTypeCheck(LIR_Code code, LIR_Opr object, LIR_Opr array, L
   , _tmp2(tmp2)
   , _tmp3(tmp3)
   , _fast_check(false)
-  , _stub(NULL)
   , _info_for_patch(NULL)
   , _info_for_exception(info_for_exception)
+  , _stub(NULL)
   , _profiled_method(NULL)
   , _profiled_bci(-1)
   , _should_profile(false)
@@ -367,14 +367,14 @@ LIR_OpTypeCheck::LIR_OpTypeCheck(LIR_Code code, LIR_Opr object, LIR_Opr array, L
 LIR_OpArrayCopy::LIR_OpArrayCopy(LIR_Opr src, LIR_Opr src_pos, LIR_Opr dst, LIR_Opr dst_pos, LIR_Opr length,
                                  LIR_Opr tmp, ciArrayKlass* expected_type, int flags, CodeEmitInfo* info)
   : LIR_Op(lir_arraycopy, LIR_OprFact::illegalOpr, info)
-  , _tmp(tmp)
   , _src(src)
   , _src_pos(src_pos)
   , _dst(dst)
   , _dst_pos(dst_pos)
-  , _flags(flags)
+  , _length(length)
+  , _tmp(tmp)
   , _expected_type(expected_type)
-  , _length(length) {
+  , _flags(flags) {
   _stub = new ArrayCopyStub(this);
 }
 
@@ -472,7 +472,6 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     case lir_pop:            // input always valid, result and info always invalid
     case lir_return:         // input always valid, result and info always invalid
     case lir_leal:           // input and result always valid, info always invalid
-    case lir_neg:            // input and result always valid, info always invalid
     case lir_monaddr:        // input and result always valid, info always invalid
     case lir_null_check:     // input and info always valid, result always invalid
     case lir_move:           // input and result always valid, may have info
@@ -580,6 +579,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     case lir_rem:
     case lir_sqrt:
     case lir_abs:
+    case lir_neg:
     case lir_logic_and:
     case lir_logic_or:
     case lir_logic_xor:
@@ -917,10 +917,13 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       break;
     }
   default:
-    ShouldNotReachHere();
+    op->visit(this);
   }
 }
 
+void LIR_Op::visit(LIR_OpVisitState* state) {
+  ShouldNotReachHere();
+}
 
 void LIR_OpVisitState::do_stub(CodeStub* stub) {
   if (stub != NULL) {
@@ -1659,7 +1662,6 @@ const char * LIR_Op::name() const {
      case lir_null_check:            s = "null_check";    break;
      case lir_return:                s = "return";        break;
      case lir_safepoint:             s = "safepoint";     break;
-     case lir_neg:                   s = "neg";           break;
      case lir_leal:                  s = "leal";          break;
      case lir_branch:                s = "branch";        break;
      case lir_cond_float_branch:     s = "flt_cond_br";   break;
@@ -1687,6 +1689,7 @@ const char * LIR_Op::name() const {
      case lir_div_strictfp:          s = "div_strictfp";  break;
      case lir_rem:                   s = "rem";           break;
      case lir_abs:                   s = "abs";           break;
+     case lir_neg:                   s = "neg";           break;
      case lir_sqrt:                  s = "sqrt";          break;
      case lir_logic_and:             s = "logic_and";     break;
      case lir_logic_or:              s = "logic_or";      break;

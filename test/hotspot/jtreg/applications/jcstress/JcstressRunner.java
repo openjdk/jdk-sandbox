@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,11 @@ package applications.jcstress;
 import jdk.test.lib.Utils;
 import jdk.test.lib.artifacts.Artifact;
 import jdk.test.lib.artifacts.ArtifactResolver;
+import jdk.test.lib.artifacts.ArtifactResolverException;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -42,7 +42,7 @@ import java.util.List;
  * jcstress tests wrapper
  */
 @Artifact(organization = "org.openjdk.jcstress", name = "jcstress-tests-all",
-        revision = "0.3", extension = "jar", unpack = false)
+        revision = "0.5", extension = "jar", unpack = false)
 public class JcstressRunner {
 
     public static final String MAIN_CLASS = "org.openjdk.jcstress.Main";
@@ -51,11 +51,11 @@ public class JcstressRunner {
         Map<String, Path> artifacts;
         try {
             artifacts = ArtifactResolver.resolve(JcstressRunner.class);
-        } catch (FileNotFoundException e) {
+        } catch (ArtifactResolverException e) {
             throw new Error("TESTBUG: Can not resolve artifacts for "
                             + JcstressRunner.class.getName(), e);
         }
-        return artifacts.get("org.openjdk.jcstress.jcstress-tests-all-0.3")
+        return artifacts.get("org.openjdk.jcstress.jcstress-tests-all-0.5")
                         .toAbsolutePath();
     }
 
@@ -89,6 +89,11 @@ public class JcstressRunner {
     private static String[] getCmd(String[] args) {
         List<String> extraFlags = new ArrayList<>();
 
+        // java.io.tmpdir is set for both harness and forked VM so temporary files
+        // created like this File.createTempFile("jcstress", "stdout");
+        // don't pollute temporary directories
+        extraFlags.add("-Djava.io.tmpdir=" + System.getProperty("user.dir"));
+
         // add jar with jcstress tests and harness to CP
         extraFlags.add("-cp");
         extraFlags.add(System.getProperty("java.class.path")
@@ -97,16 +102,11 @@ public class JcstressRunner {
 
         extraFlags.add(MAIN_CLASS);
 
-        String[] javaOpts = Utils.getTestJavaOpts();
-        // disable flags auto-detection
-        if (0 == javaOpts.length) {
+        extraFlags.add("--jvmArgs");
+        extraFlags.add("-Djava.io.tmpdir=" + System.getProperty("user.dir"));
+        for (String jvmArg : Utils.getTestJavaOpts()) {
             extraFlags.add("--jvmArgs");
-            extraFlags.add("");
-        } else {
-            for (String jvmArg : Utils.getTestJavaOpts()) {
-                extraFlags.add("--jvmArgs");
-                extraFlags.add(jvmArg);
-            }
+            extraFlags.add(jvmArg);
         }
 
         String[] result = new String[extraFlags.size() + args.length];
@@ -115,4 +115,3 @@ public class JcstressRunner {
         return result;
     }
 }
-

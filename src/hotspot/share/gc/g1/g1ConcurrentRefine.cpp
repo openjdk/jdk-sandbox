@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1ConcurrentRefine.hpp"
 #include "gc/g1/g1ConcurrentRefineThread.hpp"
 #include "logging/log.hpp"
@@ -143,7 +144,7 @@ void G1ConcurrentRefineThreadControl::stop() {
 STATIC_ASSERT(sizeof(LP64_ONLY(jint) NOT_LP64(jshort)) <= (sizeof(size_t)/2));
 const size_t max_yellow_zone = LP64_ONLY(max_jint) NOT_LP64(max_jshort);
 const size_t max_green_zone = max_yellow_zone / 2;
-const size_t max_red_zone = INT_MAX; // For dcqs.set_max_completed_queue.
+const size_t max_red_zone = INT_MAX; // For dcqs.set_max_completed_buffers.
 STATIC_ASSERT(max_yellow_zone <= max_red_zone);
 
 // Range check assertions for green zone values.
@@ -377,7 +378,7 @@ void G1ConcurrentRefine::update_zones(double update_rs_time,
 void G1ConcurrentRefine::adjust(double update_rs_time,
                                 size_t update_rs_processed_buffers,
                                 double goal_ms) {
-  DirtyCardQueueSet& dcqs = JavaThread::dirty_card_queue_set();
+  DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
 
   if (G1UseAdaptiveConcRefinement) {
     update_zones(update_rs_time, update_rs_processed_buffers, goal_ms);
@@ -385,21 +386,22 @@ void G1ConcurrentRefine::adjust(double update_rs_time,
     // Change the barrier params
     if (max_num_threads() == 0) {
       // Disable dcqs notification when there are no threads to notify.
-      dcqs.set_process_completed_threshold(INT_MAX);
+      dcqs.set_process_completed_buffers_threshold(DirtyCardQueueSet::ProcessCompletedBuffersThresholdNever);
     } else {
       // Worker 0 is the primary; wakeup is via dcqs notification.
       STATIC_ASSERT(max_yellow_zone <= INT_MAX);
       size_t activate = activation_threshold(0);
-      dcqs.set_process_completed_threshold((int)activate);
+      dcqs.set_process_completed_buffers_threshold(activate);
     }
-    dcqs.set_max_completed_queue((int)red_zone());
+    dcqs.set_max_completed_buffers(red_zone());
   }
 
   size_t curr_queue_size = dcqs.completed_buffers_num();
-  if (curr_queue_size >= yellow_zone()) {
-    dcqs.set_completed_queue_padding(curr_queue_size);
+  if ((dcqs.max_completed_buffers() > 0) &&
+      (curr_queue_size >= yellow_zone())) {
+    dcqs.set_completed_buffers_padding(curr_queue_size);
   } else {
-    dcqs.set_completed_queue_padding(0);
+    dcqs.set_completed_buffers_padding(0);
   }
   dcqs.notify_if_necessary();
 }
@@ -425,15 +427,15 @@ void G1ConcurrentRefine::maybe_activate_more_threads(uint worker_id, size_t num_
 }
 
 bool G1ConcurrentRefine::do_refinement_step(uint worker_id) {
-  DirtyCardQueueSet& dcqs = JavaThread::dirty_card_queue_set();
+  DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
 
   size_t curr_buffer_num = dcqs.completed_buffers_num();
   // If the number of the buffers falls down into the yellow zone,
   // that means that the transition period after the evacuation pause has ended.
   // Since the value written to the DCQS is the same for all threads, there is no
   // need to synchronize.
-  if (dcqs.completed_queue_padding() > 0 && curr_buffer_num <= yellow_zone()) {
-    dcqs.set_completed_queue_padding(0);
+  if (dcqs.completed_buffers_padding() > 0 && curr_buffer_num <= yellow_zone()) {
+    dcqs.set_completed_buffers_padding(0);
   }
 
   maybe_activate_more_threads(worker_id, curr_buffer_num);

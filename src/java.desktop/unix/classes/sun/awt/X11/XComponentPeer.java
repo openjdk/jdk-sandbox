@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -730,14 +730,6 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
         return Toolkit.getDefaultToolkit().checkImage(img, w, h, o);
     }
 
-    public Dimension preferredSize() {
-        return getPreferredSize();
-    }
-
-    public Dimension minimumSize() {
-        return getMinimumSize();
-    }
-
     public Insets getInsets() {
         return new Insets(0, 0, 0, 0);
     }
@@ -746,15 +738,6 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
     }
 
     public void endValidate() {
-    }
-
-
-    /**
-     * DEPRECATED:  Replaced by getInsets().
-     */
-
-    public Insets insets() {
-        return getInsets();
     }
 
     // Returns true if we are inside begin/endLayout and
@@ -790,7 +773,7 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
 
     static int[] getRGBvals(Color c) {
 
-        int rgbvals[] = new int[3];
+        int[] rgbvals = new int[3];
 
         rgbvals[0] = c.getRed();
         rgbvals[1] = c.getGreen();
@@ -805,7 +788,7 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
     static final int FOREGROUND_COLOR = 3;
 
     public Color[] getGUIcolors() {
-        Color c[] = new Color[4];
+        Color[] c = new Color[4];
         float backb, highb, shadowb, hue, saturation;
         c[BACKGROUND_COLOR] = getWinBackground();
         if (c[BACKGROUND_COLOR] == null) {
@@ -924,7 +907,7 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
     /**
      * Draw a 3D oval.
      */
-    public void draw3DOval(Graphics g, Color colors[],
+    public void draw3DOval(Graphics g, Color[] colors,
                            int x, int y, int w, int h, boolean raised)
         {
         Color c = g.getColor();
@@ -935,7 +918,7 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
         g.setColor(c);
     }
 
-    public void draw3DRect(Graphics g, Color colors[],
+    public void draw3DRect(Graphics g, Color[] colors,
                            int x, int y, int width, int height, boolean raised)
         {
             Color c = g.getColor();
@@ -991,8 +974,8 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
         int v1 = thickness + (int)(f * (val - min));
         int v2 = (int)(f * vis);
         int w2 = thickness-4;
-        int tpts_x[] = new int[3];
-        int tpts_y[] = new int[3];
+        int[] tpts_x = new int[3];
+        int[] tpts_y = new int[3];
 
         if (length < 3*w2 ) {
             v1 = v2 = 0;

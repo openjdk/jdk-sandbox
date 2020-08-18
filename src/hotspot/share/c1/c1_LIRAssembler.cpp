@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/assembler.inline.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_Instruction.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
@@ -30,6 +31,7 @@
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciInstance.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "runtime/os.hpp"
 
 void LIR_Assembler::patching_epilog(PatchingStub* patch, LIR_PatchCode patch_code, Register obj, CodeEmitInfo* info) {
@@ -97,9 +99,9 @@ PatchingStub::PatchID LIR_Assembler::patching_id(CodeEmitInfo* info) {
 
 
 LIR_Assembler::LIR_Assembler(Compilation* c):
-   _compilation(c)
- , _masm(c->masm())
- , _bs(Universe::heap()->barrier_set())
+   _masm(c->masm())
+ , _bs(BarrierSet::barrier_set())
+ , _compilation(c)
  , _frame_map(c->frame_map())
  , _current_block(NULL)
  , _pending_non_safepoint(NULL)
@@ -110,6 +112,9 @@ LIR_Assembler::LIR_Assembler(Compilation* c):
 
 
 LIR_Assembler::~LIR_Assembler() {
+  // The unwind handler label may be unnbound if this destructor is invoked because of a bail-out.
+  // Reset it here to avoid an assertion.
+  _unwind_handler_entry.reset();
 }
 
 
@@ -275,7 +280,8 @@ void LIR_Assembler::emit_lir_list(LIR_List* list) {
       // branches since they include block and stub names.  Also print
       // patching moves since they generate funny looking code.
       if (op->code() == lir_branch ||
-          (op->code() == lir_move && op->as_Op1()->patch_code() != lir_patch_none)) {
+          (op->code() == lir_move && op->as_Op1()->patch_code() != lir_patch_none) ||
+          (op->code() == lir_leal && op->as_Op1()->patch_code() != lir_patch_none)) {
         stringStream st;
         op->print_on(&st);
         _masm->block_comment(st.as_string());
@@ -440,10 +446,8 @@ void LIR_Assembler::emit_rtcall(LIR_OpRTCall* op) {
 void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
   verify_oop_map(op->info());
 
-  if (os::is_MP()) {
-    // must align calls sites, otherwise they can't be updated atomically on MP hardware
-    align_call(op->code());
-  }
+  // must align calls sites, otherwise they can't be updated atomically
+  align_call(op->code());
 
   // emit the static call stub stuff out of line
   emit_static_call_stub();
@@ -548,12 +552,8 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
       pop(op->in_opr());
       break;
 
-    case lir_neg:
-      negate(op->in_opr(), op->result_opr());
-      break;
-
     case lir_leal:
-      leal(op->in_opr(), op->result_opr());
+      leal(op->in_opr(), op->result_opr(), op->patch_code(), op->info());
       break;
 
     case lir_null_check: {
@@ -742,6 +742,10 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
     case lir_tan:
     case lir_log10:
       intrinsic_op(op->code(), op->in_opr1(), op->in_opr2(), op->result_opr(), op);
+      break;
+
+    case lir_neg:
+      negate(op->in_opr1(), op->result_opr(), op->in_opr2());
       break;
 
     case lir_logic_and:

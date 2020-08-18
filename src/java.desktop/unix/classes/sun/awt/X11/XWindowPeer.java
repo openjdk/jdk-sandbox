@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -557,13 +557,6 @@ class XWindowPeer extends XPanelPeer implements WindowPeer,
                                   oldState, newState));
     }
 
-    /**
-     * DEPRECATED:  Replaced by getInsets().
-     */
-    public Insets insets() {
-        return getInsets();
-    }
-
     boolean isAutoRequestFocus() {
         if (XToolkit.isToolkitThread()) {
             return AWTAccessor.getWindowAccessor().isAutoRequestFocus((Window)target);
@@ -682,7 +675,7 @@ class XWindowPeer extends XPanelPeer implements WindowPeer,
         int largestAmt = 0;
         int curScreenNum = ((X11GraphicsDevice)getGraphicsConfiguration().getDevice()).getScreen();
         int newScreenNum = 0;
-        GraphicsDevice gds[] = XToolkit.localEnv.getScreenDevices();
+        GraphicsDevice[] gds = XToolkit.localEnv.getScreenDevices();
         GraphicsConfiguration newGC = null;
         Rectangle screenBounds;
 

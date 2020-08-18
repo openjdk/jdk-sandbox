@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,4 +27,6 @@
  * Graal is intended to be used with multiple JVM's so makes no use of or reference to classes for a
  * specific JVM.
  */
+
+
 package org.graalvm.compiler.phases;

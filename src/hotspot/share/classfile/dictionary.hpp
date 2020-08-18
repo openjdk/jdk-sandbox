@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,13 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_DICTIONARY_HPP
-#define SHARE_VM_CLASSFILE_DICTIONARY_HPP
+#ifndef SHARE_CLASSFILE_DICTIONARY_HPP
+#define SHARE_CLASSFILE_DICTIONARY_HPP
 
 #include "classfile/protectionDomainCache.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.hpp"
-#include "runtime/orderAccess.hpp"
 #include "utilities/hashtable.hpp"
 #include "utilities/ostream.hpp"
 
@@ -37,8 +36,7 @@ class DictionaryEntry;
 class BoolObjectClosure;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// The data structure for the class loader data dictionaries (and the shared system
-// dictionary).
+// The data structure for the class loader data dictionaries.
 
 class Dictionary : public Hashtable<InstanceKlass*, mtClass> {
   friend class VMStructs;
@@ -53,10 +51,8 @@ class Dictionary : public Hashtable<InstanceKlass*, mtClass> {
 
   DictionaryEntry* get_entry(int index, unsigned int hash, Symbol* name);
 
-  void clean_cached_protection_domains(BoolObjectClosure* is_alive, DictionaryEntry* probe);
+  void clean_cached_protection_domains(DictionaryEntry* probe);
 
-protected:
-  static size_t entry_size();
 public:
   Dictionary(ClassLoaderData* loader_data, int table_size, bool resizable = false);
   Dictionary(ClassLoaderData* loader_data, int table_size, HashtableBucket<mtClass>* t, int number_of_entries, bool resizable = false);
@@ -71,22 +67,12 @@ public:
 
   InstanceKlass* find_class(int index, unsigned int hash, Symbol* name);
 
-  InstanceKlass* find_shared_class(int index, unsigned int hash, Symbol* name);
-
-  // GC support
-  void oops_do(OopClosure* f);
-  void roots_oops_do(OopClosure* strong, OopClosure* weak);
-
   void classes_do(void f(InstanceKlass*));
   void classes_do(void f(InstanceKlass*, TRAPS), TRAPS);
-  void all_entries_do(void f(InstanceKlass*, ClassLoaderData*));
+  void all_entries_do(KlassClosure* closure);
   void classes_do(MetaspaceClosure* it);
 
-  void unlink(BoolObjectClosure* is_alive);
-  void remove_classes_in_error_state();
-
-  // Unload classes whose defining loaders are unloaded
-  void do_unloading(BoolObjectClosure* is_alive);
+  void unlink();
 
   // Protection domains
   InstanceKlass* find(unsigned int hash, Symbol* name, Handle protection_domain);
@@ -96,9 +82,6 @@ public:
   void add_protection_domain(int index, unsigned int hash,
                              InstanceKlass* klass,
                              Handle protection_domain, TRAPS);
-
-  // Sharing support
-  void reorder_dictionary_for_sharing() NOT_CDS_RETURN;
 
   void print_on(outputStream* st) const;
   void verify();
@@ -170,12 +153,8 @@ class DictionaryEntry : public HashtableEntry<InstanceKlass*, mtClass> {
   ProtectionDomainEntry* pd_set() const            { return _pd_set; }
   void set_pd_set(ProtectionDomainEntry* new_head) {  _pd_set = new_head; }
 
-  ProtectionDomainEntry* pd_set_acquire() const    {
-    return OrderAccess::load_acquire(&_pd_set);
-  }
-  void release_set_pd_set(ProtectionDomainEntry* new_head) {
-    OrderAccess::release_store(&_pd_set, new_head);
-  }
+  ProtectionDomainEntry* pd_set_acquire() const;
+  void release_set_pd_set(ProtectionDomainEntry* new_head);
 
   // Tells whether the initiating class' protection domain can access the klass in this entry
   bool is_valid_protection_domain(Handle protection_domain) {
@@ -191,7 +170,7 @@ class DictionaryEntry : public HashtableEntry<InstanceKlass*, mtClass> {
     for (ProtectionDomainEntry* current = pd_set(); // accessed at a safepoint
                                 current != NULL;
                                 current = current->_next) {
-      current->_pd_cache->object_no_keepalive()->verify();
+      guarantee(oopDesc::is_oop_or_null(current->_pd_cache->object_no_keepalive()), "Invalid oop");
     }
   }
 
@@ -325,4 +304,4 @@ public:
     return (SymbolPropertyEntry*) Hashtable<Symbol*, mtSymbol>::bucket(i);
   }
 };
-#endif // SHARE_VM_CLASSFILE_DICTIONARY_HPP
+#endif // SHARE_CLASSFILE_DICTIONARY_HPP

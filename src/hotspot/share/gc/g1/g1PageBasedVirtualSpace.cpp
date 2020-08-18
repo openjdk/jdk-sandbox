@@ -34,8 +34,8 @@
 #include "utilities/bitMap.inline.hpp"
 
 G1PageBasedVirtualSpace::G1PageBasedVirtualSpace(ReservedSpace rs, size_t used_size, size_t page_size) :
-  _low_boundary(NULL), _high_boundary(NULL), _committed(mtGC), _page_size(0), _special(false),
-  _dirty(mtGC), _executable(false) {
+  _low_boundary(NULL), _high_boundary(NULL), _tail_size(0), _page_size(0),
+  _committed(mtGC), _dirty(mtGC), _special(false), _executable(false) {
   initialize_with_page_size(rs, used_size, page_size);
 }
 
@@ -98,6 +98,12 @@ size_t G1PageBasedVirtualSpace::reserved_size() const {
 
 size_t G1PageBasedVirtualSpace::uncommitted_size()  const {
   return reserved_size() - committed_size();
+}
+
+void G1PageBasedVirtualSpace::commit_and_set_special() {
+  commit_internal(addr_to_page_index(_low_boundary), addr_to_page_index(_high_boundary));
+  _special = true;
+  _dirty.initialize(reserved_size()/_page_size);
 }
 
 size_t G1PageBasedVirtualSpace::addr_to_page_index(char* addr) const {
@@ -232,14 +238,19 @@ private:
   char* volatile _cur_addr;
   char* const _start_addr;
   char* const _end_addr;
-  size_t const _page_size;
+  size_t _page_size;
 public:
   G1PretouchTask(char* start_address, char* end_address, size_t page_size) :
     AbstractGangTask("G1 PreTouch"),
     _cur_addr(start_address),
     _start_addr(start_address),
     _end_addr(end_address),
-    _page_size(page_size) {
+    _page_size(0) {
+#ifdef LINUX
+    _page_size = UseTransparentHugePages ? (size_t)os::vm_page_size(): page_size;
+#else
+    _page_size = page_size;
+#endif
   }
 
   virtual void work(uint worker_id) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,7 +53,6 @@ public class TestVerifyGCType {
         testFullAndRemark();
         testConcurrentMark();
         testBadVerificationType();
-        testUnsupportedCollector();
     }
 
     private static void testAllVerificationEnabled() throws Exception {
@@ -61,9 +60,10 @@ public class TestVerifyGCType {
         OutputAnalyzer output = testWithVerificationType(new String[0]);
         output.shouldHaveExitValue(0);
 
-        verifyCollection("Pause Young", true, false, true, output.getStdout());
-        verifyCollection("Pause Initial Mark", true, false, true, output.getStdout());
-        verifyCollection("Pause Mixed", true, false, true, output.getStdout());
+        verifyCollection("Pause Young (Normal)", true, false, true, output.getStdout());
+        verifyCollection("Pause Young (Concurrent Start)", true, false, true, output.getStdout());
+        verifyCollection("Pause Young (Mixed)", true, false, true, output.getStdout());
+        verifyCollection("Pause Young (Prepare Mixed)", true, false, true, output.getStdout());
         verifyCollection("Pause Remark", false, true, false, output.getStdout());
         verifyCollection("Pause Cleanup", false, true, false, output.getStdout());
         verifyCollection("Pause Full", true, true, true, output.getStdout());
@@ -73,12 +73,13 @@ public class TestVerifyGCType {
         OutputAnalyzer output;
         // Test with all explicitly enabled
         output = testWithVerificationType(new String[] {
-                "young-only", "initial-mark", "mixed", "remark", "cleanup", "full"});
+                "young-normal", "concurrent-start", "mixed", "remark", "cleanup", "full"});
         output.shouldHaveExitValue(0);
 
-        verifyCollection("Pause Young", true, false, true, output.getStdout());
-        verifyCollection("Pause Initial Mark", true, false, true, output.getStdout());
-        verifyCollection("Pause Mixed", true, false, true, output.getStdout());
+        verifyCollection("Pause Young (Normal)", true, false, true, output.getStdout());
+        verifyCollection("Pause Young (Concurrent Start)", true, false, true, output.getStdout());
+        verifyCollection("Pause Young (Mixed)", true, false, true, output.getStdout());
+        verifyCollection("Pause Young (Prepare Mixed)", true, false, true, output.getStdout());
         verifyCollection("Pause Remark", false, true, false, output.getStdout());
         verifyCollection("Pause Cleanup", false, true, false, output.getStdout());
         verifyCollection("Pause Full", true, true, true, output.getStdout());
@@ -90,9 +91,10 @@ public class TestVerifyGCType {
         output = testWithVerificationType(new String[] {"remark", "full"});
         output.shouldHaveExitValue(0);
 
-        verifyCollection("Pause Young", false, false, false, output.getStdout());
-        verifyCollection("Pause Initial Mark", false, false, false, output.getStdout());
-        verifyCollection("Pause Mixed", false, false, false, output.getStdout());
+        verifyCollection("Pause Young (Normal)", false, false, false, output.getStdout());
+        verifyCollection("Pause Young (Concurrent Start)", false, false, false, output.getStdout());
+        verifyCollection("Pause Young (Mixed)", false, false, false, output.getStdout());
+        verifyCollection("Pause Young (Prepare Mixed)", false, false, false, output.getStdout());
         verifyCollection("Pause Remark", false, true, false, output.getStdout());
         verifyCollection("Pause Cleanup", false, false, false, output.getStdout());
         verifyCollection("Pause Full", true, true, true, output.getStdout());
@@ -101,12 +103,13 @@ public class TestVerifyGCType {
     private static void testConcurrentMark() throws Exception {
         OutputAnalyzer output;
         // Test with full and remark
-        output = testWithVerificationType(new String[] {"initial-mark", "cleanup", "remark"});
+        output = testWithVerificationType(new String[] {"concurrent-start", "cleanup", "remark"});
         output.shouldHaveExitValue(0);
 
-        verifyCollection("Pause Young", false, false, false, output.getStdout());
-        verifyCollection("Pause Initial Mark", true, false, true, output.getStdout());
-        verifyCollection("Pause Mixed", false, false, false, output.getStdout());
+        verifyCollection("Pause Young (Normal)", false, false, false, output.getStdout());
+        verifyCollection("Pause Young (Concurrent Start)", true, false, true, output.getStdout());
+        verifyCollection("Pause Young (Mixed)", false, false, false, output.getStdout());
+        verifyCollection("Pause Young (Prepare Mixed)", false, false, false, output.getStdout());
         verifyCollection("Pause Remark", false, true, false, output.getStdout());
         verifyCollection("Pause Cleanup", false, true, false, output.getStdout());
         verifyCollection("Pause Full", false, false, false, output.getStdout());
@@ -118,21 +121,14 @@ public class TestVerifyGCType {
         output = testWithVerificationType(new String[] {"old"});
         output.shouldHaveExitValue(0);
 
-        output.shouldMatch("VerifyGCType: '.*' is unknown. Available types are: young-only, initial-mark, mixed, remark, cleanup and full");
-        verifyCollection("Pause Young", true, false, true, output.getStdout());
-        verifyCollection("Pause Initial Mark", true, false, true, output.getStdout());
-        verifyCollection("Pause Mixed", true, false, true, output.getStdout());
+        output.shouldMatch("VerifyGCType: '.*' is unknown. Available types are: young-normal, concurrent-start, mixed, remark, cleanup and full");
+        verifyCollection("Pause Young (Normal)", true, false, true, output.getStdout());
+        verifyCollection("Pause Young (Concurrent Start)", true, false, true, output.getStdout());
+        verifyCollection("Pause Young (Mixed)", true, false, true, output.getStdout());
+        verifyCollection("Pause Young (Prepare Mixed)", true, false, true, output.getStdout());
         verifyCollection("Pause Remark", false, true, false, output.getStdout());
         verifyCollection("Pause Cleanup", false, true, false, output.getStdout());
         verifyCollection("Pause Full", true, true, true, output.getStdout());
-    }
-
-    private static void testUnsupportedCollector() throws Exception {
-        OutputAnalyzer output;
-        // Test bad gc
-        output = testWithBadGC();
-        output.shouldHaveExitValue(0);
-        output.shouldMatch("VerifyGCType is not supported by this collector.");
     }
 
     private static OutputAnalyzer testWithVerificationType(String[] types) throws Exception {
@@ -145,6 +141,8 @@ public class TestVerifyGCType {
                                        "-Xlog:gc,gc+start,gc+verify=info",
                                        "-Xms16m",
                                        "-Xmx16m",
+                                       "-XX:ParallelGCThreads=1",
+                                       "-XX:G1HeapWastePercent=1",
                                        "-XX:+VerifyBeforeGC",
                                        "-XX:+VerifyAfterGC",
                                        "-XX:+VerifyDuringGC"});
@@ -157,17 +155,6 @@ public class TestVerifyGCType {
 
         ProcessBuilder procBuilder =  ProcessTools.createJavaProcessBuilder(basicOpts.toArray(
                                                                             new String[basicOpts.size()]));
-        OutputAnalyzer analyzer = new OutputAnalyzer(procBuilder.start());
-        return analyzer;
-    }
-
-    private static OutputAnalyzer testWithBadGC() throws Exception {
-        ProcessBuilder procBuilder =  ProcessTools.createJavaProcessBuilder(new String[] {
-                "-XX:+UseParallelGC",
-                "-XX:+UnlockDiagnosticVMOptions",
-                "-XX:VerifyGCType=full",
-                "-version"});
-
         OutputAnalyzer analyzer = new OutputAnalyzer(procBuilder.start());
         return analyzer;
     }
@@ -247,21 +234,23 @@ public class TestVerifyGCType {
             // Allocate some memory that can be turned into garbage.
             Object[] used = alloc1M();
 
+            wb.youngGC(); // young-normal
+
             // Trigger the different GCs using the WhiteBox API.
             wb.fullGC();  // full
 
             // Memory have been promoted to old by full GC. Free
             // some memory to be reclaimed by concurrent cycle.
             partialFree(used);
-            wb.g1StartConcMarkCycle(); // initial-mark, remark and cleanup
+            wb.g1StartConcMarkCycle(); // concurrent-start, remark and cleanup
 
             // Sleep to make sure concurrent cycle is done
             while (wb.g1InConcurrentMark()) {
                 Thread.sleep(1000);
             }
 
-            // Trigger two young GCs, first will be young-only, second will be mixed.
-            wb.youngGC(); // young-only
+            // Trigger two young GCs, first will be young-prepare-mixed, second will be mixed.
+            wb.youngGC(); // young-prepare-mixed
             wb.youngGC(); // mixed
         }
 

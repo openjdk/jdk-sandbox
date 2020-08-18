@@ -23,17 +23,19 @@
 
 /*
  * @test
- * @bug      4749567 8071982 8175200 8186332 8185371
+ * @bug      4749567 8071982 8175200 8186332 8185371 8182765
  * @summary  Test the output for -header, -footer, -nooverview, -nodeprecatedlist, -nonavbar, -notree,
  *           -stylesheetfile, --main-stylesheet, --add-stylesheet options.
  * @author   Bhavesh Patel
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestOptions
  */
 
 import java.io.File;
+
+import javadoc.tester.JavadocTester;
 
 public class TestOptions extends JavadocTester {
 
@@ -43,7 +45,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testHeaderFooter() {
+    public void testHeaderFooter() {
         javadoc("-d", "out-1",
                 "-header", "Test header",
                 "-footer", "Test footer",
@@ -57,7 +59,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testNoOverview() {
+    public void testNoOverview() {
         javadoc("-d", "out-4",
                 "-nooverview",
                 "-sourcepath", testSrc,
@@ -69,7 +71,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testNoDeprecatedList() {
+    public void testNoDeprecatedList() {
         javadoc("-d", "out-5",
                 "-nodeprecatedlist",
                 "-sourcepath", testSrc,
@@ -80,7 +82,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testNoNavbar() {
+    public void testNoNavbar() {
         javadoc("-d", "out-6",
                 "-nonavbar",
                 "-bottom", "Bottom text",
@@ -93,7 +95,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testNoTree() {
+    public void testNoTree() {
         javadoc("-d", "out-7",
                 "-notree",
                 "-sourcepath", testSrc,
@@ -106,7 +108,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testStylesheetFile() {
+    public void testStylesheetFile() {
         javadoc("-d", "out-8",
                 "-stylesheetfile", new File(testSrc, "custom-stylesheet.css").getAbsolutePath(),
                 "-sourcepath", testSrc,
@@ -119,7 +121,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testStylesheetFileAltOption() {
+    public void testStylesheetFileAltOption() {
         javadoc("-d", "out-stylesheet-file",
                 "--main-stylesheet", new File(testSrc, "custom-stylesheet.css").getAbsolutePath(),
                 "-sourcepath", testSrc,
@@ -132,7 +134,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testAdditionalStylesheetFile() {
+    public void testAdditionalStylesheetFile() {
         javadoc("-d", "out-additional-css",
                 "--add-stylesheet", new File(testSrc, "additional-stylesheet-1.css").getAbsolutePath(),
                 "--add-stylesheet", new File(testSrc, "additional-stylesheet-2.css").getAbsolutePath(),
@@ -151,7 +153,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testInvalidStylesheetFile() {
+    public void testInvalidStylesheetFile() {
         javadoc("-d", "out-invalid-css",
                 "--main-stylesheet", new File(testSrc, "custom-stylesheet-1.css").getAbsolutePath(),
                 "-sourcepath", testSrc,
@@ -164,7 +166,7 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testInvalidAdditionalStylesheetFiles() {
+    public void testInvalidAdditionalStylesheetFiles() {
         javadoc("-d", "out-invalid-additional-css",
                 "--add-stylesheet", new File(testSrc, "additional-stylesheet-4.css").getAbsolutePath(),
                 "-sourcepath", testSrc,
@@ -177,10 +179,11 @@ public class TestOptions extends JavadocTester {
     }
 
     @Test
-    void testLinkSource() {
+    public void testLinkSource() {
         javadoc("-d", "out-9",
                 "-linksource",
                 "-javafx",
+                "--disable-javafx-strict-checks",
                 "-sourcepath", testSrc,
                 "-package",
                 "linksource");
@@ -198,7 +201,7 @@ public class TestOptions extends JavadocTester {
 
         checkOutput("src-html/linksource/AnnotationTypeField.html", true,
                 "<title>Source code</title>",
-                "<span class=\"sourceLineNo\">031</span><a name=\"line.31\">"
+                "<span class=\"sourceLineNo\">031</span><a id=\"line.31\">"
                 + "@Documented public @interface AnnotationTypeField {</a>");
 
         checkOutput("linksource/Properties.html", true,
@@ -206,12 +209,12 @@ public class TestOptions extends JavadocTester {
                 + "Properties</a>",
                 "<pre>public&nbsp;java.lang.Object <a href="
                 + "\"../src-html/linksource/Properties.html#line.31\">someProperty</a></pre>",
-                "<pre>public&nbsp;java.lang.Object&nbsp;<a href="
+                "<pre class=\"methodSignature\">public&nbsp;java.lang.Object&nbsp;<a href="
                 + "\"../src-html/linksource/Properties.html#line.31\">someProperty</a>()</pre>");
 
         checkOutput("src-html/linksource/Properties.html", true,
                 "<title>Source code</title>",
-                "<span class=\"sourceLineNo\">031</span><a name=\"line.31\">    "
+                "<span class=\"sourceLineNo\">031</span><a id=\"line.31\">    "
                 + "public Object someProperty() {</a>");
 
         checkOutput("linksource/SomeClass.html", true,
@@ -221,18 +224,18 @@ public class TestOptions extends JavadocTester {
                 + "field</a></pre>",
                 "<pre>public&nbsp;<a href=\"../src-html/linksource/SomeClass.html#line.33\">"
                 + "SomeClass</a>()</pre>",
-                "<pre>public&nbsp;int&nbsp;<a href=\"../src-html/linksource/SomeClass.html#line.36\">"
+                "<pre class=\"methodSignature\">public&nbsp;int&nbsp;<a href=\"../src-html/linksource/SomeClass.html#line.36\">"
                 + "method</a>()</pre>");
 
         checkOutput("src-html/linksource/SomeClass.html", true,
                 "<title>Source code</title>",
-                "<span class=\"sourceLineNo\">029</span><a name=\"line.29\">"
+                "<span class=\"sourceLineNo\">029</span><a id=\"line.29\">"
                 + "public class SomeClass {</a>",
-                "<span class=\"sourceLineNo\">031</span><a name=\"line.31\">    "
+                "<span class=\"sourceLineNo\">031</span><a id=\"line.31\">    "
                 + "public int field;</a>",
-                "<span class=\"sourceLineNo\">033</span><a name=\"line.33\">    "
+                "<span class=\"sourceLineNo\">033</span><a id=\"line.33\">    "
                 + "public SomeClass() {</a>",
-                "<span class=\"sourceLineNo\">036</span><a name=\"line.36\">    "
+                "<span class=\"sourceLineNo\">036</span><a id=\"line.36\">    "
                 + "public int method() {</a>");
 
         checkOutput("linksource/SomeEnum.html", true,
@@ -244,12 +247,47 @@ public class TestOptions extends JavadocTester {
                 + "\"../src-html/linksource/SomeEnum.html#line.30\">VALUE2</a></pre>");
 
         checkOutput("src-html/linksource/SomeEnum.html", true,
+                "<span class=\"sourceLineNo\">029</span><a id=\"line.29\">    VALUE1,</a>",
+                "<span class=\"sourceLineNo\">030</span><a id=\"line.30\">    VALUE2</a>");
+    }
+
+    @Test
+    public void testLinkSource_html4() {
+        javadoc("-d", "out-9-html4",
+                "-html4",
+                "-linksource",
+                "-javafx",
+                "--disable-javafx-strict-checks",
+                "-sourcepath", testSrc,
+                "-package",
+                "linksource");
+        checkExit(Exit.OK);
+
+        checkOutput("src-html/linksource/AnnotationTypeField.html", true,
+                "<span class=\"sourceLineNo\">031</span><a name=\"line.31\">"
+                + "@Documented public @interface AnnotationTypeField {</a>");
+
+        checkOutput("src-html/linksource/Properties.html", true,
+                "<span class=\"sourceLineNo\">031</span><a name=\"line.31\">    "
+                + "public Object someProperty() {</a>");
+
+        checkOutput("src-html/linksource/SomeClass.html", true,
+                "<span class=\"sourceLineNo\">029</span><a name=\"line.29\">"
+                + "public class SomeClass {</a>",
+                "<span class=\"sourceLineNo\">031</span><a name=\"line.31\">    "
+                + "public int field;</a>",
+                "<span class=\"sourceLineNo\">033</span><a name=\"line.33\">    "
+                + "public SomeClass() {</a>",
+                "<span class=\"sourceLineNo\">036</span><a name=\"line.36\">    "
+                + "public int method() {</a>");
+
+        checkOutput("src-html/linksource/SomeEnum.html", true,
                 "<span class=\"sourceLineNo\">029</span><a name=\"line.29\">    VALUE1,</a>",
                 "<span class=\"sourceLineNo\">030</span><a name=\"line.30\">    VALUE2</a>");
     }
 
     @Test
-    void testNoQualifier() {
+    public void testNoQualifier() {
         javadoc("-d", "out-10",
                 "-noqualifier", "pkg",
                 "-sourcepath", testSrc,

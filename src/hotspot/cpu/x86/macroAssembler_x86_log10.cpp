@@ -27,14 +27,9 @@
 #include "precompiled.hpp"
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
-#include "runtime/stubRoutines.hpp"
 #include "macroAssembler_x86.hpp"
-
-#ifdef _MSC_VER
-#define ALIGNED_(x) __declspec(align(x))
-#else
-#define ALIGNED_(x) __attribute__ ((aligned(x)))
-#endif
+#include "runtime/stubRoutines.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 /******************************************************************************/
 //                     ALGORITHM DESCRIPTION - LOG10()
@@ -63,17 +58,17 @@
 
 #ifdef _LP64
 // The 64 bit code is at most SSE2 compliant
-ALIGNED_(16) juint _HIGHSIGMASK_log10[] =
+ATTRIBUTE_ALIGNED(16) juint _HIGHSIGMASK_log10[] =
 {
     0xf8000000UL, 0xffffffffUL, 0x00000000UL, 0xffffe000UL
 };
 
-ALIGNED_(16) juint _LOG10_E[] =
+ATTRIBUTE_ALIGNED(16) juint _LOG10_E[] =
 {
     0x00000000UL, 0x3fdbc000UL, 0xbf2e4108UL, 0x3f5a7a6cUL
 };
 
-ALIGNED_(16) juint _L_tbl_log10[] =
+ATTRIBUTE_ALIGNED(16) juint _L_tbl_log10[] =
 {
     0x509f7800UL, 0x3fd34413UL, 0x1f12b358UL, 0x3d1fef31UL, 0x80333400UL,
     0x3fd32418UL, 0xc671d9d0UL, 0xbcf542bfUL, 0x51195000UL, 0x3fd30442UL,
@@ -181,12 +176,12 @@ ALIGNED_(16) juint _L_tbl_log10[] =
     0x00000000UL
 };
 
-ALIGNED_(16) juint _log2_log10[] =
+ATTRIBUTE_ALIGNED(16) juint _log2_log10[] =
 {
     0x509f7800UL, 0x3f934413UL, 0x1f12b358UL, 0x3cdfef31UL
 };
 
-ALIGNED_(16) juint _coeff_log10[] =
+ATTRIBUTE_ALIGNED(16) juint _coeff_log10[] =
 {
     0xc1a5f12eUL, 0x40358874UL, 0x64d4ef0dUL, 0xc0089309UL, 0x385593b1UL,
     0xc025c917UL, 0xdc963467UL, 0x3ffc6a02UL, 0x7f9d3aa1UL, 0x4016ab9fUL,
@@ -203,7 +198,7 @@ ALIGNED_(16) juint _coeff_log10[] =
 void MacroAssembler::fast_log10(XMMRegister xmm0, XMMRegister xmm1, XMMRegister xmm2, XMMRegister xmm3, XMMRegister xmm4, XMMRegister xmm5, XMMRegister xmm6, XMMRegister xmm7, Register eax, Register ecx, Register edx, Register r11) {
   Label L_2TAG_PACKET_0_0_2, L_2TAG_PACKET_1_0_2, L_2TAG_PACKET_2_0_2, L_2TAG_PACKET_3_0_2;
   Label L_2TAG_PACKET_4_0_2, L_2TAG_PACKET_5_0_2, L_2TAG_PACKET_6_0_2, L_2TAG_PACKET_7_0_2;
-  Label L_2TAG_PACKET_8_0_2, L_2TAG_PACKET_9_0_2, B1_2, B1_3, B1_4, B1_5, start;
+  Label L_2TAG_PACKET_8_0_2, L_2TAG_PACKET_9_0_2, B1_2, B1_3, B1_5, start;
 
   assert_different_registers(r11, eax, ecx, edx);
 
@@ -387,7 +382,7 @@ void MacroAssembler::fast_log10(XMMRegister xmm0, XMMRegister xmm1, XMMRegister 
 }
 #else
 // The 32 bit code is at most SSE2 compliant
-ALIGNED_(16) juint _static_const_table_log10[] =
+ATTRIBUTE_ALIGNED(16) juint _static_const_table_log10[] =
 {
     0x509f7800UL, 0x3fd34413UL, 0x1f12b358UL, 0x3d1fef31UL, 0x80333400UL,
     0x3fd32418UL, 0xc671d9d0UL, 0xbcf542bfUL, 0x51195000UL, 0x3fd30442UL,

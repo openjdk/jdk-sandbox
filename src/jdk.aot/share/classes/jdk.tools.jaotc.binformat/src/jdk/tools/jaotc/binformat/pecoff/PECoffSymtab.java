@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+
+
 package jdk.tools.jaotc.binformat.pecoff;
 
 import java.nio.ByteBuffer;
@@ -28,19 +30,17 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 
 import jdk.tools.jaotc.binformat.pecoff.PECoff.IMAGE_SYMBOL;
-import jdk.tools.jaotc.binformat.pecoff.PECoffSymbol;
-import jdk.tools.jaotc.binformat.pecoff.PECoffByteBuffer;
 
 final class PECoffSymtab {
     ArrayList<PECoffSymbol> symbols = new ArrayList<>();
 
     /**
-     * number of symbols added
+     * Number of symbols added.
      */
     private int symbolCount;
 
     /**
-     * String holding symbol table strings
+     * String holding symbol table strings.
      */
     private final StringBuilder strTabContent;
 
@@ -51,7 +51,7 @@ final class PECoffSymtab {
     private int strTabNrOfBytes;
 
     /**
-     * String holding Linker Directives
+     * String holding Linker Directives.
      */
     private final StringBuilder directives;
 

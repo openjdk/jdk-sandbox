@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_INTERPRETER_LINKRESOLVER_HPP
-#define SHARE_VM_INTERPRETER_LINKRESOLVER_HPP
+#ifndef SHARE_INTERPRETER_LINKRESOLVER_HPP
+#define SHARE_INTERPRETER_LINKRESOLVER_HPP
 
 #include "oops/method.hpp"
 
@@ -159,21 +159,21 @@ class LinkInfo : public StackObj {
   LinkInfo(Klass* resolved_klass, Symbol* name, Symbol* signature, Klass* current_klass,
            AccessCheck check_access = needs_access_check,
            constantTag tag = JVM_CONSTANT_Invalid) :
-    _resolved_klass(resolved_klass),
-    _name(name), _signature(signature), _current_klass(current_klass), _current_method(methodHandle()),
+    _name(name),
+    _signature(signature), _resolved_klass(resolved_klass), _current_klass(current_klass), _current_method(methodHandle()),
     _check_access(check_access == needs_access_check), _tag(tag) {}
 
   LinkInfo(Klass* resolved_klass, Symbol* name, Symbol* signature, const methodHandle& current_method,
            AccessCheck check_access = needs_access_check,
            constantTag tag = JVM_CONSTANT_Invalid) :
-    _resolved_klass(resolved_klass),
-    _name(name), _signature(signature), _current_klass(current_method->method_holder()), _current_method(current_method),
+    _name(name),
+    _signature(signature), _resolved_klass(resolved_klass), _current_klass(current_method->method_holder()), _current_method(current_method),
     _check_access(check_access == needs_access_check), _tag(tag) {}
 
   // Case where we just find the method and don't check access against the current class
   LinkInfo(Klass* resolved_klass, Symbol*name, Symbol* signature) :
-    _resolved_klass(resolved_klass),
-    _name(name), _signature(signature), _current_klass(NULL), _current_method(methodHandle()),
+    _name(name),
+    _signature(signature), _resolved_klass(resolved_klass), _current_klass(NULL), _current_method(methodHandle()),
     _check_access(false), _tag(JVM_CONSTANT_Invalid) {}
 
   // accessors
@@ -211,8 +211,8 @@ class LinkResolver: AllStatic {
                                                 Handle *method_type_result, TRAPS);
  JVMCI_ONLY(public:) // Needed for CompilerToVM.resolveMethod()
   // Not Linktime so doesn't take LinkInfo
-  static methodHandle lookup_instance_method_in_klasses (
-                                       Klass* klass, Symbol* name, Symbol* signature, TRAPS);
+  static methodHandle lookup_instance_method_in_klasses (Klass* klass, Symbol* name, Symbol* signature,
+                                                         Klass::PrivateLookupMode private_mode, TRAPS);
  JVMCI_ONLY(private:)
 
   // Similar loader constraint checking functions that throw
@@ -347,5 +347,19 @@ class LinkResolver: AllStatic {
   static void resolve_invoke(CallInfo& result, Handle& recv,
                              const methodHandle& attached_method,
                              Bytecodes::Code byte, TRAPS);
+
+ public:
+  // Only resolved method known.
+  static void throw_abstract_method_error(const methodHandle& resolved_method, TRAPS) {
+    throw_abstract_method_error(resolved_method, NULL, NULL, CHECK);
+  }
+  // Resolved method and receiver klass know.
+  static void throw_abstract_method_error(const methodHandle& resolved_method, Klass *recv_klass, TRAPS) {
+    throw_abstract_method_error(resolved_method, NULL, recv_klass, CHECK);
+  }
+  // Selected method is abstract.
+  static void throw_abstract_method_error(const methodHandle& resolved_method,
+                                          const methodHandle& selected_method,
+                                          Klass *recv_klass, TRAPS);
 };
-#endif // SHARE_VM_INTERPRETER_LINKRESOLVER_HPP
+#endif // SHARE_INTERPRETER_LINKRESOLVER_HPP

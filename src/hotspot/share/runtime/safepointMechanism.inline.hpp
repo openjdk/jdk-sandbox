@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP
-#define SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP
+#ifndef SHARE_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP
+#define SHARE_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP
 
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/safepoint.hpp"
@@ -47,7 +47,7 @@ bool SafepointMechanism::local_poll(Thread* thread) {
   }
 }
 
-bool SafepointMechanism::poll(Thread* thread) {
+bool SafepointMechanism::should_block(Thread* thread) {
   if (uses_thread_local_poll()) {
     return local_poll(thread);
   } else {
@@ -59,12 +59,11 @@ void SafepointMechanism::block_if_requested_local_poll(JavaThread *thread) {
   bool armed = local_poll_armed(thread); // load acquire, polling page -> op / global state
   if(armed) {
     // We could be armed for either a handshake operation or a safepoint
+    if (global_poll()) {
+      SafepointSynchronize::block(thread);
+    }
     if (thread->has_handshake()) {
       thread->handshake_process_by_self();
-    } else {
-      if (global_poll()) {
-        SafepointSynchronize::block(thread);
-      }
     }
   }
 }
@@ -88,4 +87,12 @@ void SafepointMechanism::disarm_local_poll(JavaThread* thread) {
   thread->set_polling_page(poll_disarmed_value());
 }
 
-#endif // SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP
+void SafepointMechanism::arm_local_poll_release(JavaThread* thread) {
+  thread->set_polling_page_release(poll_armed_value());
+}
+
+void SafepointMechanism::disarm_local_poll_release(JavaThread* thread) {
+  thread->set_polling_page_release(poll_disarmed_value());
+}
+
+#endif // SHARE_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP

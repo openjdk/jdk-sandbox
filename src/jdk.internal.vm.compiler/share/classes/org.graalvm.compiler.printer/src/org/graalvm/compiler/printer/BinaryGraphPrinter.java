@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,12 +20,17 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.printer;
 
 import static org.graalvm.compiler.graph.Edges.Type.Inputs;
 import static org.graalvm.compiler.graph.Edges.Type.Successors;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -46,6 +51,7 @@ import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.graph.NodeMap;
 import org.graalvm.compiler.graph.NodeSourcePosition;
+import org.graalvm.compiler.graph.SourceLanguagePosition;
 import org.graalvm.compiler.nodes.AbstractBeginNode;
 import org.graalvm.compiler.nodes.AbstractEndNode;
 import org.graalvm.compiler.nodes.AbstractMergeNode;
@@ -67,21 +73,30 @@ import org.graalvm.graphio.GraphOutput;
 import org.graalvm.graphio.GraphStructure;
 import org.graalvm.graphio.GraphTypes;
 
+import jdk.vm.ci.meta.JavaType;
 import jdk.vm.ci.meta.ResolvedJavaField;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
-import jdk.vm.ci.meta.ResolvedJavaType;
 import jdk.vm.ci.meta.Signature;
+import org.graalvm.graphio.GraphLocations;
 
 public class BinaryGraphPrinter implements
                 GraphStructure<BinaryGraphPrinter.GraphInfo, Node, NodeClass<?>, Edges>,
                 GraphBlocks<BinaryGraphPrinter.GraphInfo, Block, Node>,
                 GraphElements<ResolvedJavaMethod, ResolvedJavaField, Signature, NodeSourcePosition>,
+                GraphLocations<ResolvedJavaMethod, NodeSourcePosition, SourceLanguagePosition>,
                 GraphTypes, GraphPrinter {
     private final SnippetReflectionProvider snippetReflection;
     private final GraphOutput<BinaryGraphPrinter.GraphInfo, ResolvedJavaMethod> output;
 
     public BinaryGraphPrinter(DebugContext ctx, SnippetReflectionProvider snippetReflection) throws IOException {
-        this.output = ctx.buildOutput(GraphOutput.newBuilder(this).protocolVersion(5, 0).blocks(this).elements(this).types(this));
+        // @formatter:off
+        this.output = ctx.buildOutput(GraphOutput.newBuilder(this).
+                        protocolVersion(6, 0).
+                        blocks(this).
+                        elementsAndLocations(this, this).
+                        types(this)
+        );
+        // @formatter:on
         this.snippetReflection = snippetReflection;
     }
 
@@ -214,29 +229,23 @@ public class BinaryGraphPrinter implements
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void nodeProperties(GraphInfo info, Node node, Map<String, Object> props) {
         node.getDebugProperties((Map) props);
-        Graph graph = info.graph;
-        ControlFlowGraph cfg = info.cfg;
         NodeMap<Block> nodeToBlocks = info.nodeToBlocks;
-        if (cfg != null && DebugOptions.PrintGraphProbabilities.getValue(graph.getOptions()) && node instanceof FixedNode) {
-            try {
-                props.put("probability", cfg.blockFor(node).probability());
-            } catch (Throwable t) {
-                props.put("probability", 0.0);
-                props.put("probability-exception", t);
+
+        if (nodeToBlocks != null) {
+            Block block = getBlockForNode(node, nodeToBlocks);
+            if (block != null) {
+                props.put("relativeFrequency", block.getRelativeFrequency());
+                props.put("nodeToBlock", block);
             }
         }
 
-        try {
-            props.put("NodeCost-Size", node.estimatedNodeSize());
-            props.put("NodeCost-Cycles", node.estimatedNodeCycles());
-        } catch (Throwable t) {
-            props.put("node-cost-exception", t.getMessage());
-        }
+        props.put("nodeCostSize", node.estimatedNodeSize());
+        props.put("nodeCostCycles", node.estimatedNodeCycles());
 
         if (nodeToBlocks != null) {
             Object block = getBlockForNode(node, nodeToBlocks);
             if (block != null) {
-                props.put("node-to-block", block);
+                props.put("nodeToBlock", block);
             }
         }
 
@@ -274,13 +283,13 @@ public class BinaryGraphPrinter implements
         }
     }
 
-    private Object getBlockForNode(Node node, NodeMap<Block> nodeToBlocks) {
+    private Block getBlockForNode(Node node, NodeMap<Block> nodeToBlocks) {
         if (nodeToBlocks.isNew(node)) {
-            return "NEW (not in schedule)";
+            return null;
         } else {
             Block block = nodeToBlocks.get(node);
             if (block != null) {
-                return block.getId();
+                return block;
             } else if (node instanceof PhiNode) {
                 return getBlockForNode(((PhiNode) node).merge(), nodeToBlocks);
             }
@@ -380,8 +389,8 @@ public class BinaryGraphPrinter implements
         if (obj instanceof Class<?>) {
             return ((Class<?>) obj).getName();
         }
-        if (obj instanceof ResolvedJavaType) {
-            return ((ResolvedJavaType) obj).toJavaName();
+        if (obj instanceof JavaType) {
+            return ((JavaType) obj).toJavaName();
         }
         return null;
     }
@@ -488,6 +497,85 @@ public class BinaryGraphPrinter implements
     @Override
     public StackTraceElement methodStackTraceElement(ResolvedJavaMethod method, int bci, NodeSourcePosition pos) {
         return method.asStackTraceElement(bci);
+    }
+
+    @Override
+    public Iterable<SourceLanguagePosition> methodLocation(ResolvedJavaMethod method, int bci, NodeSourcePosition pos) {
+        StackTraceElement e = methodStackTraceElement(method, bci, pos);
+        class JavaSourcePosition implements SourceLanguagePosition {
+
+            @Override
+            public String toShortString() {
+                return e.toString();
+            }
+
+            @Override
+            public int getOffsetEnd() {
+                return -1;
+            }
+
+            @Override
+            public int getOffsetStart() {
+                return -1;
+            }
+
+            @Override
+            public int getLineNumber() {
+                return e.getLineNumber();
+            }
+
+            @Override
+            public URI getURI() {
+                String path = e.getFileName();
+                try {
+                    return path == null ? null : new URI(null, null, path, null);
+                } catch (URISyntaxException ex) {
+                    throw new IllegalArgumentException(ex);
+                }
+            }
+
+            @Override
+            public String getLanguage() {
+                return "Java";
+            }
+        }
+
+        List<SourceLanguagePosition> arr = new ArrayList<>();
+        arr.add(new JavaSourcePosition());
+        NodeSourcePosition at = pos;
+        while (at != null) {
+            SourceLanguagePosition cur = at.getSourceLanguage();
+            if (cur != null) {
+                arr.add(cur);
+            }
+            at = at.getCaller();
+        }
+        return arr;
+    }
+
+    @Override
+    public String locationLanguage(SourceLanguagePosition location) {
+        return location.getLanguage();
+    }
+
+    @Override
+    public URI locationURI(SourceLanguagePosition location) {
+        return location.getURI();
+    }
+
+    @Override
+    public int locationLineNumber(SourceLanguagePosition location) {
+        return location.getLineNumber();
+    }
+
+    @Override
+    public int locationOffsetStart(SourceLanguagePosition location) {
+        return location.getOffsetStart();
+    }
+
+    @Override
+    public int locationOffsetEnd(SourceLanguagePosition location) {
+        return location.getOffsetEnd();
     }
 
     static final class GraphInfo {

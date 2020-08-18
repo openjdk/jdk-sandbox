@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.common;
 
 import static org.graalvm.compiler.graph.Graph.NodeEvent.NODE_ADDED;
@@ -30,7 +32,7 @@ import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.spi.Simplifiable;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.phases.BasePhase;
-import org.graalvm.compiler.phases.common.util.HashSetNodeEventListener;
+import org.graalvm.compiler.phases.common.util.EconomicSetNodeEventListener;
 import org.graalvm.compiler.phases.tiers.PhaseContext;
 
 public class IterativeConditionalEliminationPhase extends BasePhase<PhaseContext> {
@@ -48,7 +50,7 @@ public class IterativeConditionalEliminationPhase extends BasePhase<PhaseContext
     @Override
     @SuppressWarnings("try")
     protected void run(StructuredGraph graph, PhaseContext context) {
-        HashSetNodeEventListener listener = new HashSetNodeEventListener().exclude(NODE_ADDED);
+        EconomicSetNodeEventListener listener = new EconomicSetNodeEventListener().exclude(NODE_ADDED);
         int count = 0;
         while (true) {
             try (NodeEventScope nes = graph.trackNodeEvents(listener)) {

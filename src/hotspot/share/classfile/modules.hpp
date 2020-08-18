@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 *
 * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,13 @@
 *
 */
 
-#ifndef SHARE_VM_CLASSFILE_MODULES_HPP
-#define SHARE_VM_CLASSFILE_MODULES_HPP
+#ifndef SHARE_CLASSFILE_MODULES_HPP
+#define SHARE_CLASSFILE_MODULES_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/handles.hpp"
 
+class ModuleEntryTable;
 class Symbol;
 
 class Modules : AllStatic {
@@ -122,6 +123,7 @@ public:
 
   // Return TRUE iff package is defined by loader
   static bool is_package_defined(Symbol* package_name, Handle h_loader, TRAPS);
+  static ModuleEntryTable* get_module_entry_table(Handle h_loader);
 };
 
-#endif // SHARE_VM_CLASSFILE_MODULES_HPP
+#endif // SHARE_CLASSFILE_MODULES_HPP

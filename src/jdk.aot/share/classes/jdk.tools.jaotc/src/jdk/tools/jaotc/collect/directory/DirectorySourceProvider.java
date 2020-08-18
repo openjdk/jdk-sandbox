@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+
+
 package jdk.tools.jaotc.collect.directory;
 
 import jdk.tools.jaotc.collect.ClassSource;
@@ -36,7 +38,7 @@ import java.nio.file.Path;
 public final class DirectorySourceProvider implements SourceProvider {
     private final FileSupport fileSupport;
     private final FileSystem fileSystem;
-    public final static String TYPE = "directory";
+    public static final String TYPE = "directory";
 
     public DirectorySourceProvider(FileSupport fileSupport) {
         this.fileSupport = fileSupport;

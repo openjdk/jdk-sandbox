@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,10 +20,14 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-/*
+ /*
  * @test
- * @bug 8149452 8151876
- * @summary Check the missing time zone names.
+ * @bug 8149452 8151876 8181157 8206965
+ * @modules java.base/sun.util.calendar
+ * @run main/othervm -Duser.language=de -Duser.country=DE Bug8149452
+ * @run main/othervm -Duser.language=ja -Duser.country=JP Bug8149452
+ * @run main/othervm -Duser.language=en -Duser.country=US Bug8149452
+ * @summary Check the missing time zone names for English, German and Japanese locales.
  */
 import java.text.DateFormatSymbols;
 import java.util.ArrayList;
@@ -34,7 +38,6 @@ import java.util.List;
 public class Bug8149452 {
 
     public static void main(String[] args) {
-
         List<String> listNotFound = new ArrayList<>();
         String[][] zoneStrings = DateFormatSymbols.getInstance()
                 .getZoneStrings();
@@ -42,10 +45,8 @@ public class Bug8149452 {
             if (!Arrays.stream(zoneStrings)
                     .anyMatch(zone -> tzID.equalsIgnoreCase(zone[0]))) {
                 // to ignore names for Etc/GMT[+-][0-9]+ which are not supported
-                // Also ignore the TimeZone DisplayNames with GMT[+-]:hh:mm
                 if (!tzID.startsWith("Etc/GMT")
-                        && !tzID.startsWith("GMT")
-                        && !TimeZone.getTimeZone(tzID).getDisplayName().startsWith("GMT")) {
+                        && !tzID.startsWith("GMT")) {
                     listNotFound.add(tzID);
                 }
             }
@@ -55,7 +56,5 @@ public class Bug8149452 {
             throw new RuntimeException("Test Failed: Time Zone Strings for "
                     + listNotFound + " not found");
         }
-
     }
-
 }

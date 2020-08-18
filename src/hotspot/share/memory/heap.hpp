@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_HEAP_HPP
-#define SHARE_VM_MEMORY_HEAP_HPP
+#ifndef SHARE_MEMORY_HEAP_HPP
+#define SHARE_MEMORY_HEAP_HPP
 
 #include "code/codeBlob.hpp"
 #include "memory/allocation.hpp"
@@ -32,7 +32,7 @@
 
 // Blocks
 
-class HeapBlock VALUE_OBJ_CLASS_SPEC {
+class HeapBlock {
   friend class VMStructs;
 
  public:
@@ -129,8 +129,6 @@ class CodeHeap : public CHeapObj<mtCode> {
 
   // Iteration helpers
   void*      next_used(HeapBlock* b) const;
-  HeapBlock* first_block() const;
-  HeapBlock* next_block(HeapBlock* b) const;
   HeapBlock* block_start(void* p) const;
 
   // to perform additional actions on creation of executable code
@@ -179,6 +177,12 @@ class CodeHeap : public CHeapObj<mtCode> {
   size_t alignment_offset()     const;           // offset of first byte of any block, within the enclosing alignment unit
   static size_t header_size();                   // returns the header size for each heap block
 
+  size_t segment_size()         const { return _segment_size; }  // for CodeHeapState
+  HeapBlock* first_block() const;                                // for CodeHeapState
+  HeapBlock* next_block(HeapBlock* b) const;                     // for CodeHeapState
+
+  FreeBlock* freelist()         const { return _freelist; }      // for CodeHeapState
+
   size_t allocated_in_freelist() const           { return _freelist_segments * CodeCacheSegmentSize; }
   int    freelist_length()       const           { return _freelist_length; } // number of elements in the freelist
 
@@ -219,4 +223,4 @@ public:
   void print()  PRODUCT_RETURN;
 };
 
-#endif // SHARE_VM_MEMORY_HEAP_HPP
+#endif // SHARE_MEMORY_HEAP_HPP

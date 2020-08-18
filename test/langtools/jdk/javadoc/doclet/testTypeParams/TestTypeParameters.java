@@ -23,18 +23,20 @@
 
 /*
  * @test
- * @bug      4927167 4974929 7010344 8025633 8081854
+ * @bug      4927167 4974929 7010344 8025633 8081854 8182765 8187288
  * @summary  When the type parameters are more than 10 characters in length,
  *           make sure there is a line break between type params and return type
  *           in member summary. Also, test for type parameter links in package-summary and
  *           class-use pages. The class/annotation pages should check for type
  *           parameter links in the class/annotation signature section when -linksource is set.
  * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestTypeParameters
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestTypeParameters extends JavadocTester {
 
@@ -44,7 +46,7 @@ public class TestTypeParameters extends JavadocTester {
     }
 
     @Test
-    void test1() {
+    public void test1() {
         javadoc("-d", "out-1",
                 "-use",
                 "-sourcepath", testSrc,
@@ -52,7 +54,7 @@ public class TestTypeParameters extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("pkg/C.html", true,
-                "<td class=\"colFirst\"><code>&lt;W extends java.lang.String,V extends "
+                "<td class=\"colFirst\"><code>&lt;W extends java.lang.String,&#8203;V extends "
                 + "java.util.List&gt;<br>java.lang.Object</code></td>",
                 "<code>&lt;T&gt;&nbsp;java.lang.Object</code>");
 
@@ -68,14 +70,29 @@ public class TestTypeParameters extends JavadocTester {
 
         // Nested type parameters
         checkOutput("pkg/C.html", true,
+                "<a id=\"formatDetails(java.util.Collection,java.util.Collection)\">\n"
+                + "<!--   -->\n"
+                + "</a>");
+    }
+
+    @Test
+    public void test1_html4() {
+        javadoc("-d", "out-1-html4",
+                "-html4",
+                "-use",
+                "-sourcepath", testSrc,
+                "pkg");
+        checkExit(Exit.OK);
+
+        // Nested type parameters
+        checkOutput("pkg/C.html", true,
                 "<a name=\"formatDetails-java.util.Collection-java.util.Collection-\">\n"
                 + "<!--   -->\n"
                 + "</a>");
     }
 
-
     @Test
-    void test2() {
+    public void test2() {
         javadoc("-d", "out-2",
                 "-linksource",
                 "-sourcepath", testSrc,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "services/lowMemoryDetector.hpp"
 #include "services/management.hpp"
 #include "services/memoryManager.hpp"
@@ -194,12 +194,12 @@ MetaspacePool::MetaspacePool() :
   MemoryPool("Metaspace", NonHeap, 0, calculate_max_size(), true, false) { }
 
 MemoryUsage MetaspacePool::get_memory_usage() {
-  size_t committed = MetaspaceAux::committed_bytes();
+  size_t committed = MetaspaceUtils::committed_bytes();
   return MemoryUsage(initial_size(), used_in_bytes(), committed, max_size());
 }
 
 size_t MetaspacePool::used_in_bytes() {
-  return MetaspaceAux::used_bytes();
+  return MetaspaceUtils::used_bytes();
 }
 
 size_t MetaspacePool::calculate_max_size() const {
@@ -211,10 +211,10 @@ CompressedKlassSpacePool::CompressedKlassSpacePool() :
   MemoryPool("Compressed Class Space", NonHeap, 0, CompressedClassSpaceSize, true, false) { }
 
 size_t CompressedKlassSpacePool::used_in_bytes() {
-  return MetaspaceAux::used_bytes(Metaspace::ClassType);
+  return MetaspaceUtils::used_bytes(Metaspace::ClassType);
 }
 
 MemoryUsage CompressedKlassSpacePool::get_memory_usage() {
-  size_t committed = MetaspaceAux::committed_bytes(Metaspace::ClassType);
+  size_t committed = MetaspaceUtils::committed_bytes(Metaspace::ClassType);
   return MemoryUsage(initial_size(), used_in_bytes(), committed, max_size());
 }

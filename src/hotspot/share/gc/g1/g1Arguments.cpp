@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2017, Red Hat, Inc. and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -27,30 +28,72 @@
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1CollectorPolicy.hpp"
 #include "gc/g1/g1HeapVerifier.hpp"
+#include "gc/g1/g1HeterogeneousCollectorPolicy.hpp"
 #include "gc/g1/heapRegion.hpp"
 #include "gc/shared/gcArguments.inline.hpp"
+#include "gc/shared/workerPolicy.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
-#include "runtime/vm_version.hpp"
 
 size_t G1Arguments::conservative_max_heap_alignment() {
   return HeapRegion::max_region_size();
 }
 
-void G1Arguments::initialize_flags() {
-  GCArguments::initialize_flags();
+void G1Arguments::initialize_verification_types() {
+  if (strlen(VerifyGCType) > 0) {
+    const char delimiter[] = " ,\n";
+    size_t length = strlen(VerifyGCType);
+    char* type_list = NEW_C_HEAP_ARRAY(char, length + 1, mtInternal);
+    strncpy(type_list, VerifyGCType, length + 1);
+    char* save_ptr;
+
+    char* token = strtok_r(type_list, delimiter, &save_ptr);
+    while (token != NULL) {
+      parse_verification_type(token);
+      token = strtok_r(NULL, delimiter, &save_ptr);
+    }
+    FREE_C_HEAP_ARRAY(char, type_list);
+  }
+}
+
+void G1Arguments::parse_verification_type(const char* type) {
+  if (strcmp(type, "young-normal") == 0) {
+    G1HeapVerifier::enable_verification_type(G1HeapVerifier::G1VerifyYoungNormal);
+  } else if (strcmp(type, "concurrent-start") == 0) {
+    G1HeapVerifier::enable_verification_type(G1HeapVerifier::G1VerifyConcurrentStart);
+  } else if (strcmp(type, "mixed") == 0) {
+    G1HeapVerifier::enable_verification_type(G1HeapVerifier::G1VerifyMixed);
+  } else if (strcmp(type, "remark") == 0) {
+    G1HeapVerifier::enable_verification_type(G1HeapVerifier::G1VerifyRemark);
+  } else if (strcmp(type, "cleanup") == 0) {
+    G1HeapVerifier::enable_verification_type(G1HeapVerifier::G1VerifyCleanup);
+  } else if (strcmp(type, "full") == 0) {
+    G1HeapVerifier::enable_verification_type(G1HeapVerifier::G1VerifyFull);
+  } else {
+    log_warning(gc, verify)("VerifyGCType: '%s' is unknown. Available types are: "
+                            "young-normal, concurrent-start, mixed, remark, cleanup and full", type);
+  }
+}
+
+void G1Arguments::initialize() {
+  GCArguments::initialize();
   assert(UseG1GC, "Error");
-  FLAG_SET_DEFAULT(ParallelGCThreads, Abstract_VM_Version::parallel_worker_threads());
+  FLAG_SET_DEFAULT(ParallelGCThreads, WorkerPolicy::parallel_worker_threads());
   if (ParallelGCThreads == 0) {
     assert(!FLAG_IS_DEFAULT(ParallelGCThreads), "The default value for ParallelGCThreads should not be 0.");
     vm_exit_during_initialization("The flag -XX:+UseG1GC can not be combined with -XX:ParallelGCThreads=0", NULL);
   }
 
-#if INCLUDE_ALL_GCS
+  // When dumping the CDS archive we want to reduce fragmentation by
+  // triggering a full collection. To get as low fragmentation as
+  // possible we only use one worker thread.
+  if (DumpSharedSpaces) {
+    FLAG_SET_ERGO(uint, ParallelGCThreads, 1);
+  }
+
   if (FLAG_IS_DEFAULT(G1ConcRefinementThreads)) {
     FLAG_SET_ERGO(uint, G1ConcRefinementThreads, ParallelGCThreads);
   }
-#endif
 
   // MarkStackSize will be set (if it hasn't been set by the user)
   // when concurrent marking is initialized.
@@ -89,7 +132,16 @@ void G1Arguments::initialize_flags() {
     FLAG_SET_DEFAULT(GCPauseIntervalMillis, MaxGCPauseMillis + 1);
   }
 
+  if (FLAG_IS_DEFAULT(ParallelRefProcEnabled) && ParallelGCThreads > 1) {
+    FLAG_SET_DEFAULT(ParallelRefProcEnabled, true);
+  }
+
   log_trace(gc)("MarkStackSize: %uk  MarkStackSizeMax: %uk", (unsigned int) (MarkStackSize / K), (uint) (MarkStackSizeMax / K));
+
+  // By default do not let the target stack size to be more than 1/4 of the entries
+  if (FLAG_IS_DEFAULT(GCDrainStackTargetSize)) {
+    FLAG_SET_ERGO(uintx, GCDrainStackTargetSize, MIN2(GCDrainStackTargetSize, (uintx)TASKQUEUE_SIZE / 4));
+  }
 
 #ifdef COMPILER2
   // Enable loop strip mining to offer better pause time guarantees
@@ -100,14 +152,14 @@ void G1Arguments::initialize_flags() {
     }
   }
 #endif
-}
 
-bool G1Arguments::parse_verification_type(const char* type) {
-  G1CollectedHeap::heap()->verifier()->parse_verification_type(type);
-  // Always return true because we want to parse all values.
-  return true;
+  initialize_verification_types();
 }
 
 CollectedHeap* G1Arguments::create_heap() {
-  return create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>();
+  if (AllocateOldGenAt != NULL) {
+    return create_heap_with_policy<G1CollectedHeap, G1HeterogeneousCollectorPolicy>();
+  } else {
+    return create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>();
+  }
 }

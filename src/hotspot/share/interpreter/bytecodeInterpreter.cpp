@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 // no precompiled headers
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.hpp"
+#include "gc/shared/threadLocalAllocBuffer.inline.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/bytecodeInterpreter.hpp"
 #include "interpreter/bytecodeInterpreter.inline.hpp"
@@ -33,18 +34,22 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/constantPool.inline.hpp"
+#include "oops/cpCache.inline.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/methodCounters.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/threadCritical.hpp"
 #include "utilities/exceptions.hpp"
@@ -489,13 +494,13 @@ BytecodeInterpreter::run(interpreterState istate) {
   interpreterState orig = istate;
 #endif
 
-  register intptr_t*        topOfStack = (intptr_t *)istate->stack(); /* access with STACK macros */
-  register address          pc = istate->bcp();
-  register jubyte opcode;
-  register intptr_t*        locals = istate->locals();
-  register ConstantPoolCache*    cp = istate->constants(); // method()->constants()->cache()
+  intptr_t*        topOfStack = (intptr_t *)istate->stack(); /* access with STACK macros */
+  address          pc = istate->bcp();
+  jubyte opcode;
+  intptr_t*        locals = istate->locals();
+  ConstantPoolCache*    cp = istate->constants(); // method()->constants()->cache()
 #ifdef LOTS_OF_REGS
-  register JavaThread*      THREAD = istate->thread();
+  JavaThread*      THREAD = istate->thread();
 #else
 #undef THREAD
 #define THREAD istate->thread()
@@ -584,7 +589,7 @@ BytecodeInterpreter::run(interpreterState istate) {
 /* 0xF8 */ &&opc_default,     &&opc_default,        &&opc_default,      &&opc_default,
 /* 0xFC */ &&opc_default,     &&opc_default,        &&opc_default,      &&opc_default
   };
-  register uintptr_t *dispatch_table = (uintptr_t*)&opclabels_data[0];
+  uintptr_t *dispatch_table = (uintptr_t*)&opclabels_data[0];
 #endif /* USELABELS */
 
 #ifdef ASSERT
@@ -684,7 +689,7 @@ BytecodeInterpreter::run(interpreterState istate) {
             if (hash != markOopDesc::no_hash) {
               header = header->copy_set_hash(hash);
             }
-            if (Atomic::cmpxchg(header, rcvr->mark_addr(), mark) == mark) {
+            if (rcvr->cas_set_mark(header, mark) == mark) {
               if (PrintBiasedLockingStatistics)
                 (*BiasedLocking::revoked_lock_entry_count_addr())++;
             }
@@ -694,7 +699,7 @@ BytecodeInterpreter::run(interpreterState istate) {
             if (hash != markOopDesc::no_hash) {
               new_header = new_header->copy_set_hash(hash);
             }
-            if (Atomic::cmpxchg(new_header, rcvr->mark_addr(), mark) == mark) {
+            if (rcvr->cas_set_mark(new_header, mark) == mark) {
               if (PrintBiasedLockingStatistics) {
                 (* BiasedLocking::rebiased_lock_entry_count_addr())++;
               }
@@ -713,7 +718,7 @@ BytecodeInterpreter::run(interpreterState istate) {
             markOop new_header = (markOop) ((uintptr_t) header | thread_ident);
             // Debugging hint.
             DEBUG_ONLY(mon->lock()->set_displaced_header((markOop) (uintptr_t) 0xdeaddead);)
-            if (Atomic::cmpxchg(new_header, rcvr->mark_addr(), header) == header) {
+            if (rcvr->cas_set_mark(new_header, header) == header) {
               if (PrintBiasedLockingStatistics) {
                 (* BiasedLocking::anonymously_biased_lock_entry_count_addr())++;
               }
@@ -729,7 +734,7 @@ BytecodeInterpreter::run(interpreterState istate) {
           markOop displaced = rcvr->mark()->set_unlocked();
           mon->lock()->set_displaced_header(displaced);
           bool call_vm = UseHeavyMonitors;
-          if (call_vm || Atomic::cmpxchg((markOop)mon, rcvr->mark_addr(), displaced) != displaced) {
+          if (call_vm || rcvr->cas_set_mark((markOop)mon, displaced) != displaced) {
             // Is it simple recursive case?
             if (!call_vm && THREAD->is_lock_owned((address) displaced->clear_lock_bits())) {
               mon->lock()->set_displaced_header(NULL);
@@ -870,7 +875,7 @@ BytecodeInterpreter::run(interpreterState istate) {
           if (hash != markOopDesc::no_hash) {
             header = header->copy_set_hash(hash);
           }
-          if (Atomic::cmpxchg(header, lockee->mark_addr(), mark) == mark) {
+          if (lockee->cas_set_mark(header, mark) == mark) {
             if (PrintBiasedLockingStatistics) {
               (*BiasedLocking::revoked_lock_entry_count_addr())++;
             }
@@ -881,7 +886,7 @@ BytecodeInterpreter::run(interpreterState istate) {
           if (hash != markOopDesc::no_hash) {
                 new_header = new_header->copy_set_hash(hash);
           }
-          if (Atomic::cmpxchg(new_header, lockee->mark_addr(), mark) == mark) {
+          if (lockee->cas_set_mark(new_header, mark) == mark) {
             if (PrintBiasedLockingStatistics) {
               (* BiasedLocking::rebiased_lock_entry_count_addr())++;
             }
@@ -899,7 +904,7 @@ BytecodeInterpreter::run(interpreterState istate) {
           markOop new_header = (markOop) ((uintptr_t) header | thread_ident);
           // debugging hint
           DEBUG_ONLY(entry->lock()->set_displaced_header((markOop) (uintptr_t) 0xdeaddead);)
-          if (Atomic::cmpxchg(new_header, lockee->mark_addr(), header) == header) {
+          if (lockee->cas_set_mark(new_header, header) == header) {
             if (PrintBiasedLockingStatistics) {
               (* BiasedLocking::anonymously_biased_lock_entry_count_addr())++;
             }
@@ -915,7 +920,7 @@ BytecodeInterpreter::run(interpreterState istate) {
         markOop displaced = lockee->mark()->set_unlocked();
         entry->lock()->set_displaced_header(displaced);
         bool call_vm = UseHeavyMonitors;
-        if (call_vm || Atomic::cmpxchg((markOop)entry, lockee->mark_addr(), displaced) != displaced) {
+        if (call_vm || lockee->cas_set_mark((markOop)entry, displaced) != displaced) {
           // Is it simple recursive case?
           if (!call_vm && THREAD->is_lock_owned((address) displaced->clear_lock_bits())) {
             entry->lock()->set_displaced_header(NULL);
@@ -1811,7 +1816,7 @@ run:
               if (hash != markOopDesc::no_hash) {
                 header = header->copy_set_hash(hash);
               }
-              if (Atomic::cmpxchg(header, lockee->mark_addr(), mark) == mark) {
+              if (lockee->cas_set_mark(header, mark) == mark) {
                 if (PrintBiasedLockingStatistics)
                   (*BiasedLocking::revoked_lock_entry_count_addr())++;
               }
@@ -1822,7 +1827,7 @@ run:
               if (hash != markOopDesc::no_hash) {
                 new_header = new_header->copy_set_hash(hash);
               }
-              if (Atomic::cmpxchg(new_header, lockee->mark_addr(), mark) == mark) {
+              if (lockee->cas_set_mark(new_header, mark) == mark) {
                 if (PrintBiasedLockingStatistics)
                   (* BiasedLocking::rebiased_lock_entry_count_addr())++;
               }
@@ -1842,7 +1847,7 @@ run:
               markOop new_header = (markOop) ((uintptr_t) header | thread_ident);
               // debugging hint
               DEBUG_ONLY(entry->lock()->set_displaced_header((markOop) (uintptr_t) 0xdeaddead);)
-              if (Atomic::cmpxchg(new_header, lockee->mark_addr(), header) == header) {
+              if (lockee->cas_set_mark(new_header, header) == header) {
                 if (PrintBiasedLockingStatistics)
                   (* BiasedLocking::anonymously_biased_lock_entry_count_addr())++;
               }
@@ -1858,7 +1863,7 @@ run:
             markOop displaced = lockee->mark()->set_unlocked();
             entry->lock()->set_displaced_header(displaced);
             bool call_vm = UseHeavyMonitors;
-            if (call_vm || Atomic::cmpxchg((markOop)entry, lockee->mark_addr(), displaced) != displaced) {
+            if (call_vm || lockee->cas_set_mark((markOop)entry, displaced) != displaced) {
               // Is it simple recursive case?
               if (!call_vm && THREAD->is_lock_owned((address) displaced->clear_lock_bits())) {
                 entry->lock()->set_displaced_header(NULL);
@@ -2430,7 +2435,7 @@ run:
                   handle_exception);
           result = THREAD->vm_result();
         }
-        if (result == Universe::the_null_sentinel())
+        if (oopDesc::equals(result, Universe::the_null_sentinel()))
           result = NULL;
 
         VERIFY_OOP(result);
@@ -2519,11 +2524,9 @@ run:
         istate->set_msg(call_method);
 
         // Special case of invokeinterface called for virtual method of
-        // java.lang.Object.  See cpCacheOop.cpp for details.
-        // This code isn't produced by javac, but could be produced by
-        // another compliant java compiler.
+        // java.lang.Object.  See cpCache.cpp for details.
+        Method* callee = NULL;
         if (cache->is_forced_virtual()) {
-          Method* callee;
           CHECK_NULL(STACK_OBJECT(-(cache->parameter_size())));
           if (cache->is_vfinal()) {
             callee = cache->f2_as_vfinal_method();
@@ -2540,6 +2543,29 @@ run:
             // Profile 'special case of invokeinterface' virtual call.
             BI_PROFILE_UPDATE_VIRTUALCALL(rcvrKlass);
           }
+        } else if (cache->is_vfinal()) {
+          // private interface method invocations
+          //
+          // Ensure receiver class actually implements
+          // the resolved interface class. The link resolver
+          // does this, but only for the first time this
+          // interface is being called.
+          int parms = cache->parameter_size();
+          oop rcvr = STACK_OBJECT(-parms);
+          CHECK_NULL(rcvr);
+          Klass* recv_klass = rcvr->klass();
+          Klass* resolved_klass = cache->f1_as_klass();
+          if (!recv_klass->is_subtype_of(resolved_klass)) {
+            ResourceMark rm(THREAD);
+            char buf[200];
+            jio_snprintf(buf, sizeof(buf), "Class %s does not implement the requested interface %s",
+              recv_klass->external_name(),
+              resolved_klass->external_name());
+            VM_JAVA_ERROR(vmSymbols::java_lang_IncompatibleClassChangeError(), buf, note_no_trap);
+          }
+          callee = cache->f2_as_vfinal_method();
+        }
+        if (callee != NULL) {
           istate->set_callee(callee);
           istate->set_callee_entry_point(callee->from_interpreted_entry());
 #ifdef VM_JVMTI
@@ -2552,7 +2578,6 @@ run:
         }
 
         // this could definitely be cleaned up QQQ
-        Method* callee;
         Method *interface_method = cache->f2_as_interface_method();
         InstanceKlass* iclass = interface_method->method_holder();
 
@@ -2588,17 +2613,19 @@ run:
           if (ki->interface_klass() == iclass) break;
         }
         // If the interface isn't found, this class doesn't implement this
-        // interface.  The link resolver checks this but only for the first
+        // interface. The link resolver checks this but only for the first
         // time this interface is called.
         if (i == int2->itable_length()) {
-          VM_JAVA_ERROR(vmSymbols::java_lang_IncompatibleClassChangeError(), "", note_no_trap);
+          CALL_VM(InterpreterRuntime::throw_IncompatibleClassChangeErrorVerbose(THREAD, rcvr->klass(), iclass),
+                  handle_exception);
         }
         int mindex = interface_method->itable_index();
 
         itableMethodEntry* im = ki->first_method_entry(rcvr->klass());
         callee = im[mindex].method();
         if (callee == NULL) {
-          VM_JAVA_ERROR(vmSymbols::java_lang_AbstractMethodError(), "", note_no_trap);
+          CALL_VM(InterpreterRuntime::throw_AbstractMethodErrorVerbose(THREAD, rcvr->klass(), interface_method),
+                  handle_exception);
         }
 
         // Profile virtual call.
@@ -2821,7 +2848,7 @@ run:
     HandleMark __hm(THREAD);
 
     THREAD->clear_pending_exception();
-    assert(except_oop(), "No exception to process");
+    assert(except_oop() != NULL, "No exception to process");
     intptr_t continuation_bci;
     // expression stack is emptied
     topOfStack = istate->stack_base() - Interpreter::stackElementWords;

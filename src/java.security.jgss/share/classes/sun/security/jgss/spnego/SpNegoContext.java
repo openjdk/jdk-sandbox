@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package sun.security.jgss.spnego;
 import java.io.*;
 import java.security.Provider;
 import org.ietf.jgss.*;
+import sun.security.action.GetBooleanAction;
 import sun.security.jgss.*;
 import sun.security.jgss.spi.*;
 import sun.security.util.*;
@@ -81,10 +82,8 @@ public class SpNegoContext implements GSSContextSpi {
     final private SpNegoMechFactory factory;
 
     // debug property
-    static final boolean DEBUG =
-        java.security.AccessController.doPrivileged(
-            new sun.security.action.GetBooleanAction
-            ("sun.security.spnego.debug")).booleanValue();
+    static final boolean DEBUG = GetBooleanAction
+            .privilegedGetProperty("sun.security.spnego.debug");
 
     /**
      * Constructor for SpNegoContext to be called on the context initiator's
@@ -281,6 +280,7 @@ public class SpNegoContext implements GSSContextSpi {
      * to its peer for processing.
      * @exception GSSException
      */
+    @Deprecated(since="11")
     public final byte[] initSecContext(InputStream is, int mechTokenSize)
         throws GSSException {
 
@@ -475,6 +475,7 @@ public class SpNegoContext implements GSSContextSpi {
      * to its peer for processing.
      * @exception GSSException
      */
+    @Deprecated(since="11")
     public final byte[] acceptSecContext(InputStream is, int mechTokenSize)
         throws GSSException {
 
@@ -582,7 +583,8 @@ public class SpNegoContext implements GSSContextSpi {
                     }
                 } else {
                     negoResult = SpNegoToken.NegoResult.REJECT;
-                    state = STATE_DONE;
+                    state = STATE_DELETED;
+                    throw new GSSException(GSSException.FAILURE);
                 }
 
                 if (DEBUG) {
@@ -641,7 +643,8 @@ public class SpNegoContext implements GSSContextSpi {
                     }
                 } else {
                     negoResult = SpNegoToken.NegoResult.REJECT;
-                    state = STATE_DONE;
+                    state = STATE_DELETED;
+                    throw new GSSException(GSSException.FAILURE);
                 }
 
                 // generate SPNEGO token
@@ -1128,6 +1131,7 @@ public class SpNegoContext implements GSSContextSpi {
         }
     }
 
+    @Deprecated(since="11")
     public final void wrap(InputStream is, OutputStream os,
                             MessageProp msgProp) throws GSSException {
         if (mechContext != null) {
@@ -1149,6 +1153,7 @@ public class SpNegoContext implements GSSContextSpi {
         }
     }
 
+    @Deprecated(since="11")
     public final void unwrap(InputStream is, OutputStream os,
                              MessageProp msgProp) throws GSSException {
         if (mechContext != null) {
@@ -1170,6 +1175,7 @@ public class SpNegoContext implements GSSContextSpi {
         }
     }
 
+    @Deprecated(since="11")
     public final void getMIC(InputStream is, OutputStream os,
                               MessageProp msgProp) throws GSSException {
         if (mechContext != null) {
@@ -1193,6 +1199,7 @@ public class SpNegoContext implements GSSContextSpi {
         }
     }
 
+    @Deprecated(since="11")
     public final void verifyMIC(InputStream is, InputStream msgStr,
                                  MessageProp msgProp) throws GSSException {
         if (mechContext != null) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_SEMAPHORE_HPP
-#define SHARE_VM_RUNTIME_SEMAPHORE_HPP
+#ifndef SHARE_RUNTIME_SEMAPHORE_HPP
+#define SHARE_RUNTIME_SEMAPHORE_HPP
 
 #include "memory/allocation.hpp"
 
@@ -36,6 +36,8 @@
 #else
 # error "No semaphore implementation provided for this OS"
 #endif
+
+class JavaThread;
 
 // Implements the limited, platform independent Semaphore API.
 class Semaphore : public CHeapObj<mtInternal> {
@@ -54,7 +56,8 @@ class Semaphore : public CHeapObj<mtInternal> {
   void wait()                 { _impl.wait(); }
 
   bool trywait()              { return _impl.trywait(); }
+
+  void wait_with_safepoint_check(JavaThread* thread);
 };
 
-
-#endif // SHARE_VM_RUNTIME_SEMAPHORE_HPP
+#endif // SHARE_RUNTIME_SEMAPHORE_HPP

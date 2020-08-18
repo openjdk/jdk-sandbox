@@ -140,6 +140,7 @@ abstract class CMap {
      * Using this saves running character coverters repeatedly.
      */
     char[] xlat;
+    UVS uvs = null;
 
     static CMap initialize(TrueTypeFont font) {
 
@@ -149,6 +150,7 @@ abstract class CMap {
 
         int three0=0, three1=0, three2=0, three3=0, three4=0, three5=0,
             three6=0, three10=0;
+        int zero5 = 0; // for Unicode Variation Sequences
         boolean threeStar = false;
 
         ByteBuffer cmapBuffer = font.getTableBuffer(TrueTypeFont.cmapTag);
@@ -173,6 +175,12 @@ abstract class CMap {
                 case 6:  three6  = offset; break; // Johab
                 case 10: three10 = offset; break; // MS Unicode surrogates
                 }
+            } else if (platformID == 0) {
+                encodingID = cmapBuffer.getShort();
+                offset     = cmapBuffer.getInt();
+                if (encodingID == 5) {
+                    zero5 = offset;
+                }
             }
         }
 
@@ -191,7 +199,7 @@ abstract class CMap {
                  * The primary purpose of these mappings was to facilitate
                  * display of symbol chars etc in composite fonts, however
                  * this is not needed as all these code points are covered
-                 * by Lucida Sans Regular.
+                 * by some other platform symbol font.
                  * Commenting this out reduces the role of these two files
                  * (assuming that they continue to be used in font.properties)
                  * to just one of contributing to the overall composite
@@ -261,6 +269,10 @@ abstract class CMap {
              * rejecting the font entirely?
              */
             cmap = createCMap(cmapBuffer, cmapBuffer.getInt(8), null);
+        }
+        // For Unicode Variation Sequences
+        if (cmap != null && zero5 != 0) {
+            cmap.createUVS(cmapBuffer, zero5);
         }
         return cmap;
     }
@@ -424,6 +436,25 @@ abstract class CMap {
         }
     }
 
+    private void createUVS(ByteBuffer buffer, int offset) {
+        int subtableFormat = buffer.getChar(offset);
+        if (subtableFormat == 14) {
+            long subtableLength = buffer.getInt(offset + 2) & INTMASK;
+            if (offset + subtableLength > buffer.capacity()) {
+                if (FontUtilities.isLogging()) {
+                    FontUtilities.getLogger()
+                            .warning("Cmap UVS subtable overflows buffer.");
+                }
+            }
+            try {
+                this.uvs = new UVS(buffer, offset);
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+        }
+        return;
+    }
+
 /*
     final char charVal(byte[] cmap, int index) {
         return (char)(((0xff & cmap[index]) << 8)+(0xff & cmap[index+1]));
@@ -535,6 +566,7 @@ abstract class CMap {
 
         char getGlyph(int charCode) {
 
+            final int origCharCode = charCode;
             int index = 0;
             char glyphCode = 0;
 
@@ -606,8 +638,8 @@ abstract class CMap {
                     }
                 }
             }
-            if (glyphCode != 0) {
-            //System.err.println("cc="+Integer.toHexString((int)charCode) + " gc="+(int)glyphCode);
+            if (glyphCode == 0) {
+              glyphCode = getFormatCharGlyph(origCharCode);
             }
             return glyphCode;
         }
@@ -773,6 +805,7 @@ abstract class CMap {
         }
 
         char getGlyph(int charCode) {
+            final int origCharCode = charCode;
             int controlGlyph = getControlCodeGlyph(charCode, true);
             if (controlGlyph >= 0) {
                 return (char)controlGlyph;
@@ -828,7 +861,7 @@ abstract class CMap {
                     return glyphCode;
                 }
             }
-            return 0;
+            return getFormatCharGlyph(origCharCode);
         }
     }
 
@@ -852,6 +885,7 @@ abstract class CMap {
          }
 
          char getGlyph(int charCode) {
+            final int origCharCode = charCode;
             int controlGlyph = getControlCodeGlyph(charCode, true);
             if (controlGlyph >= 0) {
                 return (char)controlGlyph;
@@ -863,7 +897,7 @@ abstract class CMap {
 
              charCode -= firstCode;
              if (charCode < 0 || charCode >= entryCount) {
-                  return 0;
+                  return getFormatCharGlyph(origCharCode);
              } else {
                   return glyphIdArray[charCode];
              }
@@ -1001,6 +1035,7 @@ abstract class CMap {
         }
 
         char getGlyph(int charCode) {
+            final int origCharCode = charCode;
             int controlGlyph = getControlCodeGlyph(charCode, false);
             if (controlGlyph >= 0) {
                 return (char)controlGlyph;
@@ -1026,7 +1061,7 @@ abstract class CMap {
                     (startGlyphID[range] + (charCode - startCharCode[range]));
             }
 
-            return 0;
+            return getFormatCharGlyph(origCharCode);
         }
 
     }
@@ -1048,15 +1083,103 @@ abstract class CMap {
             case 0x000a:
             case 0x000d: return CharToGlyphMapper.INVISIBLE_GLYPH_ID;
             }
-        } else if (charCode >= 0x200c) {
+         } else if (noSurrogates && charCode >= 0xFFFF) {
+            return 0;
+        }
+        return -1;
+    }
+
+    final char getFormatCharGlyph(int charCode) {
+        if (charCode >= 0x200c) {
             if ((charCode <= 0x200f) ||
                 (charCode >= 0x2028 && charCode <= 0x202e) ||
                 (charCode >= 0x206a && charCode <= 0x206f)) {
-                return CharToGlyphMapper.INVISIBLE_GLYPH_ID;
-            } else if (noSurrogates && charCode >= 0xFFFF) {
-                return 0;
+                return (char)CharToGlyphMapper.INVISIBLE_GLYPH_ID;
             }
         }
-        return -1;
+        return 0;
+    }
+
+    static class UVS {
+        int numSelectors;
+        int[] selector;
+
+        //for Non-Default UVS Table
+        int[] numUVSMapping;
+        int[][] unicodeValue;
+        char[][] glyphID;
+
+        UVS(ByteBuffer buffer, int offset) {
+            numSelectors = buffer.getInt(offset+6);
+            selector = new int[numSelectors];
+            numUVSMapping = new int[numSelectors];
+            unicodeValue = new int[numSelectors][];
+            glyphID = new char[numSelectors][];
+
+            for (int i = 0; i < numSelectors; i++) {
+                buffer.position(offset + 10 + i * 11);
+                selector[i] = (buffer.get() & 0xff) << 16; //UINT24
+                selector[i] += (buffer.get() & 0xff) << 8;
+                selector[i] += buffer.get() & 0xff;
+
+                //skip Default UVS Table
+
+                //for Non-Default UVS Table
+                int tableOffset = buffer.getInt(offset + 10 + i * 11 + 7);
+                if (tableOffset == 0) {
+                    numUVSMapping[i] = 0;
+                } else if (tableOffset > 0) {
+                    buffer.position(offset+tableOffset);
+                    numUVSMapping[i] = buffer.getInt() & INTMASK;
+                    unicodeValue[i] = new int[numUVSMapping[i]];
+                    glyphID[i] = new char[numUVSMapping[i]];
+
+                    for (int j = 0; j < numUVSMapping[i]; j++) {
+                        int temp = (buffer.get() & 0xff) << 16; //UINT24
+                        temp += (buffer.get() & 0xff) << 8;
+                        temp += buffer.get() & 0xff;
+                        unicodeValue[i][j] = temp;
+                        glyphID[i][j] = buffer.getChar();
+                    }
+                }
+            }
+        }
+
+        static final int VS_NOGLYPH = 0;
+        private int getGlyph(int charCode, int variationSelector) {
+            int targetSelector = -1;
+            for (int i = 0; i < numSelectors; i++) {
+                if (selector[i] == variationSelector) {
+                    targetSelector = i;
+                    break;
+                }
+            }
+            if (targetSelector == -1) {
+                return VS_NOGLYPH;
+            }
+            if (numUVSMapping[targetSelector] > 0) {
+                int index = java.util.Arrays.binarySearch(
+                                unicodeValue[targetSelector], charCode);
+                if (index >= 0) {
+                    return glyphID[targetSelector][index];
+                }
+            }
+            return VS_NOGLYPH;
+        }
+    }
+
+    char getVariationGlyph(int charCode, int variationSelector) {
+        char glyph = 0;
+        if (uvs == null) {
+            glyph = getGlyph(charCode);
+        } else {
+            int result = uvs.getGlyph(charCode, variationSelector);
+            if (result > 0) {
+                glyph = (char)(result & 0xFFFF);
+            } else {
+                glyph = getGlyph(charCode);
+            }
+        }
+        return glyph;
     }
 }

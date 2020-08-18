@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
  * questions.
  */
 
-import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.util.JarUtils;
 
@@ -104,7 +103,7 @@ public class DoPrivAccompliceTest {
         ProcessTools.executeTestJava(commands)
                     .shouldHaveExitValue(0)
                     .shouldContain(userName)
-                    .stderrShouldBeEmpty();
+                    .stderrShouldBeEmptyIgnoreVMWarnings();
 
         createPolicyFile(jarFile2, policy);
         System.out.println("Created policy for " + jarFile2);

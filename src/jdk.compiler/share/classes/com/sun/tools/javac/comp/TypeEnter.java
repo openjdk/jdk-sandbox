@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -223,6 +223,8 @@ public class TypeEnter implements Completer {
             chk.checkImportedPackagesObservable(toplevel);
             toplevel.namedImportScope.finalizeScope();
             toplevel.starImportScope.finalizeScope();
+        } catch (CompletionFailure cf) {
+            chk.completionError(toplevel.pos(), cf);
         } finally {
             log.useSource(prev);
         }
@@ -829,8 +831,8 @@ public class TypeEnter implements Completer {
 
             annotate.annotateLater(tree.mods.annotations, baseEnv,
                         sym, tree.pos());
+            attr.attribTypeVariables(tree.typarams, baseEnv, false);
 
-            attr.attribTypeVariables(tree.typarams, baseEnv);
             for (JCTypeParameter tp : tree.typarams)
                 annotate.queueScanTreeAndTypeAnnotate(tp, baseEnv, sym, tree.pos());
 
@@ -935,6 +937,12 @@ public class TypeEnter implements Completer {
                                   ct.supertype_field, sym);
                 superSym.pos = Position.FIRSTPOS;
                 env.info.scope.enter(superSym);
+            }
+
+            if (!tree.typarams.isEmpty()) {
+                for (JCTypeParameter tvar : tree.typarams) {
+                    chk.checkNonCyclic(tvar, (TypeVar)tvar.type);
+                }
             }
 
             finishClass(tree, env);

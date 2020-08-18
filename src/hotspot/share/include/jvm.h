@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,7 +63,7 @@ extern "C" {
  *    class.
  */
 
-#define JVM_INTERFACE_VERSION 5
+#define JVM_INTERFACE_VERSION 6
 
 JNIEXPORT jint JNICALL
 JVM_GetInterfaceVersion(void);
@@ -111,13 +111,18 @@ JNIEXPORT void JNICALL
 JVM_ArrayCopy(JNIEnv *env, jclass ignored, jobject src, jint src_pos,
               jobject dst, jint dst_pos, jint length);
 
-JNIEXPORT jobject JNICALL
-JVM_InitProperties(JNIEnv *env, jobject p);
-
+/*
+ * Return an array of all properties as alternating name and value pairs.
+ */
+JNIEXPORT jobjectArray JNICALL
+JVM_GetProperties(JNIEnv *env);
 
 /*
  * java.lang.Runtime
  */
+JNIEXPORT void JNICALL
+JVM_BeforeHalt();
+
 JNIEXPORT void JNICALL
 JVM_Halt(jint code);
 
@@ -168,6 +173,8 @@ JVM_IsSupportedJNIVersion(jint version);
 JNIEXPORT jobjectArray JNICALL
 JVM_GetVmArguments(JNIEnv *env);
 
+JNIEXPORT void JNICALL
+JVM_InitializeFromArchive(JNIEnv* env, jclass cls);
 
 /*
  * java.lang.Throwable
@@ -443,7 +450,7 @@ JVM_AddReadsModule(JNIEnv *env, jobject from_module, jobject source_module);
  */
 
 JNIEXPORT jstring JNICALL
-JVM_GetClassName(JNIEnv *env, jclass cls);
+JVM_InitClassName(JNIEnv *env, jclass cls);
 
 JNIEXPORT jobjectArray JNICALL
 JVM_GetClassInterfaces(JNIEnv *env, jclass cls);
@@ -518,6 +525,17 @@ JVM_GetClassDeclaredConstructors(JNIEnv *env, jclass ofClass, jboolean publicOnl
    valid. */
 JNIEXPORT jint JNICALL
 JVM_GetClassAccessFlags(JNIEnv *env, jclass cls);
+
+/* Nestmates - since JDK 11 */
+
+JNIEXPORT jboolean JNICALL
+JVM_AreNestMates(JNIEnv *env, jclass current, jclass member);
+
+JNIEXPORT jclass JNICALL
+JVM_GetNestHost(JNIEnv *env, jclass current);
+
+JNIEXPORT jobjectArray JNICALL
+JVM_GetNestMembers(JNIEnv *env, jclass current);
 
 /* The following two reflection routines are still needed due to startup time issues */
 /*
@@ -605,11 +623,16 @@ JVM_GetMethodParameters(JNIEnv *env, jobject method);
  */
 
 JNIEXPORT jobject JNICALL
-JVM_DoPrivileged(JNIEnv *env, jclass cls,
-                 jobject action, jobject context, jboolean wrapException);
-
-JNIEXPORT jobject JNICALL
 JVM_GetInheritedAccessControlContext(JNIEnv *env, jclass cls);
+
+/*
+ * Ensure that code doing a stackwalk and using javaVFrame::locals() to
+ * get the value will see a materialized value and not a scalar-replaced
+ * null value.
+ */
+#define JVM_EnsureMaterializedForStackWalk(env, value) \
+    do {} while(0) // Nothing to do.  The fact that the value escaped
+                   // through a native method is enough.
 
 JNIEXPORT jobject JNICALL
 JVM_GetStackAccessControlContext(JNIEnv *env, jclass cls);

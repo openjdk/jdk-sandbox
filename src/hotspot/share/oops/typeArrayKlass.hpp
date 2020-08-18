@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_TYPEARRAYKLASS_HPP
-#define SHARE_VM_OOPS_TYPEARRAYKLASS_HPP
+#ifndef SHARE_OOPS_TYPEARRAYKLASS_HPP
+#define SHARE_OOPS_TYPEARRAYKLASS_HPP
 
 #include "classfile/classLoaderData.hpp"
 #include "oops/arrayKlass.hpp"
@@ -33,6 +33,10 @@
 
 class TypeArrayKlass : public ArrayKlass {
   friend class VMStructs;
+
+ public:
+  static const KlassID ID = TypeArrayKlassID;
+
  private:
   jint _max_length;            // maximum number of elements allowed in an array
 
@@ -52,15 +56,11 @@ class TypeArrayKlass : public ArrayKlass {
   // klass allocation
   static TypeArrayKlass* create_klass(BasicType type, const char* name_str,
                                TRAPS);
-  static inline Klass* create_klass(BasicType type, int scale, TRAPS) {
-    TypeArrayKlass* tak = create_klass(type, external_name(type), CHECK_NULL);
-    assert(scale == (1 << tak->log2_element_size()), "scale must check out");
-    return tak;
+  static TypeArrayKlass* create_klass(BasicType type, TRAPS) {
+    return create_klass(type, external_name(type), THREAD);
   }
 
   int oop_size(oop obj) const;
-
-  bool compute_is_subtype_of(Klass* k);
 
   // Allocation
   typeArrayOop allocate_common(int length, bool do_zero, TRAPS);
@@ -72,43 +72,25 @@ class TypeArrayKlass : public ArrayKlass {
   // Copying
   void  copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS);
 
-  // GC specific object visitors
-  //
-#if INCLUDE_ALL_GCS
-  // Parallel Scavenge
-  void oop_ps_push_contents(  oop obj, PSPromotionManager* pm);
-  // Parallel Compact
-  void oop_pc_follow_contents(oop obj, ParCompactionManager* cm);
-  void oop_pc_update_pointers(oop obj, ParCompactionManager* cm);
-#endif
-
   // Oop iterators. Since there are no oops in TypeArrayKlasses,
   // these functions only return the size of the object.
 
  private:
   // The implementation used by all oop_oop_iterate functions in TypeArrayKlasses.
-  inline void oop_oop_iterate_impl(oop obj, ExtendedOopClosure* closure);
+  inline void oop_oop_iterate_impl(oop obj, OopIterateClosure* closure);
 
+ public:
   // Wraps oop_oop_iterate_impl to conform to macros.
-  template <bool nv, typename OopClosureType>
+  template <typename T, typename OopClosureType>
   inline void oop_oop_iterate(oop obj, OopClosureType* closure);
 
   // Wraps oop_oop_iterate_impl to conform to macros.
-  template <bool nv, typename OopClosureType>
+  template <typename T, typename OopClosureType>
   inline void oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 
- public:
-
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL_RANGE)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL_RANGE)
-
-#if INCLUDE_ALL_GCS
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL_NO_BACKWARDS)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL_NO_BACKWARDS)
-#endif // INCLUDE_ALL_GCS
-
+  // Wraps oop_oop_iterate_impl to conform to macros.
+  template <typename T, typename OopClosureType>
+  inline void oop_oop_iterate_reverse(oop obj, OopClosureType* closure);
 
  protected:
   // Find n'th dimensional array
@@ -153,4 +135,4 @@ class TypeArrayKlass : public ArrayKlass {
   PackageEntry* package() const;
 };
 
-#endif // SHARE_VM_OOPS_TYPEARRAYKLASS_HPP
+#endif // SHARE_OOPS_TYPEARRAYKLASS_HPP

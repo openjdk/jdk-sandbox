@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2013 SAP SE. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,21 +23,26 @@
  *
  */
 
-#ifndef CPU_PPC_VM_VMREG_PPC_INLINE_HPP
-#define CPU_PPC_VM_VMREG_PPC_INLINE_HPP
+#ifndef CPU_PPC_VMREG_PPC_INLINE_HPP
+#define CPU_PPC_VMREG_PPC_INLINE_HPP
 
 inline VMReg RegisterImpl::as_VMReg() {
   if (this == noreg) return VMRegImpl::Bad();
+  // Two halfs, multiply by 2.
   return VMRegImpl::as_VMReg(encoding() << 1);
 }
 
-// Since we don't have two halfs here, don't multiply by 2.
-inline VMReg ConditionRegisterImpl::as_VMReg() {
+inline VMReg FloatRegisterImpl::as_VMReg() {
+  // Two halfs, multiply by 2.
+  return VMRegImpl::as_VMReg((encoding() << 1) + ConcreteRegisterImpl::max_gpr);
+}
+
+inline VMReg VectorSRegisterImpl::as_VMReg() {
   return VMRegImpl::as_VMReg((encoding()) + ConcreteRegisterImpl::max_fpr);
 }
 
-inline VMReg FloatRegisterImpl::as_VMReg() {
-  return VMRegImpl::as_VMReg((encoding() << 1) + ConcreteRegisterImpl::max_gpr);
+inline VMReg ConditionRegisterImpl::as_VMReg() {
+  return VMRegImpl::as_VMReg((encoding()) + ConcreteRegisterImpl::max_vsr);
 }
 
 inline VMReg SpecialRegisterImpl::as_VMReg() {
@@ -45,4 +50,4 @@ inline VMReg SpecialRegisterImpl::as_VMReg() {
 }
 
 
-#endif // CPU_PPC_VM_VMREG_PPC_INLINE_HPP
+#endif // CPU_PPC_VMREG_PPC_INLINE_HPP

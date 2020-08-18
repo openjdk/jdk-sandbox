@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,16 +27,16 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "jvmtifiles/jvmti.h"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/handles.inline.hpp"
 
 int ArrayKlass::static_size(int header_size) {
   // size of an array klass object
@@ -49,7 +49,7 @@ int ArrayKlass::static_size(int header_size) {
 }
 
 
-Klass* ArrayKlass::java_super() const {
+InstanceKlass* ArrayKlass::java_super() const {
   if (super() == NULL)  return NULL;  // bootstrap case
   // Array klasses have primary supertypes which are not reported to Java.
   // Example super chain:  String[][] -> Object[][] -> Object[] -> Object
@@ -71,16 +71,18 @@ Klass* ArrayKlass::find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) co
 
 Method* ArrayKlass::uncached_lookup_method(const Symbol* name,
                                            const Symbol* signature,
-                                           OverpassLookupMode overpass_mode) const {
+                                           OverpassLookupMode overpass_mode,
+                                           PrivateLookupMode private_mode) const {
   // There are no methods in an array klass but the super class (Object) has some
   assert(super(), "super klass must be present");
   // Always ignore overpass methods in superclasses, although technically the
   // super klass of an array, (j.l.Object) should not have
   // any overpass methods present.
-  return super()->uncached_lookup_method(name, signature, Klass::skip_overpass);
+  return super()->uncached_lookup_method(name, signature, Klass::skip_overpass, private_mode);
 }
 
-ArrayKlass::ArrayKlass(Symbol* name) :
+ArrayKlass::ArrayKlass(Symbol* name, KlassID id) :
+  Klass(id),
   _dimension(1),
   _higher_dimension(NULL),
   _lower_dimension(NULL) {
@@ -88,18 +90,17 @@ ArrayKlass::ArrayKlass(Symbol* name) :
     // the vtable of klass Object.
     set_vtable_length(Universe::base_vtable_size());
     set_name(name);
-    set_super(Universe::is_bootstrapping() ? (Klass*)NULL : SystemDictionary::Object_klass());
+    set_super(Universe::is_bootstrapping() ? NULL : SystemDictionary::Object_klass());
     set_layout_helper(Klass::_lh_neutral_value);
     set_is_cloneable(); // All arrays are considered to be cloneable (See JLS 20.1.5)
-    TRACE_INIT_ID(this);
+    JFR_ONLY(INIT_ID(this);)
 }
 
 
 // Initialization of vtables and mirror object is done separatly from base_create_array_klass,
 // since a GC can happen. At this point all instance variables of the ArrayKlass must be setup.
 void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, ModuleEntry* module_entry, TRAPS) {
-  ResourceMark rm(THREAD);
-  k->initialize_supers(super_klass, CHECK);
+  k->initialize_supers(super_klass, NULL, CHECK);
   k->vtable().initialize_vtable(false, CHECK);
 
   // During bootstrapping, before java.base is defined, the module_entry may not be present yet.
@@ -111,35 +112,23 @@ void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, 
   java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(THREAD, module), Handle(), CHECK);
 }
 
-GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots) {
+GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
+                                                            Array<InstanceKlass*>* transitive_interfaces) {
   // interfaces = { cloneable_klass, serializable_klass };
   assert(num_extra_slots == 0, "sanity of primitive array type");
+  assert(transitive_interfaces == NULL, "sanity");
   // Must share this for correct bootstrapping!
   set_secondary_supers(Universe::the_array_interfaces_array());
   return NULL;
 }
 
-bool ArrayKlass::compute_is_subtype_of(Klass* k) {
-  // An array is a subtype of Serializable, Clonable, and Object
-  return    k == SystemDictionary::Object_klass()
-         || k == SystemDictionary::Cloneable_klass()
-         || k == SystemDictionary::Serializable_klass();
-}
-
 objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
-  if (length < 0) {
-    THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
-  }
-  if (length > arrayOopDesc::max_array_length(T_ARRAY)) {
-    report_java_out_of_memory("Requested array size exceeds VM limit");
-    JvmtiExport::post_array_size_exhausted();
-    THROW_OOP_0(Universe::out_of_memory_error_array_size());
-  }
+  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_ARRAY), CHECK_0);
   int size = objArrayOopDesc::object_size(length);
   Klass* k = array_klass(n+dimension(), CHECK_0);
   ArrayKlass* ak = ArrayKlass::cast(k);
-  objArrayOop o =
-    (objArrayOop)CollectedHeap::array_allocate(ak, size, length, CHECK_0);
+  objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
+                                                                /* do_zero */ true, CHECK_0);
   // initialization to NULL not necessary, area already cleared
   return o;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import jdk.test.lib.util.FileUtils;
-import jdk.testlibrary.JDKToolFinder;
+import jdk.test.lib.JDKToolFinder;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -46,13 +46,13 @@ import static java.lang.System.out;
 
 /*
  * @test
- * @bug 8167328 8171830 8165640 8174248 8176772
- * @library /lib/testlibrary /test/lib
+ * @bug 8167328 8171830 8165640 8174248 8176772 8196748 8191533 8210454
+ * @library /test/lib
  * @modules jdk.compiler
  *          jdk.jartool
  * @build jdk.test.lib.Platform
  *        jdk.test.lib.util.FileUtils
- *        jdk.testlibrary.JDKToolFinder
+ *        jdk.test.lib.JDKToolFinder
  * @compile Basic.java
  * @run testng Basic
  * @summary Tests for plain Modular jars & Multi-Release Modular jars
@@ -155,6 +155,8 @@ public class Basic {
                     } else if (line.startsWith("contains:")) {
                         line = line.substring("contains:".length());
                         conceals = stringToSet(line);
+                    } else if (line.contains("VM warning:")) {
+                        continue;  // ignore server vm warning see#8196748
                     } else {
                         throw new AssertionError("Unknown value " + line);
                     }
@@ -664,6 +666,17 @@ public class Basic {
             "-C", modClasses.toString(), "jdk/test/baz/BazService.class",
             "-C", modClasses.toString(), "jdk/test/baz/internal/BazServiceImpl.class")
             .assertSuccess();
+
+        for (String option : new String[]  {"--describe-module", "-d" }) {
+            jar(option,
+                "--file=" + modularJar.toString())
+                .assertSuccess()
+                .resultChecker(r ->
+                    assertTrue(r.output.contains("provides jdk.test.baz.BazService with jdk.test.baz.internal.BazServiceImpl"),
+                               "Expected to find ", "provides jdk.test.baz.BazService with jdk.test.baz.internal.BazServiceImpl",
+                               " in [", r.output, "]")
+                );
+        }
     }
 
     @Test
@@ -865,6 +878,50 @@ public class Basic {
         }
     }
 
+    /**
+     * Validate that you can update a jar only specifying --module-version
+     * @throws IOException
+     */
+    @Test
+    public void updateFooModuleVersion() throws IOException {
+        Path mp = Paths.get("updateFooModuleVersion");
+        createTestDir(mp);
+        Path modClasses = MODULE_CLASSES.resolve(FOO.moduleName);
+        Path modularJar = mp.resolve(FOO.moduleName + ".jar");
+        String newFooVersion = "87.0";
+
+        jar("--create",
+            "--file=" + modularJar.toString(),
+            "--main-class=" + FOO.mainClass,
+            "--module-version=" + FOO.version,
+            "--no-manifest",
+            "-C", modClasses.toString(), ".")
+            .assertSuccess();
+
+        jarWithStdin(modularJar.toFile(), "--describe-module")
+                .assertSuccess()
+                .resultChecker(r ->
+                        assertTrue(r.output.contains(FOO.moduleName + "@" + FOO.version),
+                                "Expected to find ", FOO.moduleName + "@" + FOO.version,
+                                " in [", r.output, "]")
+                );
+
+        jar("--update",
+            "--file=" + modularJar.toString(),
+            "--module-version=" + newFooVersion)
+            .assertSuccess();
+
+        for (String option : new String[]  {"--describe-module", "-d" }) {
+            jarWithStdin(modularJar.toFile(),
+                         option)
+                         .assertSuccess()
+                         .resultChecker(r ->
+                             assertTrue(r.output.contains(FOO.moduleName + "@" + newFooVersion),
+                                "Expected to find ", FOO.moduleName + "@" + newFooVersion,
+                                " in [", r.output, "]")
+                );
+        }
+    }
 
     @DataProvider(name = "autoNames")
     public Object[][] autoNames() {

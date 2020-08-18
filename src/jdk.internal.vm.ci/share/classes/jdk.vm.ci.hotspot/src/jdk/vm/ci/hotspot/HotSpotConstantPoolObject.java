@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,10 @@
 package jdk.vm.ci.hotspot;
 
 import jdk.vm.ci.meta.JavaConstant;
-import jdk.vm.ci.meta.ResolvedJavaType;
 
 /**
- * Represents a constant that was retrieved from a constant pool.
- * Used to keep track of the constant pool slot for the constant.
+ * Represents a constant that was retrieved from a constant pool. Used to keep track of the constant
+ * pool slot for the constant.
  */
 public final class HotSpotConstantPoolObject extends HotSpotObjectConstantImpl {
 
@@ -36,14 +35,19 @@ public final class HotSpotConstantPoolObject extends HotSpotObjectConstantImpl {
     }
 
     public static JavaConstant forObject(HotSpotResolvedObjectType type, int cpi, JavaConstant object) {
-        return forObject(type, cpi, ((HotSpotObjectConstantImpl)object).object());
+        return forObject(type, cpi, ((HotSpotObjectConstantImpl) object).object());
     }
 
     private final HotSpotResolvedObjectType type;
     private final int cpi;
 
-    public HotSpotResolvedObjectType getCpType() { return type; }
-    public int getCpi()  { return cpi; }
+    public HotSpotResolvedObjectType getCpType() {
+        return type;
+    }
+
+    public int getCpi() {
+        return cpi;
+    }
 
     HotSpotConstantPoolObject(HotSpotResolvedObjectType type, int cpi, Object object) {
         super(object, false);
@@ -56,7 +60,7 @@ public final class HotSpotConstantPoolObject extends HotSpotObjectConstantImpl {
         if (o instanceof HotSpotConstantPoolObject) {
             if (super.equals(o)) {
                 HotSpotConstantPoolObject other = (HotSpotConstantPoolObject) o;
-                return type == other.type && cpi == other.cpi;
+                return type.equals(other.type) && cpi == other.cpi;
             }
         }
         return false;

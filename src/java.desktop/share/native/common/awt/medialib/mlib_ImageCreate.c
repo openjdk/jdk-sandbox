@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -227,7 +227,8 @@ mlib_image* mlib_ImageSet(mlib_image *image,
 }
 
 /***************************************************************/
-mlib_image *mlib_ImageCreateStruct(mlib_type  type,
+JNIEXPORT
+mlib_image* mlib_ImageCreateStruct(mlib_type  type,
                                    mlib_s32   channels,
                                    mlib_s32   width,
                                    mlib_s32   height,
@@ -253,7 +254,8 @@ mlib_image *mlib_ImageCreateStruct(mlib_type  type,
 }
 
 /***************************************************************/
-mlib_image *mlib_ImageCreate(mlib_type type,
+JNIEXPORT
+mlib_image* mlib_ImageCreate(mlib_type type,
                              mlib_s32  channels,
                              mlib_s32  width,
                              mlib_s32  height)
@@ -352,6 +354,7 @@ mlib_image *mlib_ImageCreate(mlib_type type,
 }
 
 /***************************************************************/
+JNIEXPORT
 void mlib_ImageDelete(mlib_image *img)
 {
   if (img == NULL) return;

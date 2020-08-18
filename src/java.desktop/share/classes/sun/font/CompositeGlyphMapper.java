@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@ package sun.font;
 /* remember that the API requires a Font use a
  * consistent glyph id. for a code point, and this is a
  * problem if a particular strike uses native scaler sometimes
- * and T2K others. That needs to be dealt with somewhere, but
+ * and the JDK scaler others. That needs to be dealt with somewhere, but
  * here we can just always get the same glyph code without
  * needing a strike.
  *
@@ -53,7 +53,7 @@ public class CompositeGlyphMapper extends CharToGlyphMapper {
 
 
     CompositeFont font;
-    CharToGlyphMapper slotMappers[];
+    CharToGlyphMapper[] slotMappers;
     int[][] glyphMaps;
     private boolean hasExcludes;
 
@@ -214,7 +214,8 @@ public class CompositeGlyphMapper extends CharToGlyphMapper {
             if (code < FontUtilities.MIN_LAYOUT_CHARCODE) {
                 continue;
             }
-            else if (FontUtilities.isComplexCharCode(code)) {
+            else if (FontUtilities.isComplexCharCode(code) ||
+                     CharToGlyphMapper.isVariationSelector(code)) {
                 return true;
             }
             else if (code >= 0x10000) {

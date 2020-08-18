@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import static org.graalvm.compiler.nodeinfo.InputType.Condition;
@@ -30,6 +32,8 @@ import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.graph.spi.Canonicalizable;
 import org.graalvm.compiler.graph.spi.CanonicalizerTool;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
+
+import jdk.vm.ci.meta.TriState;
 
 /**
  * Logic node that negates its argument.
@@ -77,4 +81,11 @@ public final class LogicNegationNode extends LogicNode implements Canonicalizabl
         return this;
     }
 
+    @Override
+    public TriState implies(boolean thisNegated, LogicNode other) {
+        if (other == getValue()) {
+            return TriState.get(thisNegated);
+        }
+        return getValue().implies(!thisNegated, other);
+    }
 }

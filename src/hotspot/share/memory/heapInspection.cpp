@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,21 +23,19 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/classLoaderData.hpp"
+#include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/genCollectedHeap.hpp"
 #include "memory/heapInspection.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/reflectionAccessorImplKlassHelper.hpp"
 #include "runtime/os.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/stack.inline.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/parallel/parallelScavengeHeap.hpp"
-#endif // INCLUDE_ALL_GCS
 
 // HeapInspection
 
@@ -91,7 +89,7 @@ const char* KlassInfoEntry::name() const {
   } else {
     if (_klass == Universe::boolArrayKlassObj())         name = "<boolArrayKlass>";         else
     if (_klass == Universe::charArrayKlassObj())         name = "<charArrayKlass>";         else
-    if (_klass == Universe::singleArrayKlassObj())       name = "<singleArrayKlass>";       else
+    if (_klass == Universe::floatArrayKlassObj())        name = "<floatArrayKlass>";        else
     if (_klass == Universe::doubleArrayKlassObj())       name = "<doubleArrayKlass>";       else
     if (_klass == Universe::byteArrayKlassObj())         name = "<byteArrayKlass>";         else
     if (_klass == Universe::shortArrayKlassObj())        name = "<shortArrayKlass>";        else
@@ -156,22 +154,26 @@ void KlassInfoBucket::empty() {
   }
 }
 
-void KlassInfoTable::AllClassesFinder::do_klass(Klass* k) {
-  // This has the SIDE EFFECT of creating a KlassInfoEntry
-  // for <k>, if one doesn't exist yet.
-  _table->lookup(k);
-}
+class KlassInfoTable::AllClassesFinder : public LockedClassesDo {
+  KlassInfoTable *_table;
+public:
+  AllClassesFinder(KlassInfoTable* table) : _table(table) {}
+  virtual void do_klass(Klass* k) {
+    // This has the SIDE EFFECT of creating a KlassInfoEntry
+    // for <k>, if one doesn't exist yet.
+    _table->lookup(k);
+  }
+};
+
 
 KlassInfoTable::KlassInfoTable(bool add_all_classes) {
   _size_of_instances_in_words = 0;
-  _size = 0;
   _ref = (HeapWord*) Universe::boolArrayKlassObj();
   _buckets =
     (KlassInfoBucket*)  AllocateHeap(sizeof(KlassInfoBucket) * _num_buckets,
        mtInternal, CURRENT_PC, AllocFailStrategy::RETURN_NULL);
   if (_buckets != NULL) {
-    _size = _num_buckets;
-    for (int index = 0; index < _size; index++) {
+    for (int index = 0; index < _num_buckets; index++) {
       _buckets[index].initialize();
     }
     if (add_all_classes) {
@@ -183,11 +185,11 @@ KlassInfoTable::KlassInfoTable(bool add_all_classes) {
 
 KlassInfoTable::~KlassInfoTable() {
   if (_buckets != NULL) {
-    for (int index = 0; index < _size; index++) {
+    for (int index = 0; index < _num_buckets; index++) {
       _buckets[index].empty();
     }
     FREE_C_HEAP_ARRAY(KlassInfoBucket, _buckets);
-    _size = 0;
+    _buckets = NULL;
   }
 }
 
@@ -196,7 +198,7 @@ uint KlassInfoTable::hash(const Klass* p) {
 }
 
 KlassInfoEntry* KlassInfoTable::lookup(Klass* k) {
-  uint         idx = hash(k) % _size;
+  uint         idx = hash(k) % _num_buckets;
   assert(_buckets != NULL, "Allocation failure should have been caught");
   KlassInfoEntry*  e   = _buckets[idx].lookup(k);
   // Lookup may fail if this is a new klass for which we
@@ -223,8 +225,8 @@ bool KlassInfoTable::record_instance(const oop obj) {
 }
 
 void KlassInfoTable::iterate(KlassInfoClosure* cic) {
-  assert(_size == 0 || _buckets != NULL, "Allocation failure should have been caught");
-  for (int index = 0; index < _size; index++) {
+  assert(_buckets != NULL, "Allocation failure should have been caught");
+  for (int index = 0; index < _num_buckets; index++) {
     _buckets[index].iterate(cic);
   }
 }
@@ -468,7 +470,7 @@ static void print_classname(outputStream* st, Klass* klass) {
   }
 }
 
-static void print_interface(outputStream* st, Klass* intf_klass, const char* intf_type, int indent) {
+static void print_interface(outputStream* st, InstanceKlass* intf_klass, const char* intf_type, int indent) {
   print_indent(st, indent);
   st->print("  implements ");
   print_classname(st, intf_klass);
@@ -494,17 +496,23 @@ void KlassHierarchy::print_class(outputStream* st, KlassInfoEntry* cie, bool pri
   if (klass->is_interface()) {
     st->print(" (intf)");
   }
+  // Special treatment for generated core reflection accessor classes: print invocation target.
+  if (ReflectionAccessorImplKlassHelper::is_generated_accessor(klass)) {
+    st->print(" (invokes: ");
+    ReflectionAccessorImplKlassHelper::print_invocation_target(st, klass);
+    st->print(")");
+  }
   st->print("\n");
 
   // Print any interfaces the class has.
   if (print_interfaces) {
-    Array<Klass*>* local_intfs = klass->local_interfaces();
-    Array<Klass*>* trans_intfs = klass->transitive_interfaces();
+    Array<InstanceKlass*>* local_intfs = klass->local_interfaces();
+    Array<InstanceKlass*>* trans_intfs = klass->transitive_interfaces();
     for (int i = 0; i < local_intfs->length(); i++) {
       print_interface(st, local_intfs->at(i), "declared", indent);
     }
     for (int i = 0; i < trans_intfs->length(); i++) {
-      Klass* trans_interface = trans_intfs->at(i);
+      InstanceKlass* trans_interface = trans_intfs->at(i);
       // Only print transitive interfaces if they are not also declared.
       if (!local_intfs->contains(trans_interface)) {
         print_interface(st, trans_interface, "inherited", indent);

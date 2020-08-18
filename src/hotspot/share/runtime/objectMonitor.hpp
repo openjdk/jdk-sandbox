@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,16 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_OBJECTMONITOR_HPP
-#define SHARE_VM_RUNTIME_OBJECTMONITOR_HPP
+#ifndef SHARE_RUNTIME_OBJECTMONITOR_HPP
+#define SHARE_RUNTIME_OBJECTMONITOR_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/padded.hpp"
 #include "runtime/os.hpp"
 #include "runtime/park.hpp"
 #include "runtime/perfData.hpp"
+
+class ObjectMonitor;
 
 // ObjectWaiter serves as a "proxy" or surrogate thread.
 // TODO-FIXME: Eliminate ObjectWaiter and use the thread-specific
@@ -56,9 +58,6 @@ class ObjectWaiter : public StackObj {
   void wait_reenter_begin(ObjectMonitor *mon);
   void wait_reenter_end(ObjectMonitor *mon);
 };
-
-// forward declaration to avoid include tracing.hpp
-class EventJavaMonitorWait;
 
 // The ObjectMonitor class implements the heavyweight version of a
 // JavaMonitor. The lightweight BasicLock/stack lock version has been
@@ -104,11 +103,11 @@ class EventJavaMonitorWait;
 //   coherency misses. There is no single optimal layout for both
 //   single-threaded and multi-threaded environments.
 //
-// - See ObjectMonitor::sanity_checks() for how critical restrictions are
-//   enforced and advisory recommendations are reported.
+// - See TEST_VM(ObjectMonitor, sanity) gtest for how critical restrictions are
+//   enforced.
 // - Adjacent ObjectMonitors should be separated by enough space to avoid
 //   false sharing. This is handled by the ObjectMonitor allocation code
-//   in synchronizer.cpp. Also see ObjectSynchronizer::sanity_checks().
+//   in synchronizer.cpp. Also see TEST_VM(SynchronizerTest, sanity) gtest.
 //
 // Futures notes:
 //   - Separating _owner from the <remaining_fields> by enough space to
@@ -196,10 +195,6 @@ class ObjectMonitor {
   static PerfCounter * _sync_Deflations;
   static PerfLongVariable * _sync_MonExtant;
 
-  static int Knob_ExitRelease;
-  static int Knob_Verbose;
-  static int Knob_VerifyInUse;
-  static int Knob_VerifyMatch;
   static int Knob_SpinLimit;
 
   void* operator new (size_t size) throw();
@@ -294,8 +289,6 @@ class ObjectMonitor {
   bool      check(TRAPS);       // true if the thread owns the monitor.
   void      check_slow(TRAPS);
   void      clear();
-  static void sanity_checks();  // public for -XX:+ExecuteInternalVMTests
-                                // in PRODUCT for -XX:SyncKnobs=Verbose=1
 
   void      enter(TRAPS);
   void      exit(bool not_suspended, TRAPS);
@@ -309,7 +302,6 @@ class ObjectMonitor {
 
  private:
   void      AddWaiter(ObjectWaiter * waiter);
-  static    void DeferredInitialize();
   void      INotify(Thread * Self);
   ObjectWaiter * DequeueWaiter();
   void      DequeueSpecificWaiter(ObjectWaiter * waiter);
@@ -321,28 +313,6 @@ class ObjectMonitor {
   int       TrySpin(Thread * Self);
   void      ExitEpilog(Thread * Self, ObjectWaiter * Wakee);
   bool      ExitSuspendEquivalent(JavaThread * Self);
-  void      post_monitor_wait_event(EventJavaMonitorWait * event,
-                                    jlong notifier_tid,
-                                    jlong timeout,
-                                    bool timedout);
-
 };
 
-#undef TEVENT
-#define TEVENT(nom) { if (SyncVerbose) FEVENT(nom); }
-
-#define FEVENT(nom)                             \
-  {                                             \
-    static volatile int ctr = 0;                \
-    int v = ++ctr;                              \
-    if ((v & (v - 1)) == 0) {                   \
-      tty->print_cr("INFO: " #nom " : %d", v);  \
-      tty->flush();                             \
-    }                                           \
-  }
-
-#undef  TEVENT
-#define TEVENT(nom) {;}
-
-
-#endif // SHARE_VM_RUNTIME_OBJECTMONITOR_HPP
+#endif // SHARE_RUNTIME_OBJECTMONITOR_HPP

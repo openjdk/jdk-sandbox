@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOGOUTPUT_HPP
-#define SHARE_VM_LOGGING_LOGOUTPUT_HPP
+#ifndef SHARE_LOGGING_LOGOUTPUT_HPP
+#define SHARE_LOGGING_LOGOUTPUT_HPP
 
 #include "logging/logDecorators.hpp"
 #include "logging/logLevel.hpp"
@@ -32,6 +32,7 @@
 
 class LogDecorations;
 class LogMessageBuffer;
+class LogSelection;
 class LogTagSet;
 
 // The base class/interface for log outputs.
@@ -43,18 +44,26 @@ class LogOutput : public CHeapObj<mtLogging> {
 
  private:
   static const size_t InitialConfigBufferSize = 256;
+
+  // Track if the output has been reconfigured dynamically during runtime.
+  // The status is set each time the configuration of the output is modified,
+  // and is reset once after logging initialization is complete.
+  bool _reconfigured;
+
   char* _config_string;
   size_t _config_string_buffer_size;
+
+  // Adds the log selection to the config description (e.g. "tag1+tag2*=level").
+  void add_to_config_string(const LogSelection& selection);
 
  protected:
   LogDecorators _decorators;
 
-  // Clears any previous config description in preparation of reconfiguration.
-  void clear_config_string();
-  // Adds the tagset on the given level to the config description (e.g. "tag1+tag2=level").
-  void add_to_config_string(const LogTagSet* ts, LogLevelType level);
   // Replaces the current config description with the given string.
   void set_config_string(const char* string);
+
+  // Update the config string for this output to reflect its current configuration
+  void update_config_string(const size_t on_level[LogLevel::Count]);
 
  public:
   void set_decorators(const LogDecorators &decorators) {
@@ -65,11 +74,15 @@ class LogOutput : public CHeapObj<mtLogging> {
     return _decorators;
   }
 
+  bool is_reconfigured() const {
+    return _reconfigured;
+  }
+
   const char* config_string() const {
     return _config_string;
   }
 
-  LogOutput() : _config_string(NULL), _config_string_buffer_size(0) {
+  LogOutput() : _reconfigured(false), _config_string(NULL), _config_string_buffer_size(0) {
   }
 
   virtual ~LogOutput();
@@ -88,4 +101,4 @@ class LogOutput : public CHeapObj<mtLogging> {
   virtual int write(LogMessageBuffer::Iterator msg_iterator) = 0;
 };
 
-#endif // SHARE_VM_LOGGING_LOGOUTPUT_HPP
+#endif // SHARE_LOGGING_LOGOUTPUT_HPP

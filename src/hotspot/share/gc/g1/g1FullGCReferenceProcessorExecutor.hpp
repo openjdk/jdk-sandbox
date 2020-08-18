@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@
 #include "gc/g1/g1StringDedup.hpp"
 #include "gc/g1/heapRegionManager.hpp"
 #include "gc/shared/referenceProcessor.hpp"
+#include "gc/shared/taskqueue.hpp"
 #include "utilities/ticks.hpp"
 
 class G1FullGCTracer;
@@ -50,31 +51,22 @@ public:
   void execute(STWGCTimer* timer, G1FullGCTracer* tracer);
 
   // Executes the given task using concurrent marking worker threads.
-  virtual void execute(ProcessTask& task);
-  virtual void execute(EnqueueTask& task);
+  virtual void execute(ProcessTask& task, uint ergo_workers);
 
 private:
   void run_task(AbstractGangTask* task);
+  void run_task(AbstractGangTask* task, uint workers);
 
   class G1RefProcTaskProxy : public AbstractGangTask {
     typedef AbstractRefProcTaskExecutor::ProcessTask ProcessTask;
-    ProcessTask&             _proc_task;
-    G1FullCollector*         _collector;
-    ParallelTaskTerminator   _terminator;
+    ProcessTask&                  _proc_task;
+    G1FullCollector*              _collector;
+    TaskTerminator                _terminator;
 
   public:
     G1RefProcTaskProxy(ProcessTask& proc_task,
                        G1FullCollector* scope);
 
-    virtual void work(uint worker_id);
-  };
-
-  class G1RefEnqueueTaskProxy: public AbstractGangTask {
-    typedef AbstractRefProcTaskExecutor::EnqueueTask EnqueueTask;
-    EnqueueTask& _enq_task;
-
-  public:
-    G1RefEnqueueTaskProxy(EnqueueTask& enq_task);
     virtual void work(uint worker_id);
   };
 };

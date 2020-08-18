@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,17 @@
  * @test
  * @bug 8024927
  * @summary Testing address of compressed class pointer space as best as possible.
+ * @requires vm.bits == 64 & vm.opt.final.UseCompressedOops == true
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
+ * @run main CompressedClassPointers
  */
 
 import jdk.test.lib.Platform;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
+import jtreg.SkippedException;
 
 public class CompressedClassPointers {
 
@@ -42,6 +45,8 @@ public class CompressedClassPointers {
             "-XX:SharedBaseAddress=8g",
             "-Xmx128m",
             "-Xlog:gc+metaspace=trace",
+            "-Xshare:off",
+            "-Xlog:cds=trace",
             "-XX:+VerifyBeforeGC", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldContain("Narrow klass base: 0x0000000000000000");
@@ -54,6 +59,8 @@ public class CompressedClassPointers {
             "-XX:CompressedClassSpaceSize=3g",
             "-Xmx128m",
             "-Xlog:gc+metaspace=trace",
+            "-Xshare:off",
+            "-Xlog:cds=trace",
             "-XX:+VerifyBeforeGC", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldContain("Narrow klass base: 0x0000000000000000, Narrow klass shift: 3");
@@ -66,6 +73,8 @@ public class CompressedClassPointers {
             "-Xmx30g",
             "-XX:-UseAOT", // AOT explicitly set klass shift to 3.
             "-Xlog:gc+metaspace=trace",
+            "-Xshare:off",
+            "-Xlog:cds=trace",
             "-XX:+VerifyBeforeGC", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldNotContain("Narrow klass base: 0x0000000000000000");
@@ -132,17 +141,10 @@ public class CompressedClassPointers {
     }
 
     public static void main(String[] args) throws Exception {
-        if (!Platform.is64bit()) {
-            // Can't test this on 32 bit, just pass
-            System.out.println("Skipping test on 32bit");
-            return;
-        }
-        // Solaris 10 can't mmap compressed oops space without a base
         if (Platform.isSolaris()) {
              String name = System.getProperty("os.version");
              if (name.equals("5.10")) {
-                 System.out.println("Skipping test on Solaris 10");
-                 return;
+                throw new SkippedException("Solaris 10 can't mmap compressed oops space without a base");
              }
         }
         smallHeapTest();

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -124,7 +124,7 @@ JLINK := $(FIXPATH) $(JLINK_CMD)
 JMOD := $(FIXPATH) $(JMOD_CMD)
 JARSIGNER := $(FIXPATH) $(JARSIGNER_CMD)
 
-BUILD_JAVA := $(JAVA)
+BUILD_JAVA := $(JDK_IMAGE_DIR)/bin/JAVA
 ################################################################################
 # Some common tools. Assume most common name and no path.
 AWK := awk
@@ -147,6 +147,7 @@ GZIP := gzip
 HEAD := head
 LS := ls
 LN := ln
+MIG := mig
 MKDIR := mkdir
 MV := mv
 NAWK := nawk
@@ -171,3 +172,21 @@ UNZIP := unzip
 EXPR := expr
 FILE := file
 HG := hg
+
+# On Solaris gnu versions of some tools are required.
+ifeq ($(OPENJDK_BUILD_OS), solaris)
+  AWK := gawk
+  GREP := ggrep
+  EGREP := ggrep -E
+  FGREP := grep -F
+  SED := gsed
+  TAR := gtar
+endif
+
+ifeq ($(OPENJDK_BUILD_OS), windows)
+  CYGPATH := cygpath
+endif
+
+################################################################################
+# Simple macros from spec.gmk.in
+SHARED_LIBRARY=$(LIBRARY_PREFIX)$1$(SHARED_LIBRARY_SUFFIX)

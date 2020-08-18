@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@ import java.awt.BasicStroke;
 import java.awt.geom.PathIterator;
 import java.awt.geom.AffineTransform;
 
-import java.security.PrivilegedAction;
 import java.security.AccessController;
 import sun.security.action.GetPropertyAction;
 
@@ -181,7 +180,7 @@ public abstract class RenderingEngine {
                                              int caps,
                                              int join,
                                              float miterlimit,
-                                             float dashes[],
+                                             float[] dashes,
                                              float dashphase);
 
     /**
@@ -272,7 +271,7 @@ public abstract class RenderingEngine {
                                                        BasicStroke bs,
                                                        boolean thin,
                                                        boolean normalize,
-                                                       int bbox[]);
+                                                       int[] bbox);
 
     /**
      * Construct an antialiased tile generator for the given parallelogram
@@ -338,7 +337,7 @@ public abstract class RenderingEngine {
                                                        double dx2, double dy2,
                                                        double lw1, double lw2,
                                                        Region clip,
-                                                       int bbox[]);
+                                                       int[] bbox);
 
     /**
      * Returns the minimum pen width that the antialiasing rasterizer
@@ -354,7 +353,7 @@ public abstract class RenderingEngine {
      * feeding the consumer a segment at a time.
      */
     public static void feedConsumer(PathIterator pi, PathConsumer2D consumer) {
-        float coords[] = new float[6];
+        float[] coords = new float[6];
         while (!pi.isDone()) {
             switch (pi.currentSegment(coords)) {
             case PathIterator.SEG_MOVETO:
@@ -394,7 +393,7 @@ public abstract class RenderingEngine {
                                         int caps,
                                         int join,
                                         float miterlimit,
-                                        float dashes[],
+                                        float[] dashes,
                                         float dashphase)
         {
             System.out.println(name+".createStrokedShape("+
@@ -440,7 +439,7 @@ public abstract class RenderingEngine {
                                                   BasicStroke bs,
                                                   boolean thin,
                                                   boolean normalize,
-                                                  int bbox[])
+                                                  int[] bbox)
         {
             System.out.println(name+".getAATileGenerator("+
                                s.getClass().getName()+", "+
@@ -458,7 +457,7 @@ public abstract class RenderingEngine {
                                                   double dx2, double dy2,
                                                   double lw1, double lw2,
                                                   Region clip,
-                                                  int bbox[])
+                                                  int[] bbox)
         {
             System.out.println(name+".getAATileGenerator("+
                                x+", "+y+", "+

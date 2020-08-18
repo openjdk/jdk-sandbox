@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -103,7 +103,7 @@ public class MemberEnter extends JCTree.Visitor {
 
         // Enter and attribute type parameters.
         List<Type> tvars = enter.classEnter(typarams, env);
-        attr.attribTypeVariables(typarams, env);
+        attr.attribTypeVariables(typarams, env, true);
 
         // Enter and attribute value parameters.
         ListBuffer<Type> argbuf = new ListBuffer<>();
@@ -183,7 +183,7 @@ public class MemberEnter extends JCTree.Visitor {
 
         //if this is a default method, add the DEFAULT flag to the enclosing interface
         if ((tree.mods.flags & DEFAULT) != 0) {
-            m.enclClass().flags_field |= DEFAULT;
+            m.owner.flags_field |= DEFAULT;
         }
 
         Env<AttrContext> localEnv = methodEnv(tree, env);
@@ -245,6 +245,7 @@ public class MemberEnter extends JCTree.Visitor {
                                                              tree.sym.type.getReturnType());
         }
         if ((tree.mods.flags & STATIC) != 0) localEnv.info.staticLevel++;
+        localEnv.info.breakResult = null;
         return localEnv;
     }
 
@@ -280,7 +281,9 @@ public class MemberEnter extends JCTree.Visitor {
             tree.vartype.type = atype.makeVarargs();
         }
         WriteableScope enclScope = enter.enterScope(env);
-        Type vartype = tree.isImplicitlyTyped() ? Type.noType : tree.vartype.type;
+        Type vartype = tree.isImplicitlyTyped()
+                ? env.info.scope.owner.kind == MTH ? Type.noType : syms.errType
+                : tree.vartype.type;
         VarSymbol v = new VarSymbol(0, tree.name, vartype, enclScope.owner);
         v.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, v, tree);
         tree.sym = v;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,19 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSPROMOTIONMANAGER_INLINE_HPP
-#define SHARE_VM_GC_PARALLEL_PSPROMOTIONMANAGER_INLINE_HPP
+#ifndef SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_INLINE_HPP
+#define SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_INLINE_HPP
 
 #include "gc/parallel/parallelScavengeHeap.hpp"
 #include "gc/parallel/parMarkBitMap.inline.hpp"
 #include "gc/parallel/psOldGen.hpp"
 #include "gc/parallel/psPromotionLAB.inline.hpp"
 #include "gc/parallel/psPromotionManager.hpp"
-#include "gc/parallel/psScavenge.hpp"
+#include "gc/parallel/psScavenge.inline.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
 #include "logging/log.hpp"
+#include "memory/iterator.inline.hpp"
+#include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 
 inline PSPromotionManager* PSPromotionManager::manager_array(uint index) {
@@ -49,14 +51,14 @@ inline void PSPromotionManager::push_depth(T* p) {
 template <class T>
 inline void PSPromotionManager::claim_or_forward_internal_depth(T* p) {
   if (p != NULL) { // XXX: error if p != NULL here
-    oop o = oopDesc::load_decode_heap_oop_not_null(p);
+    oop o = RawAccess<IS_NOT_NULL>::oop_load(p);
     if (o->is_forwarded()) {
       o = o->forwardee();
       // Card mark
       if (PSScavenge::is_obj_in_young(o)) {
         PSScavenge::card_table()->inline_write_ref_field_gc(p, o);
       }
-      oopDesc::encode_store_heap_oop_not_null(p, o);
+      RawAccess<IS_NOT_NULL>::oop_store(p, o);
     } else {
       push_depth(p);
     }
@@ -98,8 +100,48 @@ inline void PSPromotionManager::promotion_trace_event(oop new_obj, oop old_obj,
   }
 }
 
+class PSPushContentsClosure: public BasicOopIterateClosure {
+  PSPromotionManager* _pm;
+ public:
+  PSPushContentsClosure(PSPromotionManager* pm) : BasicOopIterateClosure(PSScavenge::reference_processor()), _pm(pm) {}
+
+  template <typename T> void do_oop_nv(T* p) {
+    if (PSScavenge::should_scavenge(p)) {
+      _pm->claim_or_forward_depth(p);
+    }
+  }
+
+  virtual void do_oop(oop* p)       { do_oop_nv(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
+
+  // Don't use the oop verification code in the oop_oop_iterate framework.
+  debug_only(virtual bool should_verify_oops() { return false; })
+};
+
+//
+// This closure specialization will override the one that is defined in
+// instanceRefKlass.inline.cpp. It swaps the order of oop_oop_iterate and
+// oop_oop_iterate_ref_processing. Unfortunately G1 and Parallel behaves
+// significantly better (especially in the Derby benchmark) using opposite
+// order of these function calls.
+//
+template <>
+inline void InstanceRefKlass::oop_oop_iterate_reverse<oop, PSPushContentsClosure>(oop obj, PSPushContentsClosure* closure) {
+  oop_oop_iterate_ref_processing<oop>(obj, closure);
+  InstanceKlass::oop_oop_iterate_reverse<oop>(obj, closure);
+}
+
+template <>
+inline void InstanceRefKlass::oop_oop_iterate_reverse<narrowOop, PSPushContentsClosure>(oop obj, PSPushContentsClosure* closure) {
+  oop_oop_iterate_ref_processing<narrowOop>(obj, closure);
+  InstanceKlass::oop_oop_iterate_reverse<narrowOop>(obj, closure);
+}
+
 inline void PSPromotionManager::push_contents(oop obj) {
-  obj->ps_push_contents(this);
+  if (!obj->klass()->is_typeArray_klass()) {
+    PSPushContentsClosure pcc(this);
+    obj->oop_iterate_backwards(&pcc);
+  }
 }
 //
 // This method is pretty bulky. It would be nice to split it up
@@ -115,7 +157,7 @@ inline oop PSPromotionManager::copy_to_survivor_space(oop o) {
   // NOTE! We must be very careful with any methods that access the mark
   // in o. There may be multiple threads racing on it, and it may be forwarded
   // at any time. Do not use oop methods for accessing the mark!
-  markOop test_mark = o->mark();
+  markOop test_mark = o->mark_raw();
 
   // The same test as "o->is_forwarded()"
   if (!test_mark->is_marked()) {
@@ -212,7 +254,8 @@ inline oop PSPromotionManager::copy_to_survivor_space(oop o) {
     Copy::aligned_disjoint_words((HeapWord*)o, (HeapWord*)new_obj, new_obj_size);
 
     // Now we have to CAS in the header.
-    if (o->cas_forward_to(new_obj, test_mark)) {
+    // Make copy visible to threads reading the forwardee.
+    if (o->cas_forward_to(new_obj, test_mark, memory_order_release)) {
       // We won any races, we "own" this object.
       assert(new_obj == o->forwardee(), "Sanity");
 
@@ -255,11 +298,12 @@ inline oop PSPromotionManager::copy_to_survivor_space(oop o) {
       }
 
       // don't update this before the unallocation!
-      new_obj = o->forwardee();
+      // Using acquire though consume would be accurate for accessing new_obj.
+      new_obj = o->forwardee_acquire();
     }
   } else {
     assert(o->is_forwarded(), "Sanity");
-    new_obj = o->forwardee();
+    new_obj = o->forwardee_acquire();
   }
 
   // This code must come after the CAS test, or it will print incorrect
@@ -278,7 +322,7 @@ template <class T, bool promote_immediately>
 inline void PSPromotionManager::copy_and_push_safe_barrier(T* p) {
   assert(should_scavenge(p, true), "revisiting object?");
 
-  oop o = oopDesc::load_decode_heap_oop_not_null(p);
+  oop o = RawAccess<IS_NOT_NULL>::oop_load(p);
   oop new_obj = o->is_forwarded()
         ? o->forwardee()
         : copy_to_survivor_space<promote_immediately>(o);
@@ -291,7 +335,7 @@ inline void PSPromotionManager::copy_and_push_safe_barrier(T* p) {
                       new_obj->klass()->internal_name(), p2i((void *)o), p2i((void *)new_obj), new_obj->size());
   }
 
-  oopDesc::encode_store_heap_oop_not_null(p, new_obj);
+  RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
 
   // We cannot mark without test, as some code passes us pointers
   // that are outside the heap. These pointers are either from roots
@@ -319,8 +363,8 @@ inline void PSPromotionManager::process_popped_location_depth(StarTask p) {
   }
 }
 
-inline bool PSPromotionManager::steal_depth(int queue_num, int* seed, StarTask& t) {
-  return stack_array_depth()->steal(queue_num, seed, t);
+inline bool PSPromotionManager::steal_depth(int queue_num, StarTask& t) {
+  return stack_array_depth()->steal(queue_num, t);
 }
 
 #if TASKQUEUE_STATS
@@ -331,4 +375,4 @@ void PSPromotionManager::record_steal(StarTask& p) {
 }
 #endif // TASKQUEUE_STATS
 
-#endif // SHARE_VM_GC_PARALLEL_PSPROMOTIONMANAGER_INLINE_HPP
+#endif // SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_INLINE_HPP

@@ -27,15 +27,14 @@
  * @summary Check most common errors in file format
  * @requires vm.cds.archived.java.heap
  * @library /test/lib /test/hotspot/jtreg/runtime/appcds
- * @modules java.base/jdk.internal.misc
- * @modules java.management
- *          jdk.jartool/sun.tools.jar
+ * @modules jdk.jartool/sun.tools.jar
  * @build HelloString
- * @run main InvalidFileFormat
+ * @run driver InvalidFileFormat
  */
 
-import jdk.test.lib.process.OutputAnalyzer;
 import java.io.File;
+import jdk.test.lib.cds.CDSTestUtils;
+import jdk.test.lib.process.OutputAnalyzer;
 
 // Checking most common error use cases
 // This file is not an exhastive test of various shared data file corruption
@@ -43,6 +42,10 @@ import java.io.File;
 // the previledge person in the server environment.
 public class InvalidFileFormat {
     public static void main(String[] args) throws Exception {
+        SharedStringsUtils.run(args, InvalidFileFormat::test);
+    }
+
+    public static void test(String[] args) throws Exception {
         SharedStringsUtils.buildJar("HelloString");
 
         test("NonExistentFile.txt", "Unable to get hashtable dump file size");
@@ -54,6 +57,7 @@ public class InvalidFileFormat {
         test("OverflowPrefix.txt", "Num overflow. Corrupted at line 4");
         test("UnrecognizedPrefix.txt", "Unrecognized format. Corrupted at line 5");
         test("TruncatedString.txt", "Truncated. Corrupted at line 3");
+        test("LengthOverflow.txt", "string length too large: 2147483647");
     }
 
     private static void
@@ -63,8 +67,8 @@ public class InvalidFileFormat {
         OutputAnalyzer out = SharedStringsUtils.dumpWithoutChecks(TestCommon.list("HelloString"),
                                  "invalidFormat" + File.separator + dataFileName);
 
-        if (!TestCommon.isUnableToMap(out))
-            out.shouldContain(expectedWarning).shouldHaveExitValue(1);
+        CDSTestUtils.checkMappingFailure(out);
+        out.shouldContain(expectedWarning).shouldHaveExitValue(1);
     }
 
 }

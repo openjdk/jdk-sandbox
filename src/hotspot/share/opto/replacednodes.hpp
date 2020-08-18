@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_REPLACEDNODES_HPP
-#define SHARE_VM_OPTO_REPLACEDNODES_HPP
+#ifndef SHARE_OPTO_REPLACEDNODES_HPP
+#define SHARE_OPTO_REPLACEDNODES_HPP
 
 #include "opto/connode.hpp"
 
@@ -41,9 +41,9 @@
 // replaced nodes are also merged. When parsing exits a method to
 // return to a caller, the replaced nodes on the exit path are used to
 // update the caller's map.
-class ReplacedNodes VALUE_OBJ_CLASS_SPEC {
+class ReplacedNodes {
  private:
-  class ReplacedNode VALUE_OBJ_CLASS_SPEC {
+  class ReplacedNode {
   private:
     Node* _initial;
     Node* _improved;
@@ -78,4 +78,4 @@ class ReplacedNodes VALUE_OBJ_CLASS_SPEC {
   void apply(Compile* C, Node* ctl);
 };
 
-#endif // SHARE_VM_OPTO_REPLACEDNODES_HPP
+#endif // SHARE_OPTO_REPLACEDNODES_HPP

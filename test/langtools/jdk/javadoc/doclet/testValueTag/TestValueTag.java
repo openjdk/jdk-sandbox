@@ -23,15 +23,23 @@
 
 /*
  * @test
- * @bug      4764045 8004825 8026567 8191030
+ * @bug      4764045 8004825 8026567 8191030 8204330
  * @summary  This test ensures that the value tag works in all
  *           use cases, the tests are explained below.
  * @author   jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestValueTag
  */
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+
+import javadoc.tester.JavadocTester;
 
 public class TestValueTag extends JavadocTester {
 
@@ -41,7 +49,7 @@ public class TestValueTag extends JavadocTester {
     }
 
     @Test
-    void test1() {
+    public void test1() {
         javadoc("-d", "out1",
                 "-sourcepath", testSrc,
                 "-tag", "todo",
@@ -110,8 +118,8 @@ public class TestValueTag extends JavadocTester {
         checkForException();
     }
 
-    @Test()
-    void test2() {
+    @Test
+    public void test2() {
         javadoc("-Xdoclint:none",
                 "-d", "out2",
                 "-sourcepath", testSrc,
@@ -133,8 +141,8 @@ public class TestValueTag extends JavadocTester {
         checkForException();
     }
 
-    @Test()
-    void test3() {
+    @Test
+    public void test3() {
         javadoc("-d", "out3",
                 "-sourcepath", testSrc,
                 "pkg2", "pkg3");
@@ -146,10 +154,37 @@ public class TestValueTag extends JavadocTester {
                 "The value2 is <a href=\"#CONSTANT\">\"constant\"</a>.",
                 "The value3 is <a href=\"../pkg2/Class3.html#TEST_12_PASSES\">"
                 + "\"Test 12 passes\"</a>.");
+        checkForException();
+    }
+
+    @Test
+    public void test4() throws IOException {
+        Path base = Paths.get("test4");
+        Path src = base.resolve("src");
+        Files.createDirectories(src.resolve("p"));
+        Files.write(src.resolve("p").resolve("C.java"), List.of(
+                "package p;",
+                "/** This class defines specialChars: {@value C#specialChars}. */",
+                "public class C {",
+                "    /** The value is {@value}. */",
+                "    public static final String specialChars = \"abc < def & ghi > jkl\";",
+                "}"));
+
+        javadoc("-d", base.resolve("out").toString(),
+                "-sourcepath", src.toString(),
+                "p");
+        checkExit(Exit.OK);
+        checkOutput("p/C.html", false,
+                "The value is \"abc < def & ghi > jkl\".");
+        checkOutput("p/C.html", true,
+                "The value is \"abc &lt; def &amp; ghi &gt; jkl\".");
+
+        checkForException();
     }
 
 
     void checkForException() {
         checkOutput(Output.STDERR, false, "DocletAbortException");
+        checkOutput(Output.STDERR, false, "IllegalArgumentException");
     }
 }

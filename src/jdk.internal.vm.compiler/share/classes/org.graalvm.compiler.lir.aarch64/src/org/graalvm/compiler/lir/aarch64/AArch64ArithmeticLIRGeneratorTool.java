@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir.aarch64;
 
 import org.graalvm.compiler.lir.Variable;
@@ -36,6 +38,21 @@ public interface AArch64ArithmeticLIRGeneratorTool extends ArithmeticLIRGenerato
     Value emitCountLeadingZeros(Value value);
 
     Value emitCountTrailingZeros(Value value);
+
+    enum RoundingMode {
+        NEAREST(0),
+        DOWN(1),
+        UP(2),
+        TRUNCATE(3);
+
+        public final int encoding;
+
+        RoundingMode(int encoding) {
+            this.encoding = encoding;
+        }
+    }
+
+    Value emitRound(Value value, RoundingMode mode);
 
     void emitCompareOp(AArch64Kind cmpKind, Variable left, Value right);
 }

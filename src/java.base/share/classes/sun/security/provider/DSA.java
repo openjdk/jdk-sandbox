@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import java.nio.ByteBuffer;
 import java.security.*;
 import java.security.SecureRandom;
 import java.security.interfaces.*;
+import java.security.spec.*;
 
 import sun.security.util.Debug;
 import sun.security.util.DerValue;
@@ -104,7 +105,7 @@ abstract class DSA extends SignatureSpi {
      * Construct a blank DSA object that will use the specified
      * signature format. {@code p1363Format} should be {@code true} to
      * use the IEEE P1363 format. If {@code p1363Format} is {@code false},
-     * the DER-encoded ASN.1 format will used. The DSA object must be
+     * the DER-encoded ASN.1 format will be used. The DSA object must be
      * initialized before being usable for signing or verifying.
      */
     DSA(MessageDigest md, boolean p1363Format) {
@@ -151,7 +152,7 @@ abstract class DSA extends SignatureSpi {
 
         // check key size against hash output size for signing
         // skip this check for verification to minimize impact on existing apps
-        if (md.getAlgorithm() != "NullDigest20") {
+        if (!"NullDigest20".equals(md.getAlgorithm())) {
             checkKey(params, md.getDigestLength()*8, md.getAlgorithm());
         }
 
@@ -370,8 +371,21 @@ abstract class DSA extends SignatureSpi {
         throw new InvalidParameterException("No parameter accepted");
     }
 
+    @Override
+    protected void engineSetParameter(AlgorithmParameterSpec params)
+            throws InvalidAlgorithmParameterException {
+        if (params != null) {
+            throw new InvalidAlgorithmParameterException("No parameter accepted");
+        }
+    }
+
     @Deprecated
     protected Object engineGetParameter(String key) {
+        return null;
+    }
+
+    @Override
+    protected AlgorithmParameters engineGetParameters() {
         return null;
     }
 
@@ -574,7 +588,7 @@ abstract class DSA extends SignatureSpi {
                 }
             }
             protected void engineUpdate(byte[] input, int offset, int len) {
-                if (ofs + len > digestBuffer.length) {
+                if (len > (digestBuffer.length - ofs)) {
                     ofs = Integer.MAX_VALUE;
                 } else {
                     System.arraycopy(input, offset, digestBuffer, ofs, len);
@@ -583,7 +597,7 @@ abstract class DSA extends SignatureSpi {
             }
             protected final void engineUpdate(ByteBuffer input) {
                 int inputLen = input.remaining();
-                if (ofs + inputLen > digestBuffer.length) {
+                if (inputLen > (digestBuffer.length - ofs)) {
                     ofs = Integer.MAX_VALUE;
                 } else {
                     input.get(digestBuffer, ofs, inputLen);

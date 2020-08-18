@@ -105,10 +105,6 @@ public class ClassReader {
      */
     public boolean readAllOfClassFile = false;
 
-    /** Switch: allow simplified varargs.
-     */
-    boolean allowSimplifiedVarargs;
-
     /** Switch: allow modules.
      */
     boolean allowModules;
@@ -145,6 +141,13 @@ public class ClassReader {
     /** Factory for diagnostics
      */
     JCDiagnostic.Factory diagFactory;
+
+    DeferredCompletionFailureHandler dcfh;
+
+    /**
+     * Support for preview language features.
+     */
+    Preview preview;
 
     /** The current scope where type variables are entered.
      */
@@ -260,6 +263,7 @@ public class ClassReader {
         if (fileManager == null)
             throw new AssertionError("FileManager initialization error");
         diagFactory = JCDiagnostic.Factory.instance(context);
+        dcfh = DeferredCompletionFailureHandler.instance(context);
 
         log = Log.instance(context);
 
@@ -267,7 +271,7 @@ public class ClassReader {
         verbose         = options.isSet(Option.VERBOSE);
 
         Source source = Source.instance(context);
-        allowSimplifiedVarargs = Feature.SIMPLIFIED_VARARGS.allowedInSource(source);
+        preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
 
         saveParameterNames = options.isSet(PARAMETERS);
@@ -299,7 +303,8 @@ public class ClassReader {
             currentOwner.enclClass(),
             currentClassFile,
             diagFactory.fragment(key, args),
-            diagFactory);
+            diagFactory,
+            dcfh);
     }
 
     public ClassFinder.BadEnclosingMethodAttr badEnclosingMethod(Symbol sym) {
@@ -307,7 +312,8 @@ public class ClassReader {
             currentOwner.enclClass(),
             currentClassFile,
             diagFactory.fragment(Fragments.BadEnclosingMethod(sym)),
-            diagFactory);
+            diagFactory,
+            dcfh);
     }
 
 /************************************************************************
@@ -1633,9 +1639,9 @@ public class ClassReader {
         }
         ListBuffer<CompoundAnnotationProxy> proxies = new ListBuffer<>();
         for (CompoundAnnotationProxy proxy : annotations) {
-            if (proxy.type.tsym == syms.proprietaryType.tsym)
+            if (proxy.type.tsym.flatName() == syms.proprietaryType.tsym.flatName())
                 sym.flags_field |= PROPRIETARY;
-            else if (proxy.type.tsym == syms.profileType.tsym) {
+            else if (proxy.type.tsym.flatName() == syms.profileType.tsym.flatName()) {
                 if (profile != Profile.DEFAULT) {
                     for (Pair<Name, Attribute> v : proxy.values) {
                         if (v.fst == names.value && v.snd instanceof Attribute.Constant) {
@@ -2460,6 +2466,9 @@ public class ClassReader {
     }
 
     private List<Type> adjustMethodParams(long flags, List<Type> args) {
+        if (args.isEmpty()) {
+            return args;
+        }
         boolean isVarargs = (flags & VARARGS) != 0;
         if (isVarargs) {
             Type varargsElem = args.last();
@@ -2636,8 +2645,6 @@ public class ClassReader {
     }
 
     protected ClassSymbol enterClass(Name name) {
-        if (syms.proprietaryType.tsym.flatName() == name)
-            return (ClassSymbol) syms.proprietaryType.tsym;
         return syms.enterClass(currentModule, name);
     }
 
@@ -2663,7 +2670,7 @@ public class ClassReader {
         long f = nextChar();
         long flags = adjustClassFlags(f);
         if ((flags & MODULE) == 0) {
-            if (c.owner.kind == PCK) c.flags_field = flags;
+            if (c.owner.kind == PCK || c.owner.kind == ERR) c.flags_field = flags;
             // read own class name and check that it matches
             currentModule = c.packge().modle;
             ClassSymbol self = readClassSymbol(nextChar());
@@ -2779,6 +2786,14 @@ public class ClassReader {
                                    Integer.toString(minorVersion),
                                    Integer.toString(maxMajor),
                                    Integer.toString(maxMinor));
+        }
+
+        if (minorVersion == ClassFile.PREVIEW_MINOR_VERSION) {
+            if (!preview.isEnabled()) {
+                log.error(preview.disabledError(currentClassFile, majorVersion));
+            } else {
+                preview.warnPreview(c.classfile, majorVersion);
+            }
         }
 
         indexPool();
@@ -3065,7 +3080,9 @@ public class ClassReader {
                     theRepeatable = deproxy.deproxyCompound(repeatable);
                 }
             } catch (Exception e) {
-                throw new CompletionFailure(sym, ClassReader.this.diagFactory.fragment(Fragments.ExceptionMessage(e.getMessage())));
+                throw new CompletionFailure(sym,
+                                            ClassReader.this.diagFactory.fragment(Fragments.ExceptionMessage(e.getMessage())),
+                                            dcfh);
             }
 
             sym.getAnnotationTypeMetadata().setTarget(theTarget);

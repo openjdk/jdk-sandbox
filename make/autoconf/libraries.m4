@@ -32,6 +32,7 @@ m4_include([lib-freetype.m4])
 m4_include([lib-std.m4])
 m4_include([lib-x11.m4])
 m4_include([lib-fontconfig.m4])
+m4_include([lib-tests.m4])
 
 ################################################################################
 # Determine which libraries are needed for this configuration
@@ -101,31 +102,21 @@ AC_DEFUN_ONCE([LIB_SETUP_LIBRARIES],
   LIB_SETUP_BUNDLED_LIBS
   LIB_SETUP_MISC_LIBS
   LIB_SETUP_SOLARIS_STLPORT
+  LIB_TESTS_SETUP_GRAALUNIT
 
   if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    ALWAYS_LIBS="-lc"
+    GLOBAL_LIBS="-lc"
   else
-    ALWAYS_LIBS=""
+    GLOBAL_LIBS=""
   fi
 
   BASIC_JDKLIB_LIBS=""
   if test "x$TOOLCHAIN_TYPE" != xmicrosoft; then
     BASIC_JDKLIB_LIBS="-ljava -ljvm"
   fi
-  BASIC_JDKLIB_LIBS="$BASIC_JDKLIB_LIBS $ALWAYS_LIBS"
 
   # Math library
-  if test "x$OPENJDK_TARGET_OS" != xsolaris; then
-    BASIC_JVM_LIBS="$LIBM"
-  else
-    # FIXME: This hard-coded path is not really proper.
-    if test "x$OPENJDK_TARGET_CPU" = xx86_64; then
-      BASIC_SOLARIS_LIBM_LIBS="/usr/lib/amd64/libm.so.1"
-    elif test "x$OPENJDK_TARGET_CPU" = xsparcv9; then
-      BASIC_SOLARIS_LIBM_LIBS="/usr/lib/sparcv9/libm.so.1"
-    fi
-    BASIC_JVM_LIBS="$BASIC_SOLARIS_LIBM_LIBS"
-  fi
+  BASIC_JVM_LIBS="$LIBM"
 
   # Dynamic loading library
   if test "x$OPENJDK_TARGET_OS" = xlinux || test "x$OPENJDK_TARGET_OS" = xsolaris || test "x$OPENJDK_TARGET_OS" = xaix; then
@@ -141,7 +132,7 @@ AC_DEFUN_ONCE([LIB_SETUP_LIBRARIES],
 
   if test "x$OPENJDK_TARGET_OS" = xsolaris; then
     BASIC_JVM_LIBS="$BASIC_JVM_LIBS -lsocket -lsched -ldoor -ldemangle -lnsl \
-        -lrt"
+        -lrt -lkstat"
     BASIC_JVM_LIBS="$BASIC_JVM_LIBS $LIBCXX_JVM"
   fi
 
@@ -150,7 +141,6 @@ AC_DEFUN_ONCE([LIB_SETUP_LIBRARIES],
         comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib \
         wsock32.lib winmm.lib version.lib psapi.lib"
   fi
-  BASIC_JVM_LIBS="$BASIC_JVM_LIBS $ALWAYS_LIBS"
 
   JDKLIB_LIBS="$BASIC_JDKLIB_LIBS"
   JDKEXE_LIBS=""
@@ -163,6 +153,7 @@ AC_DEFUN_ONCE([LIB_SETUP_LIBRARIES],
   AC_SUBST(JVM_LIBS)
   AC_SUBST(OPENJDK_BUILD_JDKLIB_LIBS)
   AC_SUBST(OPENJDK_BUILD_JVM_LIBS)
+  AC_SUBST(GLOBAL_LIBS)
 ])
 
 ################################################################################
@@ -188,13 +179,6 @@ AC_DEFUN_ONCE([LIB_SETUP_MISC_LIBS],
   LIBDL="$LIBS"
   AC_SUBST(LIBDL)
   LIBS="$save_LIBS"
-
-  # Deprecated libraries, keep the flags for backwards compatibility
-  if test "x$OPENJDK_TARGET_OS" = "xwindows"; then
-    BASIC_DEPRECATED_ARG_WITH([dxsdk])
-    BASIC_DEPRECATED_ARG_WITH([dxsdk-lib])
-    BASIC_DEPRECATED_ARG_WITH([dxsdk-include])
-  fi
 
   # Control if libzip can use mmap. Available for purposes of overriding.
   LIBZIP_CAN_USE_MMAP=true
@@ -226,4 +210,3 @@ AC_DEFUN_ONCE([LIB_SETUP_SOLARIS_STLPORT],
     AC_SUBST(STLPORT_LIB)
   fi
 ])
-

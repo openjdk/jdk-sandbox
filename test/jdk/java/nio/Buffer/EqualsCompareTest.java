@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@ import java.util.stream.IntStream;
 
 /*
  * @test
- * @bug 8193085
+ * @bug 8193085 8199773
  * @summary tests for buffer equals and compare
  * @run testng EqualsCompareTest
  */
@@ -86,6 +86,7 @@ public class EqualsCompareTest {
 
         final MethodHandle eq;
         final MethodHandle cmp;
+        final MethodHandle mismtch;
 
         final MethodHandle getter;
         final MethodHandle setter;
@@ -99,6 +100,7 @@ public class EqualsCompareTest {
             try {
                 eq = lookup.findVirtual(bufferType, "equals", MethodType.methodType(boolean.class, Object.class));
                 cmp = lookup.findVirtual(bufferType, "compareTo", MethodType.methodType(int.class, bufferType));
+                mismtch = lookup.findVirtual(bufferType, "mismatch", MethodType.methodType(int.class, bufferType));
 
                 getter = lookup.findVirtual(bufferType, "get", MethodType.methodType(elementType, int.class));
                 setter = lookup.findVirtual(bufferType, "put", MethodType.methodType(bufferType, int.class, elementType));
@@ -120,8 +122,9 @@ public class EqualsCompareTest {
         abstract T construct(int length, ByteOrder bo);
 
         @SuppressWarnings("unchecked")
-        T slice(T a, int from, int to) {
-            return (T) a.position(from).limit(to).slice();
+        T slice(T a, int from, int to, boolean dupOtherwiseSlice) {
+            a = (T) a.position(from).limit(to);
+            return (T) (dupOtherwiseSlice ? a.duplicate() : a.slice());
         }
 
         @SuppressWarnings("unchecked")
@@ -183,6 +186,18 @@ public class EqualsCompareTest {
                 if (!get(a, i).equals(get(b, j)))
                     return false;
             return true;
+        }
+
+        int mismatch(T a, T b) {
+            try {
+                return (int) mismtch.invoke(a, b);
+            }
+            catch (RuntimeException | Error e) {
+                throw e;
+            }
+            catch (Throwable t) {
+              throw new Error(t);
+            }
         }
 
         static class Bytes extends BufferType<ByteBuffer, Byte> {
@@ -422,7 +437,6 @@ public class EqualsCompareTest {
         }
     }
 
-
     static Object[][] bufferTypes;
 
     @DataProvider
@@ -607,58 +621,74 @@ public class EqualsCompareTest {
                         BiFunction<BT, Integer, B> bConstructor) {
         int n = arraySizeFor(bt.elementType);
 
-        for (int s : ranges(0, n)) {
-            B a = aConstructor.apply(bt, s);
-            B b = bConstructor.apply(bt, s);
+        for (boolean dupOtherwiseSlice : new boolean[]{ false, true }) {
+            for (int s : ranges(0, n)) {
+                B a = aConstructor.apply(bt, s);
+                B b = bConstructor.apply(bt, s);
 
-            for (int aFrom : ranges(0, s)) {
-                for (int aTo : ranges(aFrom, s)) {
-                    int aLength = aTo - aFrom;
+                for (int aFrom : ranges(0, s)) {
+                    for (int aTo : ranges(aFrom, s)) {
+                        int aLength = aTo - aFrom;
 
-                    B as = aLength != s
-                           ? bt.slice(a, aFrom, aTo)
-                           : a;
+                        B as = aLength != s
+                               ? bt.slice(a, aFrom, aTo, dupOtherwiseSlice)
+                               : a;
 
-                    for (int bFrom : ranges(0, s)) {
-                        for (int bTo : ranges(bFrom, s)) {
-                            int bLength = bTo - bFrom;
+                        for (int bFrom : ranges(0, s)) {
+                            for (int bTo : ranges(bFrom, s)) {
+                                int bLength = bTo - bFrom;
 
-                            B bs = bLength != s
-                                   ? bt.slice(b, bFrom, bTo)
-                                   : b;
+                                B bs = bLength != s
+                                       ? bt.slice(b, bFrom, bTo, dupOtherwiseSlice)
+                                       : b;
 
-                            boolean eq = bt.pairWiseEquals(as, bs);
-                            Assert.assertEquals(bt.equals(as, bs), eq);
-                            Assert.assertEquals(bt.equals(bs, as), eq);
-                            if (eq) {
-                                Assert.assertEquals(bt.compare(as, bs), 0);
-                                Assert.assertEquals(bt.compare(bs, as), 0);
-                            }
-                            else {
-                                int aCb = bt.compare(as, bs);
-                                int bCa = bt.compare(bs, as);
-                                int v = Integer.signum(aCb) * Integer.signum(bCa);
-                                Assert.assertTrue(v == -1);
+                                boolean eq = bt.pairWiseEquals(as, bs);
+                                Assert.assertEquals(bt.equals(as, bs), eq);
+                                Assert.assertEquals(bt.equals(bs, as), eq);
+                                if (eq) {
+                                    Assert.assertEquals(bt.compare(as, bs), 0);
+                                    Assert.assertEquals(bt.compare(bs, as), 0);
+
+                                    // If buffers are equal, there shall be no mismatch
+                                    Assert.assertEquals(bt.mismatch(as, bs), -1);
+                                    Assert.assertEquals(bt.mismatch(bs, as), -1);
+                                }
+                                else {
+                                    int aCb = bt.compare(as, bs);
+                                    int bCa = bt.compare(bs, as);
+                                    int v = Integer.signum(aCb) * Integer.signum(bCa);
+                                    Assert.assertTrue(v == -1);
+
+                                    int aMs = bt.mismatch(as, bs);
+                                    int bMs = bt.mismatch(bs, as);
+                                    Assert.assertNotEquals(aMs, -1);
+                                    Assert.assertEquals(aMs, bMs);
+                                }
                             }
                         }
-                    }
 
-                    if (aLength > 0 && !a.isReadOnly()) {
-                        for (int i = aFrom; i < aTo; i++) {
-                            B c = aConstructor.apply(bt, a.capacity());
-                            B cs = aLength != s
-                                   ? bt.slice(c, aFrom, aTo)
-                                   : c;
+                        if (aLength > 0 && !a.isReadOnly()) {
+                            for (int i = aFrom; i < aTo; i++) {
+                                B c = aConstructor.apply(bt, a.capacity());
+                                B cs = aLength != s
+                                       ? bt.slice(c, aFrom, aTo, dupOtherwiseSlice)
+                                       : c;
 
-                            // Create common prefix with a length of i - aFrom
-                            bt.set(c, i, -1);
+                                // Create common prefix with a length of i - aFrom
+                                bt.set(c, i, -1);
 
-                            Assert.assertFalse(bt.equals(c, a));
+                                Assert.assertFalse(bt.equals(c, a));
 
-                            int cCa = bt.compare(cs, as);
-                            int aCc = bt.compare(as, cs);
-                            int v = Integer.signum(cCa) * Integer.signum(aCc);
-                            Assert.assertTrue(v == -1);
+                                int cCa = bt.compare(cs, as);
+                                int aCc = bt.compare(as, cs);
+                                int v = Integer.signum(cCa) * Integer.signum(aCc);
+                                Assert.assertTrue(v == -1);
+
+                                int cMa = bt.mismatch(cs, as);
+                                int aMc = bt.mismatch(as, cs);
+                                Assert.assertEquals(cMa, aMc);
+                                Assert.assertEquals(cMa, i - aFrom);
+                            }
                         }
                     }
                 }

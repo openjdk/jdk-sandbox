@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_OOPFACTORY_HPP
-#define SHARE_VM_MEMORY_OOPFACTORY_HPP
+#ifndef SHARE_MEMORY_OOPFACTORY_HPP
+#define SHARE_MEMORY_OOPFACTORY_HPP
 
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -43,7 +43,7 @@ class oopFactory: AllStatic {
   // Basic type leaf array allocation
   static typeArrayOop    new_boolArray  (int length, TRAPS) { return TypeArrayKlass::cast(Universe::boolArrayKlassObj  ())->allocate(length, THREAD); }
   static typeArrayOop    new_charArray  (int length, TRAPS) { return TypeArrayKlass::cast(Universe::charArrayKlassObj  ())->allocate(length, THREAD); }
-  static typeArrayOop    new_singleArray(int length, TRAPS) { return TypeArrayKlass::cast(Universe::singleArrayKlassObj())->allocate(length, THREAD); }
+  static typeArrayOop    new_floatArray (int length, TRAPS) { return TypeArrayKlass::cast(Universe::floatArrayKlassObj())->allocate(length, THREAD); }
   static typeArrayOop    new_doubleArray(int length, TRAPS) { return TypeArrayKlass::cast(Universe::doubleArrayKlassObj())->allocate(length, THREAD); }
   static typeArrayOop    new_byteArray  (int length, TRAPS) { return TypeArrayKlass::cast(Universe::byteArrayKlassObj  ())->allocate(length, THREAD); }
   static typeArrayOop    new_shortArray (int length, TRAPS) { return TypeArrayKlass::cast(Universe::shortArrayKlassObj ())->allocate(length, THREAD); }
@@ -72,4 +72,4 @@ class oopFactory: AllStatic {
   static typeArrayHandle new_byteArray_handle(int length, TRAPS);
 };
 
-#endif // SHARE_VM_MEMORY_OOPFACTORY_HPP
+#endif // SHARE_MEMORY_OOPFACTORY_HPP

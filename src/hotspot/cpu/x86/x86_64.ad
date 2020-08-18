@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -317,18 +317,6 @@ reg_class ptr_rsp_reg(RSP, RSP_H);
 // Singleton class for TLS pointer
 reg_class ptr_r15_reg(R15, R15_H);
 
-// The registers which can be used for
-// a thread local safepoint poll
-// * R12 is reserved for heap base
-// * R13 cannot be encoded for addressing without an offset byte
-// * R15 is reserved for the JavaThread
-reg_class ptr_rex_reg(R8,  R8_H,
-                      R9,  R9_H,
-                      R10, R10_H,
-                      R11, R11_H,
-                      R14, R14_H);
-
-
 // Class for all long registers (excluding RSP)
 reg_class long_reg_with_rbp(RAX, RAX_H,
                             RDX, RDX_H,
@@ -538,6 +526,12 @@ reg_class int_rdi_reg(RDI);
 
 %}
 
+source_hpp %{
+#if INCLUDE_ZGC
+#include "gc/z/zBarrierSetAssembler.hpp"
+#endif
+%}
+
 //----------SOURCE BLOCK-------------------------------------------------------
 // This is a block of C++ code which provides values, functions, and
 // definitions necessary in the rest of the architecture description
@@ -669,7 +663,7 @@ void emit_d32_reloc(CodeBuffer& cbuf, int d32, RelocationHolder const& rspec, in
   if (rspec.reloc()->type() == relocInfo::oop_type &&
       d32 != 0 && d32 != (intptr_t) Universe::non_oop_word()) {
     assert(Universe::heap()->is_in_reserved((address)(intptr_t)d32), "should be real oop");
-    assert(oopDesc::is_oop(cast_to_oop((intptr_t)d32)) && (ScavengeRootsInCode || !cast_to_oop((intptr_t)d32)->is_scavengable()), "cannot embed scavengable oops in code");
+    assert(oopDesc::is_oop(cast_to_oop((intptr_t)d32)) && (ScavengeRootsInCode || !Universe::heap()->is_scavengable(cast_to_oop((intptr_t)d32))), "cannot embed scavengable oops in code");
   }
 #endif
   cbuf.relocate(cbuf.insts_mark(), rspec, format);
@@ -696,7 +690,7 @@ void emit_d64_reloc(CodeBuffer& cbuf, int64_t d64, RelocationHolder const& rspec
   if (rspec.reloc()->type() == relocInfo::oop_type &&
       d64 != 0 && d64 != (int64_t) Universe::non_oop_word()) {
     assert(Universe::heap()->is_in_reserved((address)d64), "should be real oop");
-    assert(oopDesc::is_oop(cast_to_oop(d64)) && (ScavengeRootsInCode || !cast_to_oop(d64)->is_scavengable()),
+    assert(oopDesc::is_oop(cast_to_oop(d64)) && (ScavengeRootsInCode || !Universe::heap()->is_scavengable(cast_to_oop(d64))),
            "cannot embed scavengable oops in code");
   }
 #endif
@@ -896,6 +890,15 @@ void MachPrologNode::format(PhaseRegAlloc* ra_, outputStream* st) const {
     st->print("# stack alignment check");
 #endif
   }
+  if (C->stub_function() != NULL && BarrierSet::barrier_set()->barrier_set_nmethod() != NULL) {
+    st->print("\n\t");
+    st->print("cmpl    [r15_thread + #disarmed_offset], #disarmed_value\t");
+    st->print("\n\t");
+    st->print("je      fast_entry\t");
+    st->print("\n\t");
+    st->print("call    #nmethod_entry_barrier_stub\t");
+    st->print("\n\tfast_entry:");
+  }
   st->cr();
 }
 #endif
@@ -907,7 +910,7 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   int framesize = C->frame_size_in_bytes();
   int bangsize = C->bang_size_in_bytes();
 
-  __ verified_entry(framesize, C->need_stack_bang(bangsize)?bangsize:0, false);
+  __ verified_entry(framesize, C->need_stack_bang(bangsize)?bangsize:0, false, C->stub_function() != NULL);
 
   C->set_frame_complete(cbuf.insts_size());
 
@@ -2347,9 +2350,7 @@ encode %{
 
   enc_class lock_prefix()
   %{
-    if (os::is_MP()) {
-      emit_opcode(cbuf, 0xF0); // lock
-    }
+    emit_opcode(cbuf, 0xF0); // lock
   %}
 
   enc_class REX_mem(memory mem)
@@ -2980,6 +2981,16 @@ operand immI8()
   interface(CONST_INTER);
 %}
 
+operand immU8()
+%{
+  predicate((0 <= n->get_int()) && (n->get_int() <= 255));
+  match(ConI);
+
+  op_cost(5);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
 operand immI16()
 %{
   predicate((-32768 <= n->get_int()) && (n->get_int() <= 32767));
@@ -3541,16 +3552,6 @@ operand r15_RegP()
   interface(REG_INTER);
 %}
 
-operand rex_RegP()
-%{
-  constraint(ALLOC_IN_RC(ptr_rex_reg));
-  match(RegP);
-  match(rRegP);
-
-  format %{ %}
-  interface(REG_INTER);
-%}
-
 operand rRegL()
 %{
   constraint(ALLOC_IN_RC(long_reg));
@@ -3662,6 +3663,15 @@ operand regF() %{
    interface(REG_INTER);
 %}
 
+// Float register operands
+operand vlRegF() %{
+   constraint(ALLOC_IN_RC(float_reg_vl));
+   match(RegF);
+
+   format %{ %}
+   interface(REG_INTER);
+%}
+
 // Double register operands
 operand regD() %{
    constraint(ALLOC_IN_RC(double_reg));
@@ -3671,9 +3681,27 @@ operand regD() %{
    interface(REG_INTER);
 %}
 
+// Double register operands
+operand vlRegD() %{
+   constraint(ALLOC_IN_RC(double_reg_vl));
+   match(RegD);
+
+   format %{ %}
+   interface(REG_INTER);
+%}
+
 // Vectors
 operand vecS() %{
-  constraint(ALLOC_IN_RC(vectors_reg));
+  constraint(ALLOC_IN_RC(vectors_reg_vlbwdq));
+  match(VecS);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Vectors
+operand legVecS() %{
+  constraint(ALLOC_IN_RC(vectors_reg_legacy));
   match(VecS);
 
   format %{ %}
@@ -3681,7 +3709,15 @@ operand vecS() %{
 %}
 
 operand vecD() %{
-  constraint(ALLOC_IN_RC(vectord_reg));
+  constraint(ALLOC_IN_RC(vectord_reg_vlbwdq));
+  match(VecD);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand legVecD() %{
+  constraint(ALLOC_IN_RC(vectord_reg_legacy));
   match(VecD);
 
   format %{ %}
@@ -3689,7 +3725,15 @@ operand vecD() %{
 %}
 
 operand vecX() %{
-  constraint(ALLOC_IN_RC(vectorx_reg));
+  constraint(ALLOC_IN_RC(vectorx_reg_vlbwdq));
+  match(VecX);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand legVecX() %{
+  constraint(ALLOC_IN_RC(vectorx_reg_legacy));
   match(VecX);
 
   format %{ %}
@@ -3697,7 +3741,15 @@ operand vecX() %{
 %}
 
 operand vecY() %{
-  constraint(ALLOC_IN_RC(vectory_reg));
+  constraint(ALLOC_IN_RC(vectory_reg_vlbwdq));
+  match(VecY);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand legVecY() %{
+  constraint(ALLOC_IN_RC(vectory_reg_legacy));
   match(VecY);
 
   format %{ %}
@@ -4211,6 +4263,199 @@ operand cmpOpUCF2() %{
   %}
 %}
 
+// Operands for bound floating pointer register arguments
+operand rxmm0() %{
+  constraint(ALLOC_IN_RC(xmm0_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm1() %{
+  constraint(ALLOC_IN_RC(xmm1_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm2() %{
+  constraint(ALLOC_IN_RC(xmm2_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm3() %{
+  constraint(ALLOC_IN_RC(xmm3_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm4() %{
+  constraint(ALLOC_IN_RC(xmm4_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm5() %{
+  constraint(ALLOC_IN_RC(xmm5_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm6() %{
+  constraint(ALLOC_IN_RC(xmm6_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm7() %{
+  constraint(ALLOC_IN_RC(xmm7_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm8() %{
+  constraint(ALLOC_IN_RC(xmm8_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm9() %{
+  constraint(ALLOC_IN_RC(xmm9_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm10() %{
+  constraint(ALLOC_IN_RC(xmm10_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm11() %{
+  constraint(ALLOC_IN_RC(xmm11_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm12() %{
+  constraint(ALLOC_IN_RC(xmm12_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm13() %{
+  constraint(ALLOC_IN_RC(xmm13_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm14() %{
+  constraint(ALLOC_IN_RC(xmm14_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm15() %{
+  constraint(ALLOC_IN_RC(xmm15_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm16() %{
+  constraint(ALLOC_IN_RC(xmm16_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm17() %{
+  constraint(ALLOC_IN_RC(xmm17_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm18() %{
+  constraint(ALLOC_IN_RC(xmm18_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm19() %{
+  constraint(ALLOC_IN_RC(xmm19_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm20() %{
+  constraint(ALLOC_IN_RC(xmm20_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm21() %{
+  constraint(ALLOC_IN_RC(xmm21_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm22() %{
+  constraint(ALLOC_IN_RC(xmm22_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm23() %{
+  constraint(ALLOC_IN_RC(xmm23_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm24() %{
+  constraint(ALLOC_IN_RC(xmm24_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm25() %{
+  constraint(ALLOC_IN_RC(xmm25_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm26() %{
+  constraint(ALLOC_IN_RC(xmm26_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm27() %{
+  constraint(ALLOC_IN_RC(xmm27_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm28() %{
+  constraint(ALLOC_IN_RC(xmm28_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm29() %{
+  constraint(ALLOC_IN_RC(xmm29_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm30() %{
+  constraint(ALLOC_IN_RC(xmm30_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
+operand rxmm31() %{
+  constraint(ALLOC_IN_RC(xmm31_reg));
+  match(VecX);
+  format%{%}
+  interface(REG_INTER);
+%}
 
 //----------OPERAND CLASSES----------------------------------------------------
 // Operand Classes are groups of operands that are used as to simplify
@@ -5164,6 +5409,26 @@ instruct loadF(regF dst, memory mem)
   ins_pipe(pipe_slow); // XXX
 %}
 
+// Load Float
+instruct MoveF2VL(vlRegF dst, regF src) %{
+  match(Set dst src);
+  format %{ "movss $dst,$src\t! load float (4 bytes)" %}
+  ins_encode %{
+    __ movflt($dst$$XMMRegister, $src$$XMMRegister);
+  %}
+  ins_pipe( fpu_reg_reg );
+%}
+
+// Load Float
+instruct MoveVL2F(regF dst, vlRegF src) %{
+  match(Set dst src);
+  format %{ "movss $dst,$src\t! load float (4 bytes)" %}
+  ins_encode %{
+    __ movflt($dst$$XMMRegister, $src$$XMMRegister);
+  %}
+  ins_pipe( fpu_reg_reg );
+%}
+
 // Load Double
 instruct loadD_partial(regD dst, memory mem)
 %{
@@ -5189,6 +5454,26 @@ instruct loadD(regD dst, memory mem)
     __ movdbl($dst$$XMMRegister, $mem$$Address);
   %}
   ins_pipe(pipe_slow); // XXX
+%}
+
+// Load Double
+instruct MoveD2VL(vlRegD dst, regD src) %{
+  match(Set dst src);
+  format %{ "movsd $dst,$src\t! load double (8 bytes)" %}
+  ins_encode %{
+    __ movdbl($dst$$XMMRegister, $src$$XMMRegister);
+  %}
+  ins_pipe( fpu_reg_reg );
+%}
+
+// Load Double
+instruct MoveVL2D(regD dst, vlRegD src) %{
+  match(Set dst src);
+  format %{ "movsd $dst,$src\t! load double (8 bytes)" %}
+  ins_encode %{
+    __ movdbl($dst$$XMMRegister, $src$$XMMRegister);
+  %}
+  ins_pipe( fpu_reg_reg );
 %}
 
 // Load Effective Address
@@ -6387,11 +6672,7 @@ instruct membar_volatile(rFlagsReg cr) %{
 
   format %{
     $$template
-    if (os::is_MP()) {
-      $$emit$$"lock addl [rsp + #0], 0\t! membar_volatile"
-    } else {
-      $$emit$$"MEMBAR-volatile ! (empty encoding)"
-    }
+    $$emit$$"lock addl [rsp + #0], 0\t! membar_volatile"
   %}
   ins_encode %{
     __ membar(Assembler::StoreLoad);
@@ -7587,7 +7868,7 @@ instruct xaddB_no_res( memory mem, Universe dummy, immI add, rFlagsReg cr) %{
   effect(KILL cr);
   format %{ "ADDB  [$mem],$add" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ addb($mem$$Address, $add$$constant);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7598,7 +7879,7 @@ instruct xaddB( memory mem, rRegI newval, rFlagsReg cr) %{
   effect(KILL cr);
   format %{ "XADDB  [$mem],$newval" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ xaddb($mem$$Address, $newval$$Register);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7610,7 +7891,7 @@ instruct xaddS_no_res( memory mem, Universe dummy, immI add, rFlagsReg cr) %{
   effect(KILL cr);
   format %{ "ADDW  [$mem],$add" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ addw($mem$$Address, $add$$constant);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7621,7 +7902,7 @@ instruct xaddS( memory mem, rRegI newval, rFlagsReg cr) %{
   effect(KILL cr);
   format %{ "XADDW  [$mem],$newval" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ xaddw($mem$$Address, $newval$$Register);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7633,7 +7914,7 @@ instruct xaddI_no_res( memory mem, Universe dummy, immI add, rFlagsReg cr) %{
   effect(KILL cr);
   format %{ "ADDL  [$mem],$add" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ addl($mem$$Address, $add$$constant);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7644,7 +7925,7 @@ instruct xaddI( memory mem, rRegI newval, rFlagsReg cr) %{
   effect(KILL cr);
   format %{ "XADDL  [$mem],$newval" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ xaddl($mem$$Address, $newval$$Register);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7656,7 +7937,7 @@ instruct xaddL_no_res( memory mem, Universe dummy, immL32 add, rFlagsReg cr) %{
   effect(KILL cr);
   format %{ "ADDQ  [$mem],$add" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ addq($mem$$Address, $add$$constant);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7667,7 +7948,7 @@ instruct xaddL( memory mem, rRegL newval, rFlagsReg cr) %{
   effect(KILL cr);
   format %{ "XADDQ  [$mem],$newval" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ xaddq($mem$$Address, $newval$$Register);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7956,6 +8237,16 @@ instruct mulI_mem_imm(rRegI dst, memory src, immI imm, rFlagsReg cr)
   ins_encode(REX_reg_mem(dst, src),
              OpcSE(imm), reg_mem(dst, src), Con8or32(imm));
   ins_pipe(ialu_reg_mem_alu0);
+%}
+
+instruct mulAddS2I_rReg(rRegI dst, rRegI src1, rRegI src2, rRegI src3, rFlagsReg cr)
+%{
+  match(Set dst (MulAddS2I (Binary dst src1) (Binary src2 src3)));
+  effect(KILL cr, KILL src2);
+
+  expand %{ mulI_rReg(dst, src1, cr);
+           mulI_rReg(src2, src3, cr);
+           addI_rReg(dst, src2, cr); %}
 %}
 
 instruct mulL_rReg(rRegL dst, rRegL src, rFlagsReg cr)
@@ -9046,6 +9337,18 @@ instruct andI_rReg_mem(rRegI dst, memory src, rFlagsReg cr)
 %}
 
 // And Memory with Register
+instruct andB_mem_rReg(memory dst, rRegI src, rFlagsReg cr)
+%{
+  match(Set dst (StoreB dst (AndI (LoadB dst) src)));
+  effect(KILL cr);
+
+  ins_cost(150);
+  format %{ "andb    $dst, $src\t# byte" %}
+  opcode(0x20);
+  ins_encode(REX_breg_mem(src, dst), OpcP, reg_mem(src, dst));
+  ins_pipe(ialu_mem_reg);
+%}
+
 instruct andI_mem_rReg(memory dst, rRegI src, rFlagsReg cr)
 %{
   match(Set dst (StoreI dst (AndI (LoadI dst) src)));
@@ -9227,6 +9530,18 @@ instruct orI_rReg_mem(rRegI dst, memory src, rFlagsReg cr)
 %}
 
 // Or Memory with Register
+instruct orB_mem_rReg(memory dst, rRegI src, rFlagsReg cr)
+%{
+  match(Set dst (StoreB dst (OrI (LoadB dst) src)));
+  effect(KILL cr);
+
+  ins_cost(150);
+  format %{ "orb    $dst, $src\t# byte" %}
+  opcode(0x08);
+  ins_encode(REX_breg_mem(src, dst), OpcP, reg_mem(src, dst));
+  ins_pipe(ialu_mem_reg);
+%}
+
 instruct orI_mem_rReg(memory dst, rRegI src, rFlagsReg cr)
 %{
   match(Set dst (StoreI dst (OrI (LoadI dst) src)));
@@ -9303,6 +9618,18 @@ instruct xorI_rReg_mem(rRegI dst, memory src, rFlagsReg cr)
 %}
 
 // Xor Memory with Register
+instruct xorB_mem_rReg(memory dst, rRegI src, rFlagsReg cr)
+%{
+  match(Set dst (StoreB dst (XorI (LoadB dst) src)));
+  effect(KILL cr);
+
+  ins_cost(150);
+  format %{ "xorb    $dst, $src\t# byte" %}
+  opcode(0x30);
+  ins_encode(REX_breg_mem(src, dst), OpcP, reg_mem(src, dst));
+  ins_pipe(ialu_mem_reg);
+%}
+
 instruct xorI_mem_rReg(memory dst, rRegI src, rFlagsReg cr)
 %{
   match(Set dst (StoreI dst (XorI (LoadI dst) src)));
@@ -10625,12 +10952,12 @@ instruct MoveL2D_reg_reg(regD dst, rRegL src) %{
 
 // =======================================================================
 // fast clearing of an array
-instruct rep_stos(rcx_RegL cnt, rdi_RegP base, rax_RegI zero, Universe dummy,
-                  rFlagsReg cr)
+instruct rep_stos(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegI zero,
+                  Universe dummy, rFlagsReg cr)
 %{
   predicate(!((ClearArrayNode*)n)->is_large());
   match(Set dummy (ClearArray cnt base));
-  effect(USE_KILL cnt, USE_KILL base, KILL zero, KILL cr);
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL zero, KILL cr);
 
   format %{ $$template
     $$emit$$"xorq    rax, rax\t# ClearArray:\n\t"
@@ -10646,41 +10973,96 @@ instruct rep_stos(rcx_RegL cnt, rdi_RegP base, rax_RegI zero, Universe dummy,
     if (UseFastStosb) {
        $$emit$$"shlq    rcx,3\t# Convert doublewords to bytes\n\t"
        $$emit$$"rep     stosb\t# Store rax to *rdi++ while rcx--\n\t"
+    } else if (UseXMMForObjInit) {
+       $$emit$$"mov     rdi,rax\n\t"
+       $$emit$$"vpxor   ymm0,ymm0,ymm0\n\t"
+       $$emit$$"jmpq    L_zero_64_bytes\n\t"
+       $$emit$$"# L_loop:\t# 64-byte LOOP\n\t"
+       $$emit$$"vmovdqu ymm0,(rax)\n\t"
+       $$emit$$"vmovdqu ymm0,0x20(rax)\n\t"
+       $$emit$$"add     0x40,rax\n\t"
+       $$emit$$"# L_zero_64_bytes:\n\t"
+       $$emit$$"sub     0x8,rcx\n\t"
+       $$emit$$"jge     L_loop\n\t"
+       $$emit$$"add     0x4,rcx\n\t"
+       $$emit$$"jl      L_tail\n\t"
+       $$emit$$"vmovdqu ymm0,(rax)\n\t"
+       $$emit$$"add     0x20,rax\n\t"
+       $$emit$$"sub     0x4,rcx\n\t"
+       $$emit$$"# L_tail:\t# Clearing tail bytes\n\t"
+       $$emit$$"add     0x4,rcx\n\t"
+       $$emit$$"jle     L_end\n\t"
+       $$emit$$"dec     rcx\n\t"
+       $$emit$$"# L_sloop:\t# 8-byte short loop\n\t"
+       $$emit$$"vmovq   xmm0,(rax)\n\t"
+       $$emit$$"add     0x8,rax\n\t"
+       $$emit$$"dec     rcx\n\t"
+       $$emit$$"jge     L_sloop\n\t"
+       $$emit$$"# L_end:\n\t"
     } else {
        $$emit$$"rep     stosq\t# Store rax to *rdi++ while rcx--\n\t"
     }
     $$emit$$"# DONE"
   %}
   ins_encode %{
-    __ clear_mem($base$$Register, $cnt$$Register, $zero$$Register, false);
+    __ clear_mem($base$$Register, $cnt$$Register, $zero$$Register,
+                 $tmp$$XMMRegister, false);
   %}
   ins_pipe(pipe_slow);
 %}
 
-instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, rax_RegI zero, Universe dummy,
-                  rFlagsReg cr)
+instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegI zero,
+                        Universe dummy, rFlagsReg cr)
 %{
   predicate(((ClearArrayNode*)n)->is_large());
   match(Set dummy (ClearArray cnt base));
-  effect(USE_KILL cnt, USE_KILL base, KILL zero, KILL cr);
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL zero, KILL cr);
 
   format %{ $$template
-    $$emit$$"xorq    rax, rax\t# ClearArray:\n\t"
     if (UseFastStosb) {
+       $$emit$$"xorq    rax, rax\t# ClearArray:\n\t"
        $$emit$$"shlq    rcx,3\t# Convert doublewords to bytes\n\t"
        $$emit$$"rep     stosb\t# Store rax to *rdi++ while rcx--"
+    } else if (UseXMMForObjInit) {
+       $$emit$$"mov     rdi,rax\t# ClearArray:\n\t"
+       $$emit$$"vpxor   ymm0,ymm0,ymm0\n\t"
+       $$emit$$"jmpq    L_zero_64_bytes\n\t"
+       $$emit$$"# L_loop:\t# 64-byte LOOP\n\t"
+       $$emit$$"vmovdqu ymm0,(rax)\n\t"
+       $$emit$$"vmovdqu ymm0,0x20(rax)\n\t"
+       $$emit$$"add     0x40,rax\n\t"
+       $$emit$$"# L_zero_64_bytes:\n\t"
+       $$emit$$"sub     0x8,rcx\n\t"
+       $$emit$$"jge     L_loop\n\t"
+       $$emit$$"add     0x4,rcx\n\t"
+       $$emit$$"jl      L_tail\n\t"
+       $$emit$$"vmovdqu ymm0,(rax)\n\t"
+       $$emit$$"add     0x20,rax\n\t"
+       $$emit$$"sub     0x4,rcx\n\t"
+       $$emit$$"# L_tail:\t# Clearing tail bytes\n\t"
+       $$emit$$"add     0x4,rcx\n\t"
+       $$emit$$"jle     L_end\n\t"
+       $$emit$$"dec     rcx\n\t"
+       $$emit$$"# L_sloop:\t# 8-byte short loop\n\t"
+       $$emit$$"vmovq   xmm0,(rax)\n\t"
+       $$emit$$"add     0x8,rax\n\t"
+       $$emit$$"dec     rcx\n\t"
+       $$emit$$"jge     L_sloop\n\t"
+       $$emit$$"# L_end:\n\t"
     } else {
+       $$emit$$"xorq    rax, rax\t# ClearArray:\n\t"
        $$emit$$"rep     stosq\t# Store rax to *rdi++ while rcx--"
     }
   %}
   ins_encode %{
-    __ clear_mem($base$$Register, $cnt$$Register, $zero$$Register, true);
+    __ clear_mem($base$$Register, $cnt$$Register, $zero$$Register,
+                 $tmp$$XMMRegister, true);
   %}
   ins_pipe(pipe_slow);
 %}
 
 instruct string_compareL(rdi_RegP str1, rcx_RegI cnt1, rsi_RegP str2, rdx_RegI cnt2,
-                         rax_RegI result, regD tmp1, rFlagsReg cr)
+                         rax_RegI result, legVecS tmp1, rFlagsReg cr)
 %{
   predicate(((StrCompNode*)n)->encoding() == StrIntrinsicNode::LL);
   match(Set result (StrComp (Binary str1 cnt1) (Binary str2 cnt2)));
@@ -10696,7 +11078,7 @@ instruct string_compareL(rdi_RegP str1, rcx_RegI cnt1, rsi_RegP str2, rdx_RegI c
 %}
 
 instruct string_compareU(rdi_RegP str1, rcx_RegI cnt1, rsi_RegP str2, rdx_RegI cnt2,
-                         rax_RegI result, regD tmp1, rFlagsReg cr)
+                         rax_RegI result, legVecS tmp1, rFlagsReg cr)
 %{
   predicate(((StrCompNode*)n)->encoding() == StrIntrinsicNode::UU);
   match(Set result (StrComp (Binary str1 cnt1) (Binary str2 cnt2)));
@@ -10712,7 +11094,7 @@ instruct string_compareU(rdi_RegP str1, rcx_RegI cnt1, rsi_RegP str2, rdx_RegI c
 %}
 
 instruct string_compareLU(rdi_RegP str1, rcx_RegI cnt1, rsi_RegP str2, rdx_RegI cnt2,
-                          rax_RegI result, regD tmp1, rFlagsReg cr)
+                          rax_RegI result, legVecS tmp1, rFlagsReg cr)
 %{
   predicate(((StrCompNode*)n)->encoding() == StrIntrinsicNode::LU);
   match(Set result (StrComp (Binary str1 cnt1) (Binary str2 cnt2)));
@@ -10728,7 +11110,7 @@ instruct string_compareLU(rdi_RegP str1, rcx_RegI cnt1, rsi_RegP str2, rdx_RegI 
 %}
 
 instruct string_compareUL(rsi_RegP str1, rdx_RegI cnt1, rdi_RegP str2, rcx_RegI cnt2,
-                          rax_RegI result, regD tmp1, rFlagsReg cr)
+                          rax_RegI result, legVecS tmp1, rFlagsReg cr)
 %{
   predicate(((StrCompNode*)n)->encoding() == StrIntrinsicNode::UL);
   match(Set result (StrComp (Binary str1 cnt1) (Binary str2 cnt2)));
@@ -10745,7 +11127,7 @@ instruct string_compareUL(rsi_RegP str1, rdx_RegI cnt1, rdi_RegP str2, rcx_RegI 
 
 // fast search of substring with known size.
 instruct string_indexof_conL(rdi_RegP str1, rdx_RegI cnt1, rsi_RegP str2, immI int_cnt2,
-                             rbx_RegI result, regD vec, rax_RegI cnt2, rcx_RegI tmp, rFlagsReg cr)
+                             rbx_RegI result, legVecS vec, rax_RegI cnt2, rcx_RegI tmp, rFlagsReg cr)
 %{
   predicate(UseSSE42Intrinsics && (((StrIndexOfNode*)n)->encoding() == StrIntrinsicNode::LL));
   match(Set result (StrIndexOf (Binary str1 cnt1) (Binary str2 int_cnt2)));
@@ -10774,7 +11156,7 @@ instruct string_indexof_conL(rdi_RegP str1, rdx_RegI cnt1, rsi_RegP str2, immI i
 
 // fast search of substring with known size.
 instruct string_indexof_conU(rdi_RegP str1, rdx_RegI cnt1, rsi_RegP str2, immI int_cnt2,
-                             rbx_RegI result, regD vec, rax_RegI cnt2, rcx_RegI tmp, rFlagsReg cr)
+                             rbx_RegI result, legVecS vec, rax_RegI cnt2, rcx_RegI tmp, rFlagsReg cr)
 %{
   predicate(UseSSE42Intrinsics && (((StrIndexOfNode*)n)->encoding() == StrIntrinsicNode::UU));
   match(Set result (StrIndexOf (Binary str1 cnt1) (Binary str2 int_cnt2)));
@@ -10803,7 +11185,7 @@ instruct string_indexof_conU(rdi_RegP str1, rdx_RegI cnt1, rsi_RegP str2, immI i
 
 // fast search of substring with known size.
 instruct string_indexof_conUL(rdi_RegP str1, rdx_RegI cnt1, rsi_RegP str2, immI int_cnt2,
-                             rbx_RegI result, regD vec, rax_RegI cnt2, rcx_RegI tmp, rFlagsReg cr)
+                             rbx_RegI result, legVecS vec, rax_RegI cnt2, rcx_RegI tmp, rFlagsReg cr)
 %{
   predicate(UseSSE42Intrinsics && (((StrIndexOfNode*)n)->encoding() == StrIntrinsicNode::UL));
   match(Set result (StrIndexOf (Binary str1 cnt1) (Binary str2 int_cnt2)));
@@ -10831,7 +11213,7 @@ instruct string_indexof_conUL(rdi_RegP str1, rdx_RegI cnt1, rsi_RegP str2, immI 
 %}
 
 instruct string_indexofL(rdi_RegP str1, rdx_RegI cnt1, rsi_RegP str2, rax_RegI cnt2,
-                         rbx_RegI result, regD vec, rcx_RegI tmp, rFlagsReg cr)
+                         rbx_RegI result, legVecS vec, rcx_RegI tmp, rFlagsReg cr)
 %{
   predicate(UseSSE42Intrinsics && (((StrIndexOfNode*)n)->encoding() == StrIntrinsicNode::LL));
   match(Set result (StrIndexOf (Binary str1 cnt1) (Binary str2 cnt2)));
@@ -10848,7 +11230,7 @@ instruct string_indexofL(rdi_RegP str1, rdx_RegI cnt1, rsi_RegP str2, rax_RegI c
 %}
 
 instruct string_indexofU(rdi_RegP str1, rdx_RegI cnt1, rsi_RegP str2, rax_RegI cnt2,
-                         rbx_RegI result, regD vec, rcx_RegI tmp, rFlagsReg cr)
+                         rbx_RegI result, legVecS vec, rcx_RegI tmp, rFlagsReg cr)
 %{
   predicate(UseSSE42Intrinsics && (((StrIndexOfNode*)n)->encoding() == StrIntrinsicNode::UU));
   match(Set result (StrIndexOf (Binary str1 cnt1) (Binary str2 cnt2)));
@@ -10865,7 +11247,7 @@ instruct string_indexofU(rdi_RegP str1, rdx_RegI cnt1, rsi_RegP str2, rax_RegI c
 %}
 
 instruct string_indexofUL(rdi_RegP str1, rdx_RegI cnt1, rsi_RegP str2, rax_RegI cnt2,
-                         rbx_RegI result, regD vec, rcx_RegI tmp, rFlagsReg cr)
+                         rbx_RegI result, legVecS vec, rcx_RegI tmp, rFlagsReg cr)
 %{
   predicate(UseSSE42Intrinsics && (((StrIndexOfNode*)n)->encoding() == StrIntrinsicNode::UL));
   match(Set result (StrIndexOf (Binary str1 cnt1) (Binary str2 cnt2)));
@@ -10882,7 +11264,7 @@ instruct string_indexofUL(rdi_RegP str1, rdx_RegI cnt1, rsi_RegP str2, rax_RegI 
 %}
 
 instruct string_indexofU_char(rdi_RegP str1, rdx_RegI cnt1, rax_RegI ch,
-                              rbx_RegI result, regD vec1, regD vec2, regD vec3, rcx_RegI tmp, rFlagsReg cr)
+                              rbx_RegI result, legVecS vec1, legVecS vec2, legVecS vec3, rcx_RegI tmp, rFlagsReg cr)
 %{
   predicate(UseSSE42Intrinsics);
   match(Set result (StrIndexOfChar (Binary str1 cnt1) ch));
@@ -10897,7 +11279,7 @@ instruct string_indexofU_char(rdi_RegP str1, rdx_RegI cnt1, rax_RegI ch,
 
 // fast string equals
 instruct string_equals(rdi_RegP str1, rsi_RegP str2, rcx_RegI cnt, rax_RegI result,
-                       regD tmp1, regD tmp2, rbx_RegI tmp3, rFlagsReg cr)
+                       legVecS tmp1, legVecS tmp2, rbx_RegI tmp3, rFlagsReg cr)
 %{
   match(Set result (StrEquals (Binary str1 str2) cnt));
   effect(TEMP tmp1, TEMP tmp2, USE_KILL str1, USE_KILL str2, USE_KILL cnt, KILL tmp3, KILL cr);
@@ -10913,7 +11295,7 @@ instruct string_equals(rdi_RegP str1, rsi_RegP str2, rcx_RegI cnt, rax_RegI resu
 
 // fast array equals
 instruct array_equalsB(rdi_RegP ary1, rsi_RegP ary2, rax_RegI result,
-                       regD tmp1, regD tmp2, rcx_RegI tmp3, rbx_RegI tmp4, rFlagsReg cr)
+                       legVecS tmp1, legVecS tmp2, rcx_RegI tmp3, rbx_RegI tmp4, rFlagsReg cr)
 %{
   predicate(((AryEqNode*)n)->encoding() == StrIntrinsicNode::LL);
   match(Set result (AryEq ary1 ary2));
@@ -10929,7 +11311,7 @@ instruct array_equalsB(rdi_RegP ary1, rsi_RegP ary2, rax_RegI result,
 %}
 
 instruct array_equalsC(rdi_RegP ary1, rsi_RegP ary2, rax_RegI result,
-                      regD tmp1, regD tmp2, rcx_RegI tmp3, rbx_RegI tmp4, rFlagsReg cr)
+                      legVecS tmp1, legVecS tmp2, rcx_RegI tmp3, rbx_RegI tmp4, rFlagsReg cr)
 %{
   predicate(((AryEqNode*)n)->encoding() == StrIntrinsicNode::UU);
   match(Set result (AryEq ary1 ary2));
@@ -10945,7 +11327,7 @@ instruct array_equalsC(rdi_RegP ary1, rsi_RegP ary2, rax_RegI result,
 %}
 
 instruct has_negatives(rsi_RegP ary1, rcx_RegI len, rax_RegI result,
-                      regD tmp1, regD tmp2, rbx_RegI tmp3, rFlagsReg cr)
+                      legVecS tmp1, legVecS tmp2, rbx_RegI tmp3, rFlagsReg cr)
 %{
   match(Set result (HasNegatives ary1 len));
   effect(TEMP tmp1, TEMP tmp2, USE_KILL ary1, USE_KILL len, KILL tmp3, KILL cr);
@@ -10960,7 +11342,7 @@ instruct has_negatives(rsi_RegP ary1, rcx_RegI len, rax_RegI result,
 %}
 
 // fast char[] to byte[] compression
-instruct string_compress(rsi_RegP src, rdi_RegP dst, rdx_RegI len, regD tmp1, regD tmp2, regD tmp3, regD tmp4,
+instruct string_compress(rsi_RegP src, rdi_RegP dst, rdx_RegI len, legVecS tmp1, legVecS tmp2, legVecS tmp3, legVecS tmp4,
                          rcx_RegI tmp5, rax_RegI result, rFlagsReg cr) %{
   match(Set result (StrCompressedCopy src (Binary dst len)));
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, USE_KILL src, USE_KILL dst, USE_KILL len, KILL tmp5, KILL cr);
@@ -10976,7 +11358,7 @@ instruct string_compress(rsi_RegP src, rdi_RegP dst, rdx_RegI len, regD tmp1, re
 
 // fast byte[] to char[] inflation
 instruct string_inflate(Universe dummy, rsi_RegP src, rdi_RegP dst, rdx_RegI len,
-                        regD tmp1, rcx_RegI tmp2, rFlagsReg cr) %{
+                        legVecS tmp1, rcx_RegI tmp2, rFlagsReg cr) %{
   match(Set dummy (StrInflatedCopy src (Binary dst len)));
   effect(TEMP tmp1, TEMP tmp2, USE_KILL src, USE_KILL dst, USE_KILL len, KILL cr);
 
@@ -10990,7 +11372,7 @@ instruct string_inflate(Universe dummy, rsi_RegP src, rdi_RegP dst, rdx_RegI len
 
 // encode char[] to byte[] in ISO_8859_1
 instruct encode_iso_array(rsi_RegP src, rdi_RegP dst, rdx_RegI len,
-                          regD tmp1, regD tmp2, regD tmp3, regD tmp4,
+                          legVecS tmp1, legVecS tmp2, legVecS tmp3, legVecS tmp4,
                           rcx_RegI tmp5, rax_RegI result, rFlagsReg cr) %{
   match(Set result (EncodeISOArray src (Binary dst len)));
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, USE_KILL src, USE_KILL dst, USE_KILL len, KILL tmp5, KILL cr);
@@ -11537,6 +11919,16 @@ instruct testL_reg_mem(rFlagsReg cr, rRegL src, memory mem, immL0 zero)
   ins_pipe(ialu_cr_reg_mem);
 %}
 
+instruct testL_reg_mem2(rFlagsReg cr, rRegP src, memory mem, immL0 zero)
+%{
+  match(Set cr (CmpL (AndL (CastP2X src) (LoadL mem)) zero));
+
+  format %{ "testq   $src, $mem" %}
+  opcode(0x85);
+  ins_encode(REX_reg_mem_wide(src, mem), OpcP, reg_mem(src, mem));
+  ins_pipe(ialu_cr_reg_mem);
+%}
+
 // Manifest a CmpL result in an integer register.  Very painful.
 // This is the test to avoid.
 instruct cmpL3_reg_reg(rRegI dst, rRegL src1, rRegL src2, rFlagsReg flags)
@@ -11595,6 +11987,36 @@ instruct testUL_reg(rFlagsRegU cr, rRegL src, immL0 zero)
   opcode(0x85);
   ins_encode(REX_reg_reg_wide(src, src), OpcP, reg_reg(src, src));
   ins_pipe(ialu_cr_reg_imm);
+%}
+
+instruct compB_mem_imm(rFlagsReg cr, memory mem, immI8 imm)
+%{
+  match(Set cr (CmpI (LoadB mem) imm));
+
+  ins_cost(125);
+  format %{ "cmpb    $mem, $imm" %}
+  ins_encode %{ __ cmpb($mem$$Address, $imm$$constant); %}
+  ins_pipe(ialu_cr_reg_mem);
+%}
+
+instruct testUB_mem_imm(rFlagsReg cr, memory mem, immU8 imm, immI0 zero)
+%{
+  match(Set cr (CmpI (AndI (LoadUB mem) imm) zero));
+
+  ins_cost(125);
+  format %{ "testb   $mem, $imm\t# ubyte" %}
+  ins_encode %{ __ testb($mem$$Address, $imm$$constant); %}
+  ins_pipe(ialu_cr_reg_mem);
+%}
+
+instruct testB_mem_imm(rFlagsReg cr, memory mem, immI8 imm, immI0 zero)
+%{
+  match(Set cr (CmpI (AndI (LoadB mem) imm) zero));
+
+  ins_cost(125);
+  format %{ "testb   $mem, $imm\t# byte" %}
+  ins_encode %{ __ testb($mem$$Address, $imm$$constant); %}
+  ins_pipe(ialu_cr_reg_mem);
 %}
 
 //----------Max and Min--------------------------------------------------------
@@ -12130,7 +12552,7 @@ instruct safePoint_poll_far(rFlagsReg cr, rRegP poll)
   ins_pipe(ialu_reg_mem);
 %}
 
-instruct safePoint_poll_tls(rFlagsReg cr, rex_RegP poll)
+instruct safePoint_poll_tls(rFlagsReg cr, rRegP poll)
 %{
   predicate(SafepointMechanism::uses_thread_local_poll());
   match(SafePoint poll);
@@ -12139,13 +12561,12 @@ instruct safePoint_poll_tls(rFlagsReg cr, rex_RegP poll)
   format %{ "testl  rax, [$poll]\t"
             "# Safepoint: poll for GC" %}
   ins_cost(125);
-  size(3); /* setting an explicit size will cause debug builds to assert if size is incorrect */
+  size(4); /* setting an explicit size will cause debug builds to assert if size is incorrect */
   ins_encode %{
     __ relocate(relocInfo::poll_type);
     address pre_pc = __ pc();
     __ testl(rax, Address($poll$$Register, 0));
-    address post_pc = __ pc();
-    guarantee(pre_pc[0] == 0x41 && pre_pc[1] == 0x85, "must emit #rex test-ax [reg]");
+    assert(nativeInstruction_at(pre_pc)->is_safepoint_poll(), "must emit test %%eax [reg]");
   %}
   ins_pipe(ialu_reg_mem);
 %}
@@ -12290,6 +12711,169 @@ instruct RethrowException()
   ins_pipe(pipe_jmp);
 %}
 
+//
+// Execute ZGC load barrier (strong) slow path
+//
+
+// For XMM and YMM enabled processors
+instruct loadBarrierSlowRegXmmAndYmm(rRegP dst, memory mem, rFlagsReg cr,
+                                     rxmm0 x0, rxmm1 x1, rxmm2 x2,rxmm3 x3,
+                                     rxmm4 x4, rxmm5 x5, rxmm6 x6, rxmm7 x7,
+                                     rxmm8 x8, rxmm9 x9, rxmm10 x10, rxmm11 x11,
+                                     rxmm12 x12, rxmm13 x13, rxmm14 x14, rxmm15 x15) %{
+
+  match(Set dst (LoadBarrierSlowReg mem));
+  predicate(UseAVX <= 2);
+
+  effect(DEF dst, KILL cr,
+         KILL x0, KILL x1, KILL x2, KILL x3,
+         KILL x4, KILL x5, KILL x6, KILL x7,
+         KILL x8, KILL x9, KILL x10, KILL x11,
+         KILL x12, KILL x13, KILL x14, KILL x15);
+
+  format %{"LoadBarrierSlowRegXmmAndYmm $dst, $mem" %}
+  ins_encode %{
+#if INCLUDE_ZGC
+    Register d = $dst$$Register;
+    ZBarrierSetAssembler* bs = (ZBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
+
+    assert(d != r12, "Can't be R12!");
+    assert(d != r15, "Can't be R15!");
+    assert(d != rsp, "Can't be RSP!");
+
+    __ lea(d, $mem$$Address);
+    __ call(RuntimeAddress(bs->load_barrier_slow_stub(d)));
+#else
+    ShouldNotReachHere();
+#endif
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+// For ZMM enabled processors
+instruct loadBarrierSlowRegZmm(rRegP dst, memory mem, rFlagsReg cr,
+                               rxmm0 x0, rxmm1 x1, rxmm2 x2,rxmm3 x3,
+                               rxmm4 x4, rxmm5 x5, rxmm6 x6, rxmm7 x7,
+                               rxmm8 x8, rxmm9 x9, rxmm10 x10, rxmm11 x11,
+                               rxmm12 x12, rxmm13 x13, rxmm14 x14, rxmm15 x15,
+                               rxmm16 x16, rxmm17 x17, rxmm18 x18, rxmm19 x19,
+                               rxmm20 x20, rxmm21 x21, rxmm22 x22, rxmm23 x23,
+                               rxmm24 x24, rxmm25 x25, rxmm26 x26, rxmm27 x27,
+                               rxmm28 x28, rxmm29 x29, rxmm30 x30, rxmm31 x31) %{
+
+  match(Set dst (LoadBarrierSlowReg mem));
+  predicate(UseAVX == 3);
+
+  effect(DEF dst, KILL cr,
+         KILL x0, KILL x1, KILL x2, KILL x3,
+         KILL x4, KILL x5, KILL x6, KILL x7,
+         KILL x8, KILL x9, KILL x10, KILL x11,
+         KILL x12, KILL x13, KILL x14, KILL x15,
+         KILL x16, KILL x17, KILL x18, KILL x19,
+         KILL x20, KILL x21, KILL x22, KILL x23,
+         KILL x24, KILL x25, KILL x26, KILL x27,
+         KILL x28, KILL x29, KILL x30, KILL x31);
+
+  format %{"LoadBarrierSlowRegZmm $dst, $mem" %}
+  ins_encode %{
+#if INCLUDE_ZGC
+    Register d = $dst$$Register;
+    ZBarrierSetAssembler* bs = (ZBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
+
+    assert(d != r12, "Can't be R12!");
+    assert(d != r15, "Can't be R15!");
+    assert(d != rsp, "Can't be RSP!");
+
+    __ lea(d, $mem$$Address);
+    __ call(RuntimeAddress(bs->load_barrier_slow_stub(d)));
+#else
+    ShouldNotReachHere();
+#endif
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+//
+// Execute ZGC load barrier (weak) slow path
+//
+
+// For XMM and YMM enabled processors
+instruct loadBarrierWeakSlowRegXmmAndYmm(rRegP dst, memory mem, rFlagsReg cr,
+                                         rxmm0 x0, rxmm1 x1, rxmm2 x2,rxmm3 x3,
+                                         rxmm4 x4, rxmm5 x5, rxmm6 x6, rxmm7 x7,
+                                         rxmm8 x8, rxmm9 x9, rxmm10 x10, rxmm11 x11,
+                                         rxmm12 x12, rxmm13 x13, rxmm14 x14, rxmm15 x15) %{
+
+  match(Set dst (LoadBarrierWeakSlowReg mem));
+  predicate(UseAVX <= 2);
+
+  effect(DEF dst, KILL cr,
+         KILL x0, KILL x1, KILL x2, KILL x3,
+         KILL x4, KILL x5, KILL x6, KILL x7,
+         KILL x8, KILL x9, KILL x10, KILL x11,
+         KILL x12, KILL x13, KILL x14, KILL x15);
+
+  format %{"LoadBarrierWeakSlowRegXmmAndYmm $dst, $mem" %}
+  ins_encode %{
+#if INCLUDE_ZGC
+    Register d = $dst$$Register;
+    ZBarrierSetAssembler* bs = (ZBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
+
+    assert(d != r12, "Can't be R12!");
+    assert(d != r15, "Can't be R15!");
+    assert(d != rsp, "Can't be RSP!");
+
+    __ lea(d,$mem$$Address);
+    __ call(RuntimeAddress(bs->load_barrier_weak_slow_stub(d)));
+#else
+    ShouldNotReachHere();
+#endif
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+// For ZMM enabled processors
+instruct loadBarrierWeakSlowRegZmm(rRegP dst, memory mem, rFlagsReg cr,
+                                   rxmm0 x0, rxmm1 x1, rxmm2 x2,rxmm3 x3,
+                                   rxmm4 x4, rxmm5 x5, rxmm6 x6, rxmm7 x7,
+                                   rxmm8 x8, rxmm9 x9, rxmm10 x10, rxmm11 x11,
+                                   rxmm12 x12, rxmm13 x13, rxmm14 x14, rxmm15 x15,
+                                   rxmm16 x16, rxmm17 x17, rxmm18 x18, rxmm19 x19,
+                                   rxmm20 x20, rxmm21 x21, rxmm22 x22, rxmm23 x23,
+                                   rxmm24 x24, rxmm25 x25, rxmm26 x26, rxmm27 x27,
+                                   rxmm28 x28, rxmm29 x29, rxmm30 x30, rxmm31 x31) %{
+
+  match(Set dst (LoadBarrierWeakSlowReg mem));
+  predicate(UseAVX == 3);
+
+  effect(DEF dst, KILL cr,
+         KILL x0, KILL x1, KILL x2, KILL x3,
+         KILL x4, KILL x5, KILL x6, KILL x7,
+         KILL x8, KILL x9, KILL x10, KILL x11,
+         KILL x12, KILL x13, KILL x14, KILL x15,
+         KILL x16, KILL x17, KILL x18, KILL x19,
+         KILL x20, KILL x21, KILL x22, KILL x23,
+         KILL x24, KILL x25, KILL x26, KILL x27,
+         KILL x28, KILL x29, KILL x30, KILL x31);
+
+  format %{"LoadBarrierWeakSlowRegZmm $dst, $mem" %}
+  ins_encode %{
+#if INCLUDE_ZGC
+    Register d = $dst$$Register;
+    ZBarrierSetAssembler* bs = (ZBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
+
+    assert(d != r12, "Can't be R12!");
+    assert(d != r15, "Can't be R15!");
+    assert(d != rsp, "Can't be RSP!");
+
+    __ lea(d,$mem$$Address);
+    __ call(RuntimeAddress(bs->load_barrier_weak_slow_stub(d)));
+#else
+    ShouldNotReachHere();
+#endif
+  %}
+  ins_pipe(pipe_slow);
+%}
 
 // ============================================================================
 // This name is KNOWN by the ADLC and cannot be changed.

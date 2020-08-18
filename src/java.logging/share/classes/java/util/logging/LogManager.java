@@ -39,8 +39,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import jdk.internal.misc.JavaAWTAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaAWTAccess;
+import jdk.internal.access.SharedSecrets;
 import sun.util.logging.internal.LoggingProviderImpl;
 import static jdk.internal.logger.DefaultLoggerFinder.isSystem;
 
@@ -76,8 +76,8 @@ import static jdk.internal.logger.DefaultLoggerFinder.isSystem;
  * the initial configuration, as specified in the {@link #readConfiguration()}
  * method:
  * <ul>
- * <li>"java.util.logging.config.class"
- * <li>"java.util.logging.config.file"
+ * <li>{@systemProperty java.util.logging.config.class}
+ * <li>{@systemProperty java.util.logging.config.file}
  * </ul>
  * <p>
  * These two system properties may be specified on the command line to the "java"
@@ -890,7 +890,7 @@ public class LogManager {
         // Gets a node in our tree of logger nodes.
         // If necessary, create it.
         LogNode getNode(String name) {
-            if (name == null || name.equals("")) {
+            if (name == null || name.isEmpty()) {
                 return root;
             }
             LogNode node = root;
@@ -1486,7 +1486,7 @@ public class LogManager {
 
         // Reset Logger level
         String name = logger.getName();
-        if (name != null && name.equals("")) {
+        if (name != null && name.isEmpty()) {
             // This is the root logger.
             logger.setLevel(defaultLevel);
         } else {

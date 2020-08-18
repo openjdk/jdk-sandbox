@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,9 +44,9 @@ char        LogFileOutput::_vm_start_time_str[StartTimeBufferSize];
 
 LogFileOutput::LogFileOutput(const char* name)
     : LogFileStreamOutput(NULL), _name(os::strdup_check_oom(name, mtLogging)),
-      _file_name(NULL), _archive_name(NULL), _archive_name_len(0),
-      _rotate_size(DefaultFileSize), _file_count(DefaultFileCount),
-      _current_size(0), _current_file(0), _rotation_semaphore(1) {
+      _file_name(NULL), _archive_name(NULL), _current_file(0),
+      _file_count(DefaultFileCount), _archive_name_len(0),
+      _rotate_size(DefaultFileSize), _current_size(0), _rotation_semaphore(1) {
   assert(strstr(name, Prefix) == name, "invalid output name '%s': missing prefix: %s", name, Prefix);
   _file_name = make_file_name(name + strlen(Prefix), _pid_str, _vm_start_time_str);
 }
@@ -169,6 +169,7 @@ bool LogFileOutput::parse_options(const char* options, outputStream* errstream) 
 
     char* equals_pos = strchr(pos, '=');
     if (equals_pos == NULL) {
+      errstream->print_cr("Invalid option '%s' for log file output.", pos);
       success = false;
       break;
     }
@@ -244,10 +245,10 @@ bool LogFileOutput::initialize(const char* options, outputStream* errstream) {
     increment_file_count();
   }
 
-  _stream = fopen(_file_name, FileOpenMode);
+  _stream = os::fopen(_file_name, FileOpenMode);
   if (_stream == NULL) {
     errstream->print_cr("Error opening log file '%s': %s",
-                        _file_name, strerror(errno));
+                        _file_name, os::strerror(errno));
     return false;
   }
 
@@ -333,7 +334,7 @@ void LogFileOutput::rotate() {
   archive();
 
   // Open the active log file using the same stream as before
-  _stream = fopen(_file_name, FileOpenMode);
+  _stream = os::fopen(_file_name, FileOpenMode);
   if (_stream == NULL) {
     jio_fprintf(defaultStream::error_stream(), "Could not reopen file '%s' during log rotation (%s).\n",
                 _file_name, os::strerror(errno));

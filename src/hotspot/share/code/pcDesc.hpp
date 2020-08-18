@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,16 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_PCDESC_HPP
-#define SHARE_VM_CODE_PCDESC_HPP
+#ifndef SHARE_CODE_PCDESC_HPP
+#define SHARE_CODE_PCDESC_HPP
 
-#include "memory/allocation.hpp"
 
 // PcDescs map a physical PC (given as offset from start of nmethod) to
 // the corresponding source scope and byte code index.
 
 class CompiledMethod;
 
-class PcDesc VALUE_OBJ_CLASS_SPEC {
+class PcDesc {
   friend class VMStructs;
  private:
   int _pc_offset;           // offset from start of nmethod
@@ -97,4 +96,4 @@ class PcDesc VALUE_OBJ_CLASS_SPEC {
   bool verify(CompiledMethod* code);
 };
 
-#endif // SHARE_VM_CODE_PCDESC_HPP
+#endif // SHARE_CODE_PCDESC_HPP

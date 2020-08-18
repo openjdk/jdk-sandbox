@@ -32,13 +32,16 @@ import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.internal.vm.annotation.Stable;
 import sun.invoke.util.BytecodeName;
 
-import java.lang.reflect.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.security.ProtectionDomain;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 
 import static java.lang.invoke.LambdaForm.*;
@@ -64,7 +67,7 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
     private final List<MemberName> transformMethods;
     private final MethodType baseConstructorType;
     private final S topSpecies;
-    private final ConcurrentMap<K, S> cache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<K, Object> cache = new ConcurrentHashMap<>();
     private final Factory factory;
     private @Stable boolean topClassIsSuper;
 
@@ -113,8 +116,7 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
         this.keyType = keyType;
         this.metaType = metaType;
         this.sdAccessor = sdAccessor;
-        // FIXME: use List.copyOf once 8177290 is in
-        this.transformMethods = List.of(transformMethods.toArray(new MemberName[transformMethods.size()]));
+        this.transformMethods = List.copyOf(transformMethods);
         this.sdFieldName = sdFieldName;
         this.baseConstructorType = baseConstructorType.changeReturnType(void.class);
         this.factory = makeFactory();
@@ -148,20 +150,20 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
         return new IllegalArgumentException(message, cause);
     }
 
+    private static final Function<Object, Object> CREATE_RESERVATION = new Function<>() {
+        @Override
+        public Object apply(Object key) {
+            return new Object();
+        }
+    };
+
     public final S findSpecies(K key) {
-        S speciesData = cache.computeIfAbsent(key, new Function<>() {
-            @Override
-            public S apply(K key1) {
-                return factory.loadSpecies(newSpeciesData(key1));
-            }
-        });
         // Note:  Species instantiation may throw VirtualMachineError because of
         // code cache overflow.  If this happens the species bytecode may be
         // loaded but not linked to its species metadata (with MH's etc).
-        // That will cause a throw out of CHM.computeIfAbsent,
-        // which will shut down the caller thread.
+        // That will cause a throw out of Factory.loadSpecies.
         //
-        // In a latter attempt to get the same species, the already-loaded
+        // In a later attempt to get the same species, the already-loaded
         // class will be present in the system dictionary, causing an
         // error when the species generator tries to reload it.
         // We try to detect this case and link the pre-existing code.
@@ -171,12 +173,35 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
         // (As an alternative, we might spin a new class with a new name,
         // or use the anonymous class mechanism.)
         //
-        // In the end, as long as everybody goes through the same CHM,
-        // CHM.computeIfAbsent will ensure only one SpeciesData will be set
-        // successfully on a concrete class if ever.
+        // In the end, as long as everybody goes through this findSpecies method,
+        // it will ensure only one SpeciesData will be set successfully on a
+        // concrete class if ever.
         // The concrete class is published via SpeciesData instance
         // returned here only after the class and species data are linked together.
-        assert(speciesData != null);
+        Object speciesDataOrReservation = cache.computeIfAbsent(key, CREATE_RESERVATION);
+        // Separating the creation of a placeholder SpeciesData instance above
+        // from the loading and linking a real one below ensures we can never
+        // accidentally call computeIfAbsent recursively.
+        S speciesData;
+        if (speciesDataOrReservation.getClass() == Object.class) {
+            synchronized (speciesDataOrReservation) {
+                Object existingSpeciesData = cache.get(key);
+                if (existingSpeciesData == speciesDataOrReservation) { // won the race
+                    // create a new SpeciesData...
+                    speciesData = newSpeciesData(key);
+                    // load and link it...
+                    speciesData = factory.loadSpecies(speciesData);
+                    if (!cache.replace(key, existingSpeciesData, speciesData)) {
+                        throw newInternalError("Concurrent loadSpecies");
+                    }
+                } else { // lost the race; the retrieved existingSpeciesData is the final
+                    speciesData = metaType.cast(existingSpeciesData);
+                }
+            }
+        } else {
+            speciesData = metaType.cast(speciesDataOrReservation);
+        }
+        assert(speciesData != null && speciesData.isResolved());
         return speciesData;
     }
 
@@ -208,9 +233,7 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
         protected SpeciesData(K key) {
             this.key = keyType.cast(Objects.requireNonNull(key));
             List<Class<?>> types = deriveFieldTypes(key);
-            // TODO: List.copyOf
-            int arity = types.size();
-            this.fieldTypes = List.of(types.toArray(new Class<?>[arity]));
+            this.fieldTypes = List.copyOf(types);
         }
 
         public final K key() {
@@ -458,8 +481,8 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
             final Class<? extends T> speciesCode;
             if (salvage != null) {
                 speciesCode = salvage.asSubclass(topClass());
-                factory.linkSpeciesDataToCode(speciesData, speciesCode);
-                factory.linkCodeToSpeciesData(speciesCode, speciesData, true);
+                linkSpeciesDataToCode(speciesData, speciesCode);
+                linkCodeToSpeciesData(speciesCode, speciesData, true);
             } else {
                 // Not pregenerated, generate the class
                 try {
@@ -486,7 +509,7 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
             if (!speciesData.isResolved()) {
                 throw newInternalError("bad species class linkage for " + className + ": " + speciesData);
             }
-            assert(speciesData == factory.loadSpeciesDataFromCode(speciesCode));
+            assert(speciesData == loadSpeciesDataFromCode(speciesCode));
             return speciesData;
         }
 
@@ -554,23 +577,17 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
             InvokerBytecodeGenerator.maybeDump(classBCName(className), classFile);
             Class<?> speciesCode;
 
-            ClassLoader cl = topClass().getClassLoader();
-            ProtectionDomain pd = null;
-            if (cl != null) {
-                pd = AccessController.doPrivileged(
-                        new PrivilegedAction<>() {
-                            @Override
-                            public ProtectionDomain run() {
-                                return topClass().getProtectionDomain();
-                            }
-                        });
-            }
-            try {
-                speciesCode = UNSAFE.defineClass(className, classFile, 0, classFile.length, cl, pd);
-            } catch (Exception ex) {
-                throw newInternalError(ex);
-            }
-
+            MethodHandles.Lookup lookup = IMPL_LOOKUP.in(topClass());
+            speciesCode = AccessController.doPrivileged(new PrivilegedAction<>() {
+                @Override
+                public Class<?> run() {
+                    try {
+                        return lookup.defineClass(classFile);
+                    } catch (Exception ex) {
+                        throw newInternalError(ex);
+                    }
+                }
+            });
             return speciesCode.asSubclass(topClass());
         }
 
@@ -923,7 +940,7 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
                 Object base = MethodHandleNatives.staticFieldBase(sdField);
                 long offset = MethodHandleNatives.staticFieldOffset(sdField);
                 UNSAFE.loadFence();
-                return metaType.cast(UNSAFE.getObject(base, offset));
+                return metaType.cast(UNSAFE.getReference(base, offset));
             } catch (Error err) {
                 throw err;
             } catch (Exception ex) {
@@ -953,7 +970,7 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
                 Object base = MethodHandleNatives.staticFieldBase(sdField);
                 long offset = MethodHandleNatives.staticFieldOffset(sdField);
                 UNSAFE.storeFence();
-                UNSAFE.putObject(base, offset, speciesData);
+                UNSAFE.putReference(base, offset, speciesData);
                 UNSAFE.storeFence();
             } catch (Error err) {
                 throw err;

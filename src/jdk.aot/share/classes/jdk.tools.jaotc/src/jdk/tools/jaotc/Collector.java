@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 
 package jdk.tools.jaotc;
 
@@ -61,7 +63,7 @@ final class Collector {
 
         List<LoadedClass> foundClasses = null;
         try {
-            foundClasses = lookup.search(main.options.files, main.options.searchPath);
+            foundClasses = lookup.search(main.options.files, main.options.searchPath, this::handleLoadingError);
         } catch (InternalError e) {
             main.printer.reportError(e);
             return null;
@@ -118,12 +120,7 @@ final class Collector {
                     addMethods(aotClass, ctors, compilationRestrictions);
                     total += ctors.length;
                 } catch (Throwable e) {
-                    // If we are running in JCK mode we ignore all exceptions.
-                    if (main.options.ignoreClassLoadingErrors) {
-                        main.printer.printError(c.getName() + ": " + e);
-                    } else {
-                        throw new InternalError(e);
-                    }
+                    handleLoadingError(c.getName(), e);
                 }
 
                 // Methods
@@ -132,12 +129,7 @@ final class Collector {
                     addMethods(aotClass, methods, compilationRestrictions);
                     total += methods.length;
                 } catch (Throwable e) {
-                    // If we are running in JCK mode we ignore all exceptions.
-                    if (main.options.ignoreClassLoadingErrors) {
-                        main.printer.printError(c.getName() + ": " + e);
-                    } else {
-                        throw new InternalError(e);
-                    }
+                    handleLoadingError(c.getName(), e);
                 }
 
                 // Class initializer
@@ -148,12 +140,7 @@ final class Collector {
                         total++;
                     }
                 } catch (Throwable e) {
-                    // If we are running in JCK mode we ignore all exceptions.
-                    if (main.options.ignoreClassLoadingErrors) {
-                        main.printer.printError(c.getName() + ": " + e);
-                    } else {
-                        throw new InternalError(e);
-                    }
+                    handleLoadingError(c.getName(), e);
                 }
 
                 // Found any methods to compile? Add the class.
@@ -215,4 +202,11 @@ final class Collector {
         return compilationRestrictions;
     }
 
+    private void handleLoadingError(String name, Throwable t) {
+        if (main.options.ignoreClassLoadingErrors) {
+            main.printer.printError(name + ": " + t);
+        } else {
+            throw new InternalError(t);
+        }
+    }
 }

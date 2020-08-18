@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,6 +62,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class JdepsConfiguration implements AutoCloseable {
@@ -82,42 +83,27 @@ public class JdepsConfiguration implements AutoCloseable {
     private final List<Archive> classpathArchives = new ArrayList<>();
     private final List<Archive> initialArchives = new ArrayList<>();
     private final Set<Module> rootModules = new HashSet<>();
-    private final Configuration configuration;
     private final Runtime.Version version;
 
-    private JdepsConfiguration(SystemModuleFinder systemModulePath,
+    private JdepsConfiguration(Configuration config,
+                               SystemModuleFinder systemModulePath,
                                ModuleFinder finder,
                                Set<String> roots,
                                List<Path> classpaths,
                                List<Archive> initialArchives,
-                               Set<String> tokens,
                                Runtime.Version version)
         throws IOException
     {
         trace("root: %s%n", roots);
-
+        trace("initial archives: %s%n", initialArchives);
+        trace("class path: %s%n", classpaths);
         this.system = systemModulePath;
         this.finder = finder;
         this.version = version;
 
-        // build root set for resolution
-        Set<String> mods = new HashSet<>(roots);
-        if (tokens.contains(ALL_SYSTEM)) {
-            systemModulePath.findAll().stream()
-                .map(mref -> mref.descriptor().name())
-                .forEach(mods::add);
-        }
-
-        if (tokens.contains(ALL_DEFAULT)) {
-            mods.addAll(systemModulePath.defaultSystemRoots());
-        }
-
-        this.configuration = Configuration.empty()
-                .resolve(finder, ModuleFinder.of(), mods);
-
-        this.configuration.modules().stream()
-                .map(ResolvedModule::reference)
-                .forEach(this::addModuleReference);
+        config.modules().stream()
+              .map(ResolvedModule::reference)
+              .forEach(this::addModuleReference);
 
         // packages in unnamed module
         initialArchives.forEach(archive -> {
@@ -319,7 +305,6 @@ public class JdepsConfiguration implements AutoCloseable {
 
     static class SystemModuleFinder implements ModuleFinder {
         private static final String JAVA_HOME = System.getProperty("java.home");
-        private static final String JAVA_SE = "java.se";
 
         private final FileSystem fileSystem;
         private final Path root;
@@ -347,7 +332,7 @@ public class JdepsConfiguration implements AutoCloseable {
                 this.root = null;
                 this.systemModules = Collections.emptyMap();
             } else {
-                if (Files.isRegularFile(Paths.get(javaHome, "lib", "modules")))
+                if (!Files.isRegularFile(Paths.get(javaHome, "lib", "modules")))
                     throw new IllegalArgumentException("Invalid java.home: " + javaHome);
 
                 // alternate java.home
@@ -444,29 +429,15 @@ public class JdepsConfiguration implements AutoCloseable {
         }
 
         public Set<String> defaultSystemRoots() {
-            Set<String> roots = new HashSet<>();
-            boolean hasJava = false;
-            if (systemModules.containsKey(JAVA_SE)) {
-                // java.se is a system module
-                hasJava = true;
-                roots.add(JAVA_SE);
-            }
-
-            for (ModuleReference mref : systemModules.values()) {
-                String mn = mref.descriptor().name();
-                if (hasJava && mn.startsWith("java."))
-                    continue;
-
-                // add as root if observable and exports at least one package
-                ModuleDescriptor descriptor = mref.descriptor();
-                for (ModuleDescriptor.Exports e : descriptor.exports()) {
-                    if (!e.isQualified()) {
-                        roots.add(mn);
-                        break;
-                    }
-                }
-            }
-            return roots;
+            return systemModules.values().stream()
+                .map(ModuleReference::descriptor)
+                .filter(descriptor -> descriptor.exports()
+                        .stream()
+                        .filter(e -> !e.isQualified())
+                        .findAny()
+                        .isPresent())
+                .map(ModuleDescriptor::name)
+                .collect(Collectors.toSet());
         }
     }
 
@@ -552,14 +523,6 @@ public class JdepsConfiguration implements AutoCloseable {
                         .forEach(rootModules::add);
             }
 
-            // add all modules to the root set for unnamed module or set explicitly
-            boolean unnamed = !initialArchives.isEmpty() || !classPaths.isEmpty();
-            if ((unnamed || tokens.contains(ALL_MODULE_PATH)) && appModulePath != null) {
-                appModulePath.findAll().stream()
-                    .map(mref -> mref.descriptor().name())
-                    .forEach(rootModules::add);
-            }
-
             // no archive is specified for analysis
             // add all system modules as root if --add-modules ALL-SYSTEM is specified
             if (tokens.contains(ALL_SYSTEM) && rootModules.isEmpty() &&
@@ -570,16 +533,41 @@ public class JdepsConfiguration implements AutoCloseable {
                     .forEach(rootModules::add);
             }
 
-            if (unnamed && !tokens.contains(ALL_DEFAULT)) {
-                tokens.add(ALL_SYSTEM);
+            // add all modules on app module path as roots if ALL-MODULE-PATH is specified
+            if ((tokens.contains(ALL_MODULE_PATH)) && appModulePath != null) {
+                appModulePath.findAll().stream()
+                    .map(mref -> mref.descriptor().name())
+                    .forEach(rootModules::add);
             }
 
-            return new JdepsConfiguration(systemModulePath,
+
+            // build root set for module resolution
+            Set<String> mods = new HashSet<>(rootModules);
+            // if archives are specified for analysis, then consider as unnamed module
+            boolean unnamed = !initialArchives.isEmpty() || !classPaths.isEmpty();
+            if (tokens.contains(ALL_DEFAULT)) {
+                mods.addAll(systemModulePath.defaultSystemRoots());
+            } else if (tokens.contains(ALL_SYSTEM) || unnamed) {
+                // resolve all system modules as unnamed module may reference any class
+                systemModulePath.findAll().stream()
+                    .map(mref -> mref.descriptor().name())
+                    .forEach(mods::add);
+            }
+            if (unnamed && appModulePath != null) {
+                // resolve all modules on module path as unnamed module may reference any class
+                appModulePath.findAll().stream()
+                    .map(mref -> mref.descriptor().name())
+                    .forEach(mods::add);
+            }
+
+            // resolve the module graph
+            Configuration config = Configuration.empty().resolve(finder, ModuleFinder.of(), mods);
+            return new JdepsConfiguration(config,
+                                          systemModulePath,
                                           finder,
                                           rootModules,
                                           classPaths,
                                           initialArchives,
-                                          tokens,
                                           version);
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,6 @@ import java.lang.module.ModuleReference;
 import java.lang.module.ResolvedModule;
 import java.net.URI;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -52,9 +51,9 @@ import java.util.stream.Collectors;
 
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.BuiltinClassLoader;
-import jdk.internal.misc.JavaLangAccess;
-import jdk.internal.misc.JavaLangModuleAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.JavaLangModuleAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.perf.PerfCounter;
 
 /**
@@ -137,7 +136,7 @@ public final class ModuleBootstrap {
     /**
      * Initialize the module system, returning the boot layer.
      *
-     * @see java.lang.System#initPhase2()
+     * @see java.lang.System#initPhase2(boolean, boolean)
      */
     public static ModuleLayer boot() throws Exception {
 
@@ -172,24 +171,48 @@ public final class ModuleBootstrap {
 
         boolean haveModulePath = (appModulePath != null || upgradeModulePath != null);
         boolean needResolution = true;
+        boolean canArchive = false;
+        boolean hasSplitPackages;
+        boolean hasIncubatorModules;
 
-        if (!haveModulePath && addModules.isEmpty() && limitModules.isEmpty()) {
-            systemModules = SystemModuleFinders.systemModules(mainModule);
-            if (systemModules != null && !isPatched && (traceOutput == null)) {
-                needResolution = false;
-            }
-        }
-        if (systemModules == null) {
-            // all system modules are observable
-            systemModules = SystemModuleFinders.allSystemModules();
-        }
-        if (systemModules != null) {
-            // images build
-            systemModuleFinder = SystemModuleFinders.of(systemModules);
+        // If the java heap was archived at CDS dump time and the environment
+        // at dump time matches the current environment then use the archived
+        // system modules and finder.
+        ArchivedModuleGraph archivedModuleGraph = ArchivedModuleGraph.get(mainModule);
+        if (archivedModuleGraph != null
+                && !haveModulePath
+                && addModules.isEmpty()
+                && limitModules.isEmpty()
+                && !isPatched) {
+            systemModuleFinder = archivedModuleGraph.finder();
+            hasSplitPackages = archivedModuleGraph.hasSplitPackages();
+            hasIncubatorModules = archivedModuleGraph.hasIncubatorModules();
+            needResolution = (traceOutput != null);
         } else {
-            // exploded build or testing
-            systemModules = new ExplodedSystemModules();
-            systemModuleFinder = SystemModuleFinders.ofSystem();
+            if (!haveModulePath && addModules.isEmpty() && limitModules.isEmpty()) {
+                systemModules = SystemModuleFinders.systemModules(mainModule);
+                if (systemModules != null && !isPatched) {
+                    needResolution = (traceOutput != null);
+                    canArchive = true;
+                }
+            }
+            if (systemModules == null) {
+                // all system modules are observable
+                systemModules = SystemModuleFinders.allSystemModules();
+            }
+            if (systemModules != null) {
+                // images build
+                systemModuleFinder = SystemModuleFinders.of(systemModules);
+            } else {
+                // exploded build or testing
+                systemModules = new ExplodedSystemModules();
+                systemModuleFinder = SystemModuleFinders.ofSystem();
+            }
+
+            hasSplitPackages = systemModules.hasSplitPackages();
+            hasIncubatorModules = systemModules.hasIncubatorModules();
+            // not using the archived module graph - avoid accidental use
+            archivedModuleGraph = null;
         }
 
         Counters.add("jdk.module.boot.1.systemModulesTime", t1);
@@ -214,11 +237,13 @@ public final class ModuleBootstrap {
         Counters.add("jdk.module.boot.2.defineBaseTime", t2);
 
 
-        // Step 2a: If --validate-modules is specified then the VM needs to
-        // start with only system modules, all other options are ignored.
+        // Step 2a: Scan all modules when --validate-modules specified
 
         if (getAndRemoveProperty("jdk.module.validation") != null) {
-            return createBootLayerForValidation();
+            int errors = ModulePathValidator.scanAllModules(System.out);
+            if (errors > 0) {
+                fail("Validation of module path failed");
+            }
         }
 
 
@@ -279,11 +304,10 @@ public final class ModuleBootstrap {
 
             // If there is no initial module specified then assume that the initial
             // module is the unnamed module of the application class loader. This
-            // is implemented by resolving "java.se" and all (non-java.*) modules
-            // that export an API. If "java.se" is not observable then all java.*
-            // modules are resolved. Modules that have the DO_NOT_RESOLVE_BY_DEFAULT
-            // bit set in their ModuleResolution attribute flags are excluded from
-            // the default set of roots.
+            // is implemented by resolving all observable modules that export an
+            // API. Modules that have the DO_NOT_RESOLVE_BY_DEFAULT bit set in
+            // their ModuleResolution attribute flags are excluded from the
+            // default set of roots.
             if (mainModule == null || addAllDefaultModules) {
                 roots.addAll(DefaultRoots.compute(systemModuleFinder, finder));
             }
@@ -330,8 +354,12 @@ public final class ModuleBootstrap {
         if (needResolution) {
             cf = JLMA.resolveAndBind(finder, roots, traceOutput);
         } else {
-            Map<String, Set<String>> map = systemModules.moduleReads();
-            cf = JLMA.newConfiguration(systemModuleFinder, map);
+            if (archivedModuleGraph != null) {
+                cf = archivedModuleGraph.configuration();
+            } else {
+                Map<String, Set<String>> map = systemModules.moduleReads();
+                cf = JLMA.newConfiguration(systemModuleFinder, map);
+            }
         }
 
         // check that modules specified to --patch-module are resolved
@@ -375,7 +403,7 @@ public final class ModuleBootstrap {
         }
 
         // check for split packages in the modules mapped to the built-in loaders
-        if (systemModules.hasSplitPackages() || isPatched || haveModulePath) {
+        if (hasSplitPackages || isPatched || haveModulePath) {
             checkSplitPackages(cf, clf);
         }
 
@@ -395,7 +423,7 @@ public final class ModuleBootstrap {
         // Step 7: Miscellaneous
 
         // check incubating status
-        if (systemModules.hasIncubatorModules() || haveModulePath) {
+        if (hasIncubatorModules || haveModulePath) {
             checkIncubatingStatus(cf);
         }
 
@@ -403,7 +431,21 @@ public final class ModuleBootstrap {
         long t7 = System.nanoTime();
         addExtraReads(bootLayer);
         boolean extraExportsOrOpens = addExtraExportsAndOpens(bootLayer);
-        addIllegalAccess(upgradeModulePath, systemModules, bootLayer, extraExportsOrOpens);
+
+        Map<String, Set<String>> concealedPackagesToOpen;
+        Map<String, Set<String>> exportedPackagesToOpen;
+        if (archivedModuleGraph != null) {
+            concealedPackagesToOpen = archivedModuleGraph.concealedPackagesToOpen();
+            exportedPackagesToOpen = archivedModuleGraph.exportedPackagesToOpen();
+        } else {
+            concealedPackagesToOpen = systemModules.concealedPackagesToOpen();
+            exportedPackagesToOpen = systemModules.exportedPackagesToOpen();
+        }
+        addIllegalAccess(upgradeModulePath,
+                         concealedPackagesToOpen,
+                         exportedPackagesToOpen,
+                         bootLayer,
+                         extraExportsOrOpens);
         Counters.add("jdk.module.boot.7.adjustModulesTime", t7);
 
         // save module finders for later use
@@ -413,31 +455,23 @@ public final class ModuleBootstrap {
                 limitedFinder = new SafeModuleFinder(finder);
         }
 
+        // Module graph can be archived at CDS dump time. Only allow the
+        // unnamed module case for now.
+        if (canArchive && (mainModule == null)) {
+            ArchivedModuleGraph.archive(mainModule,
+                                        hasSplitPackages,
+                                        hasIncubatorModules,
+                                        systemModuleFinder,
+                                        cf,
+                                        concealedPackagesToOpen,
+                                        exportedPackagesToOpen);
+        }
+
         // total time to initialize
         Counters.add("jdk.module.boot.totalTime", t0);
         Counters.publish();
 
         return bootLayer;
-    }
-
-    /**
-     * Create a boot module layer for validation that resolves all
-     * system modules.
-     */
-    private static ModuleLayer createBootLayerForValidation() {
-        Set<String> allSystem = ModuleFinder.ofSystem().findAll()
-            .stream()
-            .map(ModuleReference::descriptor)
-            .map(ModuleDescriptor::name)
-            .collect(Collectors.toSet());
-
-        Configuration cf = SharedSecrets.getJavaLangModuleAccess()
-            .resolveAndBind(ModuleFinder.ofSystem(),
-                            allSystem,
-                            null);
-
-        Function<String, ClassLoader> clf = ModuleLoaderMap.mappingFunction(cf);
-        return ModuleLayer.empty().defineModules(cf, clf);
     }
 
     /**
@@ -539,7 +573,7 @@ public final class ModuleBootstrap {
             Path[] paths = new Path[dirs.length];
             int i = 0;
             for (String dir: dirs) {
-                paths[i++] = Paths.get(dir);
+                paths[i++] = Path.of(dir);
             }
             return ModulePath.of(patcher, paths);
         }
@@ -565,12 +599,13 @@ public final class ModuleBootstrap {
         // the system property is removed after decoding
         String value = getAndRemoveProperty(prefix + index);
         if (value == null) {
-            return Collections.emptySet();
+            return Set.of();
         } else {
             Set<String> modules = new HashSet<>();
             while (value != null) {
                 for (String s : value.split(",")) {
-                    if (s.length() > 0) modules.add(s);
+                    if (!s.isEmpty())
+                        modules.add(s);
                 }
                 index++;
                 value = getAndRemoveProperty(prefix + index);
@@ -585,7 +620,7 @@ public final class ModuleBootstrap {
     private static Set<String> limitModules() {
         String value = getAndRemoveProperty("jdk.module.limitmods");
         if (value == null) {
-            return Collections.emptySet();
+            return Set.of();
         } else {
             Set<String> names = new HashSet<>();
             for (String name : value.split(",")) {
@@ -731,7 +766,8 @@ public final class ModuleBootstrap {
      * of system modules in the boot layer to code in unnamed modules.
      */
     private static void addIllegalAccess(ModuleFinder upgradeModulePath,
-                                         SystemModules systemModules,
+                                         Map<String, Set<String>> concealedPackagesToOpen,
+                                         Map<String, Set<String>> exportedPackagesToOpen,
                                          ModuleLayer bootLayer,
                                          boolean extraExportsOrOpens) {
         String value = getAndRemoveProperty("jdk.module.illegalAccess");
@@ -757,13 +793,11 @@ public final class ModuleBootstrap {
         IllegalAccessLogger.Builder builder
             = new IllegalAccessLogger.Builder(mode, System.err);
 
-        Map<String, Set<String>> map1 = systemModules.concealedPackagesToOpen();
-        Map<String, Set<String>> map2 = systemModules.exportedPackagesToOpen();
-        if (map1.isEmpty() && map2.isEmpty()) {
+        if (concealedPackagesToOpen.isEmpty() && exportedPackagesToOpen.isEmpty()) {
             // need to generate (exploded build)
             IllegalAccessMaps maps = IllegalAccessMaps.generate(limitedFinder());
-            map1 = maps.concealedPackagesToOpen();
-            map2 = maps.exportedPackagesToOpen();
+            concealedPackagesToOpen = maps.concealedPackagesToOpen();
+            exportedPackagesToOpen = maps.exportedPackagesToOpen();
         }
 
         // open specific packages in the system modules
@@ -782,8 +816,8 @@ public final class ModuleBootstrap {
                 continue;
             }
 
-            Set<String> concealedPackages = map1.getOrDefault(name, Set.of());
-            Set<String> exportedPackages = map2.getOrDefault(name, Set.of());
+            Set<String> concealedPackages = concealedPackagesToOpen.getOrDefault(name, Set.of());
+            Set<String> exportedPackages = exportedPackagesToOpen.getOrDefault(name, Set.of());
 
             // refresh the set of concealed and exported packages if needed
             if (extraExportsOrOpens) {
@@ -837,7 +871,7 @@ public final class ModuleBootstrap {
         // the system property is removed after decoding
         String value = getAndRemoveProperty(prefix + index);
         if (value == null)
-            return Collections.emptyMap();
+            return Map.of();
 
         Map<String, List<String>> map = new HashMap<>();
 
@@ -862,7 +896,7 @@ public final class ModuleBootstrap {
             List<String> values = map.computeIfAbsent(key, k -> new ArrayList<>());
             int ntargets = 0;
             for (String s : rhs.split(regex)) {
-                if (s.length() > 0) {
+                if (!s.isEmpty()) {
                     values.add(s);
                     ntargets++;
                 }

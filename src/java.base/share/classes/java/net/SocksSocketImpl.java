@@ -30,10 +30,11 @@ import java.io.BufferedOutputStream;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
+
+import jdk.internal.util.StaticProperty;
 import sun.net.SocksProxy;
 import sun.net.spi.DefaultProxySelector;
 import sun.net.www.ParseUtil;
-import sun.security.action.GetPropertyAction;
 /* import org.ietf.jgss.*; */
 
 /**
@@ -50,7 +51,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
     private Socket cmdsock = null;
     private InputStream cmdIn = null;
     private OutputStream cmdOut = null;
-    /* true if the Proxy has been set programatically */
+    /* true if the Proxy has been set programmatically */
     private boolean applicationSetProxy;  /* false */
 
 
@@ -144,7 +145,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
     }
 
     /**
-     * Provides the authentication machanism required by the proxy.
+     * Provides the authentication mechanism required by the proxy.
      */
     private boolean authenticate(byte method, InputStream in,
                                  BufferedOutputStream out) throws IOException {
@@ -157,7 +158,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
         // No Authentication required. We're done then!
         if (method == NO_AUTH)
             return true;
-        /**
+        /*
          * User/Password authentication. Try, in that order :
          * - The application provided Authenticator, if any
          * - the user.name & no password (backward compatibility behavior).
@@ -178,7 +179,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
                 userName = pw.getUserName();
                 password = new String(pw.getPassword());
             } else {
-                userName = GetPropertyAction.privilegedGetProperty("user.name");
+                userName = StaticProperty.userName();
             }
             if (userName == null)
                 return false;
@@ -376,7 +377,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
             URI uri;
             // Use getHostString() to avoid reverse lookups
             String host = epoint.getHostString();
-            // IPv6 litteral?
+            // IPv6 literal?
             if (epoint.getAddress() instanceof Inet6Address &&
                 (!host.startsWith("[")) && (host.indexOf(':') >= 0)) {
                 host = "[" + host + "]";
@@ -691,7 +692,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
             URI uri;
             // Use getHostString() to avoid reverse lookups
             String host = saddr.getHostString();
-            // IPv6 litteral?
+            // IPv6 literal?
             if (saddr.getAddress() instanceof Inet6Address &&
                 (!host.startsWith("[")) && (host.indexOf(':') >= 0)) {
                 host = "[" + host + "]";
@@ -1088,7 +1089,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
                 userName = System.getProperty("user.name");
             } catch (SecurityException se) { /* swallow Exception */ }
         } else {
-            userName = GetPropertyAction.privilegedGetProperty("user.name");
+            userName = StaticProperty.userName();
         }
         return userName;
     }

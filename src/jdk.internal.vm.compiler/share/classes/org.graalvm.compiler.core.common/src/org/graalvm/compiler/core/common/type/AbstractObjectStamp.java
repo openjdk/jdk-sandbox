@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.common.type;
 
 import java.util.AbstractList;
@@ -191,8 +193,6 @@ public abstract class AbstractObjectStamp extends AbstractPointerStamp {
         boolean joinExactType = exactType || other.exactType;
         if (Objects.equals(type, other.type)) {
             joinType = type;
-        } else if (type == null && other.type == null) {
-            joinType = null;
         } else if (type == null) {
             joinType = other.type;
         } else if (other.type == null) {

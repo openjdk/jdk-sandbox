@@ -23,17 +23,18 @@
 
 /*
  * @test
- * @bug 8153716 8143955 8151754 8150382 8153920 8156910 8131024 8160089 8153897 8167128 8154513 8170015 8170368 8172102 8172103  8165405 8173073 8173848 8174041 8173916 8174028 8174262 8174797 8177079 8180508 8177466 8172154 8192979 8191842 8198573
+ * @bug 8153716 8143955 8151754 8150382 8153920 8156910 8131024 8160089 8153897 8167128 8154513 8170015 8170368 8172102 8172103  8165405 8173073 8173848 8174041 8173916 8174028 8174262 8174797 8177079 8180508 8177466 8172154 8192979 8191842 8198573 8198801 8210596 8210959 8215099
  * @summary Simple jshell tool tests
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.jdeps/com.sun.tools.javap
  *          jdk.jshell/jdk.internal.jshell.tool
  * @build KullaTesting TestingInputStream
- * @run testng ToolSimpleTest
+ * @run testng/othervm ToolSimpleTest
  */
-import java.util.Arrays;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
@@ -75,6 +76,35 @@ public class ToolSimpleTest extends ReplToolTesting {
     }
 
     @Test
+    public void testSwitchExpression() {
+        test(false, new String[]{"--enable-preview", "--no-startup"},
+                (a) -> assertCommand(a, "enum Day {MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY }", "|  created enum Day"),
+                (a) -> assertCommand(a, "Day day = Day.FRIDAY;", "day ==> FRIDAY"),
+                (a) -> assertCommand(a, "switch (day) {", ""),
+                (a) -> assertCommand(a, "case MONDAY, FRIDAY, SUNDAY -> 6;", ""),
+                (a) -> assertCommand(a, "case TUESDAY -> 7;", ""),
+                (a) -> assertCommand(a, "case THURSDAY, SATURDAY -> 8;", ""),
+                (a) -> assertCommand(a, "case WEDNESDAY -> 9;", ""),
+                (a) -> assertCommandOutputContains(a, "}", " ==> 6")
+                );
+    }
+
+    @Test
+    public void testSwitchExpressionCompletion() {
+        test(false, new String[]{"--enable-preview", "--no-startup"},
+                (a) -> assertCommand(a, "enum Day {MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY }", "|  created enum Day"),
+                (a) -> assertCommand(a, "Day day = Day.FRIDAY;", "day ==> FRIDAY"),
+                (a) -> assertCommand(a, "switch (day) {", ""),
+                (a) -> assertCommand(a, "case MONDAY, FRIDAY, SUNDAY -> 6;", ""),
+                (a) -> assertCommand(a, "case TUESDAY -> 7;", ""),
+                (a) -> assertCommand(a, "case THURSDAY, SATURDAY -> 8;", ""),
+                (a) -> assertCommand(a, "case WEDNESDAY -> 9;", ""),
+                (a) -> assertCommand(a, "} +", ""),
+                (a) -> assertCommandOutputContains(a, "1000", " ==> 1006")
+                );
+    }
+
+    @Test
     public void testLessThan() {
         test(
                 (a) -> assertCommand(a, "45", "$1 ==> 45"),
@@ -83,6 +113,46 @@ public class ToolSimpleTest extends ReplToolTesting {
                 (a) -> assertCommand(a, "int a, b", "a ==> 0\n" +
                         "b ==> 0"),
                 (a) -> assertCommand(a, "a < b", "$6 ==> false")
+        );
+    }
+
+    @Test
+    public void testChainedThrow() {
+        test(
+                (a) -> assertCommand(a, "void p() throws Exception { ((String) null).toString(); }",
+                        "|  created method p()"),
+                (a) -> assertCommand(a, "void n() throws Exception { try { p(); } catch (Exception ex) { throw new IOException(\"bar\", ex); }}",
+                        "|  created method n()"),
+                (a) -> assertCommand(a, "void m() { try { n(); } catch (Exception ex) { throw new RuntimeException(\"foo\", ex); }}",
+                        "|  created method m()"),
+                (a) -> assertCommand(a, "m()",
+                          "|  Exception java.lang.RuntimeException: foo\n"
+                        + "|        at m (#3:1)\n"
+                        + "|        at (#4:1)\n"
+                        + "|  Caused by: java.io.IOException: bar\n"
+                        + "|        at n (#2:1)\n"
+                        + "|        ...\n"
+                        + "|  Caused by: java.lang.NullPointerException\n"
+                        + "|        at p (#1:1)\n"
+                        + "|        ..."),
+                (a) -> assertCommand(a, "/drop p",
+                        "|  dropped method p()"),
+                (a) -> assertCommand(a, "m()",
+                        "|  attempted to call method n() which cannot be invoked until method p() is declared")
+        );
+    }
+
+    @Test
+    public void testThrowWithPercent() {
+        test(
+                (a) -> assertCommandCheckOutput(a,
+                        "URI u = new URI(\"http\", null, \"h\", -1, \"a\" + (char)0x04, null, null);", (s) ->
+                                assertTrue(s.contains("URISyntaxException") && !s.contains("JShellTool"),
+                                        "Output: '" + s + "'")),
+                (a) -> assertCommandCheckOutput(a,
+                        "throw new Exception(\"%z\")", (s) ->
+                                assertTrue(s.contains("java.lang.Exception") && !s.contains("UnknownFormatConversionException"),
+                                        "Output: '" + s + "'"))
         );
     }
 
@@ -362,7 +432,8 @@ public class ToolSimpleTest extends ReplToolTesting {
         test(
                 (a) -> assertHelp(a, "/?", "/list", "/help", "/exit", "intro"),
                 (a) -> assertHelp(a, "/help", "/list", "/help", "/exit", "intro"),
-                (a) -> assertHelp(a, "/help short", "shortcuts", "<tab>"),
+                (a) -> assertHelp(a, "/help short", "shortcuts", "Tab"),
+                (a) -> assertHelp(a, "/help keys", "line", "Shift", "imports", "history"),
                 (a) -> assertHelp(a, "/? /li", "/list -all", "snippets"),
                 (a) -> assertHelp(a, "/help /set prompt", "optionally contain '%s'", "quoted"),
                 (a) -> assertHelp(a, "/help /help", "/help <command>"),

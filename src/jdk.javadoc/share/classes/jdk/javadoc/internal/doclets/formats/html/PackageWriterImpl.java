@@ -40,12 +40,13 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation.PageMode;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.PackageSummaryWriter;
 import jdk.javadoc.internal.doclets.toolkit.util.CommentHelper;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
-import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
 
 /**
@@ -79,6 +80,8 @@ public class PackageWriterImpl extends HtmlDocletWriter
      */
     protected HtmlTree sectionTree = HtmlTree.SECTION();
 
+    private final Navigation navBar;
+
     /**
      * Constructor to construct PackageWriter object and to generate
      * "package-summary.html" file in the respective package directory.
@@ -95,6 +98,7 @@ public class PackageWriterImpl extends HtmlDocletWriter
                 configuration.docPaths.forPackage(packageElement)
                 .resolve(DocPaths.PACKAGE_SUMMARY));
         this.packageElement = packageElement;
+        this.navBar = new Navigation(packageElement, configuration, fixedNavDiv, PageMode.PACKAGE, path);
     }
 
     /**
@@ -107,7 +111,11 @@ public class PackageWriterImpl extends HtmlDocletWriter
                 ? HtmlTree.HEADER()
                 : bodyTree;
         addTop(htmlTree);
-        addNavLinks(true, htmlTree);
+        Content linkContent = getModuleLink(utils.elementUtils.getModuleOf(packageElement),
+                contents.moduleLabel);
+        navBar.setNavLinkModule(linkContent);
+        navBar.setUserHeader(getUserHeaderFooter(true));
+        htmlTree.addContent(navBar.getContent(true));
         if (configuration.allowTag(HtmlTag.HEADER)) {
             bodyTree.addContent(htmlTree);
         }
@@ -187,13 +195,9 @@ public class PackageWriterImpl extends HtmlDocletWriter
      */
     @Override
     public void addInterfaceSummary(SortedSet<TypeElement> interfaces, Content summaryContentTree) {
-        String label = resources.getText("doclet.Interface_Summary");
-        String tableSummary = resources.getText("doclet.Member_Table_Summary",
-                        resources.getText("doclet.Interface_Summary"),
-                        resources.getText("doclet.interfaces"));
         TableHeader tableHeader= new TableHeader(contents.interfaceLabel, contents.descriptionLabel);
-
-        addClassesSummary(interfaces, label, tableSummary, tableHeader, summaryContentTree);
+        addClassesSummary(interfaces, resources.interfaceSummary, resources.interfaceTableSummary,
+                tableHeader, summaryContentTree);
     }
 
     /**
@@ -201,13 +205,9 @@ public class PackageWriterImpl extends HtmlDocletWriter
      */
     @Override
     public void addClassSummary(SortedSet<TypeElement> classes, Content summaryContentTree) {
-        String label = resources.getText("doclet.Class_Summary");
-        String tableSummary = resources.getText("doclet.Member_Table_Summary",
-                        resources.getText("doclet.Class_Summary"),
-                        resources.getText("doclet.classes"));
         TableHeader tableHeader= new TableHeader(contents.classLabel, contents.descriptionLabel);
-
-        addClassesSummary(classes, label, tableSummary, tableHeader, summaryContentTree);
+        addClassesSummary(classes, resources.classSummary, resources.classTableSummary,
+                tableHeader, summaryContentTree);
     }
 
     /**
@@ -215,13 +215,9 @@ public class PackageWriterImpl extends HtmlDocletWriter
      */
     @Override
     public void addEnumSummary(SortedSet<TypeElement> enums, Content summaryContentTree) {
-        String label = resources.getText("doclet.Enum_Summary");
-        String tableSummary = resources.getText("doclet.Member_Table_Summary",
-                        resources.getText("doclet.Enum_Summary"),
-                        resources.getText("doclet.enums"));
         TableHeader tableHeader= new TableHeader(contents.enum_, contents.descriptionLabel);
-
-        addClassesSummary(enums, label, tableSummary, tableHeader, summaryContentTree);
+        addClassesSummary(enums, resources.enumSummary, resources.enumTableSummary,
+                tableHeader, summaryContentTree);
     }
 
     /**
@@ -229,13 +225,9 @@ public class PackageWriterImpl extends HtmlDocletWriter
      */
     @Override
     public void addExceptionSummary(SortedSet<TypeElement> exceptions, Content summaryContentTree) {
-        String label = resources.getText("doclet.Exception_Summary");
-        String tableSummary = resources.getText("doclet.Member_Table_Summary",
-                        resources.getText("doclet.Exception_Summary"),
-                        resources.getText("doclet.exceptions"));
         TableHeader tableHeader= new TableHeader(contents.exception, contents.descriptionLabel);
-
-        addClassesSummary(exceptions, label, tableSummary, tableHeader, summaryContentTree);
+        addClassesSummary(exceptions, resources.exceptionSummary, resources.exceptionTableSummary,
+                tableHeader, summaryContentTree);
     }
 
     /**
@@ -243,13 +235,9 @@ public class PackageWriterImpl extends HtmlDocletWriter
      */
     @Override
     public void addErrorSummary(SortedSet<TypeElement> errors, Content summaryContentTree) {
-        String label = resources.getText("doclet.Error_Summary");
-        String tableSummary = resources.getText("doclet.Member_Table_Summary",
-                        resources.getText("doclet.Error_Summary"),
-                        resources.getText("doclet.errors"));
         TableHeader tableHeader= new TableHeader(contents.error, contents.descriptionLabel);
-
-        addClassesSummary(errors, label, tableSummary, tableHeader, summaryContentTree);
+        addClassesSummary(errors, resources.errorSummary, resources.errorTableSummary,
+                tableHeader, summaryContentTree);
     }
 
     /**
@@ -257,13 +245,9 @@ public class PackageWriterImpl extends HtmlDocletWriter
      */
     @Override
     public void addAnnotationTypeSummary(SortedSet<TypeElement> annoTypes, Content summaryContentTree) {
-        String label = resources.getText("doclet.Annotation_Types_Summary");
-        String tableSummary = resources.getText("doclet.Member_Table_Summary",
-                        resources.getText("doclet.Annotation_Types_Summary"),
-                        resources.getText("doclet.annotationtypes"));
         TableHeader tableHeader= new TableHeader(contents.annotationType, contents.descriptionLabel);
-
-        addClassesSummary(annoTypes, label, tableSummary, tableHeader, summaryContentTree);
+        addClassesSummary(annoTypes, resources.annotationTypeSummary, resources.annotationTypeTableSummary,
+                tableHeader, summaryContentTree);
     }
 
     public void addClassesSummary(SortedSet<TypeElement> classes, String label,
@@ -346,7 +330,8 @@ public class PackageWriterImpl extends HtmlDocletWriter
         Content htmlTree = (configuration.allowTag(HtmlTag.FOOTER))
                 ? HtmlTree.FOOTER()
                 : contentTree;
-        addNavLinks(false, htmlTree);
+        navBar.setUserFooter(getUserHeaderFooter(false));
+        htmlTree.addContent(navBar.getContent(false));
         addBottom(htmlTree);
         if (configuration.allowTag(HtmlTag.FOOTER)) {
             contentTree.addContent(htmlTree);
@@ -360,56 +345,5 @@ public class PackageWriterImpl extends HtmlDocletWriter
     public void printDocument(Content contentTree) throws DocFileIOException {
         printHtmlDocument(configuration.metakeywords.getMetaKeywords(packageElement),
                 true, contentTree);
-    }
-
-    /**
-     * Get "Use" link for this pacakge in the navigation bar.
-     *
-     * @return a content tree for the class use link
-     */
-    @Override
-    protected Content getNavLinkClassUse() {
-        Content useLink = links.createLink(DocPaths.PACKAGE_USE,
-                contents.useLabel, "", "");
-        Content li = HtmlTree.LI(useLink);
-        return li;
-    }
-
-    /**
-     * Get "Tree" link in the navigation bar. This will be link to the package
-     * tree file.
-     *
-     * @return a content tree for the tree link
-     */
-    @Override
-    protected Content getNavLinkTree() {
-        Content useLink = links.createLink(DocPaths.PACKAGE_TREE,
-                contents.treeLabel, "", "");
-        Content li = HtmlTree.LI(useLink);
-        return li;
-    }
-
-    /**
-     * Get the module link.
-     *
-     * @return a content tree for the module link
-     */
-    @Override
-    protected Content getNavLinkModule() {
-        Content linkContent = getModuleLink(utils.elementUtils.getModuleOf(packageElement),
-                contents.moduleLabel);
-        Content li = HtmlTree.LI(linkContent);
-        return li;
-    }
-
-    /**
-     * Highlight "Package" in the navigation bar, as this is the package page.
-     *
-     * @return a content tree for the package link
-     */
-    @Override
-    protected Content getNavLinkPackage() {
-        Content li = HtmlTree.LI(HtmlStyle.navBarCell1Rev, contents.packageLabel);
-        return li;
     }
 }

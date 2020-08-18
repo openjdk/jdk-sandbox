@@ -649,9 +649,11 @@ class InvokerBytecodeGenerator {
             }
             case EXACT_INVOKER:             // fall-through
             case EXACT_LINKER:              // fall-through
+            case LINK_TO_CALL_SITE:         // fall-through
+            case LINK_TO_TARGET_METHOD:     // fall-through
             case GENERIC_INVOKER:           // fall-through
             case GENERIC_LINKER:            return resolveFrom(name, invokerType.basicType(), Invokers.Holder.class);
-            case GET_OBJECT:                // fall-through
+            case GET_REFERENCE:             // fall-through
             case GET_BOOLEAN:               // fall-through
             case GET_BYTE:                  // fall-through
             case GET_CHAR:                  // fall-through
@@ -660,7 +662,7 @@ class InvokerBytecodeGenerator {
             case GET_LONG:                  // fall-through
             case GET_FLOAT:                 // fall-through
             case GET_DOUBLE:                // fall-through
-            case PUT_OBJECT:                // fall-through
+            case PUT_REFERENCE:             // fall-through
             case PUT_BOOLEAN:               // fall-through
             case PUT_BYTE:                  // fall-through
             case PUT_CHAR:                  // fall-through
@@ -669,8 +671,10 @@ class InvokerBytecodeGenerator {
             case PUT_LONG:                  // fall-through
             case PUT_FLOAT:                 // fall-through
             case PUT_DOUBLE:                // fall-through
+            case DIRECT_NEW_INVOKE_SPECIAL: // fall-through
             case DIRECT_INVOKE_INTERFACE:   // fall-through
             case DIRECT_INVOKE_SPECIAL:     // fall-through
+            case DIRECT_INVOKE_SPECIAL_IFC: // fall-through
             case DIRECT_INVOKE_STATIC:      // fall-through
             case DIRECT_INVOKE_STATIC_INIT: // fall-through
             case DIRECT_INVOKE_VIRTUAL:     return resolveFrom(name, invokerType, DirectMethodHandle.Holder.class);
@@ -1864,13 +1868,11 @@ class InvokerBytecodeGenerator {
      * Emit a bogus method that just loads some string constants. This is to get the constants into the constant pool
      * for debugging purposes.
      */
-    private void bogusMethod(Object... os) {
+    private void bogusMethod(Object os) {
         if (DUMP_CLASS_FILES) {
             mv = cw.visitMethod(Opcodes.ACC_STATIC, "dummy", "()V", null, null);
-            for (Object o : os) {
-                mv.visitLdcInsn(o.toString());
-                mv.visitInsn(Opcodes.POP);
-            }
+            mv.visitLdcInsn(os.toString());
+            mv.visitInsn(Opcodes.POP);
             mv.visitInsn(Opcodes.RETURN);
             mv.visitMaxs(0, 0);
             mv.visitEnd();

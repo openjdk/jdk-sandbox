@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIFIELD_HPP
-#define SHARE_VM_CI_CIFIELD_HPP
+#ifndef SHARE_CI_CIFIELD_HPP
+#define SHARE_CI_CIFIELD_HPP
 
 #include "ci/ciClassList.hpp"
 #include "ci/ciConstant.hpp"
 #include "ci/ciFlags.hpp"
 #include "ci/ciInstance.hpp"
+#include "ci/ciUtilities.hpp"
 
 // ciField
 //
@@ -200,4 +201,4 @@ public:
   void print_name_on(outputStream* st);
 };
 
-#endif // SHARE_VM_CI_CIFIELD_HPP
+#endif // SHARE_CI_CIFIELD_HPP

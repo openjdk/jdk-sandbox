@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -746,12 +746,7 @@ class SynthParser extends DefaultHandler {
                 value = lookup(aValue, Object.class);
                 break;
             case 1: // boolean
-                if (aValue.toUpperCase().equals("TRUE")) {
-                    value = Boolean.TRUE;
-                }
-                else {
-                    value = Boolean.FALSE;
-                }
+                value = Boolean.parseBoolean(aValue);
                 break;
             case 2: // dimension
                 StringTokenizer tok = new StringTokenizer(aValue);
@@ -939,11 +934,11 @@ class SynthParser extends DefaultHandler {
                   ": destinationInsets must be top left bottom right");
             }
             else if (key.equals(ATTRIBUTE_PAINT_CENTER)) {
-                paintCenter = value.toLowerCase().equals("true");
+                paintCenter = Boolean.parseBoolean(value);
                 paintCenterSpecified = true;
             }
             else if (key.equals(ATTRIBUTE_STRETCH)) {
-                stretch = value.toLowerCase().equals("true");
+                stretch = Boolean.parseBoolean(value);
                 stretchSpecified = true;
             }
             else if (key.equals(ATTRIBUTE_DIRECTION)) {
@@ -989,7 +984,7 @@ class SynthParser extends DefaultHandler {
                 }
             }
             else if (key.equals(ATTRIBUTE_CENTER)) {
-                center = value.toLowerCase().equals("true");
+                center = Boolean.parseBoolean(value);
             }
         }
         if (painter == null) {
@@ -1250,14 +1245,14 @@ class SynthParser extends DefaultHandler {
         }
     }
 
-    public void characters(char ch[], int start, int length)
+    public void characters(char[] ch, int start, int length)
                            throws SAXException {
         if (isForwarding()) {
             getHandler().characters(ch, start, length);
         }
     }
 
-    public void ignorableWhitespace (char ch[], int start, int length)
+    public void ignorableWhitespace (char[] ch, int start, int length)
         throws SAXException {
         if (isForwarding()) {
             getHandler().ignorableWhitespace(ch, start, length);

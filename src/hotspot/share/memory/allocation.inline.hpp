@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_ALLOCATION_INLINE_HPP
-#define SHARE_VM_MEMORY_ALLOCATION_INLINE_HPP
+#ifndef SHARE_MEMORY_ALLOCATION_INLINE_HPP
+#define SHARE_MEMORY_ALLOCATION_INLINE_HPP
 
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
@@ -47,83 +47,6 @@ inline void inc_stat_counter(volatile julong* dest, julong add_value) {
 #endif
 }
 #endif
-
-// allocate using malloc; will fail if no memory available
-inline char* AllocateHeap(size_t size, MEMFLAGS flags,
-    const NativeCallStack& stack,
-    AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM) {
-  char* p = (char*) os::malloc(size, flags, stack);
-  if (p == NULL && alloc_failmode == AllocFailStrategy::EXIT_OOM) {
-    vm_exit_out_of_memory(size, OOM_MALLOC_ERROR, "AllocateHeap");
-  }
-  return p;
-}
-
-ALWAYSINLINE char* AllocateHeap(size_t size, MEMFLAGS flags,
-    AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM) {
-  return AllocateHeap(size, flags, CURRENT_PC, alloc_failmode);
-}
-
-ALWAYSINLINE char* ReallocateHeap(char *old, size_t size, MEMFLAGS flag,
-    AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM) {
-  char* p = (char*) os::realloc(old, size, flag, CURRENT_PC);
-  if (p == NULL && alloc_failmode == AllocFailStrategy::EXIT_OOM) {
-    vm_exit_out_of_memory(size, OOM_MALLOC_ERROR, "ReallocateHeap");
-  }
-  return p;
-}
-
-inline void FreeHeap(void* p) {
-  os::free(p);
-}
-
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new(size_t size,
-      const NativeCallStack& stack) throw() {
-  return (void*)AllocateHeap(size, F, stack);
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new(size_t size) throw() {
-  return CHeapObj<F>::operator new(size, CALLER_PC);
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new (size_t size,
-      const std::nothrow_t&  nothrow_constant, const NativeCallStack& stack) throw() {
-  return (void*)AllocateHeap(size, F, stack, AllocFailStrategy::RETURN_NULL);
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new (size_t size,
-  const std::nothrow_t& nothrow_constant) throw() {
-  return CHeapObj<F>::operator new(size, nothrow_constant, CALLER_PC);
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new [](size_t size,
-      const NativeCallStack& stack) throw() {
-  return CHeapObj<F>::operator new(size, stack);
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new [](size_t size)
-  throw() {
-  return CHeapObj<F>::operator new(size, CALLER_PC);
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new [](size_t size,
-  const std::nothrow_t&  nothrow_constant, const NativeCallStack& stack) throw() {
-  return CHeapObj<F>::operator new(size, nothrow_constant, stack);
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new [](size_t size,
-  const std::nothrow_t& nothrow_constant) throw() {
-  return CHeapObj<F>::operator new(size, nothrow_constant, CALLER_PC);
-}
-
-template <MEMFLAGS F> void CHeapObj<F>::operator delete(void* p){
-    FreeHeap(p);
-}
-
-template <MEMFLAGS F> void CHeapObj<F>::operator delete [](void* p){
-    FreeHeap(p);
-}
 
 template <class E>
 size_t MmapArrayAllocator<E>::size_for(size_t length) {
@@ -182,7 +105,7 @@ E* MallocArrayAllocator<E>::allocate(size_t length, MEMFLAGS flags) {
 }
 
 template<class E>
-void MallocArrayAllocator<E>::free(E* addr, size_t /*length*/) {
+void MallocArrayAllocator<E>::free(E* addr) {
   FreeHeap(addr);
 }
 
@@ -229,7 +152,7 @@ E* ArrayAllocator<E>::reallocate(E* old_addr, size_t old_length, size_t new_leng
 
 template<class E>
 void ArrayAllocator<E>::free_malloc(E* addr, size_t length) {
-  MallocArrayAllocator<E>::free(addr, length);
+  MallocArrayAllocator<E>::free(addr);
 }
 
 template<class E>
@@ -248,4 +171,4 @@ void ArrayAllocator<E>::free(E* addr, size_t length) {
   }
 }
 
-#endif // SHARE_VM_MEMORY_ALLOCATION_INLINE_HPP
+#endif // SHARE_MEMORY_ALLOCATION_INLINE_HPP

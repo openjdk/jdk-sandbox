@@ -33,6 +33,8 @@
 #include "compiler/compileLog.hpp"
 #include "compiler/disassembler.hpp"
 #include "compiler/oopMap.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/resourceArea.hpp"
 #include "opto/addnode.hpp"
 #include "opto/block.hpp"
@@ -73,6 +75,10 @@
 #include "runtime/timer.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/macros.hpp"
+#if INCLUDE_ZGC
+#include "gc/z/c2/zBarrierSetC2.hpp"
+#endif
 
 
 // -------------------- Compile::mach_constant_base_node -----------------------
@@ -397,13 +403,22 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
       remove_range_check_cast(cast);
     }
   }
-  // Remove useless expensive node
+  // Remove useless expensive nodes
   for (int i = C->expensive_count()-1; i >= 0; i--) {
     Node* n = C->expensive_node(i);
     if (!useful.member(n)) {
       remove_expensive_node(n);
     }
   }
+  // Remove useless Opaque4 nodes
+  for (int i = opaque4_count() - 1; i >= 0; i--) {
+    Node* opaq = opaque4_node(i);
+    if (!useful.member(opaq)) {
+      remove_opaque4_node(opaq);
+    }
+  }
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->eliminate_useless_gc_barriers(useful, this);
   // clean up the late inline lists
   remove_useless_late_inlines(&_string_late_inlines, useful);
   remove_useless_late_inlines(&_boxing_late_inlines, useful);
@@ -526,7 +541,7 @@ void Compile::init_scratch_buffer_blob(int const_size) {
 
     ResourceMark rm;
     _scratch_const_size = const_size;
-    int size = (MAX_inst_size + MAX_stubs_size + _scratch_const_size);
+    int size = C2Compiler::initial_code_buffer_size(const_size);
     blob = BufferBlob::create("Compile::scratch_buffer", size);
     // Record the buffer blob for next time.
     set_scratch_buffer_blob(blob);
@@ -618,61 +633,67 @@ debug_only( int Compile::_debug_idx = 100000; )
 Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr_bci,
                   bool subsume_loads, bool do_escape_analysis, bool eliminate_boxing, DirectiveSet* directive)
                 : Phase(Compiler),
-                  _env(ci_env),
-                  _directive(directive),
-                  _log(ci_env->log()),
                   _compile_id(ci_env->compile_id()),
                   _save_argument_registers(false),
-                  _stub_name(NULL),
-                  _stub_function(NULL),
-                  _stub_entry_point(NULL),
-                  _method(target),
-                  _entry_bci(osr_bci),
-                  _initial_gvn(NULL),
-                  _for_igvn(NULL),
-                  _warm_calls(NULL),
                   _subsume_loads(subsume_loads),
                   _do_escape_analysis(do_escape_analysis),
                   _eliminate_boxing(eliminate_boxing),
-                  _failure_reason(NULL),
-                  _code_buffer("Compile::Fill_buffer"),
+                  _method(target),
+                  _entry_bci(osr_bci),
+                  _stub_function(NULL),
+                  _stub_name(NULL),
+                  _stub_entry_point(NULL),
+                  _max_node_limit(MaxNodeLimit),
                   _orig_pc_slot(0),
                   _orig_pc_slot_offset_in_bytes(0),
-                  _has_method_handle_invokes(false),
-                  _mach_constant_base_node(NULL),
-                  _node_bundling_limit(0),
-                  _node_bundling_base(NULL),
-                  _java_calls(0),
-                  _inner_loops(0),
-                  _scratch_const_size(-1),
-                  _in_scratch_emit_size(false),
-                  _dead_node_list(comp_arena()),
-                  _dead_node_count(0),
+                  _inlining_progress(false),
+                  _inlining_incrementally(false),
+                  _has_reserved_stack_access(target->has_reserved_stack_access()),
 #ifndef PRODUCT
                   _trace_opto_output(directive->TraceOptoOutputOption),
-                  _in_dump_cnt(0),
+#endif
+                  _has_method_handle_invokes(false),
+                  _comp_arena(mtCompiler),
+                  _barrier_set_state(BarrierSet::barrier_set()->barrier_set_c2()->create_barrier_state(comp_arena())),
+                  _env(ci_env),
+                  _directive(directive),
+                  _log(ci_env->log()),
+                  _failure_reason(NULL),
+                  _congraph(NULL),
+#ifndef PRODUCT
                   _printer(IdealGraphPrinter::printer()),
 #endif
-                  _congraph(NULL),
-                  _comp_arena(mtCompiler),
+                  _dead_node_list(comp_arena()),
+                  _dead_node_count(0),
                   _node_arena(mtCompiler),
                   _old_arena(mtCompiler),
+                  _mach_constant_base_node(NULL),
                   _Compile_types(mtCompiler),
-                  _replay_inline_data(NULL),
+                  _initial_gvn(NULL),
+                  _for_igvn(NULL),
+                  _warm_calls(NULL),
                   _late_inlines(comp_arena(), 2, 0, NULL),
                   _string_late_inlines(comp_arena(), 2, 0, NULL),
                   _boxing_late_inlines(comp_arena(), 2, 0, NULL),
                   _late_inlines_pos(0),
                   _number_of_mh_late_inlines(0),
-                  _inlining_progress(false),
-                  _inlining_incrementally(false),
-                  _print_inlining_list(NULL),
                   _print_inlining_stream(NULL),
+                  _print_inlining_list(NULL),
                   _print_inlining_idx(0),
                   _print_inlining_output(NULL),
+                  _replay_inline_data(NULL),
+                  _java_calls(0),
+                  _inner_loops(0),
                   _interpreter_frame_size(0),
-                  _max_node_limit(MaxNodeLimit),
-                  _has_reserved_stack_access(target->has_reserved_stack_access()) {
+                  _node_bundling_limit(0),
+                  _node_bundling_base(NULL),
+                  _code_buffer("Compile::Fill_buffer"),
+                  _scratch_const_size(-1),
+                  _in_scratch_emit_size(false)
+#ifndef PRODUCT
+                  , _in_dump_cnt(0)
+#endif
+{
   C = this;
 #ifndef PRODUCT
   if (_printer != NULL) {
@@ -762,17 +783,12 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
       StartNode* s = new StartNode(root(), tf()->domain());
       initial_gvn()->set_type_bottom(s);
       init_start(s);
-      if (method()->intrinsic_id() == vmIntrinsics::_Reference_get && UseG1GC) {
+      if (method()->intrinsic_id() == vmIntrinsics::_Reference_get) {
         // With java.lang.ref.reference.get() we must go through the
-        // intrinsic when G1 is enabled - even when get() is the root
+        // intrinsic - even when get() is the root
         // method of the compile - so that, if necessary, the value in
         // the referent field of the reference object gets recorded by
         // the pre-barrier code.
-        // Specifically, if G1 is enabled, the value in the referent
-        // field is recorded by the G1 SATB pre barrier. This will
-        // result in the referent being marked live and the reference
-        // object removed from the list of discovered references during
-        // reference processing.
         cg = find_intrinsic(method(), false);
       }
       if (cg == NULL) {
@@ -873,7 +889,10 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
   }
 #endif
 
-  NOT_PRODUCT( verify_barriers(); )
+#ifdef ASSERT
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->verify_gc_barriers(this, BarrierSetC2::BeforeCodeGen);
+#endif
 
   // Dump compilation data to replay it.
   if (directive->DumpReplayOption) {
@@ -945,56 +964,60 @@ Compile::Compile( ciEnv* ci_env,
                   bool return_pc,
                   DirectiveSet* directive)
   : Phase(Compiler),
-    _env(ci_env),
-    _directive(directive),
-    _log(ci_env->log()),
     _compile_id(0),
     _save_argument_registers(save_arg_registers),
-    _method(NULL),
-    _stub_name(stub_name),
-    _stub_function(stub_function),
-    _stub_entry_point(NULL),
-    _entry_bci(InvocationEntryBci),
-    _initial_gvn(NULL),
-    _for_igvn(NULL),
-    _warm_calls(NULL),
-    _orig_pc_slot(0),
-    _orig_pc_slot_offset_in_bytes(0),
     _subsume_loads(true),
     _do_escape_analysis(false),
     _eliminate_boxing(false),
-    _failure_reason(NULL),
-    _code_buffer("Compile::Fill_buffer"),
-    _has_method_handle_invokes(false),
-    _mach_constant_base_node(NULL),
-    _node_bundling_limit(0),
-    _node_bundling_base(NULL),
-    _java_calls(0),
-    _inner_loops(0),
-#ifndef PRODUCT
-    _trace_opto_output(directive->TraceOptoOutputOption),
-    _in_dump_cnt(0),
-    _printer(NULL),
-#endif
-    _comp_arena(mtCompiler),
-    _node_arena(mtCompiler),
-    _old_arena(mtCompiler),
-    _Compile_types(mtCompiler),
-    _dead_node_list(comp_arena()),
-    _dead_node_count(0),
-    _congraph(NULL),
-    _replay_inline_data(NULL),
-    _number_of_mh_late_inlines(0),
+    _method(NULL),
+    _entry_bci(InvocationEntryBci),
+    _stub_function(stub_function),
+    _stub_name(stub_name),
+    _stub_entry_point(NULL),
+    _max_node_limit(MaxNodeLimit),
+    _orig_pc_slot(0),
+    _orig_pc_slot_offset_in_bytes(0),
     _inlining_progress(false),
     _inlining_incrementally(false),
-    _print_inlining_list(NULL),
+    _has_reserved_stack_access(false),
+#ifndef PRODUCT
+    _trace_opto_output(directive->TraceOptoOutputOption),
+#endif
+    _has_method_handle_invokes(false),
+    _comp_arena(mtCompiler),
+    _env(ci_env),
+    _directive(directive),
+    _log(ci_env->log()),
+    _failure_reason(NULL),
+    _congraph(NULL),
+#ifndef PRODUCT
+    _printer(NULL),
+#endif
+    _dead_node_list(comp_arena()),
+    _dead_node_count(0),
+    _node_arena(mtCompiler),
+    _old_arena(mtCompiler),
+    _mach_constant_base_node(NULL),
+    _Compile_types(mtCompiler),
+    _initial_gvn(NULL),
+    _for_igvn(NULL),
+    _warm_calls(NULL),
+    _number_of_mh_late_inlines(0),
     _print_inlining_stream(NULL),
+    _print_inlining_list(NULL),
     _print_inlining_idx(0),
     _print_inlining_output(NULL),
-    _allowed_reasons(0),
+    _replay_inline_data(NULL),
+    _java_calls(0),
+    _inner_loops(0),
     _interpreter_frame_size(0),
-    _max_node_limit(MaxNodeLimit),
-    _has_reserved_stack_access(false) {
+    _node_bundling_limit(0),
+    _node_bundling_base(NULL),
+    _code_buffer("Compile::Fill_buffer"),
+#ifndef PRODUCT
+    _in_dump_cnt(0),
+#endif
+    _allowed_reasons(0) {
   C = this;
 
   TraceTime t1(NULL, &_t_totalCompilation, CITime, false);
@@ -1099,7 +1122,7 @@ void Compile::Init(int aliaslevel) {
   set_decompile_count(0);
 
   set_do_freq_based_layout(_directive->BlockLayoutByFrequencyOption);
-  set_num_loop_opts(LoopOptsCount);
+  _loop_opts_cnt = LoopOptsCount;
   set_do_inlining(Inline);
   set_max_inline_size(MaxInlineSize);
   set_freq_inline_size(FreqInlineSize);
@@ -1179,6 +1202,7 @@ void Compile::Init(int aliaslevel) {
   _predicate_opaqs = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _expensive_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
+  _opaque4_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   register_library_intrinsics();
 }
 
@@ -1441,6 +1465,8 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         tj = TypeInstPtr::MARK;
         ta = TypeAryPtr::RANGE; // generic ignored junk
         ptr = TypePtr::BotPTR;
+      } else if (BarrierSet::barrier_set()->barrier_set_c2()->flatten_gc_alias_type(tj)) {
+        ta = tj->isa_aryptr();
       } else {                  // Random constant offset into array body
         offset = Type::OffsetBot;   // Flatten constant access into array body
         tj = ta = TypeAryPtr::make(ptr,ta->ary(),ta->klass(),false,offset);
@@ -1505,6 +1531,8 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       if (!is_known_inst) { // Do it only for non-instance types
         tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, offset);
       }
+    } else if (BarrierSet::barrier_set()->barrier_set_c2()->flatten_gc_alias_type(tj)) {
+      to = tj->is_instptr();
     } else if (offset < 0 || offset >= k->size_helper() * wordSize) {
       // Static fields are in the space above the normal instance
       // fields in the java.lang.Class instance.
@@ -1603,7 +1631,8 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
           (offset == Type::OffsetBot && tj == TypePtr::BOTTOM) ||
           (offset == oopDesc::mark_offset_in_bytes() && tj->base() == Type::AryPtr) ||
           (offset == oopDesc::klass_offset_in_bytes() && tj->base() == Type::AryPtr) ||
-          (offset == arrayOopDesc::length_offset_in_bytes() && tj->base() == Type::AryPtr)  ,
+          (offset == arrayOopDesc::length_offset_in_bytes() && tj->base() == Type::AryPtr) ||
+          (BarrierSet::barrier_set()->barrier_set_c2()->verify_gc_alias_type(tj, offset)),
           "For oops, klasses, raw offset must be constant; for arrays the offset is never known" );
   assert( tj->ptr() != TypePtr::TopPTR &&
           tj->ptr() != TypePtr::AnyNull &&
@@ -1957,6 +1986,22 @@ void Compile::remove_range_check_casts(PhaseIterGVN &igvn) {
   assert(range_check_cast_count() == 0, "should be empty");
 }
 
+void Compile::add_opaque4_node(Node* n) {
+  assert(n->Opcode() == Op_Opaque4, "Opaque4 only");
+  assert(!_opaque4_nodes->contains(n), "duplicate entry in Opaque4 list");
+  _opaque4_nodes->append(n);
+}
+
+// Remove all Opaque4 nodes.
+void Compile::remove_opaque4_nodes(PhaseIterGVN &igvn) {
+  for (int i = opaque4_count(); i > 0; i--) {
+    Node* opaq = opaque4_node(i-1);
+    assert(opaq->Opcode() == Op_Opaque4, "Opaque4 only");
+    igvn.replace_node(opaq, opaq->in(2));
+  }
+  assert(opaque4_count() == 0, "should be empty");
+}
+
 // StringOpts and late inlining of string methods
 void Compile::inline_string_calls(bool parse_time) {
   {
@@ -2073,7 +2118,7 @@ void Compile::inline_incrementally(PhaseIterGVN& igvn) {
         // PhaseIdealLoop is expensive so we only try it once we are
         // out of live nodes and we only try it again if the previous
         // helped got the number of nodes down significantly
-        PhaseIdealLoop ideal_loop( igvn, false, true );
+        PhaseIdealLoop ideal_loop(igvn, LoopOptsNone);
         if (failing())  return;
         low_live_nodes = live_nodes();
         _major_progress = true;
@@ -2124,6 +2169,38 @@ void Compile::inline_incrementally(PhaseIterGVN& igvn) {
 }
 
 
+bool Compile::optimize_loops(PhaseIterGVN& igvn, LoopOptsMode mode) {
+  if(_loop_opts_cnt > 0) {
+    debug_only( int cnt = 0; );
+    while(major_progress() && (_loop_opts_cnt > 0)) {
+      TracePhase tp("idealLoop", &timers[_t_idealLoop]);
+      assert( cnt++ < 40, "infinite cycle in loop optimization" );
+      PhaseIdealLoop ideal_loop(igvn, mode);
+      _loop_opts_cnt--;
+      if (failing())  return false;
+      if (major_progress()) print_method(PHASE_PHASEIDEALLOOP_ITERATIONS, 2);
+    }
+  }
+  return true;
+}
+
+// Remove edges from "root" to each SafePoint at a backward branch.
+// They were inserted during parsing (see add_safepoint()) to make
+// infinite loops without calls or exceptions visible to root, i.e.,
+// useful.
+void Compile::remove_root_to_sfpts_edges() {
+  Node *r = root();
+  if (r != NULL) {
+    for (uint i = r->req(); i < r->len(); ++i) {
+      Node *n = r->in(i);
+      if (n != NULL && n->is_SafePoint()) {
+        r->rm_prec(i);
+        --i;
+      }
+    }
+  }
+}
+
 //------------------------------Optimize---------------------------------------
 // Given a graph, optimize it.
 void Compile::Optimize() {
@@ -2136,8 +2213,12 @@ void Compile::Optimize() {
 
 #endif
 
+#ifdef ASSERT
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->verify_gc_barriers(this, BarrierSetC2::BeforeOptimize);
+#endif
+
   ResourceMark rm;
-  int          loop_opts_cnt;
 
   print_inlining_reinit();
 
@@ -2157,9 +2238,9 @@ void Compile::Optimize() {
     igvn.optimize();
   }
 
-  print_method(PHASE_ITER_GVN1, 2);
-
   if (failing())  return;
+
+  print_method(PHASE_ITER_GVN1, 2);
 
   inline_incrementally(igvn);
 
@@ -2179,6 +2260,10 @@ void Compile::Optimize() {
 
     if (failing())  return;
   }
+
+  // Now that all inlining is over, cut edge from root to loop
+  // safepoints
+  remove_root_to_sfpts_edges();
 
   // Remove the speculative part of types and clean up the graph from
   // the extra CastPP nodes whose only purpose is to carry them. Do
@@ -2209,7 +2294,7 @@ void Compile::Optimize() {
     if (has_loops()) {
       // Cleanup graph (remove dead nodes).
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop ideal_loop( igvn, false, true );
+      PhaseIdealLoop ideal_loop(igvn, LoopOptsNone);
       if (major_progress()) print_method(PHASE_PHASEIDEAL_BEFORE_EA, 2);
       if (failing())  return;
     }
@@ -2240,28 +2325,27 @@ void Compile::Optimize() {
   // peeling, unrolling, etc.
 
   // Set loop opts counter
-  loop_opts_cnt = num_loop_opts();
-  if((loop_opts_cnt > 0) && (has_loops() || has_split_ifs())) {
+  if((_loop_opts_cnt > 0) && (has_loops() || has_split_ifs())) {
     {
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop ideal_loop( igvn, true );
-      loop_opts_cnt--;
+      PhaseIdealLoop ideal_loop(igvn, LoopOptsDefault);
+      _loop_opts_cnt--;
       if (major_progress()) print_method(PHASE_PHASEIDEALLOOP1, 2);
       if (failing())  return;
     }
     // Loop opts pass if partial peeling occurred in previous pass
-    if(PartialPeelLoop && major_progress() && (loop_opts_cnt > 0)) {
+    if(PartialPeelLoop && major_progress() && (_loop_opts_cnt > 0)) {
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop ideal_loop( igvn, false );
-      loop_opts_cnt--;
+      PhaseIdealLoop ideal_loop(igvn, LoopOptsSkipSplitIf);
+      _loop_opts_cnt--;
       if (major_progress()) print_method(PHASE_PHASEIDEALLOOP2, 2);
       if (failing())  return;
     }
     // Loop opts pass for loop-unrolling before CCP
-    if(major_progress() && (loop_opts_cnt > 0)) {
+    if(major_progress() && (_loop_opts_cnt > 0)) {
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop ideal_loop( igvn, false );
-      loop_opts_cnt--;
+      PhaseIdealLoop ideal_loop(igvn, LoopOptsSkipSplitIf);
+      _loop_opts_cnt--;
       if (major_progress()) print_method(PHASE_PHASEIDEALLOOP3, 2);
     }
     if (!failing()) {
@@ -2296,17 +2380,18 @@ void Compile::Optimize() {
 
   // Loop transforms on the ideal graph.  Range Check Elimination,
   // peeling, unrolling, etc.
-  if(loop_opts_cnt > 0) {
-    debug_only( int cnt = 0; );
-    while(major_progress() && (loop_opts_cnt > 0)) {
-      TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      assert( cnt++ < 40, "infinite cycle in loop optimization" );
-      PhaseIdealLoop ideal_loop( igvn, true);
-      loop_opts_cnt--;
-      if (major_progress()) print_method(PHASE_PHASEIDEALLOOP_ITERATIONS, 2);
-      if (failing())  return;
-    }
+  if (!optimize_loops(igvn, LoopOptsDefault)) {
+    return;
   }
+
+#if INCLUDE_ZGC
+  if (UseZGC) {
+    ZBarrierSetC2::find_dominating_barriers(igvn);
+  }
+#endif
+
+  if (failing())  return;
+
   // Ensure that major progress is now clear
   C->clear_major_progress();
 
@@ -2323,13 +2408,34 @@ void Compile::Optimize() {
     igvn.optimize();
   }
 
+#ifdef ASSERT
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->verify_gc_barriers(this, BarrierSetC2::BeforeExpand);
+#endif
+
   {
     TracePhase tp("macroExpand", &timers[_t_macroExpand]);
     PhaseMacroExpand  mex(igvn);
+    print_method(PHASE_BEFORE_MACRO_EXPANSION, 2);
     if (mex.expand_macro_nodes()) {
       assert(failing(), "must bail out w/ explicit message");
       return;
     }
+  }
+
+  {
+    TracePhase tp("barrierExpand", &timers[_t_barrierExpand]);
+    print_method(PHASE_BEFORE_BARRIER_EXPAND, 2);
+    BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+    if (bs->expand_barriers(this, igvn)) {
+      assert(failing(), "must bail out w/ explicit message");
+      return;
+    }
+  }
+
+  if (opaque4_count() > 0) {
+    C->remove_opaque4_nodes(igvn);
+    igvn.optimize();
   }
 
   DEBUG_ONLY( _modified_nodes = NULL; )
@@ -2381,6 +2487,8 @@ void Compile::Code_Gen() {
   if (failing()) {
     return;
   }
+
+  print_method(PHASE_MATCHING, 2);
 
   // Build a proper-looking CFG
   PhaseCFG cfg(node_arena(), root(), matcher);
@@ -2700,8 +2808,31 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
                              LoadNode::is_immutable_value(n->in(MemNode::Address))),
             "raw memory operations should have control edge");
   }
+  if (n->is_MemBar()) {
+    MemBarNode* mb = n->as_MemBar();
+    if (mb->trailing_store() || mb->trailing_load_store()) {
+      assert(mb->leading_membar()->trailing_membar() == mb, "bad membar pair");
+      Node* mem = mb->in(MemBarNode::Precedent);
+      assert((mb->trailing_store() && mem->is_Store() && mem->as_Store()->is_release()) ||
+             (mb->trailing_load_store() && mem->is_LoadStore()), "missing mem op");
+    } else if (mb->leading()) {
+      assert(mb->trailing_membar()->leading_membar() == mb, "bad membar pair");
+    }
+  }
 #endif
   // Count FPU ops and common calls, implements item (3)
+  bool gc_handled = BarrierSet::barrier_set()->barrier_set_c2()->final_graph_reshaping(this, n, nop);
+  if (!gc_handled) {
+    final_graph_reshaping_main_switch(n, frc, nop);
+  }
+
+  // Collect CFG split points
+  if (n->is_MultiBranch() && !n->is_RangeCheck()) {
+    frc._tests.push(n);
+  }
+}
+
+void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& frc, uint nop) {
   switch( nop ) {
   // Count all float operations that may use FPU
   case Op_AddF:
@@ -2854,8 +2985,7 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
   handle_mem:
 #ifdef ASSERT
     if( VerifyOptoOopOffsets ) {
-      assert( n->is_Mem(), "" );
-      MemNode *mem  = (MemNode*)n;
+      MemNode* mem  = n->as_Mem();
       // Check to see if address types have grounded out somehow.
       const TypeInstPtr *tp = mem->in(MemNode::Address)->bottom_type()->isa_instptr();
       assert( !tp || oop_offset_is_sane(tp), "" );
@@ -2952,7 +3082,7 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
         Node *m = wq.at(next);
         for (DUIterator_Fast imax, i = m->fast_outs(imax); i < imax; i++) {
           Node* use = m->fast_out(i);
-          if (use->is_Mem() || use->is_EncodeNarrowPtr()) {
+          if (use->is_Mem() || use->is_EncodeNarrowPtr() || use->is_ShenandoahBarrier()) {
             use->ensure_control_or_add_prec(n->in(0));
           } else {
             switch(use->Opcode()) {
@@ -3139,8 +3269,10 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
             break;
           }
         }
-        assert(proj != NULL, "must be found");
-        p->subsume_by(proj, this);
+        assert(proj != NULL || p->_con == TypeFunc::I_O, "io may be dropped at an infinite loop");
+        if (proj != NULL) {
+          p->subsume_by(proj, this);
+        }
       }
     }
     break;
@@ -3288,6 +3420,32 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
       n->set_req(MemBarNode::Precedent, top());
     }
     break;
+  case Op_MemBarAcquire: {
+    if (n->as_MemBar()->trailing_load() && n->req() > MemBarNode::Precedent) {
+      // At parse time, the trailing MemBarAcquire for a volatile load
+      // is created with an edge to the load. After optimizations,
+      // that input may be a chain of Phis. If those phis have no
+      // other use, then the MemBarAcquire keeps them alive and
+      // register allocation can be confused.
+      ResourceMark rm;
+      Unique_Node_List wq;
+      wq.push(n->in(MemBarNode::Precedent));
+      n->set_req(MemBarNode::Precedent, top());
+      while (wq.size() > 0) {
+        Node* m = wq.pop();
+        if (m->outcnt() == 0) {
+          for (uint j = 0; j < m->req(); j++) {
+            Node* in = m->in(j);
+            if (in != NULL) {
+              wq.push(in);
+            }
+          }
+          m->disconnect_inputs(NULL, this);
+        }
+      }
+    }
+    break;
+  }
   case Op_RangeCheck: {
     RangeCheckNode* rc = n->as_RangeCheck();
     Node* iff = new IfNode(rc->in(0), rc->in(1), rc->_prob, rc->_fcnt);
@@ -3332,16 +3490,24 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
     }
     break;
   }
-  default:
-    assert( !n->is_Call(), "" );
-    assert( !n->is_Mem(), "" );
-    assert( nop != Op_ProfileBoolean, "should be eliminated during IGVN");
+  case Op_CmpUL: {
+    if (!Matcher::has_match_rule(Op_CmpUL)) {
+      // No support for unsigned long comparisons
+      ConINode* sign_pos = new ConINode(TypeInt::make(BitsPerLong - 1));
+      Node* sign_bit_mask = new RShiftLNode(n->in(1), sign_pos);
+      Node* orl = new OrLNode(n->in(1), sign_bit_mask);
+      ConLNode* remove_sign_mask = new ConLNode(TypeLong::make(max_jlong));
+      Node* andl = new AndLNode(orl, remove_sign_mask);
+      Node* cmp = new CmpLNode(andl, n->in(2));
+      n->subsume_by(cmp, this);
+    }
     break;
   }
-
-  // Collect CFG split points
-  if (n->is_MultiBranch() && !n->is_RangeCheck()) {
-    frc._tests.push(n);
+  default:
+    assert(!n->is_Call(), "");
+    assert(!n->is_Mem(), "");
+    assert(nop != Op_ProfileBoolean, "should be eliminated during IGVN");
+    break;
   }
 }
 
@@ -3702,72 +3868,6 @@ void Compile::verify_graph_edges(bool no_dead_code) {
     }
   }
 }
-
-// Verify GC barriers consistency
-// Currently supported:
-// - G1 pre-barriers (see GraphKit::g1_write_barrier_pre())
-void Compile::verify_barriers() {
-  if (UseG1GC) {
-    // Verify G1 pre-barriers
-    const int marking_offset = in_bytes(JavaThread::satb_mark_queue_offset() + SATBMarkQueue::byte_offset_of_active());
-
-    ResourceArea *area = Thread::current()->resource_area();
-    Unique_Node_List visited(area);
-    Node_List worklist(area);
-    // We're going to walk control flow backwards starting from the Root
-    worklist.push(_root);
-    while (worklist.size() > 0) {
-      Node* x = worklist.pop();
-      if (x == NULL || x == top()) continue;
-      if (visited.member(x)) {
-        continue;
-      } else {
-        visited.push(x);
-      }
-
-      if (x->is_Region()) {
-        for (uint i = 1; i < x->req(); i++) {
-          worklist.push(x->in(i));
-        }
-      } else {
-        worklist.push(x->in(0));
-        // We are looking for the pattern:
-        //                            /->ThreadLocal
-        // If->Bool->CmpI->LoadB->AddP->ConL(marking_offset)
-        //              \->ConI(0)
-        // We want to verify that the If and the LoadB have the same control
-        // See GraphKit::g1_write_barrier_pre()
-        if (x->is_If()) {
-          IfNode *iff = x->as_If();
-          if (iff->in(1)->is_Bool() && iff->in(1)->in(1)->is_Cmp()) {
-            CmpNode *cmp = iff->in(1)->in(1)->as_Cmp();
-            if (cmp->Opcode() == Op_CmpI && cmp->in(2)->is_Con() && cmp->in(2)->bottom_type()->is_int()->get_con() == 0
-                && cmp->in(1)->is_Load()) {
-              LoadNode* load = cmp->in(1)->as_Load();
-              if (load->Opcode() == Op_LoadB && load->in(2)->is_AddP() && load->in(2)->in(2)->Opcode() == Op_ThreadLocal
-                  && load->in(2)->in(3)->is_Con()
-                  && load->in(2)->in(3)->bottom_type()->is_intptr_t()->get_con() == marking_offset) {
-
-                Node* if_ctrl = iff->in(0);
-                Node* load_ctrl = load->in(0);
-
-                if (if_ctrl != load_ctrl) {
-                  // Skip possible CProj->NeverBranch in infinite loops
-                  if ((if_ctrl->is_Proj() && if_ctrl->Opcode() == Op_CProj)
-                      && (if_ctrl->in(0)->is_MultiBranch() && if_ctrl->in(0)->Opcode() == Op_NeverBranch)) {
-                    if_ctrl = if_ctrl->in(0)->in(0);
-                  }
-                }
-                assert(load_ctrl != NULL && if_ctrl == load_ctrl, "controls must match");
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
 #endif
 
 // The Compile object keeps track of failure reasons separately from the ciEnv.
@@ -3971,9 +4071,9 @@ void Compile::ConstantTable::emit(CodeBuffer& cb) {
 
 int Compile::ConstantTable::find_offset(Constant& con) const {
   int idx = _constants.find(con);
-  assert(idx != -1, "constant must be in constant table");
+  guarantee(idx != -1, "constant must be in constant table");
   int offset = _constants.at(idx).offset();
-  assert(offset != -1, "constant table not emitted yet?");
+  guarantee(offset != -1, "constant table not emitted yet?");
   return offset;
 }
 

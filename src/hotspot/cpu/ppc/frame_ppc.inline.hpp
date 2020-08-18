@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_PPC_VM_FRAME_PPC_INLINE_HPP
-#define CPU_PPC_VM_FRAME_PPC_INLINE_HPP
+#ifndef CPU_PPC_FRAME_PPC_INLINE_HPP
+#define CPU_PPC_FRAME_PPC_INLINE_HPP
 
 #include "code/codeCache.hpp"
 #include "code/vmreg.inline.hpp"
@@ -55,7 +55,7 @@ inline void frame::find_codeblob_and_set_pc_and_deopt_state(address pc) {
 // Constructors
 
 // Initialize all fields, _unextended_sp will be adjusted in find_codeblob_and_set_pc_and_deopt_state.
-inline frame::frame() : _sp(NULL), _unextended_sp(NULL), _fp(NULL), _cb(NULL), _pc(NULL), _deopt_state(unknown) {}
+inline frame::frame() : _sp(NULL), _pc(NULL), _cb(NULL),  _deopt_state(unknown), _unextended_sp(NULL), _fp(NULL) {}
 
 inline frame::frame(intptr_t* sp) : _sp(sp), _unextended_sp(sp) {
   find_codeblob_and_set_pc_and_deopt_state((address)own_abi()->lr); // also sets _fp and adjusts _unextended_sp
@@ -179,10 +179,6 @@ inline intptr_t* frame::interpreter_frame_expression_stack() const {
   return (intptr_t*)interpreter_frame_monitor_end() - 1;
 }
 
-inline jint frame::interpreter_frame_expression_stack_direction() {
-  return -1;
-}
-
 // top of expression stack
 inline intptr_t* frame::interpreter_frame_tos_address() const {
   return ((intptr_t*) get_ijava_state()->esp) + Interpreter::stackElementWords;
@@ -224,4 +220,4 @@ inline void frame::set_saved_oop_result(RegisterMap* map, oop obj) {
   *((oop*)map->location(R3->as_VMReg())) = obj;
 }
 
-#endif // CPU_PPC_VM_FRAME_PPC_INLINE_HPP
+#endif // CPU_PPC_FRAME_PPC_INLINE_HPP

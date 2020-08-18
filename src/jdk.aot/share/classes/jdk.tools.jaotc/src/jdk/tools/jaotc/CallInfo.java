@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+
+
 package jdk.tools.jaotc;
 
 import org.graalvm.compiler.bytecode.Bytecodes;
@@ -33,7 +35,7 @@ import jdk.vm.ci.meta.ResolvedJavaMethod;
 final class CallInfo {
 
     static boolean isStaticTarget(Call call) {
-        return !((HotSpotResolvedJavaMethod)call.target).hasReceiver();
+        return !((HotSpotResolvedJavaMethod) call.target).hasReceiver();
     }
 
     private static boolean isStaticOpcode(Call call) {

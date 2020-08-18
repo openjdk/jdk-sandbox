@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,14 @@ import java.util.Map;
 import java.util.ArrayList;
 
 import jdk.test.lib.apps.LingeredApp;
-
-/*
+/**
  * @test
  * @bug 8193124
  * @summary Test the clhsdb 'findpc' command
+ * @requires vm.hasSA
+ * @requires vm.compiler1.enabled
  * @library /test/lib
- * @run main/othervm ClhsdbFindPC
+ * @run main/othervm/timeout=480 ClhsdbFindPC
  */
 
 public class ClhsdbFindPC {

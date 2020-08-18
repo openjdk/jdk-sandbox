@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.common;
 
 // JaCoCo Exclude
@@ -106,6 +108,11 @@ public class NumUtil {
     public static short safeToShort(int v) {
         assert isShort(v);
         return (short) v;
+    }
+
+    public static int safeToInt(long v) {
+        assert isInt(v);
+        return (int) v;
     }
 
     public static int roundUp(int number, int mod) {
@@ -208,14 +215,14 @@ public class NumUtil {
     }
 
     public static long maxUnsigned(long a, long b) {
-        if (Long.compareUnsigned(a, b) > 0) {
+        if (Long.compareUnsigned(a, b) < 0) {
             return b;
         }
         return a;
     }
 
     public static long minUnsigned(long a, long b) {
-        if (Long.compareUnsigned(a, b) > 0) {
+        if (Long.compareUnsigned(a, b) < 0) {
             return a;
         }
         return b;

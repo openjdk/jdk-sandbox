@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,17 @@ hotspot_all_no_apps = \
 hotspot_compiler = \
   compiler
 
+hotspot_compiler_xcomp = \
+  :hotspot_compiler \
+  -:tier1_compiler_not_xcomp
+
+hotspot_compiler_all_gcs = \
+  :hotspot_compiler \
+  -:tier1_compiler_not_cms
+
 hotspot_gc = \
-  gc
+  gc \
+  -gc/nvdimm
 
 hotspot_runtime = \
   runtime
@@ -46,6 +55,7 @@ hotspot_serviceability = \
 hotspot_misc = \
   / \
  -applications \
+ -vmTestbase \
  -:hotspot_compiler \
  -:hotspot_gc \
  -:hotspot_runtime \
@@ -61,10 +71,21 @@ tier1_common = \
 tier1_compiler = \
   :tier1_compiler_1 \
   :tier1_compiler_2 \
-  :tier1_compiler_3
+  :tier1_compiler_3 \
+  :tier1_compiler_not_xcomp
+
+hotspot_not_fast_compiler = \
+  :hotspot_compiler \
+  -:tier1_compiler \
+  -:hotspot_slow_compiler \
+  -compiler/graalunit
+
+hotspot_slow_compiler = \
+  compiler/codegen/aes \
+  compiler/codecache/stress \
+  compiler/gcbarriers/PreserveFPRegistersTest.java
 
 tier1_compiler_1 = \
-  compiler/aot/ \
   compiler/arraycopy/ \
   compiler/c1/ \
   compiler/c2/ \
@@ -94,9 +115,7 @@ tier1_compiler_2 = \
   compiler/integerArithmetic/ \
   compiler/interpreter/ \
   compiler/jvmci/ \
-  -compiler/codegen/aes \
-  -compiler/codecache/stress \
-  -compiler/gcbarriers/PreserveFPRegistersTest.java
+  -:hotspot_slow_compiler
 
 tier1_compiler_3 = \
   compiler/intrinsics/ \
@@ -111,6 +130,7 @@ tier1_compiler_3 = \
   compiler/types/ \
   compiler/uncommontrap/ \
   compiler/unsafe/ \
+  compiler/vectorization/ \
   -compiler/intrinsics/bmi \
   -compiler/intrinsics/mathexact \
   -compiler/intrinsics/sha \
@@ -119,35 +139,70 @@ tier1_compiler_3 = \
   -compiler/loopopts/Test7052494.java \
   -compiler/runtime/Test6826736.java
 
-hotspot_not_fast_compiler = \
-  :hotspot_compiler \
-  -:tier1_compiler_1 \
-  -:tier1_compiler_2 \
-  -:tier1_compiler_3 \
+tier1_compiler_not_xcomp = \
+  compiler/aot \
+  compiler/profiling
+
+tier1_compiler_not_cms = \
+  compiler/aot \
+  compiler/jvmci
+
+ctw_1 = \
+  applications/ctw/modules/ \
+  -:ctw_2 \
+  -:ctw_3
+
+ctw_2 = \
+  applications/ctw/modules/java_base.java \
+  applications/ctw/modules/java_base_2.java \
+  applications/ctw/modules/java_desktop.java \
+  applications/ctw/modules/java_desktop_2.java
+
+ctw_3 = \
+  applications/ctw/modules/java_xml.java \
+  applications/ctw/modules/jdk_compiler.java \
+  applications/ctw/modules/jdk_internal_vm_compiler.java \
+  applications/ctw/modules/jdk_localedata.java \
+  applications/ctw/modules/jdk_scripting_nashorn.java \
 
 tier1_gc = \
   :tier1_gc_1 \
   :tier1_gc_2 \
   :tier1_gc_gcold \
-  :tier1_gc_gcbasher 
+  :tier1_gc_gcbasher \
+  :tier1_gc_shenandoah
+
+hotspot_not_fast_gc = \
+  :hotspot_gc \
+  -:tier1_gc
 
 tier1_gc_1 = \
-  gc/g1/
+  :gc_epsilon \
+  gc/g1/ \
+  -gc/g1/ihop/TestIHOPErgo.java
+  -gc/g1/TestTimelyCompaction.java
 
 tier1_gc_2 = \
-  sanity/ExecuteInternalVMTests.java \
   gc/ \
+  -:gc_epsilon \
   -gc/g1/ \
   -gc/logging/TestUnifiedLoggingSwitchStress.java \
   -gc/stress \
   -gc/survivorAlignment/TestPromotionFromSurvivorToTenuredAfterMinorGC.java \
   -gc/cms/TestMBeanCMS.java \
-  -gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java
+  -gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java \
+  -gc/shenandoah \
+  -gc/nvdimm
+
+gc_epsilon = \
+  gc/epsilon/ \
+  gc/CriticalNativeArgs.java \
+  gc/stress/CriticalNativeStress.java 
 
 tier1_gc_gcold = \
-  gc/stress/gcold/TestGCOldWithG1.java
-  gc/stress/gcold/TestGCOldWithCMS.java
-  gc/stress/gcold/TestGCOldWithSerial.java
+  gc/stress/gcold/TestGCOldWithG1.java \
+  gc/stress/gcold/TestGCOldWithCMS.java \
+  gc/stress/gcold/TestGCOldWithSerial.java \
   gc/stress/gcold/TestGCOldWithParallel.java
 
 tier1_gc_gcbasher = \
@@ -155,10 +210,56 @@ tier1_gc_gcbasher = \
   gc/stress/gcbasher/TestGCBasherWithCMS.java \
   gc/stress/gcbasher/TestGCBasherWithSerial.java \
   gc/stress/gcbasher/TestGCBasherWithParallel.java
+  
+tier1_gc_shenandoah = \
+  gc/shenandoah/options/ \
+  gc/shenandoah/compiler/ \
+  gc/shenandoah/mxbeans/ \
+  gc/shenandoah/TestSmallHeap.java \
+  gc/shenandoah/oom/ \
+  gc/CriticalNativeArgs.java
+
+tier2_gc_shenandoah = \
+  runtime/MemberName/MemberNameLeak.java \
+  runtime/CompressedOops/UseCompressedOops.java \
+  gc/TestHumongousReferenceObject.java \
+  gc/TestSystemGC.java \
+  gc/arguments/TestDisableDefaultGC.java \
+  gc/arguments/TestUseCompressedOopsErgo.java \
+  gc/arguments/TestAlignmentToUseLargePages.java \
+  gc/class_unloading/TestClassUnloadingDisabled.java \
+  gc/ergonomics/TestInitialGCThreadLogging.java \
+  gc/ergonomics/TestDynamicNumberOfGCThreads.java \
+  gc/logging/TestGCId.java \
+  gc/metaspace/TestMetaspacePerfCounters.java \
+  gc/metaspace/TestMetaspacePerfCounters.java \
+  gc/startup_warnings/TestShenandoah.java \
+  gc/TestFullGCALot.java \
+  gc/logging/TestUnifiedLoggingSwitchStress.java \
+  runtime/Metaspace/DefineClass.java \
+  gc/shenandoah/ \
+  serviceability/sa/TestHeapDumpForInvokeDynamic.java \
+  -gc/shenandoah/TestStringDedupStress.java \
+  -gc/stress/CriticalNativeStress.java \
+  -:tier1_gc_shenandoah
+
+tier3_gc_shenandoah = \
+  gc/stress/gcold/TestGCOldWithShenandoah.java \
+  gc/stress/gcbasher/TestGCBasherWithShenandoah.java \
+  gc/stress/gclocker/TestGCLockerWithShenandoah.java \
+  gc/stress/systemgc/TestSystemGCWithShenandoah.java \
+  gc/shenandoah/TestStringDedupStress.java \
+  gc/stress/CriticalNativeStress.java \
+  -:tier2_gc_shenandoah
+
+hotspot_gc_shenandoah = \
+  :tier1_gc_shenandoah \
+  :tier2_gc_shenandoah \
+  :tier3_gc_shenandoah
 
 tier1_runtime = \
   runtime/ \
- -runtime/6626217/Test6626217.sh \
+ -runtime/6626217/bug_21227.java \
  -runtime/7100935 \
  -runtime/7158988/FieldMonitor.java \
  -runtime/CommandLine/OptionsValidation/TestOptionsWithRanges.java \
@@ -166,6 +267,7 @@ tier1_runtime = \
  -runtime/ConstantPool/IntfMethod.java \
  -runtime/ErrorHandling/CreateCoredumpOnCrash.java \
  -runtime/ErrorHandling/ErrorHandler.java \
+ -runtime/ErrorHandling/TestHeapDumpOnOutOfMemoryError.java \
  -runtime/ErrorHandling/TimeoutInErrorHandlingTest.java \
  -runtime/logging/MonitorMismatchTest.java \
  -runtime/memory/ReserveMemory.java \
@@ -193,7 +295,6 @@ tier1_runtime = \
  -runtime/SelectionResolution/InvokeVirtualICCE.java \
  -runtime/SelectionResolution/InvokeVirtualSuccessTest.java \
  -runtime/SharedArchiveFile/CdsSameObjectAlignment.java \
- -runtime/SharedArchiveFile/DefaultUseWithClient.java \
  -runtime/SharedArchiveFile/SharedBaseAddress.java \
  -runtime/Thread/CancellableThreadTest.java \
  -runtime/Thread/TestThreadDumpMonitorContention.java \
@@ -201,7 +302,8 @@ tier1_runtime = \
  -runtime/containers/ \
   sanity/ \
   testlibrary_tests/TestMutuallyExclusivePlatformPredicates.java \
- -:tier1_runtime_appcds_exclude
+ -:tier1_runtime_appcds_exclude \
+ -runtime/signal
 
 hotspot_cds = \
   runtime/SharedArchiveFile/ \
@@ -212,7 +314,7 @@ hotspot_cds = \
 hotspot_appcds = \
   runtime/appcds/
 
-# A subset of AppCDS tests to be run in JPRT push
+# A subset of AppCDS tests to be run in tier1
 tier1_runtime_appcds = \
   runtime/appcds/HelloTest.java \
   runtime/appcds/sharedStrings/SharedStringsBasic.java \
@@ -224,8 +326,13 @@ tier1_runtime_appcds_exclude = \
 
 tier1_serviceability = \
   serviceability/dcmd/compiler \
+  -serviceability/dcmd/compiler/CompilerQueueTest.java \
   serviceability/logging \
-  serviceability/sa
+  serviceability/sa \
+  -serviceability/sa/ClhsdbScanOops.java \
+  -serviceability/sa/TestJmapCore.java \
+  -serviceability/sa/TestJmapCoreMetaspace.java \
+  -serviceability/sa/TestHeapDumpForLargeArray.java
 
 tier1 = \
   :tier1_common \
@@ -242,7 +349,9 @@ hotspot_tier2_runtime = \
  -runtime/containers/ \
  -:tier1_runtime \
  -:tier1_serviceability \
- -:hotspot_tier2_runtime_platform_agnostic
+ -:hotspot_tier2_runtime_platform_agnostic \
+ -runtime/signal \
+ -runtime/NMT/MallocStressTest.java
 
 hotspot_tier2_runtime_platform_agnostic = \
   runtime/SelectionResolution \
@@ -262,3 +371,154 @@ hotspot_runtime_minimalvm = \
   runtime/ErrorHandling \
   runtime/logging
 
+hotspot_nmt = \
+  runtime/NMT
+
+hotspot_rest_runtime = \
+  :hotspot_runtime \
+  -:tier1_runtime \
+  -:tier1_runtime_appcds_exclude \
+  -:hotspot_nmt \
+  -:hotspot_tier2_runtime_platform_agnostic
+
+jcstress_part1 = \
+  applications/jcstress/seqcst.java
+
+jcstress_part2 = \
+  applications/jcstress/accessAtomic.java \
+  applications/jcstress/acqrel.java \
+  applications/jcstress/atomics.java \
+  applications/jcstress/coherence.java \
+  applications/jcstress/locks.java
+
+jcstress_part3 = \
+  applications/jcstress \
+  -:jcstress_part1 \
+  -:jcstress_part2
+
+# Stress tests against information provided by VM via JMX
+vmTestbase_nsk_monitoring = \
+  vmTestbase/nsk/monitoring
+
+# Tests for default method implementation
+vmTestbase_vm_defmeth = \
+  vmTestbase/vm/runtime/defmeth
+
+# JDI tests
+vmTestbase_nsk_jdi = \
+  vmTestbase/nsk/jdi
+
+# Stress tests for classes loading/unloading
+# NSK tests for functionality of the HS system dictionary
+vmTestbase_nsk_sysdict = \
+  vmTestbase/nsk/sysdict/vm/stress
+
+vmTestbase_vm_metaspace = \
+  vmTestbase/metaspace
+
+# JVMTI tests
+vmTestbase_nsk_jvmti = \
+  vmTestbase/nsk/jvmti
+
+# JDWP tests
+vmTestbase_nsk_jdwp = \
+  vmTestbase/nsk/jdwp
+
+vmTestbase_nsk_stress = \
+  vmTestbase/nsk/stress
+
+vmTestbase_vm_g1classunloading = \
+  vmTestbase/gc/g1/unloading/tests
+
+# Garbage collector tests
+vmTestbase_vm_gc = \
+  :vmTestbase_vm_gc_concurrent \
+  :vmTestbase_vm_gc_container \
+  :vmTestbase_vm_gc_compact \
+  :vmTestbase_vm_gc_juggle \
+  :vmTestbase_vm_gc_locker \
+  :vmTestbase_vm_gc_misc \
+  :vmTestbase_vm_gc_ref
+
+# In a loop: fill out the heap until OOME and then partly clear it. Variate object type and size
+vmTestbase_vm_gc_compact = \
+  vmTestbase/vm/gc/compact
+
+# GC and mutlithreads
+vmTestbase_vm_gc_concurrent = \
+  vmTestbase/vm/gc/concurrent
+
+# Various data structures
+vmTestbase_vm_gc_container = \
+  vmTestbase/vm/gc/containers \
+  vmTestbase/gc/vector
+
+# Playing with object arrays and various strategies of garbage producing
+vmTestbase_vm_gc_juggle = \
+  vmTestbase/gc/ArrayJuggle/ \
+  vmTestbase/gc/memory/Array/ArrayJuggle
+
+# GC Locker
+vmTestbase_vm_gc_locker = \
+  vmTestbase/gc/lock \
+  vmTestbase/gc/gctests/mallocWithGC1/mallocWithGC1.java \
+  vmTestbase/gc/gctests/mallocWithGC2/mallocWithGC2.java \
+  vmTestbase/gc/gctests/mallocWithGC3/mallocWithGC3.java \
+  vmTestbase/gc/gctests/nativeGC01/nativeGC01.java \
+  vmTestbase/gc/gctests/nativeGC02/nativeGC02.java \
+  vmTestbase/gc/gctests/nativeGC03/nativeGC03.java \
+  vmTestbase/gc/gctests/nativeGC05/nativeGC05.java
+
+# GC and references
+vmTestbase_vm_gc_ref = \
+  vmTestbase/gc/gctests/SoftReference \
+  vmTestbase/gc/gctests/WeakReference \
+  vmTestbase/gc/gctests/WeakReferenceGC \
+  vmTestbase/gc/gctests/PhantomReference \
+  vmTestbase/gc/gctests/ReferencesGC
+
+# miscellaneous gc tests
+vmTestbase_vm_gc_misc = \
+  vmTestbase/gc \
+  vmTestbase/vm/gc \
+  -:vmTestbase_vm_g1classunloading \
+  -:vmTestbase_vm_gc_compact \
+  -:vmTestbase_vm_gc_concurrent \
+  -:vmTestbase_vm_gc_container \
+  -:vmTestbase_vm_gc_juggle \
+  -:vmTestbase_vm_gc_locker \
+  -:vmTestbase_vm_gc_ref
+
+vmTestbase_largepages = \
+  vmTestbase/gc/gctests/LoadUnloadGC \
+  vmTestbase/gc/gctests/LoadUnloadGC2 \
+  vmTestbase/gc/memory/LargePagesTest \
+  vmTestbase/gc/memory/Nio \
+  vmTestbase/metaspace/staticReferences/StaticReferences.java \
+  vmTestbase/metaspace/stressDictionary/StressDictionary.java \
+  vmTestbase/metaspace/stressHierarchy/stressHierarchy001/TestDescription.java \
+  vmTestbase/metaspace/stressHierarchy/stressHierarchy011/TestDescription.java \
+  vmTestbase/metaspace/flags/maxMetaspaceSize/TestDescription.java \
+  vmTestbase/metaspace/shrink_grow/ShrinkGrowTest/ShrinkGrowTest.java \
+  vmTestbase/metaspace/shrink_grow/ShrinkGrowMultiJVM/ShrinkGrowMultiJVM.java \
+  vmTestbase/metaspace/shrink_grow/CompressedClassSpaceSize/TestDescription.java
+
+# Just-In-Time compiler tests
+vmTestbase_vm_compiler = \
+  vmTestbase/vm/compiler \
+  vmTestbase/jit \
+  vmTestbase/vm/jit
+
+# JSR292 tests (invokedynamic AKA Multi-Language VM AKA Da Vinci Machine)
+vmTestbase_vm_mlvm = \
+  vmTestbase/vm/mlvm
+
+# Tests for attach-on-demand implementation
+vmTestbase_nsk_aod = \
+  vmTestbase/nsk/aod
+
+# JDB tests
+vmTestbase_nsk_jdb = \
+  vmTestbase/nsk/jdb
+
+# vmTestbase_*_quick groups are defined in TEST.quick-groups

@@ -26,7 +26,10 @@
  * @bug 6340864
  * @summary Implement vectorization optimizations in hotspot-server
  *
- * @run main/othervm/timeout=400 -Xbatch -Xmx64m compiler.c2.cr6340864.TestShortVect
+ * @run main/othervm/timeout=400 -Xbatch -Xmx128m compiler.c2.cr6340864.TestShortVect
+ * @run main/othervm/timeout=400 -Xbatch -Xmx128m -XX:MaxVectorSize=8 compiler.c2.cr6340864.TestShortVect
+ * @run main/othervm/timeout=400 -Xbatch -Xmx128m -XX:MaxVectorSize=16 compiler.c2.cr6340864.TestShortVect
+ * @run main/othervm/timeout=400 -Xbatch -Xmx128m -XX:MaxVectorSize=32 compiler.c2.cr6340864.TestShortVect
  */
 
 package compiler.c2.cr6340864;

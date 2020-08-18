@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_SYNCHRONIZER_HPP
-#define SHARE_VM_RUNTIME_SYNCHRONIZER_HPP
+#ifndef SHARE_RUNTIME_SYNCHRONIZER_HPP
+#define SHARE_RUNTIME_SYNCHRONIZER_HPP
 
 #include "memory/padded.hpp"
 #include "oops/markOop.hpp"
@@ -35,9 +35,10 @@ class ObjectMonitor;
 class ThreadsList;
 
 struct DeflateMonitorCounters {
-  int nInuse;          // currently associated with objects
-  int nInCirculation;  // extant
-  int nScavenged;      // reclaimed
+  int nInuse;             // currently associated with objects
+  int nInCirculation;     // extant
+  int nScavenged;         // reclaimed
+  double perThreadTimes;  // per-thread scavenge times
 };
 
 class ObjectSynchronizer : AllStatic {
@@ -105,7 +106,6 @@ class ObjectSynchronizer : AllStatic {
   static void reenter (Handle obj, intptr_t recursion, TRAPS);
 
   // thread-specific and global objectMonitor free list accessors
-  static void verifyInUse(Thread * Self);
   static ObjectMonitor * omAlloc(Thread * Self);
   static void omRelease(Thread * Self, ObjectMonitor * m,
                         bool FromPerThreadAlloc);
@@ -153,12 +153,11 @@ class ObjectSynchronizer : AllStatic {
   static void thread_local_used_oops_do(Thread* thread, OopClosure* f);
 
   // debugging
-  static void sanity_checks(const bool verbose,
-                            const unsigned int cache_line_size,
-                            int *error_cnt_ptr, int *warning_cnt_ptr);
   static int  verify_objmon_isinpool(ObjectMonitor *addr) PRODUCT_RETURN0;
 
  private:
+  friend class SynchronizerTest;
+
   enum { _BLOCKSIZE = 128 };
   // global list of blocks of monitors
   static PaddedEnd<ObjectMonitor> * volatile gBlockList;
@@ -170,13 +169,16 @@ class ObjectSynchronizer : AllStatic {
   // count of entries in gOmInUseList
   static int gOmInUseCount;
 
-  // Process oops in all monitors
-  static void global_oops_do(OopClosure* f);
   // Process oops in all global used monitors (i.e. moribund thread's monitors)
   static void global_used_oops_do(OopClosure* f);
   // Process oops in monitors on the given list
   static void list_oops_do(ObjectMonitor* list, OopClosure* f);
 
+  // Support for SynchronizerTest access to GVars fields:
+  static u_char* get_gvars_addr();
+  static u_char* get_gvars_hcSequence_addr();
+  static size_t get_gvars_size();
+  static u_char* get_gvars_stwRandom_addr();
 };
 
 // ObjectLocker enforced balanced locking and can never thrown an
@@ -204,4 +206,4 @@ class ObjectLocker : public StackObj {
   void reenter(intptr_t recursion, TRAPS)  { ObjectSynchronizer::reenter(_obj, recursion, CHECK); }
 };
 
-#endif // SHARE_VM_RUNTIME_SYNCHRONIZER_HPP
+#endif // SHARE_RUNTIME_SYNCHRONIZER_HPP

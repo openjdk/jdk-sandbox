@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_JVMTICLASSFILERECONSTITUTER_HPP
-#define SHARE_VM_PRIMS_JVMTICLASSFILERECONSTITUTER_HPP
+#ifndef SHARE_PRIMS_JVMTICLASSFILERECONSTITUTER_HPP
+#define SHARE_PRIMS_JVMTICLASSFILERECONSTITUTER_HPP
 
 #include "jvmtifiles/jvmtiEnv.hpp"
 
@@ -52,19 +52,7 @@ class JvmtiConstantPoolReconstituter : public StackObj {
  public:
   // Calls to this constructor must be proceeded by a ResourceMark
   // and a HandleMark
-  JvmtiConstantPoolReconstituter(InstanceKlass* ik){
-    set_error(JVMTI_ERROR_NONE);
-    _ik = ik;
-    _cpool = constantPoolHandle(Thread::current(), ik->constants());
-    _symmap = new SymbolHashMap();
-    _classmap = new SymbolHashMap();
-    _cpool_size = _cpool->hash_entries_to(_symmap, _classmap);
-    if (_cpool_size == 0) {
-      set_error(JVMTI_ERROR_OUT_OF_MEMORY);
-    } else if (_cpool_size < 0) {
-      set_error(JVMTI_ERROR_INTERNAL);
-    }
-  }
+  JvmtiConstantPoolReconstituter(InstanceKlass* ik);
 
   ~JvmtiConstantPoolReconstituter() {
     if (_symmap != NULL) {
@@ -128,6 +116,8 @@ class JvmtiClassFileReconstituter : public JvmtiConstantPoolReconstituter {
   void write_attribute_name_index(const char* name);
   void write_annotations_attribute(const char* attr_name, AnnotationArray* annos);
   void write_bootstrapmethod_attribute();
+  void write_nest_host_attribute();
+  void write_nest_members_attribute();
 
   address writeable_address(size_t size);
   void write_u1(u1 x);
@@ -153,4 +143,4 @@ class JvmtiClassFileReconstituter : public JvmtiConstantPoolReconstituter {
   static void copy_bytecodes(const methodHandle& method, unsigned char* bytecodes);
 };
 
-#endif // SHARE_VM_PRIMS_JVMTICLASSFILERECONSTITUTER_HPP
+#endif // SHARE_PRIMS_JVMTICLASSFILERECONSTITUTER_HPP

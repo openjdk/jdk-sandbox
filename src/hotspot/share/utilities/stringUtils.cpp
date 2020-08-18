@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/stringUtils.hpp"
 
 int StringUtils::replace_no_expand(char* string, const char* from, const char* to) {
@@ -40,4 +41,27 @@ int StringUtils::replace_no_expand(char* string, const char* from, const char* t
   }
 
   return replace_count;
+}
+
+double StringUtils::similarity(const char* str1, size_t len1, const char* str2, size_t len2) {
+  assert(str1 != NULL && str2 != NULL, "sanity");
+
+  // filter out zero-length strings else we will underflow on len-1 below
+  if (len1 == 0 || len2 == 0) {
+    return 0.0;
+  }
+
+  size_t total = len1 + len2;
+  size_t hit = 0;
+
+  for (size_t i = 0; i < len1 - 1; i++) {
+    for (size_t j = 0; j < len2 - 1; j++) {
+      if ((str1[i] == str2[j]) && (str1[i+1] == str2[j+1])) {
+        ++hit;
+        break;
+      }
+    }
+  }
+
+  return 2.0 * (double) hit / (double) total;
 }

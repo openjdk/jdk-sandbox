@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,11 +20,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.common;
 
-import jdk.vm.ci.code.BailoutException;
-
-public class RetryableBailoutException extends BailoutException {
+public class RetryableBailoutException extends GraalBailoutException {
 
     private static final long serialVersionUID = -7145365025679144525L;
 

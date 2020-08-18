@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "code/scopeDesc.hpp"
-#include "runtime/sweeper.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"
 #include "compiler/compilerOracle.hpp"
@@ -37,14 +36,20 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
+#include "oops/constantPool.inline.hpp"
+#include "oops/cpCache.inline.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/sweeper.hpp"
 #include "utilities/dtrace.hpp"
 #include "jvmci/jvmciRuntime.hpp"
 #include "jvmci/jvmciJavaClasses.hpp"
@@ -93,8 +98,8 @@ Klass* JVMCIEnv::get_klass_by_name_impl(Klass* accessing_klass,
   JVMCI_EXCEPTION_CONTEXT;
 
   // Now we need to check the SystemDictionary
-  if (sym->byte_at(0) == 'L' &&
-    sym->byte_at(sym->utf8_length()-1) == ';') {
+  if (sym->char_at(0) == 'L' &&
+    sym->char_at(sym->utf8_length()-1) == ';') {
     // This is a name from a signature.  Strip off the trimmings.
     // Call recursive to keep scope of strippedsym.
     TempNewSymbol strippedsym = SymbolTable::new_symbol(sym->as_utf8()+1,
@@ -127,8 +132,8 @@ Klass* JVMCIEnv::get_klass_by_name_impl(Klass* accessing_klass,
   // we must build an array type around it.  The CI requires array klasses
   // to be loaded if their element klasses are loaded, except when memory
   // is exhausted.
-  if (sym->byte_at(0) == '[' &&
-      (sym->byte_at(1) == '[' || sym->byte_at(1) == 'L')) {
+  if (sym->char_at(0) == '[' &&
+      (sym->char_at(1) == '[' || sym->char_at(1) == 'L')) {
     // We have an unloaded array.
     // Build it on the fly if the element class exists.
     TempNewSymbol elem_sym = SymbolTable::new_symbol(sym->as_utf8()+1,
@@ -143,7 +148,7 @@ Klass* JVMCIEnv::get_klass_by_name_impl(Klass* accessing_klass,
                              require_local);
     if (elem_klass != NULL) {
       // Now make an array for it
-      return elem_klass->array_klass(CHECK_NULL);
+      return elem_klass->array_klass(THREAD);
     }
   }
 
@@ -365,12 +370,6 @@ methodHandle JVMCIEnv::get_method_by_index_impl(const constantPoolHandle& cpool,
   if (holder_is_accessible) { // Our declared holder is loaded.
     constantTag tag = cpool->tag_ref_at(index);
     methodHandle m = lookup_method(accessor, holder, name_sym, sig_sym, bc, tag);
-    if (!m.is_null() &&
-        (bc == Bytecodes::_invokestatic
-         ?  InstanceKlass::cast(m->method_holder())->is_not_initialized()
-         : !InstanceKlass::cast(m->method_holder())->is_loaded())) {
-      m = NULL;
-    }
     if (!m.is_null()) {
       // We found the method.
       return m;

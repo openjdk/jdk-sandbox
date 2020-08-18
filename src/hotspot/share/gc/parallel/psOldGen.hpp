@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSOLDGEN_HPP
-#define SHARE_VM_GC_PARALLEL_PSOLDGEN_HPP
+#ifndef SHARE_GC_PARALLEL_PSOLDGEN_HPP
+#define SHARE_GC_PARALLEL_PSOLDGEN_HPP
 
 #include "gc/parallel/mutableSpace.hpp"
 #include "gc/parallel/objectStartArray.hpp"
@@ -45,7 +45,9 @@ class PSOldGen : public CHeapObj<mtGC> {
   PSVirtualSpace*          _virtual_space;     // Controls mapping and unmapping of virtual mem
   ObjectStartArray         _start_array;       // Keeps track of where objects start in a 512b block
   MutableSpace*            _object_space;      // Where all the objects live
+#if INCLUDE_SERIALGC
   PSMarkSweepDecorator*    _object_mark_sweep; // The mark sweep view of _object_space
+#endif
   const char* const        _name;              // Name of this generation.
 
   // Performance Counters
@@ -150,17 +152,21 @@ class PSOldGen : public CHeapObj<mtGC> {
   }
 
   MutableSpace*         object_space() const      { return _object_space; }
+#if INCLUDE_SERIALGC
   PSMarkSweepDecorator* object_mark_sweep() const { return _object_mark_sweep; }
+#endif
   ObjectStartArray*     start_array()             { return &_start_array; }
   PSVirtualSpace*       virtual_space() const     { return _virtual_space;}
 
   // Has the generation been successfully allocated?
   bool is_allocated();
 
+#if INCLUDE_SERIALGC
   // MarkSweep methods
   virtual void precompact();
   void adjust_pointers();
   void compact();
+#endif
 
   // Size info
   size_t capacity_in_bytes() const        { return object_space()->capacity_in_bytes(); }
@@ -186,7 +192,7 @@ class PSOldGen : public CHeapObj<mtGC> {
   HeapWord* allocate(size_t word_size);
 
   // Iteration.
-  void oop_iterate_no_header(OopClosure* cl) { object_space()->oop_iterate_no_header(cl); }
+  void oop_iterate(OopIterateClosure* cl) { object_space()->oop_iterate(cl); }
   void object_iterate(ObjectClosure* cl) { object_space()->object_iterate(cl); }
 
   // Debugging - do not use for time critical operations
@@ -217,4 +223,4 @@ class PSOldGen : public CHeapObj<mtGC> {
   void record_spaces_top() PRODUCT_RETURN;
 };
 
-#endif // SHARE_VM_GC_PARALLEL_PSOLDGEN_HPP
+#endif // SHARE_GC_PARALLEL_PSOLDGEN_HPP

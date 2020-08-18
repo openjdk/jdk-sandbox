@@ -25,9 +25,10 @@
 #include "precompiled.hpp"
 #include "jvm.h"
 #include "compiler/compileLog.hpp"
+#include "memory/allocation.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/os.hpp"
+#include "runtime/os.inline.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/macros.hpp"
@@ -35,7 +36,9 @@
 #include "utilities/vmError.hpp"
 #include "utilities/xmlstream.hpp"
 
-extern "C" void jio_print(const char* s); // Declarationtion of jvm method
+// Declarations of jvm methods
+extern "C" void jio_print(const char* s, size_t len);
+extern "C" int jio_printf(const char *fmt, ...);
 
 outputStream::outputStream(int width) {
   _width       = width;
@@ -96,19 +99,14 @@ const char* outputStream::do_vsnprintf(char* buffer, size_t buflen,
     result_len = strlen(result);
     if (add_cr && result_len >= buflen)  result_len = buflen-1;  // truncate
   } else {
-    // Handle truncation:
-    // posix: upon truncation, vsnprintf returns number of bytes which
-    //   would have been written (excluding terminating zero) had the buffer
-    //   been large enough
-    // windows: upon truncation, vsnprintf returns -1
-    const int written = vsnprintf(buffer, buflen, format, ap);
+    int written = os::vsnprintf(buffer, buflen, format, ap);
+    assert(written >= 0, "vsnprintf encoding error");
     result = buffer;
-    if (written < (int) buflen && written >= 0) {
+    if ((size_t)written < buflen) {
       result_len = written;
     } else {
       DEBUG_ONLY(warning("increase O_BUFLEN in ostream.hpp -- output truncated");)
       result_len = buflen - 1;
-      buffer[result_len] = 0;
     }
   }
   if (add_cr) {
@@ -206,6 +204,10 @@ void outputStream::sp(int count) {
 
 void outputStream::cr() {
   this->write("\n", 1);
+}
+
+void outputStream::cr_indent() {
+  cr(); indent();
 }
 
 void outputStream::stamp() {
@@ -529,7 +531,8 @@ void fileStream::write(const char* s, size_t len) {
 long fileStream::fileSize() {
   long size = -1;
   if (_file != NULL) {
-    long pos  = ::ftell(_file);
+    long pos = ::ftell(_file);
+    if (pos < 0) return pos;
     if (::fseek(_file, 0, SEEK_END) == 0) {
       size = ::ftell(_file);
     }
@@ -616,19 +619,15 @@ fileStream* defaultStream::open_file(const char* log_name) {
 
   // Try again to open the file in the temp directory.
   delete file;
-  char warnbuf[O_BUFLEN*2];
-  jio_snprintf(warnbuf, sizeof(warnbuf), "Warning:  Cannot open log file: %s\n", log_name);
-  // Note:  This feature is for maintainer use only.  No need for L10N.
-  jio_print(warnbuf);
+  // Note: This feature is for maintainer use only.  No need for L10N.
+  jio_printf("Warning:  Cannot open log file: %s\n", log_name);
   try_name = make_log_name(log_name, os::get_temp_directory());
   if (try_name == NULL) {
     warning("Cannot open file %s: file name is too long for directory %s.\n", log_name, os::get_temp_directory());
     return NULL;
   }
 
-  jio_snprintf(warnbuf, sizeof(warnbuf),
-               "Warning:  Forcing option -XX:LogFile=%s\n", try_name);
-  jio_print(warnbuf);
+  jio_printf("Warning:  Forcing option -XX:LogFile=%s\n", try_name);
 
   file = new(ResourceObj::C_HEAP, mtInternal) fileStream(try_name);
   FREE_C_HEAP_ARRAY(char, try_name);
@@ -828,20 +827,6 @@ void defaultStream::release(intx holder) {
   tty_lock->unlock();
 }
 
-
-// Yuck:  jio_print does not accept char*/len.
-static void call_jio_print(const char* s, size_t len) {
-  char buffer[O_BUFLEN+100];
-  if (len > sizeof(buffer)-1) {
-    warning("increase O_BUFLEN in ostream.cpp -- output truncated");
-    len = sizeof(buffer)-1;
-  }
-  strncpy(buffer, s, len);
-  buffer[len] = '\0';
-  jio_print(buffer);
-}
-
-
 void defaultStream::write(const char* s, size_t len) {
   intx thread_id = os::current_thread_id();
   intx holder = hold(thread_id);
@@ -849,11 +834,7 @@ void defaultStream::write(const char* s, size_t len) {
   if (DisplayVMOutput &&
       (_outer_xmlStream == NULL || !_outer_xmlStream->inside_attrs())) {
     // print to output stream. It can be redirected by a vfprintf hook
-    if (s[len] == '\0') {
-      jio_print(s);
-    } else {
-      call_jio_print(s, len);
-    }
+    jio_print(s, len);
   }
 
   // print to log file
@@ -1031,6 +1012,8 @@ bufferedStream::~bufferedStream() {
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#elif defined(_WINDOWS)
+#include <winsock2.h>
 #endif
 
 // Network access

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir;
 
 import java.lang.reflect.Field;
@@ -96,7 +98,11 @@ public class LIRInstructionClass<T> extends LIRIntrospection<T> {
         try {
             Field field = clazz.getDeclaredField("TYPE");
             field.setAccessible(true);
-            return (LIRInstructionClass<T>) field.get(null);
+            LIRInstructionClass<T> result = (LIRInstructionClass<T>) field.get(null);
+            if (result == null) {
+                throw GraalError.shouldNotReachHere("TYPE field not initialized for class " + clazz.getTypeName());
+            }
+            return result;
         } catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException e) {
             throw new RuntimeException(e);
         }

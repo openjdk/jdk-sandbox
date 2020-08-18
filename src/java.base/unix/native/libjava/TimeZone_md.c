@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,15 +50,16 @@
   } while((_result == -1) && (errno == EINTR)); \
 } while(0)
 
-#if defined(_ALLBSD_SOURCE)
-#define dirent64 dirent
-#define readdir64_r readdir_r
-#endif
-
 #if !defined(__solaris__) || defined(__sparcv9) || defined(amd64)
 #define fileopen        fopen
 #define filegets        fgets
 #define fileclose       fclose
+#endif
+
+#if defined(_ALLBSD_SOURCE)
+#define stat64 stat
+#define lstat64 lstat
+#define fstat64 fstat
 #endif
 
 #if defined(__linux__) || defined(_ALLBSD_SOURCE)
@@ -120,34 +121,20 @@ static char *
 findZoneinfoFile(char *buf, size_t size, const char *dir)
 {
     DIR *dirp = NULL;
-    struct stat statbuf;
-    struct dirent64 *dp = NULL;
-    struct dirent64 *entry = NULL;
+    struct stat64 statbuf;
+    struct dirent *dp = NULL;
     char *pathname = NULL;
     int fd = -1;
     char *dbuf = NULL;
     char *tz = NULL;
     int res;
-    long name_max = 0;
 
     dirp = opendir(dir);
     if (dirp == NULL) {
         return NULL;
     }
 
-    name_max = pathconf(dir, _PC_NAME_MAX);
-    // If pathconf did not work, fall back to a mimimum buffer size.
-    if (name_max < 1024) {
-        name_max = 1024;
-    }
-
-    entry = (struct dirent64 *)malloc(offsetof(struct dirent64, d_name) + name_max + 1);
-    if (entry == NULL) {
-        (void) closedir(dirp);
-        return NULL;
-    }
-
-    while (readdir64_r(dirp, entry, &dp) == 0 && dp != NULL) {
+    while ((dp = readdir(dirp)) != NULL) {
         /*
          * Skip '.' and '..' (and possibly other .* files)
          */
@@ -175,7 +162,7 @@ findZoneinfoFile(char *buf, size_t size, const char *dir)
         if (pathname == NULL) {
             break;
         }
-        RESTARTABLE(stat(pathname, &statbuf), res);
+        RESTARTABLE(stat64(pathname, &statbuf), res);
         if (res == -1) {
             break;
         }
@@ -214,9 +201,6 @@ findZoneinfoFile(char *buf, size_t size, const char *dir)
         pathname = NULL;
     }
 
-    if (entry != NULL) {
-        free((void *) entry);
-    }
     if (dirp != NULL) {
         (void) closedir(dirp);
     }
@@ -241,7 +225,7 @@ findZoneinfoFile(char *buf, size_t size, const char *dir)
 static char *
 getPlatformTimeZoneID()
 {
-    struct stat statbuf;
+    struct stat64 statbuf;
     char *tz = NULL;
     FILE *fp;
     int fd;
@@ -278,7 +262,7 @@ getPlatformTimeZoneID()
     /*
      * Next, try /etc/localtime to find the zone ID.
      */
-    RESTARTABLE(lstat(DEFAULT_ZONEINFO_FILE, &statbuf), res);
+    RESTARTABLE(lstat64(DEFAULT_ZONEINFO_FILE, &statbuf), res);
     if (res == -1) {
         return NULL;
     }
@@ -318,7 +302,7 @@ getPlatformTimeZoneID()
         return NULL;
     }
 
-    RESTARTABLE(fstat(fd, &statbuf), res);
+    RESTARTABLE(fstat64(fd, &statbuf), res);
     if (res == -1) {
         (void) close(fd);
         return NULL;
@@ -579,7 +563,7 @@ cleanupScf(scf_handle_t *h,
 static char *
 getSolarisDefaultZoneID(void) {
     char *tz = NULL;
-    struct stat statbuf;
+    struct stat64 statbuf;
     size_t size;
     char *buf;
     int fd;
@@ -619,7 +603,7 @@ getSolarisDefaultZoneID(void) {
     }
     cleanupScf(h, snap, inst, pg, prop, val, tz);
 
-    RESTARTABLE(stat(DEFAULT_ZONEINFO_FILE, &statbuf), res);
+    RESTARTABLE(stat64(DEFAULT_ZONEINFO_FILE, &statbuf), res);
     if (res == -1) {
         return NULL;
     }

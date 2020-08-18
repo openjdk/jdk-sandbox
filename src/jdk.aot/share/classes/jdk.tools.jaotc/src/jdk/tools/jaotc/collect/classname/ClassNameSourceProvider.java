@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+
+
 package jdk.tools.jaotc.collect.classname;
 
 import jdk.tools.jaotc.collect.ClassSource;
@@ -32,7 +34,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public final class ClassNameSourceProvider implements SourceProvider {
-    public final static String TYPE = "class";
+    public static final String TYPE = "class";
     private final ClassLoader classLoader;
 
     public ClassNameSourceProvider(FileSupport fileSupport) {

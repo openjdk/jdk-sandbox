@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,12 +28,14 @@
 #include "ci/ciReplay.hpp"
 #include "ci/ciSymbol.hpp"
 #include "ci/ciKlass.hpp"
-#include "ci/ciUtilities.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "compiler/compileBroker.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
 
@@ -807,7 +809,7 @@ class CompileReplay : public StackObj {
         } else if (strcmp(field_signature, "[S") == 0) {
           value = oopFactory::new_shortArray(length, CHECK);
         } else if (strcmp(field_signature, "[F") == 0) {
-          value = oopFactory::new_singleArray(length, CHECK);
+          value = oopFactory::new_floatArray(length, CHECK);
         } else if (strcmp(field_signature, "[D") == 0) {
           value = oopFactory::new_doubleArray(length, CHECK);
         } else if (strcmp(field_signature, "[I") == 0) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -297,6 +297,22 @@ JNU_NotifyAll(JNIEnv *env, jobject object);
         }                                       \
     } while (0)                                 \
 
+#define CHECK_NULL_THROW_NPE(env, x, msg)         \
+    do {                                        \
+        if ((x) == NULL) {                      \
+           JNU_ThrowNullPointerException((env), (msg));\
+           return;                              \
+        }                                       \
+    } while(0)                                  \
+
+#define CHECK_NULL_THROW_NPE_RETURN(env, x, msg, z)\
+    do {                                        \
+        if ((x) == NULL) {                      \
+           JNU_ThrowNullPointerException((env), (msg));\
+           return (z);                          \
+        }                                       \
+    } while(0)                                  \
+
 #define CHECK_NULL_RETURN(x, y)                 \
     do {                                        \
         if ((x) == NULL) {                      \
@@ -388,15 +404,18 @@ enum {
 
 int getFastEncoding();
 
-void initializeEncoding();
+JNIEXPORT void InitializeEncoding(JNIEnv *env, const char *name);
 
 void* getProcessHandle();
 
 void buildJniFunctionName(const char *sym, const char *cname,
                           char *jniEntryName);
 
-extern size_t getLastErrorString(char *buf, size_t len);
-extern int getErrorString(int err, char *buf, size_t len);
+JNIEXPORT size_t JNICALL
+getLastErrorString(char *buf, size_t len);
+
+JNIEXPORT int JNICALL
+getErrorString(int err, char *buf, size_t len);
 
 #ifdef STATIC_BUILD
 /* Macros for handling declaration of static/dynamic

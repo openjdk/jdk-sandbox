@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_CALLNODE_HPP
-#define SHARE_VM_OPTO_CALLNODE_HPP
+#ifndef SHARE_OPTO_CALLNODE_HPP
+#define SHARE_OPTO_CALLNODE_HPP
 
 #include "opto/connode.hpp"
 #include "opto/mulnode.hpp"
@@ -329,8 +329,8 @@ public:
                 // A plain safepoint advertises no memory effects (NULL):
                 const TypePtr* adr_type = NULL)
     : MultiNode( edges ),
-      _jvms(jvms),
       _oop_map(NULL),
+      _jvms(jvms),
       _adr_type(adr_type)
   {
     init_class_id(Class_SafePoint);
@@ -461,6 +461,8 @@ public:
   bool has_replaced_nodes() const {
     return !_replaced_nodes.is_empty();
   }
+
+  void disconnect_from_root(PhaseIterGVN *igvn);
 
   // Standard Node stuff
   virtual int            Opcode() const;
@@ -663,10 +665,10 @@ public:
   const int       _bci;         // Byte Code Index of call byte code
   CallJavaNode(const TypeFunc* tf , address addr, ciMethod* method, int bci)
     : CallNode(tf, addr, TypePtr::BOTTOM),
-      _method(method), _bci(bci),
       _optimized_virtual(false),
       _method_handle_invoke(false),
-      _override_symbolic_info(false)
+      _override_symbolic_info(false),
+      _method(method), _bci(bci)
   {
     init_class_id(Class_CallJava);
   }
@@ -1124,4 +1126,4 @@ public:
   JVMState* dbg_jvms() const { return NULL; }
 #endif
 };
-#endif // SHARE_VM_OPTO_CALLNODE_HPP
+#endif // SHARE_OPTO_CALLNODE_HPP

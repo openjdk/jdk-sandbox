@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,11 +56,14 @@ void * operator new[](size_t size, const char * filename, int linenumber) {
     return ptr;
 }
 
-#if _MSC_VER >= 1200
 void operator delete(void *ptr, const char*, int) {
     DASSERTMSG(FALSE, "This version of 'delete' should never get called!!!");
 }
-#endif
+
+void operator delete[](void *ptr, const char*, int) {
+    DASSERTMSG(FALSE, "This version of 'delete' should never get called!!!");
+}
+
 void operator delete(void *ptr) throw() {
     DMem_FreeBlock(ptr);
 }
@@ -179,7 +182,7 @@ void AwtDebugSupport::AssertCallback(const char * expr, const char * file, int l
     int     ret = IDNO;
     static jboolean headless = isHeadless();
 
-    FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+    DWORD fret= FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
                   FORMAT_MESSAGE_FROM_SYSTEM |
                   FORMAT_MESSAGE_IGNORE_INSERTS,
                   NULL,
@@ -194,7 +197,9 @@ void AwtDebugSupport::AssertCallback(const char * expr, const char * file, int l
     }
     // format the assertion message
     _snprintf(assertMsg, ASSERT_MSG_SIZE, AssertFmt, expr, file, line, lastError, msgBuffer);
-    LocalFree(msgBuffer);
+    if (fret != 0) {
+        LocalFree(msgBuffer);
+    }
 
     // tell the user the bad news
     fprintf(stderr, "*********************\n");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,14 +23,16 @@
 
 /*
  * @test
- * @bug      4665566 4855876 7025314 8012375 8015997 8016328 8024756 8148985 8151921 8151743
+ * @bug      4665566 4855876 7025314 8012375 8015997 8016328 8024756 8148985 8151921 8151743 8196202
  * @summary  Verify that the output has the right javascript.
  * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestJavascript
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestJavascript extends JavadocTester {
 
@@ -40,8 +42,9 @@ public class TestJavascript extends JavadocTester {
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
+                "--frames",
                 "-sourcepath", testSrc,
                 "pkg", testSrc("TestJavascript.java"));
         checkExit(Exit.OK);

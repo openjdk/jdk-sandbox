@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_ARRAYKLASS_HPP
-#define SHARE_VM_OOPS_ARRAYKLASS_HPP
+#ifndef SHARE_OOPS_ARRAYKLASS_HPP
+#define SHARE_OOPS_ARRAYKLASS_HPP
 
 #include "memory/universe.hpp"
 #include "oops/klass.hpp"
@@ -46,7 +46,7 @@ class ArrayKlass: public Klass {
   // Constructors
   // The constructor with the Symbol argument does the real array
   // initialization, the other is a dummy
-  ArrayKlass(Symbol* name);
+  ArrayKlass(Symbol* name, KlassID id);
   ArrayKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
 
  public:
@@ -61,11 +61,9 @@ class ArrayKlass: public Klass {
   inline Klass* higher_dimension_acquire() const; // load with acquire semantics
   void set_higher_dimension(Klass* k) { _higher_dimension = k; }
   inline void release_set_higher_dimension(Klass* k); // store with release semantics
-  Klass** adr_higher_dimension()      { return (Klass**)&this->_higher_dimension;}
 
   Klass* lower_dimension() const      { return _lower_dimension; }
   void set_lower_dimension(Klass* k)  { _lower_dimension = k; }
-  Klass** adr_lower_dimension()       { return (Klass**)&this->_lower_dimension;}
 
   // offset of first element, including any padding for the sake of alignment
   int  array_header_in_bytes() const    { return layout_helper_header_size(layout_helper()); }
@@ -73,7 +71,7 @@ class ArrayKlass: public Klass {
   // type of elements (T_OBJECT for both oop arrays and array-arrays)
   BasicType element_type() const        { return layout_helper_element_type(layout_helper()); }
 
-  virtual Klass* java_super() const;//{ return SystemDictionary::Object_klass(); }
+  virtual InstanceKlass* java_super() const;//{ return SystemDictionary::Object_klass(); }
 
   // Allocation
   // Sizes points to the first dimension of the array, subsequent dimensions
@@ -87,7 +85,8 @@ class ArrayKlass: public Klass {
   // Lookup operations
   Method* uncached_lookup_method(const Symbol* name,
                                  const Symbol* signature,
-                                 OverpassLookupMode overpass_mode) const;
+                                 OverpassLookupMode overpass_mode,
+                                 PrivateLookupMode private_mode = find_private) const;
 
   static ArrayKlass* cast(Klass* k) {
     return const_cast<ArrayKlass*>(cast(const_cast<const Klass*>(k)));
@@ -98,8 +97,8 @@ class ArrayKlass: public Klass {
     return static_cast<const ArrayKlass*>(k);
   }
 
-  GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots);
-  bool compute_is_subtype_of(Klass* k);
+  GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
+                                                  Array<InstanceKlass*>* transitive_interfaces);
 
   // Sizing
   static int static_size(int header_size);
@@ -145,36 +144,4 @@ class ArrayKlass: public Klass {
   void oop_verify_on(oop obj, outputStream* st);
 };
 
-// Array oop iteration macros for declarations.
-// Used to generate the declarations in the *ArrayKlass header files.
-
-#define OOP_OOP_ITERATE_DECL_RANGE(OopClosureType, nv_suffix)                                   \
-  void oop_oop_iterate_range##nv_suffix(oop obj, OopClosureType* closure, int start, int end);
-
-#if INCLUDE_ALL_GCS
-// Named NO_BACKWARDS because the definition used by *ArrayKlass isn't reversed, see below.
-#define OOP_OOP_ITERATE_DECL_NO_BACKWARDS(OopClosureType, nv_suffix)            \
-  void oop_oop_iterate_backwards##nv_suffix(oop obj, OopClosureType* closure);
-#endif // INCLUDE_ALL_GCS
-
-
-// Array oop iteration macros for definitions.
-// Used to generate the definitions in the *ArrayKlass.inline.hpp files.
-
-#define OOP_OOP_ITERATE_DEFN_RANGE(KlassType, OopClosureType, nv_suffix)                                  \
-                                                                                                          \
-void KlassType::oop_oop_iterate_range##nv_suffix(oop obj, OopClosureType* closure, int start, int end) {  \
-  oop_oop_iterate_range<nvs_to_bool(nv_suffix)>(obj, closure, start, end);                                \
-}
-
-#if INCLUDE_ALL_GCS
-#define OOP_OOP_ITERATE_DEFN_NO_BACKWARDS(KlassType, OopClosureType, nv_suffix)           \
-void KlassType::oop_oop_iterate_backwards##nv_suffix(oop obj, OopClosureType* closure) {  \
-  /* No reverse implementation ATM. */                                                    \
-  oop_oop_iterate<nvs_to_bool(nv_suffix)>(obj, closure);                                  \
-}
-#else
-#define OOP_OOP_ITERATE_DEFN_NO_BACKWARDS(KlassType, OopClosureType, nv_suffix)
-#endif
-
-#endif // SHARE_VM_OOPS_ARRAYKLASS_HPP
+#endif // SHARE_OOPS_ARRAYKLASS_HPP

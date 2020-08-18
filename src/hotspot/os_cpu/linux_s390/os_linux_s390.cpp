@@ -44,7 +44,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -54,6 +54,7 @@
 #include "runtime/thread.inline.hpp"
 #include "runtime/timer.hpp"
 #include "utilities/events.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/vmError.hpp"
 
 // put OS-includes here
@@ -93,9 +94,6 @@ char* os::non_memory_address_word() {
   // if the CPU splits constants across multiple instructions).
   return (char*) -1;
 }
-
-// OS specific thread initialization.
-void os::initialize_thread(Thread* thread) { }
 
 // Frame information (pc, sp, fp) retrieved via ucontext
 // always looks like a C-frame according to the frame
@@ -270,6 +268,13 @@ JVM_handle_linux_signal(int sig,
     }
   }
 
+#ifdef CAN_SHOW_REGISTERS_ON_ASSERT
+  if ((sig == SIGSEGV || sig == SIGBUS) && info != NULL && info->si_addr == g_assert_poison) {
+    handle_assert_poison_fault(ucVoid, info->si_addr);
+    return 1;
+  }
+#endif
+
   JavaThread* thread = NULL;
   VMThread* vmthread = NULL;
   if (os::Linux::signal_handlers_are_installed) {
@@ -413,7 +418,7 @@ JVM_handle_linux_signal(int sig,
 
       else if (sig == SIGSEGV && ImplicitNullChecks &&
                CodeCache::contains((void*) pc) &&
-               !MacroAssembler::needs_explicit_null_check((intptr_t) info->si_addr)) {
+               MacroAssembler::uses_implicit_null_check(info->si_addr)) {
         if (TraceTraps) {
           tty->print_cr("trap: null_check at " INTPTR_FORMAT " (SIGSEGV)", p2i(pc));
         }
@@ -471,19 +476,6 @@ JVM_handle_linux_signal(int sig,
         os::Linux::ucontext_set_pc(uc, pc + Assembler::instr_len(pc));
         return true;
       }
-    }
-
-    // Check to see if we caught the safepoint code in the
-    // process of write protecting the memory serialization page.
-    // It write enables the page immediately after protecting it
-    // so we can just return to retry the write.
-    // Info->si_addr need not be the exact address, it is only
-    // guaranteed to be on the same page as the address that caused
-    // the SIGSEGV.
-    if ((sig == SIGSEGV) && !UseMembar &&
-        (os::get_memory_serialize_page() ==
-         (address)((uintptr_t)info->si_addr & ~(os::vm_page_size()-1)))) {
-      return true;
     }
   }
 
@@ -620,7 +612,19 @@ void os::print_context(outputStream *st, const void *context) {
 }
 
 void os::print_register_info(outputStream *st, const void *context) {
-  st->print("Not ported\n");
+  if (context == NULL) return;
+
+  const ucontext_t *uc = (const ucontext_t*)context;
+
+  st->print_cr("Register to memory mapping:");
+  st->cr();
+
+  st->print("pc ="); print_location(st, (intptr_t)uc->uc_mcontext.psw.addr);
+  for (int i = 0; i < 16; i++) {
+    st->print("r%-2d=", i);
+    print_location(st, uc->uc_mcontext.gregs[i]);
+  }
+  st->cr();
 }
 
 #ifndef PRODUCT

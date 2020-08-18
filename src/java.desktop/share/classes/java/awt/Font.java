@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1895,8 +1895,7 @@ public class Font implements java.io.Serializable
      * @see #readObject(java.io.ObjectInputStream)
      */
     private void writeObject(java.io.ObjectOutputStream s)
-      throws java.lang.ClassNotFoundException,
-             java.io.IOException
+      throws java.io.IOException
     {
         if (values != null) {
           synchronized(values) {
@@ -2012,7 +2011,7 @@ public class Font implements java.io.Serializable
     public Attribute[] getAvailableAttributes() {
         // FONT is not supported by Font
 
-        Attribute attributes[] = {
+        Attribute[] attributes = {
             TextAttribute.FAMILY,
             TextAttribute.WEIGHT,
             TextAttribute.WIDTH,

@@ -42,6 +42,8 @@ import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.util.spi.CurrencyNameProvider;
 import java.util.stream.Collectors;
+
+import jdk.internal.util.StaticProperty;
 import sun.util.locale.provider.CalendarDataUtility;
 import sun.util.locale.provider.LocaleServiceProviderPool;
 import sun.util.logging.PlatformLogger;
@@ -58,7 +60,7 @@ import sun.util.logging.PlatformLogger;
  * the <code>getInstance</code> methods.
  * <p>
  * Users can supersede the Java runtime currency data by means of the system
- * property {@code java.util.currency.data}. If this system property is
+ * property {@systemProperty java.util.currency.data}. If this system property is
  * defined then its value is the location of a properties file, the contents of
  * which are key/value pairs of the ISO 3166 country codes and the ISO 4217
  * currency data respectively.  The value part consists of three ISO 4217 values
@@ -236,7 +238,7 @@ public final class Currency implements Serializable {
                 // look for the properties file for overrides
                 String propsFile = System.getProperty("java.util.currency.data");
                 if (propsFile == null) {
-                    propsFile = System.getProperty("java.home") + File.separator + "lib" +
+                    propsFile = StaticProperty.javaHome() + File.separator + "lib" +
                         File.separator + "currency.properties";
                 }
                 try {
@@ -578,7 +580,7 @@ public final class Currency implements Serializable {
 
     /**
      * Returns the 3 digit ISO 4217 numeric code of this currency as a {@code String}.
-     * Unlike {@link getNumericCode()}, which returns the numeric code as {@code int},
+     * Unlike {@link #getNumericCode()}, which returns the numeric code as {@code int},
      * this method always returns the numeric code as a 3 digit string.
      * e.g. a numeric value of 32 would be returned as "032",
      * and a numeric value of 6 would be returned as "006".

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOGFILEOUTPUT_HPP
-#define SHARE_VM_LOGGING_LOGFILEOUTPUT_HPP
+#ifndef SHARE_LOGGING_LOGFILEOUTPUT_HPP
+#define SHARE_LOGGING_LOGFILEOUTPUT_HPP
 
 #include "logging/logFileStreamOutput.hpp"
 #include "runtime/semaphore.hpp"
@@ -85,7 +85,7 @@ class LogFileOutput : public LogFileStreamOutput {
   virtual int write(const LogDecorations& decorations, const char* msg);
   virtual int write(LogMessageBuffer::Iterator msg_iterator);
   virtual void force_rotate();
-  virtual void describe(outputStream *out);
+  virtual void describe(outputStream* out);
 
   virtual const char* name() const {
     return _name;
@@ -95,4 +95,4 @@ class LogFileOutput : public LogFileStreamOutput {
   static void set_file_name_parameters(jlong start_time);
 };
 
-#endif // SHARE_VM_LOGGING_LOGFILEOUTPUT_HPP
+#endif // SHARE_LOGGING_LOGFILEOUTPUT_HPP

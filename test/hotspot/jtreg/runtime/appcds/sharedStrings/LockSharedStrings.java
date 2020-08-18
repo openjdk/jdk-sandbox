@@ -27,22 +27,24 @@
  * @summary Test locking on shared strings
  * @requires vm.cds.archived.java.heap
  * @library /test/hotspot/jtreg/runtime/appcds /test/lib
- * @modules java.base/jdk.internal.misc
- * @modules java.management
- *          jdk.jartool/sun.tools.jar
+ * @modules jdk.jartool/sun.tools.jar
  * @compile LockStringTest.java LockStringValueTest.java
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main LockSharedStrings
+ * @run driver LockSharedStrings
  */
 
 public class LockSharedStrings {
     public static void main(String[] args) throws Exception {
+        SharedStringsUtils.run(args, LockSharedStrings::test);
+    }
+
+    public static void test(String[] args) throws Exception {
         SharedStringsUtils.buildJarAndWhiteBox("LockStringTest", "LockStringValueTest");
 
         SharedStringsUtils.dumpWithWhiteBox(
             TestCommon.list("LockStringTest", "LockStringValueTest"),
-            "ExtraSharedInput.txt");
+            "ExtraSharedInput.txt", "-Xlog:cds,cds+hashtables");
 
         String[] extraMatch = new String[] {"LockStringTest: PASS"};
         SharedStringsUtils.runWithArchiveAndWhiteBox(extraMatch, "LockStringTest");

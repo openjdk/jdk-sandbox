@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.stubs;
 
 import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfig.INJECTED_VMCONFIG;
@@ -51,7 +53,7 @@ import org.graalvm.compiler.hotspot.meta.HotSpotProviders;
 import org.graalvm.compiler.hotspot.nodes.StubForeignCallNode;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.word.Word;
-import org.graalvm.word.WordFactory;
+import jdk.internal.vm.compiler.word.WordFactory;
 
 import jdk.vm.ci.code.Register;
 
@@ -85,17 +87,17 @@ public class ExceptionHandlerStub extends SnippetStub {
             return providers.getRegisters().getThreadRegister();
         }
         assert index == 3;
-        return options;
+        return StubOptions.TraceExceptionHandlerStub.getValue(options);
     }
 
     @Snippet
-    private static void exceptionHandler(Object exception, Word exceptionPc, @ConstantParameter Register threadRegister, @ConstantParameter OptionValues options) {
+    private static void exceptionHandler(Object exception, Word exceptionPc, @ConstantParameter Register threadRegister, @ConstantParameter boolean logging) {
         Word thread = registerAsWord(threadRegister);
         checkNoExceptionInThread(thread, assertionsEnabled(INJECTED_VMCONFIG));
         checkExceptionNotNull(assertionsEnabled(INJECTED_VMCONFIG), exception);
         writeExceptionOop(thread, exception);
         writeExceptionPc(thread, exceptionPc);
-        if (logging(options)) {
+        if (logging) {
             printf("handling exception %p (", Word.objectToTrackedPointer(exception).rawValue());
             decipher(Word.objectToTrackedPointer(exception).rawValue());
             printf(") at %p (", exceptionPc.rawValue());
@@ -108,7 +110,7 @@ public class ExceptionHandlerStub extends SnippetStub {
 
         Word handlerPc = exceptionHandlerForPc(EXCEPTION_HANDLER_FOR_PC, thread);
 
-        if (logging(options)) {
+        if (logging) {
             printf("handler for exception %p at %p is at %p (", Word.objectToTrackedPointer(exception).rawValue(), exceptionPc.rawValue(), handlerPc.rawValue());
             decipher(handlerPc.rawValue());
             printf(")\n");
@@ -139,11 +141,6 @@ public class ExceptionHandlerStub extends SnippetStub {
         if (enabled && exception == null) {
             fatal("exception must not be null");
         }
-    }
-
-    @Fold
-    static boolean logging(OptionValues options) {
-        return StubOptions.TraceExceptionHandlerStub.getValue(options);
     }
 
     /**

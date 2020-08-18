@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8044537
+ * @bug 8044537 8200301
  * @summary Checking ACC_SYNTHETIC flag is generated for bridge method
  *          generated for lambda expressions and method references.
  * @modules jdk.compiler/com.sun.tools.javac.api
@@ -31,8 +31,9 @@
  *          jdk.jdeps/com.sun.tools.classfile
  * @library /tools/lib /tools/javac/lib ../lib
  * @build toolbox.ToolBox InMemoryFileManager TestResult TestBase
- * @build BridgeMethodsForLambdaTest SyntheticTestDriver ExpectedClass ExpectedClasses
- * @run main SyntheticTestDriver BridgeMethodsForLambdaTest 1
+ * @build SyntheticTestDriver ExpectedClass ExpectedClasses
+ * @compile -XDdeduplicateLambdas=false BridgeMethodsForLambdaTest.java
+ * @run main SyntheticTestDriver BridgeMethodsForLambdaTest
  */
 
 import java.util.Comparator;
@@ -58,15 +59,14 @@ import java.util.stream.IntStream;
 @ExpectedClass(className = "BridgeMethodsForLambdaTest$Inner1",
         expectedMethods = {"<init>(BridgeMethodsForLambdaTest)", "function()", "run()"},
         expectedFields = "lambda1",
-        expectedNumberOfSyntheticMethods = 4,
+        expectedNumberOfSyntheticMethods = 1,
         expectedNumberOfSyntheticFields = 1)
 @ExpectedClass(className = "BridgeMethodsForLambdaTest$Inner2",
         expectedMethods = {"<init>()", "staticFunction()"},
         expectedFields = "lambda1",
-        expectedNumberOfSyntheticMethods = 3)
+        expectedNumberOfSyntheticMethods = 1)
 @ExpectedClass(className = "BridgeMethodsForLambdaTest$Inner3",
         expectedMethods = {"<init>(BridgeMethodsForLambdaTest)", "function()"},
-        expectedNumberOfSyntheticMethods = 1,
         expectedNumberOfSyntheticFields = 1)
 @ExpectedClass(className = "BridgeMethodsForLambdaTest$Inner4",
         expectedMethods = {"<init>(BridgeMethodsForLambdaTest)", "function()"},

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,7 +68,7 @@ import sun.swing.PrintingStatus;
 /**
  * The <code>JTable</code> is used to display and edit regular two-dimensional tables
  * of cells.
- * See <a href="http://docs.oracle.com/javase/tutorial/uiswing/components/table.html">How to Use Tables</a>
+ * See <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/table.html">How to Use Tables</a>
  * in <em>The Java Tutorial</em>
  * for task-oriented documentation and examples of using <code>JTable</code>.
  *
@@ -2268,23 +2268,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      */
     @BeanProperty(bound = false)
     public int[] getSelectedRows() {
-        int iMin = selectionModel.getMinSelectionIndex();
-        int iMax = selectionModel.getMaxSelectionIndex();
-
-        if ((iMin == -1) || (iMax == -1)) {
-            return new int[0];
-        }
-
-        int[] rvTmp = new int[1+ (iMax - iMin)];
-        int n = 0;
-        for(int i = iMin; i <= iMax; i++) {
-            if (selectionModel.isSelectedIndex(i)) {
-                rvTmp[n++] = i;
-            }
-        }
-        int[] rv = new int[n];
-        System.arraycopy(rvTmp, 0, rv, 0, n);
-        return rv;
+        return selectionModel.getSelectedIndices();
     }
 
     /**
@@ -2306,16 +2290,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      */
     @BeanProperty(bound = false)
     public int getSelectedRowCount() {
-        int iMin = selectionModel.getMinSelectionIndex();
-        int iMax = selectionModel.getMaxSelectionIndex();
-        int count = 0;
-
-        for(int i = iMin; i <= iMax; i++) {
-            if (selectionModel.isSelectedIndex(i)) {
-                count++;
-            }
-        }
-        return count;
+        return selectionModel.getSelectedItemsCount();
     }
 
     /**
@@ -2502,7 +2477,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      * The default value of this property is defined by the look
      * and feel implementation.
      * <p>
-     * This is a <a href="http://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
      * @param selectionForeground  the <code>Color</code> to use in the foreground
      *                             for selected list items
@@ -2539,7 +2514,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      * The default value of this property is defined by the look
      * and feel implementation.
      * <p>
-     * This is a <a href="http://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
      * @param selectionBackground  the <code>Color</code> to use for the background
      *                             of selected cells
@@ -7242,8 +7217,8 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
 
             int rowsSel = JTable.this.getSelectedRowCount();
             int colsSel = JTable.this.getSelectedColumnCount();
-            int rowIndicies[] = getSelectedRows();
-            int colIndicies[] = getSelectedColumns();
+            int[] rowIndicies = getSelectedRows();
+            int[] colIndicies = getSelectedColumns();
             int ttlCols = JTable.this.getColumnCount();
             int ttlRows = JTable.this.getRowCount();
             int r;

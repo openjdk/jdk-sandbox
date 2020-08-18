@@ -684,6 +684,9 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
     assert(store_block != NULL, "unused killing projections skipped above");
 
     if (store->is_Phi()) {
+      // Loop-phis need to raise load before input. (Other phis are treated
+      // as store below.)
+      //
       // 'load' uses memory which is one (or more) of the Phi's inputs.
       // It must be scheduled not before the Phi, but rather before
       // each of the relevant Phi inputs.
@@ -716,15 +719,15 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
       assert(found_match, "no worklist bug");
 #ifdef TRACK_PHI_INPUTS
 #ifdef ASSERT
-      // This assert asks about correct handling of PhiNodes, which may not
-      // have all input edges directly from 'mem'. See BugId 4621264
-      int num_mem_inputs = phi_inputs.at_grow(store->_idx,0) + 1;
-      // Increment by exactly one even if there are multiple copies of 'mem'
-      // coming into the phi, because we will run this block several times
-      // if there are several copies of 'mem'.  (That's how DU iterators work.)
-      phi_inputs.at_put(store->_idx, num_mem_inputs);
-      assert(PhiNode::Input + num_mem_inputs < store->req(),
-             "Expect at least one phi input will not be from original memory state");
+        // This assert asks about correct handling of PhiNodes, which may not
+        // have all input edges directly from 'mem'. See BugId 4621264
+        int num_mem_inputs = phi_inputs.at_grow(store->_idx,0) + 1;
+        // Increment by exactly one even if there are multiple copies of 'mem'
+        // coming into the phi, because we will run this block several times
+        // if there are several copies of 'mem'.  (That's how DU iterators work.)
+        phi_inputs.at_put(store->_idx, num_mem_inputs);
+        assert(PhiNode::Input + num_mem_inputs < store->req(),
+               "Expect at least one phi input will not be from original memory state");
 #endif //ASSERT
 #endif //TRACK_PHI_INPUTS
     } else if (store_block != early) {
@@ -1260,6 +1263,7 @@ void PhaseCFG::schedule_late(VectorSet &visited, Node_Stack &stack) {
         Node* use = self->fast_out(i);
         LCA = raise_LCA_above_use(LCA, use, self, this);
       }
+      guarantee(LCA != NULL, "There must be a LCA");
     }  // (Hide defs of imax, i from rest of block.)
 
     // Place temps in the block of their use.  This isn't a
@@ -1867,8 +1871,7 @@ float Block::succ_prob(uint i) {
   }
 
   case Op_Jump:
-    // Divide the frequency between all successors evenly
-    return 1.0f/_num_succs;
+    return n->as_MachJump()->_probs[get_node(i + eidx + 1)->as_JumpProj()->_con];
 
   case Op_Catch: {
     const CatchProjNode *ci = get_node(i + eidx + 1)->as_CatchProj();

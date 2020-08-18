@@ -55,13 +55,6 @@ endif
 # Disabling undef, switch, format-nonliteral and tautological-undefined-compare
 # warnings for clang because of test source.
 
-# Note: On AIX, the gtest test classes linked into the libjvm.so push the TOC
-# size beyond 64k, so we need to link with bigtoc. However, this means that
-# -qpic=large would be advisable to lessen the performance effect of bigtoc.
-# But we want to avoid imposing -qpic=large onto the regular libjvm.so, which
-# has no problem with its TOC, so do this only for object files which are
-# exclusive to the gtest libjvm.so.
-
 $(eval $(call SetupNativeCompilation, BUILD_GTEST_LIBJVM, \
     NAME := jvm, \
     TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
@@ -80,19 +73,16 @@ $(eval $(call SetupNativeCompilation, BUILD_GTEST_LIBJVM, \
     CFLAGS_windows := -EHsc, \
     CFLAGS_solaris := -DGTEST_HAS_EXCEPTIONS=0 -library=stlport4, \
     CFLAGS_macosx := -DGTEST_OS_MAC=1, \
-    CFLAGS_aix := -qpic=large, \
-    CFLAGS_DEBUG_SYMBOLS := $(JVM_CFLAGS_SYMBOLS), \
-    CXXFLAGS_DEBUG_SYMBOLS := $(JVM_CFLAGS_SYMBOLS), \
-    DISABLED_WARNINGS_gcc := undef, \
-    DISABLED_WARNINGS_clang := undef switch format-nonliteral \
-        tautological-undefined-compare $(BUILD_LIBJVM_DISABLED_WARNINGS_clang), \
-    DISABLED_WARNINGS_solstudio := hidef inlafteruse inllargeint \
-        nokeyworddefine notemsource unknownpragma w_enumnotused \
-        wnoretvalue w_novirtualdescr w_toomanyenumnotused wvarhidenmem, \
-    DISABLED_WARNINGS_CXX_microsoft := 4996, \
+    DISABLED_WARNINGS_gcc := $(DISABLED_WARNINGS_gcc) \
+        undef, \
+    DISABLED_WARNINGS_clang := $(DISABLED_WARNINGS_clang) \
+        undef switch format-nonliteral tautological-undefined-compare, \
+    DISABLED_WARNINGS_solstudio := $(DISABLED_WARNINGS_solstudio) \
+        identexpected, \
+    DISABLED_WARNINGS_microsoft := $(DISABLED_WARNINGS_microsoft) \
+        4996, \
     LDFLAGS := $(JVM_LDFLAGS), \
     LDFLAGS_solaris := -library=stlport4 $(call SET_SHARED_LIBRARY_ORIGIN), \
-    LDFLAGS_aix := -bbigtoc, \
     LIBS := $(JVM_LIBS), \
     OPTIMIZATION := $(JVM_OPTIMIZATION), \
     MAPFILE := $(GTEST_JVM_MAPFILE), \
@@ -117,8 +107,6 @@ $(eval $(call SetupNativeCompilation, BUILD_GTEST_LAUNCHER, \
     OBJECT_DIR := $(JVM_OUTPUTDIR)/gtest/launcher-objs, \
     CFLAGS := $(JVM_CFLAGS) -I$(GTEST_FRAMEWORK_SRC) \
         -I$(GTEST_FRAMEWORK_SRC)/include, \
-    CFLAGS_DEBUG_SYMBOLS := $(JVM_CFLAGS_SYMBOLS), \
-    CXXFLAGS_DEBUG_SYMBOLS := $(JVM_CFLAGS_SYMBOLS), \
     LDFLAGS := $(LDFLAGS_JDKEXE), \
     LDFLAGS_unix := -L$(JVM_OUTPUTDIR)/gtest $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_solaris := -library=stlport4, \

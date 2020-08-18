@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,18 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_MUTEXLOCKER_HPP
-#define SHARE_VM_RUNTIME_MUTEXLOCKER_HPP
+#ifndef SHARE_RUNTIME_MUTEXLOCKER_HPP
+#define SHARE_RUNTIME_MUTEXLOCKER_HPP
 
 #include "memory/allocation.hpp"
+#include "runtime/flags/flagSetting.hpp"
 #include "runtime/mutex.hpp"
 
 // Mutexes used in the VM.
 
 extern Mutex*   Patching_lock;                   // a lock used to guard code patching of compiled code
 extern Monitor* SystemDictionary_lock;           // a lock on the system dictionary
+extern Mutex*   SharedDictionary_lock;           // a lock on the CDS shared dictionary
 extern Mutex*   Module_lock;                     // a lock on module and package related data structures
 extern Mutex*   CompiledIC_lock;                 // a lock used to guard compiled IC patching and access
 extern Mutex*   InlineCacheBuffer_lock;          // a lock used to guard the InlineCacheBuffer
@@ -40,7 +42,11 @@ extern Mutex*   JNIGlobalAlloc_lock;             // JNI global storage allocate 
 extern Mutex*   JNIGlobalActive_lock;            // JNI global storage active list lock
 extern Mutex*   JNIWeakAlloc_lock;               // JNI weak storage allocate list lock
 extern Mutex*   JNIWeakActive_lock;              // JNI weak storage active list lock
+extern Mutex*   StringTableWeakAlloc_lock;       // StringTable weak storage allocate list lock
+extern Mutex*   StringTableWeakActive_lock;      // STringTable weak storage active list lock
 extern Mutex*   JNIHandleBlockFreeList_lock;     // a lock on the JNI handle block free list
+extern Mutex*   VMWeakAlloc_lock;                // VM Weak Handles storage allocate list lock
+extern Mutex*   VMWeakActive_lock;               // VM Weak Handles storage active list lock
 extern Mutex*   ResolvedMethodTable_lock;        // a lock on the ResolvedMethodTable updates
 extern Mutex*   JmethodIdCreation_lock;          // a lock on creating JNI method identifiers
 extern Mutex*   JfieldIdCreation_lock;           // a lock on creating JNI static field identifiers
@@ -51,8 +57,7 @@ extern Mutex*   ExpandHeap_lock;                 // a lock on expanding the heap
 extern Mutex*   AdapterHandlerLibrary_lock;      // a lock on the AdapterHandlerLibrary
 extern Mutex*   SignatureHandlerLibrary_lock;    // a lock on the SignatureHandlerLibrary
 extern Mutex*   VtableStubs_lock;                // a lock on the VtableStubs
-extern Mutex*   SymbolTable_lock;                // a lock on the symbol table
-extern Mutex*   StringTable_lock;                // a lock on the interned string table
+extern Mutex*   SymbolArena_lock;                // a lock on the symbol table arena
 extern Monitor* StringDedupQueue_lock;           // a lock on the string deduplication queue
 extern Mutex*   StringDedupTable_lock;           // a lock on the string deduplication table
 extern Monitor* CodeCache_lock;                  // a lock on the CodeCache, rank is special, use MutexLockerEx
@@ -66,6 +71,7 @@ extern Monitor* VMOperationRequest_lock;         // a lock on Threads waiting fo
 extern Monitor* Safepoint_lock;                  // a lock used by the safepoint abstraction
 extern Monitor* Threads_lock;                    // a lock on the Threads table of active Java threads
                                                  // (also used by Safepoints too to block threads creation/destruction)
+extern Mutex*   NonJavaThreadsList_lock;         // a lock on the NonJavaThreads list
 extern Monitor* CGC_lock;                        // used for coordination between
                                                  // fore- & background GC threads.
 extern Monitor* STS_lock;                        // used for joining/leaving SuspendibleThreadSet.
@@ -87,6 +93,7 @@ extern Mutex*   Shared_DirtyCardQ_lock;          // Lock protecting dirty card
                                                  // non-Java threads.
 extern Mutex*   MarkStackFreeList_lock;          // Protects access to the global mark stack free list.
 extern Mutex*   MarkStackChunkList_lock;         // Protects access to the global mark stack chunk list.
+extern Mutex*   MonitoringSupport_lock;          // Protects updates to the serviceability memory pools.
 extern Mutex*   ParGCRareEvent_lock;             // Synchronizes various (rare) parallel GC ops.
 extern Mutex*   Compile_lock;                    // a lock held when Compilation is updating code (used to block CodeCache traversal, CHA updates, etc)
 extern Monitor* MethodCompileQueue_lock;         // a lock held when method compilations are enqueued, dequeued
@@ -102,6 +109,7 @@ extern Monitor* Notify_lock;                     // a lock used to synchronize t
 extern Mutex*   ProfilePrint_lock;               // a lock used to serialize the printing of profiles
 extern Mutex*   ExceptionCache_lock;             // a lock used to synchronize exception cache updates
 extern Mutex*   OsrList_lock;                    // a lock used to serialize access to OSR queues
+extern Mutex*   NMethodSweeperStats_lock;        // a lock used to serialize access to sweeper statistics
 
 #ifndef PRODUCT
 extern Mutex*   FullGCALot_lock;                 // a lock to make FullGCALot MT safe
@@ -117,7 +125,6 @@ extern Mutex*   ParkerFreeList_lock;
 extern Mutex*   OopMapCacheAlloc_lock;           // protects allocation of oop_map caches
 
 extern Mutex*   FreeList_lock;                   // protects the free region list during safepoints
-extern Monitor* SecondaryFreeList_lock;          // protects the secondary free region list
 extern Mutex*   OldSets_lock;                    // protects the old region sets
 extern Monitor* RootRegionScan_lock;             // used to notify that the CM threads have finished scanning the IM snapshot regions
 
@@ -125,17 +132,30 @@ extern Mutex*   Management_lock;                 // a lock used to serialize JVM
 extern Monitor* Service_lock;                    // a lock used for service thread operation
 extern Monitor* PeriodicTask_lock;               // protects the periodic task structure
 extern Monitor* RedefineClasses_lock;            // locks classes from parallel redefinition
-
-#if INCLUDE_TRACE
+extern Monitor* ThreadsSMRDelete_lock;           // Used by ThreadsSMRSupport to take pressure off the Threads_lock
+extern Mutex*   SharedDecoder_lock;              // serializes access to the decoder during normal (not error reporting) use
+extern Mutex*   DCmdFactory_lock;                // serialize access to DCmdFactory information
+#if INCLUDE_NMT
+extern Mutex*   NMTQuery_lock;                   // serialize NMT Dcmd queries
+#endif
+#if INCLUDE_JFR
 extern Mutex*   JfrStacktrace_lock;              // used to guard access to the JFR stacktrace table
 extern Monitor* JfrMsg_lock;                     // protects JFR messaging
 extern Mutex*   JfrBuffer_lock;                  // protects JFR buffer operations
 extern Mutex*   JfrStream_lock;                  // protects JFR stream access
+extern Monitor* JfrThreadSampler_lock;           // used to suspend/resume JFR thread sampler
 #endif
 
 #ifndef SUPPORTS_NATIVE_CX8
 extern Mutex*   UnsafeJlong_lock;                // provides Unsafe atomic updates to jlongs on platforms that don't support cx8
 #endif
+
+extern Mutex*   MetaspaceExpand_lock;            // protects Metaspace virtualspace and chunk expansions
+extern Mutex*   ClassLoaderDataGraph_lock;       // protects CLDG list, needed for concurrent unloading
+
+
+extern Monitor* CodeHeapStateAnalytics_lock;     // lock print functions against concurrent analyze functions.
+                                                 // Only used locally in PrintCodeCacheLayout processing.
 
 // A MutexLocker provides mutual exclusion with respect to a given mutex
 // for the scope which contains the locker.  The lock is an OS lock, not
@@ -185,9 +205,11 @@ class MutexLocker: StackObj {
 // for debugging: check that we're already owning this lock (or are at a safepoint)
 #ifdef ASSERT
 void assert_locked_or_safepoint(const Monitor * lock);
+void assert_locked_or_safepoint_weak(const Monitor * lock);
 void assert_lock_strong(const Monitor * lock);
 #else
 #define assert_locked_or_safepoint(lock)
+#define assert_locked_or_safepoint_weak(lock)
 #define assert_lock_strong(lock)
 #endif
 
@@ -330,38 +352,4 @@ class MutexUnlockerEx: StackObj {
   }
 };
 
-#ifndef PRODUCT
-//
-// A special MutexLocker that allows:
-//   - reentrant locking
-//   - locking out of order
-//
-// Only to be used for verify code, where we can relax out dead-lock
-// detection code a bit (unsafe, but probably ok). This code is NEVER to
-// be included in a product version.
-//
-class VerifyMutexLocker: StackObj {
- private:
-  Monitor * _mutex;
-  bool   _reentrant;
- public:
-  VerifyMutexLocker(Monitor * mutex) {
-    _mutex     = mutex;
-    _reentrant = mutex->owned_by_self();
-    if (!_reentrant) {
-      // We temp. disable strict safepoint checking, while we require the lock
-      FlagSetting fs(StrictSafepointChecks, false);
-      _mutex->lock();
-    }
-  }
-
-  ~VerifyMutexLocker() {
-    if (!_reentrant) {
-      _mutex->unlock();
-    }
-  }
-};
-
-#endif
-
-#endif // SHARE_VM_RUNTIME_MUTEXLOCKER_HPP
+#endif // SHARE_RUNTIME_MUTEXLOCKER_HPP

@@ -675,8 +675,8 @@ jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024, \
 #
 # Example:
 #   jdk.tls.disabledAlgorithms=MD5, SSLv3, DSA, RSA keySize < 2048
-jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 1024, \
-    EC keySize < 224, DES40_CBC, RC4_40
+jdk.tls.disabledAlgorithms=SSLv3, RC4, DES, MD5withRSA, DH keySize < 1024, \
+    EC keySize < 224, 3DES_EDE_CBC, anon, NULL
 
 #
 # Legacy algorithms for Secure Socket Layer/Transport Layer Security (SSL/TLS)
@@ -800,6 +800,40 @@ jdk.tls.legacyAlgorithms= \
 #       FFFFFFFF FFFFFFFF, 2}
 
 #
+# TLS key limits on symmetric cryptographic algorithms
+#
+# This security property sets limits on algorithms key usage in TLS 1.3.
+# When the amount of data encrypted exceeds the algorithm value listed below,
+# a KeyUpdate message will trigger a key change.  This is for symmetric ciphers
+# with TLS 1.3 only.
+#
+# The syntax for the property is described below:
+#   KeyLimits:
+#       " KeyLimit { , KeyLimit } "
+#
+#   WeakKeyLimit:
+#       AlgorithmName Action Length
+#
+#   AlgorithmName:
+#       A full algorithm transformation.
+#
+#   Action:
+#       KeyUpdate
+#
+#   Length:
+#       The amount of encrypted data in a session before the Action occurs
+#       This value may be an integer value in bytes, or as a power of two, 2^29.
+#
+#   KeyUpdate:
+#       The TLS 1.3 KeyUpdate handshake process begins when the Length amount
+#       is fulfilled.
+#
+# Note: This property is currently used by OpenJDK's JSSE implementation. It
+# is not guaranteed to be examined and used by other implementations.
+#
+jdk.tls.keyLimits=AES/GCM/NoPadding KeyUpdate 2^37
+
+#
 # Cryptographic Jurisdiction Policy defaults
 #
 # Import and export control rules on cryptographic software vary from
@@ -881,11 +915,12 @@ jdk.xml.dsig.secureValidationPolicy=\
     disallowReferenceUriSchemes file http https,\
     minKeySize RSA 1024,\
     minKeySize DSA 1024,\
+    minKeySize EC 224,\
     noDuplicateIds,\
     noRetrievalMethodLoops
 
 #
-# Serialization process-wide filter
+# Serialization system-wide filter
 #
 # A filter, if configured, is used by java.io.ObjectInputStream during
 # deserialization to check the contents of the stream.
@@ -893,6 +928,9 @@ jdk.xml.dsig.secureValidationPolicy=\
 # matched against the name of a class in the stream or defines a limit.
 # Patterns are separated by ";" (semicolon).
 # Whitespace is significant and is considered part of the pattern.
+#
+# If the system property jdk.serialFilter is also specified, it supersedes
+# the security property value defined here.
 #
 # If a pattern includes a "=", it sets a limit.
 # If a limit appears more than once the last value is used.
@@ -989,10 +1027,10 @@ jdk.xml.dsig.secureValidationPolicy=\
 #
 # An IOR type check filter, if configured, is used by an ORB during
 # an ORB::string_to_object invocation to check the veracity of the type encoded
-# in the ior string. 
+# in the ior string.
 #
 # The filter pattern consists of a semi-colon separated list of class names.
-# The configured list contains the binary class names of the IDL interface types 
+# The configured list contains the binary class names of the IDL interface types
 # corresponding to the IDL stub class to be instantiated.
 # As such, a filter specifies a list of IDL stub classes that will be
 # allowed by an ORB when an ORB::string_to_object is invoked.
@@ -1004,3 +1042,143 @@ jdk.xml.dsig.secureValidationPolicy=\
 # It is not guaranteed to be examined and used by other implementations.
 #
 #com.sun.CORBA.ORBIorTypeCheckRegistryFilter=binary_class_name;binary_class_name
+
+#
+# JCEKS Encrypted Key Serial Filter
+#
+# This filter, if configured, is used by the JCEKS KeyStore during the
+# deserialization of the encrypted Key object stored inside a key entry.
+# If not configured or the filter result is UNDECIDED (i.e. none of the patterns
+# matches), the filter configured by jdk.serialFilter will be consulted.
+#
+# If the system property jceks.key.serialFilter is also specified, it supersedes
+# the security property value defined here.
+#
+# The filter pattern uses the same format as jdk.serialFilter. The default
+# pattern allows java.lang.Enum, java.security.KeyRep, java.security.KeyRep$Type,
+# and javax.crypto.spec.SecretKeySpec and rejects all the others.
+jceks.key.serialFilter = java.base/java.lang.Enum;java.base/java.security.KeyRep;\
+  java.base/java.security.KeyRep$Type;java.base/javax.crypto.spec.SecretKeySpec;!*
+
+#
+# PKCS12 KeyStore properties
+#
+# The following properties, if configured, are used by the PKCS12 KeyStore
+# implementation during the creation of a new keystore. Several of the
+# properties may also be used when modifying an existing keystore. The
+# properties can be overridden by a KeyStore API that specifies its own
+# algorithms and parameters.
+#
+# If an existing PKCS12 keystore is loaded and then stored, the algorithm and
+# parameter used to generate the existing Mac will be reused. If the existing
+# keystore does not have a Mac, no Mac will be created while storing. If there
+# is at least one certificate in the existing keystore, the algorithm and
+# parameters used to encrypt the last certificate in the existing keystore will
+# be reused to encrypt all certificates while storing. If the last certificate
+# in the existing keystore is not encrypted, all certificates will be stored
+# unencrypted. If there is no certificate in the existing keystore, any newly
+# added certificate will be encrypted (or stored unencrypted if algorithm
+# value is "NONE") using the "keystore.pkcs12.certProtectionAlgorithm" and
+# "keystore.pkcs12.certPbeIterationCount" values defined here. Existing private
+# and secret key(s) are not changed. Newly set private and secret key(s) will
+# be encrypted using the "keystore.pkcs12.keyProtectionAlgorithm" and
+# "keystore.pkcs12.keyPbeIterationCount" values defined here.
+#
+# In order to apply new algorithms and parameters to all entries in an
+# existing keystore, one can create a new keystore and add entries in the
+# existing keystore into the new keystore. This can be achieved by calling the
+# "keytool -importkeystore" command.
+#
+# If a system property of the same name is also specified, it supersedes the
+# security property value defined here.
+#
+# If the property is set to an illegal value,
+# an iteration count that is not a positive integer, or an unknown algorithm
+# name, an exception will be thrown when the property is used.
+# If the property is not set or empty, a default value will be used.
+#
+# Note: These properties are currently used by the JDK Reference implementation.
+# They are not guaranteed to be examined and used by other implementations.
+
+# The algorithm used to encrypt a certificate. This can be any non-Hmac PBE
+# algorithm defined in the Cipher section of the Java Security Standard
+# Algorithm Names Specification. When set to "NONE", the certificate
+# is not encrypted. The default value is "PBEWithSHA1AndRC2_40".
+#keystore.pkcs12.certProtectionAlgorithm = PBEWithSHA1AndRC2_40
+
+# The iteration count used by the PBE algorithm when encrypting a certificate.
+# This value must be a positive integer. The default value is 50000.
+#keystore.pkcs12.certPbeIterationCount = 50000
+
+# The algorithm used to encrypt a private key or secret key. This can be
+# any non-Hmac PBE algorithm defined in the Cipher section of the Java
+# Security Standard Algorithm Names Specification. The value must not be "NONE".
+# The default value is "PBEWithSHA1AndDESede".
+#keystore.pkcs12.keyProtectionAlgorithm = PBEWithSHA1AndDESede
+
+# The iteration count used by the PBE algorithm when encrypting a private key
+# or a secret key. This value must be a positive integer. The default value
+# is 50000.
+#keystore.pkcs12.keyPbeIterationCount = 50000
+
+# The algorithm used to calculate the optional MacData at the end of a PKCS12
+# file. This can be any HmacPBE algorithm defined in the Mac section of the
+# Java Security Standard Algorithm Names Specification. When set to "NONE",
+# no Mac is generated. The default value is "HmacPBESHA1".
+#keystore.pkcs12.macAlgorithm = HmacPBESHA1
+
+# The iteration count used by the MacData algorithm. This value must be a
+# positive integer. The default value is 100000.
+#keystore.pkcs12.macIterationCount = 100000
+
+#
+# Enhanced exception message information
+#
+# By default, exception messages should not include potentially sensitive
+# information such as file names, host names, or port numbers. This property
+# accepts one or more comma separated values, each of which represents a
+# category of enhanced exception message information to enable. Values are
+# case-insensitive. Leading and trailing whitespaces, surrounding each value,
+# are ignored. Unknown values are ignored.
+#
+# NOTE: Use caution before setting this property. Setting this property
+# exposes sensitive information in Exceptions, which could, for example,
+# propagate to untrusted code or be emitted in stack traces that are
+# inadvertently disclosed and made accessible over a public network.
+#
+# The categories are:
+#
+#  hostInfo - IOExceptions thrown by java.net.Socket and the socket types in the
+#             java.nio.channels package will contain enhanced exception
+#             message information
+#
+#  jar      - enables more detailed information in the IOExceptions thrown
+#             by classes in the java.util.jar package
+#
+# The property setting in this file can be overridden by a system property of
+# the same name, with the same syntax and possible values.
+#
+#jdk.includeInExceptions=hostInfo,jar
+
+#
+# Policies for distrusting Certificate Authorities (CAs).
+#
+# This is a comma separated value of one or more case-sensitive strings, each
+# of which represents a policy for determining if a CA should be distrusted.
+# The supported values are:
+#
+# SYMANTEC_TLS : Distrust TLS Server certificates anchored by
+#                a Symantec root CA and issued after April 16, 2019.
+#
+# Leading and trailing whitespace surrounding each value are ignored.
+# Unknown values are ignored. If the property is commented out or set to the
+# empty String, no policies are enforced.
+#
+# Note: This property is currently used by the JDK Reference implementation.
+# It is not guaranteed to be supported by other SE implementations. Also, this
+# property does not override other security properties which can restrict
+# certificates such as jdk.tls.disabledAlgorithms or
+# jdk.certpath.disabledAlgorithms; those restrictions are still enforced even
+# if this property is not enabled.
+#
+jdk.security.caDistrustPolicies=SYMANTEC_TLS

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.test;
 
 import java.lang.invoke.ConstantCallSite;
@@ -46,6 +48,17 @@ public class HotSpotMethodSubstitutionTest extends MethodSubstitutionTest {
 
         test("getClass0", "a string");
         test("objectHashCode", obj);
+
+        testGraph("objectNotify", "Object.notify");
+        testGraph("objectNotifyAll", "Object.notifyAll");
+
+        synchronized (obj) {
+            test("objectNotify", obj);
+            test("objectNotifyAll", obj);
+        }
+        // Test with IllegalMonitorStateException (no synchronized block)
+        test("objectNotify", obj);
+        test("objectNotifyAll", obj);
     }
 
     @SuppressWarnings("all")
@@ -56,6 +69,16 @@ public class HotSpotMethodSubstitutionTest extends MethodSubstitutionTest {
     @SuppressWarnings("all")
     public static int objectHashCode(TestClassA obj) {
         return obj.hashCode();
+    }
+
+    @SuppressWarnings("all")
+    public static void objectNotify(Object obj) {
+        obj.notify();
+    }
+
+    @SuppressWarnings("all")
+    public static void objectNotifyAll(Object obj) {
+        obj.notifyAll();
     }
 
     @Test
@@ -208,7 +231,7 @@ public class HotSpotMethodSubstitutionTest extends MethodSubstitutionTest {
      */
     @Test
     public void testCast() {
-        test("testCastSnippet", 1, new Integer(1));
+        test("testCastSnippet", 1, Integer.valueOf(1));
     }
 
     /**

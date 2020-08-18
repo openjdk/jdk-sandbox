@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,18 +22,25 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_BARRIERSETCONFIG_INLINE_HPP
-#define SHARE_VM_GC_SHARED_BARRIERSETCONFIG_INLINE_HPP
+#ifndef SHARE_GC_SHARED_BARRIERSETCONFIG_INLINE_HPP
+#define SHARE_GC_SHARED_BARRIERSETCONFIG_INLINE_HPP
 
 #include "gc/shared/barrierSetConfig.hpp"
 
 #include "gc/shared/modRefBarrierSet.inline.hpp"
-#include "gc/shared/cardTableModRefBS.inline.hpp"
-#include "gc/shared/cardTableModRefBSForCTRS.hpp"
+#include "gc/shared/cardTableBarrierSet.inline.hpp"
 
-#if INCLUDE_ALL_GCS
-#include "gc/parallel/cardTableExtension.hpp"       // Parallel support
-#include "gc/g1/g1SATBCardTableModRefBS.inline.hpp" // G1 support
+#if INCLUDE_EPSILONGC
+#include "gc/epsilon/epsilonBarrierSet.hpp"
+#endif
+#if INCLUDE_G1GC
+#include "gc/g1/g1BarrierSet.inline.hpp"
+#endif
+#if INCLUDE_SHENANDOAHGC
+#include "gc/shenandoah/shenandoahBarrierSet.inline.hpp"
+#endif
+#if INCLUDE_ZGC
+#include "gc/z/zBarrierSet.inline.hpp"
 #endif
 
-#endif // SHARE_VM_GC_SHARED_BARRIERSETCONFIG_INLINE_HPP
+#endif // SHARE_GC_SHARED_BARRIERSETCONFIG_INLINE_HPP

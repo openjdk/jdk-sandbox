@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,14 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
 
     String v;
 
+    static final String static_final_v2 = "foo";
+
+    static String static_v2;
+
+    final String final_v2 = "foo";
+
+    String v2;
+
     VarHandle vhFinalField;
 
     VarHandle vhField;
@@ -59,6 +67,43 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
     VarHandle vhStaticFinalField;
 
     VarHandle vhArray;
+
+    VarHandle vhArrayObject;
+
+    VarHandle[] allocate(boolean same) {
+        List<VarHandle> vhs = new ArrayList<>();
+
+        String postfix = same ? "" : "2";
+        VarHandle vh;
+        try {
+            vh = MethodHandles.lookup().findVarHandle(
+                    VarHandleTestAccessString.class, "final_v" + postfix, String.class);
+            vhs.add(vh);
+
+            vh = MethodHandles.lookup().findVarHandle(
+                    VarHandleTestAccessString.class, "v" + postfix, String.class);
+            vhs.add(vh);
+
+            vh = MethodHandles.lookup().findStaticVarHandle(
+                VarHandleTestAccessString.class, "static_final_v" + postfix, String.class);
+            vhs.add(vh);
+
+            vh = MethodHandles.lookup().findStaticVarHandle(
+                VarHandleTestAccessString.class, "static_v" + postfix, String.class);
+            vhs.add(vh);
+
+            if (same) {
+                vh = MethodHandles.arrayElementVarHandle(String[].class);
+            }
+            else {
+                vh = MethodHandles.arrayElementVarHandle(int[].class);
+            }
+            vhs.add(vh);
+        } catch (Exception e) {
+            throw new InternalError(e);
+        }
+        return vhs.toArray(new VarHandle[0]);
+    }
 
     @BeforeClass
     public void setup() throws Exception {
@@ -75,6 +120,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
             VarHandleTestAccessString.class, "static_v", String.class);
 
         vhArray = MethodHandles.arrayElementVarHandle(String[].class);
+        vhArrayObject = MethodHandles.arrayElementVarHandle(Object[].class);
     }
 
 
@@ -86,6 +132,29 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
         vhs.add(vhArray);
 
         return vhs.stream().map(tc -> new Object[]{tc}).toArray(Object[][]::new);
+    }
+
+    @Test
+    public void testEqualsAndHashCode() {
+        VarHandle[] vhs1 = allocate(true);
+        VarHandle[] vhs2 = allocate(true);
+
+        for (int i = 0; i < vhs1.length; i++) {
+            for (int j = 0; j < vhs1.length; j++) {
+                if (i == j) {
+                    assertEquals(vhs1[i], vhs1[i]);
+                }
+                else {
+                    assertNotEquals(vhs1[i], vhs1[j]);
+                    assertNotEquals(vhs1[i], vhs2[j]);
+                }
+            }
+        }
+
+        VarHandle[] vhs3 = allocate(false);
+        for (int i = 0; i < vhs1.length; i++) {
+            assertNotEquals(vhs1[i], vhs3[i]);
+        }
     }
 
     @Test(dataProvider = "varHandlesProvider")
@@ -204,13 +273,17 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
 
         cases.add(new VarHandleAccessTestCase("Array",
                                               vhArray, VarHandleTestAccessString::testArray));
+        cases.add(new VarHandleAccessTestCase("Array Object[]",
+                                              vhArrayObject, VarHandleTestAccessString::testArray));
         cases.add(new VarHandleAccessTestCase("Array unsupported",
                                               vhArray, VarHandleTestAccessString::testArrayUnsupported,
                                               false));
         cases.add(new VarHandleAccessTestCase("Array index out of bounds",
                                               vhArray, VarHandleTestAccessString::testArrayIndexOutOfBounds,
                                               false));
-
+        cases.add(new VarHandleAccessTestCase("Array store exception",
+                                              vhArrayObject, VarHandleTestAccessString::testArrayStoreException,
+                                              false));
         // Work around issue with jtreg summary reporting which truncates
         // the String result of Object.toString to 30 characters, hence
         // the first dummy argument
@@ -1145,6 +1218,87 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
 
 
         }
+    }
+
+    static void testArrayStoreException(VarHandle vh) throws Throwable {
+        Object[] array = new String[10];
+        Arrays.fill(array, "foo");
+        Object value = new Object();
+
+        // Set
+        checkASE(() -> {
+            vh.set(array, 0, value);
+        });
+
+        // SetVolatile
+        checkASE(() -> {
+            vh.setVolatile(array, 0, value);
+        });
+
+        // SetOpaque
+        checkASE(() -> {
+            vh.setOpaque(array, 0, value);
+        });
+
+        // SetRelease
+        checkASE(() -> {
+            vh.setRelease(array, 0, value);
+        });
+
+        // CompareAndSet
+        checkASE(() -> { // receiver reference class
+            boolean r = vh.compareAndSet(array, 0, "foo", value);
+        });
+
+        // WeakCompareAndSet
+        checkASE(() -> { // receiver reference class
+            boolean r = vh.weakCompareAndSetPlain(array, 0, "foo", value);
+        });
+
+        // WeakCompareAndSetVolatile
+        checkASE(() -> { // receiver reference class
+            boolean r = vh.weakCompareAndSet(array, 0, "foo", value);
+        });
+
+        // WeakCompareAndSetAcquire
+        checkASE(() -> { // receiver reference class
+            boolean r = vh.weakCompareAndSetAcquire(array, 0, "foo", value);
+        });
+
+        // WeakCompareAndSetRelease
+        checkASE(() -> { // receiver reference class
+            boolean r = vh.weakCompareAndSetRelease(array, 0, "foo", value);
+        });
+
+        // CompareAndExchange
+        checkASE(() -> { // receiver reference class
+            String x = (String) vh.compareAndExchange(array, 0, "foo", value);
+        });
+
+        // CompareAndExchangeAcquire
+        checkASE(() -> { // receiver reference class
+            String x = (String) vh.compareAndExchangeAcquire(array, 0, "foo", value);
+        });
+
+        // CompareAndExchangeRelease
+        checkASE(() -> { // receiver reference class
+            String x = (String) vh.compareAndExchangeRelease(array, 0, "foo", value);
+        });
+
+        // GetAndSet
+        checkASE(() -> { // receiver reference class
+            String x = (String) vh.getAndSet(array, 0, value);
+        });
+
+        // GetAndSetAcquire
+        checkASE(() -> { // receiver reference class
+            String x = (String) vh.getAndSetAcquire(array, 0, value);
+        });
+
+        // GetAndSetRelease
+        checkASE(() -> { // receiver reference class
+            String x = (String) vh.getAndSetRelease(array, 0, value);
+        });
     }
 }
 

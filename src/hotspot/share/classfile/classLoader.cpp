@@ -26,7 +26,7 @@
 #include "jvm.h"
 #include "jimage.hpp"
 #include "classfile/classFileStream.hpp"
-#include "classfile/classLoader.hpp"
+#include "classfile/classLoader.inline.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoaderExt.hpp"
 #include "classfile/javaClasses.hpp"
@@ -37,8 +37,6 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileBroker.hpp"
-#include "gc/shared/collectedHeap.inline.hpp"
-#include "gc/shared/generation.hpp"
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/oopMapCache.hpp"
 #include "logging/log.hpp"
@@ -48,9 +46,10 @@
 #include "memory/filemap.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceRefKlass.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
@@ -60,10 +59,10 @@
 #include "runtime/handles.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
-#include "runtime/os.hpp"
+#include "runtime/os.inline.hpp"
 #include "runtime/threadCritical.hpp"
 #include "runtime/timer.hpp"
 #include "runtime/vm_version.hpp"
@@ -73,19 +72,18 @@
 #include "utilities/hashtable.inline.hpp"
 #include "utilities/macros.hpp"
 #if INCLUDE_CDS
-#include "classfile/sharedClassUtil.hpp"
 #include "classfile/sharedPathsMiscInfo.hpp"
 #endif
 
 // Entry points in zip.dll for loading zip/jar file entries
 
-typedef void * * (JNICALL *ZipOpen_t)(const char *name, char **pmsg);
-typedef void (JNICALL *ZipClose_t)(jzfile *zip);
-typedef jzentry* (JNICALL *FindEntry_t)(jzfile *zip, const char *name, jint *sizeP, jint *nameLen);
-typedef jboolean (JNICALL *ReadEntry_t)(jzfile *zip, jzentry *entry, unsigned char *buf, char *namebuf);
-typedef jzentry* (JNICALL *GetNextEntry_t)(jzfile *zip, jint n);
-typedef jboolean (JNICALL *ZipInflateFully_t)(void *inBuf, jlong inLen, void *outBuf, jlong outLen, char **pmsg);
-typedef jint     (JNICALL *Crc32_t)(jint crc, const jbyte *buf, jint len);
+typedef void * * (*ZipOpen_t)(const char *name, char **pmsg);
+typedef void (*ZipClose_t)(jzfile *zip);
+typedef jzentry* (*FindEntry_t)(jzfile *zip, const char *name, jint *sizeP, jint *nameLen);
+typedef jboolean (*ReadEntry_t)(jzfile *zip, jzentry *entry, unsigned char *buf, char *namebuf);
+typedef jzentry* (*GetNextEntry_t)(jzfile *zip, jint n);
+typedef jboolean (*ZipInflateFully_t)(void *inBuf, jlong inLen, void *outBuf, jlong outLen, char **pmsg);
+typedef jint     (*Crc32_t)(jint crc, const jbyte *buf, jint len);
 
 static ZipOpen_t         ZipOpen            = NULL;
 static ZipClose_t        ZipClose           = NULL;
@@ -137,7 +135,6 @@ PerfCounter*    ClassLoader::_sync_JVMFindLoadedClassLockFreeCounter = NULL;
 PerfCounter*    ClassLoader::_sync_JVMDefineClassLockFreeCounter = NULL;
 PerfCounter*    ClassLoader::_sync_JNIDefineClassLockFreeCounter = NULL;
 PerfCounter*    ClassLoader::_unsafe_defineClassCallCounter = NULL;
-PerfCounter*    ClassLoader::_load_instance_class_failCounter = NULL;
 
 GrowableArray<ModuleClassPathList*>* ClassLoader::_patch_mod_entries = NULL;
 GrowableArray<ModuleClassPathList*>* ClassLoader::_exploded_entries = NULL;
@@ -147,8 +144,8 @@ ClassPathEntry* ClassLoader::_last_append_entry  = NULL;
 #if INCLUDE_CDS
 ClassPathEntry* ClassLoader::_app_classpath_entries = NULL;
 ClassPathEntry* ClassLoader::_last_app_classpath_entry = NULL;
-GrowableArray<char*>* ClassLoader::_boot_modules_array = NULL;
-GrowableArray<char*>* ClassLoader::_platform_modules_array = NULL;
+ClassPathEntry* ClassLoader::_module_path_entries = NULL;
+ClassPathEntry* ClassLoader::_last_module_path_entry = NULL;
 SharedPathsMiscInfo* ClassLoader::_shared_paths_misc_info = NULL;
 #endif
 
@@ -166,7 +163,7 @@ static const char* get_jimage_version_string() {
   static char version_string[10] = "";
   if (version_string[0] == '\0') {
     jio_snprintf(version_string, sizeof(version_string), "%d.%d",
-                 Abstract_VM_Version::vm_major_version(), Abstract_VM_Version::vm_minor_version());
+                 VM_Version::vm_major_version(), VM_Version::vm_minor_version());
   }
   return (const char*)version_string;
 }
@@ -269,14 +266,6 @@ ClassFileStream* ClassPathDirEntry::open_stream(const char* name, TRAPS) {
   // check if file exists
   struct stat st;
   if (os::stat(path, &st) == 0) {
-#if INCLUDE_CDS
-    if (DumpSharedSpaces) {
-      // We have already check in ClassLoader::check_shared_classpath() that the directory is empty, so
-      // we should never find a file underneath it -- unless user has added a new file while we are running
-      // the dump, in which case let's quit!
-      ShouldNotReachHere();
-    }
-#endif
     // found file, open it
     int file_handle = os::open(path, 0, 0);
     if (file_handle != -1) {
@@ -308,8 +297,6 @@ ClassPathZipEntry::ClassPathZipEntry(jzfile* zip, const char* zip_name, bool is_
   char *copy = NEW_C_HEAP_ARRAY(char, strlen(zip_name)+1, mtClass);
   strcpy(copy, zip_name);
   _zip_name = copy;
-  _is_boot_append = is_boot_append;
-  _multi_versioned = _unknown;
 }
 
 ClassPathZipEntry::~ClassPathZipEntry() {
@@ -348,95 +335,11 @@ u1* ClassPathZipEntry::open_entry(const char* name, jint* filesize, bool nul_ter
   return buffer;
 }
 
-#if INCLUDE_CDS
-u1* ClassPathZipEntry::open_versioned_entry(const char* name, jint* filesize, TRAPS) {
-  u1* buffer = NULL;
-  if (DumpSharedSpaces && !_is_boot_append) {
-    // We presume default is multi-release enabled
-    const char* multi_ver = Arguments::get_property("jdk.util.jar.enableMultiRelease");
-    const char* verstr = Arguments::get_property("jdk.util.jar.version");
-    bool is_multi_ver = (multi_ver == NULL ||
-                         strcmp(multi_ver, "true") == 0 ||
-                         strcmp(multi_ver, "force")  == 0) &&
-                         is_multiple_versioned(THREAD);
-    // command line version setting
-    int version = 0;
-    const int base_version = 8; // JDK8
-    int cur_ver = JDK_Version::current().major_version();
-    if (verstr != NULL) {
-      version = atoi(verstr);
-      if (version < base_version || version > cur_ver) {
-        // If the specified version is lower than the base version, the base
-        // entry will be used; if the version is higher than the current
-        // jdk version, the highest versioned entry will be used.
-        if (version < base_version) {
-          is_multi_ver = false;
-        }
-        // print out warning, do not use assertion here since it will continue to look
-        // for proper version.
-        warning("JDK%d is not supported in multiple version jars", version);
-      }
-    }
-
-    if (is_multi_ver) {
-      int n;
-      const char* version_entry = "META-INF/versions/";
-      // 10 is the max length of a decimal 32-bit non-negative number
-      // 2 includes the '/' and trailing zero
-      size_t entry_name_len = strlen(version_entry) + 10 + strlen(name) + 2;
-      char* entry_name = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, entry_name_len);
-      if (version > 0) {
-        n = jio_snprintf(entry_name, entry_name_len, "%s%d/%s", version_entry, version, name);
-        entry_name[n] = '\0';
-        buffer = open_entry((const char*)entry_name, filesize, false, CHECK_NULL);
-        if (buffer == NULL) {
-          warning("Could not find %s in %s, try to find highest version instead", entry_name, _zip_name);
-        }
-      }
-      if (buffer == NULL) {
-        for (int i = cur_ver; i >= base_version; i--) {
-          n = jio_snprintf(entry_name, entry_name_len, "%s%d/%s", version_entry, i, name);
-          entry_name[n] = '\0';
-          buffer = open_entry((const char*)entry_name, filesize, false, CHECK_NULL);
-          if (buffer != NULL) {
-            break;
-          }
-        }
-      }
-      FREE_RESOURCE_ARRAY(char, entry_name, entry_name_len);
-    }
-  }
-  return buffer;
-}
-
-bool ClassPathZipEntry::is_multiple_versioned(TRAPS) {
-  assert(DumpSharedSpaces, "called only at dump time");
-  if (_multi_versioned != _unknown) {
-    return (_multi_versioned == _yes) ? true : false;
-  }
-  jint size;
-  char* buffer = (char*)open_entry("META-INF/MANIFEST.MF", &size, true, CHECK_false);
-  if (buffer != NULL) {
-    char* p = buffer;
-    for ( ; *p; ++p) *p = tolower(*p);
-    if (strstr(buffer, "multi-release: true") != NULL) {
-      _multi_versioned = _yes;
-      return true;
-    }
-  }
-  _multi_versioned = _no;
-  return false;
-}
-#endif // INCLUDE_CDS
-
 ClassFileStream* ClassPathZipEntry::open_stream(const char* name, TRAPS) {
   jint filesize;
-  u1* buffer = open_versioned_entry(name, &filesize, CHECK_NULL);
+  u1* buffer = open_entry(name, &filesize, false, CHECK_NULL);
   if (buffer == NULL) {
-    buffer = open_entry(name, &filesize, false, CHECK_NULL);
-    if (buffer == NULL) {
-      return NULL;
-    }
+    return NULL;
   }
   if (UsePerfData) {
     ClassLoader::perf_sys_classfile_bytes_read()->inc(filesize);
@@ -457,6 +360,13 @@ void ClassPathZipEntry::contents_do(void f(const char* name, void* context), voi
     jzentry * ze = ((*GetNextEntry)(_zip, n));
     if (ze == NULL) break;
     (*f)(ze->name, context);
+  }
+}
+
+void ClassPathImageEntry::close_jimage() {
+  if (_jimage != NULL) {
+    (*JImageClose)(_jimage);
+    _jimage = NULL;
   }
 }
 
@@ -550,37 +460,6 @@ JImageLocationRef ClassLoader::jimage_find_resource(JImageFile* jf,
   return ((*JImageFindResource)(jf, module_name, get_jimage_version_string(), file_name, &size));
 }
 
-#ifndef PRODUCT
-bool ctw_visitor(JImageFile* jimage,
-        const char* module_name, const char* version, const char* package,
-        const char* name, const char* extension, void* arg) {
-  if (strcmp(extension, "class") == 0) {
-    Thread* THREAD = Thread::current();
-    ResourceMark rm(THREAD);
-    char* path = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, JIMAGE_MAX_PATH);
-    jio_snprintf(path, JIMAGE_MAX_PATH - 1, "%s/%s.class", package, name);
-    ClassLoader::compile_the_world_in(path, *(Handle*)arg, THREAD);
-    return !HAS_PENDING_EXCEPTION;
-  }
-  return true;
-}
-
-void ClassPathImageEntry::compile_the_world(Handle loader, TRAPS) {
-  tty->print_cr("CompileTheWorld : Compiling all classes in %s", name());
-  tty->cr();
-  (*JImageResourceIterator)(_jimage, (JImageResourceVisitor_t)ctw_visitor, (void *)&loader);
-  if (HAS_PENDING_EXCEPTION) {
-    if (PENDING_EXCEPTION->is_a(SystemDictionary::OutOfMemoryError_klass())) {
-      CLEAR_PENDING_EXCEPTION;
-      tty->print_cr("\nCompileTheWorld : Ran out of memory\n");
-      tty->print_cr("Increase class metadata storage if a limit was set");
-    } else {
-      tty->print_cr("\nCompileTheWorld : Unexpected exception occurred\n");
-    }
-  }
-}
-#endif
-
 bool ClassPathImageEntry::is_modules_image() const {
   return ClassLoader::is_modules_image(name());
 }
@@ -643,26 +522,9 @@ void ClassLoader::trace_class_path(const char* msg, const char* name) {
   }
 }
 
-#if INCLUDE_CDS
-void ClassLoader::check_shared_classpath(const char *path) {
-  if (strcmp(path, "") == 0) {
-    exit_with_path_failure("Cannot have empty path in archived classpaths", NULL);
-  }
-
-  struct stat st;
-  if (os::stat(path, &st) == 0) {
-    if ((st.st_mode & S_IFMT) != S_IFREG) { // is not a regular file
-      if (!os::dir_is_empty(path)) {
-        tty->print_cr("Error: non-empty directory '%s'", path);
-        exit_with_path_failure("CDS allows only empty directories in archived classpaths", NULL);
-      }
-    }
-  }
-}
-#endif
-
 void ClassLoader::setup_bootstrap_search_path() {
   const char* sys_class_path = Arguments::get_sysclasspath();
+  assert(sys_class_path != NULL, "System boot class path must not be NULL");
   if (PrintSharedArchiveAndExit) {
     // Don't print sys_class_path - this is the bootcp of this current VM process, not necessarily
     // the same as the bootcp of the shared archive.
@@ -687,7 +549,7 @@ void* ClassLoader::get_shared_paths_misc_info() {
 }
 
 bool ClassLoader::check_shared_paths_misc_info(void *buf, int size) {
-  SharedPathsMiscInfo* checker = SharedClassUtil::allocate_shared_paths_misc_info((char*)buf, size);
+  SharedPathsMiscInfo* checker = new SharedPathsMiscInfo((char*)buf, size);
   bool result = checker->check();
   delete checker;
   return result;
@@ -712,8 +574,6 @@ void ClassLoader::setup_app_search_path(const char *class_path) {
     strncpy(path, &class_path[start], end - start);
     path[end - start] = '\0';
 
-    check_shared_classpath(path);
-
     update_class_path_entry_list(path, false, false);
 
     while (class_path[end] == os::path_separator()[0]) {
@@ -722,7 +582,52 @@ void ClassLoader::setup_app_search_path(const char *class_path) {
   }
 }
 
-#endif
+void ClassLoader::add_to_module_path_entries(const char* path,
+                                             ClassPathEntry* entry) {
+  assert(entry != NULL, "ClassPathEntry should not be NULL");
+  assert(DumpSharedSpaces, "dump time only");
+
+  // The entry does not exist, add to the list
+  if (_module_path_entries == NULL) {
+    assert(_last_module_path_entry == NULL, "Sanity");
+    _module_path_entries = _last_module_path_entry = entry;
+  } else {
+    _last_module_path_entry->set_next(entry);
+    _last_module_path_entry = entry;
+  }
+}
+
+// Add a module path to the _module_path_entries list.
+void ClassLoader::update_module_path_entry_list(const char *path, TRAPS) {
+  assert(DumpSharedSpaces, "dump time only");
+  struct stat st;
+  if (os::stat(path, &st) != 0) {
+    tty->print_cr("os::stat error %d (%s). CDS dump aborted (path was \"%s\").",
+      errno, os::errno_name(errno), path);
+    vm_exit_during_initialization();
+  }
+  // File or directory found
+  ClassPathEntry* new_entry = NULL;
+  new_entry = create_class_path_entry(path, &st, true /* throw_exception */,
+                                      false /*is_boot_append */, CHECK);
+  if (new_entry == NULL) {
+    return;
+  }
+
+  add_to_module_path_entries(path, new_entry);
+  return;
+}
+
+void ClassLoader::setup_module_search_path(const char* path, TRAPS) {
+  update_module_path_entry_list(path, THREAD);
+}
+
+void ClassLoader::close_jrt_image() {
+  assert(ClassLoader::has_jrt_entry(), "Not applicable for exploded builds");
+  _jrt_entry->close_jimage();
+}
+
+#endif // INCLUDE_CDS
 
 // Construct the array of module/path pairs as specified to --patch-module
 // for the boot loader to search ahead of the jimage, if the class being
@@ -759,7 +664,6 @@ void ClassLoader::setup_patch_mod_entries() {
       struct stat st;
       if (os::stat(path, &st) == 0) {
         // File or directory found
-        Thread* THREAD = Thread::current();
         ClassPathEntry* new_entry = create_class_path_entry(path, &st, false, false, CHECK);
         // If the path specification is valid, enter it into this module's list
         if (new_entry != NULL) {
@@ -829,7 +733,6 @@ void ClassLoader::setup_boot_search_path(const char *class_path) {
       struct stat st;
       if (os::stat(path, &st) == 0) {
         // Directory found
-        Thread* THREAD = Thread::current();
         ClassPathEntry* new_entry = create_class_path_entry(path, &st, false, false, CHECK);
 
         // Check for a jimage
@@ -850,11 +753,6 @@ void ClassLoader::setup_boot_search_path(const char *class_path) {
       update_class_path_entry_list(path, false, true);
     }
 
-#if INCLUDE_CDS
-    if (DumpSharedSpaces) {
-      check_shared_classpath(path);
-    }
-#endif
     while (class_path[end] == os::path_separator()[0]) {
       end++;
     }
@@ -874,7 +772,7 @@ void ClassLoader::add_to_exploded_build_list(Symbol* module_sym, TRAPS) {
   const char file_sep = os::file_separator()[0];
   // 10 represents the length of "modules" + 2 file separators + \0
   size_t len = strlen(home) + strlen(module_name) + 10;
-  char *path = NEW_C_HEAP_ARRAY(char, len, mtModule);
+  char *path = NEW_RESOURCE_ARRAY(char, len);
   jio_snprintf(path, len, "%s%cmodules%c%s", home, file_sep, file_sep, module_name);
 
   struct stat st;
@@ -896,7 +794,6 @@ void ClassLoader::add_to_exploded_build_list(Symbol* module_sym, TRAPS) {
       log_info(class, load)("path: %s", path);
     }
   }
-  FREE_C_HEAP_ARRAY(char, path);
 }
 
 ClassPathEntry* ClassLoader::create_class_path_entry(const char *path, const struct stat* st,
@@ -1047,11 +944,6 @@ void ClassLoader::add_to_app_classpath_entries(const char* path,
 
   if (entry->is_jar_file()) {
     ClassLoaderExt::process_jar_manifest(entry, check_for_duplicates);
-  } else {
-    if (!os::dir_is_empty(path)) {
-      tty->print_cr("Error: non-empty directory '%s'", path);
-      exit_with_path_failure("Cannot have non-empty directory in app classpaths", NULL);
-    }
   }
 #endif
 }
@@ -1314,13 +1206,14 @@ const char* ClassLoader::file_name_for_class_name(const char* class_name,
   assert((int)strlen(class_name) == class_name_len, "invariant");
 
   static const char class_suffix[] = ".class";
+  size_t class_suffix_len = sizeof(class_suffix);
 
   char* const file_name = NEW_RESOURCE_ARRAY(char,
                                              class_name_len +
-                                             sizeof(class_suffix)); // includes term NULL
+                                             class_suffix_len); // includes term NULL
 
   strncpy(file_name, class_name, class_name_len);
-  strncpy(&file_name[class_name_len], class_suffix, sizeof(class_suffix));
+  strncpy(&file_name[class_name_len], class_suffix, class_suffix_len);
 
   return file_name;
 }
@@ -1412,23 +1305,17 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
                                                          name->utf8_length());
   assert(file_name != NULL, "invariant");
 
-  ClassLoaderExt::Context context(class_name, file_name, THREAD);
-
   // Lookup stream for parsing .class file
   ClassFileStream* stream = NULL;
   s2 classpath_index = 0;
   ClassPathEntry* e = NULL;
 
-  // If DumpSharedSpaces is true boot loader visibility boundaries are set to:
-  //   - [jimage] + [_first_append_entry to _last_append_entry] (all path entries).
-  //
   // If search_append_only is true, boot loader visibility boundaries are
   // set to be _first_append_entry to the end. This includes:
   //   [-Xbootclasspath/a]; [jvmti appended entries]
   //
-  // If both DumpSharedSpaces and search_append_only are false, boot loader
-  // visibility boundaries are set to be the --patch-module entries plus the base piece.
-  // This would include:
+  // If search_append_only is false, boot loader visibility boundaries are
+  // set to be the --patch-module entries plus the base piece. This includes:
   //   [--patch-module=<module>=<file>(<pathsep><file>)*]; [jimage | exploded module build]
   //
 
@@ -1456,9 +1343,6 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
     if (has_jrt_entry()) {
       e = _jrt_entry;
       stream = _jrt_entry->open_stream(file_name, CHECK_NULL);
-      if (!context.check(stream, classpath_index)) {
-        return NULL;
-      }
     } else {
       // Exploded build - attempt to locate class in its defining module's location.
       assert(_exploded_entries != NULL, "No exploded build entries present");
@@ -1467,7 +1351,7 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
   }
 
   // Load Attempt #3: [-Xbootclasspath/a]; [jvmti appended entries]
-  if ((search_append_only || DumpSharedSpaces) && (NULL == stream)) {
+  if (search_append_only && (NULL == stream)) {
     // For the boot loader append path search, the starting classpath_index
     // for the appended piece is always 1 to account for either the
     // _jrt_entry or the _exploded_entries.
@@ -1477,9 +1361,6 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
     e = _first_append_entry;
     while (e != NULL) {
       stream = e->open_stream(file_name, CHECK_NULL);
-      if (!context.check(stream, classpath_index)) {
-        return NULL;
-      }
       if (NULL != stream) {
         break;
       }
@@ -1492,7 +1373,7 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
     return NULL;
   }
 
-  stream->set_verify(context.should_verify(classpath_index));
+  stream->set_verify(ClassLoaderExt::should_verify(classpath_index));
 
   ClassLoaderData* loader_data = ClassLoaderData::the_null_class_loader_data();
   Handle protection_domain;
@@ -1501,7 +1382,7 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
                                                            name,
                                                            loader_data,
                                                            protection_domain,
-                                                           NULL, // host_klass
+                                                           NULL, // unsafe_anonymous_host
                                                            NULL, // cp_patches
                                                            THREAD);
   if (HAS_PENDING_EXCEPTION) {
@@ -1519,7 +1400,7 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
 }
 
 #if INCLUDE_CDS
-static char* skip_uri_protocol(char* source) {
+char* ClassLoader::skip_uri_protocol(char* source) {
   if (strncmp(source, "file:", 5) == 0) {
     // file: protocol path could start with file:/ or file:///
     // locate the char after all the forward slashes
@@ -1540,18 +1421,19 @@ static char* skip_uri_protocol(char* source) {
 
 // Record the shared classpath index and loader type for classes loaded
 // by the builtin loaders at dump time.
-void ClassLoader::record_result(InstanceKlass* ik, const ClassFileStream* stream) {
+void ClassLoader::record_result(InstanceKlass* ik, const ClassFileStream* stream, TRAPS) {
   assert(DumpSharedSpaces, "sanity");
   assert(stream != NULL, "sanity");
 
-  if (ik->is_anonymous()) {
-    // We do not archive anonymous classes.
+  if (ik->is_unsafe_anonymous()) {
+    // We do not archive unsafe anonymous classes.
     return;
   }
 
+  oop loader = ik->class_loader();
   char* src = (char*)stream->source();
   if (src == NULL) {
-    if (ik->class_loader() == NULL) {
+    if (loader == NULL) {
       // JFR classes
       ik->set_shared_classpath_index(0);
       ik->set_class_loader_type(ClassLoader::BOOT_LOADER);
@@ -1561,43 +1443,92 @@ void ClassLoader::record_result(InstanceKlass* ik, const ClassFileStream* stream
 
   assert(has_jrt_entry(), "CDS dumping does not support exploded JDK build");
 
-  ModuleEntry* module = ik->module();
+  ResourceMark rm(THREAD);
   int classpath_index = -1;
-  ResourceMark rm;
-  char* canonical_path = NEW_RESOURCE_ARRAY(char, JVM_MAXPATHLEN);
+  PackageEntry* pkg_entry = ik->package();
 
-  // save the path from the file: protocol or the module name from the jrt: protocol
-  // if no protocol prefix is found, path is the same as stream->source()
-  char* path = skip_uri_protocol(src);
-  for (int i = 0; i < FileMapInfo::get_number_of_share_classpaths(); i++) {
-    SharedClassPathEntry* ent = FileMapInfo::shared_classpath(i);
-    if (get_canonical_path(ent->name(), canonical_path, JVM_MAXPATHLEN)) {
-      // If the path (from the class stream srouce) is the same as the shared
-      // class path, then we have a match. For classes from module image loaded by the
-      // PlatformClassLoader, the stream->source() is not the name of the module image.
-      // Need to look for 'jrt:' explicitly.
-      if (strcmp(canonical_path, os::native_path((char*)path)) == 0 ||
-          (i == 0 && string_starts_with(src, "jrt:"))) {
+  if (FileMapInfo::get_number_of_shared_paths() > 0) {
+    char* canonical_path_table_entry = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, JVM_MAXPATHLEN);
+
+    // save the path from the file: protocol or the module name from the jrt: protocol
+    // if no protocol prefix is found, path is the same as stream->source()
+    char* path = skip_uri_protocol(src);
+    char* canonical_class_src_path = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, JVM_MAXPATHLEN);
+    bool success = get_canonical_path(path, canonical_class_src_path, JVM_MAXPATHLEN);
+    // The path is from the ClassFileStream. Since a ClassFileStream has been created successfully in functions
+    // such as ClassLoader::load_class(), its source path must be valid.
+    assert(success, "must be valid path");
+    for (int i = 0; i < FileMapInfo::get_number_of_shared_paths(); i++) {
+      SharedClassPathEntry* ent = FileMapInfo::shared_path(i);
+      success = get_canonical_path(ent->name(), canonical_path_table_entry, JVM_MAXPATHLEN);
+      // A shared path has been validated during its creation in ClassLoader::create_class_path_entry(),
+      // it must be valid here.
+      assert(success, "must be valid path");
+      // If the path (from the class stream source) is the same as the shared
+      // class or module path, then we have a match.
+      if (strcmp(canonical_path_table_entry, canonical_class_src_path) == 0) {
+        // NULL pkg_entry and pkg_entry in an unnamed module implies the class
+        // is from the -cp or boot loader append path which consists of -Xbootclasspath/a
+        // and jvmti appended entries.
+        if ((pkg_entry == NULL) || (pkg_entry->in_unnamed_module())) {
+          // Ensure the index is within the -cp range before assigning
+          // to the classpath_index.
+          if (SystemDictionary::is_system_class_loader(loader) &&
+              (i >= ClassLoaderExt::app_class_paths_start_index()) &&
+              (i < ClassLoaderExt::app_module_paths_start_index())) {
+            classpath_index = i;
+            break;
+          } else {
+            if ((i >= 1) &&
+                (i < ClassLoaderExt::app_class_paths_start_index())) {
+              // The class must be from boot loader append path which consists of
+              // -Xbootclasspath/a and jvmti appended entries.
+              assert(loader == NULL, "sanity");
+              classpath_index = i;
+              break;
+            }
+          }
+        } else {
+          // A class from a named module from the --module-path. Ensure the index is
+          // within the --module-path range before assigning to the classpath_index.
+          if ((pkg_entry != NULL) && !(pkg_entry->in_unnamed_module()) && (i > 0)) {
+            if (i >= ClassLoaderExt::app_module_paths_start_index() &&
+                i < FileMapInfo::get_number_of_shared_paths()) {
+              classpath_index = i;
+              break;
+            }
+          }
+        }
+      }
+      // for index 0 and the stream->source() is the modules image or has the jrt: protocol.
+      // The class must be from the runtime modules image.
+      if (i == 0 && (is_modules_image(src) || string_starts_with(src, "jrt:"))) {
         classpath_index = i;
         break;
       }
     }
-  }
-  if (classpath_index < 0) {
-    // Shared classpath entry table only contains boot class path and -cp path.
+
     // No path entry found for this class. Must be a shared class loaded by the
     // user defined classloader.
-    assert(ik->shared_classpath_index() < 0, "Sanity");
-    return;
+    if (classpath_index < 0) {
+      assert(ik->shared_classpath_index() < 0, "Sanity");
+      return;
+    }
+  } else {
+    // The shared path table is set up after module system initialization.
+    // The path table contains no entry before that. Any classes loaded prior
+    // to the setup of the shared path table must be from the modules image.
+    assert(is_modules_image(src), "stream must be from modules image");
+    assert(FileMapInfo::get_number_of_shared_paths() == 0, "shared path table must not have been setup");
+    classpath_index = 0;
   }
 
   const char* const class_name = ik->name()->as_C_string();
   const char* const file_name = file_name_for_class_name(class_name,
                                                          ik->name()->utf8_length());
   assert(file_name != NULL, "invariant");
-  Thread* THREAD = Thread::current();
-  ClassLoaderExt::Context context(class_name, file_name, CATCH);
-  context.record_result(ik->name(), classpath_index, ik, THREAD);
+
+  ClassLoaderExt::record_result(classpath_index, ik, THREAD);
 }
 #endif // INCLUDE_CDS
 
@@ -1655,9 +1586,6 @@ void ClassLoader::initialize() {
 
     NEWPERFEVENTCOUNTER(_unsafe_defineClassCallCounter, SUN_CLS,
                         "unsafeDefineClassCalls");
-
-    NEWPERFEVENTCOUNTER(_load_instance_class_failCounter, SUN_CLS,
-                        "loadInstanceClassFailRate");
   }
 
   // lookup zip library entry points
@@ -1667,7 +1595,7 @@ void ClassLoader::initialize() {
 #if INCLUDE_CDS
   // initialize search path
   if (DumpSharedSpaces) {
-    _shared_paths_misc_info = SharedClassUtil::allocate_shared_paths_misc_info();
+    _shared_paths_misc_info = new SharedPathsMiscInfo();
   }
 #endif
   setup_bootstrap_search_path();
@@ -1678,6 +1606,13 @@ void ClassLoader::initialize_shared_path() {
   if (DumpSharedSpaces) {
     ClassLoaderExt::setup_search_paths();
     _shared_paths_misc_info->write_jint(0); // see comments in SharedPathsMiscInfo::check()
+  }
+}
+
+void ClassLoader::initialize_module_path(TRAPS) {
+  if (DumpSharedSpaces) {
+    ClassLoaderExt::setup_module_paths(THREAD);
+    FileMapInfo::allocate_shared_path_table();
   }
 }
 #endif
@@ -1797,247 +1732,6 @@ void ClassLoader::create_javabase() {
     ModuleEntryTable::set_javabase_moduleEntry(jb_module);
   }
 }
-
-#ifndef PRODUCT
-
-// CompileTheWorld
-//
-// Iterates over all class path entries and forces compilation of all methods
-// in all classes found. Currently, only zip/jar archives are searched.
-//
-// The classes are loaded by the Java level bootstrap class loader, and the
-// initializer is called. If DelayCompilationDuringStartup is true (default),
-// the interpreter will run the initialization code. Note that forcing
-// initialization in this way could potentially lead to initialization order
-// problems, in which case we could just force the initialization bit to be set.
-
-
-// We need to iterate over the contents of a zip/jar file, so we replicate the
-// jzcell and jzfile definitions from zip_util.h but rename jzfile to real_jzfile,
-// since jzfile already has a void* definition.
-//
-// Note that this is only used in debug mode.
-//
-// HotSpot integration note:
-// Matches zip_util.h 1.14 99/06/01 from jdk1.3 beta H build
-
-
-// JDK 1.3 version
-typedef struct real_jzentry {         /* Zip file entry */
-    char *name;                 /* entry name */
-    jint time;                  /* modification time */
-    jint size;                  /* size of uncompressed data */
-    jint csize;                 /* size of compressed data (zero if uncompressed) */
-    jint crc;                   /* crc of uncompressed data */
-    char *comment;              /* optional zip file comment */
-    jbyte *extra;               /* optional extra data */
-    jint pos;                   /* position of LOC header (if negative) or data */
-} real_jzentry;
-
-typedef struct real_jzfile {  /* Zip file */
-    char *name;                 /* zip file name */
-    jint refs;                  /* number of active references */
-    jint fd;                    /* open file descriptor */
-    void *lock;                 /* read lock */
-    char *comment;              /* zip file comment */
-    char *msg;                  /* zip error message */
-    void *entries;              /* array of hash cells */
-    jint total;                 /* total number of entries */
-    unsigned short *table;      /* Hash chain heads: indexes into entries */
-    jint tablelen;              /* number of hash eads */
-    real_jzfile *next;        /* next zip file in search list */
-    jzentry *cache;             /* we cache the most recently freed jzentry */
-    /* Information on metadata names in META-INF directory */
-    char **metanames;           /* array of meta names (may have null names) */
-    jint metacount;             /* number of slots in metanames array */
-    /* If there are any per-entry comments, they are in the comments array */
-    char **comments;
-} real_jzfile;
-
-void ClassPathDirEntry::compile_the_world(Handle loader, TRAPS) {
-  // For now we only compile all methods in all classes in zip/jar files
-  tty->print_cr("CompileTheWorld : Skipped classes in %s", _dir);
-  tty->cr();
-}
-
-void ClassPathZipEntry::compile_the_world(Handle loader, TRAPS) {
-  real_jzfile* zip = (real_jzfile*) _zip;
-  tty->print_cr("CompileTheWorld : Compiling all classes in %s", zip->name);
-  tty->cr();
-  // Iterate over all entries in zip file
-  for (int n = 0; ; n++) {
-    real_jzentry * ze = (real_jzentry *)((*GetNextEntry)(_zip, n));
-    if (ze == NULL) break;
-    ClassLoader::compile_the_world_in(ze->name, loader, CHECK);
-  }
-  if (HAS_PENDING_EXCEPTION) {
-    if (PENDING_EXCEPTION->is_a(SystemDictionary::OutOfMemoryError_klass())) {
-      CLEAR_PENDING_EXCEPTION;
-      tty->print_cr("\nCompileTheWorld : Ran out of memory\n");
-      tty->print_cr("Increase class metadata storage if a limit was set");
-    } else {
-      tty->print_cr("\nCompileTheWorld : Unexpected exception occurred\n");
-    }
-  }
-}
-
-void ClassLoader::compile_the_world() {
-  EXCEPTION_MARK;
-  HandleMark hm(THREAD);
-  ResourceMark rm(THREAD);
-
-  assert(has_jrt_entry(), "Compile The World not supported with exploded module build");
-
-  // Find bootstrap loader
-  Handle system_class_loader (THREAD, SystemDictionary::java_system_loader());
-  jlong start = os::javaTimeMillis();
-
-  // Compile the world for the modular java runtime image
-  _jrt_entry->compile_the_world(system_class_loader, CATCH);
-
-  // Iterate over all bootstrap class path appended entries
-  ClassPathEntry* e = _first_append_entry;
-  while (e != NULL) {
-    assert(!e->is_modules_image(), "A modular java runtime image is present on the list of appended entries");
-    e->compile_the_world(system_class_loader, CATCH);
-    e = e->next();
-  }
-  jlong end = os::javaTimeMillis();
-  tty->print_cr("CompileTheWorld : Done (%d classes, %d methods, " JLONG_FORMAT " ms)",
-                _compile_the_world_class_counter, _compile_the_world_method_counter, (end - start));
-  {
-    // Print statistics as if before normal exit:
-    extern void print_statistics();
-    print_statistics();
-  }
-  vm_exit(0);
-}
-
-int ClassLoader::_compile_the_world_class_counter = 0;
-int ClassLoader::_compile_the_world_method_counter = 0;
-static int _codecache_sweep_counter = 0;
-
-// Filter out all exceptions except OOMs
-static void clear_pending_exception_if_not_oom(TRAPS) {
-  if (HAS_PENDING_EXCEPTION &&
-      !PENDING_EXCEPTION->is_a(SystemDictionary::OutOfMemoryError_klass())) {
-    CLEAR_PENDING_EXCEPTION;
-  }
-  // The CHECK at the caller will propagate the exception out
-}
-
-/**
- * Returns if the given method should be compiled when doing compile-the-world.
- *
- * TODO:  This should be a private method in a CompileTheWorld class.
- */
-static bool can_be_compiled(const methodHandle& m, int comp_level) {
-  assert(CompileTheWorld, "must be");
-
-  // It's not valid to compile a native wrapper for MethodHandle methods
-  // that take a MemberName appendix since the bytecode signature is not
-  // correct.
-  vmIntrinsics::ID iid = m->intrinsic_id();
-  if (MethodHandles::is_signature_polymorphic(iid) && MethodHandles::has_member_arg(iid)) {
-    return false;
-  }
-
-  return CompilationPolicy::can_be_compiled(m, comp_level);
-}
-
-void ClassLoader::compile_the_world_in(char* name, Handle loader, TRAPS) {
-  if (string_ends_with(name, ".class")) {
-    // We have a .class file
-    int len = (int)strlen(name);
-    char buffer[2048];
-    strncpy(buffer, name, len - 6);
-    buffer[len-6] = 0;
-    // If the file has a period after removing .class, it's not really a
-    // valid class file.  The class loader will check everything else.
-    if (strchr(buffer, '.') == NULL) {
-      _compile_the_world_class_counter++;
-      if (_compile_the_world_class_counter > CompileTheWorldStopAt) return;
-
-      // Construct name without extension
-      TempNewSymbol sym = SymbolTable::new_symbol(buffer, CHECK);
-      // Use loader to load and initialize class
-      Klass* k = SystemDictionary::resolve_or_null(sym, loader, Handle(), THREAD);
-      if (k != NULL && !HAS_PENDING_EXCEPTION) {
-        k->initialize(THREAD);
-      }
-      bool exception_occurred = HAS_PENDING_EXCEPTION;
-      clear_pending_exception_if_not_oom(CHECK);
-      if (CompileTheWorldPreloadClasses && k != NULL) {
-        InstanceKlass* ik = InstanceKlass::cast(k);
-        ConstantPool::preload_and_initialize_all_classes(ik->constants(), THREAD);
-        if (HAS_PENDING_EXCEPTION) {
-          // If something went wrong in preloading we just ignore it
-          clear_pending_exception_if_not_oom(CHECK);
-          tty->print_cr("Preloading failed for (%d) %s", _compile_the_world_class_counter, buffer);
-        }
-      }
-
-      if (_compile_the_world_class_counter >= CompileTheWorldStartAt) {
-        if (k == NULL || exception_occurred) {
-          // If something went wrong (e.g. ExceptionInInitializerError) we skip this class
-          tty->print_cr("CompileTheWorld (%d) : Skipping %s", _compile_the_world_class_counter, buffer);
-        } else {
-          tty->print_cr("CompileTheWorld (%d) : %s", _compile_the_world_class_counter, buffer);
-          // Preload all classes to get around uncommon traps
-          // Iterate over all methods in class
-          int comp_level = CompilationPolicy::policy()->initial_compile_level();
-          InstanceKlass* ik = InstanceKlass::cast(k);
-          for (int n = 0; n < ik->methods()->length(); n++) {
-            methodHandle m (THREAD, ik->methods()->at(n));
-            if (can_be_compiled(m, comp_level)) {
-              if (++_codecache_sweep_counter == CompileTheWorldSafepointInterval) {
-                // Give sweeper a chance to keep up with CTW
-                VM_CTWThreshold op;
-                VMThread::execute(&op);
-                _codecache_sweep_counter = 0;
-              }
-              // Force compilation
-              CompileBroker::compile_method(m, InvocationEntryBci, comp_level,
-                                            methodHandle(), 0, CompileTask::Reason_CTW, THREAD);
-              if (HAS_PENDING_EXCEPTION) {
-                clear_pending_exception_if_not_oom(CHECK);
-                tty->print_cr("CompileTheWorld (%d) : Skipping method: %s", _compile_the_world_class_counter, m->name_and_sig_as_C_string());
-              } else {
-                _compile_the_world_method_counter++;
-              }
-              if (TieredCompilation && TieredStopAtLevel >= CompLevel_full_optimization) {
-                // Clobber the first compile and force second tier compilation
-                CompiledMethod* nm = m->code();
-                if (nm != NULL && !m->is_method_handle_intrinsic()) {
-                  // Throw out the code so that the code cache doesn't fill up
-                  nm->make_not_entrant();
-                }
-                CompileBroker::compile_method(m, InvocationEntryBci, CompLevel_full_optimization,
-                                              methodHandle(), 0, CompileTask::Reason_CTW, THREAD);
-                if (HAS_PENDING_EXCEPTION) {
-                  clear_pending_exception_if_not_oom(CHECK);
-                  tty->print_cr("CompileTheWorld (%d) : Skipping method: %s", _compile_the_world_class_counter, m->name_and_sig_as_C_string());
-                } else {
-                  _compile_the_world_method_counter++;
-                }
-              }
-            } else {
-              tty->print_cr("CompileTheWorld (%d) : Skipping method: %s", _compile_the_world_class_counter, m->name_and_sig_as_C_string());
-            }
-
-            CompiledMethod* nm = m->code();
-            if (nm != NULL && !m->is_method_handle_intrinsic()) {
-              // Throw out the code so that the code cache doesn't fill up
-              nm->make_not_entrant();
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-#endif //PRODUCT
 
 // Please keep following two functions at end of this file. With them placed at top or in middle of the file,
 // they could get inlined by agressive compiler, an unknown trick, see bug 6966589.

@@ -69,10 +69,13 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      */
     int count;
 
+    private static final byte[] EMPTYVALUE = new byte[0];
+
     /**
      * This no-arg constructor is necessary for serialization of subclasses.
      */
     AbstractStringBuilder() {
+        value = EMPTYVALUE;
     }
 
     /**
@@ -325,7 +328,7 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      * @param      index the index to the {@code char} values
      * @return     the code point value of the character at the
      *             {@code index}
-     * @exception  IndexOutOfBoundsException  if the {@code index}
+     * @throws     IndexOutOfBoundsException  if the {@code index}
      *             argument is negative or not less than the length of this
      *             sequence.
      */
@@ -356,7 +359,7 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      *
      * @param     index the index following the code point that should be returned
      * @return    the Unicode code point value before the given index.
-     * @exception IndexOutOfBoundsException if the {@code index}
+     * @throws    IndexOutOfBoundsException if the {@code index}
      *            argument is less than 1 or greater than the length
      *            of this sequence.
      */
@@ -386,7 +389,7 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      * the text range.
      * @return the number of Unicode code points in the specified text
      * range
-     * @exception IndexOutOfBoundsException if the
+     * @throws    IndexOutOfBoundsException if the
      * {@code beginIndex} is negative, or {@code endIndex}
      * is larger than the length of this sequence, or
      * {@code beginIndex} is larger than {@code endIndex}.
@@ -411,7 +414,7 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      * @param index the index to be offset
      * @param codePointOffset the offset in code points
      * @return the index within this sequence
-     * @exception IndexOutOfBoundsException if {@code index}
+     * @throws    IndexOutOfBoundsException if {@code index}
      *   is negative or larger then the length of this sequence,
      *   or if {@code codePointOffset} is positive and the subsequence
      *   starting with {@code index} has fewer than
@@ -882,7 +885,7 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      *
      * @param   codePoint   a Unicode code point
      * @return  a reference to this object.
-     * @exception IllegalArgumentException if the specified
+     * @throws    IllegalArgumentException if the specified
      * {@code codePoint} isn't a valid Unicode code point
      */
     public AbstractStringBuilder appendCodePoint(int codePoint) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,13 +23,16 @@
  *
  */
 
-#ifndef CPU_PPC_VM_MACROASSEMBLER_PPC_INLINE_HPP
-#define CPU_PPC_VM_MACROASSEMBLER_PPC_INLINE_HPP
+#ifndef CPU_PPC_MACROASSEMBLER_PPC_INLINE_HPP
+#define CPU_PPC_MACROASSEMBLER_PPC_INLINE_HPP
 
 #include "asm/assembler.inline.hpp"
 #include "asm/macroAssembler.hpp"
 #include "asm/codeBuffer.hpp"
 #include "code/codeCache.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
+#include "oops/accessDecorators.hpp"
 #include "runtime/safepointMechanism.hpp"
 
 inline bool MacroAssembler::is_ld_largeoffset(address a) {
@@ -183,7 +186,7 @@ inline void MacroAssembler::set_oop(AddressLiteral obj_addr, Register d) {
   load_const(d, obj_addr);
 }
 
-inline void MacroAssembler::pd_patch_instruction(address branch, address target) {
+inline void MacroAssembler::pd_patch_instruction(address branch, address target, const char* file, int line) {
   jint& stub_inst = *(jint*) branch;
   stub_inst = patched_branch(target - branch, stub_inst, 0);
 }
@@ -323,45 +326,54 @@ inline void MacroAssembler::null_check(Register a, int offset, Label *Lis_null) 
   }
 }
 
-inline void MacroAssembler::load_heap_oop_not_null(Register d, RegisterOrConstant offs, Register s1, Register tmp) {
-  if (UseCompressedOops) {
-    // In disjoint mode decoding can save a cycle if src != dst.
-    Register narrowOop = (tmp != noreg && Universe::narrow_oop_base_disjoint()) ? tmp : d;
-    lwz(narrowOop, offs, s1);
-    // Attention: no null check here!
-    Register res = decode_heap_oop_not_null(d, narrowOop);
-    assert(res == d, "caller will not consume loaded value");
+inline void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators,
+                                            Register base, RegisterOrConstant ind_or_offs, Register val,
+                                            Register tmp1, Register tmp2, Register tmp3, bool needs_frame) {
+  assert((decorators & ~(AS_RAW | IN_HEAP | IN_NATIVE | IS_ARRAY | IS_NOT_NULL |
+                         ON_UNKNOWN_OOP_REF)) == 0, "unsupported decorator");
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bool as_raw = (decorators & AS_RAW) != 0;
+  decorators = AccessInternal::decorator_fixup(decorators);
+  if (as_raw) {
+    bs->BarrierSetAssembler::store_at(this, decorators, type,
+                                      base, ind_or_offs, val,
+                                      tmp1, tmp2, tmp3, needs_frame);
   } else {
-    ld(d, offs, s1);
+    bs->store_at(this, decorators, type,
+                 base, ind_or_offs, val,
+                 tmp1, tmp2, tmp3, needs_frame);
   }
 }
 
-inline void MacroAssembler::store_heap_oop_not_null(Register d, RegisterOrConstant offs, Register s1, Register tmp) {
-  if (UseCompressedOops) {
-    Register compressedOop = encode_heap_oop_not_null((tmp != noreg) ? tmp : d, d);
-    stw(compressedOop, offs, s1);
+inline void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators,
+                                           Register base, RegisterOrConstant ind_or_offs, Register dst,
+                                           Register tmp1, Register tmp2, bool needs_frame, Label *L_handle_null) {
+  assert((decorators & ~(AS_RAW | IN_HEAP | IN_NATIVE | IS_ARRAY | IS_NOT_NULL |
+                         ON_PHANTOM_OOP_REF | ON_WEAK_OOP_REF)) == 0, "unsupported decorator");
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  decorators = AccessInternal::decorator_fixup(decorators);
+  bool as_raw = (decorators & AS_RAW) != 0;
+  if (as_raw) {
+    bs->BarrierSetAssembler::load_at(this, decorators, type,
+                                     base, ind_or_offs, dst,
+                                     tmp1, tmp2, needs_frame, L_handle_null);
   } else {
-    std(d, offs, s1);
+    bs->load_at(this, decorators, type,
+                base, ind_or_offs, dst,
+                tmp1, tmp2, needs_frame, L_handle_null);
   }
 }
 
-inline void MacroAssembler::load_heap_oop(Register d, RegisterOrConstant offs, Register s1, Label *is_null) {
-  if (UseCompressedOops) {
-    lwz(d, offs, s1);
-    if (is_null != NULL) {
-      cmpwi(CCR0, d, 0);
-      beq(CCR0, *is_null);
-      decode_heap_oop_not_null(d);
-    } else {
-      decode_heap_oop(d);
-    }
-  } else {
-    ld(d, offs, s1);
-    if (is_null != NULL) {
-      cmpdi(CCR0, d, 0);
-      beq(CCR0, *is_null);
-    }
-  }
+inline void MacroAssembler::load_heap_oop(Register d, RegisterOrConstant offs, Register s1,
+                                          Register tmp1, Register tmp2,
+                                          bool needs_frame, DecoratorSet decorators, Label *L_handle_null) {
+  access_load_at(T_OBJECT, IN_HEAP | decorators, s1, offs, d, tmp1, tmp2, needs_frame, L_handle_null);
+}
+
+inline void MacroAssembler::store_heap_oop(Register d, RegisterOrConstant offs, Register s1,
+                                           Register tmp1, Register tmp2, Register tmp3,
+                                           bool needs_frame, DecoratorSet decorators) {
+  access_store_at(T_OBJECT, IN_HEAP | decorators, s1, offs, d, tmp1, tmp2, tmp3, needs_frame);
 }
 
 inline Register MacroAssembler::encode_heap_oop_not_null(Register d, Register src) {
@@ -468,4 +480,4 @@ inline address MacroAssembler::function_entry() { return pc(); }
 inline address MacroAssembler::function_entry() { return emit_fd(); }
 #endif
 
-#endif // CPU_PPC_VM_MACROASSEMBLER_PPC_INLINE_HPP
+#endif // CPU_PPC_MACROASSEMBLER_PPC_INLINE_HPP

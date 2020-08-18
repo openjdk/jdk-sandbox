@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,9 @@
 package sun.security.jgss;
 
 import org.ietf.jgss.*;
+import sun.security.action.GetBooleanAction;
 import sun.security.jgss.spi.*;
 import java.security.Provider;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 
 /**
  * This class provides the default implementation of the GSSManager
@@ -38,26 +37,8 @@ import java.security.PrivilegedAction;
 public class GSSManagerImpl extends GSSManager {
 
     // Undocumented property
-    private static final String USE_NATIVE_PROP =
-        "sun.security.jgss.native";
-    private static final Boolean USE_NATIVE;
-
-    static {
-        USE_NATIVE =
-            AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-                    public Boolean run() {
-                            String osname = System.getProperty("os.name");
-                            if (osname.startsWith("SunOS") ||
-                                osname.contains("OS X") ||
-                                osname.startsWith("Linux")) {
-                                return Boolean.valueOf(System.getProperty
-                                        (USE_NATIVE_PROP));
-                            }
-                            return Boolean.FALSE;
-                    }
-            });
-
-    }
+    private static final Boolean USE_NATIVE = GetBooleanAction
+            .privilegedGetProperty("sun.security.jgss.native");
 
     private ProviderList list;
 

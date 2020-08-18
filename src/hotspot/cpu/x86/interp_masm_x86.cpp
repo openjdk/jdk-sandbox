@@ -35,6 +35,7 @@
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/thread.inline.hpp"
@@ -169,7 +170,7 @@ void InterpreterMacroAssembler::profile_arguments_type(Register mdp, Register ca
 void InterpreterMacroAssembler::profile_return_type(Register mdp, Register ret, Register tmp) {
   assert_different_registers(mdp, ret, tmp, _bcp_register);
   if (ProfileInterpreter && MethodData::profile_return()) {
-    Label profile_continue, done;
+    Label profile_continue;
 
     test_method_data_pointer(mdp, profile_continue);
 
@@ -203,7 +204,7 @@ void InterpreterMacroAssembler::profile_return_type(Register mdp, Register ret, 
 
 void InterpreterMacroAssembler::profile_parameters_type(Register mdp, Register tmp1, Register tmp2) {
   if (ProfileInterpreter && MethodData::profile_parameters()) {
-    Label profile_continue, done;
+    Label profile_continue;
 
     test_method_data_pointer(mdp, profile_continue);
 
@@ -501,23 +502,17 @@ void InterpreterMacroAssembler::get_cache_entry_pointer_at_bcp(Register cache,
 
 // Load object from cpool->resolved_references(index)
 void InterpreterMacroAssembler::load_resolved_reference_at_index(
-                                           Register result, Register index) {
+                                           Register result, Register index, Register tmp) {
   assert_different_registers(result, index);
-  // convert from field index to resolved_references() index and from
-  // word index to byte offset. Since this is a java object, it can be compressed
-  Register tmp = index;  // reuse
-  shll(tmp, LogBytesPerHeapOop);
 
   get_constant_pool(result);
   // load pointer for resolved_references[] objArray
   movptr(result, Address(result, ConstantPool::cache_offset_in_bytes()));
   movptr(result, Address(result, ConstantPoolCache::resolved_references_offset_in_bytes()));
-  resolve_oop_handle(result);
-  // Add in the index
-  addptr(result, tmp);
-  load_heap_oop(result, Address(result, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
-  // The resulting oop is null if the reference is not yet resolved.
-  // It is Universe::the_null_sentinel() if the reference resolved to NULL via condy.
+  resolve_oop_handle(result, tmp);
+  load_heap_oop(result, Address(result, index,
+                                UseCompressedOops ? Address::times_4 : Address::times_ptr,
+                                arrayOopDesc::base_offset_in_bytes(T_OBJECT)), tmp);
 }
 
 // load cpool->resolved_klass_at(index)
@@ -1196,7 +1191,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
     assert(lock_offset == 0,
            "displaced header must be first word in BasicObjectLock");
 
-    if (os::is_MP()) lock();
+    lock();
     cmpxchgptr(lock_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     if (PrintBiasedLockingStatistics) {
       cond_inc32(Assembler::zero,
@@ -1293,7 +1288,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg) {
     jcc(Assembler::zero, done);
 
     // Atomic swap back the old header
-    if (os::is_MP()) lock();
+    lock();
     cmpxchgptr(header_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
 
     // zero for simple unlock of a stack-lock case
@@ -1437,10 +1432,10 @@ void InterpreterMacroAssembler::increment_mdp_data_at(Register mdp_in,
 void InterpreterMacroAssembler::set_mdp_flag_at(Register mdp_in,
                                                 int flag_byte_constant) {
   assert(ProfileInterpreter, "must be profiling interpreter");
-  int header_offset = in_bytes(DataLayout::header_offset());
-  int header_bits = DataLayout::flag_mask_to_header_mask(flag_byte_constant);
+  int header_offset = in_bytes(DataLayout::flags_offset());
+  int header_bits = flag_byte_constant;
   // Set the flag
-  orl(Address(mdp_in, header_offset), header_bits);
+  orb(Address(mdp_in, header_offset), header_bits);
 }
 
 
@@ -1708,12 +1703,12 @@ void InterpreterMacroAssembler::record_item_in_profile_helper(Register item, Reg
     bind(next_test);
 
     if (test_for_null_also) {
-      Label found_null;
       // Failed the equality check on item[n]...  Test for null.
       testptr(reg2, reg2);
       if (start_row == last_row) {
         // The only thing left to do is handle the null case.
         if (non_profiled_offset >= 0) {
+          Label found_null;
           jccb(Assembler::zero, found_null);
           // Item did not match any saved item and there is no empty row for it.
           // Increment total counter to indicate polymorphic case.
@@ -1725,6 +1720,7 @@ void InterpreterMacroAssembler::record_item_in_profile_helper(Register item, Reg
         }
         break;
       }
+      Label found_null;
       // Since null is rare, make it be the branch-taken case.
       jcc(Assembler::zero, found_null);
 
@@ -1968,7 +1964,9 @@ void InterpreterMacroAssembler::increment_mask_and_jump(Address counter_addr,
   incrementl(scratch, increment);
   movl(counter_addr, scratch);
   andl(scratch, mask);
-  jcc(cond, *where);
+  if (where != NULL) {
+    jcc(cond, *where);
+  }
 }
 
 void InterpreterMacroAssembler::notify_method_entry() {

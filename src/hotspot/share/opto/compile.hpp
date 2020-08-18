@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_COMPILE_HPP
-#define SHARE_VM_OPTO_COMPILE_HPP
+#ifndef SHARE_OPTO_COMPILE_HPP
+#define SHARE_OPTO_COMPILE_HPP
 
 #include "asm/codeBuffer.hpp"
 #include "ci/compilerInterface.hpp"
@@ -33,7 +33,9 @@
 #include "compiler/compileBroker.hpp"
 #include "libadt/dict.hpp"
 #include "libadt/vectset.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/methodData.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #include "opto/phasetype.hpp"
 #include "opto/phase.hpp"
@@ -41,7 +43,6 @@
 #include "runtime/deoptimization.hpp"
 #include "runtime/timerTrace.hpp"
 #include "runtime/vmThread.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/ticks.hpp"
 
 class AddPNode;
@@ -53,6 +54,7 @@ class CloneMap;
 class ConnectionGraph;
 class InlineTree;
 class Int_Array;
+class LoadBarrierNode;
 class Matcher;
 class MachConstantNode;
 class MachConstantBaseNode;
@@ -87,6 +89,16 @@ class nmethod;
 class WarmCallInfo;
 class Node_Stack;
 struct Final_Reshape_Counts;
+
+enum LoopOptsMode {
+  LoopOptsDefault,
+  LoopOptsNone,
+  LoopOptsShenandoahExpand,
+  LoopOptsShenandoahPostExpand,
+  LoopOptsSkipSplitIf,
+  LoopOptsVerify,
+  LoopOptsLastRound
+};
 
 typedef unsigned int node_idx_t;
 class NodeCloneInfo {
@@ -359,7 +371,6 @@ class Compile : public Phase {
   address               _stub_entry_point;      // Compile code entry for generated stub, or NULL
 
   // Control of this compilation.
-  int                   _num_loop_opts;         // Number of iterations for doing loop optimiztions
   int                   _max_inline_size;       // Max inline size for this compilation
   int                   _freq_inline_size;      // Max hot method inline size for this compilation
   int                   _fixed_slots;           // count of frame slots not allocated by the register
@@ -403,9 +414,11 @@ class Compile : public Phase {
   // JSR 292
   bool                  _has_method_handle_invokes; // True if this method has MethodHandle invokes.
   RTMState              _rtm_state;             // State of Restricted Transactional Memory usage
+  int                   _loop_opts_cnt;         // loop opts round
 
   // Compilation environment.
   Arena                 _comp_arena;            // Arena with lifetime equivalent to Compile
+  void*                 _barrier_set_state;     // Potential GC barrier state for Compile
   ciEnv*                _env;                   // CI interface
   DirectiveSet*         _directive;             // Compiler directive
   CompileLog*           _log;                   // from CompilerThread
@@ -415,6 +428,7 @@ class Compile : public Phase {
   GrowableArray<Node*>* _predicate_opaqs;       // List of Opaque1 nodes for the loop predicates.
   GrowableArray<Node*>* _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>* _range_check_casts;     // List of CastII nodes with a range check dependency
+  GrowableArray<Node*>* _opaque4_nodes;         // List of Opaque4 nodes that have a default value
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
   IdealGraphPrinter*    _printer;
@@ -528,6 +542,8 @@ class Compile : public Phase {
 
  public:
 
+  void* barrier_set_state() const { return _barrier_set_state; }
+
   outputStream* print_inlining_stream() const {
     assert(print_inlining() || print_intrinsics(), "PrintInlining off?");
     return _print_inlining_stream;
@@ -639,8 +655,6 @@ class Compile : public Phase {
   int               inlining_incrementally() const { return _inlining_incrementally; }
   void          set_major_progress()            { _major_progress++; }
   void        clear_major_progress()            { _major_progress = 0; }
-  int               num_loop_opts() const       { return _num_loop_opts; }
-  void          set_num_loop_opts(int n)        { _num_loop_opts = n; }
   int               max_inline_size() const     { return _max_inline_size; }
   void          set_freq_inline_size(int n)     { _freq_inline_size = n; }
   int               freq_inline_size() const    { return _freq_inline_size; }
@@ -808,6 +822,16 @@ class Compile : public Phase {
   int   range_check_cast_count()       const { return _range_check_casts->length(); }
   // Remove all range check dependent CastIINodes.
   void  remove_range_check_casts(PhaseIterGVN &igvn);
+
+  void add_opaque4_node(Node* n);
+  void remove_opaque4_node(Node* n) {
+    if (_opaque4_nodes->contains(n)) {
+      _opaque4_nodes->remove(n);
+    }
+  }
+  Node* opaque4_node(int idx) const { return _opaque4_nodes->at(idx);  }
+  int   opaque4_count()       const { return _opaque4_nodes->length(); }
+  void  remove_opaque4_nodes(PhaseIterGVN &igvn);
 
   // remove the opaque nodes that protect the predicates so that the unused checks and
   // uncommon traps will be eliminated from the graph.
@@ -1063,6 +1087,8 @@ class Compile : public Phase {
   void inline_incrementally(PhaseIterGVN& igvn);
   void inline_string_calls(bool parse_time);
   void inline_boxing_calls(PhaseIterGVN& igvn);
+  bool optimize_loops(PhaseIterGVN& igvn, LoopOptsMode mode);
+  void remove_root_to_sfpts_edges();
 
   // Matching, CFG layout, allocation, code generation
   PhaseCFG*         cfg()                       { return _cfg; }
@@ -1279,6 +1305,7 @@ class Compile : public Phase {
   // Function calls made by the public function final_graph_reshaping.
   // No need to be made public as they are not called elsewhere.
   void final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc);
+  void final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& frc, uint nop);
   void final_graph_reshaping_walk( Node_Stack &nstack, Node *root, Final_Reshape_Counts &frc );
   void eliminate_redundant_card_marks(Node* n);
 
@@ -1303,9 +1330,6 @@ class Compile : public Phase {
   // The option no_dead_code enables stronger checks that the
   // graph is strongly connected from root in both directions.
   void verify_graph_edges(bool no_dead_code = false) PRODUCT_RETURN;
-
-  // Verify GC barrier patterns
-  void verify_barriers() PRODUCT_RETURN;
 
   // End-of-run dumps.
   static void print_statistics() PRODUCT_RETURN;
@@ -1337,7 +1361,6 @@ class Compile : public Phase {
   // supporting clone_map
   CloneMap&     clone_map();
   void          set_clone_map(Dict* d);
-
 };
 
-#endif // SHARE_VM_OPTO_COMPILE_HPP
+#endif // SHARE_OPTO_COMPILE_HPP

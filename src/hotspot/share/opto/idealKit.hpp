@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_IDEALKIT_HPP
-#define SHARE_VM_OPTO_IDEALKIT_HPP
+#ifndef SHARE_OPTO_IDEALKIT_HPP
+#define SHARE_OPTO_IDEALKIT_HPP
 
 #include "opto/addnode.hpp"
 #include "opto/cfgnode.hpp"
@@ -242,13 +242,13 @@ class IdealKit: public StackObj {
                 int adr_idx);
 
   // Trivial call
-  void make_leaf_call(const TypeFunc *slow_call_type,
-                      address slow_call,
-                      const char *leaf_name,
-                      Node* parm0,
-                      Node* parm1 = NULL,
-                      Node* parm2 = NULL,
-                      Node* parm3 = NULL);
+  Node* make_leaf_call(const TypeFunc *slow_call_type,
+                       address slow_call,
+                       const char *leaf_name,
+                       Node* parm0,
+                       Node* parm1 = NULL,
+                       Node* parm2 = NULL,
+                       Node* parm3 = NULL);
 
   void make_leaf_call_no_fp(const TypeFunc *slow_call_type,
                             address slow_call,
@@ -260,4 +260,4 @@ class IdealKit: public StackObj {
                             Node* parm3);
 };
 
-#endif // SHARE_VM_OPTO_IDEALKIT_HPP
+#endif // SHARE_OPTO_IDEALKIT_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_PHASEX_HPP
-#define SHARE_VM_OPTO_PHASEX_HPP
+#ifndef SHARE_OPTO_PHASEX_HPP
+#define SHARE_OPTO_PHASEX_HPP
 
 #include "libadt/dict.hpp"
 #include "libadt/vectset.hpp"
@@ -425,6 +425,12 @@ public:
 
   bool is_dominator(Node *d, Node *n) { return is_dominator_helper(d, n, true); }
 
+  // Helper to call Node::Ideal() and BarrierSetC2::ideal_node().
+  Node* apply_ideal(Node* i, bool can_reshape);
+
+  // Helper to call Node::Identity() and BarrierSetC2::identity_node().
+  Node* apply_identity(Node* n);
+
   // Check for a simple dead loop when a data node references itself.
   DEBUG_ONLY(void dead_loop_check(Node *n);)
 };
@@ -633,4 +639,4 @@ public:
 #endif
 };
 
-#endif // SHARE_VM_OPTO_PHASEX_HPP
+#endif // SHARE_OPTO_PHASEX_HPP

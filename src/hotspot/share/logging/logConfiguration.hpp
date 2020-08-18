@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOGCONFIGURATION_HPP
-#define SHARE_VM_LOGGING_LOGCONFIGURATION_HPP
+#ifndef SHARE_LOGGING_LOGCONFIGURATION_HPP
+#define SHARE_LOGGING_LOGCONFIGURATION_HPP
 
 #include "logging/logLevel.hpp"
 #include "memory/allocation.hpp"
@@ -38,6 +38,7 @@ class LogSelectionList;
 // are iterated over and updated accordingly.
 class LogConfiguration : public AllStatic {
  friend class VMError;
+ friend class LogTestFixture;
  public:
   // Function for listeners
   typedef void (*UpdateListenerFunction)(void);
@@ -118,10 +119,10 @@ class LogConfiguration : public AllStatic {
   static void describe(outputStream* out);
 
   // Prints usage help for command line log configuration.
-  static void print_command_line_help(FILE* out);
+  static void print_command_line_help(outputStream* out);
 
   // Rotates all LogOutput
   static void rotate_all_outputs();
 };
 
-#endif // SHARE_VM_LOGGING_LOGCONFIGURATION_HPP
+#endif // SHARE_LOGGING_LOGCONFIGURATION_HPP

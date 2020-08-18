@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_STUBROUTINES_HPP
-#define SHARE_VM_RUNTIME_STUBROUTINES_HPP
+#ifndef SHARE_RUNTIME_STUBROUTINES_HPP
+#define SHARE_RUNTIME_STUBROUTINES_HPP
 
 #include "code/codeBlob.hpp"
 #include "memory/allocation.hpp"
@@ -172,6 +172,7 @@ class StubRoutines: AllStatic {
   static address _cipherBlockChaining_decryptAESCrypt;
   static address _counterMode_AESCrypt;
   static address _ghash_processBlocks;
+  static address _base64_encodeBlock;
 
   static address _sha1_implCompress;
   static address _sha1_implCompressMB;
@@ -347,7 +348,7 @@ class StubRoutines: AllStatic {
   static address cipherBlockChaining_decryptAESCrypt()  { return _cipherBlockChaining_decryptAESCrypt; }
   static address counterMode_AESCrypt()  { return _counterMode_AESCrypt; }
   static address ghash_processBlocks()   { return _ghash_processBlocks; }
-
+  static address base64_encodeBlock()    { return _base64_encodeBlock; }
   static address sha1_implCompress()     { return _sha1_implCompress; }
   static address sha1_implCompressMB()   { return _sha1_implCompressMB; }
   static address sha256_implCompress()   { return _sha256_implCompress; }
@@ -473,4 +474,4 @@ inline bool CanUseSafeFetch32() {
 inline bool CanUseSafeFetchN() {
   return StubRoutines::SafeFetchN_stub() ? true : false;
 }
-#endif // SHARE_VM_RUNTIME_STUBROUTINES_HPP
+#endif // SHARE_RUNTIME_STUBROUTINES_HPP

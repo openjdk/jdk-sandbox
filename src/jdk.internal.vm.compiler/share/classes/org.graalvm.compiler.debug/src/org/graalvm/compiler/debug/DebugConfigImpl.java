@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.debug;
 
 import static org.graalvm.compiler.debug.DebugContext.BASIC_LEVEL;
@@ -239,8 +241,11 @@ final class DebugConfigImpl implements DebugConfig {
 
     @Override
     public RuntimeException interceptException(DebugContext debug, Throwable e) {
-        if (e instanceof BailoutException && !DebugOptions.InterceptBailout.getValue(options)) {
-            return null;
+        if (e instanceof BailoutException) {
+            final boolean causedByCompilerAssert = e instanceof CausableByCompilerAssert && ((CausableByCompilerAssert) e).isCausedByCompilerAssert();
+            if (!DebugOptions.InterceptBailout.getValue(options) && !causedByCompilerAssert) {
+                return null;
+            }
         }
 
         OptionValues interceptOptions = new OptionValues(options,
@@ -264,9 +269,8 @@ final class DebugConfigImpl implements DebugConfig {
                     firstSeen.put(o, o);
                     if (DebugOptions.DumpOnError.getValue(options) || DebugOptions.Dump.getValue(options) != null) {
                         debug.dump(DebugContext.BASIC_LEVEL, o, "Exception: %s", e);
-                    } else {
-                        debug.log("Context obj %s", o);
                     }
+                    debug.log("Context obj %s", o);
                 }
             }
         } finally {

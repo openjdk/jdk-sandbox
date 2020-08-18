@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,9 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_INSTANCEREFKLASS_HPP
-#define SHARE_VM_OOPS_INSTANCEREFKLASS_HPP
+#ifndef SHARE_OOPS_INSTANCEREFKLASS_HPP
+#define SHARE_OOPS_INSTANCEREFKLASS_HPP
 
-#include "gc/shared/specialized_oop_closures.hpp"
 #include "oops/instanceKlass.hpp"
 #include "utilities/macros.hpp"
 
@@ -50,69 +49,58 @@ class ClassFileParser;
 
 class InstanceRefKlass: public InstanceKlass {
   friend class InstanceKlass;
+ public:
+  static const KlassID ID = InstanceRefKlassID;
+
  private:
-  InstanceRefKlass(const ClassFileParser& parser) : InstanceKlass(parser, InstanceKlass::_misc_kind_reference) {}
+  InstanceRefKlass(const ClassFileParser& parser) : InstanceKlass(parser, InstanceKlass::_misc_kind_reference, ID) {}
 
  public:
   InstanceRefKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
 
-  // GC specific object visitors
-  //
-#if INCLUDE_ALL_GCS
-  // Parallel Scavenge
-  void oop_ps_push_contents(  oop obj, PSPromotionManager* pm);
-  // Parallel Compact
-  void oop_pc_follow_contents(oop obj, ParCompactionManager* cm);
-  void oop_pc_update_pointers(oop obj, ParCompactionManager* cm);
-#endif
-
   // Oop fields (and metadata) iterators
-  //  [nv = true]  Use non-virtual calls to do_oop_nv.
-  //  [nv = false] Use virtual calls to do_oop.
   //
   // The InstanceRefKlass iterators also support reference processing.
 
 
   // Forward iteration
-private:
   // Iterate over all oop fields and metadata.
-  template <bool nv, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_oop_iterate(oop obj, OopClosureType* closure);
 
   // Reverse iteration
-#if INCLUDE_ALL_GCS
   // Iterate over all oop fields and metadata.
-  template <bool nv, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_oop_iterate_reverse(oop obj, OopClosureType* closure);
-#endif // INCLUDE_ALL_GCS
 
   // Bounded range iteration
   // Iterate over all oop fields and metadata.
-  template <bool nv, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr);
+
+  private:
 
   // Reference processing part of the iterators.
 
-  // Specialized for [T = oop] or [T = narrowOop].
-  template <bool nv, typename T, class OopClosureType, class Contains>
-  inline void oop_oop_iterate_ref_processing_specialized(oop obj, OopClosureType* closure, Contains& contains);
+  template <typename T, class OopClosureType, class Contains>
+  inline void oop_oop_iterate_ref_processing(oop obj, OopClosureType* closure, Contains& contains);
 
   // Only perform reference processing if the referent object is within mr.
-  template <bool nv, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_oop_iterate_ref_processing_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 
   // Reference processing
-  template <bool nv, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_oop_iterate_ref_processing(oop obj, OopClosureType* closure);
 
   // Building blocks for specialized handling.
-  template <bool nv, typename T, class OopClosureType, class Contains>
+  template <typename T, class OopClosureType, class Contains>
   static void do_referent(oop obj, OopClosureType* closure, Contains& contains);
 
-  template <bool nv, typename T, class OopClosureType, class Contains>
+  template <typename T, class OopClosureType, class Contains>
   static void do_next(oop obj, OopClosureType* closure, Contains& contains);
 
-  template <bool nv, typename T, class OopClosureType, class Contains>
+  template <typename T, class OopClosureType, class Contains>
   static void do_discovered(oop obj, OopClosureType* closure, Contains& contains);
 
   template <typename T, class OopClosureType>
@@ -120,32 +108,27 @@ private:
 
   // Do discovery while handling InstanceRefKlasses. Reference discovery
   // is only done if the closure provides a ReferenceProcessor.
-  template <bool nv, typename T, class OopClosureType, class Contains>
+  template <typename T, class OopClosureType, class Contains>
   static void oop_oop_iterate_discovery(oop obj, ReferenceType type, OopClosureType* closure, Contains& contains);
 
   // Used for a special case in G1 where the closure needs to be applied
   // to the discovered field. Reference discovery is also done if the
   // closure provides a ReferenceProcessor.
-  template <bool nv, typename T, class OopClosureType, class Contains>
+  template <typename T, class OopClosureType, class Contains>
   static void oop_oop_iterate_discovered_and_discovery(oop obj, ReferenceType type, OopClosureType* closure, Contains& contains);
 
   // Apply the closure to all fields. No reference discovery is done.
-  template <bool nv, typename T, class OopClosureType, class Contains>
+  template <typename T, class OopClosureType, class Contains>
   static void oop_oop_iterate_fields(oop obj, OopClosureType* closure, Contains& contains);
+
+  // Apply the closure to all fields, except the referent field. No reference discovery is done.
+  template <typename T, class OopClosureType, class Contains>
+  static void oop_oop_iterate_fields_except_referent(oop obj, OopClosureType* closure, Contains& contains);
 
   template <typename T>
   static void trace_reference_gc(const char *s, oop obj) NOT_DEBUG_RETURN;
 
  public:
-
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL)
-
-#if INCLUDE_ALL_GCS
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL_BACKWARDS)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL_BACKWARDS)
-#endif // INCLUDE_ALL_GCS
-
   // Update non-static oop maps so 'referent', 'nextPending' and
   // 'discovered' will look like non-oops
   static void update_nonstatic_oop_maps(Klass* k);
@@ -155,4 +138,4 @@ private:
   void oop_verify_on(oop obj, outputStream* st);
 };
 
-#endif // SHARE_VM_OOPS_INSTANCEREFKLASS_HPP
+#endif // SHARE_OOPS_INSTANCEREFKLASS_HPP

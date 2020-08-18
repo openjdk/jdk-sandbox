@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.common;
 
 import org.graalvm.compiler.options.Option;
@@ -195,9 +197,6 @@ public final class GraalOptions {
     public static final OptionKey<Boolean> AlwaysInlineVTableStubs = new OptionKey<>(false);
 
     @Option(help = "", type = OptionType.Debug)
-    public static final OptionKey<Boolean> ResolveClassBeforeStaticInvoke = new OptionKey<>(false);
-
-    @Option(help = "", type = OptionType.Debug)
     public static final OptionKey<Boolean> CanOmitFrame = new OptionKey<>(true);
 
     // Ahead of time compilation
@@ -259,6 +258,12 @@ public final class GraalOptions {
     @Option(help = "", type = OptionType.Debug)
     public static final OptionKey<Boolean> OptDevirtualizeInvokesOptimistically = new OptionKey<>(true);
 
+    @Option(help = "Track the NodeSourcePosition.", type = OptionType.Debug)
+    public static final OptionKey<Boolean> TrackNodeSourcePosition = new OptionKey<>(false);
+
+    @Option(help = "Track source stack trace where a node was inserted into the graph.", type = OptionType.Debug)
+    public static final OptionKey<Boolean> TrackNodeInsertion = new OptionKey<>(false);
+
     @Option(help = "Allow backend to match complex expressions.", type = OptionType.Debug)
     public static final OptionKey<Boolean> MatchExpressions = new OptionKey<>(true);
 
@@ -271,10 +276,9 @@ public final class GraalOptions {
     @Option(help = "Use a cache for snippet graphs.", type = OptionType.Debug)
     public static final OptionKey<Boolean> UseSnippetGraphCache = new OptionKey<>(true);
 
-    @Option(help = "Enable experimental Trace Register Allocation.", type = OptionType.Debug)
-    public static final OptionKey<Boolean> TraceRA = new OptionKey<>(false);
+    @Option(help = "file:doc-files/TraceInliningHelp.txt", type = OptionType.Debug)
+    public static final OptionKey<Boolean> TraceInlining = new OptionKey<>(false);
 
-    @Option(help = "How to trace inlining decisions, one of: None, Linear, Tree", type = OptionType.Debug)
-    public static final OptionKey<TraceInliningMode> TraceInlining = new OptionKey<>(TraceInliningMode.None);
-
+    @Option(help = "Enable inlining decision tracing in stubs and snippets.", type = OptionType.Debug)
+    public static final OptionKey<Boolean> TraceInliningForStubsAndSnippets = new OptionKey<>(false);
 }

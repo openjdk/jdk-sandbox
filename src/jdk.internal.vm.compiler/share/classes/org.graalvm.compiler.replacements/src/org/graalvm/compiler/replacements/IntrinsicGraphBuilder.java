@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements;
 
 import org.graalvm.compiler.bytecode.Bytecode;
@@ -29,8 +31,10 @@ import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.core.common.type.StampPair;
 import org.graalvm.compiler.core.common.type.TypeReference;
+import org.graalvm.compiler.debug.DebugCloseable;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.debug.GraalError;
+import org.graalvm.compiler.graph.NodeSourcePosition;
 import org.graalvm.compiler.nodes.CallTargetNode;
 import org.graalvm.compiler.nodes.CallTargetNode.InvokeKind;
 import org.graalvm.compiler.nodes.FixedNode;
@@ -90,7 +94,7 @@ public class IntrinsicGraphBuilder implements GraphBuilderContext, Receiver {
         this.stampProvider = stampProvider;
         this.code = code;
         this.method = code.getMethod();
-        this.graph = new StructuredGraph.Builder(options, debug, allowAssumptions).method(method).build();
+        this.graph = new StructuredGraph.Builder(options, debug, allowAssumptions).method(method).setIsSubstitution(true).trackNodeSourcePosition(true).build();
         this.invokeBci = invokeBci;
         this.lastInstr = graph.start();
 
@@ -255,14 +259,18 @@ public class IntrinsicGraphBuilder implements GraphBuilderContext, Receiver {
         return arguments[0];
     }
 
+    @SuppressWarnings("try")
     public StructuredGraph buildGraph(InvocationPlugin plugin) {
-        Receiver receiver = method.isStatic() ? null : this;
-        if (plugin.execute(this, method, receiver, arguments)) {
-            assert (returnValue != null) == (method.getSignature().getReturnKind() != JavaKind.Void) : method;
-            append(new ReturnNode(returnValue));
-            return graph;
+        NodeSourcePosition position = graph.trackNodeSourcePosition() ? NodeSourcePosition.placeholder(method) : null;
+        try (DebugCloseable context = graph.withNodeSourcePosition(position)) {
+            Receiver receiver = method.isStatic() ? null : this;
+            if (plugin.execute(this, method, receiver, arguments)) {
+                assert (returnValue != null) == (method.getSignature().getReturnKind() != JavaKind.Void) : method;
+                append(new ReturnNode(returnValue));
+                return graph;
+            }
+            return null;
         }
-        return null;
     }
 
     @Override

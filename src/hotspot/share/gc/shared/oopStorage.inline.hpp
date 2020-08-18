@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,14 +26,111 @@
 #define SHARE_GC_SHARED_OOPSTORAGE_INLINE_HPP
 
 #include "gc/shared/oopStorage.hpp"
-#include "memory/allocation.hpp"
 #include "metaprogramming/conditional.hpp"
 #include "metaprogramming/isConst.hpp"
 #include "oops/oop.hpp"
+#include "runtime/safepoint.hpp"
+#include "utilities/align.hpp"
 #include "utilities/count_trailing_zeros.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
+// Array of all active blocks.  Refcounted for lock-free reclaim of
+// old array when a new array is allocated for expansion.
+class OopStorage::ActiveArray {
+  friend class OopStorage::TestAccess;
+
+  size_t _size;
+  volatile size_t _block_count;
+  mutable volatile int _refcount;
+  // Block* _blocks[1];            // Pseudo flexible array member.
+
+  ActiveArray(size_t size);
+  ~ActiveArray();
+
+  // Noncopyable
+  ActiveArray(const ActiveArray&);
+  ActiveArray& operator=(const ActiveArray&);
+
+  static size_t blocks_offset();
+  Block* const* base_ptr() const;
+
+  Block* const* block_ptr(size_t index) const;
+  Block** block_ptr(size_t index);
+
+public:
+  static ActiveArray* create(size_t size, AllocFailType alloc_fail = AllocFailStrategy::EXIT_OOM);
+  static void destroy(ActiveArray* ba);
+
+  inline Block* at(size_t i) const;
+
+  size_t size() const;
+  size_t block_count() const;
+  size_t block_count_acquire() const;
+  void increment_refcount() const;
+  bool decrement_refcount() const; // Return true if zero, otherwise false
+
+  // Support for OopStorage::allocate.
+  // Add block to the end of the array.  Updates block count at the
+  // end of the operation, with a release_store. Returns true if the
+  // block was added, false if there was no room available.
+  // precondition: owner's _allocation_mutex is locked, or at safepoint.
+  bool push(Block* block);
+
+  // Support OopStorage::delete_empty_blocks_xxx operations.
+  // Remove block from the array.
+  // precondition: block must be present at its active_index element.
+  void remove(Block* block);
+
+  void copy_from(const ActiveArray* from);
+};
+
+inline size_t OopStorage::ActiveArray::blocks_offset() {
+  return align_up(sizeof(ActiveArray), sizeof(Block*));
+}
+
+inline OopStorage::Block* const* OopStorage::ActiveArray::base_ptr() const {
+  const void* ptr = reinterpret_cast<const char*>(this) + blocks_offset();
+  return reinterpret_cast<Block* const*>(ptr);
+}
+
+inline OopStorage::Block* const* OopStorage::ActiveArray::block_ptr(size_t index) const {
+  return base_ptr() + index;
+}
+
+inline OopStorage::Block** OopStorage::ActiveArray::block_ptr(size_t index) {
+  return const_cast<Block**>(base_ptr() + index);
+}
+
+inline OopStorage::Block* OopStorage::ActiveArray::at(size_t index) const {
+  assert(index < _block_count, "precondition");
+  return *block_ptr(index);
+}
+
+// A Block has an embedded AllocationListEntry to provide the links between
+// Blocks in an AllocationList.
+class OopStorage::AllocationListEntry {
+  friend class OopStorage::AllocationList;
+
+  // Members are mutable, and we deal exclusively with pointers to
+  // const, to make const blocks easier to use; a block being const
+  // doesn't prevent modifying its list state.
+  mutable const Block* _prev;
+  mutable const Block* _next;
+
+  // Noncopyable.
+  AllocationListEntry(const AllocationListEntry&);
+  AllocationListEntry& operator=(const AllocationListEntry&);
+
+public:
+  AllocationListEntry();
+  ~AllocationListEntry();
+};
+
+// Fixed-sized array of oops, plus bookkeeping data.
+// All blocks are in the storage's _active_array, at the block's _active_index.
+// Non-full blocks are in the storage's _allocation_list, linked through the
+// block's _allocation_list_entry.  Empty blocks are at the end of that list.
 class OopStorage::Block /* No base class, to avoid messing up alignment. */ {
   // _data must be the first non-static data member, for alignment.
   oop _data[BitsPerWord];
@@ -42,8 +139,8 @@ class OopStorage::Block /* No base class, to avoid messing up alignment. */ {
   volatile uintx _allocated_bitmask; // One bit per _data element.
   const OopStorage* _owner;
   void* _memory;              // Unaligned storage containing block.
-  BlockEntry _active_entry;
-  BlockEntry _allocate_entry;
+  size_t _active_index;
+  AllocationListEntry _allocation_list_entry;
   Block* volatile _deferred_updates_next;
   volatile uintx _release_refcount;
 
@@ -61,8 +158,7 @@ class OopStorage::Block /* No base class, to avoid messing up alignment. */ {
   Block& operator=(const Block&);
 
 public:
-  static const BlockEntry& get_active_entry(const Block& block);
-  static const BlockEntry& get_allocate_entry(const Block& block);
+  const AllocationListEntry& allocation_list_entry() const;
 
   static size_t allocation_size();
   static size_t allocation_alignment_shift();
@@ -77,12 +173,17 @@ public:
   bool is_full() const;
   bool is_empty() const;
   uintx allocated_bitmask() const;
-  bool is_deletable() const;
+
+  bool is_safe_to_delete() const;
 
   Block* deferred_updates_next() const;
   void set_deferred_updates_next(Block* new_next);
 
   bool contains(const oop* ptr) const;
+
+  size_t active_index() const;
+  void set_active_index(size_t index);
+  static size_t active_index_safe(const Block* block); // Returns 0 if access fails.
 
   // Returns NULL if ptr is not in a block or not allocated in that block.
   static Block* block_for_ptr(const OopStorage* owner, const oop* ptr);
@@ -91,42 +192,46 @@ public:
   static Block* new_block(const OopStorage* owner);
   static void delete_block(const Block& block);
 
-  void release_entries(uintx releasing, Block* volatile* deferred_list);
+  void release_entries(uintx releasing, OopStorage* owner);
 
   template<typename F> bool iterate(F f);
   template<typename F> bool iterate(F f) const;
 }; // class Block
 
-inline OopStorage::Block* OopStorage::BlockList::head() {
+inline OopStorage::Block* OopStorage::AllocationList::head() {
   return const_cast<Block*>(_head);
 }
 
-inline const OopStorage::Block* OopStorage::BlockList::chead() const {
+inline OopStorage::Block* OopStorage::AllocationList::tail() {
+  return const_cast<Block*>(_tail);
+}
+
+inline const OopStorage::Block* OopStorage::AllocationList::chead() const {
   return _head;
 }
 
-inline const OopStorage::Block* OopStorage::BlockList::ctail() const {
+inline const OopStorage::Block* OopStorage::AllocationList::ctail() const {
   return _tail;
 }
 
-inline OopStorage::Block* OopStorage::BlockList::prev(Block& block) {
-  return const_cast<Block*>(_get_entry(block)._prev);
+inline OopStorage::Block* OopStorage::AllocationList::prev(Block& block) {
+  return const_cast<Block*>(block.allocation_list_entry()._prev);
 }
 
-inline OopStorage::Block* OopStorage::BlockList::next(Block& block) {
-  return const_cast<Block*>(_get_entry(block)._next);
+inline OopStorage::Block* OopStorage::AllocationList::next(Block& block) {
+  return const_cast<Block*>(block.allocation_list_entry()._next);
 }
 
-inline const OopStorage::Block* OopStorage::BlockList::prev(const Block& block) const {
-  return _get_entry(block)._prev;
+inline const OopStorage::Block* OopStorage::AllocationList::prev(const Block& block) const {
+  return block.allocation_list_entry()._prev;
 }
 
-inline const OopStorage::Block* OopStorage::BlockList::next(const Block& block) const {
-  return _get_entry(block)._next;
+inline const OopStorage::Block* OopStorage::AllocationList::next(const Block& block) const {
+  return block.allocation_list_entry()._next;
 }
 
 template<typename Closure>
-class OopStorage::OopFn VALUE_OBJ_CLASS_SPEC {
+class OopStorage::OopFn {
 public:
   explicit OopFn(Closure* cl) : _cl(cl) {}
 
@@ -146,7 +251,7 @@ inline OopStorage::OopFn<Closure> OopStorage::oop_fn(Closure* cl) {
 }
 
 template<typename IsAlive, typename F>
-class OopStorage::IfAliveFn VALUE_OBJ_CLASS_SPEC {
+class OopStorage::IfAliveFn {
 public:
   IfAliveFn(IsAlive* is_alive, F f) : _is_alive(is_alive), _f(f) {}
 
@@ -174,7 +279,7 @@ inline OopStorage::IfAliveFn<IsAlive, F> OopStorage::if_alive_fn(IsAlive* is_ali
 }
 
 template<typename F>
-class OopStorage::SkipNullFn VALUE_OBJ_CLASS_SPEC {
+class OopStorage::SkipNullFn {
 public:
   SkipNullFn(F f) : _f(f) {}
 
@@ -192,7 +297,11 @@ inline OopStorage::SkipNullFn<F> OopStorage::skip_null_fn(F f) {
   return SkipNullFn<F>(f);
 }
 
-// Inline Block accesses for use in iteration inner loop.
+// Inline Block accesses for use in iteration loops.
+
+inline const OopStorage::AllocationListEntry& OopStorage::Block::allocation_list_entry() const {
+  return _allocation_list_entry;
+}
 
 inline void OopStorage::Block::check_index(unsigned index) const {
   assert(index < ARRAY_SIZE(_data), "Index out of bounds: %u", index);
@@ -253,9 +362,10 @@ inline bool OopStorage::iterate_impl(F f, Storage* storage) {
   // Propagate const/non-const iteration to the block layer, by using
   // const or non-const blocks as corresponding to Storage.
   typedef typename Conditional<IsConst<Storage>::value, const Block*, Block*>::type BlockPtr;
-  for (BlockPtr block = storage->_active_head;
-       block != NULL;
-       block = storage->_active_list.next(*block)) {
+  ActiveArray* blocks = storage->_active_array;
+  size_t limit = blocks->block_count();
+  for (size_t i = 0; i < limit; ++i) {
+    BlockPtr block = blocks->at(i);
     if (!block->iterate(f)) {
       return false;
     }
@@ -293,4 +403,4 @@ inline void OopStorage::weak_oops_do(IsAliveClosure* is_alive, Closure* cl) {
   iterate_safepoint(if_alive_fn(is_alive, oop_fn(cl)));
 }
 
-#endif // include guard
+#endif // SHARE_GC_SHARED_OOPSTORAGE_INLINE_HPP

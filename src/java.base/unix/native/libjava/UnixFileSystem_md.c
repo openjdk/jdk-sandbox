@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,8 +55,11 @@
     #define NAME_MAX MAXNAMLEN
   #endif
   #define DIR DIR64
+  #define dirent dirent64
   #define opendir opendir64
+  #define readdir readdir64
   #define closedir closedir64
+  #define stat stat64
 #endif
 
 #if defined(__solaris__) && !defined(NAME_MAX)
@@ -64,11 +67,9 @@
 #endif
 
 #if defined(_ALLBSD_SOURCE)
-  #define dirent64 dirent
-  #define readdir64_r readdir_r
-  #define stat64 stat
   #ifndef MACOSX
     #define statvfs64 statvfs
+    #define stat64 stat
   #endif
 #endif
 
@@ -311,8 +312,7 @@ Java_java_io_UnixFileSystem_list(JNIEnv *env, jobject this,
                                  jobject file)
 {
     DIR *dir = NULL;
-    struct dirent64 *ptr;
-    struct dirent64 *result;
+    struct dirent *ptr;
     int len, maxlen;
     jobjectArray rv, old;
     jclass str_class;
@@ -325,13 +325,6 @@ Java_java_io_UnixFileSystem_list(JNIEnv *env, jobject this,
     } END_PLATFORM_STRING(env, path);
     if (dir == NULL) return NULL;
 
-    ptr = malloc(sizeof(struct dirent64) + (PATH_MAX + 1));
-    if (ptr == NULL) {
-        JNU_ThrowOutOfMemoryError(env, "heap allocation failed");
-        closedir(dir);
-        return NULL;
-    }
-
     /* Allocate an initial String array */
     len = 0;
     maxlen = 16;
@@ -339,7 +332,7 @@ Java_java_io_UnixFileSystem_list(JNIEnv *env, jobject this,
     if (rv == NULL) goto error;
 
     /* Scan the directory */
-    while ((readdir64_r(dir, ptr, &result) == 0)  && (result != NULL)) {
+    while ((ptr = readdir(dir)) != NULL) {
         jstring name;
         if (!strcmp(ptr->d_name, ".") || !strcmp(ptr->d_name, ".."))
             continue;
@@ -360,7 +353,6 @@ Java_java_io_UnixFileSystem_list(JNIEnv *env, jobject this,
         (*env)->DeleteLocalRef(env, name);
     }
     closedir(dir);
-    free(ptr);
 
     /* Copy the final results into an appropriately-sized array */
     old = rv;
@@ -375,7 +367,6 @@ Java_java_io_UnixFileSystem_list(JNIEnv *env, jobject this,
 
  error:
     closedir(dir);
-    free(ptr);
     return NULL;
 }
 

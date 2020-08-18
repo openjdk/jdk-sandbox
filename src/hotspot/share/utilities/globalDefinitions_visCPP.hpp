@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_GLOBALDEFINITIONS_VISCPP_HPP
-#define SHARE_VM_UTILITIES_GLOBALDEFINITIONS_VISCPP_HPP
+#ifndef SHARE_UTILITIES_GLOBALDEFINITIONS_VISCPP_HPP
+#define SHARE_UTILITIES_GLOBALDEFINITIONS_VISCPP_HPP
 
 #include "jni.h"
 
@@ -139,6 +139,7 @@ inline int g_isfinite(jdouble f)                 { return _finite(f); }
 #pragma warning( disable : 4201 ) // nonstandard extension used : nameless struct/union (needed in windows.h)
 #pragma warning( disable : 4511 ) // copy constructor could not be generated
 #pragma warning( disable : 4291 ) // no matching operator delete found; memory will not be freed if initialization thows an exception
+#pragma warning( disable : 4351 ) // new behavior: elements of array ... will be default initialized
 #ifdef CHECK_UNHANDLED_OOPS
 #pragma warning( disable : 4521 ) // class has multiple copy ctors of a single type
 #pragma warning( disable : 4522 ) // class has multiple assignment operators of a single type
@@ -146,20 +147,6 @@ inline int g_isfinite(jdouble f)                 { return _finite(f); }
 #if _MSC_VER >= 1400
 #pragma warning( disable : 4996 ) // unsafe string functions. Same as define _CRT_SECURE_NO_WARNINGS/_CRT_SECURE_NO_DEPRICATE
 #endif
-
-inline int vsnprintf(char* buf, size_t count, const char* fmt, va_list argptr) {
-  // If number of characters written == count, Windows doesn't write a
-  // terminating NULL, so we do it ourselves.
-  int ret = _vsnprintf(buf, count, fmt, argptr);
-  if (count > 0) buf[count-1] = '\0';
-  return ret;
-}
-
-// Portability macros
-#define PRAGMA_INTERFACE
-#define PRAGMA_IMPLEMENTATION
-#define PRAGMA_IMPLEMENTATION_(arg)
-#define VALUE_OBJ_CLASS_SPEC    : public _ValueObj
 
 // Formatting.
 #define FORMAT64_MODIFIER "I64"
@@ -177,4 +164,7 @@ inline int vsnprintf(char* buf, size_t count, const char* fmt, va_list argptr) {
 #define NOINLINE     __declspec(noinline)
 #define ALWAYSINLINE __forceinline
 
-#endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_VISCPP_HPP
+// Alignment
+#define ATTRIBUTE_ALIGNED(x) __declspec(align(x))
+
+#endif // SHARE_UTILITIES_GLOBALDEFINITIONS_VISCPP_HPP

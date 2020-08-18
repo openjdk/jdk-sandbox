@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_PPC_VM_FRAME_PPC_HPP
-#define CPU_PPC_VM_FRAME_PPC_HPP
+#ifndef CPU_PPC_FRAME_PPC_HPP
+#define CPU_PPC_FRAME_PPC_HPP
 
 #include "runtime/synchronizer.hpp"
 
@@ -359,12 +359,12 @@
   //            ...
   //
 
-  // frame pointer for this frame
-  intptr_t* _fp;
-
   // The frame's stack pointer before it has been extended by a c2i adapter;
   // needed by deoptimization
   intptr_t* _unextended_sp;
+
+  // frame pointer for this frame
+  intptr_t* _fp;
 
  public:
 
@@ -384,7 +384,7 @@
 
   // Constructors
   inline frame(intptr_t* sp);
-  frame(intptr_t* sp, address pc);
+  inline frame(intptr_t* sp, address pc);
   inline frame(intptr_t* sp, address pc, intptr_t* unextended_sp);
 
  private:
@@ -425,4 +425,6 @@
     pc_return_offset = 0
   };
 
-#endif // CPU_PPC_VM_FRAME_PPC_HPP
+  static jint interpreter_frame_expression_stack_direction() { return -1; }
+
+#endif // CPU_PPC_FRAME_PPC_HPP

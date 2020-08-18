@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,19 +23,17 @@
 
 /*
  * @test NonBootLoaderClasses
- * @summary Test to ensure platform and app classes are not being archived
+ * @summary Test to ensure platform and app classes are archived when specified in classlist
  * @requires vm.cds
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main NonBootLoaderClasses
+ * @run driver NonBootLoaderClasses
  */
 
 import jdk.test.lib.cds.CDSOptions;
 import jdk.test.lib.cds.CDSTestUtils;
 import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
-import java.io.File;
 
 public class NonBootLoaderClasses {
     public static void main(String[] args) throws Exception {
@@ -46,20 +44,21 @@ public class NonBootLoaderClasses {
             CDSTestUtils.makeClassList(classes).getPath();
         String archiveName = "NonBootLoaderClasses.jsa";
         CDSOptions opts = (new CDSOptions())
-            .addPrefix("-XX:ExtraSharedClassListFile=" + classList)
+            .addPrefix("-XX:ExtraSharedClassListFile=" + classList, "-cp", "\"\"")
             .setArchiveName(archiveName);
         CDSTestUtils.createArchiveAndCheck(opts);
 
         // Print the shared dictionary and inspect the output
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+        opts = (new CDSOptions())
+            .setUseVersion(false)
+            .addSuffix( "-cp", "\"\"",
                 "-XX:+UnlockDiagnosticVMOptions", "-XX:SharedArchiveFile=./" + archiveName,
                 "-XX:+PrintSharedArchiveAndExit", "-XX:+PrintSharedDictionary");
-        OutputAnalyzer out = CDSTestUtils.executeAndLog(pb, "print-shared-archive");
-        if (!CDSTestUtils.isUnableToMap(out)) {
-            out.shouldContain("archive is valid")
-               .shouldHaveExitValue(0)               // Should report success in error code.
-               .shouldNotContain(PLATFORM_CLASS)
-               .shouldNotContain(APP_CLASS);
-        }
+        CDSTestUtils.run(opts)
+            .assertNormalExit(output -> {
+                output.shouldContain("archive is valid");
+                output.shouldContain(PLATFORM_CLASS.replace('/', '.'));
+                output.shouldContain(APP_CLASS.replace('/', '.'));
+            });
    }
 }

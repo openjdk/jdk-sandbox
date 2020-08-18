@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,16 +20,20 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.debug;
+
+import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.graalvm.compiler.options.OptionKey;
 import org.graalvm.compiler.options.OptionValues;
@@ -38,19 +42,6 @@ import org.graalvm.compiler.options.OptionValues;
  * Miscellaneous methods for modifying and generating file system paths.
  */
 public class PathUtilities {
-
-    private static final AtomicLong globalTimeStamp = new AtomicLong();
-
-    /**
-     * Gets a time stamp for the current process. This method will always return the same value for
-     * the current VM execution.
-     */
-    public static long getGlobalTimeStamp() {
-        if (globalTimeStamp.get() == 0) {
-            globalTimeStamp.compareAndSet(0, System.currentTimeMillis());
-        }
-        return globalTimeStamp.get();
-    }
 
     /**
      * Gets a value based on {@code name} that can be passed to {@link Paths#get(String, String...)}
@@ -86,9 +77,10 @@ public class PathUtilities {
 
     /**
      * A maximum file name length supported by most file systems. There is no platform independent
-     * way to get this in Java.
+     * way to get this in Java. Normally it is 255. But for AUFS it is 242. Refer AUFS_MAX_NAMELEN
+     * in http://aufs.sourceforge.net/aufs3/man.html.
      */
-    private static final int MAX_FILE_NAME_LENGTH = 255;
+    private static final int MAX_FILE_NAME_LENGTH = 242;
 
     private static final String ELLIPSIS = "...";
 
@@ -129,7 +121,15 @@ public class PathUtilities {
                 if (createDirectory) {
                     return Files.createDirectory(result);
                 } else {
-                    return Files.createFile(result);
+                    try {
+                        return Files.createFile(result);
+                    } catch (AccessDeniedException e) {
+                        /*
+                         * Thrown on Windows if a directory with the same name already exists, so
+                         * convert it to FileAlreadyExistsException if that's the case.
+                         */
+                        throw Files.isDirectory(result, NOFOLLOW_LINKS) ? new FileAlreadyExistsException(e.getFile()) : e;
+                    }
                 }
             } catch (FileAlreadyExistsException e) {
                 uniqueTag = "_" + dumpCounter++;

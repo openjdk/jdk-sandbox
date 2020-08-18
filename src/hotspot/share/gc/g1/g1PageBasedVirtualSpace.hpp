@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,9 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1PAGEBASEDVIRTUALSPACE_HPP
-#define SHARE_VM_GC_G1_G1PAGEBASEDVIRTUALSPACE_HPP
+#ifndef SHARE_GC_G1_G1PAGEBASEDVIRTUALSPACE_HPP
+#define SHARE_GC_G1_G1PAGEBASEDVIRTUALSPACE_HPP
 
-#include "memory/allocation.hpp"
 #include "memory/memRegion.hpp"
 #include "memory/virtualspace.hpp"
 #include "utilities/align.hpp"
@@ -45,7 +44,7 @@ class WorkGang;
 // be committed using OS small pages.
 // The implementation gives an error when trying to commit or uncommit pages that
 // have already been committed or uncommitted.
-class G1PageBasedVirtualSpace VALUE_OBJ_CLASS_SPEC {
+class G1PageBasedVirtualSpace {
   friend class VMStructs;
  private:
   // Reserved area addresses.
@@ -92,7 +91,7 @@ class G1PageBasedVirtualSpace VALUE_OBJ_CLASS_SPEC {
   void pretouch_internal(size_t start_page, size_t end_page);
 
   // Returns the index of the page which contains the given address.
-  uintptr_t  addr_to_page_index(char* addr) const;
+  size_t  addr_to_page_index(char* addr) const;
   // Returns the address of the given page index.
   char*  page_start(size_t index) const;
 
@@ -137,6 +136,8 @@ class G1PageBasedVirtualSpace VALUE_OBJ_CLASS_SPEC {
   // Memory left to use/expand in this virtual space.
   size_t uncommitted_size() const;
 
+  void commit_and_set_special();
+
   bool contains(const void* p) const;
 
   MemRegion reserved() {
@@ -151,4 +152,4 @@ class G1PageBasedVirtualSpace VALUE_OBJ_CLASS_SPEC {
   void print();
 };
 
-#endif // SHARE_VM_GC_G1_G1PAGEBASEDVIRTUALSPACE_HPP
+#endif // SHARE_GC_G1_G1PAGEBASEDVIRTUALSPACE_HPP

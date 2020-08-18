@@ -24,15 +24,14 @@
  */
 
 /**
- * Defines the core Java SE API.
- * <P>
+ * Defines the API of the Java SE Platform.
  *
  * <dl>
  * <dt class="simpleTagLabel" style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif">Optional for the Java SE Platform:</dt>
  * <dd>
- *   <a href="../specs/jni/index.html">Java Native Interface (JNI)</a><br>
- *   <a href="../specs/jvmti.html">Java Virtual Machine Tool Interface (JVM TI)</a><br>
- *   <a href="../specs/jdwp/jdwp-spec.html">Java Debug Wire Protocol (JDWP)</a><br>
+ *   <a href="{@docRoot}/../specs/jni/index.html">Java Native Interface (JNI)</a><br>
+ *   <a href="{@docRoot}/../specs/jvmti.html">Java Virtual Machine Tool Interface (JVM TI)</a><br>
+ *   <a href="{@docRoot}/../specs/jdwp/jdwp-spec.html">Java Debug Wire Protocol (JDWP)</a><br>
  * </dd>
  * </dl>
  *
@@ -48,6 +47,7 @@ module java.se {
     requires transitive java.management;
     requires transitive java.management.rmi;
     requires transitive java.naming;
+    requires transitive java.net.http;
     requires transitive java.prefs;
     requires transitive java.rmi;
     requires transitive java.scripting;
@@ -55,6 +55,7 @@ module java.se {
     requires transitive java.security.sasl;
     requires transitive java.sql;
     requires transitive java.sql.rowset;
+    requires transitive java.transaction.xa;
     requires transitive java.xml;
     requires transitive java.xml.crypto;
 }

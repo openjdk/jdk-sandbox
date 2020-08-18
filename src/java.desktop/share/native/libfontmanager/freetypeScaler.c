@@ -38,6 +38,7 @@
 #include FT_SIZES_H
 #include FT_OUTLINE_H
 #include FT_SYNTHESIS_H
+#include FT_LCD_FILTER_H
 
 #include "fontscaler.h"
 
@@ -45,7 +46,7 @@
 #define  FloatToFTFixed(f) (FT_Fixed)((f) * (float)(ftFixed1))
 #define  FTFixedToFloat(x) ((x) / (float)(ftFixed1))
 #define  FT26Dot6ToFloat(x)  ((x) / ((float) (1<<6)))
-#define  ROUND(x) ((int) (x+0.5))
+#define  FT26Dot6ToInt(x) (((int)(x)) >> 6)
 
 typedef struct {
     /* Important note:
@@ -364,6 +365,19 @@ Java_sun_font_FreetypeFontScaler_createScalerContextNative(
     context->doBold = (boldness != 1.0);
     context->doItalize = (italic != 0);
 
+    /* freetype is very keen to use embedded bitmaps, even if it knows
+     * there is a rotation or you asked for antialiasing.
+     * In the rendering path we will check useSBits and disable
+     * bitmaps unless it is set. And here we set it only if none
+     * of the conditions invalidate using it.
+     * Note that we allow embedded bitmaps for the LCD case.
+     */
+    if ((aa != TEXT_AA_ON) && (fm != TEXT_FM_ON) &&
+        !context->doBold && !context->doItalize &&
+        (context->transform.yx == 0) && (context->transform.xy == 0))
+    {
+        context->useSbits = 1;
+    }
     return ptr_to_jlong(context);
 }
 
@@ -384,6 +398,8 @@ static int setupFTContext(JNIEnv *env,
         if (errCode == 0) {
             errCode = FT_Activate_Size(scalerInfo->face->size);
         }
+
+        FT_Library_SetLcdFilter(scalerInfo->library, FT_LCD_FILTER_DEFAULT);
     }
 
     return errCode;
@@ -445,6 +461,14 @@ Java_sun_font_FreetypeFontScaler_getFontMetricsNative(
     /* See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=657854 */
 #define FT_MulFixFloatShift6(a, b) (((float) (a)) * ((float) (b)) / 65536.0 / 64.0)
 
+#define contextAwareMetricsX(x, y) \
+    (FTFixedToFloat(context->transform.xx) * (x) - \
+     FTFixedToFloat(context->transform.xy) * (y))
+
+#define contextAwareMetricsY(x, y) \
+    (-FTFixedToFloat(context->transform.yx) * (x) + \
+     FTFixedToFloat(context->transform.yy) * (y))
+
     /*
      * See FreeType source code: src/base/ftobjs.c ft_recompute_scaled_metrics()
      * http://icedtea.classpath.org/bugzilla/show_bug.cgi?id=1659
@@ -475,9 +499,13 @@ Java_sun_font_FreetypeFontScaler_getFontMetricsNative(
     my = 0;
 
     metrics = (*env)->NewObject(env,
-                                sunFontIDs.strikeMetricsClass,
-                                sunFontIDs.strikeMetricsCtr,
-                                ax, ay, dx, dy, bx, by, lx, ly, mx, my);
+        sunFontIDs.strikeMetricsClass,
+        sunFontIDs.strikeMetricsCtr,
+        contextAwareMetricsX(ax, ay), contextAwareMetricsY(ax, ay),
+        contextAwareMetricsX(dx, dy), contextAwareMetricsY(dx, dy),
+        bx, by,
+        contextAwareMetricsX(lx, ly), contextAwareMetricsY(lx, ly),
+        contextAwareMetricsX(mx, my), contextAwareMetricsY(mx, my));
 
     return metrics;
 }
@@ -666,8 +694,7 @@ Java_sun_font_FreetypeFontScaler_getGlyphImageNative(
     int error, imageSize;
     UInt16 width, height;
     GlyphInfo *glyphInfo;
-    int glyph_index;
-    int renderFlags = FT_LOAD_RENDER, target;
+    int renderFlags = FT_LOAD_DEFAULT, target;
     FT_GlyphSlot ftglyph;
 
     FTScalerContext* context =
@@ -685,9 +712,8 @@ Java_sun_font_FreetypeFontScaler_getGlyphImageNative(
         return ptr_to_jlong(getNullGlyphImage());
     }
 
-    /* if algorithmic styling is required then we do not request bitmap */
-    if (context->doBold || context->doItalize) {
-        renderFlags =  FT_LOAD_DEFAULT;
+    if (!context->useSbits) {
+        renderFlags |= FT_LOAD_NO_BITMAP;
     }
 
     /* NB: in case of non identity transform
@@ -707,8 +733,6 @@ Java_sun_font_FreetypeFontScaler_getGlyphImageNative(
         target = FT_LOAD_TARGET_LCD_V;
     }
     renderFlags |= target;
-
-    glyph_index = FT_Get_Char_Index(scalerInfo->face, glyphCode);
 
     error = FT_Load_Glyph(scalerInfo->face, glyphCode, renderFlags);
     if (error) {
@@ -765,12 +789,12 @@ Java_sun_font_FreetypeFontScaler_getGlyphImageNative(
     } else {
         if (!ftglyph->advance.y) {
             glyphInfo->advanceX =
-                (float) ROUND(FT26Dot6ToFloat(ftglyph->advance.x));
+                (float) FT26Dot6ToInt(ftglyph->advance.x);
             glyphInfo->advanceY = 0;
         } else if (!ftglyph->advance.x) {
             glyphInfo->advanceX = 0;
             glyphInfo->advanceY =
-                (float) ROUND(FT26Dot6ToFloat(-ftglyph->advance.y));
+                (float) FT26Dot6ToInt(-ftglyph->advance.y);
         } else {
             glyphInfo->advanceX = FT26Dot6ToFloat(ftglyph->advance.x);
             glyphInfo->advanceY = FT26Dot6ToFloat(-ftglyph->advance.y);
@@ -946,7 +970,6 @@ static FT_Outline* getFTOutline(JNIEnv* env, jobject font2D,
         FTScalerContext *context, FTScalerInfo* scalerInfo,
         jint glyphCode, jfloat xpos, jfloat ypos) {
     int renderFlags;
-    int glyph_index;
     FT_Error error;
     FT_GlyphSlot ftglyph;
 
@@ -961,8 +984,6 @@ static FT_Outline* getFTOutline(JNIEnv* env, jobject font2D,
     }
 
     renderFlags = FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP;
-
-    glyph_index = FT_Get_Char_Index(scalerInfo->face, glyphCode);
 
     error = FT_Load_Glyph(scalerInfo->face, glyphCode, renderFlags);
     if (error) {

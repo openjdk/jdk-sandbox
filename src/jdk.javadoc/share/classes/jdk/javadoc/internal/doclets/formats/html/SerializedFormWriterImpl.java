@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,8 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation.PageMode;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.SerializedFormWriter;
@@ -59,12 +61,15 @@ public class SerializedFormWriterImpl extends SubWriterHolderWriter
      */
     private HtmlTree mainTree = HtmlTree.MAIN();
 
+    private final Navigation navBar;
+
     /**
      * @param configuration the configuration data for the doclet
      */
     public SerializedFormWriterImpl(HtmlConfiguration configuration) {
         super(configuration, DocPaths.SERIALIZED_FORM);
         visibleClasses = configuration.getIncludedTypeElements();
+        this.navBar = new Navigation(null, configuration, fixedNavDiv, PageMode.SERIALIZEDFORM, path);
     }
 
     /**
@@ -79,7 +84,8 @@ public class SerializedFormWriterImpl extends SubWriterHolderWriter
                 ? HtmlTree.HEADER()
                 : bodyTree;
         addTop(htmlTree);
-        addNavLinks(true, htmlTree);
+        navBar.setUserHeader(getUserHeaderFooter(true));
+        htmlTree.addContent(navBar.getContent(true));
         if (configuration.allowTag(HtmlTag.HEADER)) {
             bodyTree.addContent(htmlTree);
         }
@@ -177,9 +183,9 @@ public class SerializedFormWriterImpl extends SubWriterHolderWriter
 
         //Print the heading.
         Content className = superClassLink == null ?
-            configuration.getContent(
+            contents.getContent(
             "doclet.Class_0_implements_serializable", classLink) :
-            configuration.getContent(
+            contents.getContent(
             "doclet.Class_0_extends_implements_serializable", classLink,
             superClassLink);
         li.addContent(HtmlTree.HEADING(HtmlConstants.SERIALIZED_MEMBER_HEADING,
@@ -261,7 +267,8 @@ public class SerializedFormWriterImpl extends SubWriterHolderWriter
         Content htmlTree = (configuration.allowTag(HtmlTag.FOOTER))
                 ? HtmlTree.FOOTER()
                 : serializedTree;
-        addNavLinks(false, htmlTree);
+        navBar.setUserFooter(getUserHeaderFooter(false));
+        htmlTree.addContent(navBar.getContent(false));
         addBottom(htmlTree);
         if (configuration.allowTag(HtmlTag.FOOTER)) {
             serializedTree.addContent(htmlTree);

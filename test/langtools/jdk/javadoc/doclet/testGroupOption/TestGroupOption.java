@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,17 @@
 
 /*
  * @test
- * @bug      4924383 8149402
+ * @bug      4924383 8149402 8196202
  * @summary  Test to make sure the -group option works correctly
  *           with the given pattern usages.
  * @author   jamieh
- * @library  ../lib
- * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @library  ../../lib
+ * @modules  jdk.javadoc/jdk.javadoc.internal.tool
+ * @build    javadoc.tester.*
  * @run main TestGroupOption
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestGroupOption extends JavadocTester {
 
@@ -41,7 +43,7 @@ public class TestGroupOption extends JavadocTester {
     }
 
     @Test
-    void test1() {
+    public void test1() {
         // Make sure the warning is not printed when -group is used correctly.
         javadoc("-d", "out-1",
                 "-sourcepath", testSrc,
@@ -58,8 +60,9 @@ public class TestGroupOption extends JavadocTester {
      @Test
     // Make sure the "Other packages" section is printed and the header for empty section is not.
     // Make sure that the headers of group that is defined using patterns are printed.
-    void test2() {
+    public void test2() {
         javadoc("-d", "out-2",
+                "--frames",
                 "-sourcepath", testSrc,
                 "-group", "Group pkg*", "pkg*",
                 "-group", "Group abc*", "abc*",
@@ -73,7 +76,7 @@ public class TestGroupOption extends JavadocTester {
     }
 
     @Test
-    void test3() {
+    public void test3() {
         // Make sure the warning is printed when -group is not used correctly.
         javadoc("-d", "out-3",
                 "-sourcepath", testSrc,

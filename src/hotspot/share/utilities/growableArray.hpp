@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_GROWABLEARRAY_HPP
-#define SHARE_VM_UTILITIES_GROWABLEARRAY_HPP
+#ifndef SHARE_UTILITIES_GROWABLEARRAY_HPP
+#define SHARE_UTILITIES_GROWABLEARRAY_HPP
 
 #include "memory/allocation.hpp"
+#include "oops/oop.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
@@ -211,6 +212,15 @@ template<class E> class GrowableArray : public GenericGrowableArray {
 
   void print();
 
+  inline static bool safe_equals(oop obj1, oop obj2) {
+    return oopDesc::equals(obj1, obj2);
+  }
+
+  template <class X>
+  inline static bool safe_equals(X i1, X i2) {
+    return i1 == i2;
+  }
+
   int append(const E& elem) {
     check_nesting();
     if (_len == _max) grow(_len);
@@ -295,7 +305,7 @@ template<class E> class GrowableArray : public GenericGrowableArray {
 
   bool contains(const E& elem) const {
     for (int i = 0; i < _len; i++) {
-      if (_data[i] == elem) return true;
+      if (safe_equals(_data[i], elem)) return true;
     }
     return false;
   }
@@ -574,4 +584,4 @@ typedef GrowableArray<int> intArray;
 typedef GrowableArray<int> intStack;
 typedef GrowableArray<bool> boolArray;
 
-#endif // SHARE_VM_UTILITIES_GROWABLEARRAY_HPP
+#endif // SHARE_UTILITIES_GROWABLEARRAY_HPP

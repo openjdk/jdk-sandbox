@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -110,7 +110,7 @@ class Random implements java.io.Serializable {
         // Different Sizes and Good Lattice Structure", 1999
         for (;;) {
             long current = seedUniquifier.get();
-            long next = current * 181783497276652981L;
+            long next = current * 1181783497276652981L;
             if (seedUniquifier.compareAndSet(current, next))
                 return next;
         }
@@ -136,7 +136,7 @@ class Random implements java.io.Serializable {
         if (getClass() == Random.class)
             this.seed = new AtomicLong(initialScramble(seed));
         else {
-            // subclass might have overriden setSeed
+            // subclass might have overridden setSeed
             this.seed = new AtomicLong();
             setSeed(seed);
         }
@@ -1222,6 +1222,6 @@ class Random implements java.io.Serializable {
         } catch (Exception ex) { throw new Error(ex); }
     }
     private void resetSeed(long seedVal) {
-        unsafe.putObjectVolatile(this, seedOffset, new AtomicLong(seedVal));
+        unsafe.putReferenceVolatile(this, seedOffset, new AtomicLong(seedVal));
     }
 }

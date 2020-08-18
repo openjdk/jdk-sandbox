@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,12 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_GRAPHKIT_HPP
-#define SHARE_VM_OPTO_GRAPHKIT_HPP
+#ifndef SHARE_OPTO_GRAPHKIT_HPP
+#define SHARE_OPTO_GRAPHKIT_HPP
 
 #include "ci/ciEnv.hpp"
 #include "ci/ciMethodData.hpp"
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
 #include "opto/cfgnode.hpp"
@@ -38,6 +39,7 @@
 #include "opto/type.hpp"
 #include "runtime/deoptimization.hpp"
 
+class BarrierSetC2;
 class FastLockNode;
 class FastUnlockNode;
 class IdealKit;
@@ -63,6 +65,7 @@ class GraphKit : public Phase {
   SafePointNode*    _exceptions;// Parser map(s) for exception state(s)
   int               _bci;       // JVM Bytecode Pointer
   ciMethod*         _method;    // JVM Current Method
+  BarrierSetC2*     _barrier_set;
 
  private:
   int               _sp;        // JVM Expression Stack Pointer; don't modify directly!
@@ -86,8 +89,9 @@ class GraphKit : public Phase {
   virtual Parse*          is_Parse()          const { return NULL; }
   virtual LibraryCallKit* is_LibraryCallKit() const { return NULL; }
 
-  ciEnv*        env()           const { return _env; }
-  PhaseGVN&     gvn()           const { return _gvn; }
+  ciEnv*        env()               const { return _env; }
+  PhaseGVN&     gvn()               const { return _gvn; }
+  void*         barrier_set_state() const { return C->barrier_set_state(); }
 
   void record_for_igvn(Node* n) const { C->record_for_igvn(n); }  // delegate to Compile
 
@@ -102,9 +106,6 @@ class GraphKit : public Phase {
   Node* makecon(const Type *t)  const { return _gvn.makecon(t); }
   Node* zerocon(BasicType bt)   const { return _gvn.zerocon(bt); }
   // (See also macro MakeConX in type.hpp, which uses intcon or longcon.)
-
-  // Helper for byte_map_base
-  Node* byte_map_base_node();
 
   jint  find_int_con(Node* n, jint value_if_unknown) {
     return _gvn.find_int_con(n, value_if_unknown);
@@ -569,70 +570,69 @@ class GraphKit : public Phase {
                         bool unaligned = false,
                         bool mismatched = false);
 
+  // Perform decorated accesses
 
-  // All in one pre-barrier, store, post_barrier
-  // Insert a write-barrier'd store.  This is to let generational GC
-  // work; we have to flag all oop-stores before the next GC point.
-  //
-  // It comes in 3 flavors of store to an object, array, or unknown.
-  // We use precise card marks for arrays to avoid scanning the entire
-  // array. We use imprecise for object. We use precise for unknown
-  // since we don't know if we have an array or and object or even
-  // where the object starts.
-  //
-  // If val==NULL, it is taken to be a completely unknown value. QQQ
+  Node* access_store_at(Node* obj,   // containing obj
+                        Node* adr,   // actual adress to store val at
+                        const TypePtr* adr_type,
+                        Node* val,
+                        const Type* val_type,
+                        BasicType bt,
+                        DecoratorSet decorators);
 
-  Node* store_oop(Node* ctl,
-                  Node* obj,   // containing obj
-                  Node* adr,   // actual adress to store val at
-                  const TypePtr* adr_type,
-                  Node* val,
-                  const TypeOopPtr* val_type,
-                  BasicType bt,
-                  bool use_precise,
-                  MemNode::MemOrd mo,
-                  bool mismatched = false);
+  Node* access_load_at(Node* obj,   // containing obj
+                       Node* adr,   // actual adress to load val at
+                       const TypePtr* adr_type,
+                       const Type* val_type,
+                       BasicType bt,
+                       DecoratorSet decorators);
 
-  Node* store_oop_to_object(Node* ctl,
-                            Node* obj,   // containing obj
-                            Node* adr,   // actual adress to store val at
-                            const TypePtr* adr_type,
-                            Node* val,
-                            const TypeOopPtr* val_type,
-                            BasicType bt,
-                            MemNode::MemOrd mo) {
-    return store_oop(ctl, obj, adr, adr_type, val, val_type, bt, false, mo);
-  }
+  Node* access_load(Node* adr,   // actual adress to load val at
+                    const Type* val_type,
+                    BasicType bt,
+                    DecoratorSet decorators);
 
-  Node* store_oop_to_array(Node* ctl,
-                           Node* obj,   // containing obj
-                           Node* adr,   // actual adress to store val at
-                           const TypePtr* adr_type,
-                           Node* val,
-                           const TypeOopPtr* val_type,
-                           BasicType bt,
-                           MemNode::MemOrd mo) {
-    return store_oop(ctl, obj, adr, adr_type, val, val_type, bt, true, mo);
-  }
+  Node* access_atomic_cmpxchg_val_at(Node* obj,
+                                     Node* adr,
+                                     const TypePtr* adr_type,
+                                     int alias_idx,
+                                     Node* expected_val,
+                                     Node* new_val,
+                                     const Type* value_type,
+                                     BasicType bt,
+                                     DecoratorSet decorators);
 
-  // Could be an array or object we don't know at compile time (unsafe ref.)
-  Node* store_oop_to_unknown(Node* ctl,
-                             Node* obj,   // containing obj
-                             Node* adr,   // actual adress to store val at
+  Node* access_atomic_cmpxchg_bool_at(Node* obj,
+                                      Node* adr,
+                                      const TypePtr* adr_type,
+                                      int alias_idx,
+                                      Node* expected_val,
+                                      Node* new_val,
+                                      const Type* value_type,
+                                      BasicType bt,
+                                      DecoratorSet decorators);
+
+  Node* access_atomic_xchg_at(Node* obj,
+                              Node* adr,
+                              const TypePtr* adr_type,
+                              int alias_idx,
+                              Node* new_val,
+                              const Type* value_type,
+                              BasicType bt,
+                              DecoratorSet decorators);
+
+  Node* access_atomic_add_at(Node* obj,
+                             Node* adr,
                              const TypePtr* adr_type,
-                             Node* val,
+                             int alias_idx,
+                             Node* new_val,
+                             const Type* value_type,
                              BasicType bt,
-                             MemNode::MemOrd mo,
-                             bool mismatched = false);
+                             DecoratorSet decorators);
 
-  // For the few case where the barriers need special help
-  void pre_barrier(bool do_load, Node* ctl,
-                   Node* obj, Node* adr, uint adr_idx, Node* val, const TypeOopPtr* val_type,
-                   Node* pre_val,
-                   BasicType bt);
+  void access_clone(Node* src, Node* dst, Node* size, bool is_array);
 
-  void post_barrier(Node* ctl, Node* store, Node* obj, Node* adr, uint adr_idx,
-                    Node* val, BasicType bt, bool use_precise);
+  Node* access_resolve(Node* n, DecoratorSet decorators);
 
   // Return addressing for an array element.
   Node* array_element_address(Node* ary, Node* idx, BasicType elembt,
@@ -690,7 +690,7 @@ class GraphKit : public Phase {
   // Finish up a java call that was started by set_edges_for_java_call.
   // Call add_exception on any throw arising from the call.
   // Return the call result (transformed).
-  Node* set_results_for_java_call(CallJavaNode* call, bool separate_io_proj = false);
+  Node* set_results_for_java_call(CallJavaNode* call, bool separate_io_proj = false, bool deoptimize = false);
 
   // Similar to set_edges_for_java_call, but simplified for runtime calls.
   void  set_predefined_output_for_runtime_call(Node* call) {
@@ -699,7 +699,7 @@ class GraphKit : public Phase {
   void  set_predefined_output_for_runtime_call(Node* call,
                                                Node* keep_mem,
                                                const TypePtr* hook_mem);
-  Node* set_predefined_input_for_runtime_call(SafePointNode* call);
+  Node* set_predefined_input_for_runtime_call(SafePointNode* call, Node* narrow_mem = NULL);
 
   // Replace the call with the current state of the kit.  Requires
   // that the call was generated with separate io_projs so that
@@ -754,51 +754,9 @@ class GraphKit : public Phase {
   // Returns the object (if any) which was created the moment before.
   Node* just_allocated_object(Node* current_control);
 
-  static bool use_ReduceInitialCardMarks() {
-    BarrierSet *bs = Universe::heap()->barrier_set();
-    return bs->is_a(BarrierSet::CardTableModRef)
-           && barrier_set_cast<CardTableModRefBS>(bs)->can_elide_tlab_store_barriers()
-           && ReduceInitialCardMarks;
-  }
-
   // Sync Ideal and Graph kits.
   void sync_kit(IdealKit& ideal);
   void final_sync(IdealKit& ideal);
-
-  // vanilla/CMS post barrier
-  void write_barrier_post(Node *store, Node* obj,
-                          Node* adr,  uint adr_idx, Node* val, bool use_precise);
-
-  // Allow reordering of pre-barrier with oop store and/or post-barrier.
-  // Used for load_store operations which loads old value.
-  bool can_move_pre_barrier() const;
-
-  // G1 pre/post barriers
-  void g1_write_barrier_pre(bool do_load,
-                            Node* obj,
-                            Node* adr,
-                            uint alias_idx,
-                            Node* val,
-                            const TypeOopPtr* val_type,
-                            Node* pre_val,
-                            BasicType bt);
-
-  void g1_write_barrier_post(Node* store,
-                             Node* obj,
-                             Node* adr,
-                             uint alias_idx,
-                             Node* val,
-                             BasicType bt,
-                             bool use_precise);
-  // Helper function for g1
-  private:
-  void g1_mark_card(IdealKit& ideal, Node* card_adr, Node* store, uint oop_alias_idx,
-                    Node* index, Node* index_adr,
-                    Node* buffer, const TypeFunc* tf);
-
-  bool g1_can_remove_pre_barrier(PhaseTransform* phase, Node* adr, BasicType bt, uint adr_idx);
-
-  bool g1_can_remove_post_barrier(PhaseTransform* phase, Node* store, Node* adr);
 
   public:
   // Helper function to round double arguments before a call
@@ -886,11 +844,11 @@ class GraphKit : public Phase {
                   bool deoptimize_on_exception = false);
 
   // java.lang.String helpers
-  Node* load_String_length(Node* ctrl, Node* str);
-  Node* load_String_value(Node* ctrl, Node* str);
-  Node* load_String_coder(Node* ctrl, Node* str);
-  void store_String_value(Node* ctrl, Node* str, Node* value);
-  void store_String_coder(Node* ctrl, Node* str, Node* value);
+  Node* load_String_length(Node* str, bool set_ctrl);
+  Node* load_String_value(Node* str, bool set_ctrl);
+  Node* load_String_coder(Node* str, bool set_ctrl);
+  void store_String_value(Node* str, Node* value);
+  void store_String_coder(Node* str, Node* value);
   Node* capture_memory(const TypePtr* src_type, const TypePtr* dst_type);
   Node* compress_string(Node* src, const TypeAryPtr* src_type, Node* dst, Node* count);
   void inflate_string(Node* src, Node* dst, const TypeAryPtr* dst_type, Node* count);
@@ -969,4 +927,4 @@ class PreserveReexecuteState: public StackObj {
   ~PreserveReexecuteState();
 };
 
-#endif // SHARE_VM_OPTO_GRAPHKIT_HPP
+#endif // SHARE_OPTO_GRAPHKIT_HPP

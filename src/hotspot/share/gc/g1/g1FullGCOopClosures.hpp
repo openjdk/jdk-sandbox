@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,68 +55,36 @@ public:
   virtual void do_oop(narrowOop* p);
 };
 
-class G1MarkAndPushClosure : public ExtendedOopClosure {
+class G1MarkAndPushClosure : public OopIterateClosure {
   G1FullGCMarker* _marker;
   uint _worker_id;
 
 public:
-  G1MarkAndPushClosure(uint worker, G1FullGCMarker* marker, ReferenceProcessor* ref) :
+  G1MarkAndPushClosure(uint worker, G1FullGCMarker* marker, ReferenceDiscoverer* ref) :
+    OopIterateClosure(ref),
     _marker(marker),
-    _worker_id(worker),
-    ExtendedOopClosure(ref) { }
+    _worker_id(worker) { }
 
-  template <class T> inline void do_oop_nv(T* p);
+  template <class T> inline void do_oop_work(T* p);
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
 
   virtual bool do_metadata();
-  bool do_metadata_nv();
-
   virtual void do_klass(Klass* k);
-  void do_klass_nv(Klass* k);
-
   virtual void do_cld(ClassLoaderData* cld);
-  void do_cld_nv(ClassLoaderData* cld);
 };
 
-class G1AdjustClosure : public OopClosure {
+class G1AdjustClosure : public BasicOopIterateClosure {
+  template <class T> static inline void adjust_pointer(T* p);
 public:
-  template <class T> static inline oop adjust_pointer(T* p);
-  virtual void do_oop(oop* p);
-  virtual void do_oop(narrowOop* p);
-};
-
-class G1AdjustAndRebuildClosure : public ExtendedOopClosure {
-  uint _worker_id;
-  size_t _compaction_delta;
-  G1CollectedHeap* _g1h;
-
-  inline size_t calculate_compaction_delta(oop current, oop forwardee);
-  template <class T> inline T* add_compaction_delta(T* p);
-
-public:
-  G1AdjustAndRebuildClosure(uint worker_id);
-
-  void update_compaction_delta(oop obj);
-
-  template <class T> inline void add_reference(T* from_field, oop reference, uint worker_id);
-  template <class T> void do_oop_nv(T* p);
+  template <class T> void do_oop_work(T* p) { adjust_pointer(p); }
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
 
   virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 };
 
-class G1AdjustObjectClosure {
-  G1AdjustAndRebuildClosure* _closure;
-
-public:
-  G1AdjustObjectClosure(G1AdjustAndRebuildClosure* cl) : _closure(cl) { }
-
-  inline int adjust_object(oop obj);
-};
-
-class G1VerifyOopClosure: public OopClosure {
+class G1VerifyOopClosure: public BasicOopIterateClosure {
 private:
   G1CollectedHeap* _g1h;
   bool             _failures;
@@ -134,10 +102,10 @@ public:
   bool failures() { return _failures; }
   void print_object(outputStream* out, oop obj);
 
-  template <class T> void do_oop_nv(T* p);
+  template <class T> void do_oop_work(T* p);
 
-  void do_oop(oop* p)       { do_oop_nv(p); }
-  void do_oop(narrowOop* p) { do_oop_nv(p); }
+  void do_oop(oop* p)       { do_oop_work(p); }
+  void do_oop(narrowOop* p) { do_oop_work(p); }
 };
 
 class G1FollowStackClosure: public VoidClosure {

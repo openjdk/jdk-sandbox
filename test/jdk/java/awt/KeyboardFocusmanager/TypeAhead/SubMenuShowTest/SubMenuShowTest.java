@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,52 +22,78 @@
  */
 
 /*
-  test
-  @bug       6380743 8158380
-  @summary   Submenu should be shown by mnemonic key press.
-  @author    anton.tarasov@...: area=awt.focus
-  @run       applet SubMenuShowTest.html
+  @test
+  @key headful
+  @bug 6380743 8158380 8198624
+  @summary Submenu should be shown by mnemonic key press.
+  @author anton.tarasov@...: area=awt.focus
+  @library ../../../regtesthelpers
+  @library /test/lib
+  @build Util
+  @build jdk.test.lib.Platform
+  @run main SubMenuShowTest
 */
 
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
-import java.applet.Applet;
+import java.awt.Robot;
+import java.awt.BorderLayout;
+import java.awt.event.KeyEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+import javax.swing.SwingUtilities;
+import javax.swing.JFrame;
+import javax.swing.JMenuBar;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.lang.reflect.InvocationTargetException;
+import jdk.test.lib.Platform;
 import test.java.awt.regtesthelpers.Util;
-import jdk.testlibrary.OSInfo;
 
-public class SubMenuShowTest extends Applet {
-    Robot robot;
-    JFrame frame = new JFrame("Test Frame");
-    JMenuBar bar = new JMenuBar();
-    JMenu menu = new JMenu("Menu");
-    JMenu submenu = new JMenu("More");
-    JMenuItem item = new JMenuItem("item");
-    AtomicBoolean activated = new AtomicBoolean(false);
+public class SubMenuShowTest {
+    private static Robot robot;
+    private static JFrame frame;
+    private static JMenuBar bar;
+    private static JMenu menu;
+    private static JMenu submenu;
+    private static JMenuItem item;
+    private static AtomicBoolean activated = new AtomicBoolean(false);
 
-    public static void main(String[] args) {
-        SubMenuShowTest app = new SubMenuShowTest();
-        app.init();
-        app.start();
+    public static void main(String[] args) throws Exception {
+        SwingUtilities.invokeAndWait(SubMenuShowTest::createAndShowGUI);
+
+        try {
+            robot = new Robot();
+            robot.setAutoDelay(100);
+            robot.setAutoWaitForIdle(true);
+
+            doTest();
+        } catch (Exception ex) {
+            throw new RuntimeException("Test failed: Exception thrown:"+ex);
+        } finally {
+            dispose();
+        }
+
+        System.out.println("Test passed.");
     }
 
-    public void init() {
-        robot = Util.createRobot();
-        robot.setAutoDelay(200);
-        robot.setAutoWaitForIdle(true);
+    public static void dispose() throws Exception {
+        if(frame != null) {
+            SwingUtilities.invokeAndWait(() -> {
+                frame.dispose();
+            });
+        }
+    }
 
+    public static void createAndShowGUI() {
         // Create instructions for the user here, as well as set up
         // the environment -- set the layout manager, add buttons,
         // etc.
-        this.setLayout (new BorderLayout ());
-        Sysout.createDialogWithInstructions(new String[]
-            {"This is a manual test. Simple wait until it is done."
-            });
-    }
+        frame = new JFrame("Test Frame");
+        bar = new JMenuBar();
+        menu = new JMenu("Menu");
+        submenu = new JMenu("More");
+        item = new JMenuItem("item");
 
-    public void start() {
+        frame.setLayout (new BorderLayout ());
         menu.setMnemonic('f');
         submenu.setMnemonic('m');
         menu.add(submenu);
@@ -78,7 +104,7 @@ public class SubMenuShowTest extends Applet {
 
         item.addActionListener(new ActionListener() {
                 public void actionPerformed(ActionEvent e) {
-                    Sysout.println(e.toString());
+                    System.out.println(e.toString());
                     synchronized (activated) {
                         activated.set(true);
                         activated.notifyAll();
@@ -87,8 +113,10 @@ public class SubMenuShowTest extends Applet {
             });
 
         frame.setVisible(true);
+    }
 
-        boolean isMacOSX = (OSInfo.getOSType() == OSInfo.OSType.MACOSX);
+    public static void doTest() {
+        boolean isMacOSX = Platform.isOSX();
         if (isMacOSX) {
             robot.keyPress(KeyEvent.VK_CONTROL);
         }
@@ -106,11 +134,9 @@ public class SubMenuShowTest extends Applet {
         robot.keyPress(KeyEvent.VK_SPACE);
         robot.keyRelease(KeyEvent.VK_SPACE);
 
-        if (!Util.waitForCondition(activated, 2000)) {
-            throw new TestFailedException("a submenu wasn't activated by mnemonic key press");
+        if (!Util.waitForCondition(activated, 1500)) {
+            throw new TestFailedException("A submenu wasn't activated by mnemonic key press");
         }
-
-        Sysout.println("Test passed.");
     }
 }
 
@@ -119,140 +145,3 @@ class TestFailedException extends RuntimeException {
         super("Test failed: " + msg);
     }
 }
-
-/****************************************************
- Standard Test Machinery
- DO NOT modify anything below -- it's a standard
-  chunk of code whose purpose is to make user
-  interaction uniform, and thereby make it simpler
-  to read and understand someone else's test.
- ****************************************************/
-
-/**
- This is part of the standard test machinery.
- It creates a dialog (with the instructions), and is the interface
-  for sending text messages to the user.
- To print the instructions, send an array of strings to Sysout.createDialog
-  WithInstructions method.  Put one line of instructions per array entry.
- To display a message for the tester to see, simply call Sysout.println
-  with the string to be displayed.
- This mimics System.out.println but works within the test harness as well
-  as standalone.
- */
-
-class Sysout
-{
-    static TestDialog dialog;
-
-    public static void createDialogWithInstructions( String[] instructions )
-    {
-        dialog = new TestDialog( new Frame(), "Instructions" );
-        dialog.printInstructions( instructions );
-//        dialog.setVisible(true);
-        println( "Any messages for the tester will display here." );
-    }
-
-    public static void createDialog( )
-    {
-        dialog = new TestDialog( new Frame(), "Instructions" );
-        String[] defInstr = { "Instructions will appear here. ", "" } ;
-        dialog.printInstructions( defInstr );
-//        dialog.setVisible(true);
-        println( "Any messages for the tester will display here." );
-    }
-
-
-    public static void printInstructions( String[] instructions )
-    {
-        dialog.printInstructions( instructions );
-    }
-
-
-    public static void println( String messageIn )
-    {
-        dialog.displayMessage( messageIn );
-    }
-
-}// Sysout  class
-
-/**
-  This is part of the standard test machinery.  It provides a place for the
-   test instructions to be displayed, and a place for interactive messages
-   to the user to be displayed.
-  To have the test instructions displayed, see Sysout.
-  To have a message to the user be displayed, see Sysout.
-  Do not call anything in this dialog directly.
-  */
-class TestDialog extends Dialog
-{
-
-    TextArea instructionsText;
-    TextArea messageText;
-    int maxStringLength = 80;
-
-    //DO NOT call this directly, go through Sysout
-    public TestDialog( Frame frame, String name )
-    {
-        super( frame, name );
-        int scrollBoth = TextArea.SCROLLBARS_BOTH;
-        instructionsText = new TextArea( "", 15, maxStringLength, scrollBoth );
-        add( "North", instructionsText );
-
-        messageText = new TextArea( "", 5, maxStringLength, scrollBoth );
-        add("Center", messageText);
-
-        pack();
-
-//        setVisible(true);
-    }// TestDialog()
-
-    //DO NOT call this directly, go through Sysout
-    public void printInstructions( String[] instructions )
-    {
-        //Clear out any current instructions
-        instructionsText.setText( "" );
-
-        //Go down array of instruction strings
-
-        String printStr, remainingStr;
-        for( int i=0; i < instructions.length; i++ )
-        {
-            //chop up each into pieces maxSringLength long
-            remainingStr = instructions[ i ];
-            while( remainingStr.length() > 0 )
-            {
-                //if longer than max then chop off first max chars to print
-                if( remainingStr.length() >= maxStringLength )
-                {
-                    //Try to chop on a word boundary
-                    int posOfSpace = remainingStr.
-                        lastIndexOf( ' ', maxStringLength - 1 );
-
-                    if( posOfSpace <= 0 ) posOfSpace = maxStringLength - 1;
-
-                    printStr = remainingStr.substring( 0, posOfSpace + 1 );
-                    remainingStr = remainingStr.substring( posOfSpace + 1 );
-                }
-                //else just print
-                else
-                {
-                    printStr = remainingStr;
-                    remainingStr = "";
-                }
-
-                instructionsText.append( printStr + "\n" );
-
-            }// while
-
-        }// for
-
-    }//printInstructions()
-
-    //DO NOT call this directly, go through Sysout
-    public void displayMessage( String messageIn )
-    {
-        messageText.append( messageIn + "\n" );
-        System.out.println(messageIn);
-    }
-
-}// TestDialog  class

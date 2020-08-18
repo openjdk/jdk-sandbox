@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ public interface MenuElement {
      * source being the receiving element's component. {@code path} is the
      * path of the receiving element in the menu hierarchy including the
      * receiving element itself. {@code manager} is the
-     * {@code MenuSelectionManager}for the menu hierarchy. This method should
+     * {@code MenuSelectionManager} for the menu hierarchy. This method should
      * process the {@code MouseEvent} and change the menu selection if necessary
      * by using {@code MenuSelectionManager}'s API Note: you do not have to
      * forward the event to sub-components. This is done automatically by the
@@ -53,7 +53,7 @@ public interface MenuElement {
      * @param path the path of the receiving element in the menu hierarchy
      * @param manager the {@code MenuSelectionManager} for the menu hierarchy
      */
-    public void processMouseEvent(MouseEvent event, MenuElement path[], MenuSelectionManager manager);
+    public void processMouseEvent(MouseEvent event, MenuElement[] path, MenuSelectionManager manager);
 
 
     /**
@@ -63,7 +63,7 @@ public interface MenuElement {
      * @param path the path of the receiving element in the menu hierarchy
      * @param manager the {@code MenuSelectionManager} for the menu hierarchy
      */
-    public void processKeyEvent(KeyEvent event, MenuElement path[], MenuSelectionManager manager);
+    public void processKeyEvent(KeyEvent event, MenuElement[] path, MenuSelectionManager manager);
 
     /**
      * Call by the {@code MenuSelectionManager} when the {@code MenuElement} is

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOGMESSAGEBUFFER_HPP
-#define SHARE_VM_LOGGING_LOGMESSAGEBUFFER_HPP
+#ifndef SHARE_LOGGING_LOGMESSAGEBUFFER_HPP
+#define SHARE_LOGGING_LOGMESSAGEBUFFER_HPP
 
 #include "logging/logDecorations.hpp"
 #include "logging/logLevel.hpp"
@@ -31,7 +31,7 @@
 class LogMessageBuffer : public StackObj {
   friend class LogMessageTest;
  protected:
-  struct LogLine VALUE_OBJ_CLASS_SPEC {
+  struct LogLine {
     LogLevelType level;
     size_t message_offset;
   };
@@ -72,7 +72,7 @@ class LogMessageBuffer : public StackObj {
 
    public:
     Iterator(const LogMessageBuffer& message, LogLevelType level, LogDecorations& decorations)
-        : _message(message), _level(level), _decorations(decorations), _current_line_index(0) {
+        : _message(message), _current_line_index(0), _level(level), _decorations(decorations) {
       skip_messages_with_finer_level();
     }
 
@@ -128,4 +128,4 @@ class LogMessageBuffer : public StackObj {
 #undef LOG_LEVEL
 };
 
-#endif // SHARE_VM_LOGGING_LOGMESSAGEBUFFER_HPP
+#endif // SHARE_LOGGING_LOGMESSAGEBUFFER_HPP

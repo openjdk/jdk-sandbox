@@ -64,8 +64,8 @@ public abstract class InputStream implements Closeable {
      * <p> While the stream is open, the {@code available()}, {@code read()},
      * {@code read(byte[])}, {@code read(byte[], int, int)},
      * {@code readAllBytes()}, {@code readNBytes(byte[], int, int)},
-     * {@code readNBytes(int)}, {@code skip(long)}, and
-     * {@code transferTo()} methods all behave as if end of stream has been
+     * {@code readNBytes(int)}, {@code skip(long)}, {@code skipNBytes(long)},
+     * and {@code transferTo()} methods all behave as if end of stream has been
      * reached.  After the stream has been closed, these methods all throw
      * {@code IOException}.
      *
@@ -136,6 +136,14 @@ public abstract class InputStream implements Closeable {
             public long skip(long n) throws IOException {
                 ensureOpen();
                 return 0L;
+            }
+
+            @Override
+            public void skipNBytes(long n) throws IOException {
+                ensureOpen();
+                if (n > 0) {
+                    throw new EOFException();
+                }
             }
 
             @Override
@@ -513,11 +521,11 @@ public abstract class InputStream implements Closeable {
      * For instance, the implementation may depend on the ability to seek.
      *
      * @param      n   the number of bytes to be skipped.
-     * @return     the actual number of bytes skipped.
+     * @return     the actual number of bytes skipped which might be zero.
      * @throws     IOException  if an I/O error occurs.
+     * @see        java.io.InputStream#skipNBytes(long)
      */
     public long skip(long n) throws IOException {
-
         long remaining = n;
         int nr;
 
@@ -539,29 +547,88 @@ public abstract class InputStream implements Closeable {
     }
 
     /**
-     * Returns an estimate of the number of bytes that can be read (or
-     * skipped over) from this input stream without blocking by the next
-     * invocation of a method for this input stream. The next invocation
-     * might be the same thread or another thread.  A single read or skip of this
-     * many bytes will not block, but may read or skip fewer bytes.
+     * Skips over and discards exactly {@code n} bytes of data from this input
+     * stream.  If {@code n} is zero, then no bytes are skipped.
+     * If {@code n} is negative, then no bytes are skipped.
+     * Subclasses may handle the negative value differently.
      *
-     * <p> Note that while some implementations of {@code InputStream} will return
-     * the total number of bytes in the stream, many will not.  It is
+     * <p> This method blocks until the requested number of bytes have been
+     * skipped, end of file is reached, or an exception is thrown.
+     *
+     * <p> If end of stream is reached before the stream is at the desired
+     * position, then an {@code EOFException} is thrown.
+     *
+     * <p> If an I/O error occurs, then the input stream may be
+     * in an inconsistent state. It is strongly recommended that the
+     * stream be promptly closed if an I/O error occurs.
+     *
+     * @implNote
+     * Subclasses are encouraged to provide a more efficient implementation
+     * of this method.
+     *
+     * @implSpec
+     * If {@code n} is zero or negative, then no bytes are skipped.
+     * If {@code n} is positive, the default implementation of this method
+     * invokes {@link #skip(long) skip()} with parameter {@code n}.  If the
+     * return value of {@code skip(n)} is non-negative and less than {@code n},
+     * then {@link #read()} is invoked repeatedly until the stream is {@code n}
+     * bytes beyond its position when this method was invoked or end of stream
+     * is reached.  If the return value of {@code skip(n)} is negative or
+     * greater than {@code n}, then an {@code IOException} is thrown.  Any
+     * exception thrown by {@code skip()} or {@code read()} will be propagated.
+     *
+     * @param      n   the number of bytes to be skipped.
+     * @throws     EOFException if end of stream is encountered before the
+     *             stream can be positioned {@code n} bytes beyond its position
+     *             when this method was invoked.
+     * @throws     IOException  if the stream cannot be positioned properly or
+     *             if an I/O error occurs.
+     * @see        java.io.InputStream#skip(long)
+     */
+    public void skipNBytes(long n) throws IOException {
+        if (n > 0) {
+            long ns = skip(n);
+            if (ns >= 0 && ns < n) { // skipped too few bytes
+                // adjust number to skip
+                n -= ns;
+                // read until requested number skipped or EOS reached
+                while (n > 0 && read() != -1) {
+                    n--;
+                }
+                // if not enough skipped, then EOFE
+                if (n != 0) {
+                    throw new EOFException();
+                }
+            } else if (ns != n) { // skipped negative or too many bytes
+                throw new IOException("Unable to skip exactly");
+            }
+        }
+    }
+
+    /**
+     * Returns an estimate of the number of bytes that can be read (or skipped
+     * over) from this input stream without blocking, which may be 0, or 0 when
+     * end of stream is detected.  The read might be on the same thread or
+     * another thread.  A single read or skip of this many bytes will not block,
+     * but may read or skip fewer bytes.
+     *
+     * <p> Note that while some implementations of {@code InputStream} will
+     * return the total number of bytes in the stream, many will not.  It is
      * never correct to use the return value of this method to allocate
      * a buffer intended to hold all data in this stream.
      *
-     * <p> A subclass' implementation of this method may choose to throw an
-     * {@link IOException} if this input stream has been closed by
-     * invoking the {@link #close()} method.
+     * <p> A subclass's implementation of this method may choose to throw an
+     * {@link IOException} if this input stream has been closed by invoking the
+     * {@link #close()} method.
      *
-     * <p> The {@code available} method for class {@code InputStream} always
-     * returns {@code 0}.
+     * <p> The {@code available} method of {@code InputStream} always returns
+     * {@code 0}.
      *
      * <p> This method should be overridden by subclasses.
      *
-     * @return     an estimate of the number of bytes that can be read (or skipped
-     *             over) from this input stream without blocking or {@code 0} when
-     *             it reaches the end of the input stream.
+     * @return     an estimate of the number of bytes that can be read (or
+     *             skipped over) from this input stream without blocking or
+     *             {@code 0} when it reaches the end of the input stream.
      * @exception  IOException if an I/O error occurs.
      */
     public int available() throws IOException {

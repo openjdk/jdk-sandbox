@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import sun.java2d.ReentrantContext;
 import sun.java2d.marlin.ArrayCacheConst.CacheStats;
 import sun.java2d.marlin.DMarlinRenderingEngine.NormalizingPathIterator;
+import sun.java2d.marlin.DTransformingPathConsumer2D.CurveBasicMonotonizer;
+import sun.java2d.marlin.DTransformingPathConsumer2D.CurveClipSplitter;
 
 /**
  * This class is a renderer context dedicated to a single thread
@@ -70,6 +72,8 @@ final class DRendererContext extends ReentrantContext implements IRendererContex
     final DStroker stroker;
     // Simplifies out collinear lines
     final DCollinearSimplifier simplifier = new DCollinearSimplifier();
+    // Simplifies path
+    final DPathSimplifier pathSimplifier = new DPathSimplifier();
     final DDasher dasher;
     final MarlinTileGenerator ptg;
     final MarlinCache cache;
@@ -81,6 +85,12 @@ final class DRendererContext extends ReentrantContext implements IRendererContex
     boolean closedPath = false;
     // clip rectangle (ymin, ymax, xmin, xmax):
     final double[] clipRect = new double[4];
+    // clip inverse scale (mean) to adjust length checks
+    double clipInvScale = 0.0d;
+    // CurveBasicMonotonizer instance
+    final CurveBasicMonotonizer monotonizer;
+    // CurveClipSplitter instance
+    final CurveClipSplitter curveClipSplitter;
 
     // Array caches:
     /* clean int[] cache (zero-filled) = 5 refs */
@@ -96,7 +106,6 @@ final class DRendererContext extends ReentrantContext implements IRendererContex
     final RendererStats stats;
 
     final PathConsumer2DAdapter p2dAdapter = new PathConsumer2DAdapter();
-
 
     /**
      * Constructor
@@ -124,6 +133,10 @@ final class DRendererContext extends ReentrantContext implements IRendererContex
         nPCPathIterator = new NormalizingPathIterator.NearestPixelCenter(double6);
         nPQPathIterator  = new NormalizingPathIterator.NearestPixelQuarter(double6);
 
+        // curve monotonizer & clip subdivider (before transformerPC2D init)
+        monotonizer = new CurveBasicMonotonizer(this);
+        curveClipSplitter = new CurveClipSplitter(this);
+
         // MarlinRenderingEngine.TransformingPathConsumer2D
         transformerPC2D = new DTransformingPathConsumer2D(this);
 
@@ -150,6 +163,7 @@ final class DRendererContext extends ReentrantContext implements IRendererContex
         stroking   = 0;
         doClip     = false;
         closedPath = false;
+        clipInvScale = 0.0d;
 
         // if context is maked as DIRTY:
         if (dirty) {

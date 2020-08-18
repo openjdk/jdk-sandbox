@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.loop;
 
 import static org.graalvm.compiler.core.common.GraalOptions.LoopMaxUnswitch;
@@ -28,6 +30,7 @@ import static org.graalvm.compiler.core.common.GraalOptions.MinimumPeelProbabili
 
 import java.util.List;
 
+import org.graalvm.compiler.core.common.util.UnsignedLong;
 import org.graalvm.compiler.debug.CounterKey;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.graph.Node;
@@ -72,7 +75,7 @@ public class DefaultLoopPolicies implements LoopPolicies {
     @Override
     public boolean shouldPeel(LoopEx loop, ControlFlowGraph cfg, MetaAccessProvider metaAccess) {
         LoopBeginNode loopBegin = loop.loopBegin();
-        double entryProbability = cfg.blockFor(loopBegin.forwardEnd()).probability();
+        double entryProbability = cfg.blockFor(loopBegin.forwardEnd()).getRelativeFrequency();
         OptionValues options = cfg.graph.getOptions();
         if (entryProbability > MinimumPeelProbability.getValue(options) && loop.size() + loopBegin.graph().getNodeCount() < MaximumDesiredSize.getValue(options)) {
             // check whether we're allowed to peel this loop
@@ -89,11 +92,22 @@ public class DefaultLoopPolicies implements LoopPolicies {
         }
         OptionValues options = loop.entryPoint().getOptions();
         CountedLoopInfo counted = loop.counted();
-        long maxTrips = counted.constantMaxTripCount();
+        UnsignedLong maxTrips = counted.constantMaxTripCount();
+        if (maxTrips.equals(0)) {
+            return loop.canDuplicateLoop();
+        }
         int maxNodes = (counted.isExactTripCount() && counted.isConstantExactTripCount()) ? Options.ExactFullUnrollMaxNodes.getValue(options) : Options.FullUnrollMaxNodes.getValue(options);
         maxNodes = Math.min(maxNodes, Math.max(0, MaximumDesiredSize.getValue(options) - loop.loopBegin().graph().getNodeCount()));
         int size = Math.max(1, loop.size() - 1 - loop.loopBegin().phis().count());
-        if (maxTrips <= Options.FullUnrollMaxIterations.getValue(options) && size * (maxTrips - 1) <= maxNodes) {
+        /* @formatter:off
+         * The check below should not throw ArithmeticException because:
+         * maxTrips is guaranteed to be >= 1 by the check above
+         * - maxTrips * size can not overfow because:
+         *   - maxTrips <= FullUnrollMaxIterations <= Integer.MAX_VALUE
+         *   - 1 <= size <= Integer.MAX_VALUE
+         * @formatter:on
+         */
+        if (maxTrips.isLessOrEqualTo(Options.FullUnrollMaxIterations.getValue(options)) && maxTrips.minus(1).times(size).isLessOrEqualTo(maxNodes)) {
             // check whether we're allowed to unroll this loop
             return loop.canDuplicateLoop();
         } else {

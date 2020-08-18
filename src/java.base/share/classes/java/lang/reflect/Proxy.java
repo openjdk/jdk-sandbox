@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,12 +39,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.module.Modules;
-import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
@@ -468,7 +467,7 @@ public class Proxy implements java.io.Serializable {
      * in which the proxy class will be defined.
      */
     private static final class ProxyBuilder {
-        private static final Unsafe UNSAFE = Unsafe.getUnsafe();
+        private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
 
         // prefix for all proxy class names
         private static final String proxyClassNamePrefix = "$Proxy";
@@ -535,9 +534,8 @@ public class Proxy implements java.io.Serializable {
             byte[] proxyClassFile = ProxyGenerator.generateProxyClass(
                     proxyName, interfaces.toArray(EMPTY_CLASS_ARRAY), accessFlags);
             try {
-                Class<?> pc = UNSAFE.defineClass(proxyName, proxyClassFile,
-                                                 0, proxyClassFile.length,
-                                                 loader, null);
+                Class<?> pc = JLA.defineClass(loader, proxyName, proxyClassFile,
+                                              null, "__dynamic_proxy__");
                 reverseProxyCache.sub(pc).putIfAbsent(loader, Boolean.TRUE);
                 return pc;
             } catch (ClassFormatError e) {
@@ -593,8 +591,7 @@ public class Proxy implements java.io.Serializable {
                                   module.getName(), cn, loader);
             }
             if (isDebug("debug")) {
-                interfaces.stream()
-                          .forEach(c -> System.out.println(toDetails(c)));
+                interfaces.forEach(c -> System.out.println(toDetails(c)));
             }
         }
 
@@ -708,24 +705,32 @@ public class Proxy implements java.io.Serializable {
          */
         private static Set<Class<?>> referencedTypes(ClassLoader loader,
                                                      List<Class<?>> interfaces) {
-            return interfaces.stream()
-                 .flatMap(intf -> Stream.of(intf.getMethods())
-                                        .filter(m -> !Modifier.isStatic(m.getModifiers()))
-                                        .flatMap(ProxyBuilder::methodRefTypes)
-                                        .map(ProxyBuilder::getElementType)
-                                        .filter(t -> !t.isPrimitive()))
-                 .collect(Collectors.toSet());
+            var types = new HashSet<Class<?>>();
+            for (var intf : interfaces) {
+                for (Method m : intf.getMethods()) {
+                    if (!Modifier.isStatic(m.getModifiers())) {
+                        addElementType(types, m.getReturnType());
+                        addElementTypes(types, m.getSharedParameterTypes());
+                        addElementTypes(types, m.getSharedExceptionTypes());
+                    }
+                }
+            }
+            return types;
         }
 
-        /*
-         * Extracts all types referenced on a method signature including
-         * its return type, parameter types, and exception types.
-         */
-        private static Stream<Class<?>> methodRefTypes(Method m) {
-            return Stream.of(new Class<?>[] { m.getReturnType() },
-                             m.getParameterTypes(),
-                             m.getExceptionTypes())
-                         .flatMap(Stream::of);
+        private static void addElementTypes(HashSet<Class<?>> types,
+                                            Class<?> ... classes) {
+            for (var cls : classes) {
+                addElementType(types, cls);
+            }
+        }
+
+        private static void addElementType(HashSet<Class<?>> types,
+                                           Class<?> cls) {
+            var type = getElementType(cls);
+            if (!type.isPrimitive()) {
+                types.add(type);
+            }
         }
 
         /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@
 #include "memory/metadataFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/arrayKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
@@ -43,17 +43,6 @@
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "utilities/macros.hpp"
-
-bool TypeArrayKlass::compute_is_subtype_of(Klass* k) {
-  if (!k->is_typeArray_klass()) {
-    return ArrayKlass::compute_is_subtype_of(k);
-  }
-
-  TypeArrayKlass* tak = TypeArrayKlass::cast(k);
-  if (dimension() != tak->dimension()) return false;
-
-  return element_type() == tak->element_type();
-}
 
 TypeArrayKlass* TypeArrayKlass::create_klass(BasicType type,
                                       const char* name_str, TRAPS) {
@@ -86,7 +75,7 @@ TypeArrayKlass* TypeArrayKlass::allocate(ClassLoaderData* loader_data, BasicType
   return new (loader_data, size, THREAD) TypeArrayKlass(type, name);
 }
 
-TypeArrayKlass::TypeArrayKlass(BasicType type, Symbol* name) : ArrayKlass(name) {
+TypeArrayKlass::TypeArrayKlass(BasicType type, Symbol* name) : ArrayKlass(name, ID) {
   set_layout_helper(array_layout_helper(type));
   assert(is_array_klass(), "sanity");
   assert(is_typeArray_klass(), "sanity");
@@ -99,25 +88,10 @@ TypeArrayKlass::TypeArrayKlass(BasicType type, Symbol* name) : ArrayKlass(name) 
 
 typeArrayOop TypeArrayKlass::allocate_common(int length, bool do_zero, TRAPS) {
   assert(log2_element_size() >= 0, "bad scale");
-  if (length >= 0) {
-    if (length <= max_length()) {
-      size_t size = typeArrayOopDesc::object_size(layout_helper(), length);
-      typeArrayOop t;
-      CollectedHeap* ch = Universe::heap();
-      if (do_zero) {
-        t = (typeArrayOop)CollectedHeap::array_allocate(this, (int)size, length, CHECK_NULL);
-      } else {
-        t = (typeArrayOop)CollectedHeap::array_allocate_nozero(this, (int)size, length, CHECK_NULL);
-      }
-      return t;
-    } else {
-      report_java_out_of_memory("Requested array size exceeds VM limit");
-      JvmtiExport::post_array_size_exhausted();
-      THROW_OOP_0(Universe::out_of_memory_error_array_size());
-    }
-  } else {
-    THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
-  }
+  check_array_allocation_length(length, max_length(), CHECK_NULL);
+  size_t size = typeArrayOopDesc::object_size(layout_helper(), length);
+  return (typeArrayOop)Universe::heap()->array_allocate(this, (int)size, length,
+                                                        do_zero, CHECK_NULL);
 }
 
 oop TypeArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
@@ -131,19 +105,59 @@ oop TypeArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
 void TypeArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS) {
   assert(s->is_typeArray(), "must be type array");
 
-  // Check destination
-  if (!d->is_typeArray() || element_type() != TypeArrayKlass::cast(d->klass())->element_type()) {
-    THROW(vmSymbols::java_lang_ArrayStoreException());
+  // Check destination type.
+  if (!d->is_typeArray()) {
+    ResourceMark rm(THREAD);
+    stringStream ss;
+    if (d->is_objArray()) {
+      ss.print("arraycopy: type mismatch: can not copy %s[] into object array[]",
+               type2name_tab[ArrayKlass::cast(s->klass())->element_type()]);
+    } else {
+      ss.print("arraycopy: destination type %s is not an array", d->klass()->external_name());
+    }
+    THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
+  }
+  if (element_type() != TypeArrayKlass::cast(d->klass())->element_type()) {
+    ResourceMark rm(THREAD);
+    stringStream ss;
+    ss.print("arraycopy: type mismatch: can not copy %s[] into %s[]",
+             type2name_tab[ArrayKlass::cast(s->klass())->element_type()],
+             type2name_tab[ArrayKlass::cast(d->klass())->element_type()]);
+    THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
   }
 
-  // Check is all offsets and lengths are non negative
+  // Check if all offsets and lengths are non negative.
   if (src_pos < 0 || dst_pos < 0 || length < 0) {
-    THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
+    // Pass specific exception reason.
+    ResourceMark rm(THREAD);
+    stringStream ss;
+    if (src_pos < 0) {
+      ss.print("arraycopy: source index %d out of bounds for %s[%d]",
+               src_pos, type2name_tab[ArrayKlass::cast(s->klass())->element_type()], s->length());
+    } else if (dst_pos < 0) {
+      ss.print("arraycopy: destination index %d out of bounds for %s[%d]",
+               dst_pos, type2name_tab[ArrayKlass::cast(d->klass())->element_type()], d->length());
+    } else {
+      ss.print("arraycopy: length %d is negative", length);
+    }
+    THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
   }
   // Check if the ranges are valid
-  if  ( (((unsigned int) length + (unsigned int) src_pos) > (unsigned int) s->length())
-     || (((unsigned int) length + (unsigned int) dst_pos) > (unsigned int) d->length()) ) {
-    THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
+  if ((((unsigned int) length + (unsigned int) src_pos) > (unsigned int) s->length()) ||
+      (((unsigned int) length + (unsigned int) dst_pos) > (unsigned int) d->length())) {
+    // Pass specific exception reason.
+    ResourceMark rm(THREAD);
+    stringStream ss;
+    if (((unsigned int) length + (unsigned int) src_pos) > (unsigned int) s->length()) {
+      ss.print("arraycopy: last source index %u out of bounds for %s[%d]",
+               (unsigned int) length + (unsigned int) src_pos,
+               type2name_tab[ArrayKlass::cast(s->klass())->element_type()], s->length());
+    } else {
+      ss.print("arraycopy: last destination index %u out of bounds for %s[%d]",
+               (unsigned int) length + (unsigned int) dst_pos,
+               type2name_tab[ArrayKlass::cast(d->klass())->element_type()], d->length());
+    }
+    THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
   }
   // Check zero copy
   if (length == 0)
@@ -151,12 +165,10 @@ void TypeArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos
 
   // This is an attempt to make the copy_array fast.
   int l2es = log2_element_size();
-  int ihs = array_header_in_bytes() / wordSize;
-  char* src = (char*) ((oop*)s + ihs) + ((size_t)src_pos << l2es);
-  char* dst = (char*) ((oop*)d + ihs) + ((size_t)dst_pos << l2es);
-  Copy::conjoint_memory_atomic(src, dst, (size_t)length << l2es);
+  size_t src_offset = arrayOopDesc::base_offset_in_bytes(element_type()) + ((size_t)src_pos << l2es);
+  size_t dst_offset = arrayOopDesc::base_offset_in_bytes(element_type()) + ((size_t)dst_pos << l2es);
+  ArrayAccess<ARRAYCOPY_ATOMIC>::arraycopy<void>(s, src_offset, d, dst_offset, (size_t)length << l2es);
 }
-
 
 // create a klass of array holding typeArrays
 Klass* TypeArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
@@ -172,7 +184,6 @@ Klass* TypeArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
     ResourceMark rm;
     JavaThread *jt = (JavaThread *)THREAD;
     {
-      MutexLocker mc(Compile_lock, THREAD);   // for vtables
       // Atomic create higher dimension and link into list
       MutexLocker mu(MultiArray_lock, THREAD);
 
@@ -240,16 +251,11 @@ void TypeArrayKlass::print_on(outputStream* st) const {
 void TypeArrayKlass::print_value_on(outputStream* st) const {
   assert(is_klass(), "must be klass");
   st->print("{type array ");
-  switch (element_type()) {
-    case T_BOOLEAN: st->print("bool");    break;
-    case T_CHAR:    st->print("char");    break;
-    case T_FLOAT:   st->print("float");   break;
-    case T_DOUBLE:  st->print("double");  break;
-    case T_BYTE:    st->print("byte");    break;
-    case T_SHORT:   st->print("short");   break;
-    case T_INT:     st->print("int");     break;
-    case T_LONG:    st->print("long");    break;
-    default: ShouldNotReachHere();
+  BasicType bt = element_type();
+  if (bt == T_BOOLEAN) {
+    st->print("bool");
+  } else {
+    st->print("%s", type2name_tab[bt]);
   }
   st->print("}");
 }

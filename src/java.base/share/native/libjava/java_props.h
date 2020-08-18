@@ -46,7 +46,6 @@ typedef struct {
 #endif
 
     nchar *tmp_dir;
-    nchar *font_dir;
     nchar *user_dir;
 
     char *file_separator;
@@ -56,25 +55,19 @@ typedef struct {
     nchar *user_name;
     nchar *user_home;
 
-    char *language;
     char *format_language;
     char *display_language;
-    char *script;
     char *format_script;
     char *display_script;
-    char *country;
     char *format_country;
     char *display_country;
-    char *variant;
     char *format_variant;
     char *display_variant;
     char *encoding;
     char *sun_jnu_encoding;
     char *sun_stdout_encoding;
     char *sun_stderr_encoding;
-    char *timezone;
 
-    char *printerJob;
     char *graphics_env;
     char *awt_toolkit;
 
@@ -110,10 +103,6 @@ typedef struct {
     int socksProxyEnabled;
     char *socksHost;
     char *socksPort;
-
-    int gopherProxyEnabled;
-    char *gopherHost;
-    char *gopherPort;
 
     char *exceptionList;
 

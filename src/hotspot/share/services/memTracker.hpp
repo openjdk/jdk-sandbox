@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_SERVICES_MEM_TRACKER_HPP
-#define SHARE_VM_SERVICES_MEM_TRACKER_HPP
+#ifndef SHARE_SERVICES_MEMTRACKER_HPP
+#define SHARE_SERVICES_MEMTRACKER_HPP
 
 #include "services/nmtCommon.hpp"
 #include "utilities/nativeCallStack.hpp"
@@ -31,8 +31,8 @@
 
 #if !INCLUDE_NMT
 
-#define CURRENT_PC   NativeCallStack::EMPTY_STACK
-#define CALLER_PC    NativeCallStack::EMPTY_STACK
+#define CURRENT_PC   NativeCallStack::empty_stack()
+#define CALLER_PC    NativeCallStack::empty_stack()
 
 class Tracker : public StackObj {
  public:
@@ -41,7 +41,7 @@ class Tracker : public StackObj {
      release
   };
   Tracker(enum TrackerType type) : _type(type) { }
-  void record(address addr, size_t size);
+  void record(address addr, size_t size) { }
  private:
   enum TrackerType  _type;
 };
@@ -79,6 +79,7 @@ class MemTracker : AllStatic {
 
 #else
 
+#include "runtime/mutexLocker.hpp"
 #include "runtime/threadCritical.hpp"
 #include "services/mallocTracker.hpp"
 #include "services/virtualMemoryTracker.hpp"
@@ -86,12 +87,11 @@ class MemTracker : AllStatic {
 extern volatile bool NMT_stack_walkable;
 
 #define CURRENT_PC ((MemTracker::tracking_level() == NMT_detail && NMT_stack_walkable) ? \
-                    NativeCallStack(0, true) : NativeCallStack::EMPTY_STACK)
+                    NativeCallStack(0, true) : NativeCallStack::empty_stack())
 #define CALLER_PC  ((MemTracker::tracking_level() == NMT_detail && NMT_stack_walkable) ?  \
-                    NativeCallStack(1, true) : NativeCallStack::EMPTY_STACK)
+                    NativeCallStack(1, true) : NativeCallStack::empty_stack())
 
 class MemBaseline;
-class Mutex;
 
 // Tracker is used for guarding 'release' semantics of virtual memory operation, to avoid
 // the other thread obtains and records the same region that is just 'released' by current
@@ -241,12 +241,17 @@ class MemTracker : AllStatic {
     }
   }
 
+#ifdef _AIX
+  // See JDK-8202772 - temporarily disable thread stack tracking on AIX.
+  static inline void record_thread_stack(void* addr, size_t size) {}
+  static inline void release_thread_stack(void* addr, size_t size) {}
+#else
   static inline void record_thread_stack(void* addr, size_t size) {
     if (tracking_level() < NMT_summary) return;
     if (addr != NULL) {
       // uses thread stack malloc slot for book keeping number of threads
       MallocMemorySummary::record_malloc(0, mtThreadStack);
-      record_virtual_memory_reserve_and_commit(addr, size, CALLER_PC, mtThreadStack);
+      record_virtual_memory_reserve(addr, size, CALLER_PC, mtThreadStack);
     }
   }
 
@@ -260,11 +265,15 @@ class MemTracker : AllStatic {
       VirtualMemoryTracker::remove_released_region((address)addr, size);
     }
   }
+#endif
 
   // Query lock is used to synchronize the access to tracking data.
   // So far, it is only used by JCmd query, but it may be used by
   // other tools.
-  static inline Mutex* query_lock() { return _query_lock; }
+  static inline Mutex* query_lock() {
+    assert(NMTQuery_lock != NULL, "not initialized!");
+    return NMTQuery_lock;
+  }
 
   // Make a final report or report for hs_err file.
   static void error_report(outputStream* output) {
@@ -312,5 +321,4 @@ class MemTracker : AllStatic {
 
 #endif // INCLUDE_NMT
 
-#endif // SHARE_VM_SERVICES_MEM_TRACKER_HPP
-
+#endif // SHARE_SERVICES_MEMTRACKER_HPP

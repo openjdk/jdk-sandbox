@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_SUBNODE_HPP
-#define SHARE_VM_OPTO_SUBNODE_HPP
+#ifndef SHARE_OPTO_SUBNODE_HPP
+#define SHARE_OPTO_SUBNODE_HPP
 
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
@@ -279,8 +279,8 @@ public:
 // Convert condition codes to a boolean test value (0 or -1).
 // We pick the values as 3 bits; the low order 2 bits we compare against the
 // condition codes, the high bit flips the sense of the result.
-struct BoolTest VALUE_OBJ_CLASS_SPEC {
-  enum mask { eq = 0, ne = 4, le = 5, ge = 7, lt = 3, gt = 1, overflow = 2, no_overflow = 6, illegal = 8 };
+struct BoolTest {
+  enum mask { eq = 0, ne = 4, le = 5, ge = 7, lt = 3, gt = 1, overflow = 2, no_overflow = 6, never = 8, illegal = 9 };
   mask _test;
   BoolTest( mask btm ) : _test(btm) {}
   const Type *cc2logical( const Type *CC ) const;
@@ -293,6 +293,7 @@ struct BoolTest VALUE_OBJ_CLASS_SPEC {
   bool is_less( )  const { return _test == BoolTest::lt || _test == BoolTest::le; }
   bool is_greater( ) const { return _test == BoolTest::gt || _test == BoolTest::ge; }
   void dump_on(outputStream *st) const;
+  mask merge(BoolTest other) const;
 };
 
 //------------------------------BoolNode---------------------------------------
@@ -307,7 +308,7 @@ class BoolNode : public Node {
                   int cmp1_op, const TypeInt* cmp2_type);
 public:
   const BoolTest _test;
-  BoolNode( Node *cc, BoolTest::mask t): _test(t), Node(0,cc) {
+  BoolNode( Node *cc, BoolTest::mask t): Node(0,cc), _test(t) {
     init_class_id(Class_Bool);
   }
   // Convert an arbitrary int value to a Bool or other suitable predicate.
@@ -448,7 +449,12 @@ class SqrtFNode : public Node {
 public:
   SqrtFNode(Compile* C, Node *c, Node *in1) : Node(c, in1) {
     init_flags(Flag_is_expensive);
-    C->add_expensive_node(this);
+    if (c != NULL) {
+      // Treat node only as expensive if a control input is set because it might
+      // be created from a SqrtDNode in ConvD2FNode::Ideal() that was found to
+      // be unique and therefore has no control input.
+      C->add_expensive_node(this);
+    }
   }
   virtual int Opcode() const;
   const Type *bottom_type() const { return Type::FLOAT; }
@@ -496,4 +502,4 @@ public:
   virtual uint ideal_reg() const { return Op_RegI; }
 };
 
-#endif // SHARE_VM_OPTO_SUBNODE_HPP
+#endif // SHARE_OPTO_SUBNODE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_JVMTIIMPL_HPP
-#define SHARE_VM_PRIMS_JVMTIIMPL_HPP
+#ifndef SHARE_PRIMS_JVMTIIMPL_HPP
+#define SHARE_PRIMS_JVMTIIMPL_HPP
 
 #include "classfile/systemDictionary.hpp"
 #include "jvmtifiles/jvmti.h"
@@ -33,7 +33,7 @@
 #include "prims/jvmtiTrace.hpp"
 #include "prims/jvmtiUtil.hpp"
 #include "runtime/stackValueCollection.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "utilities/ostream.hpp"
 
 //
@@ -74,7 +74,7 @@ public:
   virtual void metadata_do(void f(Metadata*)) =0;
 };
 
-class GrowableCache VALUE_OBJ_CLASS_SPEC {
+class GrowableCache {
 
 private:
   // Object pointer passed into cache & listener functions.
@@ -382,7 +382,8 @@ class VM_GetOrSetLocal : public VM_Operation {
 
   vframe* get_vframe();
   javaVFrame* get_java_vframe();
-  bool check_slot_type(javaVFrame* vf);
+  bool check_slot_type_lvt(javaVFrame* vf);
+  bool check_slot_type_no_lvt(javaVFrame* vf);
 
 public:
   // Constructor for non-object getter
@@ -451,7 +452,7 @@ public:
  * This is currently only used for posting compiled-method-load and unload
  * events, which we don't want posted from the compiler thread.
  */
-class JvmtiDeferredEvent VALUE_OBJ_CLASS_SPEC {
+class JvmtiDeferredEvent {
   friend class JvmtiDeferredEventQueue;
  private:
   typedef enum {
@@ -531,4 +532,4 @@ class JvmtiDeferredEventQueue : AllStatic {
 // Utility macro that checks for NULL pointers:
 #define NULL_CHECK(X, Y) if ((X) == NULL) { return (Y); }
 
-#endif // SHARE_VM_PRIMS_JVMTIIMPL_HPP
+#endif // SHARE_PRIMS_JVMTIIMPL_HPP

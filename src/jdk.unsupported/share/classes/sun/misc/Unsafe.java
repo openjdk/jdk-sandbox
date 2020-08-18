@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,11 @@ package sun.misc;
 
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.misc.VM;
-import jdk.internal.ref.Cleaner;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
-import sun.nio.ch.DirectBuffer;
 
 import java.lang.reflect.Field;
-import java.security.ProtectionDomain;
+import java.util.Set;
 
 
 /**
@@ -57,7 +55,7 @@ import java.security.ProtectionDomain;
 public final class Unsafe {
 
     static {
-        Reflection.registerMethodsToFilter(Unsafe.class, "getUnsafe");
+        Reflection.registerMethodsToFilter(Unsafe.class, Set.of("getUnsafe"));
     }
 
     private Unsafe() {}
@@ -196,7 +194,7 @@ public final class Unsafe {
      */
     @ForceInline
     public Object getObject(Object o, long offset) {
-        return theInternalUnsafe.getObject(o, offset);
+        return theInternalUnsafe.getReference(o, offset);
     }
 
     /**
@@ -211,7 +209,7 @@ public final class Unsafe {
      */
     @ForceInline
     public void putObject(Object o, long offset, Object x) {
-        theInternalUnsafe.putObject(o, offset, x);
+        theInternalUnsafe.putReference(o, offset, x);
     }
 
     /** @see #getInt(Object, long) */
@@ -811,25 +809,6 @@ public final class Unsafe {
     /// random trusted operations from JNI:
 
     /**
-     * Tells the VM to define a class, without security checks.  By default, the
-     * class loader and protection domain come from the caller's class.
-     *
-     * @deprecated Use {@link java.lang.invoke.MethodHandles.Lookup#defineClass MethodHandles.Lookup#defineClass}
-     * to define a class to the same class loader and in the same runtime package
-     * and {@linkplain java.security.ProtectionDomain protection domain} of a
-     * given {@code Lookup}'s {@linkplain java.lang.invoke.MethodHandles.Lookup#lookupClass() lookup class}.
-     *
-     * @see java.lang.invoke.MethodHandles.Lookup#defineClass(byte[])
-     */
-    @Deprecated(since="9", forRemoval=true)
-    @ForceInline
-    public Class<?> defineClass(String name, byte[] b, int off, int len,
-                                ClassLoader loader,
-                                ProtectionDomain protectionDomain) {
-        return theInternalUnsafe.defineClass(name, b, off, len, loader, protectionDomain);
-    }
-
-    /**
      * Defines a class but does not make it known to the class loader or system dictionary.
      * <p>
      * For each CP entry, the corresponding CP patch must either be null or have
@@ -879,7 +858,7 @@ public final class Unsafe {
     public final boolean compareAndSwapObject(Object o, long offset,
                                               Object expected,
                                               Object x) {
-        return theInternalUnsafe.compareAndSetObject(o, offset, expected, x);
+        return theInternalUnsafe.compareAndSetReference(o, offset, expected, x);
     }
 
     /**
@@ -920,7 +899,7 @@ public final class Unsafe {
      */
     @ForceInline
     public Object getObjectVolatile(Object o, long offset) {
-        return theInternalUnsafe.getObjectVolatile(o, offset);
+        return theInternalUnsafe.getReferenceVolatile(o, offset);
     }
 
     /**
@@ -929,7 +908,7 @@ public final class Unsafe {
      */
     @ForceInline
     public void putObjectVolatile(Object o, long offset, Object x) {
-        theInternalUnsafe.putObjectVolatile(o, offset, x);
+        theInternalUnsafe.putReferenceVolatile(o, offset, x);
     }
 
     /** Volatile version of {@link #getInt(Object, long)}  */
@@ -1039,7 +1018,7 @@ public final class Unsafe {
      */
     @ForceInline
     public void putOrderedObject(Object o, long offset, Object x) {
-        theInternalUnsafe.putObjectRelease(o, offset, x);
+        theInternalUnsafe.putReferenceRelease(o, offset, x);
     }
 
     /** Ordered/Lazy version of {@link #putIntVolatile(Object, long, int)}  */
@@ -1187,7 +1166,7 @@ public final class Unsafe {
      */
     @ForceInline
     public final Object getAndSetObject(Object o, long offset, Object newValue) {
-        return theInternalUnsafe.getAndSetObject(o, offset, newValue);
+        return theInternalUnsafe.getAndSetReference(o, offset, newValue);
     }
 
 
@@ -1253,13 +1232,6 @@ public final class Unsafe {
         if (!directBuffer.isDirect())
             throw new IllegalArgumentException("buffer is non-direct");
 
-        DirectBuffer db = (DirectBuffer)directBuffer;
-        if (db.attachment() != null)
-            throw new IllegalArgumentException("duplicate or slice");
-
-        Cleaner cleaner = db.cleaner();
-        if (cleaner != null) {
-            cleaner.clean();
-        }
+        theInternalUnsafe.invokeCleaner(directBuffer);
     }
 }

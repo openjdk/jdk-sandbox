@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,14 +30,29 @@
  * @run main/othervm -XX:+UseSerialGC TestSystemGC
  * @run main/othervm -XX:+UseParallelGC TestSystemGC
  * @run main/othervm -XX:+UseParallelGC -XX:-UseParallelOldGC TestSystemGC
- * @run main/othervm -XX:+UseConcMarkSweepGC TestSystemGC
- * @run main/othervm -XX:+UseConcMarkSweepGC -XX:+ExplicitGCInvokesConcurrent TestSystemGC
  * @run main/othervm -XX:+UseG1GC TestSystemGC
  * @run main/othervm -XX:+UseG1GC -XX:+ExplicitGCInvokesConcurrent TestSystemGC
  * @run main/othervm -XX:+UseLargePages TestSystemGC
  * @run main/othervm -XX:+UseLargePages -XX:+UseLargePagesInMetaspace TestSystemGC
  */
 
+/*
+ * @test TestSystemGCCMS
+ * @key gc
+ * @comment Graal does not support CMS
+ * @requires vm.gc=="null" & !vm.graal.enabled
+ * @run main/othervm -XX:+UseConcMarkSweepGC TestSystemGC
+ * @run main/othervm -XX:+UseConcMarkSweepGC -XX:+ExplicitGCInvokesConcurrent TestSystemGC
+ */
+
+/*
+ * @test TestSystemGCShenandoah
+ * @key gc
+ * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @summary Runs System.gc() with different flags.
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC TestSystemGC
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC -XX:+ExplicitGCInvokesConcurrent TestSystemGC
+ */
 public class TestSystemGC {
   public static void main(String args[]) throws Exception {
     System.gc();

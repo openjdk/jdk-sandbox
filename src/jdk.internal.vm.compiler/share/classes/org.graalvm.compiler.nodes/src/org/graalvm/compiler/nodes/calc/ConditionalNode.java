@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.calc;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_1;
@@ -170,9 +172,9 @@ public final class ConditionalNode extends FloatingNode implements Canonicalizab
                         return trueValue;
                     }
                 } else if (lessThan.getX() == falseValue && lessThan.getY() == trueValue) {
-                    // return "x" for "x < y ? y : x" in case that we know "x <= y"
+                    // return "y" for "x < y ? y : x" in case that we know "x <= y"
                     if (falseValueStamp.upperBound() <= trueValueStamp.lowerBound()) {
-                        return falseValue;
+                        return trueValue;
                     }
                 }
             }
@@ -228,7 +230,7 @@ public final class ConditionalNode extends FloatingNode implements Canonicalizab
                  * 1)))) to avoid the test.
                  */
                 IntegerLessThanNode lt = (IntegerLessThanNode) condition;
-                if (lt.getY().isConstant() && lt.getY().asConstant().isDefaultForKind()) {
+                if (lt.getY().isDefaultConstant()) {
                     if (falseValue == lt.getX()) {
                         if (trueValue instanceof AddNode) {
                             AddNode add = (AddNode) trueValue;

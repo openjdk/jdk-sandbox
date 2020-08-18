@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 
 package sun.print;
 
+import java.awt.GraphicsEnvironment;
+import java.awt.Toolkit;
 import javax.print.attribute.*;
 import javax.print.attribute.standard.*;
 import javax.print.DocFlavor;
@@ -579,7 +581,7 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
         } else if (category == JobName.class) {
             return new JobName("Java Printing", null);
         } else if (category == JobSheets.class) {
-            JobSheets arr[] = new JobSheets[2];
+            JobSheets[] arr = new JobSheets[2];
             arr[0] = JobSheets.NONE;
             arr[1] = JobSheets.STANDARD;
             return arr;
@@ -1071,6 +1073,11 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
             catList.add(PrinterResolution.class);
         }
 
+        if (GraphicsEnvironment.isHeadless() == false) {
+            catList.add(DialogOwner.class);
+            catList.add(DialogTypeSelection.class);
+        }
+
         supportedCats = new Class<?>[catList.size()];
         catList.toArray(supportedCats);
         Class<?>[] copyCats = new Class<?>[supportedCats.length];
@@ -1392,9 +1399,37 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
                 }
             }
             return false;
-        } if (attr.getCategory() == PrinterResolution.class) {
+        } else if (attr.getCategory() == PrinterResolution.class) {
             if (attr instanceof PrinterResolution) {
                 return isSupportedResolution((PrinterResolution)attr);
+            }
+        } else if (attr.getCategory() == DialogOwner.class) {
+            DialogOwner owner = (DialogOwner)attr;
+            // ID not supported on any dialog type on Unix platforms.
+            if (DialogOwnerAccessor.getID(owner) != 0) {
+                return false;
+            }
+            // On Mac we have no control over the native dialog.
+            DialogTypeSelection dst = (attributes == null) ? null :
+               (DialogTypeSelection)attributes.get(DialogTypeSelection.class);
+            if (PrintServiceLookupProvider.isMac() &&
+                dst == DialogTypeSelection.NATIVE) {
+                return false;
+            }
+            // The other case is always a Swing dialog on all Unix platforms.
+            // So we only need to check that the toolkit supports
+            // always on top.
+            if (owner.getOwner() != null) {
+                return true;
+            } else {
+                return Toolkit.getDefaultToolkit().isAlwaysOnTopSupported();
+            }
+        } else if (attr.getCategory() == DialogTypeSelection.class) {
+            if (PrintServiceLookupProvider.isMac()) {
+                return true;
+            } else {
+               DialogTypeSelection dst = (DialogTypeSelection)attr;
+               return attr == DialogTypeSelection.COMMON;
             }
         }
         return true;
@@ -1723,11 +1758,11 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
         try {
             debug_println(debugPrefix+"opGetAttributes myURI "+myURI+" myURL "+myURL);
 
-            AttributeClass attClNoUri[] = {
+            AttributeClass[] attClNoUri = {
                 AttributeClass.ATTRIBUTES_CHARSET,
                 AttributeClass.ATTRIBUTES_NATURAL_LANGUAGE};
 
-            AttributeClass attCl[] = {
+            AttributeClass[] attCl = {
                 AttributeClass.ATTRIBUTES_CHARSET,
                 AttributeClass.ATTRIBUTES_NATURAL_LANGUAGE,
                 new AttributeClass("printer-uri",
@@ -1849,7 +1884,7 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
             return null;
         }
 
-        byte response[] = new byte[MAX_ATTRIBUTE_LENGTH];
+        byte[] response = new byte[MAX_ATTRIBUTE_LENGTH];
         try {
 
             DataInputStream ois = new DataInputStream(inputStream);
@@ -1896,7 +1931,7 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
                             outObj.write(counter);
                             outObj.flush();
                             outObj.close();
-                            byte outArray[] = outObj.toByteArray();
+                            byte[] outArray = outObj.toByteArray();
 
                             // if key exists, new HashMap
                             if (responseMap.containsKey(attribStr)) {
@@ -1960,7 +1995,7 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
                             responseMap = new HashMap<>();
                         }
 
-                        byte outArray[] = outObj.toByteArray();
+                        byte[] outArray = outObj.toByteArray();
 
                         AttributeClass ac =
                             new AttributeClass(attribStr,

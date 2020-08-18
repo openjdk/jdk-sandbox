@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_FIELDINFO_HPP
-#define SHARE_VM_OOPS_FIELDINFO_HPP
+#ifndef SHARE_OOPS_FIELDINFO_HPP
+#define SHARE_OOPS_FIELDINFO_HPP
 
 #include "oops/constantPool.hpp"
 #include "oops/typeArrayOop.hpp"
@@ -35,7 +35,7 @@
 // array type.  FieldInfo generally shouldn't be used directly.
 // Fields should be queried either through InstanceKlass or through
 // the various FieldStreams.
-class FieldInfo VALUE_OBJ_CLASS_SPEC {
+class FieldInfo {
   friend class fieldDescriptor;
   friend class JavaFieldStream;
   friend class ClassFileParser;
@@ -254,4 +254,4 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
   }
 };
 
-#endif // SHARE_VM_OOPS_FIELDINFO_HPP
+#endif // SHARE_OOPS_FIELDINFO_HPP

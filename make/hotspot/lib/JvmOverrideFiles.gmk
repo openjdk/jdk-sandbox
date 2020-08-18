@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -30,26 +30,39 @@ $(eval $(call IncludeCustomExtension, hotspot/lib/JvmOverrideFiles.gmk))
 # status for individual files on specific platforms.
 
 ifeq ($(TOOLCHAIN_TYPE), gcc)
-  BUILD_LIBJVM_vmStructs.cpp_CXXFLAGS := -fno-var-tracking-assignments -O0
+  BUILD_LIBJVM_vmStructs.cpp_CXXFLAGS := -fno-var-tracking-assignments
   BUILD_LIBJVM_jvmciCompilerToVM.cpp_CXXFLAGS := -fno-var-tracking-assignments
+  BUILD_LIBJVM_jvmciCompilerToVMInit.cpp_CXXFLAGS := -fno-var-tracking-assignments
   BUILD_LIBJVM_assembler_x86.cpp_CXXFLAGS := -Wno-maybe-uninitialized
+  BUILD_LIBJVM_cardTableBarrierSetAssembler_x86.cpp_CXXFLAGS := -Wno-maybe-uninitialized
   BUILD_LIBJVM_interp_masm_x86.cpp_CXXFLAGS := -Wno-uninitialized
+  ifeq ($(DEBUG_LEVEL), release)
+    # Need extra inlining to collapse all marking code into the hot marking loop
+    BUILD_LIBJVM_shenandoahConcurrentMark.cpp_CXXFLAGS := --param inline-unit-growth=1000
+    BUILD_LIBJVM_shenandoahTraversalGC.cpp_CXXFLAGS := --param inline-unit-growth=1000
+  endif
+endif
+
+LIBJVM_FDLIBM_COPY_OPT_FLAG := $(CXX_O_FLAG_NONE)
+# If the FDLIBM_CFLAGS variable is non-empty we know
+# that the fdlibm-fork in hotspot can get optimized
+# by using -ffp-contract=off on GCC/Clang platforms.
+ifneq ($(FDLIBM_CFLAGS), )
+  LIBJVM_FDLIBM_COPY_OPT_FLAG := $(CXX_O_FLAG_NORM)
 endif
 
 ifeq ($(OPENJDK_TARGET_OS), linux)
   BUILD_LIBJVM_ostream.cpp_CXXFLAGS := -D_FILE_OFFSET_BITS=64
   BUILD_LIBJVM_logFileOutput.cpp_CXXFLAGS := -D_FILE_OFFSET_BITS=64
 
-  ifeq ($(OPENJDK_TARGET_CPU_ARCH), x86)
-    BUILD_LIBJVM_sharedRuntimeTrig.cpp_CXXFLAGS := -DNO_PCH $(CXX_O_FLAG_NONE)
-    BUILD_LIBJVM_sharedRuntimeTrans.cpp_CXXFLAGS := -DNO_PCH $(CXX_O_FLAG_NONE)
+  BUILD_LIBJVM_sharedRuntimeTrig.cpp_CXXFLAGS := -DNO_PCH $(FDLIBM_CFLAGS) $(LIBJVM_FDLIBM_COPY_OPT_FLAG)
+  BUILD_LIBJVM_sharedRuntimeTrans.cpp_CXXFLAGS := -DNO_PCH $(FDLIBM_CFLAGS) $(LIBJVM_FDLIBM_COPY_OPT_FLAG)
 
-    ifeq ($(TOOLCHAIN_TYPE), clang)
-      JVM_PRECOMPILED_HEADER_EXCLUDE := \
-          sharedRuntimeTrig.cpp \
-          sharedRuntimeTrans.cpp \
-          #
-    endif
+  ifeq ($(TOOLCHAIN_TYPE), clang)
+    JVM_PRECOMPILED_HEADER_EXCLUDE := \
+	sharedRuntimeTrig.cpp \
+	sharedRuntimeTrans.cpp \
+	#
   endif
 
   ifeq ($(OPENJDK_TARGET_CPU), x86)
@@ -72,6 +85,8 @@ ifeq ($(OPENJDK_TARGET_OS), linux)
 
 else ifeq ($(OPENJDK_TARGET_OS), solaris)
   ifneq ($(DEBUG_LEVEL), slowdebug)
+    # dev studio 12.6 workaround
+    BUILD_LIBJVM_arguments.cpp_OPTIMIZATION := LOW
     # Workaround for a bug in dtrace.  If ciEnv::post_compiled_method_load_event()
     # is inlined, the resulting dtrace object file needs a reference to this
     # function, whose symbol name is too long for dtrace.  So disable inlining
@@ -111,10 +126,13 @@ else ifeq ($(OPENJDK_TARGET_OS), solaris)
 
   endif
 
+  # Workaround for jvmciCompilerToVM.cpp long compilation time
+  BUILD_LIBJVM_jvmciCompilerToVMInit.cpp_OPTIMIZATION := NONE
+
 else ifeq ($(OPENJDK_TARGET_OS), macosx)
   # The copied fdlibm routines in these files must not be optimized
-  BUILD_LIBJVM_sharedRuntimeTrans.cpp_CXXFLAGS := $(CXX_O_FLAG_NONE)
-  BUILD_LIBJVM_sharedRuntimeTrig.cpp_CXXFLAGS := $(CXX_O_FLAG_NONE)
+  BUILD_LIBJVM_sharedRuntimeTrig.cpp_CXXFLAGS := $(FDLIBM_CFLAGS) $(LIBJVM_FDLIBM_COPY_OPT_FLAG)
+  BUILD_LIBJVM_sharedRuntimeTrans.cpp_CXXFLAGS := $(FDLIBM_CFLAGS) $(LIBJVM_FDLIBM_COPY_OPT_FLAG)
   ifeq ($(TOOLCHAIN_TYPE), clang)
     # NOTE: The old build tested clang version to make sure this workaround
     # for the clang bug was still needed.
@@ -175,5 +193,10 @@ else ifeq ($(OPENJDK_TARGET_OS), windows)
       os_windows.cpp \
       os_windows_x86.cpp \
       osThread_windows.cpp \
+      jvmciCompilerToVMInit.cpp \
       #
+
+  # Workaround for jvmciCompilerToVM.cpp long compilation time
+  BUILD_LIBJVM_jvmciCompilerToVMInit.cpp_OPTIMIZATION := NONE
+
 endif

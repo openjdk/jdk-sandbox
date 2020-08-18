@@ -21,15 +21,21 @@
  * questions.
  */
 
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.security.KeyStore;
+import java.security.cert.X509Certificate;
 import java.util.Date;
-import jdk.testlibrary.OutputAnalyzer;
+import java.util.Locale;
+
+import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.util.JarUtils;
 
 /**
  * @test
- * @bug 8024302 8026037
+ * @bug 8024302 8026037 8196213
  * @summary Checks warnings if -tsa and -tsacert options are not specified
- * @library /lib/testlibrary /test/lib ../
+ * @library /test/lib ../
  * @build jdk.test.lib.util.JarUtils
  * @run main NoTimestampTest
  */
@@ -40,8 +46,16 @@ public class NoTimestampTest extends Test {
      * and checks that proper warnings are shown.
      */
     public static void main(String[] args) throws Throwable {
-        NoTimestampTest test = new NoTimestampTest();
-        test.start();
+        Locale reservedLocale = Locale.getDefault();
+        Locale.setDefault(Locale.US);
+
+        try {
+            NoTimestampTest test = new NoTimestampTest();
+            test.start();
+        } finally {
+            // Restore the reserved locale
+            Locale.setDefault(reservedLocale);
+        }
     }
 
     private void start() throws Throwable {
@@ -52,15 +66,13 @@ public class NoTimestampTest extends Test {
         Utils.createFiles(FIRST_FILE);
         JarUtils.createJar(UNSIGNED_JARFILE, FIRST_FILE);
 
-        // calculate certificate expiration date
-        Date expirationDate = new Date(System.currentTimeMillis() + VALIDITY
-                * 24 * 60 * 60 * 1000L);
-
         // create key pair
         createAlias(CA_KEY_ALIAS);
         createAlias(KEY_ALIAS);
         issueCert(KEY_ALIAS,
                 "-validity", Integer.toString(VALIDITY));
+
+        Date expirationDate = getCertExpirationDate();
 
         // sign jar file
         OutputAnalyzer analyzer = jarsigner(
@@ -105,4 +117,12 @@ public class NoTimestampTest extends Test {
         System.out.println("Test passed");
     }
 
+    private static Date getCertExpirationDate() throws Exception {
+        KeyStore ks = KeyStore.getInstance("JKS");
+        try (InputStream in = new FileInputStream(KEYSTORE)) {
+            ks.load(in, PASSWORD.toCharArray());
+        }
+        X509Certificate cert = (X509Certificate) ks.getCertificate(KEY_ALIAS);
+        return cert.getNotAfter();
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,19 +23,24 @@
 
 import java.io.*;
 import java.net.*;
+import java.net.http.HttpHeaders;
 import java.nio.file.*;
-import jdk.incubator.http.internal.common.HttpHeadersImpl;
+import java.util.List;
+import java.util.Map;
+import java.util.function.BiPredicate;
 
 public class PushHandler implements Http2Handler {
 
+    static final BiPredicate<String,String> ACCEPT_ALL = (x, y) -> true;
+
     final Path tempFile;
     final int loops;
-    final int file_size;
+    final long file_size;
 
-    public PushHandler(int file_size, int loops) throws Exception {
-        tempFile = TestUtil.getAFile(file_size);
+    public PushHandler(Path file, int loops) throws Exception {
+        tempFile = file;
         this.loops = loops;
-        this.file_size = file_size;
+        this.file_size = Files.size(file);
     }
 
     int invocation = 0;
@@ -46,11 +51,12 @@ public class PushHandler implements Http2Handler {
             invocation++;
 
             if (ee.serverPushAllowed()) {
+                URI requestURI = ee.getRequestURI();
                 for (int i=0; i<loops; i++) {
                     InputStream is = new FileInputStream(tempFile.toFile());
-                    URI u = new URI ("http://www.foo.com/x/y/z/" + Integer.toString(i));
-                    HttpHeadersImpl h = new HttpHeadersImpl();
-                    h.addHeader("X-foo", "bar");
+                    URI u = requestURI.resolve("/x/y/z/" + Integer.toString(i));
+                    HttpHeaders h = HttpHeaders.of(Map.of("X-foo", List.of("bar")),
+                                                   ACCEPT_ALL);
                     ee.serverPush(u, h, is);
                 }
                 System.err.println ("Server: sent all pushes");

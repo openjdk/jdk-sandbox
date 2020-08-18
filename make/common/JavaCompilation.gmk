@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -76,8 +76,8 @@ define add_file_to_copy
     $1_COPY_$$($2_TARGET) := 1
     # Now we can setup the dependency that will trigger the copying.
     $$($1_BIN)$$($1_MODULE_SUBDIR)$$($2_TARGET) : $2
-	$(MKDIR) -p $$(@D)
-	$(CP) $$< $$@
+	$$(call LogInfo, Copying $$(patsubst $(OUTPUTDIR)/%,%, $$@))
+	$$(install-file)
 	$(CHMOD) -f ug+w $$@
 
     # And do not forget this target
@@ -120,7 +120,8 @@ define add_file_to_clean
   ifneq ($$($1_CLEAN_$$($2_TARGET)), 1)
     $1_CLEAN_$$($2_TARGET) := 1
     $$($1_BIN)$$($1_MODULE_SUBDIR)$$($2_TARGET) : $2
-	$(MKDIR) -p $$(@D)
+	$$(call LogInfo, Cleaning $$(patsubst $(OUTPUTDIR)/%,%, $$@))
+	$$(call MakeTargetDir)
 	export LC_ALL=C ; ( $(CAT) $$< && $(ECHO) "" ) \
 	    | $(SED) -e 's/\([^\\]\):/\1\\:/g' -e 's/\([^\\]\)=/\1\\=/g' \
 	        -e 's/\([^\\]\)!/\1\\!/g' -e 's/^[ 	]*#.*/#/g' \
@@ -180,6 +181,7 @@ endef
 #   CREATE_API_DIGEST:=Set to true to use a javac plugin to generate a public API
 #        hash which can be used for down stream dependencies to only rebuild
 #        when the API changes. Implicitly used in sjavac.
+#   KEEP_ALL_TRANSLATIONS:=Set to true to skip translation filtering
 SetupJavaCompilation = $(NamedParamsMacroTemplate)
 define SetupJavaCompilationBody
 
@@ -266,6 +268,11 @@ define SetupJavaCompilationBody
           $$(eval $1_$$(relative_src) := 1) $$(s))))
   endif
 
+  # Filter out any excluded translations
+  ifneq ($$($1_KEEP_ALL_TRANSLATIONS), true)
+    $1_SRCS := $$(call FilterExcludedTranslations, $$($1_SRCS), .java)
+  endif
+
   ifeq ($$(strip $$($1_SRCS)), )
     ifneq ($$($1_FAIL_NO_SRC), false)
       $$(error No source files found for $1)
@@ -290,6 +297,10 @@ define SetupJavaCompilationBody
     ifneq (,$$($1_EXCLUDE_PATTERN))
       $1_ALL_COPIES := $$(filter-out $$($1_EXCLUDE_PATTERN),$$($1_ALL_COPIES))
     endif
+    # Filter out any excluded translations
+    ifneq ($$($1_KEEP_ALL_TRANSLATIONS), true)
+      $1_ALL_COPIES := $$(call FilterExcludedTranslations, $$($1_ALL_COPIES), .properties)
+    endif
     ifneq (,$$($1_ALL_COPIES))
       # Yep, there are files to be copied!
       $1_ALL_COPY_TARGETS:=
@@ -309,6 +320,10 @@ define SetupJavaCompilationBody
       endif
       ifneq (,$$($1_EXCLUDE_PATTERN))
         $1_ALL_CLEANS := $$(filter-out $$($1_EXCLUDE_PATTERN),$$($1_ALL_CLEANS))
+      endif
+      # Filter out any excluded translations
+      ifneq ($$($1_KEEP_ALL_TRANSLATIONS), true)
+        $1_ALL_CLEANS := $$(call FilterExcludedTranslations, $$($1_ALL_CLEANS), .properties)
       endif
       ifneq (,$$($1_ALL_CLEANS))
         # Yep, there are files to be copied and cleaned!
@@ -408,7 +423,7 @@ define SetupJavaCompilationBody
         $1_HEADERS_ARG := -h $$($1_HEADERS).$1.tmp
 
         $$($1_HEADERS)/_the.$1_headers: $$($1_COMPILE_TARGET)
-		$(MKDIR) -p $$(@D)
+		$$(call MakeTargetDir)
 		if [ -d "$$($1_HEADERS).$1.tmp" ]; then \
 		  for f in `$(CD) $$($1_HEADERS).$1.tmp && $(FIND) . -type f`; do \
 		    if [ ! -f "$$($1_HEADERS)/$$$$f" ] \

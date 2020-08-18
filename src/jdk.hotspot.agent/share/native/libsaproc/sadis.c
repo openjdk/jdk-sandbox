@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 
 /*
  *  This file implements a binding between Java and the hsdis
- *  dissasembler.  It should compile on Linux/Solaris and Windows.
+ *  disassembler.  It should compile on Linux/Solaris and Windows.
  *  The only platform dependent pieces of the code for doing
  *  dlopen/dlsym to find the entry point in hsdis.  All the rest is
  *  standard JNI code.
@@ -62,6 +62,14 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <errno.h>
+
+#ifdef _WINDOWS
+#define JVM_MAXPATHLEN _MAX_PATH
+#else
+#include <sys/param.h>
+#define JVM_MAXPATHLEN MAXPATHLEN
+#endif
+
 
 #ifdef _WINDOWS
 static int getLastErrorString(char *buf, size_t len)
@@ -112,7 +120,7 @@ JNIEXPORT jlong JNICALL Java_sun_jvm_hotspot_asm_Disassembler_load_1library(JNIE
   const char *error_message = NULL;
   const char *jrepath = NULL;
   const char *libname = NULL;
-  char buffer[128];
+  char buffer[JVM_MAXPATHLEN];
 
 #ifdef _WINDOWS
   HINSTANCE hsdis_handle = (HINSTANCE) NULL;

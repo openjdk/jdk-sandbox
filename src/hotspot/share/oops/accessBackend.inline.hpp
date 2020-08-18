@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,22 +22,23 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_ACCESSBACKEND_INLINE_HPP
-#define SHARE_VM_RUNTIME_ACCESSBACKEND_INLINE_HPP
+#ifndef SHARE_OOPS_ACCESSBACKEND_INLINE_HPP
+#define SHARE_OOPS_ACCESSBACKEND_INLINE_HPP
 
 #include "oops/access.hpp"
 #include "oops/accessBackend.hpp"
-#include "oops/oop.inline.hpp"
+#include "oops/compressedOops.inline.hpp"
+#include "oops/oopsHierarchy.hpp"
 
 template <DecoratorSet decorators>
 template <DecoratorSet idecorators, typename T>
 inline typename EnableIf<
   AccessInternal::MustConvertCompressedOop<idecorators, T>::value, T>::type
 RawAccessBarrier<decorators>::decode_internal(typename HeapOopType<idecorators>::type value) {
-  if (HasDecorator<decorators, OOP_NOT_NULL>::value) {
-    return oopDesc::decode_heap_oop_not_null(value);
+  if (HasDecorator<decorators, IS_NOT_NULL>::value) {
+    return CompressedOops::decode_not_null(value);
   } else {
-    return oopDesc::decode_heap_oop(value);
+    return CompressedOops::decode(value);
   }
 }
 
@@ -47,10 +48,10 @@ inline typename EnableIf<
   AccessInternal::MustConvertCompressedOop<idecorators, T>::value,
   typename HeapOopType<idecorators>::type>::type
 RawAccessBarrier<decorators>::encode_internal(T value) {
-  if (HasDecorator<decorators, OOP_NOT_NULL>::value) {
-    return oopDesc::encode_heap_oop_not_null(value);
+  if (HasDecorator<decorators, IS_NOT_NULL>::value) {
+    return CompressedOops::encode_not_null(value);
   } else {
-    return oopDesc::encode_heap_oop(value);
+    return CompressedOops::encode(value);
   }
 }
 
@@ -117,19 +118,12 @@ inline T RawAccessBarrier<decorators>::oop_atomic_xchg_at(T new_value, oop base,
 
 template <DecoratorSet decorators>
 template <typename T>
-inline bool RawAccessBarrier<decorators>::oop_arraycopy(arrayOop src_obj, arrayOop dst_obj, T* src, T* dst, size_t length) {
-  return arraycopy(src, dst, length);
-}
-
-template <DecoratorSet decorators>
-inline bool RawAccessBarrier<decorators>::oop_arraycopy(arrayOop src_obj, arrayOop dst_obj, HeapWord* src, HeapWord* dst, size_t length) {
-  bool needs_oop_compress = HasDecorator<decorators, INTERNAL_CONVERT_COMPRESSED_OOP>::value &&
-                            HasDecorator<decorators, INTERNAL_RT_USE_COMPRESSED_OOPS>::value;
-  if (needs_oop_compress) {
-    return arraycopy(reinterpret_cast<narrowOop*>(src), reinterpret_cast<narrowOop*>(dst), length);
-  } else {
-    return arraycopy(reinterpret_cast<oop*>(src), reinterpret_cast<oop*>(dst), length);
-  }
+inline bool RawAccessBarrier<decorators>::oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+                                                        arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+                                                        size_t length) {
+  return arraycopy(src_obj, src_offset_in_bytes, src_raw,
+                   dst_obj, dst_offset_in_bytes, dst_raw,
+                   length);
 }
 
 template <DecoratorSet decorators>
@@ -253,48 +247,99 @@ RawAccessBarrier<ds>::atomic_cmpxchg_maybe_locked(T new_value, void* addr, T com
 }
 
 class RawAccessBarrierArrayCopy: public AllStatic {
+  template<typename T> struct IsHeapWordSized: public IntegralConstant<bool, sizeof(T) == HeapWordSize> { };
 public:
   template <DecoratorSet decorators, typename T>
   static inline typename EnableIf<
-  HasDecorator<decorators, INTERNAL_VALUE_IS_OOP>::value>::type
-  arraycopy(T* src, T* dst, size_t length) {
+    HasDecorator<decorators, INTERNAL_VALUE_IS_OOP>::value>::type
+  arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+            arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+            size_t length) {
+    src_raw = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
+    dst_raw = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
+
     // We do not check for ARRAYCOPY_ATOMIC for oops, because they are unconditionally always atomic.
     if (HasDecorator<decorators, ARRAYCOPY_ARRAYOF>::value) {
-      AccessInternal::arraycopy_arrayof_conjoint_oops(src, dst, length);
+      AccessInternal::arraycopy_arrayof_conjoint_oops(src_raw, dst_raw, length);
     } else {
       typedef typename HeapOopType<decorators>::type OopType;
-      AccessInternal::arraycopy_conjoint_oops(reinterpret_cast<OopType*>(src),
-                                              reinterpret_cast<OopType*>(dst), length);
+      AccessInternal::arraycopy_conjoint_oops(reinterpret_cast<OopType*>(src_raw),
+                                              reinterpret_cast<OopType*>(dst_raw), length);
     }
   }
 
   template <DecoratorSet decorators, typename T>
   static inline typename EnableIf<
-    !HasDecorator<decorators, INTERNAL_VALUE_IS_OOP>::value>::type
-  arraycopy(T* src, T* dst, size_t length) {
-    if (HasDecorator<decorators, ARRAYCOPY_ARRAYOF>::value) {
-      AccessInternal::arraycopy_arrayof_conjoint(src, dst, length);
-    } else if (HasDecorator<decorators, ARRAYCOPY_DISJOINT>::value && sizeof(T) == HeapWordSize) {
-      // There is only a disjoint optimization for word granularity copying
-      if (HasDecorator<decorators, ARRAYCOPY_ATOMIC>::value) {
-        AccessInternal::arraycopy_disjoint_words_atomic(src, dst, length);
-      } else {
-        AccessInternal::arraycopy_disjoint_words(src, dst, length);
-      }
+    !HasDecorator<decorators, INTERNAL_VALUE_IS_OOP>::value &&
+    HasDecorator<decorators, ARRAYCOPY_ARRAYOF>::value>::type
+  arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+            arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+            size_t length) {
+    src_raw = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
+    dst_raw = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
+
+    AccessInternal::arraycopy_arrayof_conjoint(src_raw, dst_raw, length);
+  }
+
+  template <DecoratorSet decorators, typename T>
+  static inline typename EnableIf<
+    !HasDecorator<decorators, INTERNAL_VALUE_IS_OOP>::value &&
+    HasDecorator<decorators, ARRAYCOPY_DISJOINT>::value && IsHeapWordSized<T>::value>::type
+  arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+            arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+            size_t length) {
+    src_raw = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
+    dst_raw = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
+
+    // There is only a disjoint optimization for word granularity copying
+    if (HasDecorator<decorators, ARRAYCOPY_ATOMIC>::value) {
+      AccessInternal::arraycopy_disjoint_words_atomic(src_raw, dst_raw, length);
     } else {
-      if (HasDecorator<decorators, ARRAYCOPY_ATOMIC>::value) {
-        AccessInternal::arraycopy_conjoint_atomic(src, dst, length);
-      } else {
-        AccessInternal::arraycopy_conjoint(src, dst, length);
-      }
+      AccessInternal::arraycopy_disjoint_words(src_raw, dst_raw, length);
     }
+  }
+
+  template <DecoratorSet decorators, typename T>
+  static inline typename EnableIf<
+    !HasDecorator<decorators, INTERNAL_VALUE_IS_OOP>::value &&
+    !(HasDecorator<decorators, ARRAYCOPY_DISJOINT>::value && IsHeapWordSized<T>::value) &&
+    !HasDecorator<decorators, ARRAYCOPY_ARRAYOF>::value &&
+    !HasDecorator<decorators, ARRAYCOPY_ATOMIC>::value>::type
+  arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+            arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+            size_t length) {
+    src_raw = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
+    dst_raw = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
+
+    AccessInternal::arraycopy_conjoint(src_raw, dst_raw, length);
+  }
+
+  template <DecoratorSet decorators, typename T>
+  static inline typename EnableIf<
+    !HasDecorator<decorators, INTERNAL_VALUE_IS_OOP>::value &&
+    !(HasDecorator<decorators, ARRAYCOPY_DISJOINT>::value && IsHeapWordSized<T>::value) &&
+    !HasDecorator<decorators, ARRAYCOPY_ARRAYOF>::value &&
+    HasDecorator<decorators, ARRAYCOPY_ATOMIC>::value>::type
+  arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+            arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+            size_t length) {
+    src_raw = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
+    dst_raw = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
+
+    AccessInternal::arraycopy_conjoint_atomic(src_raw, dst_raw, length);
   }
 };
 
+template<> struct RawAccessBarrierArrayCopy::IsHeapWordSized<void>: public IntegralConstant<bool, false> { };
+
 template <DecoratorSet decorators>
 template <typename T>
-inline bool RawAccessBarrier<decorators>::arraycopy(T* src, T* dst, size_t length) {
-  RawAccessBarrierArrayCopy::arraycopy<decorators>(src, dst, length);
+inline bool RawAccessBarrier<decorators>::arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+                                                    arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+                                                    size_t length) {
+  RawAccessBarrierArrayCopy::arraycopy<decorators>(src_obj, src_offset_in_bytes, src_raw,
+                                                   dst_obj, dst_offset_in_bytes, dst_raw,
+                                                   length);
   return true;
 }
 
@@ -315,7 +360,7 @@ inline void RawAccessBarrier<decorators>::clone(oop src, oop dst, size_t size) {
                                             reinterpret_cast<jlong*>((oopDesc*)dst),
                                             align_object_size(size) / HeapWordsPerLong);
   // Clear the header
-  dst->init_mark();
+  dst->init_mark_raw();
 }
 
-#endif // SHARE_VM_RUNTIME_ACCESSBACKEND_INLINE_HPP
+#endif // SHARE_OOPS_ACCESSBACKEND_INLINE_HPP

@@ -25,9 +25,10 @@
  *
  * @test
  * @modules java.base/java.io:open
+ * @library /test/lib
+ * @build jdk.test.lib.util.FileUtils UnreferencedFOSClosesFd
  * @bug 6524062
- * @summary Test to ensure that FOS.finalize() invokes the close() method as per
- * the specification.
+ * @summary Test to ensure that the fd is closed if left unreferenced
  * @run main/othervm UnreferencedFOSClosesFd
  */
 import java.io.File;
@@ -41,22 +42,22 @@ import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
+import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.sun.management.UnixOperatingSystemMXBean;
 
-public class UnreferencedFOSClosesFd {
+import jdk.test.lib.util.FileUtils;
 
-    enum CleanupType {
-        CLOSE,      // Cleanup is handled via calling close
-        CLEANER}    // Cleanup is handled via Cleaner
+public class UnreferencedFOSClosesFd {
 
     static final String FILE_NAME = "empty.txt";
 
     /**
-     * Subclass w/ no overrides; not finalize or close.
-     * Cleanup should be via the Cleaner (not close).
+     * Subclass w/ no overrides; not close.
+     * Cleanup should be via the Cleaner.
      */
     public static class StreamOverrides extends FileOutputStream {
 
@@ -90,7 +91,7 @@ public class UnreferencedFOSClosesFd {
 
     /**
      * Subclass overrides finalize and close.
-     * Cleanup should be via the Cleaner (not close).
+     * Cleanup should be via the Cleaner.
      */
     public static class StreamOverridesFinalize extends StreamOverrides {
 
@@ -99,14 +100,14 @@ public class UnreferencedFOSClosesFd {
         }
 
         @SuppressWarnings({"deprecation","removal"})
-        protected void finalize() throws IOException {
+        protected void finalize() throws IOException, Throwable {
             super.finalize();
         }
     }
 
     /**
      * Subclass overrides finalize and close.
-     * Cleanup should be via AltFinalizer calling close().
+     * Cleanup should be via the Cleaner.
      */
     public static class StreamOverridesFinalizeClose extends StreamOverridesClose {
 
@@ -115,7 +116,7 @@ public class UnreferencedFOSClosesFd {
         }
 
         @SuppressWarnings({"deprecation","removal"})
-        protected void finalize() throws IOException {
+        protected void finalize() throws IOException, Throwable {
             super.finalize();
         }
     }
@@ -125,27 +126,25 @@ public class UnreferencedFOSClosesFd {
      */
     public static void main(String argv[]) throws Exception {
 
-
-
         File inFile = new File(System.getProperty("test.dir", "."), FILE_NAME);
         inFile.createNewFile();
         inFile.deleteOnExit();
 
         String name = inFile.getPath();
 
+        FileUtils.listFileDescriptors(System.out);
         long fdCount0 = getFdCount();
-        System.out.printf("initial count of open file descriptors: %d%n", fdCount0);
 
         int failCount = 0;
-        failCount += test(new FileOutputStream(name), CleanupType.CLEANER);
+        failCount += test(new FileOutputStream(name));
 
-        failCount += test(new StreamOverrides(name), CleanupType.CLEANER);
+        failCount += test(new StreamOverrides(name));
 
-        failCount += test(new StreamOverridesClose(name), CleanupType.CLOSE);
+        failCount += test(new StreamOverridesClose(name));
 
-        failCount += test(new StreamOverridesFinalize(name), CleanupType.CLEANER);
+        failCount += test(new StreamOverridesFinalize(name));
 
-        failCount += test(new StreamOverridesFinalizeClose(name), CleanupType.CLOSE);
+        failCount += test(new StreamOverridesFinalizeClose(name));
 
         if (failCount > 0) {
             throw new AssertionError("Failed test count: " + failCount);
@@ -153,10 +152,10 @@ public class UnreferencedFOSClosesFd {
 
         // Check the final count of open file descriptors
         long fdCount = getFdCount();
-        System.out.printf("final count of open file descriptors: %d%n", fdCount);
         if (fdCount != fdCount0) {
-            throw new AssertionError("raw fd count wrong: expected: " + fdCount0
-            + ", actual: " + fdCount);
+            System.out.printf("initial count of open file descriptors: %d%n", fdCount0);
+            System.out.printf("final count of open file descriptors: %d%n", fdCount);
+            FileUtils.listFileDescriptors(System.out);
         }
     }
 
@@ -168,7 +167,7 @@ public class UnreferencedFOSClosesFd {
                 : -1L;
     }
 
-    private static int test(FileOutputStream fos, CleanupType cleanType) throws Exception {
+    private static int test(FileOutputStream fos) throws Exception {
 
         try {
             System.out.printf("%nTesting %s%n", fos.getClass().getName());
@@ -187,35 +186,18 @@ public class UnreferencedFOSClosesFd {
             fdField.setAccessible(true);
             int ffd = fdField.getInt(fd);
 
-            Field altFinalizerField = FileOutputStream.class.getDeclaredField("altFinalizer");
-            altFinalizerField.setAccessible(true);
-            Object altFinalizer = altFinalizerField.get(fos);
-            if ((altFinalizer != null) ^ (cleanType == CleanupType.CLOSE)) {
-                throw new RuntimeException("Unexpected AltFinalizer: " + altFinalizer
-                        + ", for " + cleanType);
-            }
-
             Field cleanupField = FileDescriptor.class.getDeclaredField("cleanup");
             cleanupField.setAccessible(true);
             Object cleanup = cleanupField.get(fd);
-            System.out.printf("  cleanup: %s, alt: %s, ffd: %d, cf: %s%n",
-                    cleanup, altFinalizer, ffd, cleanupField);
-            if ((cleanup != null) ^ (cleanType == CleanupType.CLEANER)) {
-                throw new Exception("unexpected cleanup: "
-                        + cleanup + ", for " + cleanType);
+            System.out.printf("  cleanup: %s, ffd: %d, cf: %s%n", cleanup, ffd, cleanupField);
+            if (cleanup == null) {
+                throw new RuntimeException("cleanup should not be null");
             }
-            if (cleanup != null) {
-                WeakReference<Object> cleanupWeak = new WeakReference<>(cleanup, queue);
-                pending.add(cleanupWeak);
-                System.out.printf("    fdWeak: %s%n    msWeak: %s%n    cleanupWeak: %s%n",
-                        fdWeak, msWeak, cleanupWeak);
-            }
-            if (altFinalizer != null) {
-                WeakReference<Object> altFinalizerWeak = new WeakReference<>(altFinalizer, queue);
-                pending.add(altFinalizerWeak);
-                System.out.printf("    fdWeak: %s%n    msWeak: %s%n    altFinalizerWeak: %s%n",
-                        fdWeak, msWeak, altFinalizerWeak);
-            }
+
+            WeakReference<Object> cleanupWeak = new WeakReference<>(cleanup, queue);
+            pending.add(cleanupWeak);
+            System.out.printf("    fdWeak: %s%n    msWeak: %s%n    cleanupWeak: %s%n",
+                    fdWeak, msWeak, cleanupWeak);
 
             AtomicInteger closeCounter = fos instanceof StreamOverrides
                     ? ((StreamOverrides) fos).closeCounter() : null;
@@ -231,28 +213,16 @@ public class UnreferencedFOSClosesFd {
                     fos = null;
                     fd = null;
                     cleanup = null;
-                    altFinalizer = null;
                     System.gc();  // attempt to reclaim them
                 }
             }
             Reference.reachabilityFence(fd);
             Reference.reachabilityFence(fos);
             Reference.reachabilityFence(cleanup);
-            Reference.reachabilityFence(altFinalizer);
 
             // Confirm the correct number of calls to close depending on the cleanup type
-            switch (cleanType) {
-                case CLEANER:
-                    if (closeCounter != null && closeCounter.get() > 0) {
-                        throw new RuntimeException("Close should not have been called: count: "
-                                + closeCounter);
-                    }
-                    break;
-                case CLOSE:
-                    if (closeCounter == null || closeCounter.get() == 0) {
-                        throw new RuntimeException("Close should have been called: count: 0");
-                    }
-                    break;
+            if (closeCounter != null && closeCounter.get() > 0) {
+                throw new RuntimeException("Close should not have been called: count: " + closeCounter);
             }
         } catch (Exception ex) {
             ex.printStackTrace(System.out);

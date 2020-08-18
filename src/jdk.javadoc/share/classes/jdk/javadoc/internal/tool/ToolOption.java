@@ -146,7 +146,7 @@ public enum ToolOption {
         }
     },
 
-    SOURCE("-source", STANDARD, true) {
+    SOURCE("--source -source", STANDARD, true) {
         @Override
         public void process(Helper helper, String arg) throws InvalidValueException {
             Option.SOURCE.process(helper.getOptionHelper(), primaryName, arg);
@@ -193,6 +193,13 @@ public enum ToolOption {
         @Override
         public void process(Helper helper, String arg) throws InvalidValueException {
             Option.ADD_OPENS.process(helper.getOptionHelper(), primaryName, arg);
+        }
+    },
+
+    ENABLE_PREVIEW("--enable-preview", STANDARD) {
+        @Override
+        public void process(Helper helper) throws InvalidValueException {
+            Option.PREVIEW.process(helper.getOptionHelper(), primaryName);
         }
     },
 
@@ -404,7 +411,7 @@ public enum ToolOption {
 
     void process(Helper helper, String arg) throws OptionException, Option.InvalidValueException { }
 
-    void process(Helper helper) throws OptionException { }
+    void process(Helper helper) throws OptionException, Option.InvalidValueException { }
 
     List<String> getNames() {
         return names;

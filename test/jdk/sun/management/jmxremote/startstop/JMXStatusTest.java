@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 import org.testng.annotations.*;
 import static org.testng.Assert.*;
 
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.ProcessTools;
 
 /**
  * @test
@@ -38,9 +38,9 @@ import jdk.testlibrary.ProcessTools;
  *          Management agent may be disabled, started (only local connections) and started.
  *          The test asserts that the expected text is being printed.
  *
- * @library /lib/testlibrary
+ * @library /test/lib
  *
- * @build jdk.testlibrary.* PortAllocator TestApp ManagementAgentJcmd
+ * @build PortAllocator TestApp ManagementAgentJcmd
  *        JMXStatusTest JMXStatus1Test JMXStatus2Test
  * @run testng/othervm -XX:+UsePerfData JMXStatus1Test
  * @run testng/othervm -XX:+UsePerfData JMXStatus2Test

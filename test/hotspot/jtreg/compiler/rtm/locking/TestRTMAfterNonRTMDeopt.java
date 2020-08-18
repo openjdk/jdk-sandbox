@@ -31,7 +31,7 @@
  * @library /test/lib /
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @requires vm.flavor == "server" & !vm.emulatedClient & vm.rtm.cpu & vm.rtm.os
+ * @requires vm.rtm.cpu & vm.rtm.compiler
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                                sun.hotspot.WhiteBox$WhiteBoxPermission
@@ -167,7 +167,7 @@ public class TestRTMAfterNonRTMDeopt {
                 synchronized(monitor) {
                     a[0]++;
                     if (abort) {
-                        Test.field = Test.UNSAFE.addressSize();
+                        Test.field = Test.UNSAFE.pageSize();
                     }
                 }
             } catch (Throwable t) {

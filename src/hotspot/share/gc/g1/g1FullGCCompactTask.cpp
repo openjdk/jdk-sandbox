@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,8 @@
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "logging/log.hpp"
-#include "utilities/ticks.inline.hpp"
+#include "oops/oop.inline.hpp"
+#include "utilities/ticks.hpp"
 
 class G1ResetHumongousClosure : public HeapRegionClosure {
   G1CMBitMap* _bitmap;
@@ -47,7 +48,7 @@ public:
         if (_bitmap->is_marked(obj)) {
           // Clear bitmap and fix mark word.
           _bitmap->clear(obj);
-          obj->init_mark();
+          obj->init_mark_raw();
         } else {
           assert(current->is_empty(), "Should have been cleared in phase 2.");
         }
@@ -70,7 +71,7 @@ size_t G1FullGCCompactTask::G1CompactRegionClosure::apply(oop obj) {
   HeapWord* obj_addr = (HeapWord*) obj;
   assert(obj_addr != destination, "everything in this pass should be moving");
   Copy::aligned_conjoint_words(obj_addr, destination, size);
-  oop(destination)->init_mark();
+  oop(destination)->init_mark_raw();
   assert(oop(destination)->klass() != NULL, "should have a class");
 
   return size;

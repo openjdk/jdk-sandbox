@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,9 @@
  */
 
 
-#ifndef SHARE_VM_METAPROGRAMMING_ISINTEGRAL_HPP
-#define SHARE_VM_METAPROGRAMMING_ISINTEGRAL_HPP
+#ifndef SHARE_METAPROGRAMMING_ISINTEGRAL_HPP
+#define SHARE_METAPROGRAMMING_ISINTEGRAL_HPP
 
-#include "memory/allocation.hpp"
 #include "metaprogramming/integralConstant.hpp"
 #include "metaprogramming/isSigned.hpp"
 #include "metaprogramming/removeCV.hpp"
@@ -56,4 +55,4 @@ struct IsUnsignedIntegral
   : public IntegralConstant<bool, IsIntegral<T>::value && !IsSigned<T>::value>
 {};
 
-#endif // SHARE_VM_METAPROGRAMMING_ISINTEGRAL_HPP
+#endif // SHARE_METAPROGRAMMING_ISINTEGRAL_HPP

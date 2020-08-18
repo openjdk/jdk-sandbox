@@ -38,9 +38,9 @@
  * file and, per its terms, should not be removed:
  */
 
-/* libpng version 1.6.34, September 29, 2017 */
+/* libpng version 1.6.35, July 15, 2018 */
 
-/* Copyright (c) 1998-2017 Glenn Randers-Pehrson */
+/* Copyright (c) 1998-2018 Glenn Randers-Pehrson */
 
 /* This code is released under the libpng license. */
 /* For conditions of distribution and use, see the disclaimer */
@@ -137,7 +137,7 @@
 #define PNG_SAVE_UNKNOWN_CHUNKS_SUPPORTED
 #define PNG_SEQUENTIAL_READ_SUPPORTED
 #define PNG_SETJMP_SUPPORTED
-#define PNG_SET_OPTION_SUPPORTED
+/*#undef PNG_SET_OPTION_SUPPORTED*/
 #define PNG_SET_UNKNOWN_CHUNKS_SUPPORTED
 #define PNG_SET_USER_LIMITS_SUPPORTED
 #define PNG_SIMPLIFIED_READ_AFIRST_SUPPORTED

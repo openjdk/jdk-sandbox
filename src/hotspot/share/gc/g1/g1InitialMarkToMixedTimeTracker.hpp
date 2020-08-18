@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1INITIALMARKTOMIXEDTIMETRACKER_HPP
-#define SHARE_VM_GC_G1_G1INITIALMARKTOMIXEDTIMETRACKER_HPP
+#ifndef SHARE_GC_G1_G1INITIALMARKTOMIXEDTIMETRACKER_HPP
+#define SHARE_GC_G1_G1INITIALMARKTOMIXEDTIMETRACKER_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/debug.hpp"
@@ -32,7 +32,7 @@
 // After calling the initial mark/mixed gc notifications, the result can be
 // obtained in last_marking_time() once, after which the tracking resets.
 // Any pauses recorded by add_pause() will be subtracted from that results.
-class G1InitialMarkToMixedTimeTracker VALUE_OBJ_CLASS_SPEC {
+class G1InitialMarkToMixedTimeTracker {
 private:
   bool _active;
   double _initial_mark_end_time;
@@ -84,4 +84,4 @@ public:
   bool has_result() const { return _mixed_start_time > 0.0 && _initial_mark_end_time > 0.0; }
 };
 
-#endif // SHARE_VM_GC_G1_G1INITIALMARKTOMIXEDTIMETRACKER_HPP
+#endif // SHARE_GC_G1_G1INITIALMARKTOMIXEDTIMETRACKER_HPP

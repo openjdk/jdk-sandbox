@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -165,9 +165,6 @@ pathToNTPath(JNIEnv *env, jstring path, jboolean throwFNFE) {
                      pathbuf = (WCHAR*)malloc((pathlen + 6) * sizeof(WCHAR));
                      if (pathbuf != 0) {
                          wcscpy(pathbuf, ps);
-                     } else {
-                         JNU_ThrowOutOfMemoryError(env, "native memory allocation failed");
-                         return NULL;
                      }
                  }
             } else {
@@ -191,9 +188,6 @@ pathToNTPath(JNIEnv *env, jstring path, jboolean throwFNFE) {
                     pathbuf = (WCHAR*)malloc((pathlen + 6) * sizeof(WCHAR));
                     if (pathbuf != 0) {
                         wcscpy(pathbuf, ps);
-                    } else {
-                        JNU_ThrowOutOfMemoryError(env, "native memory allocation failed");
-                        return NULL;
                     }
                 }
             }
@@ -210,21 +204,16 @@ pathToNTPath(JNIEnv *env, jstring path, jboolean throwFNFE) {
             pathbuf = (WCHAR*)malloc(sizeof(WCHAR));
             if (pathbuf != NULL) {
                 pathbuf[0] = L'\0';
-            } else {
-                JNU_ThrowOutOfMemoryError(env, 0);
-                return NULL;
             }
         }
     }
     if (pathbuf == 0) {
-        JNU_ThrowOutOfMemoryError(env, 0);
-        return NULL;
+        JNU_ThrowOutOfMemoryError(env, "native memory allocation failed");
     }
     return pathbuf;
 }
 
-FD
-winFileHandleOpen(JNIEnv *env, jstring path, int flags)
+FD winFileHandleOpen(JNIEnv *env, jstring path, int flags)
 {
     const DWORD access =
         (flags & O_WRONLY) ?  GENERIC_WRITE :
@@ -458,19 +447,20 @@ handleSync(FD fd) {
     return 0;
 }
 
-
-int
+jint
 handleSetLength(FD fd, jlong length) {
     HANDLE h = (HANDLE)fd;
-    long high = (long)(length >> 32);
-    DWORD ret;
+    FILE_END_OF_FILE_INFO eofInfo;
 
-    if (h == (HANDLE)(-1)) return -1;
-    ret = SetFilePointer(h, (long)(length), &high, FILE_BEGIN);
-    if (ret == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
+    eofInfo.EndOfFile.QuadPart = length;
+
+    if (h == INVALID_HANDLE_VALUE) {
         return -1;
     }
-    if (SetEndOfFile(h) == FALSE) return -1;
+    if (!SetFileInformationByHandle(h, FileEndOfFileInfo, &eofInfo,
+            sizeof(FILE_END_OF_FILE_INFO))) {
+        return -1;
+    }
     return 0;
 }
 
@@ -535,16 +525,6 @@ jint handleAppend(FD fd, const void *buf, jint len) {
     return writeInternal(fd, buf, len, JNI_TRUE);
 }
 
-void
-handleClose(JNIEnv *env, jobject this, jfieldID fid)
-{
-    jobject fileDescriptor = (*env)->GetObjectField(env, (this), (fid));
-    if (fileDescriptor == NULL) {
-        return;
-    }
-    fileDescriptorClose(env, fileDescriptor);
-}
-
 // Function to close the fd held by this FileDescriptor and set fd to -1.
 void
 fileDescriptorClose(JNIEnv *env, jobject this)
@@ -575,12 +555,10 @@ fileDescriptorClose(JNIEnv *env, jobject this)
     }
 }
 
-jlong
+JNIEXPORT jlong JNICALL
 handleLseek(FD fd, jlong offset, jint whence)
 {
     LARGE_INTEGER pos, distance;
-    DWORD lowPos = 0;
-    long highPos = 0;
     DWORD op = FILE_CURRENT;
     HANDLE h = (HANDLE)fd;
 

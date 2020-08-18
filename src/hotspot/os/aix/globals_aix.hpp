@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef OS_AIX_VM_GLOBALS_AIX_HPP
-#define OS_AIX_VM_GLOBALS_AIX_HPP
+#ifndef OS_AIX_GLOBALS_AIX_HPP
+#define OS_AIX_GLOBALS_AIX_HPP
 
 //
 // Defines Aix specific flags. They are not available on other platforms.
@@ -50,10 +50,6 @@
   /* customer scenarios, we may want to be able to run despite that variable. */    \
   product(bool, AllowExtshm, false,                                                 \
           "Allow VM to run with EXTSHM=ON.")                                        \
-                                                                                    \
-  product(intx, AttachListenerTimeout, 1000,                                        \
-          "Timeout in ms the attach listener waits for a request")                  \
-          range(0, 2147483)                                                         \
                                                                                     \
   /*  Maximum expected size of the data segment. That correlates with the      */   \
   /*  to the maximum C Heap consumption we expect.                             */   \
@@ -98,4 +94,4 @@ define_pd_global(bool, UseLargePagesIndividualAllocation, false);
 define_pd_global(bool, UseOSErrorReporting, false);
 define_pd_global(bool, UseThreadPriorities, true) ;
 
-#endif // OS_AIX_VM_GLOBALS_AIX_HPP
+#endif // OS_AIX_GLOBALS_AIX_HPP

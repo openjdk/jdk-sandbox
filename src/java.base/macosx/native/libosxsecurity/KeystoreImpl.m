@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -438,12 +438,11 @@ JNIEXPORT jbyteArray JNICALL Java_apple_security_KeychainStore__1getEncodedKeyDa
             if (passwordChars == NULL) {
                 goto errOut;
             }
-            passwordStrRef = CFStringCreateWithCharacters(kCFAllocatorDefault, passwordChars, passwordLen);
 
-            // clear the password and release
-            memset(passwordChars, 0, passwordLen);
-            (*env)->ReleaseCharArrayElements(env, passwordObj, passwordChars,
-                JNI_ABORT);
+            passwordStrRef = CFStringCreateWithCharactersNoCopy(NULL, passwordChars, passwordLen, kCFAllocatorNull);
+            if (passwordStrRef == NULL) {
+                goto errOut;
+            }
         }
     }
 
@@ -471,7 +470,12 @@ JNIEXPORT jbyteArray JNICALL Java_apple_security_KeychainStore__1getEncodedKeyDa
 errOut:
     if (exportedData) CFRelease(exportedData);
     if (passwordStrRef) CFRelease(passwordStrRef);
-
+    if (passwordChars) {
+        // clear the password and release
+        memset(passwordChars, 0, passwordLen);
+        (*env)->ReleaseCharArrayElements(env, passwordObj, passwordChars,
+            JNI_ABORT);
+    }
     return returnValue;
 }
 
@@ -538,12 +542,11 @@ JNF_COCOA_ENTER(env);
             if (passwordChars == NULL) {
                 goto errOut;
             }
-            passwordStrRef = CFStringCreateWithCharacters(kCFAllocatorDefault, passwordChars, passwordLen);
 
-            // clear the password and release
-            memset(passwordChars, 0, passwordLen);
-            (*env)->ReleaseCharArrayElements(env, passwordObj, passwordChars,
-                JNI_ABORT);
+            passwordStrRef = CFStringCreateWithCharactersNoCopy(NULL, passwordChars, passwordLen, kCFAllocatorNull);
+            if (passwordStrRef == NULL) {
+                goto errOut;
+            }
         }
     }
 
@@ -575,13 +578,22 @@ JNF_COCOA_ENTER(env);
         cssmPerror("_addItemToKeychain: SecKeychainItemImport", err);
     }
 
-    (*env)->ReleaseByteArrayElements(env, rawDataObj, rawData, JNI_ABORT);
-
     if (createdItems != NULL) {
         CFRelease(createdItems);
     }
 
-errOut: ;
+errOut:
+    if (rawData) {
+        (*env)->ReleaseByteArrayElements(env, rawDataObj, rawData, JNI_ABORT);
+    }
+
+    if (passwordStrRef) CFRelease(passwordStrRef);
+    if (passwordChars) {
+        // clear the password and release
+        memset(passwordChars, 0, passwordLen);
+        (*env)->ReleaseCharArrayElements(env, passwordObj, passwordChars,
+            JNI_ABORT);
+    }
 
 JNF_COCOA_EXIT(env);
 

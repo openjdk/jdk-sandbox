@@ -23,14 +23,14 @@
 
 /*
  * @test
- * @bug 8196027
+ * @bug 8196027 8196202
  * @summary test navigation links
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.javadoc/jdk.javadoc.internal.api
  *          jdk.javadoc/jdk.javadoc.internal.tool
- * @library ../lib /tools/lib
- * @build toolbox.ToolBox toolbox.ModuleBuilder JavadocTester
+ * @library ../../lib /tools/lib
+ * @build toolbox.ToolBox toolbox.ModuleBuilder javadoc.tester.*
  * @run main TestModuleNavigation
  */
 
@@ -38,7 +38,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import toolbox.*;
+import javadoc.tester.JavadocTester;
+import toolbox.ModuleBuilder;
+import toolbox.ToolBox;
 
 public class TestModuleNavigation extends JavadocTester {
 
@@ -74,40 +76,80 @@ public class TestModuleNavigation extends JavadocTester {
 
         javadoc("-d", base.resolve("out").toString(), "-use",
                 "-quiet",
+                "--frames",
                 "--module-source-path", src.toString(),
                 "--module", "m,m2");
         checkExit(Exit.OK);
 
         checkOutput("overview-summary.html", false,
                 "Prev",
-                "Next");
+                "Next",
+                "All&nbsp;Classes",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_top\");",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_bottom\");");
 
         checkOutput("m/module-summary.html", false,
                 "Prev&nbsp;Module",
-                "Next&nbsp;Module");
+                "Next&nbsp;Module",
+                "All&nbsp;Classes",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_top\");",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_bottom\");");
 
         checkOutput("m2/m2p1/package-summary.html", false,
                 "Prev&nbsp;Package",
-                "Next&nbsp;Package");
+                "Next&nbsp;Package",
+                "All&nbsp;Classes",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_top\");",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_bottom\");");
 
         checkOutput("m2/m2p1/Am2.html", false,
                 "Prev&nbsp;Class",
-                "Next&nbsp;Class");
+                "Next&nbsp;Class",
+                "All&nbsp;Classes",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_top\");",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_bottom\");");
 
         checkOutput("m2/m2p1/class-use/Am2.html", false,
                 "Prev",
-                "Next");
+                "Next",
+                "All&nbsp;Classes",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_top\");",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_bottom\");");
 
         checkOutput("m2/m2p1/package-tree.html", false,
                 "Prev",
-                "Next");
+                "Next",
+                "All&nbsp;Classes",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_top\");",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_bottom\");");
 
         checkOutput("deprecated-list.html", false,
                 "Prev",
-                "Next");
+                "Next",
+                "All&nbsp;Classes",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_top\");",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_bottom\");");
 
         checkOutput("index-all.html", false,
                 "Prev",
-                "Next");
+                "Next",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_top\");",
+                "<script type=\"text/javascript\"><!--\n"
+                + "  allClassesLink = document.getElementById(\"allclasses_navbar_bottom\");");
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,8 @@
 package java.net;
 
 import java.io.IOException;
-import jdk.internal.misc.SharedSecrets;
-import jdk.internal.misc.JavaIOFileDescriptorAccess;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.access.JavaIOFileDescriptorAccess;
 
 /**
  * This class defines the plain DatagramSocketImpl that is used on
@@ -69,7 +69,7 @@ class DualStackPlainDatagramSocketImpl extends AbstractPlainDatagramSocketImpl
         if (fd == null)
             throw new SocketException("Socket closed");
 
-        int newfd = socketCreate(false /* v6Only */);
+        int newfd = socketCreate();
 
         fdAccess.set(fd, newfd);
     }
@@ -274,7 +274,7 @@ class DualStackPlainDatagramSocketImpl extends AbstractPlainDatagramSocketImpl
 
     private static native void initIDs();
 
-    private static native int socketCreate(boolean v6Only);
+    private static native int socketCreate();
 
     private static native void socketBind(int fd, InetAddress localAddress,
             int localport, boolean exclBind) throws SocketException;

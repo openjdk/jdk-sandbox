@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements.test.classfile;
 
 import static org.graalvm.compiler.bytecode.Bytecodes.ALOAD;
@@ -85,8 +87,10 @@ import java.util.Formatter;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import org.graalvm.compiler.test.SubprocessUtil;
 import org.junit.Assert;
 import org.junit.Assume;
+import org.junit.Before;
 import org.junit.Test;
 
 import org.graalvm.compiler.api.replacements.SnippetReflectionProvider;
@@ -122,6 +126,12 @@ import jdk.vm.ci.meta.ResolvedJavaType;
  */
 public class ClassfileBytecodeProviderTest extends GraalCompilerTest {
 
+    @Before
+    public void checkJavaAgent() {
+        assumeManagementLibraryIsLoadable();
+        Assume.assumeFalse("Java Agent found -> skipping", SubprocessUtil.isJavaAgentAttached());
+    }
+
     private static boolean shouldProcess(String classpathEntry) {
         if (classpathEntry.endsWith(".jar")) {
             String name = new File(classpathEntry).getName();
@@ -149,13 +159,17 @@ public class ClassfileBytecodeProviderTest extends GraalCompilerTest {
                     for (final Enumeration<? extends ZipEntry> entry = zipFile.entries(); entry.hasMoreElements();) {
                         final ZipEntry zipEntry = entry.nextElement();
                         String name = zipEntry.getName();
-                        if (name.endsWith(".class") && !name.equals("module-info.class")) {
+                        if (name.endsWith(".class") && !name.equals("module-info.class") && !name.startsWith("META-INF/versions/")) {
                             String className = name.substring(0, name.length() - ".class".length()).replace('/', '.');
                             if (isInNativeImage(className)) {
                                 /*
                                  * Native image requires non-graalsdk classes to be present in the
                                  * classpath.
                                  */
+                                continue;
+                            }
+                            if (isGSON(className)) {
+                                /* uses old class format */
                                 continue;
                             }
                             try {
@@ -174,6 +188,10 @@ public class ClassfileBytecodeProviderTest extends GraalCompilerTest {
 
     private static boolean isInNativeImage(String className) {
         return className.startsWith("org.graalvm.nativeimage");
+    }
+
+    private static boolean isGSON(String className) {
+        return className.contains("com.google.gson");
     }
 
     protected void checkClass(MetaAccessProvider metaAccess, SnippetReflectionProvider snippetReflection, String className) throws ClassNotFoundException {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements.nodes;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_1;
@@ -59,9 +61,9 @@ public final class ReverseBytesNode extends UnaryNode implements LIRLowerable {
         IntegerStamp valueStamp = (IntegerStamp) newStamp;
         if (getStackKind() == JavaKind.Int) {
             long mask = CodeUtil.mask(JavaKind.Int.getBitCount());
-            return IntegerStamp.stampForMask(valueStamp.getBits(), Integer.reverse((int) valueStamp.downMask()) & mask, Integer.reverse((int) valueStamp.upMask()) & mask);
+            return IntegerStamp.stampForMask(valueStamp.getBits(), Integer.reverseBytes((int) valueStamp.downMask()) & mask, Integer.reverseBytes((int) valueStamp.upMask()) & mask);
         } else if (getStackKind() == JavaKind.Long) {
-            return IntegerStamp.stampForMask(valueStamp.getBits(), Long.reverse(valueStamp.downMask()), Long.reverse(valueStamp.upMask()));
+            return IntegerStamp.stampForMask(valueStamp.getBits(), Long.reverseBytes(valueStamp.downMask()), Long.reverseBytes(valueStamp.upMask()));
         } else {
             return stamp(NodeView.DEFAULT);
         }

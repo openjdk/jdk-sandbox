@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,8 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.inline.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -30,17 +32,20 @@
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "logging/log.hpp"
 #include "memory/heapInspection.hpp"
+#include "memory/heapShared.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/compressedOops.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopHandle.inline.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/orderAccess.inline.hpp"
-#include "trace/traceMacros.hpp"
+#include "runtime/handles.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/stack.inline.hpp"
 
@@ -54,17 +59,23 @@ oop Klass::java_mirror() const {
   return _java_mirror.resolve();
 }
 
+oop Klass::java_mirror_no_keepalive() const {
+  return _java_mirror.peek();
+}
+
 bool Klass::is_cloneable() const {
   return _access_flags.is_cloneable_fast() ||
          is_subtype_of(SystemDictionary::Cloneable_klass());
 }
 
 void Klass::set_is_cloneable() {
-  if (name() != vmSymbols::java_lang_invoke_MemberName()) {
-    _access_flags.set_is_cloneable_fast();
-  } else {
+  if (name() == vmSymbols::java_lang_invoke_MemberName()) {
     assert(is_final(), "no subclasses allowed");
     // MemberName cloning should not be intrinsified and always happen in JVM_Clone.
+  } else if (is_instance_klass() && InstanceKlass::cast(this)->reference_type() != REF_NONE) {
+    // Reference cloning should not be intrinsified and always happen in JVM_Clone.
+  } else {
+    _access_flags.set_is_cloneable_fast();
   }
 }
 
@@ -110,7 +121,7 @@ Klass *Klass::up_cast_abstract() {
   Klass *r = this;
   while( r->is_abstract() ) {   // Receiver is abstract?
     Klass *s = r->subklass();   // Check for exactly 1 subklass
-    if( !s || s->next_sibling() ) // Oops; wrong count; give up
+    if (s == NULL || s->next_sibling() != NULL) // Oops; wrong count; give up
       return this;              // Return 'this' as a no-progress flag
     r = s;                    // Loop till find concrete class
   }
@@ -137,17 +148,15 @@ void Klass::check_valid_for_instantiation(bool throwError, TRAPS) {
 
 
 void Klass::copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS) {
-  THROW(vmSymbols::java_lang_ArrayStoreException());
+  ResourceMark rm(THREAD);
+  assert(s != NULL, "Throw NPE!");
+  THROW_MSG(vmSymbols::java_lang_ArrayStoreException(),
+            err_msg("arraycopy: source type %s is not an array", s->klass()->external_name()));
 }
 
 
 void Klass::initialize(TRAPS) {
   ShouldNotReachHere();
-}
-
-bool Klass::compute_is_subtype_of(Klass* k) {
-  assert(k->is_klass(), "argument must be a class");
-  return is_subclass_of(k);
 }
 
 Klass* Klass::find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const {
@@ -160,7 +169,9 @@ Klass* Klass::find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const {
   return NULL;
 }
 
-Method* Klass::uncached_lookup_method(const Symbol* name, const Symbol* signature, OverpassLookupMode overpass_mode) const {
+Method* Klass::uncached_lookup_method(const Symbol* name, const Symbol* signature,
+                                      OverpassLookupMode overpass_mode,
+                                      PrivateLookupMode private_mode) const {
 #ifdef ASSERT
   tty->print_cr("Error: uncached_lookup_method called on a klass oop."
                 " Likely error: reflection method does not correctly"
@@ -180,10 +191,12 @@ void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word
 // which doesn't zero out the memory before calling the constructor.
 // Need to set the _java_mirror field explicitly to not hit an assert that the field
 // should be NULL before setting it.
-Klass::Klass() : _prototype_header(markOopDesc::prototype()),
-                 _shared_class_path_index(-1),
-                 _java_mirror(NULL) {
-
+Klass::Klass(KlassID id) : _id(id),
+                           _java_mirror(NULL),
+                           _prototype_header(markOopDesc::prototype()),
+                           _shared_class_path_index(-1) {
+  CDS_ONLY(_shared_class_flags = 0;)
+  CDS_JAVA_HEAP_ONLY(_archived_mirror = 0;)
   _primary_supers[0] = this;
   set_super_check_offset(in_bytes(primary_supers_offset()));
 }
@@ -217,12 +230,7 @@ bool Klass::can_be_primary_super_slow() const {
     return true;
 }
 
-void Klass::initialize_supers(Klass* k, TRAPS) {
-  if (FastSuperclassLimit == 0) {
-    // None of the other machinery matters.
-    set_super(k);
-    return;
-  }
+void Klass::initialize_supers(Klass* k, Array<InstanceKlass*>* transitive_interfaces, TRAPS) {
   if (k == NULL) {
     set_super(NULL);
     _primary_supers[0] = this;
@@ -285,7 +293,7 @@ void Klass::initialize_supers(Klass* k, TRAPS) {
     ResourceMark rm(THREAD);  // need to reclaim GrowableArrays allocated below
 
     // Compute the "real" non-extra secondaries.
-    GrowableArray<Klass*>* secondaries = compute_secondary_supers(extras);
+    GrowableArray<Klass*>* secondaries = compute_secondary_supers(extras, transitive_interfaces);
     if (secondaries == NULL) {
       // secondary_supers set by compute_secondary_supers
       return;
@@ -335,29 +343,80 @@ void Klass::initialize_supers(Klass* k, TRAPS) {
   }
 }
 
-GrowableArray<Klass*>* Klass::compute_secondary_supers(int num_extra_slots) {
+GrowableArray<Klass*>* Klass::compute_secondary_supers(int num_extra_slots,
+                                                       Array<InstanceKlass*>* transitive_interfaces) {
   assert(num_extra_slots == 0, "override for complex klasses");
+  assert(transitive_interfaces == NULL, "sanity");
   set_secondary_supers(Universe::the_empty_klass_array());
   return NULL;
 }
 
 
+// superklass links
 InstanceKlass* Klass::superklass() const {
   assert(super() == NULL || super()->is_instance_klass(), "must be instance klass");
   return _super == NULL ? NULL : InstanceKlass::cast(_super);
 }
 
+// subklass links.  Used by the compiler (and vtable initialization)
+// May be cleaned concurrently, so must use the Compile_lock.
+// The log parameter is for clean_weak_klass_links to report unlinked classes.
+Klass* Klass::subklass(bool log) const {
+  // Need load_acquire on the _subklass, because it races with inserts that
+  // publishes freshly initialized data.
+  for (Klass* chain = OrderAccess::load_acquire(&_subklass);
+       chain != NULL;
+       // Do not need load_acquire on _next_sibling, because inserts never
+       // create _next_sibling edges to dead data.
+       chain = Atomic::load(&chain->_next_sibling))
+  {
+    if (chain->is_loader_alive()) {
+      return chain;
+    } else if (log) {
+      if (log_is_enabled(Trace, class, unload)) {
+        ResourceMark rm;
+        log_trace(class, unload)("unlinking class (subclass): %s", chain->external_name());
+      }
+    }
+  }
+  return NULL;
+}
+
+Klass* Klass::next_sibling(bool log) const {
+  // Do not need load_acquire on _next_sibling, because inserts never
+  // create _next_sibling edges to dead data.
+  for (Klass* chain = Atomic::load(&_next_sibling);
+       chain != NULL;
+       chain = Atomic::load(&chain->_next_sibling)) {
+    // Only return alive klass, there may be stale klass
+    // in this chain if cleaned concurrently.
+    if (chain->is_loader_alive()) {
+      return chain;
+    } else if (log) {
+      if (log_is_enabled(Trace, class, unload)) {
+        ResourceMark rm;
+        log_trace(class, unload)("unlinking class (sibling): %s", chain->external_name());
+      }
+    }
+  }
+  return NULL;
+}
+
 void Klass::set_subklass(Klass* s) {
   assert(s != this, "sanity check");
-  _subklass = s;
+  OrderAccess::release_store(&_subklass, s);
 }
 
 void Klass::set_next_sibling(Klass* s) {
   assert(s != this, "sanity check");
-  _next_sibling = s;
+  // Does not need release semantics. If used by cleanup, it will link to
+  // already safely published data, and if used by inserts, will be published
+  // safely using cmpxchg.
+  Atomic::store(s, &_next_sibling);
 }
 
 void Klass::append_to_sibling_list() {
+  assert_locked_or_safepoint(Compile_lock);
   debug_only(verify();)
   // add ourselves to superklass' subklass list
   InstanceKlass* super = superklass();
@@ -365,33 +424,41 @@ void Klass::append_to_sibling_list() {
   assert((!super->is_interface()    // interfaces cannot be supers
           && (super->superklass() == NULL || !is_interface())),
          "an interface can only be a subklass of Object");
-  Klass* prev_first_subklass = super->subklass();
-  if (prev_first_subklass != NULL) {
-    // set our sibling to be the superklass' previous first subklass
-    set_next_sibling(prev_first_subklass);
+
+  // Make sure there is no stale subklass head
+  super->clean_subklass();
+
+  for (;;) {
+    Klass* prev_first_subklass = OrderAccess::load_acquire(&_super->_subklass);
+    if (prev_first_subklass != NULL) {
+      // set our sibling to be the superklass' previous first subklass
+      assert(prev_first_subklass->is_loader_alive(), "May not attach not alive klasses");
+      set_next_sibling(prev_first_subklass);
+    }
+    // Note that the prev_first_subklass is always alive, meaning no sibling_next links
+    // are ever created to not alive klasses. This is an important invariant of the lock-free
+    // cleaning protocol, that allows us to safely unlink dead klasses from the sibling list.
+    if (Atomic::cmpxchg(this, &super->_subklass, prev_first_subklass) == prev_first_subklass) {
+      return;
+    }
   }
-  // make ourselves the superklass' first subklass
-  super->set_subklass(this);
   debug_only(verify();)
 }
 
-bool Klass::is_loader_alive(BoolObjectClosure* is_alive) {
-#ifdef ASSERT
-  // The class is alive iff the class loader is alive.
-  oop loader = class_loader();
-  bool loader_alive = (loader == NULL) || is_alive->do_object_b(loader);
-#endif // ASSERT
-
-  // The class is alive if it's mirror is alive (which should be marked if the
-  // loader is alive) unless it's an anoymous class.
-  bool mirror_alive = is_alive->do_object_b(java_mirror());
-  assert(!mirror_alive || loader_alive, "loader must be alive if the mirror is"
-                        " but not the other way around with anonymous classes");
-  return mirror_alive;
+void Klass::clean_subklass() {
+  for (;;) {
+    // Need load_acquire, due to contending with concurrent inserts
+    Klass* subklass = OrderAccess::load_acquire(&_subklass);
+    if (subklass == NULL || subklass->is_loader_alive()) {
+      return;
+    }
+    // Try to fix _subklass until it points at something not dead.
+    Atomic::cmpxchg(subklass->next_sibling(), &_subklass, subklass);
+  }
 }
 
-void Klass::clean_weak_klass_links(BoolObjectClosure* is_alive, bool clean_alive_klasses) {
-  if (!ClassUnloading) {
+void Klass::clean_weak_klass_links(bool unloading_occurred, bool clean_alive_klasses) {
+  if (!ClassUnloading || !unloading_occurred) {
     return;
   }
 
@@ -402,33 +469,17 @@ void Klass::clean_weak_klass_links(BoolObjectClosure* is_alive, bool clean_alive
   while (!stack.is_empty()) {
     Klass* current = stack.pop();
 
-    assert(current->is_loader_alive(is_alive), "just checking, this should be live");
+    assert(current->is_loader_alive(), "just checking, this should be live");
 
     // Find and set the first alive subklass
-    Klass* sub = current->subklass();
-    while (sub != NULL && !sub->is_loader_alive(is_alive)) {
-#ifndef PRODUCT
-      if (log_is_enabled(Trace, class, unload)) {
-        ResourceMark rm;
-        log_trace(class, unload)("unlinking class (subclass): %s", sub->external_name());
-      }
-#endif
-      sub = sub->next_sibling();
-    }
-    current->set_subklass(sub);
+    Klass* sub = current->subklass(true);
+    current->clean_subklass();
     if (sub != NULL) {
       stack.push(sub);
     }
 
     // Find and set the first alive sibling
-    Klass* sibling = current->next_sibling();
-    while (sibling != NULL && !sibling->is_loader_alive(is_alive)) {
-      if (log_is_enabled(Trace, class, unload)) {
-        ResourceMark rm;
-        log_trace(class, unload)("[Unlinking class (sibling) %s]", sibling->external_name());
-      }
-      sibling = sibling->next_sibling();
-    }
+    Klass* sibling = current->next_sibling(true);
     current->set_next_sibling(sibling);
     if (sibling != NULL) {
       stack.push(sibling);
@@ -437,12 +488,12 @@ void Klass::clean_weak_klass_links(BoolObjectClosure* is_alive, bool clean_alive
     // Clean the implementors list and method data.
     if (clean_alive_klasses && current->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(current);
-      ik->clean_weak_instanceklass_links(is_alive);
+      ik->clean_weak_instanceklass_links();
 
       // JVMTI RedefineClasses creates previous versions that are not in
       // the class hierarchy, so process them here.
       while ((ik = ik->previous_versions()) != NULL) {
-        ik->clean_weak_instanceklass_links(is_alive);
+        ik->clean_weak_instanceklass_links();
       }
     }
   }
@@ -461,8 +512,8 @@ void Klass::metaspace_pointers_do(MetaspaceClosure* it) {
     it->push(&_primary_supers[i]);
   }
   it->push(&_super);
-  it->push(&_subklass);
-  it->push(&_next_sibling);
+  it->push((Klass**)&_subklass);
+  it->push((Klass**)&_next_sibling);
   it->push(&_next_link);
 
   vtableEntry* vt = start_of_vtable();
@@ -473,7 +524,7 @@ void Klass::metaspace_pointers_do(MetaspaceClosure* it) {
 
 void Klass::remove_unshareable_info() {
   assert (DumpSharedSpaces, "only called for DumpSharedSpaces");
-  TRACE_REMOVE_ID(this);
+  JFR_ONLY(REMOVE_ID(this);)
   if (log_is_enabled(Trace, cds, unshareable)) {
     ResourceMark rm;
     log_trace(cds, unshareable)("remove: %s", external_name());
@@ -501,7 +552,7 @@ void Klass::remove_java_mirror() {
 void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
   assert(is_klass(), "ensure C++ vtable is restored");
   assert(is_shared(), "must be set");
-  TRACE_RESTORE_ID(this);
+  JFR_ONLY(RESTORE_ID(this);)
   if (log_is_enabled(Trace, cds, unshareable)) {
     ResourceMark rm;
     log_trace(cds, unshareable)("restore: %s", external_name());
@@ -519,28 +570,66 @@ void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protec
     loader_data->add_class(this);
   }
 
-  // Recreate the class mirror.
+  Handle loader(THREAD, loader_data->class_loader());
+  ModuleEntry* module_entry = NULL;
+  Klass* k = this;
+  if (k->is_objArray_klass()) {
+    k = ObjArrayKlass::cast(k)->bottom_klass();
+  }
+  // Obtain klass' module.
+  if (k->is_instance_klass()) {
+    InstanceKlass* ik = (InstanceKlass*) k;
+    module_entry = ik->module();
+  } else {
+    module_entry = ModuleEntryTable::javabase_moduleEntry();
+  }
+  // Obtain java.lang.Module, if available
+  Handle module_handle(THREAD, ((module_entry != NULL) ? module_entry->module() : (oop)NULL));
+
+  if (this->has_raw_archived_mirror()) {
+    ResourceMark rm;
+    log_debug(cds, mirror)("%s has raw archived mirror", external_name());
+    if (HeapShared::open_archive_heap_region_mapped()) {
+      bool present = java_lang_Class::restore_archived_mirror(this, loader, module_handle,
+                                                              protection_domain,
+                                                              CHECK);
+      if (present) {
+        return;
+      }
+    }
+
+    // No archived mirror data
+    log_debug(cds, mirror)("No archived mirror data for %s", external_name());
+    _java_mirror = NULL;
+    this->clear_has_raw_archived_mirror();
+  }
+
   // Only recreate it if not present.  A previous attempt to restore may have
   // gotten an OOM later but keep the mirror if it was created.
   if (java_mirror() == NULL) {
-    Handle loader(THREAD, loader_data->class_loader());
-    ModuleEntry* module_entry = NULL;
-    Klass* k = this;
-    if (k->is_objArray_klass()) {
-      k = ObjArrayKlass::cast(k)->bottom_klass();
-    }
-    // Obtain klass' module.
-    if (k->is_instance_klass()) {
-      InstanceKlass* ik = (InstanceKlass*) k;
-      module_entry = ik->module();
-    } else {
-      module_entry = ModuleEntryTable::javabase_moduleEntry();
-    }
-    // Obtain java.lang.Module, if available
-    Handle module_handle(THREAD, ((module_entry != NULL) ? module_entry->module() : (oop)NULL));
+    log_trace(cds, mirror)("Recreate mirror for %s", external_name());
     java_lang_Class::create_mirror(this, loader, module_handle, protection_domain, CHECK);
   }
 }
+
+#if INCLUDE_CDS_JAVA_HEAP
+// Used at CDS dump time to access the archived mirror. No GC barrier.
+oop Klass::archived_java_mirror_raw() {
+  assert(has_raw_archived_mirror(), "must have raw archived mirror");
+  return CompressedOops::decode(_archived_mirror);
+}
+
+narrowOop Klass::archived_java_mirror_raw_narrow() {
+  assert(has_raw_archived_mirror(), "must have raw archived mirror");
+  return _archived_mirror;
+}
+
+// No GC barrier
+void Klass::set_archived_java_mirror_raw(oop m) {
+  assert(DumpSharedSpaces, "called only during runtime");
+  _archived_mirror = CompressedOops::encode(m);
+}
+#endif // INCLUDE_CDS_JAVA_HEAP
 
 Klass* Klass::array_klass_or_null(int rank) {
   EXCEPTION_MARK;
@@ -569,6 +658,20 @@ Klass* Klass::array_klass_impl(bool or_null, TRAPS) {
   return NULL;
 }
 
+void Klass::check_array_allocation_length(int length, int max_length, TRAPS) {
+  if (length > max_length) {
+    if (!THREAD->in_retryable_allocation()) {
+      report_java_out_of_memory("Requested array size exceeds VM limit");
+      JvmtiExport::post_array_size_exhausted();
+      THROW_OOP(Universe::out_of_memory_error_array_size());
+    } else {
+      THROW_OOP(Universe::out_of_memory_error_retry());
+    }
+  } else if (length < 0) {
+    THROW_MSG(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", length));
+  }
+}
+
 oop Klass::class_loader() const { return class_loader_data()->class_loader(); }
 
 // In product mode, this function doesn't have virtual function calls so
@@ -576,7 +679,7 @@ oop Klass::class_loader() const { return class_loader_data()->class_loader(); }
 const char* Klass::external_name() const {
   if (is_instance_klass()) {
     const InstanceKlass* ik = static_cast<const InstanceKlass*>(this);
-    if (ik->is_anonymous()) {
+    if (ik->is_unsafe_anonymous()) {
       char addr_buf[20];
       jio_snprintf(addr_buf, 20, "/" INTPTR_FORMAT, p2i(ik));
       size_t addr_len = strlen(addr_buf);
@@ -593,10 +696,15 @@ const char* Klass::external_name() const {
   return name()->as_klass_external_name();
 }
 
-
 const char* Klass::signature_name() const {
   if (name() == NULL)  return "<unknown>";
   return name()->as_C_string();
+}
+
+const char* Klass::external_kind() const {
+  if (is_interface()) return "interface";
+  if (is_abstract()) return "abstract class";
+  return "class";
 }
 
 // Unless overridden, modifier_flags is 0.
@@ -684,14 +792,30 @@ void Klass::verify_on(outputStream* st) {
     }
   }
 
-  if (java_mirror() != NULL) {
-    guarantee(oopDesc::is_oop(java_mirror()), "should be instance");
+  if (java_mirror_no_keepalive() != NULL) {
+    guarantee(oopDesc::is_oop(java_mirror_no_keepalive()), "should be instance");
   }
 }
 
 void Klass::oop_verify_on(oop obj, outputStream* st) {
   guarantee(oopDesc::is_oop(obj),  "should be oop");
   guarantee(obj->klass()->is_klass(), "klass field is not a klass");
+}
+
+Klass* Klass::decode_klass_raw(narrowKlass narrow_klass) {
+  return (Klass*)(void*)( (uintptr_t)Universe::narrow_klass_base() +
+                         ((uintptr_t)narrow_klass << Universe::narrow_klass_shift()));
+}
+
+bool Klass::is_valid(Klass* k) {
+  if (!is_aligned(k, sizeof(MetaWord))) return false;
+  if ((size_t)k < os::min_page_size()) return false;
+
+  if (!os::is_readable_range(k, k + 1)) return false;
+  if (!MetaspaceUtils::is_range_in_committed(k, k + 1)) return false;
+
+  if (!Symbol::is_valid(k->name())) return false;
+  return ClassLoaderDataGraph::is_valid(k->class_loader_data());
 }
 
 klassVtable Klass::vtable() const {
@@ -724,89 +848,135 @@ bool Klass::verify_vtable_index(int i) {
   return true;
 }
 
-bool Klass::verify_itable_index(int i) {
-  assert(is_instance_klass(), "");
-  int method_count = klassItable::method_count_for_interface(this);
-  assert(i >= 0 && i < method_count, "index out of bounds");
-  return true;
-}
-
 #endif // PRODUCT
 
-// The caller of class_loader_and_module_name() (or one of its callers)
-// must use a ResourceMark in order to correctly free the result.
-const char* Klass::class_loader_and_module_name() const {
-  const char* delim = "/";
-  size_t delim_len = strlen(delim);
+// Caller needs ResourceMark
+// joint_in_module_of_loader provides an optimization if 2 classes are in
+// the same module to succinctly print out relevant information about their
+// module name and class loader's name_and_id for error messages.
+// Format:
+//   <fully-qualified-external-class-name1> and <fully-qualified-external-class-name2>
+//                      are in module <module-name>[@<version>]
+//                      of loader <loader-name_and_id>[, parent loader <parent-loader-name_and_id>]
+const char* Klass::joint_in_module_of_loader(const Klass* class2, bool include_parent_loader) const {
+  assert(module() == class2->module(), "classes do not have the same module");
+  const char* class1_name = external_name();
+  size_t len = strlen(class1_name) + 1;
 
-  const char* fqn = external_name();
-  // Length of message to return; always include FQN
-  size_t msglen = strlen(fqn) + 1;
+  const char* class2_description = class2->class_in_module_of_loader(true, include_parent_loader);
+  len += strlen(class2_description);
 
-  bool has_cl_name = false;
-  bool has_mod_name = false;
-  bool has_version = false;
+  len += strlen(" and ");
 
-  // Use class loader name, if exists and not builtin
-  const char* class_loader_name = "";
-  ClassLoaderData* cld = class_loader_data();
-  assert(cld != NULL, "class_loader_data should not be NULL");
-  if (!cld->is_builtin_class_loader_data()) {
-    // If not builtin, look for name
-    oop loader = class_loader();
-    if (loader != NULL) {
-      oop class_loader_name_oop = java_lang_ClassLoader::name(loader);
-      if (class_loader_name_oop != NULL) {
-        class_loader_name = java_lang_String::as_utf8_string(class_loader_name_oop);
-        if (class_loader_name != NULL && class_loader_name[0] != '\0') {
-          has_cl_name = true;
-          msglen += strlen(class_loader_name) + delim_len;
-        }
-      }
-    }
+  char* joint_description = NEW_RESOURCE_ARRAY_RETURN_NULL(char, len);
+
+  // Just return the FQN if error when allocating string
+  if (joint_description == NULL) {
+    return class1_name;
   }
 
+  jio_snprintf(joint_description, len, "%s and %s",
+               class1_name,
+               class2_description);
+
+  return joint_description;
+}
+
+// Caller needs ResourceMark
+// class_in_module_of_loader provides a standard way to include
+// relevant information about a class, such as its module name as
+// well as its class loader's name_and_id, in error messages and logging.
+// Format:
+//   <fully-qualified-external-class-name> is in module <module-name>[@<version>]
+//                                         of loader <loader-name_and_id>[, parent loader <parent-loader-name_and_id>]
+const char* Klass::class_in_module_of_loader(bool use_are, bool include_parent_loader) const {
+  // 1. fully qualified external name of class
+  const char* klass_name = external_name();
+  size_t len = strlen(klass_name) + 1;
+
+  // 2. module name + @version
   const char* module_name = "";
   const char* version = "";
+  bool has_version = false;
+  bool module_is_named = false;
+  const char* module_name_phrase = "";
   const Klass* bottom_klass = is_objArray_klass() ?
-    ObjArrayKlass::cast(this)->bottom_klass() : this;
+                                ObjArrayKlass::cast(this)->bottom_klass() : this;
   if (bottom_klass->is_instance_klass()) {
     ModuleEntry* module = InstanceKlass::cast(bottom_klass)->module();
-    // Use module name, if exists
     if (module->is_named()) {
-      has_mod_name = true;
+      module_is_named = true;
+      module_name_phrase = "module ";
       module_name = module->name()->as_C_string();
-      msglen += strlen(module_name);
+      len += strlen(module_name);
       // Use version if exists and is not a jdk module
-      if (module->is_non_jdk_module() && module->version() != NULL) {
+      if (module->should_show_version()) {
         has_version = true;
         version = module->version()->as_C_string();
-        msglen += strlen("@") + strlen(version);
+        // Include stlen(version) + 1 for the "@"
+        len += strlen(version) + 1;
       }
+    } else {
+      module_name = UNNAMED_MODULE;
+      len += UNNAMED_MODULE_LEN;
     }
   } else {
-    // klass is an array of primitives, so its module is java.base
+    // klass is an array of primitives, module is java.base
+    module_is_named = true;
+    module_name_phrase = "module ";
     module_name = JAVA_BASE_NAME;
+    len += JAVA_BASE_NAME_LEN;
   }
 
-  if (has_cl_name || has_mod_name) {
-    msglen += delim_len;
+  // 3. class loader's name_and_id
+  ClassLoaderData* cld = class_loader_data();
+  assert(cld != NULL, "class_loader_data should not be null");
+  const char* loader_name_and_id = cld->loader_name_and_id();
+  len += strlen(loader_name_and_id);
+
+  // 4. include parent loader information
+  const char* parent_loader_phrase = "";
+  const char* parent_loader_name_and_id = "";
+  if (include_parent_loader &&
+      !cld->is_builtin_class_loader_data()) {
+    oop parent_loader = java_lang_ClassLoader::parent(class_loader());
+    ClassLoaderData *parent_cld = ClassLoaderData::class_loader_data_or_null(parent_loader);
+    // The parent loader's ClassLoaderData could be null if it is
+    // a delegating class loader that has never defined a class.
+    // In this case the loader's name must be obtained via the parent loader's oop.
+    if (parent_cld == NULL) {
+      oop cl_name_and_id = java_lang_ClassLoader::nameAndId(parent_loader);
+      if (cl_name_and_id != NULL) {
+        parent_loader_name_and_id = java_lang_String::as_utf8_string(cl_name_and_id);
+      }
+    } else {
+      parent_loader_name_and_id = parent_cld->loader_name_and_id();
+    }
+    parent_loader_phrase = ", parent loader ";
+    len += strlen(parent_loader_phrase) + strlen(parent_loader_name_and_id);
   }
 
-  char* message = NEW_RESOURCE_ARRAY_RETURN_NULL(char, msglen);
+  // Start to construct final full class description string
+  len += ((use_are) ? strlen(" are in ") : strlen(" is in "));
+  len += strlen(module_name_phrase) + strlen(" of loader ");
 
-  // Just return the FQN if error in allocating string
-  if (message == NULL) {
-    return fqn;
+  char* class_description = NEW_RESOURCE_ARRAY_RETURN_NULL(char, len);
+
+  // Just return the FQN if error when allocating string
+  if (class_description == NULL) {
+    return klass_name;
   }
 
-  jio_snprintf(message, msglen, "%s%s%s%s%s%s%s",
-               class_loader_name,
-               (has_cl_name) ? delim : "",
-               (has_mod_name) ? module_name : "",
+  jio_snprintf(class_description, len, "%s %s in %s%s%s%s of loader %s%s%s",
+               klass_name,
+               (use_are) ? "are" : "is",
+               module_name_phrase,
+               module_name,
                (has_version) ? "@" : "",
                (has_version) ? version : "",
-               (has_cl_name || has_mod_name) ? delim : "",
-               fqn);
-  return message;
+               loader_name_and_id,
+               parent_loader_phrase,
+               parent_loader_name_and_id);
+
+  return class_description;
 }

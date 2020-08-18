@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_SHAREDRUNTIME_HPP
-#define SHARE_VM_RUNTIME_SHAREDRUNTIME_HPP
+#ifndef SHARE_RUNTIME_SHAREDRUNTIME_HPP
+#define SHARE_RUNTIME_SHAREDRUNTIME_HPP
 
 #include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/bytecodeTracer.hpp"
@@ -48,6 +48,9 @@ class SharedRuntime: AllStatic {
   friend class VMStructs;
 
  private:
+  static bool resolve_sub_helper_internal(methodHandle callee_method, const frame& caller_frame,
+                                          CompiledMethod* caller_nm, bool is_virtual, bool is_optimized,
+                                          Handle receiver, CallInfo& call_info, Bytecodes::Code invoke_code, TRAPS);
   static methodHandle resolve_sub_helper(JavaThread *thread,
                                          bool is_virtual,
                                          bool is_optimized, TRAPS);
@@ -181,12 +184,6 @@ class SharedRuntime: AllStatic {
   // exception handling across interpreter/compiler boundaries
   static address raw_exception_handler_for_return_address(JavaThread* thread, address return_address);
   static address exception_handler_for_return_address(JavaThread* thread, address return_address);
-
-#if INCLUDE_ALL_GCS
-  // G1 write barriers
-  static void g1_wb_pre(oopDesc* orig, JavaThread *thread);
-  static void g1_wb_post(void* card_addr, JavaThread* thread);
-#endif // INCLUDE_ALL_GCS
 
   // exception handling and implicit exceptions
   static address compute_compiled_exc_handler(CompiledMethod* nm, address ret_pc, Handle& exception,
@@ -329,6 +326,10 @@ class SharedRuntime: AllStatic {
  private:
   // deopt blob
   static void generate_deopt_blob(void);
+
+  static bool handle_ic_miss_helper_internal(Handle receiver, CompiledMethod* caller_nm, const frame& caller_frame,
+                                             methodHandle callee_method, Bytecodes::Code bc, CallInfo& call_info,
+                                             bool& needs_ic_stub_refill, TRAPS);
 
  public:
   static DeoptimizationBlob* deopt_blob(void)      { return _deopt_blob; }
@@ -491,6 +492,10 @@ class SharedRuntime: AllStatic {
 
   // Block before entering a JNI critical method
   static void block_for_jni_critical(JavaThread* thread);
+
+  // Pin/Unpin object
+  static oopDesc* pin_object(JavaThread* thread, oopDesc* obj);
+  static void unpin_object(JavaThread* thread, oopDesc* obj);
 
   // A compiled caller has just called the interpreter, but compiled code
   // exists.  Patch the caller so he no longer calls into the interpreter.
@@ -720,4 +725,4 @@ class AdapterHandlerLibrary: public AllStatic {
 
 };
 
-#endif // SHARE_VM_RUNTIME_SHAREDRUNTIME_HPP
+#endif // SHARE_RUNTIME_SHAREDRUNTIME_HPP

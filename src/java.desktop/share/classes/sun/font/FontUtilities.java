@@ -50,13 +50,9 @@ public final class FontUtilities {
 
     public static boolean isMacOSX;
 
-    public static boolean useT2K;
+    public static boolean useJDKScaler;
 
     public static boolean isWindows;
-
-    public static boolean isOpenJDK;
-
-    static final String LUCIDA_FILE_NAME = "LucidaSansRegular.ttf";
 
     private static boolean debugFonts = false;
     private static PlatformLogger logger = null;
@@ -76,21 +72,19 @@ public final class FontUtilities {
 
                 isMacOSX = osName.contains("OS X"); // TODO: MacOSX
 
-                String t2kStr = System.getProperty("sun.java2d.font.scaler");
-                if (t2kStr != null) {
-                    useT2K = "t2k".equals(t2kStr);
+                /* If set to "jdk", use the JDK's scaler rather than
+                 * the platform one. This may be a no-op on platforms where
+                 * JDK has been configured so that it always relies on the
+                 * platform scaler. The principal case where it has an
+                 * effect is that on Windows, 2D will never use GDI.
+                 */
+                String scalerStr = System.getProperty("sun.java2d.font.scaler");
+                if (scalerStr != null) {
+                    useJDKScaler = "jdk".equals(scalerStr);
                 } else {
-                    useT2K = false;
+                    useJDKScaler = false;
                 }
                 isWindows = osName.startsWith("Windows");
-                String jreLibDirName = System.getProperty("java.home", "")
-                                                      + File.separator + "lib";
-                String jreFontDirName =
-                        jreLibDirName + File.separator + "fonts";
-                File lucidaFile = new File(jreFontDirName + File.separator
-                                           + LUCIDA_FILE_NAME);
-                isOpenJDK = !lucidaFile.exists();
-
                 String debugLevel =
                     System.getProperty("sun.java2d.debugfonts");
 

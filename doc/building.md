@@ -1,10 +1,10 @@
-% Building OpenJDK
+% Building the JDK
 
 ## TL;DR (Instructions for the Impatient)
 
-If you are eager to try out building OpenJDK, these simple steps works most of
+If you are eager to try out building the JDK, these simple steps works most of
 the time. They assume that you have installed Mercurial (and Cygwin if running
-on Windows) and cloned the top-level OpenJDK repository that you want to build.
+on Windows) and cloned the top-level JDK repository that you want to build.
 
  1. [Get the complete source code](#getting-the-source-code): \
     `hg clone http://hg.openjdk.java.net/jdk/jdk`
@@ -34,21 +34,21 @@ requirements or build functionality, please continue reading this document.
 
 ## Introduction
 
-OpenJDK is a complex software project. Building it requires a certain amount of
+The JDK is a complex software project. Building it requires a certain amount of
 technical expertise, a fair number of dependencies on external software, and
 reasonably powerful hardware.
 
-If you just want to use OpenJDK and not build it yourself, this document is not
+If you just want to use the JDK and not build it yourself, this document is not
 for you. See for instance [OpenJDK installation](
 http://openjdk.java.net/install) for some methods of installing a prebuilt
-OpenJDK.
+JDK.
 
 ## Getting the Source Code
 
 Make sure you are getting the correct version. As of JDK 10, the source is no
 longer split into separate repositories so you only need to clone one single
 repository. At the [OpenJDK Mercurial server](http://hg.openjdk.java.net/) you
-can see a list of all available forests. If you want to build an older version,
+can see a list of all available repositories. If you want to build an older version,
 e.g. JDK 8, it is recommended that you get the `jdk8u` forest, which contains
 incremental updates, instead of the `jdk8` forest, which was frozen at JDK 8 GA.
 
@@ -75,21 +75,21 @@ on where and how to check out the source code.
     network share for the source code, see below for suggestions on how to keep
     the build artifacts on a local disk.
 
-  * On Windows, extra care must be taken to make sure the [Cygwin](#cygwin)
-    environment is consistent. It is recommended that you follow this
+  * On Windows, if using [Cygwin](#cygwin), extra care must be taken to make sure
+    the environment is consistent. It is recommended that you follow this
     procedure:
 
       * Create the directory that is going to contain the top directory of the
-        OpenJDK clone by using the `mkdir` command in the Cygwin bash shell.
+        JDK clone by using the `mkdir` command in the Cygwin bash shell.
         That is, do *not* create it using Windows Explorer. This will ensure
         that it will have proper Cygwin attributes, and that it's children will
         inherit those attributes.
 
-      * Do not put the OpenJDK clone in a path under your Cygwin home
+      * Do not put the JDK clone in a path under your Cygwin home
         directory. This is especially important if your user name contains
         spaces and/or mixed upper and lower case letters.
 
-      * Clone the OpenJDK repository using the Cygwin command line `hg` client
+      * Clone the JDK repository using the Cygwin command line `hg` client
         as instructed in this document. That is, do *not* use another Mercurial
         client such as TortoiseHg.
 
@@ -98,7 +98,7 @@ on where and how to check out the source code.
 
 ## Build Hardware Requirements
 
-OpenJDK is a massive project, and require machines ranging from decent to
+The JDK is a massive project, and require machines ranging from decent to
 powerful to be able to build in a reasonable amount of time, or to be able to
 complete a build at all.
 
@@ -120,22 +120,31 @@ At a minimum, a machine with 4 cores is advisable, as well as 4 GB of RAM. (The
 more cores to use, the more memory you need.) At least 8 GB of free disk space
 is required.
 
-### Building on arm/aarch64
+### Building on aarch64
+
+At a minimum, a machine with 8 cores is advisable, as well as 8 GB of RAM.
+(The more cores to use, the more memory you need.) At least 6 GB of free disk
+space is required.
+
+If you do not have access to sufficiently powerful hardware, it is also
+possible to use [cross-compiling](#cross-compiling).
+
+### Building on 32-bit arm
 
 This is not recommended. Instead, see the section on [Cross-compiling](
 #cross-compiling).
 
 ## Operating System Requirements
 
-The mainline OpenJDK project supports Linux, Solaris, macOS, AIX and Windows.
+The mainline JDK project supports Linux, Solaris, macOS, AIX and Windows.
 Support for other operating system, e.g. BSD, exists in separate "port"
 projects.
 
-In general, OpenJDK can be built on a wide range of versions of these operating
+In general, the JDK can be built on a wide range of versions of these operating
 systems, but the further you deviate from what is tested on a daily basis, the
 more likely you are to run into problems.
 
-This table lists the OS versions used by Oracle when building JDK 9. Such
+This table lists the OS versions used by Oracle when building the JDK. Such
 information is always subject to change, but this table is up to date at the
 time of writing.
 
@@ -148,48 +157,48 @@ time of writing.
 
 The double version numbers for Linux, Solaris and macOS is due to the hybrid
 model used at Oracle, where header files and external libraries from an older
-version is used when building on a more modern version of the OS.
+version are used when building on a more modern version of the OS.
 
 The Build Group has a wiki page with [Supported Build Platforms](
 https://wiki.openjdk.java.net/display/Build/Supported+Build+Platforms). From
-time to time, this is updated by the community to list successes or failures of
+time to time, this is updated by contributors to list successes or failures of
 building on different platforms.
 
 ### Windows
 
 Windows XP is not a supported platform, but all newer Windows should be able to
-build OpenJDK.
+build the JDK.
 
 On Windows, it is important that you pay attention to the instructions in the
 [Special Considerations](#special-considerations).
 
-Windows is the only non-POSIX OS supported by OpenJDK, and as such, requires
-some extra care. A POSIX support layer is required to build on Windows. For
-OpenJDK 9, the only supported such layer is Cygwin. (Msys is no longer
-supported due to a too old bash; msys2 and the new Windows Subsystem for Linux
-(WSL) would likely be possible to support in a future version but that would
-require a community effort to implement.)
+Windows is the only non-POSIX OS supported by the JDK, and as such, requires
+some extra care. A POSIX support layer is required to build on Windows.
+Currently, the only supported such layers are Cygwin and Windows Subsystem for
+Linux (WSL). (Msys is no longer supported due to a too old bash; msys2 would
+likely be possible to support in a future version but that would require effort
+to implement.)
 
 Internally in the build system, all paths are represented as Unix-style paths,
 e.g. `/cygdrive/c/hg/jdk9/Makefile` rather than `C:\hg\jdk9\Makefile`. This
 rule also applies to input to the build system, e.g. in arguments to
-`configure`. So, use `--with-freetype=/cygdrive/c/freetype` rather than
-`--with-freetype=c:\freetype`. For details on this conversion, see the section
+`configure`. So, use `--with-msvcr-dll=/cygdrive/c/msvcr100.dll` rather than
+`--with-msvcr-dll=c:\msvcr100.dll`. For details on this conversion, see the section
 on [Fixpath](#fixpath).
 
 #### Cygwin
 
-A functioning [Cygwin](http://www.cygwin.com/) environment is thus required for
-building OpenJDK on Windows. If you have a 64-bit OS, we strongly recommend
+A functioning [Cygwin](http://www.cygwin.com/) environment is required for
+building the JDK on Windows. If you have a 64-bit OS, we strongly recommend
 using the 64-bit version of Cygwin.
 
 **Note:** Cygwin has a model of continuously updating all packages without any
 easy way to install or revert to a specific version of a package. This means
 that whenever you add or update a package in Cygwin, you might (inadvertently)
-update tools that are used by the OpenJDK build process, and that can cause
+update tools that are used by the JDK build process, and that can cause
 unexpected build problems.
 
-OpenJDK requires GNU Make 4.0 or greater on Windows. This is usually not a
+The JDK requires GNU Make 4.0 or greater in Cygwin. This is usually not a
 problem, since Cygwin currently only distributes GNU Make at a version above
 4.0.
 
@@ -212,6 +221,30 @@ please check the Cygwin FAQ on the ["BLODA" list](
 https://cygwin.com/faq/faq.html#faq.using.bloda) and the section on [fork()
 failures](https://cygwin.com/faq/faq.html#faq.using.fixing-fork-failures).
 
+#### Windows Subsystem for Linux (WSL)
+
+Windows 10 1809 or newer is supported due to a dependency on the wslpath utility
+and support for environment variable sharing through WSLENV. Version 1803 can
+work but intermittent build failures have been observed.
+
+It's possible to build both Windows and Linux binaries from WSL. To build
+Windows binaries, you must use a Windows boot JDK (located in a
+Windows-accessible directory). To build Linux binaries, you must use a Linux
+boot JDK. The default behavior is to build for Windows. To build for Linux, pass
+`--build=x86_64-unknown-linux-gnu --host=x86_64-unknown-linux-gnu` to
+`configure`.
+
+If building Windows binaries, the source code must be located in a Windows-
+accessible directory. This is because Windows executables (such as Visual Studio
+and the boot JDK) must be able to access the source code. Also, the drive where
+the source is stored must be mounted as case-insensitive by changing either
+/etc/fstab or /etc/wsl.conf in WSL. Individual directories may be corrected
+using the fsutil tool in case the source was cloned before changing the mount
+options.
+
+Note that while it's possible to build on WSL, testing is still not fully
+supported.
+
 ### Solaris
 
 See `make/devkit/solaris11.1-package-list.txt` for a list of recommended
@@ -229,22 +262,21 @@ symbols.
 
 Apple is using a quite aggressive scheme of pushing OS updates, and coupling
 these updates with required updates of Xcode. Unfortunately, this makes it
-difficult for a project like OpenJDK to keep pace with a continuously updated
+difficult for a project such as the JDK to keep pace with a continuously updated
 machine running macOS. See the section on [Apple Xcode](#apple-xcode) on some
 strategies to deal with this.
 
-It is recommended that you use at least Mac OS X 10.9 (Mavericks). At the time
-of writing, OpenJDK has been successfully compiled on macOS versions up to
-10.12.5 (Sierra), using XCode 8.3.2 and `--disable-warnings-as-errors`.
+It is recommended that you use at least Mac OS X 10.13 (High Sierra). At the time
+of writing, the JDK has been successfully compiled on macOS 10.12 (Sierra).
 
 The standard macOS environment contains the basic tooling needed to build, but
-for external libraries a package manager is recommended. OpenJDK uses
+for external libraries a package manager is recommended. The JDK uses
 [homebrew](https://brew.sh/) in the examples, but feel free to use whatever
 manager you want (or none).
 
 ### Linux
 
-It is often not much problem to build OpenJDK on Linux. The only general advice
+It is often not much problem to build the JDK on Linux. The only general advice
 is to try to use the compilers, external libraries and header files as provided
 by your distribution.
 
@@ -269,7 +301,7 @@ http://cr.openjdk.java.net/~simonis/ppc-aix-port) for details.
 
 ## Native Compiler (Toolchain) Requirements
 
-Large portions of OpenJDK consists of native code, that needs to be compiled to
+Large portions of the JDK consists of native code, that needs to be compiled to
 be able to run on the target platform. In theory, toolchain and operating
 system should be independent factors, but in practice there's more or less a
 one-to-one correlation between target operating system and toolchain.
@@ -284,25 +316,25 @@ one-to-one correlation between target operating system and toolchain.
 
 Please see the individual sections on the toolchains for version
 recommendations. As a reference, these versions of the toolchains are used, at
-the time of writing, by Oracle for the daily builds of OpenJDK. It should be
-possible to compile OpenJDK with both older and newer versions, but the closer
+the time of writing, by Oracle for the daily builds of the JDK. It should be
+possible to compile the JDK with both older and newer versions, but the closer
 you stay to this list, the more likely you are to compile successfully without
 issues.
 
  Operating system   Toolchain version
  ------------------ -------------------------------------------------------
- Linux              gcc 4.9.2
- macOS              Apple Xcode 6.3 (using clang 6.1.0)
+ Linux              gcc 7.3.0
+ macOS              Apple Xcode 9.4 (using clang 9.1.0)
  Solaris            Oracle Solaris Studio 12.4 (with compiler version 5.13)
- Windows            Microsoft Visual Studio 2013 update 4
+ Windows            Microsoft Visual Studio 2017 update 15.5.5
 
 ### gcc
 
-The minimum accepted version of gcc is 4.7. Older versions will generate a warning
+The minimum accepted version of gcc is 4.8. Older versions will generate a warning
 by `configure` and are unlikely to work.
 
-OpenJDK 9 includes patches that should allow gcc 6 to compile, but this should
-be considered experimental.
+The JDK is currently known to be able to compile with at least version 7.4 of
+gcc.
 
 In general, any version between these two should be usable.
 
@@ -315,25 +347,25 @@ To use clang instead of gcc on Linux, use `--with-toolchain-type=clang`.
 
 ### Apple Xcode
 
-The oldest supported version of Xcode is 5.
+The oldest supported version of Xcode is 8.
 
 You will need the Xcode command lines developers tools to be able to build
-OpenJDK. (Actually, *only* the command lines tools are needed, not the IDE.)
+the JDK. (Actually, *only* the command lines tools are needed, not the IDE.)
 The simplest way to install these is to run:
 ```
 xcode-select --install
 ```
 
-It is advisable to keep an older version of Xcode for building OpenJDK when
+It is advisable to keep an older version of Xcode for building the JDK when
 updating Xcode. This [blog page](
 http://iosdevelopertips.com/xcode/install-multiple-versions-of-xcode.html) has
 good suggestions on managing multiple Xcode versions. To use a specific version
 of Xcode, use `xcode-select -s` before running `configure`, or use
 `--with-toolchain-path` to point to the version of Xcode to use, e.g.
-`configure --with-toolchain-path=/Applications/Xcode5.app/Contents/Developer/usr/bin`
+`configure --with-toolchain-path=/Applications/Xcode8.app/Contents/Developer/usr/bin`
 
 If you have recently (inadvertently) updated your OS and/or Xcode version, and
-OpenJDK can no longer be built, please see the section on [Problems with the
+the JDK can no longer be built, please see the section on [Problems with the
 Build Environment](#problems-with-the-build-environment), and [Getting
 Help](#getting-help) to find out if there are any recent, non-merged patches
 available for this update.
@@ -372,11 +404,11 @@ CC: Sun C++ 5.13 SunOS_i386 151846-10 2015/10/30
 
 The minimum accepted version of Visual Studio is 2010. Older versions will not
 be accepted by `configure`. The maximum accepted version of Visual Studio is
-2013.
+2017. Versions older than 2017 are unlikely to continue working for long.
 
 If you have multiple versions of Visual Studio installed, `configure` will by
 default pick the latest. You can request a specific version to be used by
-setting `--with-toolchain-version`, e.g. `--with-toolchain-version=2010`.
+setting `--with-toolchain-version`, e.g. `--with-toolchain-version=2015`.
 
 If you get `LINK: fatal error LNK1123: failure during conversion to COFF: file
 invalid` when building using Visual Studio 2010, you have encountered
@@ -395,49 +427,38 @@ http://cr.openjdk.java.net/~simonis/ppc-aix-port) for details.
 
 ## Boot JDK Requirements
 
-Paradoxically, building OpenJDK requires a pre-existing JDK. This is called the
-"boot JDK". The boot JDK does not have to be OpenJDK, though. If you are
-porting OpenJDK to a new platform, chances are that there already exists
-another JDK for that platform that is usable as boot JDK.
+Paradoxically, building the JDK requires a pre-existing JDK. This is called the
+"boot JDK". The boot JDK does not, however, have to be a JDK built directly from
+the source code available in the OpenJDK Community.  If you are porting the JDK
+to a new platform, chances are that there already exists another JDK for that
+platform that is usable as boot JDK.
 
 The rule of thumb is that the boot JDK for building JDK major version *N*
-should be an JDK of major version *N-1*, so for building JDK 9 a JDK 8 would be
-suitable as boot JDK. However, OpenJDK should be able to "build itself", so an
-up-to-date build of the current OpenJDK source is an acceptable alternative. If
-you are following the *N-1* rule, make sure you got the latest update version,
-since JDK 8 GA might not be able to build JDK 9 on all platforms.
+should be a JDK of major version *N-1*, so for building JDK 9 a JDK 8 would be
+suitable as boot JDK. However, the JDK should be able to "build itself", so an
+up-to-date build of the current JDK source is an acceptable alternative. If
+you are following the *N-1* rule, make sure you've got the latest update
+version, since JDK 8 GA might not be able to build JDK 9 on all platforms.
 
-If the Boot JDK is not automatically detected, or the wrong JDK is picked, use
+Early in the release cycle, version *N-1* may not yet have been released. In
+that case, the preferred boot JDK will be version *N-2* until version *N-1*
+is available.
+
+If the boot JDK is not automatically detected, or the wrong JDK is picked, use
 `--with-boot-jdk` to point to the JDK to use.
 
-### JDK 8 on Linux
+### Getting JDK binaries
 
-On apt-based distros (like Debian and Ubuntu), `sudo apt-get install
-openjdk-8-jdk` is typically enough to install OpenJDK 8. On rpm-based distros
-(like Fedora and Red Hat), try `sudo yum install java-1.8.0-openjdk-devel`.
+JDK binaries for Linux, Windows and macOS can be downloaded from
+[jdk.java.net](http://jdk.java.net). An alternative is to download the
+[Oracle JDK](http://www.oracle.com/technetwork/java/javase/downloads). Another
+is the [Adopt OpenJDK Project](https://adoptopenjdk.net/), which publishes
+experimental prebuilt binaries for various platforms.
 
-### JDK 8 on Windows
-
-No pre-compiled binaries of OpenJDK 8 are readily available for Windows at the
-time of writing. An alternative is to download the [Oracle JDK](
-http://www.oracle.com/technetwork/java/javase/downloads). Another is the [Adopt
-OpenJDK Project](https://adoptopenjdk.net/), which publishes experimental
-prebuilt binaries for Windows.
-
-### JDK 8 on macOS
-
-No pre-compiled binaries of OpenJDK 8 are readily available for macOS at the
-time of writing. An alternative is to download the [Oracle JDK](
-http://www.oracle.com/technetwork/java/javase/downloads), or to install it
-using `brew cask install java`. Another option is the [Adopt OpenJDK Project](
-https://adoptopenjdk.net/), which publishes experimental prebuilt binaries for
-macOS.
-
-### JDK 8 on AIX
-
-No pre-compiled binaries of OpenJDK 8 are readily available for AIX at the
-time of writing. A starting point for working with OpenJDK on AIX is
-the [PowerPC/AIX Port Project](http://openjdk.java.net/projects/ppc-aix-port/).
+On Linux you can also get a JDK from the Linux distribution. On apt-based
+distros (like Debian and Ubuntu), `sudo apt-get install openjdk-<VERSION>-jdk`
+is typically enough to install a JDK \<VERSION\>. On rpm-based distros (like
+Fedora and Red Hat), try `sudo yum install java-<VERSION>-openjdk-devel`.
 
 ## External Library Requirements
 
@@ -456,43 +477,19 @@ and the lib directory separately.
 
 ### FreeType
 
-FreeType2 from [The FreeType Project](http://www.freetype.org/) is required on
-all platforms. At least version 2.3 is required.
+FreeType2 from [The FreeType Project](http://www.freetype.org/) is not required
+on any platform. The exception is on Unix-based platforms when configuring such
+that the build artifacts will reference a system installed library,
+rather than bundling the JDK’s own copy.
 
   * To install on an apt-based Linux, try running `sudo apt-get install
-    libcups2-dev`.
+    libfreetype6-dev`.
   * To install on an rpm-based Linux, try running `sudo yum install
-    cups-devel`.
+    freetype-devel`.
   * To install on Solaris, try running `pkg install system/library/freetype-2`.
-  * To install on macOS, try running `brew install freetype`.
-  * To install on Windows, see [below](#building-freetype-on-windows).
 
-Use `--with-freetype=<path>` if `configure` does not properly locate your
-FreeType files.
-
-#### Building FreeType on Windows
-
-On Windows, there is no readily available compiled version of FreeType. OpenJDK
-can help you compile FreeType from source. Download the FreeType sources and
-unpack them into an arbitrary directory:
-
-```
-wget http://download.savannah.gnu.org/releases/freetype/freetype-2.5.3.tar.gz
-tar -xzf freetype-2.5.3.tar.gz
-```
-
-Then run `configure` with `--with-freetype-src=<freetype_src>`. This will
-automatically build the freetype library into `<freetype_src>/lib64` for 64-bit
-builds or into `<freetype_src>/lib32` for 32-bit builds. Afterwards you can
-always use `--with-freetype-include=<freetype_src>/include` and
-`--with-freetype-lib=<freetype_src>/lib[32|64]` for other builds.
-
-Alternatively you can unpack the sources like this to use the default
-directory:
-
-```
-tar --one-top-level=$HOME/freetype --strip-components=1 -xzf freetype-2.5.3.tar.gz
-```
+Use `--with-freetype-include=<path>` and `--with-freetype-lib=<path>`
+if `configure` does not automatically locate the platform FreeType files.
 
 ### CUPS
 
@@ -515,15 +512,15 @@ Certain [X11](http://www.x.org/) libraries and include files are required on
 Linux and Solaris.
 
   * To install on an apt-based Linux, try running `sudo apt-get install
-    libx11-dev libxext-dev libxrender-dev libxtst-dev libxt-dev`.
+    libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev`.
   * To install on an rpm-based Linux, try running `sudo yum install
-    libXtst-devel libXt-devel libXrender-devel libXi-devel`.
+    libXtst-devel libXt-devel libXrender-devel libXrandr-devel libXi-devel`.
   * To install on Solaris, try running `pkg install x11/header/x11-protocols
     x11/library/libice x11/library/libpthread-stubs x11/library/libsm
     x11/library/libx11 x11/library/libxau x11/library/libxcb
     x11/library/libxdmcp x11/library/libxevie x11/library/libxext
-    x11/library/libxrender x11/library/libxscrnsaver x11/library/libxtst
-    x11/library/toolkit/libxt`.
+    x11/library/libxrender x11/library/libxrandr x11/library/libxscrnsaver
+    x11/library/libxtst x11/library/toolkit/libxt`.
 
 Use `--with-x=<path>` if `configure` does not properly locate your X11 files.
 
@@ -558,7 +555,7 @@ files.
 
 ### Autoconf
 
-OpenJDK requires [Autoconf](http://www.gnu.org/software/autoconf) on all
+The JDK requires [Autoconf](http://www.gnu.org/software/autoconf) on all
 platforms. At least version 2.69 is required.
 
   * To install on an apt-based Linux, try running `sudo apt-get install
@@ -578,7 +575,7 @@ AUTOCONF=<path to autoconf> configure ...
 
 ### GNU Make
 
-OpenJDK requires [GNU Make](http://www.gnu.org/software/make). No other flavors
+The JDK requires [GNU Make](http://www.gnu.org/software/make). No other flavors
 of make are supported.
 
 At least version 3.81 of GNU Make must be used. For distributions supporting
@@ -602,16 +599,16 @@ On Solaris, it is common to call the GNU version of make by using `gmake`.
 
 ### GNU Bash
 
-OpenJDK requires [GNU Bash](http://www.gnu.org/software/bash). No other shells
+The JDK requires [GNU Bash](http://www.gnu.org/software/bash). No other shells
 are supported.
 
 At least version 3.2 of GNU Bash must be used.
 
 ## Running Configure
 
-To build OpenJDK, you need a "configuration", which consists of a directory
+To build the JDK, you need a "configuration", which consists of a directory
 where to store the build output, coupled with information about the platform,
-the specific build machine, and choices that affect how OpenJDK is built.
+the specific build machine, and choices that affect how the JDK is built.
 
 The configuration is created by the `configure` script. The basic invocation of
 the `configure` script looks like this:
@@ -655,7 +652,7 @@ bash configure --help
 ```
 
 (Note that this help text also include general autoconf options, like
-`--dvidir`, that is not relevant to OpenJDK. To list only OpenJDK specific
+`--dvidir`, that is not relevant to the JDK. To list only JDK-specific
 features, use `bash configure --help=short` instead.)
 
 #### Configure Arguments for Tailoring the Build
@@ -689,6 +686,14 @@ features, use `bash configure --help=short` instead.)
     platform, instead of doing a full cross-compile. (This is known as a
     *reduced* build.)
 
+On Linux, BSD and AIX, it is possible to override where Java by default
+searches for runtime/JNI libraries. This can be useful in situations where
+there is a special shared directory for system JNI libraries. This setting
+can in turn be overriden at runtime by setting the `java.library.path` property.
+
+  * `--with-jni-libpath=<path>` - Use the specified path as a default
+  when searching for runtime libraries.
+
 #### Configure Arguments for Native Compilation
 
   * `--with-devkit=<path>` - Use this devkit for compilers, tools and resources
@@ -716,9 +721,9 @@ features, use `bash configure --help=short` instead.)
   * `--with-jtreg=<path>` - Set the path to JTReg. See [Running Tests](
     #running-tests)
 
-Certain third-party libraries used by OpenJDK (libjpeg, giflib, libpng, lcms
-and zlib) are included in the OpenJDK repository. The default behavior of the
-OpenJDK build is to use this version of these libraries, but they might be
+Certain third-party libraries used by the JDK (libjpeg, giflib, libpng, lcms
+and zlib) are included in the JDK repository. The default behavior of the
+JDK build is to use this version of these libraries, but they might be
 replaced by an external version. To do so, specify `system` as the `<source>`
 option in these arguments. (The default is `bundled`).
 
@@ -762,7 +767,7 @@ accomplish anything. Instead use `--with-extra-cflags` (and similar for
 
 ## Running Make
 
-When you have a proper configuration, all you need to do to build OpenJDK is to
+When you have a proper configuration, all you need to do to build the JDK is to
 run `make`. (But see the warning at [GNU Make](#gnu-make) about running the
 correct version of make.)
 
@@ -783,7 +788,7 @@ Apart from the default target, here are some common make targets:
 
   * `hotspot` - Build all of hotspot (but only hotspot)
   * `hotspot-<variant>` - Build just the specified jvm variant
-  * `images` or `product-images` - Build the JRE and JDK images
+  * `images` or `product-images` - Build the JDK image
   * `docs` or `docs-image` - Build the documentation image
   * `test-image` - Build the test image
   * `all` or `all-images` - Build all images (product, docs and test)
@@ -842,7 +847,7 @@ configuration, as opposed to the "configure time" configuration.
 #### Test Make Control Variables
 
 These make control variables only make sense when running tests. Please see
-[Testing OpenJDK](testing.html) for details.
+[Testing the JDK](testing.html) for details.
 
   * `TEST`
   * `TEST_JOBS`
@@ -862,12 +867,18 @@ Suggestions for Advanced Users](#hints-and-suggestions-for-advanced-users) and
 
 ## Running Tests
 
-Most of the OpenJDK tests are using the [JTReg](http://openjdk.java.net/jtreg)
+Most of the JDK tests are using the [JTReg](http://openjdk.java.net/jtreg)
 test framework. Make sure that your configuration knows where to find your
 installation of JTReg. If this is not picked up automatically, use the
 `--with-jtreg=<path to jtreg home>` option to point to the JTReg framework.
 Note that this option should point to the JTReg home, i.e. the top directory,
 containing `lib/jtreg.jar` etc.
+
+The [Adoption Group](https://wiki.openjdk.java.net/display/Adoption) provides
+recent builds of jtreg [here](
+https://adopt-openjdk.ci.cloudbees.com/job/jtreg/lastSuccessfulBuild/artifact).
+Download the latest `.tar.gz` file, unpack it, and point `--with-jtreg` to the
+`jtreg` directory that you just unpacked.
 
 To execute the most basic tests (tier 1), use:
 ```
@@ -875,7 +886,7 @@ make run-test-tier1
 ```
 
 For more details on how to run tests, please see the [Testing
-OpenJDK](testing.html) document.
+the JDK](testing.html) document.
 
 ## Cross-compiling
 
@@ -890,12 +901,12 @@ arise when building for embedded is due to this separation of *build* and
 
 This requires a more complex setup and build procedure. This section assumes
 you are familiar with cross-compiling in general, and will only deal with the
-particularities of cross-compiling OpenJDK. If you are new to cross-compiling,
+particularities of cross-compiling the JDK. If you are new to cross-compiling,
 please see the [external links at Wikipedia](
 https://en.wikipedia.org/wiki/Cross_compiler#External_links) for a good start
 on reading materials.
 
-Cross-compiling OpenJDK requires you to be able to build both for the build
+Cross-compiling the JDK requires you to be able to build both for the build
 platform and for the target platform. The reason for the former is that we need
 to build and execute tools during the build process, both native tools and Java
 tools.
@@ -904,6 +915,64 @@ If all you want to do is to compile a 32-bit version, for the same OS, on a
 64-bit machine, consider using `--with-target-bits=32` instead of doing a
 full-blown cross-compilation. (While this surely is possible, it's a lot more
 work and will take much longer to build.)
+
+### Cross compiling the easy way with OpenJDK devkits
+
+The OpenJDK build system provides out-of-the box support for creating and using
+so called devkits. A `devkit` is basically a collection of a cross-compiling
+toolchain and a sysroot environment which can easily be used together with the
+`--with-devkit` configure option to cross compile the OpenJDK. On Linux/x86_64,
+the following command:
+```
+bash configure --with-devkit=<devkit-path> --openjdk-target=ppc64-linux-gnu && make
+```
+
+will configure and build OpenJDK for Linux/ppc64 assuming that `<devkit-path>`
+points to a Linux/x86_64 to Linux/ppc64 devkit.
+
+Devkits can be created from the `make/devkit` directory by executing:
+```
+make [ TARGETS="<TARGET_TRIPLET>+" ] [ BASE_OS=<OS> ] [ BASE_OS_VERSION=<VER> ]
+```
+
+where `TARGETS` contains one or more `TARGET_TRIPLET`s of the form
+described in [section 3.4 of the GNU Autobook](
+https://sourceware.org/autobook/autobook/autobook_17.html). If no
+targets are given, a native toolchain for the current platform will be
+created. Currently, at least the following targets are known to work:
+
+ Supported devkit targets
+ -------------------------
+ x86_64-linux-gnu
+ aarch64-linux-gnu
+ arm-linux-gnueabihf
+ ppc64-linux-gnu
+ ppc64le-linux-gnu
+ s390x-linux-gnu
+
+`BASE_OS` must be one of "OEL6" for Oracle Enterprise Linux 6 or
+"Fedora" (if not specified "OEL6" will be the default). If the base OS
+is "Fedora" the corresponding Fedora release can be specified with the
+help of the `BASE_OS_VERSION` option (with "27" as default version).
+If the build is successful, the new devkits can be found in the
+`build/devkit/result` subdirectory:
+```
+cd make/devkit
+make TARGETS="ppc64le-linux-gnu aarch64-linux-gnu" BASE_OS=Fedora BASE_OS_VERSION=21
+ls -1 ../../build/devkit/result/
+x86_64-linux-gnu-to-aarch64-linux-gnu
+x86_64-linux-gnu-to-ppc64le-linux-gnu
+```
+
+Notice that devkits are not only useful for targeting different build
+platforms. Because they contain the full build dependencies for a
+system (i.e. compiler and root file system), they can easily be used
+to build well-known, reliable and reproducible build environments. You
+can for example create and use a devkit with GCC 7.3 and a Fedora 12
+sysroot environment (with glibc 2.11) on Ubuntu 14.04 (which doesn't
+have GCC 7.3 by default) to produce OpenJDK binaries which will run on
+all Linux systems with runtime libraries newer than the ones from
+Fedora 12 (e.g. Ubuntu 16.04, SLES 11 or RHEL 6).
 
 ### Boot JDK and Build JDK
 
@@ -1017,6 +1086,7 @@ Note that X11 is needed even if you only want to build a headless JDK.
       * libice-dev
       * libxrender
       * libxrender-dev
+      * libxrandr-dev
       * libsm-dev
       * libxt-dev
       * libx11
@@ -1048,36 +1118,73 @@ Note that X11 is needed even if you only want to build a headless JDK.
   * If the X11 libraries are not properly detected by `configure`, you can
     point them out by `--with-x`.
 
+### Creating And Using Sysroots With qemu-deboostrap
+
+Fortunately, you can create sysroots for foreign architectures with tools
+provided by your OS. On Debian/Ubuntu systems, one could use `qemu-deboostrap` to
+create the *target* system chroot, which would have the native libraries and headers
+specific to that *target* system. After that, we can use the cross-compiler on the *build*
+system, pointing into chroot to get the build dependencies right. This allows building
+for foreign architectures with native compilation speed.
+
+For example, cross-compiling to AArch64 from x86_64 could be done like this:
+
+  * Install cross-compiler on the *build* system:
+```
+apt install g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
+```
+
+  * Create chroot on the *build* system, configuring it for *target* system:
+```
+sudo qemu-debootstrap --arch=arm64 --verbose \
+       --include=fakeroot,build-essential,libx11-dev,libxext-dev,libxrender-dev,libxrandr-dev,libxtst-dev,libxt-dev,libcups2-dev,libfontconfig1-dev,libasound2-dev,libfreetype6-dev,libpng12-dev \
+       --resolve-deps jessie /chroots/arm64 http://httpredir.debian.org/debian/
+```
+
+  * Configure and build with newly created chroot as sysroot/toolchain-path:
+```
+CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ sh ./configure --openjdk-target=aarch64-linux-gnu --with-sysroot=/chroots/arm64/ --with-toolchain-path=/chroots/arm64/
+make images
+ls build/linux-aarch64-normal-server-release/
+```
+
+The build does not create new files in that chroot, so it can be reused for multiple builds
+without additional cleanup.
+
+Architectures that are known to successfully cross-compile like this are:
+
+  Target        `CC`                      `CXX`                       `--arch=...`  `--openjdk-target=...`
+  ------------  ------------------------- --------------------------- ------------- -----------------------
+  x86           default                   default                     i386          i386-linux-gnu
+  armhf         gcc-arm-linux-gnueabihf   g++-arm-linux-gnueabihf     armhf         arm-linux-gnueabihf
+  aarch64       gcc-aarch64-linux-gnu     g++-aarch64-linux-gnu       arm64         aarch64-linux-gnu
+  ppc64el       gcc-powerpc64le-linux-gnu g++-powerpc64le-linux-gnu   ppc64el       powerpc64le-linux-gnu
+  s390x         gcc-s390x-linux-gnu       g++-s390x-linux-gnu         s390x         s390x-linux-gnu
+
+Additional architectures might be supported by Debian/Ubuntu Ports.
+
 ### Building for ARM/aarch64
 
 A common cross-compilation target is the ARM CPU. When building for ARM, it is
 useful to set the ABI profile. A number of pre-defined ABI profiles are
 available using `--with-abi-profile`: arm-vfp-sflt, arm-vfp-hflt, arm-sflt,
 armv5-vfp-sflt, armv6-vfp-hflt. Note that soft-float ABIs are no longer
-properly supported on OpenJDK.
-
-OpenJDK contains two different ports for the aarch64 platform, one is the
-original aarch64 port from the [AArch64 Port Project](
-http://openjdk.java.net/projects/aarch64-port) and one is a 64-bit version of
-the Oracle contributed ARM port. When targeting aarch64, by the default the
-original aarch64 port is used. To select the Oracle ARM 64 port, use
-`--with-cpu-port=arm64`. Also set the corresponding value (`aarch64` or
-`arm64`) to --with-abi-profile, to ensure a consistent build.
+properly supported by the JDK.
 
 ### Verifying the Build
 
 The build will end up in a directory named like
 `build/linux-arm-normal-server-release`.
 
-Inside this build output directory, the `images/jdk` and `images/jre` will
-contain the newly built JDK and JRE, respectively, for your *target* system.
+Inside this build output directory, the `images/jdk` will contain the newly
+built JDK, for your *target* system.
 
 Copy these folders to your *target* system. Then you can run e.g.
 `images/jdk/bin/java -version`.
 
 ## Build Performance
 
-Building OpenJDK requires a lot of horsepower. Some of the build tools can be
+Building the JDK requires a lot of horsepower. Some of the build tools can be
 adjusted to utilize more or less of resources such as parallel threads and
 memory. The `configure` script analyzes your system and selects reasonable
 values for such options based on your hardware. If you encounter resource
@@ -1122,12 +1229,12 @@ as well as (if possible) the build tools.
 ### Virus Checking
 
 The use of virus checking software, especially on Windows, can *significantly*
-slow down building of OpenJDK. If possible, turn off such software, or exclude
-the directory containing the OpenJDK source code from on-the-fly checking.
+slow down building of the JDK. If possible, turn off such software, or exclude
+the directory containing the JDK source code from on-the-fly checking.
 
 ### Ccache
 
-The OpenJDK build supports building with ccache when using gcc or clang. Using
+The JDK build supports building with ccache when using gcc or clang. Using
 ccache can radically speed up compilation of native code if you often rebuild
 the same sources. Your milage may vary however, so we recommend evaluating it
 for yourself. To enable it, make sure it's on the path and configure with
@@ -1147,7 +1254,7 @@ You can experiment by disabling precompiled headers using
 
 [icecc/icecream](http://github.com/icecc/icecream) is a simple way to setup a
 distributed compiler network. If you have multiple machines available for
-building OpenJDK, you can drastically cut individual build times by utilizing
+building the JDK, you can drastically cut individual build times by utilizing
 it.
 
 To use, setup an icecc network, and install icecc on the build machine. Then
@@ -1256,9 +1363,9 @@ Most of the time, the build will fail due to incorrect changes in the source
 code.
 
 Sometimes the build can fail with no apparent changes that have caused the
-failure. If this is the first time you are building OpenJDK on this particular
+failure. If this is the first time you are building the JDK on this particular
 computer, and the build fails, the problem is likely with your build
-environment. But even if you have previously built OpenJDK with success, and it
+environment. But even if you have previously built the JDK with success, and it
 now fails, your build environment might have changed (perhaps due to OS
 upgrades or similar). But most likely, such failures are due to problems with
 the incremental rebuild.
@@ -1273,7 +1380,7 @@ repeated at the end, after the summary. The entire log is stored in
 Verify that the summary at the end looks correct. Are you indeed using the Boot
 JDK and native toolchain that you expect?
 
-By default, OpenJDK has a strict approach where warnings from the compiler is
+By default, the JDK has a strict approach where warnings from the compiler is
 considered errors which fail the build. For very new or very old compiler
 versions, this can trigger new classes of warnings, which thus fails the build.
 Run `configure` with `--disable-warnings-as-errors` to turn of this behavior.
@@ -1285,17 +1392,15 @@ Incremental rebuilds mean that when you modify part of the product, only the
 affected parts get rebuilt. While this works great in most cases, and
 significantly speed up the development process, from time to time complex
 interdependencies will result in an incorrect build result. This is the most
-common cause for unexpected build problems, together with inconsistencies
-between the different Mercurial repositories in the forest.
+common cause for unexpected build problems.
 
 Here are a suggested list of things to try if you are having unexpected build
 problems. Each step requires more time than the one before, so try them in
 order. Most issues will be solved at step 1 or 2.
 
- 1. Make sure your forest is up-to-date
+ 1. Make sure your repository is up-to-date
 
-    Run `bash get_source.sh` to make sure you have the latest version of all
-    repositories.
+    Run `hg pull -u` to make sure you have the latest changes.
 
  2. Clean build results
 
@@ -1320,13 +1425,13 @@ order. Most issues will be solved at step 1 or 2.
     make
     ```
 
- 4. Re-clone the Mercurial forest
+ 4. Re-clone the Mercurial repository
 
-    Sometimes the Mercurial repositories themselves gets in a state that causes
-    the product to be un-buildable. In such a case, the simplest solution is
-    often the "sledgehammer approach": delete the entire forest, and re-clone
-    it. If you have local changes, save them first to a different location
-    using `hg export`.
+    Sometimes the Mercurial repository gets in a state that causes the product
+    to be un-buildable. In such a case, the simplest solution is often the
+    "sledgehammer approach": delete the entire repository, and re-clone it.
+    If you have local changes, save them first to a different location using
+    `hg export`.
 
 ### Specific Build Issues
 
@@ -1371,18 +1476,18 @@ believe is a bug in the build system, please contact the Build Group by sending
 a mail to [build-dev@openjdk.java.net](mailto:build-dev@openjdk.java.net).
 Please include the relevant parts of the configure and/or build log.
 
-If you need general help or advice about developing for OpenJDK, you can also
+If you need general help or advice about developing for the JDK, you can also
 contact the Adoption Group. See the section on [Contributing to OpenJDK](
 #contributing-to-openjdk) for more information.
 
 ## Hints and Suggestions for Advanced Users
 
-### Setting Up a Forest for Pushing Changes (defpath)
+### Setting Up a Repository for Pushing Changes (defpath)
 
 To help you prepare a proper push path for a Mercurial repository, there exists
 a useful tool known as [defpath](
 http://openjdk.java.net/projects/code-tools/defpath). It will help you setup a
-proper push path for pushing changes to OpenJDK.
+proper push path for pushing changes to the JDK.
 
 Install the extension by cloning
 `http://hg.openjdk.java.net/code-tools/defpath` and updating your `.hgrc` file.
@@ -1403,11 +1508,6 @@ You can now setup a proper push path using:
 ```
 hg defpath -d -u <your OpenJDK username>
 ```
-
-If you also have the `trees` extension installed in Mercurial, you will
-automatically get a `tdefpath` command, which is even more useful. By running
-`hg tdefpath -du <username>` in the top repository of your forest, all repos
-will get setup automatically. This is the recommended usage.
 
 ### Bash Completion
 
@@ -1443,7 +1543,7 @@ Now `configure --en<tab>-dt<tab>` will result in `configure --enable-dtrace`.
 
 ### Using Multiple Configurations
 
-You can have multiple configurations for a single source forest. When you
+You can have multiple configurations for a single source repository. When you
 create a new configuration, run `configure --with-conf-name=<name>` to create a
 configuration with the name `<name>`. Alternatively, you can create a directory
 under `build` and run `configure` from there, e.g. `mkdir build/<name> && cd
@@ -1458,7 +1558,7 @@ in the configuration directory, e.g. `cd build/<name> && make`.
 
 ### Handling Reconfigurations
 
-If you update the forest and part of the configure script has changed, the
+If you update the repository and part of the configure script has changed, the
 build system will force you to re-run `configure`.
 
 Most of the time, you will be fine by running `configure` again with the same
@@ -1490,10 +1590,11 @@ product.
 #### Building Individual Modules
 
 The safe way to use fine-grained make targets is to use the module specific
-make targets. All source code in JDK 9 is organized so it belongs to a module,
-e.g. `java.base` or `jdk.jdwp.agent`. You can build only a specific module, by
-giving it as make target: `make jdk.jdwp.agent`. If the specified module
-depends on other modules (e.g. `java.base`), those modules will be built first.
+make targets. All source code in the JDK is organized so it belongs to a
+module, e.g. `java.base` or `jdk.jdwp.agent`. You can build only a specific
+module, by giving it as make target: `make jdk.jdwp.agent`. If the specified
+module depends on other modules (e.g. `java.base`), those modules will be built
+first.
 
 You can also specify a set of modules, just as you can always specify a set of
 make targets: `make jdk.crypto.cryptoki jdk.crypto.ec jdk.crypto.mscapi
@@ -1541,7 +1642,7 @@ jdk.jdwp.agent`) and then on subsequent builds, use the `-only` make target.
 #### Rebuilding Part of java.base (JDK\_FILTER)
 
 If you are modifying files in `java.base`, which is the by far largest module
-in OpenJDK, then you need to rebuild all those files whenever a single file has
+in the JDK, then you need to rebuild all those files whenever a single file has
 changed. (This inefficiency will hopefully be addressed in JDK 10.)
 
 As a hack, you can use the make control variable `JDK_FILTER` to specify a
@@ -1552,7 +1653,7 @@ to files in the `javax.crypto` package.
 
 ### Learn About Mercurial
 
-To become an efficient OpenJDK developer, it is recommended that you invest in
+To become an efficient JDK developer, it is recommended that you invest in
 learning Mercurial properly. Here are some links that can get you started:
 
   * [Mercurial for git users](http://www.mercurial-scm.org/wiki/GitConcepts)
@@ -1628,7 +1729,7 @@ Windows path typically look like `C:\User\foo`, while Unix paths look like
 `/home/foo`. Tools with roots from Unix often experience issues related to this
 mismatch when running on Windows.
 
-In the OpenJDK build, we always use Unix paths internally, and only just before
+In the JDK build, we always use Unix paths internally, and only just before
 calling a tool that does not understand Unix paths do we convert them to
 Windows paths.
 
@@ -1643,7 +1744,7 @@ information) associated with them. How this works is very much platform
 dependent, but a common problem is that debug symbol information takes a lot of
 disk space, but is rarely needed by the end user.
 
-The OpenJDK supports different methods on how to handle debug symbols. The
+The JDK supports different methods on how to handle debug symbols. The
 method used is selected by `--with-native-debug-symbols`, and available methods
 are `none`, `internal`, `external`, `zipped`.
 
@@ -1668,7 +1769,7 @@ debugging, but should be stripped before distributed to end users.
 The `configure` script is based on the autoconf framework, but in some details
 deviate from a normal autoconf `configure` script.
 
-The `configure` script in the top level directory of OpenJDK is just a thin
+The `configure` script in the top level directory of the JDK is just a thin
 wrapper that calls `make/autoconf/configure`. This in turn will run `autoconf`
 to create the runnable (generated) configure script, as
 `.build/generated-configure.sh`. Apart from being responsible for the
@@ -1680,7 +1781,7 @@ The build system will detect if the Autoconf source files have changed, and
 will trigger a regeneration of the generated script if needed. You can also
 manually request such an update by `bash configure autogen`.
 
-In previous versions of the OpenJDK, the generated script was checked in at
+In previous versions of the JDK, the generated script was checked in at
 `make/autoconf/generated-configure.sh`. This is no longer the case.
 
 ### Developing the Build System Itself
@@ -1689,7 +1790,7 @@ This section contains a few remarks about how to develop for the build system
 itself. It is not relevant if you are only making changes in the product source
 code.
 
-While technically using `make`, the make source files of the OpenJDK does not
+While technically using `make`, the make source files of the JDK does not
 resemble most other Makefiles. Instead of listing specific targets and actions
 (perhaps using patterns), the basic modus operandi is to call a high-level
 function (or properly, macro) from the API in `make/common`. For instance, to
@@ -1734,13 +1835,13 @@ Please check that you adhere to the [Code Conventions for the Build System](
 http://openjdk.java.net/groups/build/doc/code-conventions.html) before
 submitting patches.
 
-## Contributing to OpenJDK
+## Contributing to the JDK
 
-So, now you've build your OpenJDK, and made your first patch, and want to
-contribute it back to the OpenJDK community.
+So, now you've built your JDK, and made your first patch, and want to
+contribute it back to the OpenJDK Community.
 
-First of all: Thank you! We gladly welcome your contribution to the OpenJDK.
-However, please bear in mind that OpenJDK is a massive project, and we must ask
+First of all: Thank you! We gladly welcome your contribution.
+However, please bear in mind that the JDK is a massive project, and we must ask
 you to follow our rules and guidelines to be able to accept your contribution.
 
 The official place to start is the ['How to contribute' page](

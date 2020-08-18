@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "interpreter/interpreter.hpp"
 #include "oops/arrayOop.hpp"
@@ -65,7 +67,7 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   // test if object header is still the same (i.e. unlocked), and if so, store the
   // displaced header address in the object header - if it is not the same, get the
   // object header instead
-  if (os::is_MP()) MacroAssembler::lock(); // must be immediately before cmpxchg!
+  MacroAssembler::lock(); // must be immediately before cmpxchg!
   cmpxchgptr(disp_hdr, Address(obj, hdr_offset));
   // if the object header was the same, we're done
   if (PrintBiasedLockingStatistics) {
@@ -126,7 +128,7 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
   // test if object header is pointing to the displaced header, and if so, restore
   // the displaced header in the object - if the object header is not pointing to
   // the displaced header, get the object header instead
-  if (os::is_MP()) MacroAssembler::lock(); // must be immediately before cmpxchg!
+  MacroAssembler::lock(); // must be immediately before cmpxchg!
   cmpxchgptr(hdr, Address(obj, hdr_offset));
   // if the object header was not pointing to the displaced header,
   // we do unlocking via runtime call
@@ -139,10 +141,9 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
 // Defines obj, preserves var_size_in_bytes
 void C1_MacroAssembler::try_allocate(Register obj, Register var_size_in_bytes, int con_size_in_bytes, Register t1, Register t2, Label& slow_case) {
   if (UseTLAB) {
-    tlab_allocate(obj, var_size_in_bytes, con_size_in_bytes, t1, t2, slow_case);
+    tlab_allocate(noreg, obj, var_size_in_bytes, con_size_in_bytes, t1, t2, slow_case);
   } else {
-    eden_allocate(obj, var_size_in_bytes, con_size_in_bytes, t1, slow_case);
-    incr_allocated_bytes(noreg, var_size_in_bytes, con_size_in_bytes, t1);
+    eden_allocate(noreg, obj, var_size_in_bytes, con_size_in_bytes, t1, slow_case);
   }
 }
 
@@ -331,18 +332,15 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
   }
 #endif // TIERED
   decrement(rsp, frame_size_in_bytes); // does not emit code for frame_size == 0
+
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->nmethod_entry_barrier(this);
 }
 
 
 void C1_MacroAssembler::remove_frame(int frame_size_in_bytes) {
   increment(rsp, frame_size_in_bytes);  // Does not emit code for frame_size == 0
   pop(rbp);
-}
-
-
-void C1_MacroAssembler::unverified_entry(Register receiver, Register ic_klass) {
-  if (C1Breakpoint) int3();
-  inline_cache_check(receiver, ic_klass);
 }
 
 
@@ -362,6 +360,15 @@ void C1_MacroAssembler::verified_entry() {
   verify_FPU(0, "method_entry");
 }
 
+void C1_MacroAssembler::load_parameter(int offset_in_words, Register reg) {
+  // rbp, + 0: link
+  //     + 1: return address
+  //     + 2: argument with offset 0
+  //     + 3: argument with offset 1
+  //     + 4: ...
+
+  movptr(reg, Address(rbp, (offset_in_words + 2) * BytesPerWord));
+}
 
 #ifndef PRODUCT
 

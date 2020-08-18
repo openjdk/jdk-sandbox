@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -203,9 +203,10 @@ AWT_NS_WINDOW_IMPLEMENTATION
     NSUInteger type = 0;
     if (IS(styleBits, DECORATED)) {
         type |= NSTitledWindowMask;
-        if (IS(styleBits, CLOSEABLE))   type |= NSClosableWindowMask;
-        if (IS(styleBits, MINIMIZABLE)) type |= NSMiniaturizableWindowMask;
-        if (IS(styleBits, RESIZABLE))   type |= NSResizableWindowMask;
+        if (IS(styleBits, CLOSEABLE))            type |= NSClosableWindowMask;
+        if (IS(styleBits, MINIMIZABLE))          type |= NSMiniaturizableWindowMask;
+        if (IS(styleBits, RESIZABLE))            type |= NSResizableWindowMask;
+        if (IS(styleBits, FULL_WINDOW_CONTENT))  type |= NSFullSizeContentViewWindowMask;
     } else {
         type |= NSBorderlessWindowMask;
     }
@@ -214,7 +215,7 @@ AWT_NS_WINDOW_IMPLEMENTATION
     if (IS(styleBits, UNIFIED))       type |= NSUnifiedTitleAndToolbarWindowMask;
     if (IS(styleBits, UTILITY))       type |= NSUtilityWindowMask;
     if (IS(styleBits, HUD))           type |= NSHUDWindowMask;
-    if (IS(styleBits, SHEET))         type |= NSDocModalWindowMask;
+    if (IS(styleBits, SHEET))         type |= NSWindowStyleMaskDocModalWindow;
     if (IS(styleBits, NONACTIVATING)) type |= NSNonactivatingPanelMask;
 
     return type;
@@ -264,6 +265,9 @@ AWT_NS_WINDOW_IMPLEMENTATION
         }
     }
 
+    if (IS(mask, TRANSPARENT_TITLE_BAR) && [self.nsWindow respondsToSelector:@selector(setTitlebarAppearsTransparent:)]) {
+        [self.nsWindow setTitlebarAppearsTransparent:IS(bits, TRANSPARENT_TITLE_BAR)];
+    }
 }
 
 - (id) initWithPlatformWindow:(JNFWeakJObjectWrapper *)platformWindow
@@ -274,7 +278,12 @@ AWT_NS_WINDOW_IMPLEMENTATION
 {
 AWT_ASSERT_APPKIT_THREAD;
 
-    NSUInteger styleMask = [AWTWindow styleMaskForStyleBits:bits];
+    NSUInteger newBits = bits;
+    if (IS(bits, SHEET) && owner == nil) {
+        newBits = bits & ~NSWindowStyleMaskDocModalWindow;
+    }
+    NSUInteger styleMask = [AWTWindow styleMaskForStyleBits:newBits];
+
     NSRect contentRect = rect; //[NSWindow contentRectForFrameRect:rect styleMask:styleMask];
     if (contentRect.size.width <= 0.0) {
         contentRect.size.width = 1.0;
@@ -290,7 +299,8 @@ AWT_ASSERT_APPKIT_THREAD;
     if (IS(bits, UTILITY) ||
         IS(bits, NONACTIVATING) ||
         IS(bits, HUD) ||
-        IS(bits, HIDES_ON_DEACTIVATE))
+        IS(bits, HIDES_ON_DEACTIVATE) ||
+        IS(bits, SHEET))
     {
         self.nsWindow = [[AWTWindow_Panel alloc] initWithDelegate:self
                             frameRect:contentRect
@@ -318,6 +328,10 @@ AWT_ASSERT_APPKIT_THREAD;
 
     if (IS(self.styleBits, IS_POPUP)) {
         [self.nsWindow setCollectionBehavior:(1 << 8) /*NSWindowCollectionBehaviorFullScreenAuxiliary*/];
+    }
+
+    if (IS(bits, SHEET) && owner != nil) {
+        [self.nsWindow setStyleMask: NSWindowStyleMaskDocModalWindow];
     }
 
     return self;
@@ -457,7 +471,7 @@ AWT_ASSERT_APPKIT_THREAD;
 
     JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
     [self.javaPlatformWindow setJObject:nil withEnv:env];
-
+    self.javaPlatformWindow = nil;
     self.nsWindow = nil;
     self.ownerWindow = nil;
     [super dealloc];
@@ -466,7 +480,7 @@ AWT_ASSERT_APPKIT_THREAD;
 // Tests whether window is blocked by modal dialog/window
 - (BOOL) isBlocked {
     BOOL isBlocked = NO;
-    
+
     JNIEnv *env = [ThreadUtilities getJNIEnv];
     jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
     if (platformWindow != NULL) {
@@ -474,8 +488,23 @@ AWT_ASSERT_APPKIT_THREAD;
         isBlocked = JNFCallBooleanMethod(env, platformWindow, jm_isBlocked) == JNI_TRUE ? YES : NO;
         (*env)->DeleteLocalRef(env, platformWindow);
     }
-    
+
     return isBlocked;
+}
+
+// Test whether window is simple window and owned by embedded frame
+- (BOOL) isSimpleWindowOwnedByEmbeddedFrame {
+    BOOL isSimpleWindowOwnedByEmbeddedFrame = NO;
+
+    JNIEnv *env = [ThreadUtilities getJNIEnv];
+    jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
+    if (platformWindow != NULL) {
+        static JNF_MEMBER_CACHE(jm_isBlocked, jc_CPlatformWindow, "isSimpleWindowOwnedByEmbeddedFrame", "()Z");
+        isSimpleWindowOwnedByEmbeddedFrame = JNFCallBooleanMethod(env, platformWindow, jm_isBlocked) == JNI_TRUE ? YES : NO;
+        (*env)->DeleteLocalRef(env, platformWindow);
+    }
+
+    return isSimpleWindowOwnedByEmbeddedFrame;
 }
 
 // Tests whether the corresponding Java platform window is visible or not
@@ -544,7 +573,7 @@ AWT_ASSERT_APPKIT_THREAD;
 // NSWindow overrides
 - (BOOL) canBecomeKeyWindow {
 AWT_ASSERT_APPKIT_THREAD;
-    return self.isEnabled && IS(self.styleBits, SHOULD_BECOME_KEY);
+    return self.isEnabled && (IS(self.styleBits, SHOULD_BECOME_KEY) || [self isSimpleWindowOwnedByEmbeddedFrame]);
 }
 
 - (BOOL) canBecomeMainWindow {
@@ -680,7 +709,7 @@ AWT_ASSERT_APPKIT_THREAD;
         JNFCallVoidMethod(env, platformWindow, jm_windowWillMiniaturize);
         (*env)->DeleteLocalRef(env, platformWindow);
     }
-    // Excplicitly make myself a key window to avoid possible
+    // Explicitly make myself a key window to avoid possible
     // negative visual effects during iconify operation
     [self.nsWindow makeKeyAndOrderFront:self.nsWindow];
     [self iconifyChildWindows:YES];
@@ -714,13 +743,47 @@ AWT_ASSERT_APPKIT_THREAD;
     }
 }
 
+- (void) windowDidBecomeMain: (NSNotification *) notification {
+AWT_ASSERT_APPKIT_THREAD;
+    [AWTToolkit eventCountPlusPlus];
+#ifdef DEBUG
+    NSLog(@"became main: %d %@ %@", [self.nsWindow isKeyWindow], [self.nsWindow title], [self menuBarForWindow]);
+#endif
+
+    if (![self.nsWindow isKeyWindow]) {
+        [self activateWindowMenuBar];
+    }
+
+    JNIEnv *env = [ThreadUtilities getJNIEnv];
+    jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
+    if (platformWindow != NULL) {
+        static JNF_MEMBER_CACHE(jm_windowDidBecomeMain, jc_CPlatformWindow, "windowDidBecomeMain", "()V");
+        JNFCallVoidMethod(env, platformWindow, jm_windowDidBecomeMain);
+        (*env)->DeleteLocalRef(env, platformWindow);
+    }
+}
 
 - (void) windowDidBecomeKey: (NSNotification *) notification {
 AWT_ASSERT_APPKIT_THREAD;
     [AWTToolkit eventCountPlusPlus];
+#ifdef DEBUG
+    NSLog(@"became key: %d %@ %@", [self.nsWindow isMainWindow], [self.nsWindow title], [self menuBarForWindow]);
+#endif
     AWTWindow *opposite = [AWTWindow lastKeyWindow];
 
-    // Finds appropriate menubar in our hierarchy,
+    if (![self.nsWindow isMainWindow]) {
+        [self activateWindowMenuBar];
+    }
+
+    [AWTWindow setLastKeyWindow:nil];
+
+    [self _deliverWindowFocusEvent:YES oppositeWindow: opposite];
+    [self orderChildWindows:YES];
+}
+
+- (void) activateWindowMenuBar {
+AWT_ASSERT_APPKIT_THREAD;
+    // Finds appropriate menubar in our hierarchy
     AWTWindow *awtWindow = self;
     while (awtWindow.ownerWindow != nil) {
         awtWindow = awtWindow.ownerWindow;
@@ -739,26 +802,48 @@ AWT_ASSERT_APPKIT_THREAD;
     }
 
     [CMenuBar activate:menuBar modallyDisabled:isDisabled];
-
-    [AWTWindow setLastKeyWindow:nil];
-
-    [self _deliverWindowFocusEvent:YES oppositeWindow: opposite];
-    [self orderChildWindows:YES];
 }
+
+#ifdef DEBUG
+- (CMenuBar *) menuBarForWindow {
+AWT_ASSERT_APPKIT_THREAD;
+    AWTWindow *awtWindow = self;
+    while (awtWindow.ownerWindow != nil) {
+        awtWindow = awtWindow.ownerWindow;
+    }
+    return awtWindow.javaMenuBar;
+}
+#endif
 
 - (void) windowDidResignKey: (NSNotification *) notification {
     // TODO: check why sometimes at start is invoked *not* on AppKit main thread.
 AWT_ASSERT_APPKIT_THREAD;
     [AWTToolkit eventCountPlusPlus];
-    [self.javaMenuBar deactivate];
-
-    // In theory, this might cause flickering if the window gaining focus
-    // has its own menu. However, I couldn't reproduce it on practice, so
-    // perhaps this is a non issue.
-    CMenuBar* defaultMenu = [[ApplicationDelegate sharedDelegate] defaultMenuBar];
-    if (defaultMenu != nil) {
-        [CMenuBar activate:defaultMenu modallyDisabled:NO];
+#ifdef DEBUG
+    NSLog(@"resigned key: %d %@ %@", [self.nsWindow isMainWindow], [self.nsWindow title], [self menuBarForWindow]);
+#endif
+    if (![self.nsWindow isMainWindow]) {
+        [self deactivateWindow];
     }
+}
+
+- (void) windowDidResignMain: (NSNotification *) notification {
+AWT_ASSERT_APPKIT_THREAD;
+    [AWTToolkit eventCountPlusPlus];
+#ifdef DEBUG
+    NSLog(@"resigned main: %d %@ %@", [self.nsWindow isKeyWindow], [self.nsWindow title], [self menuBarForWindow]);
+#endif
+    if (![self.nsWindow isKeyWindow]) {
+        [self deactivateWindow];
+    }
+}
+
+- (void) deactivateWindow {
+AWT_ASSERT_APPKIT_THREAD;
+#ifdef DEBUG
+    NSLog(@"deactivating window: %@", [self.nsWindow title]);
+#endif
+    [self.javaMenuBar deactivate];
 
     // the new key window
     NSWindow *keyWindow = [NSApp keyWindow];
@@ -772,19 +857,6 @@ AWT_ASSERT_APPKIT_THREAD;
 
     [self _deliverWindowFocusEvent:NO oppositeWindow: opposite];
     [self orderChildWindows:NO];
-}
-
-- (void) windowDidBecomeMain: (NSNotification *) notification {
-AWT_ASSERT_APPKIT_THREAD;
-    [AWTToolkit eventCountPlusPlus];
-
-    JNIEnv *env = [ThreadUtilities getJNIEnv];
-    jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
-    if (platformWindow != NULL) {
-        static JNF_MEMBER_CACHE(jm_windowDidBecomeMain, jc_CPlatformWindow, "windowDidBecomeMain", "()V");
-        JNFCallVoidMethod(env, platformWindow, jm_windowDidBecomeMain);
-        (*env)->DeleteLocalRef(env, platformWindow);
-    }
 }
 
 - (BOOL)windowShouldClose:(id)sender {
@@ -893,6 +965,11 @@ AWT_ASSERT_APPKIT_THREAD;
                     // Currently, no need to deliver the whole NSEvent.
                     static JNF_MEMBER_CACHE(jm_deliverNCMouseDown, jc_CPlatformWindow, "deliverNCMouseDown", "()V");
                     JNFCallVoidMethod(env, platformWindow, jm_deliverNCMouseDown);
+                    // Deliver double click on title bar
+                    if ([event clickCount] > 1) {
+                        static JNF_MEMBER_CACHE(jm_deliverDoubleClickOnTitlebar, jc_CPlatformWindow, "deliverDoubleClickOnTitlebar", "()V");
+                        JNFCallVoidMethod(env, platformWindow, jm_deliverDoubleClickOnTitlebar);
+                    }
                     (*env)->DeleteLocalRef(env, platformWindow);
                 }
             }
@@ -1001,13 +1078,33 @@ JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeSetNSWindowSt
 JNF_COCOA_ENTER(env);
 
     NSWindow *nsWindow = OBJC(windowPtr);
+
     [ThreadUtilities performOnMainThreadWaiting:NO block:^(){
 
         AWTWindow *window = (AWTWindow*)[nsWindow delegate];
 
         // scans the bit field, and only updates the values requested by the mask
-        // (this implicity handles the _CALLBACK_PROP_BITMASK case, since those are passive reads)
+        // (this implicitly handles the _CALLBACK_PROP_BITMASK case, since those are passive reads)
         jint newBits = window.styleBits & ~mask | bits & mask;
+
+        BOOL resized = NO;
+
+        // Check for a change to the full window content view option.
+        // The content view must be resized first, otherwise the window will be resized to fit the existing
+        // content view.
+        if (IS(mask, FULL_WINDOW_CONTENT)) {
+            if (IS(newBits, FULL_WINDOW_CONTENT) != IS(window.styleBits, FULL_WINDOW_CONTENT)) {
+                NSRect frame = [nsWindow frame];
+                NSUInteger styleMask = [AWTWindow styleMaskForStyleBits:newBits];
+                NSRect screenContentRect = [NSWindow contentRectForFrameRect:frame styleMask:styleMask];
+                NSRect contentFrame = NSMakeRect(screenContentRect.origin.x - frame.origin.x,
+                    screenContentRect.origin.y - frame.origin.y,
+                    screenContentRect.size.width,
+                    screenContentRect.size.height);
+                nsWindow.contentView.frame = contentFrame;
+                resized = YES;
+            }
+        }
 
         // resets the NSWindow's style mask if the mask intersects any of those bits
         if (mask & MASK(_STYLE_PROP_BITMASK)) {
@@ -1020,6 +1117,10 @@ JNF_COCOA_ENTER(env);
         }
 
         window.styleBits = newBits;
+
+        if (resized) {
+            [window _deliverMoveResizeEvent];
+        }
     }];
 
 JNF_COCOA_EXIT(env);
@@ -1041,7 +1142,7 @@ JNF_COCOA_ENTER(env);
 
         AWTWindow *window = (AWTWindow*)[nsWindow delegate];
 
-        if ([nsWindow isKeyWindow]) {
+        if ([nsWindow isKeyWindow] || [nsWindow isMainWindow]) {
             [window.javaMenuBar deactivate];
         }
 
@@ -1052,7 +1153,7 @@ JNF_COCOA_ENTER(env);
             actualMenuBar = [[ApplicationDelegate sharedDelegate] defaultMenuBar];
         }
 
-        if ([nsWindow isKeyWindow]) {
+        if ([nsWindow isKeyWindow] || [nsWindow isMainWindow]) {
             [CMenuBar activate:actualMenuBar modallyDisabled:NO];
         }
     }];

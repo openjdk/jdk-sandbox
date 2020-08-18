@@ -25,16 +25,19 @@
   * @test
   * @bug 8189439
   * @summary Parameters type profiling is not performed from aarch64 interpreter
+  * @requires os.arch != "arm"
   * @requires vm.flavor == "server" & vm.compMode == "Xmixed" & !vm.emulatedClient & !vm.graal.enabled
   * @library /test/lib /
   * @build sun.hotspot.WhiteBox
   * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
   * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
   *                   -XX:-BackgroundCompilation -XX:-UseOnStackReplacement
+  *                   -XX:CompileThreshold=10000
   *                   -server -XX:-TieredCompilation -XX:TypeProfileLevel=020
   *                    compiler.profiling.TestTypeProfiling
   * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
   *                   -XX:-BackgroundCompilation -XX:-UseOnStackReplacement
+  *                   -XX:CompileThreshold=10000
   *                   -server -XX:-TieredCompilation -XX:TypeProfileLevel=200
   *                    compiler.profiling.TestTypeProfiling
   */
@@ -117,22 +120,15 @@ public class TestTypeProfiling {
         }
 
         // should deoptimize for speculative type check
+        // Intepreter will also add actual type check trap information into MDO
+        // when it throw ClassCastException
         if (!deoptimize(method, src_obj)) {
             throw new RuntimeException(method.getName() + " is not deoptimized");
         }
 
         // compile again
-        WHITE_BOX.enqueueMethodForCompilation(method, CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION);
-        if (!WHITE_BOX.isMethodCompiled(method)) {
-            throw new RuntimeException(method.getName() + " is not recompiled");
-        }
-
-        // should deoptimize for actual type check
-        if (!deoptimize(method, src_obj)) {
-            throw new RuntimeException(method.getName() + " is not deoptimized (should deoptimize for actual type check)");
-        }
-
-        // compile once again
+        // c2 will generate throw instead of uncommon trap because
+        // actual type check trap information is present in MDO
         WHITE_BOX.enqueueMethodForCompilation(method, CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION);
         if (!WHITE_BOX.isMethodCompiled(method)) {
             throw new RuntimeException(method.getName() + " is not recompiled");

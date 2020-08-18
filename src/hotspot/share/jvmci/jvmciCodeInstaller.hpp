@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,13 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_VM_JVMCI_JVMCI_CODE_INSTALLER_HPP
-#define SHARE_VM_JVMCI_JVMCI_CODE_INSTALLER_HPP
+#ifndef SHARE_JVMCI_JVMCICODEINSTALLER_HPP
+#define SHARE_JVMCI_JVMCICODEINSTALLER_HPP
 
 #include "jvmci/jvmciCompiler.hpp"
 #include "jvmci/jvmciEnv.hpp"
 #include "code/nativeInst.hpp"
 
+#if INCLUDE_AOT
 class RelocBuffer : public StackObj {
   enum { stack_size = 1024 };
 public:
@@ -106,6 +107,7 @@ private:
   AOTOopRecorder* _oop_recorder;
   ExceptionHandlerTable* _exception_table;
 };
+#endif // INCLUDE_AOT
 
 /*
  * This class handles the conversion from a InstalledCode to a CodeBlob or an nmethod.
@@ -188,21 +190,23 @@ private:
   void pd_relocate_JavaMethod(CodeBuffer &cbuf, Handle method, jint pc_offset, TRAPS);
   void pd_relocate_poll(address pc, jint mark, TRAPS);
 
-  objArrayOop sites() { return (objArrayOop) JNIHandles::resolve(_sites_handle); }
-  arrayOop code() { return (arrayOop) JNIHandles::resolve(_code_handle); }
-  arrayOop data_section() { return (arrayOop) JNIHandles::resolve(_data_section_handle); }
-  objArrayOop data_section_patches() { return (objArrayOop) JNIHandles::resolve(_data_section_patches_handle); }
+  objArrayOop sites();
+  arrayOop code();
+  arrayOop data_section();
+  objArrayOop data_section_patches();
 #ifndef PRODUCT
-  objArrayOop comments() { return (objArrayOop) JNIHandles::resolve(_comments_handle); }
+  objArrayOop comments();
 #endif
 
-  oop word_kind() { return (oop) JNIHandles::resolve(_word_kind_handle); }
+  oop word_kind();
 
 public:
 
   CodeInstaller(bool immutable_pic_compilation) : _arena(mtCompiler), _immutable_pic_compilation(immutable_pic_compilation) {}
 
+#if INCLUDE_AOT
   JVMCIEnv::CodeInstallResult gather_metadata(Handle target, Handle compiled_code, CodeMetadata& metadata, TRAPS);
+#endif
   JVMCIEnv::CodeInstallResult install(JVMCICompiler* compiler, Handle target, Handle compiled_code, CodeBlob*& cb, Handle installed_code, Handle speculation_log, TRAPS);
 
   static address runtime_call_target_address(oop runtime_call);
@@ -255,6 +259,7 @@ protected:
     FullFrame
   };
 
+  int map_jvmci_bci(int bci);
   void record_scope(jint pc_offset, Handle debug_info, ScopeMode scope_mode, bool return_oop, TRAPS);
   void record_scope(jint pc_offset, Handle debug_info, ScopeMode scope_mode, TRAPS) {
     record_scope(pc_offset, debug_info, scope_mode, false /* return_oop */, THREAD);
@@ -274,4 +279,4 @@ Method* getMethodFromHotSpotMethod(oop hotspot_method);
 
 
 
-#endif // SHARE_VM_JVMCI_JVMCI_CODE_INSTALLER_HPP
+#endif // SHARE_JVMCI_JVMCICODEINSTALLER_HPP

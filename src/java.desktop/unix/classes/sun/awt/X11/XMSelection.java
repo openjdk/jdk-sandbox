@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,10 +63,10 @@ public class  XMSelection {
     Vector<XMSelectionListener> listeners;
 
     /* X atom array (one per screen) for this selection */
-    XAtom atoms[];
+    XAtom[] atoms;
 
     /* Window ids of selection owners */
-    long owners[];
+    long[] owners;
 
     /* event mask to set */
     long eventMask;
@@ -97,7 +97,15 @@ public class  XMSelection {
         XToolkit.awtLock();
         try {
             long root = XlibWrapper.RootWindow(display,screen);
-            XlibWrapper.XSelectInput(display, root, XConstants.StructureNotifyMask);
+            XWindowAttributes wattr = new XWindowAttributes();
+            try {
+                XlibWrapper.XGetWindowAttributes(display, root, wattr.pData);
+                XlibWrapper.XSelectInput(display, root,
+                        XConstants.StructureNotifyMask |
+                        wattr.get_your_event_mask());
+            } finally {
+                wattr.dispose();
+            }
             XToolkit.addEventDispatcher(root,
                     new XEventDispatcher() {
                         public void dispatchEvent(XEvent ev) {
@@ -200,7 +208,7 @@ public class  XMSelection {
             if (log.isLoggable(PlatformLogger.Level.FINE)) {
                 log.fine("client messags = " + xce);
             }
-            long timestamp = xce.get_data(0);
+            long timestamp = xce.get_data(0) & 0xFFFFFFFFL;
             long atom = xce.get_data(1);
             long owner = xce.get_data(2);
             long data = xce.get_data(3);

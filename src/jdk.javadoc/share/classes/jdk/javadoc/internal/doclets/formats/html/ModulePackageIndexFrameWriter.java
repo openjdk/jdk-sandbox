@@ -37,7 +37,6 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
-import jdk.javadoc.internal.doclets.formats.html.markup.Links;
 import jdk.javadoc.internal.doclets.formats.html.markup.RawHtml;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
@@ -85,15 +84,13 @@ public class ModulePackageIndexFrameWriter extends AbstractModuleIndexWriter {
      * {@inheritDoc}
      */
     protected void addModulePackagesList(Map<ModuleElement, Set<PackageElement>> modules, String text,
-            String tableSummary, Content body, ModuleElement mdle) {
+            String tableSummary, Content main, ModuleElement mdle) {
         Content profNameContent = new StringContent(mdle.getQualifiedName().toString());
         Content heading = HtmlTree.HEADING(HtmlConstants.PACKAGE_HEADING, true,
                 getTargetModuleLink("classFrame", profNameContent, mdle));
         heading.addContent(Contents.SPACE);
         heading.addContent(contents.packagesLabel);
-        HtmlTree htmlTree = (configuration.allowTag(HtmlTag.MAIN))
-                ? HtmlTree.MAIN(HtmlStyle.indexContainer, heading)
-                : HtmlTree.DIV(HtmlStyle.indexContainer, heading);
+        HtmlTree htmlTree = HtmlTree.DIV(HtmlStyle.indexContainer, heading);
         HtmlTree ul = new HtmlTree(HtmlTag.UL);
         ul.setTitle(contents.packagesLabel);
         List<PackageElement> packages = new ArrayList<>(modules.get(mdle));
@@ -103,7 +100,7 @@ public class ModulePackageIndexFrameWriter extends AbstractModuleIndexWriter {
             }
         }
         htmlTree.addContent(ul);
-        body.addContent(htmlTree);
+        main.addContent(htmlTree);
     }
 
     /**
@@ -158,7 +155,7 @@ public class ModulePackageIndexFrameWriter extends AbstractModuleIndexWriter {
     /**
      * {@inheritDoc}
      */
-    protected void addNavigationBarHeader(Content body) {
+    protected void addNavigationBarHeader(Content header) {
         Content headerContent;
         if (configuration.packagesheader.length() > 0) {
             headerContent = new RawHtml(replaceDocRootDir(configuration.packagesheader));
@@ -167,7 +164,7 @@ public class ModulePackageIndexFrameWriter extends AbstractModuleIndexWriter {
         }
         Content heading = HtmlTree.HEADING(HtmlConstants.TITLE_HEADING, true,
                 HtmlStyle.bar, headerContent);
-        body.addContent(heading);
+        header.addContent(heading);
     }
 
     /**
@@ -189,7 +186,10 @@ public class ModulePackageIndexFrameWriter extends AbstractModuleIndexWriter {
      * @param ul the Content object to which the all classes link should be added
      */
     protected void addAllClassesLink(Content ul) {
-        Content linkContent = links.createLink(DocPaths.ALLCLASSES_FRAME,
+        DocPath allClassesFrame = configuration.useModuleDirectories
+                ? DocPaths.DOT_DOT.resolve(DocPaths.ALLCLASSES_FRAME)
+                : DocPaths.ALLCLASSES_FRAME;
+        Content linkContent = links.createLink(allClassesFrame,
                 contents.allClassesLabel, "", "packageFrame");
         Content li = HtmlTree.LI(linkContent);
         ul.addContent(li);
@@ -202,7 +202,10 @@ public class ModulePackageIndexFrameWriter extends AbstractModuleIndexWriter {
      * @param ul the Content object to which the all packages link should be added
      */
     protected void addAllPackagesLink(Content ul) {
-        Content linkContent = links.createLink(DocPaths.OVERVIEW_FRAME,
+        DocPath overviewFrame = configuration.useModuleDirectories
+                ? DocPaths.DOT_DOT.resolve(DocPaths.OVERVIEW_FRAME)
+                : DocPaths.OVERVIEW_FRAME;
+        Content linkContent = links.createLink(overviewFrame,
                 contents.allPackagesLabel, "", "packageListFrame");
         Content li = HtmlTree.LI(linkContent);
         ul.addContent(li);
@@ -215,7 +218,10 @@ public class ModulePackageIndexFrameWriter extends AbstractModuleIndexWriter {
      * @param ul the Content object to which the all modules link should be added
      */
     protected void addAllModulesLink(Content ul) {
-        Content linkContent = links.createLink(DocPaths.MODULE_OVERVIEW_FRAME,
+        DocPath moduleOverviewFrame = configuration.useModuleDirectories
+                ? DocPaths.DOT_DOT.resolve(DocPaths.MODULE_OVERVIEW_FRAME)
+                : DocPaths.MODULE_OVERVIEW_FRAME;
+        Content linkContent = links.createLink(moduleOverviewFrame,
                 contents.allModulesLabel, "", "packageListFrame");
         Content li = HtmlTree.LI(linkContent);
         ul.addContent(li);
@@ -224,8 +230,8 @@ public class ModulePackageIndexFrameWriter extends AbstractModuleIndexWriter {
     /**
      * {@inheritDoc}
      */
-    protected void addNavigationBarFooter(Content body) {
+    protected void addNavigationBarFooter(Content footer) {
         Content p = HtmlTree.P(Contents.SPACE);
-        body.addContent(p);
+        footer.addContent(p);
     }
 }

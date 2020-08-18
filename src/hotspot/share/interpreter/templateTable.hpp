@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_INTERPRETER_TEMPLATETABLE_HPP
-#define SHARE_VM_INTERPRETER_TEMPLATETABLE_HPP
+#ifndef SHARE_INTERPRETER_TEMPLATETABLE_HPP
+#define SHARE_INTERPRETER_TEMPLATETABLE_HPP
 
 #include "interpreter/bytecodes.hpp"
 #include "memory/allocation.hpp"
@@ -36,12 +36,13 @@
 // and the snippet generator, a template is assigned to each bytecode which can be
 // used to generate the bytecode's implementation if needed.
 
+class BarrierSet;
 class InterpreterMacroAssembler;
 
 // A Template describes the properties of a code template for a given bytecode
 // and provides a generator to generate the code template.
 
-class Template VALUE_OBJ_CLASS_SPEC {
+class Template {
  private:
   enum Flags {
     uses_bcp_bit,                                // set if template needs the bcp pointing to bytecode
@@ -356,4 +357,4 @@ class TemplateTable: AllStatic {
 };
 #endif /* !CC_INTERP */
 
-#endif // SHARE_VM_INTERPRETER_TEMPLATETABLE_HPP
+#endif // SHARE_INTERPRETER_TEMPLATETABLE_HPP

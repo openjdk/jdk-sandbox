@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,12 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSMARKSWEEP_HPP
-#define SHARE_VM_GC_PARALLEL_PSMARKSWEEP_HPP
+#ifndef SHARE_GC_PARALLEL_PSMARKSWEEP_HPP
+#define SHARE_GC_PARALLEL_PSMARKSWEEP_HPP
 
 #include "gc/serial/markSweep.hpp"
 #include "gc/shared/collectorCounters.hpp"
+#include "gc/shared/referenceProcessor.hpp"
 #include "utilities/stack.hpp"
 
 class PSAdaptiveSizePolicy;
@@ -38,6 +39,8 @@ class PSMarkSweep : public MarkSweep {
   static elapsedTimer        _accumulated_time;
   static jlong               _time_of_last_gc;   // ms
   static CollectorCounters*  _counters;
+
+  static SpanSubjectToDiscoveryClosure _span_based_discoverer;
 
   // Closure accessors
   static OopClosure* mark_and_push_closure()   { return &MarkSweep::mark_and_push_closure; }
@@ -83,4 +86,4 @@ class PSMarkSweep : public MarkSweep {
   static jlong millis_since_last_gc();
 };
 
-#endif // SHARE_VM_GC_PARALLEL_PSMARKSWEEP_HPP
+#endif // SHARE_GC_PARALLEL_PSMARKSWEEP_HPP

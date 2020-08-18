@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -291,14 +291,15 @@ class LambdaForm {
         LINK_TO_CALL_SITE("linkToCallSite"),
         DIRECT_INVOKE_VIRTUAL("DMH.invokeVirtual", "invokeVirtual"),
         DIRECT_INVOKE_SPECIAL("DMH.invokeSpecial", "invokeSpecial"),
+        DIRECT_INVOKE_SPECIAL_IFC("DMH.invokeSpecialIFC", "invokeSpecialIFC"),
         DIRECT_INVOKE_STATIC("DMH.invokeStatic", "invokeStatic"),
         DIRECT_NEW_INVOKE_SPECIAL("DMH.newInvokeSpecial", "newInvokeSpecial"),
         DIRECT_INVOKE_INTERFACE("DMH.invokeInterface", "invokeInterface"),
         DIRECT_INVOKE_STATIC_INIT("DMH.invokeStaticInit", "invokeStaticInit"),
-        GET_OBJECT("getObject"),
-        PUT_OBJECT("putObject"),
-        GET_OBJECT_VOLATILE("getObjectVolatile"),
-        PUT_OBJECT_VOLATILE("putObjectVolatile"),
+        GET_REFERENCE("getReference"),
+        PUT_REFERENCE("putReference"),
+        GET_REFERENCE_VOLATILE("getReferenceVolatile"),
+        PUT_REFERENCE_VOLATILE("putReferenceVolatile"),
         GET_INT("getInt"),
         PUT_INT("putInt"),
         GET_INT_VOLATILE("getIntVolatile"),

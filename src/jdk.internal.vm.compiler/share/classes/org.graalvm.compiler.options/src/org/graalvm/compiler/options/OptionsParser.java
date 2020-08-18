@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.options;
 
 import java.util.ArrayList;
@@ -28,9 +30,8 @@ import java.util.Formatter;
 import java.util.List;
 import java.util.ServiceLoader;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.MapCursor;
-import org.graalvm.util.CollectionsUtil;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.MapCursor;
 
 /**
  * This class contains methods for parsing Graal options and matching them against a set of
@@ -43,20 +44,21 @@ public class OptionsParser {
      * {@link OptionDescriptors} providers.
      */
     public static Iterable<OptionDescriptors> getOptionsLoader() {
-        ServiceLoader<OptionDescriptors> graalLoader = ServiceLoader.load(OptionDescriptors.class, OptionDescriptors.class.getClassLoader());
         boolean java8OrEarlier = System.getProperty("java.specification.version").compareTo("1.9") < 0;
+        ClassLoader loader;
         if (java8OrEarlier) {
-            return graalLoader;
+            // On JDK 8, Graal and its extensions are loaded by same class loader.
+            loader = OptionDescriptors.class.getClassLoader();
         } else {
             /*
              * The Graal module (i.e., jdk.internal.vm.compiler) is loaded by the platform class
-             * loader on JDK 9. Other modules that extend Graal or are Graal dependencies (such as
-             * Truffle) are supplied via --module-path which means they are loaded by the app class
-             * loader. As such, we need to search the app class loader path as well.
+             * loader as of JDK 9. Modules that depend on and extend Graal are loaded by the app
+             * class loader. As such, we need to start the provider search at the app class loader
+             * instead of the platform class loader.
              */
-            ServiceLoader<OptionDescriptors> truffleLoader = ServiceLoader.load(OptionDescriptors.class, ClassLoader.getSystemClassLoader());
-            return CollectionsUtil.concat(graalLoader, truffleLoader);
+            loader = ClassLoader.getSystemClassLoader();
         }
+        return ServiceLoader.load(OptionDescriptors.class, loader);
     }
 
     /**
@@ -116,7 +118,7 @@ public class OptionsParser {
      * @param loader source of the available {@link OptionDescriptors}
      * @throws IllegalArgumentException if there's a problem parsing {@code option}
      */
-    static void parseOption(String name, Object uncheckedValue, EconomicMap<OptionKey<?>, Object> values, Iterable<OptionDescriptors> loader) {
+    public static void parseOption(String name, Object uncheckedValue, EconomicMap<OptionKey<?>, Object> values, Iterable<OptionDescriptors> loader) {
 
         OptionDescriptor desc = lookup(loader, name);
         if (desc == null) {
@@ -132,7 +134,7 @@ public class OptionsParser {
             throw new IllegalArgumentException(msg.toString());
         }
 
-        Class<?> optionType = desc.getType();
+        Class<?> optionType = desc.getOptionValueType();
         Object value;
         if (!(uncheckedValue instanceof String)) {
             if (optionType != uncheckedValue.getClass()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2009, 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_ZERO_VM_THREAD_LINUX_ZERO_HPP
-#define OS_CPU_LINUX_ZERO_VM_THREAD_LINUX_ZERO_HPP
+#ifndef OS_CPU_LINUX_ZERO_THREAD_LINUX_ZERO_HPP
+#define OS_CPU_LINUX_ZERO_THREAD_LINUX_ZERO_HPP
 
  private:
   ZeroStack  _zero_stack;
@@ -86,10 +86,7 @@
   }
 
  private:
-  frame pd_last_frame() {
-    assert(has_last_Java_frame(), "must have last_Java_sp() when suspended");
-    return frame(last_Java_fp(), last_Java_sp());
-  }
+  frame pd_last_frame();
 
  public:
   static ByteSize last_Java_fp_offset() {
@@ -113,10 +110,18 @@
     return false; // silence compile warning
   }
 
+  bool pd_get_top_frame_for_profiling(frame* fr_addr,
+                                      void* ucontext,
+                                      bool isInJava) {
+    ShouldNotCallThis();
+    return false; // silence compile warning
+  }
+
+
   // These routines are only used on cpu architectures that
   // have separate register stacks (Itanium).
   static bool register_stack_overflow() { return false; }
   static void enable_register_stack_guard() {}
   static void disable_register_stack_guard() {}
 
-#endif // OS_CPU_LINUX_ZERO_VM_THREAD_LINUX_ZERO_HPP
+#endif // OS_CPU_LINUX_ZERO_THREAD_LINUX_ZERO_HPP

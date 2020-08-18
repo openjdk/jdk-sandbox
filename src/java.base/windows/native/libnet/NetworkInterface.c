@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -202,8 +202,9 @@ int enumInterfaces(JNIEnv *env, netif **netifPP)
 
         JNU_ThrowByName(env, "java/lang/Error",
                 "IP Helper Library GetIfTable function failed");
-
-        return -1;
+        // this different error code is to handle the case when we call
+        // GetIpAddrTable in pure IPv6 environment
+        return -2;
     }
 
     /*
@@ -272,7 +273,7 @@ int enumInterfaces(JNIEnv *env, netif **netifPP)
                 // But in rare case it fails, we allow 'char' to be displayed
                 curr->displayName = (char *)malloc(ifrowP->dwDescrLen + 1);
             } else {
-                curr->displayName = (wchar_t *)malloc(wlen*(sizeof(wchar_t))+1);
+                curr->displayName = (wchar_t *)malloc((wlen+1)*sizeof(wchar_t));
             }
 
             curr->name = (char *)malloc(strlen(dev_name) + 1);
@@ -280,6 +281,7 @@ int enumInterfaces(JNIEnv *env, netif **netifPP)
             if (curr->name == NULL || curr->displayName == NULL) {
                 if (curr->name) free(curr->name);
                 if (curr->displayName) free(curr->displayName);
+                free(curr);
                 curr = NULL;
             }
         }
@@ -314,7 +316,7 @@ int enumInterfaces(JNIEnv *env, netif **netifPP)
                 free(curr);
                 return -1;
             } else {
-                curr->displayName[wlen*(sizeof(wchar_t))] = '\0';
+                ((wchar_t *)curr->displayName)[wlen] = L'\0';
                 curr->dNameIsUnicode = TRUE;
             }
         }
@@ -399,7 +401,9 @@ int enumAddresses_win(JNIEnv *env, netif *netifP, netaddr **netaddrPP)
         }
         JNU_ThrowByName(env, "java/lang/Error",
                 "IP Helper Library GetIpAddrTable function failed");
-        return -1;
+        // this different error code is to handle the case when we call
+        // GetIpAddrTable in pure IPv6 environment
+        return -2;
     }
 
     /*
@@ -556,7 +560,7 @@ jobject createNetworkInterface
      */
     if (netaddrCount < 0) {
         netaddrCount = enumAddresses_win(env, ifs, &netaddrP);
-        if (netaddrCount == -1) {
+        if (netaddrCount < 0) {
             return NULL;
         }
     }
@@ -586,6 +590,10 @@ jobject createNetworkInterface
             /* default ctor will set family to AF_INET */
 
             setInetAddress_addr(env, iaObj, ntohl(addrs->addr.sa4.sin_addr.s_addr));
+            if ((*env)->ExceptionCheck(env)) {
+                free_netaddr(netaddrP);
+                return NULL;
+            }
             if (addrs->mask != -1) {
               ibObj = (*env)->NewObject(env, ni_ibcls, ni_ibctrID);
               if (ibObj == NULL) {
@@ -599,6 +607,10 @@ jobject createNetworkInterface
                 return NULL;
               }
               setInetAddress_addr(env, ia2Obj, ntohl(addrs->brdcast.sa4.sin_addr.s_addr));
+              if ((*env)->ExceptionCheck(env)) {
+                  free_netaddr(netaddrP);
+                  return NULL;
+              }
               (*env)->SetObjectField(env, ibObj, ni_ibbroadcastID, ia2Obj);
               (*env)->SetShortField(env, ibObj, ni_ibmaskID, addrs->mask);
               (*env)->SetObjectArrayElement(env, bindsArr, bind_index++, ibObj);
@@ -609,6 +621,7 @@ jobject createNetworkInterface
             if (iaObj) {
                 jboolean ret = setInet6Address_ipaddress(env, iaObj,  (jbyte *)&(addrs->addr.sa6.sin6_addr.s6_addr));
                 if (ret == JNI_FALSE) {
+                    free_netaddr(netaddrP);
                     return NULL;
                 }
 
@@ -754,8 +767,9 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByInetAddress0
     (JNIEnv *env, jclass cls, jobject iaObj)
 {
     netif *ifList, *curr;
-    jint addr = getInetAddress_addr(env, iaObj);
     jobject netifObj = NULL;
+    jint addr = getInetAddress_addr(env, iaObj);
+    JNU_CHECK_EXCEPTION_RETURN(env, NULL);
 
     // Retained for now to support IPv4 only stack, java.net.preferIPv4Stack
     if (ipv6_available()) {
@@ -823,7 +837,7 @@ JNIEXPORT jobjectArray JNICALL Java_java_net_NetworkInterface_getAll
     (JNIEnv *env, jclass cls)
 {
     int count;
-    netif *ifList, *curr;
+    netif *ifList = NULL, *curr;
     jobjectArray netIFArr;
     jint arr_index;
 
@@ -843,6 +857,7 @@ JNIEXPORT jobjectArray JNICALL Java_java_net_NetworkInterface_getAll
     /* allocate a NetworkInterface array */
     netIFArr = (*env)->NewObjectArray(env, count, cls, NULL);
     if (netIFArr == NULL) {
+        free_netif(ifList);
         return NULL;
     }
 
@@ -857,6 +872,7 @@ JNIEXPORT jobjectArray JNICALL Java_java_net_NetworkInterface_getAll
 
         netifObj = createNetworkInterface(env, curr, -1, NULL);
         if (netifObj == NULL) {
+            free_netif(ifList);
             return NULL;
         }
 

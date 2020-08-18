@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
  * @modules java.base/jdk.internal.misc
  *          jdk.jartool/sun.tools.jar
  * @compile test-classes/ArrayListTest.java
- * @run main DumpClassList
+ * @run driver DumpClassList
  */
 
 import jdk.test.lib.compiler.InMemoryJavaCompiler;
@@ -92,7 +92,6 @@ public class DumpClassList {
 
         output = TestCommon.createArchive(appJar, appClass,
                                           "-Xbootclasspath/a:" + appendJar,
-                                          "-XX:+UnlockDiagnosticVMOptions",
                                           "-Xlog:class+load",
                                           "-XX:SharedClassListFile=" + classList);
         TestCommon.checkDump(output)

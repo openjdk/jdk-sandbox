@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOGTAGSET_HPP
-#define SHARE_VM_LOGGING_LOGTAGSET_HPP
+#ifndef SHARE_LOGGING_LOGTAGSET_HPP
+#define SHARE_LOGGING_LOGTAGSET_HPP
 
 #include "logging/logDecorators.hpp"
 #include "logging/logLevel.hpp"
@@ -36,7 +36,7 @@ class LogMessageBuffer;
 // The tagset represents a combination of tags that occur in a log call somewhere.
 // Tagsets are created automatically by the LogTagSetMappings and should never be
 // instantiated directly somewhere else.
-class LogTagSet VALUE_OBJ_CLASS_SPEC {
+class LogTagSet {
  private:
   static LogTagSet* _list;
   static size_t _ntagsets;
@@ -156,4 +156,4 @@ public:
 template <LogTagType T0, LogTagType T1, LogTagType T2, LogTagType T3, LogTagType T4, LogTagType GuardTag>
 LogTagSet LogTagSetMapping<T0, T1, T2, T3, T4, GuardTag>::_tagset(&LogPrefix<T0, T1, T2, T3, T4>::prefix, T0, T1, T2, T3, T4);
 
-#endif // SHARE_VM_LOGGING_LOGTAGSET_HPP
+#endif // SHARE_LOGGING_LOGTAGSET_HPP

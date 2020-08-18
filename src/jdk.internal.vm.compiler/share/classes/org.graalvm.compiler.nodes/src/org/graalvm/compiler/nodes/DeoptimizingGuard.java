@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,8 +20,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
+import org.graalvm.compiler.graph.NodeSourcePosition;
 import org.graalvm.compiler.nodes.extended.GuardingNode;
 
 /**
@@ -35,4 +38,16 @@ public interface DeoptimizingGuard extends GuardingNode, StaticDeoptimizingNode 
     void setCondition(LogicNode x, boolean negated);
 
     boolean isNegated();
+
+    NodeSourcePosition getNoDeoptSuccessorPosition();
+
+    void setNoDeoptSuccessorPosition(NodeSourcePosition noDeoptSuccessorPosition);
+
+    default void addCallerToNoDeoptSuccessorPosition(NodeSourcePosition caller) {
+        NodeSourcePosition noDeoptSuccessorPosition = getNoDeoptSuccessorPosition();
+        if (noDeoptSuccessorPosition == null) {
+            return;
+        }
+        setNoDeoptSuccessorPosition(new NodeSourcePosition(caller, noDeoptSuccessorPosition.getMethod(), noDeoptSuccessorPosition.getBCI()));
+    }
 }

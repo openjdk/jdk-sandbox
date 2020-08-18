@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -37,11 +35,8 @@
  * @run main BadConstantValue
  */
 
-import com.sun.tools.classfile.Attribute;
 import com.sun.tools.classfile.ClassFile;
 import com.sun.tools.classfile.ClassWriter;
-import com.sun.tools.classfile.ConstantPool.CONSTANT_Integer_info;
-import com.sun.tools.classfile.ConstantValue_attribute;
 import com.sun.tools.classfile.Field;
 import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javac.code.ClassFinder.BadClassFile;
@@ -49,6 +44,7 @@ import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.JCDiagnostic;
+import com.sun.tools.javac.util.Names;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -169,12 +165,11 @@ public class BadConstantValue {
         JavaCompiler c = ToolProvider.getSystemJavaCompiler();
         JavacTaskImpl task = (JavacTaskImpl) c.getTask(null, null, null,
                 Arrays.asList("-classpath", classesdir.getPath()), null, null);
+        Names names = Names.instance(task.getContext());
         Symtab syms = Symtab.instance(task.getContext());
         task.ensureEntered();
-        BadClassFile badClassFile;
         try {
-            com.sun.tools.javac.main.JavaCompiler.instance(task.getContext())
-                    .resolveIdent(syms.unnamedModule, className).complete();
+            syms.enterClass(syms.unnamedModule, names.fromString(className)).complete();
         } catch (BadClassFile e) {
             return e;
         }

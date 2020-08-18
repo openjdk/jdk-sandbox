@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CITYPEFLOW_HPP
-#define SHARE_VM_CI_CITYPEFLOW_HPP
+#ifndef SHARE_CI_CITYPEFLOW_HPP
+#define SHARE_CI_CITYPEFLOW_HPP
 
 #ifdef COMPILER2
 #include "ci/ciEnv.hpp"
@@ -137,7 +137,7 @@ public:
     void print_on(outputStream* st) const PRODUCT_RETURN;
   };
 
-  class LocalSet VALUE_OBJ_CLASS_SPEC {
+  class LocalSet {
   private:
     enum Constants { max = 63 };
     uint64_t _bits;
@@ -724,8 +724,8 @@ public:
 
   public:
     Loop(Block* head, Block* tail) :
-      _head(head),   _tail(tail),
       _parent(NULL), _sibling(NULL), _child(NULL),
+      _head(head),   _tail(tail),
       _irreducible(false), _def_locals() {}
 
     Loop* parent()  const { return _parent; }
@@ -950,4 +950,4 @@ public:
   void rpo_print_on(outputStream* st) const PRODUCT_RETURN;
 };
 
-#endif // SHARE_VM_CI_CITYPEFLOW_HPP
+#endif // SHARE_CI_CITYPEFLOW_HPP

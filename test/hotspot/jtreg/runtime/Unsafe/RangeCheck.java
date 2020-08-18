@@ -46,9 +46,8 @@ public class RangeCheck {
 
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                 true,
-                "-Xmx32m",
+                "-Xmx128m",
                 "--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED",
-                "-XX:-TransmitErrorReport",
                 "-XX:-CreateCoredumpOnCrash",
                 "-XX:-InlineUnsafeOps", // The compiler intrinsics doesn't have the assert
                 DummyClassWithMainRangeCheck.class.getName());
@@ -60,7 +59,7 @@ public class RangeCheck {
     public static class DummyClassWithMainRangeCheck {
         public static void main(String args[]) throws Exception {
             Unsafe unsafe = Unsafe.getUnsafe();
-            unsafe.getObject(new DummyClassWithMainRangeCheck(), Short.MAX_VALUE);
+            unsafe.getReference(new DummyClassWithMainRangeCheck(), Short.MAX_VALUE);
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,43 @@
  * questions.
  */
 
-#ifndef SHARE_VM_JVMCI_JVMCI_COMPILER_TO_VM_HPP
-#define SHARE_VM_JVMCI_JVMCI_COMPILER_TO_VM_HPP
+#ifndef SHARE_JVMCI_JVMCICOMPILERTOVM_HPP
+#define SHARE_JVMCI_JVMCICOMPILERTOVM_HPP
 
 #include "jni.h"
 #include "runtime/javaCalls.hpp"
 #include "jvmci/jvmciJavaClasses.hpp"
+
+// Helper class to ensure that references to Klass* are kept alive for G1
+class JVMCIKlassHandle : public StackObj {
+ private:
+  Klass*     _klass;
+  Handle     _holder;
+  Thread*    _thread;
+
+  Klass*        klass() const                     { return _klass; }
+  Klass*        non_null_klass() const            { assert(_klass != NULL, "resolving NULL _klass"); return _klass; }
+
+ public:
+  /* Constructors */
+  JVMCIKlassHandle (Thread* thread) : _klass(NULL), _thread(thread) {}
+  JVMCIKlassHandle (Thread* thread, Klass* klass);
+
+  JVMCIKlassHandle (const JVMCIKlassHandle &h): _klass(h._klass), _holder(h._holder), _thread(h._thread) {}
+  JVMCIKlassHandle& operator=(const JVMCIKlassHandle &s);
+  JVMCIKlassHandle& operator=(Klass* klass);
+
+  /* Operators for ease of use */
+  Klass*        operator () () const            { return klass(); }
+  Klass*        operator -> () const            { return non_null_klass(); }
+
+  bool    operator == (Klass* o) const          { return klass() == o; }
+  bool    operator == (const JVMCIKlassHandle& h) const  { return klass() == h.klass(); }
+
+  /* Null checks */
+  bool    is_null() const                      { return _klass == NULL; }
+  bool    not_null() const                     { return _klass != NULL; }
+};
 
 class CompilerToVM {
  public:
@@ -60,6 +91,7 @@ class CompilerToVM {
     static HeapWord** _heap_end_addr;
     static HeapWord* volatile* _heap_top_addr;
     static int _max_oop_map_stack_offset;
+    static int _fields_annotations_base_offset;
 
     static jbyte* cardtable_start_address;
     static int cardtable_shift;
@@ -70,7 +102,6 @@ class CompilerToVM {
     static int sizeof_ExceptionTableElement;
     static int sizeof_LocalVariableTableElement;
     static int sizeof_ConstantPool;
-    static int sizeof_SymbolPointer;
     static int sizeof_narrowKlass;
     static int sizeof_arrayOopDesc;
     static int sizeof_BasicLock;
@@ -161,7 +192,7 @@ class CompilerToVM {
 
   static oop get_jvmci_method(const methodHandle& method, TRAPS);
 
-  static oop get_jvmci_type(Klass* klass, TRAPS);
+  static oop get_jvmci_type(JVMCIKlassHandle& klass, TRAPS);
 };
 
 class JavaArgumentUnboxer : public SignatureIterator {
@@ -170,12 +201,7 @@ class JavaArgumentUnboxer : public SignatureIterator {
   arrayOop _args;
   int _index;
 
-  Handle next_arg(BasicType expectedType) {
-    assert(_index < _args->length(), "out of bounds");
-    oop arg=((objArrayOop) (_args))->obj_at(_index++);
-    assert(expectedType == T_OBJECT || java_lang_boxing_object::is_instance(arg, expectedType), "arg type mismatch");
-    return Handle(Thread::current(), arg);
-  }
+  Handle next_arg(BasicType expectedType);
 
  public:
   JavaArgumentUnboxer(Symbol* signature, JavaCallArguments*  jca, arrayOop args, bool is_static) : SignatureIterator(signature) {
@@ -216,4 +242,4 @@ class JNIHandleMark : public StackObj {
     static void pop_jni_handle_block();
 };
 
-#endif // SHARE_VM_JVMCI_JVMCI_COMPILER_TO_VM_HPP
+#endif // SHARE_JVMCI_JVMCICOMPILERTOVM_HPP

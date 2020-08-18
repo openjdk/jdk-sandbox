@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,9 @@ package java.lang.invoke;
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
 
+import java.lang.invoke.VarHandle.VarHandleDesc;
 import java.util.Objects;
+import java.util.Optional;
 
 import static java.lang.invoke.MethodHandleStatics.UNSAFE;
 
@@ -59,6 +61,19 @@ final class VarHandle$Type$s {
         @Override
         final MethodType accessModeTypeUncached(AccessMode accessMode) {
             return accessMode.at.accessModeType(receiverType, {#if[Object]?fieldType:$type$.class});
+        }
+
+        @Override
+        public Optional<VarHandleDesc> describeConstable() {
+            var receiverTypeRef = receiverType.describeConstable();
+            var fieldTypeRef = {#if[Object]?fieldType:$type$.class}.describeConstable();
+            if (!receiverTypeRef.isPresent() || !fieldTypeRef.isPresent())
+                return Optional.empty();
+
+            // Reflect on this VarHandle to extract the field name
+            String name = VarHandles.getFieldFromReceiverAndOffset(
+                receiverType, fieldOffset, {#if[Object]?fieldType:$type$.class}).getName();
+            return Optional.of(VarHandleDesc.ofField(receiverTypeRef.get(), name, fieldTypeRef.get()));
         }
 
         @ForceInline
@@ -321,6 +336,21 @@ final class VarHandle$Type$s {
 #if[Object]
             this.fieldType = fieldType;
 #end[Object]
+        }
+
+        @Override
+        public Optional<VarHandleDesc> describeConstable() {
+            var fieldTypeRef = {#if[Object]?fieldType:$type$.class}.describeConstable();
+            if (!fieldTypeRef.isPresent())
+                return Optional.empty();
+
+            // Reflect on this VarHandle to extract the field name
+            var staticField = VarHandles.getStaticFieldFromBaseAndOffset(
+                base, fieldOffset, {#if[Object]?fieldType:$type$.class});
+            var receiverTypeRef = staticField.getDeclaringClass().describeConstable();
+            if (!receiverTypeRef.isPresent())
+                return Optional.empty();
+            return Optional.of(VarHandleDesc.ofStaticField(receiverTypeRef.get(), staticField.getName(), fieldTypeRef.get()));
         }
 
         @Override
@@ -588,9 +618,40 @@ final class VarHandle$Type$s {
         }
 
         @Override
+        public Optional<VarHandleDesc> describeConstable() {
+            var arrayTypeRef = {#if[Object]?arrayType:$type$[].class}.describeConstable();
+            if (!arrayTypeRef.isPresent())
+                return Optional.empty();
+
+            return Optional.of(VarHandleDesc.ofArray(arrayTypeRef.get()));
+        }
+
+        @Override
         final MethodType accessModeTypeUncached(AccessMode accessMode) {
             return accessMode.at.accessModeType({#if[Object]?arrayType:$type$[].class}, {#if[Object]?arrayType.getComponentType():$type$.class}, int.class);
         }
+
+#if[Object]
+        @ForceInline
+        static Object runtimeTypeCheck(Array handle, Object[] oarray, Object value) {
+            if (handle.arrayType == oarray.getClass()) {
+                // Fast path: static array type same as argument array type
+                return handle.componentType.cast(value);
+            } else {
+                // Slow path: check value against argument array component type
+                return reflectiveTypeCheck(oarray, value);
+            }
+        }
+
+        @ForceInline
+        static Object reflectiveTypeCheck(Object[] oarray, Object value) {
+            try {
+                return oarray.getClass().getComponentType().cast(value);
+            } catch (ClassCastException e) {
+                throw new ArrayStoreException();
+            }
+        }
+#end[Object]
 
         @ForceInline
         static $type$ get(Array handle, Object oarray, int index) {
@@ -632,7 +693,7 @@ final class VarHandle$Type$s {
 #end[Object]
             UNSAFE.put$Type$Volatile(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -655,7 +716,7 @@ final class VarHandle$Type$s {
 #end[Object]
             UNSAFE.put$Type$Opaque(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -678,7 +739,7 @@ final class VarHandle$Type$s {
 #end[Object]
             UNSAFE.put$Type$Release(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 #if[CAS]
 
@@ -692,7 +753,7 @@ final class VarHandle$Type$s {
             return UNSAFE.compareAndSet$Type$(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
                     {#if[Object]?handle.componentType.cast(expected):expected},
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -705,7 +766,7 @@ final class VarHandle$Type$s {
             return UNSAFE.compareAndExchange$Type$(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
                     {#if[Object]?handle.componentType.cast(expected):expected},
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -718,7 +779,7 @@ final class VarHandle$Type$s {
             return UNSAFE.compareAndExchange$Type$Acquire(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
                     {#if[Object]?handle.componentType.cast(expected):expected},
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -731,7 +792,7 @@ final class VarHandle$Type$s {
             return UNSAFE.compareAndExchange$Type$Release(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
                     {#if[Object]?handle.componentType.cast(expected):expected},
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -744,7 +805,7 @@ final class VarHandle$Type$s {
             return UNSAFE.weakCompareAndSet$Type$Plain(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
                     {#if[Object]?handle.componentType.cast(expected):expected},
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -757,7 +818,7 @@ final class VarHandle$Type$s {
             return UNSAFE.weakCompareAndSet$Type$(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
                     {#if[Object]?handle.componentType.cast(expected):expected},
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -770,7 +831,7 @@ final class VarHandle$Type$s {
             return UNSAFE.weakCompareAndSet$Type$Acquire(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
                     {#if[Object]?handle.componentType.cast(expected):expected},
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -783,7 +844,7 @@ final class VarHandle$Type$s {
             return UNSAFE.weakCompareAndSet$Type$Release(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
                     {#if[Object]?handle.componentType.cast(expected):expected},
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -795,7 +856,7 @@ final class VarHandle$Type$s {
 #end[Object]
             return UNSAFE.getAndSet$Type$(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -807,7 +868,7 @@ final class VarHandle$Type$s {
 #end[Object]
             return UNSAFE.getAndSet$Type$Acquire(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 
         @ForceInline
@@ -819,7 +880,7 @@ final class VarHandle$Type$s {
 #end[Object]
             return UNSAFE.getAndSet$Type$Release(array,
                     (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
-                    {#if[Object]?handle.componentType.cast(value):value});
+                    {#if[Object]?runtimeTypeCheck(handle, array, value):value});
         }
 #end[CAS]
 #if[AtomicAdd]

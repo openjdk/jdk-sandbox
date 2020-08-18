@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,10 +46,11 @@ import jdk.test.lib.hprof.parser.HprofReader;
 import jdk.test.lib.hprof.parser.PositionDataInputStream;
 import jdk.test.lib.hprof.model.Snapshot;
 
-/*
+/**
  * @test
  * @library /test/lib
- * @requires os.family != "mac"
+ * @requires vm.hasSAandCanAttach & os.family != "mac"
+ * @requires vm.gc != "Z"
  * @modules java.base/jdk.internal.misc
  *          jdk.hotspot.agent/sun.jvm.hotspot
  *          jdk.hotspot.agent/sun.jvm.hotspot.utilities
@@ -115,12 +116,6 @@ public class TestHeapDumpForInvokeDynamic {
 
         String heapDumpFileName = "lambdaHeapDump.bin";
 
-        if (!Platform.shouldSAAttach()) {
-            System.out.println(
-               "SA attach not expected to work - test skipped.");
-            return;
-        }
-
         File heapDumpFile = new File(heapDumpFileName);
         if (heapDumpFile.exists()) {
             heapDumpFile.delete();
@@ -129,6 +124,7 @@ public class TestHeapDumpForInvokeDynamic {
         try {
             List<String> vmArgs = new ArrayList<String>();
             vmArgs.add("-XX:+UsePerfData");
+            vmArgs.add("-Xmx512m");
             vmArgs.addAll(Utils.getVmOptions());
 
             theApp = new LingeredAppWithInvokeDynamic();

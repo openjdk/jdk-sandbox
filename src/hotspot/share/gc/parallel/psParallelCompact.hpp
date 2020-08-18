@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSPARALLELCOMPACT_HPP
-#define SHARE_VM_GC_PARALLEL_PSPARALLELCOMPACT_HPP
+#ifndef SHARE_GC_PARALLEL_PSPARALLELCOMPACT_HPP
+#define SHARE_GC_PARALLEL_PSPARALLELCOMPACT_HPP
 
 #include "gc/parallel/mutableSpace.hpp"
 #include "gc/parallel/objectStartArray.hpp"
@@ -934,35 +934,6 @@ class PSParallelCompact : AllStatic {
     virtual bool do_object_b(oop p);
   };
 
-  class AdjustPointerClosure: public ExtendedOopClosure {
-   public:
-    AdjustPointerClosure(ParCompactionManager* cm) {
-      assert(cm != NULL, "associate ParCompactionManage should not be NULL");
-      _cm = cm;
-    }
-    template <typename T> void do_oop_nv(T* p);
-    virtual void do_oop(oop* p);
-    virtual void do_oop(narrowOop* p);
-
-    // This closure provides its own oop verification code.
-    debug_only(virtual bool should_verify_oops() { return false; })
-   private:
-    ParCompactionManager* _cm;
-  };
-
-  class AdjustKlassClosure : public KlassClosure {
-   public:
-    AdjustKlassClosure(ParCompactionManager* cm) {
-      assert(cm != NULL, "associate ParCompactionManage should not be NULL");
-      _cm = cm;
-    }
-    void do_klass(Klass* klass);
-   private:
-    ParCompactionManager* _cm;
-  };
-
-  friend class AdjustPointerClosure;
-  friend class AdjustKlassClosure;
   friend class RefProcTaskProxy;
   friend class PSParallelCompactTest;
 
@@ -980,6 +951,7 @@ class PSParallelCompact : AllStatic {
   static SpaceInfo            _space_info[last_space_id];
 
   // Reference processing (used in ...follow_contents)
+  static SpanSubjectToDiscoveryClosure  _span_based_discoverer;
   static ReferenceProcessor*  _ref_processor;
 
   // Values computed at initialization and used by dead_wood_limiter().
@@ -1329,4 +1301,4 @@ class FillClosure: public ParMarkBitMapClosure {
   ObjectStartArray* const _start_array;
 };
 
-#endif // SHARE_VM_GC_PARALLEL_PSPARALLELCOMPACT_HPP
+#endif // SHARE_GC_PARALLEL_PSPARALLELCOMPACT_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_PRESERVEDMARKS_HPP
-#define SHARE_VM_GC_SHARED_PRESERVEDMARKS_HPP
+#ifndef SHARE_GC_SHARED_PRESERVEDMARKS_HPP
+#define SHARE_GC_SHARED_PRESERVEDMARKS_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/padded.hpp"
@@ -33,9 +33,9 @@
 class PreservedMarksSet;
 class WorkGang;
 
-class PreservedMarks VALUE_OBJ_CLASS_SPEC {
+class PreservedMarks {
 private:
-  class OopAndMarkOop VALUE_OBJ_CLASS_SPEC {
+  class OopAndMarkOop {
   private:
     oop _o;
     markOop _m;
@@ -44,7 +44,7 @@ private:
     OopAndMarkOop(oop obj, markOop m) : _o(obj), _m(m) { }
 
     oop get_oop() { return _o; }
-    void set_mark() const { _o->set_mark(_m); }
+    inline void set_mark() const;
     void set_oop(oop obj) { _o = obj; }
   };
   typedef Stack<OopAndMarkOop, mtGC> OopAndMarkOopStack;
@@ -146,4 +146,4 @@ public:
   }
 };
 
-#endif // SHARE_VM_GC_SHARED_PRESERVEDMARKS_HPP
+#endif // SHARE_GC_SHARED_PRESERVEDMARKS_HPP

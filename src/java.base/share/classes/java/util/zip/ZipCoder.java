@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,8 +41,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 class ZipCoder {
 
-    private static final jdk.internal.misc.JavaLangAccess JLA =
-        jdk.internal.misc.SharedSecrets.getJavaLangAccess();
+    private static final jdk.internal.access.JavaLangAccess JLA =
+        jdk.internal.access.SharedSecrets.getJavaLangAccess();
 
     static final class UTF8 extends ZipCoder {
 
@@ -77,8 +77,7 @@ class ZipCoder {
 
     String toString(byte[] ba, int off, int length) {
         try {
-              return decoder().decode(ByteBuffer.wrap(ba, off, length)).toString();
-
+            return decoder().decode(ByteBuffer.wrap(ba, off, length)).toString();
         } catch (CharacterCodingException x) {
             throw new IllegalArgumentException(x);
         }

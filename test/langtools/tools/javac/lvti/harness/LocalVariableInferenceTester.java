@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -56,8 +54,18 @@ import static javax.tools.StandardLocation.SOURCE_PATH;
 
 public class LocalVariableInferenceTester {
 
-    static final JavaCompiler comp = ToolProvider.getSystemJavaCompiler();
-    static final StandardJavaFileManager fm = comp.getStandardFileManager(null, null, null);
+    static final StandardJavaFileManager fm;
+
+    static {
+        final JavaCompiler comp = ToolProvider.getSystemJavaCompiler();
+        fm = comp.getStandardFileManager(null, null, null);
+        File destDir = new File(System.getProperty("user.dir"));
+        try {
+            fm.setLocation(javax.tools.StandardLocation.CLASS_OUTPUT, Arrays.asList(destDir));
+        } catch (IOException ex) {
+            throw new AssertionError(ex);
+        }
+    }
 
     public static void main(String[] args) throws IOException {
         try {
@@ -80,12 +88,16 @@ public class LocalVariableInferenceTester {
 
     void compileAndCheck(JavaFileObject input) throws IOException {
         JavaCompiler c = ToolProvider.getSystemJavaCompiler();
-        JavacTask task = (JavacTask) c.getTask(null, fm, null, null, null, Arrays.asList(input));
+        JavacTask task = (JavacTask) c.getTask(null, fm, null, Arrays.asList("-g"), null, Arrays.asList(input));
         JavacTrees trees = JavacTrees.instance(task);
         Types types = Types.instance(((JavacTaskImpl)task).getContext());
         Iterable<? extends CompilationUnitTree> roots = task.parse();
-        task.analyze(); //force attribution
         Log log = Log.instance(((JavacTaskImpl)task).getContext());
+        //force code generation (to shake out non-denotable issues)
+        boolean hasClasses = task.generate().iterator().hasNext();
+        if (!hasClasses) {
+            throw new AssertionError("Errors occurred during compilation!");
+        }
         errors += log.nerrors;
         new LocalVarTypeChecker(trees, types).scan(roots, null);
         System.err.println("Checks executed: " + checks);

@@ -27,14 +27,9 @@
 #include "precompiled.hpp"
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
-#include "runtime/stubRoutines.hpp"
 #include "macroAssembler_x86.hpp"
-
-#ifdef _MSC_VER
-#define ALIGNED_(x) __declspec(align(x))
-#else
-#define ALIGNED_(x) __attribute__ ((aligned(x)))
-#endif
+#include "runtime/stubRoutines.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 /******************************************************************************/
 //                     ALGORITHM DESCRIPTION - COS()
@@ -181,7 +176,7 @@
 
 #ifdef _LP64
 // The 64 bit code is at most SSE2 compliant
-ALIGNED_(8) juint _ONE[] =
+ATTRIBUTE_ALIGNED(8) juint _ONE[] =
 {
     0x00000000UL, 0x3ff00000UL
 };
@@ -190,7 +185,7 @@ void MacroAssembler::fast_cos(XMMRegister xmm0, XMMRegister xmm1, XMMRegister xm
   Label L_2TAG_PACKET_0_0_1, L_2TAG_PACKET_1_0_1, L_2TAG_PACKET_2_0_1, L_2TAG_PACKET_3_0_1;
   Label L_2TAG_PACKET_4_0_1, L_2TAG_PACKET_5_0_1, L_2TAG_PACKET_6_0_1, L_2TAG_PACKET_7_0_1;
   Label L_2TAG_PACKET_8_0_1, L_2TAG_PACKET_9_0_1, L_2TAG_PACKET_10_0_1, L_2TAG_PACKET_11_0_1;
-  Label L_2TAG_PACKET_12_0_1, L_2TAG_PACKET_13_0_1, B1_2, B1_3, B1_4, B1_5, start;
+  Label L_2TAG_PACKET_12_0_1, L_2TAG_PACKET_13_0_1, B1_2, B1_4, start;
 
   assert_different_registers(r8, r9, r10, r11, eax, ecx, edx);
 
@@ -636,7 +631,7 @@ void MacroAssembler::fast_cos(XMMRegister xmm0, XMMRegister xmm1, XMMRegister xm
 #else
 // The 32 bit code is at most SSE2 compliant
 
-ALIGNED_(16) juint _static_const_table_cos[] =
+ATTRIBUTE_ALIGNED(16) juint _static_const_table_cos[] =
 {
     0x00000000UL, 0x00000000UL, 0x00000000UL, 0x00000000UL, 0x00000000UL,
     0x00000000UL, 0x00000000UL, 0x3ff00000UL, 0x176d6d31UL, 0xbf73b92eUL,
@@ -761,9 +756,7 @@ ALIGNED_(16) juint _static_const_table_cos[] =
 
 void MacroAssembler::fast_cos(XMMRegister xmm0, XMMRegister xmm1, XMMRegister xmm2, XMMRegister xmm3, XMMRegister xmm4, XMMRegister xmm5, XMMRegister xmm6, XMMRegister xmm7, Register eax, Register ecx, Register edx, Register tmp) {
   Label L_2TAG_PACKET_0_0_2, L_2TAG_PACKET_1_0_2, L_2TAG_PACKET_2_0_2, L_2TAG_PACKET_3_0_2;
-  Label L_2TAG_PACKET_4_0_2, L_2TAG_PACKET_5_0_2, L_2TAG_PACKET_6_0_2, L_2TAG_PACKET_7_0_2;
-  Label L_2TAG_PACKET_8_0_2, L_2TAG_PACKET_9_0_2, L_2TAG_PACKET_10_0_2, L_2TAG_PACKET_11_0_2;
-  Label L_2TAG_PACKET_12_0_2, L_2TAG_PACKET_13_0_2, B1_3, B1_5, start;
+  Label start;
 
   assert_different_registers(tmp, eax, ecx, edx);
 

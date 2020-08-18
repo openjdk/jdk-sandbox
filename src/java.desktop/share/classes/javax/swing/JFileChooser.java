@@ -57,7 +57,7 @@ import java.lang.ref.WeakReference;
  * choose a file.
  * For information about using <code>JFileChooser</code>, see
  * <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/filechooser.html">How to Use File Choosers</a>,
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/filechooser.html">How to Use File Choosers</a>,
  * a section in <em>The Java Tutorial</em>.
  *
  * <p>
@@ -861,7 +861,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @since 1.3
      */
     @BeanProperty(preferred = true, description
-            = "Sets whether the approve &amp; cancel buttons are shown.")
+            = "Sets whether the approve & cancel buttons are shown.")
     public void setControlButtonsAreShown(boolean b) {
         if(controlsShown == b) {
             return;
@@ -1838,7 +1838,7 @@ public class JFileChooser extends JComponent implements Accessible {
      * @see UIDefaults#getUI
      */
     @BeanProperty(bound = false, expert = true, description
-            = "A string that specifies the name of the L&amp;F class.")
+            = "A string that specifies the name of the L&F class.")
     public String getUIClassID() {
         return uiClassID;
     }

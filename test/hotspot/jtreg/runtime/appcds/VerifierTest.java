@@ -46,6 +46,9 @@ public class VerifierTest implements Opcodes {
         "shared archive file was created with less restrictive verification setting";
     static final String VFY_ERR = "java.lang.VerifyError";
     static final String PASS_RESULT = "Hi, how are you?";
+    static final String VFY_INFO_MESSAGE =
+        "All non-system classes will be verified (-Xverify:remote) during CDS dump time.";
+    static final String CDS_LOGGING = "-Xlog:cds,cds+hashtables";
 
     enum Testset1Part {
         A, B
@@ -99,16 +102,17 @@ public class VerifierTest implements Opcodes {
     }
 
     static void testset_0(String jar, String[] noAppClasses, String[] appClasses) throws Exception {
-        // Dumping should fail if the IgnoreUnverifiableClassesDuringDump
-        // option is not enabled.
-        OutputAnalyzer output = TestCommon.dump(jar, appClasses,
-                            "-XX:+UnlockDiagnosticVMOptions",
-                            "-XX:-IgnoreUnverifiableClassesDuringDump");
-        output.shouldContain("Please remove the unverifiable classes");
-        output.shouldHaveExitValue(1);
-
-        // By default, bad classes should be ignored during dumping.
-        TestCommon.testDump(jar, appClasses);
+        // Unverifiable classes won't be included in the CDS archive.
+        // Dumping should not fail.
+        OutputAnalyzer output = TestCommon.dump(jar, appClasses);
+        output.shouldHaveExitValue(0);
+        if (output.getStdout().contains("Loading clases to share")) {
+            // last entry in appClasses[] is a verifiable class
+            for (int i = 0; i < (appClasses.length - 1); i++) {
+                output.shouldContain("Verification failed for " + appClasses[i]);
+                output.shouldContain("Removed error class: " + appClasses[i]);
+            }
+        }
     }
 
     static void checkRuntimeOutput(OutputAnalyzer output, String expected) throws Exception {
@@ -137,7 +141,7 @@ public class VerifierTest implements Opcodes {
             {"app",   VFY_ALL,    VFY_ALL,    VFY_ERR },
             {"app",   VFY_ALL,    VFY_NONE,   ERR },
             // Dump app/ext with -Xverify:none
-            {"app",   VFY_NONE,   VFY_REMOTE, MAP_FAIL},
+            {"app",   VFY_NONE,   VFY_REMOTE, VFY_ERR},
             {"app",   VFY_NONE,   VFY_ALL,    MAP_FAIL},
             {"app",   VFY_NONE,   VFY_NONE,   ERR },
             // Dump sys only with -Xverify:remote
@@ -184,10 +188,15 @@ public class VerifierTest implements Opcodes {
             if (!dump_setting.equals(prev_dump_setting)) {
                 OutputAnalyzer dumpOutput = TestCommon.dump(
                                                             jar, dump_list, dump_setting,
+                                                            CDS_LOGGING,
                                                             // FIXME: the following options are for working around a GC
                                                             // issue - assert failure when dumping archive with the -Xverify:all
                                                             "-Xms256m",
                                                             "-Xmx256m");
+                if (dump_setting.equals(VFY_NONE) &&
+                    runtime_setting.equals(VFY_REMOTE)) {
+                    dumpOutput.shouldContain(VFY_INFO_MESSAGE);
+                }
             }
             TestCommon.run("-cp", jar,
                            runtime_setting,
@@ -221,10 +230,11 @@ public class VerifierTest implements Opcodes {
             {"app",   VFY_ALL,    VFY_ALL,    PASS_RESULT },
             {"app",   VFY_ALL,    VFY_NONE,   PASS_RESULT },
             // Dump app/ext with -Xverify:none
-            {"app",   VFY_NONE,   VFY_REMOTE, MAP_FAIL},
+            {"app",   VFY_NONE,   VFY_REMOTE, PASS_RESULT},
             {"app",   VFY_NONE,   VFY_ALL,    MAP_FAIL},
             {"app",   VFY_NONE,   VFY_NONE,   PASS_RESULT },
         };
+        String prev_dump_setting = "";
         for (int i = 0; i < config2.length; i ++) {
             // config2[i][0] is always set to "app" in this test
             String dump_setting = config2[i][1];
@@ -233,17 +243,24 @@ public class VerifierTest implements Opcodes {
             System.out.println("Test case [" + i + "]: dumping " + config2[i][0] +
                                " with " + dump_setting +
                                ", run with " + runtime_setting);
-            OutputAnalyzer dumpOutput = TestCommon.dump(
-                                                        jar, appClasses, dump_setting,
-                                                        "-XX:+UnlockDiagnosticVMOptions",
-                                                        // FIXME: the following options are for working around a GC
-                                                        // issue - assert failure when dumping archive with the -Xverify:all
-                                                        "-Xms256m",
-                                                        "-Xmx256m");
+            if (!dump_setting.equals(prev_dump_setting)) {
+                OutputAnalyzer dumpOutput = TestCommon.dump(
+                                                            jar, appClasses, dump_setting,
+                                                            CDS_LOGGING,
+                                                            // FIXME: the following options are for working around a GC
+                                                            // issue - assert failure when dumping archive with the -Xverify:all
+                                                            "-Xms256m",
+                                                            "-Xmx256m");
+                if (dump_setting.equals(VFY_NONE) &&
+                    runtime_setting.equals(VFY_REMOTE)) {
+                    dumpOutput.shouldContain(VFY_INFO_MESSAGE);
+                }
+            }
             TestCommon.run("-cp", jar,
                            runtime_setting,
                            "Hi")
                 .ifNoMappingFailure(output -> checkRuntimeOutput(output, expected_output_str));
+           prev_dump_setting = dump_setting;
         }
     }
 

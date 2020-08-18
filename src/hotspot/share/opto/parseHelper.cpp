@@ -437,9 +437,9 @@ void Parse::set_md_flag_at(ciMethodData* md, ciProfileData* data, int flag_const
   Node* adr_node = method_data_addressing(md, data, DataLayout::flags_offset());
 
   const TypePtr* adr_type = _gvn.type(adr_node)->is_ptr();
-  Node* flags = make_load(NULL, adr_node, TypeInt::BYTE, T_BYTE, adr_type, MemNode::unordered);
+  Node* flags = make_load(NULL, adr_node, TypeInt::INT, T_INT, adr_type, MemNode::unordered);
   Node* incr = _gvn.transform(new OrINode(flags, _gvn.intcon(flag_constant)));
-  store_to_memory(NULL, adr_node, incr, T_BYTE, adr_type, MemNode::unordered);
+  store_to_memory(NULL, adr_node, incr, T_INT, adr_type, MemNode::unordered);
 }
 
 //----------------------------profile_taken_branch-----------------------------
@@ -471,15 +471,15 @@ void Parse::profile_taken_branch(int target_bci, bool force_update) {
     if (osr_site) {
       ciProfileData* data = md->bci_to_data(cur_bci);
       assert(data != NULL && data->is_JumpData(), "need JumpData for taken branch");
-      int limit = (CompileThreshold
-                   * (OnStackReplacePercentage - InterpreterProfilePercentage)) / 100;
+      int limit = (int)((int64_t)CompileThreshold
+                   * (OnStackReplacePercentage - InterpreterProfilePercentage) / 100);
       test_for_osr_md_counter_at(md, data, JumpData::taken_offset(), limit);
     }
   } else {
     // With method data update off, use the invocation counter to trigger an
     // OSR compilation, as done in the interpreter.
     if (osr_site) {
-      int limit = (CompileThreshold * OnStackReplacePercentage) / 100;
+      int limit = (int)((int64_t)CompileThreshold * OnStackReplacePercentage / 100);
       increment_and_test_invocation_counter(limit);
     }
   }

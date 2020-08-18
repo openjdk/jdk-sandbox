@@ -102,9 +102,9 @@ import sun.awt.SunToolkit;
  *
  * <li>Moving the focus from one component to another.
  * <br>For more information, see
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html#transferTiming">Timing
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html#transferTiming">Timing
  * Focus Transfers</a>, a section in
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/">The Swing
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/">The Swing
  * Tutorial</a>.
  *
  * <li>Making a top-level container visible.
@@ -678,11 +678,6 @@ public abstract class Toolkit {
      * If the connection to the specified URL requires
      * either {@code URLPermission} or {@code SocketPermission},
      * then {@code URLPermission} is used for security checks.
-     * For compatibility with pre-1.2 security managers, if the access
-     * is denied with {@code FilePermission} or {@code SocketPermission},
-     * the method throws the {@code SecurityException}
-     * if the corresponding 1.1-style SecurityManager.checkXXX method
-     * also denies permission.
      * @param     url   the URL to use in fetching the pixel data.
      * @return    an image which gets its pixel data from
      *                         the specified URL.
@@ -724,11 +719,6 @@ public abstract class Toolkit {
      * If the connection to the specified URL requires
      * either {@code URLPermission} or {@code SocketPermission},
      * then {@code URLPermission} is used for security checks.
-     * For compatibility with pre-1.2 security managers, if the access
-     * is denied with {@code FilePermission} or {@code SocketPermission},
-     * the method throws {@code SecurityException}
-     * if the corresponding 1.1-style SecurityManager.checkXXX method
-     * also denies permission.
      * @param     url   the URL to use in fetching the pixel data.
      * @return    an image which gets its pixel data from
      *                         the specified URL.

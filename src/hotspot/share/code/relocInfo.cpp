@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,8 @@
 #include "code/nmethod.hpp"
 #include "code/relocInfo.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/compressedOops.inline.hpp"
+#include "runtime/flags/flagSetting.hpp"
 #include "runtime/stubCodeGenerator.hpp"
 #include "utilities/copy.hpp"
 #include "oops/oop.inline.hpp"
@@ -307,7 +309,7 @@ void Relocation::set_value(address x) {
 void Relocation::const_set_data_value(address x) {
 #ifdef _LP64
   if (format() == relocInfo::narrow_oop_in_const) {
-    *(narrowOop*)addr() = oopDesc::encode_heap_oop((oop) x);
+    *(narrowOop*)addr() = CompressedOops::encode((oop) x);
   } else {
 #endif
     *(address*)addr() = x;
@@ -319,7 +321,7 @@ void Relocation::const_set_data_value(address x) {
 void Relocation::const_verify_data_value(address x) {
 #ifdef _LP64
   if (format() == relocInfo::narrow_oop_in_const) {
-    guarantee(*(narrowOop*)addr() == oopDesc::encode_heap_oop((oop) x), "must agree");
+    guarantee(*(narrowOop*)addr() == CompressedOops::encode((oop) x), "must agree");
   } else {
 #endif
     guarantee(*(address*)addr() == x, "must agree");
@@ -572,7 +574,7 @@ oop* oop_Relocation::oop_addr() {
 oop oop_Relocation::oop_value() {
   oop v = *oop_addr();
   // clean inline caches store a special pseudo-null
-  if (v == (oop)Universe::non_oop_word())  v = NULL;
+  if (v == Universe::non_oop_word())  v = NULL;
   return v;
 }
 
@@ -642,12 +644,12 @@ Method* virtual_call_Relocation::method_value() {
   return (Method*)m;
 }
 
-void virtual_call_Relocation::clear_inline_cache() {
+bool virtual_call_Relocation::clear_inline_cache() {
   // No stubs for ICs
   // Clean IC
   ResourceMark rm;
   CompiledIC* icache = CompiledIC_at(this);
-  icache->set_to_clean();
+  return icache->set_to_clean();
 }
 
 
@@ -670,14 +672,19 @@ Method* opt_virtual_call_Relocation::method_value() {
   return (Method*)m;
 }
 
-void opt_virtual_call_Relocation::clear_inline_cache() {
+template<typename CompiledICorStaticCall>
+static bool set_to_clean_no_ic_refill(CompiledICorStaticCall* ic) {
+  guarantee(ic->set_to_clean(), "Should not need transition stubs");
+  return true;
+}
+
+bool opt_virtual_call_Relocation::clear_inline_cache() {
   // No stubs for ICs
   // Clean IC
   ResourceMark rm;
   CompiledIC* icache = CompiledIC_at(this);
-  icache->set_to_clean();
+  return set_to_clean_no_ic_refill(icache);
 }
-
 
 address opt_virtual_call_Relocation::static_stub(bool is_aot) {
   // search for the static stub who points back to this static call
@@ -713,10 +720,10 @@ void static_call_Relocation::unpack_data() {
   _method_index = unpack_1_int();
 }
 
-void static_call_Relocation::clear_inline_cache() {
+bool static_call_Relocation::clear_inline_cache() {
   // Safe call site info
   CompiledStaticCall* handler = this->code()->compiledStaticCall_at(this);
-  handler->set_to_clean();
+  return set_to_clean_no_ic_refill(handler);
 }
 
 
@@ -755,10 +762,11 @@ address trampoline_stub_Relocation::get_trampoline_for(address call, nmethod* co
   return NULL;
 }
 
-void static_stub_Relocation::clear_inline_cache() {
+bool static_stub_Relocation::clear_inline_cache() {
   // Call stub is only used when calling the interpreted code.
   // It does not really need to be cleared, except that we want to clean out the methodoop.
   CompiledDirectStaticCall::set_stub_to_clean(this);
+  return true;
 }
 
 

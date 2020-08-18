@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+import jdk.test.lib.Platform;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -713,10 +715,10 @@ public class KDC {
     /**
      * Returns a KerberosTime.
      *
-     * @param offset offset from NOW in milliseconds
+     * @param offset offset from NOW in seconds
      */
-    private static KerberosTime timeFor(long offset) {
-        return new KerberosTime(new Date().getTime() + offset);
+    private static KerberosTime timeAfter(int offset) {
+        return new KerberosTime(new Date().getTime() + offset * 1000L);
     }
 
     /**
@@ -832,12 +834,12 @@ public class KDC {
             KerberosTime from = body.from;
             KerberosTime till = body.till;
             if (from == null || from.isZero()) {
-                from = timeFor(0);
+                from = timeAfter(0);
             }
             if (till == null) {
                 throw new KrbException(Krb5.KDC_ERR_NEVER_VALID); // TODO
             } else if (till.isZero()) {
-                till = timeFor(1000 * DEFAULT_LIFETIME);
+                till = timeAfter(DEFAULT_LIFETIME);
             }
 
             boolean[] bFlags = new boolean[Krb5.TKT_OPTS_MAX+1];
@@ -863,7 +865,7 @@ public class KDC {
             }
             if (body.kdcOptions.get(KDCOptions.RENEWABLE)) {
                 bFlags[Krb5.TKT_OPTS_RENEWABLE] = true;
-                //renew = timeFor(1000 * 3600 * 24 * 7);
+                //renew = timeAfter(3600 * 24 * 7);
             }
             if (body.kdcOptions.get(KDCOptions.PROXIABLE)) {
                 bFlags[Krb5.TKT_OPTS_PROXIABLE] = true;
@@ -933,7 +935,7 @@ public class KDC {
                     key,
                     cname,
                     new TransitedEncoding(1, new byte[0]),  // TODO
-                    timeFor(0),
+                    timeAfter(0),
                     from,
                     till, renewTill,
                     body.addresses != null ? body.addresses
@@ -952,13 +954,13 @@ public class KDC {
             EncTGSRepPart enc_part = new EncTGSRepPart(
                     key,
                     new LastReq(new LastReqEntry[] {
-                        new LastReqEntry(0, timeFor(-10000))
+                        new LastReqEntry(0, timeAfter(-10))
                     }),
                     body.getNonce(),    // TODO: detect replay
-                    timeFor(1000 * 3600 * 24),
+                    timeAfter(3600 * 24),
                     // Next 5 and last MUST be same with ticket
                     tFlags,
-                    timeFor(0),
+                    timeAfter(0),
                     from,
                     till, renewTill,
                     service,
@@ -986,7 +988,7 @@ public class KDC {
                     + " " +ke.returnCodeMessage());
             if (kerr == null) {
                 kerr = new KRBError(null, null, null,
-                        timeFor(0),
+                        timeAfter(0),
                         0,
                         ke.returnCode(),
                         body.cname,
@@ -1059,20 +1061,21 @@ public class KDC {
             KerberosTime till = body.till;
             KerberosTime rtime = body.rtime;
             if (from == null || from.isZero()) {
-                from = timeFor(0);
+                from = timeAfter(0);
             }
             if (till == null) {
                 throw new KrbException(Krb5.KDC_ERR_NEVER_VALID); // TODO
             } else if (till.isZero()) {
-                till = timeFor(1000 * DEFAULT_LIFETIME);
-            } else if (till.greaterThan(timeFor(24 * 3600 * 1000))) {
+                till = timeAfter(DEFAULT_LIFETIME);
+            } else if (till.greaterThan(timeAfter(24 * 3600))
+                     && System.getProperty("test.kdc.force.till") == null) {
                 // If till is more than 1 day later, make it renewable
-                till = timeFor(1000 * DEFAULT_LIFETIME);
+                till = timeAfter(DEFAULT_LIFETIME);
                 body.kdcOptions.set(KDCOptions.RENEWABLE, true);
                 if (rtime == null) rtime = till;
             }
             if (rtime == null && body.kdcOptions.get(KDCOptions.RENEWABLE)) {
-                rtime = timeFor(1000 * DEFAULT_RENEWTIME);
+                rtime = timeAfter(DEFAULT_RENEWTIME);
             }
             //body.from
             boolean[] bFlags = new boolean[Krb5.TKT_OPTS_MAX+1];
@@ -1088,7 +1091,7 @@ public class KDC {
             }
             if (body.kdcOptions.get(KDCOptions.RENEWABLE)) {
                 bFlags[Krb5.TKT_OPTS_RENEWABLE] = true;
-                //renew = timeFor(1000 * 3600 * 24 * 7);
+                //renew = timeAfter(3600 * 24 * 7);
             }
             if (body.kdcOptions.get(KDCOptions.PROXIABLE)) {
                 bFlags[Krb5.TKT_OPTS_PROXIABLE] = true;
@@ -1234,7 +1237,7 @@ public class KDC {
                     key,
                     body.cname,
                     new TransitedEncoding(1, new byte[0]),
-                    timeFor(0),
+                    timeAfter(0),
                     from,
                     till, rtime,
                     body.addresses,
@@ -1246,13 +1249,13 @@ public class KDC {
             EncASRepPart enc_part = new EncASRepPart(
                     key,
                     new LastReq(new LastReqEntry[]{
-                        new LastReqEntry(0, timeFor(-10000))
+                        new LastReqEntry(0, timeAfter(-10))
                     }),
                     body.getNonce(),    // TODO: detect replay?
-                    timeFor(1000 * 3600 * 24),
+                    timeAfter(3600 * 24),
                     // Next 5 and last MUST be same with ticket
                     tFlags,
-                    timeFor(0),
+                    timeAfter(0),
                     from,
                     till, rtime,
                     service,
@@ -1314,7 +1317,7 @@ public class KDC {
                     eData = temp.toByteArray();
                 }
                 kerr = new KRBError(null, null, null,
-                        timeFor(0),
+                        timeAfter(0),
                         0,
                         ke.returnCode(),
                         body.cname,
@@ -1721,8 +1724,7 @@ public class KDC {
             this.env = Map.of(
                     "KRB5_CONFIG", base + "/krb5.conf",
                     "KRB5_TRACE", "/dev/stderr",
-                    "DYLD_LIBRARY_PATH", nativePath + "/lib",
-                    "LD_LIBRARY_PATH", nativePath + "/lib");
+                    Platform.sharedLibraryPathVariableName(), nativePath + "/lib");
         }
 
         @Override
@@ -1814,8 +1816,7 @@ public class KDC {
                     "KRB5_KDC_PROFILE", base + "/kdc.conf",
                     "KRB5_CONFIG", base + "/krb5.conf",
                     "KRB5_TRACE", "/dev/stderr",
-                    "DYLD_LIBRARY_PATH", nativePath + "/lib",
-                    "LD_LIBRARY_PATH", nativePath + "/lib");
+                    Platform.sharedLibraryPathVariableName(), nativePath + "/lib");
         }
 
         @Override

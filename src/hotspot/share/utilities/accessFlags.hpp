@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,16 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_ACCESSFLAGS_HPP
-#define SHARE_VM_UTILITIES_ACCESSFLAGS_HPP
+#ifndef SHARE_UTILITIES_ACCESSFLAGS_HPP
+#define SHARE_UTILITIES_ACCESSFLAGS_HPP
 
 #include "jvm.h"
-#include "memory/allocation.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/macros.hpp"
 
 // AccessFlags is an abstraction over Java access flags.
 
+class outputStream;
 
 enum {
   // See jvm.h for shared JVM_ACC_XXX access flags
@@ -97,7 +98,7 @@ enum {
 };
 
 
-class AccessFlags VALUE_OBJ_CLASS_SPEC {
+class AccessFlags {
   friend class VMStructs;
  private:
   jint _flags;
@@ -281,4 +282,4 @@ inline AccessFlags accessFlags_from(jint flags) {
   return af;
 }
 
-#endif // SHARE_VM_UTILITIES_ACCESSFLAGS_HPP
+#endif // SHARE_UTILITIES_ACCESSFLAGS_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,24 +22,34 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_OBJECTCOUNTEVENTSENDER_HPP
-#define SHARE_VM_GC_SHARED_OBJECTCOUNTEVENTSENDER_HPP
+#ifndef SHARE_GC_SHARED_OBJECTCOUNTEVENTSENDER_HPP
+#define SHARE_GC_SHARED_OBJECTCOUNTEVENTSENDER_HPP
 
 #include "gc/shared/gcTrace.hpp"
 #include "memory/allocation.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/ticks.hpp"
 
 #if INCLUDE_SERVICES
 
 class KlassInfoEntry;
-class Ticks;
+class Klass;
 
 class ObjectCountEventSender : public AllStatic {
+  static bool _should_send_requestable_event;
+
+  template <typename T>
+  static void send_event_if_enabled(Klass* klass, jlong count, julong size, const Ticks& timestamp);
+
  public:
+  static void enable_requestable_event();
+  static void disable_requestable_event();
+
   static void send(const KlassInfoEntry* entry, const Ticks& timestamp);
   static bool should_send_event();
 };
 
 #endif // INCLUDE_SERVICES
 
-#endif // SHARE_VM_GC_SHARED_OBJECTCOUNTEVENTSENDER_HPP
+#endif // SHARE_GC_SHARED_OBJECTCOUNTEVENTSENDER_HPP

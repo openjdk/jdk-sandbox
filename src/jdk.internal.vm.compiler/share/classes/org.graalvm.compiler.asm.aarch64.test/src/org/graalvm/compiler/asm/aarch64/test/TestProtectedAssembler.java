@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 
 package org.graalvm.compiler.asm.aarch64.test;
 
@@ -206,12 +208,12 @@ class TestProtectedAssembler extends AArch64Assembler {
     }
 
     @Override
-    protected void bfm(int size, Register dst, Register src, int r, int s) {
+    public void bfm(int size, Register dst, Register src, int r, int s) {
         super.bfm(size, dst, src, r, s);
     }
 
     @Override
-    protected void ubfm(int size, Register dst, Register src, int r, int s) {
+    public void ubfm(int size, Register dst, Register src, int r, int s) {
         super.ubfm(size, dst, src, r, s);
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,20 @@
  */
 package jdk.vm.ci.hotspot;
 
+import static jdk.internal.misc.Unsafe.ADDRESS_SIZE;
+import static jdk.vm.ci.hotspot.CompilerToVM.compilerToVM;
 import static jdk.vm.ci.hotspot.HotSpotModifiers.jvmFieldModifiers;
 import static jdk.vm.ci.hotspot.HotSpotVMConfig.config;
+import static jdk.vm.ci.hotspot.UnsafeAccess.UNSAFE;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.util.HashMap;
 
-import jdk.internal.vm.annotation.Stable;
+import jdk.vm.ci.meta.JavaConstant;
 import jdk.vm.ci.meta.JavaType;
 import jdk.vm.ci.meta.ResolvedJavaType;
+import jdk.vm.ci.meta.UnresolvedJavaType;
 
 /**
  * Represents a field in a HotSpot type.
@@ -95,10 +100,12 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
      * @return true iff this is a non-static field and its declaring class is assignable from
      *         {@code object}'s class
      */
-    public boolean isInObject(Object object) {
+    @Override
+    public boolean isInObject(JavaConstant constant) {
         if (isStatic()) {
             return false;
         }
+        Object object = ((HotSpotObjectConstantImpl) constant).object();
         return getDeclaringClass().isAssignableFrom(HotSpotResolvedObjectTypeImpl.fromObjectClass(object.getClass()));
     }
 
@@ -117,10 +124,10 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
         // Pull field into local variable to prevent a race causing
         // a ClassCastException below
         JavaType currentType = type;
-        if (currentType instanceof HotSpotUnresolvedJavaType) {
+        if (currentType instanceof UnresolvedJavaType) {
             // Don't allow unresolved types to hang around forever
-            HotSpotUnresolvedJavaType unresolvedType = (HotSpotUnresolvedJavaType) currentType;
-            ResolvedJavaType resolved = unresolvedType.reresolve(holder);
+            UnresolvedJavaType unresolvedType = (UnresolvedJavaType) currentType;
+            ResolvedJavaType resolved = holder.lookupType(unresolvedType, false);
             if (resolved != null) {
                 type = resolved;
             }
@@ -128,7 +135,8 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
         return type;
     }
 
-    public int offset() {
+    @Override
+    public int getOffset() {
         return offset;
     }
 
@@ -143,49 +151,74 @@ class HotSpotResolvedJavaFieldImpl implements HotSpotResolvedJavaField {
     }
 
     /**
-     * Checks if this field has the {@link Stable} annotation.
+     * Checks if this field has the {@code Stable} annotation.
      *
-     * @return true if field has {@link Stable} annotation, false otherwise
+     * @return true if field has {@code Stable} annotation, false otherwise
      */
+    @Override
     public boolean isStable() {
         return (config().jvmAccFieldStable & modifiers) != 0;
     }
 
+    private boolean hasAnnotations() {
+        if (!isInternal()) {
+            HotSpotVMConfig config = config();
+            final long metaspaceAnnotations = UNSAFE.getAddress(holder.getMetaspaceKlass() + config.instanceKlassAnnotationsOffset);
+            if (metaspaceAnnotations != 0) {
+                long fieldsAnnotations = UNSAFE.getAddress(metaspaceAnnotations + config.annotationsFieldAnnotationsOffset);
+                if (fieldsAnnotations != 0) {
+                    long fieldAnnotations = UNSAFE.getAddress(fieldsAnnotations + config.fieldsAnnotationsBaseOffset + (ADDRESS_SIZE * index));
+                    return fieldAnnotations != 0;
+                }
+            }
+        }
+        return false;
+    }
+
     @Override
     public Annotation[] getAnnotations() {
-        Field javaField = toJava();
-        if (javaField != null) {
-            return javaField.getAnnotations();
+        if (!hasAnnotations()) {
+            return new Annotation[0];
         }
-        return new Annotation[0];
+        return toJava().getAnnotations();
     }
 
     @Override
     public Annotation[] getDeclaredAnnotations() {
-        Field javaField = toJava();
-        if (javaField != null) {
-            return javaField.getDeclaredAnnotations();
+        if (!hasAnnotations()) {
+            return new Annotation[0];
         }
-        return new Annotation[0];
+        return toJava().getDeclaredAnnotations();
     }
 
     @Override
     public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
-        Field javaField = toJava();
-        if (javaField != null) {
-            return javaField.getAnnotation(annotationClass);
+        if (!hasAnnotations()) {
+            return null;
         }
-        return null;
+        return toJava().getAnnotation(annotationClass);
     }
 
+    /**
+     * Gets a {@link Field} object corresponding to this object. This method always returns the same
+     * {@link Field} object for a given {@link HotSpotResolvedJavaFieldImpl}. This ensures
+     * {@link #getDeclaredAnnotations()}, {@link #getAnnotations()} and
+     * {@link #getAnnotation(Class)} are stable with respect to the identity of the
+     * {@link Annotation} objects they return.
+     */
     private Field toJava() {
-        if (isInternal()) {
-            return null;
-        }
-        try {
-            return holder.mirror().getDeclaredField(getName());
-        } catch (NoSuchFieldException | NoClassDefFoundError e) {
-            return null;
+        synchronized (holder) {
+            HashMap<HotSpotResolvedJavaFieldImpl, Field> cache = holder.reflectionFieldCache;
+            if (cache == null) {
+                cache = new HashMap<>();
+                holder.reflectionFieldCache = cache;
+            }
+            Field reflect = cache.get(this);
+            if (reflect == null) {
+                reflect = compilerToVM().asReflectionField(holder, index);
+                cache.put(this, reflect);
+            }
+            return reflect;
         }
     }
 }

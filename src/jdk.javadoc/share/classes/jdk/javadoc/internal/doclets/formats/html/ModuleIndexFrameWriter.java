@@ -36,7 +36,6 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
-import jdk.javadoc.internal.doclets.formats.html.markup.Links;
 import jdk.javadoc.internal.doclets.formats.html.markup.RawHtml;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
@@ -84,19 +83,17 @@ public class ModuleIndexFrameWriter extends AbstractModuleIndexWriter {
     /**
      * {@inheritDoc}
      */
-    protected void addModulesList(Content body) {
+    protected void addModulesList(Content main) {
         Content heading = HtmlTree.HEADING(HtmlConstants.MODULE_HEADING, true,
                 contents.modulesLabel);
-        HtmlTree htmlTree = (configuration.allowTag(HtmlTag.MAIN))
-                ? HtmlTree.MAIN(HtmlStyle.indexContainer, heading)
-                : HtmlTree.DIV(HtmlStyle.indexContainer, heading);
+        HtmlTree htmlTree = HtmlTree.DIV(HtmlStyle.indexContainer, heading);
         HtmlTree ul = new HtmlTree(HtmlTag.UL);
         ul.setTitle(contents.modulesLabel);
         for (ModuleElement mdle: configuration.modules) {
             ul.addContent(getModuleLink(mdle));
         }
         htmlTree.addContent(ul);
-        body.addContent(htmlTree);
+        main.addContent(htmlTree);
     }
 
     /**
@@ -127,7 +124,7 @@ public class ModuleIndexFrameWriter extends AbstractModuleIndexWriter {
     /**
      * {@inheritDoc}
      */
-    protected void addNavigationBarHeader(Content body) {
+    protected void addNavigationBarHeader(Content header) {
         Content headerContent;
         if (configuration.packagesheader.length() > 0) {
             headerContent = new RawHtml(replaceDocRootDir(configuration.packagesheader));
@@ -136,7 +133,7 @@ public class ModuleIndexFrameWriter extends AbstractModuleIndexWriter {
         }
         Content heading = HtmlTree.HEADING(HtmlConstants.TITLE_HEADING, true,
                 HtmlStyle.bar, headerContent);
-        body.addContent(heading);
+        header.addContent(heading);
     }
 
     /**
@@ -174,12 +171,12 @@ public class ModuleIndexFrameWriter extends AbstractModuleIndexWriter {
     /**
      * {@inheritDoc}
      */
-    protected void addNavigationBarFooter(Content body) {
+    protected void addNavigationBarFooter(Content footer) {
         Content p = HtmlTree.P(Contents.SPACE);
-        body.addContent(p);
+        footer.addContent(p);
     }
 
     protected void addModulePackagesList(Map<ModuleElement, Set<PackageElement>> modules, String text,
-            String tableSummary, Content body, ModuleElement mdle) {
+            String tableSummary, Content main, ModuleElement mdle) {
     }
 }

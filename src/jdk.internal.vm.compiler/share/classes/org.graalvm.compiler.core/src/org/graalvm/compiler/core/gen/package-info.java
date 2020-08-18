@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,4 +24,6 @@
  * This package contains the port of the LIRGenerator which translates HIR instructions to LIR
  * instructions for the backend.
  */
+
+
 package org.graalvm.compiler.core.gen;

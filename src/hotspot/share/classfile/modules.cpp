@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 *
 * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/reflection.hpp"
 #include "utilities/stringUtils.hpp"
 #include "utilities/utf8.hpp"
@@ -84,27 +85,27 @@ static const char* get_module_version(jstring version) {
   return java_lang_String::as_utf8_string(JNIHandles::resolve_non_null(version));
 }
 
-static ModuleEntryTable* get_module_entry_table(Handle h_loader, TRAPS) {
+ModuleEntryTable* Modules::get_module_entry_table(Handle h_loader) {
   // This code can be called during start-up, before the classLoader's classLoader data got
   // created.  So, call register_loader() to make sure the classLoader data gets created.
-  ClassLoaderData *loader_cld = SystemDictionary::register_loader(h_loader, CHECK_NULL);
+  ClassLoaderData *loader_cld = SystemDictionary::register_loader(h_loader);
   return loader_cld->modules();
 }
 
-static PackageEntryTable* get_package_entry_table(Handle h_loader, TRAPS) {
+static PackageEntryTable* get_package_entry_table(Handle h_loader) {
   // This code can be called during start-up, before the classLoader's classLoader data got
   // created.  So, call register_loader() to make sure the classLoader data gets created.
-  ClassLoaderData *loader_cld = SystemDictionary::register_loader(h_loader, CHECK_NULL);
+  ClassLoaderData *loader_cld = SystemDictionary::register_loader(h_loader);
   return loader_cld->packages();
 }
 
 static ModuleEntry* get_module_entry(jobject module, TRAPS) {
-  Handle module_h(THREAD, JNIHandles::resolve(module));
-  if (!java_lang_Module::is_instance(module_h())) {
+  oop m = JNIHandles::resolve(module);
+  if (!java_lang_Module::is_instance(m)) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(),
                    "module is not an instance of type java.lang.Module");
   }
-  return java_lang_Module::module_entry(module_h(), CHECK_NULL);
+  return java_lang_Module::module_entry(m);
 }
 
 static PackageEntry* get_package_entry(ModuleEntry* module_entry, const char* package_name, TRAPS) {
@@ -123,7 +124,7 @@ static PackageEntry* get_package_entry_by_name(Symbol* package,
     ResourceMark rm(THREAD);
     if (Modules::verify_package_name(package->as_C_string())) {
       PackageEntryTable* const package_entry_table =
-        get_package_entry_table(h_loader, CHECK_NULL);
+        get_package_entry_table(h_loader);
       assert(package_entry_table != NULL, "Unexpected null package entry table");
       return package_entry_table->lookup_only(package);
     }
@@ -185,7 +186,7 @@ static void define_javabase_module(jobject module, jstring version,
   Handle h_loader(THREAD, loader);
 
   // Ensure the boot loader's PackageEntryTable has been created
-  PackageEntryTable* package_table = get_package_entry_table(h_loader, CHECK);
+  PackageEntryTable* package_table = get_package_entry_table(h_loader);
   assert(pkg_list->length() == 0 || package_table != NULL, "Bad package_table");
 
   // Ensure java.base's ModuleEntry has been created
@@ -306,11 +307,15 @@ void Modules::define_module(jobject module, jboolean is_open, jstring version,
 
   oop loader = java_lang_Module::loader(module_handle());
   // Make sure loader is not the jdk.internal.reflect.DelegatingClassLoader.
-  if (loader != java_lang_ClassLoader::non_reflection_class_loader(loader)) {
+  if (!oopDesc::equals(loader, java_lang_ClassLoader::non_reflection_class_loader(loader))) {
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
               "Class loader is an invalid delegating class loader");
   }
   Handle h_loader = Handle(THREAD, loader);
+  // define_module can be called during start-up, before the class loader's ClassLoaderData
+  // has been created.  SystemDictionary::register_loader ensures creation, if needed.
+  ClassLoaderData* loader_data = SystemDictionary::register_loader(h_loader);
+  assert(loader_data != NULL, "class loader data shouldn't be null");
 
   // Check that the list of packages has no duplicates and that the
   // packages are syntactically ok.
@@ -328,7 +333,7 @@ void Modules::define_module(jobject module, jboolean is_open, jstring version,
         !SystemDictionary::is_platform_class_loader(h_loader()) &&
         (strncmp(package_name, JAVAPKG, JAVAPKG_LEN) == 0 &&
           (package_name[JAVAPKG_LEN] == '/' || package_name[JAVAPKG_LEN] == '\0'))) {
-      const char* class_loader_name = SystemDictionary::loader_name(h_loader());
+      const char* class_loader_name = loader_data->loader_name_and_id();
       size_t pkg_len = strlen(package_name);
       char* pkg_name = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, pkg_len);
       strncpy(pkg_name, package_name, pkg_len);
@@ -345,7 +350,7 @@ void Modules::define_module(jobject module, jboolean is_open, jstring version,
     pkg_list->append(pkg_symbol);
   }
 
-  ModuleEntryTable* module_table = get_module_entry_table(h_loader, CHECK);
+  ModuleEntryTable* module_table = get_module_entry_table(h_loader);
   assert(module_table != NULL, "module entry table shouldn't be null");
 
   // Create symbol* entry for module name.
@@ -372,16 +377,13 @@ void Modules::define_module(jobject module, jboolean is_open, jstring version,
     }
   }
 
-  ClassLoaderData* loader_data = ClassLoaderData::class_loader_data_or_null(h_loader());
-  assert(loader_data != NULL, "class loader data shouldn't be null");
-
   PackageEntryTable* package_table = NULL;
   PackageEntry* existing_pkg = NULL;
   {
     MutexLocker ml(Module_lock, THREAD);
 
     if (num_packages > 0) {
-      package_table = get_package_entry_table(h_loader, CHECK);
+      package_table = get_package_entry_table(h_loader);
       assert(package_table != NULL, "Missing package_table");
 
       // Check that none of the packages exist in the class loader's package table.

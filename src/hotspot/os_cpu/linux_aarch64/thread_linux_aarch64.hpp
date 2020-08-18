@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_AARCH64_VM_THREAD_LINUX_AARCH64_HPP
-#define OS_CPU_LINUX_AARCH64_VM_THREAD_LINUX_AARCH64_HPP
+#ifndef OS_CPU_LINUX_AARCH64_THREAD_LINUX_AARCH64_HPP
+#define OS_CPU_LINUX_AARCH64_THREAD_LINUX_AARCH64_HPP
 
  private:
 #ifdef ASSERT
@@ -41,10 +41,7 @@
     _anchor.clear();
   }
 
-  frame pd_last_frame() {
-    assert(has_last_Java_frame(), "must have last_Java_sp() when suspended");
-    return frame(_anchor.last_Java_sp(), _anchor.last_Java_fp(), _anchor.last_Java_pc());
-  }
+  frame pd_last_frame();
 
  public:
   // Mutators are highly dangerous....
@@ -80,4 +77,4 @@ public:
   static void enable_register_stack_guard() {}
   static void disable_register_stack_guard() {}
 
-#endif // OS_CPU_LINUX_AARCH64_VM_THREAD_LINUX_AARCH64_HPP
+#endif // OS_CPU_LINUX_AARCH64_THREAD_LINUX_AARCH64_HPP

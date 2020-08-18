@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_VERIFICATIONTYPE_HPP
-#define SHARE_VM_CLASSFILE_VERIFICATIONTYPE_HPP
+#ifndef SHARE_CLASSFILE_VERIFICATIONTYPE_HPP
+#define SHARE_CLASSFILE_VERIFICATIONTYPE_HPP
 
 #include "classfile/systemDictionary.hpp"
-#include "memory/allocation.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.hpp"
 #include "oops/symbol.hpp"
@@ -49,7 +48,7 @@ enum {
 
 class ClassVerifier;
 
-class VerificationType VALUE_OBJ_CLASS_SPEC {
+class VerificationType {
   private:
     // Least significant bits of _handle are always 0, so we use these as
     // the indicator that the _handle is valid.  Otherwise, the _data field
@@ -208,7 +207,7 @@ class VerificationType VALUE_OBJ_CLASS_SPEC {
   bool is_check() const { return (_u._data & TypeQuery) == TypeQuery; }
 
   bool is_x_array(char sig) const {
-    return is_null() || (is_array() && (name()->byte_at(1) == sig));
+    return is_null() || (is_array() && (name()->char_at(1) == sig));
   }
   bool is_int_array() const { return is_x_array('I'); }
   bool is_byte_array() const { return is_x_array('B'); }
@@ -224,10 +223,10 @@ class VerificationType VALUE_OBJ_CLASS_SPEC {
     { return is_object_array() || is_array_array(); }
   bool is_object() const
     { return (is_reference() && !is_null() && name()->utf8_length() >= 1 &&
-              name()->byte_at(0) != '['); }
+              name()->char_at(0) != '['); }
   bool is_array() const
     { return (is_reference() && !is_null() && name()->utf8_length() >= 2 &&
-              name()->byte_at(0) == '['); }
+              name()->char_at(0) == '['); }
   bool is_uninitialized() const
     { return ((_u._data & Uninitialized) == Uninitialized); }
   bool is_uninitialized_this() const
@@ -313,7 +312,7 @@ class VerificationType VALUE_OBJ_CLASS_SPEC {
         case Short:
           return false;
         default:
-          return is_assignable_from(from, context, from_field_is_protected, CHECK_false);
+          return is_assignable_from(from, context, from_field_is_protected, THREAD);
       }
     }
   }
@@ -323,7 +322,7 @@ class VerificationType VALUE_OBJ_CLASS_SPEC {
   int dimensions() const {
     assert(is_array(), "Must be an array");
     int index = 0;
-    while (name()->byte_at(index) == '[') index++;
+    while (name()->char_at(index) == '[') index++;
     return index;
   }
 
@@ -342,4 +341,4 @@ class VerificationType VALUE_OBJ_CLASS_SPEC {
                                               TRAPS);
 };
 
-#endif // SHARE_VM_CLASSFILE_VERIFICATIONTYPE_HPP
+#endif // SHARE_CLASSFILE_VERIFICATIONTYPE_HPP

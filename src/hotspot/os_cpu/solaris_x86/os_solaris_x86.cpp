@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
 #include "interpreter/interpreter.hpp"
+#include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "os_share_solaris.hpp"
 #include "prims/jniFastGetField.hpp"
@@ -40,7 +41,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -578,7 +579,8 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
         // QQQ It doesn't seem that we need to do this on x86 because we should be able
         // to return properly from the handler without this extra stuff on the back side.
 
-      else if (sig == SIGSEGV && info->si_code > 0 && !MacroAssembler::needs_explicit_null_check((intptr_t)info->si_addr)) {
+      else if (sig == SIGSEGV && info->si_code > 0 &&
+               MacroAssembler::uses_implicit_null_check(info->si_addr)) {
         // Determination of interpreter/vtable stub/compiled code null exception
         stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
       }
@@ -591,17 +593,6 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
       if (addr != (address)-1) {
         stub = addr;
       }
-    }
-
-    // Check to see if we caught the safepoint code in the
-    // process of write protecting the memory serialization page.
-    // It write enables the page immediately after protecting it
-    // so we can just return to retry the write.
-    if ((sig == SIGSEGV) &&
-        os::is_memory_serialize_page(thread, (address)info->si_addr)) {
-      // Block current thread until the memory serialize page permission restored.
-      os::block_on_serialize_page_trap();
-      return true;
     }
   }
 
@@ -694,54 +685,6 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
   if (os::Solaris::chained_handler(sig, info, ucVoid)) {
     return true;
   }
-
-#ifndef AMD64
-  // Workaround (bug 4900493) for Solaris kernel bug 4966651.
-  // Handle an undefined selector caused by an attempt to assign
-  // fs in libthread getipriptr(). With the current libthread design every 512
-  // thread creations the LDT for a private thread data structure is extended
-  // and thre is a hazard that and another thread attempting a thread creation
-  // will use a stale LDTR that doesn't reflect the structure's growth,
-  // causing a GP fault.
-  // Enforce the probable limit of passes through here to guard against an
-  // infinite loop if some other move to fs caused the GP fault. Note that
-  // this loop counter is ultimately a heuristic as it is possible for
-  // more than one thread to generate this fault at a time in an MP system.
-  // In the case of the loop count being exceeded or if the poll fails
-  // just fall through to a fatal error.
-  // If there is some other source of T_GPFLT traps and the text at EIP is
-  // unreadable this code will loop infinitely until the stack is exausted.
-  // The key to diagnosis in this case is to look for the bottom signal handler
-  // frame.
-
-  if(! IgnoreLibthreadGPFault) {
-    if (sig == SIGSEGV && uc->uc_mcontext.gregs[TRAPNO] == T_GPFLT) {
-      const unsigned char *p =
-                        (unsigned const char *) uc->uc_mcontext.gregs[EIP];
-
-      // Expected instruction?
-
-      if(p[0] == movlfs[0] && p[1] == movlfs[1]) {
-
-        Atomic::inc(&ldtr_refresh);
-
-        // Infinite loop?
-
-        if(ldtr_refresh < ((2 << 16) / PAGESIZE)) {
-
-          // No, force scheduling to get a fresh view of the LDTR
-
-          if(poll(NULL, 0, 10) == 0) {
-
-            // Retry the move
-
-            return false;
-          }
-        }
-      }
-    }
-  }
-#endif // !AMD64
 
   if (!abort_if_unrecognized) {
     // caller wants another chance, so give it to him

@@ -24,10 +24,14 @@
 
 #include "precompiled.hpp"
 #include "code/debugInfo.hpp"
-#include "oops/oop.inline.hpp"
+#include "oops/compressedOops.inline.hpp"
+#include "oops/oop.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/stackValue.hpp"
+#if INCLUDE_ZGC
+#include "gc/z/zBarrier.inline.hpp"
+#endif
 
 StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMap* reg_map, ScopeValue* sv) {
   if (sv->is_location()) {
@@ -103,7 +107,7 @@ StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMap* r
         value.noop = *(narrowOop*) value_addr;
       }
       // Decode narrowoop and wrap a handle around the oop
-      Handle h(Thread::current(), oopDesc::decode_heap_oop(value.noop));
+      Handle h(Thread::current(), CompressedOops::decode(value.noop));
       return new StackValue(h);
     }
 #endif
@@ -118,6 +122,13 @@ StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMap* r
          val = (oop)NULL;
       }
 #endif
+#if INCLUDE_ZGC
+      // Deoptimization must make sure all oop have passed load barrier
+      if (UseZGC) {
+        val = ZBarrier::load_barrier_on_oop_field_preloaded((oop*)value_addr, val);
+      }
+#endif
+
       Handle h(Thread::current(), val); // Wrap a handle around the oop
       return new StackValue(h);
     }

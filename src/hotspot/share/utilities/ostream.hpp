@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_OSTREAM_HPP
-#define SHARE_VM_UTILITIES_OSTREAM_HPP
+#ifndef SHARE_UTILITIES_OSTREAM_HPP
+#define SHARE_UTILITIES_OSTREAM_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/timer.hpp"
@@ -102,7 +102,9 @@ class outputStream : public ResourceObj {
    void put(char ch);
    void sp(int count = 1);
    void cr();
+   void cr_indent();
    void bol() { if (_position > 0)  cr(); }
+
 
    // Time stamp
    TimeStamp& time_stamp() { return _stamp; }
@@ -151,7 +153,6 @@ class streamIndentor : public StackObj {
   }
   ~streamIndentor() { _str->dec(_amount); }
 };
-
 
 // advisory locking for the shared tty stream:
 class ttyLocker: StackObj {
@@ -293,4 +294,4 @@ class networkStream : public bufferedStream {
 
 #endif
 
-#endif // SHARE_VM_UTILITIES_OSTREAM_HPP
+#endif // SHARE_UTILITIES_OSTREAM_HPP

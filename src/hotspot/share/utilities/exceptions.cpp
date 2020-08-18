@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,11 +30,14 @@
 #include "logging/logStream.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/os.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadCritical.hpp"
+#include "runtime/atomic.hpp"
 #include "utilities/events.hpp"
 #include "utilities/exceptions.hpp"
 
@@ -149,6 +152,10 @@ void Exceptions::_throw(Thread* thread, const char* file, int line, Handle h_exc
     count_out_of_memory_exceptions(h_exception);
   }
 
+  if (h_exception->is_a(SystemDictionary::LinkageError_klass())) {
+    Atomic::inc(&_linkage_errors);
+  }
+
   assert(h_exception->is_a(SystemDictionary::Throwable_klass()), "exception is not a subclass of java/lang/Throwable");
 
   // set the pending exception
@@ -239,8 +246,7 @@ void Exceptions::fthrow(Thread* thread, const char* file, int line, Symbol* h_na
   va_list ap;
   va_start(ap, format);
   char msg[max_msg_size];
-  vsnprintf(msg, max_msg_size, format, ap);
-  msg[max_msg_size-1] = '\0';
+  os::vsnprintf(msg, max_msg_size, format, ap);
   va_end(ap);
   _throw_msg(thread, file, line, h_name, msg);
 }
@@ -263,23 +269,10 @@ Handle Exceptions::new_exception(Thread *thread, Symbol* name,
 
   if (!thread->has_pending_exception()) {
     assert(klass != NULL, "klass must exist");
-    // We are about to create an instance - so make sure that klass is initialized
-    InstanceKlass* ik = InstanceKlass::cast(klass);
-    ik->initialize(thread);
-    if (!thread->has_pending_exception()) {
-      // Allocate new exception
-      h_exception = ik->allocate_instance_handle(thread);
-      if (!thread->has_pending_exception()) {
-        JavaValue result(T_VOID);
-        args->set_receiver(h_exception);
-        // Call constructor
-        JavaCalls::call_special(&result, ik,
-                                vmSymbols::object_initializer_name(),
+    h_exception = JavaCalls::construct_new_instance(InstanceKlass::cast(klass),
                                 signature,
                                 args,
                                 thread);
-      }
-    }
   }
 
   // Check if another exception was thrown in the process, if so rethrow that one
@@ -437,14 +430,15 @@ void Exceptions::wrap_dynamic_exception(Thread* THREAD) {
 
 // Exception counting for hs_err file
 volatile int Exceptions::_stack_overflow_errors = 0;
+volatile int Exceptions::_linkage_errors = 0;
 volatile int Exceptions::_out_of_memory_error_java_heap_errors = 0;
 volatile int Exceptions::_out_of_memory_error_metaspace_errors = 0;
 volatile int Exceptions::_out_of_memory_error_class_metaspace_errors = 0;
 
 void Exceptions::count_out_of_memory_exceptions(Handle exception) {
-  if (exception() == Universe::out_of_memory_error_metaspace()) {
+  if (oopDesc::equals(exception(), Universe::out_of_memory_error_metaspace())) {
      Atomic::inc(&_out_of_memory_error_metaspace_errors);
-  } else if (exception() == Universe::out_of_memory_error_class_metaspace()) {
+  } else if (oopDesc::equals(exception(), Universe::out_of_memory_error_class_metaspace())) {
      Atomic::inc(&_out_of_memory_error_class_metaspace_errors);
   } else {
      // everything else reported as java heap OOM
@@ -469,6 +463,9 @@ void Exceptions::print_exception_counts_on_error(outputStream* st) {
   print_oom_count(st, "class_metaspace_errors", _out_of_memory_error_class_metaspace_errors);
   if (_stack_overflow_errors > 0) {
     st->print_cr("StackOverflowErrors=%d", _stack_overflow_errors);
+  }
+  if (_linkage_errors > 0) {
+    st->print_cr("LinkageErrors=%d", _linkage_errors);
   }
 }
 

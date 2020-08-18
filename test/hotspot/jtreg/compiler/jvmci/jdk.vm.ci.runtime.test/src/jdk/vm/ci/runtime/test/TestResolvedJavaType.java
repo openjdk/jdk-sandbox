@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,6 +49,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -119,6 +122,16 @@ public class TestResolvedJavaType extends TypeUniverse {
             ResolvedJavaType type = metaAccess.lookupJavaType(c);
             boolean expected = c.isInterface();
             boolean actual = type.isInterface();
+            assertEquals(expected, actual);
+        }
+    }
+
+    @Test
+    public void isEnumTest() {
+        for (Class<?> c : classes) {
+            ResolvedJavaType type = metaAccess.lookupJavaType(c);
+            boolean expected = c.isEnum();
+            boolean actual = type.isEnum();
             assertEquals(expected, actual);
         }
     }
@@ -752,6 +765,17 @@ public class TestResolvedJavaType extends TypeUniverse {
         if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(Class.class)) && f.getName().equals("classLoader")) {
             return true;
         }
+        if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(Lookup.class))) {
+            return f.getName().equals("allowedModes") || f.getName().equals("lookupClass");
+        }
+        if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(ClassLoader.class)) ||
+            f.getDeclaringClass().equals(metaAccess.lookupJavaType(AccessibleObject.class)) ||
+            f.getDeclaringClass().equals(metaAccess.lookupJavaType(Constructor.class)) ||
+            f.getDeclaringClass().equals(metaAccess.lookupJavaType(Field.class)) ||
+            f.getDeclaringClass().equals(metaAccess.lookupJavaType(Method.class)) ||
+            f.getDeclaringClass().equals(metaAccess.lookupJavaType(Module.class))) {
+            return true;
+        }
         return false;
     }
 
@@ -836,17 +860,25 @@ public class TestResolvedJavaType extends TypeUniverse {
 
     }
 
+    private static ResolvedJavaMethod getClassInitializer(Class<?> c) {
+        ResolvedJavaMethod clinit = metaAccess.lookupJavaType(c).getClassInitializer();
+        if (clinit != null) {
+            assertEquals(0, clinit.getAnnotations().length);
+            assertEquals(0, clinit.getDeclaredAnnotations().length);
+        }
+        return clinit;
+    }
+
     @Test
     public void getClassInitializerTest() {
-        assertNotNull(metaAccess.lookupJavaType(A.class).getClassInitializer());
-        assertNotNull(metaAccess.lookupJavaType(D.class).getClassInitializer());
-        assertNull(metaAccess.lookupJavaType(B.class).getClassInitializer());
-        assertNull(metaAccess.lookupJavaType(C.class).getClassInitializer());
-        assertNull(metaAccess.lookupJavaType(int.class).getClassInitializer());
-        assertNull(metaAccess.lookupJavaType(void.class).getClassInitializer());
+        assertNotNull(getClassInitializer(A.class));
+        assertNotNull(getClassInitializer(D.class));
+        assertNull(getClassInitializer(B.class));
+        assertNull(getClassInitializer(C.class));
+        assertNull(getClassInitializer(int.class));
+        assertNull(getClassInitializer(void.class));
         for (Class<?> c : classes) {
-            ResolvedJavaType type = metaAccess.lookupJavaType(c);
-            type.getClassInitializer();
+            getClassInitializer(c);
         }
     }
 
@@ -971,16 +1003,14 @@ public class TestResolvedJavaType extends TypeUniverse {
         "hasFinalizableSubclass",
         "hasFinalizer",
         "getSourceFileName",
-        "getClassFilePath",
         "isLocal",
         "isJavaLangObject",
         "isMember",
         "getElementalType",
         "getEnclosingType",
-        "$jacocoInit",
-        "isCpiSet",
-        "getCorrespondingCpi",
-        "setCorrespondingCpi"
+        "lookupType",
+        "resolveField",
+        "$jacocoInit"
     };
     // @formatter:on
 

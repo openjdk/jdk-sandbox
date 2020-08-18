@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_NODE_HPP
-#define SHARE_VM_OPTO_NODE_HPP
+#ifndef SHARE_OPTO_NODE_HPP
+#define SHARE_OPTO_NODE_HPP
 
 #include "libadt/vectset.hpp"
 #include "opto/compile.hpp"
@@ -73,6 +73,7 @@ class EncodePKlassNode;
 class FastLockNode;
 class FastUnlockNode;
 class IfNode;
+class IfProjNode;
 class IfFalseNode;
 class IfTrueNode;
 class InitializeNode;
@@ -80,6 +81,9 @@ class JVMState;
 class JumpNode;
 class JumpProjNode;
 class LoadNode;
+class LoadBarrierNode;
+class LoadBarrierSlowRegNode;
+class LoadBarrierWeakSlowRegNode;
 class LoadStoreNode;
 class LockNode;
 class LoopNode;
@@ -94,6 +98,7 @@ class MachConstantBaseNode;
 class MachConstantNode;
 class MachGotoNode;
 class MachIfNode;
+class MachJumpNode;
 class MachNode;
 class MachNullCheckNode;
 class MachProjNode;
@@ -102,6 +107,7 @@ class MachSafePointNode;
 class MachSpillCopyNode;
 class MachTempNode;
 class MachMergeNode;
+class MachMemBarNode;
 class Matcher;
 class MemBarNode;
 class MemBarStoreStoreNode;
@@ -136,6 +142,7 @@ class RegionNode;
 class RootNode;
 class SafePointNode;
 class SafePointScalarObjectNode;
+class ShenandoahBarrierNode;
 class StartNode;
 class State;
 class StoreNode;
@@ -633,6 +640,7 @@ public:
       DEFINE_CLASS_ID(MemBar,      Multi, 3)
         DEFINE_CLASS_ID(Initialize,       MemBar, 0)
         DEFINE_CLASS_ID(MemBarStoreStore, MemBar, 1)
+      DEFINE_CLASS_ID(LoadBarrier, Multi, 4)
 
     DEFINE_CLASS_ID(Mach,  Node, 1)
       DEFINE_CLASS_ID(MachReturn, Mach, 0)
@@ -651,7 +659,9 @@ public:
       DEFINE_CLASS_ID(MachTemp,         Mach, 3)
       DEFINE_CLASS_ID(MachConstantBase, Mach, 4)
       DEFINE_CLASS_ID(MachConstant,     Mach, 5)
+        DEFINE_CLASS_ID(MachJump,       MachConstant, 0)
       DEFINE_CLASS_ID(MachMerge,        Mach, 6)
+      DEFINE_CLASS_ID(MachMemBar,       Mach, 7)
 
     DEFINE_CLASS_ID(Type,  Node, 2)
       DEFINE_CLASS_ID(Phi,   Type, 0)
@@ -666,18 +676,22 @@ public:
       DEFINE_CLASS_ID(EncodeNarrowPtr, Type, 6)
         DEFINE_CLASS_ID(EncodeP, EncodeNarrowPtr, 0)
         DEFINE_CLASS_ID(EncodePKlass, EncodeNarrowPtr, 1)
+      DEFINE_CLASS_ID(ShenandoahBarrier, Type, 7)
 
     DEFINE_CLASS_ID(Proj,  Node, 3)
       DEFINE_CLASS_ID(CatchProj, Proj, 0)
       DEFINE_CLASS_ID(JumpProj,  Proj, 1)
-      DEFINE_CLASS_ID(IfTrue,    Proj, 2)
-      DEFINE_CLASS_ID(IfFalse,   Proj, 3)
+      DEFINE_CLASS_ID(IfProj,    Proj, 2)
+        DEFINE_CLASS_ID(IfTrue,    IfProj, 0)
+        DEFINE_CLASS_ID(IfFalse,   IfProj, 1)
       DEFINE_CLASS_ID(Parm,      Proj, 4)
       DEFINE_CLASS_ID(MachProj,  Proj, 5)
 
     DEFINE_CLASS_ID(Mem,   Node, 4)
       DEFINE_CLASS_ID(Load,  Mem, 0)
         DEFINE_CLASS_ID(LoadVector,  Load, 0)
+          DEFINE_CLASS_ID(LoadBarrierSlowReg, Load, 1)
+          DEFINE_CLASS_ID(LoadBarrierWeakSlowReg, Load, 2)
       DEFINE_CLASS_ID(Store, Mem, 1)
         DEFINE_CLASS_ID(StoreVector, Store, 0)
       DEFINE_CLASS_ID(LoadStore, Mem, 2)
@@ -810,6 +824,7 @@ public:
   DEFINE_CLASS_QUERY(FastUnlock)
   DEFINE_CLASS_QUERY(If)
   DEFINE_CLASS_QUERY(RangeCheck)
+  DEFINE_CLASS_QUERY(IfProj)
   DEFINE_CLASS_QUERY(IfFalse)
   DEFINE_CLASS_QUERY(IfTrue)
   DEFINE_CLASS_QUERY(Initialize)
@@ -817,6 +832,9 @@ public:
   DEFINE_CLASS_QUERY(JumpProj)
   DEFINE_CLASS_QUERY(Load)
   DEFINE_CLASS_QUERY(LoadStore)
+  DEFINE_CLASS_QUERY(LoadBarrier)
+  DEFINE_CLASS_QUERY(LoadBarrierSlowReg)
+  DEFINE_CLASS_QUERY(LoadBarrierWeakSlowReg)
   DEFINE_CLASS_QUERY(Lock)
   DEFINE_CLASS_QUERY(Loop)
   DEFINE_CLASS_QUERY(Mach)
@@ -831,12 +849,14 @@ public:
   DEFINE_CLASS_QUERY(MachConstant)
   DEFINE_CLASS_QUERY(MachGoto)
   DEFINE_CLASS_QUERY(MachIf)
+  DEFINE_CLASS_QUERY(MachJump)
   DEFINE_CLASS_QUERY(MachNullCheck)
   DEFINE_CLASS_QUERY(MachProj)
   DEFINE_CLASS_QUERY(MachReturn)
   DEFINE_CLASS_QUERY(MachSafePoint)
   DEFINE_CLASS_QUERY(MachSpillCopy)
   DEFINE_CLASS_QUERY(MachTemp)
+  DEFINE_CLASS_QUERY(MachMemBar)
   DEFINE_CLASS_QUERY(MachMerge)
   DEFINE_CLASS_QUERY(Mem)
   DEFINE_CLASS_QUERY(MemBar)
@@ -855,6 +875,7 @@ public:
   DEFINE_CLASS_QUERY(Root)
   DEFINE_CLASS_QUERY(SafePoint)
   DEFINE_CLASS_QUERY(SafePointScalarObject)
+  DEFINE_CLASS_QUERY(ShenandoahBarrier)
   DEFINE_CLASS_QUERY(Start)
   DEFINE_CLASS_QUERY(Store)
   DEFINE_CLASS_QUERY(Sub)
@@ -1194,7 +1215,7 @@ inline bool NotANode(const Node* n) {
 #if OPTO_DU_ITERATOR_ASSERT
 
 // Common code for assertion checking on DU iterators.
-class DUIterator_Common VALUE_OBJ_CLASS_SPEC {
+class DUIterator_Common {
 #ifdef ASSERT
  protected:
   bool         _vdui;               // cached value of VerifyDUIterators
@@ -1618,7 +1639,7 @@ public:
 //-----------------------------Node_Notes--------------------------------------
 // Debugging or profiling annotations loosely and sparsely associated
 // with some nodes.  See Compile::node_notes_at for the accessor.
-class Node_Notes VALUE_OBJ_CLASS_SPEC {
+class Node_Notes {
   friend class VMStructs;
   JVMState* _jvms;
 
@@ -1674,9 +1695,10 @@ Compile::locate_node_notes(GrowableArray<Node_Notes*>* arr,
   int block_idx = (idx >> _log2_node_notes_block_size);
   int grow_by = (block_idx - (arr == NULL? 0: arr->length()));
   if (grow_by >= 0) {
-    if (!can_grow)  return NULL;
+    if (!can_grow) return NULL;
     grow_node_notes(arr, grow_by + 1);
   }
+  if (arr == NULL) return NULL;
   // (Every element of arr is a sub-array of length _node_notes_block_size.)
   return arr->at(block_idx) + (idx & (_node_notes_block_size-1));
 }
@@ -1720,4 +1742,4 @@ public:
 #endif
 };
 
-#endif // SHARE_VM_OPTO_NODE_HPP
+#endif // SHARE_OPTO_NODE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,15 +30,18 @@
 #include "code/compiledIC.hpp"
 #include "code/nativeInst.hpp"
 #include "compiler/compilerOracle.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "jvmci/compilerRuntime.hpp"
 #include "jvmci/jvmciRuntime.hpp"
-#include "oops/method.hpp"
+#include "oops/method.inline.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "utilities/sizes.hpp"
 #include "utilities/xmlstream.hpp"
 
 #include <stdio.h>
@@ -69,8 +72,8 @@ static void metadata_oops_do(Metadata** metadata_begin, Metadata **metadata_end,
 }
 #endif
 
-bool AOTCompiledMethod::do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive, bool unloading_occurred) {
-  return false;
+address* AOTCompiledMethod::orig_pc_addr(const frame* fr) {
+  return (address*) ((address)fr->unextended_sp() + _meta->orig_pc_offset());
 }
 
 oop AOTCompiledMethod::oop_at(int index) const {
@@ -86,7 +89,7 @@ oop AOTCompiledMethod::oop_at(int index) const {
   }
   // The entry is string which we need to resolve.
   const char* meta_name = _heap->get_name_at((int)meta);
-  int klass_len = build_u2_from((address)meta_name);
+  int klass_len = Bytes::get_Java_u2((address)meta_name);
   const char* klass_name = meta_name + 2;
   // Quick check the current method's holder.
   Klass* k = _method->method_holder();
@@ -96,7 +99,7 @@ oop AOTCompiledMethod::oop_at(int index) const {
     // Search klass in got cells in DSO which have this compiled method.
     k = _heap->get_klass_from_got(klass_name, klass_len, _method);
   }
-  int method_name_len = build_u2_from((address)klass_name + klass_len);
+  int method_name_len = Bytes::get_Java_u2((address)klass_name + klass_len);
   guarantee(method_name_len == 0, "only klass is expected here");
   meta = ((intptr_t)k) | 1;
   *entry = (Metadata*)meta; // Should be atomic on x64
@@ -118,7 +121,7 @@ Metadata* AOTCompiledMethod::metadata_at(int index) const {
     }
     // The entry is string which we need to resolve.
     const char* meta_name = _heap->get_name_at((int)meta);
-    int klass_len = build_u2_from((address)meta_name);
+    int klass_len = Bytes::get_Java_u2((address)meta_name);
     const char* klass_name = meta_name + 2;
     // Quick check the current method's holder.
     Klass* k = _method->method_holder();
@@ -130,7 +133,7 @@ Metadata* AOTCompiledMethod::metadata_at(int index) const {
       k = _heap->get_klass_from_got(klass_name, klass_len, _method);
       klass_matched = false;
     }
-    int method_name_len = build_u2_from((address)klass_name + klass_len);
+    int method_name_len = Bytes::get_Java_u2((address)klass_name + klass_len);
     if (method_name_len == 0) { // Array or Klass name only?
       meta = ((intptr_t)k) | 1;
       *entry = (Metadata*)meta; // Should be atomic on x64
@@ -138,7 +141,7 @@ Metadata* AOTCompiledMethod::metadata_at(int index) const {
     } else { // Method
       // Quick check the current method's name.
       Method* m = _method;
-      int signature_len = build_u2_from((address)klass_name + klass_len + 2 + method_name_len);
+      int signature_len = Bytes::get_Java_u2((address)klass_name + klass_len + 2 + method_name_len);
       int full_len = 2 + klass_len + 2 + method_name_len + 2 + signature_len;
       if (!klass_matched || memcmp(_name, meta_name, full_len) != 0) { // Does not match?
         Thread* thread = Thread::current();
@@ -151,6 +154,10 @@ Metadata* AOTCompiledMethod::metadata_at(int index) const {
     }
   }
   ShouldNotReachHere(); return NULL;
+}
+
+void AOTCompiledMethod::do_unloading(bool unloading_occurred) {
+  unload_nmethod_caches(unloading_occurred);
 }
 
 bool AOTCompiledMethod::make_not_entrant_helper(int new_state) {
@@ -200,6 +207,7 @@ bool AOTCompiledMethod::make_not_entrant_helper(int new_state) {
   return true;
 }
 
+#ifdef TIERED
 bool AOTCompiledMethod::make_entrant() {
   assert(!method()->is_old(), "reviving evolved method!");
   assert(*_state_adr != not_entrant, "%s", method()->has_aot_code() ? "has_aot_code() not cleared" : "caller didn't check has_aot_code()");
@@ -234,16 +242,7 @@ bool AOTCompiledMethod::make_entrant() {
 
   return true;
 }
-
-// We don't have full dependencies for AOT methods, so flushing is
-// more conservative than for nmethods.
-void AOTCompiledMethod::flush_evol_dependents_on(InstanceKlass* dependee) {
-  if (is_java_method()) {
-    cleanup_inline_caches();
-    mark_for_deoptimization();
-    make_not_entrant();
-  }
-}
+#endif // TIERED
 
 // Iterate over metadata calling this function.   Used by RedefineClasses
 // Copied from nmethod::metadata_do
@@ -266,6 +265,7 @@ void AOTCompiledMethod::metadata_do(void f(Metadata*)) {
           if (md != _method) f(md);
         }
       } else if (iter.type() == relocInfo::virtual_call_type) {
+        ResourceMark rm;
         // Check compiledIC holders associated with this nmethod
         CompiledIC *ic = CompiledIC_at(&iter);
         if (ic->is_icholder_call()) {
@@ -438,6 +438,7 @@ void AOTCompiledMethod::clear_inline_caches() {
     return;
   }
 
+  ResourceMark rm;
   RelocIterator iter(this);
   while (iter.next()) {
     iter.reloc()->clear_inline_cache();
@@ -448,4 +449,3 @@ void AOTCompiledMethod::clear_inline_caches() {
     }
   }
 }
-

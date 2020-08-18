@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,14 +26,16 @@
 #include "ci/ciField.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciInstanceKlass.hpp"
-#include "ci/ciUtilities.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.hpp"
-#include "runtime/fieldDescriptor.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
+#include "runtime/handles.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
 
 // ciInstanceKlass
 //
@@ -55,12 +57,12 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   AccessFlags access_flags = ik->access_flags();
   _flags = ciFlags(access_flags);
   _has_finalizer = access_flags.has_finalizer();
-  _has_subklass = ik->subklass() != NULL;
+  _has_subklass = flags().is_final() ? subklass_false : subklass_unknown;
   _init_state = ik->init_state();
   _nonstatic_field_size = ik->nonstatic_field_size();
   _has_nonstatic_fields = ik->has_nonstatic_fields();
   _has_nonstatic_concrete_methods = ik->has_nonstatic_concrete_methods();
-  _is_anonymous = ik->is_anonymous();
+  _is_unsafe_anonymous = ik->is_unsafe_anonymous();
   _nonstatic_fields = NULL; // initialized lazily by compute_nonstatic_fields:
   _has_injected_fields = -1;
   _implementor = NULL; // we will fill these lazily
@@ -70,14 +72,14 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   // by the GC but need to be strong roots if reachable from a current compilation.
   // InstanceKlass are created for both weak and strong metadata.  Ensuring this metadata
   // alive covers the cases where there are weak roots without performance cost.
-  oop holder = ik->klass_holder_phantom();
-  if (ik->is_anonymous()) {
+  oop holder = ik->klass_holder();
+  if (ik->is_unsafe_anonymous()) {
     // Though ciInstanceKlass records class loader oop, it's not enough to keep
-    // VM anonymous classes alive (loader == NULL). Klass holder should be used instead.
-    // It is enough to record a ciObject, since cached elements are never removed
+    // VM unsafe anonymous classes alive (loader == NULL). Klass holder should
+    // be used instead. It is enough to record a ciObject, since cached elements are never removed
     // during ciObjectFactory lifetime. ciObjectFactory itself is created for
     // every compilation and lives for the whole duration of the compilation.
-    assert(holder != NULL, "holder of anonymous class is the mirror which is never null");
+    assert(holder != NULL, "holder of unsafe anonymous class is the mirror which is never null");
     (void)CURRENT_ENV->get_object(holder);
   }
 
@@ -114,13 +116,13 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
                                  jobject loader, jobject protection_domain)
   : ciKlass(name, T_OBJECT)
 {
-  assert(name->byte_at(0) != '[', "not an instance klass");
+  assert(name->char_at(0) != '[', "not an instance klass");
   _init_state = (InstanceKlass::ClassState)0;
   _nonstatic_field_size = -1;
   _has_nonstatic_fields = false;
   _nonstatic_fields = NULL;
   _has_injected_fields = -1;
-  _is_anonymous = false;
+  _is_unsafe_anonymous = false;
   _loader = loader;
   _protection_domain = protection_domain;
   _is_shared = false;
@@ -145,8 +147,8 @@ void ciInstanceKlass::compute_shared_init_state() {
 bool ciInstanceKlass::compute_shared_has_subklass() {
   GUARDED_VM_ENTRY(
     InstanceKlass* ik = get_instanceKlass();
-    _has_subklass = ik->subklass() != NULL;
-    return _has_subklass;
+    _has_subklass = ik->subklass() != NULL ? subklass_true : subklass_false;
+    return _has_subklass == subklass_true;
   )
 }
 
@@ -297,7 +299,7 @@ bool ciInstanceKlass::is_in_package_impl(const char* packagename, int len) {
     return false;
 
   // Test for trailing '/'
-  if ((char) name()->byte_at(len) != '/')
+  if (name()->char_at(len) != '/')
     return false;
 
   // Make sure it's not actually in a subpackage:
@@ -552,6 +554,12 @@ void ciInstanceKlass::compute_injected_fields() {
   _has_injected_fields = has_injected_fields;
 }
 
+bool ciInstanceKlass::has_object_fields() const {
+  GUARDED_VM_ENTRY(
+      return get_instanceKlass()->nonstatic_oop_map_size() > 0;
+    );
+}
+
 // ------------------------------------------------------------------
 // ciInstanceKlass::find_method
 //
@@ -575,7 +583,7 @@ bool ciInstanceKlass::is_leaf_type() {
   if (is_shared()) {
     return is_final();  // approximately correct
   } else {
-    return !_has_subklass && (nof_implementors() == 0);
+    return !has_subklass() && (nof_implementors() == 0);
   }
 }
 
@@ -594,6 +602,7 @@ ciInstanceKlass* ciInstanceKlass::implementor() {
     // Go into the VM to fetch the implementor.
     {
       VM_ENTRY_MARK;
+      MutexLocker ml(Compile_lock);
       Klass* k = get_instanceKlass()->implementor();
       if (k != NULL) {
         if (k == get_instanceKlass()) {
@@ -612,12 +621,12 @@ ciInstanceKlass* ciInstanceKlass::implementor() {
   return impl;
 }
 
-ciInstanceKlass* ciInstanceKlass::host_klass() {
+ciInstanceKlass* ciInstanceKlass::unsafe_anonymous_host() {
   assert(is_loaded(), "must be loaded");
-  if (is_anonymous()) {
+  if (is_unsafe_anonymous()) {
     VM_ENTRY_MARK
-    Klass* host_klass = get_instanceKlass()->host_klass();
-    return CURRENT_ENV->get_instance_klass(host_klass);
+    Klass* unsafe_anonymous_host = get_instanceKlass()->unsafe_anonymous_host();
+    return CURRENT_ENV->get_instance_klass(unsafe_anonymous_host);
   }
   return NULL;
 }
@@ -733,3 +742,27 @@ void ciInstanceKlass::dump_replay_data(outputStream* out) {
     ik->do_local_static_fields(&sffp);
   }
 }
+
+#ifdef ASSERT
+bool ciInstanceKlass::debug_final_field_at(int offset) {
+  GUARDED_VM_ENTRY(
+    InstanceKlass* ik = get_instanceKlass();
+    fieldDescriptor fd;
+    if (ik->find_field_from_offset(offset, false, &fd)) {
+      return fd.is_final();
+    }
+  );
+  return false;
+}
+
+bool ciInstanceKlass::debug_stable_field_at(int offset) {
+  GUARDED_VM_ENTRY(
+    InstanceKlass* ik = get_instanceKlass();
+    fieldDescriptor fd;
+    if (ik->find_field_from_offset(offset, false, &fd)) {
+      return fd.is_stable();
+    }
+  );
+  return false;
+}
+#endif

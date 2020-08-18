@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ import java.nio.channels.SocketChannel;
 public class Launcher {
 
     static {
-        System.loadLibrary("Launcher");
+        System.loadLibrary("InheritedChannel");
     }
 
     private static native void launch0(String cmdarray[], int fd) throws IOException;
@@ -60,6 +60,19 @@ public class Launcher {
             }
         }
         launch0(cmdarray, fd);
+    }
+
+
+    /**
+     * Launch 'java' with specified class using a UnixDomainSocket pair linking calling
+     * process to the child VM. UnixDomainSocket is a simplified interface to PF_UNIX sockets
+     * which supports byte a time reads and writes.
+     */
+    public static UnixDomainSocket launchWithUnixDomainSocket(String className) throws IOException {
+        UnixDomainSocket[] socks = UnixDomainSocket.socketpair();
+        launch(className, null, null, socks[0].fd());
+        socks[0].close();
+        return socks[1];
     }
 
     /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,13 +32,19 @@
 #include "code/icBuffer.hpp"
 #include "code/nativeInst.hpp"
 #include "code/vtableStubs.hpp"
+#include "gc/shared/collectedHeap.hpp"
+#include "gc/shared/gcLocker.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/compiledICHolder.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/vframeArray.hpp"
 #include "utilities/align.hpp"
+#include "utilities/formatBuffer.hpp"
 #include "vm_version_x86.hpp"
 #include "vmreg_x86.inline.hpp"
 #ifdef COMPILER1
@@ -1431,6 +1437,64 @@ static void save_or_restore_arguments(MacroAssembler* masm,
   }
 }
 
+// Pin object, return pinned object or null in rax
+static void gen_pin_object(MacroAssembler* masm,
+                           VMRegPair reg) {
+  __ block_comment("gen_pin_object {");
+
+  // rax always contains oop, either incoming or
+  // pinned.
+  Register tmp_reg = rax;
+
+  Label is_null;
+  VMRegPair tmp;
+  VMRegPair in_reg = reg;
+
+  tmp.set_ptr(tmp_reg->as_VMReg());
+  if (reg.first()->is_stack()) {
+    // Load the arg up from the stack
+    move_ptr(masm, reg, tmp);
+    reg = tmp;
+  } else {
+    __ movptr(rax, reg.first()->as_Register());
+  }
+  __ testptr(reg.first()->as_Register(), reg.first()->as_Register());
+  __ jccb(Assembler::equal, is_null);
+
+  if (reg.first()->as_Register() != c_rarg1) {
+    __ movptr(c_rarg1, reg.first()->as_Register());
+  }
+
+  __ call_VM_leaf(
+    CAST_FROM_FN_PTR(address, SharedRuntime::pin_object),
+    r15_thread, c_rarg1);
+
+  __ bind(is_null);
+  __ block_comment("} gen_pin_object");
+}
+
+// Unpin object
+static void gen_unpin_object(MacroAssembler* masm,
+                             VMRegPair reg) {
+  __ block_comment("gen_unpin_object {");
+  Label is_null;
+
+  if (reg.first()->is_stack()) {
+    __ movptr(c_rarg1, Address(rbp, reg2offset_in(reg.first())));
+  } else if (reg.first()->as_Register() != c_rarg1) {
+    __ movptr(c_rarg1, reg.first()->as_Register());
+  }
+
+  __ testptr(c_rarg1, c_rarg1);
+  __ jccb(Assembler::equal, is_null);
+
+  __ call_VM_leaf(
+    CAST_FROM_FN_PTR(address, SharedRuntime::unpin_object),
+    r15_thread, c_rarg1);
+
+  __ bind(is_null);
+  __ block_comment("} gen_unpin_object");
+}
 
 // Check GCLocker::needs_gc and enter the runtime if it's true.  This
 // keeps a new JNI critical region from starting until a GC has been
@@ -1571,12 +1635,12 @@ class ComputeMoveOrder: public StackObj {
    public:
     MoveOperation(int src_index, VMRegPair src, int dst_index, VMRegPair dst):
       _src(src)
-    , _src_index(src_index)
     , _dst(dst)
+    , _src_index(src_index)
     , _dst_index(dst_index)
+    , _processed(false)
     , _next(NULL)
-    , _prev(NULL)
-    , _processed(false) {
+    , _prev(NULL) {
     }
 
     VMRegPair src() const              { return _src; }
@@ -2098,6 +2162,9 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // -2 because return address is already present and so is saved rbp
   __ subptr(rsp, stack_size - 2*wordSize);
 
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->nmethod_entry_barrier(masm);
+
   // Frame is now completed as far as size and linkage.
   int frame_complete = ((intptr_t)__ pc()) - start;
 
@@ -2126,7 +2193,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   const Register oop_handle_reg = r14;
 
-  if (is_critical_native) {
+  if (is_critical_native && !Universe::heap()->supports_object_pinning()) {
     check_needs_gc_for_critical_native(masm, stack_slots, total_c_args, total_in_args,
                                        oop_handle_offset, oop_maps, in_regs, in_sig_bt);
   }
@@ -2183,6 +2250,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // the incoming and outgoing registers are offset upwards and for
   // critical natives they are offset down.
   GrowableArray<int> arg_order(2 * total_in_args);
+  // Inbound arguments that need to be pinned for critical natives
+  GrowableArray<int> pinned_args(total_in_args);
+  // Current stack slot for storing register based array argument
+  int pinned_slot = oop_handle_offset;
+
   VMRegPair tmp_vmreg;
   tmp_vmreg.set2(rbx->as_VMReg());
 
@@ -2230,6 +2302,23 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     switch (in_sig_bt[i]) {
       case T_ARRAY:
         if (is_critical_native) {
+          // pin before unpack
+          if (Universe::heap()->supports_object_pinning()) {
+            save_args(masm, total_c_args, 0, out_regs);
+            gen_pin_object(masm, in_regs[i]);
+            pinned_args.append(i);
+            restore_args(masm, total_c_args, 0, out_regs);
+
+            // rax has pinned array
+            VMRegPair result_reg;
+            result_reg.set_ptr(rax->as_VMReg());
+            move_ptr(masm, result_reg, in_regs[i]);
+            if (!in_regs[i].first()->is_stack()) {
+              assert(pinned_slot <= stack_slots, "overflow");
+              move_ptr(masm, result_reg, VMRegImpl::stack2reg(pinned_slot));
+              pinned_slot += VMRegImpl::slots_per_word;
+            }
+          }
           unpack_array_argument(masm, in_regs[i], in_elem_bt[i], out_regs[c_arg + 1], out_regs[c_arg]);
           c_arg++;
 #ifdef ASSERT
@@ -2366,6 +2455,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Load the oop from the handle
     __ movptr(obj_reg, Address(oop_handle_reg, 0));
 
+    __ resolve(IS_NOT_NULL, obj_reg);
     if (UseBiasedLocking) {
       __ biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, false, lock_done, &slow_path_lock);
     }
@@ -2379,11 +2469,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Save (object->mark() | 1) into BasicLock's displaced header
     __ movptr(Address(lock_reg, mark_word_offset), swap_reg);
 
-    if (os::is_MP()) {
-      __ lock();
-    }
-
     // src -> dest iff dest == rax else rax <- dest
+    __ lock();
     __ cmpxchgptr(lock_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     __ jcc(Assembler::equal, lock_done);
 
@@ -2446,6 +2533,24 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   default       : ShouldNotReachHere();
   }
 
+  // unpin pinned arguments
+  pinned_slot = oop_handle_offset;
+  if (pinned_args.length() > 0) {
+    // save return value that may be overwritten otherwise.
+    save_native_result(masm, ret_type, stack_slots);
+    for (int index = 0; index < pinned_args.length(); index ++) {
+      int i = pinned_args.at(index);
+      assert(pinned_slot <= stack_slots, "overflow");
+      if (!in_regs[i].first()->is_stack()) {
+        int offset = pinned_slot * VMRegImpl::stack_slot_size;
+        __ movq(in_regs[i].first()->as_Register(), Address(rsp, offset));
+        pinned_slot += VMRegImpl::slots_per_word;
+      }
+      gen_unpin_object(masm, in_regs[i]);
+    }
+    restore_native_result(masm, ret_type, stack_slots);
+  }
+
   // Switch thread to "native transition" state before reading the synchronization state.
   // This additional state is necessary because reading and testing the synchronization
   // state is not atomic w.r.t. GC, as this scenario demonstrates:
@@ -2455,20 +2560,10 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   //     didn't see any synchronization is progress, and escapes.
   __ movl(Address(r15_thread, JavaThread::thread_state_offset()), _thread_in_native_trans);
 
-  if(os::is_MP()) {
-    if (UseMembar) {
-      // Force this write out before the read below
-      __ membar(Assembler::Membar_mask_bits(
-           Assembler::LoadLoad | Assembler::LoadStore |
-           Assembler::StoreLoad | Assembler::StoreStore));
-    } else {
-      // Write serialization page so VM thread can do a pseudo remote membar.
-      // We use the current thread pointer to calculate a thread specific
-      // offset to write to within the page. This minimizes bus traffic
-      // due to cache line collision.
-      __ serialize_memory(r15_thread, rcx);
-    }
-  }
+  // Force this write out before the read below
+  __ membar(Assembler::Membar_mask_bits(
+              Assembler::LoadLoad | Assembler::LoadStore |
+              Assembler::StoreLoad | Assembler::StoreStore));
 
   Label after_transition;
 
@@ -2533,6 +2628,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     // Get locked oop from the handle we passed to jni
     __ movptr(obj_reg, Address(oop_handle_reg, 0));
+    __ resolve(IS_NOT_NULL, obj_reg);
 
     Label done;
 
@@ -2557,9 +2653,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ movptr(old_hdr, Address(rax, 0));
 
     // Atomic swap old header if oop still contains the stack lock
-    if (os::is_MP()) {
-      __ lock();
-    }
+    __ lock();
     __ cmpxchgptr(old_hdr, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     __ jcc(Assembler::notEqual, slow_path_unlock);
 
@@ -3388,8 +3482,13 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   // No exception case
   __ bind(noException);
 
-  Label no_adjust, bail, no_prefix, not_special;
+  Label no_adjust;
+#ifdef ASSERT
+  Label bail;
+#endif
   if (SafepointMechanism::uses_thread_local_poll() && !cause_return) {
+    Label no_prefix, not_special;
+
     // If our stashed return pc was modified by the runtime we avoid touching it
     __ cmpptr(rbx, Address(rbp, wordSize));
     __ jccb(Assembler::notEqual, no_adjust);

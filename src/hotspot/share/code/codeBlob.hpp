@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_CODEBLOB_HPP
-#define SHARE_VM_CODE_CODEBLOB_HPP
+#ifndef SHARE_CODE_CODEBLOB_HPP
+#define SHARE_CODE_CODEBLOB_HPP
 
 #include "asm/codeBuffer.hpp"
 #include "compiler/compilerDefinitions.hpp"
@@ -58,6 +58,7 @@ struct CodeBlobType {
 //  RuntimeBlob          : Non-compiled method code; generated glue code
 //   BufferBlob          : Used for non-relocatable code such as interpreter, stubroutines, etc.
 //    AdapterBlob        : Used to hold C2I/I2C adapters
+//    VtableBlob         : Used for holding vtable chunks
 //    MethodHandlesAdapterBlob : Used to hold MethodHandles adapters
 //   RuntimeStub         : Call to VM runtime methods
 //   SingletonBlob       : Super-class for all blobs that exist in only one instance
@@ -82,7 +83,7 @@ struct CodeBlobType {
 
 class CodeBlobLayout;
 
-class CodeBlob VALUE_OBJ_CLASS_SPEC {
+class CodeBlob {
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class CodeCacheDumper;
@@ -115,7 +116,12 @@ protected:
 
   CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, int frame_complete_offset, int frame_size, ImmutableOopMapSet* oop_maps, bool caller_must_gc_arguments);
   CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, CodeBuffer* cb, int frame_complete_offset, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments);
+
 public:
+  // Only used by unit test.
+  CodeBlob()
+    : _type(compiler_none) {}
+
   // Returns the space needed for CodeBlob
   static unsigned int allocation_size(CodeBuffer* cb, int header_size);
   static unsigned int align_code_offset(int offset);
@@ -132,6 +138,7 @@ public:
   virtual bool is_exception_stub() const              { return false; }
   virtual bool is_safepoint_stub() const              { return false; }
   virtual bool is_adapter_blob() const                { return false; }
+  virtual bool is_vtable_blob() const                 { return false; }
   virtual bool is_method_handles_adapter_blob() const { return false; }
   virtual bool is_aot() const                         { return false; }
   virtual bool is_compiled() const                    { return false; }
@@ -184,6 +191,7 @@ public:
   bool contains(address addr) const              { return content_begin()      <= addr && addr < content_end();    }
   bool is_frame_complete_at(address addr) const  { return _frame_complete_offset != CodeOffsets::frame_never_safe &&
                                                           code_contains(addr) && addr >= code_begin() + _frame_complete_offset; }
+  int frame_complete_offset() const              { return _frame_complete_offset; }
 
   // CodeCache support: really only used by the nmethods, but in order to get
   // asserts and certain bookkeeping to work in the CodeCache they are defined
@@ -219,6 +227,7 @@ public:
   virtual void print() const                     { print_on(tty); };
   virtual void print_on(outputStream* st) const;
   virtual void print_value_on(outputStream* st) const;
+  void dump_for_addr(address addr, outputStream* st, bool verbose) const;
   void print_code();
 
   // Print the comment associated with offset on stream, if there is one
@@ -266,10 +275,10 @@ public:
     _content_offset(0),
     _code_offset(0),
     _data_offset(0),
-    _content_begin(content_begin),
-    _content_end(content_end),
     _code_begin(code_begin),
     _code_end(code_end),
+    _content_begin(content_begin),
+    _content_end(content_end),
     _data_end(data_end),
     _relocation_begin(relocation_begin),
     _relocation_end(relocation_end)
@@ -380,6 +389,7 @@ class WhiteBox;
 class BufferBlob: public RuntimeBlob {
   friend class VMStructs;
   friend class AdapterBlob;
+  friend class VtableBlob;
   friend class MethodHandlesAdapterBlob;
   friend class WhiteBox;
 
@@ -388,6 +398,10 @@ class BufferBlob: public RuntimeBlob {
   BufferBlob(const char* name, int size);
   BufferBlob(const char* name, int size, CodeBuffer* cb);
 
+  // This ordinary operator delete is needed even though not used, so the
+  // below two-argument operator delete will be treated as a placement
+  // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
+  void operator delete(void* p);
   void* operator new(size_t s, unsigned size) throw();
 
  public:
@@ -425,6 +439,18 @@ public:
   virtual bool is_adapter_blob() const { return true; }
 };
 
+//---------------------------------------------------------------------------------------------------
+class VtableBlob: public BufferBlob {
+private:
+  VtableBlob(const char*, int);
+
+public:
+  // Creation
+  static VtableBlob* create(const char* name, int buffer_size);
+
+  // Typing
+  virtual bool is_vtable_blob() const { return true; }
+};
 
 //----------------------------------------------------------------------------------------------------
 // MethodHandlesAdapterBlob: used to hold MethodHandles adapters
@@ -459,6 +485,10 @@ class RuntimeStub: public RuntimeBlob {
     bool        caller_must_gc_arguments
   );
 
+  // This ordinary operator delete is needed even though not used, so the
+  // below two-argument operator delete will be treated as a placement
+  // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
+  void operator delete(void* p);
   void* operator new(size_t s, unsigned size) throw();
 
  public:
@@ -494,6 +524,10 @@ class SingletonBlob: public RuntimeBlob {
   friend class VMStructs;
 
  protected:
+  // This ordinary operator delete is needed even though not used, so the
+  // below two-argument operator delete will be treated as a placement
+  // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
+  void operator delete(void* p);
   void* operator new(size_t s, unsigned size) throw();
 
  public:
@@ -698,4 +732,4 @@ class SafepointBlob: public SingletonBlob {
   bool is_safepoint_stub() const                 { return true; }
 };
 
-#endif // SHARE_VM_CODE_CODEBLOB_HPP
+#endif // SHARE_CODE_CODEBLOB_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,11 +23,10 @@
  *
  */
 
-#ifndef CPU_ZERO_VM_NATIVEINST_ZERO_HPP
-#define CPU_ZERO_VM_NATIVEINST_ZERO_HPP
+#ifndef CPU_ZERO_NATIVEINST_ZERO_HPP
+#define CPU_ZERO_NATIVEINST_ZERO_HPP
 
 #include "asm/assembler.hpp"
-#include "memory/allocation.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/os.hpp"
 
@@ -46,7 +45,7 @@
 // The base class for different kinds of native instruction abstractions.
 // Provides the primitive operations to manipulate code relative to this.
 
-class NativeInstruction VALUE_OBJ_CLASS_SPEC {
+class NativeInstruction {
  public:
   bool is_jump() {
     ShouldNotCallThis();
@@ -211,4 +210,4 @@ inline NativeGeneralJump* nativeGeneralJump_at(address address) {
   return NULL;
 }
 
-#endif // CPU_ZERO_VM_NATIVEINST_ZERO_HPP
+#endif // CPU_ZERO_NATIVEINST_ZERO_HPP

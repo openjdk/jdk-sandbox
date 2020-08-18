@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_WHITEBOX_HPP
-#define SHARE_VM_PRIMS_WHITEBOX_HPP
+#ifndef SHARE_PRIMS_WHITEBOX_HPP
+#define SHARE_PRIMS_WHITEBOX_HPP
 
 #include "jni.h"
 
@@ -31,7 +31,8 @@
 #include "memory/allocation.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "oops/symbol.hpp"
-#include "runtime/interfaceSupport.hpp"
+
+#define WB_METHOD_DECLARE(result_type) extern "C" result_type JNICALL
 
 // Unconditionally clear pedantic pending JNI checks
 class ClearPendingJniExcCheck : public StackObj {
@@ -43,30 +44,6 @@ public:
     _thread->clear_pending_jni_exception_check();
   }
 };
-
-// Entry macro to transition from JNI to VM state.
-
-#define WB_ENTRY(result_type, header) JNI_ENTRY(result_type, header) \
-  ClearPendingJniExcCheck _clearCheck(env);
-
-#define WB_END JNI_END
-#define WB_METHOD_DECLARE(result_type) extern "C" result_type JNICALL
-
-#define CHECK_JNI_EXCEPTION_(env, value)                               \
-  do {                                                                 \
-    JavaThread* THREAD = JavaThread::thread_from_jni_environment(env); \
-    if (HAS_PENDING_EXCEPTION) {                                       \
-      return(value);                                                   \
-    }                                                                  \
-  } while (0)
-
-#define CHECK_JNI_EXCEPTION(env)                                       \
-  do {                                                                 \
-    JavaThread* THREAD = JavaThread::thread_from_jni_environment(env); \
-    if (HAS_PENDING_EXCEPTION) {                                       \
-      return;                                                          \
-    }                                                                  \
-  } while (0)
 
 class CodeBlob;
 class CodeHeap;
@@ -93,6 +70,4 @@ class WhiteBox : public AllStatic {
   static bool compile_method(Method* method, int comp_level, int bci, Thread* THREAD);
 };
 
-
-
-#endif // SHARE_VM_PRIMS_WHITEBOX_HPP
+#endif // SHARE_PRIMS_WHITEBOX_HPP

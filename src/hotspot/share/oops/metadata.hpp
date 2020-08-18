@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_METADATA_HPP
-#define SHARE_VM_OOPS_METADATA_HPP
+#ifndef SHARE_OOPS_METADATA_HPP
+#define SHARE_OOPS_METADATA_HPP
 
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -39,9 +39,6 @@ class Metadata : public MetaspaceObj {
 
   int identity_hash()                { return (int)(uintptr_t)this; }
 
-  // Rehashing support for tables containing pointers to this
-  unsigned int new_hash(juint seed)   { ShouldNotReachHere();  return 0; }
-
   virtual bool is_metadata()           const volatile { return true; }
   virtual bool is_klass()              const volatile { return false; }
   virtual bool is_method()             const volatile { return false; }
@@ -56,18 +53,11 @@ class Metadata : public MetaspaceObj {
   void print()       const { print_on(tty); }
   void print_value() const { print_value_on(tty); }
 
-  void print_maybe_null() const { print_on_maybe_null(tty); }
-  void print_on_maybe_null(outputStream* st) const {
-    if (this == NULL)
+  static void print_value_on_maybe_null(outputStream* st, const Metadata* m) {
+    if (NULL == m)
       st->print("NULL");
     else
-      print_on(st);
-  }
-  void print_value_on_maybe_null(outputStream* st) const {
-    if (this == NULL)
-      st->print("NULL");
-    else
-      print_value_on(st);
+      m->print_value_on(st);
   }
 
   virtual void print_on(outputStream* st) const;       // First level print
@@ -86,4 +76,4 @@ class Metadata : public MetaspaceObj {
   static void mark_on_stack(Metadata* m) { m->set_on_stack(true); }
 };
 
-#endif // SHARE_VM_OOPS_METADATA_HPP
+#endif // SHARE_OOPS_METADATA_HPP

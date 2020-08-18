@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_TYPE_HPP
-#define SHARE_VM_OPTO_TYPE_HPP
+#ifndef SHARE_OPTO_TYPE_HPP
+#define SHARE_OPTO_TYPE_HPP
 
 #include "opto/adlcVMDeps.hpp"
 #include "runtime/handles.hpp"
@@ -483,6 +483,8 @@ public:
   // Convenience common pre-built types.
   static const TypeF *ZERO; // positive zero only
   static const TypeF *ONE;
+  static const TypeF *POS_INF;
+  static const TypeF *NEG_INF;
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint depth, outputStream *st ) const;
 #endif
@@ -510,6 +512,8 @@ public:
   // Convenience common pre-built types.
   static const TypeD *ZERO; // positive zero only
   static const TypeD *ONE;
+  static const TypeD *POS_INF;
+  static const TypeD *NEG_INF;
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint depth, outputStream *st ) const;
 #endif
@@ -802,8 +806,8 @@ protected:
   TypePtr(TYPES t, PTR ptr, int offset,
           const TypePtr* speculative = NULL,
           int inline_depth = InlineDepthBottom) :
-    Type(t), _ptr(ptr), _offset(offset), _speculative(speculative),
-    _inline_depth(inline_depth) {}
+    Type(t), _speculative(speculative), _inline_depth(inline_depth), _offset(offset),
+    _ptr(ptr) {}
   static const PTR ptr_meet[lastPTR][lastPTR];
   static const PTR ptr_dual[lastPTR];
   static const char * const ptr_msg[lastPTR];
@@ -1028,6 +1032,8 @@ public:
 
   virtual const TypeOopPtr *cast_to_instance_id(int instance_id) const;
 
+  virtual const TypeOopPtr *cast_to_nonconst() const;
+
   // corresponding pointer to klass, for a given instance
   const TypeKlassPtr* as_klass_type() const;
 
@@ -1109,6 +1115,8 @@ class TypeInstPtr : public TypeOopPtr {
   virtual const Type *cast_to_exactness(bool klass_is_exact) const;
 
   virtual const TypeOopPtr *cast_to_instance_id(int instance_id) const;
+
+  virtual const TypeOopPtr *cast_to_nonconst() const;
 
   virtual const TypePtr *add_offset( intptr_t offset ) const;
 
@@ -1192,6 +1200,8 @@ public:
   virtual const Type *cast_to_exactness(bool klass_is_exact) const;
 
   virtual const TypeOopPtr *cast_to_instance_id(int instance_id) const;
+
+  virtual const TypeOopPtr *cast_to_nonconst() const;
 
   virtual const TypeAryPtr* cast_to_size(const TypeInt* size) const;
   virtual const TypeInt* narrow_size_type(const TypeInt* size) const;
@@ -1359,8 +1369,8 @@ class TypeNarrowPtr : public Type {
 protected:
   const TypePtr* _ptrtype; // Could be TypePtr::NULL_PTR
 
-  TypeNarrowPtr(TYPES t, const TypePtr* ptrtype): _ptrtype(ptrtype),
-                                                  Type(t) {
+  TypeNarrowPtr(TYPES t, const TypePtr* ptrtype): Type(t),
+                                                  _ptrtype(ptrtype) {
     assert(ptrtype->offset() == 0 ||
            ptrtype->offset() == OffsetBot ||
            ptrtype->offset() == OffsetTop, "no real offsets");
@@ -1770,6 +1780,8 @@ inline bool Type::is_ptr_to_boxing_obj() const {
 // UseOptoBiasInlining
 #define XorXNode     XorLNode
 #define StoreXConditionalNode StoreLConditionalNode
+#define LoadXNode    LoadLNode
+#define StoreXNode   StoreLNode
 // Opcodes
 #define Op_LShiftX   Op_LShiftL
 #define Op_AndX      Op_AndL
@@ -1815,6 +1827,8 @@ inline bool Type::is_ptr_to_boxing_obj() const {
 // UseOptoBiasInlining
 #define XorXNode     XorINode
 #define StoreXConditionalNode StoreIConditionalNode
+#define LoadXNode    LoadINode
+#define StoreXNode   StoreINode
 // Opcodes
 #define Op_LShiftX   Op_LShiftI
 #define Op_AndX      Op_AndI
@@ -1831,4 +1845,4 @@ inline bool Type::is_ptr_to_boxing_obj() const {
 
 #endif
 
-#endif // SHARE_VM_OPTO_TYPE_HPP
+#endif // SHARE_OPTO_TYPE_HPP

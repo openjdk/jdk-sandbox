@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,14 +20,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.graalvm.compiler.core.test;
 
-import jdk.vm.ci.meta.Assumptions.Assumption;
-import jdk.vm.ci.meta.Assumptions.ConcreteSubtype;
+
+package org.graalvm.compiler.core.test;
 
 import org.junit.Test;
 
-import org.graalvm.compiler.nodes.StructuredGraph;
+import jdk.vm.ci.meta.Assumptions.ConcreteSubtype;
 
 /**
  * Ensure that abstract classes with a single implementor are properly optimized and that loading a
@@ -53,12 +52,6 @@ public class ConcreteSubtypeTest extends GraalCompilerAssumptionsTest {
 
     public void callAbstractType(AbstractBase object) {
         object.check();
-    }
-
-    @Override
-    protected void checkGraph(Assumption expectedAssumption, StructuredGraph graph) {
-        super.checkGraph(expectedAssumption, graph);
-        assertTrue(graph.isTrivial());
     }
 
     /**

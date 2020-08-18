@@ -29,9 +29,13 @@
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
+ *          jdk.jartool/sun.tools.jar
  * @run main LongBCP
  */
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.FileStore;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -81,12 +85,36 @@ public class LongBCP {
         output.shouldContain("Hello World")
               .shouldHaveExitValue(0);
 
+        // create a hello.jar
+        sun.tools.jar.Main jarTool = new sun.tools.jar.Main(System.out, System.err, "jar");
+        String helloJar = destDir.toString() + File.separator + "hello.jar";
+        if (!jarTool.run(new String[]
+            {"-cf", helloJar, "-C", destDir.toString(), "Hello.class"})) {
+            throw new RuntimeException("Could not write the Hello jar file");
+        }
+
+        // run with long bootclasspath to hello.jar
+        bootCP = "-Xbootclasspath/a:" + helloJar;
+        pb = ProcessTools.createJavaProcessBuilder(
+            bootCP, "Hello");
+
+        output = new OutputAnalyzer(pb.start());
+        output.shouldContain("Hello World")
+              .shouldHaveExitValue(0);
+
         // relative path tests
         // We currently cannot handle relative path specified in the
         // -Xbootclasspath/a on windows.
         //
-        // relative path length within the 256 limit
-        char[] chars = new char[255];
+        // relative path length within the file system limit
+        int fn_max_length = 255;
+        // In AUFS file system, the maximal file name length is 242
+        FileStore store = Files.getFileStore(new File(".").toPath());
+        String fs_type = store.type();
+        if ("aufs".equals(fs_type)) {
+            fn_max_length = 242;
+        }
+        char[] chars = new char[fn_max_length];
         Arrays.fill(chars, 'y');
         String subPath = new String(chars);
         destDir = Paths.get(".", subPath);

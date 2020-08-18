@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_SPACE_HPP
-#define SHARE_VM_GC_SHARED_SPACE_HPP
+#ifndef SHARE_GC_SHARED_SPACE_HPP
+#define SHARE_GC_SHARED_SPACE_HPP
 
 #include "gc/shared/blockOffsetTable.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTable.hpp"
 #include "gc/shared/workgroup.hpp"
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
@@ -145,6 +145,9 @@ class Space: public CHeapObj<mtGC> {
   bool is_in(const void* p) const {
     return used_region().contains(p);
   }
+  bool is_in(oop obj) const {
+    return is_in((void*)obj);
+  }
 
   // Returns true iff the given reserved memory of the space contains the
   // given address.
@@ -166,7 +169,7 @@ class Space: public CHeapObj<mtGC> {
   // Iterate over all the ref-containing fields of all objects in the
   // space, calling "cl.do_oop" on each.  Fields in objects allocated by
   // applications of the closure are not included in the iteration.
-  virtual void oop_iterate(ExtendedOopClosure* cl);
+  virtual void oop_iterate(OopIterateClosure* cl);
 
   // Iterate over all objects in the space, calling "cl.do_object" on
   // each.  Objects allocated by applications of the closure are not
@@ -180,8 +183,8 @@ class Space: public CHeapObj<mtGC> {
   // overridden to return the appropriate type of closure
   // depending on the type of space in which the closure will
   // operate. ResourceArea allocated.
-  virtual DirtyCardToOopClosure* new_dcto_cl(ExtendedOopClosure* cl,
-                                             CardTableModRefBS::PrecisionStyle precision,
+  virtual DirtyCardToOopClosure* new_dcto_cl(OopIterateClosure* cl,
+                                             CardTable::PrecisionStyle precision,
                                              HeapWord* boundary,
                                              bool parallel);
 
@@ -217,9 +220,11 @@ class Space: public CHeapObj<mtGC> {
   // Allocation (return NULL if full).  Enforces mutual exclusion internally.
   virtual HeapWord* par_allocate(size_t word_size) = 0;
 
+#if INCLUDE_SERIALGC
   // Mark-sweep-compact support: all spaces can update pointers to objects
   // moving as a part of compaction.
   virtual void adjust_pointers() = 0;
+#endif
 
   virtual void print() const;
   virtual void print_on(outputStream* st) const;
@@ -251,9 +256,9 @@ class Space: public CHeapObj<mtGC> {
 
 class DirtyCardToOopClosure: public MemRegionClosureRO {
 protected:
-  ExtendedOopClosure* _cl;
+  OopIterateClosure* _cl;
   Space* _sp;
-  CardTableModRefBS::PrecisionStyle _precision;
+  CardTable::PrecisionStyle _precision;
   HeapWord* _boundary;          // If non-NULL, process only non-NULL oops
                                 // pointing below boundary.
   HeapWord* _min_done;          // ObjHeadPreciseArray precision requires
@@ -281,10 +286,10 @@ protected:
   virtual void walk_mem_region(MemRegion mr, HeapWord* bottom, HeapWord* top);
 
 public:
-  DirtyCardToOopClosure(Space* sp, ExtendedOopClosure* cl,
-                        CardTableModRefBS::PrecisionStyle precision,
+  DirtyCardToOopClosure(Space* sp, OopIterateClosure* cl,
+                        CardTable::PrecisionStyle precision,
                         HeapWord* boundary) :
-    _sp(sp), _cl(cl), _precision(precision), _boundary(boundary),
+    _cl(cl), _sp(sp), _precision(precision), _boundary(boundary),
     _min_done(NULL) {
     NOT_PRODUCT(_last_bottom = NULL);
     NOT_PRODUCT(_last_explicit_min_done = NULL);
@@ -402,6 +407,7 @@ public:
     _next_compaction_space = csp;
   }
 
+#if INCLUDE_SERIALGC
   // MarkSweep support phase2
 
   // Start the process of compaction of the current space: compute
@@ -417,6 +423,7 @@ public:
   virtual void adjust_pointers();
   // MarkSweep support phase4
   virtual void compact();
+#endif // INCLUDE_SERIALGC
 
   // The maximum percentage of objects that can be dead in the compacted
   // live part of a compacted space ("deadwood" support.)
@@ -471,9 +478,11 @@ protected:
   // and possibly also overriding obj_size(), and adjust_obj_size().
   // These functions should avoid virtual calls whenever possible.
 
+#if INCLUDE_SERIALGC
   // Frequently calls adjust_obj_size().
   template <class SpaceType>
   static inline void scan_and_adjust_pointers(SpaceType* space);
+#endif
 
   // Frequently calls obj_size().
   template <class SpaceType>
@@ -573,7 +582,7 @@ class ContiguousSpace: public CompactibleSpace {
   HeapWord* allocate_aligned(size_t word_size);
 
   // Iteration
-  void oop_iterate(ExtendedOopClosure* cl);
+  void oop_iterate(OopIterateClosure* cl);
   void object_iterate(ObjectClosure* blk);
   // For contiguous spaces this method will iterate safely over objects
   // in the space (i.e., between bottom and top) when at a safepoint.
@@ -599,15 +608,9 @@ class ContiguousSpace: public CompactibleSpace {
     _concurrent_iteration_safe_limit = new_limit;
   }
 
-
-#if INCLUDE_ALL_GCS
   // In support of parallel oop_iterate.
-  #define ContigSpace_PAR_OOP_ITERATE_DECL(OopClosureType, nv_suffix)  \
-    void par_oop_iterate(MemRegion mr, OopClosureType* blk);
-
-    ALL_PAR_OOP_ITERATE_CLOSURES(ContigSpace_PAR_OOP_ITERATE_DECL)
-  #undef ContigSpace_PAR_OOP_ITERATE_DECL
-#endif // INCLUDE_ALL_GCS
+  template <typename OopClosureType>
+  void par_oop_iterate(MemRegion mr, OopClosureType* blk);
 
   // Compaction support
   virtual void reset_after_compaction() {
@@ -618,8 +621,8 @@ class ContiguousSpace: public CompactibleSpace {
   }
 
   // Override.
-  DirtyCardToOopClosure* new_dcto_cl(ExtendedOopClosure* cl,
-                                     CardTableModRefBS::PrecisionStyle precision,
+  DirtyCardToOopClosure* new_dcto_cl(OopIterateClosure* cl,
+                                     CardTable::PrecisionStyle precision,
                                      HeapWord* boundary,
                                      bool parallel);
 
@@ -630,11 +633,8 @@ class ContiguousSpace: public CompactibleSpace {
   // *are* included in the iteration.
   // Updates _saved_mark_word to point to just after the last object
   // iterated over.
-#define ContigSpace_OOP_SINCE_SAVE_MARKS_DECL(OopClosureType, nv_suffix)  \
-  void oop_since_save_marks_iterate##nv_suffix(OopClosureType* blk);
-
-  ALL_SINCE_SAVE_MARKS_CLOSURES(ContigSpace_OOP_SINCE_SAVE_MARKS_DECL)
-#undef ContigSpace_OOP_SINCE_SAVE_MARKS_DECL
+  template <typename OopClosureType>
+  void oop_since_save_marks_iterate(OopClosureType* blk);
 
   // Same as object_iterate, but starting from "mark", which is required
   // to denote the start of an object.  Objects allocated by
@@ -651,8 +651,10 @@ class ContiguousSpace: public CompactibleSpace {
   HeapWord** top_addr() { return &_top; }
   HeapWord** end_addr() { return &_end; }
 
+#if INCLUDE_SERIALGC
   // Overrides for more efficient compaction support.
   void prepare_for_compaction(CompactPoint* cp);
+#endif
 
   virtual void print_on(outputStream* st) const;
 
@@ -687,14 +689,14 @@ protected:
   // apparent.
   virtual void walk_mem_region_with_cl(MemRegion mr,
                                        HeapWord* bottom, HeapWord* top,
-                                       ExtendedOopClosure* cl) = 0;
+                                       OopIterateClosure* cl) = 0;
   virtual void walk_mem_region_with_cl(MemRegion mr,
                                        HeapWord* bottom, HeapWord* top,
                                        FilteringClosure* cl) = 0;
 
 public:
-  FilteringDCTOC(Space* sp, ExtendedOopClosure* cl,
-                  CardTableModRefBS::PrecisionStyle precision,
+  FilteringDCTOC(Space* sp, OopIterateClosure* cl,
+                  CardTable::PrecisionStyle precision,
                   HeapWord* boundary) :
     DirtyCardToOopClosure(sp, cl, precision, boundary) {}
 };
@@ -716,14 +718,14 @@ protected:
 
   virtual void walk_mem_region_with_cl(MemRegion mr,
                                        HeapWord* bottom, HeapWord* top,
-                                       ExtendedOopClosure* cl);
+                                       OopIterateClosure* cl);
   virtual void walk_mem_region_with_cl(MemRegion mr,
                                        HeapWord* bottom, HeapWord* top,
                                        FilteringClosure* cl);
 
 public:
-  ContiguousSpaceDCTOC(ContiguousSpace* sp, ExtendedOopClosure* cl,
-                       CardTableModRefBS::PrecisionStyle precision,
+  ContiguousSpaceDCTOC(ContiguousSpace* sp, OopIterateClosure* cl,
+                       CardTable::PrecisionStyle precision,
                        HeapWord* boundary) :
     FilteringDCTOC(sp, cl, precision, boundary)
   {}
@@ -780,4 +782,4 @@ class TenuredSpace: public OffsetTableContigSpace {
                MemRegion mr) :
     OffsetTableContigSpace(sharedOffsetArray, mr) {}
 };
-#endif // SHARE_VM_GC_SHARED_SPACE_HPP
+#endif // SHARE_GC_SHARED_SPACE_HPP

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+  ~ Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
   ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
   ~
   ~ This code is free software; you can redistribute it and/or modify it
@@ -232,7 +232,6 @@
         <pathconvert pathsep=" " property="source.files" refid="source.fileset"/>
         <echo file="${build.dir}/sources.txt">${source.files}</echo>
         <exec executable="${langtools.jdk.home}/bin/javac" failonerror="true">
-            <arg line="-source ${javac.source} -target ${javac.target}" />
             <arg value="-d" />
             <arg value="${build.modules}" />
             <arg line="${javac.opts}" />
@@ -270,7 +269,7 @@
     <target name="idea" depends="-check-langtools.jdk.home">
         <mkdir dir=".idea"/>
         <copy todir=".idea" >
-            <fileset dir="${make.dir}/intellij">
+            <fileset dir="${make.dir}/intellij/template">
                <exclude name="**/src/**"/>
                <exclude name="**/utils/**"/>
             </fileset>
@@ -290,7 +289,7 @@
         <mkdir dir=".idea/classes"/>
         <javac source="${javac.build.source}"
                target="${javac.build.target}"
-               srcdir="${make.dir}/intellij/src"
+               srcdir="${make.dir}/intellij/template/src"
                destdir=".idea/classes"/>
     </target>
 

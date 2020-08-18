@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,8 +20,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.graph;
 
+import static org.graalvm.compiler.core.common.GraalOptions.TrackNodeInsertion;
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_IGNORED;
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_IGNORED;
 
@@ -30,20 +33,24 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.function.Consumer;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.Equivalence;
-import org.graalvm.collections.UnmodifiableEconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.UnmodifiableEconomicMap;
+import org.graalvm.compiler.core.common.GraalOptions;
 import org.graalvm.compiler.debug.CounterKey;
 import org.graalvm.compiler.debug.DebugCloseable;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.debug.TimerKey;
+import org.graalvm.compiler.graph.Node.NodeInsertionStackTrace;
 import org.graalvm.compiler.graph.Node.ValueNumberable;
 import org.graalvm.compiler.graph.iterators.NodeIterable;
 import org.graalvm.compiler.options.Option;
 import org.graalvm.compiler.options.OptionKey;
 import org.graalvm.compiler.options.OptionType;
 import org.graalvm.compiler.options.OptionValues;
+
+import jdk.vm.ci.meta.ResolvedJavaMethod;
 
 /**
  * This class is a graph container, it contains the set of nodes that belong to this graph.
@@ -80,7 +87,7 @@ public class Graph {
     /**
      * Records if updating of node source information is required when performing inlining.
      */
-    boolean seenNodeSourcePosition;
+    protected boolean trackNodeSourcePosition;
 
     /**
      * The number of valid entries in {@link #nodes}.
@@ -184,7 +191,7 @@ public class Graph {
      *         was opened
      */
     public DebugCloseable withNodeSourcePosition(Node node) {
-        return withNodeSourcePosition(node.sourcePosition);
+        return withNodeSourcePosition(node.getNodeSourcePosition());
     }
 
     /**
@@ -195,7 +202,7 @@ public class Graph {
      *         was opened
      */
     public DebugCloseable withNodeSourcePosition(NodeSourcePosition sourcePosition) {
-        return sourcePosition != null ? new NodeSourcePositionScope(sourcePosition) : null;
+        return trackNodeSourcePosition() && sourcePosition != null ? new NodeSourcePositionScope(sourcePosition) : null;
     }
 
     /**
@@ -207,28 +214,26 @@ public class Graph {
         return new NodeSourcePositionScope(null);
     }
 
-    /**
-     * Determines if this graph might contain nodes with source information. This is mainly useful
-     * to short circuit logic for updating those positions after inlining since that requires
-     * visiting every node in the graph.
-     */
-    public boolean mayHaveNodeSourcePosition() {
-        assert seenNodeSourcePosition || verifyHasNoSourcePosition();
-        return seenNodeSourcePosition;
+    public boolean trackNodeSourcePosition() {
+        return trackNodeSourcePosition;
     }
 
-    private boolean verifyHasNoSourcePosition() {
-        for (Node node : getNodes()) {
-            assert node.getNodeSourcePosition() == null;
+    public void setTrackNodeSourcePosition() {
+        if (!trackNodeSourcePosition) {
+            assert getNodeCount() == 1 : "can't change the value after nodes have been added";
+            trackNodeSourcePosition = true;
         }
-        return true;
+    }
+
+    public static boolean trackNodeSourcePositionDefault(OptionValues options, DebugContext debug) {
+        return (GraalOptions.TrackNodeSourcePosition.getValue(options) || debug.isDumpEnabledForMethod());
     }
 
     /**
      * Creates an empty Graph with no name.
      */
     public Graph(OptionValues options, DebugContext debug) {
-        this(null, options, debug);
+        this(null, options, debug, false);
     }
 
     /**
@@ -249,12 +254,13 @@ public class Graph {
      *
      * @param name the name of the graph, used for debugging purposes
      */
-    public Graph(String name, OptionValues options, DebugContext debug) {
+    public Graph(String name, OptionValues options, DebugContext debug, boolean trackNodeSourcePosition) {
         nodes = new Node[INITIAL_NODES_SIZE];
         iterableNodesFirst = new ArrayList<>(NodeClass.allocatedNodeIterabledIds());
         iterableNodesLast = new ArrayList<>(NodeClass.allocatedNodeIterabledIds());
         this.name = name;
         this.options = options;
+        this.trackNodeSourcePosition = trackNodeSourcePosition || trackNodeSourcePositionDefault(options, debug);
         assert debug != null;
         this.debug = debug;
 
@@ -357,7 +363,7 @@ public class Graph {
      *            accessed by multiple threads).
      */
     protected Graph copy(String newName, Consumer<UnmodifiableEconomicMap<Node, Node>> duplicationMapCallback, DebugContext debugForCopy) {
-        Graph copy = new Graph(newName, options, debugForCopy);
+        Graph copy = new Graph(newName, options, debugForCopy, trackNodeSourcePosition());
         UnmodifiableEconomicMap<Node, Node> duplicates = copy.addDuplicates(getNodes(), this, this.getNodeCount(), (EconomicMap<Node, Node>) null);
         if (duplicationMapCallback != null) {
             duplicationMapCallback.accept(duplicates);
@@ -524,7 +530,7 @@ public class Graph {
         /**
          * A node was removed from the graph.
          */
-        NODE_REMOVED;
+        NODE_REMOVED
     }
 
     /**
@@ -694,6 +700,9 @@ public class Graph {
         assert node.getNodeClass().valueNumberable();
         T other = this.findDuplicate(node);
         if (other != null) {
+            if (other.getNodeSourcePosition() == null) {
+                other.setNodeSourcePosition(node.getNodeSourcePosition());
+            }
             return other;
         } else {
             T result = addHelper(node);
@@ -1069,10 +1078,12 @@ public class Graph {
         int id = nodesSize++;
         nodes[id] = node;
         node.id = id;
-        if (currentNodeSourcePosition != null) {
+        if (currentNodeSourcePosition != null && trackNodeSourcePosition()) {
             node.setNodeSourcePosition(currentNodeSourcePosition);
         }
-        seenNodeSourcePosition = seenNodeSourcePosition || node.getNodeSourcePosition() != null;
+        if (TrackNodeInsertion.getValue(getOptions())) {
+            node.setInsertionPosition(new NodeInsertionStackTrace());
+        }
 
         updateNodeCaches(node);
 
@@ -1159,6 +1170,29 @@ public class Graph {
                     }
                 } catch (GraalError e) {
                     throw GraalGraphError.transformAndAddContext(e, node).addContext(this);
+                }
+            }
+        }
+        return true;
+    }
+
+    public boolean verifySourcePositions(boolean performConsistencyCheck) {
+        if (trackNodeSourcePosition()) {
+            ResolvedJavaMethod root = null;
+            for (Node node : getNodes()) {
+                NodeSourcePosition pos = node.getNodeSourcePosition();
+                if (pos != null) {
+                    if (root == null) {
+                        root = pos.getRootMethod();
+                    } else {
+                        assert pos.verifyRootMethod(root) : node;
+                    }
+                }
+
+                // More strict node-type-specific check
+                if (performConsistencyCheck) {
+                    // Disabled due to GR-10445.
+                    // node.verifySourcePosition();
                 }
             }
         }

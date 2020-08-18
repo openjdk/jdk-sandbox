@@ -23,17 +23,19 @@
 
 /*
  * @test
- * @bug 4720957 5020118 8026567 8038976 8184969 8164407
+ * @bug 4720957 5020118 8026567 8038976 8184969 8164407 8182765 8205593
  * @summary Test to make sure that -link and -linkoffline link to
  * right files, and URLs with and without trailing slash are accepted.
  * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestLinkOption
  */
 
 import java.io.File;
+
+import javadoc.tester.JavadocTester;
 
 public class TestLinkOption extends JavadocTester {
     /**
@@ -50,7 +52,7 @@ public class TestLinkOption extends JavadocTester {
     // it generates. Therefore we run everything serially in a single @Test
     // method and not in independent @Test methods.
     @Test
-    void test() {
+    public void test() {
         String mylib = "mylib";
         String[] javacArgs = {
             "-d", mylib, testSrc + "/extra/StringBuilder.java"
@@ -61,12 +63,15 @@ public class TestLinkOption extends JavadocTester {
         String out1 = "out1";
         String url = "http://acme.com/jdk/";
         javadoc("-d", out1,
+                "-source", "8",
                 "-classpath", mylib,
                 "-sourcepath", testSrc,
                 "-linkoffline", url, testSrc + "/jdk",
                 "-package",
                 "pkg", "mylib.lang");
-        checkExit(Exit.OK);
+        checkExit(Exit.ERROR);
+        checkOutput(Output.OUT, true,
+                "tag not supported in the generated HTML version: tt");
 
         checkOutput("pkg/C.html", true,
                 "<a href=\"" + url + "java/lang/String.html?is-external=true\" "
@@ -82,11 +87,11 @@ public class TestLinkOption extends JavadocTester {
 
         checkOutput("pkg/B.html", true,
                 "<div class=\"block\">A method with html tag the method "
-                + "<a href=\"" + url + "java/lang/ClassLoader.html?is-external=true#getSystemClassLoader--\""
+                + "<a href=\"" + url + "java/lang/ClassLoader.html?is-external=true#getSystemClassLoader()\""
                 + " title=\"class or interface in java.lang\" class=\"externalLink\"><code><tt>getSystemClassLoader()</tt>"
                 + "</code></a> as the parent class loader.</div>",
                 "<div class=\"block\">is equivalent to invoking <code>"
-                + "<a href=\"#createTempFile-java.lang.String-java.lang.String-java.io.File-\">"
+                + "<a href=\"#createTempFile(java.lang.String,java.lang.String,java.io.File)\">"
                 + "<code>createTempFile(prefix,&nbsp;suffix,&nbsp;null)</code></a></code>.</div>",
                 "<a href=\"" + url + "java/lang/String.html?is-external=true\" "
                 + "title=\"class or interface in java.lang\" class=\"externalLink\">Link-Plain to String Class</a>",
@@ -108,6 +113,26 @@ public class TestLinkOption extends JavadocTester {
                 + "extends <a href=\"" + url + "java/lang/Object.html?is-external=true\" "
                 + "title=\"class or interface in java.lang\" class=\"externalLink\">Object</a></pre>"
         );
+
+        String out1_html4 = "out1-html4";
+        javadoc("-d", out1_html4,
+                "-source", "8",
+                "-html4",
+                "-classpath", mylib,
+                "-sourcepath", testSrc,
+                "-linkoffline", url, testSrc + "/jdk",
+                "-package",
+                "pkg", "mylib.lang");
+        checkExit(Exit.OK);
+
+        checkOutput("pkg/B.html", true,
+                "<div class=\"block\">A method with html tag the method "
+                + "<a href=\"" + url + "java/lang/ClassLoader.html?is-external=true#getSystemClassLoader--\""
+                + " title=\"class or interface in java.lang\" class=\"externalLink\"><code><tt>getSystemClassLoader()</tt>"
+                + "</code></a> as the parent class loader.</div>",
+                "<div class=\"block\">is equivalent to invoking <code>"
+                + "<a href=\"#createTempFile-java.lang.String-java.lang.String-java.io.File-\">"
+                + "<code>createTempFile(prefix,&nbsp;suffix,&nbsp;null)</code></a></code>.</div>");
 
         // Generate the documentation using -linkoffline and a relative path as the first parameter.
         // We will try linking to the docs generated in test 1 with a relative path.

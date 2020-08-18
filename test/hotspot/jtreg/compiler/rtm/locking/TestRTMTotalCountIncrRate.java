@@ -29,7 +29,7 @@
  * @library /test/lib /
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @requires vm.flavor == "server" & !vm.emulatedClient & vm.rtm.cpu & vm.rtm.os
+ * @requires vm.rtm.cpu & vm.rtm.compiler
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                                sun.hotspot.WhiteBox$WhiteBoxPermission
@@ -129,7 +129,7 @@ public class TestRTMTotalCountIncrRate {
                     // If an actual JNI call will be replaced by
                     // intrinsic - we'll be in trouble, since xabort
                     // will be no longer called and test may fail.
-                    UNSAFE.addressSize();
+                    UNSAFE.pageSize();
                 }
                 Test.field++;
             }

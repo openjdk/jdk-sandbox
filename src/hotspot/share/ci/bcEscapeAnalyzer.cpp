@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,8 +32,7 @@
 #include "oops/oop.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/bitMap.inline.hpp"
-
-
+#include "utilities/copy.hpp"
 
 #ifndef PRODUCT
   #define TRACE_BCEA(level, code)                                            \
@@ -80,7 +79,6 @@ public:
   void add_unknown()                    { _bits = UNKNOWN; }
   void add_allocated()                  { _bits = ALLOCATED; }
   void set_union(const ArgumentMap &am)     { _bits |= am._bits; }
-  void set_intersect(const ArgumentMap &am) { _bits |= am._bits; }
   void set_difference(const ArgumentMap &am) { _bits &=  ~am._bits; }
   void operator=(const ArgumentMap &am) { _bits = am._bits; }
   bool operator==(const ArgumentMap &am) { return _bits == am._bits; }
@@ -1220,8 +1218,6 @@ vmIntrinsics::ID BCEscapeAnalyzer::known_intrinsic() {
 }
 
 bool BCEscapeAnalyzer::compute_escape_for_intrinsic(vmIntrinsics::ID iid) {
-  ArgumentMap arg;
-  arg.clear();
   switch (iid) {
   case vmIntrinsics::_getClass:
     _return_local = false;
@@ -1448,8 +1444,8 @@ void BCEscapeAnalyzer::dump() {
 #endif
 
 BCEscapeAnalyzer::BCEscapeAnalyzer(ciMethod* method, BCEscapeAnalyzer* parent)
-    : _conservative(method == NULL || !EstimateArgEscape)
-    , _arena(CURRENT_ENV->arena())
+    : _arena(CURRENT_ENV->arena())
+    , _conservative(method == NULL || !EstimateArgEscape)
     , _method(method)
     , _methodData(method ? method->method_data() : NULL)
     , _arg_size(method ? method->arg_size() : 0)

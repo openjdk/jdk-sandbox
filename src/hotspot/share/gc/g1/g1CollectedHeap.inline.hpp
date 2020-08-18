@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,16 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1COLLECTEDHEAP_INLINE_HPP
-#define SHARE_VM_GC_G1_G1COLLECTEDHEAP_INLINE_HPP
+#ifndef SHARE_GC_G1_G1COLLECTEDHEAP_INLINE_HPP
+#define SHARE_GC_G1_G1COLLECTEDHEAP_INLINE_HPP
 
+#include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1CollectedHeap.hpp"
 #include "gc/g1/g1CollectorState.hpp"
-#include "gc/g1/g1ConcurrentMark.inline.hpp"
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
 #include "gc/g1/heapRegionManager.inline.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
-#include "gc/shared/taskqueue.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "gc/shared/taskqueue.inline.hpp"
+#include "runtime/orderAccess.hpp"
 
 G1EvacStats* G1CollectedHeap::alloc_buffer_stats(InCSetState dest) {
   switch (dest.value()) {
@@ -47,7 +46,7 @@ G1EvacStats* G1CollectedHeap::alloc_buffer_stats(InCSetState dest) {
 }
 
 size_t G1CollectedHeap::desired_plab_sz(InCSetState dest) {
-  size_t gclab_word_size = alloc_buffer_stats(dest)->desired_plab_sz(G1CollectedHeap::heap()->workers()->active_workers());
+  size_t gclab_word_size = alloc_buffer_stats(dest)->desired_plab_sz(workers()->active_workers());
   // Prevent humongous PLAB sizes for two reasons:
   // * PLABs are allocated using a similar paths as oops, but should
   //   never be in a humongous region
@@ -58,10 +57,13 @@ size_t G1CollectedHeap::desired_plab_sz(InCSetState dest) {
 // Inline functions for G1CollectedHeap
 
 // Return the region with the given index. It assumes the index is valid.
-inline HeapRegion* G1CollectedHeap::region_at(uint index) const { return _hrm.at(index); }
+inline HeapRegion* G1CollectedHeap::region_at(uint index) const { return _hrm->at(index); }
+
+// Return the region with the given index, or NULL if unmapped. It assumes the index is valid.
+inline HeapRegion* G1CollectedHeap::region_at_or_null(uint index) const { return _hrm->at_or_null(index); }
 
 inline HeapRegion* G1CollectedHeap::next_region_in_humongous(HeapRegion* hr) const {
-  return _hrm.next_region_in_humongous(hr);
+  return _hrm->next_region_in_humongous(hr);
 }
 
 inline uint G1CollectedHeap::addr_to_region(HeapWord* addr) const {
@@ -72,7 +74,7 @@ inline uint G1CollectedHeap::addr_to_region(HeapWord* addr) const {
 }
 
 inline HeapWord* G1CollectedHeap::bottom_addr_for_region(uint index) const {
-  return _hrm.reserved().start() + index * HeapRegion::GrainWords;
+  return _hrm->reserved().start() + index * HeapRegion::GrainWords;
 }
 
 template <class T>
@@ -81,17 +83,17 @@ inline HeapRegion* G1CollectedHeap::heap_region_containing(const T addr) const {
   assert(is_in_g1_reserved((const void*) addr),
          "Address " PTR_FORMAT " is outside of the heap ranging from [" PTR_FORMAT " to " PTR_FORMAT ")",
          p2i((void*)addr), p2i(g1_reserved().start()), p2i(g1_reserved().end()));
-  return _hrm.addr_to_region((HeapWord*) addr);
+  return _hrm->addr_to_region((HeapWord*) addr);
 }
 
-inline void G1CollectedHeap::reset_gc_time_stamp() {
-  assert_at_safepoint(true);
-  _gc_time_stamp = 0;
-}
-
-inline void G1CollectedHeap::increment_gc_time_stamp() {
-  assert_at_safepoint(true);
-  ++_gc_time_stamp;
+template <class T>
+inline HeapRegion* G1CollectedHeap::heap_region_containing_or_null(const T addr) const {
+  assert(addr != NULL, "invariant");
+  assert(is_in_g1_reserved((const void*) addr),
+         "Address " PTR_FORMAT " is outside of the heap ranging from [" PTR_FORMAT " to " PTR_FORMAT ")",
+         p2i((void*)addr), p2i(g1_reserved().start()), p2i(g1_reserved().end()));
+  uint const region_idx = addr_to_region(addr);
+  return region_at_or_null(region_idx);
 }
 
 inline void G1CollectedHeap::old_set_add(HeapRegion* hr) {
@@ -100,6 +102,10 @@ inline void G1CollectedHeap::old_set_add(HeapRegion* hr) {
 
 inline void G1CollectedHeap::old_set_remove(HeapRegion* hr) {
   _old_set.remove(hr);
+}
+
+inline void G1CollectedHeap::archive_set_add(HeapRegion* hr) {
+  _archive_set.add(hr);
 }
 
 // It dirties the cards that cover the block so that the post
@@ -123,14 +129,14 @@ G1CollectedHeap::dirty_young_block(HeapWord* start, size_t word_size) {
   assert(containing_hr->is_in(end - 1), "it should also contain end - 1");
 
   MemRegion mr(start, end);
-  g1_barrier_set()->g1_mark_as_young(mr);
+  card_table()->g1_mark_as_young(mr);
 }
 
 inline RefToScanQueue* G1CollectedHeap::task_queue(uint i) const {
   return _task_queues->queue(i);
 }
 
-inline bool G1CollectedHeap::isMarkedNext(oop obj) const {
+inline bool G1CollectedHeap::is_marked_next(oop obj) const {
   return _cm->next_mark_bitmap()->is_marked((HeapWord*)obj);
 }
 
@@ -162,17 +168,17 @@ void G1CollectedHeap::register_humongous_region_with_cset(uint index) {
 // Support for G1EvacuationFailureALot
 
 inline bool
-G1CollectedHeap::evacuation_failure_alot_for_gc_type(bool gcs_are_young,
+G1CollectedHeap::evacuation_failure_alot_for_gc_type(bool for_young_gc,
                                                      bool during_initial_mark,
-                                                     bool during_marking) {
+                                                     bool mark_or_rebuild_in_progress) {
   bool res = false;
-  if (during_marking) {
+  if (mark_or_rebuild_in_progress) {
     res |= G1EvacuationFailureALotDuringConcMark;
   }
   if (during_initial_mark) {
     res |= G1EvacuationFailureALotDuringInitialMark;
   }
-  if (gcs_are_young) {
+  if (for_young_gc) {
     res |= G1EvacuationFailureALotDuringYoungGC;
   } else {
     // GCs are mixed
@@ -196,14 +202,14 @@ G1CollectedHeap::set_evacuation_failure_alot_for_current_gc() {
     _evacuation_failure_alot_for_current_gc = (elapsed_gcs >= G1EvacuationFailureALotInterval);
 
     // Now check if G1EvacuationFailureALot is enabled for the current GC type.
-    const bool gcs_are_young = collector_state()->gcs_are_young();
-    const bool during_im = collector_state()->during_initial_mark_pause();
-    const bool during_marking = collector_state()->mark_in_progress();
+    const bool in_young_only_phase = collector_state()->in_young_only_phase();
+    const bool in_initial_mark_gc = collector_state()->in_initial_mark_gc();
+    const bool mark_or_rebuild_in_progress = collector_state()->mark_or_rebuild_in_progress();
 
     _evacuation_failure_alot_for_current_gc &=
-      evacuation_failure_alot_for_gc_type(gcs_are_young,
-                                          during_im,
-                                          during_marking);
+      evacuation_failure_alot_for_gc_type(in_young_only_phase,
+                                          in_initial_mark_gc,
+                                          mark_or_rebuild_in_progress);
   }
 }
 
@@ -252,7 +258,7 @@ inline bool G1CollectedHeap::is_obj_ill(const oop obj) const {
 }
 
 inline bool G1CollectedHeap::is_obj_dead_full(const oop obj, const HeapRegion* hr) const {
-   return !isMarkedNext(obj) && !hr->is_archive();
+   return !is_marked_next(obj) && !hr->is_archive();
 }
 
 inline bool G1CollectedHeap::is_obj_dead_full(const oop obj) const {
@@ -260,12 +266,12 @@ inline bool G1CollectedHeap::is_obj_dead_full(const oop obj) const {
 }
 
 inline void G1CollectedHeap::set_humongous_reclaim_candidate(uint region, bool value) {
-  assert(_hrm.at(region)->is_starts_humongous(), "Must start a humongous object");
+  assert(_hrm->at(region)->is_starts_humongous(), "Must start a humongous object");
   _humongous_reclaim_candidates.set_candidate(region, value);
 }
 
 inline bool G1CollectedHeap::is_humongous_reclaim_candidate(uint region) {
-  assert(_hrm.at(region)->is_starts_humongous(), "Must start a humongous object");
+  assert(_hrm->at(region)->is_starts_humongous(), "Must start a humongous object");
   return _humongous_reclaim_candidates.is_candidate(region);
 }
 
@@ -287,4 +293,4 @@ inline void G1CollectedHeap::set_humongous_is_live(oop obj) {
   }
 }
 
-#endif // SHARE_VM_GC_G1_G1COLLECTEDHEAP_INLINE_HPP
+#endif // SHARE_GC_G1_G1COLLECTEDHEAP_INLINE_HPP

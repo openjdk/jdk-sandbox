@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,18 +22,18 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_METHODHANDLES_HPP
-#define SHARE_VM_PRIMS_METHODHANDLES_HPP
+#ifndef SHARE_PRIMS_METHODHANDLES_HPP
+#define SHARE_PRIMS_METHODHANDLES_HPP
 
 #include "classfile/javaClasses.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "runtime/frame.inline.hpp"
+#include "runtime/frame.hpp"
 #include "runtime/globals.hpp"
-#include "runtime/interfaceSupport.hpp"
 #include "utilities/macros.hpp"
 
 #ifdef ZERO
 # include "entry_zero.hpp"
+# include "interpreter/interpreter.hpp"
 #endif
 
 
@@ -61,7 +61,8 @@ class MethodHandles: AllStatic {
 
  public:
   // working with member names
-  static Handle resolve_MemberName(Handle mname, Klass* caller, TRAPS); // compute vmtarget/vmindex from name/type
+  static Handle resolve_MemberName(Handle mname, Klass* caller,
+                                   bool speculative_resolve, TRAPS); // compute vmtarget/vmindex from name/type
   static void expand_MemberName(Handle mname, int suppress, TRAPS);  // expand defc/name/type if missing
   static oop init_MemberName(Handle mname_h, Handle target_h, TRAPS); // compute vmtarget/vmindex from target
   static oop init_field_MemberName(Handle mname_h, fieldDescriptor& fd, bool is_setter = false);
@@ -78,6 +79,7 @@ class MethodHandles: AllStatic {
   // CallSite support
   static void add_dependent_nmethod(oop call_site, nmethod* nm);
   static void remove_dependent_nmethod(oop call_site, nmethod* nm);
+  static void clean_dependency_context(oop call_site);
 
   static void flush_dependent_nmethods(Handle call_site, Handle target);
 
@@ -142,6 +144,7 @@ class MethodHandles: AllStatic {
   static bool is_signature_polymorphic_name(Klass* klass, Symbol* name) {
     return signature_polymorphic_name_id(klass, name) != vmIntrinsics::_none;
   }
+  static bool is_signature_polymorphic_public_name(Klass* klass, Symbol* name);
 
   static Bytecodes::Code signature_polymorphic_intrinsic_bytecode(vmIntrinsics::ID id);
 
@@ -212,4 +215,4 @@ public:
   void generate();
 };
 
-#endif // SHARE_VM_PRIMS_METHODHANDLES_HPP
+#endif // SHARE_PRIMS_METHODHANDLES_HPP

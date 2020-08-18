@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "oops/oop.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/singleWriterSynchronizer.hpp"
 
 class Mutex;
 class outputStream;
@@ -73,7 +74,7 @@ class outputStream;
 
 class OopStorage : public CHeapObj<mtGC> {
 public:
-  OopStorage(const char* name, Mutex* allocate_mutex, Mutex* active_mutex);
+  OopStorage(const char* name, Mutex* allocation_mutex, Mutex* active_mutex);
   ~OopStorage();
 
   // These count and usage accessors are racy unless at a safepoint.
@@ -94,12 +95,12 @@ public:
     ALLOCATED_ENTRY
   };
 
-  // Locks _allocate_mutex.
+  // Locks _allocation_mutex.
   // precondition: ptr != NULL.
   EntryStatus allocation_status(const oop* ptr) const;
 
   // Allocates and returns a new entry.  Returns NULL if memory allocation
-  // failed.  Locks _allocate_mutex.
+  // failed.  Locks _allocation_mutex.
   // postcondition: *result == NULL.
   oop* allocate();
 
@@ -146,17 +147,23 @@ public:
   template<typename IsAliveClosure, typename Closure>
   inline void weak_oops_do(IsAliveClosure* is_alive, Closure* closure);
 
-#if INCLUDE_ALL_GCS
   // Parallel iteration is for the exclusive use of the GC.
   // Other clients must use serial iteration.
   template<bool concurrent, bool is_const> class ParState;
-#endif // INCLUDE_ALL_GCS
 
-  // Block cleanup functions are for the exclusive use of the GC.
-  // Both stop deleting if there is an in-progress concurrent iteration.
-  // Concurrent deletion locks both the allocate_mutex and the active_mutex.
-  void delete_empty_blocks_safepoint();
-  void delete_empty_blocks_concurrent();
+  // Service thread cleanup support.
+  // Stops deleting if there is an in-progress concurrent iteration.
+  // Locks both the _allocation_mutex and the _active_mutex, and may
+  // safepoint.  Deletion may be throttled, with only some available
+  // work performed, in order to allow other Service thread subtasks
+  // to run.  Returns true if there may be more work to do, false if
+  // nothing to do.
+  bool delete_empty_blocks();
+
+  // Service thread cleanup support.
+  // Called by the service thread (while holding Service_lock) to test
+  // whether a call to delete_empty_blocks should be made.
+  bool needs_delete_empty_blocks() const;
 
   // Debugging and logging support.
   const char* name() const;
@@ -172,41 +179,25 @@ public:
   // classes. C++03 introduced access for nested classes with DR45, but xlC
   // version 12 rejects it.
 NOT_AIX( private: )
-  class Block;                  // Forward decl; defined in .inline.hpp file.
-  class BlockList;              // Forward decl for BlockEntry friend decl.
+  class Block;                  // Fixed-size array of oops, plus bookkeeping.
+  class ActiveArray;            // Array of Blocks, plus bookkeeping.
+  class AllocationListEntry;    // Provides AllocationList links in a Block.
 
-  class BlockEntry VALUE_OBJ_CLASS_SPEC {
-    friend class BlockList;
-
-    // Members are mutable, and we deal exclusively with pointers to
-    // const, to make const blocks easier to use; a block being const
-    // doesn't prevent modifying its list state.
-    mutable const Block* _prev;
-    mutable const Block* _next;
-
-    // Noncopyable.
-    BlockEntry(const BlockEntry&);
-    BlockEntry& operator=(const BlockEntry&);
-
-  public:
-    BlockEntry();
-    ~BlockEntry();
-  };
-
-  class BlockList VALUE_OBJ_CLASS_SPEC {
+  // Doubly-linked list of Blocks.
+  class AllocationList {
     const Block* _head;
     const Block* _tail;
-    const BlockEntry& (*_get_entry)(const Block& block);
 
     // Noncopyable.
-    BlockList(const BlockList&);
-    BlockList& operator=(const BlockList&);
+    AllocationList(const AllocationList&);
+    AllocationList& operator=(const AllocationList&);
 
   public:
-    BlockList(const BlockEntry& (*get_entry)(const Block& block));
-    ~BlockList();
+    AllocationList();
+    ~AllocationList();
 
     Block* head();
+    Block* tail();
     const Block* chead() const;
     const Block* ctail() const;
 
@@ -223,33 +214,49 @@ NOT_AIX( private: )
 
 private:
   const char* _name;
-  BlockList _active_list;
-  BlockList _allocate_list;
-  Block* volatile _active_head;
+  ActiveArray* _active_array;
+  AllocationList _allocation_list;
+AIX_ONLY(public:)               // xlC 12 on AIX doesn't implement C++ DR45.
   Block* volatile _deferred_updates;
+AIX_ONLY(private:)
 
-  Mutex* _allocate_mutex;
+  Mutex* _allocation_mutex;
   Mutex* _active_mutex;
 
-  // Counts are volatile for racy unlocked accesses.
+  // Volatile for racy unlocked accesses.
   volatile size_t _allocation_count;
-  volatile size_t _block_count;
+
+  // Protection for _active_array.
+  mutable SingleWriterSynchronizer _protect_active;
+
   // mutable because this gets set even for const iteration.
-  mutable bool _concurrent_iteration_active;
+  mutable int _concurrent_iteration_count;
+
+  volatile uint _needs_cleanup;
+
+  bool try_add_block();
+  Block* block_for_allocation();
 
   Block* find_block_or_null(const oop* ptr) const;
   void delete_empty_block(const Block& block);
   bool reduce_deferred_updates();
+  void notify_needs_cleanup();
+AIX_ONLY(public:)               // xlC 12 on AIX doesn't implement C++ DR45.
+  void record_needs_cleanup();
+AIX_ONLY(private:)
 
-  static void assert_at_safepoint() NOT_DEBUG_RETURN;
+  // Managing _active_array.
+  bool expand_active_array();
+  void replace_active_array(ActiveArray* new_array);
+  ActiveArray* obtain_active_array() const;
+  void relinquish_block_array(ActiveArray* array) const;
+  class WithActiveArray;        // RAII helper for active array access.
 
   template<typename F, typename Storage>
   static bool iterate_impl(F f, Storage* storage);
 
-#if INCLUDE_ALL_GCS
   // Implementation support for parallel iteration
   class BasicParState;
-#endif // INCLUDE_ALL_GCS
 
   // Wrapper for OopClosure-style function, so it can be used with
   // iterate.  Assume p is of type oop*.  Then cl->do_oop(p) must be a
@@ -268,4 +275,4 @@ private:
   template<typename F> static SkipNullFn<F> skip_null_fn(F f);
 };
 
-#endif // include guard
+#endif // SHARE_GC_SHARED_OOPSTORAGE_HPP

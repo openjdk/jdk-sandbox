@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_VM_AOT_AOTLOADER_HPP
-#define SHARE_VM_AOT_AOTLOADER_HPP
+#ifndef SHARE_AOT_AOTLOADER_HPP
+#define SHARE_AOT_AOTLOADER_HPP
 
 #include "runtime/globals_extension.hpp"
 #include "runtime/handles.hpp"
@@ -57,22 +57,16 @@ public:
   static void initialize() NOT_AOT({ FLAG_SET_ERGO(bool, UseAOT, false); });
 
   static void universe_init() NOT_AOT_RETURN;
+  static void set_narrow_oop_shift() NOT_AOT_RETURN;
   static void set_narrow_klass_shift() NOT_AOT_RETURN;
-  static bool contains(address p) NOT_AOT({ return false; });
   static void load_for_klass(InstanceKlass* ik, Thread* thread) NOT_AOT_RETURN;
-  static bool find_klass(InstanceKlass* ik) NOT_AOT({ return false; });
   static uint64_t get_saved_fingerprint(InstanceKlass* ik) NOT_AOT({ return 0; });
   static void oops_do(OopClosure* f) NOT_AOT_RETURN;
   static void metadata_do(void f(Metadata*)) NOT_AOT_RETURN;
 
   NOT_PRODUCT( static void print_statistics() NOT_AOT_RETURN; )
 
-#ifdef HOTSWAP
-  // Flushing and deoptimization in case of evolution
-  static void flush_evol_dependents_on(InstanceKlass* dependee) NOT_AOT_RETURN;
-#endif // HOTSWAP
-
   static bool reconcile_dynamic_invoke(InstanceKlass* holder, int index, Method* adapter_method, Klass *appendix_klass) NOT_AOT({ return true; });
 };
 
-#endif // SHARE_VM_AOT_AOTLOADER_HPP
+#endif // SHARE_AOT_AOTLOADER_HPP

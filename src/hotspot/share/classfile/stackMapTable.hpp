@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_STACKMAPTABLE_HPP
-#define SHARE_VM_CLASSFILE_STACKMAPTABLE_HPP
+#ifndef SHARE_CLASSFILE_STACKMAPTABLE_HPP
+#define SHARE_CLASSFILE_STACKMAPTABLE_HPP
 
 #include "classfile/stackMapFrame.hpp"
 #include "classfile/verifier.hpp"
@@ -142,18 +142,7 @@ class StackMapReader : StackObj {
  public:
   // Constructor
   StackMapReader(ClassVerifier* v, StackMapStream* stream, char* code_data,
-                 int32_t code_len, TRAPS) :
-                 _verifier(v), _stream(stream),
-                 _code_data(code_data), _code_length(code_len) {
-    methodHandle m = v->method();
-    if (m->has_stackmap_table()) {
-      _cp = constantPoolHandle(THREAD, m->constants());
-      _frame_count = _stream->get_u2(CHECK);
-    } else {
-      // There's no stackmap table present. Frame count and size are 0.
-      _frame_count = 0;
-    }
-  }
+                 int32_t code_len, TRAPS);
 
   inline int32_t get_frame_count() const                { return _frame_count; }
   StackMapFrame* next(StackMapFrame* pre_frame, bool first,
@@ -166,4 +155,4 @@ class StackMapReader : StackObj {
   }
 };
 
-#endif // SHARE_VM_CLASSFILE_STACKMAPTABLE_HPP
+#endif // SHARE_CLASSFILE_STACKMAPTABLE_HPP

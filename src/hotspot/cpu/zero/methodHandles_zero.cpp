@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2009, 2010, 2011 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -26,9 +26,12 @@
 #include "precompiled.hpp"
 #include "interpreter/cppInterpreterGenerator.hpp"
 #include "interpreter/interpreter.hpp"
+#include "interpreter/interpreterRuntime.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/frame.inline.hpp"
 #include "prims/methodHandles.hpp"
 
 void MethodHandles::invoke_target(Method* method, TRAPS) {
@@ -60,6 +63,37 @@ oop MethodHandles::popFromStack(TRAPS) {
   istate->set_stack(topOfStack);
 
   return top;
+
+}
+
+void MethodHandles::throw_AME(Klass* rcvr, Method* interface_method, TRAPS) {
+
+  JavaThread *thread = (JavaThread *) THREAD;
+  // Set up the frame anchor if it isn't already
+  bool has_last_Java_frame = thread->has_last_Java_frame();
+  if (!has_last_Java_frame) {
+    intptr_t *sp = thread->zero_stack()->sp();
+    ZeroFrame *frame = thread->top_zero_frame();
+    while (frame) {
+      if (frame->is_interpreter_frame()) {
+        interpreterState istate =
+          frame->as_interpreter_frame()->interpreter_state();
+        if (istate->self_link() == istate)
+          break;
+      }
+
+      sp = ((intptr_t *) frame) + 1;
+      frame = frame->next();
+    }
+
+    assert(frame != NULL, "must be");
+    thread->set_last_Java_frame(frame, sp);
+  }
+  InterpreterRuntime::throw_AbstractMethodErrorVerbose(thread, rcvr, interface_method);
+  // Reset the frame anchor if necessary
+  if (!has_last_Java_frame) {
+    thread->reset_last_Java_frame();
+  }
 
 }
 
@@ -122,8 +156,15 @@ int MethodHandles::method_handle_entry_linkToInterface(Method* method, intptr_t 
 
   itableMethodEntry* im = ki->first_method_entry(recv->klass());
   Method* vmtarget = im[vmindex].method();
-
-  invoke_target(vmtarget, THREAD);
+  // Check that the vmtarget entry is non-null.  A null entry means
+  // that the method no longer exists (got deleted) or is private.
+  // Private class methods can never be an implementation of an
+  // interface method. In those cases, throw AME.
+  if (vmtarget != NULL) {
+    invoke_target(vmtarget, THREAD);
+  } else {
+    throw_AME(recv->klass(), target, THREAD);
+  }
 
   return 0;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -930,7 +930,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
         }
     }
 
-    public static class ClassType extends Type implements DeclaredType {
+    public static class ClassType extends Type implements DeclaredType,
+                                                          javax.lang.model.type.ErrorType {
 
         /** The enclosing type of this type. If this is the type of an inner
          *  class, outer_field refers to the type of its enclosing
@@ -1141,7 +1142,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
 
         @DefinedBy(Api.LANGUAGE_MODEL)
         public TypeKind getKind() {
-            return TypeKind.DECLARED;
+            tsym.apiComplete();
+            return tsym.kind == TYP ? TypeKind.DECLARED : TypeKind.ERROR;
         }
 
         @DefinedBy(Api.LANGUAGE_MODEL)
@@ -2018,6 +2020,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
             for (IncorporationAction action : incorporationActions) {
                 uv2.incorporationActions.add(action.dup(uv2));
             }
+            uv2.kind = kind;
         }
 
         @Override
@@ -2357,7 +2360,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
 
         public Type constType(Object constValue) { return this; }
         @DefinedBy(Api.LANGUAGE_MODEL)
-        public Type getEnclosingType()           { return this; }
+        public Type getEnclosingType()           { return Type.noType; }
         public Type getReturnType()              { return this; }
         public Type asSub(Symbol sym)            { return this; }
 

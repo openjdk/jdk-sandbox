@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.math.BigInteger;
 import java.security.*;
+import java.security.spec.AlgorithmParameterSpec;
 import java.security.cert.*;
 import java.security.cert.Certificate;
 import java.util.*;
@@ -41,7 +42,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.security.auth.x500.X500Principal;
 
-import sun.security.util.HexDumpEncoder;
 import java.util.Base64;
 import sun.security.util.*;
 import sun.security.provider.X509Factory;
@@ -63,14 +63,8 @@ import sun.security.provider.X509Factory;
  * direct knowledge of each other.  CA certificates are either signed by
  * themselves, or by some other CA such as a "root" CA.
  *
- * <P>RFC 1422 is very informative, though it does not describe much
- * of the recent work being done with X.509 certificates.  That includes
- * a 1996 version (X.509v3) and a variety of enhancements being made to
- * facilitate an explosion of personal certificates used as "Internet
- * Drivers' Licences", or with SET for credit card transactions.
- *
- * <P>More recent work includes the IETF PKIX Working Group efforts,
- * especially RFC2459.
+ * <P> Standards relating to X.509 Public Key Infrastructure for the Internet
+ * can be referenced in RFC 5280.
  *
  * @author Dave Brownell
  * @author Amit Kapoor
@@ -388,7 +382,6 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
     public void verify(PublicKey key)
     throws CertificateException, NoSuchAlgorithmException,
         InvalidKeyException, NoSuchProviderException, SignatureException {
-
         verify(key, "");
     }
 
@@ -430,12 +423,23 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
         }
         // Verify the signature ...
         Signature sigVerf = null;
-        if (sigProvider.length() == 0) {
+        if (sigProvider.isEmpty()) {
             sigVerf = Signature.getInstance(algId.getName());
         } else {
             sigVerf = Signature.getInstance(algId.getName(), sigProvider);
         }
+
         sigVerf.initVerify(key);
+
+        // set parameters after Signature.initSign/initVerify call,
+        // so the deferred provider selection happens when key is set
+        try {
+            SignatureUtil.specialSetParameter(sigVerf, getSigAlgParams());
+        } catch (ProviderException e) {
+            throw new CertificateException(e.getMessage(), e.getCause());
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new CertificateException(e);
+        }
 
         byte[] rawCert = info.getEncodedInfo();
         sigVerf.update(rawCert, 0, rawCert.length);
@@ -480,7 +484,18 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
         } else {
             sigVerf = Signature.getInstance(algId.getName(), sigProvider);
         }
+
         sigVerf.initVerify(key);
+
+        // set parameters after Signature.initSign/initVerify call,
+        // so the deferred provider selection happens when key is set
+        try {
+            SignatureUtil.specialSetParameter(sigVerf, getSigAlgParams());
+        } catch (ProviderException e) {
+            throw new CertificateException(e.getMessage(), e.getCause());
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new CertificateException(e);
+        }
 
         byte[] rawCert = info.getEncodedInfo();
         sigVerf.update(rawCert, 0, rawCert.length);
@@ -537,20 +552,69 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
     throws CertificateException, NoSuchAlgorithmException,
         InvalidKeyException, NoSuchProviderException, SignatureException {
         try {
+            sign(key, null, algorithm, provider);
+        } catch (InvalidAlgorithmParameterException e) {
+            // should not happen; re-throw just in case
+            throw new SignatureException(e);
+        }
+    }
+
+    /**
+     * Creates an X.509 certificate, and signs it using the given key
+     * (associating a signature algorithm and an X.500 name), signature
+     * parameters, and security provider. If the given provider name
+     * is null or empty, the implementation look up will be based on
+     * provider configurations.
+     * This operation is used to implement the certificate generation
+     * functionality of a certificate authority.
+     *
+     * @param key the private key used for signing
+     * @param signingParams the parameters used for signing
+     * @param algorithm the name of the signature algorithm used
+     * @param provider the name of the provider, may be null
+     *
+     * @exception NoSuchAlgorithmException on unsupported signature
+     *            algorithms
+     * @exception InvalidKeyException on incorrect key
+     * @exception InvalidAlgorithmParameterException on invalid signature
+     *            parameters
+     * @exception NoSuchProviderException on incorrect provider
+     * @exception SignatureException on signature errors
+     * @exception CertificateException on encoding errors
+     */
+    public void sign(PrivateKey key, AlgorithmParameterSpec signingParams,
+            String algorithm, String provider)
+            throws CertificateException, NoSuchAlgorithmException,
+            InvalidKeyException, InvalidAlgorithmParameterException,
+            NoSuchProviderException, SignatureException {
+        try {
             if (readOnly)
                 throw new CertificateEncodingException(
                               "cannot over-write existing certificate");
             Signature sigEngine = null;
-            if ((provider == null) || (provider.length() == 0))
+            if (provider == null || provider.isEmpty())
                 sigEngine = Signature.getInstance(algorithm);
             else
                 sigEngine = Signature.getInstance(algorithm, provider);
 
             sigEngine.initSign(key);
 
-                                // in case the name is reset
-            algId = AlgorithmId.get(sigEngine.getAlgorithm());
+            // set parameters after Signature.initSign/initVerify call, so
+            // the deferred provider selection happens when the key is set
+            try {
+                sigEngine.setParameter(signingParams);
+            } catch (UnsupportedOperationException e) {
+                // for backward compatibility, only re-throw when
+                // parameters is not null
+                if (signingParams != null) throw e;
+            }
 
+            // in case the name is reset
+            if (signingParams != null) {
+                algId = AlgorithmId.get(sigEngine.getParameters());
+            } else {
+                algId = AlgorithmId.get(algorithm);
+            }
             DerOutputStream out = new DerOutputStream();
             DerOutputStream tmp = new DerOutputStream();
 

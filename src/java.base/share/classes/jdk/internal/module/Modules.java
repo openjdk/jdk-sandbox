@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -42,8 +43,8 @@ import java.util.stream.Collectors;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.loader.ClassLoaders;
-import jdk.internal.misc.JavaLangAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * A helper class for creating and updating modules. This class is intended to
@@ -249,7 +250,19 @@ public class Modules {
 
     }
 
-    // the top-most system layer
-    private static ModuleLayer topLayer;
+    /**
+     * Finds the module with the given name in the boot layer or any child
+     * layers created to load the "java.instrument" or "jdk.management.agent"
+     * modules into a running VM.
+     */
+    public static Optional<Module> findLoadedModule(String name) {
+        ModuleLayer top = topLayer;
+        if (top == null)
+            top = ModuleLayer.boot();
+        return top.findModule(name);
+    }
+
+    // the top-most layer
+    private static volatile ModuleLayer topLayer;
 
 }

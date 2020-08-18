@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,14 +21,14 @@
  * questions.
  */
 
+
+
 package jdk.tools.jaotc.binformat.elf;
 
-import java.util.ArrayList;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 
-import jdk.tools.jaotc.binformat.elf.ElfRelocEntry;
 import jdk.tools.jaotc.binformat.elf.Elf.Elf64_Rela;
-import jdk.tools.jaotc.binformat.elf.ElfByteBuffer;
 
 final class ElfRelocTable {
     private final ArrayList<ArrayList<ElfRelocEntry>> relocEntries;
@@ -45,14 +45,14 @@ final class ElfRelocTable {
         relocEntries.get(sectindex).add(entry);
     }
 
-    int getNumRelocs(int section_index) {
-        return relocEntries.get(section_index).size();
+    int getNumRelocs(int sectionIndex) {
+        return relocEntries.get(sectionIndex).size();
     }
 
     // Return the relocation entries for a single section
     // or null if no entries added to section
-    byte[] getRelocData(int section_index) {
-        ArrayList<ElfRelocEntry> entryList = relocEntries.get(section_index);
+    byte[] getRelocData(int sectionIndex) {
+        ArrayList<ElfRelocEntry> entryList = relocEntries.get(sectionIndex);
 
         if (entryList.size() == 0) {
             return null;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_IMMUTABLESPACE_HPP
-#define SHARE_VM_GC_PARALLEL_IMMUTABLESPACE_HPP
+#ifndef SHARE_GC_PARALLEL_IMMUTABLESPACE_HPP
+#define SHARE_GC_PARALLEL_IMMUTABLESPACE_HPP
 
 #include "memory/iterator.hpp"
 
@@ -59,7 +59,7 @@ class ImmutableSpace: public CHeapObj<mtGC> {
   virtual size_t capacity_in_words(Thread*) const { return capacity_in_words(); }
 
   // Iteration.
-  virtual void oop_iterate(ExtendedOopClosure* cl);
+  virtual void oop_iterate(OopIterateClosure* cl);
   virtual void object_iterate(ObjectClosure* cl);
 
   // Debugging
@@ -68,4 +68,4 @@ class ImmutableSpace: public CHeapObj<mtGC> {
   virtual void verify();
 };
 
-#endif // SHARE_VM_GC_PARALLEL_IMMUTABLESPACE_HPP
+#endif // SHARE_GC_PARALLEL_IMMUTABLESPACE_HPP

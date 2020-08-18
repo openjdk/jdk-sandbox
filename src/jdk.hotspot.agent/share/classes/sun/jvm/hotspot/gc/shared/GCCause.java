@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,6 +60,18 @@ public enum GCCause {
   _g1_humongous_allocation ("G1 Humongous Allocation"),
 
   _dcmd_gc_run ("Diagnostic Command"),
+
+  _z_timer ("Timer"),
+  _z_warmup ("Warmup"),
+  _z_allocation_rate ("Allocation Rate"),
+  _z_allocation_stall ("Allocation Stall"),
+  _z_proactive ("Proactive"),
+
+  _shenandoah_allocation_failure_evac ("Allocation Failure During Evacuation"),
+  _shenandoah_stop_vm ("Stopping VM"),
+  _shenandoah_concurrent_gc ("Concurrent GC"),
+  _shenandoah_traversal_gc ("Traversal GC"),
+  _shenandoah_upgrade_to_full_gc ("Upgrade To Full GC"),
 
   _last_gc_cause ("ILLEGAL VALUE - last gc cause - ILLEGAL VALUE");
 

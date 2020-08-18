@@ -34,7 +34,7 @@ m4_include([flags-other.m4])
 AC_DEFUN([FLAGS_SETUP_ABI_PROFILE],
 [
   AC_ARG_WITH(abi-profile, [AS_HELP_STRING([--with-abi-profile],
-      [specify ABI profile for ARM builds (arm-vfp-sflt,arm-vfp-hflt,arm-sflt, armv5-vfp-sflt,armv6-vfp-hflt,arm64,aarch64) @<:@toolchain dependent@:>@ ])])
+      [specify ABI profile for ARM builds (arm-vfp-sflt,arm-vfp-hflt,arm-sflt, armv5-vfp-sflt,armv6-vfp-hflt,aarch64) @<:@toolchain dependent@:>@ ])])
 
   if test "x$with_abi_profile" != x; then
     if test "x$OPENJDK_TARGET_CPU" != xarm && \
@@ -46,45 +46,59 @@ AC_DEFUN([FLAGS_SETUP_ABI_PROFILE],
     AC_MSG_CHECKING([for ABI profle])
     AC_MSG_RESULT([$OPENJDK_TARGET_ABI_PROFILE])
 
+    # --- Arm-sflt CFLAGS and ASFLAGS ---
+    # Armv5te is required for assembler, because pld insn used in arm32 hotspot is only in v5E and above.
+    # However, there is also a GCC bug which generates unaligned strd/ldrd instructions on armv5te:
+    # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82445, and it was fixed only quite recently.
+    # The resulting compromise is to enable v5TE for assembler and let GCC generate code for v5T.
     if test "x$OPENJDK_TARGET_ABI_PROFILE" = xarm-vfp-sflt; then
       ARM_FLOAT_TYPE=vfp-sflt
       ARM_ARCH_TYPE_FLAGS='-march=armv7-a -mthumb'
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv7-a -mthumb'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarm-vfp-hflt; then
       ARM_FLOAT_TYPE=vfp-hflt
       ARM_ARCH_TYPE_FLAGS='-march=armv7-a -mthumb'
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv7-a -mthumb'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarm-sflt; then
       ARM_FLOAT_TYPE=sflt
       ARM_ARCH_TYPE_FLAGS='-march=armv5t -marm'
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv5te'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarmv5-vfp-sflt; then
       ARM_FLOAT_TYPE=vfp-sflt
       ARM_ARCH_TYPE_FLAGS='-march=armv5t -marm'
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv5te'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarmv6-vfp-hflt; then
       ARM_FLOAT_TYPE=vfp-hflt
       ARM_ARCH_TYPE_FLAGS='-march=armv6 -marm'
-    elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarm64; then
-      # No special flags, just need to trigger setting JDK_ARCH_ABI_PROP_NAME
-      ARM_FLOAT_TYPE=
-      ARM_ARCH_TYPE_FLAGS=
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv6'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xaarch64; then
       # No special flags, just need to trigger setting JDK_ARCH_ABI_PROP_NAME
       ARM_FLOAT_TYPE=
       ARM_ARCH_TYPE_FLAGS=
+      ARM_ARCH_TYPE_ASFLAGS=
     else
       AC_MSG_ERROR([Invalid ABI profile: "$OPENJDK_TARGET_ABI_PROFILE"])
     fi
 
     if test "x$ARM_FLOAT_TYPE" = xvfp-sflt; then
       ARM_FLOAT_TYPE_FLAGS='-mfloat-abi=softfp -mfpu=vfp -DFLOAT_ARCH=-vfp-sflt'
+      ARM_FLOAT_TYPE_ASFLAGS="-mfloat-abi=softfp -mfpu=vfp"
     elif test "x$ARM_FLOAT_TYPE" = xvfp-hflt; then
       ARM_FLOAT_TYPE_FLAGS='-mfloat-abi=hard -mfpu=vfp -DFLOAT_ARCH=-vfp-hflt'
+      ARM_FLOAT_TYPE_ASFLAGS="-mfloat-abi=hard -mfpu=vfp"
     elif test "x$ARM_FLOAT_TYPE" = xsflt; then
       ARM_FLOAT_TYPE_FLAGS='-msoft-float -mfpu=vfp'
+      ARM_FLOAT_TYPE_ASFLAGS="-mfloat-abi=soft -mfpu=vfp"
     fi
     AC_MSG_CHECKING([for $ARM_FLOAT_TYPE floating point flags])
     AC_MSG_RESULT([$ARM_FLOAT_TYPE_FLAGS])
+    AC_MSG_CHECKING([for $ARM_FLOAT_TYPE floating point flags for assembler])
+    AC_MSG_RESULT([$ARM_FLOAT_TYPE_ASFLAGS])
 
     AC_MSG_CHECKING([for arch type flags])
     AC_MSG_RESULT([$ARM_ARCH_TYPE_FLAGS])
+    AC_MSG_CHECKING([for arch type flags for assembler])
+    AC_MSG_RESULT([$ARM_ARCH_TYPE_ASFLAGS])
 
     # Now set JDK_ARCH_ABI_PROP_NAME. This is equivalent to the last part of the
     # autoconf target triplet.
@@ -116,7 +130,7 @@ AC_DEFUN([FLAGS_SETUP_MACOSX_VERSION],
     # of the OS. It currently has a hard coded value. Setting this also limits
     # exposure to API changes in header files. Bumping this is likely to
     # require code changes to build.
-    MACOSX_VERSION_MIN=10.7.0
+    MACOSX_VERSION_MIN=10.9.0
     MACOSX_VERSION_MIN_NODOTS=${MACOSX_VERSION_MIN//\./}
 
     AC_SUBST(MACOSX_VERSION_MIN)
@@ -233,10 +247,20 @@ AC_DEFUN_ONCE([FLAGS_PRE_TOOLCHAIN],
   # The sysroot flags are needed for configure to be able to run the compilers
   FLAGS_SETUP_SYSROOT_FLAGS
 
+  # For solstudio and xlc, the word size flag is required for correct behavior.
+  # For clang/gcc, the flag is only strictly required for reduced builds, but
+  # set it always where possible (x86, sparc and ppc).
   if test "x$TOOLCHAIN_TYPE" = xxlc; then
     MACHINE_FLAG="-q${OPENJDK_TARGET_CPU_BITS}"
-  elif test "x$TOOLCHAIN_TYPE" != xmicrosoft; then
+  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     MACHINE_FLAG="-m${OPENJDK_TARGET_CPU_BITS}"
+  elif test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
+    if test "x$OPENJDK_TARGET_CPU_ARCH" = xx86 &&
+        test "x$OPENJDK_TARGET_CPU" != xx32 ||
+        test "x$OPENJDK_TARGET_CPU_ARCH" = xsparc ||
+        test "x$OPENJDK_TARGET_CPU_ARCH" = xppc; then
+      MACHINE_FLAG="-m${OPENJDK_TARGET_CPU_BITS}"
+    fi
   fi
 
   # FIXME: global flags are not used yet...
@@ -318,22 +342,22 @@ AC_DEFUN([FLAGS_SETUP_TOOLCHAIN_CONTROL],
 
   if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     CC_OUT_OPTION=-Fo
-    EXE_OUT_OPTION=-out:
     LD_OUT_OPTION=-out:
     AR_OUT_OPTION=-out:
   else
     # The option used to specify the target .o,.a or .so file.
     # When compiling, how to specify the to be created object file.
     CC_OUT_OPTION='-o$(SPACE)'
-    # When linking, how to specify the to be created executable.
-    EXE_OUT_OPTION='-o$(SPACE)'
-    # When linking, how to specify the to be created dynamically linkable library.
+    # When linking, how to specify the output
     LD_OUT_OPTION='-o$(SPACE)'
-    # When archiving, how to specify the to be create static archive for object files.
-    AR_OUT_OPTION='rcs$(SPACE)'
+    # When archiving, how to specify the destination static archive.
+    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
+      AR_OUT_OPTION='-r -cs$(SPACE)'
+    else
+      AR_OUT_OPTION='-rcs$(SPACE)'
+    fi
   fi
   AC_SUBST(CC_OUT_OPTION)
-  AC_SUBST(EXE_OUT_OPTION)
   AC_SUBST(LD_OUT_OPTION)
   AC_SUBST(AR_OUT_OPTION)
 
@@ -359,8 +383,10 @@ AC_DEFUN_ONCE([FLAGS_POST_TOOLCHAIN],
   if test "x$BUILD_SYSROOT" != x; then
     FLAGS_SETUP_SYSROOT_FLAGS([BUILD_])
   else
-    BUILD_SYSROOT_CFLAGS="$SYSROOT_CFLAGS"
-    BUILD_SYSROOT_LDFLAGS="$SYSROOT_LDFLAGS"
+    if test "x$COMPILE_TYPE" != "xcross"; then
+      BUILD_SYSROOT_CFLAGS="$SYSROOT_CFLAGS"
+      BUILD_SYSROOT_LDFLAGS="$SYSROOT_LDFLAGS"
+    fi
   fi
   AC_SUBST(BUILD_SYSROOT_CFLAGS)
   AC_SUBST(BUILD_SYSROOT_LDFLAGS)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
+#include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
@@ -38,9 +39,9 @@
 #include "prims/jvmtiRedefineClasses.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/deoptimization.hpp"
-#include "runtime/handles.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/os.hpp"
 #include "runtime/serviceThread.hpp"
@@ -49,7 +50,7 @@
 #include "runtime/threadSMR.hpp"
 #include "runtime/vframe.hpp"
 #include "runtime/vframe_hp.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "utilities/exceptions.hpp"
 
 //
@@ -530,8 +531,8 @@ VM_GetOrSetLocal::VM_GetOrSetLocal(JavaThread* thread, jint depth, jint index, B
   , _depth(depth)
   , _index(index)
   , _type(type)
-  , _set(false)
   , _jvf(NULL)
+  , _set(false)
   , _result(JVMTI_ERROR_NONE)
 {
 }
@@ -544,8 +545,8 @@ VM_GetOrSetLocal::VM_GetOrSetLocal(JavaThread* thread, jint depth, jint index, B
   , _index(index)
   , _type(type)
   , _value(value)
-  , _set(true)
   , _jvf(NULL)
+  , _set(true)
   , _result(JVMTI_ERROR_NONE)
 {
 }
@@ -557,8 +558,8 @@ VM_GetOrSetLocal::VM_GetOrSetLocal(JavaThread* thread, JavaThread* calling_threa
   , _depth(depth)
   , _index(index)
   , _type(T_OBJECT)
-  , _set(false)
   , _jvf(NULL)
+  , _set(false)
   , _result(JVMTI_ERROR_NONE)
 {
 }
@@ -620,7 +621,7 @@ bool VM_GetOrSetLocal::is_assignable(const char* ty_sign, Klass* klass, Thread* 
     }
   }
   // Compare secondary supers
-  Array<Klass*>* sec_supers = klass->secondary_supers();
+  const Array<Klass*>* sec_supers = klass->secondary_supers();
   for (idx = 0; idx < sec_supers->length(); idx++) {
     if (((Klass*) sec_supers->at(idx))->name() == ty_sym) {
       return true;
@@ -634,18 +635,8 @@ bool VM_GetOrSetLocal::is_assignable(const char* ty_sign, Klass* klass, Thread* 
 //   JVMTI_ERROR_TYPE_MISMATCH
 // Returns: 'true' - everything is Ok, 'false' - error code
 
-bool VM_GetOrSetLocal::check_slot_type(javaVFrame* jvf) {
+bool VM_GetOrSetLocal::check_slot_type_lvt(javaVFrame* jvf) {
   Method* method_oop = jvf->method();
-  if (!method_oop->has_localvariable_table()) {
-    // Just to check index boundaries
-    jint extra_slot = (_type == T_LONG || _type == T_DOUBLE) ? 1 : 0;
-    if (_index < 0 || _index + extra_slot >= method_oop->max_locals()) {
-      _result = JVMTI_ERROR_INVALID_SLOT;
-      return false;
-    }
-    return true;
-  }
-
   jint num_entries = method_oop->localvariable_table_length();
   if (num_entries == 0) {
     _result = JVMTI_ERROR_INVALID_SLOT;
@@ -710,6 +701,35 @@ bool VM_GetOrSetLocal::check_slot_type(javaVFrame* jvf) {
   return true;
 }
 
+bool VM_GetOrSetLocal::check_slot_type_no_lvt(javaVFrame* jvf) {
+  Method* method_oop = jvf->method();
+  jint extra_slot = (_type == T_LONG || _type == T_DOUBLE) ? 1 : 0;
+
+  if (_index < 0 || _index + extra_slot >= method_oop->max_locals()) {
+    _result = JVMTI_ERROR_INVALID_SLOT;
+    return false;
+  }
+  StackValueCollection *locals = _jvf->locals();
+  BasicType slot_type = locals->at(_index)->type();
+
+  if (slot_type == T_CONFLICT) {
+    _result = JVMTI_ERROR_INVALID_SLOT;
+    return false;
+  }
+  if (extra_slot) {
+    BasicType extra_slot_type = locals->at(_index + 1)->type();
+    if (extra_slot_type != T_INT) {
+      _result = JVMTI_ERROR_INVALID_SLOT;
+      return false;
+    }
+  }
+  if (_type != slot_type && (_type == T_OBJECT || slot_type != T_INT)) {
+    _result = JVMTI_ERROR_TYPE_MISMATCH;
+    return false;
+  }
+  return true;
+}
+
 static bool can_be_deoptimized(vframe* vf) {
   return (vf->is_compiled_frame() && vf->fr().can_be_deoptimized());
 }
@@ -718,8 +738,9 @@ bool VM_GetOrSetLocal::doit_prologue() {
   _jvf = get_java_vframe();
   NULL_CHECK(_jvf, false);
 
-  if (_jvf->method()->is_native()) {
-    if (getting_receiver() && !_jvf->method()->is_static()) {
+  Method* method_oop = _jvf->method();
+  if (method_oop->is_native()) {
+    if (getting_receiver() && !method_oop->is_static()) {
       return true;
     } else {
       _result = JVMTI_ERROR_OPAQUE_FRAME;
@@ -727,8 +748,10 @@ bool VM_GetOrSetLocal::doit_prologue() {
     }
   }
 
-  if (!check_slot_type(_jvf)) {
-    return false;
+  if (method_oop->has_localvariable_table()) {
+    return check_slot_type_lvt(_jvf);
+  } else {
+    return check_slot_type_no_lvt(_jvf);
   }
   return true;
 }
@@ -794,12 +817,6 @@ void VM_GetOrSetLocal::doit() {
       _value.l = JNIHandles::make_local(_calling_thread, receiver);
     } else {
       StackValueCollection *locals = _jvf->locals();
-
-      if (locals->at(_index)->type() == T_CONFLICT) {
-        memset(&_value, 0, sizeof(_value));
-        _value.l = NULL;
-        return;
-      }
 
       switch (_type) {
         case T_INT:    _value.i = locals->int_at   (_index);   break;

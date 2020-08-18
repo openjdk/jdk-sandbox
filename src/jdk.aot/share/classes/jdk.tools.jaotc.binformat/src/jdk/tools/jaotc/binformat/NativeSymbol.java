@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,12 @@
  * questions.
  */
 
+
+
 package jdk.tools.jaotc.binformat;
 
 /**
- * This class represents ia native OS specific Symbol
+ * This class represents a native OS specific Symbol.
  */
 public abstract class NativeSymbol {
 

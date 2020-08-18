@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,8 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation.PageMode;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.util.DeprecatedAPIListBuilder;
@@ -209,6 +211,8 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
 
     private HtmlConfiguration configuration;
 
+    private final Navigation navBar;
+
     /**
      * Constructor.
      *
@@ -219,6 +223,7 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
     public DeprecatedListWriter(HtmlConfiguration configuration, DocPath filename) {
         super(configuration, filename);
         this.configuration = configuration;
+        this.navBar = new Navigation(null, configuration, fixedNavDiv, PageMode.DEPRECATED, path);
         NestedClassWriterImpl classW = new NestedClassWriterImpl(this);
         writerMap = new EnumMap<>(DeprElementKind.class);
         for (DeprElementKind kind : DeprElementKind.values()) {
@@ -307,7 +312,8 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
         htmlTree = (configuration.allowTag(HtmlTag.FOOTER))
                 ? HtmlTree.FOOTER()
                 : body;
-        addNavLinks(false, htmlTree);
+        navBar.setUserFooter(getUserHeaderFooter(false));
+        htmlTree.addContent(navBar.getContent(false));
         addBottom(htmlTree);
         if (configuration.allowTag(HtmlTag.FOOTER)) {
             body.addContent(htmlTree);
@@ -372,28 +378,18 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
      * @return a content tree for the header
      */
     public HtmlTree getHeader() {
-        String title = configuration.getText("doclet.Window_Deprecated_List");
+        String title = resources.getText("doclet.Window_Deprecated_List");
         HtmlTree bodyTree = getBody(true, getWindowTitle(title));
         HtmlTree htmlTree = (configuration.allowTag(HtmlTag.HEADER))
                 ? HtmlTree.HEADER()
                 : bodyTree;
         addTop(htmlTree);
-        addNavLinks(true, htmlTree);
+        navBar.setUserHeader(getUserHeaderFooter(true));
+        htmlTree.addContent(navBar.getContent(true));
         if (configuration.allowTag(HtmlTag.HEADER)) {
             bodyTree.addContent(htmlTree);
         }
         return bodyTree;
-    }
-
-    /**
-     * Get the deprecated label.
-     *
-     * @return a content tree for the deprecated label
-     */
-    @Override
-    protected Content getNavLinkDeprecated() {
-        Content li = HtmlTree.LI(HtmlStyle.navBarCell1Rev, contents.deprecatedLabel);
-        return li;
     }
 
     /**

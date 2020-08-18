@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +22,28 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1_GLOBALS_HPP
-#define SHARE_VM_GC_G1_G1_GLOBALS_HPP
+#ifndef SHARE_GC_G1_G1_GLOBALS_HPP
+#define SHARE_GC_G1_G1_GLOBALS_HPP
 
-#include "runtime/globals.hpp"
 #include <float.h> // for DBL_MAX
 //
 // Defines all globals flags used by the garbage-first compiler.
 //
 
-#define G1_FLAGS(develop, \
-                 develop_pd, \
-                 product, \
-                 product_pd, \
-                 diagnostic, \
-                 diagnostic_pd, \
-                 experimental, \
-                 notproduct, \
-                 manageable, \
-                 product_rw, \
-                 range, \
-                 constraint, \
-                 writeable) \
+#define GC_G1_FLAGS(develop,                                                \
+                    develop_pd,                                             \
+                    product,                                                \
+                    product_pd,                                             \
+                    diagnostic,                                             \
+                    diagnostic_pd,                                          \
+                    experimental,                                           \
+                    notproduct,                                             \
+                    manageable,                                             \
+                    product_rw,                                             \
+                    lp64_product,                                           \
+                    range,                                                  \
+                    constraint,                                             \
+                    writeable)                                              \
                                                                             \
   product(bool, G1UseAdaptiveIHOP, true,                                    \
           "Adaptively adjust the initiating heap occupancy from the "       \
@@ -74,10 +74,14 @@
           "in milliseconds.")                                               \
           range(1.0, DBL_MAX)                                               \
                                                                             \
-  product(int, G1RefProcDrainInterval, 10,                                  \
+  product(uint, G1RefProcDrainInterval, 1000,                               \
           "The number of discovered reference objects to process before "   \
           "draining concurrent marking work queues.")                       \
           range(1, INT_MAX)                                                 \
+                                                                            \
+  experimental(bool, G1UseReferencePrecleaning, true,                       \
+               "Concurrently preclean java.lang.ref.references instances "  \
+               "before the Remark pause.")                                  \
                                                                             \
   experimental(double, G1LastPLABAverageOccupancy, 50.0,                    \
                "The expected average occupancy of the last PLAB in "        \
@@ -103,9 +107,6 @@
   experimental(intx, G1ExpandByPercentOfAvailable, 20,                      \
           "When expanding, % of uncommitted space to claim.")               \
           range(0, 100)                                                     \
-                                                                            \
-  develop(bool, G1RSBarrierRegionFilter, true,                              \
-          "If true, generate region filtering code in RS barrier")          \
                                                                             \
   product(size_t, G1UpdateBufferSize, 256,                                  \
           "Size of an update buffer")                                       \
@@ -184,16 +185,10 @@
           "-1 means print all.")                                            \
           range(-1, max_jint)                                               \
                                                                             \
-  develop(bool, G1ScrubRemSets, true,                                       \
-          "When true, do RS scrubbing after cleanup.")                      \
-                                                                            \
   product(uintx, G1ReservePercent, 10,                                      \
           "It determines the minimum reserve we should have in the heap "   \
           "to minimize the probability of promotion failure.")              \
           range(0, 50)                                                      \
-                                                                            \
-  develop(bool, G1HRRSUseSparseTable, true,                                 \
-          "When true, use sparse table to save space.")                     \
                                                                             \
   product(size_t, G1HeapRegionSize, 0,                                      \
           "Size of the G1 regions.")                                        \
@@ -212,16 +207,6 @@
           "Size of a work unit of cards claimed by a worker thread"         \
           "during RSet scanning.")                                          \
           range(1, max_uintx)                                               \
-                                                                            \
-  develop(uintx, G1SecondaryFreeListAppendLength, 5,                        \
-          "The number of regions we will add to the secondary free list "   \
-          "at every append operation")                                      \
-                                                                            \
-  develop(bool, G1StressConcRegionFreeing, false,                           \
-          "It stresses the concurrent region freeing operation")            \
-                                                                            \
-  develop(uintx, G1StressConcRegionFreeingDelayMillis, 0,                   \
-          "Artificial delay during concurrent region freeing")              \
                                                                             \
   develop(uintx, G1DummyRegionsPerGC, 0,                                    \
           "The number of dummy regions G1 will allocate at the end of "     \
@@ -269,6 +254,10 @@
           "Try to reclaim dead large objects that have a few stale "        \
           "references at every young GC.")                                  \
                                                                             \
+  experimental(size_t, G1RebuildRemSetChunkSize, 256 * K,                   \
+          "Chunk size used for rebuilding the remembered set.")             \
+          range(4 * K, 32 * M)                                              \
+                                                                            \
   experimental(uintx, G1OldCSetRegionThresholdPercent, 10,                  \
           "An upper bound for the number of old CSet regions expressed "    \
           "as a percentage of the heap size.")                              \
@@ -310,20 +299,33 @@
           "Verify the code root lists attached to each heap region.")       \
                                                                             \
   develop(bool, G1VerifyBitmaps, false,                                     \
-          "Verifies the consistency of the marking bitmaps")
+          "Verifies the consistency of the marking bitmaps")                \
+                                                                            \
+  manageable(uintx, G1PeriodicGCInterval, 0,                                \
+          "Number of milliseconds after a previous GC to wait before "      \
+          "triggering a periodic gc. A value of zero disables periodically "\
+          "enforced gc cycles.")                                            \
+                                                                            \
+  product(bool, G1PeriodicGCInvokesConcurrent, true,                        \
+          "Determines the kind of periodic GC. Set to true to have G1 "     \
+          "perform a concurrent GC as periodic GC, otherwise use a STW "    \
+          "Full GC.")                                                       \
+                                                                            \
+  manageable(double, G1PeriodicGCSystemLoadThreshold, 0.0,                  \
+          "Maximum recent system wide load as returned by the 1m value "    \
+          "of getloadavg() at which G1 triggers a periodic GC. A load "     \
+          "above this value cancels a given periodic GC. A value of zero "  \
+          "disables this check.")                                           \
+          range(0.0, (double)max_uintx)                                     \
+                                                                            \
+  experimental(uintx, G1YoungExpansionBufferPercent, 10,                    \
+               "When heterogenous heap is enabled by AllocateOldGenAt "     \
+               "option, after every GC, young gen is re-sized which "       \
+               "involves system calls to commit/uncommit memory. To "       \
+               "reduce these calls, we keep a buffer of extra regions to "  \
+               "absorb small changes in young gen length. This flag takes " \
+               "the buffer size as an percentage of young gen length")      \
+               range(0, 100)                                                \
 
-G1_FLAGS(DECLARE_DEVELOPER_FLAG, \
-         DECLARE_PD_DEVELOPER_FLAG, \
-         DECLARE_PRODUCT_FLAG, \
-         DECLARE_PD_PRODUCT_FLAG, \
-         DECLARE_DIAGNOSTIC_FLAG, \
-         DECLARE_PD_DIAGNOSTIC_FLAG, \
-         DECLARE_EXPERIMENTAL_FLAG, \
-         DECLARE_NOTPRODUCT_FLAG, \
-         DECLARE_MANAGEABLE_FLAG, \
-         DECLARE_PRODUCT_RW_FLAG, \
-         IGNORE_RANGE, \
-         IGNORE_CONSTRAINT, \
-         IGNORE_WRITEABLE)
 
-#endif // SHARE_VM_GC_G1_G1_GLOBALS_HPP
+#endif // SHARE_GC_G1_G1_GLOBALS_HPP

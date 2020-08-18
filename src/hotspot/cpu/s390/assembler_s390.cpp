@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -28,21 +28,16 @@
 #include "compiler/disassembler.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/interpreter.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "memory/resourceArea.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#include "gc/g1/heapRegion.hpp"
-#endif
 
 // Convention: Use Z_R0 and Z_R1 instead of Z_scratch_* in all
 // assembler_s390.* files.
@@ -126,14 +121,14 @@ Assembler::branch_condition Assembler::inverse_float_condition(Assembler::branch
     case bcondNotOrdered  : inverse_cc = bcondOrdered;     break;  // 14
     case bcondOrdered     : inverse_cc = bcondNotOrdered;  break;  //  1
 
-    case bcondEqual                      : inverse_cc = (branch_condition)(bcondNotEqual + bcondNotOrdered);  break; //  8
-    case bcondNotEqual + bcondNotOrdered : inverse_cc = bcondEqual;  break;                                          //  7
+    case bcondEqual                : inverse_cc = bcondNotEqualOrNotOrdered; break;  //  8
+    case bcondNotEqualOrNotOrdered : inverse_cc = bcondEqual;                break;  //  7
 
-    case bcondLow      + bcondNotOrdered : inverse_cc = (branch_condition)(bcondHigh + bcondEqual);      break;      //  5
-    case bcondNotLow                     : inverse_cc = (branch_condition)(bcondLow  + bcondNotOrdered); break;      // 10
+    case bcondLowOrNotOrdered      : inverse_cc = bcondNotLow;               break;  //  5
+    case bcondNotLow               : inverse_cc = bcondLowOrNotOrdered;      break;  // 10
 
-    case bcondHigh                       : inverse_cc = (branch_condition)(bcondLow  + bcondNotOrdered + bcondEqual); break;  //  2
-    case bcondNotHigh  + bcondNotOrdered : inverse_cc = bcondHigh; break;                                                     // 13
+    case bcondHigh                 : inverse_cc = bcondNotHighOrNotOrdered;  break;  //  2
+    case bcondNotHighOrNotOrdered  : inverse_cc = bcondHigh;                 break;  // 13
 
     default :
       fprintf(stderr, "inverse_float_condition(%d)\n", (int)cc);

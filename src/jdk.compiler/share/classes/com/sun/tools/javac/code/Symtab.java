@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,7 @@ import com.sun.tools.javac.code.Type.JCPrimitiveType;
 import com.sun.tools.javac.code.Type.JCVoidType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.UnknownType;
+import com.sun.tools.javac.code.Types.UniqueType;
 import com.sun.tools.javac.comp.Modules;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
@@ -183,6 +184,7 @@ public class Symtab {
     public final Type noClassDefFoundErrorType;
     public final Type noSuchFieldErrorType;
     public final Type assertionErrorType;
+    public final Type incompatibleClassChangeErrorType;
     public final Type cloneNotSupportedExceptionType;
     public final Type annotationType;
     public final TypeSymbol enumSym;
@@ -246,6 +248,26 @@ public class Symtab {
     /** A hashtable giving the encountered modules.
      */
     private final Map<Name, ModuleSymbol> modules = new LinkedHashMap<>();
+
+    private final Map<Types.UniqueType, VarSymbol> classFields = new HashMap<>();
+
+    public VarSymbol getClassField(Type type, Types types) {
+        return classFields.computeIfAbsent(
+            new UniqueType(type, types), k -> {
+                Type arg = null;
+                if (type.getTag() == ARRAY || type.getTag() == CLASS)
+                    arg = types.erasure(type);
+                else if (type.isPrimitiveOrVoid())
+                    arg = types.boxedClass(type).type;
+                else
+                    throw new AssertionError(type);
+
+                Type t = new ClassType(
+                    classType.getEnclosingType(), List.of(arg), classType.tsym);
+                return new VarSymbol(
+                    STATIC | PUBLIC | FINAL, names._class, t, type.tsym);
+            });
+    }
 
     public void initType(Type type, ClassSymbol c) {
         type.tsym = c;
@@ -505,6 +527,7 @@ public class Symtab {
         noClassDefFoundErrorType = enterClass("java.lang.NoClassDefFoundError");
         noSuchFieldErrorType = enterClass("java.lang.NoSuchFieldError");
         assertionErrorType = enterClass("java.lang.AssertionError");
+        incompatibleClassChangeErrorType = enterClass("java.lang.IncompatibleClassChangeError");
         cloneNotSupportedExceptionType = enterClass("java.lang.CloneNotSupportedException");
         annotationType = enterClass("java.lang.annotation.Annotation");
         classLoaderType = enterClass("java.lang.ClassLoader");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,11 @@
 #include "precompiled.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "memory/allocation.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "services/lowMemoryDetector.hpp"
 #include "services/management.hpp"
 #include "services/memoryManager.hpp"
@@ -42,13 +43,15 @@ MemoryManager::MemoryManager(const char* name) : _name(name) {
   (void)const_cast<instanceOop&>(_memory_mgr_obj = instanceOop(NULL));
 }
 
-void MemoryManager::add_pool(MemoryPool* pool) {
-  assert(_num_pools < MemoryManager::max_num_pools, "_num_pools exceeds the max");
-  if (_num_pools < MemoryManager::max_num_pools) {
-    _pools[_num_pools] = pool;
+int MemoryManager::add_pool(MemoryPool* pool) {
+  int index = _num_pools;
+  assert(index < MemoryManager::max_num_pools, "_num_pools exceeds the max");
+  if (index < MemoryManager::max_num_pools) {
+    _pools[index] = pool;
     _num_pools++;
   }
   pool->add_manager(this);
+  return index;
 }
 
 MemoryManager* MemoryManager::get_code_cache_memory_manager() {
@@ -165,9 +168,8 @@ void GCStatInfo::clear() {
   _index = 0;
   _start_time = 0L;
   _end_time = 0L;
-  size_t len = _usage_array_size * sizeof(MemoryUsage);
-  memset(_before_gc_usage_array, 0, len);
-  memset(_after_gc_usage_array, 0, len);
+  for (int i = 0; i < _usage_array_size; i++) ::new (&_before_gc_usage_array[i]) MemoryUsage();
+  for (int i = 0; i < _usage_array_size; i++) ::new (&_after_gc_usage_array[i]) MemoryUsage();
 }
 
 
@@ -186,6 +188,15 @@ GCMemoryManager::~GCMemoryManager() {
   delete _last_gc_stat;
   delete _last_gc_lock;
   delete _current_gc_stat;
+}
+
+void GCMemoryManager::add_pool(MemoryPool* pool) {
+  add_pool(pool, true);
+}
+
+void GCMemoryManager::add_pool(MemoryPool* pool, bool always_affected_by_gc) {
+  int index = MemoryManager::add_pool(pool);
+  _pool_always_affected_by_gc[index] = always_affected_by_gc;
 }
 
 void GCMemoryManager::initialize_gc_stat_info() {
@@ -229,7 +240,8 @@ void GCMemoryManager::gc_begin(bool recordGCBeginTime, bool recordPreGCUsage,
 void GCMemoryManager::gc_end(bool recordPostGCUsage,
                              bool recordAccumulatedGCTime,
                              bool recordGCEndTime, bool countCollection,
-                             GCCause::Cause cause) {
+                             GCCause::Cause cause,
+                             bool allMemoryPoolsAffected) {
   if (recordAccumulatedGCTime) {
     _accumulated_timer.stop();
   }
@@ -258,9 +270,11 @@ void GCMemoryManager::gc_end(bool recordPostGCUsage,
       MemoryPool* pool = get_memory_pool(i);
       MemoryUsage usage = pool->get_memory_usage();
 
-      // Compare with GC usage threshold
-      pool->set_last_collection_usage(usage);
-      LowMemoryDetector::detect_after_gc_memory(pool);
+      if (allMemoryPoolsAffected || pool_always_affected_by_gc(i)) {
+        // Compare with GC usage threshold
+        pool->set_last_collection_usage(usage);
+        LowMemoryDetector::detect_after_gc_memory(pool);
+      }
     }
   }
 

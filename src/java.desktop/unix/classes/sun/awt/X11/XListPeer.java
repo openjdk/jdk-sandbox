@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,7 +76,7 @@ class XListPeer extends XComponentPeer implements ListPeer, XScrollbarClient {
 
     // Holds the array of the indexes of the elements which is selected
     // This array should be kept sorted, low to high.
-    int                         selected[];
+    int[]                         selected;
     int                         fontHeight;
     int                         fontAscent;
     int                         fontLeading;
@@ -174,7 +174,7 @@ class XListPeer extends XComponentPeer implements ListPeer, XScrollbarClient {
         maxLength = maxLength();
 
         // get the index containing all indexes to selected items
-        int sel[] = l.getSelectedIndexes();
+        int[] sel = l.getSelectedIndexes();
         selected = new int[sel.length];
         // TODO: shouldn't this be arraycopy()?
         for (int i = 0 ; i < sel.length ; i ++) {
@@ -212,54 +212,32 @@ class XListPeer extends XComponentPeer implements ListPeer, XScrollbarClient {
         hsb.setValues(0, 0, 0, 0, HORIZ_SCROLL_AMT, HORIZ_SCROLL_AMT);
     }
 
-    /* New method name for 1.1 */
     public void add(String item, int index) {
         addItem(item, index);
     }
 
-    /* New method name for 1.1 */
     public void removeAll() {
         clear();
         maxLength = 0;
     }
 
-    /* New method name for 1.1 */
     public void setMultipleMode (boolean b) {
         setMultipleSelections(b);
     }
 
-    /* New method name for 1.1 */
+    public Dimension getMinimumSize() {
+        return getMinimumSize(DEFAULT_VISIBLE_ROWS);
+    }
+
     public Dimension getPreferredSize(int rows) {
-        return preferredSize(rows);
+        return getMinimumSize(rows);
     }
 
-    /* New method name for 1.1 */
     public Dimension getMinimumSize(int rows) {
-        return minimumSize(rows);
-    }
-
-    /**
-     * Minimum size.
-     */
-    public Dimension minimumSize() {
-        return minimumSize(DEFAULT_VISIBLE_ROWS);
-    }
-
-    /**
-     * return the preferredSize
-     */
-    public Dimension preferredSize(int v) {
-        return minimumSize(v);
-    }
-
-    /**
-     * return the minimumsize
-     */
-    public Dimension minimumSize(int v) {
         FontMetrics fm = getFontMetrics(getFont());
         initFontMetrics();
         return new Dimension(20 + fm.stringWidth("0123456789abcde"),
-                             getItemHeight() * v + (2*MARGIN));
+                             getItemHeight() * rows + (2*MARGIN));
     }
 
     /**
@@ -1169,7 +1147,7 @@ class XListPeer extends XComponentPeer implements ListPeer, XScrollbarClient {
             items.removeElementAt(s);
             int j = posInSel(i);
             if (j != -1) {
-                int newsel[] = new int[selected.length - 1];
+                int[] newsel = new int[selected.length - 1];
                 System.arraycopy(selected, 0, newsel, 0, j);
                 System.arraycopy(selected, j + 1, newsel, j, selected.length - (j + 1));
                 selected = newsel;
@@ -1268,7 +1246,7 @@ class XListPeer extends XComponentPeer implements ListPeer, XScrollbarClient {
             }
         } else {
             // insert "index" into the selection array
-            int newsel[] = new int[selected.length + 1];
+            int[] newsel = new int[selected.length + 1];
             int i = 0;
             while (i < selected.length && index > selected[i]) {
                 newsel[i] = selected[i];
@@ -1306,7 +1284,7 @@ class XListPeer extends XComponentPeer implements ListPeer, XScrollbarClient {
             selected = new int[0];
         } else {
             int i = posInSel(index);
-            int newsel[] = new int[selected.length - 1];
+            int[] newsel = new int[selected.length - 1];
             System.arraycopy(selected, 0, newsel, 0, i);
             System.arraycopy(selected, i+1, newsel, i, selected.length - (i+1));
             selected = newsel;

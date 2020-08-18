@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_MACRO_HPP
-#define SHARE_VM_OPTO_MACRO_HPP
+#ifndef SHARE_OPTO_MACRO_HPP
+#define SHARE_OPTO_MACRO_HPP
 
 #include "opto/phase.hpp"
 
@@ -37,11 +37,8 @@ class PhaseMacroExpand : public Phase {
 private:
   PhaseIterGVN &_igvn;
 
+public:
   // Helper methods roughly modeled after GraphKit:
-  Node* top()                   const { return C->top(); }
-  Node* intcon(jint con)        const { return _igvn.intcon(con); }
-  Node* longcon(jlong con)      const { return _igvn.longcon(con); }
-  Node* makecon(const Type *t)  const { return _igvn.makecon(t); }
   Node* basic_plus_adr(Node* base, int offset) {
     return (offset == 0)? base: basic_plus_adr(base, MakeConX(offset));
   }
@@ -66,6 +63,7 @@ private:
   Node* make_store(Node* ctl, Node* mem, Node* base, int offset,
                    Node* value, BasicType bt);
 
+private:
   // projections extracted from a call node
   ProjNode *_fallthroughproj;
   ProjNode *_fallthroughcatchproj;
@@ -94,7 +92,7 @@ private:
   bool scalar_replacement(AllocateNode *alloc, GrowableArray <SafePointNode *>& safepoints_done);
   void process_users_of_allocation(CallNode *alloc);
 
-  void eliminate_card_mark(Node *cm);
+  void eliminate_gc_barrier(Node *p2x);
   void mark_eliminated_box(Node* box, Node* obj);
   void mark_eliminated_locking_nodes(AbstractLockNode *alock);
   bool eliminate_locking_node(AbstractLockNode *alock);
@@ -195,11 +193,6 @@ private:
                           Node* klass_node, Node* length,
                           Node* size_in_bytes);
 
-  Node* prefetch_allocation(Node* i_o,
-                            Node*& needgc_false, Node*& contended_phi_rawmem,
-                            Node* old_eden_top, Node* new_eden_top,
-                            Node* length);
-
   Node* make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, Node* ctl, Node* mem, BasicType ft, const Type *ftype, AllocateNode *alloc);
 
 public:
@@ -209,6 +202,19 @@ public:
   void eliminate_macro_nodes();
   bool expand_macro_nodes();
 
+  PhaseIterGVN &igvn() const { return _igvn; }
+
+  // Members accessed from BarrierSetC2
+  void replace_node(Node* source, Node* target) { _igvn.replace_node(source, target); }
+  Node* intcon(jint con)        const { return _igvn.intcon(con); }
+  Node* longcon(jlong con)      const { return _igvn.longcon(con); }
+  Node* makecon(const Type *t)  const { return _igvn.makecon(t); }
+  Node* top()                   const { return C->top(); }
+
+  Node* prefetch_allocation(Node* i_o,
+                            Node*& needgc_false, Node*& contended_phi_rawmem,
+                            Node* old_eden_top, Node* new_eden_top,
+                            intx lines);
 };
 
-#endif // SHARE_VM_OPTO_MACRO_HPP
+#endif // SHARE_OPTO_MACRO_HPP

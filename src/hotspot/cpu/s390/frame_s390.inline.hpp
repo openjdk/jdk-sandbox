@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_S390_VM_FRAME_S390_INLINE_HPP
-#define CPU_S390_VM_FRAME_S390_INLINE_HPP
+#ifndef CPU_S390_FRAME_S390_INLINE_HPP
+#define CPU_S390_FRAME_S390_INLINE_HPP
 
 #include "code/codeCache.hpp"
 #include "code/vmreg.inline.hpp"
@@ -54,7 +54,7 @@ inline void frame::find_codeblob_and_set_pc_and_deopt_state(address pc) {
 // Constructors
 
 // Initialize all fields, _unextended_sp will be adjusted in find_codeblob_and_set_pc_and_deopt_state.
-inline frame::frame() : _sp(NULL), _unextended_sp(NULL), _fp(NULL), _cb(NULL), _pc(NULL), _deopt_state(unknown) {}
+inline frame::frame() : _sp(NULL), _pc(NULL), _cb(NULL), _deopt_state(unknown), _unextended_sp(NULL), _fp(NULL) {}
 
 inline frame::frame(intptr_t* sp) : _sp(sp), _unextended_sp(sp) {
   find_codeblob_and_set_pc_and_deopt_state((address)own_abi()->return_pc);
@@ -71,14 +71,19 @@ inline frame::frame(intptr_t* sp, address pc, intptr_t* unextended_sp) : _sp(sp)
 // Generic constructor. Used by pns() in debug.cpp only
 #ifndef PRODUCT
 inline frame::frame(void* sp, void* pc, void* unextended_sp) :
-  _sp((intptr_t*)sp), _unextended_sp((intptr_t*)unextended_sp), _cb(NULL), _pc(NULL) {
+  _sp((intptr_t*)sp), _pc(NULL), _cb(NULL), _unextended_sp((intptr_t*)unextended_sp) {
   find_codeblob_and_set_pc_and_deopt_state((address)pc); // Also sets _fp and adjusts _unextended_sp.
 }
 #endif
 
 // template interpreter state
-inline frame::z_ijava_state* frame::ijava_state() const {
+inline frame::z_ijava_state* frame::ijava_state_unchecked() const {
   z_ijava_state* state = (z_ijava_state*) ((uintptr_t)fp() - z_ijava_state_size);
+  return state;
+}
+
+inline frame::z_ijava_state* frame::ijava_state() const {
+  z_ijava_state* state = ijava_state_unchecked();
   assert(state->magic == (intptr_t) frame::z_istate_magic_number,
          "wrong z_ijava_state in interpreter frame (no magic found)");
   return state;
@@ -173,10 +178,6 @@ inline intptr_t* frame::interpreter_frame_mdp_addr() const {
 // Bottom(base) of the expression stack (highest address).
 inline intptr_t* frame::interpreter_frame_expression_stack() const {
   return (intptr_t*)interpreter_frame_monitor_end() - 1;
-}
-
-inline jint frame::interpreter_frame_expression_stack_direction() {
-  return -1;
 }
 
 inline intptr_t* frame::interpreter_frame_tos_at(jint offset) const {
@@ -295,4 +296,4 @@ inline intptr_t* frame::real_fp() const {
   return fp();
 }
 
-#endif // CPU_S390_VM_FRAME_S390_INLINE_HPP
+#endif // CPU_S390_FRAME_S390_INLINE_HPP

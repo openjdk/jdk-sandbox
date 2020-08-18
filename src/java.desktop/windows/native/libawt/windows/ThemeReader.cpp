@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -232,7 +232,7 @@ BOOL InitThemes() {
     return FALSE;
 }
 
-JNIEXPORT jboolean JNICALL Java_sun_awt_windows_ThemeReader_isThemed
+JNIEXPORT jboolean JNICALL Java_sun_awt_windows_ThemeReader_initThemes
 (JNIEnv *env, jclass klass) {
     static BOOL TryLoadingThemeLib = FALSE;
     static BOOL Themed = FALSE;
@@ -251,7 +251,7 @@ static void assert_result(HRESULT hres, JNIEnv *env) {
         DWORD lastError = GetLastError();
         if (lastError != 0) {
             LPSTR msgBuffer = NULL;
-            FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+            DWORD fret= FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
                     FORMAT_MESSAGE_FROM_SYSTEM |
                     FORMAT_MESSAGE_IGNORE_INSERTS,
                     NULL,
@@ -261,8 +261,14 @@ static void assert_result(HRESULT hres, JNIEnv *env) {
                     // it's an output parameter when allocate buffer is used
                     0,
                     NULL);
-            DTRACE_PRINTLN3("Error: hres=0x%x lastError=0x%x %s\n", hres,
+            if (fret != 0) {
+                DTRACE_PRINTLN3("Error: hres=0x%x lastError=0x%x %s\n", hres,
                                                 lastError, msgBuffer);
+                LocalFree(msgBuffer);
+            } else {
+                DTRACE_PRINTLN2("Error: hres=0x%x lastError=0x%x \n", hres,
+                                                lastError);
+            }
         }
     }
 #endif

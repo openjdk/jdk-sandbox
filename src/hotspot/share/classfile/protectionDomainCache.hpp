@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_PROTECTIONDOMAINCACHE_HPP
-#define SHARE_VM_CLASSFILE_PROTECTIONDOMAINCACHE_HPP
+#ifndef SHARE_CLASSFILE_PROTECTIONDOMAINCACHE_HPP
+#define SHARE_CLASSFILE_PROTECTIONDOMAINCACHE_HPP
 
 #include "oops/oop.hpp"
+#include "oops/weakHandle.hpp"
 #include "memory/iterator.hpp"
 #include "utilities/hashtable.hpp"
 
@@ -34,22 +35,18 @@
 // to dictionary.hpp pd_set for more information about how protection domain entries
 // are used.
 // This table is walked during GC, rather than the class loader data graph dictionaries.
-class ProtectionDomainCacheEntry : public HashtableEntry<oop, mtClass> {
+class ProtectionDomainCacheEntry : public HashtableEntry<ClassLoaderWeakHandle, mtClass> {
   friend class VMStructs;
  public:
   oop object();
   oop object_no_keepalive();
 
   ProtectionDomainCacheEntry* next() {
-    return (ProtectionDomainCacheEntry*)HashtableEntry<oop, mtClass>::next();
+    return (ProtectionDomainCacheEntry*)HashtableEntry<ClassLoaderWeakHandle, mtClass>::next();
   }
 
   ProtectionDomainCacheEntry** next_addr() {
-    return (ProtectionDomainCacheEntry**)HashtableEntry<oop, mtClass>::next_addr();
-  }
-
-  void oops_do(OopClosure* f) {
-    f->do_oop(literal_addr());
+    return (ProtectionDomainCacheEntry**)HashtableEntry<ClassLoaderWeakHandle, mtClass>::next_addr();
   }
 
   void verify();
@@ -64,20 +61,21 @@ class ProtectionDomainCacheEntry : public HashtableEntry<oop, mtClass> {
 // we only need to iterate over this set.
 // The amount of different protection domains used is typically magnitudes smaller
 // than the number of system dictionary entries (loaded classes).
-class ProtectionDomainCacheTable : public Hashtable<oop, mtClass> {
+class ProtectionDomainCacheTable : public Hashtable<ClassLoaderWeakHandle, mtClass> {
   friend class VMStructs;
 private:
   ProtectionDomainCacheEntry* bucket(int i) const {
-    return (ProtectionDomainCacheEntry*) Hashtable<oop, mtClass>::bucket(i);
+    return (ProtectionDomainCacheEntry*) Hashtable<ClassLoaderWeakHandle, mtClass>::bucket(i);
   }
 
   // The following method is not MT-safe and must be done under lock.
   ProtectionDomainCacheEntry** bucket_addr(int i) {
-    return (ProtectionDomainCacheEntry**) Hashtable<oop, mtClass>::bucket_addr(i);
+    return (ProtectionDomainCacheEntry**) Hashtable<ClassLoaderWeakHandle, mtClass>::bucket_addr(i);
   }
 
-  ProtectionDomainCacheEntry* new_entry(unsigned int hash, Handle protection_domain) {
-    ProtectionDomainCacheEntry* entry = (ProtectionDomainCacheEntry*) Hashtable<oop, mtClass>::new_entry(hash, protection_domain());
+  ProtectionDomainCacheEntry* new_entry(unsigned int hash, ClassLoaderWeakHandle protection_domain) {
+    ProtectionDomainCacheEntry* entry = (ProtectionDomainCacheEntry*)
+      Hashtable<ClassLoaderWeakHandle, mtClass>::new_entry(hash, protection_domain);
     return entry;
   }
 
@@ -87,17 +85,22 @@ private:
   ProtectionDomainCacheEntry* add_entry(int index, unsigned int hash, Handle protection_domain);
   ProtectionDomainCacheEntry* find_entry(int index, Handle protection_domain);
 
+  bool _dead_entries;
+  int _total_oops_removed;
+
 public:
   ProtectionDomainCacheTable(int table_size);
   ProtectionDomainCacheEntry* get(Handle protection_domain);
 
-  void unlink(BoolObjectClosure* cl);
-
-  // GC support
-  void oops_do(OopClosure* f);
+  void unlink();
 
   void print_on(outputStream* st) const;
   void verify();
+
+  bool has_work() { return _dead_entries; }
+  void trigger_cleanup();
+
+  int removed_entries_count() { return _total_oops_removed; };
 };
 
 
@@ -117,4 +120,4 @@ class ProtectionDomainEntry :public CHeapObj<mtClass> {
   oop object();
   oop object_no_keepalive();
 };
-#endif // SHARE_VM_CLASSFILE_PROTECTIONDOMAINCACHE_HPP
+#endif // SHARE_CLASSFILE_PROTECTIONDOMAINCACHE_HPP

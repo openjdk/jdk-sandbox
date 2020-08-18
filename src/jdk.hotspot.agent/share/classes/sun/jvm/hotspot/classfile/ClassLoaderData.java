@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,17 +42,17 @@ public class ClassLoaderData extends VMObject {
 
   private static synchronized void initialize(TypeDataBase db) throws WrongTypeException {
     Type type      = db.lookupType("ClassLoaderData");
-    classLoaderField = type.getOopField("_class_loader");
+    classLoaderField = type.getAddressField("_class_loader");
     nextField = type.getAddressField("_next");
     klassesField = new MetadataField(type.getAddressField("_klasses"), 0);
-    isAnonymousField = new CIntField(type.getCIntegerField("_is_anonymous"), 0);
+    isUnsafeAnonymousField = new CIntField(type.getCIntegerField("_is_unsafe_anonymous"), 0);
     dictionaryField = type.getAddressField("_dictionary");
   }
 
-  private static sun.jvm.hotspot.types.OopField classLoaderField;
+  private static AddressField   classLoaderField;
   private static AddressField nextField;
   private static MetadataField  klassesField;
-  private static CIntField isAnonymousField;
+  private static CIntField isUnsafeAnonymousField;
   private static AddressField dictionaryField;
 
   public ClassLoaderData(Address addr) {
@@ -72,11 +72,17 @@ public class ClassLoaderData extends VMObject {
   }
 
   public Oop getClassLoader() {
-    return VM.getVM().getObjectHeap().newOop(classLoaderField.getValue(getAddress()));
+    Address handle = classLoaderField.getValue(getAddress());
+    if (handle != null) {
+      // Load through the handle
+      OopHandle refs = handle.getOopHandleAt(0);
+      return (Instance)VM.getVM().getObjectHeap().newOop(refs);
+    }
+    return null;
   }
 
-  public boolean getIsAnonymous() {
-    return isAnonymousField.getValue(this) != 0;
+  public boolean getisUnsafeAnonymous() {
+    return isUnsafeAnonymousField.getValue(this) != 0;
   }
 
   public ClassLoaderData next() {
@@ -86,9 +92,9 @@ public class ClassLoaderData extends VMObject {
   public Klass getKlasses()    { return (Klass)klassesField.getValue(this);  }
 
   /** Lookup an already loaded class. If not found null is returned. */
-  public Klass find(Symbol className) {
+  public Klass find(String className) {
     for (Klass l = getKlasses(); l != null; l = l.getNextLinkKlass()) {
-        if (className.equals(l.getName())) {
+        if (l.getName().equals(className)) {
             return l;
         }
     }

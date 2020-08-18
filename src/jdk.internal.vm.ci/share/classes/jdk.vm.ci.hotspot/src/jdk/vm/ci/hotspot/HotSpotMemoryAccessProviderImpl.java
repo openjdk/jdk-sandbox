@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,6 @@
  */
 package jdk.vm.ci.hotspot;
 
-import static jdk.vm.ci.hotspot.HotSpotJVMCIRuntimeProvider.getArrayBaseOffset;
-import static jdk.vm.ci.hotspot.HotSpotJVMCIRuntimeProvider.getArrayIndexScale;
 import static jdk.vm.ci.hotspot.UnsafeAccess.UNSAFE;
 
 import java.lang.reflect.Array;
@@ -43,9 +41,9 @@ import jdk.vm.ci.meta.ResolvedJavaType;
  */
 class HotSpotMemoryAccessProviderImpl implements HotSpotMemoryAccessProvider {
 
-    protected final HotSpotJVMCIRuntimeProvider runtime;
+    protected final HotSpotJVMCIRuntime runtime;
 
-    HotSpotMemoryAccessProviderImpl(HotSpotJVMCIRuntimeProvider runtime) {
+    HotSpotMemoryAccessProviderImpl(HotSpotJVMCIRuntime runtime) {
         this.runtime = runtime;
     }
 
@@ -62,7 +60,7 @@ class HotSpotMemoryAccessProviderImpl implements HotSpotMemoryAccessProvider {
             HotSpotObjectConstantImpl constant = (HotSpotObjectConstantImpl) base;
             HotSpotResolvedObjectType type = constant.getType();
             Object object = constant.object();
-            checkRead(kind, displacement, type, object);
+            checkRead(kind, displacement, type, object, runtime.getHostJVMCIBackend().getMetaAccess());
             return object;
         }
         return null;
@@ -74,12 +72,12 @@ class HotSpotMemoryAccessProviderImpl implements HotSpotMemoryAccessProvider {
      */
     private long oopSizeOffset;
 
-    private static int computeOopSizeOffset(HotSpotJVMCIRuntimeProvider runtime) {
+    private static int computeOopSizeOffset(HotSpotJVMCIRuntime runtime) {
         MetaAccessProvider metaAccess = runtime.getHostJVMCIBackend().getMetaAccess();
         ResolvedJavaType staticType = metaAccess.lookupJavaType(Class.class);
         for (ResolvedJavaField f : staticType.getInstanceFields(false)) {
             if (f.getName().equals("oop_size")) {
-                int offset = ((HotSpotResolvedJavaField) f).offset();
+                int offset = ((HotSpotResolvedJavaField) f).getOffset();
                 assert offset != 0 : "not expecting offset of java.lang.Class::oop_size to be 0";
                 return offset;
             }
@@ -87,12 +85,12 @@ class HotSpotMemoryAccessProviderImpl implements HotSpotMemoryAccessProvider {
         throw new JVMCIError("Could not find injected java.lang.Class::oop_size field");
     }
 
-    private boolean checkRead(JavaKind kind, long displacement, HotSpotResolvedObjectType type, Object object) {
+    private boolean checkRead(JavaKind kind, long displacement, HotSpotResolvedObjectType type, Object object, MetaAccessProvider metaAccess) {
         if (type.isArray()) {
             ResolvedJavaType componentType = type.getComponentType();
             JavaKind componentKind = componentType.getJavaKind();
-            final int headerSize = getArrayBaseOffset(componentKind);
-            int sizeOfElement = getArrayIndexScale(componentKind);
+            final int headerSize = metaAccess.getArrayBaseOffset(componentKind);
+            int sizeOfElement = metaAccess.getArrayIndexScale(componentKind);
             int length = Array.getLength(object);
             long arrayEnd = headerSize + (sizeOfElement * length);
             boolean aligned = ((displacement - headerSize) % sizeOfElement) == 0;
@@ -122,7 +120,6 @@ class HotSpotMemoryAccessProviderImpl implements HotSpotMemoryAccessProvider {
             ResolvedJavaField field = type.findInstanceFieldWithOffset(displacement, JavaKind.Object);
             if (field == null && object instanceof Class) {
                 // Read of a static field
-                MetaAccessProvider metaAccess = runtime.getHostJVMCIBackend().getMetaAccess();
                 HotSpotResolvedObjectTypeImpl staticFieldsHolder = (HotSpotResolvedObjectTypeImpl) metaAccess.lookupJavaType((Class<?>) object);
                 field = staticFieldsHolder.findStaticFieldWithOffset(displacement, JavaKind.Object);
             }
@@ -206,41 +203,39 @@ class HotSpotMemoryAccessProviderImpl implements HotSpotMemoryAccessProvider {
             assert verifyReadRawObject(ret, baseConstant, initialDisplacement);
         } else {
             assert runtime.getConfig().useCompressedOops == compressed;
-            ret = UNSAFE.getObject(base, displacement);
+            ret = UNSAFE.getReference(base, displacement);
         }
         return ret;
     }
 
-    JavaConstant readFieldValue(HotSpotResolvedJavaField field, Object obj) {
+    JavaConstant readFieldValue(HotSpotResolvedJavaField field, Object obj, boolean isVolatile) {
         assert obj != null;
         assert !field.isStatic() || obj instanceof Class;
-        long displacement = field.offset();
-        assert checkRead(field.getJavaKind(), displacement, (HotSpotResolvedObjectType) runtime.getHostJVMCIBackend().getMetaAccess().lookupJavaType(obj.getClass()), obj);
-        if (field.getJavaKind() == JavaKind.Object) {
-            Object o = UNSAFE.getObject(obj, displacement);
-            return HotSpotObjectConstantImpl.forObject(o);
-        } else {
-            JavaKind kind = field.getJavaKind();
-            switch (kind) {
-                case Boolean:
-                    return JavaConstant.forBoolean(UNSAFE.getBoolean(obj, displacement));
-                case Byte:
-                    return JavaConstant.forByte(UNSAFE.getByte(obj, displacement));
-                case Char:
-                    return JavaConstant.forChar(UNSAFE.getChar(obj, displacement));
-                case Short:
-                    return JavaConstant.forShort(UNSAFE.getShort(obj, displacement));
-                case Int:
-                    return JavaConstant.forInt(UNSAFE.getInt(obj, displacement));
-                case Long:
-                    return JavaConstant.forLong(UNSAFE.getLong(obj, displacement));
-                case Float:
-                    return JavaConstant.forFloat(UNSAFE.getFloat(obj, displacement));
-                case Double:
-                    return JavaConstant.forDouble(UNSAFE.getDouble(obj, displacement));
-                default:
-                    throw new IllegalArgumentException("Unsupported kind: " + kind);
-            }
+        long displacement = field.getOffset();
+        assert checkRead(field.getJavaKind(), displacement, (HotSpotResolvedObjectType) runtime.getHostJVMCIBackend().getMetaAccess().lookupJavaType(obj.getClass()), obj,
+                        runtime.getHostJVMCIBackend().getMetaAccess());
+        JavaKind kind = field.getJavaKind();
+        switch (kind) {
+            case Boolean:
+                return JavaConstant.forBoolean(isVolatile ? UNSAFE.getBooleanVolatile(obj, displacement) : UNSAFE.getBoolean(obj, displacement));
+            case Byte:
+                return JavaConstant.forByte(isVolatile ? UNSAFE.getByteVolatile(obj, displacement) : UNSAFE.getByte(obj, displacement));
+            case Char:
+                return JavaConstant.forChar(isVolatile ? UNSAFE.getCharVolatile(obj, displacement) : UNSAFE.getChar(obj, displacement));
+            case Short:
+                return JavaConstant.forShort(isVolatile ? UNSAFE.getShortVolatile(obj, displacement) : UNSAFE.getShort(obj, displacement));
+            case Int:
+                return JavaConstant.forInt(isVolatile ? UNSAFE.getIntVolatile(obj, displacement) : UNSAFE.getInt(obj, displacement));
+            case Long:
+                return JavaConstant.forLong(isVolatile ? UNSAFE.getLongVolatile(obj, displacement) : UNSAFE.getLong(obj, displacement));
+            case Float:
+                return JavaConstant.forFloat(isVolatile ? UNSAFE.getFloatVolatile(obj, displacement) : UNSAFE.getFloat(obj, displacement));
+            case Double:
+                return JavaConstant.forDouble(isVolatile ? UNSAFE.getDoubleVolatile(obj, displacement) : UNSAFE.getDouble(obj, displacement));
+            case Object:
+                return HotSpotObjectConstantImpl.forObject(isVolatile ? UNSAFE.getReferenceVolatile(obj, displacement) : UNSAFE.getReference(obj, displacement));
+            default:
+                throw new IllegalArgumentException("Unsupported kind: " + kind);
         }
     }
 

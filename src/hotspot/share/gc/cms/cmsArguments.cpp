@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2017, Red Hat, Inc. and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -29,10 +30,10 @@
 #include "gc/cms/compactibleFreeListSpace.hpp"
 #include "gc/shared/gcArguments.inline.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
+#include "gc/shared/workerPolicy.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
-#include "runtime/vm_version.hpp"
 #include "utilities/defaultStream.hpp"
 
 size_t CMSArguments::conservative_max_heap_alignment() {
@@ -45,7 +46,7 @@ void CMSArguments::set_parnew_gc_flags() {
   assert(UseConcMarkSweepGC, "CMS is expected to be on here");
 
   if (FLAG_IS_DEFAULT(ParallelGCThreads)) {
-    FLAG_SET_DEFAULT(ParallelGCThreads, Abstract_VM_Version::parallel_worker_threads());
+    FLAG_SET_DEFAULT(ParallelGCThreads, WorkerPolicy::parallel_worker_threads());
     assert(ParallelGCThreads > 0, "We should always have at least one thread by default");
   } else if (ParallelGCThreads == 0) {
     jio_fprintf(defaultStream::error_stream(),
@@ -80,10 +81,37 @@ void CMSArguments::set_parnew_gc_flags() {
 // sparc/solaris for certain applications, but would gain from
 // further optimization and tuning efforts, and would almost
 // certainly gain from analysis of platform and environment.
-void CMSArguments::initialize_flags() {
-  GCArguments::initialize_flags();
+void CMSArguments::initialize() {
+  GCArguments::initialize();
+
   assert(!UseSerialGC && !UseParallelOldGC && !UseParallelGC, "Error");
   assert(UseConcMarkSweepGC, "CMS is expected to be on here");
+
+  // CMS space iteration, which FLSVerifyAllHeapreferences entails,
+  // insists that we hold the requisite locks so that the iteration is
+  // MT-safe. For the verification at start-up and shut-down, we don't
+  // yet have a good way of acquiring and releasing these locks,
+  // which are not visible at the CollectedHeap level. We want to
+  // be able to acquire these locks and then do the iteration rather
+  // than just disable the lock verification. This will be fixed under
+  // bug 4788986.
+  if (UseConcMarkSweepGC && FLSVerifyAllHeapReferences) {
+    if (VerifyDuringStartup) {
+      warning("Heap verification at start-up disabled "
+              "(due to current incompatibility with FLSVerifyAllHeapReferences)");
+      VerifyDuringStartup = false; // Disable verification at start-up
+    }
+
+    if (VerifyBeforeExit) {
+      warning("Heap verification at shutdown disabled "
+              "(due to current incompatibility with FLSVerifyAllHeapReferences)");
+      VerifyBeforeExit = false; // Disable verification at shutdown
+    }
+  }
+
+  if (!ClassUnloading) {
+    FLAG_SET_CMDLINE(bool, CMSClassUnloadingEnabled, false);
+  }
 
   // Set CMS global values
   CompactibleFreeListSpace::set_cms_values();

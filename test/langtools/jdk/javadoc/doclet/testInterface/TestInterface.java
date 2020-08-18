@@ -24,15 +24,15 @@
 /*
  * @test
  * @bug      4682448 4947464 5029946 8025633 8026567 8035473 8139101 8175200
-             8186332 8186703
+             8186332 8186703 8182765 8187288
  * @summary  Verify that the public modifier does not show up in the
  *           documentation for public methods, as recommended by the JLS.
  *           If A implements I and B extends A, B should be in the list of
  *           implementing classes in the documentation for I.
  * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestInterface
  */
 
@@ -50,6 +50,8 @@
    and Child<CE>
  */
 
+import javadoc.tester.JavadocTester;
+
 public class TestInterface extends JavadocTester {
 
     public static void main(String... args) throws Exception {
@@ -58,14 +60,14 @@ public class TestInterface extends JavadocTester {
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
 
         checkOutput("pkg/Interface.html", true,
-                "<pre>int&nbsp;method()</pre>",
+                "<pre class=\"methodSignature\">int&nbsp;method()</pre>",
                 "<pre>static final&nbsp;int field</pre>",
                 // Make sure known implementing class list is correct and omits type parameters.
                 "<dl>\n"
@@ -99,14 +101,14 @@ public class TestInterface extends JavadocTester {
                 + "</ul>",
                 //Make sure "Specified By" has substituted type parameters.
                 "<dt><span class=\"overrideSpecifyLabel\">Specified by:</span></dt>\n"
-                + "<dd><code><a href=\"Interface.html#method--\">method</a>"
+                + "<dd><code><a href=\"Interface.html#method()\">method</a>"
                 + "</code>&nbsp;in interface&nbsp;<code>"
                 + "<a href=\"Interface.html\" title=\"interface in pkg\">"
                 + "Interface</a>&lt;<a href=\"Child.html\" title=\"type parameter in Child\">"
                 + "CE</a>&gt;</code></dd>",
                 //Make sure "Overrides" has substituted type parameters.
                 "<dt><span class=\"overrideSpecifyLabel\">Overrides:</span></dt>\n"
-                + "<dd><code><a href=\"Parent.html#method--\">method</a>"
+                + "<dd><code><a href=\"Parent.html#method()\">method</a>"
                 + "</code>&nbsp;in class&nbsp;<code><a href=\"Parent.html\" "
                 + "title=\"class in pkg\">Parent</a>&lt;<a href=\"Child.html\" "
                 + "title=\"type parameter in Child\">CE</a>&gt;</code></dd>");
@@ -120,7 +122,7 @@ public class TestInterface extends JavadocTester {
                 + "</dl>");
 
         checkOutput("pkg/Interface.html", false,
-                "public int&nbsp;method()",
+                "public int&nbsp;method--",
                 "public static final&nbsp;int field");
 
         checkOutput("pkg/ClassWithStaticMembers.html", false,
@@ -135,16 +137,16 @@ public class TestInterface extends JavadocTester {
 
                 "<td class=\"colFirst\"><code>static void</code></td>\n"
                 + "<th class=\"colSecond\" scope=\"row\"><code><span class=\"memberNameLink\">"
-                + "<a href=\"#m--\">m</a></span>()</code></th>\n"
+                + "<a href=\"#m()\">m</a></span>()</code></th>\n"
                 + "<td class=\"colLast\">\n"
                 + "<div class=\"block\">A hider method</div>\n"
                 + "</td>\n",
 
                 "<h4>staticMethod</h4>\n"
-                + "<pre>public static&nbsp;void&nbsp;staticMethod()</pre>\n"
+                + "<pre class=\"methodSignature\">public static&nbsp;void&nbsp;staticMethod()</pre>\n"
                 + "<div class=\"block\"><span class=\"descfrmTypeLabel\">"
                 + "Description copied from interface:&nbsp;<code>"
-                + "<a href=\"InterfaceWithStaticMembers.html#staticMethod--\">"
+                + "<a href=\"InterfaceWithStaticMembers.html#staticMethod()\">"
                 + "InterfaceWithStaticMembers</a></code></span></div>\n"
                 + "<div class=\"block\">A static method</div>\n");
 
@@ -156,8 +158,68 @@ public class TestInterface extends JavadocTester {
     }
 
     @Test
-    void test1() {
+    public void test_html4() {
+        javadoc("-d", "out-html4",
+                "-html4",
+                "-sourcepath", testSrc,
+                "pkg");
+        checkExit(Exit.OK);
+
+        checkOutput("pkg/Child.html", true,
+                //Make sure "Specified By" has substituted type parameters.
+                "<dt><span class=\"overrideSpecifyLabel\">Specified by:</span></dt>\n"
+                + "<dd><code><a href=\"Interface.html#method--\">method</a>"
+                + "</code>&nbsp;in interface&nbsp;<code>"
+                + "<a href=\"Interface.html\" title=\"interface in pkg\">"
+                + "Interface</a>&lt;<a href=\"Child.html\" title=\"type parameter in Child\">"
+                + "CE</a>&gt;</code></dd>",
+                //Make sure "Overrides" has substituted type parameters.
+                "<dt><span class=\"overrideSpecifyLabel\">Overrides:</span></dt>\n"
+                + "<dd><code><a href=\"Parent.html#method--\">method</a>"
+                + "</code>&nbsp;in class&nbsp;<code><a href=\"Parent.html\" "
+                + "title=\"class in pkg\">Parent</a>&lt;<a href=\"Child.html\" "
+                + "title=\"type parameter in Child\">CE</a>&gt;</code></dd>");
+
+        checkOutput("pkg/ClassWithStaticMembers.html", true,
+                "<td class=\"colFirst\"><code>static void</code></td>\n"
+                + "<th class=\"colSecond\" scope=\"row\"><code><span class=\"memberNameLink\">"
+                + "<a href=\"#m--\">m</a></span>()</code></th>\n"
+                + "<td class=\"colLast\">\n"
+                + "<div class=\"block\">A hider method</div>\n"
+                + "</td>\n",
+
+                "<h4>staticMethod</h4>\n"
+                + "<pre class=\"methodSignature\">public static&nbsp;void&nbsp;staticMethod()</pre>\n"
+                + "<div class=\"block\"><span class=\"descfrmTypeLabel\">"
+                + "Description copied from interface:&nbsp;<code>"
+                + "<a href=\"InterfaceWithStaticMembers.html#staticMethod--\">"
+                + "InterfaceWithStaticMembers</a></code></span></div>\n"
+                + "<div class=\"block\">A static method</div>\n");
+
+        checkOutput("pkg/Interface.html", false,
+                "public int&nbsp;method()");
+    }
+
+    @Test
+    public void test1() {
         javadoc("-d", "out-1",
+                "-sourcepath", testSrc,
+                "pkg1");
+        checkExit(Exit.OK);
+
+        checkOutput("pkg1/Child.html", true,
+            // Ensure the correct Overrides in the inheritance hierarchy is reported
+            "<span class=\"overrideSpecifyLabel\">Overrides:</span></dt>\n" +
+            "<dd><code><a href=\"GrandParent.html#method1()\">method1</a></code>" +
+            "&nbsp;in class&nbsp;" +
+            "<code><a href=\"GrandParent.html\" title=\"class in pkg1\">GrandParent</a>" +
+            "&lt;<a href=\"Child.html\" title=\"type parameter in Child\">CE</a>&gt;</code>");
+    }
+
+    @Test
+    public void test1_html4() {
+        javadoc("-d", "out-1-html4",
+                "-html4",
                 "-sourcepath", testSrc,
                 "pkg1");
         checkExit(Exit.OK);
@@ -172,7 +234,7 @@ public class TestInterface extends JavadocTester {
     }
 
     @Test
-    void test2() {
+    public void test2() {
         javadoc("-d", "out-2",
                 "-sourcepath", testSrc,
                 "pkg2");
@@ -189,14 +251,14 @@ public class TestInterface extends JavadocTester {
             + "<a href=\"Spliterator.OfInt.html\" title=\"type parameter in Spliterator.OfInt\">"
             + "Integer</a>&gt;, <a href=\"Spliterator.OfPrimitive.html\" title=\"interface in pkg2\">"
             + "Spliterator.OfPrimitive</a>&lt;<a href=\"Spliterator.OfPrimitive.html\" "
-            + "title=\"type parameter in Spliterator.OfPrimitive\">T</a>,<a href=\"Spliterator.OfPrimitive.html\" "
-            + "title=\"type parameter in Spliterator.OfPrimitive\">T_CONS</a>,"
+            + "title=\"type parameter in Spliterator.OfPrimitive\">T</a>,&#8203;<a href=\"Spliterator.OfPrimitive.html\" "
+            + "title=\"type parameter in Spliterator.OfPrimitive\">T_CONS</a>,&#8203;"
             + "<a href=\"Spliterator.OfPrimitive.html\" title=\"type parameter in Spliterator.OfPrimitive\">"
             + "T_SPLITR</a> extends <a href=\"Spliterator.OfPrimitive.html\" title=\"interface in pkg2\">"
             + "Spliterator.OfPrimitive</a>&lt;<a href=\"Spliterator.OfPrimitive.html\" "
-            + "title=\"type parameter in Spliterator.OfPrimitive\">T</a>,"
+            + "title=\"type parameter in Spliterator.OfPrimitive\">T</a>,&#8203;"
             + "<a href=\"Spliterator.OfPrimitive.html\" title=\"type parameter in Spliterator.OfPrimitive\">"
-            + "T_CONS</a>,<a href=\"Spliterator.OfPrimitive.html\" title=\"type parameter in Spliterator.OfPrimitive\">"
+            + "T_CONS</a>,&#8203;<a href=\"Spliterator.OfPrimitive.html\" title=\"type parameter in Spliterator.OfPrimitive\">"
             + "T_SPLITR</a>&gt;&gt;</code>");
     }
 }

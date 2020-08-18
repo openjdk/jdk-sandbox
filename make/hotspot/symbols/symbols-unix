@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,10 @@
 #
 
 JVM_ActiveProcessorCount
+JVM_AreNestMates
 JVM_ArrayCopy
 JVM_AssertionStatusDirectives
+JVM_BeforeHalt
 JVM_CallStackWalk
 JVM_Clone
 JVM_ConstantPoolGetClassAt
@@ -50,7 +52,6 @@ JVM_CurrentTimeMillis
 JVM_DefineClass
 JVM_DefineClassWithSource
 JVM_DesiredAssertionStatus
-JVM_DoPrivileged
 JVM_DumpAllStacks
 JVM_DumpThreads
 JVM_FillInStackTrace
@@ -80,7 +81,6 @@ JVM_GetClassFieldsCount
 JVM_GetClassInterfaces
 JVM_GetClassMethodsCount
 JVM_GetClassModifiers
-JVM_GetClassName
 JVM_GetClassNameUTF
 JVM_GetClassSignature
 JVM_GetClassSigners
@@ -117,7 +117,10 @@ JVM_GetMethodIxSignatureUTF
 JVM_GetMethodParameters
 JVM_GetMethodTypeAnnotations
 JVM_GetNanoTimeAdjustment
+JVM_GetNestHost
+JVM_GetNestMembers
 JVM_GetPrimitiveArrayElement
+JVM_GetProperties
 JVM_GetProtectionDomain
 JVM_GetSimpleBinaryName
 JVM_GetStackAccessControlContext
@@ -129,9 +132,10 @@ JVM_Halt
 JVM_HasReferencePendingList
 JVM_HoldsLock
 JVM_IHashCode
-JVM_InitProperties
+JVM_InitClassName
 JVM_InitStackTraceElement
 JVM_InitStackTraceElementArray
+JVM_InitializeFromArchive
 JVM_InternString
 JVM_Interrupt
 JVM_InvokeMethod

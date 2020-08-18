@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,17 +21,19 @@
  * questions.
  */
 
+
+
 package jdk.tools.jaotc;
 
 import java.util.ArrayList;
 
-import jdk.tools.jaotc.binformat.BinaryContainer;
-import jdk.tools.jaotc.binformat.CodeContainer;
-import jdk.tools.jaotc.binformat.Symbol;
-import jdk.tools.jaotc.StubInformation;
 import org.graalvm.compiler.code.CompilationResult;
 import org.graalvm.compiler.hotspot.HotSpotForeignCallLinkage;
 
+import jdk.tools.jaotc.binformat.BinaryContainer;
+import jdk.tools.jaotc.binformat.CodeContainer;
+import jdk.tools.jaotc.binformat.Symbol;
+import jdk.vm.ci.amd64.AMD64;
 import jdk.vm.ci.code.TargetDescription;
 import jdk.vm.ci.code.site.Call;
 import jdk.vm.ci.code.site.Infopoint;
@@ -72,7 +74,8 @@ final class CodeSectionProcessor {
             for (Infopoint infopoint : compResult.getInfopoints()) {
                 if (infopoint.reason == InfopointReason.CALL) {
                     final Call callInfopoint = (Call) infopoint;
-                    if (callInfopoint.target instanceof HotSpotForeignCallLinkage) {
+                    if (callInfopoint.target instanceof HotSpotForeignCallLinkage &&
+                                    target.arch instanceof AMD64) {
                         // TODO 4 is x86 size of relative displacement.
                         // For SPARC need something different.
                         int destOffset = infopoint.pcOffset + callInfopoint.size - 4;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -95,6 +95,7 @@ import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.tree.EndPosTable;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCBreak;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCImport;
 import com.sun.tools.javac.tree.TreeInfo;
@@ -315,7 +316,7 @@ public class CheckAttributedTree {
             totalNumberOfCompilations++;
             newCompilationTask()
                 .withWriter(pw)
-                    .withOption("--should-stop:at=ATTR")
+                    .withOption("--should-stop=at=ATTR")
                     .withOption("-XDverboseCompilePolicy")
                     .withOption("-Xdoclint:none")
                     .withSource(files.iterator().next())
@@ -444,6 +445,12 @@ public class CheckAttributedTree {
             @Override
             public void visitTopLevel(JCCompilationUnit tree) {
                 scan(tree.defs);
+            }
+
+            @Override
+            public void visitBreak(JCBreak tree) {
+                if (tree.isValueBreak())
+                    super.visitBreak(tree);
             }
 
             JavaFileObject sourcefile;

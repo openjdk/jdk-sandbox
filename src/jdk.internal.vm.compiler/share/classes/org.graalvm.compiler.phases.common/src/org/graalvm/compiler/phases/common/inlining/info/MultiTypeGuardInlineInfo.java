@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,13 +20,15 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.common.inlining.info;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.graalvm.collections.EconomicSet;
-import org.graalvm.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.Equivalence;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.AbstractBeginNode;
@@ -156,11 +158,11 @@ public class MultiTypeGuardInlineInfo extends AbstractInlineInfo {
     }
 
     @Override
-    public EconomicSet<Node> inline(Providers providers) {
+    public EconomicSet<Node> inline(Providers providers, String reason) {
         if (hasSingleMethod()) {
-            return inlineSingleMethod(graph(), providers.getStampProvider(), providers.getConstantReflection());
+            return inlineSingleMethod(graph(), providers.getStampProvider(), providers.getConstantReflection(), reason);
         } else {
-            return inlineMultipleMethods(graph(), providers);
+            return inlineMultipleMethods(graph(), providers, reason);
         }
     }
 
@@ -182,7 +184,7 @@ public class MultiTypeGuardInlineInfo extends AbstractInlineInfo {
         return notRecordedTypeProbability > 0;
     }
 
-    private EconomicSet<Node> inlineMultipleMethods(StructuredGraph graph, Providers providers) {
+    private EconomicSet<Node> inlineMultipleMethods(StructuredGraph graph, Providers providers, String reason) {
         int numberOfMethods = concretes.size();
         FixedNode continuation = invoke.next();
 
@@ -277,7 +279,7 @@ public class MultiTypeGuardInlineInfo extends AbstractInlineInfo {
         // do the actual inlining for every invoke
         for (int i = 0; i < numberOfMethods; i++) {
             Invoke invokeForInlining = (Invoke) successors[i].next();
-            canonicalizeNodes.addAll(doInline(i, invokeForInlining));
+            canonicalizeNodes.addAll(doInline(i, invokeForInlining, reason));
         }
         if (returnValuePhi != null) {
             canonicalizeNodes.add(returnValuePhi);
@@ -285,8 +287,8 @@ public class MultiTypeGuardInlineInfo extends AbstractInlineInfo {
         return canonicalizeNodes;
     }
 
-    protected EconomicSet<Node> doInline(int index, Invoke invokeForInlining) {
-        return inline(invokeForInlining, methodAt(index), inlineableElementAt(index), false);
+    protected EconomicSet<Node> doInline(int index, Invoke invokeForInlining, String reason) {
+        return inline(invokeForInlining, methodAt(index), inlineableElementAt(index), false, reason);
     }
 
     private int getTypeCount(int concreteMethodIndex) {
@@ -322,7 +324,7 @@ public class MultiTypeGuardInlineInfo extends AbstractInlineInfo {
         return result;
     }
 
-    private EconomicSet<Node> inlineSingleMethod(StructuredGraph graph, StampProvider stampProvider, ConstantReflectionProvider constantReflection) {
+    private EconomicSet<Node> inlineSingleMethod(StructuredGraph graph, StampProvider stampProvider, ConstantReflectionProvider constantReflection, String reason) {
         assert concretes.size() == 1 && inlineableElements.length == 1 && ptypes.size() > 1 && !shouldFallbackToInvoke() && notRecordedTypeProbability == 0;
 
         AbstractBeginNode calleeEntryNode = graph.add(new BeginNode());
@@ -333,7 +335,7 @@ public class MultiTypeGuardInlineInfo extends AbstractInlineInfo {
 
         calleeEntryNode.setNext(invoke.asNode());
 
-        return inline(invoke, methodAt(0), inlineableElementAt(0), false);
+        return inline(invoke, methodAt(0), inlineableElementAt(0), false, reason);
     }
 
     private boolean createDispatchOnTypeBeforeInvoke(StructuredGraph graph, AbstractBeginNode[] successors, boolean invokeIsOnlySuccessor, StampProvider stampProvider,

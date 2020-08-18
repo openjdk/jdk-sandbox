@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PARMARKBITMAP_INLINE_HPP
-#define SHARE_VM_GC_PARALLEL_PARMARKBITMAP_INLINE_HPP
+#ifndef SHARE_GC_PARALLEL_PARMARKBITMAP_INLINE_HPP
+#define SHARE_GC_PARALLEL_PARMARKBITMAP_INLINE_HPP
 
 #include "gc/parallel/parMarkBitMap.hpp"
 #include "utilities/bitMap.inline.hpp"
 
 inline ParMarkBitMap::ParMarkBitMap():
-  _beg_bits(), _end_bits(), _region_start(NULL), _region_size(0), _virtual_space(NULL), _reserved_byte_size(0)
+  _region_start(NULL), _region_size(0), _beg_bits(), _end_bits(), _virtual_space(NULL), _reserved_byte_size(0)
 { }
 
 inline void ParMarkBitMap::clear_range(idx_t beg, idx_t end) {
@@ -195,4 +195,4 @@ inline void ParMarkBitMap::verify_addr(HeapWord* addr) const {
 }
 #endif  // #ifdef ASSERT
 
-#endif /* SHARE_VM_GC_PARALLEL_PARMARKBITMAP_INLINE_HPP */
+#endif // SHARE_GC_PARALLEL_PARMARKBITMAP_INLINE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -414,7 +414,7 @@ public abstract class AbstractDocument implements Document, Serializable {
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
      * in Swing</A> for more information.
      *
      * @param r the renderer to execute
@@ -575,7 +575,7 @@ public abstract class AbstractDocument implements Document, Serializable {
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
      * in Swing</A> for more information.
      *
      * @param offs the starting offset &gt;= 0
@@ -688,7 +688,7 @@ public abstract class AbstractDocument implements Document, Serializable {
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
      * in Swing</A> for more information.
      *
      * @param offs the starting offset &gt;= 0
@@ -825,7 +825,7 @@ public abstract class AbstractDocument implements Document, Serializable {
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
      * in Swing</A> for more information.
      *
      * @param offs the position in the model &gt;= 0
@@ -1057,7 +1057,7 @@ public abstract class AbstractDocument implements Document, Serializable {
         // Calculate the bidi levels for the affected range of paragraphs.  The
         // levels array will contain a bidi level for each character in the
         // affected text.
-        byte levels[] = calculateBidiLevels( firstPStart, lastPEnd );
+        byte[] levels = calculateBidiLevels( firstPStart, lastPEnd );
 
 
         Vector<Element> newElements = new Vector<Element>();
@@ -1185,7 +1185,7 @@ public abstract class AbstractDocument implements Document, Serializable {
      */
     private byte[] calculateBidiLevels( int firstPStart, int lastPEnd ) {
 
-        byte levels[] = new byte[ lastPEnd - firstPStart ];
+        byte[] levels = new byte[ lastPEnd - firstPStart ];
         int  levelsEnd = 0;
         Boolean defaultDirection = null;
         Object d = getProperty(TextAttribute.RUN_DIRECTION);

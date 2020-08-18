@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_UNIVERSE_HPP
-#define SHARE_VM_MEMORY_UNIVERSE_HPP
+#ifndef SHARE_MEMORY_UNIVERSE_HPP
+#define SHARE_MEMORY_UNIVERSE_HPP
 
 #include "oops/array.hpp"
 #include "runtime/handles.hpp"
@@ -112,16 +112,7 @@ class Universe: AllStatic {
 
  private:
   // Known classes in the VM
-  static Klass* _boolArrayKlassObj;
-  static Klass* _byteArrayKlassObj;
-  static Klass* _charArrayKlassObj;
-  static Klass* _intArrayKlassObj;
-  static Klass* _shortArrayKlassObj;
-  static Klass* _longArrayKlassObj;
-  static Klass* _singleArrayKlassObj;
-  static Klass* _doubleArrayKlassObj;
-  static Klass* _typeArrayKlassObjs[T_VOID+1];
-
+  static Klass* _typeArrayKlassObjs[T_LONG+1];
   static Klass* _objectArrayKlassObj;
 
   // Known objects in the VM
@@ -146,7 +137,6 @@ class Universe: AllStatic {
   static oop          _the_min_jint_string;          // A cache of "-2147483648" as a Java string
   static LatestMethodCache* _finalizer_register_cache; // static method for registering finalizable objects
   static LatestMethodCache* _loader_addClass_cache;    // method for registering loaded classes in class loader vector
-  static LatestMethodCache* _pd_implies_cache;         // method for checking protection domain attributes
   static LatestMethodCache* _throw_illegal_access_error_cache; // Unsafe.throwIllegalAccessError() method
   static LatestMethodCache* _do_stack_walk_cache;      // method for stack walker callback
 
@@ -157,14 +147,16 @@ class Universe: AllStatic {
   static oop          _out_of_memory_error_array_size;
   static oop          _out_of_memory_error_gc_overhead_limit;
   static oop          _out_of_memory_error_realloc_objects;
+  static oop          _out_of_memory_error_retry;
 
   // preallocated cause message for delayed StackOverflowError
   static oop          _delayed_stack_overflow_error_message;
 
-  static Array<int>*       _the_empty_int_array;    // Canonicalized int array
-  static Array<u2>*        _the_empty_short_array;  // Canonicalized short array
-  static Array<Klass*>*  _the_empty_klass_array;  // Canonicalized klass obj array
-  static Array<Method*>* _the_empty_method_array; // Canonicalized method obj array
+  static Array<int>*            _the_empty_int_array;            // Canonicalized int array
+  static Array<u2>*             _the_empty_short_array;          // Canonicalized short array
+  static Array<Klass*>*         _the_empty_klass_array;          // Canonicalized klass array
+  static Array<InstanceKlass*>* _the_empty_instance_klass_array; // Canonicalized instance klass array
+  static Array<Method*>*        _the_empty_method_array;         // Canonicalized method array
 
   static Array<Klass*>*  _the_array_interfaces_array;
 
@@ -194,7 +186,8 @@ class Universe: AllStatic {
   // For UseCompressedClassPointers.
   static struct NarrowPtrStruct _narrow_klass;
   static address _narrow_ptrs_base;
-
+  // CompressedClassSpaceSize set to 1GB, but appear 3GB away from _narrow_ptrs_base during CDS dump.
+  static uint64_t _narrow_klass_range;
   // array of dummy objects used with +FullGCAlot
   debug_only(static objArrayOop _fullgc_alot_dummy_array;)
   // index of next entry to clear
@@ -220,12 +213,12 @@ class Universe: AllStatic {
   static size_t _heap_used_at_last_gc;
 
   static CollectedHeap* create_heap();
-  static CollectedHeap* create_heap_ext();
   static jint initialize_heap();
   static void initialize_basic_type_mirrors(TRAPS);
   static void fixup_mirrors(TRAPS);
 
   static void reinitialize_vtable_of(Klass* k, TRAPS);
+  static void reinitialize_vtables(TRAPS);
   static void reinitialize_itables(TRAPS);
   static void compute_base_vtable_size();             // compute vtable size of class Object
 
@@ -244,6 +237,10 @@ class Universe: AllStatic {
   static void     set_narrow_klass_base(address base) {
     assert(UseCompressedClassPointers, "no compressed klass ptrs?");
     _narrow_klass._base   = base;
+  }
+  static void     set_narrow_klass_range(uint64_t range) {
+     assert(UseCompressedClassPointers, "no compressed klass ptrs?");
+     _narrow_klass_range = range;
   }
   static void     set_narrow_oop_use_implicit_null_checks(bool use) {
     assert(UseCompressedOops, "no compressed ptrs?");
@@ -265,21 +262,20 @@ class Universe: AllStatic {
 
  public:
   // Known classes in the VM
-  static Klass* boolArrayKlassObj()                 { return _boolArrayKlassObj;   }
-  static Klass* byteArrayKlassObj()                 { return _byteArrayKlassObj;   }
-  static Klass* charArrayKlassObj()                 { return _charArrayKlassObj;   }
-  static Klass* intArrayKlassObj()                  { return _intArrayKlassObj;    }
-  static Klass* shortArrayKlassObj()                { return _shortArrayKlassObj;  }
-  static Klass* longArrayKlassObj()                 { return _longArrayKlassObj;   }
-  static Klass* singleArrayKlassObj()               { return _singleArrayKlassObj; }
-  static Klass* doubleArrayKlassObj()               { return _doubleArrayKlassObj; }
+  static Klass* boolArrayKlassObj()                 { return typeArrayKlassObj(T_BOOLEAN); }
+  static Klass* byteArrayKlassObj()                 { return typeArrayKlassObj(T_BYTE); }
+  static Klass* charArrayKlassObj()                 { return typeArrayKlassObj(T_CHAR); }
+  static Klass* intArrayKlassObj()                  { return typeArrayKlassObj(T_INT); }
+  static Klass* shortArrayKlassObj()                { return typeArrayKlassObj(T_SHORT); }
+  static Klass* longArrayKlassObj()                 { return typeArrayKlassObj(T_LONG); }
+  static Klass* floatArrayKlassObj()                { return typeArrayKlassObj(T_FLOAT); }
+  static Klass* doubleArrayKlassObj()               { return typeArrayKlassObj(T_DOUBLE); }
 
-  static Klass* objectArrayKlassObj() {
-    return _objectArrayKlassObj;
-  }
+  static Klass* objectArrayKlassObj()               { return _objectArrayKlassObj; }
 
   static Klass* typeArrayKlassObj(BasicType t) {
-    assert((uint)t < T_VOID+1, "range check for type: %s", type2name(t));
+    assert((uint)t >= T_BOOLEAN, "range check for type: %s", type2name(t));
+    assert((uint)t < T_LONG+1,   "range check for type: %s", type2name(t));
     assert(_typeArrayKlassObjs[t] != NULL, "domain check");
     return _typeArrayKlassObjs[t];
   }
@@ -294,6 +290,16 @@ class Universe: AllStatic {
   static oop long_mirror()                  { return check_mirror(_long_mirror); }
   static oop short_mirror()                 { return check_mirror(_short_mirror); }
   static oop void_mirror()                  { return check_mirror(_void_mirror); }
+
+  static void set_int_mirror(oop m)         { _int_mirror = m;    }
+  static void set_float_mirror(oop m)       { _float_mirror = m;  }
+  static void set_double_mirror(oop m)      { _double_mirror = m; }
+  static void set_byte_mirror(oop m)        { _byte_mirror = m;   }
+  static void set_bool_mirror(oop m)        { _bool_mirror = m;   }
+  static void set_char_mirror(oop m)        { _char_mirror = m;   }
+  static void set_long_mirror(oop m)        { _long_mirror = m;   }
+  static void set_short_mirror(oop m)       { _short_mirror = m;  }
+  static void set_void_mirror(oop m)        { _void_mirror = m;   }
 
   // table of same
   static oop _mirrors[T_VOID+1];
@@ -316,7 +322,6 @@ class Universe: AllStatic {
   static Method*      finalizer_register_method()     { return _finalizer_register_cache->get_method(); }
   static Method*      loader_addClass_method()        { return _loader_addClass_cache->get_method(); }
 
-  static Method*      protection_domain_implies_method() { return _pd_implies_cache->get_method(); }
   static Method*      throw_illegal_access_error()    { return _throw_illegal_access_error_cache->get_method(); }
 
   static Method*      do_stack_walk_method()          { return _do_stack_walk_cache->get_method(); }
@@ -343,10 +348,11 @@ class Universe: AllStatic {
   static bool         has_reference_pending_list();
   static oop          swap_reference_pending_list(oop list);
 
-  static Array<int>*       the_empty_int_array()    { return _the_empty_int_array; }
-  static Array<u2>*        the_empty_short_array()  { return _the_empty_short_array; }
-  static Array<Method*>* the_empty_method_array() { return _the_empty_method_array; }
-  static Array<Klass*>*  the_empty_klass_array()  { return _the_empty_klass_array; }
+  static Array<int>*             the_empty_int_array()    { return _the_empty_int_array; }
+  static Array<u2>*              the_empty_short_array()  { return _the_empty_short_array; }
+  static Array<Method*>*         the_empty_method_array() { return _the_empty_method_array; }
+  static Array<Klass*>*          the_empty_klass_array()  { return _the_empty_klass_array; }
+  static Array<InstanceKlass*>*  the_empty_instance_klass_array() { return _the_empty_instance_klass_array; }
 
   // OutOfMemoryError support. Returns an error with the required message. The returned error
   // may or may not have a backtrace. If error has a backtrace then the stack trace is already
@@ -357,18 +363,9 @@ class Universe: AllStatic {
   static oop out_of_memory_error_array_size()         { return gen_out_of_memory_error(_out_of_memory_error_array_size); }
   static oop out_of_memory_error_gc_overhead_limit()  { return gen_out_of_memory_error(_out_of_memory_error_gc_overhead_limit);  }
   static oop out_of_memory_error_realloc_objects()    { return gen_out_of_memory_error(_out_of_memory_error_realloc_objects);  }
+  // Throw default _out_of_memory_error_retry object as it will never propagate out of the VM
+  static oop out_of_memory_error_retry()              { return _out_of_memory_error_retry;  }
   static oop delayed_stack_overflow_error_message()   { return _delayed_stack_overflow_error_message; }
-
-  // Accessors needed for fast allocation
-  static Klass** boolArrayKlassObj_addr()           { return &_boolArrayKlassObj;   }
-  static Klass** byteArrayKlassObj_addr()           { return &_byteArrayKlassObj;   }
-  static Klass** charArrayKlassObj_addr()           { return &_charArrayKlassObj;   }
-  static Klass** intArrayKlassObj_addr()            { return &_intArrayKlassObj;    }
-  static Klass** shortArrayKlassObj_addr()          { return &_shortArrayKlassObj;  }
-  static Klass** longArrayKlassObj_addr()           { return &_longArrayKlassObj;   }
-  static Klass** singleArrayKlassObj_addr()         { return &_singleArrayKlassObj; }
-  static Klass** doubleArrayKlassObj_addr()         { return &_doubleArrayKlassObj; }
-  static Klass** objectArrayKlassObj_addr()         { return &_objectArrayKlassObj; }
 
   // The particular choice of collected heap.
   static CollectedHeap* heap() { return _collectedHeap; }
@@ -420,6 +417,7 @@ class Universe: AllStatic {
   // For UseCompressedClassPointers
   static address  narrow_klass_base()                     { return  _narrow_klass._base; }
   static bool  is_narrow_klass_base(void* addr)           { return (narrow_klass_base() == (address)addr); }
+  static uint64_t narrow_klass_range()                    { return  _narrow_klass_range; }
   static int      narrow_klass_shift()                    { return  _narrow_klass._shift; }
   static bool     narrow_klass_use_implicit_null_checks() { return  _narrow_klass._use_implicit_null_checks; }
 
@@ -453,8 +451,6 @@ class Universe: AllStatic {
   static bool is_module_initialized()                 { return _module_initialized; }
   static bool is_fully_initialized()                  { return _fully_initialized; }
 
-  static inline bool element_type_should_be_aligned(BasicType type);
-  static inline bool field_type_should_be_aligned(BasicType type);
   static bool        on_page_boundary(void* addr);
   static bool        should_fill_in_stack_trace(Handle throwable);
   static void check_alignment(uintx size, uintx alignment, const char* name);
@@ -463,14 +459,15 @@ class Universe: AllStatic {
 
   // Apply "f" to the addresses of all the direct heap pointers maintained
   // as static fields of "Universe".
-  static void oops_do(OopClosure* f, bool do_all = false);
+  static void oops_do(OopClosure* f);
 
   // CDS support
-  static void serialize(SerializeClosure* f, bool do_all = false);
+  static void serialize(SerializeClosure* f);
 
   // Apply "f" to all klasses for basic types (classes not present in
   // SystemDictionary).
   static void basic_type_classes_do(void f(Klass*));
+  static void basic_type_classes_do(KlassClosure* closure);
   static void metaspace_pointers_do(MetaspaceClosure* it);
 
   // Debugging
@@ -482,7 +479,7 @@ class Universe: AllStatic {
     Verify_CodeCache = 16,
     Verify_SystemDictionary = 32,
     Verify_ClassLoaderDataGraph = 64,
-    Verify_MetaspaceAux = 128,
+    Verify_MetaspaceUtils = 128,
     Verify_JNIHandles = 256,
     Verify_CodeCacheOops = 512,
     Verify_All = -1
@@ -541,4 +538,4 @@ class DeferredObjAllocEvent : public CHeapObj<mtInternal> {
     oop    get_oop()  { return _oop; }
 };
 
-#endif // SHARE_VM_MEMORY_UNIVERSE_HPP
+#endif // SHARE_MEMORY_UNIVERSE_HPP

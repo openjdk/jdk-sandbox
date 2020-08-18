@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,6 +78,8 @@ import com.sun.imageio.plugins.common.I18N;
  *
  *  This class supports Microsoft Windows Bitmap Version 3-5,
  *  as well as OS/2 Bitmap Version 2.x (for single-image BMP file).
+ *  It also supports undocumented DIB header of type BITMAPV2INFOHEADER
+ *  & BITMAPV3INFOHEADER.
  */
 public class BMPImageReader extends ImageReader implements BMPConstants {
     // BMP Image types
@@ -94,16 +96,25 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
     private static final int VERSION_3_NT_16_BIT = 8;
     private static final int VERSION_3_NT_32_BIT = 9;
 
-    private static final int VERSION_4_1_BIT = 10;
-    private static final int VERSION_4_4_BIT = 11;
-    private static final int VERSION_4_8_BIT = 12;
-    private static final int VERSION_4_16_BIT = 13;
-    private static final int VERSION_4_24_BIT = 14;
-    private static final int VERSION_4_32_BIT = 15;
+    // All VERSION_3_EXT_* are for BITMAPV2INFOHEADER & BITMAPV3INFOHEADER
+    private static final int VERSION_3_EXT_1_BIT = 10;
+    private static final int VERSION_3_EXT_4_BIT = 11;
+    private static final int VERSION_3_EXT_8_BIT = 12;
+    private static final int VERSION_3_EXT_16_BIT = 13;
+    private static final int VERSION_3_EXT_24_BIT = 14;
+    private static final int VERSION_3_EXT_32_BIT = 15;
 
-    private static final int VERSION_3_XP_EMBEDDED = 16;
-    private static final int VERSION_4_XP_EMBEDDED = 17;
-    private static final int VERSION_5_XP_EMBEDDED = 18;
+    private static final int VERSION_4_1_BIT = 16;
+    private static final int VERSION_4_4_BIT = 17;
+    private static final int VERSION_4_8_BIT = 18;
+    private static final int VERSION_4_16_BIT = 19;
+    private static final int VERSION_4_24_BIT = 20;
+    private static final int VERSION_4_32_BIT = 21;
+
+    private static final int VERSION_3_XP_EMBEDDED = 22;
+    private static final int VERSION_3_EXT_EMBEDDED = 23;
+    private static final int VERSION_4_XP_EMBEDDED = 24;
+    private static final int VERSION_5_XP_EMBEDDED = 25;
 
     // BMP variables
     private long bitmapFileSize;
@@ -111,7 +122,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
     private long bitmapStart;
     private long compression;
     private long imageSize;
-    private byte palette[];
+    private byte[] palette;
     private int imageType;
     private int numBands;
     private boolean isBottomUp;
@@ -409,6 +420,63 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
                     throw new
                         IIOException(I18N.getString("BMPImageReader2"));
                 }
+            } else if (size == 52 || size == 56) {
+                // BITMAPV2INFOHEADER or BITMAPV3INFOHEADER
+                redMask = (int)iis.readUnsignedInt();
+                greenMask = (int)iis.readUnsignedInt();
+                blueMask = (int)iis.readUnsignedInt();
+                if (size == 56) {
+                    alphaMask = (int)iis.readUnsignedInt();
+                }
+
+                metadata.bmpVersion = VERSION_3_EXT;
+                // Read in the palette
+                int numberOfEntries = (int)((bitmapOffset-14-size) / 4);
+                int sizeOfPalette = numberOfEntries*4;
+                palette = new byte[sizeOfPalette];
+                iis.readFully(palette, 0, sizeOfPalette);
+                metadata.palette = palette;
+                metadata.paletteSize = numberOfEntries;
+
+                switch((int)compression) {
+
+                    case BI_JPEG:
+                    case BI_PNG:
+                        imageType = VERSION_3_EXT_EMBEDDED;
+                        break;
+                    default:
+                        if (bitsPerPixel == 1) {
+                            imageType = VERSION_3_EXT_1_BIT;
+                        } else if (bitsPerPixel == 4) {
+                            imageType = VERSION_3_EXT_4_BIT;
+                        } else if (bitsPerPixel == 8) {
+                            imageType = VERSION_3_EXT_8_BIT;
+                        } else if (bitsPerPixel == 16) {
+                            imageType = VERSION_3_EXT_16_BIT;
+                            if ((int)compression == BI_RGB) {
+                                redMask = 0x7C00;
+                                greenMask = 0x3E0;
+                                blueMask = 0x1F;
+                            }
+                        } else if (bitsPerPixel == 24) {
+                            imageType = VERSION_3_EXT_24_BIT;
+                        } else if (bitsPerPixel == 32) {
+                            imageType = VERSION_3_EXT_32_BIT;
+                            if ((int)compression == BI_RGB) {
+                                redMask   = 0x00FF0000;
+                                greenMask = 0x0000FF00;
+                                blueMask  = 0x000000FF;
+                            }
+                        } else {
+                            throw new
+                            IIOException(I18N.getString("BMPImageReader8"));
+                        }
+
+                        metadata.redMask = redMask;
+                        metadata.greenMask = greenMask;
+                        metadata.blueMask = blueMask;
+                        metadata.alphaMask = alphaMask;
+                }
             } else if (size == 108 || size == 124) {
                 // Windows 4.x BMP
                 if (size == 108)
@@ -587,7 +655,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
             }
 
             // Create IndexColorModel from the palette.
-            byte r[], g[], b[];
+            byte[] r, g, b;
             if (imageType == VERSION_2_1_BIT ||
                 imageType == VERSION_2_4_BIT ||
                 imageType == VERSION_2_8_BIT) {
@@ -817,9 +885,9 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
             noTransform &=  destinationRegion.equals(raster.getBounds());
         }
 
-        byte bdata[] = null; // buffer for byte data
-        short sdata[] = null; // buffer for short data
-        int idata[] = null; // buffer for int data
+        byte[] bdata = null; // buffer for byte data
+        short[] sdata = null; // buffer for short data
+        int[] idata = null; // buffer for int data
 
         // the sampleModel can be null in case of embedded image
         if (sampleModel != null) {
@@ -908,15 +976,18 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
             break;
 
         case VERSION_3_XP_EMBEDDED:
+        case VERSION_3_EXT_EMBEDDED:
         case VERSION_4_XP_EMBEDDED:
         case VERSION_5_XP_EMBEDDED:
             bi = readEmbedded((int)compression, bi, param);
             break;
 
+        case VERSION_3_EXT_1_BIT:
         case VERSION_4_1_BIT:
             read1Bit(bdata);
             break;
 
+        case VERSION_3_EXT_4_BIT:
         case VERSION_4_4_BIT:
             switch((int)compression) {
 
@@ -934,6 +1005,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
             }
             break;
 
+        case VERSION_3_EXT_8_BIT:
         case VERSION_4_8_BIT:
             switch((int)compression) {
 
@@ -951,14 +1023,17 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
             }
             break;
 
+        case VERSION_3_EXT_16_BIT:
         case VERSION_4_16_BIT:
             read16Bit(sdata);
             break;
 
+        case VERSION_3_EXT_24_BIT:
         case VERSION_4_24_BIT:
             read24Bit(bdata);
             break;
 
+        case VERSION_3_EXT_32_BIT:
         case VERSION_4_32_BIT:
             read32Bit(idata);
             break;
@@ -1293,7 +1368,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         }
     }
 
-    private void read16Bit(short sdata[]) throws IOException {
+    private void read16Bit(short[] sdata) throws IOException {
         // Padding bytes at the end of each scanline
         // width * bitsPerPixel should be divisible by 32
         int padding = width * 2 % 4;
@@ -1359,7 +1434,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         }
     }
 
-    private void read32Bit(int idata[]) throws IOException {
+    private void read32Bit(int[] idata) throws IOException {
         if (noTransform) {
             int j = isBottomUp ? (height -1) * width : 0;
 
@@ -1415,7 +1490,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         }
     }
 
-    private void readRLE8(byte bdata[]) throws IOException {
+    private void readRLE8(byte[] bdata) throws IOException {
         // If imageSize field is not provided, calculate it.
         int imSize = (int)imageSize;
         if (imSize == 0) {
@@ -1431,7 +1506,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         }
 
         // Read till we have the whole image
-        byte values[] = new byte[imSize];
+        byte[] values = new byte[imSize];
         int bytesRead = 0;
         iis.readFully(values, 0, imSize);
 
@@ -1487,7 +1562,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
                             byte[] values,
                             byte[] bdata) throws IOException {
 
-        byte val[] = new byte[width];
+        byte[] val = new byte[width];
         int count = 0, l = 0;
         int value;
         boolean flag = false;
@@ -1789,7 +1864,7 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
                 // Ensure to check if the source index-count, does not
                 // exceed the source image size
                 if (count < imSize) {
-                    int alternate[] = { (values[count] & 0xf0) >> 4,
+                    int[] alternate = { (values[count] & 0xf0) >> 4,
                                         values[count] & 0x0f };
                     for (int i=0; (i < value) && (l < width); i++) {
                         val[l++] = (byte)alternate[i & 1];
@@ -2000,3 +2075,4 @@ public class BMPImageReader extends ImageReader implements BMPConstants {
         }
     }
 }
+

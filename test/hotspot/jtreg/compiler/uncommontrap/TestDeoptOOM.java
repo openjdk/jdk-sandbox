@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,11 @@
 
 /*
  * @test
- * @bug 6898462
+ * @bug 6898462 8198826
  * @summary failed reallocations of scalar replaced objects during deoptimization causes crash
  *
- * @run main/othervm -XX:-BackgroundCompilation -Xmx128M
+ * @requires !vm.graal.enabled
+ * @run main/othervm -XX:-BackgroundCompilation -Xmx128M -XX:+IgnoreUnrecognizedVMOptions -XX:+VerifyStack
  *      -XX:CompileCommand=exclude,compiler.uncommontrap.TestDeoptOOM::main
  *      -XX:CompileCommand=exclude,compiler.uncommontrap.TestDeoptOOM::m9_1
  *      compiler.uncommontrap.TestDeoptOOM

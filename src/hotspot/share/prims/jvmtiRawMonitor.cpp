@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,11 @@
  */
 
 #include "precompiled.hpp"
+#include "memory/allocation.inline.hpp"
 #include "prims/jvmtiRawMonitor.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/interfaceSupport.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/thread.inline.hpp"
 
 GrowableArray<JvmtiRawMonitor*> *JvmtiPendingMonitors::_monitors = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<JvmtiRawMonitor*>(1,true);
@@ -263,7 +264,6 @@ int JvmtiRawMonitor::SimpleNotify (Thread * Self, bool All) {
 
 // Any JavaThread will enter here with state _thread_blocked
 int JvmtiRawMonitor::raw_enter(TRAPS) {
-  TEVENT (raw_enter) ;
   void * Contended ;
 
   // don't enter raw monitor if thread is being externally suspended, it will
@@ -340,7 +340,6 @@ int JvmtiRawMonitor::raw_enter(TRAPS) {
 // Used mainly for JVMTI raw monitor implementation
 // Also used for JvmtiRawMonitor::wait().
 int JvmtiRawMonitor::raw_exit(TRAPS) {
-  TEVENT (raw_exit) ;
   if (THREAD != _owner) {
     return OM_ILLEGAL_MONITOR_STATE;
   }
@@ -359,7 +358,6 @@ int JvmtiRawMonitor::raw_exit(TRAPS) {
 // All JavaThreads will enter here with state _thread_blocked
 
 int JvmtiRawMonitor::raw_wait(jlong millis, bool interruptible, TRAPS) {
-  TEVENT (raw_wait) ;
   if (THREAD != _owner) {
     return OM_ILLEGAL_MONITOR_STATE;
   }
@@ -405,7 +403,6 @@ int JvmtiRawMonitor::raw_wait(jlong millis, bool interruptible, TRAPS) {
 }
 
 int JvmtiRawMonitor::raw_notify(TRAPS) {
-  TEVENT (raw_notify) ;
   if (THREAD != _owner) {
     return OM_ILLEGAL_MONITOR_STATE;
   }
@@ -414,11 +411,9 @@ int JvmtiRawMonitor::raw_notify(TRAPS) {
 }
 
 int JvmtiRawMonitor::raw_notifyAll(TRAPS) {
-  TEVENT (raw_notifyAll) ;
   if (THREAD != _owner) {
     return OM_ILLEGAL_MONITOR_STATE;
   }
   SimpleNotify (THREAD, true) ;
   return OM_OK;
 }
-

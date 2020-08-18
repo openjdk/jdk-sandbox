@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_BYTECODEASSEMBLER_HPP
-#define SHARE_VM_CLASSFILE_BYTECODEASSEMBLER_HPP
+#ifndef SHARE_CLASSFILE_BYTECODEASSEMBLER_HPP
+#define SHARE_CLASSFILE_BYTECODEASSEMBLER_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/method.hpp"
@@ -51,7 +51,7 @@ class BytecodeBuffer : public GrowableArray<u1> {
 };
 
 // Entries in a yet-to-be-created constant pool.  Limited types for now.
-class BytecodeCPEntry VALUE_OBJ_CLASS_SPEC {
+class BytecodeCPEntry {
  public:
   enum tag {
     ERROR_TAG,
@@ -211,4 +211,4 @@ class BytecodeAssembler : StackObj {
   void _return(BasicType bt);
 };
 
-#endif // SHARE_VM_CLASSFILE_BYTECODEASSEMBLER_HPP
+#endif // SHARE_CLASSFILE_BYTECODEASSEMBLER_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.debug;
 
 import static java.util.FormattableFlags.LEFT_JUSTIFY;
@@ -56,11 +58,12 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.EconomicSet;
-import org.graalvm.collections.Pair;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.Pair;
 import org.graalvm.compiler.options.OptionKey;
 import org.graalvm.compiler.options.OptionValues;
+import org.graalvm.compiler.serviceprovider.GraalServices;
 import org.graalvm.graphio.GraphOutput;
 
 import jdk.vm.ci.meta.JavaMethod;
@@ -77,7 +80,7 @@ import jdk.vm.ci.meta.JavaMethod;
  */
 public final class DebugContext implements AutoCloseable {
 
-    public static final Description NO_DESCRIPTION = null;
+    public static final Description NO_DESCRIPTION = new Description(null, "NO_DESCRIPTION");
     public static final GlobalMetrics NO_GLOBAL_METRIC_VALUES = null;
     public static final Iterable<DebugHandlersFactory> NO_CONFIG_CUSTOMIZERS = Collections.emptyList();
 
@@ -95,7 +98,7 @@ public final class DebugContext implements AutoCloseable {
      */
     boolean metricsEnabled;
 
-    DebugConfig currentConfig;
+    DebugConfigImpl currentConfig;
     ScopeImpl currentScope;
     CloseableCounter currentTimer;
     CloseableCounter currentMemUseTracker;
@@ -236,14 +239,15 @@ public final class DebugContext implements AutoCloseable {
             this.unscopedTimers = parseUnscopedMetricSpec(Timers.getValue(options), "".equals(timeValue), true);
             this.unscopedMemUseTrackers = parseUnscopedMetricSpec(MemUseTrackers.getValue(options), "".equals(trackMemUseValue), true);
 
-            if (unscopedTimers != null ||
-                            unscopedMemUseTrackers != null ||
-                            timeValue != null ||
-                            trackMemUseValue != null) {
-                try {
-                    Class.forName("java.lang.management.ManagementFactory");
-                } catch (ClassNotFoundException ex) {
-                    throw new IllegalArgumentException("Time, Timers, MemUseTrackers and TrackMemUse options require java.management module");
+            if (unscopedTimers != null || timeValue != null) {
+                if (!GraalServices.isCurrentThreadCpuTimeSupported()) {
+                    throw new IllegalArgumentException("Time and Timers options require VM support for querying CPU time");
+                }
+            }
+
+            if (unscopedMemUseTrackers != null || trackMemUseValue != null) {
+                if (!GraalServices.isThreadAllocatedMemorySupported()) {
+                    throw new IllegalArgumentException("MemUseTrackers and TrackMemUse options require VM support for querying thread allocated memory");
                 }
             }
 
@@ -398,6 +402,18 @@ public final class DebugContext implements AutoCloseable {
      */
     public static DebugContext create(OptionValues options, Iterable<DebugHandlersFactory> factories) {
         return new DebugContext(NO_DESCRIPTION, NO_GLOBAL_METRIC_VALUES, DEFAULT_LOG_STREAM, Immutable.create(options), factories);
+    }
+
+    public static DebugContext create(OptionValues options, PrintStream logStream, DebugHandlersFactory factory) {
+        return new DebugContext(NO_DESCRIPTION, NO_GLOBAL_METRIC_VALUES, logStream, Immutable.create(options), Collections.singletonList(factory));
+    }
+
+    /**
+     * Creates a {@link DebugContext} based on a given set of option values and {@code factories}.
+     * The {@link DebugHandlersFactory#LOADER} can be used for the latter.
+     */
+    public static DebugContext create(OptionValues options, Description description, Iterable<DebugHandlersFactory> factories) {
+        return new DebugContext(description, NO_GLOBAL_METRIC_VALUES, DEFAULT_LOG_STREAM, Immutable.create(options), factories);
     }
 
     /**
@@ -737,6 +753,19 @@ public final class DebugContext implements AutoCloseable {
     }
 
     /**
+     * Create an unnamed scope that appends some context to the current scope.
+     *
+     * @param context an object to be appended to the {@linkplain #context() current} debug context
+     */
+    public DebugContext.Scope withContext(Object context) throws Throwable {
+        if (currentScope != null) {
+            return enterScope("", null, context);
+        } else {
+            return null;
+        }
+    }
+
+    /**
      * Creates and enters a new debug scope which will be disjoint from the current debug scope.
      * <p>
      * It is recommended to use the try-with-resource statement for managing entering and leaving
@@ -785,7 +814,7 @@ public final class DebugContext implements AutoCloseable {
     class DisabledScope implements DebugContext.Scope {
         final boolean savedMetricsEnabled;
         final ScopeImpl savedScope;
-        final DebugConfig savedConfig;
+        final DebugConfigImpl savedConfig;
 
         DisabledScope() {
             this.savedMetricsEnabled = metricsEnabled;

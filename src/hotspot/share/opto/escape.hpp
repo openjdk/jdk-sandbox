@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_ESCAPE_HPP
-#define SHARE_VM_OPTO_ESCAPE_HPP
+#ifndef SHARE_OPTO_ESCAPE_HPP
+#define SHARE_OPTO_ESCAPE_HPP
 
 #include "opto/addnode.hpp"
 #include "opto/node.hpp"
@@ -371,8 +371,6 @@ private:
     _nodes.at_put(n->_idx, ptn);
   }
 
-  // Utility function for nodes that load an object
-  void add_objload_to_connection_graph(Node *n, Unique_Node_List *delayed_worklist);
   // Create PointsToNode node and add it to Connection Graph.
   void add_node_to_connection_graph(Node *n, Unique_Node_List *delayed_worklist);
 
@@ -511,24 +509,8 @@ private:
     return is_new;
   }
 
-  // Add LocalVar node and edge if possible
-  void add_local_var_and_edge(Node* n, PointsToNode::EscapeState es, Node* to,
-                              Unique_Node_List *delayed_worklist) {
-    PointsToNode* ptn = ptnode_adr(to->_idx);
-    if (delayed_worklist != NULL) { // First iteration of CG construction
-      add_local_var(n, es);
-      if (ptn == NULL) {
-        delayed_worklist->push(n);
-        return; // Process it later.
-      }
-    } else {
-      assert(ptn != NULL, "node should be registered");
-    }
-    add_edge(ptnode_adr(n->_idx), ptn);
- }
   // Helper functions
   bool   is_oop_field(Node* n, int offset, bool* unsafe);
-  Node* get_addp_base(Node *addp);
   static Node* find_second_addp(Node* addp, Node* n);
   // offset of a field reference
   int address_offset(Node* adr, PhaseTransform *phase);
@@ -574,10 +556,7 @@ private:
   }
 
   // Notify optimizer that a node has been modified
-  void record_for_optimizer(Node *n) {
-    _igvn->_worklist.push(n);
-    _igvn->add_users_to_worklist(n);
-  }
+  void record_for_optimizer(Node *n);
 
   // Compute the escape information
   bool compute_escape();
@@ -593,6 +572,31 @@ public:
 
   bool not_global_escape(Node *n);
 
+  // To be used by, e.g., BarrierSetC2 impls
+  Node* get_addp_base(Node* addp);
+
+  // Utility function for nodes that load an object
+  void add_objload_to_connection_graph(Node* n, Unique_Node_List* delayed_worklist);
+
+  // Add LocalVar node and edge if possible
+  void add_local_var_and_edge(Node* n, PointsToNode::EscapeState es, Node* to,
+                              Unique_Node_List *delayed_worklist) {
+    PointsToNode* ptn = ptnode_adr(to->_idx);
+    if (delayed_worklist != NULL) { // First iteration of CG construction
+      add_local_var(n, es);
+      if (ptn == NULL) {
+        delayed_worklist->push(n);
+        return; // Process it later.
+      }
+    } else {
+      assert(ptn != NULL, "node should be registered");
+    }
+    add_edge(ptnode_adr(n->_idx), ptn);
+  }
+
+  void add_to_congraph_unsafe_access(Node* n, uint opcode, Unique_Node_List* delayed_worklist);
+  bool add_final_edges_unsafe_access(Node* n, uint opcode);
+
 #ifndef PRODUCT
   void dump(GrowableArray<PointsToNode*>& ptnodes_worklist);
 #endif
@@ -601,14 +605,14 @@ public:
 inline PointsToNode::PointsToNode(ConnectionGraph *CG, Node* n, EscapeState es, NodeType type):
   _edges(CG->_compile->comp_arena(), 2, 0, NULL),
   _uses (CG->_compile->comp_arena(), 2, 0, NULL),
-  _node(n),
-  _idx(n->_idx),
-  _pidx(CG->next_pidx()),
   _type((u1)type),
+  _flags(ScalarReplaceable),
   _escape((u1)es),
   _fields_escape((u1)es),
-  _flags(ScalarReplaceable) {
+  _node(n),
+  _idx(n->_idx),
+  _pidx(CG->next_pidx()) {
   assert(n != NULL && es != UnknownEscape, "sanity");
 }
 
-#endif // SHARE_VM_OPTO_ESCAPE_HPP
+#endif // SHARE_OPTO_ESCAPE_HPP

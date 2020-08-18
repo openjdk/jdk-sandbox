@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_SPARC_VM_ASSEMBLER_SPARC_HPP
-#define CPU_SPARC_VM_ASSEMBLER_SPARC_HPP
+#ifndef CPU_SPARC_ASSEMBLER_SPARC_HPP
+#define CPU_SPARC_ASSEMBLER_SPARC_HPP
 
 #include "asm/register.hpp"
 
@@ -783,7 +783,9 @@ class Assembler : public AbstractAssembler {
   void flush() {
 #ifdef VALIDATE_PIPELINE
     assert(_delay_state == NoDelay, "Ending code with a delay-slot.");
+#ifdef COMPILER2
     validate_no_pipeline_hazards();
+#endif
 #endif
     AbstractAssembler::flush();
   }
@@ -1326,4 +1328,4 @@ class Assembler : public AbstractAssembler {
   }
 };
 
-#endif // CPU_SPARC_VM_ASSEMBLER_SPARC_HPP
+#endif // CPU_SPARC_ASSEMBLER_SPARC_HPP

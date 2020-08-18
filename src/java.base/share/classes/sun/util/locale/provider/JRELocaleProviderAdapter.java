@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -129,9 +129,9 @@ public class JRELocaleProviderAdapter extends LocaleProviderAdapter implements R
 
     private volatile CurrencyNameProvider currencyNameProvider;
     private volatile LocaleNameProvider localeNameProvider;
-    private volatile TimeZoneNameProvider timeZoneNameProvider;
+    protected volatile TimeZoneNameProvider timeZoneNameProvider;
     protected volatile CalendarDataProvider calendarDataProvider;
-    private volatile CalendarNameProvider calendarNameProvider;
+    protected volatile CalendarNameProvider calendarNameProvider;
 
     private volatile CalendarProvider calendarProvider;
     private volatile JavaTimeDateTimePatternProvider javaTimeDateTimePatternProvider;
@@ -503,7 +503,7 @@ public class JRELocaleProviderAdapter extends LocaleProviderAdapter implements R
          */
         String supportedLocaleString = createSupportedLocaleString("AvailableLocales");
 
-        if (supportedLocaleString.length() == 0) {
+        if (supportedLocaleString.isEmpty()) {
             throw new InternalError("No available locales for JRE");
         }
 

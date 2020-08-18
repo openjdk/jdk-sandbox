@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_COMPILER_COMPILERDIRECTIVES_HPP
-#define SHARE_VM_COMPILER_COMPILERDIRECTIVES_HPP
+#ifndef SHARE_COMPILER_COMPILERDIRECTIVES_HPP
+#define SHARE_COMPILER_COMPILERDIRECTIVES_HPP
 
 #include "ci/ciMetadata.hpp"
 #include "ci/ciMethod.hpp"
-#include "ci/ciUtilities.hpp"
 #include "compiler/methodMatcher.hpp"
 #include "compiler/compilerOracle.hpp"
 #include "utilities/exceptions.hpp"
@@ -67,7 +66,8 @@ NOT_PRODUCT(cflags(TraceOptoOutput,     bool, TraceOptoOutput, TraceOptoOutput))
     cflags(VectorizeDebug,          uintx, 0, VectorizeDebug) \
     cflags(CloneMapDebug,           bool, false, CloneMapDebug) \
     cflags(IGVPrintLevel,           intx, PrintIdealGraphLevel, IGVPrintLevel) \
-    cflags(MaxNodeLimit,            intx, MaxNodeLimit, MaxNodeLimit)
+    cflags(MaxNodeLimit,            intx, MaxNodeLimit, MaxNodeLimit) \
+ZGC_ONLY(cflags(ZOptimizeLoadBarriers, bool, ZOptimizeLoadBarriers, ZOptimizeLoadBarriers))
 #else
   #define compilerdirectives_c2_flags(cflags)
 #endif
@@ -186,4 +186,4 @@ public:
   DirectiveSet* _c2_store;
 };
 
-#endif // SHARE_VM_COMPILER_COMPILERDIRECTIVES_HPP
+#endif // SHARE_COMPILER_COMPILERDIRECTIVES_HPP

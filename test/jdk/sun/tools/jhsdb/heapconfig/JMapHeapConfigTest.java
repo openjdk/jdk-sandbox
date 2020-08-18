@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,16 +29,16 @@ import java.util.List;
 import java.util.Map;
 
 import jdk.test.lib.apps.LingeredApp;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.Utils;
 import jdk.test.lib.Platform;
 
-/*
+/**
  * @test
  * @bug 8042397
  * @summary Unit test for jmap utility test heap configuration reader
  *
+ * @requires vm.hasSAandCanAttach
  * @library /test/lib
- * @library /lib/testlibrary
  * @modules java.management
  *          jdk.hotspot.agent/sun.jvm.hotspot
  *
@@ -118,12 +118,6 @@ public class JMapHeapConfigTest {
 
     public static void main(String[] args) throws Exception {
         System.out.println("Starting JMapHeapConfigTest");
-
-        if (!Platform.shouldSAAttach()) {
-            // Silently skip the test if we don't have enough permissions to attach
-            System.err.println("Error! Insufficient permissions to attach.");
-            return;
-        }
 
         if (!LingeredApp.isLastModifiedWorking()) {
             // Exact behaviour of the test depends to operating system and the test nature,

@@ -25,18 +25,15 @@
 
 package jdk.javadoc.internal.doclets.formats.html;
 
-import com.sun.source.doctree.AttributeTree;
-import com.sun.source.doctree.AttributeTree.ValueKind;
-import com.sun.source.doctree.DocRootTree;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.EndElementTree;
-import com.sun.source.doctree.LinkTree;
 import com.sun.source.doctree.StartElementTree;
 import com.sun.source.doctree.TextTree;
-import com.sun.source.util.SimpleDocTreeVisitor;
+import com.sun.source.util.DocTreeFactory;
 import com.sun.tools.doclint.HtmlTag;
-import com.sun.tools.doclint.HtmlTag.Attr;
+import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocFileElement;
 import jdk.javadoc.internal.doclets.toolkit.DocFilesHandler;
@@ -44,6 +41,7 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocFile;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
+import jdk.javadoc.internal.doclets.toolkit.util.DocletConstants;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
 
 import javax.lang.model.element.Element;
@@ -51,8 +49,12 @@ import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
 import javax.tools.FileObject;
 import javax.tools.JavaFileManager.Location;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation.PageMode;
 
 public class DocFilesHandlerImpl implements DocFilesHandler {
 
@@ -60,6 +62,7 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
     public final Location location;
     public final DocPath  source;
     public final HtmlConfiguration configuration;
+    private Navigation navBar;
 
     /**
      * Constructor to construct the DocFilesWriter object.
@@ -137,13 +140,12 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
                             srcfile.getPath(), dstdir.getPath());
                 } else {
                     if (Utils.toLowerCase(srcfile.getPath()).endsWith(".html")) {
-                        if (handleHtmlFile(srcfile, dstDocPath)) {
-                            continue;
-                        }
+                        handleHtmlFile(srcfile, dstDocPath);
+                    } else {
+                        configuration.messages.notice("doclet.Copying_File_0_To_Dir_1",
+                                srcfile.getPath(), dstdir.getPath());
+                        destfile.copyFile(srcfile);
                     }
-                    configuration.messages.notice("doclet.Copying_File_0_To_Dir_1",
-                            srcfile.getPath(), dstdir.getPath());
-                    destfile.copyFile(srcfile);
                 }
             } else if (srcfile.isDirectory()) {
                 if (configuration.copydocfilesubdirs
@@ -155,95 +157,107 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
         }
     }
 
-    private boolean handleHtmlFile(DocFile srcfile, DocPath dstPath) throws DocFileIOException {
+    private void handleHtmlFile(DocFile srcfile, DocPath dstPath) throws DocFileIOException {
         Utils utils = configuration.utils;
         FileObject fileObject = srcfile.getFileObject();
         DocFileElement dfElement = new DocFileElement(element, fileObject);
 
-        if (shouldPassThrough(utils.getPreamble(dfElement))) {
-            return false;
-        }
-
         DocPath dfilePath = dstPath.resolve(srcfile.getName());
         HtmlDocletWriter docletWriter = new DocFileWriter(configuration, dfilePath, element);
-        configuration.messages.notice("doclet.Generating_0", docletWriter.filename);
+        configuration.messages.notice("doclet.Generating_0", docletWriter.filename.getPath());
+
+        List<? extends DocTree> localTags = getLocalHeaderTags(utils.getPreamble(dfElement));
+        Content localTagsContent = docletWriter.commentTagsToContent(null, dfElement, localTags, false);
 
         String title = getWindowTitle(docletWriter, dfElement).trim();
         HtmlTree htmlContent = docletWriter.getBody(true, title);
         docletWriter.addTop(htmlContent);
-        docletWriter.addNavLinks(true, htmlContent);
+        PackageElement pkg = (PackageElement) element;
+        this.navBar = new Navigation(pkg, configuration, docletWriter.fixedNavDiv,
+                PageMode.DOCFILE, docletWriter.path);
+        Content mdleLinkContent = docletWriter.getModuleLink(utils.elementUtils.getModuleOf(pkg),
+                docletWriter.contents.moduleLabel);
+        navBar.setNavLinkModule(mdleLinkContent);
+        Content pkgLinkContent = docletWriter.getPackageLink(pkg, docletWriter.contents.packageLabel);
+        navBar.setNavLinkPackage(pkgLinkContent);
+        navBar.setUserHeader(docletWriter.getUserHeaderFooter(true));
+        Content header = docletWriter.createTagIfAllowed(
+                jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag.HEADER, HtmlTree::HEADER,
+                ContentBuilder::new);
+        header.addContent(navBar.getContent(true));
+        htmlContent.addContent(header);
+
         List<? extends DocTree> fullBody = utils.getFullBody(dfElement);
         Content bodyContent = docletWriter.commentTagsToContent(null, dfElement, fullBody, false);
-
         docletWriter.addTagsInfo(dfElement, bodyContent);
-        htmlContent.addContent(bodyContent);
+        Content main = docletWriter.createTagIfAllowed(
+                jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag.MAIN, HtmlTree::MAIN,
+                ContentBuilder::new);
+        main.addContent(bodyContent);
+        htmlContent.addContent(main);
 
-        docletWriter.addNavLinks(false, htmlContent);
-        docletWriter.addBottom(htmlContent);
-        docletWriter.printHtmlDocument(Collections.emptyList(), false, htmlContent);
-        return true;
+        navBar.setUserFooter(docletWriter.getUserHeaderFooter(false));
+        Content footer = docletWriter.createTagIfAllowed(
+                jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag.FOOTER, HtmlTree::FOOTER,
+                ContentBuilder::new);
+        footer.addContent(navBar.getContent(false));
+        docletWriter.addBottom(footer);
+        htmlContent.addContent(footer);
+        docletWriter.printHtmlDocument(Collections.emptyList(), false, localTagsContent, htmlContent);
     }
 
 
-    private boolean shouldPassThrough(List<? extends DocTree> dtrees) {
-        SimpleDocTreeVisitor<Boolean, Boolean> check = new SimpleDocTreeVisitor<Boolean, Boolean>() {
-            @Override
-            public Boolean visitStartElement(StartElementTree node, Boolean p) {
-                if (Utils.toLowerCase(node.getName().toString()).equals((Attr.STYLE.getText()))) {
-                    return true;
-                }
-                if (Utils.toLowerCase(node.getName().toString()).equals(HtmlTag.LINK.getText())) {
-                    for (DocTree dt : node.getAttributes()) {
-                        if (this.visit(dt, true))
-                            return true;
-                    }
-                }
-                return false;
-            }
-
-            @Override
-            public Boolean visitAttribute(AttributeTree node, Boolean p) {
-                if (p == null || p == false) {
-                    return false;
-                }
-                if (Utils.toLowerCase(node.getName().toString()).equals("rel")) {
-                    for (DocTree dt :  node.getValue()) {
-                        Boolean found = new SimpleDocTreeVisitor<Boolean, ValueKind>() {
-
-                            @Override
-                            public Boolean visitText(TextTree node, ValueKind valueKind) {
-                                switch (valueKind) {
-                                    case EMPTY:
-                                        return false;
-                                    default:
-                                        return Utils.toLowerCase(node.getBody()).equals("stylesheet");
-                                }
-                            }
-
-                            @Override
-                            protected Boolean defaultAction(DocTree node, ValueKind valueKind) {
-                                return false;
-                            }
-
-                        }.visit(dt, node.getValueKind());
-
-                        if (found)
-                            return true;
-                    }
-                }
-                return false;
-            }
-
-            @Override
-            protected Boolean defaultAction(DocTree node, Boolean p) {
-                return false;
-            }
-        };
+    private List<? extends DocTree> getLocalHeaderTags(List<? extends DocTree> dtrees) {
+        List<DocTree> localTags = new ArrayList<>();
+        DocTreeFactory docTreeFactory = configuration.docEnv.getDocTrees().getDocTreeFactory();
+        boolean inHead = false;
+        boolean inTitle = false;
+        loop:
         for (DocTree dt : dtrees) {
-            if (check.visit(dt, false))
-                return true;
+            switch (dt.getKind()) {
+                case START_ELEMENT:
+                    StartElementTree startElem = (StartElementTree)dt;
+                    switch (HtmlTag.get(startElem.getName())) {
+                        case HEAD:
+                            inHead = true;
+                            break;
+                        case META:
+                            break;
+                        case TITLE:
+                            inTitle = true;
+                            break;
+                        default:
+                            if (inHead) {
+                                localTags.add(startElem);
+                                localTags.add(docTreeFactory.newTextTree(DocletConstants.NL));
+                            }
+                    }
+                    break;
+                case END_ELEMENT:
+                    EndElementTree endElem = (EndElementTree)dt;
+                    switch (HtmlTag.get(endElem.getName())) {
+                        case HEAD:
+                            inHead = false;
+                            break loop;
+                        case TITLE:
+                            inTitle = false;
+                            break;
+                        default:
+                            if (inHead) {
+                                localTags.add(endElem);
+                                localTags.add(docTreeFactory.newTextTree(DocletConstants.NL));
+                            }
+                    }
+                    break;
+                case ENTITY:
+                case TEXT:
+                    if (inHead && !inTitle) {
+                        localTags.add(dt);
+                    }
+                    break;
+            }
         }
-        return false;
+        return localTags;
     }
 
     private String getWindowTitle(HtmlDocletWriter docletWriter, Element element) {
@@ -300,32 +314,6 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
                 default:
                     throw new AssertionError("unsupported element: " + e.getKind());
             }
-        }
-
-        /**
-         * Get the module link.
-         *
-         * @return a content tree for the module link
-         */
-        @Override
-        protected Content getNavLinkModule() {
-            Content linkContent = getModuleLink(utils.elementUtils.getModuleOf(pkg),
-                    contents.moduleLabel);
-            Content li = HtmlTree.LI(linkContent);
-            return li;
-        }
-
-        /**
-         * Get this package link.
-         *
-         * @return a content tree for the package link
-         */
-        @Override
-        protected Content getNavLinkPackage() {
-            Content linkContent = getPackageLink(pkg,
-                    contents.packageLabel);
-            Content li = HtmlTree.LI(linkContent);
-            return li;
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -535,9 +535,8 @@ static char* get_user_name_slow(int vmid, TRAPS) {
   // to determine the user name for the process id.
   //
   struct dirent* dentry;
-  char* tdbuf = NEW_C_HEAP_ARRAY(char, os::readdir_buf_size(tmpdirname), mtInternal);
   errno = 0;
-  while ((dentry = os::readdir(tmpdirp, (struct dirent *)tdbuf)) != NULL) {
+  while ((dentry = os::readdir(tmpdirp)) != NULL) {
 
     // check if the directory entry is a hsperfdata file
     if (strncmp(dentry->d_name, PERFDATA_NAME, strlen(PERFDATA_NAME)) != 0) {
@@ -559,9 +558,8 @@ static char* get_user_name_slow(int vmid, TRAPS) {
     }
 
     struct dirent* udentry;
-    char* udbuf = NEW_C_HEAP_ARRAY(char, os::readdir_buf_size(usrdir_name), mtInternal);
     errno = 0;
-    while ((udentry = os::readdir(subdirp, (struct dirent *)udbuf)) != NULL) {
+    while ((udentry = os::readdir(subdirp)) != NULL) {
 
       if (filename_to_pid(udentry->d_name) == vmid) {
         struct stat statbuf;
@@ -605,11 +603,9 @@ static char* get_user_name_slow(int vmid, TRAPS) {
       }
     }
     os::closedir(subdirp);
-    FREE_C_HEAP_ARRAY(char, udbuf);
     FREE_C_HEAP_ARRAY(char, usrdir_name);
   }
   os::closedir(tmpdirp);
-  FREE_C_HEAP_ARRAY(char, tdbuf);
 
   return(oldest_user);
 }
@@ -688,10 +684,8 @@ static void cleanup_sharedmem_resources(const char* dirname) {
   // opendir/readdir.
   //
   struct dirent* entry;
-  char* dbuf = NEW_C_HEAP_ARRAY(char, os::readdir_buf_size(dirname), mtInternal);
-
   errno = 0;
-  while ((entry = os::readdir(dirp, (struct dirent *)dbuf)) != NULL) {
+  while ((entry = os::readdir(dirp)) != NULL) {
 
     pid_t pid = filename_to_pid(entry->d_name);
 
@@ -730,8 +724,6 @@ static void cleanup_sharedmem_resources(const char* dirname) {
 
   // close the directory and reset the current working directory
   close_directory_secure_cwd(dirp, saved_cwd_fd);
-
-  FREE_C_HEAP_ARRAY(char, dbuf);
 }
 
 // make the user specific temporary directory. Returns true if
@@ -1152,7 +1144,7 @@ static void mmap_attach_shared(const char* user, int vmid, PerfMemory::PerfMemor
   *sizep = size;
 
   log_debug(perf, memops)("mapped " SIZE_FORMAT " bytes for vmid %d at "
-                          INTPTR_FORMAT "\n", size, vmid, p2i((void*)mapAddress));
+                          INTPTR_FORMAT, size, vmid, p2i((void*)mapAddress));
 }
 
 // create the PerfData memory region

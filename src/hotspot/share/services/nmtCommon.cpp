@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,27 +23,13 @@
  */
 #include "precompiled.hpp"
 #include "services/nmtCommon.hpp"
+#include "utilities/globalDefinitions.hpp"
+
+#define MEMORY_TYPE_DECLARE_NAME(type, human_readable) \
+  human_readable,
 
 const char* NMTUtil::_memory_type_names[] = {
-  "Java Heap",
-  "Class",
-  "Thread",
-  "Thread Stack",
-  "Code",
-  "GC",
-  "Compiler",
-  "Internal",
-  "Other",
-  "Symbol",
-  "Native Memory Tracking",
-  "Shared class space",
-  "Arena Chunk",
-  "Test",
-  "Tracing",
-  "Logging",
-  "Arguments",
-  "Module",
-  "Unknown"
+  MEMORY_TYPES_DO(MEMORY_TYPE_DECLARE_NAME)
 };
 
 
@@ -59,14 +45,13 @@ const char* NMTUtil::scale_name(size_t scale) {
 
 size_t NMTUtil::scale_from_name(const char* scale) {
   assert(scale != NULL, "Null pointer check");
-  if (strncmp(scale, "KB", 2) == 0 ||
-      strncmp(scale, "kb", 2) == 0) {
+  if (strcasecmp(scale, "1") == 0 || strcasecmp(scale, "b") == 0) {
+    return 1;
+  } else if (strcasecmp(scale, "kb") == 0 || strcasecmp(scale, "k") == 0) {
     return K;
-  } else if (strncmp(scale, "MB", 2) == 0 ||
-             strncmp(scale, "mb", 2) == 0) {
+  } else if (strcasecmp(scale, "mb") == 0 || strcasecmp(scale, "m") == 0) {
     return M;
-  } else if (strncmp(scale, "GB", 2) == 0 ||
-             strncmp(scale, "gb", 2) == 0) {
+  } else if (strcasecmp(scale, "gb") == 0 || strcasecmp(scale, "g") == 0) {
     return G;
   } else {
     return 0; // Invalid value

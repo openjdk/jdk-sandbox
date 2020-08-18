@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,13 +44,21 @@ import java.util.concurrent.ConcurrentMap;
 
 import static java.io.ObjectStreamClass.processQueue;
 
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.Unsafe;
 import sun.reflect.misc.ReflectUtil;
 
 /**
  * An ObjectInputStream deserializes primitive data and objects previously
  * written using an ObjectOutputStream.
+ *
+ * <p><strong>Warning: Deserialization of untrusted data is inherently dangerous
+ * and should be avoided. Untrusted data should be carefully validated according to the
+ * "Serialization and Deserialization" section of the
+ * {@extLink secure_coding_guidelines_javase Secure Coding Guidelines for Java SE}.
+ * {@extLink serialization_filter_guide Serialization Filtering} describes best
+ * practices for defensive use of serial filters.
+ * </strong></p>
  *
  * <p>ObjectOutputStream and ObjectInputStream can provide an application with
  * persistent storage for graphs of objects when used with a FileOutputStream
@@ -180,7 +188,7 @@ import sun.reflect.misc.ReflectUtil;
  * the classes, array lengths, number of references in the stream, depth, and
  * number of bytes consumed from the input stream are allowed and
  * if not, can terminate deserialization.
- * A {@linkplain ObjectInputFilter.Config#setSerialFilter(ObjectInputFilter) process-wide filter}
+ * A {@linkplain ObjectInputFilter.Config#setSerialFilter(ObjectInputFilter) system-wide filter}
  * can be configured that is applied to each {@code ObjectInputStream} unless replaced
  * using {@link #setObjectInputFilter(ObjectInputFilter) setObjectInputFilter}.
  *
@@ -314,7 +322,7 @@ public class ObjectInputStream
      * has written and flushed the header.
      *
      * <p>The serialization filter is initialized to the value of
-     * {@linkplain ObjectInputFilter.Config#getSerialFilter() the process-wide filter}.
+     * {@linkplain ObjectInputFilter.Config#getSerialFilter() the system-wide filter}.
      *
      * <p>If a security manager is installed, this constructor will check for
      * the "enableSubclassImplementation" SerializablePermission when invoked
@@ -349,7 +357,7 @@ public class ObjectInputStream
      * implementation of ObjectInputStream.
      *
      * <p>The serialization filter is initialized to the value of
-     * {@linkplain ObjectInputFilter.Config#getSerialFilter() the process-wide filter}.
+     * {@linkplain ObjectInputFilter.Config#getSerialFilter() the system-wide filter}.
      *
      * <p>If there is a security manager installed, this method first calls the
      * security manager's <code>checkPermission</code> method with the
@@ -1149,7 +1157,7 @@ public class ObjectInputStream
      * Returns the serialization filter for this stream.
      * The serialization filter is the most recent filter set in
      * {@link #setObjectInputFilter setObjectInputFilter} or
-     * the initial process-wide filter from
+     * the initial system-wide filter from
      * {@link ObjectInputFilter.Config#getSerialFilter() ObjectInputFilter.Config.getSerialFilter}.
      *
      * @return the serialization filter for the stream; may be null
@@ -1225,7 +1233,7 @@ public class ObjectInputStream
      * @throws SecurityException if there is security manager and the
      *       {@code SerializablePermission("serialFilter")} is not granted
      * @throws IllegalStateException if the {@linkplain #getObjectInputFilter() current filter}
-     *       is not {@code null} and is not the process-wide filter
+     *       is not {@code null} and is not the system-wide filter
      * @since 9
      */
     public final void setObjectInputFilter(ObjectInputFilter filter) {
@@ -1233,7 +1241,7 @@ public class ObjectInputStream
         if (sm != null) {
             sm.checkPermission(ObjectStreamConstants.SERIAL_FILTER_PERMISSION);
         }
-        // Allow replacement of the process-wide filter if not already set
+        // Allow replacement of the system-wide filter if not already set
         if (serialFilter != null &&
                 serialFilter != ObjectInputFilter.Config.getSerialFilter()) {
             throw new IllegalStateException("filter can not be set more than once");
@@ -1255,9 +1263,11 @@ public class ObjectInputStream
         if (serialFilter != null) {
             RuntimeException ex = null;
             ObjectInputFilter.Status status;
+            // Info about the stream is not available if overridden by subclass, return 0
+            long bytesRead = (bin == null) ? 0 : bin.getBytesRead();
             try {
                 status = serialFilter.checkInput(new FilterValues(clazz, arrayLength,
-                        totalObjectRefs, depth, bin.getBytesRead()));
+                        totalObjectRefs, depth, bytesRead));
             } catch (RuntimeException e) {
                 // Preventive interception of an exception to log
                 status = ObjectInputFilter.Status.REJECTED;
@@ -1269,7 +1279,7 @@ public class ObjectInputStream
                                 ? Logger.Level.DEBUG
                                 : Logger.Level.TRACE,
                         "ObjectInputFilter {0}: {1}, array length: {2}, nRefs: {3}, depth: {4}, bytes: {5}, ex: {6}",
-                        status, clazz, arrayLength, totalObjectRefs, depth, bin.getBytesRead(),
+                        status, clazz, arrayLength, totalObjectRefs, depth, bytesRead,
                         Objects.toString(ex, "n/a"));
             }
             if (status == null ||

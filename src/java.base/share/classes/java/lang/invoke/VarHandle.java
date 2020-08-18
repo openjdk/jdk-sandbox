@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,19 +25,26 @@
 
 package java.lang.invoke;
 
+import java.lang.constant.ClassDesc;
+import java.lang.constant.Constable;
+import java.lang.constant.ConstantDesc;
+import java.lang.constant.ConstantDescs;
+import java.lang.constant.DirectMethodHandleDesc;
+import java.lang.constant.DynamicConstantDesc;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+
 import jdk.internal.HotSpotIntrinsicCandidate;
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.Stable;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-
 import static java.lang.invoke.MethodHandleStatics.UNSAFE;
-import static java.lang.invoke.MethodHandleStatics.newInternalError;
 
 /**
  * A VarHandle is a dynamically strongly typed reference to a variable, or to a
@@ -100,7 +107,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
  * is {@code String}.  The access mode type for {@code compareAndSet} on this
  * VarHandle instance would be
  * {@code (String[] c1, int c2, String expectedValue, String newValue)boolean}.
- * Such a VarHandle instance may produced by the
+ * Such a VarHandle instance may be produced by the
  * {@link MethodHandles#arrayElementVarHandle(Class) array factory method} and
  * access array elements as follows:
  * <pre> {@code
@@ -437,7 +444,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
  * @see MethodType
  * @since 9
  */
-public abstract class VarHandle {
+public abstract class VarHandle implements Constable {
     final VarForm vform;
 
     VarHandle(VarForm vform) {
@@ -1788,10 +1795,12 @@ public abstract class VarHandle {
 
         static final Map<String, AccessMode> methodNameToAccessMode;
         static {
-            // Initial capacity of # values is sufficient to avoid resizes
-            // for the smallest table size (32)
-            methodNameToAccessMode = new HashMap<>(AccessMode.values().length);
-            for (AccessMode am : AccessMode.values()) {
+            AccessMode[] values = AccessMode.values();
+            // Initial capacity of # values divided by the load factor is sufficient
+            // to avoid resizes for the smallest table size (64)
+            int initialCapacity = (int)(values.length / 0.75f) + 1;
+            methodNameToAccessMode = new HashMap<>(initialCapacity);
+            for (AccessMode am : values) {
                 methodNameToAccessMode.put(am.methodName, am);
             }
         }
@@ -1853,6 +1862,19 @@ public abstract class VarHandle {
             this.type = type;
             this.mode = mode;
         }
+    }
+
+    /**
+     * Returns a compact textual description of this {@linkplain VarHandle},
+     * including the type of variable described, and a description of its coordinates.
+     *
+     * @return A compact textual description of this {@linkplain VarHandle}
+     */
+    @Override
+    public final String toString() {
+        return String.format("VarHandle[varType=%s, coord=%s]",
+                             varType().getName(),
+                             coordinateTypes());
     }
 
     /**
@@ -1949,6 +1971,20 @@ public abstract class VarHandle {
         }
     }
 
+    /**
+     * Return a nominal descriptor for this instance, if one can be
+     * constructed, or an empty {@link Optional} if one cannot be.
+     *
+     * @return An {@link Optional} containing the resulting nominal descriptor,
+     * or an empty {@link Optional} if one cannot be constructed.
+     * @since 12
+     */
+    @Override
+    public Optional<VarHandleDesc> describeConstable() {
+        // partial function for field and array only
+        return Optional.empty();
+    }
+
     @Stable
     TypesAndInvokers typesAndInvokers;
 
@@ -1997,7 +2033,7 @@ public abstract class VarHandle {
     /*non-public*/
     final void updateVarForm(VarForm newVForm) {
         if (vform == newVForm) return;
-        UNSAFE.putObject(this, VFORM_OFFSET, newVForm);
+        UNSAFE.putReference(this, VFORM_OFFSET, newVForm);
         UNSAFE.fullFence();
     }
 
@@ -2080,4 +2116,171 @@ public abstract class VarHandle {
     public static void storeStoreFence() {
         UNSAFE.storeStoreFence();
     }
+
+    /**
+     * A <a href="package-summary.html#nominal">nominal descriptor</a> for a
+     * {@link VarHandle} constant.
+     *
+     * @since 12
+     */
+    public static final class VarHandleDesc extends DynamicConstantDesc<VarHandle> {
+
+        /**
+         * Kinds of variable handle descs
+         */
+        private enum Kind {
+            FIELD(ConstantDescs.BSM_VARHANDLE_FIELD),
+            STATIC_FIELD(ConstantDescs.BSM_VARHANDLE_STATIC_FIELD),
+            ARRAY(ConstantDescs.BSM_VARHANDLE_ARRAY);
+
+            final DirectMethodHandleDesc bootstrapMethod;
+
+            Kind(DirectMethodHandleDesc bootstrapMethod) {
+                this.bootstrapMethod = bootstrapMethod;
+            }
+
+            ConstantDesc[] toBSMArgs(ClassDesc declaringClass, ClassDesc varType) {
+                switch (this) {
+                    case FIELD:
+                    case STATIC_FIELD:
+                        return new ConstantDesc[] {declaringClass, varType };
+                    case ARRAY:
+                        return new ConstantDesc[] {declaringClass };
+                    default:
+                        throw new InternalError("Cannot reach here");
+                }
+            }
+        }
+
+        private final Kind kind;
+        private final ClassDesc declaringClass;
+        private final ClassDesc varType;
+
+        /**
+         * Construct a {@linkplain VarHandleDesc} given a kind, name, and declaring
+         * class.
+         *
+         * @param kind the kind of of the var handle
+         * @param name the unqualified name of the field, for field var handles; otherwise ignored
+         * @param declaringClass a {@link ClassDesc} describing the declaring class,
+         *                       for field var handles
+         * @param varType a {@link ClassDesc} describing the type of the variable
+         * @throws NullPointerException if any required argument is null
+         * @jvms 4.2.2 Unqualified Names
+         */
+        private VarHandleDesc(Kind kind, String name, ClassDesc declaringClass, ClassDesc varType) {
+            super(kind.bootstrapMethod, name,
+                  ConstantDescs.CD_VarHandle,
+                  kind.toBSMArgs(declaringClass, varType));
+            this.kind = kind;
+            this.declaringClass = declaringClass;
+            this.varType = varType;
+        }
+
+        /**
+         * Returns a {@linkplain VarHandleDesc} corresponding to a {@link VarHandle}
+         * for an instance field.
+         *
+         * @param name the unqualifed name of the field
+         * @param declaringClass a {@link ClassDesc} describing the declaring class,
+         *                       for field var handles
+         * @param fieldType a {@link ClassDesc} describing the type of the field
+         * @return the {@linkplain VarHandleDesc}
+         * @throws NullPointerException if any of the arguments are null
+         * @jvms 4.2.2 Unqualified Names
+         */
+        public static VarHandleDesc ofField(ClassDesc declaringClass, String name, ClassDesc fieldType) {
+            Objects.requireNonNull(declaringClass);
+            Objects.requireNonNull(name);
+            Objects.requireNonNull(fieldType);
+            return new VarHandleDesc(Kind.FIELD, name, declaringClass, fieldType);
+        }
+
+        /**
+         * Returns a {@linkplain VarHandleDesc} corresponding to a {@link VarHandle}
+         * for a static field.
+         *
+         * @param name the unqualified name of the field
+         * @param declaringClass a {@link ClassDesc} describing the declaring class,
+         *                       for field var handles
+         * @param fieldType a {@link ClassDesc} describing the type of the field
+         * @return the {@linkplain VarHandleDesc}
+         * @throws NullPointerException if any of the arguments are null
+         * @jvms 4.2.2 Unqualified Names
+         */
+        public static VarHandleDesc ofStaticField(ClassDesc declaringClass, String name, ClassDesc fieldType) {
+            Objects.requireNonNull(declaringClass);
+            Objects.requireNonNull(name);
+            Objects.requireNonNull(fieldType);
+            return new VarHandleDesc(Kind.STATIC_FIELD, name, declaringClass, fieldType);
+        }
+
+        /**
+         * Returns a {@linkplain VarHandleDesc} corresponding to a {@link VarHandle}
+         * for for an array type.
+         *
+         * @param arrayClass a {@link ClassDesc} describing the type of the array
+         * @return the {@linkplain VarHandleDesc}
+         * @throws NullPointerException if any of the arguments are null
+         */
+        public static VarHandleDesc ofArray(ClassDesc arrayClass) {
+            Objects.requireNonNull(arrayClass);
+            if (!arrayClass.isArray())
+                throw new IllegalArgumentException("Array class argument not an array: " + arrayClass);
+            return new VarHandleDesc(Kind.ARRAY, ConstantDescs.DEFAULT_NAME, arrayClass, arrayClass.componentType());
+        }
+
+        /**
+         * Returns a {@link ClassDesc} describing the type of the variable described
+         * by this descriptor.
+         *
+         * @return the variable type
+         */
+        public ClassDesc varType() {
+            return varType;
+        }
+
+        @Override
+        public VarHandle resolveConstantDesc(MethodHandles.Lookup lookup)
+                throws ReflectiveOperationException {
+            switch (kind) {
+                case FIELD:
+                    return lookup.findVarHandle((Class<?>) declaringClass.resolveConstantDesc(lookup),
+                                                constantName(),
+                                                (Class<?>) varType.resolveConstantDesc(lookup));
+                case STATIC_FIELD:
+                    return lookup.findStaticVarHandle((Class<?>) declaringClass.resolveConstantDesc(lookup),
+                                                      constantName(),
+                                                      (Class<?>) varType.resolveConstantDesc(lookup));
+                case ARRAY:
+                    return MethodHandles.arrayElementVarHandle((Class<?>) declaringClass.resolveConstantDesc(lookup));
+                default:
+                    throw new InternalError("Cannot reach here");
+            }
+        }
+
+        /**
+         * Returns a compact textual description of this constant description.
+         * For a field {@linkplain VarHandle}, includes the owner, name, and type
+         * of the field, and whether it is static; for an array {@linkplain VarHandle},
+         * the name of the component type.
+         *
+         * @return A compact textual description of this descriptor
+         */
+        @Override
+        public String toString() {
+            switch (kind) {
+                case FIELD:
+                case STATIC_FIELD:
+                    return String.format("VarHandleDesc[%s%s.%s:%s]",
+                                         (kind == Kind.STATIC_FIELD) ? "static " : "",
+                                         declaringClass.displayName(), constantName(), varType.displayName());
+                case ARRAY:
+                    return String.format("VarHandleDesc[%s[]]", declaringClass.displayName());
+                default:
+                    throw new InternalError("Cannot reach here");
+            }
+        }
+    }
+
 }

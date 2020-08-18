@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,20 +27,29 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.regex.Pattern;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 
 public class Platform {
-    public  static final String vmName      = System.getProperty("java.vm.name");
-    public  static final String vmInfo      = System.getProperty("java.vm.info");
-    private static final String osVersion   = System.getProperty("os.version");
+    public  static final String vmName      = privilegedGetProperty("java.vm.name");
+    public  static final String vmInfo      = privilegedGetProperty("java.vm.info");
+    private static final String osVersion   = privilegedGetProperty("os.version");
     private static       int osVersionMajor = -1;
     private static       int osVersionMinor = -1;
-    private static final String osName      = System.getProperty("os.name");
-    private static final String dataModel   = System.getProperty("sun.arch.data.model");
-    private static final String vmVersion   = System.getProperty("java.vm.version");
-    private static final String jdkDebug    = System.getProperty("jdk.debug");
-    private static final String osArch      = System.getProperty("os.arch");
-    private static final String userName    = System.getProperty("user.name");
-    private static final String compiler    = System.getProperty("sun.management.compiler");
+    private static final String osName      = privilegedGetProperty("os.name");
+    private static final String dataModel   = privilegedGetProperty("sun.arch.data.model");
+    private static final String vmVersion   = privilegedGetProperty("java.vm.version");
+    private static final String jdkDebug    = privilegedGetProperty("jdk.debug");
+    private static final String osArch      = privilegedGetProperty("os.arch");
+    private static final String userName    = privilegedGetProperty("user.name");
+    private static final String compiler    = privilegedGetProperty("sun.management.compiler");
+
+    private static String privilegedGetProperty(String key) {
+        return AccessController.doPrivileged((
+                PrivilegedAction<String>) () -> System.getProperty(key));
+    }
 
     public static boolean isClient() {
         return vmName.endsWith(" Client VM");
@@ -124,17 +133,21 @@ public class Platform {
 
     // Os version support.
     private static void init_version() {
+        String[] osVersionTokens = osVersion.split("\\.");
         try {
-            final String[] tokens = osVersion.split("\\.");
-            if (tokens.length > 0) {
-                osVersionMajor = Integer.parseInt(tokens[0]);
-                if (tokens.length > 1) {
-                    osVersionMinor = Integer.parseInt(tokens[1]);
+            if (osVersionTokens.length > 0) {
+                osVersionMajor = Integer.parseInt(osVersionTokens[0]);
+                if (osVersionTokens.length > 1) {
+                    osVersionMinor = Integer.parseInt(osVersionTokens[1]);
                 }
             }
         } catch (NumberFormatException e) {
             osVersionMajor = osVersionMinor = 0;
         }
+    }
+
+    public static String getOsVersion() {
+        return osVersion;
     }
 
     // Returns major version number from os.version system property.
@@ -204,16 +217,29 @@ public class Platform {
     }
 
     /**
-     * Return a boolean for whether we expect to be able to attach
-     * the SA to our own processes on this system.
+     * Return a boolean for whether SA and jhsdb are ported/available
+     * on this platform.
      */
-    public static boolean shouldSAAttach() throws IOException {
+    public static boolean hasSA() {
         if (isAix()) {
             return false; // SA not implemented.
         } else if (isLinux()) {
-            if (isS390x()) {
+            if (isS390x() || isARM()) {
                 return false; // SA not implemented.
             }
+        }
+        // Other platforms expected to work:
+        return true;
+    }
+
+    /**
+     * Return a boolean for whether we expect to be able to attach
+     * the SA to our own processes on this system.  This requires
+     * that SA is ported/available on this platform.
+     */
+    public static boolean shouldSAAttach() throws IOException {
+        if (!hasSA()) return false;
+        if (isLinux()) {
             return canPtraceAttachLinux();
         } else if (isOSX()) {
             return canAttachOSX();
@@ -233,10 +259,15 @@ public class Platform {
         // SELinux deny_ptrace:
         File deny_ptrace = new File("/sys/fs/selinux/booleans/deny_ptrace");
         if (deny_ptrace.exists()) {
-            try (RandomAccessFile file = new RandomAccessFile(deny_ptrace, "r")) {
+            try (RandomAccessFile file = AccessController.doPrivileged(
+                    (PrivilegedExceptionAction<RandomAccessFile>) () -> new RandomAccessFile(deny_ptrace, "r"))) {
                 if (file.readByte() != '0') {
                     return false;
                 }
+            } catch (PrivilegedActionException e) {
+                @SuppressWarnings("unchecked")
+                IOException t = (IOException) e.getException();
+                throw t;
             }
         }
 
@@ -247,7 +278,8 @@ public class Platform {
         // 3 - no attach: no processes may use ptrace with PTRACE_ATTACH
         File ptrace_scope = new File("/proc/sys/kernel/yama/ptrace_scope");
         if (ptrace_scope.exists()) {
-            try (RandomAccessFile file = new RandomAccessFile(ptrace_scope, "r")) {
+            try (RandomAccessFile file = AccessController.doPrivileged(
+                    (PrivilegedExceptionAction<RandomAccessFile>) () -> new RandomAccessFile(ptrace_scope, "r"))) {
                 byte yama_scope = file.readByte();
                 if (yama_scope == '3') {
                     return false;
@@ -256,6 +288,10 @@ public class Platform {
                 if (!userName.equals("root") && yama_scope != '0') {
                     return false;
                 }
+            } catch (PrivilegedActionException e) {
+                @SuppressWarnings("unchecked")
+                IOException t = (IOException) e.getException();
+                throw t;
             }
         }
         // Otherwise expect to be permitted:
@@ -290,14 +326,37 @@ public class Platform {
     }
 
     /*
+     * Returns name of system variable containing paths to shared native libraries.
+     */
+    public static String sharedLibraryPathVariableName() {
+        if (isWindows()) {
+            return "PATH";
+        } else if (isOSX()) {
+            return "DYLD_LIBRARY_PATH";
+        } else if (isAix()) {
+            return "LIBPATH";
+        } else {
+            return "LD_LIBRARY_PATH";
+        }
+    }
+
+    public static boolean isDefaultCDSArchiveSupported() {
+        return (is64bit()  &&
+                isServer() &&
+                (isLinux()   ||
+                 isOSX()     ||
+                 isSolaris() ||
+                 isWindows()) &&
+                !isZero()    &&
+                !isMinimal() &&
+                !isAArch64() &&
+                !isARM());
+    }
+
+    /*
      * This should match the #if condition in ClassListParser::load_class_from_source().
      */
     public static boolean areCustomLoadersSupportedForCDS() {
-        boolean isLinux = Platform.isLinux();
-        boolean is64 = Platform.is64bit();
-        boolean isSolaris = Platform.isSolaris();
-        boolean isAix = Platform.isAix();
-
-        return (is64 && (isLinux || isSolaris || isAix));
+        return (is64bit() && (isLinux() || isSolaris() || isOSX()));
     }
 }

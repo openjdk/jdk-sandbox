@@ -40,19 +40,16 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation.PageMode;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.ClassWriter;
 import jdk.javadoc.internal.doclets.toolkit.Content;
-import jdk.javadoc.internal.doclets.toolkit.builders.MemberSummaryBuilder;
 import jdk.javadoc.internal.doclets.toolkit.taglets.ParamTaglet;
 import jdk.javadoc.internal.doclets.toolkit.util.ClassTree;
 import jdk.javadoc.internal.doclets.toolkit.util.CommentHelper;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
-import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
-import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
 import jdk.javadoc.internal.doclets.toolkit.util.DocletConstants;
-import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberMap;
-import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberMap.Kind;
 
 /**
  * Generate the Class Information Page.
@@ -74,9 +71,21 @@ import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberMap.Kind;
  */
 public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWriter {
 
+    private static final Set<String> suppressSubtypesSet
+            = Set.of("java.lang.Object",
+                     "org.omg.CORBA.Object");
+
+    private static final Set<String> suppressImplementingSet
+            = Set.of( "java.lang.Cloneable",
+                    "java.lang.constant.Constable",
+                    "java.lang.constant.ConstantDesc",
+                    "java.io.Serializable");
+
     protected final TypeElement typeElement;
 
     protected final ClassTree classtree;
+
+    private final Navigation navBar;
 
     /**
      * @param configuration the configuration data for the doclet
@@ -89,55 +98,7 @@ public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWrite
         this.typeElement = typeElement;
         configuration.currentTypeElement = typeElement;
         this.classtree = classTree;
-    }
-
-    /**
-     * Get the module link.
-     *
-     * @return a content tree for the module link
-     */
-    @Override
-    protected Content getNavLinkModule() {
-        Content linkContent = getModuleLink(utils.elementUtils.getModuleOf(typeElement),
-                contents.moduleLabel);
-        Content li = HtmlTree.LI(linkContent);
-        return li;
-    }
-
-    /**
-     * Get this package link.
-     *
-     * @return a content tree for the package link
-     */
-    @Override
-    protected Content getNavLinkPackage() {
-        Content linkContent = links.createLink(DocPaths.PACKAGE_SUMMARY,
-                contents.packageLabel);
-        Content li = HtmlTree.LI(linkContent);
-        return li;
-    }
-
-    /**
-     * Get the class link.
-     *
-     * @return a content tree for the class link
-     */
-    @Override
-    protected Content getNavLinkClass() {
-        Content li = HtmlTree.LI(HtmlStyle.navBarCell1Rev, contents.classLabel);
-        return li;
-    }
-
-    /**
-     * Get the class use link.
-     *
-     * @return a content tree for the class use link
-     */
-    @Override
-    protected Content getNavLinkClassUse() {
-        Content linkContent = links.createLink(DocPaths.CLASS_USE.resolve(filename), contents.useLabel);
-        Content li = HtmlTree.LI(linkContent);
-        return li;
+        this.navBar = new Navigation(typeElement, configuration, fixedNavDiv, PageMode.CLASS, path);
     }
 
     /**
@@ -150,7 +111,12 @@ public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWrite
                 ? HtmlTree.HEADER()
                 : bodyTree;
         addTop(htmlTree);
-        addNavLinks(true, htmlTree);
+        Content linkContent = getModuleLink(utils.elementUtils.getModuleOf(typeElement),
+                contents.moduleLabel);
+        navBar.setNavLinkModule(linkContent);
+        navBar.setMemberSummaryBuilder(configuration.getBuilderFactory().getMemberSummaryBuilder(this));
+        navBar.setUserHeader(getUserHeaderFooter(true));
+        htmlTree.addContent(navBar.getContent(true));
         if (configuration.allowTag(HtmlTag.HEADER)) {
             bodyTree.addContent(htmlTree);
         }
@@ -163,7 +129,7 @@ public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWrite
             Content moduleNameDiv = HtmlTree.DIV(HtmlStyle.subTitle, classModuleLabel);
             moduleNameDiv.addContent(Contents.SPACE);
             moduleNameDiv.addContent(getModuleLink(mdle,
-                    new StringContent(mdle.getQualifiedName().toString())));
+                    new StringContent(mdle.getQualifiedName())));
             div.addContent(moduleNameDiv);
         }
         PackageElement pkg = utils.containingPackage(typeElement);
@@ -210,7 +176,8 @@ public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWrite
         Content htmlTree = (configuration.allowTag(HtmlTag.FOOTER))
                 ? HtmlTree.FOOTER()
                 : contentTree;
-        addNavLinks(false, htmlTree);
+        navBar.setUserFooter(getUserHeaderFooter(false));
+        htmlTree.addContent(navBar.getContent(false));
         addBottom(htmlTree);
         if (configuration.allowTag(HtmlTag.FOOTER)) {
             contentTree.addContent(htmlTree);
@@ -413,9 +380,10 @@ public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWrite
     @Override
     public void addSubClassInfo(Content classInfoTree) {
         if (utils.isClass(typeElement)) {
-            if (typeElement.getQualifiedName().toString().equals("java.lang.Object") ||
-                    typeElement.getQualifiedName().toString().equals("org.omg.CORBA.Object")) {
-                return;    // Don't generate the list, too huge
+            for (String s : suppressSubtypesSet) {
+                if (typeElement.getQualifiedName().contentEquals(s)) {
+                    return;    // Don't generate the list, too huge
+                }
             }
             Set<TypeElement> subclasses = classtree.directSubClasses(typeElement, false);
             if (!subclasses.isEmpty()) {
@@ -455,9 +423,10 @@ public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWrite
         if (!utils.isInterface(typeElement)) {
             return;
         }
-        if (typeElement.getQualifiedName().toString().equals("java.lang.Cloneable") ||
-                typeElement.getQualifiedName().toString().equals("java.io.Serializable")) {
-            return;   // Don't generate the list, too big
+        for (String s : suppressImplementingSet) {
+            if (typeElement.getQualifiedName().contentEquals(s)) {
+                return;    // Don't generate the list, too huge
+            }
         }
         Set<TypeElement> implcl = classtree.implementingClasses(typeElement);
         if (!implcl.isEmpty()) {
@@ -606,100 +575,6 @@ public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWrite
             }
         }
         return dd;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected Content getNavLinkTree() {
-        Content treeLinkContent = links.createLink(DocPaths.PACKAGE_TREE,
-                contents.treeLabel, "", "");
-        Content li = HtmlTree.LI(treeLinkContent);
-        return li;
-    }
-
-    /**
-     * Add summary details to the navigation bar.
-     *
-     * @param subDiv the content tree to which the summary detail links will be added
-     */
-    @Override
-    protected void addSummaryDetailLinks(Content subDiv) {
-        Content div = HtmlTree.DIV(getNavSummaryLinks());
-        div.addContent(getNavDetailLinks());
-        subDiv.addContent(div);
-    }
-
-    /**
-     * Get summary links for navigation bar.
-     *
-     * @return the content tree for the navigation summary links
-     */
-    protected Content getNavSummaryLinks() {
-        Content li = HtmlTree.LI(contents.summaryLabel);
-        li.addContent(Contents.SPACE);
-        Content ulNav = HtmlTree.UL(HtmlStyle.subNavList, li);
-        MemberSummaryBuilder memberSummaryBuilder =
-                configuration.getBuilderFactory().getMemberSummaryBuilder(this);
-        for (VisibleMemberMap.Kind kind : VisibleMemberMap.Kind.summarySet) {
-            Content liNav = new HtmlTree(HtmlTag.LI);
-            if (kind == VisibleMemberMap.Kind.ENUM_CONSTANTS && !utils.isEnum(typeElement)) {
-                continue;
-            }
-            if (kind == VisibleMemberMap.Kind.CONSTRUCTORS && utils.isEnum(typeElement)) {
-                continue;
-            }
-            AbstractMemberWriter writer =
-                ((AbstractMemberWriter) memberSummaryBuilder.getMemberSummaryWriter(kind));
-            if (writer == null) {
-                liNav.addContent(contents.getContent(VisibleMemberMap.Kind.getNavLinkLabels(kind)));
-            } else {
-                writer.addNavSummaryLink(
-                        memberSummaryBuilder.members(kind),
-                        memberSummaryBuilder.getVisibleMemberMap(kind), liNav);
-            }
-            if (kind != Kind.METHODS) {
-                addNavGap(liNav);
-            }
-            ulNav.addContent(liNav);
-        }
-        return ulNav;
-    }
-
-    /**
-     * Get detail links for the navigation bar.
-     *
-     * @return the content tree for the detail links
-     */
-    protected Content getNavDetailLinks() {
-        Content li = HtmlTree.LI(contents.detailLabel);
-        li.addContent(Contents.SPACE);
-        Content ulNav = HtmlTree.UL(HtmlStyle.subNavList, li);
-        MemberSummaryBuilder memberSummaryBuilder =
-                configuration.getBuilderFactory().getMemberSummaryBuilder(this);
-        for (VisibleMemberMap.Kind kind : VisibleMemberMap.Kind.detailSet) {
-            Content liNav = new HtmlTree(HtmlTag.LI);
-            AbstractMemberWriter writer =
-                    ((AbstractMemberWriter) memberSummaryBuilder.
-                    getMemberSummaryWriter(kind));
-            if (kind == VisibleMemberMap.Kind.ENUM_CONSTANTS && !utils.isEnum(typeElement)) {
-                continue;
-            }
-            if (kind == VisibleMemberMap.Kind.CONSTRUCTORS && utils.isEnum(typeElement)) {
-                continue;
-            }
-            if (writer == null) {
-                liNav.addContent(contents.getContent(VisibleMemberMap.Kind.getNavLinkLabels(kind)));
-            } else {
-                writer.addNavDetailLink(memberSummaryBuilder.members(kind), liNav);
-            }
-            if (kind != Kind.METHODS) {
-                addNavGap(liNav);
-            }
-            ulNav.addContent(liNav);
-        }
-        return ulNav;
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,12 @@
 
 /*
  * @test ReservedStackTest
+ *
+ * @requires vm.opt.DeoptimizeALot != true
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  * @modules java.base/jdk.internal.vm.annotation
+ *
  * @run main/othervm -XX:MaxInlineLevel=2 -XX:CompileCommand=exclude,java/util/concurrent/locks/AbstractOwnableSynchronizer.setExclusiveOwnerThread ReservedStackTest
  */
 
@@ -230,19 +233,16 @@ public class ReservedStackTest {
     }
 
     private static boolean isAlwaysSupportedPlatform() {
-        // Note: To date Aarch64 is the only platform that we don't statically
-        // know if it supports the reserved stack area. This is because the
-        // open Aarch64 port supports it and the Oracle arm64 port does not.
         return Platform.isAix() ||
             (Platform.isLinux() &&
              (Platform.isPPC() || Platform.isS390x() || Platform.isX64() ||
-              Platform.isX86())) ||
+              Platform.isX86() || Platform.isAArch64())) ||
             Platform.isOSX() ||
             Platform.isSolaris();
     }
 
     private static boolean isNeverSupportedPlatform() {
-        return !isAlwaysSupportedPlatform() && !Platform.isAArch64();
+        return !isAlwaysSupportedPlatform();
     }
 
     private static boolean isSupportedPlatform;

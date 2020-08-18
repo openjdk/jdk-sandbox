@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,14 +20,10 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.stubs;
 
-import static jdk.vm.ci.meta.DeoptimizationReason.RuntimeConstraint;
-import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfig.INJECTED_VMCONFIG;
-import static org.graalvm.compiler.hotspot.replacements.HotSpotReplacementsUtil.clearPendingException;
-import static org.graalvm.compiler.hotspot.replacements.HotSpotReplacementsUtil.getAndClearObjectResult;
-import static org.graalvm.compiler.hotspot.replacements.HotSpotReplacementsUtil.loadHubIntrinsic;
-import static org.graalvm.compiler.hotspot.replacements.HotSpotReplacementsUtil.verifyOops;
 import static org.graalvm.compiler.replacements.nodes.CStringConstant.cstring;
 
 import java.lang.reflect.Method;
@@ -41,19 +37,11 @@ import org.graalvm.compiler.core.common.spi.ForeignCallDescriptor;
 import org.graalvm.compiler.graph.Node.ConstantNodeParameter;
 import org.graalvm.compiler.graph.Node.NodeIntrinsic;
 import org.graalvm.compiler.hotspot.GraalHotSpotVMConfig;
-import org.graalvm.compiler.hotspot.nodes.DeoptimizeCallerNode;
 import org.graalvm.compiler.hotspot.nodes.StubForeignCallNode;
 import org.graalvm.compiler.hotspot.nodes.VMErrorNode;
-import org.graalvm.compiler.hotspot.word.KlassPointer;
-import org.graalvm.compiler.nodes.PiNode;
-import org.graalvm.compiler.nodes.SnippetAnchorNode;
-import org.graalvm.compiler.nodes.extended.GuardingNode;
 import org.graalvm.compiler.replacements.Log;
 import org.graalvm.compiler.word.Word;
-import org.graalvm.word.Pointer;
-import org.graalvm.word.WordFactory;
-
-import jdk.vm.ci.meta.DeoptimizationAction;
+import jdk.internal.vm.compiler.word.WordFactory;
 
 //JaCoCo Exclude
 
@@ -91,15 +79,6 @@ public class StubUtil {
         List<Class<?>> paramList = Arrays.asList(found.getParameterTypes());
         Class<?>[] cCallTypes = paramList.subList(1, paramList.size()).toArray(new Class<?>[paramList.size() - 1]);
         return new ForeignCallDescriptor(name, found.getReturnType(), cCallTypes);
-    }
-
-    public static void handlePendingException(Word thread, boolean isObjectResult) {
-        if (clearPendingException(thread) != null) {
-            if (isObjectResult) {
-                getAndClearObjectResult(thread);
-            }
-            DeoptimizeCallerNode.deopt(DeoptimizationAction.None, RuntimeConstraint);
-        }
     }
 
     /**
@@ -229,47 +208,57 @@ public class StubUtil {
     }
 
     /**
-     * Verifies that a given object value is well formed if {@code -XX:+VerifyOops} is enabled.
+     * Print {@code number} as decimal string to {@code buffer}.
+     *
+     * @param buffer
+     * @param number
+     * @return A pointer pointing one byte right after the last printed digit in {@code buffer}.
      */
-    public static Object verifyObject(Object object) {
-        if (verifyOops(INJECTED_VMCONFIG)) {
-            Word verifyOopCounter = WordFactory.unsigned(verifyOopCounterAddress(INJECTED_VMCONFIG));
-            verifyOopCounter.writeInt(0, verifyOopCounter.readInt(0) + 1);
-
-            Pointer oop = Word.objectToTrackedPointer(object);
-            if (object != null) {
-                GuardingNode anchorNode = SnippetAnchorNode.anchor();
-                // make sure object is 'reasonable'
-                if (!oop.and(WordFactory.unsigned(verifyOopMask(INJECTED_VMCONFIG))).equal(WordFactory.unsigned(verifyOopBits(INJECTED_VMCONFIG)))) {
-                    fatal("oop not in heap: %p", oop.rawValue());
-                }
-
-                KlassPointer klass = loadHubIntrinsic(PiNode.piCastNonNull(object, anchorNode));
-                if (klass.isNull()) {
-                    fatal("klass for oop %p is null", oop.rawValue());
-                }
-            }
+    public static Word printNumber(Word buffer, long number) {
+        long tmpNumber = number;
+        int offset;
+        if (tmpNumber <= 0) {
+            tmpNumber = -tmpNumber;
+            offset = 1;
+        } else {
+            offset = 0;
         }
-        return object;
+        while (tmpNumber > 0) {
+            tmpNumber /= 10;
+            offset++;
+        }
+        tmpNumber = number < 0 ? -number : number;
+        Word ptr = buffer.add(offset);
+        do {
+            long digit = tmpNumber % 10;
+            tmpNumber /= 10;
+            ptr = ptr.subtract(1);
+            ptr.writeByte(0, (byte) ('0' + digit));
+        } while (tmpNumber > 0);
+
+        if (number < 0) {
+            ptr = ptr.subtract(1);
+            ptr.writeByte(0, (byte) '-');
+        }
+        return buffer.add(offset);
     }
 
-    @Fold
-    static long verifyOopCounterAddress(@InjectedParameter GraalHotSpotVMConfig config) {
-        return config.verifyOopCounterAddress;
-    }
-
-    @Fold
-    static long verifyOopMask(@InjectedParameter GraalHotSpotVMConfig config) {
-        return config.verifyOopMask;
-    }
-
-    @Fold
-    static long verifyOopBits(@InjectedParameter GraalHotSpotVMConfig config) {
-        return config.verifyOopBits;
-    }
-
-    @Fold
-    static int hubOffset(@InjectedParameter GraalHotSpotVMConfig config) {
-        return config.hubOffset;
+    /**
+     * Copy {@code javaString} bytes to the memory location {@code ptr}.
+     *
+     * @param buffer
+     * @param javaString
+     * @return A pointer pointing one byte right after the last byte copied from {@code javaString}
+     *         to {@code ptr}
+     */
+    public static Word printString(Word buffer, String javaString) {
+        Word string = cstring(javaString);
+        int i = 0;
+        byte b;
+        while ((b = string.readByte(i)) != 0) {
+            buffer.writeByte(i, b);
+            i++;
+        }
+        return buffer.add(i);
     }
 }

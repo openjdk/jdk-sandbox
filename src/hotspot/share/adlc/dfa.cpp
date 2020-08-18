@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -502,9 +502,11 @@ class dfa_shared_preds {
     case '"':  // such as: #line 10 "myfile.ad"\n mypredicate
       return true;
     case '|':
-      if( prev != pred && *(prev-1) == '|' ) return true;
+      if (prev != pred && *(prev-1) == '|') return true;
+      break;
     case '&':
-      if( prev != pred && *(prev-1) == '&' ) return true;
+      if (prev != pred && *(prev-1) == '&') return true;
+      break;
     default:
       return false;
     }
@@ -717,21 +719,21 @@ const char *Expr::compute_external(const Expr *c1, const Expr *c2) {
 
   // Preserve use of external name which has a zero value
   if( c1->_external_name != NULL ) {
-    sprintf( string_buffer, "%s", c1->as_string());
-    if( !c2->is_zero() ) {
-      strcat( string_buffer, "+");
-      strcat( string_buffer, c2->as_string());
+    if( c2->is_zero() ) {
+      snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s", c1->as_string());
+    } else {
+      snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s+%s", c1->as_string(), c2->as_string());
     }
+    string_buffer[STRING_BUFFER_LENGTH - 1] = '\0';
     result = strdup(string_buffer);
   }
   else if( c2->_external_name != NULL ) {
-    if( !c1->is_zero() ) {
-      sprintf( string_buffer, "%s", c1->as_string());
-      strcat( string_buffer, " + ");
+    if( c1->is_zero() ) {
+      snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s", c2->_external_name);
     } else {
-      string_buffer[0] = '\0';
+      snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s + %s", c1->as_string(), c2->as_string());
     }
-    strcat( string_buffer, c2->_external_name );
+    string_buffer[STRING_BUFFER_LENGTH - 1] = '\0';
     result = strdup(string_buffer);
   }
   return result;
@@ -739,37 +741,46 @@ const char *Expr::compute_external(const Expr *c1, const Expr *c2) {
 
 const char *Expr::compute_expr(const Expr *c1, const Expr *c2) {
   if( !c1->is_zero() ) {
-    sprintf( string_buffer, "%s", c1->_expr);
-    if( !c2->is_zero() ) {
-      strcat( string_buffer, "+");
-      strcat( string_buffer, c2->_expr);
+    if( c2->is_zero() ) {
+      snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s", c1->_expr);
+    } else {
+      snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s+%s", c1->_expr, c2->_expr);
     }
   }
   else if( !c2->is_zero() ) {
-    sprintf( string_buffer, "%s", c2->_expr);
+    snprintf(string_buffer, STRING_BUFFER_LENGTH, "%s", c2->_expr);
   }
   else {
     sprintf( string_buffer, "0");
   }
+  string_buffer[STRING_BUFFER_LENGTH - 1] = '\0';
   char *cost = strdup(string_buffer);
 
   return cost;
 }
 
 int Expr::compute_min(const Expr *c1, const Expr *c2) {
-  int result = c1->_min_value + c2->_min_value;
-  assert( result >= 0, "Invalid cost computation");
+  int v1 = c1->_min_value;
+  int v2 = c2->_min_value;
+  assert(0 <= v2 && v2 <= Expr::Max, "sanity");
+  assert(v1 <= Expr::Max - v2, "Invalid cost computation");
 
-  return result;
+  return v1 + v2;
 }
 
+
 int Expr::compute_max(const Expr *c1, const Expr *c2) {
-  int result = c1->_max_value + c2->_max_value;
-  if( result < 0 ) {  // check for overflow
-    result = Expr::Max;
+  int v1 = c1->_max_value;
+  int v2 = c2->_max_value;
+
+  // Check for overflow without producing UB. If v2 is positive
+  // and not larger than Max, the subtraction cannot underflow.
+  assert(0 <= v2 && v2 <= Expr::Max, "sanity");
+  if (v1 > Expr::Max - v2) {
+    return Expr::Max;
   }
 
-  return result;
+  return v1 + v2;
 }
 
 void Expr::print() const {

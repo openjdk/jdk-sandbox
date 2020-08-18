@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_PHASETYPE_HPP
-#define SHARE_VM_OPTO_PHASETYPE_HPP
+#ifndef SHARE_OPTO_PHASETYPE_HPP
+#define SHARE_OPTO_PHASETYPE_HPP
 
 enum CompilerPhaseType {
   PHASE_BEFORE_STRINGOPTS,
@@ -49,8 +49,11 @@ enum CompilerPhaseType {
   PHASE_BEFORE_BEAUTIFY_LOOPS,
   PHASE_AFTER_BEAUTIFY_LOOPS,
   PHASE_BEFORE_MATCHING,
+  PHASE_MATCHING,
   PHASE_INCREMENTAL_INLINE,
   PHASE_INCREMENTAL_BOXING_INLINE,
+  PHASE_BEFORE_BARRIER_EXPAND,
+  PHASE_BEFORE_MACRO_EXPANSION,
   PHASE_END,
   PHASE_FAILURE,
 
@@ -83,9 +86,12 @@ class CompilerPhaseTypeHelper {
       case PHASE_AFTER_CLOOPS:               return "After CountedLoop";
       case PHASE_BEFORE_BEAUTIFY_LOOPS:      return "Before beautify loops";
       case PHASE_AFTER_BEAUTIFY_LOOPS:       return "After beautify loops";
-      case PHASE_BEFORE_MATCHING:            return "Before Matching";
+      case PHASE_BEFORE_MATCHING:            return "Before matching";
+      case PHASE_MATCHING:                   return "After matching";
       case PHASE_INCREMENTAL_INLINE:         return "Incremental Inline";
       case PHASE_INCREMENTAL_BOXING_INLINE:  return "Incremental Boxing Inline";
+      case PHASE_BEFORE_BARRIER_EXPAND:      return "Before Barrier Expand";
+      case PHASE_BEFORE_MACRO_EXPANSION:     return "Before macro expansion";
       case PHASE_END:                        return "End";
       case PHASE_FAILURE:                    return "Failure";
       default:
@@ -95,4 +101,4 @@ class CompilerPhaseTypeHelper {
   }
 };
 
-#endif //SHARE_VM_OPTO_PHASETYPE_HPP
+#endif // SHARE_OPTO_PHASETYPE_HPP

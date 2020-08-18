@@ -29,7 +29,7 @@
  * @library /test/hotspot/jtreg/runtime/appcds /test/lib
  * @modules jdk.jartool/sun.tools.jar
  * @build HelloString
- * @run main SharedStringsStress
+ * @run driver/timeout=500 SharedStringsStress
  */
 import java.io.File;
 import java.io.FileOutputStream;
@@ -39,30 +39,56 @@ import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
 public class SharedStringsStress {
-    public static void main(String[] args) throws Exception {
-        String appJar = JarBuilder.build("SharedStringsStress", "HelloString");
+    static String sharedArchiveConfigFile = System.getProperty("user.dir") + File.separator + "SharedStringsStress_gen.txt";
 
-        String sharedArchiveConfigFile = System.getProperty("user.dir") + File.separator + "SharedStringsStress_gen.txt";
+    public static void main(String[] args) throws Exception {
         try (FileOutputStream fos = new FileOutputStream(sharedArchiveConfigFile)) {
             PrintWriter out = new PrintWriter(new OutputStreamWriter(fos));
             out.println("VERSION: 1.0");
             out.println("@SECTION: String");
             out.println("31: shared_test_string_unique_14325");
-            for (int i=0; i<100000; i++) {
+            for (int i=0; i<200000; i++) {
                 String s = "generated_string " + i;
                 out.println(s.length() + ": " + s);
             }
             out.close();
         }
 
-        // Set NewSize to 8m due to dumping could fail in hs-tier6 testing with
-        // the vm options: -XX:+UnlockCommercialFeatures -XX:+UseDeterministicG1GC
-        // resulting in vm initialization error:
-        // "GC triggered before VM initialization completed. Try increasing NewSize, current value 1331K."
-        OutputAnalyzer dumpOutput = TestCommon.dump(appJar, TestCommon.list("HelloString"), "-XX:NewSize=8m",
-                                                    "-XX:SharedArchiveConfigFile=" + sharedArchiveConfigFile);
-        TestCommon.checkDump(dumpOutput);
-        OutputAnalyzer execOutput = TestCommon.exec(appJar, "HelloString");
-        TestCommon.checkExec(execOutput);
+        SharedStringsUtils.run(args, SharedStringsStress::test);
+    }
+
+    public static void test(String[] args) throws Exception {
+        String vmOptionsPrefix[] = SharedStringsUtils.getChildVMOptionsPrefix();
+        String appJar = JarBuilder.build("SharedStringsStress", "HelloString");
+
+        String test_cases[][] = {
+            // default heap size
+            {},
+
+            // Test for handling of heap fragmentation. With sharedArchiveConfigFile, we will dump about
+            // 18MB of shared objects on 64 bit VM (smaller on 32-bit).
+            //
+            // During dump time, an extra copy of these objects are allocated,
+            // so we need about 36MB, plus a few MB for other system data. So 64MB total heap
+            // should be enough.
+            //
+            // The VM should executed a full GC to maximize contiguous free space and
+            // avoid fragmentation.
+            {"-Xmx64m"},
+        };
+
+        for (String[] extra_opts: test_cases) {
+            vmOptionsPrefix = TestCommon.concat(vmOptionsPrefix, extra_opts);
+
+            OutputAnalyzer dumpOutput = TestCommon.dump(appJar, TestCommon.list("HelloString"),
+                TestCommon.concat(vmOptionsPrefix,
+                    "-XX:SharedArchiveConfigFile=" + sharedArchiveConfigFile,
+                    "-Xlog:gc+region+cds",
+                    "-Xlog:gc+region=trace"));
+            TestCommon.checkDump(dumpOutput);
+            OutputAnalyzer execOutput = TestCommon.exec(appJar,
+                TestCommon.concat(vmOptionsPrefix, "HelloString"));
+            TestCommon.checkExec(execOutput);
+        }
     }
 }

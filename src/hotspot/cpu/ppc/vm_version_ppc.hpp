@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2017 SAP SE. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_PPC_VM_VM_VERSION_PPC_HPP
-#define CPU_PPC_VM_VM_VERSION_PPC_HPP
+#ifndef CPU_PPC_VM_VERSION_PPC_HPP
+#define CPU_PPC_VM_VERSION_PPC_HPP
 
 #include "runtime/globals_extension.hpp"
 #include "runtime/vm_version.hpp"
@@ -44,12 +44,13 @@ protected:
     lqarx,
     vcipher,
     vpmsumb,
-    tcheck,
     mfdscr,
     vsx,
     ldbrx,
     stdbrx,
     vshasig,
+    rtm,
+    darn,
     num_features // last entry to count features
   };
   enum Feature_Flag_Set {
@@ -65,13 +66,14 @@ protected:
     vand_m                = (1 << vand   ),
     lqarx_m               = (1 << lqarx  ),
     vcipher_m             = (1 << vcipher),
-    vshasig_m             = (1 << vshasig),
     vpmsumb_m             = (1 << vpmsumb),
-    tcheck_m              = (1 << tcheck ),
     mfdscr_m              = (1 << mfdscr ),
     vsx_m                 = (1 << vsx    ),
     ldbrx_m               = (1 << ldbrx  ),
     stdbrx_m              = (1 << stdbrx ),
+    vshasig_m             = (1 << vshasig),
+    rtm_m                 = (1 << rtm    ),
+    darn_m                = (1 << darn   ),
     all_features_m        = (unsigned long)-1
   };
 
@@ -103,12 +105,14 @@ public:
   static bool has_lqarx()   { return (_features & lqarx_m) != 0; }
   static bool has_vcipher() { return (_features & vcipher_m) != 0; }
   static bool has_vpmsumb() { return (_features & vpmsumb_m) != 0; }
-  static bool has_tcheck()  { return (_features & tcheck_m) != 0; }
   static bool has_mfdscr()  { return (_features & mfdscr_m) != 0; }
   static bool has_vsx()     { return (_features & vsx_m) != 0; }
   static bool has_ldbrx()   { return (_features & ldbrx_m) != 0; }
   static bool has_stdbrx()  { return (_features & stdbrx_m) != 0; }
   static bool has_vshasig() { return (_features & vshasig_m) != 0; }
+  static bool has_tm()      { return (_features & rtm_m) != 0; }
+  static bool has_darn()    { return (_features & darn_m) != 0; }
+
   static bool has_mtfprd()  { return has_vpmsumb(); } // alias for P8
 
   // Assembler testing
@@ -119,4 +123,4 @@ public:
   static uint64_t _dscr_val;
 };
 
-#endif // CPU_PPC_VM_VM_VERSION_PPC_HPP
+#endif // CPU_PPC_VM_VERSION_PPC_HPP

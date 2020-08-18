@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,24 +24,23 @@
 /*
  * @test
  * @bug 8072909
- * @library /lib/testlibrary /test/lib
+ * @summary Test TimSort stack size on big arrays
+ * @library /test/lib
  * @modules java.management
  *          java.base/jdk.internal
- * @build jdk.testlibrary.*
  * @build TimSortStackSize2
- * @run main ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ *                                sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *     -XX:+WhiteBoxAPI TimSortStackSize2
- * @summary Test TimSort stack size on big arrays
  */
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 import sun.hotspot.WhiteBox;
 
 public class TimSortStackSize2 {
@@ -62,21 +61,20 @@ public class TimSortStackSize2 {
          */
         try {
             Boolean compressedOops = WhiteBox.getWhiteBox()
-                .getBooleanVMFlag("UseCompressedOops");
-            final String xmsValue = "-Xms" +
-                ((compressedOops == null || compressedOops) ? "385" : "770")
-                + "m";
-            System.out.println( "compressedOops: " + compressedOops
-                + "; Test will be started with \"" + xmsValue + "\"");
-            ProcessBuilder processBuilder = ProcessTools
-                .createJavaProcessBuilder(Utils.addTestJavaOpts(xmsValue,
-                    "TimSortStackSize2", "67108864"
-                )
-            );
-            OutputAnalyzer output = ProcessTools.executeProcess(processBuilder);
+                                             .getBooleanVMFlag("UseCompressedOops");
+            long memory = (compressedOops == null || compressedOops) ? 385 : 770;
+            final String xmsValue = "-Xms" +     memory + "m";
+            final String xmxValue = "-Xmx" + 2 * memory + "m";
+
+            System.out.printf("compressedOops: %s; Test will be started with \"%s %s\"%n",
+                              compressedOops, xmsValue, xmxValue);
+            OutputAnalyzer output = ProcessTools.executeTestJava(xmsValue,
+                                                                 xmxValue,
+                                                                 "TimSortStackSize2",
+                                                                 "67108864");
             System.out.println(output.getOutput());
             output.shouldHaveExitValue(0);
-        } catch( Exception e ){
+        } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         }

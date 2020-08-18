@@ -32,7 +32,7 @@
 #include "code/codeCache.hpp"
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
-#include "gc/shared/vmGCOperations.hpp"
+#include "gc/shared/gcVMOperations.hpp"
 #include "logging/log.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
@@ -44,15 +44,15 @@
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvm_misc.hpp"
-#include "prims/privilegedStack.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.inline.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
@@ -71,8 +71,6 @@
 
 OSThread*         os::_starting_thread    = NULL;
 address           os::_polling_page       = NULL;
-volatile int32_t* os::_mem_serialize_page = NULL;
-uintptr_t         os::_serialize_page_mask = 0;
 volatile unsigned int os::_rand_seed      = 1;
 int               os::_processor_count    = 0;
 int               os::_initial_active_processor_count = 0;
@@ -86,6 +84,8 @@ julong os::free_bytes = 0;          // # of bytes freed
 #endif
 
 static size_t cur_malloc_words = 0;  // current size for MallocMaxTestWords
+
+DEBUG_ONLY(bool os::_mutex_init_done = false;)
 
 void os_init_globals() {
   // Called from init_globals().
@@ -103,6 +103,14 @@ static time_t get_timezone(const struct tm* time_struct) {
 #else
   return timezone;
 #endif
+}
+
+int os::snprintf(char* buf, size_t len, const char* fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int result = os::vsnprintf(buf, len, fmt, args);
+  va_end(args);
+  return result;
 }
 
 // Fill in buffer with current local time as an ISO-8601 string.
@@ -241,6 +249,14 @@ bool os::dll_build_name(char* buffer, size_t size, const char* fname) {
   int n = jio_snprintf(buffer, size, "%s%s%s", JNI_LIB_PREFIX, fname, JNI_LIB_SUFFIX);
   return (n != -1);
 }
+
+#if !defined(LINUX) && !defined(_WINDOWS)
+bool os::committed_in_range(address start, size_t size, address& committed_start, size_t& committed_size) {
+  committed_start = start;
+  committed_size = size;
+  return true;
+}
+#endif
 
 // Helper for dll_locate_lib.
 // Pass buffer and printbuffer as we already printed the path to buffer
@@ -426,37 +442,29 @@ void os::init_before_ergo() {
   VM_Version::init_before_ergo();
 }
 
-void os::signal_init(TRAPS) {
+void os::initialize_jdk_signal_support(TRAPS) {
   if (!ReduceSignalUsage) {
     // Setup JavaThread for processing signals
-    Klass* k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_Thread(), true, CHECK);
-    InstanceKlass* ik = InstanceKlass::cast(k);
-    instanceHandle thread_oop = ik->allocate_instance_handle(CHECK);
-
     const char thread_name[] = "Signal Dispatcher";
     Handle string = java_lang_String::create_from_str(thread_name, CHECK);
 
     // Initialize thread_oop to put it into the system threadGroup
     Handle thread_group (THREAD, Universe::system_thread_group());
-    JavaValue result(T_VOID);
-    JavaCalls::call_special(&result, thread_oop,
-                           ik,
-                           vmSymbols::object_initializer_name(),
+    Handle thread_oop = JavaCalls::construct_new_instance(SystemDictionary::Thread_klass(),
                            vmSymbols::threadgroup_string_void_signature(),
                            thread_group,
                            string,
                            CHECK);
 
     Klass* group = SystemDictionary::ThreadGroup_klass();
+    JavaValue result(T_VOID);
     JavaCalls::call_special(&result,
                             thread_group,
                             group,
                             vmSymbols::add_method_name(),
                             vmSymbols::thread_void_signature(),
-                            thread_oop,         // ARG 1
+                            thread_oop,
                             CHECK);
-
-    os::signal_init_pd();
 
     { MutexLocker mu(Threads_lock);
       JavaThread* signal_thread = new JavaThread(&signal_thread_entry);
@@ -986,6 +994,31 @@ void os::print_date_and_time(outputStream *st, char* buf, size_t buflen) {
   st->print_cr(" elapsed time: %d seconds (%dd %dh %dm %ds)", eltime, eldays, elhours, elmins, elsecs);
 }
 
+
+// Check if pointer can be read from (4-byte read access).
+// Helps to prove validity of a not-NULL pointer.
+// Returns true in very early stages of VM life when stub is not yet generated.
+#define SAFEFETCH_DEFAULT true
+bool os::is_readable_pointer(const void* p) {
+  if (!CanUseSafeFetch32()) {
+    return SAFEFETCH_DEFAULT;
+  }
+  int* const aligned = (int*) align_down((intptr_t)p, 4);
+  int cafebabe = 0xcafebabe;  // tester value 1
+  int deadbeef = 0xdeadbeef;  // tester value 2
+  return (SafeFetch32(aligned, cafebabe) != cafebabe) || (SafeFetch32(aligned, deadbeef) != deadbeef);
+}
+
+bool os::is_readable_range(const void* from, const void* to) {
+  for (address p = align_down((address)from, min_page_size()); p < to; p += min_page_size()) {
+    if (!is_readable_pointer(p)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
 // moved from debug.cpp (used to be find()) but still called from there
 // The verbose parameter is only set by the debug code in one case
 void os::print_location(outputStream* st, intptr_t x, bool verbose) {
@@ -995,121 +1028,68 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
     st->print_cr("0x0 is NULL");
     return;
   }
+
+  // Check if addr points into a code blob.
   CodeBlob* b = CodeCache::find_blob_unsafe(addr);
   if (b != NULL) {
-    if (b->is_buffer_blob()) {
-      // the interpreter is generated into a buffer blob
-      InterpreterCodelet* i = Interpreter::codelet_containing(addr);
-      if (i != NULL) {
-        st->print_cr(INTPTR_FORMAT " is at code_begin+%d in an Interpreter codelet", p2i(addr), (int)(addr - i->code_begin()));
-        i->print_on(st);
-        return;
-      }
-      if (Interpreter::contains(addr)) {
-        st->print_cr(INTPTR_FORMAT " is pointing into interpreter code"
-                     " (not bytecode specific)", p2i(addr));
-        return;
-      }
-      //
-      if (AdapterHandlerLibrary::contains(b)) {
-        st->print_cr(INTPTR_FORMAT " is at code_begin+%d in an AdapterHandler", p2i(addr), (int)(addr - b->code_begin()));
-        AdapterHandlerLibrary::print_handler_on(st, b);
-      }
-      // the stubroutines are generated into a buffer blob
-      StubCodeDesc* d = StubCodeDesc::desc_for(addr);
-      if (d != NULL) {
-        st->print_cr(INTPTR_FORMAT " is at begin+%d in a stub", p2i(addr), (int)(addr - d->begin()));
-        d->print_on(st);
-        st->cr();
-        return;
-      }
-      if (StubRoutines::contains(addr)) {
-        st->print_cr(INTPTR_FORMAT " is pointing to an (unnamed) stub routine", p2i(addr));
-        return;
-      }
-      // the InlineCacheBuffer is using stubs generated into a buffer blob
-      if (InlineCacheBuffer::contains(addr)) {
-        st->print_cr(INTPTR_FORMAT " is pointing into InlineCacheBuffer", p2i(addr));
-        return;
-      }
-      VtableStub* v = VtableStubs::stub_containing(addr);
-      if (v != NULL) {
-        st->print_cr(INTPTR_FORMAT " is at entry_point+%d in a vtable stub", p2i(addr), (int)(addr - v->entry_point()));
-        v->print_on(st);
-        st->cr();
-        return;
-      }
-    }
-    nmethod* nm = b->as_nmethod_or_null();
-    if (nm != NULL) {
-      ResourceMark rm;
-      st->print(INTPTR_FORMAT " is at entry_point+%d in (nmethod*)" INTPTR_FORMAT,
-                p2i(addr), (int)(addr - nm->entry_point()), p2i(nm));
-      if (verbose) {
-        st->print(" for ");
-        nm->method()->print_value_on(st);
-      }
-      st->cr();
-      nm->print_nmethod(verbose);
-      return;
-    }
-    st->print_cr(INTPTR_FORMAT " is at code_begin+%d in ", p2i(addr), (int)(addr - b->code_begin()));
-    b->print_on(st);
+    b->dump_for_addr(addr, st, verbose);
     return;
   }
 
+  // Check if addr points into Java heap.
   if (Universe::heap()->is_in(addr)) {
-    HeapWord* p = Universe::heap()->block_start(addr);
-    bool print = false;
-    // If we couldn't find it it just may mean that heap wasn't parsable
-    // See if we were just given an oop directly
-    if (p != NULL && Universe::heap()->block_is_obj(p)) {
-      print = true;
-    } else if (p == NULL && oopDesc::is_oop(oop(addr))) {
-      p = (HeapWord*) addr;
-      print = true;
-    }
-    if (print) {
-      if (p == (HeapWord*) addr) {
-        st->print_cr(INTPTR_FORMAT " is an oop", p2i(addr));
+    oop o = oopDesc::oop_or_null(addr);
+    if (o != NULL) {
+      if ((HeapWord*)o == (HeapWord*)addr) {
+        st->print(INTPTR_FORMAT " is an oop: ", p2i(addr));
       } else {
-        st->print_cr(INTPTR_FORMAT " is pointing into object: " INTPTR_FORMAT, p2i(addr), p2i(p));
+        st->print(INTPTR_FORMAT " is pointing into object: " , p2i(addr));
       }
-      oop(p)->print_on(st);
+      o->print_on(st);
       return;
     }
-  } else {
-    if (Universe::heap()->is_in_reserved(addr)) {
-      st->print_cr(INTPTR_FORMAT " is an unallocated location "
-                   "in the heap", p2i(addr));
+  } else if (Universe::heap()->is_in_reserved(addr)) {
+    st->print_cr(INTPTR_FORMAT " is an unallocated location in the heap", p2i(addr));
+    return;
+  }
+
+  // Compressed oop needs to be decoded first.
+#ifdef _LP64
+  if (UseCompressedOops && ((uintptr_t)addr &~ (uintptr_t)max_juint) == 0) {
+    narrowOop narrow_oop = (narrowOop)(uintptr_t)addr;
+    oop o = oopDesc::decode_oop_raw(narrow_oop);
+
+    if (oopDesc::is_valid(o)) {
+      st->print(UINT32_FORMAT " is a compressed pointer to object: ", narrow_oop);
+      o->print_on(st);
       return;
     }
-  }
-  if (JNIHandles::is_global_handle((jobject) addr)) {
-    st->print_cr(INTPTR_FORMAT " is a global jni handle", p2i(addr));
-    return;
-  }
-  if (JNIHandles::is_weak_global_handle((jobject) addr)) {
-    st->print_cr(INTPTR_FORMAT " is a weak global jni handle", p2i(addr));
-    return;
-  }
-#ifndef PRODUCT
-  // we don't keep the block list in product mode
-  if (JNIHandles::is_local_handle((jobject) addr)) {
-    st->print_cr(INTPTR_FORMAT " is a local jni handle", p2i(addr));
-    return;
   }
 #endif
 
-  for (JavaThreadIteratorWithHandle jtiwh; JavaThread *thread = jtiwh.next(); ) {
-    // Check for privilege stack
-    if (thread->privileged_stack_top() != NULL &&
-        thread->privileged_stack_top()->contains(addr)) {
-      st->print_cr(INTPTR_FORMAT " is pointing into the privilege stack "
-                   "for thread: " INTPTR_FORMAT, p2i(addr), p2i(thread));
-      if (verbose) thread->print_on(st);
+  bool accessible = is_readable_pointer(addr);
+
+  // Check if addr is a JNI handle.
+  if (align_down((intptr_t)addr, sizeof(intptr_t)) != 0 && accessible) {
+    if (JNIHandles::is_global_handle((jobject) addr)) {
+      st->print_cr(INTPTR_FORMAT " is a global jni handle", p2i(addr));
       return;
     }
+    if (JNIHandles::is_weak_global_handle((jobject) addr)) {
+      st->print_cr(INTPTR_FORMAT " is a weak global jni handle", p2i(addr));
+      return;
+    }
+#ifndef PRODUCT
+    // we don't keep the block list in product mode
+    if (JNIHandles::is_local_handle((jobject) addr)) {
+      st->print_cr(INTPTR_FORMAT " is a local jni handle", p2i(addr));
+      return;
+    }
+#endif
+  }
+
+  // Check if addr belongs to a Java thread.
+  for (JavaThreadIteratorWithHandle jtiwh; JavaThread *thread = jtiwh.next(); ) {
     // If the addr is a java thread print information about that.
     if (addr == (address)thread) {
       if (verbose) {
@@ -1129,9 +1109,12 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
     }
   }
 
-  // Check if in metaspace and print types that have vptrs (only method now)
+  // Check if in metaspace and print types that have vptrs
   if (Metaspace::contains(addr)) {
-    if (Method::has_method_vptr((const void*)addr)) {
+    if (Klass::is_valid((Klass*)addr)) {
+      st->print_cr(INTPTR_FORMAT " is a pointer to class: ", p2i(addr));
+      ((Klass*)addr)->print_on(st);
+    } else if (Method::is_valid_method((const Method*)addr)) {
       ((Method*)addr)->print_value_on(st);
       st->cr();
     } else {
@@ -1141,40 +1124,41 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
     return;
   }
 
+  // Compressed klass needs to be decoded first.
+#ifdef _LP64
+  if (UseCompressedClassPointers && ((uintptr_t)addr &~ (uintptr_t)max_juint) == 0) {
+    narrowKlass narrow_klass = (narrowKlass)(uintptr_t)addr;
+    Klass* k = Klass::decode_klass_raw(narrow_klass);
+
+    if (Klass::is_valid(k)) {
+      st->print_cr(UINT32_FORMAT " is a compressed pointer to class: " INTPTR_FORMAT, narrow_klass, p2i((HeapWord*)k));
+      k->print_on(st);
+      return;
+    }
+  }
+#endif
+
   // Try an OS specific find
   if (os::find(addr, st)) {
+    return;
+  }
+
+  if (accessible) {
+    st->print(INTPTR_FORMAT " points into unknown readable memory:", p2i(addr));
+    for (address p = addr; p < align_up(addr + 1, sizeof(intptr_t)); ++p) {
+      st->print(" %02x", *(u1*)p);
+    }
+    st->cr();
     return;
   }
 
   st->print_cr(INTPTR_FORMAT " is an unknown value", p2i(addr));
 }
 
-// Looks like all platforms except IA64 can use the same function to check
-// if C stack is walkable beyond current frame. The check for fp() is not
+// Looks like all platforms can use the same function to check if C
+// stack is walkable beyond current frame. The check for fp() is not
 // necessary on Sparc, but it's harmless.
 bool os::is_first_C_frame(frame* fr) {
-#if (defined(IA64) && !defined(AIX)) && !defined(_WIN32)
-  // On IA64 we have to check if the callers bsp is still valid
-  // (i.e. within the register stack bounds).
-  // Notice: this only works for threads created by the VM and only if
-  // we walk the current stack!!! If we want to be able to walk
-  // arbitrary other threads, we'll have to somehow store the thread
-  // object in the frame.
-  Thread *thread = Thread::current();
-  if ((address)fr->fp() <=
-      thread->register_stack_base() HPUX_ONLY(+ 0x0) LINUX_ONLY(+ 0x50)) {
-    // This check is a little hacky, because on Linux the first C
-    // frame's ('start_thread') register stack frame starts at
-    // "register_stack_base + 0x48" while on HPUX, the first C frame's
-    // ('__pthread_bound_body') register stack frame seems to really
-    // start at "register_stack_base".
-    return true;
-  } else {
-    return false;
-  }
-#elif defined(IA64) && defined(_WIN32)
-  return true;
-#else
   // Load up sp, fp, sender sp and sender fp, check for reasonable values.
   // Check usp first, because if that's bad the other accessors may fault
   // on some architectures.  Ditto ufp second, etc.
@@ -1204,7 +1188,6 @@ bool os::is_first_C_frame(frame* fr) {
   if (old_fp - ufp > 64 * K) return true;
 
   return false;
-#endif
 }
 
 
@@ -1255,6 +1238,33 @@ char* os::format_boot_path(const char* format_string,
 
     assert((q - formatted_path) == formatted_path_len, "formatted_path size botched");
     return formatted_path;
+}
+
+// This function is a proxy to fopen, it tries to add a non standard flag ('e' or 'N')
+// that ensures automatic closing of the file on exec. If it can not find support in
+// the underlying c library, it will make an extra system call (fcntl) to ensure automatic
+// closing of the file on exec.
+FILE* os::fopen(const char* path, const char* mode) {
+  char modified_mode[20];
+  assert(strlen(mode) + 1 < sizeof(modified_mode), "mode chars plus one extra must fit in buffer");
+  sprintf(modified_mode, "%s" LINUX_ONLY("e") BSD_ONLY("e") WINDOWS_ONLY("N"), mode);
+  FILE* file = ::fopen(path, modified_mode);
+
+#if !(defined LINUX || defined BSD || defined _WINDOWS)
+  // assume fcntl FD_CLOEXEC support as a backup solution when 'e' or 'N'
+  // is not supported as mode in fopen
+  if (file != NULL) {
+    int fd = fileno(file);
+    if (fd != -1) {
+      int fd_flags = fcntl(fd, F_GETFD);
+      if (fd_flags != -1) {
+        fcntl(fd, F_SETFD, fd_flags | FD_CLOEXEC);
+      }
+    }
+  }
+#endif
+
+  return file;
 }
 
 bool os::set_boot_path(char fileSep, char pathSep) {
@@ -1339,49 +1349,6 @@ char** os::split_path(const char* path, int* n) {
   FREE_C_HEAP_ARRAY(char, inpath);
   *n = count;
   return opath;
-}
-
-void os::set_memory_serialize_page(address page) {
-  int count = log2_intptr(sizeof(class JavaThread)) - log2_intptr(64);
-  _mem_serialize_page = (volatile int32_t *)page;
-  // We initialize the serialization page shift count here
-  // We assume a cache line size of 64 bytes
-  assert(SerializePageShiftCount == count, "JavaThread size changed; "
-         "SerializePageShiftCount constant should be %d", count);
-  set_serialize_page_mask((uintptr_t)(vm_page_size() - sizeof(int32_t)));
-}
-
-static volatile intptr_t SerializePageLock = 0;
-
-// This method is called from signal handler when SIGSEGV occurs while the current
-// thread tries to store to the "read-only" memory serialize page during state
-// transition.
-void os::block_on_serialize_page_trap() {
-  log_debug(safepoint)("Block until the serialize page permission restored");
-
-  // When VMThread is holding the SerializePageLock during modifying the
-  // access permission of the memory serialize page, the following call
-  // will block until the permission of that page is restored to rw.
-  // Generally, it is unsafe to manipulate locks in signal handlers, but in
-  // this case, it's OK as the signal is synchronous and we know precisely when
-  // it can occur.
-  Thread::muxAcquire(&SerializePageLock, "set_memory_serialize_page");
-  Thread::muxRelease(&SerializePageLock);
-}
-
-// Serialize all thread state variables
-void os::serialize_thread_states() {
-  // On some platforms such as Solaris & Linux, the time duration of the page
-  // permission restoration is observed to be much longer than expected  due to
-  // scheduler starvation problem etc. To avoid the long synchronization
-  // time and expensive page trap spinning, 'SerializePageLock' is used to block
-  // the mutator thread if such case is encountered. See bug 6546278 for details.
-  Thread::muxAcquire(&SerializePageLock, "serialize_thread_states");
-  os::protect_memory((char *)os::get_memory_serialize_page(),
-                     os::vm_page_size(), MEM_PROT_READ);
-  os::protect_memory((char *)os::get_memory_serialize_page(),
-                     os::vm_page_size(), MEM_PROT_RW);
-  Thread::muxRelease(&SerializePageLock);
 }
 
 // Returns true if the current stack pointer is above the stack shadow

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,7 +72,6 @@ public class Table {
     private HtmlStyle tabStyle = HtmlStyle.tableTab;
     private HtmlStyle tabEnd = HtmlStyle.tabEnd;
     private IntFunction<String> tabScript;
-    private String tabScriptVariable;
     private Function<Integer, String> tabId = (i -> "t" + i);
     private TableHeader header;
     private List<HtmlStyle> columnStyles;
@@ -81,10 +80,6 @@ public class Table {
     private final List<Content> bodyRows;
     private final List<Integer> bodyRowMasks;
     private String rowIdPrefix = "i";
-
-    // compatibility flags
-    private boolean putIdFirst = false;
-    private boolean useTBody = true;
 
     /**
      * Creates a builder for an HTML table.
@@ -179,17 +174,6 @@ public class Table {
      */
     public Table setTabScript(IntFunction<String> f) {
         tabScript = f;
-        return this;
-    }
-
-    /**
-     * Sets the name of the JavaScript variable used to contain the data for each tab.
-     *
-     * @param name the name
-     * @return this object
-     */
-    public Table setTabScriptVariable(String name) {
-        tabScriptVariable = name;
         return this;
     }
 
@@ -314,37 +298,6 @@ public class Table {
     }
 
     /**
-     * Sets whether the {@code id} attribute should appear first in a {@code <tr>} tag.
-     * The default is {@code false}.
-     *
-     * <b>This is a compatibility feature that should be removed when all tables use a
-     * consistent policy.</b>
-     *
-     * @param first whether to put {@code id} attributes first
-     * @return this object
-     */
-    public Table setPutIdFirst(boolean first) {
-        this.putIdFirst = first;
-        return this;
-    }
-
-    /**
-     * Sets whether or not to use an explicit {@code <tbody>} element to enclose the rows
-     * of a table.
-     * The default is {@code true}.
-     *
-     * <b>This is a compatibility feature that should be removed when all tables use a
-     * consistent policy.</b>
-     *
-     * @param use whether o use a {@code <tbody> element
-     * @return this object
-     */
-    public Table setUseTBody(boolean use) {
-        this.useTBody = use;
-        return this;
-    }
-
-    /**
      * Add a row of data to the table.
      * Each item of content should be suitable for use as the content of a
      * {@code <th>} or {@code <td>} cell.
@@ -411,11 +364,6 @@ public class Table {
 
         HtmlTree row = new HtmlTree(HtmlTag.TR);
 
-        if (putIdFirst && tabMap != null) {
-            int index = bodyRows.size();
-            row.addAttr(HtmlAttr.ID, (rowIdPrefix + index));
-        }
-
         if (stripedStyles != null) {
             int rowIndex = bodyRows.size();
             row.addAttr(HtmlAttr.CLASS, stripedStyles.get(rowIndex % 2).name());
@@ -434,10 +382,8 @@ public class Table {
         bodyRows.add(row);
 
         if (tabMap != null) {
-            if (!putIdFirst) {
-                int index = bodyRows.size() - 1;
-                row.addAttr(HtmlAttr.ID, (rowIdPrefix + index));
-            }
+            int index = bodyRows.size() - 1;
+            row.addAttr(HtmlAttr.ID, (rowIdPrefix + index));
             int mask = 0;
             int maskBit = 1;
             for (Map.Entry<String, Predicate<Element>> e : tabMap.entrySet()) {
@@ -469,50 +415,69 @@ public class Table {
      * @return the HTML
      */
     public Content toContent() {
+        HtmlTree mainDiv = new HtmlTree(HtmlTag.DIV);
+        mainDiv.setStyle(tableStyle);
         HtmlTree table = new HtmlTree(HtmlTag.TABLE);
-        table.setStyle(tableStyle);
         if (summary != null) {
             table.addAttr(HtmlAttr.SUMMARY, summary);
         }
-        if (tabMap != null) {
-            if (tabs.size() == 1) {
+        if (tabMap == null || tabs.size() == 1) {
+            if (tabMap == null) {
+                table.addContent(caption);
+            } else if (tabs.size() == 1) {
                 String tabName = tabs.iterator().next();
                 table.addContent(getCaption(new StringContent(tabName)));
-            } else {
-                ContentBuilder cb = new ContentBuilder();
-                int tabIndex = 0;
-                HtmlTree defaultTabSpan = new HtmlTree(HtmlTag.SPAN,
-                            HtmlTree.SPAN(new StringContent(defaultTab)),
-                            HtmlTree.SPAN(tabEnd, Contents.SPACE))
-                        .addAttr(HtmlAttr.ID, tabId.apply(tabIndex))
-                        .setStyle(activeTabStyle);
-                cb.addContent(defaultTabSpan);
-                for (String tabName : tabMap.keySet()) {
-                    tabIndex++;
-                    if (tabs.contains(tabName)) {
-                        String script = "javascript:" + tabScript.apply(1 << (tabIndex - 1));
-                        HtmlTree link = HtmlTree.A(script, new StringContent(tabName));
-                        HtmlTree tabSpan = new HtmlTree(HtmlTag.SPAN,
-                                    HtmlTree.SPAN(link), HtmlTree.SPAN(tabEnd, Contents.SPACE))
-                                .addAttr(HtmlAttr.ID, tabId.apply(tabIndex))
-                                .setStyle(tabStyle);
-                        cb.addContent(tabSpan);
-                    }
-                }
-                table.addContent(HtmlTree.CAPTION(cb));
             }
+            table.addContent(getTableBody());
+            mainDiv.addContent(table);
         } else {
-            table.addContent(caption);
+            HtmlTree tablist = new HtmlTree(HtmlTag.DIV)
+                    .addAttr(HtmlAttr.ROLE, "tablist")
+                    .addAttr(HtmlAttr.ARIA_ORIENTATION, "horizontal");
+
+            int tabIndex = 0;
+            tablist.addContent(createTab(tabId.apply(tabIndex), activeTabStyle, true, defaultTab));
+            table.addAttr(HtmlAttr.ARIA_LABELLEDBY, tabId.apply(tabIndex));
+            for (String tabName : tabMap.keySet()) {
+                tabIndex++;
+                if (tabs.contains(tabName)) {
+                    String script = tabScript.apply(1 << (tabIndex - 1));
+                    HtmlTree tab = createTab(tabId.apply(tabIndex), tabStyle, false, tabName);
+                    tab.addAttr(HtmlAttr.ONCLICK, script);
+                    tablist.addContent(tab);
+                }
+            }
+            HtmlTree tabpanel = new HtmlTree(HtmlTag.DIV)
+                    .addAttr(HtmlAttr.ID, tableStyle + "_tabpanel")
+                    .addAttr(HtmlAttr.ROLE, "tabpanel");
+            table.addContent(getTableBody());
+            tabpanel.addContent(table);
+            mainDiv.addContent(tablist);
+            mainDiv.addContent(tabpanel);
         }
-        table.addContent(header.toContent());
-        if (useTBody) {
-            Content tbody = new HtmlTree(HtmlTag.TBODY);
-            bodyRows.forEach(row -> tbody.addContent(row));
-            table.addContent(tbody);
-        } else {
-            bodyRows.forEach(row -> table.addContent(row));
-        }
-        return table;
+        return mainDiv;
+    }
+
+    private HtmlTree createTab(String tabId, HtmlStyle style, boolean defaultTab, String tabName) {
+        HtmlTree tab = new HtmlTree(HtmlTag.BUTTON)
+                .addAttr(HtmlAttr.ROLE, "tab")
+                .addAttr(HtmlAttr.ARIA_SELECTED, defaultTab ? "true" : "false")
+                .addAttr(HtmlAttr.ARIA_CONTROLS, tableStyle + "_tabpanel")
+                .addAttr(HtmlAttr.TABINDEX, defaultTab ? "0" : "-1")
+                .addAttr(HtmlAttr.ONKEYDOWN, "switchTab(event)")
+                .addAttr(HtmlAttr.ID, tabId)
+                .setStyle(style);
+        tab.addContent(tabName);
+        return tab;
+    }
+
+    private Content getTableBody() {
+        ContentBuilder tableContent = new ContentBuilder();
+        tableContent.addContent(header.toContent());
+        Content tbody = new HtmlTree(HtmlTag.TBODY);
+        bodyRows.forEach(row -> tbody.addContent(row));
+        tableContent.addContent(tbody);
+        return tableContent;
     }
 
     /**
@@ -537,7 +502,7 @@ public class Table {
         StringBuilder sb = new StringBuilder();
 
         // Add the variable defining the bitmask for each row
-        sb.append("var ").append(tabScriptVariable).append(" = {");
+        sb.append("var data").append(" = {");
         int rowIndex = 0;
         for (int mask : bodyRowMasks) {
             if (rowIndex > 0) {

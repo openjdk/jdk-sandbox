@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_VM_JVMCI_VMSYMBOLS_JVMCI_HPP
-#define SHARE_VM_JVMCI_VMSYMBOLS_JVMCI_HPP
+#ifndef SHARE_JVMCI_VMSYMBOLS_JVMCI_HPP
+#define SHARE_JVMCI_VMSYMBOLS_JVMCI_HPP
 
 
 #if !INCLUDE_JVMCI
@@ -88,9 +88,12 @@
   template(jdk_vm_ci_code_site_ExceptionHandler,                  "jdk/vm/ci/code/site/ExceptionHandler")                  \
   template(jdk_vm_ci_code_site_Mark,                              "jdk/vm/ci/code/site/Mark")                              \
   template(jdk_vm_ci_code_site_Infopoint,                         "jdk/vm/ci/code/site/Infopoint")                         \
+  template(jdk_vm_ci_code_stack_InspectedFrameVisitor,            "jdk/vm/ci/code/stack/InspectedFrameVisitor")            \
   template(jdk_vm_ci_code_site_Site,                              "jdk/vm/ci/code/site/Site")                              \
   template(jdk_vm_ci_code_site_InfopointReason,                   "jdk/vm/ci/code/site/InfopointReason")                   \
   template(jdk_vm_ci_common_JVMCIError,                           "jdk/vm/ci/common/JVMCIError")                           \
+  template(visitFrame_name,                                       "visitFrame")                                            \
+  template(visitFrame_signature,                                  "(Ljdk/vm/ci/code/stack/InspectedFrame;)Ljava/lang/Object;") \
   template(adjustCompilationLevel_name,                           "adjustCompilationLevel")                                \
   template(adjustCompilationLevel_signature,                      "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;ZI)I") \
   template(compileMethod_name,                                    "compileMethod")                                         \
@@ -101,4 +104,4 @@
   template(klass_fromMetaspace_signature,                         "(Ljava/lang/Class;)Ljdk/vm/ci/hotspot/HotSpotResolvedObjectTypeImpl;")
 #endif
 
-#endif // SHARE_VM_JVMCI_VMSYMBOLS_JVMCI_HPP
+#endif // SHARE_JVMCI_VMSYMBOLS_JVMCI_HPP

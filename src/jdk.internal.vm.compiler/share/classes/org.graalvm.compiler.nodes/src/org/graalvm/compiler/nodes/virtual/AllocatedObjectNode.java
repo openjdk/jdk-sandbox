@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,12 +20,15 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.virtual;
 
 import static org.graalvm.compiler.nodeinfo.InputType.Extension;
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_0;
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_0;
 
+import jdk.vm.ci.meta.ConstantReflectionProvider;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.core.common.type.TypeReference;
 import org.graalvm.compiler.graph.NodeClass;
@@ -35,6 +38,7 @@ import org.graalvm.compiler.nodes.calc.FloatingNode;
 import org.graalvm.compiler.nodes.spi.ArrayLengthProvider;
 import org.graalvm.compiler.nodes.spi.Virtualizable;
 import org.graalvm.compiler.nodes.spi.VirtualizerTool;
+import org.graalvm.compiler.nodes.util.GraphUtil;
 
 /**
  * Selects one object from a {@link CommitAllocationNode}. The object is identified by its
@@ -71,10 +75,7 @@ public final class AllocatedObjectNode extends FloatingNode implements Virtualiz
     }
 
     @Override
-    public ValueNode length() {
-        if (virtualObject instanceof ArrayLengthProvider) {
-            return ((ArrayLengthProvider) virtualObject).length();
-        }
-        return null;
+    public ValueNode findLength(FindLengthMode mode, ConstantReflectionProvider constantReflection) {
+        return GraphUtil.arrayLength(virtualObject, mode, constantReflection);
     }
 }

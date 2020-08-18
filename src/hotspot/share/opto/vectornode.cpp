@@ -122,6 +122,13 @@ int VectorNode::opcode(int sopc, BasicType bt) {
   case Op_SqrtD:
     assert(bt == T_DOUBLE, "must be");
     return Op_SqrtVD;
+  case Op_PopCountI:
+    if (bt == T_INT) {
+      return Op_PopCountVI;
+    }
+    // Unimplemented for subword types since bit count changes
+    // depending on size of lane (and sign bit).
+    return 0;
   case Op_LShiftI:
     switch (bt) {
     case T_BOOLEAN:
@@ -189,6 +196,8 @@ int VectorNode::opcode(int sopc, BasicType bt) {
   case Op_StoreF:
   case Op_StoreD:
     return Op_StoreVector;
+  case Op_MulAddS2I:
+    return Op_MulAddVS2VI;
 
   default:
     return 0; // Unimplemented
@@ -203,6 +212,25 @@ bool VectorNode::implemented(int opc, uint vlen, BasicType bt) {
       Matcher::vector_size_supported(bt, vlen)) {
     int vopc = VectorNode::opcode(opc, bt);
     return vopc > 0 && Matcher::match_rule_supported_vector(vopc, vlen);
+  }
+  return false;
+}
+
+bool VectorNode::is_type_transition_short_to_int(Node* n) {
+  switch (n->Opcode()) {
+  case Op_MulAddS2I:
+    return true;
+  }
+  return false;
+}
+
+bool VectorNode::is_type_transition_to_int(Node* n) {
+  return is_type_transition_short_to_int(n);
+}
+
+bool VectorNode::is_muladds2i(Node* n) {
+  if (n->Opcode() == Op_MulAddS2I) {
+    return true;
   }
   return false;
 }
@@ -245,6 +273,8 @@ void VectorNode::vector_operands(Node* n, uint* start, uint* end) {
   case Op_LoadI:   case Op_LoadL:
   case Op_LoadF:   case Op_LoadD:
   case Op_LoadP:   case Op_LoadN:
+  case Op_LoadBarrierSlowReg:
+  case Op_LoadBarrierWeakSlowReg:
     *start = 0;
     *end   = 0; // no vector operands
     break;
@@ -268,6 +298,7 @@ void VectorNode::vector_operands(Node* n, uint* start, uint* end) {
   case Op_AndI: case Op_AndL:
   case Op_OrI:  case Op_OrL:
   case Op_XorI: case Op_XorL:
+  case Op_MulAddS2I:
     *start = 1;
     *end   = 3; // 2 vector operands
     break;
@@ -325,6 +356,8 @@ VectorNode* VectorNode::make(int opc, Node* n1, Node* n2, uint vlen, BasicType b
   case Op_SqrtVF: return new SqrtVFNode(n1, vt);
   case Op_SqrtVD: return new SqrtVDNode(n1, vt);
 
+  case Op_PopCountVI: return new PopCountVINode(n1, vt);
+
   case Op_LShiftVB: return new LShiftVBNode(n1, n2, vt);
   case Op_LShiftVS: return new LShiftVSNode(n1, n2, vt);
   case Op_LShiftVI: return new LShiftVINode(n1, n2, vt);
@@ -343,6 +376,8 @@ VectorNode* VectorNode::make(int opc, Node* n1, Node* n2, uint vlen, BasicType b
   case Op_AndV: return new AndVNode(n1, n2, vt);
   case Op_OrV:  return new OrVNode (n1, n2, vt);
   case Op_XorV: return new XorVNode(n1, n2, vt);
+
+  case Op_MulAddVS2VI: return new MulAddVS2VINode(n1, n2, vt);
   default:
     fatal("Missed vector creation for '%s'", NodeClassNames[vopc]);
     return NULL;

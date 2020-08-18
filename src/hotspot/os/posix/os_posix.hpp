@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,8 @@
 
 #include "runtime/os.hpp"
 
-#ifndef OS_POSIX_VM_OS_POSIX_HPP
-#define OS_POSIX_VM_OS_POSIX_HPP
+#ifndef OS_POSIX_OS_POSIX_HPP
+#define OS_POSIX_OS_POSIX_HPP
 
 // File conventions
 static const char* file_separator() { return "/"; }
@@ -64,6 +64,7 @@ public:
 
   // Returns true if signal is valid.
   static bool is_valid_signal(int sig);
+  static bool is_sig_ignored(int sig);
 
   // Helper function, returns a string (e.g. "SIGILL") for a signal.
   // Returned string is a constant. For unknown signals "UNKNOWN" is returned.
@@ -105,12 +106,33 @@ public:
   // On error, it will return NULL and set errno. The content of 'outbuf' is undefined.
   // On truncation error ('outbuf' too small), it will return NULL and set errno to ENAMETOOLONG.
   static char* realpath(const char* filename, char* outbuf, size_t outbuflen);
-};
 
-// On POSIX platforms the signal handler is global so we just do the write.
-static void write_memory_serialize_page_with_handler(JavaThread* thread) {
-  write_memory_serialize_page(thread);
-}
+  // Returns true if given uid is root.
+  static bool is_root(uid_t uid);
+
+  // Returns true if given uid is effective or root uid.
+  static bool matches_effective_uid_or_root(uid_t uid);
+
+  // Returns true if either given uid is effective uid and given gid is
+  // effective gid, or if given uid is root.
+  static bool matches_effective_uid_and_gid_or_root(uid_t uid, gid_t gid);
+
+  static void print_umask(outputStream* st, mode_t umsk);
+
+  static void print_user_info(outputStream* st);
+
+#ifdef SUPPORTS_CLOCK_MONOTONIC
+
+  static bool supports_monotonic_clock();
+  static int clock_gettime(clockid_t clock_id, struct timespec *tp);
+  static int clock_getres(clockid_t clock_id, struct timespec *tp);
+
+#else
+
+  static bool supports_monotonic_clock() { return false; }
+
+#endif
+};
 
 /*
  * Crash protection for the watcher thread. Wrap the callback
@@ -202,4 +224,4 @@ class PlatformParker : public CHeapObj<mtInternal> {
 
 #endif // !SOLARIS
 
-#endif // OS_POSIX_VM_OS_POSIX_HPP
+#endif // OS_POSIX_OS_POSIX_HPP

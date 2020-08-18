@@ -22,22 +22,60 @@
  *
  */
 
+// NOTE: the test takes a long time for each VM option combination, so we split
+// it into 3 @test parts, so that they can be executed in parallel. If you make a
+// change, please ensure all @test blocks are in sync.
+
+
 /*
  * @test
  * @summary Test options that are incompatible with use of shared strings
  *          Also test mismatch in oops encoding between dump time and run time
  * @requires vm.cds.archived.java.heap
+ * @comment This test explicitly chooses the type of GC to be used by sub-processes. It may conflict with the GC type set
+ * via the -vmoptions command line option of JTREG. vm.gc==null will help the test case to discard the explicitly passed
+ * vm options.
  * @requires (vm.gc=="null")
  * @library /test/lib /test/hotspot/jtreg/runtime/appcds
- * @modules java.base/jdk.internal.misc
- * @modules java.management
- *          jdk.jartool/sun.tools.jar
+ * @modules jdk.jartool/sun.tools.jar
+ * @build sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
  * @build HelloString
- * @run main IncompatibleOptions
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. IncompatibleOptions 0
  */
 
+
+/*
+ * @test
+ * @requires vm.cds.archived.java.heap
+ * @requires (vm.gc=="null")
+ * @library /test/lib /test/hotspot/jtreg/runtime/appcds
+ * @modules jdk.jartool/sun.tools.jar
+ * @build sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build HelloString
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. IncompatibleOptions 1
+ */
+
+/*
+ * @test
+ * @requires vm.cds.archived.java.heap
+ * @requires (vm.gc=="null")
+ * @library /test/lib /test/hotspot/jtreg/runtime/appcds
+ * @modules jdk.jartool/sun.tools.jar
+ * @build sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @build HelloString
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. IncompatibleOptions 2
+ */
+
+
 import jdk.test.lib.Asserts;
+import jdk.test.lib.Platform;
 import jdk.test.lib.process.OutputAnalyzer;
+
+import sun.hotspot.code.Compiler;
+import sun.hotspot.gc.GC;
 
 public class IncompatibleOptions {
     static final String COOPS_DUMP_WARNING =
@@ -52,17 +90,31 @@ public class IncompatibleOptions {
         "The shared archive file's CompactStrings setting .* does not equal the current CompactStrings setting";
 
     static String appJar;
+    static String[] vmOptionsPrefix = {};
 
     public static void main(String[] args) throws Exception {
+        String[] noargs = {};
+        SharedStringsUtils.run(Integer.parseInt(args[0]), 3, noargs, IncompatibleOptions::test);
+        // Add a new @test block if you get an assert ----^ about this number. See
+        // SharedStringsUtils.java for details.
+    }
+
+    public static void test(String[] args_ignored) throws Exception {
+        vmOptionsPrefix = SharedStringsUtils.getChildVMOptionsPrefix();
         appJar = JarBuilder.build("IncompatibleOptions", "HelloString");
 
         // Uncompressed OOPs
         testDump(1, "-XX:+UseG1GC", "-XX:-UseCompressedOops", COOPS_DUMP_WARNING, true);
+        if (GC.Z.isSupported()) { // ZGC is included in build.
+            testDump(1, "-XX:+UnlockExperimentalVMOptions", "-XX:+UseZGC", COOPS_DUMP_WARNING, true);
+        }
 
         // incompatible GCs
         testDump(2, "-XX:+UseParallelGC", "", GC_WARNING, false);
         testDump(3, "-XX:+UseSerialGC", "", GC_WARNING, false);
-        testDump(4, "-XX:+UseConcMarkSweepGC", "", GC_WARNING, false);
+        if (!Compiler.isGraalEnabled()) { // Graal does not support CMS
+            testDump(4, "-XX:+UseConcMarkSweepGC", "", GC_WARNING, false);
+        }
 
         // ======= archive with compressed oops, run w/o
         testDump(5, "-XX:+UseG1GC", "-XX:+UseCompressedOops", null, false);
@@ -73,7 +125,9 @@ public class IncompatibleOptions {
         // Still run, to ensure no crash or exception
         testExec(6, "-XX:+UseParallelGC", "", "", false);
         testExec(7, "-XX:+UseSerialGC", "", "", false);
-        testExec(8, "-XX:+UseConcMarkSweepGC", "", "", false);
+        if (!Compiler.isGraalEnabled()) { // Graal does not support CMS
+            testExec(8, "-XX:+UseConcMarkSweepGC", "", "", false);
+        }
 
         // Test various oops encodings, by varying ObjectAlignmentInBytes and heap sizes
         testDump(9, "-XX:+UseG1GC", "-XX:ObjectAlignmentInBytes=8", null, false);
@@ -102,13 +156,16 @@ public class IncompatibleOptions {
 
         System.out.println("Testcase: " + testCaseNr);
         OutputAnalyzer output = TestCommon.dump(appJar, TestCommon.list("Hello"),
-            "-XX:+UseCompressedOops",
-            collectorOption,
-            "-XX:SharedArchiveConfigFile=" + TestCommon.getSourceFile("SharedStringsBasic.txt"),
-            extraOption);
+            TestCommon.concat(vmOptionsPrefix,
+                "-XX:+UseCompressedOops",
+                collectorOption,
+                "-XX:SharedArchiveConfigFile=" + TestCommon.getSourceFile("SharedStringsBasic.txt"),
+                "-Xlog:cds,cds+hashtables",
+                extraOption));
 
-        if (expectedWarning != null)
+        if (expectedWarning != null) {
             output.shouldContain(expectedWarning);
+        }
 
         if (expectedToFail) {
             Asserts.assertNE(output.getExitValue(), 0,
@@ -125,19 +182,25 @@ public class IncompatibleOptions {
         // needed, otherwise system considers empty extra option as a
         // main class param, and fails with "Could not find or load main class"
         if (!extraOption.isEmpty()) {
-            output = TestCommon.exec(appJar, "-XX:+UseCompressedOops",
-                collectorOption, extraOption, "HelloString");
+            output = TestCommon.exec(appJar,
+                TestCommon.concat(vmOptionsPrefix,
+                    "-XX:+UseCompressedOops",
+                    collectorOption, "-Xlog:cds", extraOption, "HelloString"));
         } else {
-            output = TestCommon.exec(appJar, "-XX:+UseCompressedOops",
-                collectorOption, "HelloString");
+            output = TestCommon.exec(appJar,
+                TestCommon.concat(vmOptionsPrefix,
+                    "-XX:+UseCompressedOops",
+                    collectorOption, "-Xlog:cds", "HelloString"));
         }
 
-        if (expectedWarning != null)
+        if (expectedWarning != null) {
             output.shouldMatch(expectedWarning);
+        }
 
-        if (expectedToFail)
+        if (expectedToFail) {
             Asserts.assertNE(output.getExitValue(), 0);
-        else
+        } else {
             SharedStringsUtils.checkExec(output);
+        }
     }
 }

@@ -27,8 +27,10 @@
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/disassembler.hpp"
-#include "gc/shared/collectedHeap.hpp"
+#include "gc/shared/gcConfig.hpp"
 #include "logging/logConfiguration.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "memory/resourceArea.hpp"
 #include "prims/whitebox.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
@@ -38,16 +40,19 @@
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vmThread.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "runtime/vm_version.hpp"
+#include "runtime/flags/jvmFlag.hpp"
 #include "services/memTracker.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/decoder.hpp"
 #include "utilities/defaultStream.hpp"
-#include "utilities/errorReporter.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
+#include "utilities/macros.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 
 #ifndef PRODUCT
 #include <signal.h>
@@ -78,6 +83,9 @@ const char *env_list[] = {
   // Env variables that are defined on Solaris/Linux/BSD
   "LD_LIBRARY_PATH", "LD_PRELOAD", "SHELL", "DISPLAY",
   "HOSTTYPE", "OSTYPE", "ARCH", "MACHTYPE",
+
+  // defined on AIX
+  "LIBPATH", "LDR_PRELOAD", "LDR_PRELOAD64",
 
   // defined on Linux
   "LD_ASSUME_KERNEL", "_JAVA_SR_SIGNUM",
@@ -303,14 +311,6 @@ static void print_oom_reasons(outputStream* st) {
   st->print_cr("# This output file may be truncated or incomplete.");
 }
 
-static const char* gc_mode() {
-  if (UseG1GC)            return "g1 gc";
-  if (UseParallelGC)      return "parallel gc";
-  if (UseConcMarkSweepGC) return "concurrent mark sweep gc";
-  if (UseSerialGC)        return "serial gc";
-  return "ERROR in GC mode";
-}
-
 static void report_vm_version(outputStream* st, char* buf, int buflen) {
    // VM version
    st->print_cr("#");
@@ -319,18 +319,18 @@ static void report_vm_version(outputStream* st, char* buf, int buflen) {
                                 JDK_Version::runtime_name() : "";
    const char* runtime_version = JDK_Version::runtime_version() != NULL ?
                                    JDK_Version::runtime_version() : "";
-   const char* jdk_debug_level = Abstract_VM_Version::printable_jdk_debug_level() != NULL ?
-                                   Abstract_VM_Version::printable_jdk_debug_level() : "";
+   const char* jdk_debug_level = VM_Version::printable_jdk_debug_level() != NULL ?
+                                   VM_Version::printable_jdk_debug_level() : "";
 
    st->print_cr("# JRE version: %s (%s) (%sbuild %s)", runtime_name, buf,
                  jdk_debug_level, runtime_version);
 
    // This is the long version with some default settings added
    st->print_cr("# Java VM: %s (%s%s, %s%s%s%s%s, %s, %s)",
-                 Abstract_VM_Version::vm_name(),
+                 VM_Version::vm_name(),
                  jdk_debug_level,
-                 Abstract_VM_Version::vm_release(),
-                 Abstract_VM_Version::vm_info_string(),
+                 VM_Version::vm_release(),
+                 VM_Version::vm_info_string(),
                  TieredCompilation ? ", tiered" : "",
 #if INCLUDE_JVMCI
                  EnableJVMCI ? ", jvmci" : "",
@@ -339,8 +339,8 @@ static void report_vm_version(outputStream* st, char* buf, int buflen) {
                  "", "",
 #endif
                  UseCompressedOops ? ", compressed oops" : "",
-                 gc_mode(),
-                 Abstract_VM_Version::vm_platform_string()
+                 GCConfig::hs_err_name(),
+                 VM_Version::vm_platform_string()
                );
 }
 
@@ -756,6 +756,24 @@ void VMError::report(outputStream* st, bool _verbose) {
        st->cr();
      }
 
+  STEP("inspecting top of stack")
+
+     // decode stack contents if possible
+     if (_verbose && _context && Universe::is_fully_initialized()) {
+       frame fr = os::fetch_frame_from_context(_context);
+       const int slots = 8;
+       const intptr_t *start = fr.sp();
+       const intptr_t *end = start + slots;
+       if (is_aligned(start, sizeof(intptr_t)) && os::is_readable_range(start, end)) {
+         st->print_cr("Stack slot to memory mapping:");
+         for (int i = 0; i < slots; ++i) {
+           st->print("stack at sp + %d slots: ", i);
+           os::print_location(st, *(start + i));
+         }
+       }
+       st->cr();
+     }
+
   STEP("printing code blob if possible")
 
      if (_verbose && _context) {
@@ -773,7 +791,10 @@ void VMError::report(outputStream* st, bool _verbose) {
            if (desc != NULL) {
              desc->print_on(st);
              Disassembler::decode(desc->begin(), desc->end(), st);
-           } else {
+           } else if (_thread != NULL) {
+             // Disassembling nmethod will incur resource memory allocation,
+             // only do so when thread is valid.
+             ResourceMark rm(_thread);
              Disassembler::decode(cb, st);
              st->cr();
            }
@@ -800,6 +821,14 @@ void VMError::report(outputStream* st, bool _verbose) {
        st->print_cr("---------------  P R O C E S S  ---------------");
        st->cr();
      }
+
+#ifndef _WIN32
+  STEP("printing user info")
+
+     if (ExtensiveErrorReports && _verbose) {
+       os::Posix::print_user_info(st);
+     }
+#endif
 
   STEP("printing all threads")
 
@@ -866,6 +895,13 @@ void VMError::report(outputStream* st, bool _verbose) {
        st->cr();
      }
 
+  STEP("printing metaspace information")
+
+     if (_verbose && Universe::is_fully_initialized()) {
+       st->print_cr("Metaspace:");
+       MetaspaceUtils::print_basic_report(st, 0);
+     }
+
   STEP("printing code cache information")
 
      if (_verbose && Universe::is_fully_initialized()) {
@@ -903,6 +939,17 @@ void VMError::report(outputStream* st, bool _verbose) {
        Arguments::print_on(st);
        st->cr();
      }
+
+  STEP("printing flags")
+
+    if (_verbose) {
+      JVMFlag::printFlags(
+        st,
+        true, // with comments
+        false, // no ranges
+        true); // skip defaults
+      st->cr();
+    }
 
   STEP("printing warning if internal testing API used")
 
@@ -968,7 +1015,7 @@ void VMError::report(outputStream* st, bool _verbose) {
   STEP("printing internal vm info")
 
      if (_verbose) {
-       st->print_cr("vm_info: %s", Abstract_VM_Version::internal_vm_info_string());
+       st->print_cr("vm_info: %s", VM_Version::internal_vm_info_string());
        st->cr();
      }
 
@@ -1050,6 +1097,13 @@ void VMError::print_vm_info(outputStream* st) {
     st->cr();
   }
 
+  // STEP("printing metaspace information")
+
+  if (Universe::is_fully_initialized()) {
+    st->print_cr("Metaspace:");
+    MetaspaceUtils::print_basic_report(st, 0);
+  }
+
   // STEP("printing code cache information")
 
   if (Universe::is_fully_initialized()) {
@@ -1124,7 +1178,7 @@ void VMError::print_vm_info(outputStream* st) {
 
   // STEP("printing internal vm info")
 
-  st->print_cr("vm_info: %s", Abstract_VM_Version::internal_vm_info_string());
+  st->print_cr("vm_info: %s", VM_Version::internal_vm_info_string());
   st->cr();
 
   // print a defined marker to show that error handling finished correctly.
@@ -1234,10 +1288,10 @@ void VMError::report_and_die(const char* message)
   report_and_die(message, "%s", "");
 }
 
-void VMError::report_and_die(Thread* thread, const char* filename, int lineno, const char* message,
+void VMError::report_and_die(Thread* thread, void* context, const char* filename, int lineno, const char* message,
                              const char* detail_fmt, va_list detail_args)
 {
-  report_and_die(INTERNAL_ERROR, message, detail_fmt, detail_args, thread, NULL, NULL, NULL, filename, lineno, 0);
+  report_and_die(INTERNAL_ERROR, message, detail_fmt, detail_args, thread, NULL, NULL, context, filename, lineno, 0);
 }
 
 void VMError::report_and_die(Thread* thread, const char* filename, int lineno, size_t size,
@@ -1261,7 +1315,6 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
   // then save detailed information in log file (verbose = true).
   static bool out_done = false;         // done printing to standard out
   static bool log_done = false;         // done saving error log
-  static bool transmit_report_done = false; // done error reporting
 
   if (SuppressFatalErrorMessage) {
       os::abort(CreateCoredumpOnCrash);
@@ -1305,7 +1358,13 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     // are handled properly.
     reset_signal_handlers();
 
-    TRACE_VM_ERROR();
+    EventShutdown e;
+    if (e.should_commit()) {
+      e.set_reason("VM Error");
+      e.commit();
+    }
+
+    JFR_ONLY(Jfr::on_vm_shutdown(true);)
 
   } else {
     // If UseOsErrorReporting we call this for each level of the call stack
@@ -1353,9 +1412,24 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
         os::infinite_sleep();
       } else {
         // Crash or assert during error reporting. Lets continue reporting with the next step.
-        jio_snprintf(buffer, sizeof(buffer),
-           "[error occurred during error reporting (%s), id 0x%x]",
-                   _current_step_info, _id);
+        stringStream ss(buffer, sizeof(buffer));
+        // Note: this string does get parsed by a number of jtreg tests,
+        // see hotspot/jtreg/runtime/ErrorHandling.
+        ss.print("[error occurred during error reporting (%s), id 0x%x",
+                   _current_step_info, id);
+        char signal_name[64];
+        if (os::exception_name(id, signal_name, sizeof(signal_name))) {
+          ss.print(", %s (0x%x) at pc=" PTR_FORMAT, signal_name, id, p2i(pc));
+        } else {
+          if (should_report_bug(id)) {
+            ss.print(", Internal Error (%s:%d)",
+              filename == NULL ? "??" : filename, lineno);
+          } else {
+            ss.print(", Out of Memory Error (%s:%d)",
+              filename == NULL ? "??" : filename, lineno);
+          }
+        }
+        ss.print("]");
         st->print_raw_cr(buffer);
         st->cr();
       }
@@ -1386,9 +1460,6 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
       } else {
         out.print_raw_cr("# Can not save log file, dump to screen..");
         log.set_fd(defaultStream::output_fd());
-        /* Error reporting currently needs dumpfile.
-         * Maybe implement direct streaming in the future.*/
-        transmit_report_done = true;
       }
     }
 
@@ -1396,20 +1467,6 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     log_done = true;
     _current_step = 0;
     _current_step_info = "";
-
-    // Run error reporting to determine whether or not to report the crash.
-    if (!transmit_report_done && should_report_bug(_id)) {
-      transmit_report_done = true;
-      const int fd2 = ::dup(log.fd());
-      if (fd2 != -1) {
-        FILE* const hs_err = ::fdopen(fd2, "r");
-        if (NULL != hs_err) {
-          ErrorReporter er;
-          er.call(hs_err, buffer, O_BUFLEN);
-          ::fclose(hs_err);
-        }
-      }
-    }
 
     if (log.fd() != defaultStream::output_fd()) {
       close(log.fd());
@@ -1468,7 +1525,7 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
       out.print_raw   ("/bin/sh -c ");
 #elif defined(SOLARIS)
       out.print_raw   ("/usr/bin/sh -c ");
-#elif defined(WINDOWS)
+#elif defined(_WINDOWS)
       out.print_raw   ("cmd /C ");
 #endif
       out.print_raw   ("\"");
@@ -1534,7 +1591,7 @@ void VM_ReportJavaOutOfMemory::doit() {
 #endif
     tty->print_cr("\"%s\"...", cmd);
 
-    if (os::fork_and_exec(cmd) < 0) {
+    if (os::fork_and_exec(cmd, true) < 0) {
       tty->print_cr("os::fork_and_exec failed: %s (%s=%d)",
                      os::strerror(errno), os::errno_name(errno), errno);
     }
@@ -1604,6 +1661,9 @@ bool VMError::check_timeout() {
 }
 
 #ifndef PRODUCT
+#if defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x5140
+#pragma error_messages(off, SEC_NULL_PTR_DEREF)
+#endif
 typedef void (*voidfun_t)();
 // Crash with an authentic sigfpe
 static void crash_with_sigfpe() {
@@ -1663,25 +1723,32 @@ void VMError::controlled_crash(int how) {
   // Case 15 is tested by test/hotspot/jtreg/runtime/ErrorHandling/SecondaryErrorTest.java.
   // Case 16 is tested by test/hotspot/jtreg/runtime/ErrorHandling/ThreadsListHandleInErrorHandlingTest.java.
   // Case 17 is tested by test/hotspot/jtreg/runtime/ErrorHandling/NestedThreadsListHandleInErrorHandlingTest.java.
+
+  // We grab Threads_lock to keep ThreadsSMRSupport::print_info_on()
+  // from racing with Threads::add() or Threads::remove() as we
+  // generate the hs_err_pid file. This makes our ErrorHandling tests
+  // more stable.
+  MutexLockerEx ml(Threads_lock->owned_by_self() ? NULL : Threads_lock, Mutex::_no_safepoint_check_flag);
+
   switch (how) {
-    case  1: vmassert(str == NULL, "expected null");
+    case  1: vmassert(str == NULL, "expected null"); break;
     case  2: vmassert(num == 1023 && *str == 'X',
-                      "num=" SIZE_FORMAT " str=\"%s\"", num, str);
-    case  3: guarantee(str == NULL, "expected null");
+                      "num=" SIZE_FORMAT " str=\"%s\"", num, str); break;
+    case  3: guarantee(str == NULL, "expected null"); break;
     case  4: guarantee(num == 1023 && *str == 'X',
-                       "num=" SIZE_FORMAT " str=\"%s\"", num, str);
-    case  5: fatal("expected null");
-    case  6: fatal("num=" SIZE_FORMAT " str=\"%s\"", num, str);
+                       "num=" SIZE_FORMAT " str=\"%s\"", num, str); break;
+    case  5: fatal("expected null"); break;
+    case  6: fatal("num=" SIZE_FORMAT " str=\"%s\"", num, str); break;
     case  7: fatal("%s%s#    %s%s#    %s%s#    %s%s#    %s%s#    "
                    "%s%s#    %s%s#    %s%s#    %s%s#    %s%s#    "
                    "%s%s#    %s%s#    %s%s#    %s%s#    %s",
                    msg, eol, msg, eol, msg, eol, msg, eol, msg, eol,
                    msg, eol, msg, eol, msg, eol, msg, eol, msg, eol,
-                   msg, eol, msg, eol, msg, eol, msg, eol, msg);
-    case  8: vm_exit_out_of_memory(num, OOM_MALLOC_ERROR, "ChunkPool::allocate");
-    case  9: ShouldNotCallThis();
-    case 10: ShouldNotReachHere();
-    case 11: Unimplemented();
+                   msg, eol, msg, eol, msg, eol, msg, eol, msg); break;
+    case  8: vm_exit_out_of_memory(num, OOM_MALLOC_ERROR, "ChunkPool::allocate"); break;
+    case  9: ShouldNotCallThis(); break;
+    case 10: ShouldNotReachHere(); break;
+    case 11: Unimplemented(); break;
     // There's no guarantee the bad data pointer will crash us
     // so "break" out to the ShouldNotReachHere().
     case 12: *dataPtr = '\0'; break;
@@ -1704,6 +1771,7 @@ void VMError::controlled_crash(int how) {
 
     default: tty->print_cr("ERROR: %d: unexpected test_num value.", how);
   }
+  tty->print_cr("VMError::controlled_crash: survived intentional crash. Did you suppress the assert?");
   ShouldNotReachHere();
 }
 #endif // !PRODUCT

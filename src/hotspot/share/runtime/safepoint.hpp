@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,13 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_SAFEPOINT_HPP
-#define SHARE_VM_RUNTIME_SAFEPOINT_HPP
+#ifndef SHARE_RUNTIME_SAFEPOINT_HPP
+#define SHARE_RUNTIME_SAFEPOINT_HPP
 
-#include "asm/assembler.hpp"
-#include "code/nmethod.hpp"
 #include "memory/allocation.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
 
 //
@@ -49,8 +47,7 @@
 
 
 class ThreadSafepointState;
-class SnippetCache;
-class nmethod;
+class JavaThread;
 
 //
 // Implements roll-forward to safepoint (safepoint synchronization)
@@ -88,25 +85,11 @@ class SafepointSynchronize : AllStatic {
     SAFEPOINT_CLEANUP_NUM_TASKS
   };
 
-  typedef struct {
-    float  _time_stamp;                        // record when the current safepoint occurs in seconds
-    int    _vmop_type;                         // type of VM operation triggers the safepoint
-    int    _nof_total_threads;                 // total number of Java threads
-    int    _nof_initial_running_threads;       // total number of initially seen running threads
-    int    _nof_threads_wait_to_block;         // total number of threads waiting for to block
-    bool   _page_armed;                        // true if polling page is armed, false otherwise
-    int    _nof_threads_hit_page_trap;         // total number of threads hitting the page trap
-    jlong  _time_to_spin;                      // total time in millis spent in spinning
-    jlong  _time_to_wait_to_block;             // total time in millis spent in waiting for to block
-    jlong  _time_to_do_cleanups;               // total time in millis spent in performing cleanups
-    jlong  _time_to_sync;                      // total time in millis spent in getting to _synchronized
-    jlong  _time_to_exec_vmop;                 // total time in millis spent in vm operation itself
-  } SafepointStats;
-
  private:
   static volatile SynchronizeState _state;     // Threads might read this flag directly, without acquiring the Threads_lock
   static volatile int _waiting_to_block;       // number of threads we are waiting for to block
   static int _current_jni_active_count;        // Counts the number of active critical natives during the safepoint
+  static int _defer_thr_suspend_loop_count;    // Iterations before blocking VM threads
 
   // This counter is used for fast versions of jni_Get<Primitive>Field.
   // An even value means there is no ongoing safepoint operations.
@@ -114,30 +97,19 @@ class SafepointSynchronize : AllStatic {
   // safepoint. The fact that Threads_lock is held throughout each pair of
   // increments (at the beginning and end of each safepoint) guarantees
   // race freedom.
-public:
-  static volatile int _safepoint_counter;
+  static volatile uint64_t _safepoint_counter;
+
 private:
-  static long       _end_of_last_safepoint;     // Time of last safepoint in milliseconds
+  static long              _end_of_last_safepoint;     // Time of last safepoint in milliseconds
+  static julong            _coalesced_vmop_count;     // coalesced vmop count
 
   // Statistics
-  static jlong            _safepoint_begin_time;     // time when safepoint begins
-  static SafepointStats*  _safepoint_stats;          // array of SafepointStats struct
-  static int              _cur_stat_index;           // current index to the above array
-  static julong           _safepoint_reasons[];      // safepoint count for each VM op
-  static julong           _coalesced_vmop_count;     // coalesced vmop count
-  static jlong            _max_sync_time;            // maximum sync time in nanos
-  static jlong            _max_vmop_time;            // maximum vm operation time in nanos
-  static float            _ts_of_current_safepoint;  // time stamp of current safepoint in seconds
-
   static void begin_statistics(int nof_threads, int nof_running);
   static void update_statistics_on_spin_end();
   static void update_statistics_on_sync_end(jlong end_time);
   static void update_statistics_on_cleanup_end(jlong end_time);
   static void end_statistics(jlong end_time);
   static void print_statistics();
-  inline static void inc_page_trap_count() {
-    Atomic::inc(&_safepoint_stats[_cur_stat_index]._nof_threads_hit_page_trap);
-  }
 
   // For debug long safepoint
   static void print_safepoint_timeout(SafepointTimeoutReason timeout_reason);
@@ -156,9 +128,9 @@ public:
   static void check_for_lazy_critical_native(JavaThread *thread, JavaThreadState state);
 
   // Query
-  inline static bool is_at_safepoint()   { return _state == _synchronized;  }
-  inline static bool is_synchronizing()  { return _state == _synchronizing;  }
-  inline static int safepoint_counter()  { return _safepoint_counter; }
+  inline static bool is_at_safepoint()       { return _state == _synchronized; }
+  inline static bool is_synchronizing()      { return _state == _synchronizing; }
+  inline static uint64_t safepoint_counter() { return _safepoint_counter; }
 
   inline static void increment_jni_active_count() {
     assert_locked_or_safepoint(Safepoint_lock);
@@ -191,7 +163,6 @@ public:
   static bool is_cleanup_needed();
   static void do_cleanup_tasks();
 
-  static void deferred_initialize_stat();
   static void print_stat_on_exit();
   inline static void inc_vmop_coalesced_count() { _coalesced_vmop_count++; }
 
@@ -201,8 +172,32 @@ public:
   // Assembly support
   static address address_of_state()                        { return (address)&_state; }
 
-  static address safepoint_counter_addr()                  { return (address)&_safepoint_counter; }
+  // Only used for making sure that no safepoint has happened in
+  // JNI_FastGetField. Therefore only the low 32-bits are needed
+  // even if this is a 64-bit counter.
+  static address safepoint_counter_addr() {
+#ifdef VM_LITTLE_ENDIAN
+    return (address)&_safepoint_counter;
+#else /* BIG */
+    // Return pointer to the 32 LSB:
+    return (address) (((uint32_t*)(&_safepoint_counter)) + 1);
+#endif
+  }
 };
+
+// Some helper assert macros for safepoint checks.
+
+#define assert_at_safepoint()                                           \
+  assert(SafepointSynchronize::is_at_safepoint(), "should be at a safepoint")
+
+#define assert_at_safepoint_msg(...)                                    \
+  assert(SafepointSynchronize::is_at_safepoint(), __VA_ARGS__)
+
+#define assert_not_at_safepoint()                                       \
+  assert(!SafepointSynchronize::is_at_safepoint(), "should not be at a safepoint")
+
+#define assert_not_at_safepoint_msg(...)                                \
+  assert(!SafepointSynchronize::is_at_safepoint(), __VA_ARGS__)
 
 // State class for a thread suspended at a safepoint
 class ThreadSafepointState: public CHeapObj<mtInternal> {
@@ -258,4 +253,4 @@ class ThreadSafepointState: public CHeapObj<mtInternal> {
 
 
 
-#endif // SHARE_VM_RUNTIME_SAFEPOINT_HPP
+#endif // SHARE_RUNTIME_SAFEPOINT_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_CHAITIN_HPP
-#define SHARE_VM_OPTO_CHAITIN_HPP
+#ifndef SHARE_OPTO_CHAITIN_HPP
+#define SHARE_OPTO_CHAITIN_HPP
 
 #include "code/vmreg.hpp"
 #include "memory/resourceArea.hpp"
@@ -281,7 +281,7 @@ public:
 // The LiveRangeMap class is responsible for storing node to live range id mapping.
 // Each node is mapped to a live range id (a virtual register). Nodes that are
 // not considered for register allocation are given live range id 0.
-class LiveRangeMap VALUE_OBJ_CLASS_SPEC {
+class LiveRangeMap {
 
 private:
 
@@ -350,9 +350,9 @@ public:
   }
 
   LiveRangeMap(Arena* arena, uint unique)
-  : _names(arena, unique, unique, 0)
+  :  _max_lrg_id(0)
   , _uf_map(arena, unique, unique, 0)
-  , _max_lrg_id(0) {}
+  , _names(arena, unique, unique, 0) {}
 
   uint find_id( const Node *n ) {
     uint retval = live_range_id(n);
@@ -801,4 +801,4 @@ private:
   friend class PhaseConservativeCoalesce;
 };
 
-#endif // SHARE_VM_OPTO_CHAITIN_HPP
+#endif // SHARE_OPTO_CHAITIN_HPP

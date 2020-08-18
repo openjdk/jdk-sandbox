@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,12 @@
  *
  */
 
-#ifndef SHARE_VM_INTERPRETER_BYTECODESTREAM_HPP
-#define SHARE_VM_INTERPRETER_BYTECODESTREAM_HPP
+#ifndef SHARE_INTERPRETER_BYTECODESTREAM_HPP
+#define SHARE_INTERPRETER_BYTECODESTREAM_HPP
 
 #include "interpreter/bytecode.hpp"
 #include "memory/allocation.hpp"
 #include "oops/method.hpp"
-#include "runtime/handles.inline.hpp"
 #include "utilities/bytes.hpp"
 
 // A BytecodeStream is used for fast iteration over the bytecodes
@@ -63,10 +62,7 @@ class BaseBytecodeStream: StackObj {
   bool            _is_raw;                       // false in 'cooked' BytecodeStream
 
   // Construction
-  BaseBytecodeStream(const methodHandle& method) : _method(method) {
-    set_interval(0, _method->code_size());
-    _is_raw = false;
-  }
+  BaseBytecodeStream(const methodHandle& method);
 
  public:
   // Iteration control
@@ -231,4 +227,4 @@ class BytecodeStream: public BaseBytecodeStream {
   bool            has_index_u4() const           { return bytecode().has_index_u4(raw_code()); }
 };
 
-#endif // SHARE_VM_INTERPRETER_BYTECODESTREAM_HPP
+#endif // SHARE_INTERPRETER_BYTECODESTREAM_HPP

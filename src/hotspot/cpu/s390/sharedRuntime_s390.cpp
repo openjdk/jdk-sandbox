@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2017 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,13 @@
 #include "code/debugInfoRec.hpp"
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/compiledICHolder.hpp"
 #include "registerSaver_s390.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/vframeArray.hpp"
 #include "utilities/align.hpp"
@@ -312,8 +314,8 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, RegisterSet reg
   __ save_return_pc(return_pc);
 
   // Push a new frame (includes stack linkage).
-  // use return_pc as scratch for push_frame. Z_R0_scratch (the default) and Z_R1_scratch are
-  // illegally used to pass parameters (SAPJVM extension) by RangeCheckStub::emit_code().
+  // Use return_pc as scratch for push_frame. Z_R0_scratch (the default) and Z_R1_scratch are
+  // illegally used to pass parameters by RangeCheckStub::emit_code().
   __ push_frame(frame_size_in_bytes, return_pc);
   // We have to restore return_pc right away.
   // Nobody else will. Furthermore, return_pc isn't necessarily the default (Z_R14).
@@ -585,6 +587,9 @@ void SharedRuntime::save_native_result(MacroAssembler * masm,
     case T_DOUBLE:
       __ freg2mem_opt(Z_FRET, memaddr);
       break;
+    default:
+      ShouldNotReachHere();
+      break;
   }
 }
 
@@ -613,6 +618,9 @@ void SharedRuntime::restore_native_result(MacroAssembler *masm,
       break;
     case T_DOUBLE:
       __ mem2freg_opt(Z_FRET, memaddr);
+      break;
+    default:
+      ShouldNotReachHere();
       break;
   }
 }
@@ -2105,7 +2113,7 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
   // blocking or unlocking.
   // An OOP result (handle) is done specially in the slow-path code.
   //--------------------------------------------------------------------
-  switch (ret_type) {  //GLGLGL
+  switch (ret_type) {
     case T_VOID:    break;         // Nothing to do!
     case T_FLOAT:   break;         // Got it where we want it (unless slow-path)
     case T_DOUBLE:  break;         // Got it where we want it (unless slow-path)
@@ -2153,18 +2161,9 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
 
     save_native_result(masm, ret_type, workspace_slot_offset); // Make Z_R2 available as work reg.
 
-    if (os::is_MP()) {
-      if (UseMembar) {
-        // Force this write out before the read below.
-        __ z_fence();
-      } else {
-        // Write serialization page so VM thread can do a pseudo remote membar.
-        // We use the current thread pointer to calculate a thread specific
-        // offset to write to within the page. This minimizes bus traffic
-        // due to cache line collision.
-        __ serialize_memory(Z_thread, Z_R1, Z_R2);
-      }
-    }
+    // Force this write out before the read below.
+    __ z_fence();
+
     __ safepoint_poll(sync, Z_R1);
 
     __ load_and_test_int(Z_R0, Address(Z_thread, JavaThread::suspend_flags_offset()));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@
 #include "classfile/systemDictionaryShared.hpp"
 #include "classfile/verificationType.hpp"
 #include "classfile/verifier.hpp"
+#include "logging/log.hpp"
+#include "runtime/handles.inline.hpp"
 
 VerificationType VerificationType::from_tag(u1 tag) {
   switch (tag) {
@@ -107,7 +109,7 @@ bool VerificationType::is_reference_assignable_from(
     VerificationType comp_from = from.get_component(context, CHECK_false);
     if (!comp_this.is_bogus() && !comp_from.is_bogus()) {
       return comp_this.is_component_assignable_from(comp_from, context,
-                                          from_field_is_protected, CHECK_false);
+                                                    from_field_is_protected, THREAD);
     }
   }
   return false;
@@ -116,7 +118,7 @@ bool VerificationType::is_reference_assignable_from(
 VerificationType VerificationType::get_component(ClassVerifier *context, TRAPS) const {
   assert(is_array() && name()->utf8_length() >= 2, "Must be a valid array");
   Symbol* component;
-  switch (name()->byte_at(1)) {
+  switch (name()->char_at(1)) {
     case 'Z': return VerificationType(Boolean);
     case 'B': return VerificationType(Byte);
     case 'C': return VerificationType(Char);
@@ -168,7 +170,11 @@ void VerificationType::print_on(outputStream* st) const {
       } else if (is_uninitialized()) {
         st->print("uninitialized %d", bci());
       } else {
-        name()->print_value_on(st);
+        if (name() != NULL) {
+          name()->print_value_on(st);
+        } else {
+          st->print_cr("NULL");
+        }
       }
   }
 }

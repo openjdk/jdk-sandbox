@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,11 +39,13 @@ import java.nio.file.ProviderNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeSet;
@@ -60,6 +62,8 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 
 import com.sun.source.util.Plugin;
+import com.sun.tools.javac.code.Source;
+import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.file.CacheFSInfo;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.jvm.Target;
@@ -89,9 +93,24 @@ public class JDKPlatformProvider implements PlatformProvider {
     private static final String[] symbolFileLocation = { "lib", "ct.sym" };
 
     private static final Set<String> SUPPORTED_JAVA_PLATFORM_VERSIONS;
+    public static final Comparator<String> NUMERICAL_COMPARATOR = (s1, s2) -> {
+        int i1;
+        try {
+            i1 = Integer.parseInt(s1);
+        } catch (NumberFormatException ex) {
+            i1 = Integer.MAX_VALUE;
+        }
+        int i2;
+        try {
+            i2 = Integer.parseInt(s2);
+        } catch (NumberFormatException ex) {
+            i2 = Integer.MAX_VALUE;
+        }
+        return i1 != i2 ? i1 - i2 : s1.compareTo(s2);
+    };
 
     static {
-        SUPPORTED_JAVA_PLATFORM_VERSIONS = new TreeSet<>();
+        SUPPORTED_JAVA_PLATFORM_VERSIONS = new TreeSet<>(NUMERICAL_COMPARATOR);
         Path ctSymFile = findCtSym();
         if (Files.exists(ctSymFile)) {
             try (FileSystem fs = FileSystems.newFileSystem(ctSymFile, null);
@@ -236,52 +255,64 @@ public class JDKPlatformProvider implements PlatformProvider {
                         ctSym2FileSystem.put(file, fs = FileSystems.newFileSystem(file, null));
                     }
 
-                    List<Path> paths = new ArrayList<>();
-                    Path modules = fs.getPath(ctSymVersion + "-modules");
                     Path root = fs.getRootDirectories().iterator().next();
-                    boolean pathsSet = false;
+                    boolean hasModules =
+                            Feature.MODULES.allowedInSource(Source.lookup(sourceVersion));
+                    Path systemModules = root.resolve(ctSymVersion).resolve("system-modules");
                     Charset utf8 = Charset.forName("UTF-8");
 
-                    try (DirectoryStream<Path> dir = Files.newDirectoryStream(root)) {
-                        for (Path section : dir) {
-                            if (section.getFileName().toString().contains(ctSymVersion) &&
-                                !section.getFileName().toString().contains("-")) {
-                                Path systemModules = section.resolve("system-modules");
+                    if (!hasModules) {
+                        List<Path> paths = new ArrayList<>();
 
-                                if (Files.isRegularFile(systemModules)) {
-                                    fm.handleOption("--system", Arrays.asList("none").iterator());
-
-                                    Path jrtModules =
-                                            FileSystems.getFileSystem(URI.create("jrt:/"))
-                                                       .getPath("modules");
-                                    try (Stream<String> lines =
-                                            Files.lines(systemModules, utf8)) {
-                                        lines.map(line -> jrtModules.resolve(line))
-                                             .filter(mod -> Files.exists(mod))
-                                             .forEach(mod -> setModule(fm, mod));
+                        try (DirectoryStream<Path> dir = Files.newDirectoryStream(root)) {
+                            for (Path section : dir) {
+                                if (section.getFileName().toString().contains(ctSymVersion) &&
+                                    !section.getFileName().toString().contains("-")) {
+                                    try (DirectoryStream<Path> modules = Files.newDirectoryStream(section)) {
+                                        for (Path module : modules) {
+                                            paths.add(module);
+                                        }
                                     }
-                                    pathsSet = true;
-                                } else {
-                                    paths.add(section);
                                 }
                             }
                         }
-                    }
 
-                    if (Files.isDirectory(modules)) {
-                        try (DirectoryStream<Path> dir = Files.newDirectoryStream(modules)) {
-                            fm.handleOption("--system", Arrays.asList("none").iterator());
+                        fm.setLocationFromPaths(StandardLocation.PLATFORM_CLASS_PATH, paths);
+                    } else if (Files.isRegularFile(systemModules)) {
+                        fm.handleOption("--system", Arrays.asList("none").iterator());
 
-                            for (Path module : dir) {
-                                fm.setLocationForModule(StandardLocation.SYSTEM_MODULES,
-                                                        module.getFileName().toString(),
-                                                        Stream.concat(paths.stream(),
-                                                                      Stream.of(module))
-                                  .collect(Collectors.toList()));
+                        Path jrtModules =
+                                FileSystems.getFileSystem(URI.create("jrt:/"))
+                                           .getPath("modules");
+                        try (Stream<String> lines =
+                                Files.lines(systemModules, utf8)) {
+                            lines.map(line -> jrtModules.resolve(line))
+                                 .filter(mod -> Files.exists(mod))
+                                 .forEach(mod -> setModule(fm, mod));
+                        }
+                    } else {
+                        Map<String, List<Path>> module2Paths = new HashMap<>();
+
+                        try (DirectoryStream<Path> dir = Files.newDirectoryStream(root)) {
+                            for (Path section : dir) {
+                                if (section.getFileName().toString().contains(ctSymVersion) &&
+                                    !section.getFileName().toString().contains("-")) {
+                                    try (DirectoryStream<Path> modules = Files.newDirectoryStream(section)) {
+                                        for (Path module : modules) {
+                                            module2Paths.computeIfAbsent(module.getFileName().toString(), dummy -> new ArrayList<>()).add(module);
+                                        }
+                                    }
+                                }
                             }
                         }
-                    } else if (!pathsSet) {
-                        fm.setLocationFromPaths(StandardLocation.PLATFORM_CLASS_PATH, paths);
+
+                        fm.handleOption("--system", Arrays.asList("none").iterator());
+
+                        for (Entry<String, List<Path>> e : module2Paths.entrySet()) {
+                            fm.setLocationForModule(StandardLocation.SYSTEM_MODULES,
+                                                    e.getKey(),
+                                                    e.getValue());
+                        }
                     }
 
                     return fm;

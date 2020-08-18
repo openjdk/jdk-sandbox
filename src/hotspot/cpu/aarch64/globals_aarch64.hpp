@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
-#define CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
+#ifndef CPU_AARCH64_GLOBALS_AARCH64_HPP
+#define CPU_AARCH64_GLOBALS_AARCH64_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
@@ -64,8 +64,6 @@ define_pd_global(intx, StackReservedPages, DEFAULT_STACK_RESERVED_PAGES);
 
 define_pd_global(bool, RewriteBytecodes,     true);
 define_pd_global(bool, RewriteFrequentPairs, true);
-
-define_pd_global(bool, UseMembar,            true);
 
 define_pd_global(bool, PreserveFramePointer, false);
 
@@ -147,6 +145,10 @@ define_pd_global(intx, InlineSmallCode,          1000);
           "Use CRC32 instructions for CRC32 computation")               \
   product(bool, UseSIMDForMemoryOps, false,                             \
           "Use SIMD instructions in generated memory move code")        \
+  product(bool, UseSIMDForArrayEquals, true,                            \
+          "Use SIMD instructions in generated array equals code")       \
+  product(bool, UseSimpleArrayEquals, false,                            \
+          "Use simpliest and shortest implementation for array equals") \
   product(bool, AvoidUnalignedAccesses, false,                          \
           "Avoid generating unaligned memory accesses")                 \
   product(bool, UseLSE, false,                                          \
@@ -160,8 +162,8 @@ define_pd_global(intx, InlineSmallCode,          1000);
   product(int, SoftwarePrefetchHintDistance, -1,                        \
           "Use prfm hint with specified distance in compiled code."     \
           "Value -1 means off.")                                        \
-          range(-1, 32760)
+          range(-1, 4096)
 #endif
 
 
-#endif // CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
+#endif // CPU_AARCH64_GLOBALS_AARCH64_HPP

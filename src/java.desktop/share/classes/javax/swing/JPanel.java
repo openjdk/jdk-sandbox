@@ -39,7 +39,7 @@ import java.io.IOException;
  * <code>JPanel</code> is a generic lightweight container.
  * For examples and task-oriented documentation for JPanel, see
  * <a
- href="http://docs.oracle.com/javase/tutorial/uiswing/components/panel.html">How to Use Panels</a>,
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/panel.html">How to Use Panels</a>,
  * a section in <em>The Java Tutorial</em>.
  * <p>
  * <strong>Warning:</strong> Swing is not thread safe. For more
@@ -127,7 +127,7 @@ public class JPanel extends JComponent implements Accessible
     }
 
     /**
-     * Returns the look and feel (L&amp;amp;F) object that renders this component.
+     * Returns the look and feel (L&amp;F) object that renders this component.
      *
      * @return the PanelUI object that renders this component
      * @since 1.4
@@ -154,12 +154,12 @@ public class JPanel extends JComponent implements Accessible
      * Returns a string that specifies the name of the L&amp;F class
      * that renders this component.
      *
-     * @return "PanelUI"
+     * @return the string "PanelUI"
      * @see JComponent#getUIClassID
      * @see UIDefaults#getUI
      */
     @BeanProperty(bound = false, expert = true, description
-            = "A string that specifies the name of the L&amp;F class.")
+            = "A string that specifies the name of the L&F class.")
     public String getUIClassID() {
         return uiClassID;
     }

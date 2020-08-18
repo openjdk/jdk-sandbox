@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,9 +37,13 @@
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "logging/log.hpp"
+#include "memory/heapShared.hpp"
 #include "memory/oopFactory.hpp"
+#include "memory/referenceType.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/instanceKlass.hpp"
@@ -51,29 +55,29 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "prims/nativeLookup.hpp"
-#include "prims/privilegedStack.hpp"
 #include "prims/stackwalk.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/deoptimization.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
-#include "runtime/vframe.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vframe.inline.hpp"
+#include "runtime/vmOperations.hpp"
 #include "runtime/vm_version.hpp"
 #include "services/attachListener.hpp"
 #include "services/management.hpp"
 #include "services/threadService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/dtrace.hpp"
@@ -82,7 +86,6 @@
 #include "utilities/macros.hpp"
 #include "utilities/utf8.hpp"
 #if INCLUDE_CDS
-#include "classfile/sharedClassUtil.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #endif
 
@@ -352,31 +355,52 @@ static void set_property(Handle props, const char* key, const char* value, TRAPS
 
 #define PUTPROP(props, name, value) set_property((props), (name), (value), CHECK_(properties));
 
+/*
+ * Return all of the system properties in a Java String array with alternating
+ * names and values from the jvm SystemProperty.
+ * Which includes some internal and all commandline -D defined properties.
+ */
+JVM_ENTRY(jobjectArray, JVM_GetProperties(JNIEnv *env))
+  JVMWrapper("JVM_GetProperties");
+  ResourceMark rm(THREAD);
+  HandleMark hm(THREAD);
+  int ndx = 0;
+  int fixedCount = 2;
 
-JVM_ENTRY(jobject, JVM_InitProperties(JNIEnv *env, jobject properties))
-  JVMWrapper("JVM_InitProperties");
-  ResourceMark rm;
+  SystemProperty* p = Arguments::system_properties();
+  int count = Arguments::PropertyList_count(p);
 
-  Handle props(THREAD, JNIHandles::resolve_non_null(properties));
+  // Allocate result String array
+  InstanceKlass* ik = SystemDictionary::String_klass();
+  objArrayOop r = oopFactory::new_objArray(ik, (count + fixedCount) * 2, CHECK_NULL);
+  objArrayHandle result_h(THREAD, r);
 
-  // System property list includes both user set via -D option and
-  // jvm system specific properties.
-  for (SystemProperty* p = Arguments::system_properties(); p != NULL; p = p->next()) {
-    PUTPROP(props, p->key(), p->value());
+  while (p != NULL) {
+    const char * key = p->key();
+    if (strcmp(key, "sun.nio.MaxDirectMemorySize") != 0) {
+        const char * value = p->value();
+        Handle key_str    = java_lang_String::create_from_platform_dependent_str(key, CHECK_NULL);
+        Handle value_str  = java_lang_String::create_from_platform_dependent_str((value != NULL ? value : ""), CHECK_NULL);
+        result_h->obj_at_put(ndx * 2,  key_str());
+        result_h->obj_at_put(ndx * 2 + 1, value_str());
+        ndx++;
+    }
+    p = p->next();
   }
 
   // Convert the -XX:MaxDirectMemorySize= command line flag
   // to the sun.nio.MaxDirectMemorySize property.
   // Do this after setting user properties to prevent people
   // from setting the value with a -D option, as requested.
-  {
-    if (FLAG_IS_DEFAULT(MaxDirectMemorySize)) {
-      PUTPROP(props, "sun.nio.MaxDirectMemorySize", "-1");
-    } else {
-      char as_chars[256];
-      jio_snprintf(as_chars, sizeof(as_chars), JULONG_FORMAT, MaxDirectMemorySize);
-      PUTPROP(props, "sun.nio.MaxDirectMemorySize", as_chars);
-    }
+  // Leave empty if not supplied
+  if (!FLAG_IS_DEFAULT(MaxDirectMemorySize)) {
+    char as_chars[256];
+    jio_snprintf(as_chars, sizeof(as_chars), JULONG_FORMAT, MaxDirectMemorySize);
+    Handle key_str = java_lang_String::create_from_platform_dependent_str("sun.nio.MaxDirectMemorySize", CHECK_NULL);
+    Handle value_str  = java_lang_String::create_from_platform_dependent_str(as_chars, CHECK_NULL);
+    result_h->obj_at_put(ndx * 2,  key_str());
+    result_h->obj_at_put(ndx * 2 + 1, value_str());
+    ndx++;
   }
 
   // JVM monitoring and management support
@@ -405,11 +429,15 @@ JVM_ENTRY(jobject, JVM_InitProperties(JNIEnv *env, jobject properties))
 
     if (*compiler_name != '\0' &&
         (Arguments::mode() != Arguments::_int)) {
-      PUTPROP(props, "sun.management.compiler", compiler_name);
+      Handle key_str = java_lang_String::create_from_platform_dependent_str("sun.management.compiler", CHECK_NULL);
+      Handle value_str  = java_lang_String::create_from_platform_dependent_str(compiler_name, CHECK_NULL);
+      result_h->obj_at_put(ndx * 2,  key_str());
+      result_h->obj_at_put(ndx * 2 + 1, value_str());
+      ndx++;
     }
   }
 
-  return properties;
+  return (jobjectArray) JNIHandles::make_local(env, result_h());
 JVM_END
 
 
@@ -433,6 +461,16 @@ JVM_END
 // java.lang.Runtime /////////////////////////////////////////////////////////////////////////
 
 extern volatile jint vm_created;
+
+JVM_ENTRY_NO_ENV(void, JVM_BeforeHalt())
+  JVMWrapper("JVM_BeforeHalt");
+  EventShutdown event;
+  if (event.should_commit()) {
+    event.set_reason("Shutdown requested from Java");
+    event.commit();
+  }
+JVM_END
+
 
 JVM_ENTRY_NO_ENV(void, JVM_Halt(jint code))
   before_exit(thread);
@@ -636,8 +674,11 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
 #endif
 
   // Check if class of obj supports the Cloneable interface.
-  // All arrays are considered to be cloneable (See JLS 20.1.5)
-  if (!klass->is_cloneable()) {
+  // All arrays are considered to be cloneable (See JLS 20.1.5).
+  // All j.l.r.Reference classes are considered non-cloneable.
+  if (!klass->is_cloneable() ||
+      (klass->is_instance_klass() &&
+       InstanceKlass::cast(klass)->reference_type() != REF_NONE)) {
     ResourceMark rm(THREAD);
     THROW_MSG_0(vmSymbols::java_lang_CloneNotSupportedException(), klass->external_name());
   }
@@ -647,9 +688,10 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   oop new_obj_oop = NULL;
   if (obj->is_array()) {
     const int length = ((arrayOop)obj())->length();
-    new_obj_oop = CollectedHeap::array_allocate(klass, size, length, CHECK_NULL);
+    new_obj_oop = Universe::heap()->array_allocate(klass, size, length,
+                                                   /* do_zero */ true, CHECK_NULL);
   } else {
-    new_obj_oop = CollectedHeap::obj_allocate(klass, size, CHECK_NULL);
+    new_obj_oop = Universe::heap()->obj_allocate(klass, size, CHECK_NULL);
   }
 
   HeapAccess<>::clone(obj(), new_obj_oop, size);
@@ -828,6 +870,10 @@ JVM_ENTRY(jclass, JVM_FindClassFromClass(JNIEnv *env, const char *name,
   Handle h_prot  (THREAD, protection_domain);
   jclass result = find_class_from_class_loader(env, h_name, init, h_loader,
                                                h_prot, true, thread);
+  if (result != NULL) {
+    oop mirror = JNIHandles::resolve_non_null(result);
+    Klass* to_class = java_lang_Class::as_Klass(mirror);
+  }
 
   if (log_is_enabled(Debug, class, resolve) && result != NULL) {
     // this function is generally only used for class loading during verification.
@@ -1012,21 +1058,14 @@ JVM_END
 
 // Reflection support //////////////////////////////////////////////////////////////////////////////
 
-JVM_ENTRY(jstring, JVM_GetClassName(JNIEnv *env, jclass cls))
+JVM_ENTRY(jstring, JVM_InitClassName(JNIEnv *env, jclass cls))
   assert (cls != NULL, "illegal class");
-  JVMWrapper("JVM_GetClassName");
+  JVMWrapper("JVM_InitClassName");
   JvmtiVMObjectAllocEventCollector oam;
   ResourceMark rm(THREAD);
-  const char* name;
-  if (java_lang_Class::is_primitive(JNIHandles::resolve(cls))) {
-    name = type2name(java_lang_Class::primitive_type(JNIHandles::resolve(cls)));
-  } else {
-    // Consider caching interned string in Klass
-    Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve(cls));
-    assert(k->is_klass(), "just checking");
-    name = k->external_name();
-  }
-  oop result = StringTable::intern((char*) name, CHECK_NULL);
+  HandleMark hm(THREAD);
+  Handle java_class(THREAD, JNIHandles::resolve(cls));
+  oop result = java_lang_Class::name(java_class, CHECK_NULL);
   return (jstring) JNIHandles::make_local(env, result);
 JVM_END
 
@@ -1096,7 +1135,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))
     return NULL;
   }
 
-  objArrayOop signers = java_lang_Class::signers(JNIHandles::resolve_non_null(cls));
+  objArrayHandle signers(THREAD, java_lang_Class::signers(JNIHandles::resolve_non_null(cls)));
 
   // If there are no signers set in the class, or if the class
   // is an array, return NULL.
@@ -1144,158 +1183,6 @@ JVM_ENTRY(jobject, JVM_GetProtectionDomain(JNIEnv *env, jclass cls))
 JVM_END
 
 
-static bool is_authorized(Handle context, InstanceKlass* klass, TRAPS) {
-  // If there is a security manager and protection domain, check the access
-  // in the protection domain, otherwise it is authorized.
-  if (java_lang_System::has_security_manager()) {
-
-    // For bootstrapping, if pd implies method isn't in the JDK, allow
-    // this context to revert to older behavior.
-    // In this case the isAuthorized field in AccessControlContext is also not
-    // present.
-    if (Universe::protection_domain_implies_method() == NULL) {
-      return true;
-    }
-
-    // Whitelist certain access control contexts
-    if (java_security_AccessControlContext::is_authorized(context)) {
-      return true;
-    }
-
-    oop prot = klass->protection_domain();
-    if (prot != NULL) {
-      // Call pd.implies(new SecurityPermission("createAccessControlContext"))
-      // in the new wrapper.
-      methodHandle m(THREAD, Universe::protection_domain_implies_method());
-      Handle h_prot(THREAD, prot);
-      JavaValue result(T_BOOLEAN);
-      JavaCallArguments args(h_prot);
-      JavaCalls::call(&result, m, &args, CHECK_false);
-      return (result.get_jboolean() != 0);
-    }
-  }
-  return true;
-}
-
-// Create an AccessControlContext with a protection domain with null codesource
-// and null permissions - which gives no permissions.
-oop create_dummy_access_control_context(TRAPS) {
-  InstanceKlass* pd_klass = SystemDictionary::ProtectionDomain_klass();
-  Handle obj = pd_klass->allocate_instance_handle(CHECK_NULL);
-  // Call constructor ProtectionDomain(null, null);
-  JavaValue result(T_VOID);
-  JavaCalls::call_special(&result, obj, pd_klass,
-                          vmSymbols::object_initializer_name(),
-                          vmSymbols::codesource_permissioncollection_signature(),
-                          Handle(), Handle(), CHECK_NULL);
-
-  // new ProtectionDomain[] {pd};
-  objArrayOop context = oopFactory::new_objArray(pd_klass, 1, CHECK_NULL);
-  context->obj_at_put(0, obj());
-
-  // new AccessControlContext(new ProtectionDomain[] {pd})
-  objArrayHandle h_context(THREAD, context);
-  oop acc = java_security_AccessControlContext::create(h_context, false, Handle(), CHECK_NULL);
-  return acc;
-}
-
-JVM_ENTRY(jobject, JVM_DoPrivileged(JNIEnv *env, jclass cls, jobject action, jobject context, jboolean wrapException))
-  JVMWrapper("JVM_DoPrivileged");
-
-  if (action == NULL) {
-    THROW_MSG_0(vmSymbols::java_lang_NullPointerException(), "Null action");
-  }
-
-  // Compute the frame initiating the do privileged operation and setup the privileged stack
-  vframeStream vfst(thread);
-  vfst.security_get_caller_frame(1);
-
-  if (vfst.at_end()) {
-    THROW_MSG_0(vmSymbols::java_lang_InternalError(), "no caller?");
-  }
-
-  Method* method        = vfst.method();
-  InstanceKlass* klass  = method->method_holder();
-
-  // Check that action object understands "Object run()"
-  Handle h_context;
-  if (context != NULL) {
-    h_context = Handle(THREAD, JNIHandles::resolve(context));
-    bool authorized = is_authorized(h_context, klass, CHECK_NULL);
-    if (!authorized) {
-      // Create an unprivileged access control object and call it's run function
-      // instead.
-      oop noprivs = create_dummy_access_control_context(CHECK_NULL);
-      h_context = Handle(THREAD, noprivs);
-    }
-  }
-
-  // Check that action object understands "Object run()"
-  Handle object (THREAD, JNIHandles::resolve(action));
-
-  // get run() method
-  Method* m_oop = object->klass()->uncached_lookup_method(
-                                           vmSymbols::run_method_name(),
-                                           vmSymbols::void_object_signature(),
-                                           Klass::find_overpass);
-
-  // See if there is a default method for "Object run()".
-  if (m_oop == NULL && object->klass()->is_instance_klass()) {
-    InstanceKlass* iklass = InstanceKlass::cast(object->klass());
-    m_oop = iklass->lookup_method_in_ordered_interfaces(
-                                           vmSymbols::run_method_name(),
-                                           vmSymbols::void_object_signature());
-  }
-
-  methodHandle m (THREAD, m_oop);
-  if (m.is_null() || !m->is_method() || !m()->is_public() || m()->is_static() || m()->is_abstract()) {
-    THROW_MSG_0(vmSymbols::java_lang_InternalError(), "No run method");
-  }
-
-  // Stack allocated list of privileged stack elements
-  PrivilegedElement pi;
-  if (!vfst.at_end()) {
-    pi.initialize(&vfst, h_context(), thread->privileged_stack_top(), CHECK_NULL);
-    thread->set_privileged_stack_top(&pi);
-  }
-
-
-  // invoke the Object run() in the action object. We cannot use call_interface here, since the static type
-  // is not really known - it is either java.security.PrivilegedAction or java.security.PrivilegedExceptionAction
-  Handle pending_exception;
-  JavaValue result(T_OBJECT);
-  JavaCallArguments args(object);
-  JavaCalls::call(&result, m, &args, THREAD);
-
-  // done with action, remove ourselves from the list
-  if (!vfst.at_end()) {
-    assert(thread->privileged_stack_top() != NULL && thread->privileged_stack_top() == &pi, "wrong top element");
-    thread->set_privileged_stack_top(thread->privileged_stack_top()->next());
-  }
-
-  if (HAS_PENDING_EXCEPTION) {
-    pending_exception = Handle(THREAD, PENDING_EXCEPTION);
-    CLEAR_PENDING_EXCEPTION;
-    // JVMTI has already reported the pending exception
-    // JVMTI internal flag reset is needed in order to report PrivilegedActionException
-    if (THREAD->is_Java_thread()) {
-      JvmtiExport::clear_detected_exception((JavaThread*) THREAD);
-    }
-    if ( pending_exception->is_a(SystemDictionary::Exception_klass()) &&
-        !pending_exception->is_a(SystemDictionary::RuntimeException_klass())) {
-      // Throw a java.security.PrivilegedActionException(Exception e) exception
-      JavaCallArguments args(pending_exception);
-      THROW_ARG_0(vmSymbols::java_security_PrivilegedActionException(),
-                  vmSymbols::exception_void_signature(),
-                  &args);
-    }
-  }
-
-  if (pending_exception.not_null()) THROW_OOP_0(pending_exception());
-  return JNIHandles::make_local(env, (oop) result.get_jobject());
-JVM_END
-
-
 // Returns the inherited_access_control_context field of the running thread.
 JVM_ENTRY(jobject, JVM_GetInheritedAccessControlContext(JNIEnv *env, jclass cls))
   JVMWrapper("JVM_GetInheritedAccessControlContext");
@@ -1330,30 +1217,41 @@ JVM_ENTRY(jobject, JVM_GetStackAccessControlContext(JNIEnv *env, jclass cls))
   // duplicate consecutive protection domains into a single one, as
   // well as stopping when we hit a privileged frame.
 
-  // Use vframeStream to iterate through Java frames
-  vframeStream vfst(thread);
-
   oop previous_protection_domain = NULL;
   Handle privileged_context(thread, NULL);
   bool is_privileged = false;
   oop protection_domain = NULL;
 
+  // Iterate through Java frames
+  vframeStream vfst(thread);
   for(; !vfst.at_end(); vfst.next()) {
     // get method of frame
     Method* method = vfst.method();
-    intptr_t* frame_id   = vfst.frame_id();
 
-    // check the privileged frames to see if we have a match
-    if (thread->privileged_stack_top() && thread->privileged_stack_top()->frame_id() == frame_id) {
+    // stop at the first privileged frame
+    if (method->method_holder() == SystemDictionary::AccessController_klass() &&
+      method->name() == vmSymbols::executePrivileged_name())
+    {
       // this frame is privileged
       is_privileged = true;
-      privileged_context = Handle(thread, thread->privileged_stack_top()->privileged_context());
-      protection_domain  = thread->privileged_stack_top()->protection_domain();
+
+      javaVFrame *priv = vfst.asJavaVFrame();       // executePrivileged
+
+      StackValueCollection* locals = priv->locals();
+      StackValue* ctx_sv = locals->at(1); // AccessControlContext context
+      StackValue* clr_sv = locals->at(2); // Class<?> caller
+      assert(!ctx_sv->obj_is_scalar_replaced(), "found scalar-replaced object");
+      assert(!clr_sv->obj_is_scalar_replaced(), "found scalar-replaced object");
+      privileged_context    = ctx_sv->get_obj();
+      Handle caller         = clr_sv->get_obj();
+
+      Klass *caller_klass = java_lang_Class::as_Klass(caller());
+      protection_domain  = caller_klass->protection_domain();
     } else {
       protection_domain = method->method_holder()->protection_domain();
     }
 
-    if ((previous_protection_domain != protection_domain) && (protection_domain != NULL)) {
+    if ((!oopDesc::equals(previous_protection_domain, protection_domain)) && (protection_domain != NULL)) {
       local_array->push(protection_domain);
       previous_protection_domain = protection_domain;
     }
@@ -1876,6 +1774,98 @@ JVM_ENTRY(jint, JVM_GetClassAccessFlags(JNIEnv *env, jclass cls))
 }
 JVM_END
 
+JVM_ENTRY(jboolean, JVM_AreNestMates(JNIEnv *env, jclass current, jclass member))
+{
+  JVMWrapper("JVM_AreNestMates");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  Klass* m = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(member));
+  assert(m->is_instance_klass(), "must be");
+  InstanceKlass* mk = InstanceKlass::cast(m);
+  return ck->has_nestmate_access_to(mk, THREAD);
+}
+JVM_END
+
+JVM_ENTRY(jclass, JVM_GetNestHost(JNIEnv* env, jclass current))
+{
+  // current is not a primitive or array class
+  JVMWrapper("JVM_GetNestHost");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  // Don't post exceptions if validation fails
+  InstanceKlass* host = ck->nest_host(NULL, THREAD);
+  return (jclass) (host == NULL ? NULL :
+                   JNIHandles::make_local(THREAD, host->java_mirror()));
+}
+JVM_END
+
+JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
+{
+  // current is not a primitive or array class
+  JVMWrapper("JVM_GetNestMembers");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  // Get the nest host for this nest - throw ICCE if validation fails
+  Symbol* icce = vmSymbols::java_lang_IncompatibleClassChangeError();
+  InstanceKlass* host = ck->nest_host(icce, CHECK_NULL);
+
+  {
+    JvmtiVMObjectAllocEventCollector oam;
+    Array<u2>* members = host->nest_members();
+    int length = members == NULL ? 0 : members->length();
+    // nest host is first in the array so make it one bigger
+    objArrayOop r = oopFactory::new_objArray(SystemDictionary::Class_klass(),
+                                             length + 1, CHECK_NULL);
+    objArrayHandle result (THREAD, r);
+    result->obj_at_put(0, host->java_mirror());
+    if (length != 0) {
+      int i;
+      for (i = 0; i < length; i++) {
+         int cp_index = members->at(i);
+         Klass* k = host->constants()->klass_at(cp_index, CHECK_NULL);
+         if (k->is_instance_klass()) {
+           InstanceKlass* nest_host_k =
+             InstanceKlass::cast(k)->nest_host(icce, CHECK_NULL);
+           if (nest_host_k == host) {
+             result->obj_at_put(i+1, k->java_mirror());
+           }
+           else {
+             // k's nest host is legal but it isn't our host so
+             // throw ICCE
+             ResourceMark rm(THREAD);
+             Exceptions::fthrow(THREAD_AND_LOCATION,
+                                icce,
+                                "Nest member %s in %s declares a different nest host of %s",
+                                k->external_name(),
+                                host->external_name(),
+                                nest_host_k->external_name()
+                           );
+             return NULL;
+           }
+         }
+         else {
+           // we have a bad nest member entry - throw ICCE
+           ResourceMark rm(THREAD);
+           Exceptions::fthrow(THREAD_AND_LOCATION,
+                              icce,
+                              "Class %s can not be a nest member of %s",
+                              k->external_name(),
+                              host->external_name()
+                              );
+           return NULL;
+         }
+      }
+    }
+    else {
+      assert(host == ck, "must be singleton nest");
+    }
+    return (jobjectArray)JNIHandles::make_local(THREAD, result());
+  }
+}
+JVM_END
 
 // Constant pool access //////////////////////////////////////////////////////////
 
@@ -2660,23 +2650,19 @@ extern "C" {
 
 ATTRIBUTE_PRINTF(3, 0)
 int jio_vsnprintf(char *str, size_t count, const char *fmt, va_list args) {
-  // see bug 4399518, 4417214
+  // Reject count values that are negative signed values converted to
+  // unsigned; see bug 4399518, 4417214
   if ((intptr_t)count <= 0) return -1;
 
-  int result = vsnprintf(str, count, fmt, args);
-  // Note: on truncation vsnprintf(3) on Unix returns numbers of
-  // characters which would have been written had the buffer been large
-  // enough; on Windows, it returns -1. We handle both cases here and
-  // always return -1, and perform null termination.
-  if ((result > 0 && (size_t)result >= count) || result == -1) {
-    str[count - 1] = '\0';
+  int result = os::vsnprintf(str, count, fmt, args);
+  if (result > 0 && (size_t)result >= count) {
     result = -1;
   }
 
   return result;
 }
 
-ATTRIBUTE_PRINTF(3, 0)
+ATTRIBUTE_PRINTF(3, 4)
 int jio_snprintf(char *str, size_t count, const char *fmt, ...) {
   va_list args;
   int len;
@@ -2686,7 +2672,7 @@ int jio_snprintf(char *str, size_t count, const char *fmt, ...) {
   return len;
 }
 
-ATTRIBUTE_PRINTF(2,3)
+ATTRIBUTE_PRINTF(2, 3)
 int jio_fprintf(FILE* f, const char *fmt, ...) {
   int len;
   va_list args;
@@ -2715,15 +2701,14 @@ JNIEXPORT int jio_printf(const char *fmt, ...) {
   return len;
 }
 
-
 // HotSpot specific jio method
-void jio_print(const char* s) {
+void jio_print(const char* s, size_t len) {
   // Try to make this function as atomic as possible.
   if (Arguments::vfprintf_hook() != NULL) {
-    jio_fprintf(defaultStream::output_stream(), "%s", s);
+    jio_fprintf(defaultStream::output_stream(), "%.*s", (int)len, s);
   } else {
     // Make an unused local variable to avoid warning from gcc 4.x compiler.
-    size_t count = ::write(defaultStream::output_fd(), s, (int)strlen(s));
+    size_t count = ::write(defaultStream::output_fd(), s, (int)len);
   }
 }
 
@@ -2969,6 +2954,12 @@ JVM_ENTRY(void, JVM_Yield(JNIEnv *env, jclass threadClass))
   os::naked_yield();
 JVM_END
 
+static void post_thread_sleep_event(EventThreadSleep* event, jlong millis) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  event->set_time(millis);
+  event->commit();
+}
 
 JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
   JVMWrapper("JVM_Sleep");
@@ -2986,7 +2977,6 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
   JavaThreadSleepState jtss(thread);
 
   HOTSPOT_THREAD_SLEEP_BEGIN(millis);
-
   EventThreadSleep event;
 
   if (millis == 0) {
@@ -2999,8 +2989,7 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
       // us while we were sleeping. We do not overwrite those.
       if (!HAS_PENDING_EXCEPTION) {
         if (event.should_commit()) {
-          event.set_time(millis);
-          event.commit();
+          post_thread_sleep_event(&event, millis);
         }
         HOTSPOT_THREAD_SLEEP_END(1);
 
@@ -3012,8 +3001,7 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
     thread->osthread()->set_state(old_state);
   }
   if (event.should_commit()) {
-    event.set_time(millis);
-    event.commit();
+    post_thread_sleep_event(&event, millis);
   }
   HOTSPOT_THREAD_SLEEP_END(0);
 JVM_END
@@ -3490,6 +3478,13 @@ JVM_LEAF(jboolean, JVM_SupportsCX8())
   return VM_Version::supports_cx8();
 JVM_END
 
+JVM_ENTRY(void, JVM_InitializeFromArchive(JNIEnv* env, jclass cls))
+  JVMWrapper("JVM_InitializeFromArchive");
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve(cls));
+  assert(k->is_klass(), "just checking");
+  HeapShared::initialize_from_archived_subgraph(k);
+JVM_END
+
 // Returns an array of all live Thread objects (VM internal JavaThreads,
 // jvmti agent threads, and JNI attaching threads  are skipped)
 // See CR 6404306 regarding JNI attaching threads
@@ -3620,8 +3615,8 @@ JVM_ENTRY(void, JVM_GetVersionInfo(JNIEnv* env, jvm_version_info* info, size_t i
 {
   memset(info, 0, info_size);
 
-  info->jvm_version = Abstract_VM_Version::jvm_version();
-  info->patch_version = Abstract_VM_Version::vm_patch_version();
+  info->jvm_version = VM_Version::jvm_version();
+  info->patch_version = VM_Version::vm_patch_version();
 
   // when we add a new capability in the jvm_version_info struct, we should also
   // consider to expose this new capability in the sun.rt.jvmCapabilities jvmstat

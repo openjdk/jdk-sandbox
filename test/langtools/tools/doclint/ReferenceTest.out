@@ -32,11 +32,23 @@ ReferenceTest.java:61: error: type arguments not allowed here
      * {@link java.util.List<String>#equals}
               ^
 ReferenceTest.java:62: error: type arguments not allowed here
+     * {@link not.Found<String>}
+              ^
+ReferenceTest.java:63: error: type arguments not allowed here
      * @see java.util.List<String>
             ^
-ReferenceTest.java:63: error: type arguments not allowed here
+ReferenceTest.java:64: error: type arguments not allowed here
      * @see java.util.List<String>#equals
             ^
-12 errors
+ReferenceTest.java:65: error: type arguments not allowed here
+     * @see not.Found<String>
+            ^
+ReferenceTest.java:72: error: reference not found
+     * {@link not.Found[]}
+              ^
+ReferenceTest.java:75: error: reference not found
+     * @see not.Found[]
+            ^
+16 errors
 1 warning
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_C1_MACROASSEMBLER_AARCH64_HPP
-#define CPU_AARCH64_VM_C1_MACROASSEMBLER_AARCH64_HPP
+#ifndef CPU_AARCH64_C1_MACROASSEMBLER_AARCH64_HPP
+#define CPU_AARCH64_C1_MACROASSEMBLER_AARCH64_HPP
 
 using MacroAssembler::build_frame;
 using MacroAssembler::null_check;
@@ -109,4 +109,6 @@ using MacroAssembler::null_check;
   // This platform only uses signal-based null checks. The Label is not needed.
   void null_check(Register r, Label *Lnull = NULL) { MacroAssembler::null_check(r); }
 
-#endif // CPU_AARCH64_VM_C1_MACROASSEMBLER_AARCH64_HPP
+  void load_parameter(int offset_in_words, Register reg);
+
+#endif // CPU_AARCH64_C1_MACROASSEMBLER_AARCH64_HPP

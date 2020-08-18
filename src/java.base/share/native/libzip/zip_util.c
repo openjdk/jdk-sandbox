@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -100,6 +100,9 @@ DEF_STATIC_JNI_OnLoad
 static ZFILE
 ZFILE_Open(const char *fname, int flags) {
 #ifdef WIN32
+    WCHAR *wfname, *wprefixed_fname;
+    size_t converted_chars, fname_length;
+    jlong fhandle;
     const DWORD access =
         (flags & O_RDWR)   ? (GENERIC_WRITE | GENERIC_READ) :
         (flags & O_WRONLY) ?  GENERIC_WRITE :
@@ -121,14 +124,37 @@ ZFILE_Open(const char *fname, int flags) {
         FILE_ATTRIBUTE_NORMAL;
     const DWORD flagsAndAttributes = maybeWriteThrough | maybeDeleteOnClose;
 
-    return (jlong) CreateFile(
-        fname,          /* Wide char path name */
-        access,         /* Read and/or write permission */
-        sharing,        /* File sharing flags */
-        NULL,           /* Security attributes */
-        disposition,        /* creation disposition */
-        flagsAndAttributes, /* flags and attributes */
-        NULL);
+    fname_length = strlen(fname);
+    if (fname_length < MAX_PATH) {
+        return (jlong)CreateFile(
+            fname,              /* path name in multibyte char */
+            access,             /* Read and/or write permission */
+            sharing,            /* File sharing flags */
+            NULL,               /* Security attributes */
+            disposition,        /* creation disposition */
+            flagsAndAttributes, /* flags and attributes */
+            NULL);
+    } else {
+        if ((wfname = (WCHAR*)malloc((fname_length + 1) * sizeof(WCHAR))) == NULL)
+            return (jlong)INVALID_HANDLE_VALUE;
+
+        if (mbstowcs_s(&converted_chars, wfname, fname_length + 1, fname, fname_length) != 0) {
+            free(wfname);
+            return (jlong)INVALID_HANDLE_VALUE;
+        }
+        wprefixed_fname = getPrefixed(wfname, (int)fname_length);
+        fhandle = (jlong)CreateFileW(
+            wprefixed_fname,    /* Wide char path name */
+            access,             /* Read and/or write permission */
+            sharing,            /* File sharing flags */
+            NULL,               /* Security attributes */
+            disposition,        /* creation disposition */
+            flagsAndAttributes, /* flags and attributes */
+            NULL);
+        free(wfname);
+        free(wprefixed_fname);
+        return fhandle;
+    }
 #else
     return open(fname, flags, 0);
 #endif
@@ -739,13 +765,13 @@ ZIP_Open_Generic(const char *name, char **pmsg, int mode, jlong lastModified)
     jzfile *zip = NULL;
 
     /* Clear zip error message */
-    if (pmsg != 0) {
+    if (pmsg != NULL) {
         *pmsg = NULL;
     }
 
     zip = ZIP_Get_From_Cache(name, pmsg, lastModified);
 
-    if (zip == NULL && *pmsg == NULL) {
+    if (zip == NULL && pmsg != NULL && *pmsg == NULL) {
         ZFILE zfd = ZFILE_Open(name, mode);
         zip = ZIP_Put_In_Cache(name, zfd, pmsg, lastModified);
     }
@@ -881,7 +907,7 @@ ZIP_Put_In_Cache0(const char *name, ZFILE zfd, char **pmsg, jlong lastModified,
  * set to the error message text if msg != 0. Otherwise, *msg will be
  * set to NULL. Caller doesn't need to free the error message.
  */
-jzfile * JNICALL
+JNIEXPORT jzfile *
 ZIP_Open(const char *name, char **pmsg)
 {
     jzfile *file = ZIP_Open_Generic(name, pmsg, O_RDONLY, 0);
@@ -895,7 +921,7 @@ ZIP_Open(const char *name, char **pmsg)
 /*
  * Closes the specified zip file object.
  */
-void JNICALL
+JNIEXPORT void
 ZIP_Close(jzfile *zip)
 {
     MLOCK(zfiles_lock);
@@ -1094,7 +1120,7 @@ newEntry(jzfile *zip, jzcell *zc, AccessHint accessHint)
  * jzentry for each zip.  This optimizes a common access pattern.
  */
 
-void JNICALL
+void
 ZIP_FreeEntry(jzfile *jz, jzentry *ze)
 {
     jzentry *last;
@@ -1238,7 +1264,7 @@ Finally:
  * Returns the n'th (starting at zero) zip file entry, or NULL if the
  * specified index was out of range.
  */
-jzentry * JNICALL
+JNIEXPORT jzentry *
 ZIP_GetNextEntry(jzfile *zip, jint n)
 {
     jzentry *result;
@@ -1439,7 +1465,7 @@ InflateFully(jzfile *zip, jzentry *entry, void *buf, char **msg)
  * The current implementation does not support reading an entry that
  * has the size bigger than 2**32 bytes in ONE invocation.
  */
-jzentry * JNICALL
+JNIEXPORT jzentry *
 ZIP_FindEntry(jzfile *zip, char *name, jint *sizeP, jint *nameLenP)
 {
     jzentry *entry = ZIP_GetEntry(zip, name, 0);
@@ -1456,7 +1482,7 @@ ZIP_FindEntry(jzfile *zip, char *name, jint *sizeP, jint *nameLenP)
  * Note: this is called from the separately delivered VM (hotspot/classic)
  * so we have to be careful to maintain the expected behaviour.
  */
-jboolean JNICALL
+JNIEXPORT jboolean
 ZIP_ReadEntry(jzfile *zip, jzentry *entry, unsigned char *buf, char *entryname)
 {
     char *msg;
@@ -1515,7 +1541,7 @@ ZIP_ReadEntry(jzfile *zip, jzentry *entry, unsigned char *buf, char *entryname)
     return JNI_TRUE;
 }
 
-jboolean JNICALL
+JNIEXPORT jboolean
 ZIP_InflateFully(void *inBuf, jlong inLen, void *outBuf, jlong outLen, char **pmsg)
 {
     z_stream strm;

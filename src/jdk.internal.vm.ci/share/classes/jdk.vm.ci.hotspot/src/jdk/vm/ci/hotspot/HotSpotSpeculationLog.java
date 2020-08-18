@@ -22,35 +22,63 @@
  */
 package jdk.vm.ci.hotspot;
 
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import jdk.vm.ci.meta.JavaConstant;
 import jdk.vm.ci.meta.SpeculationLog;
 
 public class HotSpotSpeculationLog implements SpeculationLog {
+    public static final class HotSpotSpeculation extends Speculation {
+        private JavaConstant encoding;
+
+        HotSpotSpeculation(SpeculationReason reason, JavaConstant encoding) {
+            super(reason);
+            this.encoding = encoding;
+        }
+
+        public JavaConstant getEncoding() {
+            return encoding;
+        }
+    }
 
     /** Written by the C++ code that performs deoptimization. */
-    private volatile Object lastFailed;
+    private volatile long lastFailed;
 
     /** All speculations that have caused a deoptimization. */
     private Set<SpeculationReason> failedSpeculations;
 
     /** Strong references to all reasons embedded in the current nmethod. */
-    private Collection<SpeculationReason> speculations;
+    private HashMap<SpeculationReason, JavaConstant> speculations;
+
+    private long currentSpeculationID;
 
     @Override
     public synchronized void collectFailedSpeculations() {
-        if (lastFailed != null) {
+        if (lastFailed != 0) {
             if (failedSpeculations == null) {
                 failedSpeculations = new HashSet<>(2);
             }
-            failedSpeculations.add((SpeculationReason) lastFailed);
-            lastFailed = null;
-            speculations = null;
+            if (speculations != null) {
+                SpeculationReason lastFailedSpeculation = lookupSpeculation(this.lastFailed);
+                if (lastFailedSpeculation != null) {
+                    failedSpeculations.add(lastFailedSpeculation);
+                }
+                lastFailed = 0;
+                speculations = null;
+            }
         }
+    }
+
+    private SpeculationReason lookupSpeculation(long value) {
+        for (Map.Entry<SpeculationReason, JavaConstant> entry : speculations.entrySet()) {
+            if (value == entry.getValue().asLong()) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
     @Override
@@ -62,26 +90,30 @@ public class HotSpotSpeculationLog implements SpeculationLog {
     }
 
     @Override
-    public JavaConstant speculate(SpeculationReason reason) {
-        assert maySpeculate(reason);
-
-        /*
-         * Objects referenced from nmethods are weak references. We need a strong reference to the
-         * reason objects that are embedded in nmethods, so we add them to the speculations
-         * collection.
-         */
-        synchronized (this) {
-            if (speculations == null) {
-                speculations = new ConcurrentLinkedQueue<>();
-            }
-            speculations.add(reason);
+    public synchronized Speculation speculate(SpeculationReason reason) {
+        if (speculations == null) {
+            speculations = new HashMap<>();
         }
-
-        return HotSpotObjectConstantImpl.forObject(reason);
+        JavaConstant id = speculations.get(reason);
+        if (id == null) {
+            id = JavaConstant.forLong(++currentSpeculationID);
+            speculations.put(reason, id);
+        }
+        return new HotSpotSpeculation(reason, id);
     }
 
     @Override
     public synchronized boolean hasSpeculations() {
         return speculations != null && !speculations.isEmpty();
+    }
+
+    @Override
+    public synchronized Speculation lookupSpeculation(JavaConstant constant) {
+        if (constant.isDefaultForKind()) {
+            return NO_SPECULATION;
+        }
+        SpeculationReason reason = lookupSpeculation(constant.asLong());
+        assert reason != null : "Speculation should have been registered";
+        return new HotSpotSpeculation(reason, constant);
     }
 }

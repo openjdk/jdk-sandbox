@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir.constopt;
 
 import java.util.ArrayDeque;
@@ -127,7 +129,7 @@ public final class ConstantTreeAnalyzer {
 
         // choose block
         List<UseEntry> usagesBlock = tree.getUsages(block);
-        double probabilityBlock = block.probability();
+        double probabilityBlock = block.getRelativeFrequency();
 
         if (!usagesBlock.isEmpty() || shouldMaterializerInCurrentBlock(probabilityBlock, bestCost, numMat)) {
             // mark current block as potential materialization position

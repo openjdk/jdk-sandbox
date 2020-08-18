@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -63,24 +63,36 @@ AC_DEFUN([BOOTJDK_DO_CHECK],
     # If previous step claimed to have found a JDK, check it to see if it seems to be valid.
     if test "x$BOOT_JDK_FOUND" = xmaybe; then
       # Do we have a bin/java?
-      if test ! -x "$BOOT_JDK/bin/java"; then
+      if test ! -x "$BOOT_JDK/bin/java$EXE_SUFFIX"; then
         AC_MSG_NOTICE([Potential Boot JDK found at $BOOT_JDK did not contain bin/java; ignoring])
         BOOT_JDK_FOUND=no
       else
         # Do we have a bin/javac?
-        if test ! -x "$BOOT_JDK/bin/javac"; then
+        if test ! -x "$BOOT_JDK/bin/javac$EXE_SUFFIX"; then
           AC_MSG_NOTICE([Potential Boot JDK found at $BOOT_JDK did not contain bin/javac; ignoring])
           AC_MSG_NOTICE([(This might be an JRE instead of an JDK)])
           BOOT_JDK_FOUND=no
         else
           # Oh, this is looking good! We probably have found a proper JDK. Is it the correct version?
-          BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
+          BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java$EXE_SUFFIX" $USER_BOOT_JDK_OPTIONS -version 2>&1 | $HEAD -n 1`
+          if [ [[ "$BOOT_JDK_VERSION" =~ "Picked up" ]] ]; then
+            AC_MSG_NOTICE([You have _JAVA_OPTIONS or JAVA_TOOL_OPTIONS set. This can mess up the build. Please use --with-boot-jdk-jvmargs instead.])
+            AC_MSG_NOTICE([Java reports: "$BOOT_JDK_VERSION".])
+            AC_MSG_ERROR([Cannot continue])
+          fi
+          if [ [[ "$BOOT_JDK_VERSION" =~ "Unrecognized option" ]] ]; then
+            AC_MSG_NOTICE([The specified --with-boot-jdk-jvmargs is invalid for the tested java])
+            AC_MSG_NOTICE([Error message: "$BOOT_JDK_VERSION".])
+            AC_MSG_NOTICE([Please fix arguments, or point to an explicit boot JDK which accept these arguments])
+            AC_MSG_ERROR([Cannot continue])
+          fi
 
           # Extra M4 quote needed to protect [] in grep expression.
-          [FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"'`]
+          [FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION \
+              | $EGREP "\"(${DEFAULT_ACCEPTABLE_BOOT_VERSIONS// /|})([\.+-].*)?\""`]
           if test "x$FOUND_CORRECT_VERSION" = x; then
             AC_MSG_NOTICE([Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring])
-            AC_MSG_NOTICE([(Your Boot JDK must be version 9 or 10)])
+            AC_MSG_NOTICE([(Your Boot JDK version must be one of: $DEFAULT_ACCEPTABLE_BOOT_VERSIONS)])
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -89,7 +101,7 @@ AC_DEFUN([BOOTJDK_DO_CHECK],
             AC_MSG_CHECKING([for Boot JDK])
             AC_MSG_RESULT([$BOOT_JDK])
             AC_MSG_CHECKING([Boot JDK version])
-            BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $TR '\n\r' '  '`
+            BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java$EXE_SUFFIX" $USER_BOOT_JDK_OPTIONS -version 2>&1 | $TR '\n\r' '  '`
             AC_MSG_RESULT([$BOOT_JDK_VERSION])
           fi # end check jdk version
         fi # end check javac
@@ -282,6 +294,11 @@ AC_DEFUN_ONCE([BOOTJDK_SETUP_BOOT_JDK],
   AC_ARG_WITH(boot-jdk, [AS_HELP_STRING([--with-boot-jdk],
       [path to Boot JDK (used to bootstrap build) @<:@probed@:>@])])
 
+  AC_ARG_WITH(boot-jdk-jvmargs, [AS_HELP_STRING([--with-boot-jdk-jvmargs],
+  [specify additional arguments to be passed to Boot JDK tools @<:@none@:>@])])
+
+  USER_BOOT_JDK_OPTIONS="$with_boot_jdk_jvmargs"
+
   # We look for the Boot JDK through various means, going from more certain to
   # more of a guess-work. After each test, BOOT_JDK_FOUND is set to "yes" if
   # we detected something (if so, the path to the jdk is in BOOT_JDK). But we
@@ -318,11 +335,11 @@ AC_DEFUN_ONCE([BOOTJDK_SETUP_BOOT_JDK],
   AC_SUBST(BOOT_JDK)
 
   # Setup tools from the Boot JDK.
-  BOOTJDK_CHECK_TOOL_IN_BOOTJDK(JAVA, java)
-  BOOTJDK_CHECK_TOOL_IN_BOOTJDK(JAVAC, javac)
-  BOOTJDK_CHECK_TOOL_IN_BOOTJDK(JAVADOC, javadoc)
-  BOOTJDK_CHECK_TOOL_IN_BOOTJDK(JAR, jar)
-  BOOTJDK_CHECK_TOOL_IN_BOOTJDK(JARSIGNER, jarsigner)
+  BOOTJDK_CHECK_TOOL_IN_BOOTJDK(JAVA, java$EXE_SUFFIX)
+  BOOTJDK_CHECK_TOOL_IN_BOOTJDK(JAVAC, javac$EXE_SUFFIX)
+  BOOTJDK_CHECK_TOOL_IN_BOOTJDK(JAVADOC, javadoc$EXE_SUFFIX)
+  BOOTJDK_CHECK_TOOL_IN_BOOTJDK(JAR, jar$EXE_SUFFIX)
+  BOOTJDK_CHECK_TOOL_IN_BOOTJDK(JARSIGNER, jarsigner$EXE_SUFFIX)
 
   # Finally, set some other options...
 
@@ -371,10 +388,6 @@ AC_DEFUN_ONCE([BOOTJDK_SETUP_BOOT_JDK_ARGUMENTS],
   # Specify jvm options for anything that is run with the Boot JDK.
   # Not all JVM:s accept the same arguments on the command line.
   #
-  AC_ARG_WITH(boot-jdk-jvmargs, [AS_HELP_STRING([--with-boot-jdk-jvmargs],
-  [specify JVM arguments to be passed to all java invocations of boot JDK, overriding the default values,
-  e.g --with-boot-jdk-jvmargs="-Xmx8G -enableassertions"])])
-
   AC_MSG_CHECKING([flags for boot jdk java command] )
 
   # Force en-US environment
@@ -388,8 +401,8 @@ AC_DEFUN_ONCE([BOOTJDK_SETUP_BOOT_JDK_ARGUMENTS],
     ADD_JVM_ARG_IF_OK([-Xshare:auto],boot_jdk_jvmargs,[$JAVA])
   fi
 
-  # Apply user provided options.
-  ADD_JVM_ARG_IF_OK([$with_boot_jdk_jvmargs],boot_jdk_jvmargs,[$JAVA])
+  # Finally append user provided options to allow them to override.
+  ADD_JVM_ARG_IF_OK([$USER_BOOT_JDK_OPTIONS],boot_jdk_jvmargs,[$JAVA])
 
   AC_MSG_RESULT([$boot_jdk_jvmargs])
 
@@ -404,7 +417,7 @@ AC_DEFUN_ONCE([BOOTJDK_SETUP_BOOT_JDK_ARGUMENTS],
   BOOTCYCLE_JVM_ARGS_BIG=-Xms64M
 
   # Maximum amount of heap memory and stack size.
-  JVM_HEAP_LIMIT_32="1024"
+  JVM_HEAP_LIMIT_32="768"
   # Running a 64 bit JVM allows for and requires a bigger heap
   JVM_HEAP_LIMIT_64="1600"
   STACK_SIZE_32=768
@@ -510,10 +523,10 @@ AC_DEFUN([BOOTJDK_CHECK_BUILD_JDK],
         BUILD_JDK_VERSION=`"$BUILD_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
         # Extra M4 quote needed to protect [] in grep expression.
-        [FOUND_CORRECT_VERSION=`echo $BUILD_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"'`]
+        [FOUND_CORRECT_VERSION=`echo $BUILD_JDK_VERSION | $EGREP "\"$VERSION_FEATURE([\.+-].*)?\""`]
         if test "x$FOUND_CORRECT_VERSION" = x; then
           AC_MSG_NOTICE([Potential Build JDK found at $BUILD_JDK is incorrect JDK version ($BUILD_JDK_VERSION); ignoring])
-          AC_MSG_NOTICE([(Your Build JDK must be version 10)])
+          AC_MSG_NOTICE([(Your Build JDK must be version $VERSION_FEATURE)])
           BUILD_JDK_FOUND=no
         else
           # We're done!

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_LINUX_VM_OS_LINUX_HPP
-#define OS_LINUX_VM_OS_LINUX_HPP
+#ifndef OS_LINUX_OS_LINUX_HPP
+#define OS_LINUX_OS_LINUX_HPP
 
 // Linux_OS defines the interface to Linux operating systems
 
@@ -43,7 +43,6 @@ class Linux {
 
   static void check_signal_handler(int sig);
 
-  static int (*_clock_gettime)(clockid_t, struct timespec *);
   static int (*_pthread_getcpuclockid)(pthread_t, clockid_t *);
   static int (*_pthread_setname_np)(pthread_t, const char*);
 
@@ -113,6 +112,8 @@ class Linux {
   static void print_container_info(outputStream* st);
   static void print_distro_info(outputStream* st);
   static void print_libversion_info(outputStream* st);
+  static void print_proc_sys_info(outputStream* st);
+  static void print_ld_preload_file(outputStream* st);
 
  public:
   static bool _stack_is_executable;
@@ -160,7 +161,6 @@ class Linux {
   static void signal_sets_init();
   static void install_signal_handlers();
   static void set_signal_handler(int, bool);
-  static bool is_sig_ignored(int sig);
 
   static sigset_t* unblocked_signals();
   static sigset_t* vm_signals();
@@ -189,15 +189,8 @@ class Linux {
   static bool manually_expand_stack(JavaThread * t, address addr);
   static int max_register_window_saves_before_flushing();
 
-  // Real-time clock functions
-  static void clock_init(void);
-
   // fast POSIX clocks support
   static void fast_thread_clock_init(void);
-
-  static int clock_gettime(clockid_t clock_id, struct timespec *tp) {
-    return _clock_gettime ? _clock_gettime(clock_id, tp) : -1;
-  }
 
   static int pthread_getcpuclockid(pthread_t tid, clockid_t *clock_id) {
     return _pthread_getcpuclockid ? _pthread_getcpuclockid(tid, clock_id) : -1;
@@ -218,6 +211,8 @@ class Linux {
   // none present
 
  private:
+  static void expand_stack_to(address bottom);
+
   typedef int (*sched_getcpu_func_t)(void);
   typedef int (*numa_node_to_cpus_func_t)(int node, unsigned long *buffer, int bufferlen);
   typedef int (*numa_max_node_func_t)(void);
@@ -226,6 +221,7 @@ class Linux {
   typedef int (*numa_tonode_memory_func_t)(void *start, size_t size, int node);
   typedef void (*numa_interleave_memory_func_t)(void *start, size_t size, unsigned long *nodemask);
   typedef void (*numa_interleave_memory_v2_func_t)(void *start, size_t size, struct bitmask* mask);
+  typedef struct bitmask* (*numa_get_membind_func_t)(void);
 
   typedef void (*numa_set_bind_policy_func_t)(int policy);
   typedef int (*numa_bitmask_isbitset_func_t)(struct bitmask *bmp, unsigned int n);
@@ -242,6 +238,7 @@ class Linux {
   static numa_set_bind_policy_func_t _numa_set_bind_policy;
   static numa_bitmask_isbitset_func_t _numa_bitmask_isbitset;
   static numa_distance_func_t _numa_distance;
+  static numa_get_membind_func_t _numa_get_membind;
   static unsigned long* _numa_all_nodes;
   static struct bitmask* _numa_all_nodes_ptr;
   static struct bitmask* _numa_nodes_ptr;
@@ -257,9 +254,10 @@ class Linux {
   static void set_numa_set_bind_policy(numa_set_bind_policy_func_t func) { _numa_set_bind_policy = func; }
   static void set_numa_bitmask_isbitset(numa_bitmask_isbitset_func_t func) { _numa_bitmask_isbitset = func; }
   static void set_numa_distance(numa_distance_func_t func) { _numa_distance = func; }
+  static void set_numa_get_membind(numa_get_membind_func_t func) { _numa_get_membind = func; }
   static void set_numa_all_nodes(unsigned long* ptr) { _numa_all_nodes = ptr; }
-  static void set_numa_all_nodes_ptr(struct bitmask **ptr) { _numa_all_nodes_ptr = *ptr; }
-  static void set_numa_nodes_ptr(struct bitmask **ptr) { _numa_nodes_ptr = *ptr; }
+  static void set_numa_all_nodes_ptr(struct bitmask **ptr) { _numa_all_nodes_ptr = (ptr == NULL ? NULL : *ptr); }
+  static void set_numa_nodes_ptr(struct bitmask **ptr) { _numa_nodes_ptr = (ptr == NULL ? NULL : *ptr); }
   static int sched_getcpu_syscall(void);
  public:
   static int sched_getcpu()  { return _sched_getcpu != NULL ? _sched_getcpu() : -1; }
@@ -297,15 +295,62 @@ class Linux {
     if (_numa_bitmask_isbitset != NULL && _numa_all_nodes_ptr != NULL) {
       return _numa_bitmask_isbitset(_numa_all_nodes_ptr, n);
     } else
-      return 0;
+      return false;
   }
   // Check if numa node exists in the system (including zero memory nodes).
   static bool isnode_in_existing_nodes(unsigned int n) {
     if (_numa_bitmask_isbitset != NULL && _numa_nodes_ptr != NULL) {
       return _numa_bitmask_isbitset(_numa_nodes_ptr, n);
+    } else if (_numa_bitmask_isbitset != NULL && _numa_all_nodes_ptr != NULL) {
+      // Not all libnuma API v2 implement numa_nodes_ptr, so it's not possible
+      // to trust the API version for checking its absence. On the other hand,
+      // numa_nodes_ptr found in libnuma 2.0.9 and above is the only way to get
+      // a complete view of all numa nodes in the system, hence numa_nodes_ptr
+      // is used to handle CPU and nodes on architectures (like PowerPC) where
+      // there can exist nodes with CPUs but no memory or vice-versa and the
+      // nodes may be non-contiguous. For most of the architectures, like
+      // x86_64, numa_node_ptr presents the same node set as found in
+      // numa_all_nodes_ptr so it's possible to use numa_all_nodes_ptr as a
+      // substitute.
+      return _numa_bitmask_isbitset(_numa_all_nodes_ptr, n);
     } else
-      return 0;
+      return false;
+  }
+  // Check if node is in bound node set.
+  static bool isnode_in_bound_nodes(int node) {
+    if (_numa_get_membind != NULL && _numa_bitmask_isbitset != NULL) {
+      return _numa_bitmask_isbitset(_numa_get_membind(), node);
+    } else {
+      return false;
+    }
+  }
+  // Check if bound to only one numa node.
+  // Returns true if bound to a single numa node, otherwise returns false.
+  static bool isbound_to_single_node() {
+    int nodes = 0;
+    struct bitmask* bmp = NULL;
+    unsigned int node = 0;
+    unsigned int highest_node_number = 0;
+
+    if (_numa_get_membind != NULL && _numa_max_node != NULL && _numa_bitmask_isbitset != NULL) {
+      bmp = _numa_get_membind();
+      highest_node_number = _numa_max_node();
+    } else {
+      return false;
+    }
+
+    for (node = 0; node <= highest_node_number; node++) {
+      if (_numa_bitmask_isbitset(bmp, node)) {
+        nodes++;
+      }
+    }
+
+    if (nodes == 1) {
+      return true;
+    } else {
+      return false;
+    }
   }
 };
 
-#endif // OS_LINUX_VM_OS_LINUX_HPP
+#endif // OS_LINUX_OS_LINUX_HPP

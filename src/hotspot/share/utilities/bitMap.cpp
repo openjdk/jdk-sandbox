@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,7 +72,7 @@ class ArenaBitMapAllocator : StackObj {
 };
 
 template <class Allocator>
-BitMap::bm_word_t* BitMap::reallocate(const Allocator& allocator, bm_word_t* old_map, idx_t old_size_in_bits, idx_t new_size_in_bits) {
+BitMap::bm_word_t* BitMap::reallocate(const Allocator& allocator, bm_word_t* old_map, idx_t old_size_in_bits, idx_t new_size_in_bits, bool clear) {
   size_t old_size_in_words = calc_size_in_words(old_size_in_bits);
   size_t new_size_in_words = calc_size_in_words(new_size_in_bits);
 
@@ -86,7 +86,7 @@ BitMap::bm_word_t* BitMap::reallocate(const Allocator& allocator, bm_word_t* old
                            MIN2(old_size_in_words, new_size_in_words));
     }
 
-    if (new_size_in_words > old_size_in_words) {
+    if (clear && new_size_in_words > old_size_in_words) {
       clear_range_of_words(map, old_size_in_words, new_size_in_words);
     }
   }
@@ -99,9 +99,9 @@ BitMap::bm_word_t* BitMap::reallocate(const Allocator& allocator, bm_word_t* old
 }
 
 template <class Allocator>
-bm_word_t* BitMap::allocate(const Allocator& allocator, idx_t size_in_bits) {
+bm_word_t* BitMap::allocate(const Allocator& allocator, idx_t size_in_bits, bool clear) {
   // Reuse reallocate to ensure that the new memory is cleared.
-  return reallocate(allocator, NULL, 0, size_in_bits);
+  return reallocate(allocator, NULL, 0, size_in_bits, clear);
 }
 
 template <class Allocator>
@@ -153,8 +153,8 @@ ArenaBitMap::ArenaBitMap(Arena* arena, idx_t size_in_bits)
     : BitMap(allocate(ArenaBitMapAllocator(arena), size_in_bits), size_in_bits) {
 }
 
-CHeapBitMap::CHeapBitMap(idx_t size_in_bits, MEMFLAGS flags)
-    : BitMap(allocate(CHeapBitMapAllocator(flags), size_in_bits), size_in_bits), _flags(flags) {
+CHeapBitMap::CHeapBitMap(idx_t size_in_bits, MEMFLAGS flags, bool clear)
+    : BitMap(allocate(CHeapBitMapAllocator(flags), size_in_bits, clear), size_in_bits), _flags(flags) {
 }
 
 CHeapBitMap::~CHeapBitMap() {
@@ -263,14 +263,24 @@ void BitMap::clear_range(idx_t beg, idx_t end) {
   }
 }
 
+bool BitMap::is_small_range_of_words(idx_t beg_full_word, idx_t end_full_word) {
+  // There is little point to call large version on small ranges.
+  // Need to check carefully, keeping potential idx_t underflow in mind.
+  // The threshold should be at least one word.
+  STATIC_ASSERT(small_range_words >= 1);
+  return (beg_full_word + small_range_words >= end_full_word);
+}
+
 void BitMap::set_large_range(idx_t beg, idx_t end) {
   verify_range(beg, end);
 
   idx_t beg_full_word = word_index_round_up(beg);
   idx_t end_full_word = word_index(end);
 
-  assert(end_full_word - beg_full_word >= 32,
-         "the range must include at least 32 bytes");
+  if (is_small_range_of_words(beg_full_word, end_full_word)) {
+    set_range(beg, end);
+    return;
+  }
 
   // The range includes at least one full word.
   set_range_within_word(beg, bit_index(beg_full_word));
@@ -284,7 +294,7 @@ void BitMap::clear_large_range(idx_t beg, idx_t end) {
   idx_t beg_full_word = word_index_round_up(beg);
   idx_t end_full_word = word_index(end);
 
-  if (end_full_word - beg_full_word < 32) {
+  if (is_small_range_of_words(beg_full_word, end_full_word)) {
     clear_range(beg, end);
     return;
   }
@@ -368,8 +378,10 @@ void BitMap::par_at_put_large_range(idx_t beg, idx_t end, bool value) {
   idx_t beg_full_word = word_index_round_up(beg);
   idx_t end_full_word = word_index(end);
 
-  assert(end_full_word - beg_full_word >= 32,
-         "the range must include at least 32 bytes");
+  if (is_small_range_of_words(beg_full_word, end_full_word)) {
+    par_at_put_range(beg, end, value);
+    return;
+  }
 
   // The range includes at least one full word.
   par_put_range_within_word(beg, bit_index(beg_full_word), value);
@@ -670,6 +682,11 @@ BitMap::idx_t BitMap::count_one_bits() const {
 void BitMap::print_on_error(outputStream* st, const char* prefix) const {
   st->print_cr("%s[" PTR_FORMAT ", " PTR_FORMAT ")",
       prefix, p2i(map()), p2i((char*)map() + (size() >> LogBitsPerByte)));
+}
+
+void BitMap::write_to(bm_word_t* buffer, size_t buffer_size_in_bytes) const {
+  assert(buffer_size_in_bytes == size_in_bytes(), "must be");
+  memcpy(buffer, _map, size_in_bytes());
 }
 
 #ifndef PRODUCT

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "jmm.h"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/compileBroker.hpp"
+#include "memory/allocation.inline.hpp"
 #include "memory/iterator.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -35,11 +36,12 @@
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/flags/jvmFlag.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
-#include "runtime/jniHandles.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/serviceThread.hpp"
 #include "runtime/thread.inline.hpp"
@@ -176,7 +178,7 @@ void Management::get_optional_support(jmmOptionalSupport* support) {
 
 InstanceKlass* Management::load_and_initialize_klass(Symbol* sh, TRAPS) {
   Klass* k = SystemDictionary::resolve_or_fail(sh, true, CHECK_NULL);
-  return initialize_klass(k, CHECK_NULL);
+  return initialize_klass(k, THREAD);
 }
 
 InstanceKlass* Management::load_and_initialize_klass_or_null(Symbol* sh, TRAPS) {
@@ -184,7 +186,7 @@ InstanceKlass* Management::load_and_initialize_klass_or_null(Symbol* sh, TRAPS) 
   if (k == NULL) {
      return NULL;
   }
-  return initialize_klass(k, CHECK_NULL);
+  return initialize_klass(k, THREAD);
 }
 
 InstanceKlass* Management::initialize_klass(Klass* k, TRAPS) {
@@ -335,26 +337,17 @@ static void initialize_ThreadInfo_constructor_arguments(JavaCallArguments* args,
 // Helper function to construct a ThreadInfo object
 instanceOop Management::create_thread_info_instance(ThreadSnapshot* snapshot, TRAPS) {
   InstanceKlass* ik = Management::java_lang_management_ThreadInfo_klass(CHECK_NULL);
-
-  JavaValue result(T_VOID);
   JavaCallArguments args(14);
-
-  // First allocate a ThreadObj object and
-  // push the receiver as the first argument
-  Handle element = ik->allocate_instance_handle(CHECK_NULL);
-  args.push_oop(element);
 
   // initialize the arguments for the ThreadInfo constructor
   initialize_ThreadInfo_constructor_arguments(&args, snapshot, CHECK_NULL);
 
   // Call ThreadInfo constructor with no locked monitors and synchronizers
-  JavaCalls::call_special(&result,
+  Handle element = JavaCalls::construct_new_instance(
                           ik,
-                          vmSymbols::object_initializer_name(),
                           vmSymbols::java_lang_management_ThreadInfo_constructor_signature(),
                           &args,
                           CHECK_NULL);
-
   return (instanceOop) element();
 }
 
@@ -364,14 +357,7 @@ instanceOop Management::create_thread_info_instance(ThreadSnapshot* snapshot,
                                                     objArrayHandle synchronizers_array,
                                                     TRAPS) {
   InstanceKlass* ik = Management::java_lang_management_ThreadInfo_klass(CHECK_NULL);
-
-  JavaValue result(T_VOID);
   JavaCallArguments args(17);
-
-  // First allocate a ThreadObj object and
-  // push the receiver as the first argument
-  Handle element = ik->allocate_instance_handle(CHECK_NULL);
-  args.push_oop(element);
 
   // initialize the arguments for the ThreadInfo constructor
   initialize_ThreadInfo_constructor_arguments(&args, snapshot, CHECK_NULL);
@@ -382,13 +368,11 @@ instanceOop Management::create_thread_info_instance(ThreadSnapshot* snapshot,
   args.push_oop(synchronizers_array);
 
   // Call ThreadInfo constructor with locked monitors and synchronizers
-  JavaCalls::call_special(&result,
+  Handle element = JavaCalls::construct_new_instance(
                           ik,
-                          vmSymbols::object_initializer_name(),
                           vmSymbols::java_lang_management_ThreadInfo_with_locks_constructor_signature(),
                           &args,
                           CHECK_NULL);
-
   return (instanceOop) element();
 }
 
@@ -729,50 +713,53 @@ JVM_END
 JVM_ENTRY(jobject, jmm_GetMemoryUsage(JNIEnv* env, jboolean heap))
   ResourceMark rm(THREAD);
 
-  // Calculate the memory usage
-  size_t total_init = 0;
-  size_t total_used = 0;
-  size_t total_committed = 0;
-  size_t total_max = 0;
-  bool   has_undefined_init_size = false;
-  bool   has_undefined_max_size = false;
+  MemoryUsage usage;
 
-  for (int i = 0; i < MemoryService::num_memory_pools(); i++) {
-    MemoryPool* pool = MemoryService::get_memory_pool(i);
-    if ((heap && pool->is_heap()) || (!heap && pool->is_non_heap())) {
-      MemoryUsage u = pool->get_memory_usage();
-      total_used += u.used();
-      total_committed += u.committed();
+  if (heap) {
+    usage = Universe::heap()->memory_usage();
+  } else {
+    // Calculate the memory usage by summing up the pools.
+    size_t total_init = 0;
+    size_t total_used = 0;
+    size_t total_committed = 0;
+    size_t total_max = 0;
+    bool   has_undefined_init_size = false;
+    bool   has_undefined_max_size = false;
 
-      if (u.init_size() == (size_t)-1) {
-        has_undefined_init_size = true;
-      }
-      if (!has_undefined_init_size) {
-        total_init += u.init_size();
-      }
+    for (int i = 0; i < MemoryService::num_memory_pools(); i++) {
+      MemoryPool* pool = MemoryService::get_memory_pool(i);
+      if (pool->is_non_heap()) {
+        MemoryUsage u = pool->get_memory_usage();
+        total_used += u.used();
+        total_committed += u.committed();
 
-      if (u.max_size() == (size_t)-1) {
-        has_undefined_max_size = true;
-      }
-      if (!has_undefined_max_size) {
-        total_max += u.max_size();
+        if (u.init_size() == MemoryUsage::undefined_size()) {
+          has_undefined_init_size = true;
+        }
+        if (!has_undefined_init_size) {
+          total_init += u.init_size();
+        }
+
+        if (u.max_size() == MemoryUsage::undefined_size()) {
+          has_undefined_max_size = true;
+        }
+        if (!has_undefined_max_size) {
+          total_max += u.max_size();
+        }
       }
     }
-  }
 
-  // if any one of the memory pool has undefined init_size or max_size,
-  // set it to -1
-  if (has_undefined_init_size) {
-    total_init = (size_t)-1;
-  }
-  if (has_undefined_max_size) {
-    total_max = (size_t)-1;
-  }
+    // if any one of the memory pool has undefined init_size or max_size,
+    // set it to MemoryUsage::undefined_size()
+    if (has_undefined_init_size) {
+      total_init = MemoryUsage::undefined_size();
+    }
+    if (has_undefined_max_size) {
+      total_max = MemoryUsage::undefined_size();
+    }
 
-  MemoryUsage usage((heap ? InitialHeapSize : total_init),
-                    total_used,
-                    total_committed,
-                    (heap ? Universe::heap()->max_capacity() : total_max));
+    usage = MemoryUsage(total_init, total_used, total_committed, total_max);
+  }
 
   Handle obj = MemoryService::create_MemoryUsage_obj(usage, CHECK_NULL);
   return JNIHandles::make_local(env, obj());
@@ -865,10 +852,10 @@ static jint get_vm_thread_count() {
 
 static jint get_num_flags() {
   // last flag entry is always NULL, so subtract 1
-  int nFlags = (int) Flag::numFlags - 1;
+  int nFlags = (int) JVMFlag::numFlags - 1;
   int count = 0;
   for (int i = 0; i < nFlags; i++) {
-    Flag* flag = &Flag::flags[i];
+    JVMFlag* flag = &JVMFlag::flags[i];
     // Exclude the locked (diagnostic, experimental) flags
     if (flag->is_unlocked() || flag->is_unlocker()) {
       count++;
@@ -1097,9 +1084,6 @@ JVM_ENTRY(jint, jmm_GetThreadInfo(JNIEnv *env, jlongArray ids, jint maxDepth, jo
                "The length of the given ThreadInfo array does not match the length of the given array of thread IDs", -1);
   }
 
-  // make sure the AbstractOwnableSynchronizer klass is loaded before taking thread snapshots
-  java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(CHECK_0);
-
   // Must use ThreadDumpResult to store the ThreadSnapshot.
   // GC may occur after the thread snapshots are taken but before
   // this function returns. The threadObj and other oops kept
@@ -1169,9 +1153,6 @@ JVM_END
 JVM_ENTRY(jobjectArray, jmm_DumpThreads(JNIEnv *env, jlongArray thread_ids, jboolean locked_monitors,
                                         jboolean locked_synchronizers, jint maxDepth))
   ResourceMark rm(THREAD);
-
-  // make sure the AbstractOwnableSynchronizer klass is loaded before taking thread snapshots
-  java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(CHECK_NULL);
 
   typeArrayOop ta = typeArrayOop(JNIHandles::resolve(thread_ids));
   int num_threads = (ta != NULL ? ta->length() : 0);
@@ -1418,14 +1399,14 @@ JVM_END
 // Returns a String array of all VM global flag names
 JVM_ENTRY(jobjectArray, jmm_GetVMGlobalNames(JNIEnv *env))
   // last flag entry is always NULL, so subtract 1
-  int nFlags = (int) Flag::numFlags - 1;
+  int nFlags = (int) JVMFlag::numFlags - 1;
   // allocate a temp array
   objArrayOop r = oopFactory::new_objArray(SystemDictionary::String_klass(),
                                            nFlags, CHECK_0);
   objArrayHandle flags_ah(THREAD, r);
   int num_entries = 0;
   for (int i = 0; i < nFlags; i++) {
-    Flag* flag = &Flag::flags[i];
+    JVMFlag* flag = &JVMFlag::flags[i];
     // Exclude notproduct and develop flags in product builds.
     if (flag->is_constant_in_binary()) {
       continue;
@@ -1453,7 +1434,7 @@ JVM_END
 // Utility function used by jmm_GetVMGlobals.  Returns false if flag type
 // can't be determined, true otherwise.  If false is returned, then *global
 // will be incomplete and invalid.
-bool add_global_entry(JNIEnv* env, Handle name, jmmVMGlobal *global, Flag *flag, TRAPS) {
+bool add_global_entry(JNIEnv* env, Handle name, jmmVMGlobal *global, JVMFlag *flag, TRAPS) {
   Handle flag_name;
   if (name() == NULL) {
     flag_name = java_lang_String::create_from_str(flag->_name, CHECK_false);
@@ -1498,25 +1479,25 @@ bool add_global_entry(JNIEnv* env, Handle name, jmmVMGlobal *global, Flag *flag,
   global->writeable = flag->is_writeable();
   global->external = flag->is_external();
   switch (flag->get_origin()) {
-    case Flag::DEFAULT:
+    case JVMFlag::DEFAULT:
       global->origin = JMM_VMGLOBAL_ORIGIN_DEFAULT;
       break;
-    case Flag::COMMAND_LINE:
+    case JVMFlag::COMMAND_LINE:
       global->origin = JMM_VMGLOBAL_ORIGIN_COMMAND_LINE;
       break;
-    case Flag::ENVIRON_VAR:
+    case JVMFlag::ENVIRON_VAR:
       global->origin = JMM_VMGLOBAL_ORIGIN_ENVIRON_VAR;
       break;
-    case Flag::CONFIG_FILE:
+    case JVMFlag::CONFIG_FILE:
       global->origin = JMM_VMGLOBAL_ORIGIN_CONFIG_FILE;
       break;
-    case Flag::MANAGEMENT:
+    case JVMFlag::MANAGEMENT:
       global->origin = JMM_VMGLOBAL_ORIGIN_MANAGEMENT;
       break;
-    case Flag::ERGONOMIC:
+    case JVMFlag::ERGONOMIC:
       global->origin = JMM_VMGLOBAL_ORIGIN_ERGONOMIC;
       break;
-    case Flag::ATTACH_ON_DEMAND:
+    case JVMFlag::ATTACH_ON_DEMAND:
       global->origin = JMM_VMGLOBAL_ORIGIN_ATTACH_ON_DEMAND;
       break;
     default:
@@ -1530,7 +1511,7 @@ bool add_global_entry(JNIEnv* env, Handle name, jmmVMGlobal *global, Flag *flag,
 // specified by names. If names == NULL, fill globals array
 // with all Flags. Return value is number of entries
 // created in globals.
-// If a Flag with a given name in an array element does not
+// If a JVMFlag with a given name in an array element does not
 // exist, globals[i].name will be set to NULL.
 JVM_ENTRY(jint, jmm_GetVMGlobals(JNIEnv *env,
                                  jobjectArray names,
@@ -1565,7 +1546,7 @@ JVM_ENTRY(jint, jmm_GetVMGlobals(JNIEnv *env,
 
       Handle sh(THREAD, s);
       char* str = java_lang_String::as_utf8_string(s);
-      Flag* flag = Flag::find_flag(str, strlen(str));
+      JVMFlag* flag = JVMFlag::find_flag(str, strlen(str));
       if (flag != NULL &&
           add_global_entry(env, sh, &globals[i], flag, THREAD)) {
         num_entries++;
@@ -1578,11 +1559,11 @@ JVM_ENTRY(jint, jmm_GetVMGlobals(JNIEnv *env,
     // return all globals if names == NULL
 
     // last flag entry is always NULL, so subtract 1
-    int nFlags = (int) Flag::numFlags - 1;
+    int nFlags = (int) JVMFlag::numFlags - 1;
     Handle null_h;
     int num_entries = 0;
     for (int i = 0; i < nFlags && num_entries < count;  i++) {
-      Flag* flag = &Flag::flags[i];
+      JVMFlag* flag = &JVMFlag::flags[i];
       // Exclude notproduct and develop flags in product builds.
       if (flag->is_constant_in_binary()) {
         continue;
@@ -1608,10 +1589,10 @@ JVM_ENTRY(void, jmm_SetVMGlobal(JNIEnv *env, jstring flag_name, jvalue new_value
   char* name = java_lang_String::as_utf8_string(fn);
 
   FormatBuffer<80> error_msg("%s", "");
-  int succeed = WriteableFlags::set_flag(name, new_value, Flag::MANAGEMENT, error_msg);
+  int succeed = WriteableFlags::set_flag(name, new_value, JVMFlag::MANAGEMENT, error_msg);
 
-  if (succeed != Flag::SUCCESS) {
-    if (succeed == Flag::MISSING_VALUE) {
+  if (succeed != JVMFlag::SUCCESS) {
+    if (succeed == JVMFlag::MISSING_VALUE) {
       // missing value causes NPE to be thrown
       THROW(vmSymbols::java_lang_NullPointerException());
     } else {
@@ -1620,7 +1601,7 @@ JVM_ENTRY(void, jmm_SetVMGlobal(JNIEnv *env, jstring flag_name, jvalue new_value
                 error_msg.buffer());
     }
   }
-  assert(succeed == Flag::SUCCESS, "Setting flag should succeed");
+  assert(succeed == JVMFlag::SUCCESS, "Setting flag should succeed");
 JVM_END
 
 class ThreadTimesClosure: public ThreadClosure {

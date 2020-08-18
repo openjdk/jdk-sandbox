@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
+ * @requires os.family == "solaris" | os.family == "linux" | os.family == "mac"
  * @run main XCheckJSig
  */
 
@@ -41,36 +42,23 @@ public class XCheckJSig {
     public static void main(String args[]) throws Throwable {
 
         System.out.println("Regression test for bugs 7051189 and 8023393");
-        if (!Platform.isSolaris() && !Platform.isLinux() && !Platform.isOSX()) {
-            System.out.println("Test only applicable on Solaris, Linux, and Mac OSX, skipping");
-            return;
-        }
 
         String jdk_path = System.getProperty("test.jdk");
-        String os_arch = Platform.getOsArch();
         String libjsig;
         String env_var;
         if (Platform.isOSX()) {
             env_var = "DYLD_INSERT_LIBRARIES";
-            libjsig = jdk_path + "/jre/lib/libjsig.dylib"; // jdk location
-            if (!(new File(libjsig).exists())) {
-                libjsig = jdk_path + "/lib/libjsig.dylib"; // jre location
-            }
+            libjsig = jdk_path + "/lib/libjsig.dylib"; // jre location
         } else {
             env_var = "LD_PRELOAD";
-            libjsig = jdk_path + "/jre/lib/" + os_arch + "/libjsig.so"; // jdk location
-            if (!(new File(libjsig).exists())) {
-                libjsig = jdk_path + "/lib/" + os_arch + "/libjsig.so"; // jre location
-            }
+            libjsig = jdk_path + "/lib/libjsig.so"; // jre location
         }
         // If this test fails, these might be useful to know.
         System.out.println("libjsig: " + libjsig);
-        System.out.println("osArch: " + os_arch);
 
         // Make sure the libjsig file exists.
         if (!(new File(libjsig).exists())) {
-            System.out.println("File " + libjsig + " not found, skipping");
-            return;
+            throw new RuntimeException("File libjsig not found, path: " + libjsig);
         }
 
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xcheck:jni", "-version");

@@ -23,21 +23,21 @@
 
 /*
  * @test
- * @bug 8025633 8025524 8081854 8187521
+ * @bug 8025633 8025524 8081854 8187521 8182765
  * @summary Test for valid name attribute in HTML anchors.
  * @author Bhavesh Patel
- * @library /tools/lib ../lib
+ * @library /tools/lib ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build toolbox.ToolBox JavadocTester
+ * @build toolbox.ToolBox javadoc.tester.*
  * @run main TestAnchorNames
  */
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import toolbox.*;
+import javadoc.tester.JavadocTester;
+import toolbox.ToolBox;
 
 public class TestAnchorNames extends JavadocTester {
 
@@ -52,12 +52,15 @@ public class TestAnchorNames extends JavadocTester {
     }
 
     @Test
-    void testHtml4(Path ignore) {
+    public void testHtml4(Path ignore) {
+        setAutomaticCheckLinks(false); // @ignore JDK-8202622
         javadoc("-d", "out-html4",
+                "-html4",
                 "-sourcepath", testSrc,
                 "-source", "8", //so that '_' can be used as an identifier
                 "-use",
                 "pkg1");
+        setAutomaticCheckLinks(true); // @ignore JDK-8202622
         checkExit(Exit.OK);
 
         // Test some section markers and links to these markers
@@ -170,12 +173,11 @@ public class TestAnchorNames extends JavadocTester {
     }
 
     @Test
-    void testHtml5(Path ignore) {
+    public void testHtml5(Path ignore) {
         javadoc("-d", "out-html5",
                 "-sourcepath", testSrc,
                 "-source", "8", //so that '_' can be used as an identifier
                 "-use",
-                "-html5",
                 "pkg1");
         checkExit(Exit.OK);
 
@@ -288,7 +290,7 @@ public class TestAnchorNames extends JavadocTester {
      * @throws IOException if there is a problem generating the source files
      */
     @Test
-    void testNonAscii(Path base) throws IOException {
+    public void testNonAscii(Path base) throws IOException {
         Path src = base.resolve("src");
         tb.writeJavaFiles(src,
                 "package p; public class Def {\n"

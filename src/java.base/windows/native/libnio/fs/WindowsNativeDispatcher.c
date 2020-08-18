@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -311,8 +311,10 @@ Java_sun_nio_fs_WindowsNativeDispatcher_FindFirstFile0(JNIEnv* env, jclass this,
     HANDLE handle = FindFirstFileW(lpFileName, &data);
     if (handle != INVALID_HANDLE_VALUE) {
         jstring name = (*env)->NewString(env, data.cFileName, (jsize)wcslen(data.cFileName));
-        if (name == NULL)
+        if (name == NULL) {
+            FindClose(handle);
             return;
+        }
         (*env)->SetLongField(env, obj, findFirst_handle, ptr_to_jlong(handle));
         (*env)->SetObjectField(env, obj, findFirst_name, name);
         (*env)->SetIntField(env, obj, findFirst_attributes, data.dwFileAttributes);
@@ -362,8 +364,10 @@ Java_sun_nio_fs_WindowsNativeDispatcher_FindFirstStream0(JNIEnv* env, jclass thi
     handle = FindFirstStreamW(lpFileName, FindStreamInfoStandard, &data, 0);
     if (handle != INVALID_HANDLE_VALUE) {
         jstring name = (*env)->NewString(env, data.cStreamName, (jsize)wcslen(data.cStreamName));
-        if (name == NULL)
+        if (name == NULL) {
+            FindClose(handle);
             return;
+        }
         (*env)->SetLongField(env, obj, findStream_handle, ptr_to_jlong(handle));
         (*env)->SetObjectField(env, obj, findStream_name, name);
     } else {
@@ -1043,8 +1047,11 @@ Java_sun_nio_fs_WindowsNativeDispatcher_LookupPrivilegeValue0(JNIEnv* env,
     if (pLuid == NULL) {
         JNU_ThrowInternalError(env, "Unable to allocate LUID structure");
     } else {
-        if (LookupPrivilegeValueW(NULL, lpName, pLuid) == 0)
+        if (LookupPrivilegeValueW(NULL, lpName, pLuid) == 0) {
+            LocalFree(pLuid);
             throwWindowsException(env, GetLastError());
+            return (jlong)0;
+        }
     }
     return ptr_to_jlong(pLuid);
 }

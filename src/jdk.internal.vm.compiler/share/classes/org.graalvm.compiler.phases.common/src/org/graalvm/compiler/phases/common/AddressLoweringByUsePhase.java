@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2017, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -21,6 +21,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.common;
 
 import org.graalvm.compiler.core.common.type.Stamp;
@@ -93,7 +95,7 @@ public class AddressLoweringByUsePhase extends Phase {
             } else {
                 continue;
             }
-            // the lowered address amy already be a replacement
+            // the lowered address may already be a replacement
             // in which case we want to use it not delete it!
             if (lowered != address) {
                 // replace original with lowered at this usage only

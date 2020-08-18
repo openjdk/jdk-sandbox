@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_CMS_CMSOOPCLOSURES_HPP
-#define SHARE_VM_GC_CMS_CMSOOPCLOSURES_HPP
+#ifndef SHARE_GC_CMS_CMSOOPCLOSURES_HPP
+#define SHARE_GC_CMS_CMSOOPCLOSURES_HPP
 
 #include "gc/shared/genOopClosures.hpp"
 #include "gc/shared/taskqueue.hpp"
@@ -39,27 +39,24 @@ class CMSCollector;
 class MarkFromRootsClosure;
 class ParMarkFromRootsClosure;
 
+class Mutex;
+
 // Decode the oop and call do_oop on it.
 #define DO_OOP_WORK_DEFN                             \
   void do_oop(oop obj);                              \
   template <class T> inline void do_oop_work(T* p);
 
-// TODO: This duplication of the MetadataAwareOopClosure class is only needed
+// TODO: This duplication of the MetadataVisitingOopIterateClosure class is only needed
 //       because some CMS OopClosures derive from OopsInGenClosure. It would be
 //       good to get rid of them completely.
-class MetadataAwareOopsInGenClosure: public OopsInGenClosure {
+class MetadataVisitingOopsInGenClosure: public OopsInGenClosure {
  public:
-  virtual bool do_metadata()    { return do_metadata_nv(); }
-  inline  bool do_metadata_nv() { return true; }
-
+  virtual bool do_metadata() { return true; }
   virtual void do_klass(Klass* k);
-  void do_klass_nv(Klass* k);
-
-  virtual void do_cld(ClassLoaderData* cld) { do_cld_nv(cld); }
-  void do_cld_nv(ClassLoaderData* cld);
+  virtual void do_cld(ClassLoaderData* cld);
 };
 
-class MarkRefsIntoClosure: public MetadataAwareOopsInGenClosure {
+class MarkRefsIntoClosure: public MetadataVisitingOopsInGenClosure {
  private:
   const MemRegion _span;
   CMSBitMap*      _bitMap;
@@ -71,7 +68,7 @@ class MarkRefsIntoClosure: public MetadataAwareOopsInGenClosure {
   virtual void do_oop(narrowOop* p);
 };
 
-class ParMarkRefsIntoClosure: public MetadataAwareOopsInGenClosure {
+class ParMarkRefsIntoClosure: public MetadataVisitingOopsInGenClosure {
  private:
   const MemRegion _span;
   CMSBitMap*      _bitMap;
@@ -85,7 +82,7 @@ class ParMarkRefsIntoClosure: public MetadataAwareOopsInGenClosure {
 
 // A variant of the above used in certain kinds of CMS
 // marking verification.
-class MarkRefsIntoVerifyClosure: public MetadataAwareOopsInGenClosure {
+class MarkRefsIntoVerifyClosure: public MetadataVisitingOopsInGenClosure {
  private:
   const MemRegion _span;
   CMSBitMap*      _verification_bm;
@@ -100,7 +97,7 @@ class MarkRefsIntoVerifyClosure: public MetadataAwareOopsInGenClosure {
 };
 
 // The non-parallel version (the parallel version appears further below).
-class PushAndMarkClosure: public MetadataAwareOopClosure {
+class PushAndMarkClosure: public MetadataVisitingOopIterateClosure {
  private:
   CMSCollector* _collector;
   MemRegion     _span;
@@ -113,15 +110,13 @@ class PushAndMarkClosure: public MetadataAwareOopClosure {
  public:
   PushAndMarkClosure(CMSCollector* collector,
                      MemRegion span,
-                     ReferenceProcessor* rp,
+                     ReferenceDiscoverer* rd,
                      CMSBitMap* bit_map,
                      CMSBitMap* mod_union_table,
                      CMSMarkStack* mark_stack,
                      bool concurrent_precleaning);
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
-  inline void do_oop_nv(oop* p);
-  inline void do_oop_nv(narrowOop* p);
 };
 
 // In the parallel case, the bit map and the
@@ -130,7 +125,7 @@ class PushAndMarkClosure: public MetadataAwareOopClosure {
 // synchronization (for instance, via CAS). The marking stack
 // used in the non-parallel case above is here replaced with
 // an OopTaskQueue structure to allow efficient work stealing.
-class ParPushAndMarkClosure: public MetadataAwareOopClosure {
+class ParPushAndMarkClosure: public MetadataVisitingOopIterateClosure {
  private:
   CMSCollector* _collector;
   MemRegion     _span;
@@ -141,17 +136,15 @@ class ParPushAndMarkClosure: public MetadataAwareOopClosure {
  public:
   ParPushAndMarkClosure(CMSCollector* collector,
                         MemRegion span,
-                        ReferenceProcessor* rp,
+                        ReferenceDiscoverer* rd,
                         CMSBitMap* bit_map,
                         OopTaskQueue* work_queue);
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
-  inline void do_oop_nv(oop* p);
-  inline void do_oop_nv(narrowOop* p);
 };
 
 // The non-parallel version (the parallel version appears further below).
-class MarkRefsIntoAndScanClosure: public MetadataAwareOopsInGenClosure {
+class MarkRefsIntoAndScanClosure: public MetadataVisitingOopsInGenClosure {
  private:
   MemRegion          _span;
   CMSBitMap*         _bit_map;
@@ -166,7 +159,7 @@ class MarkRefsIntoAndScanClosure: public MetadataAwareOopsInGenClosure {
   DO_OOP_WORK_DEFN
  public:
   MarkRefsIntoAndScanClosure(MemRegion span,
-                             ReferenceProcessor* rp,
+                             ReferenceDiscoverer* rd,
                              CMSBitMap* bit_map,
                              CMSBitMap* mod_union_table,
                              CMSMarkStack* mark_stack,
@@ -175,8 +168,6 @@ class MarkRefsIntoAndScanClosure: public MetadataAwareOopsInGenClosure {
                              bool concurrent_precleaning);
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
-  inline void do_oop_nv(oop* p);
-  inline void do_oop_nv(narrowOop* p);
 
   void set_freelistLock(Mutex* m) {
     _freelistLock = m;
@@ -192,7 +183,7 @@ class MarkRefsIntoAndScanClosure: public MetadataAwareOopsInGenClosure {
 // stack and the bitMap are shared, so access needs to be suitably
 // synchronized. An OopTaskQueue structure, supporting efficient
 // work stealing, replaces a CMSMarkStack for storing grey objects.
-class ParMarkRefsIntoAndScanClosure: public MetadataAwareOopsInGenClosure {
+class ParMarkRefsIntoAndScanClosure: public MetadataVisitingOopsInGenClosure {
  private:
   MemRegion             _span;
   CMSBitMap*            _bit_map;
@@ -204,13 +195,11 @@ class ParMarkRefsIntoAndScanClosure: public MetadataAwareOopsInGenClosure {
  public:
   ParMarkRefsIntoAndScanClosure(CMSCollector* collector,
                                  MemRegion span,
-                                 ReferenceProcessor* rp,
+                                 ReferenceDiscoverer* rd,
                                  CMSBitMap* bit_map,
                                  OopTaskQueue* work_queue);
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
-  inline void do_oop_nv(oop* p);
-  inline void do_oop_nv(narrowOop* p);
 
   void trim_queue(uint size);
 };
@@ -218,7 +207,7 @@ class ParMarkRefsIntoAndScanClosure: public MetadataAwareOopsInGenClosure {
 // This closure is used during the concurrent marking phase
 // following the first checkpoint. Its use is buried in
 // the closure MarkFromRootsClosure.
-class PushOrMarkClosure: public MetadataAwareOopClosure {
+class PushOrMarkClosure: public MetadataVisitingOopIterateClosure {
  private:
   CMSCollector*   _collector;
   MemRegion       _span;
@@ -238,8 +227,6 @@ class PushOrMarkClosure: public MetadataAwareOopClosure {
                     MarkFromRootsClosure* parent);
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
-  inline void do_oop_nv(oop* p);
-  inline void do_oop_nv(narrowOop* p);
 
   // Deal with a stack overflow condition
   void handle_stack_overflow(HeapWord* lost);
@@ -251,7 +238,7 @@ class PushOrMarkClosure: public MetadataAwareOopClosure {
 // This closure is used during the concurrent marking phase
 // following the first checkpoint. Its use is buried in
 // the closure ParMarkFromRootsClosure.
-class ParPushOrMarkClosure: public MetadataAwareOopClosure {
+class ParPushOrMarkClosure: public MetadataVisitingOopIterateClosure {
  private:
   CMSCollector*                  _collector;
   MemRegion                      _whole_span;
@@ -275,8 +262,6 @@ class ParPushOrMarkClosure: public MetadataAwareOopClosure {
                        ParMarkFromRootsClosure* parent);
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
-  inline void do_oop_nv(oop* p);
-  inline void do_oop_nv(narrowOop* p);
 
   // Deal with a stack overflow condition
   void handle_stack_overflow(HeapWord* lost);
@@ -290,7 +275,7 @@ class ParPushOrMarkClosure: public MetadataAwareOopClosure {
 // processing phase of the CMS final checkpoint step, as
 // well as during the concurrent precleaning of the discovered
 // reference lists.
-class CMSKeepAliveClosure: public MetadataAwareOopClosure {
+class CMSKeepAliveClosure: public MetadataVisitingOopIterateClosure {
  private:
   CMSCollector* _collector;
   const MemRegion _span;
@@ -306,11 +291,9 @@ class CMSKeepAliveClosure: public MetadataAwareOopClosure {
   bool    concurrent_precleaning() const { return _concurrent_precleaning; }
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
-  inline void do_oop_nv(oop* p);
-  inline void do_oop_nv(narrowOop* p);
 };
 
-class CMSInnerParMarkAndPushClosure: public MetadataAwareOopClosure {
+class CMSInnerParMarkAndPushClosure: public MetadataVisitingOopIterateClosure {
  private:
   CMSCollector* _collector;
   MemRegion     _span;
@@ -324,14 +307,12 @@ class CMSInnerParMarkAndPushClosure: public MetadataAwareOopClosure {
                                 OopTaskQueue* work_queue);
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
-  inline void do_oop_nv(oop* p);
-  inline void do_oop_nv(narrowOop* p);
 };
 
 // A parallel (MT) version of the above, used when
 // reference processing is parallel; the only difference
 // is in the do_oop method.
-class CMSParKeepAliveClosure: public MetadataAwareOopClosure {
+class CMSParKeepAliveClosure: public MetadataVisitingOopIterateClosure {
  private:
   MemRegion     _span;
   OopTaskQueue* _work_queue;
@@ -349,4 +330,4 @@ class CMSParKeepAliveClosure: public MetadataAwareOopClosure {
   virtual void do_oop(narrowOop* p);
 };
 
-#endif // SHARE_VM_GC_CMS_CMSOOPCLOSURES_HPP
+#endif // SHARE_GC_CMS_CMSOOPCLOSURES_HPP

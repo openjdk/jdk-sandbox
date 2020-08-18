@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.cfg;
 
 import java.util.ArrayList;
@@ -39,7 +41,7 @@ import org.graalvm.compiler.nodes.LoopBeginNode;
 import org.graalvm.compiler.nodes.LoopEndNode;
 import org.graalvm.compiler.nodes.LoopExitNode;
 import org.graalvm.compiler.nodes.memory.MemoryCheckpoint;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 public final class Block extends AbstractBlockBase<Block> {
     public static final Block[] EMPTY_ARRAY = new Block[0];
@@ -48,7 +50,7 @@ public final class Block extends AbstractBlockBase<Block> {
 
     protected FixedNode endNode;
 
-    protected double probability;
+    protected double relativeFrequency;
     private Loop<Block> loop;
 
     protected Block postdominator;
@@ -234,14 +236,18 @@ public final class Block extends AbstractBlockBase<Block> {
         return sb.toString();
     }
 
+    /**
+     * The execution frequency of this block relative to the start block as estimated by the
+     * profiling information.
+     */
     @Override
-    public double probability() {
-        return probability;
+    public double getRelativeFrequency() {
+        return relativeFrequency;
     }
 
-    public void setProbability(double probability) {
-        assert probability >= 0 && Double.isFinite(probability);
-        this.probability = probability;
+    public void setRelativeFrequency(double relativeFrequency) {
+        assert relativeFrequency >= 0 && Double.isFinite(relativeFrequency);
+        this.relativeFrequency = relativeFrequency;
     }
 
     @Override

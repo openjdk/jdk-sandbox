@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.ProcessTools;
 
 
 /**
@@ -42,9 +42,9 @@ import jdk.testlibrary.ProcessTools;
  * @summary Makes sure that the current management agent status is reflected
  *          in the related performance counters.
  *
- * @library /lib/testlibrary
+ * @library /test/lib
  *
- * @build jdk.testlibrary.* PortAllocator TestApp ManagementAgentJcmd
+ * @build PortAllocator TestApp ManagementAgentJcmd
  * @run testng/othervm -XX:+UsePerfData JMXStatusPerfCountersTest
  */
 public class JMXStatusPerfCountersTest {

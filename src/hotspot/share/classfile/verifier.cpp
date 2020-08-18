@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,15 +38,18 @@
 #include "logging/logStream.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/constantPool.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.hpp"
 #include "runtime/fieldDescriptor.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/thread.hpp"
 #include "services/threadService.hpp"
 #include "utilities/align.hpp"
@@ -127,7 +130,7 @@ void Verifier::log_end_verification(outputStream* st, const char* klassName, Sym
   st->print_cr("End class verification for: %s", klassName);
 }
 
-bool Verifier::verify(InstanceKlass* klass, Verifier::Mode mode, bool should_verify_class, TRAPS) {
+bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
   HandleMark hm(THREAD);
   ResourceMark rm(THREAD);
 
@@ -716,7 +719,8 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         ResourceMark rm(THREAD);
         LogStream ls(lt);
         current_frame.print_on(&ls);
-        lt.print("offset = %d,  opcode = %s", bci, Bytecodes::name(opcode));
+        lt.print("offset = %d,  opcode = %s", bci,
+                 opcode == Bytecodes::_illegal ? "illegal" : Bytecodes::name(opcode));
       }
 
       // Make sure wide instruction is in correct format
@@ -2010,9 +2014,10 @@ Klass* ClassVerifier::load_class(Symbol* name, TRAPS) {
     name, Handle(THREAD, loader), Handle(THREAD, protection_domain),
     true, THREAD);
 
-  if (log_is_enabled(Debug, class, resolve)) {
-    InstanceKlass* cur_class = InstanceKlass::cast(current_class());
-    Verifier::trace_class_resolution(kls, cur_class);
+  if (kls != NULL) {
+    if (log_is_enabled(Debug, class, resolve)) {
+      Verifier::trace_class_resolution(kls, current_class());
+    }
   }
   return kls;
 }
@@ -2671,10 +2676,10 @@ bool ClassVerifier::is_same_or_direct_interface(
     VerificationType klass_type,
     VerificationType ref_class_type) {
   if (ref_class_type.equals(klass_type)) return true;
-  Array<Klass*>* local_interfaces = klass->local_interfaces();
+  Array<InstanceKlass*>* local_interfaces = klass->local_interfaces();
   if (local_interfaces != NULL) {
     for (int x = 0; x < local_interfaces->length(); x++) {
-      Klass* k = local_interfaces->at(x);
+      InstanceKlass* k = local_interfaces->at(x);
       assert (k != NULL && k->is_interface(), "invalid interface");
       if (ref_class_type.equals(VerificationType::reference_type(k->name()))) {
         return true;
@@ -2802,7 +2807,7 @@ void ClassVerifier::verify_invoke_instructions(
     }
   }
 
-  if (method_name->byte_at(0) == '<') {
+  if (method_name->char_at(0) == '<') {
     // Make sure <init> can only be invoked by invokespecial
     if (opcode != Bytecodes::_invokespecial ||
         method_name != vmSymbols::object_initializer_name()) {
@@ -2816,20 +2821,20 @@ void ClassVerifier::verify_invoke_instructions(
                   current_class()->super()->name()))) {
     bool subtype = false;
     bool have_imr_indirect = cp->tag_at(index).value() == JVM_CONSTANT_InterfaceMethodref;
-    if (!current_class()->is_anonymous()) {
+    if (!current_class()->is_unsafe_anonymous()) {
       subtype = ref_class_type.is_assignable_from(
                  current_type(), this, false, CHECK_VERIFY(this));
     } else {
-      VerificationType host_klass_type =
-                        VerificationType::reference_type(current_class()->host_klass()->name());
-      subtype = ref_class_type.is_assignable_from(host_klass_type, this, false, CHECK_VERIFY(this));
+      VerificationType unsafe_anonymous_host_type =
+                        VerificationType::reference_type(current_class()->unsafe_anonymous_host()->name());
+      subtype = ref_class_type.is_assignable_from(unsafe_anonymous_host_type, this, false, CHECK_VERIFY(this));
 
       // If invokespecial of IMR, need to recheck for same or
       // direct interface relative to the host class
       have_imr_indirect = (have_imr_indirect &&
                            !is_same_or_direct_interface(
-                             current_class()->host_klass(),
-                             host_klass_type, ref_class_type));
+                             current_class()->unsafe_anonymous_host(),
+                             unsafe_anonymous_host_type, ref_class_type));
     }
     if (!subtype) {
       verify_error(ErrorContext::bad_code(bci),
@@ -2859,15 +2864,15 @@ void ClassVerifier::verify_invoke_instructions(
     } else {   // other methods
       // Ensures that target class is assignable to method class.
       if (opcode == Bytecodes::_invokespecial) {
-        if (!current_class()->is_anonymous()) {
+        if (!current_class()->is_unsafe_anonymous()) {
           current_frame->pop_stack(current_type(), CHECK_VERIFY(this));
         } else {
           // anonymous class invokespecial calls: check if the
-          // objectref is a subtype of the host_klass of the current class
-          // to allow an anonymous class to reference methods in the host_klass
+          // objectref is a subtype of the unsafe_anonymous_host of the current class
+          // to allow an anonymous class to reference methods in the unsafe_anonymous_host
           VerificationType top = current_frame->pop_stack(CHECK_VERIFY(this));
           VerificationType hosttype =
-            VerificationType::reference_type(current_class()->host_klass()->name());
+            VerificationType::reference_type(current_class()->unsafe_anonymous_host()->name());
           bool subtype = hosttype.is_assignable_from(top, this, false, CHECK_VERIFY(this));
           if (!subtype) {
             verify_error( ErrorContext::bad_type(current_frame->offset(),

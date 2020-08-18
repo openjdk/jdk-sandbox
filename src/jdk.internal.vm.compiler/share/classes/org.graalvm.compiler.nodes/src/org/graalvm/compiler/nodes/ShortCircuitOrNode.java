@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,21 +20,34 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import static org.graalvm.compiler.nodeinfo.InputType.Condition;
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_0;
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_0;
 
+import org.graalvm.compiler.core.common.spi.ConstantFieldProvider;
+import org.graalvm.compiler.core.common.type.IntegerStamp;
+import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.graph.IterableNodeType;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.graph.spi.Canonicalizable;
 import org.graalvm.compiler.graph.spi.CanonicalizerTool;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
+import org.graalvm.compiler.nodes.calc.CompareNode;
+import org.graalvm.compiler.nodes.calc.IntegerBelowNode;
+import org.graalvm.compiler.nodes.calc.IntegerLessThanNode;
+import org.graalvm.compiler.options.OptionValues;
+
+import jdk.vm.ci.meta.Assumptions;
+import jdk.vm.ci.meta.ConstantReflectionProvider;
+import jdk.vm.ci.meta.MetaAccessProvider;
+import jdk.vm.ci.meta.TriState;
 
 @NodeInfo(cycles = CYCLES_0, size = SIZE_0)
 public final class ShortCircuitOrNode extends LogicNode implements IterableNodeType, Canonicalizable.Binary<LogicNode> {
-
     public static final NodeClass<ShortCircuitOrNode> TYPE = NodeClass.create(ShortCircuitOrNode.class);
     @Input(Condition) LogicNode x;
     @Input(Condition) LogicNode y;
@@ -49,6 +62,10 @@ public final class ShortCircuitOrNode extends LogicNode implements IterableNodeT
         this.y = y;
         this.yNegated = yNegated;
         this.shortCircuitProbability = shortCircuitProbability;
+    }
+
+    public static LogicNode create(LogicNode x, boolean xNegated, LogicNode y, boolean yNegated, double shortCircuitProbability) {
+        return new ShortCircuitOrNode(x, xNegated, y, yNegated, shortCircuitProbability);
     }
 
     @Override
@@ -105,6 +122,7 @@ public final class ShortCircuitOrNode extends LogicNode implements IterableNodeT
         if (ret != this) {
             return ret;
         }
+        NodeView view = NodeView.from(tool);
 
         if (forX == forY) {
             // @formatter:off
@@ -169,7 +187,171 @@ public final class ShortCircuitOrNode extends LogicNode implements IterableNodeT
                 return optimizeShortCircuit(inner, this.yNegated, this.xNegated, false);
             }
         }
+
+        // !X => Y constant
+        TriState impliedForY = forX.implies(!isXNegated(), forY);
+        if (impliedForY.isKnown()) {
+            boolean yResult = impliedForY.toBoolean() ^ isYNegated();
+            return yResult
+                            ? LogicConstantNode.tautology()
+                            : (isXNegated()
+                                            ? LogicNegationNode.create(forX)
+                                            : forX);
+        }
+
+        // if X >= 0:
+        // u < 0 || X < u ==>> X |<| u
+        if (!isXNegated() && !isYNegated()) {
+            LogicNode sym = simplifyComparison(forX, forY);
+            if (sym != null) {
+                return sym;
+            }
+        }
+
+        // if X >= 0:
+        // X |<| u || X < u ==>> X |<| u
+        if (forX instanceof IntegerBelowNode && forY instanceof IntegerLessThanNode && !isXNegated() && !isYNegated()) {
+            IntegerBelowNode xNode = (IntegerBelowNode) forX;
+            IntegerLessThanNode yNode = (IntegerLessThanNode) forY;
+            ValueNode xxNode = xNode.getX(); // X >= 0
+            ValueNode yxNode = yNode.getX(); // X >= 0
+            if (xxNode == yxNode && ((IntegerStamp) xxNode.stamp(view)).isPositive()) {
+                ValueNode xyNode = xNode.getY(); // u
+                ValueNode yyNode = yNode.getY(); // u
+                if (xyNode == yyNode) {
+                    return forX;
+                }
+            }
+        }
+
+        // if X >= 0:
+        // u < 0 || (X < u || tail) ==>> X |<| u || tail
+        if (forY instanceof ShortCircuitOrNode && !isXNegated() && !isYNegated()) {
+            ShortCircuitOrNode yNode = (ShortCircuitOrNode) forY;
+            if (!yNode.isXNegated()) {
+                LogicNode sym = simplifyComparison(forX, yNode.getX());
+                if (sym != null) {
+                    double p1 = getShortCircuitProbability();
+                    double p2 = yNode.getShortCircuitProbability();
+                    return new ShortCircuitOrNode(sym, isXNegated(), yNode.getY(), yNode.isYNegated(), p1 + (1 - p1) * p2);
+                }
+            }
+        }
+
+        if (forX instanceof CompareNode && forY instanceof CompareNode) {
+            CompareNode xCompare = (CompareNode) forX;
+            CompareNode yCompare = (CompareNode) forY;
+
+            if (xCompare.getX() == yCompare.getX() || xCompare.getX() == yCompare.getY()) {
+
+                Stamp succeedingStampX = xCompare.getSucceedingStampForX(!xNegated, xCompare.getX().stamp(view), xCompare.getY().stamp(view));
+                // Try to canonicalize the other comparison using the knowledge gained from assuming
+                // the first part of the short circuit or is false (which is the only relevant case
+                // for the second part of the short circuit or).
+                if (succeedingStampX != null && !succeedingStampX.isUnrestricted()) {
+                    CanonicalizerTool proxyTool = new ProxyCanonicalizerTool(succeedingStampX, xCompare.getX(), tool, view);
+                    ValueNode result = yCompare.canonical(proxyTool);
+                    if (result != yCompare) {
+                        return ShortCircuitOrNode.create(forX, xNegated, (LogicNode) result, yNegated, this.shortCircuitProbability);
+                    }
+                }
+            }
+        }
+
         return this;
+    }
+
+    private static class ProxyCanonicalizerTool implements CanonicalizerTool, NodeView {
+
+        private final Stamp stamp;
+        private final ValueNode node;
+        private final CanonicalizerTool tool;
+        private final NodeView view;
+
+        ProxyCanonicalizerTool(Stamp stamp, ValueNode node, CanonicalizerTool tool, NodeView view) {
+            this.stamp = stamp;
+            this.node = node;
+            this.tool = tool;
+            this.view = view;
+        }
+
+        @Override
+        public Stamp stamp(ValueNode n) {
+            if (n == node) {
+                return stamp;
+            }
+            return view.stamp(n);
+        }
+
+        @Override
+        public Assumptions getAssumptions() {
+            return tool.getAssumptions();
+        }
+
+        @Override
+        public MetaAccessProvider getMetaAccess() {
+            return tool.getMetaAccess();
+        }
+
+        @Override
+        public ConstantReflectionProvider getConstantReflection() {
+            return tool.getConstantReflection();
+        }
+
+        @Override
+        public ConstantFieldProvider getConstantFieldProvider() {
+            return tool.getConstantFieldProvider();
+        }
+
+        @Override
+        public boolean canonicalizeReads() {
+            return tool.canonicalizeReads();
+        }
+
+        @Override
+        public boolean allUsagesAvailable() {
+            return tool.allUsagesAvailable();
+        }
+
+        @Override
+        public Integer smallestCompareWidth() {
+            return tool.smallestCompareWidth();
+        }
+
+        @Override
+        public OptionValues getOptions() {
+            return tool.getOptions();
+        }
+    }
+
+    private static LogicNode simplifyComparison(LogicNode forX, LogicNode forY) {
+        LogicNode sym = simplifyComparisonOrdered(forX, forY);
+        if (sym == null) {
+            return simplifyComparisonOrdered(forY, forX);
+        }
+        return sym;
+    }
+
+    private static LogicNode simplifyComparisonOrdered(LogicNode forX, LogicNode forY) {
+        // if X is >= 0:
+        // u < 0 || X < u ==>> X |<| u
+        if (forX instanceof IntegerLessThanNode && forY instanceof IntegerLessThanNode) {
+            IntegerLessThanNode xNode = (IntegerLessThanNode) forX;
+            IntegerLessThanNode yNode = (IntegerLessThanNode) forY;
+            ValueNode xyNode = xNode.getY(); // 0
+            if (xyNode.isConstant() && IntegerStamp.OPS.getAdd().isNeutral(xyNode.asConstant())) {
+                ValueNode yxNode = yNode.getX(); // X >= 0
+                IntegerStamp stamp = (IntegerStamp) yxNode.stamp(NodeView.DEFAULT);
+                if (stamp.isPositive()) {
+                    if (xNode.getX() == yNode.getY()) {
+                        ValueNode u = xNode.getX();
+                        return IntegerBelowNode.create(yxNode, u, NodeView.DEFAULT);
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     private static LogicNode optimizeShortCircuit(ShortCircuitOrNode inner, boolean innerNegated, boolean matchNegated, boolean matchIsInnerX) {

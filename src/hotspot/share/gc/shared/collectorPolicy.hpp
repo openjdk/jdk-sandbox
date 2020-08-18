@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_COLLECTORPOLICY_HPP
-#define SHARE_VM_GC_SHARED_COLLECTORPOLICY_HPP
+#ifndef SHARE_GC_SHARED_COLLECTORPOLICY_HPP
+#define SHARE_GC_SHARED_COLLECTORPOLICY_HPP
 
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/cardTableRS.hpp"
@@ -48,11 +48,8 @@
 // Forward declarations.
 class GenCollectorPolicy;
 class AdaptiveSizePolicy;
-#if INCLUDE_ALL_GCS
 class ConcurrentMarkSweepPolicy;
 class G1CollectorPolicy;
-#endif // INCLUDE_ALL_GCS
-
 class MarkSweepPolicy;
 
 class CollectorPolicy : public CHeapObj<mtGC> {
@@ -149,4 +146,4 @@ class MarkSweepPolicy : public GenCollectorPolicy {
   MarkSweepPolicy() {}
 };
 
-#endif // SHARE_VM_GC_SHARED_COLLECTORPOLICY_HPP
+#endif // SHARE_GC_SHARED_COLLECTORPOLICY_HPP

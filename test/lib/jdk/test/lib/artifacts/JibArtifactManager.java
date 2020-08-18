@@ -23,27 +23,68 @@
 
 package jdk.test.lib.artifacts;
 
-import java.io.FileNotFoundException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 public class JibArtifactManager implements ArtifactManager {
+    private static final String JIB_SERVICE_FACTORY = "com.oracle.jib.api.JibServiceFactory";
+    public static final String JIB_HOME_ENV_NAME = "JIB_HOME";
     private static String jibVersion = "1.0";
-    private Object installerObject;
 
-    private JibArtifactManager(Object o) {
-        installerObject = o;
+    private Object installerObject;
+    private ClassLoader classLoader;
+
+    private JibArtifactManager(Object installerObject, ClassLoader classLoader) {
+        this.installerObject = installerObject;
+        this.classLoader = classLoader;
     }
 
     public static JibArtifactManager newInstance() throws ClassNotFoundException {
+        Path jibInstallDir = Paths.get(System.getenv(JIB_HOME_ENV_NAME));
+        Path libDir = jibInstallDir.resolve("lib");
+        if (!Files.isDirectory(libDir)) {
+            throw new ClassNotFoundException(JIB_SERVICE_FACTORY);
+        }
         try {
-            Class jibServiceFactory = Class.forName("com.oracle.jib.api.JibServiceFactory");
-            Object jibArtifactInstaller = jibServiceFactory.getMethod("createJibArtifactInstaller").invoke(null);
-            return new JibArtifactManager(jibArtifactInstaller);
+            URL[] jarUrls;
+            try (Stream<Path> files = Files.list(libDir)) {
+                jarUrls = files.filter(path -> path.toString().endsWith(".jar"))
+                        .map(path -> {
+                            try {
+                                return path.toUri().toURL();
+                            } catch (MalformedURLException e) {
+                                throw new UncheckedIOException(e);
+                            }
+                        }).toArray(URL[]::new);
+            }
+            // Create a class loader using all those jars and set the parent to the
+            // current class loader's parent.
+            ClassLoader classLoader = new URLClassLoader(jarUrls, JibArtifactManager.class.getClassLoader().getParent());
+
+            // Temporarily replace the context classLoader
+            Thread currentThread = Thread.currentThread();
+            ClassLoader oldContextLoader = currentThread.getContextClassLoader();
+            currentThread.setContextClassLoader(classLoader);
+
+            Class jibServiceFactory = classLoader.loadClass(JIB_SERVICE_FACTORY);
+            try {
+                Object jibArtifactInstaller = jibServiceFactory.getMethod("createJibArtifactInstaller").invoke(null);
+                return new JibArtifactManager(jibArtifactInstaller, classLoader);
+            } finally {
+                currentThread.setContextClassLoader(oldContextLoader);
+            }
+
         } catch (Exception e) {
-            throw new ClassNotFoundException();
+            throw new ClassNotFoundException(JIB_SERVICE_FACTORY, e);
         }
     }
 
@@ -55,19 +96,29 @@ public class JibArtifactManager implements ArtifactManager {
         return invokeInstallerMethod("install", jibVersion, artifactDescription);
     }
 
-    private Path invokeInstallerMethod(String methodName, String jibVersion, HashMap<String, Object> artifactDescription) throws Exception {
-        Method m = Class.forName("com.oracle.jib.api.JibArtifactInstaller").getMethod(methodName, String.class, Map.class);
-        return (Path)m.invoke(installerObject, jibVersion, artifactDescription);
+    private Path invokeInstallerMethod(String methodName, String jibVersion,
+                                       HashMap<String, Object> artifactDescription) throws Exception {
+        // Temporarily replace the context classLoader
+        Thread currentThread = Thread.currentThread();
+        ClassLoader oldContextLoader = currentThread.getContextClassLoader();
+        currentThread.setContextClassLoader(classLoader);
+        try {
+            Method m = classLoader.loadClass("com.oracle.jib.api.JibArtifactInstaller")
+                    .getMethod(methodName, String.class, Map.class);
+            return (Path) m.invoke(installerObject, jibVersion, artifactDescription);
+        } finally {
+            currentThread.setContextClassLoader(oldContextLoader);
+        }
     }
 
     @Override
-    public Path resolve(Artifact artifact) throws FileNotFoundException {
+    public Path resolve(Artifact artifact) throws ArtifactResolverException {
         Path path;
         // Use the DefaultArtifactManager to enable users to override locations
         try {
             ArtifactManager manager = new DefaultArtifactManager();
             path = manager.resolve(artifact);
-        } catch (FileNotFoundException e) {
+        } catch (ArtifactResolverException e) {
             // Location hasn't been overridden, continue to automatically try to resolve the dependency
             try {
                 HashMap<String, Object> artifactDescription = new HashMap<>();
@@ -83,10 +134,10 @@ public class JibArtifactManager implements ArtifactManager {
                 if (artifact.unpack()) {
                     path = install(jibVersion, artifactDescription);
                 }
-            } catch (Exception exception) {
-                throw new FileNotFoundException("Failed to resolve the artifact " + artifact);
+            } catch (Exception e2) {
+                throw new ArtifactResolverException("Failed to resolve the artifact " + artifact, e2);
             }
         }
         return path;
-   }
+    }
 }

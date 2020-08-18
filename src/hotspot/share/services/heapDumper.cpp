@@ -24,34 +24,36 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
+#include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
-#include "gc/shared/genCollectedHeap.hpp"
-#include "gc/shared/vmGCOperations.hpp"
+#include "gc/shared/gcLocker.hpp"
+#include "gc/shared/gcVMOperations.hpp"
+#include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jniHandles.hpp"
-#include "runtime/os.hpp"
+#include "runtime/os.inline.hpp"
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vframe.hpp"
 #include "runtime/vmThread.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "services/heapDumper.hpp"
 #include "services/threadService.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/parallel/parallelScavengeHeap.hpp"
-#endif // INCLUDE_ALL_GCS
 
 /*
  * HPROF binary format - description copied from:
@@ -650,7 +652,7 @@ class DumperSupport : AllStatic {
   // dump a jdouble
   static void dump_double(DumpWriter* writer, jdouble d);
   // dumps the raw value of the given field
-  static void dump_field_value(DumpWriter* writer, char type, address addr);
+  static void dump_field_value(DumpWriter* writer, char type, oop obj, int offset);
   // dumps static fields of the given class
   static void dump_static_fields(DumpWriter* writer, Klass* k);
   // dump the raw values of the instance fields of the given object
@@ -695,7 +697,7 @@ void DumperSupport:: write_header(DumpWriter* writer, hprofTag tag, u4 len) {
 
 // returns hprof tag for the given type signature
 hprofTag DumperSupport::sig2tag(Symbol* sig) {
-  switch (sig->byte_at(0)) {
+  switch (sig->char_at(0)) {
     case JVM_SIGNATURE_CLASS    : return HPROF_NORMAL_OBJECT;
     case JVM_SIGNATURE_ARRAY    : return HPROF_NORMAL_OBJECT;
     case JVM_SIGNATURE_BYTE     : return HPROF_BYTE;
@@ -754,64 +756,59 @@ void DumperSupport::dump_double(DumpWriter* writer, jdouble d) {
 }
 
 // dumps the raw value of the given field
-void DumperSupport::dump_field_value(DumpWriter* writer, char type, address addr) {
+void DumperSupport::dump_field_value(DumpWriter* writer, char type, oop obj, int offset) {
   switch (type) {
     case JVM_SIGNATURE_CLASS :
     case JVM_SIGNATURE_ARRAY : {
-      oop o;
-      if (UseCompressedOops) {
-        o = oopDesc::load_decode_heap_oop((narrowOop*)addr);
-      } else {
-        o = oopDesc::load_decode_heap_oop((oop*)addr);
-      }
-
-      // reflection and Unsafe classes may have a reference to a
-      // Klass* so filter it out.
+      oop o = obj->obj_field_access<ON_UNKNOWN_OOP_REF>(offset);
       assert(oopDesc::is_oop_or_null(o), "Expected an oop or NULL at " PTR_FORMAT, p2i(o));
       writer->write_objectID(o);
       break;
     }
-    case JVM_SIGNATURE_BYTE     : {
-      jbyte* b = (jbyte*)addr;
-      writer->write_u1((u1)*b);
+    case JVM_SIGNATURE_BYTE : {
+      jbyte b = obj->byte_field(offset);
+      writer->write_u1((u1)b);
       break;
     }
-    case JVM_SIGNATURE_CHAR     : {
-      jchar* c = (jchar*)addr;
-      writer->write_u2((u2)*c);
+    case JVM_SIGNATURE_CHAR : {
+      jchar c = obj->char_field(offset);
+      writer->write_u2((u2)c);
       break;
     }
     case JVM_SIGNATURE_SHORT : {
-      jshort* s = (jshort*)addr;
-      writer->write_u2((u2)*s);
+      jshort s = obj->short_field(offset);
+      writer->write_u2((u2)s);
       break;
     }
     case JVM_SIGNATURE_FLOAT : {
-      jfloat* f = (jfloat*)addr;
-      dump_float(writer, *f);
+      jfloat f = obj->float_field(offset);
+      dump_float(writer, f);
       break;
     }
     case JVM_SIGNATURE_DOUBLE : {
-      jdouble* f = (jdouble*)addr;
-      dump_double(writer, *f);
+      jdouble d = obj->double_field(offset);
+      dump_double(writer, d);
       break;
     }
     case JVM_SIGNATURE_INT : {
-      jint* i = (jint*)addr;
-      writer->write_u4((u4)*i);
+      jint i = obj->int_field(offset);
+      writer->write_u4((u4)i);
       break;
     }
-    case JVM_SIGNATURE_LONG     : {
-      jlong* l = (jlong*)addr;
-      writer->write_u8((u8)*l);
+    case JVM_SIGNATURE_LONG : {
+      jlong l = obj->long_field(offset);
+      writer->write_u8((u8)l);
       break;
     }
     case JVM_SIGNATURE_BOOLEAN : {
-      jboolean* b = (jboolean*)addr;
-      writer->write_u1((u1)*b);
+      jboolean b = obj->bool_field(offset);
+      writer->write_u1((u1)b);
       break;
     }
-    default : ShouldNotReachHere();
+    default : {
+      ShouldNotReachHere();
+      break;
+    }
   }
 }
 
@@ -825,7 +822,7 @@ u4 DumperSupport::instance_size(Klass* k) {
   for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
     if (!fld.access_flags().is_static()) {
       Symbol* sig = fld.signature();
-      switch (sig->byte_at(0)) {
+      switch (sig->char_at(0)) {
         case JVM_SIGNATURE_CLASS   :
         case JVM_SIGNATURE_ARRAY   : size += oopSize; break;
 
@@ -893,10 +890,7 @@ void DumperSupport::dump_static_fields(DumpWriter* writer, Klass* k) {
       writer->write_u1(sig2tag(sig));       // type
 
       // value
-      int offset = fld.offset();
-      address addr = (address)ik->java_mirror() + offset;
-
-      dump_field_value(writer, sig->byte_at(0), addr);
+      dump_field_value(writer, sig->char_at(0), ik->java_mirror(), fld.offset());
     }
   }
 
@@ -932,9 +926,7 @@ void DumperSupport::dump_instance_fields(DumpWriter* writer, oop o) {
   for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
     if (!fld.access_flags().is_static()) {
       Symbol* sig = fld.signature();
-      address addr = (address)o + fld.offset();
-
-      dump_field_value(writer, sig->byte_at(0), addr);
+      dump_field_value(writer, sig->char_at(0), o, fld.offset());
     }
   }
 }
@@ -1000,7 +992,7 @@ void DumperSupport::dump_class_and_array_classes(DumpWriter* writer, Klass* k) {
   writer->write_u4(STACK_TRACE_ID);
 
   // super class ID
-  Klass* java_super = ik->java_super();
+  InstanceKlass* java_super = ik->java_super();
   if (java_super == NULL) {
     writer->write_objectID(oop(NULL));
   } else {
@@ -1070,7 +1062,7 @@ void DumperSupport::dump_basic_type_array_class(DumpWriter* writer, Klass* k) {
     writer->write_u4(STACK_TRACE_ID);
 
     // super class of array classes is java.lang.Object
-    Klass* java_super = klass->java_super();
+    InstanceKlass* java_super = klass->java_super();
     assert(java_super != NULL, "checking");
     writer->write_classID(java_super);
 
@@ -1475,6 +1467,7 @@ class VM_HeapDumper : public VM_GC_Operation {
   bool skip_operation() const;
 
   // writes a HPROF_LOAD_CLASS record
+  class ClassesDo;
   static void do_load_class(Klass* k);
 
   // writes a HPROF_GC_CLASS_DUMP record for the given class
@@ -1832,7 +1825,10 @@ void VM_HeapDumper::doit() {
   SymbolTable::symbols_do(&sym_dumper);
 
   // write HPROF_LOAD_CLASS records
-  ClassLoaderDataGraph::classes_do(&do_load_class);
+  {
+    LockedClassesDo locked_load_classes(&do_load_class);
+    ClassLoaderDataGraph::classes_do(&locked_load_classes);
+  }
   Universe::basic_type_classes_do(&do_load_class);
 
   // write HPROF_FRAME and HPROF_TRACE records
@@ -1843,7 +1839,10 @@ void VM_HeapDumper::doit() {
   DumperSupport::write_dump_header(writer());
 
   // Writes HPROF_GC_CLASS_DUMP records
-  ClassLoaderDataGraph::classes_do(&do_class_dump);
+  {
+    LockedClassesDo locked_dump_class(&do_class_dump);
+    ClassLoaderDataGraph::classes_do(&locked_dump_class);
+  }
   Universe::basic_type_classes_do(&do_basic_type_array_class_dump);
   check_segment_length();
 

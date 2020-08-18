@@ -37,7 +37,7 @@ import javax.lang.model.element.TypeElement;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
-import jdk.javadoc.internal.doclets.formats.html.markup.Links;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.MemberSummaryWriter;
@@ -121,8 +121,7 @@ public class NestedClassWriterImpl extends AbstractMemberWriter
                 .setCaption(contents.getContent("doclet.Nested_Classes"))
                 .setHeader(getSummaryTableHeader(typeElement))
                 .setRowScopeColumn(1)
-                .setColumnStyles(bodyRowStyles)
-                .setUseTBody(false);  // temporary? compatibility mode for TBody
+                .setColumnStyles(bodyRowStyles);
     }
 
     /**
@@ -154,12 +153,12 @@ public class NestedClassWriterImpl extends AbstractMemberWriter
         Content label;
         if (configuration.summarizeOverriddenMethods) {
             label = new StringContent(utils.isInterface(typeElement)
-                    ? configuration.getText("doclet.Nested_Classes_Interfaces_Declared_In_Interface")
-                    : configuration.getText("doclet.Nested_Classes_Interfaces_Declared_In_Class"));
+                    ? resources.getText("doclet.Nested_Classes_Interfaces_Declared_In_Interface")
+                    : resources.getText("doclet.Nested_Classes_Interfaces_Declared_In_Class"));
         } else {
             label = new StringContent(utils.isInterface(typeElement)
-                    ? configuration.getText("doclet.Nested_Classes_Interfaces_Inherited_From_Interface")
-                    : configuration.getText("doclet.Nested_Classes_Interfaces_Inherited_From_Class"));
+                    ? resources.getText("doclet.Nested_Classes_Interfaces_Inherited_From_Interface")
+                    : resources.getText("doclet.Nested_Classes_Interfaces_Inherited_From_Class"));
         }
         Content labelHeading = HtmlTree.HEADING(HtmlConstants.INHERITED_SUMMARY_HEADING,
                 label);
@@ -204,32 +203,5 @@ public class NestedClassWriterImpl extends AbstractMemberWriter
     @Override
     protected Content getDeprecatedLink(Element member) {
         return writer.getQualifiedClassLink(LinkInfoImpl.Kind.MEMBER, member);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected Content getNavSummaryLink(TypeElement typeElement, boolean link) {
-        if (link) {
-            if (typeElement == null) {
-                return links.createLink(
-                        SectionName.NESTED_CLASS_SUMMARY,
-                        contents.navNested);
-            } else {
-                return links.createLink(
-                        SectionName.NESTED_CLASSES_INHERITANCE,
-                        utils.getFullyQualifiedName(typeElement), contents.navNested);
-            }
-        } else {
-            return contents.navNested;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected void addNavDetailLink(boolean link, Content liNav) {
     }
 }

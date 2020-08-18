@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,8 +43,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import jdk.internal.misc.JavaIOFileDescriptorAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaIOFileDescriptorAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.ref.CleanerFactory;
 
 /* This class is for the exclusive use of ProcessBuilder.start() to
@@ -106,6 +106,7 @@ final class ProcessImpl extends Process {
         FileOutputStream f2 = null;
 
         try {
+            boolean forceNullOutputStream = false;
             long[] stdHandles;
             if (redirects == null) {
                 stdHandles = new long[] { -1L, -1L, -1L };
@@ -129,6 +130,9 @@ final class ProcessImpl extends Process {
                     stdHandles[1] = fdAccess.getHandle(FileDescriptor.out);
                 } else if (redirects[1] instanceof ProcessBuilder.RedirectPipeImpl) {
                     stdHandles[1] = fdAccess.getHandle(((ProcessBuilder.RedirectPipeImpl) redirects[1]).getFd());
+                    // Force getInputStream to return a null stream,
+                    // the handle is directly assigned to the next process.
+                    forceNullOutputStream = true;
                 } else {
                     f1 = newFileOutputStream(redirects[1].file(),
                                              redirects[1].append());
@@ -149,7 +153,7 @@ final class ProcessImpl extends Process {
             }
 
             Process p = new ProcessImpl(cmdarray, envblock, dir,
-                                   stdHandles, redirectErrorStream);
+                                   stdHandles, forceNullOutputStream, redirectErrorStream);
             if (redirects != null) {
                 // Copy the handles's if they are to be redirected to another process
                 if (stdHandles[0] >= 0
@@ -349,6 +353,7 @@ final class ProcessImpl extends Process {
                         final String envblock,
                         final String path,
                         final long[] stdHandles,
+                        boolean forceNullOutputStream,
                         final boolean redirectErrorStream)
         throws IOException
     {
@@ -437,7 +442,7 @@ final class ProcessImpl extends Process {
                     new FileOutputStream(stdin_fd));
             }
 
-            if (stdHandles[1] == -1L)
+            if (stdHandles[1] == -1L || forceNullOutputStream)
                 stdout_stream = ProcessBuilder.NullInputStream.INSTANCE;
             else {
                 FileDescriptor stdout_fd = new FileDescriptor();
@@ -497,10 +502,14 @@ final class ProcessImpl extends Process {
         if (getExitCodeProcess(handle) != STILL_ACTIVE) return true;
         if (timeout <= 0) return false;
 
-        long deadline = System.nanoTime() + remainingNanos ;
+        long deadline = System.nanoTime() + remainingNanos;
         do {
             // Round up to next millisecond
             long msTimeout = TimeUnit.NANOSECONDS.toMillis(remainingNanos + 999_999L);
+            if (msTimeout < 0) {
+                // if wraps around then wait a long while
+                msTimeout = Integer.MAX_VALUE;
+            }
             waitForTimeoutInterruptibly(handle, msTimeout);
             if (Thread.interrupted())
                 throw new InterruptedException();
@@ -514,7 +523,7 @@ final class ProcessImpl extends Process {
     }
 
     private static native void waitForTimeoutInterruptibly(
-        long handle, long timeout);
+        long handle, long timeoutMillis);
 
     @Override
     public void destroy() {

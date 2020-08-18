@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_VERIFIER_HPP
-#define SHARE_VM_CLASSFILE_VERIFIER_HPP
+#ifndef SHARE_CLASSFILE_VERIFIER_HPP
+#define SHARE_CLASSFILE_VERIFIER_HPP
 
 #include "classfile/verificationType.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "oops/klass.hpp"
 #include "oops/method.hpp"
 #include "runtime/handles.hpp"
@@ -37,22 +36,16 @@
 class Verifier : AllStatic {
  public:
   enum {
-    STRICTER_ACCESS_CTRL_CHECK_VERSION  = 49,
     STACKMAP_ATTRIBUTE_MAJOR_VERSION    = 50,
     INVOKEDYNAMIC_MAJOR_VERSION         = 51,
     NO_RELAX_ACCESS_CTRL_CHECK_VERSION  = 52,
     DYNAMICCONSTANT_MAJOR_VERSION       = 55
   };
-  typedef enum { ThrowException, NoException } Mode;
 
-  /**
-   * Verify the bytecodes for a class.  If 'throw_exception' is true
-   * then the appropriate VerifyError or ClassFormatError will be thrown.
-   * Otherwise, no exception is thrown and the return indicates the
-   * error.
-   */
+  // Verify the bytecodes for a class.
+  static bool verify(InstanceKlass* klass, bool should_verify_class, TRAPS);
+
   static void log_end_verification(outputStream* st, const char* klassName, Symbol* exception_name, TRAPS);
-  static bool verify(InstanceKlass* klass, Mode mode, bool should_verify_class, TRAPS);
 
   // Return false if the class is loaded by the bootstrap loader,
   // or if defineClass was called requesting skipping verification
@@ -96,7 +89,7 @@ class StackMapTable;
 #define CHECK_VERIFY_(verifier, result) \
   CHECK_(result)); if ((verifier)->has_error()) return (result); ((void)0
 
-class TypeOrigin VALUE_OBJ_CLASS_SPEC {
+class TypeOrigin {
  private:
   typedef enum {
     CF_LOCALS,  // Comes from the current frame locals
@@ -146,7 +139,7 @@ class TypeOrigin VALUE_OBJ_CLASS_SPEC {
 #endif
 };
 
-class ErrorContext VALUE_OBJ_CLASS_SPEC {
+class ErrorContext {
  private:
   typedef enum {
     INVALID_BYTECODE,     // There was a problem with the bytecode
@@ -470,4 +463,4 @@ inline int ClassVerifier::change_sig_to_verificationType(
   }
 }
 
-#endif // SHARE_VM_CLASSFILE_VERIFIER_HPP
+#endif // SHARE_CLASSFILE_VERIFIER_HPP

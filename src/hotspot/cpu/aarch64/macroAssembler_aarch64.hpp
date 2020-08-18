@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_HPP
-#define CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_HPP
+#ifndef CPU_AARCH64_MACROASSEMBLER_AARCH64_HPP
+#define CPU_AARCH64_MACROASSEMBLER_AARCH64_HPP
 
 #include "asm/assembler.hpp"
 
@@ -79,8 +79,8 @@ class MacroAssembler: public Assembler {
 
   void call_VM_helper(Register oop_result, address entry_point, int number_of_arguments, bool check_exceptions = true);
 
-  // Maximum size of class area in Metaspace when compressed
-  uint64_t use_XOR_for_compressed_class_base;
+  // True if an XOR can be used to expand narrow klass references.
+  bool use_XOR_for_compressed_class_base;
 
  public:
   MacroAssembler(CodeBuffer* code) : Assembler(code) {
@@ -88,7 +88,7 @@ class MacroAssembler: public Assembler {
       = (operand_valid_for_logical_immediate(false /*is32*/,
                                              (uint64_t)Universe::narrow_klass_base())
          && ((uint64_t)Universe::narrow_klass_base()
-             > (1u << log2_intptr(CompressedClassSpaceSize))));
+             > (1UL << log2_intptr(Universe::narrow_klass_range()))));
   }
 
  // These routines should emit JVMTI PopFrame and ForceEarlyReturn handling code.
@@ -150,10 +150,18 @@ class MacroAssembler: public Assembler {
 
   void bind(Label& L) {
     Assembler::bind(L);
-    code()->clear_last_membar();
+    code()->clear_last_insn();
   }
 
   void membar(Membar_mask_bits order_constraint);
+
+  using Assembler::ldr;
+  using Assembler::str;
+
+  void ldr(Register Rx, const Address &adr);
+  void ldrw(Register Rw, const Address &adr);
+  void str(Register Rx, const Address &adr);
+  void strw(Register Rx, const Address &adr);
 
   // Frame creation and destruction shared between JITs.
   void build_frame(int framesize);
@@ -172,8 +180,9 @@ class MacroAssembler: public Assembler {
 
   template<class T>
   inline void cmpw(Register Rd, T imm)  { subsw(zr, Rd, imm); }
-  // imm is limited to 12 bits.
-  inline void cmp(Register Rd, unsigned imm)  { subs(zr, Rd, imm); }
+
+  inline void cmp(Register Rd, unsigned char imm8)  { subs(zr, Rd, imm8); }
+  inline void cmp(Register Rd, unsigned imm) __attribute__ ((deprecated));
 
   inline void cmnw(Register Rd, unsigned imm) { addsw(zr, Rd, imm); }
   inline void cmn(Register Rd, unsigned imm) { adds(zr, Rd, imm); }
@@ -573,6 +582,7 @@ public:
 
   virtual void null_check(Register reg, int offset = -1);
   static bool needs_explicit_null_check(intptr_t offset);
+  static bool uses_implicit_null_check(void* address);
 
   static address target_addr_for_insn(address insn_addr, unsigned insn);
   static address target_addr_for_insn(address insn_addr) {
@@ -583,7 +593,7 @@ public:
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
   static int pd_patch_instruction_size(address branch, address target);
-  static void pd_patch_instruction(address branch, address target) {
+  static void pd_patch_instruction(address branch, address target, const char* file = NULL, int line = 0) {
     pd_patch_instruction_size(branch, target);
   }
   static address pd_call_destination(address branch) {
@@ -771,35 +781,36 @@ public:
   void store_check(Register obj);                // store check for obj - register is destroyed afterwards
   void store_check(Register obj, Address dst);   // same as above, dst is exact store location (reg. is destroyed)
 
-#if INCLUDE_ALL_GCS
+  void resolve_jobject(Register value, Register thread, Register tmp);
 
-  void g1_write_barrier_pre(Register obj,
-                            Register pre_val,
-                            Register thread,
-                            Register tmp,
-                            bool tosca_live,
-                            bool expand_call);
-
-  void g1_write_barrier_post(Register store_addr,
-                             Register new_val,
-                             Register thread,
-                             Register tmp,
-                             Register tmp2);
-
-#endif // INCLUDE_ALL_GCS
+  // C 'boolean' to Java boolean: x == 0 ? 0 : 1
+  void c2bool(Register x);
 
   // oop manipulations
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
   void cmp_klass(Register oop, Register trial_klass, Register tmp);
 
-  void resolve_oop_handle(Register result);
-  void load_mirror(Register dst, Register method);
+  void resolve_oop_handle(Register result, Register tmp = r5);
+  void load_mirror(Register dst, Register method, Register tmp = r5);
 
-  void load_heap_oop(Register dst, Address src);
+  void access_load_at(BasicType type, DecoratorSet decorators, Register dst, Address src,
+                      Register tmp1, Register tmp_thread);
 
-  void load_heap_oop_not_null(Register dst, Address src);
-  void store_heap_oop(Address dst, Register src);
+  void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register src,
+                       Register tmp1, Register tmp_thread);
+
+  // Resolves obj for access. Result is placed in the same register.
+  // All other registers are preserved.
+  void resolve(DecoratorSet decorators, Register obj);
+
+  void load_heap_oop(Register dst, Address src, Register tmp1 = noreg,
+                     Register thread_tmp = noreg, DecoratorSet decorators = 0);
+
+  void load_heap_oop_not_null(Register dst, Address src, Register tmp1 = noreg,
+                              Register thread_tmp = noreg, DecoratorSet decorators = 0);
+  void store_heap_oop(Address dst, Register src, Register tmp1 = noreg,
+                      Register tmp_thread = noreg, DecoratorSet decorators = 0);
 
   // currently unimplemented
   // Used for storing NULL. All other oop constants should be
@@ -863,10 +874,6 @@ public:
   );
   void zero_memory(Register addr, Register len, Register t1);
   void verify_tlab();
-
-  void incr_allocated_bytes(Register thread,
-                            Register var_size_in_bytes, int con_size_in_bytes,
-                            Register t1 = noreg);
 
   // interface method calling
   void lookup_interface_method(Register recv_klass,
@@ -969,13 +976,12 @@ public:
                                                 Register tmp,
                                                 int offset);
 
-  // Support for serializing memory accesses between threads
-  void serialize_memory(Register thread, Register tmp);
-
   // Arithmetics
 
   void addptr(const Address &dst, int32_t src);
   void cmpptr(Register src1, Address src2);
+
+  void cmpoop(Register obj1, Register obj2);
 
   // Various forms of CAS
 
@@ -1012,13 +1018,16 @@ public:
                enum operand_size size,
                bool acquire, bool release, bool weak,
                Register result);
+private:
+  void compare_eq(Register rn, Register rm, enum operand_size size);
 
+public:
   // Calls
 
   address trampoline_call(Address entry, CodeBuffer *cbuf = NULL);
 
   static bool far_branches() {
-    return ReservedCodeCacheSize > branch_range;
+    return ReservedCodeCacheSize > branch_range || UseAOT;
   }
 
   // Jumps that can reach anywhere in the code cache.
@@ -1212,14 +1221,16 @@ public:
 
   void string_compare(Register str1, Register str2,
                       Register cnt1, Register cnt2, Register result,
-                      Register tmp1,
-                      FloatRegister vtmp, FloatRegister vtmpZ, int ae);
+                      Register tmp1, Register tmp2, FloatRegister vtmp1,
+                      FloatRegister vtmp2, FloatRegister vtmp3, int ae);
 
   void has_negatives(Register ary1, Register len, Register result);
 
-  void arrays_equals(Register a1, Register a2,
-                     Register result, Register cnt1,
-                     int elem_size, bool is_string);
+  void arrays_equals(Register a1, Register a2, Register result, Register cnt1,
+                     Register tmp1, Register tmp2, Register tmp3, int elem_size);
+
+  void string_equals(Register a1, Register a2, Register result, Register cnt1,
+                     int elem_size);
 
   void fill_words(Register base, Register cnt, Register value);
   void zero_words(Register base, u_int64_t cnt);
@@ -1245,11 +1256,25 @@ public:
                       Register cnt1, Register cnt2,
                       Register tmp1, Register tmp2,
                       Register tmp3, Register tmp4,
+                      Register tmp5, Register tmp6,
                       int int_cnt1, Register result, int ae);
   void string_indexof_char(Register str1, Register cnt1,
                            Register ch, Register result,
                            Register tmp1, Register tmp2, Register tmp3);
-private:
+  void fast_log(FloatRegister vtmp0, FloatRegister vtmp1, FloatRegister vtmp2,
+                FloatRegister vtmp3, FloatRegister vtmp4, FloatRegister vtmp5,
+                FloatRegister tmpC1, FloatRegister tmpC2, FloatRegister tmpC3,
+                FloatRegister tmpC4, Register tmp1, Register tmp2,
+                Register tmp3, Register tmp4, Register tmp5);
+  void generate_dsin_dcos(bool isCos, address npio2_hw, address two_over_pi,
+      address pio2, address dsin_coef, address dcos_coef);
+ private:
+  // begin trigonometric functions support block
+  void generate__ieee754_rem_pio2(address npio2_hw, address two_over_pi, address pio2);
+  void generate__kernel_rem_pio2(address two_over_pi, address pio2);
+  void generate_kernel_sin(FloatRegister x, bool iyIsOne, address dsin_coef);
+  void generate_kernel_cos(FloatRegister x, address dcos_coef);
+  // end trigonometric functions support block
   void add2_with_carry(Register final_dest_hi, Register dest_hi, Register dest_lo,
                        Register src1, Register src2);
   void add2_with_carry(Register dest_hi, Register dest_lo, Register src1, Register src2) {
@@ -1289,6 +1314,17 @@ private:
   // Returns an address on the stack which is reachable with a ldr/str of size
   // Uses rscratch2 if the address is not directly reachable
   Address spill_address(int size, int offset, Register tmp=rscratch2);
+
+  bool merge_alignment_check(Register base, size_t size, long cur_offset, long prev_offset) const;
+
+  // Check whether two loads/stores can be merged into ldp/stp.
+  bool ldst_can_merge(Register rx, const Address &adr, size_t cur_size_in_bytes, bool is_store) const;
+
+  // Merge current load/store with previous load/store into ldp/stp.
+  void merge_ldst(Register rx, const Address &adr, size_t cur_size_in_bytes, bool is_store);
+
+  // Try to merge two loads/stores into ldp/stp. If success, returns true else false.
+  bool try_merge_ldst(Register rt, const Address &adr, size_t cur_size_in_bytes, bool is_store);
 
 public:
   void spill(Register Rx, bool is64, int offset) {
@@ -1355,4 +1391,4 @@ struct tableswitch {
   Label _branches;
 };
 
-#endif // CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_HPP
+#endif // CPU_AARCH64_MACROASSEMBLER_AARCH64_HPP

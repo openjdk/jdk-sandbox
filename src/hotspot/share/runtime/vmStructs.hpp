@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_VMSTRUCTS_HPP
-#define SHARE_VM_RUNTIME_VMSTRUCTS_HPP
+#ifndef SHARE_RUNTIME_VMSTRUCTS_HPP
+#define SHARE_RUNTIME_VMSTRUCTS_HPP
 
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -72,7 +72,7 @@ typedef struct {
   int32_t  isStatic;               // Indicates whether following field is an offset or an address
   uint64_t offset;                 // Offset of field within structure; only used for nonstatic fields
   void* address;                   // Address of field; only used for static fields
-                                   // ("offset" can not be reused because of apparent SparcWorks compiler bug
+                                   // ("offset" can not be reused because of apparent solstudio compiler bug
                                    // in generation of initializer data)
 } VMStructEntry;
 
@@ -299,4 +299,4 @@ private:
 #define GENERATE_VM_ADDRESS_LAST_ENTRY() \
  { NULL, NULL }
 
-#endif // SHARE_VM_RUNTIME_VMSTRUCTS_HPP
+#endif // SHARE_RUNTIME_VMSTRUCTS_HPP

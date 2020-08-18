@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "gc/g1/heapRegion.hpp"
 #include "memory/heap.hpp"
 #include "memory/iterator.hpp"
+#include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/hashtable.inline.hpp"
 #include "utilities/stack.inline.hpp"
@@ -75,7 +76,9 @@ G1CodeRootSetTable::~G1CodeRootSetTable() {
     }
   }
   assert(number_of_entries() == 0, "should have removed all entries");
-  free_buckets();
+  // Each of the entries in new_entry_free_list() have been allocated in
+  // G1CodeRootSetTable::new_entry(). We never call the block allocator
+  // in BasicHashtable::new_entry().
   for (BasicHashtableEntry<mtGC>* e = new_entry_free_list(); e != NULL; e = new_entry_free_list()) {
     FREE_C_HEAP_ARRAY(char, e);
   }
@@ -274,7 +277,7 @@ class CleanCallback : public StackObj {
 
     template <typename T>
     void do_oop_work(T* p) {
-      if (_hr->is_in(oopDesc::load_decode_heap_oop(p))) {
+      if (_hr->is_in(RawAccess<>::oop_load(p))) {
         _points_into = true;
       }
     }

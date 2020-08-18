@@ -24,6 +24,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -80,13 +81,6 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
 
   std(return_pc, _abi(lr), R1_SP);     // SP->lr = return_pc
   push_frame(frame_size_in_bytes, R0); // SP -= frame_size_in_bytes
-}
-
-
-void C1_MacroAssembler::unverified_entry(Register receiver, Register ic_klass) {
-  Unimplemented(); // Currently unused.
-  //if (C1Breakpoint) illtrap();
-  //inline_cache_check(receiver, ic_klass);
 }
 
 

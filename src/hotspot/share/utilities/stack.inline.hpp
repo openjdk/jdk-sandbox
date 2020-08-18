@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_STACK_INLINE_HPP
-#define SHARE_VM_UTILITIES_STACK_INLINE_HPP
+#ifndef SHARE_UTILITIES_STACK_INLINE_HPP
+#define SHARE_UTILITIES_STACK_INLINE_HPP
 
+#include "memory/allocation.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/stack.hpp"
 #include "utilities/copy.hpp"
@@ -32,8 +33,8 @@
 template <MEMFLAGS F> StackBase<F>::StackBase(size_t segment_size, size_t max_cache_size,
                      size_t max_size):
   _seg_size(segment_size),
-  _max_cache_size(max_cache_size),
-  _max_size(adjust_max_size(max_size, segment_size))
+  _max_size(adjust_max_size(max_size, segment_size)),
+  _max_cache_size(max_cache_size)
 {
   assert(_max_size % _seg_size == 0, "not a multiple");
 }
@@ -272,4 +273,4 @@ E* StackIterator<E, F>::next_addr()
   return _cur_seg + --_cur_seg_size;
 }
 
-#endif // SHARE_VM_UTILITIES_STACK_INLINE_HPP
+#endif // SHARE_UTILITIES_STACK_INLINE_HPP

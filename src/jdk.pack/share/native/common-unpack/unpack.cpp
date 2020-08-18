@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,6 +70,7 @@
 
 #include "unpack.h"
 
+#define STATIC_ASSERT(COND) typedef char static_assertion[(COND)?1:-1]
 
 // tags, in canonical order:
 static const byte TAGS_IN_ORDER[] = {
@@ -564,14 +565,14 @@ void unpacker::read_file_header() {
     FIRST_READ  = MAGIC_BYTES + AH_LENGTH_MIN
   };
 
-  assert(AH_LENGTH_MIN    == 15); // # of UNSIGNED5 fields required after archive_magic
+  STATIC_ASSERT(AH_LENGTH_MIN    == 15); // # of UNSIGNED5 fields required after archive_magic
   // An absolute minimum null archive is magic[4], {minver,majver,options}[3],
   // archive_size[0], cp_counts[8], class_counts[4], for a total of 19 bytes.
   // (Note that archive_size is optional; it may be 0..10 bytes in length.)
   // The first read must capture everything up through the options field.
   // This happens to work even if {minver,majver,options} is a pathological
   // 15 bytes long.  Legal pack files limit those three fields to 1+1+2 bytes.
-  assert(FIRST_READ >= MAGIC_BYTES + AH_LENGTH_0 * B_MAX);
+  STATIC_ASSERT(FIRST_READ >= MAGIC_BYTES + AH_LENGTH_0 * B_MAX);
 
   // Up through archive_size, the largest possible archive header is
   // magic[4], {minver,majver,options}[4], archive_size[10].
@@ -581,7 +582,7 @@ void unpacker::read_file_header() {
   // a byte, we probably will fail to allocate the buffer, since it
   // will be many gigabytes long.  This is a practical, not an
   // architectural limit to Pack200 archive sizes.
-  assert(FIRST_READ >= MAGIC_BYTES + AH_LENGTH_0_MAX + 2*B_MAX);
+  STATIC_ASSERT(FIRST_READ >= MAGIC_BYTES + AH_LENGTH_0_MAX + 2*B_MAX);
 
   bool foreign_buf = (read_input_fn == null);
   byte initbuf[(int)FIRST_READ + (int)C_SLOP + 200];  // 200 is for JAR I/O
@@ -1799,6 +1800,7 @@ unpacker::attr_definitions::parseLayout(const char* lp, band** &res,
     case 'B': case 'H': case 'I': case 'V': // unsigned_int
     case 'S': // signed_int
       --lp; // reparse
+      /* fall through */
     case 'F':
       lp = parseIntLayout(lp, b, EK_INT);
       break;
@@ -2680,6 +2682,9 @@ void unpacker::attr_definitions::readBandData(int idx) {
     PRINTCR((1, "counted %d [redefined = %d predefined = %d] attributes of type %s.%s",
             count, isRedefined(idx), isPredefined(idx),
             ATTR_CONTEXT_NAME[attrc], lo->name));
+  } else {
+    abort("layout_definition pointer must not be NULL");
+    return;
   }
   bool hasCallables = lo->hasCallables();
   band** bands = lo->bands();
@@ -3709,7 +3714,7 @@ const char* entry::string() {
   case CONSTANT_Signature:
     if (value.b.ptr == null)
       return ref(0)->string();
-    // else fall through:
+    /* fall through */
   case CONSTANT_Utf8:
     buf = value.b;
     break;
@@ -4216,6 +4221,7 @@ void unpacker::write_bc_ops() {
         case _invokeinit_self_option:   classRef = thisClass;  break;
         case _invokeinit_super_option:  classRef = superClass; break;
         default: assert(bc == _invokeinit_op+_invokeinit_new_option);
+        /* fall through */
         case _invokeinit_new_option:    classRef = newClass;   break;
         }
         wp[-1] = origBC;  // overwrite with origBC

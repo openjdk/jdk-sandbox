@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,13 +20,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_0;
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_0;
 
-import jdk.vm.ci.meta.JavaKind;
-import jdk.vm.ci.meta.ResolvedJavaMethod;
 import org.graalvm.compiler.core.common.type.AbstractPointerStamp;
 import org.graalvm.compiler.core.common.type.ObjectStamp;
 import org.graalvm.compiler.core.common.type.Stamp;
@@ -49,9 +49,11 @@ import org.graalvm.compiler.nodes.spi.VirtualizerTool;
 import org.graalvm.compiler.nodes.type.StampTool;
 import org.graalvm.compiler.nodes.virtual.VirtualObjectNode;
 
-//JaCoCo Exclude
-
+import jdk.vm.ci.meta.JavaKind;
+import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaType;
+
+//JaCoCo Exclude
 
 /**
  * A node that changes the type of its input, usually narrowing it. For example, a {@link PiNode}
@@ -192,7 +194,7 @@ public class PiNode extends FloatingGuardedNode implements LIRLowerable, Virtual
 
         if (guard == null) {
             // Try to merge the pi node with a load node.
-            if (object instanceof ReadNode) {
+            if (object instanceof ReadNode && !object.hasMoreThanOneUsage()) {
                 ReadNode readNode = (ReadNode) object;
                 readNode.setStamp(readNode.stamp(NodeView.DEFAULT).improveWith(stamp));
                 return readNode;
@@ -279,12 +281,12 @@ public class PiNode extends FloatingGuardedNode implements LIRLowerable, Virtual
      * Changes the stamp of an object to represent a given type and to indicate that the object is
      * not null.
      */
-    public static Object piCastNonNull(Object object, @ConstantNodeParameter Class<?> toType) {
+    public static Object piCastNonNull(Object object, @ConstantNodeParameter ResolvedJavaType toType) {
         return piCast(object, toType, false, true);
     }
 
     @NodeIntrinsic
-    public static native Object piCast(Object object, @ConstantNodeParameter Class<?> toType, @ConstantNodeParameter boolean exactType, @ConstantNodeParameter boolean nonNull);
+    public static native Object piCast(Object object, @ConstantNodeParameter ResolvedJavaType toType, @ConstantNodeParameter boolean exactType, @ConstantNodeParameter boolean nonNull);
 
     /**
      * A placeholder node in a snippet that will be replaced with a {@link PiNode} when the snippet

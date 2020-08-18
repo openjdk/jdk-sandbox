@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOGLEVEL_HPP
-#define SHARE_VM_LOGGING_LOGLEVEL_HPP
+#ifndef SHARE_LOGGING_LOGLEVEL_HPP
+#define SHARE_LOGGING_LOGLEVEL_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/macros.hpp"
@@ -71,6 +71,7 @@ class LogLevel : public AllStatic {
   }
 
   static LogLevel::type from_string(const char* str);
+  static LogLevel::type fuzzy_match(const char *level);
 
  private:
   static const char* _name[];
@@ -78,4 +79,4 @@ class LogLevel : public AllStatic {
 
 typedef LogLevel::type LogLevelType;
 
-#endif // SHARE_VM_LOGGING_LOGLEVEL_HPP
+#endif // SHARE_LOGGING_LOGLEVEL_HPP

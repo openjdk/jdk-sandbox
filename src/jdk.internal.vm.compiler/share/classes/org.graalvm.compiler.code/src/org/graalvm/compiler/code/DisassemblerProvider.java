@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.code;
 
 import jdk.vm.ci.code.CodeCacheProvider;
@@ -58,7 +60,7 @@ public interface DisassemblerProvider {
     }
 
     /**
-     * Gets the name denoting the format of the disassmembly return by this object.
+     * Gets the name denoting the format of the disassembly returned by this object.
      */
     String getName();
 }

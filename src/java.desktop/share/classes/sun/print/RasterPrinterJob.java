@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,6 +74,7 @@ import javax.print.attribute.Size2DSyntax;
 import javax.print.attribute.standard.Copies;
 import javax.print.attribute.standard.Destination;
 import javax.print.attribute.standard.DialogTypeSelection;
+import javax.print.attribute.standard.DialogOwner;
 import javax.print.attribute.standard.Fidelity;
 import javax.print.attribute.standard.JobName;
 import javax.print.attribute.standard.JobSheets;
@@ -553,7 +554,7 @@ public abstract class RasterPrinterJob extends PrinterJob {
         MediaSize size = getMediaSize(media, service, page);
 
         Paper paper = new Paper();
-        float dim[] = size.getSize(1); //units == 1 to avoid FP error
+        float[] dim = size.getSize(1); //units == 1 to avoid FP error
         double w = Math.rint((dim[0]*72.0)/Size2DSyntax.INCH);
         double h = Math.rint((dim[1]*72.0)/Size2DSyntax.INCH);
         paper.setSize(w, h);
@@ -830,17 +831,24 @@ public abstract class RasterPrinterJob extends PrinterJob {
         int x = gcBounds.x+50;
         int y = gcBounds.y+50;
         ServiceDialog pageDialog;
+        boolean setOnTop = false;
         if (onTop != null) {
             attributes.add(onTop);
+            Window owner = onTop.getOwner();
+            if (owner != null) {
+                w = owner; // use the one specifed by the app
+            } else if (DialogOwnerAccessor.getID(onTop) == 0) {
+                setOnTop = true;
+            }
         }
-        if (w instanceof Frame) {
             pageDialog = new ServiceDialog(gc, x, y, service,
                                            DocFlavor.SERVICE_FORMATTED.PAGEABLE,
-                                           attributes,(Frame)w);
-        } else {
-            pageDialog = new ServiceDialog(gc, x, y, service,
-                                           DocFlavor.SERVICE_FORMATTED.PAGEABLE,
-                                           attributes, (Dialog)w);
+                                           attributes, w);
+        if (setOnTop) {
+            try {
+                pageDialog.setAlwaysOnTop(true);
+            } catch (SecurityException e) {
+            }
         }
 
         Rectangle dlgBounds = pageDialog.getBounds();
@@ -887,17 +895,16 @@ public abstract class RasterPrinterJob extends PrinterJob {
    }
 
     protected PageFormat getPageFormatFromAttributes() {
-        if (attributes == null || attributes.isEmpty()) {
+        Pageable pageable = null;
+        if (attributes == null || attributes.isEmpty() ||
+            !((pageable = getPageable()) instanceof OpenBook)) {
             return null;
         }
 
         PageFormat newPf = attributeToPageFormat(
             getPrintService(), attributes);
         PageFormat oldPf = null;
-        Pageable pageable = getPageable();
-        if ((pageable != null) &&
-            (pageable instanceof OpenBook) &&
-            ((oldPf = pageable.getPageFormat(0)) != null)) {
+        if ((oldPf = pageable.getPageFormat(0)) != null) {
             // If orientation, media, imageable area attributes are not in
             // "attributes" set, then use respective values of the existing
             // page format "oldPf".
@@ -988,8 +995,7 @@ public abstract class RasterPrinterJob extends PrinterJob {
               * (it might be set in java.awt.PrintJob.printDialog)
               */
             if (attributes.get(DialogOwner.class) == null) {
-                attributes.add(w instanceof Frame ? new DialogOwner((Frame)w) :
-                                                    new DialogOwner((Dialog)w));
+                attributes.add(new DialogOwner(w));
             }
         } else {
             grCfg = GraphicsEnvironment.getLocalGraphicsEnvironment().
@@ -2581,7 +2587,7 @@ public abstract class RasterPrinterJob extends PrinterJob {
         }
     }
 
-    private DialogOnTop onTop = null;
+    private DialogOwner onTop = null;
 
     private long parentWindowID = 0L;
 
@@ -2597,9 +2603,9 @@ public abstract class RasterPrinterJob extends PrinterJob {
 
     private void setParentWindowID(PrintRequestAttributeSet attrs) {
         parentWindowID = 0L;
-        onTop = (DialogOnTop)attrs.get(DialogOnTop.class);
+        onTop = (DialogOwner)attrs.get(DialogOwner.class);
         if (onTop != null) {
-            parentWindowID = onTop.getID();
+            parentWindowID = DialogOwnerAccessor.getID(onTop);
         }
     }
 }

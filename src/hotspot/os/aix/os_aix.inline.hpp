@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2016 SAP SE. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef OS_AIX_VM_OS_AIX_INLINE_HPP
-#define OS_AIX_VM_OS_AIX_INLINE_HPP
+#ifndef OS_AIX_OS_AIX_INLINE_HPP
+#define OS_AIX_OS_AIX_INLINE_HPP
 
 #include "runtime/os.hpp"
 
@@ -36,13 +36,9 @@
 #include <sys/ioctl.h>
 #include <netdb.h>
 
-// File names are case-sensitive on windows only.
-inline int os::file_name_strcmp(const char* s1, const char* s2) {
-  return strcmp(s1, s2);
-}
-
-inline bool os::obsolete_option(const JavaVMOption *option) {
-  return false;
+// File names are case-insensitive on windows only.
+inline int os::file_name_strncmp(const char* s1, const char* s2, size_t num) {
+  return strncmp(s1, s2, num);
 }
 
 inline bool os::uses_stack_guard_pages() {
@@ -74,17 +70,6 @@ inline void os::dll_unload(void *lib) {
 
 inline const int os::default_file_open_flags() { return 0;}
 
-inline DIR* os::opendir(const char* dirname) {
-  assert(dirname != NULL, "just checking");
-  return ::opendir(dirname);
-}
-
-inline int os::readdir_buf_size(const char *path) {
-  // According to aix sys/limits, NAME_MAX must be retrieved at runtime.
-  const long my_NAME_MAX = pathconf(path, _PC_NAME_MAX);
-  return my_NAME_MAX + sizeof(dirent) + 1;
-}
-
 inline jlong os::lseek(int fd, jlong offset, int whence) {
   return (jlong) ::lseek64(fd, offset, whence);
 }
@@ -93,29 +78,8 @@ inline int os::fsync(int fd) {
   return ::fsync(fd);
 }
 
-inline char* os::native_path(char *path) {
-  return path;
-}
-
 inline int os::ftruncate(int fd, jlong length) {
   return ::ftruncate64(fd, length);
-}
-
-inline struct dirent* os::readdir(DIR* dirp, dirent *dbuf) {
-  dirent* p = NULL;
-  assert(dirp != NULL, "just checking");
-
-  // AIX: slightly different from POSIX.
-  // On AIX, readdir_r returns 0 or != 0 and error details in errno.
-  if (::readdir_r(dirp, dbuf, &p) != 0) {
-    return NULL;
-  }
-  return p;
-}
-
-inline int os::closedir(DIR *dirp) {
-  assert(dirp != NULL, "argument is NULL");
-  return ::closedir(dirp);
 }
 
 // macros for restartable system calls
@@ -133,12 +97,6 @@ inline int os::closedir(DIR *dirp) {
 // We don't have NUMA support on Aix, but we need this for compilation.
 inline bool os::numa_has_static_binding()   { ShouldNotReachHere(); return true; }
 inline bool os::numa_has_group_homing()     { ShouldNotReachHere(); return false;  }
-
-inline size_t os::restartable_read(int fd, void *buf, unsigned int nBytes) {
-  size_t res;
-  RESTARTABLE( (size_t) ::read(fd, buf, (size_t) nBytes), res);
-  return res;
-}
 
 inline size_t os::write(int fd, const void *buf, unsigned int nBytes) {
   size_t res;
@@ -187,4 +145,4 @@ inline void os::exit(int num) {
   ::exit(num);
 }
 
-#endif // OS_AIX_VM_OS_AIX_INLINE_HPP
+#endif // OS_AIX_OS_AIX_INLINE_HPP

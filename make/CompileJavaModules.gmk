@@ -51,14 +51,6 @@ java.base_EXCLUDES += java/lang/doc-files
 # data files and shouldn't go in the product
 java.base_EXCLUDE_FILES += sun/text/resources/BreakIteratorRules.java
 
-ifneq ($(filter solaris macosx linux windows,$(OPENJDK_TARGET_OS)), )
-  java.base_EXCLUDE_FILES += \
-      sun/nio/ch/AbstractPollSelectorImpl.java \
-      sun/nio/ch/PollSelectorImpl.java \
-      sun/nio/ch/PollSelectorProvider.java \
-      #
-endif
-
 ifneq ($(OPENJDK_TARGET_OS), solaris)
   java.base_EXCLUDE_FILES += \
       SolarisLoginModule.java \
@@ -252,6 +244,10 @@ java.prefs_ADD_JAVAC_FLAGS += -Xdoclint:all/protected '-Xdoclint/package:java.*,
 
 ################################################################################
 
+java.transaction.xa_ADD_JAVAC_FLAGS += -Xdoclint:all/protected '-Xdoclint/package:javax.*'
+
+################################################################################
+
 java.sql_ADD_JAVAC_FLAGS += -Xdoclint:all/protected '-Xdoclint/package:java.*,javax.*'
 java.sql_SETUP := GENERATE_JDKBYTECODE_NOWARNINGS
 
@@ -325,7 +321,11 @@ jdk.jshell_COPY += .jsh .properties
 
 ################################################################################
 
-jdk.internal.le_COPY += .properties
+jdk.internal.le_COPY += .properties .caps .txt
+
+################################################################################
+
+jdk.internal.opt_COPY += .properties
 
 ################################################################################
 
@@ -345,6 +345,12 @@ jdk.jartool_ADD_JAVAC_FLAGS += -XDstringConcat=inline
 
 ################################################################################
 
+jdk.scripting.nashorn_ADD_JAVAC_FLAGS += $(DISABLE_WARNINGS),-overrides
+jdk.scripting.nashorn_COPY := .properties .js
+
+################################################################################
+
+jdk.scripting.nashorn.shell_ADD_JAVAC_FLAGS += $(DISABLE_WARNINGS),-overrides
 jdk.scripting.nashorn.shell_COPY += .js .properties
 
 ################################################################################
@@ -443,20 +449,18 @@ jdk.internal.vm.compiler_ADD_JAVAC_FLAGS += -parameters -XDstringConcat=inline \
     #
 
 jdk.internal.vm.compiler_EXCLUDES += \
-    org.graalvm.collections.test \
-    org.graalvm.compiler.core.match.processor \
-    org.graalvm.compiler.nodeinfo.processor \
-    org.graalvm.compiler.options.processor \
-    org.graalvm.compiler.serviceprovider.processor \
-    org.graalvm.compiler.replacements.verifier \
+    jdk.internal.vm.compiler.collections.test \
+    jdk.tools.jaotc.test \
     org.graalvm.compiler.api.directives.test \
     org.graalvm.compiler.api.test \
     org.graalvm.compiler.asm.aarch64.test \
     org.graalvm.compiler.asm.amd64.test \
     org.graalvm.compiler.asm.sparc.test \
     org.graalvm.compiler.asm.test \
+    org.graalvm.compiler.core.aarch64.test \
     org.graalvm.compiler.core.amd64.test \
-    org.graalvm.compiler.core.sparc.test \
+    org.graalvm.compiler.core.jdk9.test \
+    org.graalvm.compiler.core.match.processor \
     org.graalvm.compiler.core.test \
     org.graalvm.compiler.debug.test \
     org.graalvm.compiler.graph.test \
@@ -469,10 +473,17 @@ jdk.internal.vm.compiler_EXCLUDES += \
     org.graalvm.compiler.lir.test \
     org.graalvm.compiler.loop.test \
     org.graalvm.compiler.microbenchmarks \
+    org.graalvm.compiler.nodeinfo.processor \
     org.graalvm.compiler.nodes.test \
+    org.graalvm.compiler.options.processor \
     org.graalvm.compiler.options.test \
     org.graalvm.compiler.phases.common.test \
+    org.graalvm.compiler.processor \
+    org.graalvm.compiler.replacements.jdk12.test \
+    org.graalvm.compiler.replacements.jdk9.test \
+    org.graalvm.compiler.replacements.processor \
     org.graalvm.compiler.replacements.test \
+    org.graalvm.compiler.serviceprovider.processor \
     org.graalvm.compiler.test \
     org.graalvm.compiler.virtual.bench \
     org.graalvm.micro.benchmarks \
@@ -503,6 +514,10 @@ jdk.aot_ADD_JAVAC_FLAGS += -parameters -XDstringConcat=inline \
     --add-exports jdk.internal.vm.ci/jdk.vm.ci.sparc=jdk.internal.vm.compiler,jdk.aot \
     #
 
+jdk.aot_EXCLUDES += \
+    jdk.tools.jaotc.test
+    #
+
 ################################################################################
 
 sun.charsets_COPY += .dat
@@ -513,6 +528,16 @@ jdk.localedata_COPY += _dict _th
 # Exclude BreakIterator classes that are just used in compile process to generate
 # data files and shouldn't go in the product
 jdk.localedata_EXCLUDE_FILES += sun/text/resources/ext/BreakIteratorRules_th.java
+jdk.localedata_KEEP_ALL_TRANSLATIONS := true
+################################################################################
+
+# There is an issue in sjavac that triggers a warning in jdk.jfr that isn't
+# triggered without sjavac.
+ifeq ($(ENABLE_SJAVAC), yes)
+  jdk.jfr_SETUP := GENERATE_JDKBYTECODE_NOWARNINGS
+endif
+jdk.jfr_COPY := .xsd .xml .dtd
+jdk.jfr_ADD_JAVAC_FLAGS := -XDstringConcat=inline -Xlint:-exports
 
 ################################################################################
 # If this is an imported module that has prebuilt classes, only compile
@@ -603,9 +628,14 @@ $(JDK_OUTPUTDIR)/modules/%_zh_HK.properties: $(JDK_OUTPUTDIR)/modules/%_zh_TW.pr
 	$(install-file)
 
 CreateHkTargets = \
-    $(patsubst $(TOPDIR)/src/%, $(JDK_OUTPUTDIR)/modules/%, \
-      $(subst /share/classes,, \
-        $(subst _zh_TW,_zh_HK, $(filter %_zh_TW.properties, $1))))
+    $(call FilterExcludedTranslations, \
+       $(patsubst $(TOPDIR)/src/%, $(JDK_OUTPUTDIR)/modules/%, \
+         $(subst /share/classes,, \
+            $(subst _zh_TW,_zh_HK, $(filter %_zh_TW.properties, $1)) \
+         ) \
+       ), \
+       .properties \
+    )
 
 ifeq ($(MODULE), java.sql.rowset)
   TARGETS += $(call CreateHkTargets, $(java.sql.rowset_CLEAN_FILES))
@@ -633,6 +663,12 @@ ifneq ($(wildcard $(IMPORT_MODULES_CLASSES)/$(MODULE)), )
   # Add this dependency to avoid a race between compiling module-info.java and
   # importing the classes.
   $($(MODULE)_COMPILE_TARGET): $(JDK_OUTPUTDIR)/modules/$(MODULE)/_imported.marker
+endif
+
+################################################################################
+
+ifeq ($(MODULE), jdk.scripting.nashorn)
+  include CompileJavaModulesNashorn.gmk
 endif
 
 ################################################################################

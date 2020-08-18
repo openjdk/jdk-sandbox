@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -470,7 +470,7 @@ void Parse::do_call() {
   // Push appendix argument (MethodType, CallSite, etc.), if one.
   if (iter().has_appendix()) {
     ciObject* appendix_arg = iter().get_appendix();
-    const TypeOopPtr* appendix_arg_type = TypeOopPtr::make_from_constant(appendix_arg);
+    const TypeOopPtr* appendix_arg_type = TypeOopPtr::make_from_constant(appendix_arg, /* require_const= */ true);
     Node* appendix_arg_node = _gvn.makecon(appendix_arg_type);
     push(appendix_arg_node);
   }
@@ -505,28 +505,36 @@ void Parse::do_call() {
     speculative_receiver_type = receiver_type != NULL ? receiver_type->speculative_type() : NULL;
   }
 
-  // invoke-super-special
+  // Additional receiver subtype checks for interface calls via invokespecial or invokeinterface.
+  ciKlass* receiver_constraint = NULL;
   if (iter().cur_bc_raw() == Bytecodes::_invokespecial && !orig_callee->is_object_initializer()) {
     ciInstanceKlass* calling_klass = method()->holder();
     ciInstanceKlass* sender_klass =
-        calling_klass->is_anonymous() ? calling_klass->host_klass() :
-                                        calling_klass;
+        calling_klass->is_unsafe_anonymous() ? calling_klass->unsafe_anonymous_host() :
+                                               calling_klass;
     if (sender_klass->is_interface()) {
-      Node* receiver_node = stack(sp() - nargs);
-      Node* cls_node = makecon(TypeKlassPtr::make(sender_klass));
-      Node* bad_type_ctrl = NULL;
-      Node* casted_receiver = gen_checkcast(receiver_node, cls_node, &bad_type_ctrl);
-      if (bad_type_ctrl != NULL) {
-        PreserveJVMState pjvms(this);
-        set_control(bad_type_ctrl);
-        uncommon_trap(Deoptimization::Reason_class_check,
-                      Deoptimization::Action_none);
-      }
-      if (stopped()) {
-        return; // MUST uncommon-trap?
-      }
-      set_stack(sp() - nargs, casted_receiver);
+      receiver_constraint = sender_klass;
     }
+  } else if (iter().cur_bc_raw() == Bytecodes::_invokeinterface && orig_callee->is_private()) {
+    assert(holder->is_interface(), "How did we get a non-interface method here!");
+    receiver_constraint = holder;
+  }
+
+  if (receiver_constraint != NULL) {
+    Node* receiver_node = stack(sp() - nargs);
+    Node* cls_node = makecon(TypeKlassPtr::make(receiver_constraint));
+    Node* bad_type_ctrl = NULL;
+    Node* casted_receiver = gen_checkcast(receiver_node, cls_node, &bad_type_ctrl);
+    if (bad_type_ctrl != NULL) {
+      PreserveJVMState pjvms(this);
+      set_control(bad_type_ctrl);
+      uncommon_trap(Deoptimization::Reason_class_check,
+                    Deoptimization::Action_none);
+    }
+    if (stopped()) {
+      return; // MUST uncommon-trap?
+    }
+    set_stack(sp() - nargs, casted_receiver);
   }
 
   // Note:  It's OK to try to inline a virtual call.

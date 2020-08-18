@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,15 @@
 
 /*
  * @test
- * @bug      8176836
+ * @bug      8176836 8201817
  * @summary  Provide Taglet with context
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester InfoTaglet
+ * @build    javadoc.tester.* InfoTaglet
  * @run main TestUserTaglet
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestUserTaglet extends JavadocTester {
 
@@ -39,7 +41,7 @@ public class TestUserTaglet extends JavadocTester {
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "-tagletpath", System.getProperty("test.class.path"),
@@ -52,7 +54,7 @@ public class TestUserTaglet extends JavadocTester {
         checkOutput("pkg/C.html", true,
             "<li>Element: CLASS C",
             "<li>Element supertypes: [java.lang.Object]",
-            "<li>Doclet: class jdk.javadoc.internal.doclets.formats.html.HtmlDoclet"
+            "<li>Doclet: class jdk.javadoc.doclet.StandardDoclet"
         );
     }
 }

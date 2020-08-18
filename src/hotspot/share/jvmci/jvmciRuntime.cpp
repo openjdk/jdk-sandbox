@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "asm/codeBuffer.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "code/codeCache.hpp"
+#include "code/compiledMethod.inline.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/disassembler.hpp"
 #include "jvmci/jvmciRuntime.hpp"
@@ -34,18 +35,24 @@
 #include "jvmci/jvmciJavaClasses.hpp"
 #include "jvmci/jvmciEnv.hpp"
 #include "logging/log.hpp"
+#include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/threadSMR.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_G1GC
+#include "gc/g1/g1ThreadLocalData.hpp"
+#endif // INCLUDE_G1GC
 
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
@@ -54,8 +61,6 @@
 jobject JVMCIRuntime::_HotSpotJVMCIRuntime_instance = NULL;
 bool JVMCIRuntime::_HotSpotJVMCIRuntime_initialized = false;
 bool JVMCIRuntime::_well_known_classes_initialized = false;
-int JVMCIRuntime::_trivial_prefixes_count = 0;
-char** JVMCIRuntime::_trivial_prefixes = NULL;
 JVMCIRuntime::CompLevelAdjustment JVMCIRuntime::_comp_level_adjustment = JVMCIRuntime::none;
 bool JVMCIRuntime::_shutdown_called = false;
 
@@ -104,22 +109,72 @@ static void deopt_caller() {
   }
 }
 
-JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_instance(JavaThread* thread, Klass* klass))
+// Manages a scope for a JVMCI runtime call that attempts a heap allocation.
+// If there is a pending exception upon closing the scope and the runtime
+// call is of the variety where allocation failure returns NULL without an
+// exception, the following action is taken:
+//   1. The pending exception is cleared
+//   2. NULL is written to JavaThread::_vm_result
+//   3. Checks that an OutOfMemoryError is Universe::out_of_memory_error_retry().
+class RetryableAllocationMark: public StackObj {
+ private:
+  JavaThread* _thread;
+ public:
+  RetryableAllocationMark(JavaThread* thread, bool activate) {
+    if (activate) {
+      assert(!thread->in_retryable_allocation(), "retryable allocation scope is non-reentrant");
+      _thread = thread;
+      _thread->set_in_retryable_allocation(true);
+    } else {
+      _thread = NULL;
+    }
+  }
+  ~RetryableAllocationMark() {
+    if (_thread != NULL) {
+      _thread->set_in_retryable_allocation(false);
+      JavaThread* THREAD = _thread;
+      if (HAS_PENDING_EXCEPTION) {
+        oop ex = PENDING_EXCEPTION;
+        CLEAR_PENDING_EXCEPTION;
+        oop retry_oome = Universe::out_of_memory_error_retry();
+        if (ex->is_a(retry_oome->klass()) && retry_oome != ex) {
+          ResourceMark rm;
+          fatal("Unexpected exception in scope of retryable allocation: " INTPTR_FORMAT " of type %s", p2i(ex), ex->klass()->external_name());
+        }
+        _thread->set_vm_result(NULL);
+      }
+    }
+  }
+};
+
+JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_instance_common(JavaThread* thread, Klass* klass, bool null_on_fail))
   JRT_BLOCK;
   assert(klass->is_klass(), "not a class");
   Handle holder(THREAD, klass->klass_holder()); // keep the klass alive
   InstanceKlass* ik = InstanceKlass::cast(klass);
-  ik->check_valid_for_instantiation(true, CHECK);
-  // make sure klass is initialized
-  ik->initialize(CHECK);
-  // allocate instance and return via TLS
-  oop obj = ik->allocate_instance(CHECK);
-  thread->set_vm_result(obj);
+  {
+    RetryableAllocationMark ram(thread, null_on_fail);
+    ik->check_valid_for_instantiation(true, CHECK);
+    oop obj;
+    if (null_on_fail) {
+      if (!ik->is_initialized()) {
+        // Cannot re-execute class initialization without side effects
+        // so return without attempting the initialization
+        return;
+      }
+    } else {
+      // make sure klass is initialized
+      ik->initialize(CHECK);
+    }
+    // allocate instance and return via TLS
+    obj = ik->allocate_instance(CHECK);
+    thread->set_vm_result(obj);
+  }
   JRT_BLOCK_END;
   SharedRuntime::on_slowpath_allocation_exit(thread);
 JRT_END
 
-JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_array(JavaThread* thread, Klass* array_klass, jint length))
+JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_array_common(JavaThread* thread, Klass* array_klass, jint length, bool null_on_fail))
   JRT_BLOCK;
   // Note: no handle for klass needed since they are not used
   //       anymore after new_objArray() and no GC can happen before.
@@ -128,10 +183,12 @@ JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_array(JavaThread* thread, Klass* array_k
   oop obj;
   if (array_klass->is_typeArray_klass()) {
     BasicType elt_type = TypeArrayKlass::cast(array_klass)->element_type();
+    RetryableAllocationMark ram(thread, null_on_fail);
     obj = oopFactory::new_typeArray(elt_type, length, CHECK);
   } else {
     Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
     Klass* elem_klass = ObjArrayKlass::cast(array_klass)->element_klass();
+    RetryableAllocationMark ram(thread, null_on_fail);
     obj = oopFactory::new_objArray(elem_klass, length, CHECK);
   }
   thread->set_vm_result(obj);
@@ -141,8 +198,12 @@ JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_array(JavaThread* thread, Klass* array_k
     static int deopts = 0;
     // Alternate between deoptimizing and raising an error (which will also cause a deopt)
     if (deopts++ % 2 == 0) {
-      ResourceMark rm(THREAD);
-      THROW(vmSymbols::java_lang_OutOfMemoryError());
+      if (null_on_fail) {
+        return;
+      } else {
+        ResourceMark rm(THREAD);
+        THROW(vmSymbols::java_lang_OutOfMemoryError());
+      }
     } else {
       deopt_caller();
     }
@@ -151,32 +212,43 @@ JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_array(JavaThread* thread, Klass* array_k
   SharedRuntime::on_slowpath_allocation_exit(thread);
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::new_multi_array(JavaThread* thread, Klass* klass, int rank, jint* dims))
+JRT_ENTRY(void, JVMCIRuntime::new_multi_array_common(JavaThread* thread, Klass* klass, int rank, jint* dims, bool null_on_fail))
   assert(klass->is_klass(), "not a class");
   assert(rank >= 1, "rank must be nonzero");
   Handle holder(THREAD, klass->klass_holder()); // keep the klass alive
+  RetryableAllocationMark ram(thread, null_on_fail);
   oop obj = ArrayKlass::cast(klass)->multi_allocate(rank, dims, CHECK);
   thread->set_vm_result(obj);
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::dynamic_new_array(JavaThread* thread, oopDesc* element_mirror, jint length))
+JRT_ENTRY(void, JVMCIRuntime::dynamic_new_array_common(JavaThread* thread, oopDesc* element_mirror, jint length, bool null_on_fail))
+  RetryableAllocationMark ram(thread, null_on_fail);
   oop obj = Reflection::reflect_new_array(element_mirror, length, CHECK);
   thread->set_vm_result(obj);
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::dynamic_new_instance(JavaThread* thread, oopDesc* type_mirror))
+JRT_ENTRY(void, JVMCIRuntime::dynamic_new_instance_common(JavaThread* thread, oopDesc* type_mirror, bool null_on_fail))
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(type_mirror));
 
   if (klass == NULL) {
     ResourceMark rm(THREAD);
     THROW(vmSymbols::java_lang_InstantiationException());
   }
+  RetryableAllocationMark ram(thread, null_on_fail);
 
   // Create new instance (the receiver)
   klass->check_valid_for_instantiation(false, CHECK);
 
-  // Make sure klass gets initialized
-  klass->initialize(CHECK);
+  if (null_on_fail) {
+    if (!klass->is_initialized()) {
+      // Cannot re-execute class initialization without side effects
+      // so return without attempting the initialization
+      return;
+    }
+  } else {
+    // Make sure klass gets initialized
+    klass->initialize(CHECK);
+  }
 
   oop obj = klass->allocate_instance(CHECK);
   thread->set_vm_result(obj);
@@ -276,6 +348,7 @@ JRT_ENTRY_NO_ASYNC(static address, exception_handler_for_pc_helper(JavaThread* t
     if (log_is_enabled(Info, exceptions)) {
       ResourceMark rm;
       stringStream tempst;
+      assert(cm->method() != NULL, "Unexpected null method()");
       tempst.print("compiled method <%s>\n"
                    " at PC" INTPTR_FORMAT " for thread " INTPTR_FORMAT,
                    cm->method()->print_value_string(), p2i(pc), p2i(thread));
@@ -408,6 +481,34 @@ JRT_LEAF(void, JVMCIRuntime::monitorexit(JavaThread* thread, oopDesc* obj, Basic
   }
 JRT_END
 
+// Object.notify() fast path, caller does slow path
+JRT_LEAF(jboolean, JVMCIRuntime::object_notify(JavaThread *thread, oopDesc* obj))
+
+  // Very few notify/notifyAll operations find any threads on the waitset, so
+  // the dominant fast-path is to simply return.
+  // Relatedly, it's critical that notify/notifyAll be fast in order to
+  // reduce lock hold times.
+  if (!SafepointSynchronize::is_synchronizing()) {
+    if (ObjectSynchronizer::quick_notify(obj, thread, false)) {
+      return true;
+    }
+  }
+  return false; // caller must perform slow path
+
+JRT_END
+
+// Object.notifyAll() fast path, caller does slow path
+JRT_LEAF(jboolean, JVMCIRuntime::object_notifyAll(JavaThread *thread, oopDesc* obj))
+
+  if (!SafepointSynchronize::is_synchronizing() ) {
+    if (ObjectSynchronizer::quick_notify(obj, thread, true)) {
+      return true;
+    }
+  }
+  return false; // caller must perform slow path
+
+JRT_END
+
 JRT_ENTRY(void, JVMCIRuntime::throw_and_post_jvmti_exception(JavaThread* thread, const char* exception, const char* message))
   TempNewSymbol symbol = SymbolTable::new_symbol(exception, CHECK);
   SharedRuntime::throw_and_post_jvmti_exception(thread, symbol, message);
@@ -449,13 +550,17 @@ JRT_LEAF(void, JVMCIRuntime::log_object(JavaThread* thread, oopDesc* obj, bool a
   }
 JRT_END
 
+#if INCLUDE_G1GC
+
 JRT_LEAF(void, JVMCIRuntime::write_barrier_pre(JavaThread* thread, oopDesc* obj))
-  thread->satb_mark_queue().enqueue(obj);
+  G1ThreadLocalData::satb_mark_queue(thread).enqueue(obj);
 JRT_END
 
 JRT_LEAF(void, JVMCIRuntime::write_barrier_post(JavaThread* thread, void* card_addr))
-  thread->dirty_card_queue().enqueue(card_addr);
+  G1ThreadLocalData::dirty_card_queue(thread).enqueue(card_addr);
 JRT_END
+
+#endif // INCLUDE_G1GC
 
 JRT_LEAF(jboolean, JVMCIRuntime::validate_object(JavaThread* thread, oopDesc* parent, oopDesc* child))
   bool ret = true;
@@ -497,11 +602,9 @@ JRT_END
 
 PRAGMA_DIAG_PUSH
 PRAGMA_FORMAT_NONLITERAL_IGNORED
-JRT_LEAF(void, JVMCIRuntime::log_printf(JavaThread* thread, oopDesc* format, jlong v1, jlong v2, jlong v3))
+JRT_LEAF(void, JVMCIRuntime::log_printf(JavaThread* thread, const char* format, jlong v1, jlong v2, jlong v3))
   ResourceMark rm;
-  assert(format != NULL && java_lang_String::is_instance(format), "must be");
-  char *buf = java_lang_String::as_utf8_string(format);
-  tty->print((const char*)buf, v1, v2, v3);
+  tty->print(format, v1, v2, v3);
 JRT_END
 PRAGMA_DIAG_POP
 
@@ -630,6 +733,11 @@ Handle JVMCIRuntime::callStatic(const char* className, const char* methodName, c
   return Handle(THREAD, (oop)result.get_jobject());
 }
 
+Handle JVMCIRuntime::get_HotSpotJVMCIRuntime(TRAPS) {
+  initialize_JVMCI(CHECK_(Handle()));
+  return Handle(THREAD, JNIHandles::resolve_non_null(_HotSpotJVMCIRuntime_instance));
+}
+
 void JVMCIRuntime::initialize_HotSpotJVMCIRuntime(TRAPS) {
   guarantee(!_HotSpotJVMCIRuntime_initialized, "cannot reinitialize HotSpotJVMCIRuntime");
   JVMCIRuntime::initialize_well_known_classes(CHECK);
@@ -641,20 +749,6 @@ void JVMCIRuntime::initialize_HotSpotJVMCIRuntime(TRAPS) {
   Handle result = callStatic("jdk/vm/ci/hotspot/HotSpotJVMCIRuntime",
                              "runtime",
                              "()Ljdk/vm/ci/hotspot/HotSpotJVMCIRuntime;", NULL, CHECK);
-  objArrayOop trivial_prefixes = HotSpotJVMCIRuntime::trivialPrefixes(result);
-  if (trivial_prefixes != NULL) {
-    char** prefixes = NEW_C_HEAP_ARRAY(char*, trivial_prefixes->length(), mtCompiler);
-    for (int i = 0; i < trivial_prefixes->length(); i++) {
-      oop str = trivial_prefixes->obj_at(i);
-      if (str == NULL) {
-        THROW(vmSymbols::java_lang_NullPointerException());
-      } else {
-        prefixes[i] = strdup(java_lang_String::as_utf8_string(str));
-      }
-    }
-    _trivial_prefixes = prefixes;
-    _trivial_prefixes_count = trivial_prefixes->length();
-  }
   int adjustment = HotSpotJVMCIRuntime::compilationLevelAdjustment(result);
   assert(adjustment >= JVMCIRuntime::none &&
          adjustment <= JVMCIRuntime::by_full_signature,
@@ -689,7 +783,7 @@ void JVMCIRuntime::initialize_well_known_classes(TRAPS) {
   if (JVMCIRuntime::_well_known_classes_initialized == false) {
     guarantee(can_initialize_JVMCI(), "VM is not yet sufficiently booted to initialize JVMCI");
     SystemDictionary::WKID scan = SystemDictionary::FIRST_JVMCI_WKID;
-    SystemDictionary::initialize_wk_klasses_through(SystemDictionary::LAST_JVMCI_WKID, scan, CHECK);
+    SystemDictionary::resolve_wk_klasses_through(SystemDictionary::LAST_JVMCI_WKID, scan, CHECK);
     JVMCIJavaClasses::compute_offsets(CHECK);
     JVMCIRuntime::_well_known_classes_initialized = true;
   }
@@ -873,15 +967,4 @@ void JVMCIRuntime::bootstrap_finished(TRAPS) {
   JavaCallArguments args;
   args.push_oop(receiver);
   JavaCalls::call_special(&result, receiver->klass(), vmSymbols::bootstrapFinished_method_name(), vmSymbols::void_method_signature(), &args, CHECK);
-}
-
-bool JVMCIRuntime::treat_as_trivial(Method* method) {
-  if (_HotSpotJVMCIRuntime_initialized) {
-    for (int i = 0; i < _trivial_prefixes_count; i++) {
-      if (method->method_holder()->name()->starts_with(_trivial_prefixes[i])) {
-        return true;
-      }
-    }
-  }
-  return false;
 }

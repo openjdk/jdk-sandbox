@@ -31,7 +31,7 @@ SRC#
 
 
 AC_PREREQ([2.69])
-AC_INIT(OpenJDK, jdk9, build-dev@openjdk.java.net,,http://openjdk.java.net)
+AC_INIT(OpenJDK, openjdk, build-dev@openjdk.java.net,,http://openjdk.java.net)
 
 AC_CONFIG_AUX_DIR([$TOPDIR/make/autoconf/build-aux])
 m4_include([build-aux/pkg.m4])
@@ -91,7 +91,6 @@ BASIC_SETUP_PATHS
 JDKOPT_SETUP_OPEN_OR_CUSTOM
 
 # These are needed to be able to create a configuration name (and thus the output directory)
-JDKOPT_SETUP_JDK_VARIANT
 JDKOPT_SETUP_DEBUG_LEVEL
 HOTSPOT_SETUP_JVM_VARIANTS
 
@@ -120,6 +119,7 @@ PLATFORM_SETUP_OPENJDK_BUILD_OS_VERSION
 
 # Misc basic settings
 BASIC_SETUP_DEFAULT_MAKE_TARGET
+BASIC_SETUP_DEFAULT_LOG
 
 ###############################################################################
 #
@@ -180,6 +180,9 @@ TOOLCHAIN_MISC_CHECKS
 # Setup the JTReg Regression Test Harness.
 TOOLCHAIN_SETUP_JTREG
 
+# Setup the Java Microbenchmark Harness (JMH)
+LIB_TESTS_SETUP_JMH
+
 # Setup Jib dependency tool
 TOOLCHAIN_SETUP_JIB
 
@@ -231,6 +234,9 @@ HOTSPOT_SETUP_JVM_FEATURES
 JDKOPT_DETECT_INTREE_EC
 JDKOPT_ENABLE_DISABLE_FAILURE_HANDLER
 JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST
+JDKOPT_EXCLUDE_TRANSLATIONS
+JDKOPT_ENABLE_DISABLE_MANPAGES
+JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE
 
 ###############################################################################
 #
@@ -272,7 +278,7 @@ BASIC_TEST_USABILITY_ISSUES
 CUSTOM_LATE_HOOK
 
 # This needs to be done after CUSTOM_LATE_HOOK since we can setup custom features.
-HOTSPOT_VALIDATE_JVM_FEATURES
+HOTSPOT_FINALIZE_JVM_FEATURES
 
 # Did user specify any unknown variables?
 BASIC_CHECK_LEFTOVER_OVERRIDDEN

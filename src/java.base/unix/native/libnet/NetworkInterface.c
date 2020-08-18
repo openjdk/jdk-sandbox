@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -329,11 +329,18 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByInetAddress0
   (JNIEnv *env, jclass cls, jobject iaObj)
 {
     netif *ifs, *curr;
-    int family = (getInetAddress_family(env, iaObj) == java_net_InetAddress_IPv4) ?
-        AF_INET : AF_INET6;
     jobject obj = NULL;
     jboolean match = JNI_FALSE;
+    int family = getInetAddress_family(env, iaObj);
+    JNU_CHECK_EXCEPTION_RETURN(env, NULL);
 
+    if (family == java_net_InetAddress_IPv4) {
+        family = AF_INET;
+    } else if (family == java_net_InetAddress_IPv6) {
+        family = AF_INET6;
+    } else {
+        return NULL; // Invalid family
+    }
     ifs = enumInterfaces(env);
     if (ifs == NULL) {
         return NULL;
@@ -351,7 +358,9 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByInetAddress0
                     int address1 = htonl(
                         ((struct sockaddr_in *)addrP->addr)->sin_addr.s_addr);
                     int address2 = getInetAddress_addr(env, iaObj);
-
+                    if ((*env)->ExceptionCheck(env)) {
+                        goto cleanup;
+                    }
                     if (address1 == address2) {
                         match = JNI_TRUE;
                         break;
@@ -397,6 +406,7 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByInetAddress0
         obj = createNetworkInterface(env, curr);
     }
 
+cleanup:
     // release the interface list
     freeif(ifs);
 
@@ -698,6 +708,7 @@ static jobject createNetworkInterface(JNIEnv *env, netif *ifs) {
             if (iaObj) {
                 setInetAddress_addr(env, iaObj, htonl(
                     ((struct sockaddr_in*)addrP->addr)->sin_addr.s_addr));
+                JNU_CHECK_EXCEPTION_RETURN(env, NULL);
             } else {
                 return NULL;
             }
@@ -710,6 +721,7 @@ static jobject createNetworkInterface(JNIEnv *env, netif *ifs) {
                     if (ia2Obj) {
                         setInetAddress_addr(env, ia2Obj, htonl(
                             ((struct sockaddr_in*)addrP->brdcast)->sin_addr.s_addr));
+                        JNU_CHECK_EXCEPTION_RETURN(env, NULL);
                         (*env)->SetObjectField(env, ibObj, ni_ib4broadcastID, ia2Obj);
                     } else {
                         return NULL;
@@ -1003,7 +1015,11 @@ static netif *addif(JNIEnv *env, int sock, const char *if_name, netif *ifs,
  */
 static short translateIPv4AddressToPrefix(struct sockaddr_in *addr) {
     short prefix = 0;
-    unsigned int mask = ntohl(addr->sin_addr.s_addr);
+    unsigned int mask;
+    if (addr == NULL) {
+        return 0;
+    }
+    mask = ntohl(addr->sin_addr.s_addr);
     while (mask) {
         mask <<= 1;
         prefix++;
@@ -1016,7 +1032,11 @@ static short translateIPv4AddressToPrefix(struct sockaddr_in *addr) {
  */
 static short translateIPv6AddressToPrefix(struct sockaddr_in6 *addr) {
     short prefix = 0;
-    u_char *addrBytes = (u_char *)&(addr->sin6_addr);
+    u_char *addrBytes;
+    if (addr == NULL) {
+        return 0;
+    }
+    addrBytes = (u_char *)&(addr->sin6_addr);
     unsigned int byte, bit;
 
     for (byte = 0; byte < sizeof(struct in6_addr); byte++, prefix += 8) {
@@ -1529,20 +1549,23 @@ static int getMacAddress
 
     if (getkerninfo(KINFO_NDD, nddp, &size, 0) < 0) {
         perror("getkerninfo 2");
+        free(nddp);
         return -1;
     }
 
     end = (void *)nddp + size;
     while ((void *)nddp < end) {
         if (!strcmp(nddp->ndd_alias, ifname) ||
-                !strcmp(nddp->ndd_name, ifname)) {
+                 !strcmp(nddp->ndd_name, ifname)) {
             bcopy(nddp->ndd_addr, buf, 6);
+            free(nddp);
             return 6;
         } else {
             nddp++;
         }
     }
 
+    free(nddp);
     return -1;
 }
 
@@ -2080,14 +2103,16 @@ static int getMacAddress
         // cycle through the interfaces
         for (i = 0, ifa = ifa0; ifa != NULL; ifa = ifa->ifa_next, i++) {
             saddr = ifa->ifa_addr;
-            // link layer contains the MAC address
-            if (saddr->sa_family == AF_LINK && !strcmp(ifname, ifa->ifa_name)) {
-                struct sockaddr_dl *sadl = (struct sockaddr_dl *) saddr;
-                // check the address has the correct length
-                if (sadl->sdl_alen == ETHER_ADDR_LEN) {
-                    memcpy(buf, (sadl->sdl_data + sadl->sdl_nlen), ETHER_ADDR_LEN);
-                    freeifaddrs(ifa0);
-                    return ETHER_ADDR_LEN;
+            if (saddr != NULL) {
+                // link layer contains the MAC address
+                if (saddr->sa_family == AF_LINK && !strcmp(ifname, ifa->ifa_name)) {
+                    struct sockaddr_dl *sadl = (struct sockaddr_dl *) saddr;
+                    // check the address has the correct length
+                    if (sadl->sdl_alen == ETHER_ADDR_LEN) {
+                        memcpy(buf, (sadl->sdl_data + sadl->sdl_nlen), ETHER_ADDR_LEN);
+                        freeifaddrs(ifa0);
+                        return ETHER_ADDR_LEN;
+                    }
                 }
             }
         }

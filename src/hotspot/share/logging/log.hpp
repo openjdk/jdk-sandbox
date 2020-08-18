@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,14 +21,13 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOG_HPP
-#define SHARE_VM_LOGGING_LOG_HPP
+#ifndef SHARE_LOGGING_LOG_HPP
+#define SHARE_LOGGING_LOG_HPP
 
 #include "logging/logLevel.hpp"
 #include "logging/logPrefix.hpp"
 #include "logging/logTagSet.hpp"
 #include "logging/logTag.hpp"
-#include "memory/allocation.hpp"
 #include "runtime/os.hpp"
 #include "utilities/debug.hpp"
 
@@ -110,7 +109,7 @@ class LogTargetImpl;
 
 template <LogTagType T0, LogTagType T1 = LogTag::__NO_TAG, LogTagType T2 = LogTag::__NO_TAG, LogTagType T3 = LogTag::__NO_TAG,
           LogTagType T4 = LogTag::__NO_TAG, LogTagType GuardTag = LogTag::__NO_TAG>
-class LogImpl VALUE_OBJ_CLASS_SPEC {
+class LogImpl {
  private:
   static const size_t LogBufferSize = 512;
  public:
@@ -199,4 +198,4 @@ public:
 
 };
 
-#endif // SHARE_VM_LOGGING_LOG_HPP
+#endif // SHARE_LOGGING_LOG_HPP

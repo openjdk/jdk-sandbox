@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@
  *          java.management
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm/timeout=600 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:NativeMemoryTracking=detail MallocStressTest
+ * @run main/othervm/timeout=1200 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:NativeMemoryTracking=detail MallocStressTest
  */
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,21 +57,19 @@ public class MallocStressTest {
         release
     };
 
-    static TestPhase phase = TestPhase.alloc;
+    static volatile TestPhase phase = TestPhase.alloc;
 
     // malloc'd memory
-    static ArrayList<MallocMemory>  mallocd_memory = new ArrayList<MallocMemory>();
+    static final ArrayList<MallocMemory>  mallocd_memory = new ArrayList<MallocMemory>();
     static long                     mallocd_total  = 0;
     static WhiteBox                 whiteBox;
     static AtomicInteger            pause_count = new AtomicInteger();
 
-    static boolean                  is_64_bit_system;
+    static final boolean            is_64_bit_system = Platform.is64bit();
 
     private static boolean is_64_bit_system() { return is_64_bit_system; }
 
     public static void main(String args[]) throws Exception {
-        is_64_bit_system = (Platform.is64bit());
-
         OutputAnalyzer output;
         whiteBox = WhiteBox.getWhiteBox();
 
@@ -175,7 +173,7 @@ public class MallocStressTest {
         public void run() {
             Random random = new Random();
             while (MallocStressTest.phase == TestPhase.alloc) {
-                int r = Math.abs(random.nextInt());
+                int r = random.nextInt(Integer.MAX_VALUE);
                 // Only malloc small amount to avoid OOM
                 int size = r % 32;
                 if (is_64_bit_system()) {
@@ -186,13 +184,19 @@ public class MallocStressTest {
                 if (size == 0) size = 1;
                 long addr = MallocStressTest.whiteBox.NMTMallocWithPseudoStack(size, r);
                 if (addr != 0) {
-                    MallocMemory mem = new MallocMemory(addr, size);
-                    synchronized(MallocStressTest.mallocd_memory) {
-                        MallocStressTest.mallocd_memory.add(mem);
-                        MallocStressTest.mallocd_total += size;
+                    try {
+                        MallocMemory mem = new MallocMemory(addr, size);
+                        synchronized(MallocStressTest.mallocd_memory) {
+                            MallocStressTest.mallocd_memory.add(mem);
+                            MallocStressTest.mallocd_total += size;
+                        }
+                    } catch (OutOfMemoryError e) {
+                        // Don't include this malloc memory because it didn't
+                        // get recorded in mallocd_memory list.
+                        MallocStressTest.whiteBox.NMTFree(addr);
+                        break;
                     }
                 } else {
-                    System.out.println("Out of malloc memory");
                     break;
                 }
             }
@@ -259,7 +263,7 @@ public class MallocStressTest {
             }
             synchronized(MallocStressTest.mallocd_memory) {
                 if (MallocStressTest.mallocd_memory.isEmpty()) return;
-                int n = Math.abs(random.nextInt()) % MallocStressTest.mallocd_memory.size();
+                int n = random.nextInt(MallocStressTest.mallocd_memory.size());
                 MallocMemory mem = mallocd_memory.remove(n);
                 MallocStressTest.whiteBox.NMTFree(mem.addr());
                 MallocStressTest.mallocd_total -= mem.size();

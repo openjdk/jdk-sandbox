@@ -468,7 +468,7 @@ public class PNGImageReader extends ImageReader {
         String text;
         pos = stream.getStreamPosition();
         int textLength = (int)(chunkStart + chunkLength - pos);
-        if (textLength <= 0) {
+        if (textLength < 0) {
             throw new IIOException("iTXt chunk length is not proper");
         }
         byte[] b = new byte[textLength];
@@ -571,7 +571,7 @@ public class PNGImageReader extends ImageReader {
     private void parse_tEXt_chunk(int chunkLength) throws IOException {
         String keyword = readNullTerminatedString("ISO-8859-1", 80);
         int textLength = chunkLength - keyword.length() - 1;
-        if (textLength <= 0) {
+        if (textLength < 0) {
             throw new IIOException("tEXt chunk length is not proper");
         }
         metadata.tEXt_keyword.add(keyword);
@@ -669,7 +669,7 @@ public class PNGImageReader extends ImageReader {
     private void parse_zTXt_chunk(int chunkLength) throws IOException {
         String keyword = readNullTerminatedString("ISO-8859-1", 80);
         int textLength = chunkLength - keyword.length() - 2;
-        if (textLength <= 0) {
+        if (textLength < 0) {
             throw new IIOException("zTXt chunk length is not proper");
         }
         metadata.zTXt_keyword.add(keyword);
@@ -698,10 +698,12 @@ public class PNGImageReader extends ImageReader {
         readHeader();
 
         /*
-         * Optimization: We can skip the remaining metadata if the
-         * ignoreMetadata flag is set, and only if this is not a palette
-         * image (in that case, we need to read the metadata to get the
-         * tRNS chunk, which is needed for the getImageTypes() method).
+         * Optimization: We can skip reading metadata if ignoreMetadata
+         * flag is set and colorType is not PNG_COLOR_PALETTE. However,
+         * we parse tRNS chunk to retrieve the transparent color from the
+         * metadata. Doing so, helps PNGImageReader to appropriately
+         * identify and set transparent pixels in the decoded image for
+         * colorType PNG_COLOR_RGB and PNG_COLOR_GRAY.
          */
         int colorType = metadata.IHDR_colorType;
         if (ignoreMetadata && colorType != PNG_COLOR_PALETTE) {
@@ -717,10 +719,19 @@ public class PNGImageReader extends ImageReader {
                     int chunkType = stream.readInt();
 
                     if (chunkType == IDAT_TYPE) {
-                        // We've reached the image data
+                        // We've reached the first IDAT chunk position
                         stream.skipBytes(-8);
                         imageStartPosition = stream.getStreamPosition();
+                        /*
+                         * According to PNG specification tRNS chunk must
+                         * precede the first IDAT chunk. So we can stop
+                         * reading metadata.
+                         */
                         break;
+                    } else if (chunkType == tRNS_TYPE) {
+                        parse_tRNS_chunk(chunkLength);
+                        // After parsing tRNS chunk we will skip 4 CRC bytes
+                        stream.skipBytes(4);
                     } else {
                         // Skip the chunk plus the 4 CRC bytes that follow
                         stream.skipBytes(chunkLength + 4);
@@ -738,7 +749,8 @@ public class PNGImageReader extends ImageReader {
             loop: while (true) {
                 int chunkLength = stream.readInt();
                 int chunkType = stream.readInt();
-                int chunkCRC;
+                // Initialize chunkCRC, value assigned has no significance
+                int chunkCRC = -1;
 
                 // verify the chunk length
                 if (chunkLength < 0) {
@@ -746,10 +758,20 @@ public class PNGImageReader extends ImageReader {
                 };
 
                 try {
-                    stream.mark();
-                    stream.seek(stream.getStreamPosition() + chunkLength);
-                    chunkCRC = stream.readInt();
-                    stream.reset();
+                    /*
+                     * As per PNG specification all chunks should have
+                     * 4 byte CRC. But there are some images where
+                     * CRC is not present/corrupt for IEND chunk.
+                     * And these type of images are supported by other
+                     * decoders. So as soon as we hit chunk type
+                     * for IEND chunk stop reading metadata.
+                     */
+                    if (chunkType != IEND_TYPE) {
+                        stream.mark();
+                        stream.seek(stream.getStreamPosition() + chunkLength);
+                        chunkCRC = stream.readInt();
+                        stream.reset();
+                    }
                 } catch (IOException e) {
                     throw new IIOException("Invalid chunk length " + chunkLength);
                 }
@@ -1152,8 +1174,7 @@ public class PNGImageReader extends ImageReader {
         // same bit depth as the source data
         boolean adjustBitDepths = false;
         int[] outputSampleSize = imRas.getSampleModel().getSampleSize();
-        int numBands = outputSampleSize.length;
-        for (int b = 0; b < numBands; b++) {
+        for (int b = 0; b < inputBands; b++) {
             if (outputSampleSize[b] != bitDepth) {
                 adjustBitDepths = true;
                 break;
@@ -1166,8 +1187,8 @@ public class PNGImageReader extends ImageReader {
         if (adjustBitDepths) {
             int maxInSample = (1 << bitDepth) - 1;
             int halfMaxInSample = maxInSample/2;
-            scale = new int[numBands][];
-            for (int b = 0; b < numBands; b++) {
+            scale = new int[inputBands][];
+            for (int b = 0; b < inputBands; b++) {
                 int maxOutSample = (1 << outputSampleSize[b]) - 1;
                 scale[b] = new int[maxInSample + 1];
                 for (int s = 0; s <= maxInSample; s++) {
@@ -1266,22 +1287,62 @@ public class PNGImageReader extends ImageReader {
                     break;
                 }
 
-                if (useSetRect) {
+               /*
+                * For PNG images of color type PNG_COLOR_RGB or PNG_COLOR_GRAY
+                * that contain a specific transparent color (given by tRNS
+                * chunk), we compare the decoded pixel color with the color
+                * given by tRNS chunk to set the alpha on the destination.
+                */
+                boolean tRNSTransparentPixelPresent =
+                    theImage.getSampleModel().getNumBands() == inputBands + 1 &&
+                    metadata.hasTransparentColor();
+                if (useSetRect &&
+                    !tRNSTransparentPixelPresent) {
                     imRas.setRect(updateMinX, dstY, passRow);
                 } else {
                     int newSrcX = srcX;
 
+                    /*
+                     * Create intermediate array to fill the extra alpha
+                     * channel when tRNSTransparentPixelPresent is true.
+                     */
+                    final int[] temp = new int[inputBands + 1];
+                    final int opaque = (bitDepth < 16) ? 255 : 65535;
                     for (int dstX = updateMinX;
                          dstX < updateMinX + updateWidth;
                          dstX += updateXStep) {
 
                         passRow.getPixel(newSrcX, 0, ps);
                         if (adjustBitDepths) {
-                            for (int b = 0; b < numBands; b++) {
+                            for (int b = 0; b < inputBands; b++) {
                                 ps[b] = scale[b][ps[b]];
                             }
                         }
-                        imRas.setPixel(dstX, dstY, ps);
+                        if (tRNSTransparentPixelPresent) {
+                            if (metadata.tRNS_colorType == PNG_COLOR_RGB) {
+                                temp[0] = ps[0];
+                                temp[1] = ps[1];
+                                temp[2] = ps[2];
+                                if (ps[0] == metadata.tRNS_red &&
+                                    ps[1] == metadata.tRNS_green &&
+                                    ps[2] == metadata.tRNS_blue) {
+                                    temp[3] = 0;
+                                } else {
+                                    temp[3] = opaque;
+                                }
+                            } else {
+                                // when tRNS_colorType is PNG_COLOR_GRAY
+                                temp[0] = ps[0];
+                                if (ps[0] == metadata.tRNS_gray) {
+                                    temp[1] = 0;
+                                } else {
+                                    temp[1] = opaque;
+                                }
+                            }
+                            imRas.setPixel(dstX, dstY, temp);
+                        } else {
+                            imRas.setPixel(dstX, dstY, ps);
+                        }
                         newSrcX += srcXStep;
                     }
                 }
@@ -1422,9 +1483,17 @@ public class PNGImageReader extends ImageReader {
             // how many bands are in the image, so perform checking
             // of the read param.
             int colorType = metadata.IHDR_colorType;
-            checkReadParamBandSettings(param,
-                                       inputBandsForColorType[colorType],
-                                      theImage.getSampleModel().getNumBands());
+            if (theImage.getSampleModel().getNumBands()
+                == inputBandsForColorType[colorType] + 1
+                && metadata.hasTransparentColor()) {
+                checkReadParamBandSettings(param,
+                    inputBandsForColorType[colorType] + 1,
+                    theImage.getSampleModel().getNumBands());
+            } else {
+                checkReadParamBandSettings(param,
+                    inputBandsForColorType[colorType],
+                    theImage.getSampleModel().getNumBands());
+            }
 
             clearAbortRequest();
             processImageStarted(0);
@@ -1506,7 +1575,26 @@ public class PNGImageReader extends ImageReader {
         }
 
         switch (colorType) {
+        /*
+         * For PNG images of color type PNG_COLOR_RGB or PNG_COLOR_GRAY that
+         * contain a specific transparent color (given by tRNS chunk), we add
+         * ImageTypeSpecifier(s) that support transparency to the list of
+         * supported image types.
+         */
         case PNG_COLOR_GRAY:
+            readMetadata(); // Need tRNS chunk
+
+            if (metadata.hasTransparentColor()) {
+                gray = ColorSpace.getInstance(ColorSpace.CS_GRAY);
+                bandOffsets = new int[2];
+                bandOffsets[0] = 0;
+                bandOffsets[1] = 1;
+                l.add(ImageTypeSpecifier.createInterleaved(gray,
+                                                           bandOffsets,
+                                                           dataType,
+                                                           true,
+                                                           false));
+            }
             // Packed grayscale
             l.add(ImageTypeSpecifier.createGrayscale(bitDepth,
                                                      dataType,
@@ -1514,7 +1602,13 @@ public class PNGImageReader extends ImageReader {
             break;
 
         case PNG_COLOR_RGB:
+            readMetadata(); // Need tRNS chunk
+
             if (bitDepth == 8) {
+                if (metadata.hasTransparentColor()) {
+                    l.add(ImageTypeSpecifier.createFromBufferedImageType(
+                            BufferedImage.TYPE_4BYTE_ABGR));
+                }
                 // some standard types of buffered images
                 // which can be used as destination
                 l.add(ImageTypeSpecifier.createFromBufferedImageType(
@@ -1526,6 +1620,19 @@ public class PNGImageReader extends ImageReader {
                 l.add(ImageTypeSpecifier.createFromBufferedImageType(
                           BufferedImage.TYPE_INT_BGR));
 
+            }
+
+            if (metadata.hasTransparentColor()) {
+                rgb = ColorSpace.getInstance(ColorSpace.CS_sRGB);
+                bandOffsets = new int[4];
+                bandOffsets[0] = 0;
+                bandOffsets[1] = 1;
+                bandOffsets[2] = 2;
+                bandOffsets[3] = 3;
+
+                l.add(ImageTypeSpecifier.
+                    createInterleaved(rgb, bandOffsets,
+                                      dataType, true, false));
             }
             // Component R, G, B
             rgb = ColorSpace.getInstance(ColorSpace.CS_sRGB);

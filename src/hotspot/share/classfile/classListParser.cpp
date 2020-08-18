@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,15 @@
 #include "jimage.hpp"
 #include "classfile/classListParser.hpp"
 #include "classfile/classLoaderExt.hpp"
-#include "classfile/sharedClassUtil.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
+#include "logging/log.hpp"
+#include "logging/logTag.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/fieldType.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/hashtable.inline.hpp"
@@ -45,15 +47,22 @@ ClassListParser::ClassListParser(const char* file) {
   assert(_instance == NULL, "must be singleton");
   _instance = this;
   _classlist_file = file;
-  _file = fopen(file, "r");
-  _line_no = 0;
-  _interfaces = new (ResourceObj::C_HEAP, mtClass) GrowableArray<int>(10, true);
-
+  _file = NULL;
+  // Use os::open() because neither fopen() nor os::fopen()
+  // can handle long path name on Windows.
+  int fd = os::open(file, O_RDONLY, S_IREAD);
+  if (fd != -1) {
+    // Obtain a File* from the file descriptor so that fgets()
+    // can be used in parse_one_line()
+    _file = os::open(fd, "r");
+  }
   if (_file == NULL) {
     char errmsg[JVM_MAXPATHLEN];
     os::lasterror(errmsg, JVM_MAXPATHLEN);
     vm_exit_during_initialization("Loading classlist failed", errmsg);
   }
+  _line_no = 0;
+  _interfaces = new (ResourceObj::C_HEAP, mtClass) GrowableArray<int>(10, true);
 }
 
 ClassListParser::~ClassListParser() {
@@ -272,22 +281,21 @@ void ClassListParser::error(const char *msg, ...) {
 // This function is used for loading classes for customized class loaders
 // during archive dumping.
 InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS) {
-#if !(defined(_LP64) && (defined(LINUX)|| defined(SOLARIS) || defined(AIX)))
-  // The only supported platforms are: (1) Linux/64-bit; (2) Solaris/64-bit; (3) AIX/64-bit
-  //
+#if !(defined(_LP64) && (defined(LINUX)|| defined(SOLARIS) || defined(__APPLE__)))
+  // The only supported platforms are: (1) Linux/64-bit and (2) Solaris/64-bit and
+  // (3) MacOSX/64-bit
   // This #if condition should be in sync with the areCustomLoadersSupportedForCDS
   // method in test/lib/jdk/test/lib/Platform.java.
   error("AppCDS custom class loaders not supported on this platform");
 #endif
 
-  assert(UseAppCDS, "must be");
   if (!is_super_specified()) {
     error("If source location is specified, super class must be also specified");
   }
   if (!is_id_specified()) {
     error("If source location is specified, id must be also specified");
   }
-  InstanceKlass* k = ClassLoaderExt::load_class(class_name, _source, THREAD);
+  InstanceKlass* k = ClassLoaderExt::load_class(class_name, _source, CHECK_NULL);
 
   if (strncmp(_class_name, "java/", 5) == 0) {
     log_info(cds)("Prohibited package for non-bootstrap classes: %s.class from %s",
@@ -303,13 +311,15 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
             _interfaces->length(), k->local_interfaces()->length());
     }
 
-    if (!SystemDictionaryShared::add_non_builtin_klass(class_name, ClassLoaderData::the_null_class_loader_data(),
-                                                       k, THREAD)) {
+    bool added = SystemDictionaryShared::add_unregistered_class(k, CHECK_NULL);
+    if (!added) {
+      // We allow only a single unregistered class for each unique name.
       error("Duplicated class %s", _class_name);
     }
 
     // This tells JVM_FindLoadedClass to not find this class.
     k->set_shared_classpath_index(UNREGISTERED_INDEX);
+    k->clear_class_loader_type();
   }
 
   return k;
@@ -352,7 +362,7 @@ Klass* ClassListParser::load_current_class(TRAPS) {
                               vmSymbols::loadClass_name(),
                               vmSymbols::string_class_signature(),
                               ext_class_name,
-                              THREAD);
+                              THREAD); // <-- failure is handled below
     } else {
       // array classes are not supported in class list.
       THROW_NULL(vmSymbols::java_lang_ClassNotFoundException());
@@ -380,17 +390,15 @@ Klass* ClassListParser::load_current_class(TRAPS) {
   } else {
     // If "source:" tag is specified, all super class and super interfaces must be specified in the
     // class list file.
-    if (UseAppCDS) {
-      klass = load_class_from_source(class_name_symbol, CHECK_NULL);
-    }
+    klass = load_class_from_source(class_name_symbol, CHECK_NULL);
   }
 
   if (klass != NULL && klass->is_instance_klass() && is_id_specified()) {
     InstanceKlass* ik = InstanceKlass::cast(klass);
     int id = this->id();
     SystemDictionaryShared::update_shared_entry(ik, id);
-    InstanceKlass* old = table()->lookup(id);
-    if (old != NULL && old != ik) {
+    InstanceKlass** old_ptr = table()->lookup(id);
+    if (old_ptr != NULL) {
       error("Duplicated ID %d for class %s", id, _class_name);
     }
     table()->add(id, ik);
@@ -404,11 +412,12 @@ bool ClassListParser::is_loading_from_source() {
 }
 
 InstanceKlass* ClassListParser::lookup_class_by_id(int id) {
-  InstanceKlass* klass = table()->lookup(id);
-  if (klass == NULL) {
+  InstanceKlass** klass_ptr = table()->lookup(id);
+  if (klass_ptr == NULL) {
     error("Class ID %d has not been defined", id);
   }
-  return klass;
+  assert(*klass_ptr != NULL, "must be");
+  return *klass_ptr;
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,9 +35,17 @@ package jdk.javadoc.internal.doclets.formats.html;
  */
 public class SearchIndexItem {
 
+    enum Category {
+        MODULES,
+        PACKAGES,
+        TYPES,
+        MEMBERS,
+        SEARCH_TAGS
+    }
+
+    private Category category;
     private String label = "";
     private String url = "";
-    private String category = "";
     private String containingModule = "";
     private String containingPackage = "";
     private String containingClass = "";
@@ -72,7 +80,7 @@ public class SearchIndexItem {
         containingClass = c;
     }
 
-    public void setCategory(String c) {
+    public void setCategory(Category c) {
         category = c;
     }
 
@@ -94,41 +102,66 @@ public class SearchIndexItem {
 
     public String toString() {
         StringBuilder item = new StringBuilder("");
-        if (category.equals("Modules")) {
+        switch (category) {
+        case MODULES:
             item.append("{")
                     .append("\"l\":\"").append(label).append("\"")
                     .append("}");
-        } else if (category.equals("Packages")) {
+            break;
+        case PACKAGES:
             item.append("{");
             if (!containingModule.isEmpty()) {
                 item.append("\"m\":\"").append(containingModule).append("\",");
             }
-            item.append("\"l\":\"").append(label).append("\"")
-                    .append("}");
-        } else if (category.equals("Types")) {
-            item.append("{")
-                    .append("\"p\":\"").append(containingPackage).append("\",")
-                    .append("\"l\":\"").append(label).append("\"")
-                    .append("}");
-        } else if (category.equals("Members")) {
+            item.append("\"l\":\"").append(label).append("\"");
+            if (!url.isEmpty()) {
+                item.append(",\"url\":\"").append(url).append("\"");
+            }
+            item.append("}");
+            break;
+        case TYPES:
+            item.append("{");
+            if (!containingPackage.isEmpty()) {
+                item.append("\"p\":\"").append(containingPackage).append("\",");
+            }
+            item.append("\"l\":\"").append(label).append("\"");
+            if (!url.isEmpty()) {
+                item.append(",\"url\":\"").append(url).append("\"");
+            }
+            item.append("}");
+            break;
+        case MEMBERS:
             item.append("{")
                     .append("\"p\":\"").append(containingPackage).append("\",")
                     .append("\"c\":\"").append(containingClass).append("\",")
                     .append("\"l\":\"").append(label).append("\"");
-            if (!url.equals("")) {
+            if (!url.isEmpty()) {
                 item.append(",\"url\":\"").append(url).append("\"");
             }
             item.append("}");
-        } else {
+            break;
+        case SEARCH_TAGS:
             item.append("{")
                     .append("\"l\":\"").append(label).append("\",")
                     .append("\"h\":\"").append(holder).append("\",");
-            if (!description.equals("")) {
+            if (!description.isEmpty()) {
                 item.append("\"d\":\"").append(description).append("\",");
             }
             item.append("\"u\":\"").append(url).append("\"")
                     .append("}");
+            break;
+        default:
+            throw new IllegalStateException("category not set");
         }
         return item.toString();
+    }
+
+    /**
+     * Get the part of the label after the last dot, or whole label if no dots.
+     *
+     * @return the simple name
+     */
+    public String getSimpleName() {
+        return label.substring(label.lastIndexOf('.') + 1);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/disassembler.hpp"
+#include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
@@ -37,8 +38,9 @@
 #include "logging/log.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/constantPool.hpp"
+#include "oops/cpCache.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -51,11 +53,13 @@
 #include "runtime/biasedLocking.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
-#include "runtime/fieldDescriptor.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/icache.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
+#include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -63,6 +67,7 @@
 #include "runtime/synchronizer.hpp"
 #include "runtime/threadCritical.hpp"
 #include "utilities/align.hpp"
+#include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
@@ -82,6 +87,58 @@ class UnlockFlagSaver {
       _thread->set_do_not_unlock_if_synchronized(_do_not_unlock);
     }
 };
+
+// Helper class to access current interpreter state
+class LastFrameAccessor : public StackObj {
+  frame _last_frame;
+public:
+  LastFrameAccessor(JavaThread* thread) {
+    assert(thread == Thread::current(), "sanity");
+    _last_frame = thread->last_frame();
+  }
+  bool is_interpreted_frame() const              { return _last_frame.is_interpreted_frame(); }
+  Method*   method() const                       { return _last_frame.interpreter_frame_method(); }
+  address   bcp() const                          { return _last_frame.interpreter_frame_bcp(); }
+  int       bci() const                          { return _last_frame.interpreter_frame_bci(); }
+  address   mdp() const                          { return _last_frame.interpreter_frame_mdp(); }
+
+  void      set_bcp(address bcp)                 { _last_frame.interpreter_frame_set_bcp(bcp); }
+  void      set_mdp(address dp)                  { _last_frame.interpreter_frame_set_mdp(dp); }
+
+  // pass method to avoid calling unsafe bcp_to_method (partial fix 4926272)
+  Bytecodes::Code code() const                   { return Bytecodes::code_at(method(), bcp()); }
+
+  Bytecode  bytecode() const                     { return Bytecode(method(), bcp()); }
+  int get_index_u1(Bytecodes::Code bc) const     { return bytecode().get_index_u1(bc); }
+  int get_index_u2(Bytecodes::Code bc) const     { return bytecode().get_index_u2(bc); }
+  int get_index_u2_cpcache(Bytecodes::Code bc) const
+                                                 { return bytecode().get_index_u2_cpcache(bc); }
+  int get_index_u4(Bytecodes::Code bc) const     { return bytecode().get_index_u4(bc); }
+  int number_of_dimensions() const               { return bcp()[3]; }
+  ConstantPoolCacheEntry* cache_entry_at(int i) const
+                                                 { return method()->constants()->cache()->entry_at(i); }
+  ConstantPoolCacheEntry* cache_entry() const    { return cache_entry_at(Bytes::get_native_u2(bcp() + 1)); }
+
+  oop callee_receiver(Symbol* signature) {
+    return _last_frame.interpreter_callee_receiver(signature);
+  }
+  BasicObjectLock* monitor_begin() const {
+    return _last_frame.interpreter_frame_monitor_begin();
+  }
+  BasicObjectLock* monitor_end() const {
+    return _last_frame.interpreter_frame_monitor_end();
+  }
+  BasicObjectLock* next_monitor(BasicObjectLock* current) const {
+    return _last_frame.next_monitor_in_interpreter_frame(current);
+  }
+
+  frame& get_frame()                             { return _last_frame; }
+};
+
+
+bool InterpreterRuntime::is_breakpoint(JavaThread *thread) {
+  return Bytecodes::code_or_bp_at(LastFrameAccessor(thread).bcp()) == Bytecodes::_breakpoint;
+}
 
 //------------------------------------------------------------------------------------------------------------------------
 // State accessors
@@ -153,7 +210,7 @@ IRT_ENTRY(void, InterpreterRuntime::resolve_ldc(JavaThread* thread, Bytecodes::C
     if (rindex >= 0) {
       oop coop = m->constants()->resolved_references()->obj_at(rindex);
       oop roop = (result == NULL ? Universe::the_null_sentinel() : result);
-      assert(roop == coop, "expected result for assembly code");
+      assert(oopDesc::equals(roop, coop), "expected result for assembly code");
     }
   }
 #endif
@@ -379,6 +436,7 @@ IRT_END
 
 
 IRT_ENTRY(void, InterpreterRuntime::create_klass_exception(JavaThread* thread, char* name, oopDesc* obj))
+  // Produce the error message first because note_trap can safepoint
   ResourceMark rm(thread);
   const char* klass_name = obj->klass()->external_name();
   // lookup exception klass
@@ -391,22 +449,23 @@ IRT_ENTRY(void, InterpreterRuntime::create_klass_exception(JavaThread* thread, c
   thread->set_vm_result(exception());
 IRT_END
 
+IRT_ENTRY(void, InterpreterRuntime::throw_ArrayIndexOutOfBoundsException(JavaThread* thread, arrayOopDesc* a, jint index))
+  // Produce the error message first because note_trap can safepoint
+  ResourceMark rm(thread);
+  stringStream ss;
+  ss.print("Index %d out of bounds for length %d", index, a->length());
 
-IRT_ENTRY(void, InterpreterRuntime::throw_ArrayIndexOutOfBoundsException(JavaThread* thread, char* name, jint index))
-  char message[jintAsStringSize];
-  // lookup exception klass
-  TempNewSymbol s = SymbolTable::new_symbol(name, CHECK);
   if (ProfileTraps) {
     note_trap(thread, Deoptimization::Reason_range_check, CHECK);
   }
-  // create exception
-  sprintf(message, "%d", index);
-  THROW_MSG(s, message);
+
+  THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::throw_ClassCastException(
   JavaThread* thread, oopDesc* obj))
 
+  // Produce the error message first because note_trap can safepoint
   ResourceMark rm(thread);
   char* message = SharedRuntime::generate_class_cast_message(
     thread, obj->klass());
@@ -486,8 +545,8 @@ IRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
       ResourceMark rm(thread);
       stringStream tempst;
       tempst.print("interpreter method <%s>\n"
-                   " at bci %d for thread " INTPTR_FORMAT,
-                   h_method->print_value_string(), current_bci, p2i(thread));
+                   " at bci %d for thread " INTPTR_FORMAT " (%s)",
+                   h_method->print_value_string(), current_bci, p2i(thread), thread->name());
       Exceptions::log_exception(h_exception, tempst);
     }
 // Don't go paging in something which won't be used.
@@ -581,11 +640,45 @@ IRT_ENTRY(void, InterpreterRuntime::throw_AbstractMethodError(JavaThread* thread
   THROW(vmSymbols::java_lang_AbstractMethodError());
 IRT_END
 
+// This method is called from the "abstract_entry" of the interpreter.
+// At that point, the arguments have already been removed from the stack
+// and therefore we don't have the receiver object at our fingertips. (Though,
+// on some platforms the receiver still resides in a register...). Thus,
+// we have no choice but print an error message not containing the receiver
+// type.
+IRT_ENTRY(void, InterpreterRuntime::throw_AbstractMethodErrorWithMethod(JavaThread* thread,
+                                                                        Method* missingMethod))
+  ResourceMark rm(thread);
+  assert(missingMethod != NULL, "sanity");
+  methodHandle m(thread, missingMethod);
+  LinkResolver::throw_abstract_method_error(m, THREAD);
+IRT_END
+
+IRT_ENTRY(void, InterpreterRuntime::throw_AbstractMethodErrorVerbose(JavaThread* thread,
+                                                                     Klass* recvKlass,
+                                                                     Method* missingMethod))
+  ResourceMark rm(thread);
+  methodHandle mh = methodHandle(thread, missingMethod);
+  LinkResolver::throw_abstract_method_error(mh, recvKlass, THREAD);
+IRT_END
+
 
 IRT_ENTRY(void, InterpreterRuntime::throw_IncompatibleClassChangeError(JavaThread* thread))
   THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
 IRT_END
 
+IRT_ENTRY(void, InterpreterRuntime::throw_IncompatibleClassChangeErrorVerbose(JavaThread* thread,
+                                                                              Klass* recvKlass,
+                                                                              Klass* interfaceKlass))
+  ResourceMark rm(thread);
+  char buf[1000];
+  buf[0] = '\0';
+  jio_snprintf(buf, sizeof(buf),
+               "Class %s does not implement the requested interface %s",
+               recvKlass ? recvKlass->external_name() : "NULL",
+               interfaceKlass ? interfaceKlass->external_name() : "NULL");
+  THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), buf);
+IRT_END
 
 //------------------------------------------------------------------------------------------------------------------------
 // Fields
@@ -635,7 +728,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
   // class is initialized.  This is required so that access to the static
   // field will call the initialization function every time until the class
   // is completely initialized ala. in 2.17.5 in JVM Specification.
-  InstanceKlass* klass = InstanceKlass::cast(info.field_holder());
+  InstanceKlass* klass = info.field_holder();
   bool uninitialized_static = is_static && !klass->is_initialized();
   bool has_initialized_final_update = info.field_holder()->major_version() >= 53 &&
                                       info.has_initialized_final_update();
@@ -832,11 +925,11 @@ void InterpreterRuntime::resolve_invoke(JavaThread* thread, Bytecodes::Code byte
            info.call_kind() == CallInfo::vtable_call, "");
   }
 #endif
-  // Get sender or sender's host_klass, and only set cpCache entry to resolved if
+  // Get sender or sender's unsafe_anonymous_host, and only set cpCache entry to resolved if
   // it is not an interface.  The receiver for invokespecial calls within interface
   // methods must be checked for every call.
   InstanceKlass* sender = pool->pool_holder();
-  sender = sender->has_host_klass() ? sender->host_klass() : sender;
+  sender = sender->is_unsafe_anonymous() ? sender->unsafe_anonymous_host() : sender;
 
   switch (info.call_kind()) {
   case CallInfo::direct_call:
@@ -953,6 +1046,13 @@ nmethod* InterpreterRuntime::frequency_counter_overflow(JavaThread* thread, addr
     Method* method =  last_frame.method();
     int bci = method->bci_from(last_frame.bcp());
     nm = method->lookup_osr_nmethod_for(bci, CompLevel_none, false);
+    BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
+    if (nm != NULL && bs_nm != NULL) {
+      // in case the transition passed a safepoint we need to barrier this again
+      if (!bs_nm->nmethod_osr_entry_barrier(nm)) {
+        nm = NULL;
+      }
+    }
   }
   if (nm != NULL && thread->is_interp_only_mode()) {
     // Normally we never get an nm if is_interp_only_mode() is true, because
@@ -988,6 +1088,13 @@ IRT_ENTRY(nmethod*,
   assert(!HAS_PENDING_EXCEPTION, "Should not have any exceptions pending");
   nmethod* osr_nm = CompilationPolicy::policy()->event(method, method, branch_bci, bci, CompLevel_none, NULL, thread);
   assert(!HAS_PENDING_EXCEPTION, "Event handler should not throw any exceptions");
+
+  BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
+  if (osr_nm != NULL && bs_nm != NULL) {
+    if (!bs_nm->nmethod_osr_entry_barrier(osr_nm)) {
+      osr_nm = NULL;
+    }
+  }
 
   if (osr_nm != NULL) {
     // We may need to do on-stack replacement which requires that no

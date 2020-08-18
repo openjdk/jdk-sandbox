@@ -116,6 +116,7 @@
             <in>IBM1122.map</in>
             <in>IBM1123.map</in>
             <in>IBM1124.map</in>
+            <in>IBM1129.map</in>
             <in>IBM1140.map</in>
             <in>IBM1141.map</in>
             <in>IBM1142.map</in>
@@ -2480,7 +2481,7 @@
               <in>jvmtiClassFileReconstituter.hpp</in>
               <in>jvmtiCodeBlobEvents.cpp</in>
               <in>jvmtiCodeBlobEvents.hpp</in>
-              <in>jvmtiEnter.hpp</in>
+              <in>jvmtiEnter.inline.hpp</in>
               <in>jvmtiEnv.cpp</in>
               <in>jvmtiEnvBase.cpp</in>
               <in>jvmtiEnvBase.hpp</in>
@@ -2537,7 +2538,6 @@
               <in>arguments.cpp</in>
               <in>arguments.hpp</in>
               <in>arguments_ext.cpp</in>
-              <in>arguments_ext.hpp</in>
               <in>atomic.hpp</in>
               <in>basicLock.cpp</in>
               <in>basicLock.hpp</in>
@@ -2701,7 +2701,6 @@
               <in>diagnosticArgument.hpp</in>
               <in>diagnosticCommand.cpp</in>
               <in>diagnosticCommand.hpp</in>
-              <in>diagnosticCommand_ext.hpp</in>
               <in>diagnosticFramework.cpp</in>
               <in>diagnosticFramework.hpp</in>
               <in>dtraceAttacher.cpp</in>
@@ -2842,8 +2841,6 @@
               <in>elfStringTable.hpp</in>
               <in>elfSymbolTable.cpp</in>
               <in>elfSymbolTable.hpp</in>
-              <in>errorReporter.cpp</in>
-              <in>errorReporter.hpp</in>
               <in>events.cpp</in>
               <in>events.hpp</in>
               <in>exceptions.cpp</in>
@@ -2854,7 +2851,7 @@
               <in>globalDefinitions.cpp</in>
               <in>globalDefinitions.hpp</in>
               <in>globalDefinitions_gcc.hpp</in>
-              <in>globalDefinitions_sparcWorks.hpp</in>
+              <in>globalDefinitions_solstudio.hpp</in>
               <in>globalDefinitions_visCPP.hpp</in>
               <in>globalDefinitions_xlc.hpp</in>
               <in>growableArray.cpp</in>
@@ -2891,7 +2888,6 @@
               <in>stringUtils.hpp</in>
               <in>ticks.cpp</in>
               <in>ticks.hpp</in>
-              <in>ticks.inline.hpp</in>
               <in>utf8.cpp</in>
               <in>utf8.hpp</in>
               <in>vmError.cpp</in>
@@ -6154,6 +6150,12 @@
                 <df name="IsModifiableModule">
                   <in>libIsModifiableModuleTest.c</in>
                 </df>
+                <df name="HeapMonitorModule">
+                  <in>libHeapMonitorTest.c</in>
+                </df>
+                <df name="VMEvent">
+                  <in>libVMEventTest.c</in>
+                </df>
                 <df name="ModuleAwareAgents">
                   <df name="ClassFileLoadHook">
                     <in>libMAAClassFileLoadHook.c</in>
@@ -6887,7 +6889,7 @@
             <pElem>../../hotspot/src/share/vm/ci</pElem>
             <pElem>../../hotspot/src/share/vm/oops</pElem>
             <pElem>../../hotspot/src/share/vm/trace</pElem>
-            <pElem>../../build/macosx-x86_64-normal-server-release/hotspot/variant-server/gensrc/tracefiles</pElem>
+            <pElem>../../build/macosx-x86_64-normal-server-release/hotspot/variant-server/gensrc/jfrfiles</pElem>
             <pElem>../../hotspot/src/share/vm/gc/parallel</pElem>
             <pElem>../../hotspot/src/share/vm/gc/shared</pElem>
             <pElem>../../hotspot/src/share/vm/classfile</pElem>
@@ -13398,7 +13400,7 @@
             tool="3"
             flavor2="0">
       </item>
-      <item path="../../src/hotspot/share/prims/jvmtiEnter.hpp"
+      <item path="../../src/hotspot/share/prims/jvmtiEnter.inline.hpp"
             ex="false"
             tool="3"
             flavor2="0">
@@ -13681,11 +13683,6 @@
       <item path="../../src/hotspot/share/runtime/arguments_ext.cpp"
             ex="false"
             tool="1"
-            flavor2="0">
-      </item>
-      <item path="../../src/hotspot/share/runtime/arguments_ext.hpp"
-            ex="false"
-            tool="3"
             flavor2="0">
       </item>
       <item path="../../src/hotspot/share/runtime/atomic.hpp"
@@ -14493,11 +14490,6 @@
             tool="3"
             flavor2="0">
       </item>
-      <item path="../../src/hotspot/share/services/diagnosticCommand_ext.hpp"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
       <item path="../../src/hotspot/share/services/diagnosticFramework.cpp"
             ex="false"
             tool="1"
@@ -15163,16 +15155,6 @@
             tool="3"
             flavor2="0">
       </item>
-      <item path="../../src/hotspot/share/utilities/errorReporter.cpp"
-            ex="false"
-            tool="1"
-            flavor2="0">
-      </item>
-      <item path="../../src/hotspot/share/utilities/errorReporter.hpp"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
       <item path="../../src/hotspot/share/utilities/events.cpp"
             ex="false"
             tool="1"
@@ -15223,7 +15205,7 @@
             tool="3"
             flavor2="0">
       </item>
-      <item path="../../src/hotspot/share/utilities/globalDefinitions_sparcWorks.hpp"
+      <item path="../../src/hotspot/share/utilities/globalDefinitions_solstudio.hpp"
             ex="false"
             tool="3"
             flavor2="0">
@@ -15404,11 +15386,6 @@
             flavor2="0">
       </item>
       <item path="../../src/hotspot/share/utilities/ticks.hpp"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
-      <item path="../../src/hotspot/share/utilities/ticks.inline.hpp"
             ex="false"
             tool="3"
             flavor2="0">
@@ -15880,7 +15857,7 @@
             <Elem>SPARC_WORKS</Elem>
             <Elem>TARGET_ARCH_MODEL_x86_64</Elem>
             <Elem>TARGET_ARCH_x86</Elem>
-            <Elem>TARGET_COMPILER_sparcWorks</Elem>
+            <Elem>TARGET_COMPILER_solstudio</Elem>
             <Elem>TARGET_OS_ARCH_MODEL_solaris_x86_64</Elem>
             <Elem>TARGET_OS_ARCH_solaris_x86</Elem>
             <Elem>TARGET_OS_FAMILY_solaris</Elem>
@@ -15933,7 +15910,7 @@
             <Elem>SPARC_WORKS</Elem>
             <Elem>TARGET_ARCH_MODEL_x86_64</Elem>
             <Elem>TARGET_ARCH_x86</Elem>
-            <Elem>TARGET_COMPILER_sparcWorks</Elem>
+            <Elem>TARGET_COMPILER_solstudio</Elem>
             <Elem>TARGET_OS_ARCH_MODEL_solaris_x86_64</Elem>
             <Elem>TARGET_OS_ARCH_solaris_x86</Elem>
             <Elem>TARGET_OS_FAMILY_solaris</Elem>
@@ -16284,6 +16261,11 @@
             flavor2="0">
       </item>
       <item path="../../make/data/charsetmapping/IBM1124.map"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="../../make/data/charsetmapping/IBM1129.map"
             ex="false"
             tool="3"
             flavor2="0">
@@ -27175,7 +27157,7 @@
             tool="3"
             flavor2="0">
       </item>
-      <item path="../../src/hotspot/share/prims/jvmtiEnter.hpp"
+      <item path="../../src/hotspot/share/prims/jvmtiEnter.inline.hpp"
             ex="false"
             tool="3"
             flavor2="0">
@@ -27458,11 +27440,6 @@
       <item path="../../src/hotspot/share/runtime/arguments_ext.cpp"
             ex="false"
             tool="1"
-            flavor2="0">
-      </item>
-      <item path="../../src/hotspot/share/runtime/arguments_ext.hpp"
-            ex="false"
-            tool="3"
             flavor2="0">
       </item>
       <item path="../../src/hotspot/share/runtime/atomic.hpp"
@@ -28270,11 +28247,6 @@
             tool="3"
             flavor2="0">
       </item>
-      <item path="../../src/hotspot/share/services/diagnosticCommand_ext.hpp"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
       <item path="../../src/hotspot/share/services/diagnosticFramework.cpp"
             ex="false"
             tool="1"
@@ -28945,16 +28917,6 @@
             tool="3"
             flavor2="0">
       </item>
-      <item path="../../src/hotspot/share/utilities/errorReporter.cpp"
-            ex="false"
-            tool="1"
-            flavor2="0">
-      </item>
-      <item path="../../src/hotspot/share/utilities/errorReporter.hpp"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
       <item path="../../src/hotspot/share/utilities/events.cpp"
             ex="false"
             tool="1"
@@ -29005,7 +28967,7 @@
             tool="3"
             flavor2="0">
       </item>
-      <item path="../../src/hotspot/share/utilities/globalDefinitions_sparcWorks.hpp"
+      <item path="../../src/hotspot/share/utilities/globalDefinitions_solstudio.hpp"
             ex="false"
             tool="3"
             flavor2="0">
@@ -29186,11 +29148,6 @@
             flavor2="0">
       </item>
       <item path="../../src/hotspot/share/utilities/ticks.hpp"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
-      <item path="../../src/hotspot/share/utilities/ticks.inline.hpp"
             ex="false"
             tool="3"
             flavor2="0">
@@ -40161,6 +40118,16 @@
             flavor2="0">
       </item>
       <item path="../../test/hotspot/jtreg/serviceability/jvmti/IsModifiableModule/libIsModifiableModuleTest.c"
+            ex="false"
+            tool="0"
+            flavor2="0">
+      </item>
+      <item path="../../test/hotspot/jtreg/serviceability/jvmti/HeapMonitor/libHeapMonitorTest.c"
+            ex="false"
+            tool="0"
+            flavor2="0">
+      </item>
+      <item path="../../test/hotspot/jtreg/serviceability/jvmti/VMEvent/libVMEventTest.c"
             ex="false"
             tool="0"
             flavor2="0">

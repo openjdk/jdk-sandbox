@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,12 +50,14 @@ public enum VMOps {
   GenCollectForAllocation,
   ParallelGCFailedAllocation,
   ParallelGCSystemGC,
-  CGC_Operation,
   CMS_Initial_Mark,
   CMS_Final_Remark,
   G1CollectFull,
+  ZOperation,
+  ShenandoahOperation,
   G1CollectForAllocation,
   G1IncCollectionPause,
+  G1Concurrent,
   EnableBiasedLocking,
   RevokeBias,
   BulkRevokeBias,
@@ -79,7 +81,6 @@ public enum VMOps {
   HeapWalkOperation,
   HeapIterateOperation,
   ReportJavaOutOfMemory,
-  JFRCheckpoint,
   Exit,
   LinuxDllLoad,
   Terminating

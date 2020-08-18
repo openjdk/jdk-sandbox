@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,13 +29,14 @@ import java.nio.file.*;
 import java.nio.file.attribute.*;
 import java.nio.file.spi.FileTypeDetector;
 import java.io.IOException;
+import jdk.internal.util.StaticProperty;
 import sun.security.action.GetPropertyAction;
 
 /**
  * Solaris implementation of FileSystemProvider
  */
 
-public class SolarisFileSystemProvider extends UnixFileSystemProvider {
+class SolarisFileSystemProvider extends UnixFileSystemProvider {
     public SolarisFileSystemProvider() {
         super();
     }
@@ -84,9 +85,8 @@ public class SolarisFileSystemProvider extends UnixFileSystemProvider {
 
     @Override
     FileTypeDetector getFileTypeDetector() {
-        Path userMimeTypes = Paths.get(
-            GetPropertyAction.privilegedGetProperty("user.home"), ".mime.types");
-        Path etcMimeTypes = Paths.get("/etc/mime.types");
+        Path userMimeTypes = Path.of(StaticProperty.userHome(), ".mime.types");
+        Path etcMimeTypes = Path.of("/etc/mime.types");
 
         return chain(new MimeTypesFileTypeDetector(userMimeTypes),
                      new MimeTypesFileTypeDetector(etcMimeTypes));

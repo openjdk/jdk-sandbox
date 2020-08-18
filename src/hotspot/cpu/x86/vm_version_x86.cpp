@@ -257,6 +257,8 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
     __ lea(rsi, Address(rbp, in_bytes(VM_Version::sef_cpuid7_offset())));
     __ movl(Address(rsi, 0), rax);
     __ movl(Address(rsi, 4), rbx);
+    __ movl(Address(rsi, 8), rcx);
+    __ movl(Address(rsi, 12), rdx);
 
     //
     // Extended cpuid(0x80000000)
@@ -399,9 +401,7 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
       // load value into all 64 bytes of zmm7 register
       __ movl(rcx, VM_Version::ymm_test_value());
       __ movdl(xmm0, rcx);
-      __ movl(rcx, 0xffff);
-      __ kmovwl(k1, rcx);
-      __ evpbroadcastd(xmm0, xmm0, Assembler::AVX_512bit);
+      __ vpbroadcastd(xmm0, xmm0, Assembler::AVX_512bit);
       __ evmovdqul(xmm7, xmm0, Assembler::AVX_512bit);
 #ifdef _LP64
       __ evmovdqul(xmm8, xmm0, Assembler::AVX_512bit);
@@ -662,6 +662,9 @@ void VM_Version::get_processor_features() {
     _features &= ~CPU_AVX512CD;
     _features &= ~CPU_AVX512BW;
     _features &= ~CPU_AVX512VL;
+    _features &= ~CPU_AVX512_VPOPCNTDQ;
+    _features &= ~CPU_VPCLMULQDQ;
+    _features &= ~CPU_VAES;
   }
 
   if (UseAVX < 2)
@@ -851,6 +854,17 @@ void VM_Version::get_processor_features() {
     FLAG_SET_DEFAULT(UseGHASHIntrinsics, false);
   }
 
+  // Base64 Intrinsics (Check the condition for which the intrinsic will be active)
+  if ((UseAVX > 2) && supports_avx512vl() && supports_avx512bw()) {
+    if (FLAG_IS_DEFAULT(UseBASE64Intrinsics)) {
+      UseBASE64Intrinsics = true;
+    }
+  } else if (UseBASE64Intrinsics) {
+     if (!FLAG_IS_DEFAULT(UseBASE64Intrinsics))
+      warning("Base64 intrinsic requires EVEX instructions on this CPU");
+    FLAG_SET_DEFAULT(UseBASE64Intrinsics, false);
+  }
+
   if (supports_fma() && UseSSE >= 2) { // Check UseSSE since FMA code uses SSE instructions
     if (FLAG_IS_DEFAULT(UseFMA)) {
       UseFMA = true;
@@ -869,7 +883,7 @@ void VM_Version::get_processor_features() {
     FLAG_SET_DEFAULT(UseSHA, false);
   }
 
-  if (supports_sha() && UseSHA) {
+  if (supports_sha() && supports_sse4_1() && UseSHA) {
     if (FLAG_IS_DEFAULT(UseSHA1Intrinsics)) {
       FLAG_SET_DEFAULT(UseSHA1Intrinsics, true);
     }
@@ -878,7 +892,7 @@ void VM_Version::get_processor_features() {
     FLAG_SET_DEFAULT(UseSHA1Intrinsics, false);
   }
 
-  if (UseSHA) {
+  if (supports_sse4_1() && UseSHA) {
     if (FLAG_IS_DEFAULT(UseSHA256Intrinsics)) {
       FLAG_SET_DEFAULT(UseSHA256Intrinsics, true);
     }
@@ -919,7 +933,7 @@ void VM_Version::get_processor_features() {
       // Only C2 does RTM locking optimization.
       // Can't continue because UseRTMLocking affects UseBiasedLocking flag
       // setting during arguments processing. See use_biased_locking().
-      vm_exit_during_initialization("RTM locking optimization is not supported in emulated client VM");
+      vm_exit_during_initialization("RTM locking optimization is not supported in this VM");
     }
     if (is_intel_family_core()) {
       if ((_model == CPU_MODEL_HASWELL_E3) ||
@@ -970,44 +984,50 @@ void VM_Version::get_processor_features() {
     }
   }
 #endif
+
 #if COMPILER2_OR_JVMCI
-  if (MaxVectorSize > 0) {
+  int max_vector_size = 0;
+  if (UseSSE < 2) {
+    // Vectors (in XMM) are only supported with SSE2+
+    // SSE is always 2 on x64.
+    max_vector_size = 0;
+  } else if (UseAVX == 0 || !os_supports_avx_vectors()) {
+    // 16 byte vectors (in XMM) are supported with SSE2+
+    max_vector_size = 16;
+  } else if (UseAVX == 1 || UseAVX == 2) {
+    // 32 bytes vectors (in YMM) are only supported with AVX+
+    max_vector_size = 32;
+  } else if (UseAVX > 2 ) {
+    // 64 bytes vectors (in ZMM) are only supported with AVX 3
+    max_vector_size = 64;
+  }
+
+#ifdef _LP64
+  int min_vector_size = 4; // We require MaxVectorSize to be at least 4 on 64bit
+#else
+  int min_vector_size = 0;
+#endif
+
+  if (!FLAG_IS_DEFAULT(MaxVectorSize)) {
+    if (MaxVectorSize < min_vector_size) {
+      warning("MaxVectorSize must be at least %i on this platform", min_vector_size);
+      FLAG_SET_DEFAULT(MaxVectorSize, min_vector_size);
+    }
+    if (MaxVectorSize > max_vector_size) {
+      warning("MaxVectorSize must be at most %i on this platform", max_vector_size);
+      FLAG_SET_DEFAULT(MaxVectorSize, max_vector_size);
+    }
     if (!is_power_of_2(MaxVectorSize)) {
-      warning("MaxVectorSize must be a power of 2");
-      FLAG_SET_DEFAULT(MaxVectorSize, 64);
+      warning("MaxVectorSize must be a power of 2, setting to default: %i", max_vector_size);
+      FLAG_SET_DEFAULT(MaxVectorSize, max_vector_size);
     }
-    if (UseSSE < 2) {
-      // Vectors (in XMM) are only supported with SSE2+
-      if (MaxVectorSize > 0) {
-        if (!FLAG_IS_DEFAULT(MaxVectorSize))
-          warning("MaxVectorSize must be 0");
-        FLAG_SET_DEFAULT(MaxVectorSize, 0);
-      }
-    }
-    else if (UseAVX == 0 || !os_supports_avx_vectors()) {
-      // 32 bytes vectors (in YMM) are only supported with AVX+
-      if (MaxVectorSize > 16) {
-        if (!FLAG_IS_DEFAULT(MaxVectorSize))
-          warning("MaxVectorSize must be <= 16");
-        FLAG_SET_DEFAULT(MaxVectorSize, 16);
-      }
-    }
-    else if (UseAVX == 1 || UseAVX == 2) {
-      // 64 bytes vectors (in ZMM) are only supported with AVX 3
-      if (MaxVectorSize > 32) {
-        if (!FLAG_IS_DEFAULT(MaxVectorSize))
-          warning("MaxVectorSize must be <= 32");
-        FLAG_SET_DEFAULT(MaxVectorSize, 32);
-      }
-    }
-    else if (UseAVX > 2 ) {
-      if (MaxVectorSize > 64) {
-        if (!FLAG_IS_DEFAULT(MaxVectorSize))
-          warning("MaxVectorSize must be <= 64");
-        FLAG_SET_DEFAULT(MaxVectorSize, 64);
-      }
-    }
+  } else {
+    // If default, use highest supported configuration
+    FLAG_SET_DEFAULT(MaxVectorSize, max_vector_size);
+  }
+
 #if defined(COMPILER2) && defined(ASSERT)
+  if (MaxVectorSize > 0) {
     if (supports_avx() && PrintMiscellaneous && Verbose && TraceNewVectors) {
       tty->print_cr("State of YMM registers after signal handle:");
       int nreg = 2 LP64_ONLY(+2);
@@ -1020,11 +1040,9 @@ void VM_Version::get_processor_features() {
         tty->cr();
       }
     }
-#endif // COMPILER2 && ASSERT
   }
-#endif // COMPILER2_OR_JVMCI
+#endif // COMPILER2 && ASSERT
 
-#ifdef COMPILER2
 #ifdef _LP64
   if (FLAG_IS_DEFAULT(UseMultiplyToLenIntrinsic)) {
     UseMultiplyToLenIntrinsic = true;
@@ -1072,8 +1090,8 @@ void VM_Version::get_processor_features() {
     }
     FLAG_SET_DEFAULT(UseMulAddIntrinsic, false);
   }
-#endif
-#endif // COMPILER2
+#endif // _LP64
+#endif // COMPILER2_OR_JVMCI
 
   // On new cpus instructions which update whole XMM register should be used
   // to prevent partial register stall due to dependencies on high half.
@@ -1271,7 +1289,7 @@ void VM_Version::get_processor_features() {
       if (FLAG_IS_DEFAULT(UseXMMForArrayCopy)) {
         UseXMMForArrayCopy = true; // use SSE2 movq on new Intel cpus
       }
-      if (supports_sse4_2() && supports_ht()) { // Newest Intel cpus
+      if ((supports_sse4_2() && supports_ht()) || supports_avx()) { // Newest Intel cpus
         if (FLAG_IS_DEFAULT(UseUnalignedLoadStores)) {
           UseUnalignedLoadStores = true; // use movdqu on newest Intel cpus
         }
@@ -1390,6 +1408,16 @@ void VM_Version::get_processor_features() {
   } else if (UseFastStosb) {
     warning("fast-string operations are not available on this CPU");
     FLAG_SET_DEFAULT(UseFastStosb, false);
+  }
+
+  // Use XMM/YMM MOVDQU instruction for Object Initialization
+  if (!UseFastStosb && UseSSE >= 2 && UseUnalignedLoadStores) {
+    if (FLAG_IS_DEFAULT(UseXMMForObjInit)) {
+      UseXMMForObjInit = true;
+    }
+  } else if (UseXMMForObjInit) {
+    warning("UseXMMForObjInit requires SSE2 and unaligned load/stores. Feature is switched off.");
+    FLAG_SET_DEFAULT(UseXMMForObjInit, false);
   }
 
 #ifdef COMPILER2

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -53,14 +53,15 @@ define GenerateVarHandle
   endif
 
   $$($1_FILENAME): $(VARHANDLES_SRC_DIR)/X-VarHandle.java.template $(BUILD_TOOLS_JDK)
-        ifeq ($$($1_Type), Object)
-	  $$(eval $1_type := $$($1_Type))
+        ifeq ($$($1_Type), Reference)
+	  $$(eval $1_type := Object)
         else
 	  $$(eval $1_type := $$$$(shell $(TR) '[:upper:]' '[:lower:]' <<< $$$$($1_Type)))
         endif
 	$$(call MakeDir, $$(@D))
+	$(RM) $$@
 	$(TOOL_SPP) -nel -K$$($1_type) -Dtype=$$($1_type) -DType=$$($1_Type) \
-	    $$($1_ARGS) < $$< > $$@
+	    $$($1_ARGS) -i$$< -o$$@
 
   GENSRC_VARHANDLES += $$($1_FILENAME)
 endef
@@ -147,10 +148,11 @@ define GenerateVarHandleByteArray
 
   $$($1_FILENAME): $(VARHANDLES_SRC_DIR)/X-VarHandleByteArrayView.java.template $(BUILD_TOOLS_JDK)
 	$$(call MakeDir, $$(@D))
+	$(RM) $$@
 	$(TOOL_SPP) -nel -K$$($1_type) \
 	    -Dtype=$$($1_type) -DType=$$($1_Type) -DBoxType=$$($1_BoxType) \
 	    -DrawType=$$($1_rawType) -DRawType=$$($1_RawType) -DRawBoxType=$$($1_RawBoxType) \
-	    $$($1_ARGS) < $$< > $$@
+	    $$($1_ARGS) -i$$< -o$$@
 
   GENSRC_VARHANDLES += $$($1_FILENAME)
 endef
@@ -158,7 +160,7 @@ endef
 ################################################################################
 
 # List the types to generate source for, with capitalized first letter
-VARHANDLES_TYPES := Boolean Byte Short Char Int Long Float Double Object
+VARHANDLES_TYPES := Boolean Byte Short Char Int Long Float Double Reference
 $(foreach t, $(VARHANDLES_TYPES), \
   $(eval $(call GenerateVarHandle,VAR_HANDLE_$t,$t)))
 

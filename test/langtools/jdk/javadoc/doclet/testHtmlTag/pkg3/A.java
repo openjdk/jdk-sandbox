@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -33,7 +31,7 @@ public class A {
      * Factory that creates new <code>javax.xml.datatype</code>
      * <code>Object</code>s that map XML to/from Java <code>Object</code>s.</p>
      *
-     * <p>
+     * <p id="DatatypeFactory.newInstance">
      * A new instance of the <code>DatatypeFactory</code> is created through the
      * {@link #newInstance()} method that uses the following implementation
      * resolution mechanisms to determine an implementation:</p>

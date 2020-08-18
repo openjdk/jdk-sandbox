@@ -33,10 +33,12 @@
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "gc/shared/barrierSet.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "nativeInst_x86.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "vmreg_x86.inline.hpp"
 
@@ -64,7 +66,6 @@ static jlong *float_signmask_pool  = double_quadword(&fp_signmask_pool[1*2],    
 static jlong *double_signmask_pool = double_quadword(&fp_signmask_pool[2*2],         CONST64(0x7FFFFFFFFFFFFFFF),         CONST64(0x7FFFFFFFFFFFFFFF));
 static jlong *float_signflip_pool  = double_quadword(&fp_signmask_pool[3*2], (jlong)UCONST64(0x8000000080000000), (jlong)UCONST64(0x8000000080000000));
 static jlong *double_signflip_pool = double_quadword(&fp_signmask_pool[4*2], (jlong)UCONST64(0x8000000000000000), (jlong)UCONST64(0x8000000000000000));
-
 
 
 NEEDS_CLEANUP // remove this definitions ?
@@ -648,7 +649,7 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
 
     case T_FLOAT: {
       if (dest->is_single_xmm()) {
-        if (c->is_zero_float()) {
+        if (LP64_ONLY(UseAVX <= 2 &&) c->is_zero_float()) {
           __ xorps(dest->as_xmm_float_reg(), dest->as_xmm_float_reg());
         } else {
           __ movflt(dest->as_xmm_float_reg(),
@@ -670,7 +671,7 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
 
     case T_DOUBLE: {
       if (dest->is_double_xmm()) {
-        if (c->is_zero_double()) {
+        if (LP64_ONLY(UseAVX <= 2 &&) c->is_zero_double()) {
           __ xorpd(dest->as_xmm_double_reg(), dest->as_xmm_double_reg());
         } else {
           __ movdbl(dest->as_xmm_double_reg(),
@@ -1344,7 +1345,11 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       __ decode_heap_oop(dest->as_register());
     }
 #endif
-    __ verify_oop(dest->as_register());
+
+    // Load barrier has not yet been applied, so ZGC can't verify the oop here
+    if (!UseZGC) {
+      __ verify_oop(dest->as_register());
+    }
   } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
 #ifdef _LP64
     if (UseCompressedClassPointers) {
@@ -1676,9 +1681,9 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
     // Object is null; update MDO and exit
     Register mdo  = klass_RInfo;
     __ mov_metadata(mdo, md->constant_encoding());
-    Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::header_offset()));
-    int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-    __ orl(data_addr, header_bits);
+    Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::flags_offset()));
+    int header_bits = BitData::null_seen_byte_constant();
+    __ orb(data_addr, header_bits);
     __ jmp(*obj_is_null);
     __ bind(not_null);
   } else {
@@ -1772,7 +1777,6 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
     __ bind(profile_cast_success);
     __ mov_metadata(mdo, md->constant_encoding());
     __ load_klass(recv, obj);
-    Label update_done;
     type_profile_helper(mdo, md, data, recv, success);
     __ jmp(*success);
 
@@ -1822,9 +1826,9 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
       // Object is null; update MDO and exit
       Register mdo  = klass_RInfo;
       __ mov_metadata(mdo, md->constant_encoding());
-      Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::header_offset()));
-      int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-      __ orl(data_addr, header_bits);
+      Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::flags_offset()));
+      int header_bits = BitData::null_seen_byte_constant();
+      __ orb(data_addr, header_bits);
       __ jmp(done);
       __ bind(not_null);
     } else {
@@ -1855,7 +1859,6 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
       __ bind(profile_cast_success);
       __ mov_metadata(mdo, md->constant_encoding());
       __ load_klass(recv, value);
-      Label update_done;
       type_profile_helper(mdo, md, data, recv, &done);
       __ jmpb(done);
 
@@ -1903,9 +1906,7 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
     assert(op->new_value()->as_register_lo() == rbx, "wrong register");
     assert(op->new_value()->as_register_hi() == rcx, "wrong register");
     Register addr = op->addr()->as_register();
-    if (os::is_MP()) {
-      __ lock();
-    }
+    __ lock();
     NOT_LP64(__ cmpxchg8(Address(addr, 0)));
 
   } else if (op->code() == lir_cas_int || op->code() == lir_cas_obj ) {
@@ -1925,24 +1926,18 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
         __ encode_heap_oop(cmpval);
         __ mov(rscratch1, newval);
         __ encode_heap_oop(rscratch1);
-        if (os::is_MP()) {
-          __ lock();
-        }
+        __ lock();
         // cmpval (rax) is implicitly used by this instruction
         __ cmpxchgl(rscratch1, Address(addr, 0));
       } else
 #endif
       {
-        if (os::is_MP()) {
-          __ lock();
-        }
+        __ lock();
         __ cmpxchgptr(newval, Address(addr, 0));
       }
     } else {
       assert(op->code() == lir_cas_int, "lir_cas_int expected");
-      if (os::is_MP()) {
-        __ lock();
-      }
+      __ lock();
       __ cmpxchgl(newval, Address(addr, 0));
     }
 #ifdef _LP64
@@ -1955,9 +1950,7 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
     assert(cmpval != newval, "cmp and new values must be in different registers");
     assert(cmpval != addr, "cmp and addr must be in different registers");
     assert(newval != addr, "new value and addr must be in different registers");
-    if (os::is_MP()) {
-      __ lock();
-    }
+    __ lock();
     __ cmpxchgq(newval, Address(addr, 0));
 #endif // _LP64
   } else {
@@ -2391,16 +2384,25 @@ void LIR_Assembler::arith_fpu_implementation(LIR_Code code, int left_index, int 
 }
 
 
-void LIR_Assembler::intrinsic_op(LIR_Code code, LIR_Opr value, LIR_Opr unused, LIR_Opr dest, LIR_Op* op) {
+void LIR_Assembler::intrinsic_op(LIR_Code code, LIR_Opr value, LIR_Opr tmp, LIR_Opr dest, LIR_Op* op) {
   if (value->is_double_xmm()) {
     switch(code) {
       case lir_abs :
         {
-          if (dest->as_xmm_double_reg() != value->as_xmm_double_reg()) {
-            __ movdbl(dest->as_xmm_double_reg(), value->as_xmm_double_reg());
+#ifdef _LP64
+          if (UseAVX > 2 && !VM_Version::supports_avx512vl()) {
+            assert(tmp->is_valid(), "need temporary");
+            __ vpandn(dest->as_xmm_double_reg(), tmp->as_xmm_double_reg(), value->as_xmm_double_reg(), 2);
+          } else
+#endif
+          {
+            if (dest->as_xmm_double_reg() != value->as_xmm_double_reg()) {
+              __ movdbl(dest->as_xmm_double_reg(), value->as_xmm_double_reg());
+            }
+            assert(!tmp->is_valid(), "do not need temporary");
+            __ andpd(dest->as_xmm_double_reg(),
+                     ExternalAddress((address)double_signmask_pool));
           }
-          __ andpd(dest->as_xmm_double_reg(),
-                    ExternalAddress((address)double_signmask_pool));
         }
         break;
 
@@ -2553,7 +2555,7 @@ void LIR_Assembler::arithmetic_idiv(LIR_Code code, LIR_Opr left, LIR_Opr right, 
   Register dreg = result->as_register();
 
   if (right->is_constant()) {
-    int divisor = right->as_constant_ptr()->as_jint();
+    jint divisor = right->as_constant_ptr()->as_jint();
     assert(divisor > 0 && is_power_of_2(divisor), "must be");
     if (code == lir_idiv) {
       assert(lreg == rax, "must be rax,");
@@ -2565,7 +2567,7 @@ void LIR_Assembler::arithmetic_idiv(LIR_Code code, LIR_Opr left, LIR_Opr right, 
         __ andl(rdx, divisor - 1);
         __ addl(lreg, rdx);
       }
-      __ sarl(lreg, log2_intptr(divisor));
+      __ sarl(lreg, log2_jint(divisor));
       move_regs(lreg, dreg);
     } else if (code == lir_irem) {
       Label done;
@@ -2792,28 +2794,26 @@ void LIR_Assembler::comp_fl2i(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Op
 
 
 void LIR_Assembler::align_call(LIR_Code code) {
-  if (os::is_MP()) {
-    // make sure that the displacement word of the call ends up word aligned
-    int offset = __ offset();
-    switch (code) {
-      case lir_static_call:
-      case lir_optvirtual_call:
-      case lir_dynamic_call:
-        offset += NativeCall::displacement_offset;
-        break;
-      case lir_icvirtual_call:
-        offset += NativeCall::displacement_offset + NativeMovConstReg::instruction_size;
-      break;
-      case lir_virtual_call:  // currently, sparc-specific for niagara
-      default: ShouldNotReachHere();
-    }
-    __ align(BytesPerWord, offset);
+  // make sure that the displacement word of the call ends up word aligned
+  int offset = __ offset();
+  switch (code) {
+  case lir_static_call:
+  case lir_optvirtual_call:
+  case lir_dynamic_call:
+    offset += NativeCall::displacement_offset;
+    break;
+  case lir_icvirtual_call:
+    offset += NativeCall::displacement_offset + NativeMovConstReg::instruction_size;
+    break;
+  case lir_virtual_call:  // currently, sparc-specific for niagara
+  default: ShouldNotReachHere();
   }
+  __ align(BytesPerWord, offset);
 }
 
 
 void LIR_Assembler::call(LIR_OpJavaCall* op, relocInfo::relocType rtype) {
-  assert(!os::is_MP() || (__ offset() + NativeCall::displacement_offset) % BytesPerWord == 0,
+  assert((__ offset() + NativeCall::displacement_offset) % BytesPerWord == 0,
          "must be aligned");
   __ call(AddressLiteral(op->addr(), rtype));
   add_call_info(code_offset(), op->info());
@@ -2823,8 +2823,7 @@ void LIR_Assembler::call(LIR_OpJavaCall* op, relocInfo::relocType rtype) {
 void LIR_Assembler::ic_call(LIR_OpJavaCall* op) {
   __ ic_call(op->addr());
   add_call_info(code_offset(), op->info());
-  assert(!os::is_MP() ||
-         (__ offset() - NativeCall::instruction_size + NativeCall::displacement_offset) % BytesPerWord == 0,
+  assert((__ offset() - NativeCall::instruction_size + NativeCall::displacement_offset) % BytesPerWord == 0,
          "must be aligned");
 }
 
@@ -2844,14 +2843,13 @@ void LIR_Assembler::emit_static_call_stub() {
   }
 
   int start = __ offset();
-  if (os::is_MP()) {
-    // make sure that the displacement word of the call ends up word aligned
-    __ align(BytesPerWord, __ offset() + NativeMovConstReg::instruction_size + NativeCall::displacement_offset);
-  }
+
+  // make sure that the displacement word of the call ends up word aligned
+  __ align(BytesPerWord, __ offset() + NativeMovConstReg::instruction_size + NativeCall::displacement_offset);
   __ relocate(static_stub_Relocation::spec(call_pc, false /* is_aot */));
   __ mov_metadata(rbx, (Metadata*)NULL);
   // must be set to -1 at code generation time
-  assert(!os::is_MP() || ((__ offset() + 1) % BytesPerWord) == 0, "must be aligned on MP");
+  assert(((__ offset() + 1) % BytesPerWord) == 0, "must be aligned");
   // On 64bit this will die since it will take a movq & jmp, must be only a jmp
   __ jump(RuntimeAddress(__ pc()));
 
@@ -3032,6 +3030,9 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   Register length  = op->length()->as_register();
   Register tmp = op->tmp()->as_register();
 
+  __ resolve(ACCESS_READ, src);
+  __ resolve(ACCESS_WRITE, dst);
+
   CodeStub* stub = op->stub();
   int flags = op->flags();
   BasicType basic_type = default_type != NULL ? default_type->element_type()->basic_type() : T_ILLEGAL;
@@ -3039,7 +3040,6 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 
   // if we don't know anything, just go through the generic arraycopy
   if (default_type == NULL) {
-    Label done;
     // save outgoing arguments on stack in case call to System.arraycopy is needed
     // HACK ALERT. This code used to push the parameters in a hardwired fashion
     // for interpreter calling conventions. Now we have to do it in new style conventions.
@@ -3057,9 +3057,8 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     store_parameter(src, 4);
     NOT_LP64(assert(src == rcx && src_pos == rdx, "mismatch in calling convention");)
 
-    address C_entry = CAST_FROM_FN_PTR(address, Runtime1::arraycopy);
-
     address copyfunc_addr = StubRoutines::generic_arraycopy();
+    assert(copyfunc_addr != NULL, "generic arraycopy stub required");
 
     // pass arguments: may push as this is not a safepoint; SP must be fix at each safepoint
 #ifdef _LP64
@@ -3077,29 +3076,21 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     // Allocate abi space for args but be sure to keep stack aligned
     __ subptr(rsp, 6*wordSize);
     store_parameter(j_rarg4, 4);
-    if (copyfunc_addr == NULL) { // Use C version if stub was not generated
-      __ call(RuntimeAddress(C_entry));
-    } else {
 #ifndef PRODUCT
-      if (PrintC1Statistics) {
-        __ incrementl(ExternalAddress((address)&Runtime1::_generic_arraycopystub_cnt));
-      }
-#endif
-      __ call(RuntimeAddress(copyfunc_addr));
+    if (PrintC1Statistics) {
+      __ incrementl(ExternalAddress((address)&Runtime1::_generic_arraycopystub_cnt));
     }
+#endif
+    __ call(RuntimeAddress(copyfunc_addr));
     __ addptr(rsp, 6*wordSize);
 #else
     __ mov(c_rarg4, j_rarg4);
-    if (copyfunc_addr == NULL) { // Use C version if stub was not generated
-      __ call(RuntimeAddress(C_entry));
-    } else {
 #ifndef PRODUCT
-      if (PrintC1Statistics) {
-        __ incrementl(ExternalAddress((address)&Runtime1::_generic_arraycopystub_cnt));
-      }
-#endif
-      __ call(RuntimeAddress(copyfunc_addr));
+    if (PrintC1Statistics) {
+      __ incrementl(ExternalAddress((address)&Runtime1::_generic_arraycopystub_cnt));
     }
+#endif
+    __ call(RuntimeAddress(copyfunc_addr));
 #endif // _WIN64
 #else
     __ push(length);
@@ -3108,26 +3099,20 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ push(src_pos);
     __ push(src);
 
-    if (copyfunc_addr == NULL) { // Use C version if stub was not generated
-      __ call_VM_leaf(C_entry, 5); // removes pushed parameter from the stack
-    } else {
 #ifndef PRODUCT
-      if (PrintC1Statistics) {
-        __ incrementl(ExternalAddress((address)&Runtime1::_generic_arraycopystub_cnt));
-      }
-#endif
-      __ call_VM_leaf(copyfunc_addr, 5); // removes pushed parameter from the stack
+    if (PrintC1Statistics) {
+      __ incrementl(ExternalAddress((address)&Runtime1::_generic_arraycopystub_cnt));
     }
+#endif
+    __ call_VM_leaf(copyfunc_addr, 5); // removes pushed parameter from the stack
 
 #endif // _LP64
 
     __ cmpl(rax, 0);
     __ jcc(Assembler::equal, *stub->continuation());
 
-    if (copyfunc_addr != NULL) {
-      __ mov(tmp, rax);
-      __ xorl(tmp, -1);
-    }
+    __ mov(tmp, rax);
+    __ xorl(tmp, -1);
 
     // Reload values from the stack so they are where the stub
     // expects them.
@@ -3137,11 +3122,9 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ movptr   (src_pos, Address(rsp, 3*BytesPerWord));
     __ movptr   (src,     Address(rsp, 4*BytesPerWord));
 
-    if (copyfunc_addr != NULL) {
-      __ subl(length, tmp);
-      __ addl(src_pos, tmp);
-      __ addl(dst_pos, tmp);
-    }
+    __ subl(length, tmp);
+    __ addl(src_pos, tmp);
+    __ addl(dst_pos, tmp);
     __ jmp(*stub->entry());
 
     __ bind(*stub->continuation());
@@ -3487,6 +3470,7 @@ void LIR_Assembler::emit_lock(LIR_OpLock* op) {
       scratch = op->scratch_opr()->as_register();
     }
     assert(BasicLock::displaced_header_offset_in_bytes() == 0, "lock_reg must point to the displaced header");
+    __ resolve(ACCESS_READ | ACCESS_WRITE, obj);
     // add debug info for NullPointerException only if one is possible
     int null_check_offset = __ lock_object(hdr, obj, lock, scratch, *op->stub()->entry());
     if (op->info() != NULL) {
@@ -3612,7 +3596,7 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
     }
   } else {
     __ testptr(tmp, tmp);
-    __ jccb(Assembler::notZero, update);
+    __ jcc(Assembler::notZero, update);
     __ stop("unexpect null obj");
 #endif
   }
@@ -3627,7 +3611,7 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
       __ push(tmp);
       __ mov_metadata(tmp, exact_klass->constant_encoding());
       __ cmpptr(tmp, Address(rsp, 0));
-      __ jccb(Assembler::equal, ok);
+      __ jcc(Assembler::equal, ok);
       __ stop("exact klass and actual klass differ");
       __ bind(ok);
       __ pop(tmp);
@@ -3744,7 +3728,7 @@ void LIR_Assembler::align_backward_branch_target() {
 }
 
 
-void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest) {
+void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest, LIR_Opr tmp) {
   if (left->is_single_cpu()) {
     __ negl(left->as_register());
     move_regs(left->as_register(), dest->as_register());
@@ -3769,24 +3753,36 @@ void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest) {
 #endif // _LP64
 
   } else if (dest->is_single_xmm()) {
-    if (left->as_xmm_float_reg() != dest->as_xmm_float_reg()) {
-      __ movflt(dest->as_xmm_float_reg(), left->as_xmm_float_reg());
+#ifdef _LP64
+    if (UseAVX > 2 && !VM_Version::supports_avx512vl()) {
+      assert(tmp->is_valid(), "need temporary");
+      assert_different_registers(left->as_xmm_float_reg(), tmp->as_xmm_float_reg());
+      __ vpxor(dest->as_xmm_float_reg(), tmp->as_xmm_float_reg(), left->as_xmm_float_reg(), 2);
     }
-    if (UseAVX > 0) {
-      __ vnegatess(dest->as_xmm_float_reg(), dest->as_xmm_float_reg(),
-                   ExternalAddress((address)float_signflip_pool));
-    } else {
+    else
+#endif
+    {
+      assert(!tmp->is_valid(), "do not need temporary");
+      if (left->as_xmm_float_reg() != dest->as_xmm_float_reg()) {
+        __ movflt(dest->as_xmm_float_reg(), left->as_xmm_float_reg());
+      }
       __ xorps(dest->as_xmm_float_reg(),
                ExternalAddress((address)float_signflip_pool));
     }
   } else if (dest->is_double_xmm()) {
-    if (left->as_xmm_double_reg() != dest->as_xmm_double_reg()) {
-      __ movdbl(dest->as_xmm_double_reg(), left->as_xmm_double_reg());
+#ifdef _LP64
+    if (UseAVX > 2 && !VM_Version::supports_avx512vl()) {
+      assert(tmp->is_valid(), "need temporary");
+      assert_different_registers(left->as_xmm_double_reg(), tmp->as_xmm_double_reg());
+      __ vpxor(dest->as_xmm_double_reg(), tmp->as_xmm_double_reg(), left->as_xmm_double_reg(), 2);
     }
-    if (UseAVX > 0) {
-      __ vnegatesd(dest->as_xmm_double_reg(), dest->as_xmm_double_reg(),
-                   ExternalAddress((address)double_signflip_pool));
-    } else {
+    else
+#endif
+    {
+      assert(!tmp->is_valid(), "do not need temporary");
+      if (left->as_xmm_double_reg() != dest->as_xmm_double_reg()) {
+        __ movdbl(dest->as_xmm_double_reg(), left->as_xmm_double_reg());
+      }
       __ xorpd(dest->as_xmm_double_reg(),
                ExternalAddress((address)double_signflip_pool));
     }
@@ -3801,11 +3797,22 @@ void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest) {
 }
 
 
-void LIR_Assembler::leal(LIR_Opr addr, LIR_Opr dest) {
-  assert(addr->is_address() && dest->is_register(), "check");
-  Register reg;
-  reg = dest->as_pointer_register();
-  __ lea(reg, as_Address(addr->as_address_ptr()));
+void LIR_Assembler::leal(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_code, CodeEmitInfo* info) {
+  assert(src->is_address(), "must be an address");
+  assert(dest->is_register(), "must be a register");
+
+  PatchingStub* patch = NULL;
+  if (patch_code != lir_patch_none) {
+    patch = new PatchingStub(_masm, PatchingStub::access_field_id);
+  }
+
+  Register reg = dest->as_pointer_register();
+  LIR_Address* addr = src->as_address_ptr();
+  __ lea(reg, as_Address(addr));
+
+  if (patch != NULL) {
+    patching_epilog(patch, patch_code, addr->base()->as_register(), info);
+  }
 }
 
 
@@ -3971,9 +3978,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
 
   if (data->type() == T_INT) {
     if (code == lir_xadd) {
-      if (os::is_MP()) {
-        __ lock();
-      }
+      __ lock();
       __ xaddl(as_Address(src->as_address_ptr()), data->as_register());
     } else {
       __ xchgl(data->as_register(), as_Address(src->as_address_ptr()));
@@ -3996,9 +4001,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
 #ifdef _LP64
     assert(data->as_register_lo() == data->as_register_hi(), "should be a single register");
     if (code == lir_xadd) {
-      if (os::is_MP()) {
-        __ lock();
-      }
+      __ lock();
       __ xaddq(as_Address(src->as_address_ptr()), data->as_register_lo());
     } else {
       __ xchgq(data->as_register_lo(), as_Address(src->as_address_ptr()));

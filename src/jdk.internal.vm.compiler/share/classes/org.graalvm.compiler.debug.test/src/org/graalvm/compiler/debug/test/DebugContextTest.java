@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,21 +20,25 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.debug.test;
 
 import static org.graalvm.compiler.debug.DebugContext.NO_DESCRIPTION;
 import static org.graalvm.compiler.debug.DebugContext.NO_GLOBAL_METRIC_VALUES;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Formatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
-import org.graalvm.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicMap;
 import org.graalvm.compiler.debug.Assertions;
 import org.graalvm.compiler.debug.CounterKey;
 import org.graalvm.compiler.debug.DebugCloseable;
@@ -156,18 +160,44 @@ public class DebugContextTest {
                 }
             }
         }
-        DataInputStream in = new DataInputStream(getClass().getResourceAsStream(getClass().getSimpleName() + ".testLogging.input"));
-        byte[] buf = new byte[in.available()];
-        in.readFully(buf);
-        String threadLabel = "[thread:" + Thread.currentThread().getId() + "]";
-        String expect = new String(buf).replace("[thread:1]", threadLabel);
+        String expected;
+        try (BufferedReader input = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(getClass().getSimpleName() + ".testLogging.input")))) {
+            String threadLabel = "[thread:" + Thread.currentThread().getId() + "]";
+            expected = input.lines().collect(Collectors.joining(System.lineSeparator(), "", System.lineSeparator())).replace("[thread:1]", threadLabel);
+        }
+        String logged = setup.logOutput.toString();
+        Assert.assertEquals(expected, logged);
+    }
 
-        String log = setup.logOutput.toString();
-        Assert.assertEquals(expect, log);
+    @Test
+    public void testContextScope() {
+        OptionValues options = new OptionValues(EconomicMap.create());
+        options = new OptionValues(options, DebugOptions.Log, ":5");
+        DebugContextSetup setup = new DebugContextSetup();
+        try (DebugContext debug = setup.openDebugContext(options)) {
+            try (DebugContext.Scope s0 = debug.scope("TestLogging")) {
+                try (DebugContext.Scope s1 = debug.withContext("A")) {
+                    for (Object o : debug.context()) {
+                        Assert.assertEquals(o, "A");
+                    }
+                } catch (Throwable t) {
+                    throw debug.handle(t);
+                }
+                try (DebugContext.Scope s1 = debug.withContext("B")) {
+                    for (Object o : debug.context()) {
+                        Assert.assertEquals(o, "B");
+                    }
+                } catch (Throwable t) {
+                    throw debug.handle(t);
+                }
+            }
+        }
+
     }
 
     @Test
     public void testEnabledSandbox() {
+        TimerKeyTest.assumeManagementLibraryIsLoadable();
         EconomicMap<OptionKey<?>, Object> map = EconomicMap.create();
         // Configure with an option that enables scopes
         map.put(DebugOptions.DumpOnError, true);
@@ -197,6 +227,7 @@ public class DebugContextTest {
 
     @Test
     public void testDisabledSandbox() {
+        TimerKeyTest.assumeManagementLibraryIsLoadable();
         EconomicMap<OptionKey<?>, Object> map = EconomicMap.create();
         // Configure with an option that enables scopes
         map.put(DebugOptions.DumpOnError, true);
@@ -254,6 +285,7 @@ public class DebugContextTest {
 
     @Test
     public void testDisableIntercept() {
+        TimerKeyTest.assumeManagementLibraryIsLoadable();
         EconomicMap<OptionKey<?>, Object> map = EconomicMap.create();
         // Configure with an option that enables scopes
         map.put(DebugOptions.DumpOnError, true);

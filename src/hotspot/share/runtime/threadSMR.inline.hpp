@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_THREADSMR_INLINE_HPP
-#define SHARE_VM_RUNTIME_THREADSMR_INLINE_HPP
+#ifndef SHARE_RUNTIME_THREADSMR_INLINE_HPP
+#define SHARE_RUNTIME_THREADSMR_INLINE_HPP
 
 #include "runtime/atomic.hpp"
 #include "runtime/prefetch.inline.hpp"
@@ -77,14 +77,6 @@ inline void ThreadsSMRSupport::update_tlh_time_max(uint new_value) {
   }
 }
 
-
-inline ThreadsList* ThreadsListSetter::list() {
-  ThreadsList *ret = _target->get_threads_hazard_ptr();
-  assert(ret != NULL, "hazard ptr should be set");
-  assert(!Thread::is_hazard_ptr_tagged(ret), "hazard ptr should be validated");
-  return ret;
-}
-
 inline ThreadsList* ThreadsSMRSupport::get_java_thread_list() {
   return (ThreadsList*)OrderAccess::load_acquire(&_java_thread_list);
 }
@@ -100,4 +92,4 @@ inline void ThreadsSMRSupport::update_tlh_stats(uint millis) {
   ThreadsSMRSupport::update_tlh_time_max(millis);
 }
 
-#endif // SHARE_VM_RUNTIME_THREADSMR_INLINE_HPP
+#endif // SHARE_RUNTIME_THREADSMR_INLINE_HPP

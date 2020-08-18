@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,13 @@
  *
  */
 
-#ifndef SHARE_VM_GC_CMS_COMPACTIBLEFREELISTSPACE_HPP
-#define SHARE_VM_GC_CMS_COMPACTIBLEFREELISTSPACE_HPP
+#ifndef SHARE_GC_CMS_COMPACTIBLEFREELISTSPACE_HPP
+#define SHARE_GC_CMS_COMPACTIBLEFREELISTSPACE_HPP
 
 #include "gc/cms/adaptiveFreeList.hpp"
 #include "gc/cms/promotionInfo.hpp"
 #include "gc/shared/blockOffsetTable.hpp"
+#include "gc/shared/cardTable.hpp"
 #include "gc/shared/space.hpp"
 #include "logging/log.hpp"
 #include "memory/binaryTreeDictionary.hpp"
@@ -47,7 +48,38 @@ class UpwardsObjectClosure;
 class ObjectClosureCareful;
 class Klass;
 
-class LinearAllocBlock VALUE_OBJ_CLASS_SPEC {
+class AFLBinaryTreeDictionary : public BinaryTreeDictionary<FreeChunk, AdaptiveFreeList<FreeChunk> > {
+ public:
+  AFLBinaryTreeDictionary(MemRegion mr)
+      : BinaryTreeDictionary<FreeChunk, AdaptiveFreeList<FreeChunk> >(mr) {}
+
+  // Find the list with size "size" in the binary tree and update
+  // the statistics in the list according to "split" (chunk was
+  // split or coalesce) and "birth" (chunk was added or removed).
+  void       dict_census_update(size_t size, bool split, bool birth);
+  // Return true if the dictionary is overpopulated (more chunks of
+  // this size than desired) for size "size".
+  bool       coal_dict_over_populated(size_t size);
+  // Methods called at the beginning of a sweep to prepare the
+  // statistics for the sweep.
+  void       begin_sweep_dict_census(double coalSurplusPercent,
+                                     float inter_sweep_current,
+                                     float inter_sweep_estimate,
+                                     float intra_sweep_estimate);
+  // Methods called after the end of a sweep to modify the
+  // statistics for the sweep.
+  void       end_sweep_dict_census(double splitSurplusPercent);
+  // Accessors for statistics
+  void       set_tree_surplus(double splitSurplusPercent);
+  void       set_tree_hints(void);
+  // Reset statistics for all the lists in the tree.
+  void       clear_tree_census(void);
+  // Print the statistics for all the lists in the tree.  Also may
+  // print out summaries.
+  void       print_dict_census(outputStream* st) const;
+};
+
+class LinearAllocBlock {
  public:
   LinearAllocBlock() : _ptr(0), _word_size(0), _refillSize(0),
     _allocation_size_limit(0) {}
@@ -401,7 +433,7 @@ class CompactibleFreeListSpace: public CompactibleSpace {
   Mutex* freelistLock() const { return &_freelistLock; }
 
   // Iteration support
-  void oop_iterate(ExtendedOopClosure* cl);
+  void oop_iterate(OopIterateClosure* cl);
 
   void object_iterate(ObjectClosure* blk);
   // Apply the closure to each object in the space whose references
@@ -431,8 +463,8 @@ class CompactibleFreeListSpace: public CompactibleSpace {
                                      ObjectClosureCareful* cl);
 
   // Override: provides a DCTO_CL specific to this kind of space.
-  DirtyCardToOopClosure* new_dcto_cl(ExtendedOopClosure* cl,
-                                     CardTableModRefBS::PrecisionStyle precision,
+  DirtyCardToOopClosure* new_dcto_cl(OopIterateClosure* cl,
+                                     CardTable::PrecisionStyle precision,
                                      HeapWord* boundary,
                                      bool parallel);
 
@@ -469,10 +501,8 @@ class CompactibleFreeListSpace: public CompactibleSpace {
   // Fields in objects allocated by applications of the closure
   // *are* included in the iteration. Thus, when the iteration completes
   // there should be no further such objects remaining.
-  #define CFLS_OOP_SINCE_SAVE_MARKS_DECL(OopClosureType, nv_suffix)  \
-    void oop_since_save_marks_iterate##nv_suffix(OopClosureType* blk);
-  ALL_SINCE_SAVE_MARKS_CLOSURES(CFLS_OOP_SINCE_SAVE_MARKS_DECL)
-  #undef CFLS_OOP_SINCE_SAVE_MARKS_DECL
+  template <typename OopClosureType>
+  void oop_since_save_marks_iterate(OopClosureType* blk);
 
   // Allocation support
   HeapWord* allocate(size_t size);
@@ -711,4 +741,4 @@ size_t PromotionInfo::refillSize() const {
   return CompactibleFreeListSpace::adjustObjectSize(sz);
 }
 
-#endif // SHARE_VM_GC_CMS_COMPACTIBLEFREELISTSPACE_HPP
+#endif // SHARE_GC_CMS_COMPACTIBLEFREELISTSPACE_HPP

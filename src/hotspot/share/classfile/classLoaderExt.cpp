@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,11 @@
 #include "precompiled.hpp"
 #include "classfile/classFileParser.hpp"
 #include "classfile/classFileStream.hpp"
-#include "classfile/classListParser.hpp"
-#include "classfile/classLoader.hpp"
+#include "classfile/classLoader.inline.hpp"
 #include "classfile/classLoaderExt.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/klassFactory.hpp"
-#include "classfile/sharedClassUtil.hpp"
+#include "classfile/modules.hpp"
 #include "classfile/sharedPathsMiscInfo.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -41,19 +40,30 @@
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/os.hpp"
 #include "services/threadService.hpp"
 #include "utilities/stringUtils.hpp"
 
-jshort ClassLoaderExt::_app_paths_start_index = ClassLoaderExt::max_classpath_index;
+jshort ClassLoaderExt::_app_class_paths_start_index = ClassLoaderExt::max_classpath_index;
+jshort ClassLoaderExt::_app_module_paths_start_index = ClassLoaderExt::max_classpath_index;
+jshort ClassLoaderExt::_max_used_path_index = 0;
 bool ClassLoaderExt::_has_app_classes = false;
 bool ClassLoaderExt::_has_platform_classes = false;
 
+void ClassLoaderExt::append_boot_classpath(ClassPathEntry* new_entry) {
+  if (UseSharedSpaces) {
+    warning("Sharing is only supported for boot loader classes because bootstrap classpath has been appended");
+    FileMapInfo::current_info()->header()->set_has_platform_or_app_classes(false);
+  }
+  ClassLoader::add_to_boot_append_entries(new_entry);
+}
+
 void ClassLoaderExt::setup_app_search_path() {
-  assert(DumpSharedSpaces, "this function is only used with -Xshare:dump and -XX:+UseAppCDS");
-  _app_paths_start_index = ClassLoader::num_boot_classpath_entries();
+  assert(DumpSharedSpaces, "this function is only used with -Xshare:dump");
+  _app_class_paths_start_index = ClassLoader::num_boot_classpath_entries();
   char* app_class_path = os::strdup(Arguments::get_appclasspath());
 
   if (strcmp(app_class_path, ".") == 0) {
@@ -66,6 +76,28 @@ void ClassLoaderExt::setup_app_search_path() {
     shared_paths_misc_info()->add_app_classpath(app_class_path);
     ClassLoader::setup_app_search_path(app_class_path);
   }
+}
+
+void ClassLoaderExt::process_module_table(ModuleEntryTable* met, TRAPS) {
+  ResourceMark rm(THREAD);
+  for (int i = 0; i < met->table_size(); i++) {
+    for (ModuleEntry* m = met->bucket(i); m != NULL;) {
+      char* path = m->location()->as_C_string();
+      if (strncmp(path, "file:", 5) == 0) {
+        path = ClassLoader::skip_uri_protocol(path);
+        ClassLoader::setup_module_search_path(path, THREAD);
+      }
+      m = m->next();
+    }
+  }
+}
+void ClassLoaderExt::setup_module_paths(TRAPS) {
+  assert(DumpSharedSpaces, "this function is only used with -Xshare:dump");
+  _app_module_paths_start_index = ClassLoader::num_boot_classpath_entries() +
+                              ClassLoader::num_app_classpath_entries();
+  Handle system_class_loader (THREAD, SystemDictionary::java_system_loader());
+  ModuleEntryTable* met = Modules::get_module_entry_table(system_class_loader);
+  process_module_table(met, THREAD);
 }
 
 char* ClassLoaderExt::read_manifest(ClassPathEntry* entry, jint *manifest_size, bool clean_text, TRAPS) {
@@ -140,8 +172,7 @@ void ClassLoaderExt::process_jar_manifest(ClassPathEntry* entry,
   }
 
   if (strstr(manifest, "Extension-List:") != NULL) {
-    tty->print_cr("-Xshare:dump does not support Extension-List in JAR manifest: %s", entry->name());
-    vm_exit(1);
+    vm_exit_during_cds_dumping(err_msg("-Xshare:dump does not support Extension-List in JAR manifest: %s", entry->name()));
   }
 
   char* cp_attr = get_class_path_attr(entry->name(), manifest, manifest_size);
@@ -189,39 +220,11 @@ void ClassLoaderExt::process_jar_manifest(ClassPathEntry* entry,
 }
 
 void ClassLoaderExt::setup_search_paths() {
-  if (UseAppCDS) {
-    shared_paths_misc_info()->record_app_offset();
-    ClassLoaderExt::setup_app_search_path();
-  }
+  shared_paths_misc_info()->record_app_offset();
+  ClassLoaderExt::setup_app_search_path();
 }
 
-Thread* ClassLoaderExt::Context::_dump_thread = NULL;
-
-bool ClassLoaderExt::check(ClassLoaderExt::Context *context,
-                           const ClassFileStream* stream,
-                           const int classpath_index) {
-  if (stream != NULL) {
-    // Ignore any App classes from signed JAR file during CDS archiving
-    // dumping
-    if (DumpSharedSpaces &&
-        SharedClassUtil::is_classpath_entry_signed(classpath_index) &&
-        classpath_index >= _app_paths_start_index) {
-      tty->print_cr("Preload Warning: Skipping %s from signed JAR",
-                    context->class_name());
-      return false;
-    }
-    if (classpath_index >= _app_paths_start_index) {
-      _has_app_classes = true;
-      _has_platform_classes = true;
-    }
-  }
-
-  return true;
-}
-
-void ClassLoaderExt::record_result(ClassLoaderExt::Context *context,
-                                   Symbol* class_name,
-                                   const s2 classpath_index,
+void ClassLoaderExt::record_result(const s2 classpath_index,
                                    InstanceKlass* result,
                                    TRAPS) {
   assert(DumpSharedSpaces, "Sanity");
@@ -236,15 +239,16 @@ void ClassLoaderExt::record_result(ClassLoaderExt::Context *context,
     classloader_type = ClassLoader::PLATFORM_LOADER;
     ClassLoaderExt::set_has_platform_classes();
   }
+  if (classpath_index > ClassLoaderExt::max_used_path_index()) {
+    ClassLoaderExt::set_max_used_path_index(classpath_index);
+  }
   result->set_shared_classpath_index(classpath_index);
   result->set_class_loader_type(classloader_type);
 }
 
 void ClassLoaderExt::finalize_shared_paths_misc_info() {
-  if (UseAppCDS) {
-    if (!_has_app_classes) {
-      shared_paths_misc_info()->pop_app();
-    }
+  if (!_has_app_classes) {
+    shared_paths_misc_info()->pop_app();
   }
 }
 
@@ -252,9 +256,8 @@ void ClassLoaderExt::finalize_shared_paths_misc_info() {
 // the "source:" in the class list file (see classListParser.cpp), and can be a directory or
 // a JAR file.
 InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS) {
-
   assert(name != NULL, "invariant");
-  assert(DumpSharedSpaces && UseAppCDS, "this function is only used with -Xshare:dump and -XX:+UseAppCDS");
+  assert(DumpSharedSpaces, "this function is only used with -Xshare:dump");
   ResourceMark rm(THREAD);
   const char* class_name = name->as_C_string();
 
@@ -290,7 +293,7 @@ InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS)
                                                            name,
                                                            loader_data,
                                                            protection_domain,
-                                                           NULL, // host_klass
+                                                           NULL, // unsafe_anonymous_host
                                                            NULL, // cp_patches
                                                            THREAD);
 
@@ -312,7 +315,7 @@ static GrowableArray<CachedClassPathEntry>* cached_path_entries = NULL;
 
 ClassPathEntry* ClassLoaderExt::find_classpath_entry_from_cache(const char* path, TRAPS) {
   // This is called from dump time so it's single threaded and there's no need for a lock.
-  assert(DumpSharedSpaces && UseAppCDS, "this function is only used with -Xshare:dump and -XX:+UseAppCDS");
+  assert(DumpSharedSpaces, "this function is only used with -Xshare:dump");
   if (cached_path_entries == NULL) {
     cached_path_entries = new (ResourceObj::C_HEAP, mtClass) GrowableArray<CachedClassPathEntry>(20, /*c heap*/ true);
   }
@@ -344,8 +347,4 @@ ClassPathEntry* ClassLoaderExt::find_classpath_entry_from_cache(const char* path
   ccpe._entry = new_entry;
   cached_path_entries->insert_before(0, ccpe);
   return new_entry;
-}
-
-Klass* ClassLoaderExt::load_one_class(ClassListParser* parser, TRAPS) {
-  return parser->load_current_class(THREAD);
 }

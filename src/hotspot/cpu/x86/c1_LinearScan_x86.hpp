@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_C1_LINEARSCAN_X86_HPP
-#define CPU_X86_VM_C1_LINEARSCAN_X86_HPP
+#ifndef CPU_X86_C1_LINEARSCAN_X86_HPP
+#define CPU_X86_C1_LINEARSCAN_X86_HPP
 
 inline bool LinearScan::is_processed_reg_num(int reg_num) {
 #ifndef _LP64
@@ -122,7 +122,7 @@ inline bool LinearScanWalker::pd_init_regs_for_alloc(Interval* cur) {
 }
 
 
-class FpuStackAllocator VALUE_OBJ_CLASS_SPEC {
+class FpuStackAllocator {
  private:
   Compilation* _compilation;
   LinearScan* _allocator;
@@ -195,4 +195,4 @@ class FpuStackAllocator VALUE_OBJ_CLASS_SPEC {
   void allocate();
 };
 
-#endif // CPU_X86_VM_C1_LINEARSCAN_X86_HPP
+#endif // CPU_X86_C1_LINEARSCAN_X86_HPP

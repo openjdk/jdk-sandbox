@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,15 +26,19 @@
 #include "jvm.h"
 #include "asm/macroAssembler.inline.hpp"
 #include "compiler/disassembler.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/accessDecorators.hpp"
 #include "oops/klass.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/flags/flagSetting.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/safepoint.hpp"
@@ -43,11 +47,6 @@
 #include "runtime/stubRoutines.hpp"
 #include "utilities/align.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#include "gc/g1/heapRegion.hpp"
-#endif // INCLUDE_ALL_GCS
 #ifdef COMPILER2
 #include "opto/intrinsicnode.hpp"
 #endif
@@ -171,6 +170,23 @@ int MacroAssembler::branch_destination(int inst, int pos) {
   return r;
 }
 
+void MacroAssembler::resolve_jobject(Register value, Register tmp) {
+  Label done, not_weak;
+  br_null(value, false, Assembler::pn, done); // Use NULL as-is.
+  delayed()->andcc(value, JNIHandles::weak_tag_mask, G0); // Test for jweak
+  brx(Assembler::zero, true, Assembler::pt, not_weak);
+  delayed()->nop();
+  access_load_at(T_OBJECT, IN_NATIVE | ON_PHANTOM_OOP_REF,
+                 Address(value, -JNIHandles::weak_tag_value), value, tmp);
+  verify_oop(value);
+  br (Assembler::always, true, Assembler::pt, done);
+  delayed()->nop();
+  bind(not_weak);
+  access_load_at(T_OBJECT, IN_NATIVE, Address(value, 0), value, tmp);
+  verify_oop(value);
+  bind(done);
+}
+
 void MacroAssembler::null_check(Register reg, int offset) {
   if (needs_explicit_null_check((intptr_t)offset)) {
     // provoke OS NULL exception if reg = NULL by
@@ -219,24 +235,6 @@ void MacroAssembler::breakpoint_trap(Condition c, CC cc) {
 void MacroAssembler::breakpoint_trap() {
   trap(ST_RESERVED_FOR_USER_0);
 }
-
-// Write serialization page so VM thread can do a pseudo remote membar
-// We use the current thread pointer to calculate a thread specific
-// offset to write to within the page. This minimizes bus traffic
-// due to cache line collision.
-void MacroAssembler::serialize_memory(Register thread, Register tmp1, Register tmp2) {
-  srl(thread, os::get_serialize_page_shift_count(), tmp2);
-  if (Assembler::is_simm13(os::vm_page_size())) {
-    and3(tmp2, (os::vm_page_size() - sizeof(int)), tmp2);
-  }
-  else {
-    set((os::vm_page_size() - sizeof(int)), tmp1);
-    and3(tmp2, tmp1, tmp2);
-  }
-  set(os::get_memory_serialize_page(), tmp1);
-  st(G0, tmp1, tmp2);
-}
-
 
 void MacroAssembler::safepoint_poll(Label& slow_path, bool a, Register thread_reg, Register temp_reg) {
   if (SafepointMechanism::uses_thread_local_poll()) {
@@ -656,14 +654,6 @@ void MacroAssembler::ic_call(address entry, bool emit_delay, jint method_index) 
   }
 }
 
-void MacroAssembler::card_table_write(jbyte* byte_map_base,
-                                      Register tmp, Register obj) {
-  srlx(obj, CardTableModRefBS::card_shift, obj);
-  assert(tmp != obj, "need separate temp reg");
-  set((address) byte_map_base, tmp);
-  stb(G0, tmp, obj);
-}
-
 
 void MacroAssembler::internal_sethi(const AddressLiteral& addrlit, Register d, bool ForceRelocatable) {
   address save_pc;
@@ -995,8 +985,13 @@ AddressLiteral MacroAssembler::constant_metadata_address(Metadata* obj) {
 
 
 AddressLiteral MacroAssembler::constant_oop_address(jobject obj) {
-  assert(oop_recorder() != NULL, "this assembler needs an OopRecorder");
-  assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(obj)), "not an oop");
+#ifdef ASSERT
+  {
+    ThreadInVMfromUnknown tiv;
+    assert(oop_recorder() != NULL, "this assembler needs an OopRecorder");
+    assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(obj)), "not an oop");
+  }
+#endif
   int oop_index = oop_recorder()->find_index(obj);
   return AddressLiteral(obj, oop_Relocation::spec(oop_index));
 }
@@ -2635,195 +2630,90 @@ void MacroAssembler::compiler_lock_object(Register Roop, Register Rmark,
      inc_counter((address) counters->total_entry_count_addr(), Rmark, Rscratch);
    }
 
-   if (EmitSync & 1) {
-     mov(3, Rscratch);
-     st_ptr(Rscratch, Rbox, BasicLock::displaced_header_offset_in_bytes());
-     cmp(SP, G0);
-     return ;
-   }
-
-   if (EmitSync & 2) {
-
-     // Fetch object's markword
-     ld_ptr(mark_addr, Rmark);
-
-     if (try_bias) {
-        biased_locking_enter(Roop, Rmark, Rscratch, done, NULL, counters);
-     }
-
-     // Save Rbox in Rscratch to be used for the cas operation
-     mov(Rbox, Rscratch);
-
-     // set Rmark to markOop | markOopDesc::unlocked_value
-     or3(Rmark, markOopDesc::unlocked_value, Rmark);
-
-     // Initialize the box.  (Must happen before we update the object mark!)
-     st_ptr(Rmark, Rbox, BasicLock::displaced_header_offset_in_bytes());
-
-     // compare object markOop with Rmark and if equal exchange Rscratch with object markOop
-     assert(mark_addr.disp() == 0, "cas must take a zero displacement");
-     cas_ptr(mark_addr.base(), Rmark, Rscratch);
-
-     // if compare/exchange succeeded we found an unlocked object and we now have locked it
-     // hence we are done
-     cmp(Rmark, Rscratch);
-     sub(Rscratch, STACK_BIAS, Rscratch);
-     brx(Assembler::equal, false, Assembler::pt, done);
-     delayed()->sub(Rscratch, SP, Rscratch);  //pull next instruction into delay slot
-
-     // we did not find an unlocked object so see if this is a recursive case
-     // sub(Rscratch, SP, Rscratch);
-     assert(os::vm_page_size() > 0xfff, "page size too small - change the constant");
-     andcc(Rscratch, 0xfffff003, Rscratch);
-     st_ptr(Rscratch, Rbox, BasicLock::displaced_header_offset_in_bytes());
-     bind (done);
-     return ;
-   }
-
-   Label Egress ;
-
-   if (EmitSync & 256) {
-      Label IsInflated ;
-
-      ld_ptr(mark_addr, Rmark);           // fetch obj->mark
-      // Triage: biased, stack-locked, neutral, inflated
-      if (try_bias) {
-        biased_locking_enter(Roop, Rmark, Rscratch, done, NULL, counters);
-        // Invariant: if control reaches this point in the emitted stream
-        // then Rmark has not been modified.
-      }
-
-      // Store mark into displaced mark field in the on-stack basic-lock "box"
-      // Critically, this must happen before the CAS
-      // Maximize the ST-CAS distance to minimize the ST-before-CAS penalty.
-      st_ptr(Rmark, Rbox, BasicLock::displaced_header_offset_in_bytes());
-      andcc(Rmark, 2, G0);
-      brx(Assembler::notZero, false, Assembler::pn, IsInflated);
-      delayed()->
-
-      // Try stack-lock acquisition.
-      // Beware: the 1st instruction is in a delay slot
-      mov(Rbox,  Rscratch);
-      or3(Rmark, markOopDesc::unlocked_value, Rmark);
-      assert(mark_addr.disp() == 0, "cas must take a zero displacement");
-      cas_ptr(mark_addr.base(), Rmark, Rscratch);
-      cmp(Rmark, Rscratch);
-      brx(Assembler::equal, false, Assembler::pt, done);
-      delayed()->sub(Rscratch, SP, Rscratch);
-
-      // Stack-lock attempt failed - check for recursive stack-lock.
-      // See the comments below about how we might remove this case.
-      sub(Rscratch, STACK_BIAS, Rscratch);
-      assert(os::vm_page_size() > 0xfff, "page size too small - change the constant");
-      andcc(Rscratch, 0xfffff003, Rscratch);
-      br(Assembler::always, false, Assembler::pt, done);
-      delayed()-> st_ptr(Rscratch, Rbox, BasicLock::displaced_header_offset_in_bytes());
-
-      bind(IsInflated);
-      if (EmitSync & 64) {
-         // If m->owner != null goto IsLocked
-         // Pessimistic form: Test-and-CAS vs CAS
-         // The optimistic form avoids RTS->RTO cache line upgrades.
-         ld_ptr(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), Rscratch);
-         andcc(Rscratch, Rscratch, G0);
-         brx(Assembler::notZero, false, Assembler::pn, done);
-         delayed()->nop();
-         // m->owner == null : it's unlocked.
-      }
-
-      // Try to CAS m->owner from null to Self
-      // Invariant: if we acquire the lock then _recursions should be 0.
-      add(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), Rmark);
-      mov(G2_thread, Rscratch);
-      cas_ptr(Rmark, G0, Rscratch);
-      cmp(Rscratch, G0);
-      // Intentional fall-through into done
-   } else {
-      // Aggressively avoid the Store-before-CAS penalty
-      // Defer the store into box->dhw until after the CAS
-      Label IsInflated, Recursive ;
+   // Aggressively avoid the Store-before-CAS penalty
+   // Defer the store into box->dhw until after the CAS
+   Label IsInflated, Recursive ;
 
 // Anticipate CAS -- Avoid RTS->RTO upgrade
 // prefetch (mark_addr, Assembler::severalWritesAndPossiblyReads);
 
-      ld_ptr(mark_addr, Rmark);           // fetch obj->mark
-      // Triage: biased, stack-locked, neutral, inflated
+   ld_ptr(mark_addr, Rmark);           // fetch obj->mark
+   // Triage: biased, stack-locked, neutral, inflated
 
-      if (try_bias) {
-        biased_locking_enter(Roop, Rmark, Rscratch, done, NULL, counters);
-        // Invariant: if control reaches this point in the emitted stream
-        // then Rmark has not been modified.
-      }
-      andcc(Rmark, 2, G0);
-      brx(Assembler::notZero, false, Assembler::pn, IsInflated);
-      delayed()->                         // Beware - dangling delay-slot
-
-      // Try stack-lock acquisition.
-      // Transiently install BUSY (0) encoding in the mark word.
-      // if the CAS of 0 into the mark was successful then we execute:
-      //   ST box->dhw  = mark   -- save fetched mark in on-stack basiclock box
-      //   ST obj->mark = box    -- overwrite transient 0 value
-      // This presumes TSO, of course.
-
-      mov(0, Rscratch);
-      or3(Rmark, markOopDesc::unlocked_value, Rmark);
-      assert(mark_addr.disp() == 0, "cas must take a zero displacement");
-      cas_ptr(mark_addr.base(), Rmark, Rscratch);
-// prefetch (mark_addr, Assembler::severalWritesAndPossiblyReads);
-      cmp(Rscratch, Rmark);
-      brx(Assembler::notZero, false, Assembler::pn, Recursive);
-      delayed()->st_ptr(Rmark, Rbox, BasicLock::displaced_header_offset_in_bytes());
-      if (counters != NULL) {
-        cond_inc(Assembler::equal, (address) counters->fast_path_entry_count_addr(), Rmark, Rscratch);
-      }
-      ba(done);
-      delayed()->st_ptr(Rbox, mark_addr);
-
-      bind(Recursive);
-      // Stack-lock attempt failed - check for recursive stack-lock.
-      // Tests show that we can remove the recursive case with no impact
-      // on refworkload 0.83.  If we need to reduce the size of the code
-      // emitted by compiler_lock_object() the recursive case is perfect
-      // candidate.
-      //
-      // A more extreme idea is to always inflate on stack-lock recursion.
-      // This lets us eliminate the recursive checks in compiler_lock_object
-      // and compiler_unlock_object and the (box->dhw == 0) encoding.
-      // A brief experiment - requiring changes to synchronizer.cpp, interpreter,
-      // and showed a performance *increase*.  In the same experiment I eliminated
-      // the fast-path stack-lock code from the interpreter and always passed
-      // control to the "slow" operators in synchronizer.cpp.
-
-      // RScratch contains the fetched obj->mark value from the failed CAS.
-      sub(Rscratch, STACK_BIAS, Rscratch);
-      sub(Rscratch, SP, Rscratch);
-      assert(os::vm_page_size() > 0xfff, "page size too small - change the constant");
-      andcc(Rscratch, 0xfffff003, Rscratch);
-      if (counters != NULL) {
-        // Accounting needs the Rscratch register
-        st_ptr(Rscratch, Rbox, BasicLock::displaced_header_offset_in_bytes());
-        cond_inc(Assembler::equal, (address) counters->fast_path_entry_count_addr(), Rmark, Rscratch);
-        ba_short(done);
-      } else {
-        ba(done);
-        delayed()->st_ptr(Rscratch, Rbox, BasicLock::displaced_header_offset_in_bytes());
-      }
-
-      bind   (IsInflated);
-
-      // Try to CAS m->owner from null to Self
-      // Invariant: if we acquire the lock then _recursions should be 0.
-      add(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), Rmark);
-      mov(G2_thread, Rscratch);
-      cas_ptr(Rmark, G0, Rscratch);
-      andcc(Rscratch, Rscratch, G0);             // set ICCs for done: icc.zf iff success
-      // set icc.zf : 1=success 0=failure
-      // ST box->displaced_header = NonZero.
-      // Any non-zero value suffices:
-      //    markOopDesc::unused_mark(), G2_thread, RBox, RScratch, rsp, etc.
-      st_ptr(Rbox, Rbox, BasicLock::displaced_header_offset_in_bytes());
-      // Intentional fall-through into done
+   if (try_bias) {
+     biased_locking_enter(Roop, Rmark, Rscratch, done, NULL, counters);
+     // Invariant: if control reaches this point in the emitted stream
+     // then Rmark has not been modified.
    }
+   andcc(Rmark, 2, G0);
+   brx(Assembler::notZero, false, Assembler::pn, IsInflated);
+   delayed()->                         // Beware - dangling delay-slot
+
+   // Try stack-lock acquisition.
+   // Transiently install BUSY (0) encoding in the mark word.
+   // if the CAS of 0 into the mark was successful then we execute:
+   //   ST box->dhw  = mark   -- save fetched mark in on-stack basiclock box
+   //   ST obj->mark = box    -- overwrite transient 0 value
+   // This presumes TSO, of course.
+
+   mov(0, Rscratch);
+   or3(Rmark, markOopDesc::unlocked_value, Rmark);
+   assert(mark_addr.disp() == 0, "cas must take a zero displacement");
+   cas_ptr(mark_addr.base(), Rmark, Rscratch);
+// prefetch (mark_addr, Assembler::severalWritesAndPossiblyReads);
+   cmp(Rscratch, Rmark);
+   brx(Assembler::notZero, false, Assembler::pn, Recursive);
+   delayed()->st_ptr(Rmark, Rbox, BasicLock::displaced_header_offset_in_bytes());
+   if (counters != NULL) {
+     cond_inc(Assembler::equal, (address) counters->fast_path_entry_count_addr(), Rmark, Rscratch);
+   }
+   ba(done);
+   delayed()->st_ptr(Rbox, mark_addr);
+
+   bind(Recursive);
+   // Stack-lock attempt failed - check for recursive stack-lock.
+   // Tests show that we can remove the recursive case with no impact
+   // on refworkload 0.83.  If we need to reduce the size of the code
+   // emitted by compiler_lock_object() the recursive case is perfect
+   // candidate.
+   //
+   // A more extreme idea is to always inflate on stack-lock recursion.
+   // This lets us eliminate the recursive checks in compiler_lock_object
+   // and compiler_unlock_object and the (box->dhw == 0) encoding.
+   // A brief experiment - requiring changes to synchronizer.cpp, interpreter,
+   // and showed a performance *increase*.  In the same experiment I eliminated
+   // the fast-path stack-lock code from the interpreter and always passed
+   // control to the "slow" operators in synchronizer.cpp.
+
+   // RScratch contains the fetched obj->mark value from the failed CAS.
+   sub(Rscratch, STACK_BIAS, Rscratch);
+   sub(Rscratch, SP, Rscratch);
+   assert(os::vm_page_size() > 0xfff, "page size too small - change the constant");
+   andcc(Rscratch, 0xfffff003, Rscratch);
+   if (counters != NULL) {
+     // Accounting needs the Rscratch register
+     st_ptr(Rscratch, Rbox, BasicLock::displaced_header_offset_in_bytes());
+     cond_inc(Assembler::equal, (address) counters->fast_path_entry_count_addr(), Rmark, Rscratch);
+     ba_short(done);
+   } else {
+     ba(done);
+     delayed()->st_ptr(Rscratch, Rbox, BasicLock::displaced_header_offset_in_bytes());
+   }
+
+   bind   (IsInflated);
+
+   // Try to CAS m->owner from null to Self
+   // Invariant: if we acquire the lock then _recursions should be 0.
+   add(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), Rmark);
+   mov(G2_thread, Rscratch);
+   cas_ptr(Rmark, G0, Rscratch);
+   andcc(Rscratch, Rscratch, G0);             // set ICCs for done: icc.zf iff success
+   // set icc.zf : 1=success 0=failure
+   // ST box->displaced_header = NonZero.
+   // Any non-zero value suffices:
+   //    markOopDesc::unused_mark(), G2_thread, RBox, RScratch, rsp, etc.
+   st_ptr(Rbox, Rbox, BasicLock::displaced_header_offset_in_bytes());
+   // Intentional fall-through into done
 
    bind   (done);
 }
@@ -2834,30 +2724,6 @@ void MacroAssembler::compiler_unlock_object(Register Roop, Register Rmark,
    Address mark_addr(Roop, oopDesc::mark_offset_in_bytes());
 
    Label done ;
-
-   if (EmitSync & 4) {
-     cmp(SP, G0);
-     return ;
-   }
-
-   if (EmitSync & 8) {
-     if (try_bias) {
-        biased_locking_exit(mark_addr, Rscratch, done);
-     }
-
-     // Test first if it is a fast recursive unlock
-     ld_ptr(Rbox, BasicLock::displaced_header_offset_in_bytes(), Rmark);
-     br_null_short(Rmark, Assembler::pt, done);
-
-     // Check if it is still a light weight lock, this is is true if we see
-     // the stack address of the basicLock in the markOop of the object
-     assert(mark_addr.disp() == 0, "cas must take a zero displacement");
-     cas_ptr(mark_addr.base(), Rbox, Rmark);
-     ba(done);
-     delayed()->cmp(Rbox, Rmark);
-     bind(done);
-     return ;
-   }
 
    // Beware ... If the aggregate size of the code emitted by CLO and CUO is
    // is too large performance rolls abruptly off a cliff.
@@ -2889,105 +2755,39 @@ void MacroAssembler::compiler_unlock_object(Register Roop, Register Rmark,
    // close the resultant (and rare) race by having contended threads in
    // monitorenter periodically poll _owner.
 
-   if (EmitSync & 1024) {
-     // Emit code to check that _owner == Self
-     // We could fold the _owner test into subsequent code more efficiently
-     // than using a stand-alone check, but since _owner checking is off by
-     // default we don't bother. We also might consider predicating the
-     // _owner==Self check on Xcheck:jni or running on a debug build.
-     ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), Rscratch);
-     orcc(Rscratch, G0, G0);
-     brx(Assembler::notZero, false, Assembler::pn, done);
-     delayed()->nop();
-   }
+   // 1-0 form : avoids CAS and MEMBAR in the common case
+   // Do not bother to ratify that m->Owner == Self.
+   ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)), Rbox);
+   orcc(Rbox, G0, G0);
+   brx(Assembler::notZero, false, Assembler::pn, done);
+   delayed()->
+   ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(EntryList)), Rscratch);
+   ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(cxq)), Rbox);
+   orcc(Rbox, Rscratch, G0);
+   brx(Assembler::zero, false, Assembler::pt, done);
+   delayed()->
+   st_ptr(G0, Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
 
-   if (EmitSync & 512) {
-     // classic lock release code absent 1-0 locking
-     //   m->Owner = null;
-     //   membar #storeload
-     //   if (m->cxq|m->EntryList) == null goto Success
-     //   if (m->succ != null) goto Success
-     //   if CAS (&m->Owner,0,Self) != 0 goto Success
-     //   goto SlowPath
-     ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)), Rbox);
-     orcc(Rbox, G0, G0);
-     brx(Assembler::notZero, false, Assembler::pn, done);
-     delayed()->nop();
-     st_ptr(G0, Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-     if (os::is_MP()) { membar(StoreLoad); }
-     ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(EntryList)), Rscratch);
-     ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(cxq)), Rbox);
-     orcc(Rbox, Rscratch, G0);
-     brx(Assembler::zero, false, Assembler::pt, done);
-     delayed()->
-     ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(succ)), Rscratch);
-     andcc(Rscratch, Rscratch, G0);
-     brx(Assembler::notZero, false, Assembler::pt, done);
-     delayed()->andcc(G0, G0, G0);
-     add(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), Rmark);
-     mov(G2_thread, Rscratch);
-     cas_ptr(Rmark, G0, Rscratch);
-     cmp(Rscratch, G0);
-     // invert icc.zf and goto done
-     brx(Assembler::notZero, false, Assembler::pt, done);
-     delayed()->cmp(G0, G0);
-     br(Assembler::always, false, Assembler::pt, done);
-     delayed()->cmp(G0, 1);
-   } else {
-     // 1-0 form : avoids CAS and MEMBAR in the common case
-     // Do not bother to ratify that m->Owner == Self.
-     ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)), Rbox);
-     orcc(Rbox, G0, G0);
-     brx(Assembler::notZero, false, Assembler::pn, done);
-     delayed()->
-     ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(EntryList)), Rscratch);
-     ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(cxq)), Rbox);
-     orcc(Rbox, Rscratch, G0);
-     if (EmitSync & 16384) {
-       // As an optional optimization, if (EntryList|cxq) != null and _succ is null then
-       // we should transfer control directly to the slow-path.
-       // This test makes the reacquire operation below very infrequent.
-       // The logic is equivalent to :
-       //   if (cxq|EntryList) == null : Owner=null; goto Success
-       //   if succ == null : goto SlowPath
-       //   Owner=null; membar #storeload
-       //   if succ != null : goto Success
-       //   if CAS(&Owner,null,Self) != null goto Success
-       //   goto SlowPath
-       brx(Assembler::zero, true, Assembler::pt, done);
-       delayed()->
-       st_ptr(G0, Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-       ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(succ)), Rscratch);
-       andcc(Rscratch, Rscratch, G0) ;
-       brx(Assembler::zero, false, Assembler::pt, done);
-       delayed()->orcc(G0, 1, G0);
-       st_ptr(G0, Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-     } else {
-       brx(Assembler::zero, false, Assembler::pt, done);
-       delayed()->
-       st_ptr(G0, Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-     }
-     if (os::is_MP()) { membar(StoreLoad); }
-     // Check that _succ is (or remains) non-zero
-     ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(succ)), Rscratch);
-     andcc(Rscratch, Rscratch, G0);
-     brx(Assembler::notZero, false, Assembler::pt, done);
-     delayed()->andcc(G0, G0, G0);
-     add(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), Rmark);
-     mov(G2_thread, Rscratch);
-     cas_ptr(Rmark, G0, Rscratch);
-     cmp(Rscratch, G0);
-     // invert icc.zf and goto done
-     // A slightly better v8+/v9 idiom would be the following:
-     //   movrnz Rscratch,1,Rscratch
-     //   ba done
-     //   xorcc Rscratch,1,G0
-     // In v8+ mode the idiom would be valid IFF Rscratch was a G or O register
-     brx(Assembler::notZero, false, Assembler::pt, done);
-     delayed()->cmp(G0, G0);
-     br(Assembler::always, false, Assembler::pt, done);
-     delayed()->cmp(G0, 1);
-   }
+   membar(StoreLoad);
+   // Check that _succ is (or remains) non-zero
+   ld_ptr(Address(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(succ)), Rscratch);
+   andcc(Rscratch, Rscratch, G0);
+   brx(Assembler::notZero, false, Assembler::pt, done);
+   delayed()->andcc(G0, G0, G0);
+   add(Rmark, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), Rmark);
+   mov(G2_thread, Rscratch);
+   cas_ptr(Rmark, G0, Rscratch);
+   cmp(Rscratch, G0);
+   // invert icc.zf and goto done
+   // A slightly better v8+/v9 idiom would be the following:
+   //   movrnz Rscratch,1,Rscratch
+   //   ba done
+   //   xorcc Rscratch,1,G0
+   // In v8+ mode the idiom would be valid IFF Rscratch was a G or O register
+   brx(Assembler::notZero, false, Assembler::pt, done);
+   delayed()->cmp(G0, G0);
+   br(Assembler::always, false, Assembler::pt, done);
+   delayed()->cmp(G0, 1);
 
    bind   (LStacked);
    // Consider: we could replace the expensive CAS in the exit
@@ -3325,6 +3125,12 @@ SkipIfEqual::~SkipIfEqual() {
   _masm->bind(_label);
 }
 
+void MacroAssembler::bang_stack_with_offset(int offset) {
+  // stack grows down, caller passes positive offset
+  assert(offset > 0, "must bang with negative offset");
+  set((-offset)+STACK_BIAS, G3_scratch);
+  st(G0, SP, G3_scratch);
+}
 
 // Writes to stack successive pages until offset reached to check for
 // stack overflow + shadow pages.  This clobbers tsp and scratch.
@@ -3379,371 +3185,19 @@ void MacroAssembler::reserved_stack_check() {
 
   bind(no_reserved_zone_enabling);
 }
-
-///////////////////////////////////////////////////////////////////////////////////
-#if INCLUDE_ALL_GCS
-
-static address satb_log_enqueue_with_frame = NULL;
-static u_char* satb_log_enqueue_with_frame_end = NULL;
-
-static address satb_log_enqueue_frameless = NULL;
-static u_char* satb_log_enqueue_frameless_end = NULL;
-
-static int EnqueueCodeSize = 128 DEBUG_ONLY( + 256); // Instructions?
-
-static void generate_satb_log_enqueue(bool with_frame) {
-  BufferBlob* bb = BufferBlob::create("enqueue_with_frame", EnqueueCodeSize);
-  CodeBuffer buf(bb);
-  MacroAssembler masm(&buf);
-
-#define __ masm.
-
-  address start = __ pc();
-  Register pre_val;
-
-  Label refill, restart;
-  if (with_frame) {
-    __ save_frame(0);
-    pre_val = I0;  // Was O0 before the save.
-  } else {
-    pre_val = O0;
-  }
-
-  int satb_q_index_byte_offset =
-    in_bytes(JavaThread::satb_mark_queue_offset() +
-             SATBMarkQueue::byte_offset_of_index());
-
-  int satb_q_buf_byte_offset =
-    in_bytes(JavaThread::satb_mark_queue_offset() +
-             SATBMarkQueue::byte_offset_of_buf());
-
-  assert(in_bytes(SATBMarkQueue::byte_width_of_index()) == sizeof(intptr_t) &&
-         in_bytes(SATBMarkQueue::byte_width_of_buf()) == sizeof(intptr_t),
-         "check sizes in assembly below");
-
-  __ bind(restart);
-
-  // Load the index into the SATB buffer. SATBMarkQueue::_index is a size_t
-  // so ld_ptr is appropriate.
-  __ ld_ptr(G2_thread, satb_q_index_byte_offset, L0);
-
-  // index == 0?
-  __ cmp_and_brx_short(L0, G0, Assembler::equal, Assembler::pn, refill);
-
-  __ ld_ptr(G2_thread, satb_q_buf_byte_offset, L1);
-  __ sub(L0, oopSize, L0);
-
-  __ st_ptr(pre_val, L1, L0);  // [_buf + index] := I0
-  if (!with_frame) {
-    // Use return-from-leaf
-    __ retl();
-    __ delayed()->st_ptr(L0, G2_thread, satb_q_index_byte_offset);
-  } else {
-    // Not delayed.
-    __ st_ptr(L0, G2_thread, satb_q_index_byte_offset);
-  }
-  if (with_frame) {
-    __ ret();
-    __ delayed()->restore();
-  }
-  __ bind(refill);
-
-  address handle_zero =
-    CAST_FROM_FN_PTR(address,
-                     &SATBMarkQueueSet::handle_zero_index_for_thread);
-  // This should be rare enough that we can afford to save all the
-  // scratch registers that the calling context might be using.
-  __ mov(G1_scratch, L0);
-  __ mov(G3_scratch, L1);
-  __ mov(G4, L2);
-  // We need the value of O0 above (for the write into the buffer), so we
-  // save and restore it.
-  __ mov(O0, L3);
-  // Since the call will overwrite O7, we save and restore that, as well.
-  __ mov(O7, L4);
-  __ call_VM_leaf(L5, handle_zero, G2_thread);
-  __ mov(L0, G1_scratch);
-  __ mov(L1, G3_scratch);
-  __ mov(L2, G4);
-  __ mov(L3, O0);
-  __ br(Assembler::always, /*annul*/false, Assembler::pt, restart);
-  __ delayed()->mov(L4, O7);
-
-  if (with_frame) {
-    satb_log_enqueue_with_frame = start;
-    satb_log_enqueue_with_frame_end = __ pc();
-  } else {
-    satb_log_enqueue_frameless = start;
-    satb_log_enqueue_frameless_end = __ pc();
-  }
-
-#undef __
-}
-
-void MacroAssembler::g1_write_barrier_pre(Register obj,
-                                          Register index,
-                                          int offset,
-                                          Register pre_val,
-                                          Register tmp,
-                                          bool preserve_o_regs) {
-  Label filtered;
-
-  if (obj == noreg) {
-    // We are not loading the previous value so make
-    // sure that we don't trash the value in pre_val
-    // with the code below.
-    assert_different_registers(pre_val, tmp);
-  } else {
-    // We will be loading the previous value
-    // in this code so...
-    assert(offset == 0 || index == noreg, "choose one");
-    assert(pre_val == noreg, "check this code");
-  }
-
-  // Is marking active?
-  if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
-    ld(G2,
-       in_bytes(JavaThread::satb_mark_queue_offset() +
-                SATBMarkQueue::byte_offset_of_active()),
-       tmp);
-  } else {
-    guarantee(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1,
-              "Assumption");
-    ldsb(G2,
-         in_bytes(JavaThread::satb_mark_queue_offset() +
-                  SATBMarkQueue::byte_offset_of_active()),
-         tmp);
-  }
-
-  // Is marking active?
-  cmp_and_br_short(tmp, G0, Assembler::equal, Assembler::pt, filtered);
-
-  // Do we need to load the previous value?
-  if (obj != noreg) {
-    // Load the previous value...
-    if (index == noreg) {
-      if (Assembler::is_simm13(offset)) {
-        load_heap_oop(obj, offset, tmp);
-      } else {
-        set(offset, tmp);
-        load_heap_oop(obj, tmp, tmp);
-      }
-    } else {
-      load_heap_oop(obj, index, tmp);
-    }
-    // Previous value has been loaded into tmp
-    pre_val = tmp;
-  }
-
-  assert(pre_val != noreg, "must have a real register");
-
-  // Is the previous value null?
-  cmp_and_brx_short(pre_val, G0, Assembler::equal, Assembler::pt, filtered);
-
-  // OK, it's not filtered, so we'll need to call enqueue.  In the normal
-  // case, pre_val will be a scratch G-reg, but there are some cases in
-  // which it's an O-reg.  In the first case, do a normal call.  In the
-  // latter, do a save here and call the frameless version.
-
-  guarantee(pre_val->is_global() || pre_val->is_out(),
-            "Or we need to think harder.");
-
-  if (pre_val->is_global() && !preserve_o_regs) {
-    call(satb_log_enqueue_with_frame);
-    delayed()->mov(pre_val, O0);
-  } else {
-    save_frame(0);
-    call(satb_log_enqueue_frameless);
-    delayed()->mov(pre_val->after_save(), O0);
-    restore();
-  }
-
-  bind(filtered);
-}
-
-static address dirty_card_log_enqueue = 0;
-static u_char* dirty_card_log_enqueue_end = 0;
-
-// This gets to assume that o0 contains the object address.
-static void generate_dirty_card_log_enqueue(jbyte* byte_map_base) {
-  BufferBlob* bb = BufferBlob::create("dirty_card_enqueue", EnqueueCodeSize*2);
-  CodeBuffer buf(bb);
-  MacroAssembler masm(&buf);
-#define __ masm.
-  address start = __ pc();
-
-  Label not_already_dirty, restart, refill, young_card;
-
-  __ srlx(O0, CardTableModRefBS::card_shift, O0);
-  AddressLiteral addrlit(byte_map_base);
-  __ set(addrlit, O1); // O1 := <card table base>
-  __ ldub(O0, O1, O2); // O2 := [O0 + O1]
-
-  __ cmp_and_br_short(O2, G1SATBCardTableModRefBS::g1_young_card_val(), Assembler::equal, Assembler::pt, young_card);
-
-  __ membar(Assembler::Membar_mask_bits(Assembler::StoreLoad));
-  __ ldub(O0, O1, O2); // O2 := [O0 + O1]
-
-  assert(CardTableModRefBS::dirty_card_val() == 0, "otherwise check this code");
-  __ cmp_and_br_short(O2, G0, Assembler::notEqual, Assembler::pt, not_already_dirty);
-
-  __ bind(young_card);
-  // We didn't take the branch, so we're already dirty: return.
-  // Use return-from-leaf
-  __ retl();
-  __ delayed()->nop();
-
-  // Not dirty.
-  __ bind(not_already_dirty);
-
-  // Get O0 + O1 into a reg by itself
-  __ add(O0, O1, O3);
-
-  // First, dirty it.
-  __ stb(G0, O3, G0);  // [cardPtr] := 0  (i.e., dirty).
-
-  int dirty_card_q_index_byte_offset =
-    in_bytes(JavaThread::dirty_card_queue_offset() +
-             DirtyCardQueue::byte_offset_of_index());
-  int dirty_card_q_buf_byte_offset =
-    in_bytes(JavaThread::dirty_card_queue_offset() +
-             DirtyCardQueue::byte_offset_of_buf());
-  __ bind(restart);
-
-  // Load the index into the update buffer. DirtyCardQueue::_index is
-  // a size_t so ld_ptr is appropriate here.
-  __ ld_ptr(G2_thread, dirty_card_q_index_byte_offset, L0);
-
-  // index == 0?
-  __ cmp_and_brx_short(L0, G0, Assembler::equal, Assembler::pn, refill);
-
-  __ ld_ptr(G2_thread, dirty_card_q_buf_byte_offset, L1);
-  __ sub(L0, oopSize, L0);
-
-  __ st_ptr(O3, L1, L0);  // [_buf + index] := I0
-  // Use return-from-leaf
-  __ retl();
-  __ delayed()->st_ptr(L0, G2_thread, dirty_card_q_index_byte_offset);
-
-  __ bind(refill);
-  address handle_zero =
-    CAST_FROM_FN_PTR(address,
-                     &DirtyCardQueueSet::handle_zero_index_for_thread);
-  // This should be rare enough that we can afford to save all the
-  // scratch registers that the calling context might be using.
-  __ mov(G1_scratch, L3);
-  __ mov(G3_scratch, L5);
-  // We need the value of O3 above (for the write into the buffer), so we
-  // save and restore it.
-  __ mov(O3, L6);
-  // Since the call will overwrite O7, we save and restore that, as well.
-  __ mov(O7, L4);
-
-  __ call_VM_leaf(L7_thread_cache, handle_zero, G2_thread);
-  __ mov(L3, G1_scratch);
-  __ mov(L5, G3_scratch);
-  __ mov(L6, O3);
-  __ br(Assembler::always, /*annul*/false, Assembler::pt, restart);
-  __ delayed()->mov(L4, O7);
-
-  dirty_card_log_enqueue = start;
-  dirty_card_log_enqueue_end = __ pc();
-  // XXX Should have a guarantee here about not going off the end!
-  // Does it already do so?  Do an experiment...
-
-#undef __
-
-}
-
-void MacroAssembler::g1_write_barrier_post(Register store_addr, Register new_val, Register tmp) {
-
-  Label filtered;
-  MacroAssembler* post_filter_masm = this;
-
-  if (new_val == G0) return;
-
-  G1SATBCardTableLoggingModRefBS* bs =
-    barrier_set_cast<G1SATBCardTableLoggingModRefBS>(Universe::heap()->barrier_set());
-
-  if (G1RSBarrierRegionFilter) {
-    xor3(store_addr, new_val, tmp);
-    srlx(tmp, HeapRegion::LogOfHRGrainBytes, tmp);
-
-    // XXX Should I predict this taken or not?  Does it matter?
-    cmp_and_brx_short(tmp, G0, Assembler::equal, Assembler::pt, filtered);
-  }
-
-  // If the "store_addr" register is an "in" or "local" register, move it to
-  // a scratch reg so we can pass it as an argument.
-  bool use_scr = !(store_addr->is_global() || store_addr->is_out());
-  // Pick a scratch register different from "tmp".
-  Register scr = (tmp == G1_scratch ? G3_scratch : G1_scratch);
-  // Make sure we use up the delay slot!
-  if (use_scr) {
-    post_filter_masm->mov(store_addr, scr);
-  } else {
-    post_filter_masm->nop();
-  }
-  save_frame(0);
-  call(dirty_card_log_enqueue);
-  if (use_scr) {
-    delayed()->mov(scr, O0);
-  } else {
-    delayed()->mov(store_addr->after_save(), O0);
-  }
-  restore();
-
-  bind(filtered);
-}
-
-// Called from init_globals() after universe_init() and before interpreter_init()
-void g1_barrier_stubs_init() {
-  CollectedHeap* heap = Universe::heap();
-  if (heap->kind() == CollectedHeap::G1CollectedHeap) {
-    // Only needed for G1
-    if (dirty_card_log_enqueue == 0) {
-      G1SATBCardTableLoggingModRefBS* bs =
-        barrier_set_cast<G1SATBCardTableLoggingModRefBS>(heap->barrier_set());
-      generate_dirty_card_log_enqueue(bs->byte_map_base);
-      assert(dirty_card_log_enqueue != 0, "postcondition.");
-    }
-    if (satb_log_enqueue_with_frame == 0) {
-      generate_satb_log_enqueue(true);
-      assert(satb_log_enqueue_with_frame != 0, "postcondition.");
-    }
-    if (satb_log_enqueue_frameless == 0) {
-      generate_satb_log_enqueue(false);
-      assert(satb_log_enqueue_frameless != 0, "postcondition.");
-    }
-  }
-}
-
-#endif // INCLUDE_ALL_GCS
-///////////////////////////////////////////////////////////////////////////////////
-
-void MacroAssembler::card_write_barrier_post(Register store_addr, Register new_val, Register tmp) {
-  // If we're writing constant NULL, we can skip the write barrier.
-  if (new_val == G0) return;
-  CardTableModRefBS* bs =
-    barrier_set_cast<CardTableModRefBS>(Universe::heap()->barrier_set());
-  assert(bs->kind() == BarrierSet::CardTableForRS ||
-         bs->kind() == BarrierSet::CardTableExtension, "wrong barrier");
-  card_table_write(bs->byte_map_base, tmp, store_addr);
-}
-
 // ((OopHandle)result).resolve();
-void MacroAssembler::resolve_oop_handle(Register result) {
+void MacroAssembler::resolve_oop_handle(Register result, Register tmp) {
   // OopHandle::resolve is an indirection.
-  ld_ptr(result, 0, result);
+  access_load_at(T_OBJECT, IN_NATIVE, Address(result, 0), result, tmp);
 }
 
-void MacroAssembler::load_mirror(Register mirror, Register method) {
+void MacroAssembler::load_mirror(Register mirror, Register method, Register tmp) {
   const int mirror_offset = in_bytes(Klass::java_mirror_offset());
   ld_ptr(method, in_bytes(Method::const_offset()), mirror);
   ld_ptr(mirror, in_bytes(ConstMethod::constants_offset()), mirror);
   ld_ptr(mirror, ConstantPool::pool_holder_offset_in_bytes(), mirror);
   ld_ptr(mirror, mirror_offset, mirror);
-  resolve_oop_handle(mirror);
+  resolve_oop_handle(mirror, tmp);
 }
 
 void MacroAssembler::load_klass(Register src_oop, Register klass) {
@@ -3775,65 +3229,65 @@ void MacroAssembler::store_klass_gap(Register s, Register d) {
   }
 }
 
-void MacroAssembler::load_heap_oop(const Address& s, Register d) {
-  if (UseCompressedOops) {
-    lduw(s, d);
-    decode_heap_oop(d);
+void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators,
+                                     Register src, Address dst, Register tmp) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  decorators = AccessInternal::decorator_fixup(decorators);
+  bool as_raw = (decorators & AS_RAW) != 0;
+  if (as_raw) {
+    bs->BarrierSetAssembler::store_at(this, decorators, type, src, dst, tmp);
   } else {
-    ld_ptr(s, d);
+    bs->store_at(this, decorators, type, src, dst, tmp);
   }
 }
 
-void MacroAssembler::load_heap_oop(Register s1, Register s2, Register d) {
-   if (UseCompressedOops) {
-    lduw(s1, s2, d);
-    decode_heap_oop(d, d);
+void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators,
+                                    Address src, Register dst, Register tmp) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  decorators = AccessInternal::decorator_fixup(decorators);
+  bool as_raw = (decorators & AS_RAW) != 0;
+  if (as_raw) {
+    bs->BarrierSetAssembler::load_at(this, decorators, type, src, dst, tmp);
   } else {
-    ld_ptr(s1, s2, d);
+    bs->load_at(this, decorators, type, src, dst, tmp);
   }
 }
 
-void MacroAssembler::load_heap_oop(Register s1, int simm13a, Register d) {
-   if (UseCompressedOops) {
-    lduw(s1, simm13a, d);
-    decode_heap_oop(d, d);
+void MacroAssembler::load_heap_oop(const Address& s, Register d, Register tmp, DecoratorSet decorators) {
+  access_load_at(T_OBJECT, IN_HEAP | decorators, s, d, tmp);
+}
+
+void MacroAssembler::load_heap_oop(Register s1, Register s2, Register d, Register tmp, DecoratorSet decorators) {
+  access_load_at(T_OBJECT, IN_HEAP | decorators, Address(s1, s2), d, tmp);
+}
+
+void MacroAssembler::load_heap_oop(Register s1, int simm13a, Register d, Register tmp, DecoratorSet decorators) {
+  access_load_at(T_OBJECT, IN_HEAP | decorators, Address(s1, simm13a), d, tmp);
+}
+
+void MacroAssembler::load_heap_oop(Register s1, RegisterOrConstant s2, Register d, Register tmp, DecoratorSet decorators) {
+  if (s2.is_constant()) {
+    access_load_at(T_OBJECT, IN_HEAP | decorators, Address(s1, s2.as_constant()), d, tmp);
   } else {
-    ld_ptr(s1, simm13a, d);
+    access_load_at(T_OBJECT, IN_HEAP | decorators, Address(s1, s2.as_register()), d, tmp);
   }
 }
 
-void MacroAssembler::load_heap_oop(Register s1, RegisterOrConstant s2, Register d) {
-  if (s2.is_constant())  load_heap_oop(s1, s2.as_constant(), d);
-  else                   load_heap_oop(s1, s2.as_register(), d);
+void MacroAssembler::store_heap_oop(Register d, Register s1, Register s2, Register tmp, DecoratorSet decorators) {
+  access_store_at(T_OBJECT, IN_HEAP | decorators, d, Address(s1, s2), tmp);
 }
 
-void MacroAssembler::store_heap_oop(Register d, Register s1, Register s2) {
-  if (UseCompressedOops) {
-    assert(s1 != d && s2 != d, "not enough registers");
-    encode_heap_oop(d);
-    st(d, s1, s2);
-  } else {
-    st_ptr(d, s1, s2);
-  }
+void MacroAssembler::store_heap_oop(Register d, Register s1, int simm13a, Register tmp, DecoratorSet decorators) {
+  access_store_at(T_OBJECT, IN_HEAP | decorators, d, Address(s1, simm13a), tmp);
 }
 
-void MacroAssembler::store_heap_oop(Register d, Register s1, int simm13a) {
-  if (UseCompressedOops) {
-    assert(s1 != d, "not enough registers");
-    encode_heap_oop(d);
-    st(d, s1, simm13a);
+void MacroAssembler::store_heap_oop(Register d, const Address& a, int offset, Register tmp, DecoratorSet decorators) {
+  if (a.has_index()) {
+    assert(!a.has_disp(), "not supported yet");
+    assert(offset == 0, "not supported yet");
+    access_store_at(T_OBJECT, IN_HEAP | decorators, d, Address(a.base(), a.index()), tmp);
   } else {
-    st_ptr(d, s1, simm13a);
-  }
-}
-
-void MacroAssembler::store_heap_oop(Register d, const Address& a, int offset) {
-  if (UseCompressedOops) {
-    assert(a.base() != d, "not enough registers");
-    encode_heap_oop(d);
-    st(d, a, offset);
-  } else {
-    st_ptr(d, a, offset);
+    access_store_at(T_OBJECT, IN_HEAP | decorators, d, Address(a.base(), a.disp() + offset), tmp);
   }
 }
 
@@ -4697,7 +4151,7 @@ void MacroAssembler::kernel_crc32(Register crc, Register buf, Register len, Regi
   Label L_main_loop_prologue;
   Label L_fold_512b, L_fold_512b_loop, L_fold_128b;
   Label L_fold_tail, L_fold_tail_loop;
-  Label L_8byte_fold_loop, L_8byte_fold_check;
+  Label L_8byte_fold_check;
 
   const Register tmp[CRC32_TMP_REG_NUM] = {L0, L1, L2, L3, L4, L5, L6, G1, I0, I1, I2, I3, I4, I5, I7, O4, O5, G3};
 

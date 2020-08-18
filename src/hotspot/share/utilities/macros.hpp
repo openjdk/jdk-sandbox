@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_MACROS_HPP
-#define SHARE_VM_UTILITIES_MACROS_HPP
+#ifndef SHARE_UTILITIES_MACROS_HPP
+#define SHARE_UTILITIES_MACROS_HPP
 
 // Use this to mark code that needs to be cleaned up (for development only)
 #define NEEDS_CLEANUP
@@ -109,11 +109,13 @@
 #define CDS_ONLY(x) x
 #define NOT_CDS(x)
 #define NOT_CDS_RETURN        /* next token must be ; */
+#define NOT_CDS_RETURN0       /* next token must be ; */
 #define NOT_CDS_RETURN_(code) /* next token must be ; */
 #else
 #define CDS_ONLY(x)
 #define NOT_CDS(x) x
-#define NOT_CDS_RETURN          {}
+#define NOT_CDS_RETURN        {}
+#define NOT_CDS_RETURN0       { return 0; }
 #define NOT_CDS_RETURN_(code) { return code; }
 #endif // INCLUDE_CDS
 
@@ -129,24 +131,131 @@
 #define NOT_MANAGEMENT_RETURN_(code) { return code; }
 #endif // INCLUDE_MANAGEMENT
 
-/*
- * When INCLUDE_ALL_GCS is false the only garbage collectors
- * included in the JVM are defaultNewGeneration and markCompact.
- *
- * When INCLUDE_ALL_GCS is true all garbage collectors are
- * included in the JVM.
- */
-#ifndef INCLUDE_ALL_GCS
-#define INCLUDE_ALL_GCS 1
-#endif // INCLUDE_ALL_GCS
+#ifndef INCLUDE_CMSGC
+#define INCLUDE_CMSGC 1
+#endif // INCLUDE_CMSGC
 
-#if INCLUDE_ALL_GCS
-#define NOT_ALL_GCS_RETURN        /* next token must be ; */
-#define NOT_ALL_GCS_RETURN_(code) /* next token must be ; */
+#if INCLUDE_CMSGC
+#define CMSGC_ONLY(x) x
+#define CMSGC_ONLY_ARG(arg) arg,
+#define NOT_CMSGC(x)
+#define NOT_CMSGC_RETURN        /* next token must be ; */
+#define NOT_CMSGC_RETURN_(code) /* next token must be ; */
 #else
-#define NOT_ALL_GCS_RETURN        {}
-#define NOT_ALL_GCS_RETURN_(code) { return code; }
-#endif // INCLUDE_ALL_GCS
+#define CMSGC_ONLY(x)
+#define CMSGC_ONLY_ARG(x)
+#define NOT_CMSGC(x) x
+#define NOT_CMSGC_RETURN        {}
+#define NOT_CMSGC_RETURN_(code) { return code; }
+#endif // INCLUDE_CMSGC
+
+#ifndef INCLUDE_EPSILONGC
+#define INCLUDE_EPSILONGC 1
+#endif // INCLUDE_EPSILONGC
+
+#if INCLUDE_EPSILONGC
+#define EPSILONGC_ONLY(x) x
+#define EPSILONGC_ONLY_ARG(arg) arg,
+#define NOT_EPSILONGC(x)
+#define NOT_EPSILONGC_RETURN        /* next token must be ; */
+#define NOT_EPSILONGC_RETURN_(code) /* next token must be ; */
+#else
+#define EPSILONGC_ONLY(x)
+#define EPSILONGC_ONLY_ARG(arg)
+#define NOT_EPSILONGC(x) x
+#define NOT_EPSILONGC_RETURN        {}
+#define NOT_EPSILONGC_RETURN_(code) { return code; }
+#endif // INCLUDE_EPSILONGC
+
+#ifndef INCLUDE_G1GC
+#define INCLUDE_G1GC 1
+#endif // INCLUDE_G1GC
+
+#if INCLUDE_G1GC
+#define G1GC_ONLY(x) x
+#define G1GC_ONLY_ARG(arg) arg,
+#define NOT_G1GC(x)
+#define NOT_G1GC_RETURN        /* next token must be ; */
+#define NOT_G1GC_RETURN_(code) /* next token must be ; */
+#else
+#define G1GC_ONLY(x)
+#define G1GC_ONLY_ARG(arg)
+#define NOT_G1GC(x) x
+#define NOT_G1GC_RETURN        {}
+#define NOT_G1GC_RETURN_(code) { return code; }
+#endif // INCLUDE_G1GC
+
+#ifndef INCLUDE_PARALLELGC
+#define INCLUDE_PARALLELGC 1
+#endif // INCLUDE_PARALLELGC
+
+#if INCLUDE_PARALLELGC
+#define PARALLELGC_ONLY(x) x
+#define PARALLELGC_ONLY_ARG(arg) arg,
+#define NOT_PARALLELGC(x)
+#define NOT_PARALLELGC_RETURN        /* next token must be ; */
+#define NOT_PARALLELGC_RETURN_(code) /* next token must be ; */
+#else
+#define PARALLELGC_ONLY(x)
+#define PARALLELGC_ONLY_ARG(arg)
+#define NOT_PARALLELGC(x) x
+#define NOT_PARALLELGC_RETURN        {}
+#define NOT_PARALLELGC_RETURN_(code) { return code; }
+#endif // INCLUDE_PARALLELGC
+
+#ifndef INCLUDE_SERIALGC
+#define INCLUDE_SERIALGC 1
+#endif // INCLUDE_SERIALGC
+
+#if INCLUDE_SERIALGC
+#define SERIALGC_ONLY(x) x
+#define SERIALGC_ONLY_ARG(arg) arg,
+#define NOT_SERIALGC(x)
+#define NOT_SERIALGC_RETURN        /* next token must be ; */
+#define NOT_SERIALGC_RETURN_(code) /* next token must be ; */
+#else
+#define SERIALGC_ONLY(x)
+#define SERIALGC_ONLY_ARG(arg)
+#define NOT_SERIALGC(x) x
+#define NOT_SERIALGC_RETURN        {}
+#define NOT_SERIALGC_RETURN_(code) { return code; }
+#endif // INCLUDE_SERIALGC
+
+#ifndef INCLUDE_SHENANDOAHGC
+#define INCLUDE_SHENANDOAHGC 1
+#endif // INCLUDE_SHENANDOAHGC
+
+#if INCLUDE_SHENANDOAHGC
+#define SHENANDOAHGC_ONLY(x) x
+#define SHENANDOAHGC_ONLY_ARG(arg) arg,
+#define NOT_SHENANDOAHGC(x)
+#define NOT_SHENANDOAHGC_RETURN        /* next token must be ; */
+#define NOT_SHENANDOAHGC_RETURN_(code) /* next token must be ; */
+#else
+#define SHENANDOAHGC_ONLY(x)
+#define SHENANDOAHGC_ONLY_ARG(arg)
+#define NOT_SHENANDOAHGC(x) x
+#define NOT_SHENANDOAHGC_RETURN        {}
+#define NOT_SHENANDOAHGC_RETURN_(code) { return code; }
+#endif // INCLUDE_SHENANDOAHGC
+
+#ifndef INCLUDE_ZGC
+#define INCLUDE_ZGC 1
+#endif // INCLUDE_ZGC
+
+#if INCLUDE_ZGC
+#define ZGC_ONLY(x) x
+#define ZGC_ONLY_ARG(arg) arg,
+#define NOT_ZGC(x)
+#define NOT_ZGC_RETURN        /* next token must be ; */
+#define NOT_ZGC_RETURN_(code) /* next token must be ; */
+#else
+#define ZGC_ONLY(x)
+#define ZGC_ONLY_ARG(arg)
+#define NOT_ZGC(x) x
+#define NOT_ZGC_RETURN        {}
+#define NOT_ZGC_RETURN_(code) { return code; }
+#endif // INCLUDE_ZGC
 
 #ifndef INCLUDE_NMT
 #define INCLUDE_NMT 1
@@ -155,25 +264,35 @@
 #if INCLUDE_NMT
 #define NOT_NMT_RETURN        /* next token must be ; */
 #define NOT_NMT_RETURN_(code) /* next token must be ; */
+#define NMT_ONLY(x) x
+#define NOT_NMT(x)
 #else
 #define NOT_NMT_RETURN        {}
 #define NOT_NMT_RETURN_(code) { return code; }
+#define NMT_ONLY(x)
+#define NOT_NMT(x) x
 #endif // INCLUDE_NMT
 
-#ifndef INCLUDE_TRACE
-#define INCLUDE_TRACE 1
-#endif // INCLUDE_TRACE
+#ifndef INCLUDE_JFR
+#define INCLUDE_JFR 1
+#endif
+
+#if INCLUDE_JFR
+#define JFR_ONLY(code) code
+#else
+#define JFR_ONLY(code)
+#endif
 
 #ifndef INCLUDE_JVMCI
 #define INCLUDE_JVMCI 1
 #endif
 
-#ifdef INCLUDE_AOT
-# if INCLUDE_AOT && !(INCLUDE_JVMCI)
-#   error "Must have JVMCI for AOT"
-# endif
-#else
-# define INCLUDE_AOT 0
+#ifndef INCLUDE_AOT
+#define INCLUDE_AOT 1
+#endif
+
+#if INCLUDE_AOT && !INCLUDE_JVMCI
+#  error "Must have JVMCI for AOT"
 #endif
 
 #if INCLUDE_JVMCI
@@ -202,8 +321,10 @@
   #define TIERED
 #endif
 #define COMPILER1_PRESENT(code) code
+#define NOT_COMPILER1(code)
 #else // COMPILER1
 #define COMPILER1_PRESENT(code)
+#define NOT_COMPILER1(code) code
 #endif // COMPILER1
 
 // COMPILER2 variant
@@ -438,10 +559,9 @@
 #define NOT_E500V2(code) code
 #endif
 
-// Note: There are three ARM ports. They set the following in the makefiles:
-// 1. Closed 32-bit port:   -DARM -DARM32           -DTARGET_ARCH_arm
-// 2. Closed 64-bit port:   -DARM -DAARCH64 -D_LP64 -DTARGET_ARCH_arm
-// 3. Open   64-bit port:         -DAARCH64 -D_LP64 -DTARGET_ARCH_aaarch64
+// Note: There are two ARM ports. They set the following in the makefiles:
+// 1. 32-bit port:   -DARM -DARM32 -DTARGET_ARCH_arm
+// 2. 64-bit port:   -DAARCH64 -D_LP64 -DTARGET_ARCH_aaarch64
 #ifdef ARM
 #define ARM_ONLY(code) code
 #define NOT_ARM(code)
@@ -464,6 +584,14 @@
 #else
 #define AARCH64_ONLY(code)
 #define NOT_AARCH64(code) code
+#endif
+
+#ifdef VM_LITTLE_ENDIAN
+#define LITTLE_ENDIAN_ONLY(code) code
+#define BIG_ENDIAN_ONLY(code)
+#else
+#define LITTLE_ENDIAN_ONLY(code)
+#define BIG_ENDIAN_ONLY(code) code
 #endif
 
 #define define_pd_global(type, name, value) const type pd_##name = value;
@@ -498,27 +626,7 @@
 #define COMPILER_HEADER(basename)        XSTR(COMPILER_HEADER_STEM(basename).hpp)
 #define COMPILER_HEADER_INLINE(basename) XSTR(COMPILER_HEADER_STEM(basename).inline.hpp)
 
-// To use Atomic::inc(jshort* dest) and Atomic::dec(jshort* dest), the address must be specially
-// aligned, such that (*dest) occupies the upper 16 bits of an aligned 32-bit word. The best way to
-// achieve is to place your short value next to another short value, which doesn't need atomic ops.
-//
-// Example
-//  ATOMIC_SHORT_PAIR(
-//    volatile short _refcount,  // needs atomic operation
-//    unsigned short _length     // number of UTF8 characters in the symbol (does not need atomic op)
-//  );
-
-#ifdef VM_LITTLE_ENDIAN
-  #define ATOMIC_SHORT_PAIR(atomic_decl, non_atomic_decl)  \
-    non_atomic_decl;                                       \
-    atomic_decl
-#else
-  #define ATOMIC_SHORT_PAIR(atomic_decl, non_atomic_decl)  \
-    atomic_decl;                                           \
-    non_atomic_decl
-#endif
-
-#if INCLUDE_CDS && INCLUDE_ALL_GCS && defined(_LP64) && !defined(_WINDOWS)
+#if INCLUDE_CDS && INCLUDE_G1GC && defined(_LP64) && !defined(_WINDOWS)
 #define INCLUDE_CDS_JAVA_HEAP 1
 #define CDS_JAVA_HEAP_ONLY(x) x
 #define NOT_CDS_JAVA_HEAP(x)
@@ -532,4 +640,4 @@
 #define NOT_CDS_JAVA_HEAP_RETURN_(code) { return code; }
 #endif
 
-#endif // SHARE_VM_UTILITIES_MACROS_HPP
+#endif // SHARE_UTILITIES_MACROS_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_S390_VM_THREAD_LINUX_S390_HPP
-#define OS_CPU_LINUX_S390_VM_THREAD_LINUX_S390_HPP
+#ifndef OS_CPU_LINUX_S390_THREAD_LINUX_S390_HPP
+#define OS_CPU_LINUX_S390_THREAD_LINUX_S390_HPP
 
  private:
 
@@ -33,19 +33,7 @@
   }
 
   // The `last' frame is the youngest Java frame on the thread's stack.
-  frame pd_last_frame() {
-    assert(has_last_Java_frame(), "must have last_Java_sp() when suspended");
-
-    intptr_t* sp = last_Java_sp();
-    address pc = _anchor.last_Java_pc();
-
-    // Last_Java_pc ist not set if we come here from compiled code.
-    if (pc == NULL) {
-      pc = (address) *(sp + 14);
-    }
-
-    return frame(sp, pc);
-  }
+  frame pd_last_frame();
 
  public:
   void set_base_of_stack_pointer(intptr_t* base_sp) {}
@@ -60,4 +48,6 @@
 
   bool pd_get_top_frame_for_signal_handler(frame* fr_addr, void* ucontext, bool isInJava);
 
-#endif // OS_CPU_LINUX_S390_VM_THREAD_LINUX_S390_HPP
+  bool pd_get_top_frame_for_profiling(frame* fr_addr, void* ucontext, bool isInJava);
+
+#endif // OS_CPU_LINUX_S390_THREAD_LINUX_S390_HPP

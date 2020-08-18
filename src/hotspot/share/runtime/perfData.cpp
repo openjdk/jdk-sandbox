@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "jvm.h"
 #include "classfile/vmSymbols.hpp"
 #include "logging/log.hpp"
+#include "memory/allocation.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
@@ -79,8 +80,7 @@ const char* PerfDataManager::_name_spaces[] = {
 };
 
 PerfData::PerfData(CounterNS ns, const char* name, Units u, Variability v)
-                  : _name(NULL), _u(u), _v(v), _valuep(NULL),
-                    _on_c_heap(false) {
+                  : _name(NULL), _v(v), _u(u), _on_c_heap(false), _valuep(NULL) {
 
   const char* prefix = PerfDataManager::ns_to_string(ns);
 
@@ -172,7 +172,7 @@ void PerfData::create_entry(BasicType dtype, size_t dsize, size_t vlen) {
                                 " units = %d, dsize = " SIZE_FORMAT ", vlen = " SIZE_FORMAT ","
                                 " pad_length = " SIZE_FORMAT ", size = " SIZE_FORMAT ", on_c_heap = %s,"
                                 " address = " INTPTR_FORMAT ","
-                                " data address = " INTPTR_FORMAT "\n",
+                                " data address = " INTPTR_FORMAT,
                                 cname, dtype, variability(),
                                 units(), dsize, vlen,
                                 pad_length, size, is_on_c_heap() ? "TRUE":"FALSE",
@@ -323,7 +323,12 @@ void PerfDataManager::add_item(PerfData* p, bool sampled) {
 }
 
 PerfData* PerfDataManager::find_by_name(const char* name) {
-  return _all->find_by_name(name);
+  // if add_item hasn't been called the list won't be initialized
+  if (_all != NULL) {
+    return _all->find_by_name(name);
+  } else {
+    return NULL;
+  }
 }
 
 PerfDataList* PerfDataManager::all() {
@@ -590,10 +595,6 @@ bool PerfDataList::by_name(void* name, PerfData* pd) {
 }
 
 PerfData* PerfDataList::find_by_name(const char* name) {
-
-  // if add_item hasn't been called the list won't be initialized
-  if (this == NULL)
-    return NULL;
 
   int i = _set->find((void*)name, PerfDataList::by_name);
 

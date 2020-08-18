@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_GCTRACETIME_INLINE_HPP
-#define SHARE_VM_GC_SHARED_GCTRACETIME_INLINE_HPP
+#ifndef SHARE_GC_SHARED_GCTRACETIME_INLINE_HPP
+#define SHARE_GC_SHARED_GCTRACETIME_INLINE_HPP
 
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/gcTimer.hpp"
@@ -79,14 +79,14 @@ inline void GCTraceTimeImpl::time_stamp(Ticks& ticks) {
 }
 
 inline GCTraceTimeImpl::GCTraceTimeImpl(LogTargetHandle out_start, LogTargetHandle out_stop, const char* title, GCTimer* timer, GCCause::Cause gc_cause, bool log_heap_usage) :
-  _enabled(out_stop.is_enabled()),
   _out_start(out_start),
   _out_stop(out_stop),
+  _enabled(out_stop.is_enabled()),
   _start_ticks(),
-  _heap_usage_before(SIZE_MAX),
   _title(title),
   _gc_cause(gc_cause),
-  _timer(timer) {
+  _timer(timer),
+  _heap_usage_before(SIZE_MAX) {
 
   time_stamp(_start_ticks);
   if (_enabled) {
@@ -158,4 +158,4 @@ GCTraceTimeImplWrapper<Level, T0, T1, T2, T3, T4, GuardTag>::~GCTraceTimeImplWra
 #define GCTraceTime(Level, ...) GCTraceTimeImplWrapper<LogLevel::Level, LOG_TAGS(__VA_ARGS__)>
 #define GCTraceConcTime(Level, ...) GCTraceConcTimeImpl<LogLevel::Level, LOG_TAGS(__VA_ARGS__)>
 
-#endif // SHARE_VM_GC_SHARED_GCTRACETIME_INLINE_HPP
+#endif // SHARE_GC_SHARED_GCTRACETIME_INLINE_HPP

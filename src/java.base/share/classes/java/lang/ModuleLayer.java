@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -152,7 +152,7 @@ public final class ModuleLayer {
     private static final ModuleLayer EMPTY_LAYER
         = new ModuleLayer(Configuration.empty(), List.of(), null);
 
-    // the configuration from which this ;ayer was created
+    // the configuration from which this layer was created
     private final Configuration cf;
 
     // parent layers, empty in the case of the empty layer
@@ -173,7 +173,7 @@ public final class ModuleLayer {
 
         Map<String, Module> map;
         if (parents.isEmpty()) {
-            map = Collections.emptyMap();
+            map = Map.of();
         } else {
             map = Module.defineModules(cf, clf, this);
         }
@@ -498,7 +498,7 @@ public final class ModuleLayer {
         try {
             Loader loader = new Loader(cf.modules(), parentLoader);
             loader.initRemotePackageMap(cf, parents);
-            ModuleLayer layer =  new ModuleLayer(cf, parents, mn -> loader);
+            ModuleLayer layer = new ModuleLayer(cf, parents, mn -> loader);
             return new Controller(layer);
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw new LayerInstantiationException(e.getMessage());
@@ -790,8 +790,7 @@ public final class ModuleLayer {
             // push in reverse order
             for (int i = layer.parents.size() - 1; i >= 0; i--) {
                 ModuleLayer parent = layer.parents.get(i);
-                if (!visited.contains(parent)) {
-                    visited.add(parent);
+                if (visited.add(parent)) {
                     stack.push(parent);
                 }
             }
@@ -811,8 +810,7 @@ public final class ModuleLayer {
     public Set<Module> modules() {
         Set<Module> modules = this.modules;
         if (modules == null) {
-            this.modules = modules =
-                Collections.unmodifiableSet(new HashSet<>(nameToModule.values()));
+            this.modules = modules = Set.copyOf(nameToModule.values());
         }
         return modules;
     }

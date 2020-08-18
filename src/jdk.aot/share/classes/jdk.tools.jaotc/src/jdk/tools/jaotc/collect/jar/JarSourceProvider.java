@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+
+
 package jdk.tools.jaotc.collect.jar;
 
 import jdk.tools.jaotc.collect.ClassSource;
@@ -37,7 +39,7 @@ import java.nio.file.ProviderNotFoundException;
 public final class JarSourceProvider implements SourceProvider {
     private final FileSystem fileSystem;
     private final FileSupport fileSupport;
-    public final static String TYPE = "jar";
+    public static final String TYPE = "jar";
 
     public JarSourceProvider() {
         this(new FileSupport());

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_ARRAYKLASS_INLINE_HPP
-#define SHARE_VM_OOPS_ARRAYKLASS_INLINE_HPP
+#ifndef SHARE_OOPS_ARRAYKLASS_INLINE_HPP
+#define SHARE_OOPS_ARRAYKLASS_INLINE_HPP
 
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "oops/arrayKlass.hpp"
 
 inline Klass* ArrayKlass::higher_dimension_acquire() const {
@@ -36,4 +36,4 @@ inline void ArrayKlass::release_set_higher_dimension(Klass* k) {
   OrderAccess::release_store(&_higher_dimension, k);
 }
 
-#endif // SHARE_VM_OOPS_ARRAYKLASS_INLINE_HPP
+#endif // SHARE_OOPS_ARRAYKLASS_INLINE_HPP

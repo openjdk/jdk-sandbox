@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,9 @@
  *
  */
 
-#ifndef SHARE_VM_INTERPRETER_INVOCATIONCOUNTER_HPP
-#define SHARE_VM_INTERPRETER_INVOCATIONCOUNTER_HPP
+#ifndef SHARE_INTERPRETER_INVOCATIONCOUNTER_HPP
+#define SHARE_INTERPRETER_INVOCATIONCOUNTER_HPP
 
-#include "memory/allocation.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
 
@@ -38,7 +37,7 @@
 // more significant bits. The counter is incremented before a method is activated and an
 // action is triggered when count() > limit().
 
-class InvocationCounter VALUE_OBJ_CLASS_SPEC {
+class InvocationCounter {
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class ciReplay;
@@ -128,7 +127,7 @@ class InvocationCounter VALUE_OBJ_CLASS_SPEC {
 
   // Miscellaneous
   static ByteSize counter_offset()               { return byte_offset_of(InvocationCounter, _counter); }
-  static void reinitialize(bool delay_overflow);
+  static void reinitialize();
 
  private:
   static int         _init  [number_of_states];  // the counter limits
@@ -154,4 +153,4 @@ inline void InvocationCounter::decay() {
 }
 
 
-#endif // SHARE_VM_INTERPRETER_INVOCATIONCOUNTER_HPP
+#endif // SHARE_INTERPRETER_INVOCATIONCOUNTER_HPP

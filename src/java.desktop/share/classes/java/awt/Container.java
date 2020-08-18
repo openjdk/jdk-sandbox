@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package java.awt;
 
 import java.awt.dnd.DropTarget;
@@ -35,6 +36,7 @@ import java.awt.peer.LightweightPeer;
 import java.beans.PropertyChangeListener;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
@@ -77,7 +79,7 @@ import sun.security.action.GetBooleanAction;
  * (and hence to the bottom of the stacking order).
  * <p>
  * <b>Note</b>: For details on the focus subsystem, see
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
  * How to Use the Focus Subsystem</a>,
  * a section in <em>The Java Tutorial</em>, and the
  * <a href="../../java/awt/doc-files/FocusSpec.html">Focus Specification</a>
@@ -1171,10 +1173,10 @@ public class Container extends Component {
     }
 
     @Override
-    boolean updateGraphicsData(GraphicsConfiguration gc) {
+    final boolean updateChildGraphicsData(GraphicsConfiguration gc) {
         checkTreeLock();
 
-        boolean ret = super.updateGraphicsData(gc);
+        boolean ret = false;
 
         for (Component comp : component) {
             if (comp != null) {
@@ -3720,8 +3722,15 @@ public class Container extends Component {
         throws ClassNotFoundException, IOException
     {
         ObjectInputStream.GetField f = s.readFields();
-        Component [] tmpComponent = (Component[])f.get("component", EMPTY_ARRAY);
+        // array of components may not be present in the stream or may be null
+        Component [] tmpComponent = (Component[])f.get("component", null);
+        if (tmpComponent == null) {
+            tmpComponent = EMPTY_ARRAY;
+        }
         int ncomponents = (Integer) f.get("ncomponents", 0);
+        if (ncomponents < 0 || ncomponents > tmpComponent.length) {
+            throw new InvalidObjectException("Incorrect number of components");
+        }
         component = new java.util.ArrayList<Component>(ncomponents);
         for (int i = 0; i < ncomponents; ++i) {
             component.add(tmpComponent[i]);

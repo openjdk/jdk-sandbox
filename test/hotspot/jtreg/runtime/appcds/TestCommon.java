@@ -33,6 +33,7 @@ import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -94,33 +95,19 @@ public class TestCommon extends CDSTestUtils {
 
     // Create AppCDS archive using most common args - convenience method
     // Legacy name preserved for compatibility
-    public static OutputAnalyzer dump(String appJar, String appClasses[],
+    public static OutputAnalyzer dump(String appJar, String classList[],
                                                String... suffix) throws Exception {
-        return createArchive(appJar, appClasses, suffix);
+        return createArchive(appJar, classList, suffix);
     }
 
 
     // Create AppCDS archive using most common args - convenience method
-    public static OutputAnalyzer createArchive(String appJar, String appClasses[],
+    public static OutputAnalyzer createArchive(String appJar, String classList[],
                                                String... suffix) throws Exception {
-        AppCDSOptions opts = (new AppCDSOptions()).setAppJar(appJar)
-            .setAppClasses(appClasses);
+        AppCDSOptions opts = (new AppCDSOptions()).setAppJar(appJar);
+        opts.setClassList(classList);
         opts.addSuffix(suffix);
         return createArchive(opts);
-    }
-
-    // If you use -XX:+UseAppCDS or -XX:-UseAppCDS in your JVM command-line, call this method
-    // to wrap the arguments. On commercial builds, -XX:+UnlockCommercialFeatures will be
-    // prepended to the command-line. See JDK-8193664.
-    public static String[] makeCommandLineForAppCDS(String... args) throws Exception {
-        if (BuildHelper.isCommercialBuild()) {
-            String[] newArgs = new String[args.length + 1];
-            newArgs[0] = "-XX:+UnlockCommercialFeatures";
-            System.arraycopy(args, 0, newArgs, 1, args.length);
-            return newArgs;
-        } else {
-            return args;
-        }
     }
 
     // Create AppCDS archive using appcds options
@@ -128,7 +115,6 @@ public class TestCommon extends CDSTestUtils {
         throws Exception {
 
         ArrayList<String> cmd = new ArrayList<String>();
-        File classList = makeClassList(opts.appClasses);
         startNewArchiveName();
 
         for (String p : opts.prefix) cmd.add(p);
@@ -142,19 +128,21 @@ public class TestCommon extends CDSTestUtils {
         }
 
         cmd.add("-Xshare:dump");
-        cmd.add("-Xlog:cds,cds+hashtables");
-        cmd.add("-XX:+UseAppCDS");
-        cmd.add("-XX:ExtraSharedClassListFile=" + classList.getPath());
 
         if (opts.archiveName == null)
             opts.archiveName = getCurrentArchiveName();
 
         cmd.add("-XX:SharedArchiveFile=" + opts.archiveName);
 
+        if (opts.classList != null) {
+            File classListFile = makeClassList(opts.classList);
+            cmd.add("-XX:ExtraSharedClassListFile=" + classListFile.getPath());
+        }
+
         for (String s : opts.suffix) cmd.add(s);
 
         String[] cmdLine = cmd.toArray(new String[cmd.size()]);
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true, makeCommandLineForAppCDS(cmdLine));
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true, cmdLine);
         return executeAndLog(pb, "dump");
     }
 
@@ -168,7 +156,6 @@ public class TestCommon extends CDSTestUtils {
         for (String p : opts.prefix) cmd.add(p);
 
         cmd.add("-Xshare:" + opts.xShareMode);
-        cmd.add("-XX:+UseAppCDS");
         cmd.add("-showversion");
         cmd.add("-XX:SharedArchiveFile=" + getCurrentArchiveName());
         cmd.add("-Dtest.timeout.factor=" + timeoutFactor);
@@ -181,7 +168,7 @@ public class TestCommon extends CDSTestUtils {
         for (String s : opts.suffix) cmd.add(s);
 
         String[] cmdLine = cmd.toArray(new String[cmd.size()]);
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true, makeCommandLineForAppCDS(cmdLine));
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true, cmdLine);
         return executeAndLog(pb, "exec");
     }
 
@@ -200,13 +187,18 @@ public class TestCommon extends CDSTestUtils {
         return new Result(opts, runWithArchive(opts));
     }
 
-
     public static OutputAnalyzer exec(String appJar, String... suffix) throws Exception {
         AppCDSOptions opts = (new AppCDSOptions()).setAppJar(appJar);
         opts.addSuffix(suffix);
         return runWithArchive(opts);
     }
 
+    public static Result runWithModules(String prefix[], String upgrademodulepath, String modulepath,
+                                            String mid, String... testClassArgs) throws Exception {
+        AppCDSOptions opts = makeModuleOptions(prefix, upgrademodulepath, modulepath,
+                                               mid, testClassArgs);
+        return new Result(opts, runWithArchive(opts));
+    }
 
     public static OutputAnalyzer execAuto(String... suffix) throws Exception {
         AppCDSOptions opts = (new AppCDSOptions());
@@ -220,10 +212,9 @@ public class TestCommon extends CDSTestUtils {
         return runWithArchive(opts);
     }
 
-    public static OutputAnalyzer execModule(String prefix[], String upgrademodulepath, String modulepath,
-                                            String mid, String... testClassArgs)
-        throws Exception {
 
+    private static AppCDSOptions makeModuleOptions(String prefix[], String upgrademodulepath, String modulepath,
+                                            String mid, String testClassArgs[]) {
         AppCDSOptions opts = (new AppCDSOptions());
 
         opts.addPrefix(prefix);
@@ -234,15 +225,22 @@ public class TestCommon extends CDSTestUtils {
                            "-p", modulepath, "-m", mid);
         }
         opts.addSuffix(testClassArgs);
+        return opts;
+    }
 
+    public static OutputAnalyzer execModule(String prefix[], String upgrademodulepath, String modulepath,
+                                            String mid, String... testClassArgs)
+        throws Exception {
+        AppCDSOptions opts = makeModuleOptions(prefix, upgrademodulepath, modulepath,
+                                               mid, testClassArgs);
         return runWithArchive(opts);
     }
 
 
     // A common operation: dump, then check results
-    public static OutputAnalyzer testDump(String appJar, String appClasses[],
+    public static OutputAnalyzer testDump(String appJar, String classList[],
                                           String... suffix) throws Exception {
-        OutputAnalyzer output = dump(appJar, appClasses, suffix);
+        OutputAnalyzer output = dump(appJar, classList, suffix);
         output.shouldContain("Loading classes to share");
         output.shouldHaveExitValue(0);
         return output;
@@ -250,11 +248,11 @@ public class TestCommon extends CDSTestUtils {
 
 
     /**
-     * Simple test -- dump and execute appJar with the given appClasses in classlist.
+     * Simple test -- dump and execute appJar with the given classList in classlist.
      */
-    public static OutputAnalyzer test(String appJar, String appClasses[], String... args)
+    public static OutputAnalyzer test(String appJar, String classList[], String... args)
         throws Exception {
-        testDump(appJar, appClasses);
+        testDump(appJar, classList);
 
         OutputAnalyzer output = exec(appJar, args);
         return checkExec(output);
@@ -343,5 +341,23 @@ public class TestCommon extends CDSTestUtils {
             throw new RuntimeException("Not a directory: " + dirFile.getPath());
         }
         return dirFile.getPath();
+    }
+
+    public static boolean checkOutputStrings(String outputString1,
+                                             String outputString2,
+                                             String split_regex) {
+        String[] sa1 = outputString1.split(split_regex);
+        String[] sa2 = outputString2.split(split_regex);
+        Arrays.sort(sa1);
+        Arrays.sort(sa2);
+
+        int i = 0;
+        for (String s : sa1) {
+            if (!s.equals(sa2[i])) {
+                throw new RuntimeException(s + " is different from " + sa2[i]);
+            }
+            i ++;
+        }
+        return true;
     }
 }
