@@ -96,7 +96,7 @@ public:
 
 private:
 
-  block_t* _v[num_lists];
+  block_t* _blocks[num_lists];
 
   MemRangeCounter _counter;
 
@@ -119,13 +119,13 @@ private:
     if (m > 0) {
       // count leading zeros would be helpful.
       while ((m & 1) == 0) {
-        assert(_v[i2] == NULL, "mask mismatch");
+        assert(_blocks[i2] == NULL, "mask mismatch");
         i2 ++;
         m >>= 1;
       }
       // We must have found something.
       assert(i2 < num_lists, "sanity.");
-      assert(_v[i2] != NULL, "mask mismatch");
+      assert(_blocks[i2] != NULL, "mask mismatch");
       return i2;
     }
     return -1;
@@ -138,7 +138,7 @@ public:
 
   BinListImpl() : _mask(0) {
     for (int i = 0; i < num_lists; i ++) {
-      _v[i] = NULL;
+      _blocks[i] = NULL;
     }
   }
 
@@ -148,8 +148,8 @@ public:
     const int index = index_for_word_size(word_size);
     block_t* b = (block_t*)p;
     b->size = word_size;
-    b->next = _v[index];
-    _v[index] = b;
+    b->next = _blocks[index];
+    _blocks[index] = b;
     _counter.add(word_size);
     mask_set_bit(index);
   }
@@ -162,14 +162,14 @@ public:
     int index = index_for_word_size(word_size);
     index = index_for_next_non_empty_list(index);
     if (index != -1) {
-      assert(_v[index] != NULL &&
-             _v[index]->size >= word_size, "sanity");
+      assert(_blocks[index] != NULL &&
+             _blocks[index]->size >= word_size, "sanity");
 
-      MetaWord* const p = (MetaWord*)_v[index];
+      MetaWord* const p = (MetaWord*)_blocks[index];
       const size_t real_word_size = word_size_for_index(index);
 
-      _v[index] = _v[index]->next;
-      if (_v[index] == NULL) {
+      _blocks[index] = _blocks[index]->next;
+      if (_blocks[index] == NULL) {
         mask_clr_bit(index);
       }
 
@@ -198,9 +198,9 @@ public:
   void verify() const {
     MemRangeCounter local_counter;
     for (int i = 0; i < num_lists; i ++) {
-      assert(((_mask >> i) & 1) == ((_v[i] == 0) ? 0 : 1), "sanity");
+      assert(((_mask >> i) & 1) == ((_blocks[i] == 0) ? 0 : 1), "sanity");
       const size_t s = minimal_word_size + i;
-      for (block_t* b = _v[i]; b != NULL; b = b->next) {
+      for (block_t* b = _blocks[i]; b != NULL; b = b->next) {
         assert(b->size == s, "bad block size");
         local_counter.add(s);
       }
