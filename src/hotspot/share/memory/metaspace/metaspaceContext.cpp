@@ -34,9 +34,6 @@
 
 namespace metaspace {
 
-#define LOGFMT         "SpcMgr @" PTR_FORMAT " (%s)"
-#define LOGFMT_ARGS    p2i(this), this->_name
-
 MetaspaceContext* MetaspaceContext::_class_space_context = NULL;
 MetaspaceContext* MetaspaceContext::_nonclass_space_context = NULL;
 
