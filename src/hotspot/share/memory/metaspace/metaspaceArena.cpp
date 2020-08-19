@@ -31,7 +31,7 @@
 #include "memory/metaspace/arenaGrowthPolicy.hpp"
 #include "memory/metaspace/freeBlocks.hpp"
 #include "memory/metaspace/chunkManager.hpp"
-#include "memory/metaspace/internStat.hpp"
+#include "memory/metaspace/internalStats.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceArena.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"

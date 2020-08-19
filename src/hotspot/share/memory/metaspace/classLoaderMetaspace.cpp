@@ -30,7 +30,7 @@
 #include "memory/metaspace.hpp"
 #include "memory/metaspaceTracer.hpp"
 #include "memory/metaspace/chunkManager.hpp"
-#include "memory/metaspace/internStat.hpp"
+#include "memory/metaspace/internalStats.hpp"
 #include "memory/metaspace/metaspaceArena.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"

@@ -24,7 +24,6 @@
  */
 
 #include "precompiled.hpp"
-#include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/freeChunkList.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/debug.hpp"

@@ -28,7 +28,6 @@
 //#define LOG_PLEASE
 
 #include "metaspaceTestsCommon.hpp"
-#include "memory/metaspace/internStat.hpp"
 
 // Very simple test, since the VM is fired up we should see a little
 // Metaspace activity already which should show up in the stats.

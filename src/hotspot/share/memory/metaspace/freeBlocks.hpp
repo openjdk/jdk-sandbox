@@ -29,8 +29,8 @@
 #include "memory/allocation.hpp"
 
 #include "memory/metaspace/counter.hpp"
-#include "memory/metaspace/binlist.hpp"
-#include "memory/metaspace/blocktree.hpp"
+#include "memory/metaspace/binList.hpp"
+#include "memory/metaspace/blockTree.hpp"
 
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"

@@ -27,12 +27,12 @@
 
 #include "logging/log.hpp"
 
-#include "memory/metaspace/chunkLevel.hpp"
+#include "memory/metaspace/chunklevel.hpp"
 #include "memory/metaspace/chunkHeaderPool.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/freeChunkList.hpp"
-#include "memory/metaspace/internStat.hpp"
+#include "memory/metaspace/internalStats.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/rootChunkArea.hpp"

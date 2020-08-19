@@ -26,8 +26,8 @@
 #ifndef SHARE_MEMORY_METASPACE_METACHUNK_HPP
 #define SHARE_MEMORY_METASPACE_METACHUNK_HPP
 
+#include "memory/metaspace/chunklevel.hpp"
 #include "memory/metaspace/counter.hpp"
-#include "memory/metaspace/chunkLevel.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 

@@ -46,7 +46,7 @@
 #include "memory/heapShared.inline.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/metadataFactory.hpp"
-#include "memory/metaspace/metaspace_test.hpp"
+#include "memory/metaspace/metaspaceTestHelpers.hpp"
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"

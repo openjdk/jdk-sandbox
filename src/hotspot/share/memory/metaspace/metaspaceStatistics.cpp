@@ -25,7 +25,6 @@
 
 #include "precompiled.hpp"
 
-#include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
 

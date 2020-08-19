@@ -26,7 +26,6 @@
 #include "precompiled.hpp"
 
 #include "memory/metaspace/arenaGrowthPolicy.hpp"
-#include "memory/metaspace/chunkLevel.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 namespace metaspace {

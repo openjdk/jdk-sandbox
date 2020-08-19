@@ -25,7 +25,7 @@
 
 #include "precompiled.hpp"
 
-#include "memory/metaspace/blocktree.hpp"
+#include "memory/metaspace/blockTree.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"

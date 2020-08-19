@@ -27,7 +27,7 @@
 #define SHARE_MEMORY_METASPACE_ROOTCHUNKAREA_HPP
 
 #include "memory/allocation.hpp"
-#include "memory/metaspace/chunkLevel.hpp"
+#include "memory/metaspace/chunklevel.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 

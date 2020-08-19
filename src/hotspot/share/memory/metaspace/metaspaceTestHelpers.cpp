@@ -30,7 +30,7 @@
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/arenaGrowthPolicy.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
-#include "memory/metaspace/metaspace_test.hpp"
+#include "memory/metaspace/metaspaceTestHelpers.hpp"
 #include "memory/metaspace/metaspaceArena.hpp"
 #include "memory/metaspace/metaspaceContext.hpp"
 #include "memory/metaspace/runningCounters.hpp"

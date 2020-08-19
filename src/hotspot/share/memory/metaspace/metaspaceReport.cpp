@@ -28,7 +28,7 @@
 #include "classfile/classLoaderDataGraph.hpp"
 #include "memory/metaspace/chunkHeaderPool.hpp"
 #include "memory/metaspace/chunkManager.hpp"
-#include "memory/metaspace/internStat.hpp"
+#include "memory/metaspace/internalStats.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspace/metaspaceReport.hpp"

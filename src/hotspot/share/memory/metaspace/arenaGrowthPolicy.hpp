@@ -27,7 +27,7 @@
 #define SHARE_MEMORY_METASPACE_ARENAGROWTHPOLICY_HPP
 
 #include "memory/metaspace.hpp" // For Metaspace::MetaspaceType
-#include "memory/metaspace/chunkLevel.hpp"
+#include "memory/metaspace/chunklevel.hpp"
 #include "utilities/debug.hpp"
 
 namespace metaspace {

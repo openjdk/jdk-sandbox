@@ -27,7 +27,7 @@
 #define SHARE_MEMORY_METASPACE_FREECHUNKLIST_HPP
 
 #include "memory/allocation.hpp"
-#include "memory/metaspace/chunkLevel.hpp"
+#include "memory/metaspace/chunklevel.hpp"
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metachunkList.hpp"

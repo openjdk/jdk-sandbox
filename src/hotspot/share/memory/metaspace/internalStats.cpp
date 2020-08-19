@@ -24,43 +24,26 @@
  */
 
 #include "precompiled.hpp"
-#include "memory/metaspace/chunkLevel.hpp"
-#include "utilities/debug.hpp"
+#include "memory/metaspace/internalStats.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
-#include "utilities/powerOfTwo.hpp"
 
 namespace metaspace {
 
-using namespace chunklevel;
+#define MATERIALIZE_COUNTER(name)          uint64_t InternalStats::_##name;
+#define MATERIALIZE_ATOMIC_COUNTER(name)   volatile uint64_t InternalStats::_##name;
+  ALL_MY_COUNTERS(MATERIALIZE_COUNTER, MATERIALIZE_ATOMIC_COUNTER)
+#undef MATERIALIZE_COUNTER
+#undef MATERIALIZE_ATOMIC_COUNTER
 
-chunklevel_t chunklevel::level_fitting_word_size(size_t word_size) {
+void InternalStats::print_on(outputStream* st) {
 
-  assert(MAX_CHUNK_WORD_SIZE >= word_size,
-         SIZE_FORMAT " - too large allocation size.", word_size * BytesPerWord);
+#define xstr(s) str(s)
+#define str(s) #s
 
-  if (word_size <= MIN_CHUNK_WORD_SIZE) {
-    return HIGHEST_CHUNK_LEVEL;
-  }
-
-  const size_t v_pow2 = round_up_power_of_2(word_size);
-  const chunklevel_t lvl =  (chunklevel_t)(exact_log2(MAX_CHUNK_WORD_SIZE) - exact_log2(v_pow2));
-
-  return lvl;
-
-}
-
-void chunklevel::print_chunk_size(outputStream* st, chunklevel_t lvl) {
-  if (chunklevel::is_valid_level(lvl)) {
-    const size_t s = chunklevel::word_size_for_level(lvl) * BytesPerWord;
-    if (s < 1 * M) {
-      st->print("%3uk", (unsigned)(s / K));
-    } else {
-      st->print("%3um", (unsigned)(s / M));
-    }
-  } else {
-    st->print("?-?");
-  }
+#define PRINT_COUNTER(name)  st->print_cr("%s: " UINT64_FORMAT ".", xstr(name), _##name);
+  ALL_MY_COUNTERS(PRINT_COUNTER, PRINT_COUNTER)
+#undef PRINT_COUNTER
 
 }
 
