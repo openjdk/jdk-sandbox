@@ -344,14 +344,14 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * Returns a stream consisting of the results of replacing each element of
      * this stream with multiple elements, specifically zero or more elements.
      * Replacement is performed by applying the provided mapping function to each
-     * element in conjunction with a second {@link Consumer consumer} argument that
+     * element in conjunction with a second {@linkplain Consumer consumer} argument that
      * accepts replacing elements. The mapping function operates on the consumer,
      * zero or more times, for acceptance of replacing elements.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
      * <p>The results of this intermediate operation are undefined if the
-     * {@code consumer} argument is operated on outside the scope of
+     * {@linkplain Consumer consumer} argument is operated on outside the scope of
      * its application to the mapping function.
      *
      * @implSpec
@@ -439,14 +439,14 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * element of this stream with multiple elements, specifically zero or more
      * elements.
      * Replacement is performed by applying the provided mapping function to each
-     * element in conjunction with a second {@link IntConsumer consumer} argument
+     * element in conjunction with a second {@linkplain IntConsumer consumer} argument
      * that accepts replacing elements. The mapping function operates on the
      * consumer, zero or more times, for acceptance of replacing elements.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
      * <p>The results of this intermediate operation are undefined if the
-     * {@code consumer} argument is operated on outside the scope of
+     * {@linkplain IntConsumer consumer} argument is operated on outside the scope of
      * its application to the mapping function.
      *
      * @implSpec
@@ -478,14 +478,14 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * element of this stream with multiple elements, specifically zero or more
      * elements.
      * Replacement is performed by applying the provided mapping function to each
-     * element in conjunction with a second {@link LongConsumer consumer} argument
+     * element in conjunction with a second {@linkplain LongConsumer consumer} argument
      * that accepts replacing elements. The mapping function operates on the
      * consumer, zero or more times, for acceptance of replacing elements.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
      * <p>The results of this intermediate operation are undefined if the
-     * {@code consumer} argument is operated on outside the scope of
+     * {@linkplain LongConsumer consumer} argument is operated on outside the scope of
      * its application to the mapping function.
      *
      * @implSpec
@@ -517,14 +517,14 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * element of this stream with multiple elements, specifically zero or more
      * elements.
      * Replacement is performed by applying the provided mapping function to each
-     * element in conjunction with a second {@link DoubleConsumer consumer} argument
+     * element in conjunction with a second {@linkplain DoubleConsumer consumer} argument
      * that accepts replacing elements. The mapping function operates on the
      * consumer, zero or more times, for acceptance of replacing elements.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
      * <p>The results of this intermediate operation are undefined if the
-     * {@code consumer} argument is operated on outside the scope of
+     * {@linkplain DoubleConsumer consumer} argument is operated on outside the scope of
      * its application to the mapping function.
      *
      * @implSpec
