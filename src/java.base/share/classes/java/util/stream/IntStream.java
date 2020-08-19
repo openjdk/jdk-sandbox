@@ -1213,7 +1213,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
     }
 
     /**
-     * Represents an operation that accepts a {@code int}-valued argument
+     * Represents an operation that accepts an {@code int}-valued argument
      * and an IntConsumer, and returns no result. This functional interface is
      * used by {@link IntStream#mapMulti(IntMapMultiConsumer) IntStream.mapMulti}
      * to replace an int value with zero or more int values.
