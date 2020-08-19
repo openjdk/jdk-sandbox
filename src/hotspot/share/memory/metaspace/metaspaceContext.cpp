@@ -41,8 +41,11 @@ MetaspaceContext* MetaspaceContext::_class_space_context = NULL;
 MetaspaceContext* MetaspaceContext::_nonclass_space_context = NULL;
 
 // Destroys the context: deletes chunkmanager and virtualspacelist.
-// If this is a non-expandable context over an existing space, that space remains
-// untouched, otherwise all memory is unmapped.
+//  If this is a non-expandable context over an existing space, that space remains
+//  untouched, otherwise all memory is unmapped.
+// Note: the standard metaspace contexts (non-class context and class context) are
+//  never deleted. This code only exists for the sake of tests and for future reuse
+//  of metaspace contexts in different scenarios.
 MetaspaceContext::~MetaspaceContext() {
   delete _cm;
   delete _vslist;
