@@ -200,7 +200,7 @@ public:
 
 class MetaspaceArenaTest {
 
-  MetaspaceTestContext _helper;
+  TestContext _context;
 
   SizeAtomicCounter _used_words_counter;
 
@@ -211,7 +211,7 @@ class MetaspaceArenaTest {
 
   void create_new_test_bed_at(int slotindex, const ArenaGrowthPolicy* growth_policy, SizeRange allocation_range) {
     DEBUG_ONLY(_testbeds.check_slot_is_null(slotindex));
-    MetaspaceArenaTestBed* bed = new MetaspaceArenaTestBed(&_helper.cm(), growth_policy,
+    MetaspaceArenaTestBed* bed = new MetaspaceArenaTestBed(&_context.cm(), growth_policy,
                                                        &_used_words_counter, allocation_range);
     _testbeds.set_at(slotindex, bed);
     _num_beds.increment();
@@ -278,7 +278,7 @@ class MetaspaceArenaTest {
     bool success = bed->checked_random_allocate();
     if (success == false) {
       // We must have hit a limit.
-      EXPECT_LT(_helper.commit_limiter().possible_expansion_words(),
+      EXPECT_LT(_context.commit_limiter().possible_expansion_words(),
                 metaspace::get_raw_word_size_for_requested_word_size(bed->size_of_last_failed_allocation()));
     }
     return success;
@@ -342,7 +342,7 @@ class MetaspaceArenaTest {
 public:
 
   MetaspaceArenaTest(size_t commit_limit, int num_testbeds)
-    : _helper(commit_limit),
+    : _context(commit_limit),
       _testbeds(num_testbeds),
       _num_beds()
   {}

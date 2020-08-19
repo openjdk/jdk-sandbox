@@ -33,7 +33,7 @@ using namespace metaspace::chunklevel;
 // Test ChunkManager::get_chunk
 TEST_VM(metaspace, get_chunk) {
 
-  ChunkTestsContext helper(8 * M);
+  ChunkTestsContext context(8 * M);
   Metachunk* c = NULL;
 
   for (chunklevel_t pref_lvl = LOWEST_CHUNK_LEVEL; pref_lvl <= HIGHEST_CHUNK_LEVEL; pref_lvl ++) {
@@ -42,8 +42,8 @@ TEST_VM(metaspace, get_chunk) {
 
       for (size_t min_committed_words = Settings::commit_granule_words();
            min_committed_words <= word_size_for_level(max_lvl); min_committed_words *= 2) {
-        helper.alloc_chunk_expect_success(&c, pref_lvl, max_lvl, min_committed_words);
-        helper.return_chunk(c);
+        context.alloc_chunk_expect_success(&c, pref_lvl, max_lvl, min_committed_words);
+        context.return_chunk(c);
       }
     }
   }
@@ -53,7 +53,7 @@ TEST_VM(metaspace, get_chunk) {
 TEST_VM(metaspace, get_chunk_with_commit_limit) {
 
   const size_t commit_limit_words = 1 * M;
-  ChunkTestsContext helper(commit_limit_words);
+  ChunkTestsContext context(commit_limit_words);
   Metachunk* c = NULL;
 
   for (chunklevel_t pref_lvl = LOWEST_CHUNK_LEVEL; pref_lvl <= HIGHEST_CHUNK_LEVEL; pref_lvl ++) {
@@ -64,10 +64,10 @@ TEST_VM(metaspace, get_chunk_with_commit_limit) {
            min_committed_words <= word_size_for_level(max_lvl); min_committed_words *= 2) {
 
         if (min_committed_words <= commit_limit_words) {
-          helper.alloc_chunk_expect_success(&c, pref_lvl, max_lvl, min_committed_words);
-          helper.return_chunk(c);
+          context.alloc_chunk_expect_success(&c, pref_lvl, max_lvl, min_committed_words);
+          context.return_chunk(c);
         } else {
-          helper.alloc_chunk_expect_failure(pref_lvl, max_lvl, min_committed_words);
+          context.alloc_chunk_expect_failure(pref_lvl, max_lvl, min_committed_words);
         }
 
       }
@@ -78,13 +78,13 @@ TEST_VM(metaspace, get_chunk_with_commit_limit) {
 // Test that recommitting the used portion of a chunk will preserve the original content.
 TEST_VM(metaspace, get_chunk_recommit) {
 
-  ChunkTestsContext helper;
+  ChunkTestsContext context;
   Metachunk* c = NULL;
-  helper.alloc_chunk_expect_success(&c, ROOT_CHUNK_LEVEL, ROOT_CHUNK_LEVEL, 0);
-  helper.uncommit_chunk_with_test(c);
+  context.alloc_chunk_expect_success(&c, ROOT_CHUNK_LEVEL, ROOT_CHUNK_LEVEL, 0);
+  context.uncommit_chunk_with_test(c);
 
-  helper.commit_chunk_with_test(c, Settings::commit_granule_words());
-  helper.allocate_from_chunk(c, Settings::commit_granule_words());
+  context.commit_chunk_with_test(c, Settings::commit_granule_words());
+  context.allocate_from_chunk(c, Settings::commit_granule_words());
 
   c->ensure_committed(Settings::commit_granule_words());
   check_range_for_pattern(c->base(), c->used_words(), (uintx)c);
@@ -92,7 +92,7 @@ TEST_VM(metaspace, get_chunk_recommit) {
   c->ensure_committed(Settings::commit_granule_words() * 2);
   check_range_for_pattern(c->base(), c->used_words(), (uintx)c);
 
-  helper.return_chunk(c);
+  context.return_chunk(c);
 
 }
 
@@ -102,7 +102,7 @@ TEST_VM(metaspace, get_chunk_with_reserve_limit) {
 
   const size_t reserve_limit_words = word_size_for_level(ROOT_CHUNK_LEVEL);
   const size_t commit_limit_words = 1024 * M; // just very high
-  ChunkTestsContext helper(commit_limit_words, reserve_limit_words);
+  ChunkTestsContext context(commit_limit_words, reserve_limit_words);
 
   // Reserve limit works at root chunk size granularity: if the chunk manager cannot satisfy
   //  a request for a chunk from its freelists, it will acquire a new root chunk from the
@@ -113,25 +113,25 @@ TEST_VM(metaspace, get_chunk_with_reserve_limit) {
 
   // Cause allocation of the firstone root chunk, should still work:
   Metachunk* c = NULL;
-  helper.alloc_chunk_expect_success(&c, HIGHEST_CHUNK_LEVEL);
+  context.alloc_chunk_expect_success(&c, HIGHEST_CHUNK_LEVEL);
 
   // and this should need a new root chunk and hence fail:
-  helper.alloc_chunk_expect_failure(ROOT_CHUNK_LEVEL);
+  context.alloc_chunk_expect_failure(ROOT_CHUNK_LEVEL);
 
-  helper.return_chunk(c);
+  context.return_chunk(c);
 
 }
 
 // Test MetaChunk::allocate
 TEST_VM(metaspace, chunk_allocate_full) {
 
-  ChunkTestsContext helper;
+  ChunkTestsContext context;
 
   for (chunklevel_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl ++) {
     Metachunk* c = NULL;
-    helper.alloc_chunk_expect_success(&c, lvl);
-    helper.allocate_from_chunk(c, c->word_size());
-    helper.return_chunk(c);
+    context.alloc_chunk_expect_success(&c, lvl);
+    context.allocate_from_chunk(c, c->word_size());
+    context.return_chunk(c);
   }
 
 }
@@ -139,13 +139,13 @@ TEST_VM(metaspace, chunk_allocate_full) {
 // Test MetaChunk::allocate
 TEST_VM(metaspace, chunk_allocate_random) {
 
-  ChunkTestsContext helper;
+  ChunkTestsContext context;
 
   for (chunklevel_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl ++) {
 
     Metachunk* c = NULL;
-    helper.alloc_chunk_expect_success(&c, lvl);
-    helper.uncommit_chunk_with_test(c); // start out fully uncommitted
+    context.alloc_chunk_expect_success(&c, lvl);
+    context.uncommit_chunk_with_test(c); // start out fully uncommitted
 
     RandSizeGenerator rgen(1, c->word_size() / 30);
     bool stop = false;
@@ -153,14 +153,14 @@ TEST_VM(metaspace, chunk_allocate_random) {
     while (!stop) {
       const size_t s = rgen.get();
       if (s <= c->free_words()) {
-        helper.commit_chunk_with_test(c, s);
-        helper.allocate_from_chunk(c, s);
+        context.commit_chunk_with_test(c, s);
+        context.allocate_from_chunk(c, s);
       } else {
         stop = true;
       }
 
     }
-    helper.return_chunk(c);
+    context.return_chunk(c);
 
   }
 
@@ -170,7 +170,7 @@ TEST_VM(metaspace, chunk_buddy_stuff) {
 
   for (chunklevel_t l = ROOT_CHUNK_LEVEL + 1; l <= HIGHEST_CHUNK_LEVEL; l ++) {
 
-    ChunkTestsContext helper;
+    ChunkTestsContext context;
 
     // Allocate two chunks; since we know the first chunk is the first in its area,
     // it has to be a leader, and the next one of the same size its buddy.
@@ -179,11 +179,11 @@ TEST_VM(metaspace, chunk_buddy_stuff) {
     //  we know how the placement works so these tests make sense).
 
     Metachunk* c1 = NULL;
-    helper.alloc_chunk(&c1, CHUNK_LEVEL_1K);
+    context.alloc_chunk(&c1, CHUNK_LEVEL_1K);
     EXPECT_TRUE(c1->is_leader());
 
     Metachunk* c2 = NULL;
-    helper.alloc_chunk(&c2, CHUNK_LEVEL_1K);
+    context.alloc_chunk(&c2, CHUNK_LEVEL_1K);
     EXPECT_FALSE(c2->is_leader());
 
     // buddies are adjacent in memory
@@ -196,8 +196,8 @@ TEST_VM(metaspace, chunk_buddy_stuff) {
       EXPECT_EQ(c2->prev_in_vs(), c1);
     }
 
-    helper.return_chunk(c1);
-    helper.return_chunk(c2);
+    context.return_chunk(c1);
+    context.return_chunk(c2);
 
   }
 
@@ -212,29 +212,29 @@ TEST_VM(metaspace, chunk_allocate_with_commit_limit) {
 
   const size_t granule_sz = Settings::commit_granule_words();
   const size_t commit_limit = granule_sz * 3;
-  ChunkTestsContext helper(commit_limit);
+  ChunkTestsContext context(commit_limit);
 
   // A big chunk, but uncommitted.
   Metachunk* c = NULL;
-  helper.alloc_chunk_expect_success(&c, ROOT_CHUNK_LEVEL, ROOT_CHUNK_LEVEL, 0);
-  helper.uncommit_chunk_with_test(c); // ... just to make sure.
+  context.alloc_chunk_expect_success(&c, ROOT_CHUNK_LEVEL, ROOT_CHUNK_LEVEL, 0);
+  context.uncommit_chunk_with_test(c); // ... just to make sure.
 
   // first granule...
-  helper.commit_chunk_with_test(c, granule_sz);
-  helper.allocate_from_chunk(c, granule_sz);
+  context.commit_chunk_with_test(c, granule_sz);
+  context.allocate_from_chunk(c, granule_sz);
 
   // second granule...
-  helper.commit_chunk_with_test(c, granule_sz);
-  helper.allocate_from_chunk(c, granule_sz);
+  context.commit_chunk_with_test(c, granule_sz);
+  context.allocate_from_chunk(c, granule_sz);
 
   // third granule...
-  helper.commit_chunk_with_test(c, granule_sz);
-  helper.allocate_from_chunk(c, granule_sz);
+  context.commit_chunk_with_test(c, granule_sz);
+  context.allocate_from_chunk(c, granule_sz);
 
   // This should fail now.
-  helper.commit_chunk_expect_failure(c, granule_sz);
+  context.commit_chunk_expect_failure(c, granule_sz);
 
-  helper.return_chunk(c);
+  context.return_chunk(c);
 
 }
 
@@ -284,7 +284,7 @@ TEST_VM(metaspace, chunk_split_and_merge) {
   //   in ~RootChunkArea()
   // - finally we have to lock manually
 
-  ChunkTestsContext helper;
+  ChunkTestsContext context;
 
   const chunklevel_t orig_lvl = ROOT_CHUNK_LEVEL;
   for (chunklevel_t target_lvl = orig_lvl + 1; target_lvl <= HIGHEST_CHUNK_LEVEL; target_lvl ++) {
@@ -292,10 +292,10 @@ TEST_VM(metaspace, chunk_split_and_merge) {
     // Split a fully committed chunk. The resulting chunk should be fully
     //  committed as well, and have its content preserved.
     Metachunk* c = NULL;
-    helper.alloc_chunk_expect_success(&c, orig_lvl);
+    context.alloc_chunk_expect_success(&c, orig_lvl);
 
     // We allocate from this chunk to be able to completely paint the payload.
-    helper.allocate_from_chunk(c, c->word_size());
+    context.allocate_from_chunk(c, c->word_size());
 
     const uintx canary = os::random();
     fill_range_with_pattern(c->base(), c->word_size(), canary);
@@ -312,7 +312,7 @@ TEST_VM(metaspace, chunk_split_and_merge) {
       c->vsnode()->split(target_lvl, c, &splinters);
     }
 
-    DEBUG_ONLY(helper.verify();)
+    DEBUG_ONLY(context.verify();)
 
     EXPECT_EQ(c->level(), target_lvl);
     EXPECT_TRUE(c->is_fully_committed());
@@ -355,7 +355,7 @@ TEST_VM(metaspace, chunk_split_and_merge) {
       EXPECT_EQ(splinters.num_chunks(), 0);
     }
 
-    helper.return_chunk(c);
+    context.return_chunk(c);
 
   }
 
@@ -363,13 +363,13 @@ TEST_VM(metaspace, chunk_split_and_merge) {
 
 TEST_VM(metaspace, chunk_enlarge_in_place) {
 
-  ChunkTestsContext helper;
+  ChunkTestsContext context;
 
   // Starting with the smallest chunk size, attempt to enlarge the chunk in place until we arrive
   // at root chunk size. Since the state is clean, this should work.
 
   Metachunk* c = NULL;
-  helper.alloc_chunk_expect_success(&c, HIGHEST_CHUNK_LEVEL);
+  context.alloc_chunk_expect_success(&c, HIGHEST_CHUNK_LEVEL);
 
   chunklevel_t l = c->level();
 
@@ -377,15 +377,15 @@ TEST_VM(metaspace, chunk_enlarge_in_place) {
 
     // commit and allocate from chunk to pattern it...
     const size_t original_chunk_size = c->word_size();
-    helper.commit_chunk_with_test(c, c->free_words());
-    helper.allocate_from_chunk(c, c->free_words());
+    context.commit_chunk_with_test(c, c->free_words());
+    context.allocate_from_chunk(c, c->free_words());
 
     size_t used_before = c->used_words();
     size_t free_before = c->free_words();
     size_t free_below_committed_before = c->free_below_committed_words();
     const MetaWord* top_before = c->top();
 
-    EXPECT_TRUE(helper.cm().attempt_enlarge_chunk(c));
+    EXPECT_TRUE(context.cm().attempt_enlarge_chunk(c));
     EXPECT_EQ(l - 1, c->level());
     EXPECT_EQ(c->word_size(), original_chunk_size * 2);
 
@@ -405,7 +405,7 @@ TEST_VM(metaspace, chunk_enlarge_in_place) {
     l = c->level();
   }
 
-  helper.return_chunk(c);
+  context.return_chunk(c);
 
 }
 

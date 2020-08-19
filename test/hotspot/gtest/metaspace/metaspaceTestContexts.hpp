@@ -31,14 +31,14 @@
 
 using namespace metaspace::chunklevel;
 
-class MetaspaceTestContext : public metaspace::MetaspaceTestContext {
+class TestContext : public metaspace::MetaspaceTestContext {
 public:
-  MetaspaceTestContext(size_t commit_limit = 0, size_t reserve_limit = 0)
+  TestContext(size_t commit_limit = 0, size_t reserve_limit = 0)
   : metaspace::MetaspaceTestContext("gtest-metaspace-context", commit_limit, reserve_limit)
   {}
 };
 
-class ChunkTestsContext : public metaspace::MetaspaceTestContext {
+class ChunkTestsContext : public TestContext {
 
   int _num_chunks_allocated;
 
@@ -52,7 +52,7 @@ class ChunkTestsContext : public metaspace::MetaspaceTestContext {
 public:
 
   ChunkTestsContext(size_t commit_limit = 0, size_t reserve_limit = 0)
-    : metaspace::MetaspaceTestContext("metaspace-gtest-chunktestcontext", commit_limit, reserve_limit),
+    : TestContext(commit_limit, reserve_limit),
       _num_chunks_allocated(0)
   {}
 

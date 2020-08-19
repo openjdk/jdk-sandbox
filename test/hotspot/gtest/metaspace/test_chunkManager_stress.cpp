@@ -35,7 +35,7 @@ class ChunkManagerRandomChunkAllocTest {
 
   static const size_t max_footprint_words = 8 * M;
 
-  ChunkTestsContext _helper;
+  ChunkTestsContext _context;
 
   // All allocated live chunks
   typedef SparseArray<Metachunk*> SparseArrayOfChunks;
@@ -58,7 +58,7 @@ class ChunkManagerRandomChunkAllocTest {
 
   // Return true if, after an allocation error happened, a reserve error seems likely.
   bool could_be_reserve_error() {
-    return _helper.vslist().is_full();
+    return _context.vslist().is_full();
   }
 
   // Return true if, after an allocation error happened, a commit error seems likely.
@@ -83,10 +83,10 @@ class ChunkManagerRandomChunkAllocTest {
     // (c) can be, by design, imprecise (too low).
     //
     // Here, I check (b) and trust it to be correct. We also call vslist::verify().
-    DEBUG_ONLY(_helper.verify();)
+    DEBUG_ONLY(_context.verify();)
 
     const size_t commit_add = align_up(additional_word_size, Settings::commit_granule_words());
-    if (_helper.commit_limit() <= (commit_add + _helper.vslist().committed_words())) {
+    if (_context.commit_limit() <= (commit_add + _context.vslist().committed_words())) {
       return true;
     }
 
@@ -117,7 +117,7 @@ class ChunkManagerRandomChunkAllocTest {
     const size_t min_committed = random_committed_words(max_level, _commit_factor);
 
     Metachunk* c = NULL;
-    _helper.alloc_chunk(&c, r.lowest(), r.highest(), min_committed);
+    _context.alloc_chunk(&c, r.lowest(), r.highest(), min_committed);
     if (c == NULL) {
       EXPECT_TRUE(could_be_reserve_error() ||
                   could_be_commit_error(min_committed));
@@ -161,7 +161,7 @@ class ChunkManagerRandomChunkAllocTest {
   void return_chunk_at(int slot) {
     Metachunk* c = _chunks.at(slot);
     LOG("Returning chunk at %d: " METACHUNK_FORMAT ".", slot, METACHUNK_FORMAT_ARGS(c));
-    _helper.return_chunk(c);
+    _context.return_chunk(c);
     _chunks.set_at(slot, NULL);
   }
 
@@ -224,7 +224,7 @@ public:
 
   // A test with no limits
   ChunkManagerRandomChunkAllocTest(ChunkLevelRange r, float commit_factor)
-    : _helper(),
+    : _context(),
       _chunks(max_num_live_chunks(r, commit_factor)),
       _chunklevel_range(r),
       _commit_factor(commit_factor)
@@ -233,7 +233,7 @@ public:
   // A test with no reserve limit but commit limit
   ChunkManagerRandomChunkAllocTest(size_t commit_limit,
                                    ChunkLevelRange r, float commit_factor)
-    : _helper(commit_limit),
+    : _context(commit_limit),
       _chunks(max_num_live_chunks(r, commit_factor)),
       _chunklevel_range(r),
       _commit_factor(commit_factor)

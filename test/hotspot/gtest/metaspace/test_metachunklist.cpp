@@ -32,7 +32,7 @@
 
 TEST_VM(metaspace, metachunklist) {
 
-  ChunkTestsContext helper;
+  ChunkTestsContext context;
 
   MetachunkList lst;
 
@@ -41,7 +41,7 @@ TEST_VM(metaspace, metachunklist) {
 
   for (int i = 0; i < 10; i ++) {
     Metachunk* c = NULL;
-    helper.alloc_chunk_expect_success(&c, ChunkLevelRanges::all_chunks().random_value());
+    context.alloc_chunk_expect_success(&c, ChunkLevelRanges::all_chunks().random_value());
     chunks[i] = c;
     total_size += c->committed_words();
 
@@ -65,7 +65,7 @@ TEST_VM(metaspace, metachunklist) {
   for (int i = 0; i < 10; i ++) {
     Metachunk* c = lst.remove_first();
     DEBUG_ONLY(EXPECT_FALSE(lst.contains(c));)
-    helper.return_chunk(c);
+    context.return_chunk(c);
   }
 
   EXPECT_EQ(lst.count(), 0);
@@ -75,7 +75,7 @@ TEST_VM(metaspace, metachunklist) {
 
 TEST_VM(metaspace, freechunklist) {
 
-  ChunkTestsContext helper;
+  ChunkTestsContext context;
 
   FreeChunkListVector lst;
 
@@ -87,10 +87,10 @@ TEST_VM(metaspace, freechunklist) {
   // of the lists.
   for (int i = 0; i < 100; i ++) {
     Metachunk* c = NULL;
-    helper.alloc_chunk_expect_success(&c, ChunkLevelRanges::all_chunks().random_value());
+    context.alloc_chunk_expect_success(&c, ChunkLevelRanges::all_chunks().random_value());
     bool uncommitted_chunk = i % 3;
     if (uncommitted_chunk) {
-      helper.uncommit_chunk_with_test(c);
+      context.uncommit_chunk_with_test(c);
       c->set_in_use();
     }
 
@@ -128,7 +128,7 @@ TEST_VM(metaspace, freechunklist) {
       EXPECT_EQ(lst.word_size(), cnt.total_size());
       EXPECT_EQ(lst.committed_word_size(), committed_cnt.total_size());
 
-      helper.return_chunk(c);
+      context.return_chunk(c);
 
       c = lst.remove_first(lvl);
     }
