@@ -285,8 +285,6 @@ public:
   // Verifies linking with neighbors in virtual space. Needs expand lock protection.
   void verify_neighborhood() const;
   void zap_header(uint8_t c = 0x17);
-  void fill_with_pattern(MetaWord pattern, size_t word_size);
-  void check_pattern(MetaWord pattern, size_t word_size);
 
   // Returns true if given pointer points into the payload area of this chunk.
   bool is_valid_pointer(const MetaWord* p) const {
