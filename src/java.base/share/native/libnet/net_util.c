@@ -314,3 +314,21 @@ in_cksum(unsigned short *addr, int len) {
     answer = ~sum;
     return (answer);
 }
+
+int lookupPolicyToAddressFamily(int lookupPolicy) {
+    int type = lookupPolicy & 0xFF;
+    switch (type) {
+        case 1: // IPv4
+            return AF_INET;
+            break;
+        case 2: // IPv6
+            return AF_INET6;
+        default: // ANY, 0 and other values
+            return AF_UNSPEC;
+    }
+}
+
+enum AddressesOrder lookupPolicyToAddressesOrder(int lookupPolicy) {
+    enum AddressesOrder ao = (lookupPolicy >> 8) & 0xFF;
+    return ao;
+}

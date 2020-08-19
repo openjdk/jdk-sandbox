@@ -96,22 +96,22 @@ class SocketOptionRegistry {
             Map<RegistryKey,OptionKey> map =
                 new HashMap<RegistryKey,OptionKey>();
             map.put(new RegistryKey(StandardSocketOptions.PREFIX_SO_BROADCAST,
-                StandardProtocolFamily.UNSPEC), new OptionKey(SOL_SOCKET, SO_BROADCAST));
+                Net.UNSPEC), new OptionKey(SOL_SOCKET, SO_BROADCAST));
             map.put(new RegistryKey(StandardSocketOptions.PREFIX_SO_KEEPALIVE,
-                StandardProtocolFamily.UNSPEC), new OptionKey(SOL_SOCKET, SO_KEEPALIVE));
+                Net.UNSPEC), new OptionKey(SOL_SOCKET, SO_KEEPALIVE));
             map.put(new RegistryKey(StandardSocketOptions.PREFIX_SO_LINGER,
-                StandardProtocolFamily.UNSPEC), new OptionKey(SOL_SOCKET, SO_LINGER));
+                Net.UNSPEC), new OptionKey(SOL_SOCKET, SO_LINGER));
             map.put(new RegistryKey(StandardSocketOptions.PREFIX_SO_SNDBUF,
-                StandardProtocolFamily.UNSPEC), new OptionKey(SOL_SOCKET, SO_SNDBUF));
+                Net.UNSPEC), new OptionKey(SOL_SOCKET, SO_SNDBUF));
             map.put(new RegistryKey(StandardSocketOptions.PREFIX_SO_RCVBUF,
-                StandardProtocolFamily.UNSPEC), new OptionKey(SOL_SOCKET, SO_RCVBUF));
+                Net.UNSPEC), new OptionKey(SOL_SOCKET, SO_RCVBUF));
             map.put(new RegistryKey(StandardSocketOptions.PREFIX_SO_REUSEADDR,
-                StandardProtocolFamily.UNSPEC), new OptionKey(SOL_SOCKET, SO_REUSEADDR));
+                Net.UNSPEC), new OptionKey(SOL_SOCKET, SO_REUSEADDR));
             map.put(new RegistryKey(StandardSocketOptions.PREFIX_SO_REUSEPORT,
-                StandardProtocolFamily.UNSPEC), new OptionKey(SOL_SOCKET, SO_REUSEPORT));
+                Net.UNSPEC), new OptionKey(SOL_SOCKET, SO_REUSEPORT));
             // IPPROTO_TCP is 6
             map.put(new RegistryKey(StandardSocketOptions.PREFIX_TCP_NODELAY,
-                StandardProtocolFamily.UNSPEC), new OptionKey(6, TCP_NODELAY));
+                Net.UNSPEC), new OptionKey(6, TCP_NODELAY));
 
             // IPPROTO_IP is 0
             map.put(new RegistryKey(StandardSocketOptions.PREFIX_IP_TOS,
@@ -136,7 +136,7 @@ class SocketOptionRegistry {
 #endif
 
             map.put(new RegistryKey(ExtendedSocketOption.PREFIX_SO_OOBINLINE,
-                StandardProtocolFamily.UNSPEC), new OptionKey(SOL_SOCKET, SO_OOBINLINE));
+                Net.UNSPEC), new OptionKey(SOL_SOCKET, SO_OOBINLINE));
             return map;
         }
     }

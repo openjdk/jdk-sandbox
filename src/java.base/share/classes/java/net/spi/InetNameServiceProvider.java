@@ -26,7 +26,7 @@
 package java.net.spi;
 
 import java.net.InetAddress;
-import java.net.ProtocolFamily;
+import java.net.InetLookupPolicy;
 import java.net.UnknownHostException;
 import java.util.stream.Stream;
 
@@ -43,18 +43,18 @@ public abstract class InetNameServiceProvider {
 
         /**
          * Given the name of a host, returns a stream of IP addresses of the requested
-         * type associated with a provided hostname.
+         * address family associated with a provided hostname.
          * <p>
          * {@code host} should be a machine name, such as "{@code www.example.com}",
          * not a textual representation of its IP address. No validation is performed on
          * the given {@code host} name: if a textual representation is supplied, the name
          * resolution is likely to fail and {@link UnknownHostException} may be thrown.
          * <p>
-         * If the specified {@code family} is {@link java.net.StandardProtocolFamily#UNSPEC UNSPEC} this
-         * method returns addresses for both {@link java.net.StandardProtocolFamily#INET INET} and
-         * {@link java.net.StandardProtocolFamily#INET6 INET6} families.
+         * If the specified {@code lookupPolicy.getAddressesFamily()} is {@link InetLookupPolicy.AddressFamily#ANY ANY} this
+         * method returns addresses of both {@link InetLookupPolicy.AddressFamily#INET} and
+         * {@link InetLookupPolicy.AddressFamily#INET6} families.
          * @implSpec
-         * In the case when addresses of both families are returned, there is a
+         * In the case when addresses of both types are returned, there is a
          * <a href="doc-files/net-properties.html#Ipv4IPv6">couple of System Properties</a>
          * affecting how IPv4 and IPv6 addresses are returned.
          * If the value of the {@code "java.net.preferIPv6Addresses"} property is {@code true} then IPv6 addresses
@@ -64,16 +64,13 @@ public abstract class InetNameServiceProvider {
          * IPv4 addresses should be returned.
          *
          * @param host the specified hostname
-         * @param family the protocol family type
+         * @param lookupPolicy the address lookup policy
          * @return stream of IP addresses for the requested host
          * @throws NullPointerException if {@code host} is {@code null}
          * @throws UnknownHostException if no IP address for the {@code host} could be found
-         * @throws UnsupportedOperationException If the specified protocol family is not supported
-         *  (if it is not one of {@link java.net.StandardProtocolFamily#UNSPEC UNSPEC},
-         *  {@link java.net.StandardProtocolFamily#INET INET} or {@link java.net.StandardProtocolFamily#INET6 INET6}).
          *
          */
-        Stream<InetAddress> lookupByName(String host, ProtocolFamily family) throws UnknownHostException;
+        Stream<InetAddress> lookupByName(String host, InetLookupPolicy lookupPolicy) throws UnknownHostException;
 
         /**
          * Lookup the host name corresponding to the raw IP address provided.

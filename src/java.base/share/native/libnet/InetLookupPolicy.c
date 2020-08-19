@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,24 +23,16 @@
  * questions.
  */
 
-package java.net;
+#include <string.h>
 
-/**
- * Defines the standard families of communication protocols.
- *
- * @since 1.7
+#include "net_util.h"
+
+/*
+ * Class:     java_net_TwoStacksPlainDatagramSocketImpl
+ * Method:    receive
+ * Signature: (Ljava/net/DatagramPacket;)V
  */
-
-public enum StandardProtocolFamily implements ProtocolFamily {
-
-    /**
-     * Internet Protocol Version 4 (IPv4)
-     */
-    INET,
-
-    /**
-     * Internet Protocol Version 6 (IPv6)
-     */
-    INET6
-
+JNIEXPORT jboolean JNICALL
+Java_java_net_InetLookupPolicy_isIPv4Available(JNIEnv *env, jclass clazz) {
+    return ipv4_available();
 }

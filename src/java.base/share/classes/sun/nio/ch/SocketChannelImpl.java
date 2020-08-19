@@ -984,11 +984,11 @@ class SocketChannelImpl
             if (state == ST_CLOSING && !tryClose() && connected && isRegistered()) {
                 try {
                     SocketOption<Integer> opt = StandardSocketOptions.SO_LINGER;
-                    int interval = (int) Net.getSocketOption(fd, StandardProtocolFamily.UNSPEC, opt);
+                    int interval = (int) Net.getSocketOption(fd, Net.UNSPEC, opt);
                     if (interval != 0) {
                         if (interval > 0) {
                             // disable SO_LINGER
-                            Net.setSocketOption(fd, StandardProtocolFamily.UNSPEC, opt, -1);
+                            Net.setSocketOption(fd, Net.UNSPEC, opt, -1);
                         }
                         Net.shutdown(fd, Net.SHUT_WR);
                     }

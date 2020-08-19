@@ -62,9 +62,9 @@ import sun.net.InetAddressCachePolicy;
 import sun.net.util.IPAddressUtil;
 import sun.nio.cs.UTF_8;
 
-import static java.net.StandardProtocolFamily.UNSPEC;
-import static java.net.StandardProtocolFamily.INET;
-import static java.net.StandardProtocolFamily.INET6;
+import static java.net.InetLookupPolicy.AddressFamily.ANY;
+import static java.net.InetLookupPolicy.AddressFamily.INET;
+import static java.net.InetLookupPolicy.AddressFamily.INET6;
 
 /**
  * This class represents an Internet Protocol (IP) address.
@@ -233,10 +233,6 @@ import static java.net.StandardProtocolFamily.INET6;
  */
 public class InetAddress implements java.io.Serializable {
 
-    @Native static final int PREFER_IPV4_VALUE = 0;
-    @Native static final int PREFER_IPV6_VALUE = 1;
-    @Native static final int PREFER_SYSTEM_VALUE = 2;
-
     /**
      * Specify the address family: Internet Protocol, Version 4
      * @since 1.4
@@ -248,9 +244,6 @@ public class InetAddress implements java.io.Serializable {
      * @since 1.4
      */
     @Native static final int IPv6 = 2;
-
-    /* Specify address family preference */
-    static transient final int preferIPv6Address;
 
     static class InetAddressHolder {
         /**
@@ -342,18 +335,6 @@ public class InetAddress implements java.io.Serializable {
      * Load net library into runtime, and perform initializations.
      */
     static {
-        String str = GetPropertyAction.privilegedGetProperty("java.net.preferIPv6Addresses");
-        if (str == null) {
-            preferIPv6Address = PREFER_IPV4_VALUE;
-        } else if (str.equalsIgnoreCase("true")) {
-            preferIPv6Address = PREFER_IPV6_VALUE;
-        } else if (str.equalsIgnoreCase("false")) {
-            preferIPv6Address = PREFER_IPV4_VALUE;
-        } else if (str.equalsIgnoreCase("system")) {
-            preferIPv6Address = PREFER_SYSTEM_VALUE;
-        } else {
-            preferIPv6Address = PREFER_IPV4_VALUE;
-        }
         jdk.internal.loader.BootLoader.loadLibrary("net");
         SharedSecrets.setJavaNetInetAddressAccess(
                 new JavaNetInetAddressAccess() {
@@ -983,13 +964,10 @@ public class InetAddress implements java.io.Serializable {
      */
     private static final class PlatformNameService implements NameService {
 
-        public Stream<InetAddress> lookupByName(String host, ProtocolFamily family)
+        public Stream<InetAddress> lookupByName(String host, InetLookupPolicy policy)
                 throws UnknownHostException {
             Objects.requireNonNull(host);
-            if (family != INET && family != INET6 && family != UNSPEC) {
-                throw new UnsupportedOperationException("Protocol family is not supported");
-            }
-            return Arrays.stream(impl.lookupAllHostAddr(host));
+            return Arrays.stream(impl.lookupAllHostAddr(host, policy));
         }
 
         public String lookupAddress(byte[] addr)
@@ -1015,10 +993,6 @@ public class InetAddress implements java.io.Serializable {
      * @since 9
      */
     private static final class HostsFileNameService implements NameService {
-
-        // Specify if only IPv4 addresses should be returned by HostsFileService implementation
-        private static final boolean preferIPv4Stack = Boolean.parseBoolean(
-                GetPropertyAction.privilegedGetProperty("java.net.preferIPv4Stack"));
 
         private final String hostsFile;
 
@@ -1083,16 +1057,13 @@ public class InetAddress implements java.io.Serializable {
          * with the specified host name.
          *
          * @param host the specified hostname
-         * @param family the type of IP addresses to lookup
+         * @param lookupPolicy IP addresses lookup policy which specifies addresses
+         *                     family and their order
          * @return stream of IP addresses for the requested host
          * @throws UnknownHostException
          *             if no IP address for the {@code host} could be found
-         * @throws UnsupportedOperationException If the specified protocol family is not supported
-         *  (if it is not one of {@link java.net.StandardProtocolFamily#UNSPEC UNSPEC},
-         *  {@link java.net.StandardProtocolFamily#INET INET} or
-         *  {@link java.net.StandardProtocolFamily#INET6 INET6}).
          */
-        public Stream<InetAddress> lookupByName(String host, ProtocolFamily family)
+        public Stream<InetAddress> lookupByName(String host, InetLookupPolicy lookupPolicy)
                 throws UnknownHostException {
             String hostEntry;
             String addrStr;
@@ -1100,13 +1071,12 @@ public class InetAddress implements java.io.Serializable {
             List<InetAddress> inetAddresses = new ArrayList<>();
             List<InetAddress> inet4Addresses = new ArrayList<>();
             List<InetAddress> inet6Addresses = new ArrayList<>();
-            boolean needIPv4 = family == INET || family == UNSPEC;
-            boolean needIPv6 = family == INET6 || family == UNSPEC;
+            boolean needIPv4 = lookupPolicy.getAddressesFamily() == INET ||
+                               lookupPolicy.getAddressesFamily() == ANY;
+            boolean needIPv6 = lookupPolicy.getAddressesFamily() == INET6 ||
+                               lookupPolicy.getAddressesFamily() == ANY;
 
             Objects.requireNonNull(host);
-            if (!needIPv4 && !needIPv6) {
-                throw new UnsupportedOperationException("Protocol family is not supported");
-            }
 
             // lookup the file and create a list InetAddress for the specified host
             try (Scanner hostsFileScanner = new Scanner(new File(hostsFile),
@@ -1139,8 +1109,11 @@ public class InetAddress implements java.io.Serializable {
             }
             // Check number of found addresses:
             // If none found - throw an exception
-            boolean noAddressFound = preferIPv4Stack ?
-                    inet4Addresses.isEmpty() : inetAddresses.isEmpty();
+            boolean noAddressFound = switch (lookupPolicy.getAddressesFamily()) {
+                case ANY ->  inetAddresses.isEmpty();
+                case INET6 -> inet6Addresses.isEmpty();
+                case INET -> inet4Addresses.isEmpty();
+            };
             if (noAddressFound) {
                 throw new UnknownHostException("Unable to resolve host " + host
                         + " in hosts file " + hostsFile);
@@ -1148,16 +1121,17 @@ public class InetAddress implements java.io.Serializable {
 
             // Return only stream of IPv4 addresses if preferIPv4Stack
             // system property is set to true
-            if (preferIPv4Stack) {
+            if (lookupPolicy.getAddressesFamily() == INET) {
                 return inet4Addresses.stream();
+            } else if (lookupPolicy.getAddressesFamily() == INET6) {
+                return inet6Addresses.stream();
             }
 
-            // Generate stream with addresses ordered according to preferIPv6Addresses
-            // system property value
-            return switch (preferIPv6Address) {
-                case PREFER_IPV4_VALUE -> Stream.concat(inet4Addresses.stream(), inet6Addresses.stream());
-                case PREFER_IPV6_VALUE -> Stream.concat(inet6Addresses.stream(), inet4Addresses.stream());
-                default -> inetAddresses.stream();
+            // Generate stream with addresses ordered according to the specified look policy
+            return switch (lookupPolicy.getAddressesOrder()) {
+                case IPV4_FIRST -> Stream.concat(inet4Addresses.stream(), inet6Addresses.stream());
+                case IPV6_FIRST -> Stream.concat(inet6Addresses.stream(), inet4Addresses.stream());
+                case SYSTEM -> inetAddresses.stream();
             };
         }
 
@@ -1585,9 +1559,7 @@ public class InetAddress implements java.io.Serializable {
         UnknownHostException ex = null;
 
         try {
-            ProtocolFamily pf = reqAddr == null ?
-                    UNSPEC : reqAddr instanceof Inet4Address ? INET : INET6;
-            addresses = nameService().lookupByName(host, pf);
+            addresses = nameService().lookupByName(host, InetLookupPolicy.PLATFORM);
         } catch (UnknownHostException uhe) {
                 if (host.equalsIgnoreCase("localhost")) {
                     addresses = Stream.of(impl.loopbackAddress());

@@ -41,6 +41,11 @@
 #define NET_WAIT_CONNECT 0x04
 
 /************************************************************************
+ * Misc types
+ */
+enum AddressesOrder {SYSTEM, IPV4_FIRST, IPV6_FIRST};
+
+/************************************************************************
  * Cached field IDs
  *
  * The naming convention for field IDs is
@@ -52,7 +57,6 @@ extern jfieldID iac_addressID;
 extern jfieldID iac_familyID;
 extern jfieldID iac_hostNameID;
 extern jfieldID iac_origHostNameID;
-extern jfieldID ia_preferIPv6AddressID;
 
 JNIEXPORT void JNICALL initInetAddressIDs(JNIEnv *env);
 
@@ -197,6 +201,10 @@ JNIEXPORT jint JNICALL
 NET_EnableFastTcpLoopback(int fd);
 
 unsigned short in_cksum(unsigned short *addr, int len);
+
+int lookupPolicyToAddressFamily(int lookupPolicy);
+
+enum AddressesOrder lookupPolicyToAddressesOrder(int lookupPolicy);
 
 jint NET_Wait(JNIEnv *env, jint fd, jint flags, jint timeout);
 

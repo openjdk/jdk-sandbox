@@ -47,7 +47,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
-import static java.net.StandardProtocolFamily.UNSPEC;
 import static java.net.StandardSocketOptions.IP_MULTICAST_IF;
 import static java.net.StandardSocketOptions.IP_MULTICAST_LOOP;
 
@@ -55,6 +54,8 @@ import jdk.test.lib.NetworkConfiguration;
 import jdk.test.lib.net.IPSupport;
 
 public class Loopback {
+
+    static final ProtocolFamily UNSPEC = () -> "UNSPEC";
 
     public static void main(String[] args) throws Exception {
         IPSupport.throwSkippedExceptionIfNonOperational();

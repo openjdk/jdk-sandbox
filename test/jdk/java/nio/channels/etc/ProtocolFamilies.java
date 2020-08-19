@@ -38,7 +38,6 @@ import static java.lang.System.getProperty;
 import static java.lang.Boolean.parseBoolean;
 import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
-import static java.net.StandardProtocolFamily.UNSPEC;
 import static jdk.test.lib.net.IPSupport.*;
 import static org.testng.Assert.assertThrows;
 
@@ -350,13 +349,12 @@ public class ProtocolFamilies {
         return family == null ? null : switch (family) {
             case INET -> new InetSocketAddress(ia4, 0);
             case INET6 -> new InetSocketAddress(ia6, 0);
-            default -> null;
         };
     }
 
     private static SocketAddress getLoopback(StandardProtocolFamily family, int port)
             throws UnknownHostException {
-        if ((family == null || family == UNSPEC || family == INET6) && hasIPv6) {
+        if ((family == null || family == INET6) && hasIPv6) {
             return new InetSocketAddress(InetAddress.getByName("::1"), port);
         } else {
             return new InetSocketAddress(InetAddress.getByName("127.0.0.1"), port);

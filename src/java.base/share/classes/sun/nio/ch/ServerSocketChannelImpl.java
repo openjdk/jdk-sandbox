@@ -184,7 +184,7 @@ class ServerSocketChannelImpl
                 isReuseAddress = (Boolean)value;
             } else {
                 // no options that require special handling
-                Net.setSocketOption(fd, StandardProtocolFamily.UNSPEC, name, value);
+                Net.setSocketOption(fd, Net.UNSPEC, name, value);
             }
             return this;
         }
@@ -206,7 +206,7 @@ class ServerSocketChannelImpl
                 return (T)Boolean.valueOf(isReuseAddress);
             }
             // no options that require special handling
-            return (T) Net.getSocketOption(fd, StandardProtocolFamily.UNSPEC, name);
+            return (T) Net.getSocketOption(fd, Net.UNSPEC, name);
         }
     }
 

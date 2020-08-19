@@ -51,6 +51,8 @@ public class PromiscuousIPv6 {
 
     static final Random rand = new Random();
 
+    static final ProtocolFamily UNSPEC = () -> "UNSPEC";
+
     /**
      * Sends a datagram to the given multicast group
      */

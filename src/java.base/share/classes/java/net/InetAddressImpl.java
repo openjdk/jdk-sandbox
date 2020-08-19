@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,11 +38,23 @@ interface InetAddressImpl {
 
     String getLocalHostName() throws UnknownHostException;
     InetAddress[]
-        lookupAllHostAddr(String hostname) throws UnknownHostException;
+        lookupAllHostAddr(String hostname, InetLookupPolicy lookupPolicy) throws UnknownHostException;
     String getHostByAddr(byte[] addr) throws UnknownHostException;
 
     InetAddress anyLocalAddress();
     InetAddress loopbackAddress();
     boolean isReachable(InetAddress addr, int timeout, NetworkInterface netif,
                         int ttl) throws IOException;
+
+    /**
+     * Encodes the lookup policy to an integer descriptor.
+     * The address family type is encoded in 0-7 bits of the descriptor
+     * The addresses order is encoded in 8-15 bits of the descriptor
+     * @param lookupPolicy addresses lookup policy
+     * @return integer value that contains the encoded lookup policy
+     */
+    default int policyToNativeDescriptor(InetLookupPolicy lookupPolicy) {
+        return lookupPolicy.getAddressesFamily().ordinal() |
+               lookupPolicy.getAddressesOrder().ordinal() << 8;
+    }
 }

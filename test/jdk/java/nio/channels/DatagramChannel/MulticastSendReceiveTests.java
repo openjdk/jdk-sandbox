@@ -50,6 +50,12 @@ public class MulticastSendReceiveTests {
 
     static final Random rand = new Random();
 
+    static final ProtocolFamily UNSPEC = new ProtocolFamily() {
+        public String name() {
+            return "UNSPEC";
+        }
+    };
+
     /**
      * Send datagram from given local address to given multicast
      * group.
@@ -61,7 +67,7 @@ public class MulticastSendReceiveTests {
         throws IOException
     {
         ProtocolFamily family = (group instanceof Inet6Address) ?
-            INET6 : INET;
+                StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
         int id = rand.nextInt();
         try (DatagramChannel dc = DatagramChannel.open(family)) {
             dc.bind(new InetSocketAddress(local, 0));

@@ -56,12 +56,13 @@ Java_java_net_Inet6AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
  */
 JNIEXPORT jobjectArray JNICALL
 Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
-                                                 jstring host) {
+                                                 jstring host, jint lookupDescriptor) {
     jobjectArray ret = NULL;
     const char *hostname;
     int error = 0;
     struct addrinfo hints, *res = NULL, *resNew = NULL, *last = NULL,
         *iterator;
+    enum AddressesOrder addressesOrder = lookupPolicyToAddressesOrder(lookupDescriptor);
 
     initInetAddressIDs(env);
     JNU_CHECK_EXCEPTION_RETURN(env, NULL);
@@ -76,7 +77,7 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
     // try once, with our static buffer
     memset(&hints, 0, sizeof(hints));
     hints.ai_flags = AI_CANONNAME;
-    hints.ai_family = AF_UNSPEC;
+    hints.ai_family = lookupPolicyToAddressFamily(lookupDescriptor);
 
     error = getaddrinfo(hostname, NULL, &hints, &res);
 
@@ -88,8 +89,6 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
     } else {
         int i = 0, inetCount = 0, inet6Count = 0, inetIndex = 0,
             inet6Index = 0, originalIndex = 0;
-        int addressPreference =
-            (*env)->GetStaticIntField(env, ia_class, ia_preferIPv6AddressID);
         iterator = res;
         while (iterator != NULL) {
             // skip duplicates
@@ -168,13 +167,13 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
             goto cleanupAndReturn;
         }
 
-        if (addressPreference == java_net_InetAddress_PREFER_IPV6_VALUE) {
+        if (addressesOrder == IPV6_FIRST) {
             inetIndex = inet6Count;
             inet6Index = 0;
-        } else if (addressPreference == java_net_InetAddress_PREFER_IPV4_VALUE) {
+        } else if (addressesOrder == IPV4_FIRST) {
             inetIndex = 0;
             inet6Index = inetCount;
-        } else if (addressPreference == java_net_InetAddress_PREFER_SYSTEM_VALUE) {
+        } else if (addressesOrder == SYSTEM) {
             inetIndex = inet6Index = originalIndex = 0;
         }
 
@@ -217,7 +216,7 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
                 (*env)->SetObjectArrayElement(env, ret, (inet6Index | originalIndex), iaObj);
                 inet6Index++;
             }
-            if (addressPreference == java_net_InetAddress_PREFER_SYSTEM_VALUE) {
+            if (addressesOrder == SYSTEM) {
                 originalIndex++;
                 inetIndex = inet6Index = 0;
             }

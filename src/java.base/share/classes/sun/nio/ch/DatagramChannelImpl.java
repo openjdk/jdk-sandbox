@@ -304,8 +304,8 @@ class DatagramChannelImpl
         assert Thread.holdsLock(stateLock);
 
         // unspecified (most options)
-        if (SocketOptionRegistry.findOption(name, StandardProtocolFamily.UNSPEC) != null)
-            return StandardProtocolFamily.UNSPEC;
+        if (SocketOptionRegistry.findOption(name, Net.UNSPEC) != null)
+            return Net.UNSPEC;
 
         // IPv4 socket
         if (family == StandardProtocolFamily.INET)
@@ -349,13 +349,13 @@ class DatagramChannelImpl
             // be set when the channel's socket is IPv6 and it is used to send
             // IPv4 multicast datagrams. The IP_XXX socket options are set on a
             // best effort basis.
-            boolean needToSetIPv4Option = (family != StandardProtocolFamily.UNSPEC)
+            boolean needToSetIPv4Option = (family != Net.UNSPEC)
                     && (this.family == StandardProtocolFamily.INET6)
                     && Net.shouldSetBothIPv4AndIPv6Options();
 
             // outgoing multicast interface
             if (name == StandardSocketOptions.IP_MULTICAST_IF) {
-                assert family != StandardProtocolFamily.UNSPEC;
+                assert family != Net.UNSPEC;
                 NetworkInterface interf = (NetworkInterface) value;
                 if (family == StandardProtocolFamily.INET6) {
                     int index = interf.getIndex();
@@ -1360,10 +1360,10 @@ class DatagramChannelImpl
             // copy the socket options that are protocol family agnostic
             for (Map.Entry<SocketOption<?>, Object> e : map.entrySet()) {
                 SocketOption<?> option = e.getKey();
-                if (SocketOptionRegistry.findOption(option, StandardProtocolFamily.UNSPEC) != null) {
+                if (SocketOptionRegistry.findOption(option, Net.UNSPEC) != null) {
                     Object value = e.getValue();
                     try {
-                        Net.setSocketOption(newfd, StandardProtocolFamily.UNSPEC, option, value);
+                        Net.setSocketOption(newfd, Net.UNSPEC, option, value);
                     } catch (IOException ignore) { }
                 }
             }
