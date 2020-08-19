@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef SHARE_MEMORY_METASPACE_CHUNKALLOCSEQUENCE_HPP
-#define SHARE_MEMORY_METASPACE_CHUNKALLOCSEQUENCE_HPP
+#ifndef SHARE_MEMORY_METASPACE_ARENAGROWTHPOLICY_HPP
+#define SHARE_MEMORY_METASPACE_ARENAGROWTHPOLICY_HPP
 
 #include "memory/metaspace.hpp" // For Metaspace::MetaspaceType
 #include "memory/metaspace/chunkLevel.hpp"
@@ -74,4 +74,4 @@ public:
 
 } // namespace metaspace
 
-#endif // SHARE_MEMORY_METASPACE_CHUNKALLOCSEQUENCE_HPP
+#endif // SHARE_MEMORY_METASPACE_ARENAGROWTHPOLICY_HPP

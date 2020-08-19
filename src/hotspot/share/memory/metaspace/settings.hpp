@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef SHARE_MEMORY_METASPACE_CONSTANTS_HPP
-#define SHARE_MEMORY_METASPACE_CONSTANTS_HPP
+#ifndef SHARE_MEMORY_METASPACE_SETTINGS_HPP
+#define SHARE_MEMORY_METASPACE_SETTINGS_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
@@ -87,4 +87,4 @@ public:
 
 } // namespace metaspace
 
-#endif // SHARE_MEMORY_METASPACE_BLOCKFREELIST_HPP
+#endif // SHARE_MEMORY_METASPACE_SETTINGS_HPP
