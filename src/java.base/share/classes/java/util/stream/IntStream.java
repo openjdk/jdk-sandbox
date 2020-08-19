@@ -1233,7 +1233,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
          * values to the {@code ic} consumer.
          *
          * @param value the int value coming from upstream
-         * @param ic a {@code IntConsumer} accepting the mapped values
+         * @param ic an {@code IntConsumer} accepting the mapped values
          */
         void accept(int value, IntConsumer ic);
     }
