@@ -102,7 +102,6 @@ public class MetaspaceTestArena {
         return arena != 0;
     }
 
-
     @Override
     public String toString() {
         return "arena=" + arena +

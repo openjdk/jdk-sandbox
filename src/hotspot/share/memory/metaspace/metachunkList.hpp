@@ -26,13 +26,11 @@
 #ifndef SHARE_MEMORY_METASPACE_METACHUNKLIST_HPP
 #define SHARE_MEMORY_METASPACE_METACHUNKLIST_HPP
 
-
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
-
 
 class outputStream;
 
@@ -98,7 +96,6 @@ public:
   void print_on(outputStream* st) const;
 
 };
-
 
 } // namespace metaspace
 

@@ -34,7 +34,6 @@ class outputStream;
 
 namespace metaspace {
 
-
 // Chunks are managed by a binary buddy allocator.
 
 // Chunk sizes range from 1K to 4MB (64bit).
@@ -123,7 +122,6 @@ STATIC_ASSERT(ROOT_CHUNK_LEVEL == LOWEST_CHUNK_LEVEL);
 /////////////////////////////////////////////////////////
 // print helpers
 void print_chunk_size(outputStream* st, chunklevel_t lvl);
-
 
 } // namespace chunklevel
 

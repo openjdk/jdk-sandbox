@@ -31,7 +31,6 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-
 namespace metaspace {
 
 // We seem to be counting a lot of things which makes it worthwhile to
@@ -137,7 +136,6 @@ typedef AbstractCounter<unsigned> IntCounter;
 
 typedef AbstractAtomicCounter<size_t> SizeAtomicCounter;
 
-
 // We often count memory ranges (blocks, chunks etc).
 // Make a helper class for that.
 template <class T_num, class T_size>
@@ -164,7 +162,6 @@ public:
 
   T_num count() const       { return _count.get(); }
   T_size total_size() const { return _total_size.get(); }
-
 
 #ifdef ASSERT
   void check(T_num expected_count, T_size expected_size) const {

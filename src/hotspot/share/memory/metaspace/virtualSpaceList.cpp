@@ -36,7 +36,6 @@
 #include "memory/metaspace/virtualSpaceNode.hpp"
 #include "runtime/mutexLocker.hpp"
 
-
 namespace metaspace {
 
 #define LOGFMT         "VsList @" PTR_FORMAT " (%s)"
@@ -268,7 +267,5 @@ VirtualSpaceList* VirtualSpaceList::vslist_class() {
 VirtualSpaceList* VirtualSpaceList::vslist_nonclass() {
   return MetaspaceContext::context_nonclass() == NULL ? NULL : MetaspaceContext::context_nonclass()->vslist();
 }
-
-
 
 } // namespace metaspace

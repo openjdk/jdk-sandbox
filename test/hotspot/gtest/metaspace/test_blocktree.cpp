@@ -29,7 +29,6 @@
 
 #include "metaspaceTestsCommon.hpp"
 
-
 #define CHECK_BT_CONTENT(bt, expected_num, expected_size) { \
   EXPECT_EQ(bt.count(), (unsigned)expected_num); \
   EXPECT_EQ(bt.total_size(), (size_t)expected_size); \
@@ -132,7 +131,6 @@ TEST_VM(metaspace, BlockTree_closest_fit) {
   CHECK_BT_CONTENT(bt, 0, 0);
 
 }
-
 
 TEST_VM(metaspace, BlockTree_basic_siblings)
 {
@@ -324,7 +322,6 @@ class BlockTreeTest {
     CHECK_COUNTERS_ARE_0
   }
 
-
 public:
 
   BlockTreeTest(size_t min_word_size, size_t max_word_size) :
@@ -335,7 +332,6 @@ public:
     CHECK_COUNTERS;
     DEBUG_ONLY(verify_trees();)
   }
-
 
   void test_scatter()      { test(scatter); }
   void test_right_left()   { test(right_left); }
@@ -354,11 +350,8 @@ public:
   DO_TEST(name, right_left, min, max) \
   DO_TEST(name, left_right, min, max)
 
-
 DO_TEST_ALL_PATTERNS(wide, BlockTree::minimal_word_size, 128 * K);
 DO_TEST_ALL_PATTERNS(narrow, BlockTree::minimal_word_size, 16)
 DO_TEST_ALL_PATTERNS(129, BlockTree::minimal_word_size, 129)
 DO_TEST_ALL_PATTERNS(4K, BlockTree::minimal_word_size, 4*K)
-
-
 

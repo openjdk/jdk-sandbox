@@ -31,8 +31,6 @@
 #include "metaspace/metaspaceTestsCommon.hpp"
 #include "metaspace/metaspaceTestContexts.hpp"
 
-
-
 class ChunkManagerRandomChunkAllocTest {
 
   static const size_t max_footprint_words = 8 * M;
@@ -104,7 +102,6 @@ class ChunkManagerRandomChunkAllocTest {
     }
     return MIN2(SizeRange(sz).random_value(), sz);
   }
-
 
   //// Chunk allocation ////
 
@@ -223,7 +220,6 @@ class ChunkManagerRandomChunkAllocTest {
 
   }
 
-
 public:
 
   // A test with no limits
@@ -251,7 +247,6 @@ public:
   // _chunklevel_range(r),
   // _commit_factor(commit_factor)
   // {}
-
 
   void do_tests() {
     const int num_runs = 5;
@@ -290,5 +285,4 @@ DEFINE_TEST_2(test_with_limit_3, ChunkLevelRanges::small_chunks(), 1.0f)
 DEFINE_TEST_2(test_with_limit_4, ChunkLevelRanges::all_chunks(), 0.0f)
 DEFINE_TEST_2(test_with_limit_5, ChunkLevelRanges::all_chunks(), 0.5f)
 DEFINE_TEST_2(test_with_limit_6, ChunkLevelRanges::all_chunks(), 1.0f)
-
 

@@ -160,10 +160,7 @@ class FreeBlocksTest {
 
     // Drain
 
-
   }
-
-
 
 public:
 
@@ -180,7 +177,6 @@ public:
     CHECK_CONTENT(_freeblocks, 1, 1024);
   }
 
-
   static void test_small_allocations() {
     FreeBlocksTest test(10);
     test.test_loop();
@@ -196,9 +192,7 @@ public:
     test.test_loop();
   }
 
-
 };
-
 
 TEST_VM(metaspace, freeblocks_basics) {
 

@@ -37,7 +37,6 @@
 
 namespace metaspace {
 
-
 // Print a size, in words, scaled.
 void print_scaled_words(outputStream* st, size_t word_size, size_t scale, int width) {
   print_human_readable_size(st, word_size * sizeof(MetaWord), scale, width);

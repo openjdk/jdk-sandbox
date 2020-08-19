@@ -32,7 +32,6 @@
 #include "metaspace/metaspace_sparsearray.hpp"
 #include "utilities/ostream.hpp"
 
-
 // TODO: this class is very similar to MetaspaceArenaTestBed in test_metaspacearena_stress.cpp.
 // should be unified.
 class MetaspaceArenaTestHelper {
@@ -43,7 +42,6 @@ class MetaspaceArenaTestHelper {
   const ArenaGrowthPolicy* _growth_policy;
   SizeAtomicCounter _used_words_counter;
   MetaspaceArena* _arena;
-
 
   void initialize(const ArenaGrowthPolicy* growth_policy, const char* name = "gtest-MetaspaceArena") {
     _growth_policy = growth_policy;
@@ -188,7 +186,6 @@ public:
     allocate_from_arena_with_tests(&dummy, word_size);
   }
 
-
   void deallocate_with_tests(MetaWord* p, size_t word_size) {
     size_t used = 0, committed = 0, capacity = 0;
     usage_numbers_with_test(&used, &committed, &capacity);
@@ -219,7 +216,6 @@ public:
   }
 
 };
-
 
 static void test_basics(size_t commit_limit, bool is_micro) {
   MetaspaceTestContext msthelper(commit_limit);
@@ -504,7 +500,6 @@ static void test_recover_from_commit_limit_hit() {
   helper3.allocate_from_arena_with_tests_expect_success(1);
 
 }
-
 
 TEST_VM(metaspace, MetaspaceArena_recover_from_limit_hit) {
   test_recover_from_commit_limit_hit();

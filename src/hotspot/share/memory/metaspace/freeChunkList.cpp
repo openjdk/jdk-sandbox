@@ -30,8 +30,6 @@
 #include "utilities/debug.hpp"
 #include "utilities/ostream.hpp"
 
-
-
 namespace metaspace {
 
 void FreeChunkList::print_on(outputStream* st) const {
@@ -88,7 +86,6 @@ void FreeChunkList::verify() const {
 
 #endif // ASSERT
 
-
 // Returns total size in all lists (regardless of commit state of underlying memory)
 size_t FreeChunkListVector::word_size() const {
   size_t sum = 0;
@@ -115,7 +112,6 @@ int FreeChunkListVector::num_chunks() const {
   }
   return n;
 }
-
 
 // Look for a chunk: starting at level, up to and including max_level,
 //  return the first chunk whose committed words >= min_committed_words.
@@ -157,7 +153,6 @@ void FreeChunkListVector::print_on(outputStream* st) const {
                num_chunks(), word_size(), committed_word_size());
 }
 
-
 #ifdef ASSERT
 
 void FreeChunkListVector::verify() const {
@@ -176,8 +171,6 @@ bool FreeChunkListVector::contains(const Metachunk* c) const {
 }
 
 #endif // ASSERT
-
-
 
 } // namespace metaspace
 

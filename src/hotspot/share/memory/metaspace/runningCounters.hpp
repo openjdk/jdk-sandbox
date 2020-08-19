@@ -51,7 +51,6 @@ public:
   static size_t committed_words_class();
   static size_t committed_words_nonclass();
 
-
   // ---- used chunks -----
 
   // Returns size, in words, used for metadata.
@@ -75,5 +74,4 @@ public:
 } // namespace metaspace
 
 #endif // SHARE_MEMORY_METASPACE_RUNNINGCOUNTERS_HPP
-
 

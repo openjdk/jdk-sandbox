@@ -32,7 +32,6 @@
 
 namespace metaspace {
 
-
 #ifdef ASSERT
 
 // Tree verification
@@ -143,7 +142,6 @@ void BlockTree::zap_range(MetaWord* p, size_t word_size) {
 #undef assrt0
 
 #endif // ASSERT
-
 
 void BlockTree::print_node(outputStream* st, node_t* n, int lvl) {
   for (int i = 0; i < lvl; i ++) {

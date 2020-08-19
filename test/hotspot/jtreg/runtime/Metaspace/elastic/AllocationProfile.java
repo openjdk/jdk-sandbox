@@ -48,7 +48,6 @@ public class AllocationProfile {
         return r.nextInt((int)(maximumSingleAllocationSize - minimumSingleAllocationSize + 1)) + minimumSingleAllocationSize;
     }
 
-
     // Some standard profiles
     static final List<AllocationProfile> standardProfiles = new ArrayList<>();
 

@@ -203,7 +203,6 @@ TEST_VM(metaspace, chunk_buddy_stuff) {
 
 }
 
-
 TEST_VM(metaspace, chunk_allocate_with_commit_limit) {
 
   // This test does not make sense if commit-on-demand is off

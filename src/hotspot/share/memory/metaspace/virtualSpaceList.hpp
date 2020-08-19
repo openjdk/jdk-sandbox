@@ -40,7 +40,6 @@ namespace metaspace {
 class Metachunk;
 class FreeChunkListVector;
 
-
 // VirtualSpaceList manages a single (if its non-expandable) or
 //  a series of (if its expandable) virtual memory regions used
 //  for metaspace.

@@ -66,7 +66,6 @@ class ChunkHeaderPool : public CHeapObj<mtMetaspace> {
 
   static ChunkHeaderPool* _chunkHeaderPool;
 
-
 public:
 
   ChunkHeaderPool();
@@ -140,10 +139,6 @@ public:
 
 };
 
-
 } // namespace metaspace
-
-
-
 
 #endif // SHARE_MEMORY_METASPACE_CHUNKHEADERPOOL_HPP

@@ -29,7 +29,6 @@
 #include "memory/metaspace.hpp"
 #include "utilities/debug.hpp"
 
-
 namespace metaspace {
 
 // A bunch of convenience functions around MetadataType and MetaspaceType

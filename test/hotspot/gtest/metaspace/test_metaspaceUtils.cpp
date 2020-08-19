@@ -27,7 +27,6 @@
 #include "memory/metaspace.hpp"
 #include "unittest.hpp"
 
-
 TEST_VM(MetaspaceUtils, reserved) {
   size_t reserved = MetaspaceUtils::reserved_bytes();
   EXPECT_GT(reserved, 0UL);

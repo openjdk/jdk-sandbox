@@ -29,7 +29,6 @@
 
 #include "metaspaceTestsCommon.hpp"
 
-
 #define CHECK_BL_CONTENT(bl, expected_num, expected_size) { \
   EXPECT_EQ(bl.count(), (unsigned)expected_num); \
   EXPECT_EQ(bl.total_size(), (size_t)expected_size); \
@@ -39,7 +38,6 @@
     EXPECT_FALSE(bl.is_empty()); \
   } \
 }
-
 
 template <class BINLISTTYPE>
 struct BinListBasicTest {
@@ -200,13 +198,11 @@ struct BinListBasicTest {
       }
     }
 
-
   }
 };
 
 template <typename BINLISTTYPE> const size_t BinListBasicTest<BINLISTTYPE>::minws = BINLISTTYPE::minimal_word_size;
 template <typename BINLISTTYPE> const size_t BinListBasicTest<BINLISTTYPE>::maxws = BINLISTTYPE::maximal_word_size;
-
 
 TEST_VM(metaspace, BinList_basic_8)   { BinListBasicTest<metaspace::BinList8>::basic_test(); }
 TEST_VM(metaspace, BinList_basic_16)  { BinListBasicTest<metaspace::BinList16>::basic_test(); }

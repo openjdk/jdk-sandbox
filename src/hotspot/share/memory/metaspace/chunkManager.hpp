@@ -69,7 +69,6 @@ struct cm_stats_t;
 //  12 +----| |---| |---...
 //          +-+   +-+
 
-
 class ChunkManager : public CHeapObj<mtMetaspace> {
 
   // A chunk manager is connected to a virtual space list which is used
@@ -183,7 +182,6 @@ public:
   //  and non-class chunkmanager, respectively.
   static ChunkManager* chunkmanager_class();
   static ChunkManager* chunkmanager_nonclass();
-
 
 };
 

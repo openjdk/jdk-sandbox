@@ -26,12 +26,10 @@
 #ifndef SHARE_MEMORY_METASPACE_METACHUNK_HPP
 #define SHARE_MEMORY_METASPACE_METACHUNK_HPP
 
-
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
-
 
 class outputStream;
 
@@ -82,7 +80,6 @@ class VirtualSpaceNode;
 //  while underlying layers (VirtualSpaceNode->commitmask) keep track
 //  of the "real" commit state, aka which granules are committed,
 //  independent on what chunks reside above those granules.
-
 
 //            +--------------+ <- end    -----------+ ----------+
 //            |              |                      |           |
@@ -138,7 +135,6 @@ class Metachunk {
   // for splitting and merging nodes.
   VirtualSpaceNode* _vsnode;
 
-
   // A chunk header is kept in a list:
   // 1 in the list of used chunks inside a MetaspaceArena, if it is in use
   // 2 in the list of free chunks inside a ChunkManager, if it is free
@@ -188,7 +184,6 @@ public:
    _prev_in_vs = NULL;
    _next_in_vs = NULL;
   }
-
 
   size_t word_size() const        { return chunklevel::word_size_for_level(_level); }
 

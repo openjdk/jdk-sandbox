@@ -105,10 +105,7 @@ public:
 
   void uncommit_chunk_with_test(Metachunk* c);
 
-
 };
 
-
 #endif // GTEST_METASPACE_METASPACE_TESTHELPER_HPP
-
 

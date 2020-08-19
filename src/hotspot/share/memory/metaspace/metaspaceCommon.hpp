@@ -35,7 +35,6 @@ class outputStream;
 
 namespace metaspace {
 
-
 // Metaspace allocation alignment:
 
 // 1) Metaspace allocations have to be aligned such that 64bit values are aligned
@@ -57,7 +56,6 @@ static const size_t allocation_alignment_words = allocation_alignment_bytes / By
 // Returns the raw word size allocated for a given net allocation
 size_t get_raw_word_size_for_requested_word_size(size_t word_size);
 
-
 // Utility functions
 
 // Print a size, in words, scaled.
@@ -77,7 +75,6 @@ void print_human_readable_size(outputStream* st, size_t byte_size, size_t scale 
 // larger than 99% but not 100% are displayed as ">100%".
 void print_percentage(outputStream* st, size_t total, size_t part);
 
-
 #ifdef ASSERT
 #define assert_is_aligned(value, alignment)                  \
   assert(is_aligned((value), (alignment)),                   \
@@ -87,12 +84,10 @@ void print_percentage(outputStream* st, size_t total, size_t part);
 #define assert_is_aligned(value, alignment)
 #endif
 
-
 // Pretty printing helpers
 const char* classes_plural(uintx num);
 const char* loaders_plural(uintx num);
 void print_number_of_classes(outputStream* out, uintx classes, uintx classes_shared);
-
 
 // Since Metaspace verifications are expensive, we want to do them at a reduced rate,
 // but not completely avoiding them.

@@ -35,8 +35,6 @@
 
 using namespace metaspace;
 
-
-
 // Test the cheerful multitude of metaspace-contains-functions.
 class MetaspaceIsMetaspaceObjTest {
   Mutex* _lock;

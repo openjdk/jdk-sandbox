@@ -32,7 +32,6 @@
 
 namespace metaspace {
 
-
 // ArenaGrowthPolicy encodes the growth policy of a MetaspaceArena.
 //
 // These arenas grow in steps (by allocating new chunks). The coarseness of growth
@@ -72,7 +71,6 @@ public:
   static const ArenaGrowthPolicy* policy_for_space_type(Metaspace::MetaspaceType space_type, bool is_class);
 
 };
-
 
 } // namespace metaspace
 

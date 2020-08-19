@@ -35,7 +35,6 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-
 class outputStream;
 
 namespace metaspace {
@@ -108,9 +107,6 @@ public:
   }
 
 };
-
-
-
 
 } // namespace metaspace
 

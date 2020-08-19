@@ -99,7 +99,6 @@ class ChunkHeaderPoolTest {
     test.test_random_alloc_free(100);
   }
 
-
 public:
 
   ChunkHeaderPoolTest() : _pool() {
@@ -141,7 +140,6 @@ TEST_VM(metaspace, chunk_header_pool_basics) {
   EXPECT_EQ(pool.freelist_size(), 1);
 
 }
-
 
 TEST_VM(metaspace, chunk_header_pool) {
   ChunkHeaderPoolTest::run_tests();

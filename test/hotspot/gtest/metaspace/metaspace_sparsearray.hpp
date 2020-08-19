@@ -31,7 +31,6 @@
 #include "metaspace/metaspaceTestsCommon.hpp"
 #include "metaspace/metaspace_rangehelpers.hpp"
 
-
 /////// SparseArray<T> ////////////////
 
 // Throughout these tests we need to keep track of allocated items (ranges of metaspace memory, metachunks, ..)
@@ -160,7 +159,5 @@ public:
 
 };
 
-
 #endif // GTEST_METASPACE_SPARSEARRAY_HPP
-
 

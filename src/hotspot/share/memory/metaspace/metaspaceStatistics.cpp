@@ -25,7 +25,6 @@
 
 #include "precompiled.hpp"
 
-
 #include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
@@ -35,7 +34,6 @@
 #include "utilities/ostream.hpp"
 
 namespace metaspace {
-
 
 // Returns total word size of all chunks in this manager.
 void cm_stats_t::add(const cm_stats_t& other) {
@@ -62,7 +60,6 @@ size_t cm_stats_t::total_committed_word_size() const {
   }
   return s;
 }
-
 
 void cm_stats_t::print_on(outputStream* st, size_t scale) const {
   // Note: used as part of MetaspaceReport so formatting matters.
@@ -101,7 +98,6 @@ void cm_stats_t::verify() const {
          "Sanity");
 }
 #endif
-
 
 void in_use_chunk_stats_t::print_on(outputStream* st, size_t scale) const {
   int col = st->position();
@@ -147,7 +143,6 @@ void arena_stats_t::add(const arena_stats_t& other) {
   free_blocks_num += other.free_blocks_num;
   free_blocks_word_size += other.free_blocks_word_size;
 }
-
 
 // Returns total chunk statistics over all chunk types.
 in_use_chunk_stats_t arena_stats_t::totals() const {
@@ -207,7 +202,6 @@ void arena_stats_t::verify() const {
 }
 #endif
 
-
 // Returns total arena statistics for both class and non-class metaspace
 arena_stats_t clms_stats_t::totals() const {
   arena_stats_t out;
@@ -243,7 +237,6 @@ void clms_stats_t::print_on(outputStream* st, size_t scale, bool detailed) const
   st->cr();
 }
 
-
 #ifdef ASSERT
 void clms_stats_t::verify() const {
   arena_stats_nonclass.verify();
@@ -252,6 +245,4 @@ void clms_stats_t::verify() const {
 #endif
 
 } // end namespace metaspace
-
-
 

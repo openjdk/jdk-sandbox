@@ -36,10 +36,8 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-
 using metaspace::chunklevel_t;
 using namespace metaspace::chunklevel;
-
 
 // A range of numerical values.
 template <typename T, typename Td>

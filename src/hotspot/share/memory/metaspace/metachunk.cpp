@@ -122,7 +122,6 @@ bool Metachunk::commit_up_to(size_t new_committed_words) {
 
 }
 
-
 // Ensure that chunk is committed up to at least new_committed_words words.
 // Fails if we hit a commit limit.
 bool Metachunk::ensure_committed(size_t new_committed_words) {
@@ -177,7 +176,6 @@ void Metachunk::set_committed_words(size_t v) {
   v = MIN2(align_up(v, Settings::commit_granule_words()), word_size());
  _committed_words = v;
 }
-
 
 // Allocate word_size words from this chunk (word_size must be aligned to
 //  allocation_alignment_words).
@@ -342,16 +340,10 @@ void Metachunk::check_pattern(MetaWord pattern, size_t word_size) {
     class UnsortedMetachunkList : public AbstractMetachunkList {
     public:
 
-
-
-
-
     };
-
 
   }
 }
-
 
 // Verifies linking with neighbors in virtual space.
 // Can only be done under expand lock protection.

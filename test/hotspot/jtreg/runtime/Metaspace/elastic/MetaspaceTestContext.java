@@ -23,7 +23,6 @@ public class MetaspaceTestContext {
     long numDeallocated;
     long allocationFailures;
 
-
     public MetaspaceTestContext(long commitLimit, long reserveLimit) {
         this.commitLimit = commitLimit;
         this.reserveLimit = reserveLimit;
@@ -125,7 +124,6 @@ public class MetaspaceTestContext {
      * Usage seems right for this case.
      */
     public void checkStatistics() {
-
 
         // Note:
         // Estimating Used and Committed is fuzzy, and we only have limited information here

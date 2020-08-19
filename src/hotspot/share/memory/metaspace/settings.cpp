@@ -45,7 +45,6 @@ bool Settings::_uncommit_free_chunks = false;
 DEBUG_ONLY(bool Settings::_use_allocation_guard = false;)
 DEBUG_ONLY(bool Settings::_handle_deallocations = true;)
 
-
 void Settings::ergo_initialize() {
 
   if (strcmp(MetaspaceReclaimPolicy, "none") == 0) {
@@ -59,7 +58,6 @@ void Settings::ergo_initialize() {
     // that very closely mimicks the behaviour of old Metaspace.
     _new_chunks_are_fully_committed = true;
     _uncommit_free_chunks = false;
-
 
   } else if (strcmp(MetaspaceReclaimPolicy, "aggressive") == 0) {
 

@@ -25,7 +25,6 @@
 
 #include "precompiled.hpp"
 
-
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/metaspace/arenaGrowthPolicy.hpp"
@@ -258,7 +257,6 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
   return c;
 
 }
-
 
 // Return a single chunk to the ChunkManager and adjust accounting. May merge chunk
 //  with neighbors.

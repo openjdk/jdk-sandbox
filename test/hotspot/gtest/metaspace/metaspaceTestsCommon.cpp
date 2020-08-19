@@ -31,7 +31,6 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-
 void zap_range(MetaWord* p, size_t word_size) {
   for (MetaWord* pzap = p; pzap < p + word_size; pzap += os::vm_page_size() / BytesPerWord) {
     *pzap = (MetaWord)NOT_LP64(0xFEFEFEFE) LP64_ONLY(0xFEFEFEFEEFEFEFEFULL);
@@ -72,7 +71,6 @@ void check_range_for_pattern(const MetaWord* p, size_t word_size, uintx pattern)
     p2 ++;
   }
 }
-
 
 // Similar to fill_range_with_pattern, but only marks start and end. This is optimized for cases
 // where fill_range_with_pattern just is too slow.

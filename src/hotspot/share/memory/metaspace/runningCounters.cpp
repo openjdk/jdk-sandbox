@@ -62,7 +62,6 @@ size_t RunningCounters::committed_words_nonclass() {
   return VirtualSpaceList::vslist_nonclass()->committed_words();
 }
 
-
 // ---- used chunks -----
 
 // Returns size, in words, used for metadata.
@@ -95,5 +94,4 @@ size_t RunningCounters::free_chunks_words_nonclass() {
 }
 
 } // namespace metaspace
-
 

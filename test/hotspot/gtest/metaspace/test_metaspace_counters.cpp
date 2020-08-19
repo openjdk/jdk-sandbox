@@ -32,7 +32,6 @@
 #include "metaspace_rangehelpers.hpp"
 #include "threadHelper.inline.hpp"
 
-
 TEST_VM(metaspace, counters_basic)   {
 
   IntCounter cnt;

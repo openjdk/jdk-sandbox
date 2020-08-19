@@ -34,7 +34,6 @@ class outputStream;
 
 namespace metaspace {
 
-
 // These are some counters useful for debugging and analyzing Metaspace problems.
 // They get printed as part of the Metaspace report (e.g. via jcmd VM.metaspace)
 
@@ -96,7 +95,6 @@ class InternalStats : public AllStatic {
   /* Number of times we did a purge */              \
   x(num_purges)                                     \
 
-
 #define DEFINE_COUNTER(name)          static uint64_t _##name;
 #define DEFINE_ATOMIC_COUNTER(name)   static volatile uint64_t _##name;
   ALL_MY_COUNTERS(DEFINE_COUNTER, DEFINE_ATOMIC_COUNTER)
@@ -117,9 +115,7 @@ public:
   ALL_MY_COUNTERS(GETTER, GETTER)
 #undef GETTER
 
-
   static void print_on(outputStream* st);
-
 
 };
 

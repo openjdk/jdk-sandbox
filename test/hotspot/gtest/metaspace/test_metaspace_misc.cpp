@@ -31,7 +31,6 @@
 #include "metaspaceTestsCommon.hpp"
 #include "utilities/powerOfTwo.hpp"
 
-
 TEST_VM(metaspace, misc_sizes)   {
 
   // Test test common sizes (seems primitive but breaks surprisingly often during development
@@ -48,7 +47,6 @@ TEST_VM(metaspace, misc_sizes)   {
             Metaspace::reserve_alignment_words());
 
 }
-
 
 TEST_VM(metaspace, misc_max_alloc_size)   {
 
@@ -101,7 +99,6 @@ TEST_VM(metaspace, chunklevel_utils)   {
   EXPECT_EQ(level_fitting_word_size(8 * K), CHUNK_LEVEL_64K);
   EXPECT_EQ(level_fitting_word_size(8 * K + 13), CHUNK_LEVEL_64K - 1);
   EXPECT_EQ(level_fitting_word_size(8 * K - 13), CHUNK_LEVEL_64K);
-
 
 }
 

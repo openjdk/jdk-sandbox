@@ -28,7 +28,6 @@
 
 #include "memory/allocation.hpp"
 
-
 #include "memory/metaspace/arenaGrowthPolicy.hpp"
 #include "memory/metaspace/binlist.hpp"
 #include "memory/metaspace/blocktree.hpp"
@@ -58,9 +57,7 @@
 
 #include "unittest.hpp"
 
-
 #include <stdio.h>
-
 
 //////////////////////////////////////////////////////////
 // handy aliases
@@ -92,7 +89,6 @@ using metaspace::VirtualSpaceNode;
 
 using metaspace::chunklevel_t;
 using namespace metaspace::chunklevel;
-
 
 /////////////////////////////////////////////////////////////////////
 // A little mockup to mimick and test the CommitMask in various tests
@@ -132,7 +128,6 @@ public:
   }
 
 };
-
 
 ///////////////////////////////////////////////////////////
 // Helper class for generating random allocation sizes

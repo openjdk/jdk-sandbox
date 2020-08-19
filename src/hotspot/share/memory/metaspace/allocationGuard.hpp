@@ -69,7 +69,6 @@
 //  in deallocation-heavvy scenarios (e.g. lots of class redefinitions).
 //
 
-
 namespace metaspace {
 
 #ifdef ASSERT

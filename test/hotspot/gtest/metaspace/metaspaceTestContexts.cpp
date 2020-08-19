@@ -23,13 +23,11 @@
  *
  */
 
-
 #include "precompiled.hpp"
 #include "metaspace/metaspaceTestsCommon.hpp"
 #include "metaspace/metaspaceTestContexts.hpp"
 
 using namespace metaspace::chunklevel;
-
 
 void ChunkTestsContext::checked_alloc_chunk_0(Metachunk** p_return_value, chunklevel_t preferred_level, chunklevel_t max_level,
                                                       size_t min_committed_size) {
@@ -165,9 +163,5 @@ void ChunkTestsContext::uncommit_chunk_with_test(Metachunk* c) {
   }
 }
 
-
-
 /////// SparseArray<T> ////////////////
-
-
 

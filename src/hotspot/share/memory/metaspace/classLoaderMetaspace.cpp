@@ -183,7 +183,6 @@ void ClassLoaderMetaspace::verify() const {
 }
 #endif // ASSERT
 
-
 // This only exists for JFR and jcmd VM.classloader_stats. We may want to
 //  change this. Capacity as a stat is of questionable use since it may
 //  contain committed and uncommitted areas. For now we do this to maintain
@@ -204,7 +203,4 @@ void ClassLoaderMetaspace::calculate_jfr_stats(size_t* p_used_bytes, size_t* p_c
     *p_capacity_bytes = cap_c + cap_nc;
   }
 }
-
-
-
 

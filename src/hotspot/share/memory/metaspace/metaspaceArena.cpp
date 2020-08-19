@@ -471,7 +471,6 @@ void MetaspaceArena::usage_numbers(size_t* p_used_words, size_t* p_committed_wor
   }
 }
 
-
 #ifdef ASSERT
 
 void MetaspaceArena::verify_locked(bool slow) const {
@@ -538,8 +537,6 @@ void MetaspaceArena::print_on_locked(outputStream* st) const {
   st->print_cr("growth-policy " PTR_FORMAT ", lock " PTR_FORMAT ", cm " PTR_FORMAT ", fbl " PTR_FORMAT,
                 p2i(_growth_policy), p2i(_lock), p2i(_chunk_manager), p2i(_fbl));
 }
-
-
 
 } // namespace metaspace
 

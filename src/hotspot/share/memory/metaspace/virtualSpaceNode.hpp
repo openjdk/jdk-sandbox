@@ -26,7 +26,6 @@
 #ifndef SHARE_MEMORY_METASPACE_VIRTUALSPACENODE_HPP
 #define SHARE_MEMORY_METASPACE_VIRTUALSPACENODE_HPP
 
-
 #include "memory/allocation.hpp"
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/commitMask.hpp"
@@ -37,7 +36,6 @@
 #include "utilities/debug.hpp"
 #include "utilities/bitMap.hpp"
 #include "utilities/globalDefinitions.hpp"
-
 
 class outputStream;
 
@@ -266,7 +264,6 @@ public:
   VirtualSpaceNode* next() const        { return _next; }
   void set_next(VirtualSpaceNode* vsn)  { _next = vsn; }
 
-
   /// Debug stuff ////
 
   // Print a description about this node.
@@ -286,7 +283,6 @@ public:
 #endif
 
 };
-
 
 } // namespace metaspace
 

@@ -207,7 +207,6 @@ class CommitMaskTest {
 
   }
 
-
   void test3() {
 
     // arbitrary ranges are set and cleared and compared with the test map
@@ -237,7 +236,6 @@ class CommitMaskTest {
 
   }
 
-
 public:
 
   CommitMaskTest(const MetaWord* base, size_t size)
@@ -252,7 +250,6 @@ public:
       test1(); test2(); test3();
     }
   }
-
 
 };
 
@@ -325,7 +322,6 @@ TEST_VM(metaspace, commit_mask_range) {
   }
 
 }
-
 
 TEST_VM(metaspace, commit_mask_random) {
 

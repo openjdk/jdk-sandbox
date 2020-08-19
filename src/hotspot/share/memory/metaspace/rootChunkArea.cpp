@@ -159,7 +159,6 @@ void RootChunkArea::split(chunklevel_t target_level, Metachunk* c, FreeChunkList
 
 }
 
-
 // Given a chunk, attempt to merge it recursively with its neighboring chunks.
 //
 // If successful (merged at least once), returns address of
@@ -401,7 +400,6 @@ bool RootChunkArea::is_free() const {
       (_first_chunk->is_root_chunk() && _first_chunk->is_free());
 }
 
-
 #ifdef ASSERT
 
 #define assrt_(cond, ...) \
@@ -412,7 +410,6 @@ bool RootChunkArea::is_free() const {
   }
 
 void RootChunkArea::verify(bool slow) const {
-
 
   assert_lock_strong(MetaspaceExpand_lock);
   assert_is_aligned(_base, chunklevel::MAX_CHUNK_BYTE_SIZE);
@@ -508,7 +505,6 @@ void RootChunkArea::print_on(outputStream* st) const {
 
 }
 
-
 // Create an array of ChunkTree objects, all initialized to NULL, covering
 // a given memory range. Memory range must be a multiple of root chunk size.
 RootChunkAreaLUT::RootChunkAreaLUT(const MetaWord* base, size_t word_size)
@@ -560,6 +556,5 @@ void RootChunkAreaLUT::print_on(outputStream* st) const {
     _arr[i].print_on(st);
   }
 }
-
 
 } // end: namespace metaspace

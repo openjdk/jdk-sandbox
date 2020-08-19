@@ -31,10 +31,8 @@
 
 namespace metaspace {
 
-
 // Returns reference to the one global chunk header pool.
 ChunkHeaderPool* ChunkHeaderPool::_chunkHeaderPool = NULL;
-
 
 ChunkHeaderPool::ChunkHeaderPool()
   : _num_slabs(), _first_slab(NULL), _current_slab(NULL)
@@ -90,5 +88,4 @@ void ChunkHeaderPool::verify(bool slow) const {
 #endif
 
 } // namespace metaspace
-
 

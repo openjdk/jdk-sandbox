@@ -33,18 +33,15 @@
 #include "memory/metaspace/metachunkList.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 
-
 class outputStream;
 class Mutex;
 
 namespace metaspace {
 
-
 class ArenaGrowthPolicy;
 class FreeBlocks;
 
 struct arena_stats_t;
-
 
 // The MetaspaceArena is a growable metaspace memory pool belonging to a CLD;
 //  internally it consists of a list of metaspace chunks, of which the head chunk

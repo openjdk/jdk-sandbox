@@ -36,7 +36,6 @@ class outputStream;
 
 namespace metaspace {
 
-
 // This is the free list underlying the ChunkManager.
 //
 // Chunks are kept in a vector of double-linked double-headed lists
@@ -196,7 +195,6 @@ public:
 
 };
 
-
 // A vector of free chunk lists, one per chunk level
 class FreeChunkListVector {
 
@@ -268,7 +266,6 @@ public:
   void print_on(outputStream* st) const;
 
 };
-
 
 } // namespace metaspace
 

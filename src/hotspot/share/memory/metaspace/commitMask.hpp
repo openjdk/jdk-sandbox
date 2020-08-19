@@ -169,7 +169,6 @@ public:
     return zero_bits_in_range_before * _words_per_bit;
   }
 
-
   //// Debug stuff ////
   DEBUG_ONLY(void verify(bool slow) const;)
 

@@ -74,7 +74,6 @@
  * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI  -XX:MetaspaceReclaimPolicy=aggressive TestMetaspaceAllocationMT2
  */
 
-
 public class TestMetaspaceAllocationMT2 {
 
     public static void main(String[] args) throws Exception {

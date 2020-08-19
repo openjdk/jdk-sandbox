@@ -198,7 +198,6 @@ public:
 
 }; // End: MetaspaceArenaTestBed
 
-
 class MetaspaceArenaTest {
 
   MetaspaceTestContext _helper;
@@ -354,7 +353,6 @@ public:
 
   }
 
-
   //////////////// Tests ////////////////////////
 
   void test() {
@@ -408,9 +406,7 @@ public:
 
   }
 
-
 };
-
 
 // 32 parallel MetaspaceArena objects, random allocating without commit limit
 TEST_VM(metaspace, MetaspaceArena_random_allocs_32_beds_no_commit_limit) {
@@ -430,8 +426,4 @@ TEST_VM(metaspace, MetaspaceArena_random_allocs_1_bed_no_commit_limit) {
   MetaspaceArenaTest test(max_uintx, 1);
   test.test();
 }
-
-
-
-
 

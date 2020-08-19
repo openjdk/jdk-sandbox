@@ -33,7 +33,6 @@
 
 namespace metaspace {
 
-
 // BlockTree is a rather simple binary search tree. It is used to
 //  manage small to medium free memory blocks (see class FreeBlocks).
 //
@@ -74,7 +73,6 @@ namespace metaspace {
 //  implementation.
 
 class BlockTree: public CHeapObj<mtMetaspace> {
-
 
   struct node_t {
 
@@ -363,7 +361,6 @@ private:
 
 #endif // ASSERT
 
-
   static void print_node(outputStream* st, node_t* n, int lvl);
 
 public:
@@ -427,7 +424,6 @@ public:
     }
     return NULL;
   }
-
 
   // Returns number of blocks in this structure
   unsigned count() const { return _counter.count(); }

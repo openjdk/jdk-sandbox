@@ -26,7 +26,6 @@
 #ifndef SHARE_MEMORY_METASPACE_METASPACE_TEST_HPP
 #define SHARE_MEMORY_METASPACE_METASPACE_TEST_HPP
 
-
 #include "memory/allocation.hpp"
 #include "memory/metaspace.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
@@ -47,7 +46,6 @@ namespace metaspace {
 class MetaspaceContext;
 class MetaspaceArena;
 
-
 // Wraps a MetaspaceTestArena with its own lock for testing purposes.
 class MetaspaceTestArena : public CHeapObj<mtInternal> {
 
@@ -67,7 +65,6 @@ public:
   void deallocate(MetaWord* p, size_t word_size);
 
 };
-
 
 // Wraps an instance of a MetaspaceContext together with some side objects for easy use in test beds (whitebox, gtests)
 class MetaspaceTestContext : public CHeapObj<mtInternal> {
@@ -112,7 +109,6 @@ public:
   void print_on(outputStream* st) const;
 
 };
-
 
 } // namespace metaspace
 

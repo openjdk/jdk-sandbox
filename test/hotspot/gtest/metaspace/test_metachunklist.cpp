@@ -73,7 +73,6 @@ TEST_VM(metaspace, metachunklist) {
 
 }
 
-
 TEST_VM(metaspace, freechunklist) {
 
   ChunkTestsContext helper;

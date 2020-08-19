@@ -40,7 +40,6 @@ class MetachunkClosure;
 class FreeChunkListVector;
 class VirtualSpaceNode;
 
-
 // RootChunkArea manages a memory area covering a single root chunk.
 //
 // Such an area may contain a single root chunk, or a number of chunks the
@@ -70,7 +69,6 @@ public:
   // root chunk header. It will be partly initialized.
   // Note: this just allocates a memory-less header; memory itself is allocated inside VirtualSpaceNode.
   Metachunk* alloc_root_chunk_header(VirtualSpaceNode* node);
-
 
   // Given a chunk c, split it recursively until you get a chunk of the given target_level.
   //
@@ -138,7 +136,6 @@ public:
 
 };
 
-
 // RootChunkAreaLUT (lookup table) manages a series of contiguous root chunk areas
 //  in memory (in the context of a VirtualSpaceNode). It allows finding the containing
 //  root chunk for any given memory address. It allows for easy iteration over all
@@ -204,7 +201,6 @@ public:
   void print_on(outputStream* st) const;
 
 };
-
 
 } // namespace metaspace
 

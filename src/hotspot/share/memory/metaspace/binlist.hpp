@@ -65,7 +65,6 @@ namespace metaspace {
 //  n    |          |-->|          |-->|          |-...->|          |
 //       +----------+   +----------+   +----------+      +----------+
 
-
 // Insertion is of course fast, O(1).
 //
 // On retrieval, we attempt to find the closest fit to a given size, walking the
@@ -187,7 +186,6 @@ public:
     }
   }
 
-
   // Returns number of blocks in this structure
   unsigned count() const { return _counter.count(); }
 
@@ -210,7 +208,6 @@ public:
     local_counter.check(_counter);
   }
 #endif // ASSERT
-
 
 };
 

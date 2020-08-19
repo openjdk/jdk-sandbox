@@ -102,7 +102,6 @@ public class RandomAllocator {
         this.localRandom = new Random(RandomHelper.random().nextInt());
     }
 
-
     @Override
     public String toString() {
         return  arena.toString() + ", ticks=" + ticks;

@@ -65,7 +65,3 @@ DEFINE_GROWTH_POLICY_TEST(StandardMetaspaceType, false)
 DEFINE_GROWTH_POLICY_TEST(BootMetaspaceType, true)
 DEFINE_GROWTH_POLICY_TEST(BootMetaspaceType, false)
 
-
-
-
-

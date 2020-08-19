@@ -155,7 +155,6 @@ struct clms_stats_t {
   // Returns total statistics for both class and non-class metaspace
   arena_stats_t totals() const;
 
-
   DEBUG_ONLY(void verify() const;)
 
 };

@@ -32,7 +32,6 @@ public class MetaspaceTestOneArenaManyThreads extends MetaspaceTestWithThreads {
     // Several threads allocate from a single arena.
     // This mimicks several threads loading classes via the same class loader.
 
-
     public MetaspaceTestOneArenaManyThreads(MetaspaceTestContext context, long testAllocationCeiling, int numThreads, int seconds) {
         super(context, testAllocationCeiling, numThreads, seconds);
     }

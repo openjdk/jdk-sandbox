@@ -30,7 +30,6 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
 
-
 namespace metaspace {
 
 #ifdef ASSERT
@@ -60,7 +59,6 @@ void MetachunkList::verify() const {
 }
 
 #endif // ASSERT
-
 
 size_t MetachunkList::calc_committed_word_size() const {
 
@@ -107,7 +105,6 @@ void MetachunkList::print_on(outputStream* st) const {
   }
 
 }
-
 
 } // namespace metaspace
 

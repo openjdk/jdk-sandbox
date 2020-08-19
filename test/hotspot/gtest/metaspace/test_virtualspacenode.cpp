@@ -32,8 +32,6 @@
 
 static int test_node_id = 100000; // start high to make it stick out in logs.
 
-
-
 class VirtualSpaceNodeTest {
 
   // These counters are updated by the Node.
@@ -233,7 +231,6 @@ class VirtualSpaceNodeTest {
     return c;
 
   } // end: split_chunk_with_checks
-
 
   Metachunk* merge_chunk_with_checks(Metachunk* c, chunklevel_t expected_target_level, FreeChunkListVector* freelist) {
 
@@ -471,12 +468,7 @@ public:
 
   } // end: test_splitting_chunks
 
-
-
-
 };
-
-
 
 TEST_VM(metaspace, virtual_space_node_test_basics) {
 
@@ -522,7 +514,6 @@ TEST_VM(metaspace, virtual_space_node_test_basics) {
   DEBUG_ONLY(node->verify_locked(true);)
 
 }
-
 
 // Note: we unfortunately need TEST_VM even though the system tested
 // should be pretty independent since we need things like os::vm_page_size()

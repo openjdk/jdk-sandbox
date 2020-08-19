@@ -32,12 +32,10 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
 
-
 namespace metaspace {
 
 #define LOGFMT         "SpcMgr @" PTR_FORMAT " (%s)"
 #define LOGFMT_ARGS    p2i(this), this->_name
-
 
 MetaspaceContext* MetaspaceContext::_class_space_context = NULL;
 MetaspaceContext* MetaspaceContext::_nonclass_space_context = NULL;
@@ -63,7 +61,6 @@ MetaspaceContext* MetaspaceContext::create_nonexpandable_context(const char* nam
   ChunkManager* cm = new ChunkManager(name, vsl);
   return new MetaspaceContext(name, vsl, cm);
 }
-
 
 void MetaspaceContext::initialize_class_space_context(ReservedSpace rs) {
   _class_space_context = create_nonexpandable_context("class-space", rs, CommitLimiter::globalLimiter());

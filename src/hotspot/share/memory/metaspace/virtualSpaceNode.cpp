@@ -67,7 +67,6 @@ void check_word_size_is_aligned_to_commit_granule(size_t word_size) {
 }
 #endif
 
-
 // Given an address range, ensure it is committed.
 //
 // The range has to be aligned to granule size.
@@ -250,7 +249,6 @@ VirtualSpaceNode::VirtualSpaceNode(ReservedSpace rs, bool owns_rs, CommitLimiter
   assert_is_aligned(_word_size, chunklevel::MAX_CHUNK_WORD_SIZE);
 
 }
-
 
 // Create a node of a given size (it will create its own space).
 VirtualSpaceNode* VirtualSpaceNode::create_node(size_t word_size,
@@ -460,7 +458,6 @@ bool VirtualSpaceNode::attempt_purge(FreeChunkListVector* freelists) {
 
 }
 
-
 void VirtualSpaceNode::print_on(outputStream* st) const {
 
   size_t scale = K;
@@ -515,6 +512,5 @@ void VirtualSpaceNode::verify_locked(bool slow) const {
 }
 
 #endif
-
 
 } // namespace metaspace

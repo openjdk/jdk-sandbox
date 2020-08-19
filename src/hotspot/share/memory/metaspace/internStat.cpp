@@ -36,7 +36,6 @@ namespace metaspace {
 #undef MATERIALIZE_COUNTER
 #undef MATERIALIZE_ATOMIC_COUNTER
 
-
 void InternalStats::print_on(outputStream* st) {
 
 #define xstr(s) str(s)

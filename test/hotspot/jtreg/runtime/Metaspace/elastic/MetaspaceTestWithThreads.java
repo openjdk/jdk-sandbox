@@ -104,5 +104,4 @@ public class MetaspaceTestWithThreads {
                 ", seconds=" + seconds;
     }
 
-
 }
