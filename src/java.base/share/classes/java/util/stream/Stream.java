@@ -419,8 +419,8 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @param <R> The element type of the new stream
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
-     *               function applied to each element in conjunction with a
-     *               second {@link Consumer} argument that accepts replacing elements.
+     *               function to apply to each element in conjunction with a
+     *               {@linkplain Consumer consumer} argument that accepts replacing elements.
      * @return the new stream
      * @see #flatMap
      * @since 16
@@ -458,8 +458,8 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
-     *               function to apply to each element which produces a stream
-     *               of new values
+     *               function to apply to each element in conjunction with a
+     *               {@linkplain IntConsumer consumer} argument that accepts replacing elements.
      * @return the new stream
      * @see #mapMulti(BiConsumer)
      * @since 16
@@ -497,8 +497,8 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
-     *               function to apply to each element which produces a stream
-     *               of new values
+     *               function to apply to each element in conjunction with a
+     *               {@linkplain LongConsumer consumer} argument that accepts replacing elements.
      * @return the new stream
      * @see #mapMulti(BiConsumer)
      * @since 16
@@ -536,8 +536,8 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
-     *               function to apply to each element which produces a stream
-     *               of new values
+     *               function to apply to each element in conjunction with a
+     *               {@linkplain DoubleConsumer consumer} argument that accepts replacing elements.
      * @return the new stream
      * @see #mapMulti(BiConsumer)
      * @since 16

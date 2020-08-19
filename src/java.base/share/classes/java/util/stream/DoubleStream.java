@@ -186,8 +186,8 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
-     *               function to apply to each element which produces a
-     *               {@code DoubleStream} of new values
+     *               function to apply to each element in conjunction with a
+     *               {@linkplain DoubleConsumer consumer} argument that accepts replacing elements.
      * @return the new stream
      * @see Stream#mapMulti(BiConsumer)
      * @since 16
