@@ -57,7 +57,7 @@ class LinuxRdmaSocketOptions extends PlatformRdmaSocketOptions {
         java.security.AccessController.doPrivileged(
             new java.security.PrivilegedAction<>() {
                 public Void run() {
-                    System.loadLibrary("extnet");
+                    System.loadLibrary("rdmanet");
                     return null;
                 }
             });

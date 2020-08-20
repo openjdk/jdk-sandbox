@@ -56,6 +56,12 @@ public class RdmaSocketDispatcher extends SocketDispatcher
         return RdmaSocketDispatcherImpl.writev0(fd, address, len);
     }
 
+    protected int pwrite(FileDescriptor fd, long address, int len, long position)
+        throws IOException
+    {
+        return write(fd, (address + position), len);
+    }
+
     protected void close(FileDescriptor fd) throws IOException {
         RdmaSocketDispatcherImpl.close0(fd);
     }

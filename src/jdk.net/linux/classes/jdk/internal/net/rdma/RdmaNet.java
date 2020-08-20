@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,9 +33,16 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ProtocolFamily;
 import java.net.SocketAddress;
+import java.net.SocketException;
 import java.net.SocketOption;
 import java.net.StandardProtocolFamily;
 import java.net.StandardSocketOptions;
+import java.net.UnknownHostException;
+import java.nio.channels.AlreadyBoundException;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.NotYetBoundException;
+import java.nio.channels.NotYetConnectedException;
+import java.nio.channels.UnresolvedAddressException;
 import java.nio.channels.UnsupportedAddressTypeException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -44,7 +51,10 @@ import sun.net.ext.RdmaSocketOptions;
 import sun.nio.ch.IOUtil;
 import sun.nio.ch.Net;
 
+import sun.security.action.GetPropertyAction;
+
 public class RdmaNet {
+
     private RdmaNet() { }
 
     static final ProtocolFamily UNSPEC = new ProtocolFamily() {
@@ -243,11 +253,91 @@ public class RdmaNet {
         java.security.AccessController.doPrivileged(
             new java.security.PrivilegedAction<>() {
                 public Void run() {
-                    System.loadLibrary("extnet");
+                    System.loadLibrary("rdmanet");
                     return null;
                 }
             });
         IOUtil.load();
         initIDs();
+    }
+
+    public static void translateToSocketException(Exception x)
+        throws SocketException
+    {
+        if (x instanceof SocketException)
+            throw (SocketException)x;
+        Exception nx = x;
+        if (x instanceof ClosedChannelException)
+            nx = new SocketException("Socket is closed");
+        else if (x instanceof NotYetConnectedException)
+            nx = new SocketException("Socket is not connected");
+        else if (x instanceof AlreadyBoundException)
+            nx = new SocketException("Already bound");
+        else if (x instanceof NotYetBoundException)
+            nx = new SocketException("Socket is not bound yet");
+        else if (x instanceof UnsupportedAddressTypeException)
+            nx = new SocketException("Unsupported address type");
+        else if (x instanceof UnresolvedAddressException) {
+            nx = new SocketException("Unresolved address");
+        }
+        if (nx != x)
+            nx.initCause(x);
+
+        if (nx instanceof SocketException)
+            throw (SocketException)nx;
+        else if (nx instanceof RuntimeException)
+            throw (RuntimeException)nx;
+        else
+            throw new Error("Untranslated exception", nx);
+    }
+
+    public static void translateException(Exception x,
+                                   boolean unknownHostForUnresolved)
+        throws IOException
+    {
+        if (x instanceof IOException)
+            throw (IOException)x;
+        // Throw UnknownHostException from here since it cannot
+        // be thrown as a SocketException
+        if (unknownHostForUnresolved &&
+            (x instanceof UnresolvedAddressException))
+        {
+             throw new UnknownHostException();
+        }
+        translateToSocketException(x);
+    }
+
+    public static void translateException(Exception x)
+        throws IOException
+    {
+        translateException(x, false);
+    }
+
+    /**
+     * Returns the local address after performing a SecurityManager#checkConnect.
+     */
+    public static InetSocketAddress getRevealedLocalAddress(InetSocketAddress addr) {
+        SecurityManager sm = System.getSecurityManager();
+        if (addr == null || sm == null)
+            return addr;
+
+        try{
+            sm.checkConnect(addr.getAddress().getHostAddress(), -1);
+            // Security check passed
+        } catch (SecurityException e) {
+            // Return loopback address only if security check fails
+            addr = getLoopbackAddress(addr.getPort());
+        }
+        return addr;
+    }
+
+    public static String getRevealedLocalAddressAsString(InetSocketAddress addr) {
+        return System.getSecurityManager() == null ? addr.toString() :
+                getLoopbackAddress(addr.getPort()).toString();
+    }
+
+    private static InetSocketAddress getLoopbackAddress(int port) {
+        return new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                                     port);
     }
 }

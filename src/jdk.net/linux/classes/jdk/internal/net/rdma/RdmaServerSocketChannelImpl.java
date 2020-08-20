@@ -33,11 +33,13 @@ import java.net.ProtocolFamily;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.net.SocketOption;
+import java.net.SocketTimeoutException;
 import java.net.StandardSocketOptions;
 import java.net.StandardProtocolFamily;
 import java.nio.channels.AlreadyBoundException;
 import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.IllegalBlockingModeException;
 import java.nio.channels.NotYetBoundException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
@@ -66,6 +68,7 @@ public class RdmaServerSocketChannelImpl
     //The protocol family of the socket
     private final ProtocolFamily family;
 
+    // Used to make native read and write calls. Assigned in static initializer
     private static RdmaSocketDispatcher nd;
 
     private final FileDescriptor fd;
@@ -253,12 +256,12 @@ public class RdmaServerSocketChannelImpl
 
     @Override
     public SocketChannel accept() throws IOException {
+        int n = 0;
+        FileDescriptor newfd = new FileDescriptor();
+        InetSocketAddress[] isaa = new InetSocketAddress[1];
+
         acceptLock.lock();
         try {
-            int n = 0;
-            FileDescriptor newfd = new FileDescriptor();
-            InetSocketAddress[] isaa = new InetSocketAddress[1];
-
             boolean blocking = isBlocking();
             try {
                 begin(blocking);
@@ -275,32 +278,76 @@ public class RdmaServerSocketChannelImpl
                 end(blocking, n > 0);
                 assert IOStatus.check(n);
             }
+        } finally {
+            acceptLock.unlock();
+        }
+        if (n > 0) {
+            return finishAccept(newfd, isaa[0]);
+        } else {
+            return null;
+        }
+    }
 
-            if (n < 1)
-                return null;
+    public SocketChannel blockingAccept(long nanos) throws IOException {
+        int n = 0;
+        FileDescriptor newfd = new FileDescriptor();
+        InetSocketAddress[] isaa = new InetSocketAddress[1];
 
+        acceptLock.lock();
+        try {
+            // check that channel is configured blocking
+            if (!isBlocking())
+                throw new IllegalBlockingModeException();
+
+            try {
+                begin(true);
+                // change socket to non-blocking
+                lockedConfigureBlocking(false);
+                try {
+                    long startNanos = System.nanoTime();
+                    do  {
+                        do {
+                            n  = checkAccept(this.fd);
+                            long remainingNanos = nanos - (System.nanoTime() - startNanos);
+                            if (remainingNanos <= 0) {
+                                throw new SocketTimeoutException("Accept timed out");
+                            }
+                            RdmaNet.poll(fd, Net.POLLIN, remainingNanos);
+                        } while ((n == 0 || n == IOStatus.INTERRUPTED)
+                                && isOpen());
+                        n = accept(fd, newfd, isaa);
+                    } while (n == IOStatus.UNAVAILABLE && isOpen());
+                } finally {
+                    // restore socket to blocking mode (if channel is open)
+                    tryLockedConfigureBlocking(true);
+                }
+            } finally {
+                end(true, n > 0);
+                assert IOStatus.check(n);
+            }
+        } finally {
+            acceptLock.unlock();
+        }
+        assert n > 0;
+        return finishAccept(newfd, isaa[0]);
+    }
+
+    private SocketChannel finishAccept(FileDescriptor newfd, InetSocketAddress isa)
+        throws IOException
+    {
+        try {
             // newly accepted socket is initially in blocking mode
             RdmaNet.configureBlocking(newfd, true);
-
-            InetSocketAddress isa = isaa[0];
-            SocketChannel sc = new RdmaSocketChannelImpl(provider(),
-                    newfd, isa);
 
             // check permitted to accept connections from the remote address
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
-                try {
-                    sm.checkAccept(isa.getAddress().getHostAddress(),
-                            isa.getPort());
-                } catch (SecurityException x) {
-                    sc.close();
-                    throw x;
-                }
+                sm.checkAccept(isa.getAddress().getHostAddress(), isa.getPort());
             }
-            return sc;
-
-        } finally {
-            acceptLock.unlock();
+            return new RdmaSocketChannelImpl(provider(), newfd, isa);
+        } catch (Exception e) {
+            nd.close(newfd);
+            throw e;
         }
     }
 
@@ -314,6 +361,36 @@ public class RdmaServerSocketChannelImpl
             }
         } finally {
             acceptLock.unlock();
+        }
+    }
+
+    /**
+     * Adjust the blocking. acceptLock must already be held.
+     */
+    private void lockedConfigureBlocking(boolean block) throws IOException {
+        assert acceptLock.isHeldByCurrentThread();
+        synchronized (stateLock) {
+            ensureOpen();
+            RdmaNet.configureBlocking(fd, block);
+        }
+    }
+
+    /**
+     * Adjusts the blocking mode if the channel is open. acceptLock must already
+     * be held.
+     *
+     * @return {@code true} if the blocking mode was adjusted, {@code false} if
+     *         the blocking mode was not adjusted because the channel is closed
+     */
+    private boolean tryLockedConfigureBlocking(boolean block) throws IOException {
+        assert acceptLock.isHeldByCurrentThread();
+        synchronized (stateLock) {
+            if (isOpen()) {
+                RdmaNet.configureBlocking(fd, block);
+                return true;
+            } else {
+                return false;
+            }
         }
     }
 
@@ -498,7 +575,7 @@ public class RdmaServerSocketChannelImpl
 
     static {
         IOUtil.load();
-        System.loadLibrary("extnet");
+        System.loadLibrary("rdmanet");
         UnsupportedOperationException uoe = null;
         try {
             initIDs();

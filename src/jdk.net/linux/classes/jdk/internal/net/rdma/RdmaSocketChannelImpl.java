@@ -35,6 +35,7 @@ import java.net.ProtocolFamily;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketOption;
+import java.net.SocketTimeoutException;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.AlreadyBoundException;
@@ -42,6 +43,7 @@ import java.nio.channels.AlreadyConnectedException;
 import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ConnectionPendingException;
+import java.nio.channels.IllegalBlockingModeException;
 import java.nio.channels.NoConnectionPendingException;
 import java.nio.channels.NotYetConnectedException;
 import java.nio.channels.SelectionKey;
@@ -54,8 +56,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import sun.net.ext.RdmaSocketOptions;
+import sun.nio.ch.DirectBuffer;
 import sun.nio.ch.IOStatus;
 import sun.nio.ch.IOUtil;
+import sun.nio.ch.Util;
 import sun.nio.ch.NativeThread;
 import sun.nio.ch.Net;
 import sun.nio.ch.SelChImpl;
@@ -70,7 +74,9 @@ public class RdmaSocketChannelImpl
     // The protocol family of the socket
     private final ProtocolFamily family;
 
+    // Used to make native read and write calls. Assigned in static initializer
     private static RdmaSocketDispatcher nd;
+
     private final FileDescriptor fd;
     private final int fdVal;
 
@@ -332,6 +338,106 @@ public class RdmaSocketChannelImpl
         }
     }
 
+    /**
+     * Attempts to read bytes from the socket into the given byte array.
+     */
+    private int tryRead(byte[] b, int off, int len) throws IOException {
+        ByteBuffer dst = Util.getTemporaryDirectBuffer(len);
+        assert dst.position() == 0;
+        try {
+            int n = nd.read(fd, ((DirectBuffer)dst).address(), len);
+            if (n > 0) {
+                dst.get(b, off, n);
+            }
+            return n;
+        } finally{
+            Util.releaseTemporaryDirectBuffer(dst);
+        }
+    }
+
+    /**
+     * Reads bytes from the socket into the given byte array with a timeout.
+     * @throws SocketTimeoutException if the read timeout elapses
+     */
+    private int timedRead(byte[] b, int off, int len, long nanos) throws IOException {
+        long startNanos = System.nanoTime();
+        int n = tryRead(b, off, len);
+        while (n == IOStatus.UNAVAILABLE && isOpen()) {
+            long remainingNanos = nanos - (System.nanoTime() - startNanos);
+            if (remainingNanos <= 0) {
+                throw new SocketTimeoutException("Read timed out");
+            }
+            RdmaNet.poll(fd, Net.POLLIN, -1);
+            n = tryRead(b, off, len);
+        }
+        return n;
+    }
+
+    /**
+     * Reads bytes from the socket into the given byte array.
+     *
+     * @apiNote This method is for use by the socket adaptor.
+     *
+     * @throws IllegalBlockingModeException if the channel is non-blocking
+     * @throws SocketTimeoutException if the read timeout elapses
+     */
+    int blockingRead(byte[] b, int off, int len, long nanos) throws IOException {
+        Objects.checkFromIndexSize(off, len, b.length);
+        if (len == 0) {
+            // nothing to do
+            return 0;
+        }
+
+        readLock.lock();
+        try {
+            // check that channel is configured blocking
+            if (!isBlocking())
+                throw new IllegalBlockingModeException();
+
+            int n = 0;
+            try {
+                beginRead(true);
+
+                // check if connection has been reset
+//                if (connectionReset)
+//                    throwConnectionReset();
+
+                // check if input is shutdown
+                if (isInputClosed)
+                    return IOStatus.EOF;
+
+                if (nanos > 0) {
+                    // change socket to non-blocking
+                    lockedConfigureBlocking(false);
+                    try {
+                        n = timedRead(b, off, len, nanos);
+                    } finally {
+                        // restore socket to blocking mode (if channel is open)
+                        tryLockedConfigureBlocking(true);
+                    }
+                } else {
+                    // read, no timeout
+                    n = tryRead(b, off, len);
+                    while (IOStatus.okayToRetry(n) && isOpen()) {
+                        RdmaNet.poll(fd, Net.POLLIN, -1);
+                        n = tryRead(b, off, len);
+                    }
+                }
+//            } catch (ConnectionResetException e) {
+//                connectionReset = true;
+//                throwConnectionReset();
+            } finally {
+                endRead(true, n > 0);
+                if (n <= 0 && isInputClosed)
+                    return IOStatus.EOF;
+            }
+            assert n > 0 || n == -1;
+            return n;
+        } finally {
+            readLock.unlock();
+        }
+    }
+
     private void beginWrite(boolean blocking) throws ClosedChannelException {
         if (blocking) {
             // set hook for Thread.interrupt
@@ -368,21 +474,45 @@ public class RdmaSocketChannelImpl
     public int write(ByteBuffer buf) throws IOException {
         Objects.requireNonNull(buf);
 
+        int pos = buf.position();
+        int lim = buf.limit();
+        assert (pos <= lim);
+
         writeLock.lock();
         try {
             boolean blocking = isBlocking();
             int n = 0;
+            ByteBuffer bb = Util.getTemporaryDirectBuffer((128*1024));
+            beginWrite(blocking);
             try {
-                beginWrite(blocking);
-                n = IOUtil.write(fd, buf, -1, nd);
+                if (buf.capacity() < (128*1024)) {
+                    bb.put(buf);
+                } else {
+                    // split buffer by 128K
+                    int rem = (pos <= lim ? lim - pos : 0);
+                    int record_size = (rem > (128*1024) ? (128*1024) : rem);
+                    bb.limit(record_size);
+
+                    if (buf.hasArray()) {
+                        bb.put(buf.array(), pos, record_size);
+                    } else {
+                        byte[] ba = new byte[record_size];
+                        buf.get(ba, 0, record_size);
+                        bb.put(ba);
+                    }
+                }
+                bb.flip();
+                n = IOUtil.write(fd, bb, -1, nd);
                 if (n == IOStatus.UNAVAILABLE && blocking) {
                     do {
                         RdmaNet.poll(fd, Net.POLLOUT, -1);
-                        n = IOUtil.write(fd, buf, -1, nd);
+                        n = IOUtil.write(fd, bb, -1, nd);
                     } while (n == IOStatus.UNAVAILABLE && isOpen());
                 }
             } finally {
                 endWrite(blocking, n > 0);
+                if (n > 0) buf.position(pos + n); // update position
+                Util.releaseTemporaryDirectBuffer(bb);
                 if (n <= 0 && isOutputClosed)
                     throw new AsynchronousCloseException();
             }
@@ -416,6 +546,63 @@ public class RdmaSocketChannelImpl
                     throw new AsynchronousCloseException();
             }
             return IOStatus.normalize(n);
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    /**
+     * Attempts to write a sequence of bytes to the socket from the given
+     * byte array.
+     */
+    private int tryWrite(byte[] b, int off, int len) throws IOException {
+        ByteBuffer src = Util.getTemporaryDirectBuffer(len);
+        assert src.position() == 0;
+        try {
+            src.put(b, off, len);
+            return nd.write(fd, ((DirectBuffer)src).address(), len);
+        } finally {
+            Util.releaseTemporaryDirectBuffer(src);
+        }
+    }
+
+    /**
+     * Writes a sequence of bytes to the socket from the given byte array.
+     *
+     * @apiNote This method is for use by the socket adaptor.
+     */
+    void blockingWriteFully(byte[] b, int off, int len) throws IOException {
+        Objects.checkFromIndexSize(off, len, b.length);
+        if (len == 0) {
+            // nothing to do
+            return;
+        }
+
+        writeLock.lock();
+        try {
+            // check that channel is configured blocking
+            if (!isBlocking())
+                throw new IllegalBlockingModeException();
+
+            // loop until all bytes have been written
+            int pos = off;
+            int end = off + len;
+            beginWrite(true);
+            try {
+                while (pos < end && isOpen()) {
+                    int size = end - pos;
+                    int n = tryWrite(b, pos, size);
+                    while (IOStatus.okayToRetry(n) && isOpen()) {
+                        RdmaNet.poll(fd, Net.POLLOUT, -1);
+                        n = tryWrite(b, pos, size);
+                    }
+                    if (n > 0) {
+                        pos += n;
+                    }
+                }
+            } finally {
+                endWrite(true, pos >= end);
+            }
         } finally {
             writeLock.unlock();
         }
@@ -516,6 +703,36 @@ public class RdmaSocketChannelImpl
         return this;
     }
 
+    /**
+     * Adjusts the blocking mode. readLock or writeLock must already be held.
+     */
+    private void lockedConfigureBlocking(boolean block) throws IOException {
+        assert readLock.isHeldByCurrentThread() || writeLock.isHeldByCurrentThread();
+        synchronized (stateLock) {
+            ensureOpen();
+            RdmaNet.configureBlocking(fd, block);
+        }
+    }
+
+    /**
+     * Adjusts the blocking mode if the channel is open. readLock or writeLock
+     * must already be held.
+     *
+     * @return {@code true} if the blocking mode was adjusted, {@code false} if
+     *         the blocking mode was not adjusted because the channel is closed
+     */
+    private boolean tryLockedConfigureBlocking(boolean block) throws IOException {
+        assert readLock.isHeldByCurrentThread() || writeLock.isHeldByCurrentThread();
+        synchronized (stateLock) {
+            if (isOpen()) {
+                RdmaNet.configureBlocking(fd, block);
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+
     @Override
     public boolean isConnected() {
         return (state == ST_CONNECTED);
@@ -565,16 +782,27 @@ public class RdmaSocketChannelImpl
         }
     }
 
+    /**
+     * Checks the remote address to which this channel is to be connected.
+     */
+    private InetSocketAddress checkRemote(SocketAddress sa) throws IOException {
+        InetSocketAddress isa = RdmaNet.checkAddress(sa, family);
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkConnect(isa.getAddress().getHostAddress(), isa.getPort());
+        }
+        if (isa.getAddress().isAnyLocalAddress()) {
+            return new InetSocketAddress(InetAddress.getLocalHost(), isa.getPort());
+        } else {
+            return isa;
+        }
+    }
+
     @Override
     public boolean connect(SocketAddress sa) throws IOException {
         InetSocketAddress isa = RdmaNet.checkAddress(sa, family);
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null)
-            sm.checkConnect(isa.getAddress().getHostAddress(), isa.getPort());
-
         InetAddress ia = isa.getAddress();
-        if (ia.isAnyLocalAddress())
-            ia = InetAddress.getLocalHost();
+        if (ia.isAnyLocalAddress()) ia = InetAddress.getLocalHost();
 
         try {
             readLock.lock();
@@ -597,6 +825,66 @@ public class RdmaSocketChannelImpl
                         endConnect(blocking, connected);
                     }
                     return connected;
+                } finally {
+                    writeLock.unlock();
+                }
+            } finally {
+                readLock.unlock();
+            }
+        } catch (IOException ioe) {
+            // connect failed, close the channel
+            close();
+            throw ioe;
+        }
+    }
+
+    /**
+     * Attempts to establish a connection to the given socket address with a
+     * timeout. Closes the socket if connection cannot be established.
+     *
+     * @apiNote This method is for use by the socket adaptor.
+     *
+     * @throws IllegalBlockingModeException if the channel is non-blocking
+     * @throws SocketTimeoutException if the read timeout elapses
+     */
+    void blockingConnect(SocketAddress remote, long nanos) throws IOException {
+        InetSocketAddress isa = checkRemote(remote);
+        InetAddress ia = isa.getAddress();
+        if (ia.isAnyLocalAddress()) ia = InetAddress.getLocalHost();
+
+        try {
+            readLock.lock();
+            try {
+                writeLock.lock();
+                try {
+                    if (!isBlocking())
+                        throw new IllegalBlockingModeException();
+                    boolean connected = false;
+                    try {
+                        beginConnect(true, isa);
+                        // change socket to non-blocking
+                        lockedConfigureBlocking(false);
+                        long startNanos = System.nanoTime();
+                        try {
+                            int n = RdmaNet.connect(family, fd, ia, isa.getPort());
+                            if (n == IOStatus.UNAVAILABLE) {
+                                do {
+                                    RdmaNet.poll(fd, Net.POLLOUT, -1);
+                                    n = checkConnect(fd, false);
+                                    long remainingNanos = nanos - (System.nanoTime() - startNanos);
+                                    if (remainingNanos <= 0) {
+                                       throw new SocketTimeoutException("Connect timed out");
+                                    }
+                                } while (n == IOStatus.INTERRUPTED && isOpen());
+                            }
+                            connected = (n > 0) && isOpen();
+                        } finally {
+                            // restore socket to blocking mode (if channel is open)
+                            tryLockedConfigureBlocking(true);
+                        }
+                    } finally {
+                        endConnect(true, connected);
+                    }
                 } finally {
                     writeLock.unlock();
                 }
@@ -975,7 +1263,7 @@ public class RdmaSocketChannelImpl
 
     static {
         IOUtil.load();
-        System.loadLibrary("extnet");
+        System.loadLibrary("rdmanet");
         UnsupportedOperationException uoe = null;
         try {
             initIDs();

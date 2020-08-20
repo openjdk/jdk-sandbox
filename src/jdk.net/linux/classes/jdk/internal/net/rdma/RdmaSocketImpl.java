@@ -94,7 +94,7 @@ public abstract class RdmaSocketImpl extends SocketImpl
             new java.security.PrivilegedAction<>() {
                 public Void run() {
                     System.loadLibrary("net");
-                    System.loadLibrary("extnet");
+                    System.loadLibrary("rdmanet");
                     return null;
                 }
             });

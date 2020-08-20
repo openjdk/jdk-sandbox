@@ -48,6 +48,26 @@ ifeq ($(call isTargetOs, solaris linux macosx), true)
   $(BUILD_LIBEXTNET): $(call FindLib, java.base, java)
 
   TARGETS += $(BUILD_LIBEXTNET)
+
+  $(eval $(call SetupJdkLibrary, BUILD_LIBRDMANET, \
+      NAME := rdmanet, \
+      OPTIMIZATION := LOW, \
+      CFLAGS := $(CFLAGS_JDKLIB) \
+            -I$(SUPPORT_OUTPUTDIR)/headers/java.base \
+            -I$(TOPDIR)/src/java.base/share/native/libnet \
+            -I$(TOPDIR)/src/java.base/unix/native/libnet \
+            -I$(TOPDIR)/src/java.base/share/native/libnio/ch \
+            -I$(TOPDIR)/src/java.base/unix/native/libnio/ch, \
+      LDFLAGS := $(LDFLAGS_JDKLIB) \
+          $(call SET_SHARED_LIBRARY_ORIGIN), \
+      LIBS := -ljava, \
+      LIBS_solaris := -lsocket, \
+      LIBS_linux := -ljvm -lnet -lnio -lpthread -ldl, \
+  ))
+
+  $(BUILD_LIBRDMANET): $(call FindLib, java.base, java)
+
+  TARGETS += $(BUILD_LIBRDMANET)
 endif
 
 ################################################################################

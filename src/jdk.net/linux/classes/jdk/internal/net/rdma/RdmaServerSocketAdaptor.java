@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,57 +32,76 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketException;
-import java.net.SocketTimeoutException;
+import java.net.SocketOption;
 import java.net.StandardSocketOptions;
 import java.nio.channels.IllegalBlockingModeException;
-import java.nio.channels.NotYetBoundException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import sun.nio.ch.Net;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.util.Set;
+
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
+
+// Make a server-socket channel look like a server socket.
+//
+// The methods in this class are defined in exactly the same order as in
+// java.net.ServerSocket so as to simplify tracking future changes to that
+// class.
+//
 
 class RdmaServerSocketAdaptor
     extends ServerSocket
 {
+    // The channel being adapted
     private final RdmaServerSocketChannelImpl ssc;
 
+    // Timeout "option" value for accepts
     private volatile int timeout;
 
-    public static ServerSocket create(RdmaServerSocketChannelImpl ssc) {
+    static ServerSocket create(RdmaServerSocketChannelImpl ssc) {
+        PrivilegedExceptionAction<ServerSocket> pa = () -> new RdmaServerSocketAdaptor(ssc);
         try {
-            return new RdmaServerSocketAdaptor(ssc);
-        } catch (IOException x) {
-            throw new Error(x);
+            return AccessController.doPrivileged(pa);
+        } catch (PrivilegedActionException pae) {
+            throw new InternalError("Should not reach here", pae);
         }
     }
 
-    private RdmaServerSocketAdaptor(RdmaServerSocketChannelImpl ssc)
-            throws IOException {
+    private RdmaServerSocketAdaptor(RdmaServerSocketChannelImpl ssc) throws IOException {
+//qwe        super(DummySocketImpl.create());
         this.ssc = ssc;
     }
 
+    @Override
     public void bind(SocketAddress local) throws IOException {
         bind(local, 50);
     }
 
+    @Override
     public void bind(SocketAddress local, int backlog) throws IOException {
         if (local == null)
             local = new InetSocketAddress(0);
         try {
             ssc.bind(local, backlog);
         } catch (Exception x) {
-            Net.translateException(x);
+            RdmaNet.translateException(x);
         }
     }
 
+    @Override
     public InetAddress getInetAddress() {
         InetSocketAddress local = ssc.localAddress();
         if (local == null) {
             return null;
         } else {
-            return Net.getRevealedLocalAddress(local).getAddress();
+            return RdmaNet.getRevealedLocalAddress(local).getAddress();
         }
     }
 
+    @Override
     public int getLocalPort() {
         InetSocketAddress local = ssc.localAddress();
         if (local == null) {
@@ -92,90 +111,92 @@ class RdmaServerSocketAdaptor
         }
     }
 
+    @Override
     public Socket accept() throws IOException {
-        synchronized (ssc.blockingLock()) {
-            try {
-                if (!ssc.isBound())
-                    throw new NotYetBoundException();
-
-                long to = this.timeout;
-                if (to == 0) {
-                    // for compatibility reasons: accept connection if available
-                    // when configured non-blocking
-                    SocketChannel sc = ssc.accept();
-                    if (sc == null && !ssc.isBlocking())
-                        throw new IllegalBlockingModeException();
-                    return sc.socket();
-                }
-
-                if (!ssc.isBlocking())
+        SocketChannel sc = null;
+        try {
+            int timeout = this.timeout;
+            if (timeout > 0) {
+                long nanos = MILLISECONDS.toNanos(timeout);
+                sc = ssc.blockingAccept(nanos);
+            } else {
+                // accept connection if possible when non-blocking (to preserve
+                // long standing behavior)
+                sc = ssc.accept();
+                if (sc == null) {
                     throw new IllegalBlockingModeException();
-                for (;;) {
-                    long st = System.currentTimeMillis();
-                    if (ssc.pollAccept(to))
-                        return ssc.accept().socket();
-                    to -= System.currentTimeMillis() - st;
-                    if (to <= 0)
-                        throw new SocketTimeoutException();
                 }
-
-            } catch (Exception x) {
-                Net.translateException(x);
-                assert false;
-                return null;            // Never happens
             }
+        } catch (Exception e) {
+            RdmaNet.translateException(e);
         }
+        return sc.socket();
     }
 
+    @Override
     public void close() throws IOException {
         ssc.close();
     }
 
+    @Override
     public ServerSocketChannel getChannel() {
         return ssc;
     }
 
+    @Override
     public boolean isBound() {
         return ssc.isBound();
     }
 
+    @Override
     public boolean isClosed() {
         return !ssc.isOpen();
     }
 
+    @Override
     public void setSoTimeout(int timeout) throws SocketException {
+        if (!ssc.isOpen())
+            throw new SocketException("Socket is closed");
+        if (timeout < 0)
+            throw new IllegalArgumentException("timeout < 0");
         this.timeout = timeout;
     }
 
+    @Override
     public int getSoTimeout() throws SocketException {
+        if (!ssc.isOpen())
+            throw new SocketException("Socket is closed");
         return timeout;
     }
 
+    @Override
     public void setReuseAddress(boolean on) throws SocketException {
         try {
             ssc.setOption(StandardSocketOptions.SO_REUSEADDR, on);
         } catch (IOException x) {
-            Net.translateToSocketException(x);
+            RdmaNet.translateToSocketException(x);
         }
     }
 
+    @Override
     public boolean getReuseAddress() throws SocketException {
         try {
-            return ssc.getOption(StandardSocketOptions.SO_REUSEADDR)
-                      .booleanValue();
+            return ssc.getOption(StandardSocketOptions.SO_REUSEADDR).booleanValue();
         } catch (IOException x) {
-            Net.translateToSocketException(x);
+            RdmaNet.translateToSocketException(x);
             return false;       // Never happens
         }
     }
 
+    @Override
     public String toString() {
         if (!isBound())
-            return "RdmaServerSocket[unbound]";
-        return "RdmaServerSocket[addr=" + getInetAddress() +
+            return "ServerSocket[unbound]";
+        return "ServerSocket[addr=" + getInetAddress() +
                ",localport=" + getLocalPort()  + "]";
     }
 
+    @Override
     public void setReceiveBufferSize(int size) throws SocketException {
         // size 0 valid for ServerSocketChannel, invalid for ServerSocket
         if (size <= 0)
@@ -183,16 +204,33 @@ class RdmaServerSocketAdaptor
         try {
             ssc.setOption(StandardSocketOptions.SO_RCVBUF, size);
         } catch (IOException x) {
-            Net.translateToSocketException(x);
+            RdmaNet.translateToSocketException(x);
         }
     }
 
+    @Override
     public int getReceiveBufferSize() throws SocketException {
         try {
             return ssc.getOption(StandardSocketOptions.SO_RCVBUF).intValue();
         } catch (IOException x) {
-            Net.translateToSocketException(x);
+            RdmaNet.translateToSocketException(x);
             return -1;          // Never happens
         }
+    }
+
+    @Override
+    public <T> ServerSocket setOption(SocketOption<T> name, T value) throws IOException {
+        ssc.setOption(name, value);
+        return this;
+    }
+
+    @Override
+    public <T> T getOption(SocketOption<T> name) throws IOException {
+        return ssc.getOption(name);
+    }
+
+    @Override
+    public Set<SocketOption<?>> supportedOptions() {
+        return ssc.supportedOptions();
     }
 }

@@ -35,7 +35,7 @@ public class RdmaSocketDispatcherImpl {
         java.security.AccessController.doPrivileged(
                 new java.security.PrivilegedAction<Void>() {
                     public Void run() {
-                        System.loadLibrary("extnet");
+                        System.loadLibrary("rdmanet");
                         return null;
                     }
                 });
