@@ -37,6 +37,12 @@ import sun.security.action.GetPropertyAction;
  * addresses are returned.
  */
 public abstract class InetLookupPolicy {
+
+    /**
+     * Constructor for subclasses to call.
+     */
+    public InetLookupPolicy() {}
+
     /**
      * Returns a type of address family that is used to designate a type of addresses
      * queried during resolution of host IP addresses.
