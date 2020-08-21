@@ -63,8 +63,8 @@ import sun.net.util.IPAddressUtil;
 import sun.nio.cs.UTF_8;
 
 import static java.net.InetLookupPolicy.AddressFamily.ANY;
-import static java.net.InetLookupPolicy.AddressFamily.INET;
-import static java.net.InetLookupPolicy.AddressFamily.INET6;
+import static java.net.InetLookupPolicy.AddressFamily.IPV4;
+import static java.net.InetLookupPolicy.AddressFamily.IPV6;
 
 /**
  * This class represents an Internet Protocol (IP) address.
@@ -1071,10 +1071,9 @@ public class InetAddress implements java.io.Serializable {
             List<InetAddress> inetAddresses = new ArrayList<>();
             List<InetAddress> inet4Addresses = new ArrayList<>();
             List<InetAddress> inet6Addresses = new ArrayList<>();
-            boolean needIPv4 = lookupPolicy.getAddressesFamily() == INET ||
-                               lookupPolicy.getAddressesFamily() == ANY;
-            boolean needIPv6 = lookupPolicy.getAddressesFamily() == INET6 ||
-                               lookupPolicy.getAddressesFamily() == ANY;
+            InetLookupPolicy.AddressFamily af = lookupPolicy.getAddressesFamily();
+            boolean needIPv4 = af == IPV4 || af == ANY;
+            boolean needIPv6 = af == IPV6 || af == ANY;
 
             Objects.requireNonNull(host);
 
@@ -1109,10 +1108,10 @@ public class InetAddress implements java.io.Serializable {
             }
             // Check number of found addresses:
             // If none found - throw an exception
-            boolean noAddressFound = switch (lookupPolicy.getAddressesFamily()) {
+            boolean noAddressFound = switch (af) {
                 case ANY ->  inetAddresses.isEmpty();
-                case INET6 -> inet6Addresses.isEmpty();
-                case INET -> inet4Addresses.isEmpty();
+                case IPV6 -> inet6Addresses.isEmpty();
+                case IPV4 -> inet4Addresses.isEmpty();
             };
             if (noAddressFound) {
                 throw new UnknownHostException("Unable to resolve host " + host
@@ -1121,9 +1120,9 @@ public class InetAddress implements java.io.Serializable {
 
             // Return only stream of IPv4 addresses if preferIPv4Stack
             // system property is set to true
-            if (lookupPolicy.getAddressesFamily() == INET) {
+            if (af == IPV4) {
                 return inet4Addresses.stream();
-            } else if (lookupPolicy.getAddressesFamily() == INET6) {
+            } else if (af == IPV6) {
                 return inet6Addresses.stream();
             }
 

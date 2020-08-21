@@ -64,7 +64,7 @@ public class Promiscuous {
         throws IOException
     {
         ProtocolFamily family = (group instanceof Inet6Address) ?
-                StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
+            StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
         int id = rand.nextInt();
         try (DatagramChannel dc = DatagramChannel.open(family)) {
             dc.setOption(StandardSocketOptions.IP_MULTICAST_IF, nif);

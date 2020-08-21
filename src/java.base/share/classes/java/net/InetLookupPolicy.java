@@ -1,51 +1,94 @@
+/*
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+
 package java.net;
 
 import sun.security.action.GetPropertyAction;
 
 /**
+ * An addresses lookup policy object is used to specify a type and order of addresses
+ * supplied to {@link java.net.spi.InetNameServiceProvider.NameService#lookupByName(String, InetLookupPolicy)}
+ * for performing a host name resolution requests.
  *
- *
+ * The platform-wide lookup policy is constructed by consulting a
+ * <a href="doc-files/net-properties.html#Ipv4IPv6">System Properties</a> which affects how IPv4 and IPv6
+ * addresses are returned.
  */
 public abstract class InetLookupPolicy {
     /**
-     * Returns the address family type to lookup for
-     * @return address family type
+     * Returns a type of address family that is used to designate a type of addresses
+     * queried during resolution of host IP addresses.
+     *
+     * @return an address family type
+     * @see java.net.spi.InetNameServiceProvider.NameService#lookupByName(String, InetLookupPolicy)
      */
     public abstract AddressFamily getAddressesFamily();
 
     /**
-     * Returns the order in which addresses should be returned from the name service
-     * @return addresses order
+     * Returns an order in which IP addresses are returned by
+     * {@link java.net.spi.InetNameServiceProvider.NameService} during a host name
+     * resolution requests.
+     *
+     * @return an addresses order
+     * @see java.net.spi.InetNameServiceProvider.NameService#lookupByName(String, InetLookupPolicy)
      */
     public abstract AddressesOrder getAddressesOrder();
 
     /**
-     * Type which specifies the requested address family
+     * Specifies type that is used to designate a family of network addresses queried during
+     * resolution of host IP addresses.
+     * @see AddressesOrder
+     * @see java.net.spi.InetNameServiceProvider.NameService
      */
     public enum AddressFamily {
         /**
-         * Unspecified address family. Instructs {@code NameService} to return network addresses
-         * for both address families: IPv4 and IPv6.
+         * Unspecified address family. Instructs {@link java.net.spi.InetNameServiceProvider.NameService}
+         * to return network addresses for {@code IPv4} and {@code IPv6} address families.
          */
         ANY,
 
         /**
-         * Lookup IPv4 addresses only
+         * Query IPv4 addresses only
          */
-        INET,
+        IPV4,
 
         /**
-         * Lookup IPv6 addresses only
+         * Query IPv6 addresses only
          */
-        INET6
+        IPV6
     }
 
     /**
-     * Type which specifies the requested order of addresses
+     * Specifies an order in which IP addresses are returned by
+     * {@link java.net.spi.InetNameServiceProvider.NameService NameService}
+     * implementations.
+     * @see java.net.spi.InetNameServiceProvider.NameService
      */
     public enum AddressesOrder {
         /**
-         * The addresses are order in the same way as returned by the name service provider.
+         * The addresses are ordered in the same way as returned by the name service provider.
          */
         SYSTEM,
 
@@ -62,21 +105,15 @@ public abstract class InetLookupPolicy {
 
 
     /**
-     * System-wide {@code InetLookupPolicy} initialized from {@code "java.net.preferIPv4Stack"} and
-     * {@code "java.net.preferIPv6Addresses"} system property values.
+     * A system-wide {@code InetLookupPolicy}.
      **/
-    static final InetLookupPolicy PLATFORM = new PlatformInetLookupPolicy();
+    static final InetLookupPolicy PLATFORM = new PlatformLookupPolicy();
 
-    private final static class PlatformInetLookupPolicy extends InetLookupPolicy {
-        private final AddressesOrder order;
-        private final AddressFamily family;
-        private static final String PREFER_IPV4_VALUE;
-        private static final String PREFER_IPV6_VALUE;
-
-        static {
-            PREFER_IPV4_VALUE = GetPropertyAction.privilegedGetProperty("java.net.preferIPv4Stack");
-            PREFER_IPV6_VALUE = GetPropertyAction.privilegedGetProperty("java.net.preferIPv6Addresses");
-        }
+    /**
+     * An address lookup policy initialized from {@code "java.net.preferIPv4Stack"},
+     * {@code "java.net.preferIPv6Addresses"} system property values, and O/S configuration.
+     */
+    private final static class PlatformLookupPolicy extends InetLookupPolicy {
 
         @Override
         public AddressFamily getAddressesFamily() {
@@ -88,7 +125,7 @@ public abstract class InetLookupPolicy {
             return order;
         }
 
-        private PlatformInetLookupPolicy() {
+        private PlatformLookupPolicy() {
             family = initializeFamily();
             order = initializeOrder();
         }
@@ -96,20 +133,20 @@ public abstract class InetLookupPolicy {
         // Initialize the addresses family field. The following information is used
         // to make a decision about the supported address families:
         //     a) java.net.preferIPv4Stack system property value
-        //     b) OS configuration which checked via ipv4_available call
+        //     b) IPV4 availability is checked by ipv4_available call
         //     c) Type of InetAddress.impl instance
         private static AddressFamily initializeFamily() {
             boolean ipv4Available = isIPv4Available();
             if ("true".equals(PREFER_IPV4_VALUE) && ipv4Available) {
-                return AddressFamily.INET;
+                return AddressFamily.IPV4;
             }
             // Check if IPv6 is not supported
             if (InetAddress.impl instanceof Inet4AddressImpl) {
-                return AddressFamily.INET;
+                return AddressFamily.IPV4;
             }
             // Check if system supports IPv4, if not return IPv6
             if (!ipv4Available) {
-                return AddressFamily.INET6;
+                return AddressFamily.IPV6;
             }
             return AddressFamily.ANY;
         }
@@ -117,13 +154,12 @@ public abstract class InetLookupPolicy {
         // Initialize the order of addresses
         private AddressesOrder initializeOrder() {
             return switch (family) {
-                case INET, INET6 -> AddressesOrder.SYSTEM;
+                case IPV4, IPV6 -> AddressesOrder.SYSTEM;
                 case ANY -> getOrderForAnyAddressFamily();
             };
         }
 
-        // Initializes the order of addresses if ANY address family is selected.
-        // Order is initialized from the value of system properties.
+        // Initializes the order of addresses for case when ANY address family is selected.
         private static AddressesOrder getOrderForAnyAddressFamily() {
             // Logic here is identical to the initialization in InetAddress static initializer
             if (PREFER_IPV6_VALUE == null) {
@@ -137,6 +173,25 @@ public abstract class InetLookupPolicy {
             } else {
                 return AddressesOrder.IPV4_FIRST;
             }
+        }
+
+        // Platform's addresses order
+        private final AddressesOrder order;
+
+        // Platform's addresses family
+        private final AddressFamily family;
+
+        // "java.net.preferIPv4Stack" system property value
+        private static final String PREFER_IPV4_VALUE;
+
+        // "java.net.preferIPv6Addresses" system property value
+        private static final String PREFER_IPV6_VALUE;
+
+        static {
+            PREFER_IPV4_VALUE =
+                    GetPropertyAction.privilegedGetProperty("java.net.preferIPv4Stack");
+            PREFER_IPV6_VALUE =
+                    GetPropertyAction.privilegedGetProperty("java.net.preferIPv6Addresses");
         }
     }
 

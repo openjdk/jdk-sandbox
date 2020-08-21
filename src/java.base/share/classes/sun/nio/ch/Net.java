@@ -58,7 +58,11 @@ public class Net {
     private Net() { }
 
     // unspecified protocol family
-    static final ProtocolFamily UNSPEC = () -> "UNSPEC";
+    static final ProtocolFamily UNSPEC = new ProtocolFamily() {
+        public String name() {
+            return "UNSPEC";
+        }
+    };
 
     // set to true if exclusive binding is on for Windows
     private static final boolean exclusiveBind;

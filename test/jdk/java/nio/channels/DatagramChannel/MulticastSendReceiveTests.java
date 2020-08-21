@@ -67,7 +67,7 @@ public class MulticastSendReceiveTests {
         throws IOException
     {
         ProtocolFamily family = (group instanceof Inet6Address) ?
-                StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
+            StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
         int id = rand.nextInt();
         try (DatagramChannel dc = DatagramChannel.open(family)) {
             dc.bind(new InetSocketAddress(local, 0));

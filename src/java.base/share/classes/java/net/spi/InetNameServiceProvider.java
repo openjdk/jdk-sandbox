@@ -50,25 +50,21 @@ public abstract class InetNameServiceProvider {
          * the given {@code host} name: if a textual representation is supplied, the name
          * resolution is likely to fail and {@link UnknownHostException} may be thrown.
          * <p>
-         * If the specified {@code lookupPolicy.getAddressesFamily()} is {@link InetLookupPolicy.AddressFamily#ANY ANY} this
-         * method returns addresses of both {@link InetLookupPolicy.AddressFamily#INET} and
-         * {@link InetLookupPolicy.AddressFamily#INET6} families.
-         * @implSpec
-         * In the case when addresses of both types are returned, there is a
-         * <a href="doc-files/net-properties.html#Ipv4IPv6">couple of System Properties</a>
-         * affecting how IPv4 and IPv6 addresses are returned.
-         * If the value of the {@code "java.net.preferIPv6Addresses"} property is {@code true} then IPv6 addresses
-         * should be returned first. If the value is {@code system} addresses should be returned in the order they
-         * are returned by the system. Otherwise, IPv4 addresses should be returned first.
-         * If the value of the {@code "java.net.preferIPv4Stack"} property is {@code true} then only
-         * IPv4 addresses should be returned.
+         * The address family type is specified by the {@code "lookupPolicy"} parameter and
+         * could be acquired with {@link InetLookupPolicy#getAddressesFamily()}. If it's
+         * value is {@link InetLookupPolicy.AddressFamily#ANY ANY} this method returns addresses
+         * of both {@link InetLookupPolicy.AddressFamily#IPV4 IPV4} and
+         * {@link InetLookupPolicy.AddressFamily#IPV6 IPV6} families.
+         * <p>
+         * The order of returned addresses is specified by the {@code "lookupPolicy"}
+         * parameter and could be acquired with {@link InetLookupPolicy#getAddressesOrder()}.
          *
          * @param host the specified hostname
          * @param lookupPolicy the address lookup policy
-         * @return stream of IP addresses for the requested host
+         * @return a stream of IP addresses for the requested host
          * @throws NullPointerException if {@code host} is {@code null}
          * @throws UnknownHostException if no IP address for the {@code host} could be found
-         *
+         * @see InetLookupPolicy
          */
         Stream<InetAddress> lookupByName(String host, InetLookupPolicy lookupPolicy) throws UnknownHostException;
 
