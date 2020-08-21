@@ -26,8 +26,8 @@
 
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/stringTable.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
+#include "code/nmethod.hpp"
 #include "gc/shenandoah/shenandoahClosures.inline.hpp"
 #include "gc/shenandoah/shenandoahConcurrentRoots.hpp"
 #include "gc/shenandoah/shenandoahRootProcessor.inline.hpp"
@@ -35,12 +35,9 @@
 #include "gc/shenandoah/shenandoahPhaseTimings.hpp"
 #include "gc/shenandoah/shenandoahStringDedup.hpp"
 #include "gc/shenandoah/shenandoahVMOperations.hpp"
-#include "jfr/jfr.hpp"
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.hpp"
 #include "runtime/thread.hpp"
-#include "services/management.hpp"
 
 ShenandoahSerialRoot::ShenandoahSerialRoot(ShenandoahSerialRoot::OopsDo oops_do,
   ShenandoahPhaseTimings::Phase phase, ShenandoahPhaseTimings::ParPhase par_phase) :
@@ -54,25 +51,12 @@ void ShenandoahSerialRoot::oops_do(OopClosure* cl, uint worker_id) {
   }
 }
 
-// Overwrite the second argument for SD::oops_do, don't include vm global oop storage.
-static void system_dictionary_oops_do(OopClosure* cl) {
-  SystemDictionary::oops_do(cl, false);
-}
-
 ShenandoahSerialRoots::ShenandoahSerialRoots(ShenandoahPhaseTimings::Phase phase) :
-  _universe_root(&Universe::oops_do, phase, ShenandoahPhaseTimings::UniverseRoots),
-  _object_synchronizer_root(&ObjectSynchronizer::oops_do, phase, ShenandoahPhaseTimings::ObjectSynchronizerRoots),
-  _management_root(&Management::oops_do, phase, ShenandoahPhaseTimings::ManagementRoots),
-  _system_dictionary_root(&system_dictionary_oops_do, phase, ShenandoahPhaseTimings::SystemDictionaryRoots),
-  _jvmti_root(&JvmtiExport::oops_do, phase, ShenandoahPhaseTimings::JVMTIRoots) {
+  _object_synchronizer_root(&ObjectSynchronizer::oops_do, phase, ShenandoahPhaseTimings::ObjectSynchronizerRoots) {
 }
 
 void ShenandoahSerialRoots::oops_do(OopClosure* cl, uint worker_id) {
-  _universe_root.oops_do(cl, worker_id);
   _object_synchronizer_root.oops_do(cl, worker_id);
-  _management_root.oops_do(cl, worker_id);
-  _system_dictionary_root.oops_do(cl, worker_id);
-  _jvmti_root.oops_do(cl, worker_id);
 }
 
 ShenandoahWeakSerialRoot::ShenandoahWeakSerialRoot(ShenandoahWeakSerialRoot::WeakOopsDo weak_oops_do,
@@ -93,15 +77,8 @@ ShenandoahJVMTIWeakRoot::ShenandoahJVMTIWeakRoot(ShenandoahPhaseTimings::Phase p
 }
 #endif // INCLUDE_JVMTI
 
-#if INCLUDE_JFR
-ShenandoahJFRWeakRoot::ShenandoahJFRWeakRoot(ShenandoahPhaseTimings::Phase phase) :
-  ShenandoahWeakSerialRoot(&Jfr::weak_oops_do, phase, ShenandoahPhaseTimings::JFRWeakRoots) {
-}
-#endif // INCLUDE_JFR
-
 void ShenandoahSerialWeakRoots::weak_oops_do(BoolObjectClosure* is_alive, OopClosure* keep_alive, uint worker_id) {
   JVMTI_ONLY(_jvmti_weak_roots.weak_oops_do(is_alive, keep_alive, worker_id);)
-  JFR_ONLY(_jfr_weak_roots.weak_oops_do(is_alive, keep_alive, worker_id);)
 }
 
 void ShenandoahSerialWeakRoots::weak_oops_do(OopClosure* cl, uint worker_id) {
@@ -148,7 +125,8 @@ void ShenandoahStringDedupRoots::oops_do(BoolObjectClosure* is_alive, OopClosure
   }
 }
 
-ShenandoahConcurrentStringDedupRoots::ShenandoahConcurrentStringDedupRoots() {
+ShenandoahConcurrentStringDedupRoots::ShenandoahConcurrentStringDedupRoots(ShenandoahPhaseTimings::Phase phase) :
+  _phase(phase) {
   if (ShenandoahStringDedup::is_enabled()) {
     StringDedupTable_lock->lock_without_safepoint_check();
     StringDedupQueue_lock->lock_without_safepoint_check();
@@ -170,8 +148,15 @@ void ShenandoahConcurrentStringDedupRoots::oops_do(BoolObjectClosure* is_alive, 
     assert_locked_or_safepoint_weak(StringDedupTable_lock);
 
     StringDedupUnlinkOrOopsDoClosure sd_cl(is_alive, keep_alive);
-    StringDedupQueue::unlink_or_oops_do(&sd_cl);
-    StringDedupTable::unlink_or_oops_do(&sd_cl, worker_id);
+    {
+      ShenandoahWorkerTimingsTracker x(_phase, ShenandoahPhaseTimings::StringDedupQueueRoots, worker_id);
+      StringDedupQueue::unlink_or_oops_do(&sd_cl);
+    }
+
+    {
+      ShenandoahWorkerTimingsTracker x(_phase, ShenandoahPhaseTimings::StringDedupTableRoots, worker_id);
+      StringDedupTable::unlink_or_oops_do(&sd_cl, worker_id);
+    }
   }
 }
 
@@ -198,11 +183,12 @@ ShenandoahRootProcessor::ShenandoahRootProcessor(ShenandoahPhaseTimings::Phase p
 ShenandoahRootScanner::ShenandoahRootScanner(uint n_workers, ShenandoahPhaseTimings::Phase phase) :
   ShenandoahRootProcessor(phase),
   _serial_roots(phase),
-  _thread_roots(phase, n_workers > 1),
-  _code_roots(phase),
-  _vm_roots(phase),
-  _dedup_roots(phase),
-  _cld_roots(phase, n_workers) {
+  _thread_roots(phase, n_workers > 1) {
+  nmethod::oops_do_marking_prologue();
+}
+
+ShenandoahRootScanner::~ShenandoahRootScanner() {
+  nmethod::oops_do_marking_epilogue();
 }
 
 void ShenandoahRootScanner::roots_do(uint worker_id, OopClosure* oops) {
@@ -231,11 +217,6 @@ void ShenandoahRootScanner::roots_do(uint worker_id, OopClosure* oops, CLDClosur
   // Process serial-claiming roots first
   _serial_roots.oops_do(oops, worker_id);
 
-   // Process light-weight/limited parallel roots then
-  _vm_roots.oops_do(oops, worker_id);
-  _dedup_roots.oops_do(&always_true, oops, worker_id);
-  _cld_roots.cld_do(clds, worker_id);
-
   // Process heavy-weight/fully parallel roots the last
   _thread_roots.threads_do(&tc_cl, worker_id);
 }
@@ -248,10 +229,6 @@ void ShenandoahRootScanner::strong_roots_do(uint worker_id, OopClosure* oops, CL
 
   // Process serial-claiming roots first
   _serial_roots.oops_do(oops, worker_id);
-
-  // Process light-weight/limited parallel roots then
-  _vm_roots.oops_do(oops, worker_id);
-  _cld_roots.always_strong_cld_do(clds, worker_id);
 
   // Process heavy-weight/fully parallel roots the last
   _thread_roots.threads_do(&tc_cl, worker_id);
@@ -363,6 +340,7 @@ ShenandoahHeapIterationRootScanner::ShenandoahHeapIterationRootScanner() :
    _cld_roots(ShenandoahPhaseTimings::heap_iteration_roots, 1),
    _serial_weak_roots(ShenandoahPhaseTimings::heap_iteration_roots),
    _weak_roots(ShenandoahPhaseTimings::heap_iteration_roots),
+   _dedup_roots(ShenandoahPhaseTimings::heap_iteration_roots),
    _code_roots(ShenandoahPhaseTimings::heap_iteration_roots) {
  }
 

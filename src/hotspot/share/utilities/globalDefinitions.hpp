@@ -46,6 +46,10 @@
 #define ATTRIBUTE_ALIGNED(x)
 #endif
 
+#ifndef ATTRIBUTE_FLATTEN
+#define ATTRIBUTE_FLATTEN
+#endif
+
 // These are #defines to selectively turn on/off the Print(Opto)Assembly
 // capabilities. Choices should be led by a tradeoff between
 // code size and improved supportability.
@@ -431,6 +435,11 @@ inline size_t pointer_delta(const MetaWord* left, const MetaWord* right) {
 //
 #define CAST_TO_FN_PTR(func_type, value) (reinterpret_cast<func_type>(value))
 #define CAST_FROM_FN_PTR(new_type, func_ptr) ((new_type)((address_word)(func_ptr)))
+
+// Need the correct linkage to call qsort without warnings
+extern "C" {
+  typedef int (*_sort_Fn)(const void *, const void *);
+}
 
 // Unsigned byte types for os and stream.hpp
 
@@ -1090,7 +1099,11 @@ template<class T> static void swap(T& a, T& b) {
   b = tmp;
 }
 
-#define ARRAY_SIZE(array) (sizeof(array)/sizeof((array)[0]))
+// array_size_impl is a function that takes a reference to T[N] and
+// returns a reference to char[N].  It is not ODR-used, so not defined.
+template<typename T, size_t N> char (&array_size_impl(T (&)[N]))[N];
+
+#define ARRAY_SIZE(array) sizeof(array_size_impl(array))
 
 //----------------------------------------------------------------------------------------------------
 // Sum and product which can never overflow: they wrap, just like the

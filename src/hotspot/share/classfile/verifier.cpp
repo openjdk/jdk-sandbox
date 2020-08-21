@@ -134,8 +134,15 @@ void Verifier::trace_class_resolution(Klass* resolve_class, InstanceKlass* verif
 void Verifier::log_end_verification(outputStream* st, const char* klassName, Symbol* exception_name, TRAPS) {
   if (HAS_PENDING_EXCEPTION) {
     st->print("Verification for %s has", klassName);
-    st->print_cr(" exception pending %s ",
+    oop message = java_lang_Throwable::message(PENDING_EXCEPTION);
+    if (message != NULL) {
+      char* ex_msg = java_lang_String::as_utf8_string(message);
+      st->print_cr(" exception pending '%s %s'",
+                 PENDING_EXCEPTION->klass()->external_name(), ex_msg);
+    } else {
+      st->print_cr(" exception pending %s ",
                  PENDING_EXCEPTION->klass()->external_name());
+    }
   } else if (exception_name != NULL) {
     st->print_cr("Verification for %s failed", klassName);
   }
@@ -289,7 +296,6 @@ bool Verifier::is_eligible_for_verification(InstanceKlass* klass, bool should_ve
 Symbol* Verifier::inference_verify(
     InstanceKlass* klass, char* message, size_t message_len, TRAPS) {
   JavaThread* thread = (JavaThread*)THREAD;
-  JNIEnv *env = thread->jni_environment();
 
   verify_byte_codes_fn_t verify_func = verify_byte_codes_fn();
 
@@ -298,10 +304,10 @@ Symbol* Verifier::inference_verify(
     return vmSymbols::java_lang_VerifyError();
   }
 
-  ResourceMark rm(THREAD);
+  ResourceMark rm(thread);
   log_info(verification)("Verifying class %s with old format", klass->external_name());
 
-  jclass cls = (jclass) JNIHandles::make_local(env, klass->java_mirror());
+  jclass cls = (jclass) JNIHandles::make_local(thread, klass->java_mirror());
   jint result;
 
   {
@@ -309,7 +315,7 @@ Symbol* Verifier::inference_verify(
     ThreadToNativeFromVM ttn(thread);
     // ThreadToNativeFromVM takes care of changing thread_state, so safepoint
     // code knows that we have left the VM
-
+    JNIEnv *env = thread->jni_environment();
     result = (*verify_func)(env, cls, message, (int)message_len, klass->major_version());
   }
 
@@ -2110,7 +2116,7 @@ bool ClassVerifier::is_protected_access(InstanceKlass* this_class,
   InstanceKlass* target_instance = InstanceKlass::cast(target_class);
   fieldDescriptor fd;
   if (is_method) {
-    Method* m = target_instance->uncached_lookup_method(field_name, field_sig, Klass::find_overpass);
+    Method* m = target_instance->uncached_lookup_method(field_name, field_sig, Klass::OverpassLookupMode::find);
     if (m != NULL && m->is_protected()) {
       if (!this_class->is_same_class_package(m->method_holder())) {
         return true;
@@ -2703,7 +2709,7 @@ void ClassVerifier::verify_invoke_init(
       Method* m = InstanceKlass::cast(ref_klass)->uncached_lookup_method(
         vmSymbols::object_initializer_name(),
         cp->signature_ref_at(bcs->get_index_u2()),
-        Klass::find_overpass);
+        Klass::OverpassLookupMode::find);
       // Do nothing if method is not found.  Let resolution detect the error.
       if (m != NULL) {
         InstanceKlass* mh = m->method_holder();

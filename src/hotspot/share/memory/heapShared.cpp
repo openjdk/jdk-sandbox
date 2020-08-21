@@ -28,6 +28,7 @@
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "logging/log.hpp"
 #include "logging/logMessage.hpp"
 #include "logging/logStream.hpp"
@@ -135,17 +136,23 @@ oop HeapShared::archive_heap_object(oop obj, Thread* THREAD) {
     return NULL;
   }
 
-  // Pre-compute object identity hash at CDS dump time.
-  obj->identity_hash();
-
   oop archived_oop = (oop)G1CollectedHeap::heap()->archive_mem_allocate(len);
   if (archived_oop != NULL) {
     Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(obj), cast_from_oop<HeapWord*>(archived_oop), len);
     MetaspaceShared::relocate_klass_ptr(archived_oop);
-    // Clear age -- it might have been set if a GC happened during -Xshare:dump
-    markWord mark = archived_oop->mark_raw();
-    mark = mark.set_age(0);
-    archived_oop->set_mark_raw(mark);
+    // Reinitialize markword to remove age/marking/locking/etc.
+    //
+    // We need to retain the identity_hash, because it may have been used by some hashtables
+    // in the shared heap. This also has the side effect of pre-initializing the
+    // identity_hash for all shared objects, so they are less likely to be written
+    // into during run time, increasing the potential of memory sharing.
+    int hash_original = obj->identity_hash();
+    archived_oop->set_mark_raw(markWord::prototype().copy_set_hash(hash_original));
+    assert(archived_oop->mark().is_unlocked(), "sanity");
+
+    DEBUG_ONLY(int hash_archived = archived_oop->identity_hash());
+    assert(hash_original == hash_archived, "Different hash codes: original %x, archived %x", hash_original, hash_archived);
+
     ArchivedObjectCache* cache = archived_object_cache();
     cache->put(obj, archived_oop);
     log_debug(cds, heap)("Archived heap object " PTR_FORMAT " ==> " PTR_FORMAT,
@@ -182,6 +189,25 @@ void HeapShared::archive_klass_objects(Thread* THREAD) {
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
       ik->constants()->archive_resolved_references(THREAD);
+    }
+  }
+}
+
+void HeapShared::run_full_gc_in_vm_thread() {
+  if (is_heap_object_archiving_allowed()) {
+    // Avoid fragmentation while archiving heap objects.
+    // We do this inside a safepoint, so that no further allocation can happen after GC
+    // has finished.
+    if (GCLocker::is_active()) {
+      // Just checking for safety ...
+      // This should not happen during -Xshare:dump. If you see this, probably the Java core lib
+      // has been modified such that JNI code is executed in some clean up threads after
+      // we have finished class loading.
+      log_warning(cds)("GC locker is held, unable to start extra compacting GC. This may produce suboptimal results.");
+    } else {
+      log_info(cds)("Run GC ...");
+      Universe::heap()->collect_as_vm_thread(GCCause::_archive_time_gc);
+      log_info(cds)("Run GC done");
     }
   }
 }
@@ -289,7 +315,7 @@ void KlassSubGraphInfo::add_subgraph_entry_field(
   assert(DumpSharedSpaces, "dump time only");
   if (_subgraph_entry_fields == NULL) {
     _subgraph_entry_fields =
-      new(ResourceObj::C_HEAP, mtClass) GrowableArray<juint>(10, true);
+      new(ResourceObj::C_HEAP, mtClass) GrowableArray<juint>(10, mtClass);
   }
   _subgraph_entry_fields->append((juint)static_field_offset);
   _subgraph_entry_fields->append(CompressedOops::encode(v));
@@ -305,7 +331,7 @@ void KlassSubGraphInfo::add_subgraph_object_klass(Klass* orig_k, Klass *relocate
 
   if (_subgraph_object_klasses == NULL) {
     _subgraph_object_klasses =
-      new(ResourceObj::C_HEAP, mtClass) GrowableArray<Klass*>(50, true);
+      new(ResourceObj::C_HEAP, mtClass) GrowableArray<Klass*>(50, mtClass);
   }
 
   assert(relocated_k->is_shared(), "must be a shared class");

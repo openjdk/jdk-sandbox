@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -280,7 +286,7 @@ public final class HelloApp {
     private static AppOutputVerifier getVerifier(JPackageCommand cmd,
             String... args) {
         final Path launcherPath = cmd.appLauncherPath();
-        if (cmd.isFakeRuntime(String.format("Not running [%s] launcher",
+        if (!cmd.canRunLauncher(String.format("Not running [%s] launcher",
                 launcherPath))) {
             return null;
         }

@@ -26,7 +26,6 @@
 #include "aot/aotLoader.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/stringTable.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
 #include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1CodeBlobClosure.hpp"
@@ -39,11 +38,12 @@
 #include "gc/g1/g1RootClosures.hpp"
 #include "gc/g1/g1RootProcessor.hpp"
 #include "gc/g1/heapRegion.inline.hpp"
+#include "gc/shared/oopStorage.inline.hpp"
+#include "gc/shared/oopStorageSet.hpp"
+#include "gc/shared/oopStorageSetParState.inline.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "memory/allocation.inline.hpp"
-#include "memory/universe.hpp"
 #include "runtime/mutex.hpp"
-#include "services/management.hpp"
 #include "utilities/macros.hpp"
 
 G1RootProcessor::G1RootProcessor(G1CollectedHeap* g1h, uint n_workers) :
@@ -181,37 +181,9 @@ void G1RootProcessor::process_vm_roots(G1RootClosures* closures,
   OopClosure* strong_roots = closures->strong_oops();
 
   {
-    G1GCParPhaseTimesTracker x(phase_times, G1GCPhaseTimes::UniverseRoots, worker_id);
-    if (_process_strong_tasks.try_claim_task(G1RP_PS_Universe_oops_do)) {
-      Universe::oops_do(strong_roots);
-    }
-  }
-
-  {
-    G1GCParPhaseTimesTracker x(phase_times, G1GCPhaseTimes::JNIRoots, worker_id);
-    if (_process_strong_tasks.try_claim_task(G1RP_PS_JNIHandles_oops_do)) {
-      JNIHandles::oops_do(strong_roots);
-    }
-  }
-
-  {
     G1GCParPhaseTimesTracker x(phase_times, G1GCPhaseTimes::ObjectSynchronizerRoots, worker_id);
     if (_process_strong_tasks.try_claim_task(G1RP_PS_ObjectSynchronizer_oops_do)) {
       ObjectSynchronizer::oops_do(strong_roots);
-    }
-  }
-
-  {
-    G1GCParPhaseTimesTracker x(phase_times, G1GCPhaseTimes::ManagementRoots, worker_id);
-    if (_process_strong_tasks.try_claim_task(G1RP_PS_Management_oops_do)) {
-      Management::oops_do(strong_roots);
-    }
-  }
-
-  {
-    G1GCParPhaseTimesTracker x(phase_times, G1GCPhaseTimes::JVMTIRoots, worker_id);
-    if (_process_strong_tasks.try_claim_task(G1RP_PS_jvmti_oops_do)) {
-      JvmtiExport::oops_do(strong_roots);
     }
   }
 
@@ -224,11 +196,10 @@ void G1RootProcessor::process_vm_roots(G1RootClosures* closures,
   }
 #endif
 
-  {
-    G1GCParPhaseTimesTracker x(phase_times, G1GCPhaseTimes::SystemDictionaryRoots, worker_id);
-    if (_process_strong_tasks.try_claim_task(G1RP_PS_SystemDictionary_oops_do)) {
-      SystemDictionary::oops_do(strong_roots);
-    }
+  for (int i = 0; i < _oop_storage_set_strong_par_state.par_state_count(); ++i) {
+    G1GCPhaseTimes::GCParPhases phase = G1GCPhaseTimes::GCParPhases(G1GCPhaseTimes::StrongOopStorageSetRoots + i);
+    G1GCParPhaseTimesTracker x(phase_times, phase, worker_id);
+    _oop_storage_set_strong_par_state.par_state(i)->oops_do(closures->strong_oops());
   }
 }
 

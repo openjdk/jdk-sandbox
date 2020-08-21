@@ -388,16 +388,7 @@ class ClassLoader: AllStatic {
 
   // Helper function used by CDS code to get the number of module path
   // entries during shared classpath setup time.
-  static int num_module_path_entries() {
-    Arguments::assert_is_dumping_archive();
-    int num_entries = 0;
-    ClassPathEntry* e= ClassLoader::_module_path_entries;
-    while (e != NULL) {
-      num_entries ++;
-      e = e->next();
-    }
-    return num_entries;
-  }
+  static int num_module_path_entries();
   static void  exit_with_path_failure(const char* error, const char* message);
   static char* skip_uri_protocol(char* source);
   static void  record_result(InstanceKlass* ik, const ClassFileStream* stream, TRAPS);
@@ -450,12 +441,11 @@ class PerfClassTraceTime {
  public:
   enum {
     CLASS_LOAD   = 0,
-    PARSE_CLASS  = 1,
-    CLASS_LINK   = 2,
-    CLASS_VERIFY = 3,
-    CLASS_CLINIT = 4,
-    DEFINE_CLASS = 5,
-    EVENT_TYPE_COUNT = 6
+    CLASS_LINK   = 1,
+    CLASS_VERIFY = 2,
+    CLASS_CLINIT = 3,
+    DEFINE_CLASS = 4,
+    EVENT_TYPE_COUNT = 5
   };
  protected:
   // _t tracks time from initialization to destruction of this timer instance
@@ -492,9 +482,6 @@ class PerfClassTraceTime {
       _timep(timep), _selftimep(NULL), _eventp(NULL), _recursion_counters(NULL), _timers(timers), _event_type(type) {
     initialize();
   }
-
-  inline void suspend() { _t.stop(); _timers[_event_type].stop(); }
-  inline void resume()  { _t.start(); _timers[_event_type].start(); }
 
   ~PerfClassTraceTime();
   void initialize();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "services/memTracker.hpp"
 #include "services/threadStackTracker.hpp"
 #include "services/virtualMemoryTracker.hpp"
+#include "utilities/ostream.hpp"
 
 size_t VirtualMemorySummary::_snapshot[CALC_OBJ_SIZE_IN_TYPE(VirtualMemorySnapshot, size_t)];
 
@@ -288,7 +289,9 @@ size_t ReservedMemoryRegion::committed_size() const {
 }
 
 void ReservedMemoryRegion::set_flag(MEMFLAGS f) {
-  assert((flag() == mtNone || flag() == f), "Overwrite memory type");
+  assert((flag() == mtNone || flag() == f),
+         "Overwrite memory type for region [" PTR_FORMAT "-" PTR_FORMAT "), %u->%u.",
+         p2i(base()), p2i(end()), (unsigned)flag(), (unsigned)f);
   if (flag() != f) {
     VirtualMemorySummary::move_reserved_memory(flag(), f, size());
     VirtualMemorySummary::move_committed_memory(flag(), f, committed_size());
@@ -348,12 +351,9 @@ bool VirtualMemoryTracker::add_reserved_region(address base_addr, size_t size,
       reserved_rgn->set_call_stack(stack);
       reserved_rgn->set_flag(flag);
       return true;
-    } else if (reserved_rgn->adjacent_to(base_addr, size)) {
-      VirtualMemorySummary::record_reserved_memory(size, flag);
-      reserved_rgn->expand_region(base_addr, size);
-      reserved_rgn->set_call_stack(stack);
-      return true;
     } else {
+      assert(reserved_rgn->overlap_region(base_addr, size), "Must be");
+
       // Overlapped reservation.
       // It can happen when the regions are thread stacks, as JNI
       // thread does not detach from VM before exits, and leads to
@@ -388,6 +388,13 @@ bool VirtualMemoryTracker::add_reserved_region(address base_addr, size_t size,
         return true;
       }
 
+      // Print some more details. Don't use UL here to avoid circularities.
+#ifdef ASSERT
+      tty->print_cr("Error: existing region: [" PTR_FORMAT "-" PTR_FORMAT "), flag %u.\n"
+                    "       new region: [" PTR_FORMAT "-" PTR_FORMAT "), flag %u.",
+                    p2i(reserved_rgn->base()), p2i(reserved_rgn->end()), (unsigned)reserved_rgn->flag(),
+                    p2i(base_addr), p2i(base_addr + size), (unsigned)flag);
+#endif
       ShouldNotReachHere();
       return false;
     }
@@ -438,6 +445,19 @@ bool VirtualMemoryTracker::remove_uncommitted_region(address addr, size_t size) 
   return result;
 }
 
+bool VirtualMemoryTracker::remove_released_region(ReservedMemoryRegion* rgn) {
+  assert(rgn != NULL, "Sanity check");
+  assert(_reserved_regions != NULL, "Sanity check");
+
+  // uncommit regions within the released region
+  if (!rgn->remove_uncommitted_region(rgn->base(), rgn->size())) {
+    return false;
+  }
+
+  VirtualMemorySummary::record_released_memory(rgn->size(), rgn->flag());
+  return _reserved_regions->remove(*rgn);
+}
+
 bool VirtualMemoryTracker::remove_released_region(address addr, size_t size) {
   assert(addr != NULL, "Invalid address");
   assert(size > 0, "Invalid size");
@@ -447,6 +467,9 @@ bool VirtualMemoryTracker::remove_released_region(address addr, size_t size) {
   ReservedMemoryRegion* reserved_rgn = _reserved_regions->find(rgn);
 
   assert(reserved_rgn != NULL, "No reserved region");
+  if (reserved_rgn->same_region(addr, size)) {
+    return remove_released_region(reserved_rgn);
+  }
 
   // uncommit regions within the released region
   if (!reserved_rgn->remove_uncommitted_region(addr, size)) {
@@ -454,8 +477,7 @@ bool VirtualMemoryTracker::remove_released_region(address addr, size_t size) {
   }
 
   if (reserved_rgn->flag() == mtClassShared &&
-      reserved_rgn->contain_region(addr, size) &&
-      !reserved_rgn->same_region(addr, size)) {
+      reserved_rgn->contain_region(addr, size)) {
     // This is an unmapped CDS region, which is part of the reserved shared
     // memory region.
     // See special handling in VirtualMemoryTracker::add_reserved_region also.
@@ -464,32 +486,52 @@ bool VirtualMemoryTracker::remove_released_region(address addr, size_t size) {
 
   VirtualMemorySummary::record_released_memory(size, reserved_rgn->flag());
 
-  if (reserved_rgn->same_region(addr, size)) {
-    return _reserved_regions->remove(rgn);
+  assert(reserved_rgn->contain_region(addr, size), "Not completely contained");
+  if (reserved_rgn->base() == addr ||
+      reserved_rgn->end() == addr + size) {
+      reserved_rgn->exclude_region(addr, size);
+    return true;
   } else {
-    assert(reserved_rgn->contain_region(addr, size), "Not completely contained");
-    if (reserved_rgn->base() == addr ||
-        reserved_rgn->end() == addr + size) {
-        reserved_rgn->exclude_region(addr, size);
-      return true;
-    } else {
-      address top = reserved_rgn->end();
-      address high_base = addr + size;
-      ReservedMemoryRegion high_rgn(high_base, top - high_base,
-        *reserved_rgn->call_stack(), reserved_rgn->flag());
+    address top = reserved_rgn->end();
+    address high_base = addr + size;
+    ReservedMemoryRegion high_rgn(high_base, top - high_base,
+      *reserved_rgn->call_stack(), reserved_rgn->flag());
 
-      // use original region for lower region
-      reserved_rgn->exclude_region(addr, top - addr);
-      LinkedListNode<ReservedMemoryRegion>* new_rgn = _reserved_regions->add(high_rgn);
-      if (new_rgn == NULL) {
-        return false;
-      } else {
-        reserved_rgn->move_committed_regions(addr, *new_rgn->data());
-        return true;
-      }
+    // use original region for lower region
+    reserved_rgn->exclude_region(addr, top - addr);
+    LinkedListNode<ReservedMemoryRegion>* new_rgn = _reserved_regions->add(high_rgn);
+    if (new_rgn == NULL) {
+      return false;
+    } else {
+      reserved_rgn->move_committed_regions(addr, *new_rgn->data());
+      return true;
     }
   }
 }
+
+// Given an existing memory mapping registered with NMT, split the mapping in
+//  two. The newly created two mappings will be registered under the call
+//  stack and the memory flags of the original section.
+bool VirtualMemoryTracker::split_reserved_region(address addr, size_t size, size_t split) {
+
+  ReservedMemoryRegion  rgn(addr, size);
+  ReservedMemoryRegion* reserved_rgn = _reserved_regions->find(rgn);
+  assert(reserved_rgn->same_region(addr, size), "Must be identical region");
+  assert(reserved_rgn != NULL, "No reserved region");
+  assert(reserved_rgn->committed_size() == 0, "Splitting committed region?");
+
+  NativeCallStack original_stack = *reserved_rgn->call_stack();
+  MEMFLAGS original_flags = reserved_rgn->flag();
+
+  remove_released_region(reserved_rgn);
+
+  // Now, create two new regions.
+  add_reserved_region(addr, split, original_stack, original_flags);
+  add_reserved_region(addr + split, size - split, original_stack, original_flags);
+
+  return true;
+}
+
 
 // Iterate the range, find committed region within its bound.
 class RegionIterator : public StackObj {

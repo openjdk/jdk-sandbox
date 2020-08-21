@@ -40,7 +40,6 @@
 #include "prims/jvm_misc.hpp"
 #include "porting_aix.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
@@ -110,19 +109,18 @@ static address ucontext_get_lr(const ucontext_t * uc) {
   return (address)uc->uc_mcontext.jmp_context.lr;
 }
 
-ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
-                                        intptr_t** ret_sp, intptr_t** ret_fp) {
+address os::fetch_frame_from_context(const void* ucVoid,
+                                     intptr_t** ret_sp, intptr_t** ret_fp) {
 
-  ExtendedPC  epc;
+  address epc;
   const ucontext_t* uc = (const ucontext_t*)ucVoid;
 
   if (uc != NULL) {
-    epc = ExtendedPC(os::Aix::ucontext_get_pc(uc));
+    epc = os::Aix::ucontext_get_pc(uc);
     if (ret_sp) *ret_sp = os::Aix::ucontext_get_sp(uc);
     if (ret_fp) *ret_fp = os::Aix::ucontext_get_fp(uc);
   } else {
-    // construct empty ExtendedPC for return value checking
-    epc = ExtendedPC(NULL);
+    epc = NULL;
     if (ret_sp) *ret_sp = (intptr_t *)NULL;
     if (ret_fp) *ret_fp = (intptr_t *)NULL;
   }
@@ -133,10 +131,10 @@ ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
 frame os::fetch_frame_from_context(const void* ucVoid) {
   intptr_t* sp;
   intptr_t* fp;
-  ExtendedPC epc = fetch_frame_from_context(ucVoid, &sp, &fp);
+  address epc = fetch_frame_from_context(ucVoid, &sp, &fp);
   // Avoid crash during crash if pc broken.
-  if (epc.pc()) {
-    frame fr(sp, epc.pc());
+  if (epc) {
+    frame fr(sp, epc);
     return fr;
   }
   frame fr(sp);
@@ -438,25 +436,28 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
 
       // stop on request
       else if (sig == SIGTRAP && (stop_type = nativeInstruction_at(pc)->get_stop_type()) != -1) {
-        const char *msg = NULL,
-                   *detail_msg = (const char*)(uc->uc_mcontext.jmp_context.gpr[0]);
+        bool msg_present = (stop_type & MacroAssembler::stop_msg_present);
+        stop_type = (stop_type &~ MacroAssembler::stop_msg_present);
+
+        const char *msg = NULL;
         switch (stop_type) {
-          case MacroAssembler::stop_stop              :  msg = "stop"; break;
-          case MacroAssembler::stop_untested          :  msg = "untested"; break;
-          case MacroAssembler::stop_unimplemented     :  msg = "unimplemented"; break;
-          case MacroAssembler::stop_shouldnotreachhere:  msg = "shouldnotreachhere"; detail_msg = NULL; break;
+          case MacroAssembler::stop_stop              : msg = "stop"; break;
+          case MacroAssembler::stop_untested          : msg = "untested"; break;
+          case MacroAssembler::stop_unimplemented     : msg = "unimplemented"; break;
+          case MacroAssembler::stop_shouldnotreachhere: msg = "shouldnotreachhere"; break;
           default: msg = "unknown"; break;
         }
-        if (detail_msg == NULL) {
-          detail_msg = "no details provided";
-        }
+
+        const char **detail_msg_ptr = (const char**)(pc + 4);
+        const char *detail_msg = msg_present ? *detail_msg_ptr : "no details provided";
 
         if (TraceTraps) {
           tty->print_cr("trap: %s: %s (SIGTRAP, stop type %d)", msg, detail_msg, stop_type);
         }
 
         va_list detail_args;
-        VMError::report_and_die(t, ucVoid, NULL, 0, msg, detail_msg, detail_args);
+        VMError::report_and_die(INTERNAL_ERROR, msg, detail_msg, detail_args, thread,
+                                pc, info, ucVoid, NULL, 0, 0);
         va_end(detail_args);
       }
 

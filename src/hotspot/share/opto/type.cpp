@@ -25,8 +25,8 @@
 #include "precompiled.hpp"
 #include "ci/ciMethodData.hpp"
 #include "ci/ciTypeFlow.hpp"
+#include "classfile/javaClasses.hpp"
 #include "classfile/symbolTable.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "compiler/compileLog.hpp"
 #include "libadt/dict.hpp"
 #include "memory/oopFactory.hpp"
@@ -2218,7 +2218,6 @@ bool TypeAry::empty(void) const {
 
 //--------------------------ary_must_be_exact----------------------------------
 bool TypeAry::ary_must_be_exact() const {
-  if (!UseExactTypes)       return false;
   // This logic looks at the element type of an array, and returns true
   // if the element type is either a primitive or a final instance class.
   // In such cases, an array built on this ary must have no subclasses.
@@ -3006,7 +3005,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, int o
       } else if (_offset == OffsetBot || _offset == OffsetTop) {
         // unsafe access
         _is_ptr_to_narrowoop = UseCompressedOops;
-      } else { // exclude unsafe ops
+      } else {
         assert(this->isa_instptr(), "must be an instance ptr.");
 
         if (klass() == ciEnv::current()->Class_klass() &&
@@ -3021,9 +3020,13 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, int o
           assert(o != NULL, "must be constant");
           ciInstanceKlass* k = o->as_instance()->java_lang_Class_klass()->as_instance_klass();
           ciField* field = k->get_field_by_offset(_offset, true);
-          assert(field != NULL, "missing field");
-          BasicType basic_elem_type = field->layout_type();
-          _is_ptr_to_narrowoop = UseCompressedOops && is_reference_type(basic_elem_type);
+          if (field != NULL) {
+            BasicType basic_elem_type = field->layout_type();
+            _is_ptr_to_narrowoop = UseCompressedOops && is_reference_type(basic_elem_type);
+          } else {
+            // unsafe access
+            _is_ptr_to_narrowoop = UseCompressedOops;
+          }
         } else {
           // Instance fields which contains a compressed oop references.
           field = ik->get_field_by_offset(_offset, false);
@@ -3192,13 +3195,11 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
           klass_is_exact = sub->is_final();
         }
       }
-      if (!klass_is_exact && try_for_exact
-          && deps != NULL && UseExactTypes) {
-        if (!ik->is_interface() && !ik->has_subklass()) {
-          // Add a dependence; if concrete subclass added we need to recompile
-          deps->assert_leaf_type(ik);
-          klass_is_exact = true;
-        }
+      if (!klass_is_exact && try_for_exact && deps != NULL &&
+          !ik->is_interface() && !ik->has_subklass()) {
+        // Add a dependence; if concrete subclass added we need to recompile
+        deps->assert_leaf_type(ik);
+        klass_is_exact = true;
       }
     }
     return TypeInstPtr::make(TypePtr::BotPTR, klass, klass_is_exact, NULL, 0);
@@ -3509,8 +3510,7 @@ const TypeInstPtr *TypeInstPtr::make(PTR ptr,
   // Ptr is never Null
   assert( ptr != Null, "NULL pointers are not typed" );
 
-  assert(instance_id <= 0 || xk || !UseExactTypes, "instances are always exactly typed");
-  if (!UseExactTypes)  xk = false;
+  assert(instance_id <= 0 || xk, "instances are always exactly typed");
   if (ptr == Constant) {
     // Note:  This case includes meta-object constants, such as methods.
     xk = true;
@@ -3562,7 +3562,6 @@ const Type *TypeInstPtr::cast_to_ptr_type(PTR ptr) const {
 //-----------------------------cast_to_exactness-------------------------------
 const Type *TypeInstPtr::cast_to_exactness(bool klass_is_exact) const {
   if( klass_is_exact == _klass_is_exact ) return this;
-  if (!UseExactTypes)  return this;
   if (!_klass->is_loaded())  return this;
   ciInstanceKlass* ik = _klass->as_instance_klass();
   if( (ik->is_final() || _const_oop) )  return this;  // cannot clear xk
@@ -4069,8 +4068,7 @@ const TypeAryPtr *TypeAryPtr::make(PTR ptr, const TypeAry *ary, ciKlass* k, bool
   assert(!(k == NULL && ary->_elem->isa_int()),
          "integral arrays must be pre-equipped with a class");
   if (!xk)  xk = ary->ary_must_be_exact();
-  assert(instance_id <= 0 || xk || !UseExactTypes, "instances are always exactly typed");
-  if (!UseExactTypes)  xk = (ptr == Constant);
+  assert(instance_id <= 0 || xk, "instances are always exactly typed");
   return (TypeAryPtr*)(new TypeAryPtr(ptr, NULL, ary, k, xk, offset, instance_id, false, speculative, inline_depth))->hashcons();
 }
 
@@ -4082,8 +4080,7 @@ const TypeAryPtr *TypeAryPtr::make(PTR ptr, ciObject* o, const TypeAry *ary, ciK
          "integral arrays must be pre-equipped with a class");
   assert( (ptr==Constant && o) || (ptr!=Constant && !o), "" );
   if (!xk)  xk = (o != NULL) || ary->ary_must_be_exact();
-  assert(instance_id <= 0 || xk || !UseExactTypes, "instances are always exactly typed");
-  if (!UseExactTypes)  xk = (ptr == Constant);
+  assert(instance_id <= 0 || xk, "instances are always exactly typed");
   return (TypeAryPtr*)(new TypeAryPtr(ptr, o, ary, k, xk, offset, instance_id, is_autobox_cache, speculative, inline_depth))->hashcons();
 }
 
@@ -4097,7 +4094,6 @@ const Type *TypeAryPtr::cast_to_ptr_type(PTR ptr) const {
 //-----------------------------cast_to_exactness-------------------------------
 const Type *TypeAryPtr::cast_to_exactness(bool klass_is_exact) const {
   if( klass_is_exact == _klass_is_exact ) return this;
-  if (!UseExactTypes)  return this;
   if (_ary->ary_must_be_exact())  return this;  // cannot clear xk
   return make(ptr(), const_oop(), _ary, klass(), klass_is_exact, _offset, _instance_id, _speculative, _inline_depth);
 }
@@ -5044,7 +5040,6 @@ const Type *TypeKlassPtr::cast_to_ptr_type(PTR ptr) const {
 //-----------------------------cast_to_exactness-------------------------------
 const Type *TypeKlassPtr::cast_to_exactness(bool klass_is_exact) const {
   if( klass_is_exact == _klass_is_exact ) return this;
-  if (!UseExactTypes)  return this;
   return make(klass_is_exact ? Constant : NotNull, _klass, _offset);
 }
 

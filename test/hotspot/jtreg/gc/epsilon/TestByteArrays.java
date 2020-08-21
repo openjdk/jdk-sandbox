@@ -25,8 +25,8 @@ package gc.epsilon;
 
 /**
  * @test TestByteArrays
- * @key gc randomness
- * @requires vm.gc.Epsilon & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Epsilon
  * @summary Epsilon is able to allocate arrays, and does not corrupt their state
  * @library /test/lib
  *

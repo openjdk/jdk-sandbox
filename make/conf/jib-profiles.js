@@ -426,7 +426,10 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_cpu: "x64",
             dependencies: ["devkit", "gtest", "pandoc", "graalunit_lib"],
             configure_args: concat(common.configure_args_64bit, "--with-zlib=system",
-                "--with-macosx-version-max=10.9.0"),
+                "--with-macosx-version-max=10.9.0",
+                // Use system SetFile instead of the one in the devkit as the
+                // devkit one may not work on Catalina.
+                "SETFILE=/usr/bin/SetFile"),
         },
 
         "windows-x64": {
@@ -604,10 +607,6 @@ var getJibProfilesProfiles = function (input, common, data) {
                 dependencies: [ name + ".jdk" ],
                 configure_args: [
                     "--with-boot-jdk=" + input.get(name + ".jdk", "home_path"),
-                    // Full docs do not currently work with bootcycle build
-                    // since Nashorn was removed. This negates the
-                    // --enable-full-docs from the main profile.
-                    "--enable-full-docs=auto",
                 ]
             }
             profiles[bootcyclePrebuiltName] = concatObjects(profiles[name],
@@ -688,7 +687,7 @@ var getJibProfilesProfiles = function (input, common, data) {
                     local: "bundles/\\(jdk.*doc-api-spec.tar.gz\\)",
                     remote: [
                         "bundles/common/jdk-" + data.version + "_doc-api-spec.tar.gz",
-                        "bundles/linux-x64/\\1"
+                        "bundles/common/\\1"
                     ],
                 },
             }
@@ -765,7 +764,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             profiles[cmpBaselineName].make_args = [ "COMPARE_BUILD=CONF=" ];
             profiles[cmpBaselineName].configure_args = concat(
                 profiles[cmpBaselineName].configure_args,
-                "--with-hotspot-build-time=n/a", 
+                "--with-hotspot-build-time=n/a",
                 "--disable-precompiled-headers");
             // Do not inherit artifact definitions from base profile
             delete profiles[cmpBaselineName].artifacts;
@@ -961,7 +960,7 @@ var getJibProfilesDependencies = function (input, common) {
 
     var devkit_platform_revisions = {
         linux_x64: "gcc9.2.0-OL6.4+1.0",
-        macosx_x64: "Xcode10.1-MacOSX10.14+1.0",
+        macosx_x64: "Xcode11.3.1-MacOSX10.15+1.0",
         windows_x64: "VS2019-16.5.3+1.0",
         linux_aarch64: "gcc9.2.0-OL7.6+1.0",
         linux_arm: "gcc8.2.0-Fedora27+1.0",
@@ -1046,10 +1045,10 @@ var getJibProfilesDependencies = function (input, common) {
         jtreg: {
             server: "jpg",
             product: "jtreg",
-            version: "5.0",
+            version: "5.1",
             build_number: "b01",
             checksum_file: "MD5_VALUES",
-            file: "bundles/jtreg_bin-5.0.zip",
+            file: "bundles/jtreg_bin-5.1.zip",
             environment_name: "JT_HOME",
             environment_path: input.get("jtreg", "home_path") + "/bin",
             configure_args: "--with-jtreg=" + input.get("jtreg", "home_path"),
@@ -1063,15 +1062,15 @@ var getJibProfilesDependencies = function (input, common) {
 
         jcov: {
             // Until an official build of JCov is available, use custom
-            // build to support classfile version 57.
-            // See CODETOOLS-7902358 for more info.
+            // build to support classfile version 60.
+            // See CODETOOLS-7902734 for more info.
             // server: "jpg",
             // product: "jcov",
             // version: "3.0",
             // build_number: "b07",
             // file: "bundles/jcov-3_0.zip",
             organization: common.organization,
-            revision: "3.0-59-support+1.0",
+            revision: "3.0-60-support+1.0",
             ext: "zip",
             environment_name: "JCOV_HOME",
         },

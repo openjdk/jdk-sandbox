@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,48 +26,40 @@
 package jdk.incubator.jpackage.internal;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.ResourceBundle;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static jdk.incubator.jpackage.internal.StandardBundlerParam.*;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.APP_NAME;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.INSTALL_DIR;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.PREDEFINED_APP_IMAGE;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.VERSION;
 
 public abstract class MacBaseInstallerBundler extends AbstractBundler {
 
-    private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.incubator.jpackage.internal.resources.MacResources");
-
-    // This could be generalized more to be for any type of Image Bundler
-    public static final BundlerParamInfo<MacAppBundler> APP_BUNDLER =
-            new StandardBundlerParam<>(
-            "mac.app.bundler",
-            MacAppBundler.class,
-            params -> new MacAppBundler(),
-            (s, p) -> null);
-
-    public final BundlerParamInfo<File> APP_IMAGE_TEMP_ROOT =
+    public final BundlerParamInfo<Path> APP_IMAGE_TEMP_ROOT =
             new StandardBundlerParam<>(
             "mac.app.imageRoot",
-            File.class,
+            Path.class,
             params -> {
-                File imageDir = IMAGES_ROOT.fetchFrom(params);
-                if (!imageDir.exists()) imageDir.mkdirs();
+                Path imageDir = IMAGES_ROOT.fetchFrom(params);
                 try {
+                    if (!IOUtils.exists(imageDir)) {
+                        Files.createDirectories(imageDir);
+                    }
                     return Files.createTempDirectory(
-                            imageDir.toPath(), "image-").toFile();
+                            imageDir, "image-");
                 } catch (IOException e) {
-                    return new File(imageDir, getID()+ ".image");
+                    return imageDir.resolve(getID()+ ".image");
                 }
             },
-            (s, p) -> new File(s));
+            (s, p) -> Path.of(s));
 
     public static final BundlerParamInfo<String> SIGNING_KEY_USER =
             new StandardBundlerParam<>(
@@ -113,11 +105,15 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
         return returnValue;
     }
 
+    public MacBaseInstallerBundler() {
+        appImageBundler = new MacAppBundler().setDependentTask(true);
+    }
+
     protected void validateAppImageAndBundeler(
             Map<String, ? super Object> params) throws ConfigException {
         if (PREDEFINED_APP_IMAGE.fetchFrom(params) != null) {
-            File applicationImage = PREDEFINED_APP_IMAGE.fetchFrom(params);
-            if (!applicationImage.exists()) {
+            Path applicationImage = PREDEFINED_APP_IMAGE.fetchFrom(params);
+            if (!IOUtils.exists(applicationImage)) {
                 throw new ConfigException(
                         MessageFormat.format(I18N.getString(
                                 "message.app-image-dir-does-not-exist"),
@@ -134,21 +130,20 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
                             "message.app-image-requires-app-name.advice"));
             }
         } else {
-            APP_BUNDLER.fetchFrom(params).validate(params);
+            appImageBundler.validate(params);
         }
     }
 
-    protected File prepareAppBundle(Map<String, ? super Object> params)
+    protected Path prepareAppBundle(Map<String, ? super Object> params)
             throws PackagerException {
-        File predefinedImage =
+        Path predefinedImage =
                 StandardBundlerParam.getPredefinedAppImage(params);
         if (predefinedImage != null) {
             return predefinedImage;
         }
-        File appImageRoot = APP_IMAGE_TEMP_ROOT.fetchFrom(params);
+        Path appImageRoot = APP_IMAGE_TEMP_ROOT.fetchFrom(params);
 
-        return APP_BUNDLER.fetchFrom(params).doBundle(
-                params, appImageRoot, true);
+        return appImageBundler.execute(params, appImageRoot);
     }
 
     @Override
@@ -156,8 +151,11 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
         return "INSTALLER";
     }
 
-    public static String findKey(String key, String keychainName,
+    public static String findKey(String keyPrefix, String teamName, String keychainName,
             boolean verbose) {
+        String key = (teamName.startsWith(keyPrefix)
+                || teamName.startsWith("3rd Party Mac Developer"))
+                ? teamName : (keyPrefix + teamName);
         if (Platform.getPlatform() != Platform.MAC) {
             return null;
         }
@@ -188,7 +186,6 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             if (m.find()) {
                 Log.error(MessageFormat.format(I18N.getString(
                         "error.multiple.certs.found"), key, keychainName));
-                return null;
             }
             Log.verbose("Using key '" + matchedKey + "'");
             return matchedKey;
@@ -197,4 +194,6 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             return null;
         }
     }
+
+    private final Bundler appImageBundler;
 }

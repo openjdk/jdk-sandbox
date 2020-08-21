@@ -42,14 +42,6 @@ class ThreadsList;
 
 typedef PaddedEnd<ObjectMonitor, OM_CACHE_LINE_SIZE> PaddedObjectMonitor;
 
-struct DeflateMonitorCounters {
-  volatile int n_in_use;              // currently associated with objects
-  volatile int n_in_circulation;      // extant
-  volatile int n_scavenged;           // reclaimed (global and per-thread)
-  volatile int per_thread_scavenged;  // per-thread scavenge total
-           double per_thread_times;   // per-thread scavenge times
-};
-
 class ObjectSynchronizer : AllStatic {
   friend class VMStructs;
  public:
@@ -131,20 +123,11 @@ class ObjectSynchronizer : AllStatic {
   // GC: we current use aggressive monitor deflation policy
   // Basically we deflate all monitors that are not busy.
   // An adaptive profile-based deflation policy could be used if needed
-  static void deflate_idle_monitors(DeflateMonitorCounters* counters);
   static void deflate_idle_monitors_using_JT();
   static void deflate_global_idle_monitors_using_JT();
   static void deflate_per_thread_idle_monitors_using_JT(JavaThread* target);
   static void deflate_common_idle_monitors_using_JT(bool is_global, JavaThread* target);
-  static void deflate_thread_local_monitors(Thread* thread, DeflateMonitorCounters* counters);
-  static void prepare_deflate_idle_monitors(DeflateMonitorCounters* counters);
-  static void finish_deflate_idle_monitors(DeflateMonitorCounters* counters);
 
-  // For a given monitor list: global or per-thread, deflate idle monitors
-  static int deflate_monitor_list(ObjectMonitor** list_p,
-                                  int* count_p,
-                                  ObjectMonitor** free_head_p,
-                                  ObjectMonitor** free_tail_p);
   // For a given in-use monitor list: global or per-thread, deflate idle
   // monitors using a JavaThread.
   static int deflate_monitor_list_using_JT(ObjectMonitor** list_p,
@@ -152,18 +135,14 @@ class ObjectSynchronizer : AllStatic {
                                            ObjectMonitor** free_head_p,
                                            ObjectMonitor** free_tail_p,
                                            ObjectMonitor** saved_mid_in_use_p);
-  static bool deflate_monitor(ObjectMonitor* mid, oop obj,
-                              ObjectMonitor** free_head_p,
-                              ObjectMonitor** free_tail_p);
   static bool deflate_monitor_using_JT(ObjectMonitor* mid,
                                        ObjectMonitor** free_head_p,
                                        ObjectMonitor** free_tail_p);
   static bool is_async_deflation_needed();
-  static bool is_safepoint_deflation_needed();
   static bool is_async_deflation_requested() { return _is_async_deflation_requested; }
-  static bool is_special_deflation_requested() { return _is_special_deflation_requested; }
+  static jlong last_async_deflation_time_ns() { return _last_async_deflation_time_ns; }
+  static bool request_deflate_idle_monitors();  // for whitebox test support and VM exit logging
   static void set_is_async_deflation_requested(bool new_value) { _is_async_deflation_requested = new_value; }
-  static void set_is_special_deflation_requested(bool new_value) { _is_special_deflation_requested = new_value; }
   static jlong time_since_last_async_deflation_ms();
   static void oops_do(OopClosure* f);
   // Process oops in thread local used monitors
@@ -191,7 +170,7 @@ class ObjectSynchronizer : AllStatic {
   static int  log_monitor_list_counts(outputStream * out);
   static int  verify_objmon_isinpool(ObjectMonitor *addr) PRODUCT_RETURN0;
 
-  static void do_safepoint_work(DeflateMonitorCounters* counters);
+  static void do_safepoint_work();
 
  private:
   friend class SynchronizerTest;
@@ -200,7 +179,6 @@ class ObjectSynchronizer : AllStatic {
   // global list of blocks of monitors
   static PaddedObjectMonitor* g_block_list;
   static volatile bool _is_async_deflation_requested;
-  static volatile bool _is_special_deflation_requested;
   static jlong         _last_async_deflation_time_ns;
 
   // Function to prepend new blocks to the appropriate lists:

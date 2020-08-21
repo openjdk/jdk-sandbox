@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -528,7 +528,8 @@ void Parse::do_lookupswitch() {
     for (int j = 0; j < len; j++) {
       table[3*j+0] = iter().get_int_table(2+2*j);
       table[3*j+1] = iter().get_dest_table(2+2*j+1);
-      table[3*j+2] = profile == NULL ? 1 : profile->count_at(j);
+      // Handle overflow when converting from uint to jint
+      table[3*j+2] = (profile == NULL) ? 1 : MIN2<uint>(max_jint, profile->count_at(j));
     }
     qsort(table, len, 3*sizeof(table[0]), jint_cmp);
   }
@@ -2842,8 +2843,8 @@ void Parse::do_one_bytecode() {
   }
 
 #ifndef PRODUCT
-  IdealGraphPrinter *printer = C->printer();
-  if (printer && printer->should_print(1)) {
+  if (C->should_print(1)) {
+    IdealGraphPrinter* printer = C->printer();
     char buffer[256];
     jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
     bool old = printer->traverse_outs();

@@ -36,6 +36,7 @@
 #include "oops/symbol.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
+#include "runtime/signature.hpp"
 #include "utilities/utf8.hpp"
 
 uint32_t Symbol::pack_hash_and_refcount(short hash, int refcount) {
@@ -50,10 +51,13 @@ uint32_t Symbol::pack_hash_and_refcount(short hash, int refcount) {
 Symbol::Symbol(const u1* name, int length, int refcount) {
   _hash_and_refcount =  pack_hash_and_refcount((short)os::random(), refcount);
   _length = length;
-  _body[0] = 0;  // in case length == 0
-  for (int i = 0; i < length; i++) {
-    byte_at_put(i, name[i]);
-  }
+  // _body[0..1] are allocated in the header just by coincidence in the current
+  // implementation of Symbol. They are read by identity_hash(), so make sure they
+  // are initialized.
+  // No other code should assume that _body[0..1] are always allocated. E.g., do
+  // not unconditionally read base()[0] as that will be invalid for an empty Symbol.
+  _body[0] = _body[1] = 0;
+  memcpy(_body, name, length);
 }
 
 void* Symbol::operator new(size_t sz, int len) throw() {

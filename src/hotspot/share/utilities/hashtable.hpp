@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -158,14 +158,14 @@ public:
 
 private:
   // Instance variables
-  int               _table_size;
-  HashtableBucket<F>*     _buckets;
+  int                              _table_size;
+  HashtableBucket<F>*              _buckets;
   BasicHashtableEntry<F>* volatile _free_list;
-  char*             _first_free_entry;
-  char*             _end_block;
-  int               _entry_size;
-  volatile int      _number_of_entries;
-  GrowableArray<char*>* _entry_blocks;
+  char*                            _first_free_entry;
+  char*                            _end_block;
+  int                              _entry_size;
+  volatile int                     _number_of_entries;
+  GrowableArrayCHeap<char*, F>     _entry_blocks;
 
 protected:
 
@@ -301,13 +301,14 @@ protected:
 public:
   KVHashtable(int table_size) : BasicHashtable<F>(table_size, sizeof(KVHashtableEntry)) {}
 
-  void add(K key, V value) {
+  V* add(K key, V value) {
     unsigned int hash = HASH(key);
     KVHashtableEntry* entry = new_entry(hash, key, value);
     BasicHashtable<F>::add_entry(BasicHashtable<F>::hash_to_index(hash), entry);
+    return &(entry->_value);
   }
 
-  V* lookup(K key) {
+  V* lookup(K key) const {
     unsigned int hash = HASH(key);
     int index = BasicHashtable<F>::hash_to_index(hash);
     for (KVHashtableEntry* e = bucket(index); e != NULL; e = e->next()) {
@@ -316,6 +317,23 @@ public:
       }
     }
     return NULL;
+  }
+
+  int table_size() const {
+    return BasicHashtable<F>::table_size();
+  }
+
+  // ITER contains bool do_entry(K, V const&), which will be
+  // called for each entry in the table.  If do_entry() returns false,
+  // the iteration is cancelled.
+  template<class ITER>
+  void iterate(ITER* iter) const {
+    for (int index = 0; index < table_size(); index++) {
+      for (KVHashtableEntry* e = bucket(index); e != NULL; e = e->next()) {
+        bool cont = iter->do_entry(e->_key, &e->_value);
+        if (!cont) { return; }
+      }
+    }
   }
 };
 

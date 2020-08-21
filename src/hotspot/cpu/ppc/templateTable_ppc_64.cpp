@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013, 2017 SAP SE. All rights reserved.
+ * Copyright (c) 2013, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@
 #include "interpreter/templateTable.hpp"
 #include "memory/universe.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
@@ -316,9 +317,10 @@ void TemplateTable::fast_aldc(bool wide) {
   __ get_cache_index_at_bcp(Rscratch, 1, index_size);  // Load index.
   __ load_resolved_reference_at_index(R17_tos, Rscratch, &is_null);
 
-  // Convert null sentinel to NULL.
+  // Convert null sentinel to NULL
   int simm16_rest = __ load_const_optimized(Rscratch, Universe::the_null_sentinel_addr(), R0, true);
   __ ld(Rscratch, simm16_rest, Rscratch);
+  __ resolve_oop_handle(Rscratch);
   __ cmpld(CCR0, R17_tos, Rscratch);
   if (VM_Version::has_isel()) {
     __ isel_0(R17_tos, CCR0, Assembler::equal);

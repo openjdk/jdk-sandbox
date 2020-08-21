@@ -25,8 +25,7 @@ package gc.epsilon;
 
 /**
  * @test TestDieDefault
- * @key gc
- * @requires vm.gc.Epsilon & !vm.graal.enabled
+ * @requires vm.gc.Epsilon
  * @summary Epsilon GC should die on heap exhaustion
  * @library /test/lib
  * @run driver gc.epsilon.TestDieDefault

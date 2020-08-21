@@ -30,7 +30,13 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.spi.ToolProvider;
 import java.util.stream.Collectors;
@@ -236,6 +242,10 @@ public final class Executor extends CommandArguments<Executor> {
         } while (count < max);
 
         return result.assertExitCodeIs(expectedCode);
+    }
+
+    public List<String> executeWithoutExitCodeCheckAndGetOutput() {
+        return saveOutput().executeWithoutExitCodeCheck().getOutput();
     }
 
     private boolean withSavedOutput() {

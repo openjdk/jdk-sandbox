@@ -34,6 +34,7 @@
 #include "logging/log.hpp"
 #include "logging/logTag.hpp"
 #include "memory/universe.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/flags/jvmFlag.hpp"
@@ -50,7 +51,7 @@
 void check_ThreadShadow();
 void eventlog_init();
 void mutex_init();
-void oopstorage_init();
+void universe_oopstorage_init();
 void chunkpool_init();
 void perfMemory_init();
 void SuspendibleThreadSet_init();
@@ -68,7 +69,6 @@ jint universe_init();          // depends on codeCache_init and stubRoutines_ini
 void gc_barrier_stubs_init();
 void interpreter_init_stub();  // before any methods loaded
 void interpreter_init_code();  // after methods loaded, but before they are linked
-void invocationCounter_init(); // after methods loaded, but before they are linked
 void accessFlags_init();
 void InterfaceSupport_init();
 void universe2_init();  // dependent on codeCache_init and stubRoutines_init, loads primordial classes
@@ -98,7 +98,7 @@ void vm_init_globals() {
   basic_types_init();
   eventlog_init();
   mutex_init();
-  oopstorage_init();
+  universe_oopstorage_init();
   chunkpool_init();
   perfMemory_init();
   SuspendibleThreadSet_init();
@@ -106,8 +106,8 @@ void vm_init_globals() {
 
 
 jint init_globals() {
-  HandleMark hm;
   management_init();
+  JvmtiExport::initialize_oop_storage();
   bytecodes_init();
   classLoader_init1();
   compilationPolicy_init();
@@ -128,7 +128,6 @@ jint init_globals() {
   universe2_init();  // dependent on codeCache_init and stubRoutines_init1
   javaClasses_init();// must happen after vtable initialization, before referenceProcessor_init
   interpreter_init_code();  // after javaClasses_init and before any method gets linked
-  invocationCounter_init(); // after javaClasses_init and before any method gets linked
   referenceProcessor_init();
   jni_handles_init();
 #if INCLUDE_VM_STRUCTS
@@ -172,10 +171,8 @@ void exit_globals() {
     if (log_is_enabled(Info, monitorinflation)) {
       // The ObjectMonitor subsystem uses perf counters so
       // do this before perfMemory_exit().
-      // These other two audit_and_print_stats() calls are done at the
+      // This other audit_and_print_stats() call is done at the
       // Debug level at a safepoint:
-      // - for safepoint based deflation auditing:
-      //   ObjectSynchronizer::finish_deflate_idle_monitors()
       // - for async deflation auditing:
       //   ObjectSynchronizer::do_safepoint_work()
       ObjectSynchronizer::audit_and_print_stats(true /* on_exit */);

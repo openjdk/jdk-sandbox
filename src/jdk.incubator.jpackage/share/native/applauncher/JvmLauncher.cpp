@@ -66,8 +66,7 @@ Jvm& Jvm::initFromConfigFile(const CfgFile& cfgFile) {
         if (splash != appOptions.end()) {
             const tstring splashPath = CfgFile::asString(*splash);
             if (FileUtils::isFileExists(splashPath)) {
-                addArgument(_T("-splash"));
-                addArgument(splashPath);
+                addArgument(_T("-splash:") + splashPath);
             } else {
                 LOG_WARNING(tstrings::any()
                         << "Splash property ignored. File \""
@@ -138,6 +137,18 @@ Jvm& Jvm::initFromConfigFile(const CfgFile& cfgFile) {
 }
 
 
+bool Jvm::isWithSplash() const {
+    tstring_array::const_iterator it = args.begin();
+    const tstring_array::const_iterator end = args.end();
+    for (; it != end; ++it) {
+        if (tstrings::startsWith(*it, _T("-splash:"))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 namespace {
 void convertArgs(const std::vector<std::string>& args, std::vector<char*>& argv) {
     argv.reserve(args.size() + 1);
@@ -169,7 +180,19 @@ void Jvm::launch() {
         jint ergo);
 
     std::vector<char*> argv;
+#ifdef TSTRINGS_WITH_WCHAR
+    std::vector<std::string> mbcs_args;
+    do {
+        tstring_array::const_iterator it = args.begin();
+        const tstring_array::const_iterator end = args.end();
+        for (; it != end; ++it) {
+            mbcs_args.push_back(tstrings::toACP(*it));
+        }
+    } while (0);
+    convertArgs(mbcs_args, argv);
+#else
     convertArgs(args, argv);
+#endif
 
     // Don't count terminal '0'.
     const int argc = (int)argv.size() - 1;

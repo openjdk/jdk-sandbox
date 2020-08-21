@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "ci/ciUtilities.hpp"
+#include "classfile/javaClasses.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
@@ -1613,7 +1614,7 @@ Node* GraphKit::access_load(Node* adr,   // actual adress to load val at
     return top(); // Dead path ?
   }
 
-  C2AccessValuePtr addr(adr, NULL);
+  C2AccessValuePtr addr(adr, adr->bottom_type()->is_ptr());
   C2ParseAccess access(this, decorators | C2_READ_ACCESS, bt, NULL, addr);
   if (access.is_raw()) {
     return _barrier_set->BarrierSetC2::load_at(access, val_type);

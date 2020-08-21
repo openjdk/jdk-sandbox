@@ -27,6 +27,7 @@ package java.lang.invoke;
 
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
 import jdk.internal.module.IllegalAccessLogger;
 import jdk.internal.org.objectweb.asm.ClassReader;
@@ -2243,7 +2244,8 @@ public class MethodHandles {
                 Class<?> lookupClass = lookup.lookupClass();
                 ClassLoader loader = lookupClass.getClassLoader();
                 ProtectionDomain pd = (loader != null) ? lookup.lookupClassProtectionDomain() : null;
-                Class<?> c = JLA.defineClass(loader, lookupClass, name, bytes, pd, initialize, classFlags, classData);
+                Class<?> c = SharedSecrets.getJavaLangAccess()
+                        .defineClass(loader, lookupClass, name, bytes, pd, initialize, classFlags, classData);
                 assert !isNestmate() || c.getNestHost() == lookupClass.getNestHost();
                 return c;
             }
@@ -2263,7 +2265,7 @@ public class MethodHandles {
         private ProtectionDomain lookupClassProtectionDomain() {
             ProtectionDomain pd = cachedProtectionDomain;
             if (pd == null) {
-                cachedProtectionDomain = pd = JLA.protectionDomain(lookupClass);
+                cachedProtectionDomain = pd = SharedSecrets.getJavaLangAccess().protectionDomain(lookupClass);
             }
             return pd;
         }
@@ -2282,8 +2284,6 @@ public class MethodHandles {
          *  members in packages that are exported unconditionally.
          */
         static final Lookup PUBLIC_LOOKUP = new Lookup(Object.class, null, UNCONDITIONAL);
-
-        static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
 
         private static void checkUnprivilegedlookupClass(Class<?> lookupClass) {
             String name = lookupClass.getName();
@@ -2587,6 +2587,64 @@ assertEquals("[x, y, z]", pb.command().toString());
         }
 
         /**
+         * Ensures that {@code targetClass} has been initialized. The class
+         * to be initialized must be {@linkplain #accessClass accessible}
+         * to this {@code Lookup} object.  This method causes {@code targetClass}
+         * to be initialized if it has not been already initialized,
+         * as specified in JVMS {@jvms 5.5}.
+         *
+         * @param targetClass the class to be initialized
+         * @return {@code targetClass} that has been initialized
+         *
+         * @throws  IllegalArgumentException if {@code targetClass} is a primitive type or {@code void}
+         *          or array class
+         * @throws  IllegalAccessException if {@code targetClass} is not
+         *          {@linkplain #accessClass accessible} to this lookup
+         * @throws  ExceptionInInitializerError if the class initialization provoked
+         *          by this method fails
+         * @throws  SecurityException if a security manager is present and it
+         *          <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
+         * @since 15
+         * @jvms 5.5 Initialization
+         */
+        public Class<?> ensureInitialized(Class<?> targetClass) throws IllegalAccessException {
+            if (targetClass.isPrimitive())
+                throw new IllegalArgumentException(targetClass + " is a primitive class");
+            if (targetClass.isArray())
+                throw new IllegalArgumentException(targetClass + " is an array class");
+
+            if (!VerifyAccess.isClassAccessible(targetClass, lookupClass, prevLookupClass, allowedModes)) {
+                throw makeAccessException(targetClass);
+            }
+            checkSecurityManager(targetClass);
+
+            // ensure class initialization
+            Unsafe.getUnsafe().ensureClassInitialized(targetClass);
+            return targetClass;
+        }
+
+        /*
+         * Returns IllegalAccessException due to access violation to the given targetClass.
+         *
+         * This method is called by {@link Lookup#accessClass} and {@link Lookup#ensureInitialized}
+         * which verifies access to a class rather a member.
+         */
+        private IllegalAccessException makeAccessException(Class<?> targetClass) {
+            String message = "access violation: "+ targetClass;
+            if (this == MethodHandles.publicLookup()) {
+                message += ", from public Lookup";
+            } else {
+                Module m = lookupClass().getModule();
+                message += ", from " + lookupClass() + " (" + m + ")";
+                if (prevLookupClass != null) {
+                    message += ", previous lookup " +
+                            prevLookupClass.getName() + " (" + prevLookupClass.getModule() + ")";
+                }
+            }
+            return new IllegalAccessException(message);
+        }
+
+        /**
          * Determines if a class can be accessed from the lookup context defined by
          * this {@code Lookup} object. The static initializer of the class is not run.
          * <p>
@@ -2656,9 +2714,9 @@ assertEquals("[x, y, z]", pb.command().toString());
          */
         public Class<?> accessClass(Class<?> targetClass) throws IllegalAccessException {
             if (!VerifyAccess.isClassAccessible(targetClass, lookupClass, prevLookupClass, allowedModes)) {
-                throw new MemberName(targetClass).makeAccessException("access violation", this);
+                throw makeAccessException(targetClass);
             }
-            checkSecurityManager(targetClass, null);
+            checkSecurityManager(targetClass);
             return targetClass;
         }
 
@@ -3236,10 +3294,10 @@ return mh1;
         private MethodHandle unreflectField(Field f, boolean isSetter) throws IllegalAccessException {
             MemberName field = new MemberName(f, isSetter);
             if (isSetter && field.isFinal()) {
-                if (field.isStatic()) {
-                    throw field.makeAccessException("static final field has no write access", this);
-                } else if (field.getDeclaringClass().isHidden()){
-                    throw field.makeAccessException("final field in a hidden class has no write access", this);
+                if (field.isTrustedFinalField()) {
+                    String msg = field.isStatic() ? "static final field has no write access"
+                                                  : "final field has no write access";
+                    throw field.makeAccessException(msg, this);
                 }
             }
             assert(isSetter
@@ -3477,11 +3535,10 @@ return mh1;
         }
 
         /**
-         * Perform necessary <a href="MethodHandles.Lookup.html#secmgr">access checks</a>.
-         * Determines a trustable caller class to compare with refc, the symbolic reference class.
-         * If this lookup object has full privilege access, then the caller class is the lookupClass.
+         * Perform steps 1 and 2b <a href="MethodHandles.Lookup.html#secmgr">access checks</a>
+         * for ensureInitialzed, findClass or accessClass.
          */
-        void checkSecurityManager(Class<?> refc, MemberName m) {
+        void checkSecurityManager(Class<?> refc) {
             if (allowedModes == TRUSTED)  return;
 
             SecurityManager smgr = System.getSecurityManager();
@@ -3494,12 +3551,31 @@ return mh1;
                 ReflectUtil.checkPackageAccess(refc);
             }
 
-            if (m == null) {  // findClass or accessClass
-                // Step 2b:
-                if (!fullPowerLookup) {
-                    smgr.checkPermission(SecurityConstants.GET_CLASSLOADER_PERMISSION);
-                }
-                return;
+            // Step 2b:
+            if (!fullPowerLookup) {
+                smgr.checkPermission(SecurityConstants.GET_CLASSLOADER_PERMISSION);
+            }
+        }
+
+        /**
+         * Perform steps 1, 2a and 3 <a href="MethodHandles.Lookup.html#secmgr">access checks</a>.
+         * Determines a trustable caller class to compare with refc, the symbolic reference class.
+         * If this lookup object has full privilege access, then the caller class is the lookupClass.
+         */
+        void checkSecurityManager(Class<?> refc, MemberName m) {
+            Objects.requireNonNull(refc);
+            Objects.requireNonNull(m);
+
+            if (allowedModes == TRUSTED)  return;
+
+            SecurityManager smgr = System.getSecurityManager();
+            if (smgr == null)  return;
+
+            // Step 1:
+            boolean fullPowerLookup = hasFullPrivilegeAccess();
+            if (!fullPowerLookup ||
+                !VerifyAccess.classLoaderIsAncestor(lookupClass, refc)) {
+                ReflectUtil.checkPackageAccess(refc);
             }
 
             // Step 2a:
@@ -3802,7 +3878,7 @@ return mh1;
                 refc = lookupClass();
             }
             return VarHandles.makeFieldHandle(getField, refc, getField.getFieldType(),
-                                             this.allowedModes == TRUSTED && !getField.getDeclaringClass().isHidden());
+                                              this.allowedModes == TRUSTED && !getField.isTrustedFinalField());
         }
         /** Check access and get the requested constructor. */
         private MethodHandle getDirectConstructor(Class<?> refc, MemberName ctor) throws IllegalAccessException {
@@ -5537,6 +5613,40 @@ System.out.println((int) f0.invokeExact("x", "y")); // 2
                 ? (rtype != void.class)
                 : (rtype != filterType.parameterType(0) || filterValues != 1))
             throw newIllegalArgumentException("target and filter types do not match", targetType, filterType);
+    }
+
+    /**
+     * Filter the return value of a target method handle with a filter function. The filter function is
+     * applied to the return value of the original handle; if the filter specifies more than one parameters,
+     * then any remaining parameter is appended to the adapter handle. In other words, the adaptation works
+     * as follows:
+     * <blockquote><pre>{@code
+     * T target(A...)
+     * V filter(B... , T)
+     * V adapter(A... a, B... b) {
+     *     T t = target(a...);
+     *     return filter(b..., t);
+     * }</pre></blockquote>
+     * <p>
+     * If the filter handle is a unary function, then this method behaves like {@link #filterReturnValue(MethodHandle, MethodHandle)}.
+     *
+     * @param target the target method handle
+     * @param filter the filter method handle
+     * @return the adapter method handle
+     */
+    /* package */ static MethodHandle collectReturnValue(MethodHandle target, MethodHandle filter) {
+        MethodType targetType = target.type();
+        MethodType filterType = filter.type();
+        BoundMethodHandle result = target.rebind();
+        LambdaForm lform = result.editor().collectReturnValueForm(filterType.basicType());
+        MethodType newType = targetType.changeReturnType(filterType.returnType());
+        if (filterType.parameterList().size() > 1) {
+            for (int i = 0 ; i < filterType.parameterList().size() - 1 ; i++) {
+                newType = newType.appendParameterTypes(filterType.parameterType(i));
+            }
+        }
+        result = result.copyWithExtendL(newType, lform, filter);
+        return result;
     }
 
     /**
