@@ -26,7 +26,6 @@
 
 #include "memory/allocation.hpp"
 #include "memory/metaspace.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
 #include "services/mallocTracker.hpp"
 #include "services/memReporter.hpp"
 #include "services/threadStackTracker.hpp"
@@ -212,14 +211,16 @@ void MemSummaryReporter::report_summary_of_type(MEMFLAGS flag,
   }
 }
 
-void MemSummaryReporter::report_metadata(Metaspace::MetadataType mdType) const {
-  DEBUG_ONLY(metaspace::check_valid_mdtype(mdType));
-  const char* const name = metaspace::describe_mdtype(mdType);
+void MemSummaryReporter::report_metadata(Metaspace::MetadataType type) const {
+  assert(type == Metaspace::NonClassType || type == Metaspace::ClassType,
+    "Invalid metadata type");
+  const char* name = (type == Metaspace::NonClassType) ?
+    "Metadata:   " : "Class space:";
 
   outputStream* out = output();
   const char* scale = current_scale();
-  size_t committed   = MetaspaceUtils::committed_bytes(mdType);
-  size_t used = MetaspaceUtils::used_bytes(mdType);
+  size_t committed   = MetaspaceUtils::committed_bytes(type);
+  size_t used = MetaspaceUtils::used_bytes(type);
   size_t free = 0; //
       // TODO think this thru. What is free in this context?
       // (MetaspaceUtils::capacity_bytes(type) - used)
@@ -231,7 +232,7 @@ void MemSummaryReporter::report_metadata(Metaspace::MetadataType mdType) const {
 
   out->print_cr("%27s (  %s)", " ", name);
   out->print("%27s (    ", " ");
-  print_total(MetaspaceUtils::reserved_bytes(mdType), committed);
+  print_total(MetaspaceUtils::reserved_bytes(type), committed);
   out->print_cr(")");
   out->print_cr("%27s (    used=" SIZE_FORMAT "%s)", " ", amount_in_current_scale(used), scale);
   out->print_cr("%27s (    free=" SIZE_FORMAT "%s)", " ", amount_in_current_scale(free), scale);
@@ -602,37 +603,37 @@ void MemSummaryDiffReporter::print_metaspace_diff(const MetaspaceSnapshot* curre
   }
 }
 
-void MemSummaryDiffReporter::print_metaspace_diff(Metaspace::MetadataType mdType,
+void MemSummaryDiffReporter::print_metaspace_diff(Metaspace::MetadataType type,
                                                   const MetaspaceSnapshot* current_ms,
                                                   const MetaspaceSnapshot* early_ms) const {
-  DEBUG_ONLY(metaspace::check_valid_mdtype(mdType));
-  const char* const name = metaspace::describe_mdtype(mdType);
+  const char* name = (type == Metaspace::NonClassType) ?
+    "Metadata:   " : "Class space:";
 
   outputStream* out = output();
   const char* scale = current_scale();
 
   out->print_cr("%27s (  %s)", " ", name);
   out->print("%27s (    ", " ");
-  print_virtual_memory_diff(current_ms->reserved_in_bytes(mdType),
-                            current_ms->committed_in_bytes(mdType),
-                            early_ms->reserved_in_bytes(mdType),
-                            early_ms->committed_in_bytes(mdType));
+  print_virtual_memory_diff(current_ms->reserved_in_bytes(type),
+                            current_ms->committed_in_bytes(type),
+                            early_ms->reserved_in_bytes(type),
+                            early_ms->committed_in_bytes(type));
   out->print_cr(")");
 
-  long diff_used = diff_in_current_scale(current_ms->used_in_bytes(mdType),
-                                         early_ms->used_in_bytes(mdType));
-  long diff_free = diff_in_current_scale(current_ms->free_in_bytes(mdType),
-                                         early_ms->free_in_bytes(mdType));
+  long diff_used = diff_in_current_scale(current_ms->used_in_bytes(type),
+                                         early_ms->used_in_bytes(type));
+  long diff_free = diff_in_current_scale(current_ms->free_in_bytes(type),
+                                         early_ms->free_in_bytes(type));
 
-  size_t current_waste = current_ms->committed_in_bytes(mdType)
-    - (current_ms->used_in_bytes(mdType) + current_ms->free_in_bytes(mdType));
-  size_t early_waste = early_ms->committed_in_bytes(mdType)
-    - (early_ms->used_in_bytes(mdType) + early_ms->free_in_bytes(mdType));
+  size_t current_waste = current_ms->committed_in_bytes(type)
+    - (current_ms->used_in_bytes(type) + current_ms->free_in_bytes(type));
+  size_t early_waste = early_ms->committed_in_bytes(type)
+    - (early_ms->used_in_bytes(type) + early_ms->free_in_bytes(type));
   long diff_waste = diff_in_current_scale(current_waste, early_waste);
 
   // Diff used
   out->print("%27s (    used=" SIZE_FORMAT "%s", " ",
-    amount_in_current_scale(current_ms->used_in_bytes(mdType)), scale);
+    amount_in_current_scale(current_ms->used_in_bytes(type)), scale);
   if (diff_used != 0) {
     out->print(" %+ld%s", diff_used, scale);
   }
@@ -640,7 +641,7 @@ void MemSummaryDiffReporter::print_metaspace_diff(Metaspace::MetadataType mdType
 
   // Diff free
   out->print("%27s (    free=" SIZE_FORMAT "%s", " ",
-    amount_in_current_scale(current_ms->free_in_bytes(mdType)), scale);
+    amount_in_current_scale(current_ms->free_in_bytes(type)), scale);
   if (diff_free != 0) {
     out->print(" %+ld%s", diff_free, scale);
   }
@@ -650,7 +651,7 @@ void MemSummaryDiffReporter::print_metaspace_diff(Metaspace::MetadataType mdType
   // Diff waste
   out->print("%27s (    waste=" SIZE_FORMAT "%s =%2.2f%%", " ",
     amount_in_current_scale(current_waste), scale,
-    ((float)current_waste * 100) / current_ms->committed_in_bytes(mdType));
+    ((float)current_waste * 100) / current_ms->committed_in_bytes(type));
   if (diff_waste != 0) {
     out->print(" %+ld%s", diff_waste, scale);
   }

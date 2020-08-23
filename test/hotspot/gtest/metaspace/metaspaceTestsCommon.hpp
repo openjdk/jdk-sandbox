@@ -43,7 +43,6 @@
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceArena.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
 #include "memory/metaspace/metaspaceTestHelpers.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"

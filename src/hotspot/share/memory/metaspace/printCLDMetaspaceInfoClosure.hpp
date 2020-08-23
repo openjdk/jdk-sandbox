@@ -29,7 +29,6 @@
 #include "memory/iterator.hpp"
 #include "memory/metaspace.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 class outputStream;

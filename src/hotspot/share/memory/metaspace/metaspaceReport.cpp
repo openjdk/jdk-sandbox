@@ -30,7 +30,6 @@
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/internalStats.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspace/metaspaceReport.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
 #include "memory/metaspace/printCLDMetaspaceInfoClosure.hpp"
@@ -40,6 +39,18 @@
 #include "runtime/os.hpp"
 
 namespace metaspace {
+
+static const char* describe_spacetype(Metaspace::MetaspaceType st) {
+  const char* s = NULL;
+  switch (st) {
+    case Metaspace::StandardMetaspaceType: s = "Standard"; break;
+    case Metaspace::BootMetaspaceType: s = "Boot"; break;
+    case Metaspace::ClassMirrorHolderMetaspaceType: s = "ClassMirrorHolder"; break;
+    case Metaspace::ReflectionMetaspaceType: s = "Reflection"; break;
+    default: ShouldNotReachHere();
+  }
+  return s;
+}
 
 static void print_vs(outputStream* out, size_t scale) {
 

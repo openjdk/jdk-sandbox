@@ -32,7 +32,6 @@
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/internalStats.hpp"
 #include "memory/metaspace/metaspaceArena.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
 #include "memory/metaspace/runningCounters.hpp"
 #include "memory/metaspace/settings.hpp"
@@ -57,7 +56,7 @@ static bool use_class_space(bool is_class) {
 }
 
 static bool use_class_space(Metaspace::MetadataType mdType) {
-  return use_class_space(metaspace::is_class(mdType));
+  return use_class_space(Metaspace::is_class_space_allocation(mdType));
 }
 
 ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, Metaspace::MetaspaceType space_type)
@@ -173,7 +172,6 @@ void ClassLoaderMetaspace::add_to_statistics(clms_stats_t* out) const {
 
 #ifdef ASSERT
 void ClassLoaderMetaspace::verify() const {
-  metaspace::check_valid_spacetype(_space_type);
   if (non_class_space_arena() != NULL) {
     non_class_space_arena()->verify(false);
   }

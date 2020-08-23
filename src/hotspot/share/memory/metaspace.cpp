@@ -37,7 +37,6 @@
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceContext.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspace/metaspaceReport.hpp"
 #include "memory/metaspace/metaspaceSizesSnapshot.hpp"
 #include "memory/metaspace/runningCounters.hpp"
@@ -68,7 +67,7 @@ size_t MetaspaceUtils::used_words() {
 }
 
 size_t MetaspaceUtils::used_words(Metaspace::MetadataType mdtype) {
-  return metaspace::is_class(mdtype) ? RunningCounters::used_words_class() : RunningCounters::used_words_nonclass();
+  return Metaspace::is_class_space_allocation(mdtype) ? RunningCounters::used_words_class() : RunningCounters::used_words_nonclass();
 }
 
 size_t MetaspaceUtils::reserved_words() {
@@ -76,7 +75,7 @@ size_t MetaspaceUtils::reserved_words() {
 }
 
 size_t MetaspaceUtils::reserved_words(Metaspace::MetadataType mdtype) {
-  return metaspace::is_class(mdtype) ? RunningCounters::reserved_words_class() : RunningCounters::reserved_words_nonclass();
+  return Metaspace::is_class_space_allocation(mdtype) ? RunningCounters::reserved_words_class() : RunningCounters::reserved_words_nonclass();
 }
 
 size_t MetaspaceUtils::committed_words() {
@@ -84,7 +83,7 @@ size_t MetaspaceUtils::committed_words() {
 }
 
 size_t MetaspaceUtils::committed_words(Metaspace::MetadataType mdtype) {
-  return metaspace::is_class(mdtype) ? RunningCounters::committed_words_class() : RunningCounters::committed_words_nonclass();
+  return Metaspace::is_class_space_allocation(mdtype) ? RunningCounters::committed_words_class() : RunningCounters::committed_words_nonclass();
 }
 
 
@@ -843,7 +842,7 @@ void Metaspace::report_metadata_oome(ClassLoaderData* loader_data, size_t word_s
   Log(gc, metaspace, freelist, oom) log;
   if (log.is_info()) {
     log.info("Metaspace (%s) allocation failed for size " SIZE_FORMAT,
-             metaspace::is_class(mdtype) ? "class" : "data", word_size);
+             is_class_space_allocation(mdtype) ? "class" : "data", word_size);
     ResourceMark rm;
     if (log.is_debug()) {
       if (loader_data->metaspace_or_null() != NULL) {
@@ -856,16 +855,12 @@ void Metaspace::report_metadata_oome(ClassLoaderData* loader_data, size_t word_s
     MetaspaceUtils::print_basic_report(&ls, 0);
   }
 
-  // Which limit did we hit? CompressedClassSpaceSize or MaxMetaspaceSize?
+  // TODO: this exception text may be wrong and misleading. This needs more thinking. See JDK-8252189.
   bool out_of_compressed_class_space = false;
-  if (metaspace::is_class(mdtype)) {
+  if (is_class_space_allocation(mdtype)) {
     ClassLoaderMetaspace* metaspace = loader_data->metaspace_non_null();
     out_of_compressed_class_space =
       MetaspaceUtils::committed_bytes(Metaspace::ClassType) +
-      // TODO: Okay this is just cheesy.
-      // Of course this may fail and return incorrect results.
-      // Think this over - we need some clean way to remember which limit
-      // exactly we hit during an allocation. Some sort of allocation context structure?
       align_up(word_size * BytesPerWord, 4 * M) >
       CompressedClassSpaceSize;
   }
@@ -890,6 +885,16 @@ void Metaspace::report_metadata_oome(ClassLoaderData* loader_data, size_t word_s
     THROW_OOP(Universe::out_of_memory_error_class_metaspace());
   } else {
     THROW_OOP(Universe::out_of_memory_error_metaspace());
+  }
+}
+
+const char* Metaspace::metadata_type_name(Metaspace::MetadataType mdtype) {
+  switch (mdtype) {
+    case Metaspace::ClassType: return "Class";
+    case Metaspace::NonClassType: return "Metadata";
+    default:
+      assert(false, "Got bad mdtype: %d", (int) mdtype);
+      return NULL;
   }
 }
 
