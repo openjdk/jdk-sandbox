@@ -116,7 +116,7 @@ abstract class ServerSocketChannelImpl
     public ServerSocket socket() {
         synchronized (stateLock) {
             if (socket == null)
-                socket = ServerSocketAdaptor.create(this);
+                socket = ServerSocketAdaptor.create((InetServerSocketChannelImpl)this);
             return socket;
         }
     }

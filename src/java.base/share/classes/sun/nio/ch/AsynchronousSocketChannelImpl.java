@@ -100,7 +100,7 @@ abstract class AsynchronousSocketChannelImpl
         super(group.provider());
         this.fd = fd;
         this.state = ST_CONNECTED;
-        this.localAddress = (InetSocketAddress)Net.localAddress(fd);
+        this.localAddress = Net.localAddress(fd);
         this.remoteAddress = remote;
     }
 
@@ -435,7 +435,7 @@ abstract class AsynchronousSocketChannelImpl
                 }
                 NetHooks.beforeTcpBind(fd, isa.getAddress(), isa.getPort());
                 Net.bind(fd, isa.getAddress(), isa.getPort());
-                localAddress = (InetSocketAddress)Net.localAddress(fd);
+                localAddress = Net.localAddress(fd);
             }
         } finally {
             end();

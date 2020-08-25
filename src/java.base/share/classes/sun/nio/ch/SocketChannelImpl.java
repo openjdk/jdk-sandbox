@@ -38,6 +38,7 @@ import java.net.SocketOption;
 import java.net.SocketTimeoutException;
 import java.net.StandardProtocolFamily;
 import java.net.StandardSocketOptions;
+import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AlreadyBoundException;
 import java.nio.channels.AlreadyConnectedException;
@@ -187,7 +188,7 @@ abstract class SocketChannelImpl
     public Socket socket() {
         synchronized (stateLock) {
             if (socket == null)
-                socket = SocketAdaptor.create(this);
+                socket = SocketAdaptor.create((InetSocketChannelImpl)this);
             return socket;
         }
     }
@@ -687,7 +688,7 @@ abstract class SocketChannelImpl
         if (completed) {
             synchronized (stateLock) {
                 if (state == ST_CONNECTIONPENDING) {
-                    localAddress = Net.localAddress(fd);
+                    localAddress = localAddressImpl(fd);
                     state = ST_CONNECTED;
                 }
             }
@@ -779,7 +780,7 @@ abstract class SocketChannelImpl
         if (completed) {
             synchronized (stateLock) {
                 if (state == ST_CONNECTIONPENDING) {
-                    localAddress = Net.localAddress(fd);
+                    localAddress = localAddressImpl(fd);
                     state = ST_CONNECTED;
                 }
             }

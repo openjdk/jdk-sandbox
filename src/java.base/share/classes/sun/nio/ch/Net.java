@@ -26,14 +26,11 @@
 package sun.nio.ch;
 
 import java.io.FileDescriptor;
-import java.io.FilePermission;
 import java.io.IOException;
-import java.lang.annotation.Native;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.NetPermission;
 import java.net.NetworkInterface;
 import java.net.ProtocolFamily;
 import java.net.SocketAddress;
@@ -49,8 +46,6 @@ import java.nio.channels.NotYetBoundException;
 import java.nio.channels.NotYetConnectedException;
 import java.nio.channels.UnresolvedAddressException;
 import java.nio.channels.UnsupportedAddressTypeException;
-import java.nio.file.Path;
-import java.nio.file.InvalidPathException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Enumeration;
@@ -67,10 +62,6 @@ public class Net {
         // Load all required native libs
         IOUtil.load();
         UnixDomainNet.init();
-    }
-
-    public static void init () {
-        // trigger initialization
     }
 
     // unspecified protocol family
@@ -621,35 +612,22 @@ public class Net {
     private static native int localPort(FileDescriptor fd)
         throws IOException;
 
-    public static SocketAddress localAddress(FileDescriptor fd) throws IOException {
-        int family = localAddressFamily(fd);
-        if (family == AF_UNIX) {
-            return UnixDomainSocketAddress.of(UnixDomainNet.localAddress(fd));
-        } else {
-            return new InetSocketAddress(localInetAddress(fd), localPort(fd));
-        }
-    }
-
-    public static SocketAddress remoteAddress(FileDescriptor fd) throws IOException {
-        int family = remoteAddressFamily(fd);
-        if (family == -1) {
-            // probably a ServerSocketChannel
-            return null;
-        } else if (family == AF_UNIX) {
-            return UnixDomainSocketAddress.of(UnixDomainNet.remoteAddress(fd));
-        } else {
-            return new InetSocketAddress(remoteInetAddress(fd), remotePort(fd));
-        }
-    }
-
     static native InetAddress localInetAddress(FileDescriptor fd)
         throws IOException;
+
+    public static InetSocketAddress localAddress(FileDescriptor fd) throws IOException {
+        return new InetSocketAddress(localInetAddress(fd), localPort(fd));
+    }
 
     private static native int remotePort(FileDescriptor fd)
         throws IOException;
 
     static native InetAddress remoteInetAddress(FileDescriptor fd)
         throws IOException;
+
+    public static InetSocketAddress remoteAddress(FileDescriptor fd) throws IOException {
+        return new InetSocketAddress(remoteInetAddress(fd), remotePort(fd));
+    }
 
     private static native int getIntOption0(FileDescriptor fd, boolean mayNeedConversion,
                                             int level, int opt)
@@ -810,9 +788,6 @@ public class Net {
      */
     public static final short POLLIN;
     public static final short POLLOUT;
-
-    // -- Socket operations --
-
     public static final short POLLERR;
     public static final short POLLHUP;
     public static final short POLLNVAL;

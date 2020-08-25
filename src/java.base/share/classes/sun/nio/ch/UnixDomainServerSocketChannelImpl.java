@@ -133,7 +133,7 @@ public class UnixDomainServerSocketChannelImpl
         if (!found)
             throw new IOException("could not bind to temporary name");
         Net.listen(getFD(), backlog < 1 ? 50 : backlog);
-        return Net.localAddress(getFD());
+        return UnixDomainNet.localAddress(getFD());
     }
 
     private static Random getRandom() {

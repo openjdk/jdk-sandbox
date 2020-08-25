@@ -92,7 +92,7 @@ class InetServerSocketChannelImpl
     }
 
 
-    SocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
+    InetSocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
         return Net.localAddress(fd);
     }
 

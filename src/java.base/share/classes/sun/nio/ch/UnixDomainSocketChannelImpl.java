@@ -87,7 +87,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
 
     @Override
     SocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
-        return Net.localAddress(fd);
+        return UnixDomainNet.localAddress(fd);
     }
 
     @Override
@@ -123,7 +123,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         if (usa == null || path.toString().equals("")) {
             return UnixDomainNet.UNNAMED;
         } else {
-            return Net.localAddress(getFD());
+            return UnixDomainNet.localAddress(getFD());
         }
     }
 
