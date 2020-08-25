@@ -50,54 +50,6 @@
 #endif
 
 
-/* Subtle platform differences in how unnamed sockets (empty path)
- * are returned from getsockname()
- */
-#ifdef MACOSX
-  #define ZERO_PATHLEN(len) (JNI_FALSE)
-#else
-  #define ZERO_PATHLEN(len) (len == offsetof(struct sockaddr_un, sun_path))
-#endif
-
-JNIEXPORT jstring JNICALL
-NET_SockaddrToUnixAddressString(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
-
-    if (sa->sun_family == AF_UNIX) {
-        char *name;
-
-        if (ZERO_PATHLEN(len)) {
-            name = "";
-        } else {
-            name = sa->sun_path;
-        }
-        return JNU_NewStringPlatform(env, name);
-    }
-    return NULL;
-}
-
-JNIEXPORT jint JNICALL
-NET_UnixSocketAddressToSockaddr(JNIEnv *env, jstring path, struct sockaddr_un *sa, int *len)
-{
-    memset(sa, 0, sizeof(struct sockaddr_un));
-    sa->sun_family = AF_UNIX;
-    jboolean isCopy;
-    int ret;
-    const char* pname = JNU_GetStringPlatformChars(env, path, &isCopy);
-    size_t name_len = strlen(pname)+1;
-    if (name_len > MAX_UNIX_DOMAIN_PATH_LEN) {
-        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Unix domain path too long");
-        ret = 1;
-        goto finish;
-    }
-    memcpy(sa->sun_path, pname, name_len);
-    *len = (int)(offsetof(struct sockaddr_un, sun_path) + name_len);
-    ret = 0;
-  finish:
-    if (isCopy)
-        JNU_ReleaseStringPlatformChars(env, path, pname);
-    return ret;
-}
-
 static jint checkFamily(SOCKETADDRESS *addr) {
     if (addr->sa.sa_family == AF_INET) {
         return sun_nio_ch_Net_AF_INET;
@@ -135,113 +87,6 @@ Java_sun_nio_ch_Net_remoteAddressFamily(JNIEnv *env, jclass cla, jobject fdo)
         return sun_nio_ch_Net_AF_UNKNOWN;
     }
     return checkFamily(&addr);
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_unixDomainMaxNameLen0(JNIEnv *env, jclass cl)
-{
-    return MAX_UNIX_DOMAIN_PATH_LEN - 1;
-}
-
-JNIEXPORT jboolean JNICALL
-Java_sun_nio_ch_Net_unixDomainSocketSupported(JNIEnv *env, jclass cl)
-{
-    return JNI_TRUE;
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_unixDomainSocket0(JNIEnv *env, jclass cl)
-{
-    int fd = socket(PF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) {
-        return handleSocketError(env, errno);
-    }
-    return fd;
-}
-
-JNIEXPORT void JNICALL
-Java_sun_nio_ch_Net_unixDomainBind(JNIEnv *env, jclass clazz, jobject fdo, jstring path)
-{
-    struct sockaddr_un sa;
-    int sa_len = 0;
-    int rv = 0;
-
-    if (path == NULL)
-        return; /* Rely on implicit bind: Unix */
-
-    if (NET_UnixSocketAddressToSockaddr(env, path, &sa, &sa_len) != 0)
-        return;
-
-    int fd = fdval(env, fdo);
-
-    rv = bind(fdval(env, fdo), (struct sockaddr *)&sa, sa_len);
-    if (rv != 0) {
-        handleSocketError(env, errno);
-    }
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_unixDomainConnect(JNIEnv *env, jclass clazz, jobject fdo, jobject path)
-{
-    struct sockaddr_un sa;
-    int sa_len = 0;
-    int rv;
-
-    if (NET_UnixSocketAddressToSockaddr(env, path, &sa, &sa_len) != 0) {
-        return IOS_THROWN;
-    }
-
-    rv = connect(fdval(env, fdo), (struct sockaddr *)&sa, sa_len);
-    if (rv != 0) {
-        if (errno == EINPROGRESS) {
-            return IOS_UNAVAILABLE;
-        } else if (errno == EINTR) {
-            return IOS_INTERRUPTED;
-        }
-        return handleSocketError(env, errno);
-    }
-    return 1;
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_unixDomainAccept(JNIEnv *env, jclass clazz, jobject fdo, jobject newfdo,
-                           jobjectArray usaa)
-{
-    jint fd = fdval(env, fdo);
-    jint newfd;
-    struct sockaddr_un sa;
-    socklen_t sa_len = sizeof(struct sockaddr_un);
-    jstring usa;
-
-    /* accept connection but ignore ECONNABORTED */
-    for (;;) {
-        newfd = accept(fd, (struct sockaddr *)&sa, &sa_len);
-        if (newfd >= 0) {
-            break;
-        }
-        if (errno != ECONNABORTED) {
-            break;
-        }
-        /* ECONNABORTED => restart accept */
-    }
-
-    if (newfd < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return IOS_UNAVAILABLE;
-        if (errno == EINTR)
-            return IOS_INTERRUPTED;
-        JNU_ThrowIOExceptionWithLastError(env, "Accept failed");
-        return IOS_THROWN;
-    }
-
-    setfdval(env, newfdo, newfd);
-
-    usa = NET_SockaddrToUnixAddressString(env, &sa, sa_len);
-    CHECK_NULL_RETURN(usa, IOS_THROWN);
-
-    (*env)->SetObjectArrayElement(env, usaa, 0, usa);
-
-    return 1;
 }
 
 /**
@@ -644,19 +489,6 @@ Java_sun_nio_ch_Net_localInetAddress(JNIEnv *env, jclass clazz, jobject fdo)
     return NET_SockaddrToInetAddress(env, &sa, &port);
 }
 
-JNIEXPORT jstring JNICALL
-Java_sun_nio_ch_Net_localUnixAddress(JNIEnv *env, jclass clazz, jobject fdo)
-{
-    SOCKETADDRESS sa;
-    socklen_t sa_len = sizeof(SOCKETADDRESS);
-    int port;
-    if (getsockname(fdval(env, fdo), &sa.sa, &sa_len) < 0) {
-        handleSocketError(env, errno);
-        return NULL;
-    }
-    return NET_SockaddrToUnixAddressString(env, &sa.saun, sa_len);
-}
-
 JNIEXPORT jint JNICALL
 Java_sun_nio_ch_Net_remotePort(JNIEnv *env, jclass clazz, jobject fdo)
 {
@@ -682,19 +514,6 @@ Java_sun_nio_ch_Net_remoteInetAddress(JNIEnv *env, jclass clazz, jobject fdo)
         return NULL;
     }
     return NET_SockaddrToInetAddress(env, &sa, &port);
-}
-
-JNIEXPORT jstring JNICALL
-Java_sun_nio_ch_Net_remoteUnixAddress(JNIEnv *env, jclass clazz, jobject fdo)
-{
-    SOCKETADDRESS sa;
-    socklen_t sa_len = sizeof(sa);
-
-    if (getpeername(fdval(env, fdo), &sa.sa, &sa_len) < 0) {
-        handleSocketError(env, errno);
-        return NULL;
-    }
-    return NET_SockaddrToUnixAddressString(env, &sa.saun, sa_len);
 }
 
 JNIEXPORT jint JNICALL

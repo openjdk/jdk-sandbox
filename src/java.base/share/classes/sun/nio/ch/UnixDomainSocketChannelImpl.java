@@ -111,7 +111,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     @Override
     SocketAddress getRevealedLocalAddress(SocketAddress address) {
         UnixDomainSocketAddress uaddr = (UnixDomainSocketAddress)address;
-        return Net.getRevealedLocalAddress(uaddr);
+        return UnixDomainNet.getRevealedLocalAddress(uaddr);
     }
 
     private static class DefaultOptionsHolder {
@@ -147,12 +147,12 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
 
     @Override
     SocketAddress bindImpl(SocketAddress local) throws IOException {
-        Net.checkUnixCapability();
-        UnixDomainSocketAddress usa = Net.checkUnixAddress(local);
-        String path = usa == null ? null : usa.getPath().toString();
-        Net.unixDomainBind(getFD(), path);
-        if (usa == null || path.equals("")) {
-            return Net.UNNAMED;
+        UnixDomainNet.checkCapability();
+        UnixDomainSocketAddress usa = UnixDomainNet.checkAddress(local);
+        Path path = usa == null ? null : usa.getPath();
+        UnixDomainNet.bind(getFD(), path);
+        if (usa == null || path.toString().equals("")) {
+            return UnixDomainNet.UNNAMED;
         } else {
             return Net.localAddress(getFD());
         }
@@ -169,20 +169,20 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     @Override
     SocketAddress checkRemote(SocketAddress sa) throws IOException {
         Objects.requireNonNull(sa);
-        Net.checkUnixCapability();
-        UnixDomainSocketAddress usa = Net.checkUnixAddress(sa);
+        UnixDomainNet.checkCapability();
+        UnixDomainSocketAddress usa = UnixDomainNet.checkAddress(sa);
         return usa;
     }
 
     @Override
     int connectImpl(FileDescriptor fd, SocketAddress sa) throws IOException {
         UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
-        return Net.unixDomainConnect(fd, usa.getPath().toString());
+        return UnixDomainNet.connect(fd, usa.getPath());
     }
 
     String getRevealedLocalAddressAsString(SocketAddress sa) {
         UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
-        return Net.getRevealedLocalAddressAsString(usa);
+        return UnixDomainNet.getRevealedLocalAddressAsString(usa);
     }
 
     /**

@@ -25,6 +25,7 @@
 
 package sun.nio.fs;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.*;
 import java.io.*;
@@ -70,6 +71,8 @@ class WindowsPath implements Path {
     // computed hash code (computed lazily, no need to be volatile)
     private int hash;
 
+    // UTF-8 path only calculated if required
+    private byte[] utf8path;
 
     /**
      * Initializes a new instance of this class.
@@ -169,6 +172,13 @@ class WindowsPath implements Path {
     // use this path for permission checks
     String getPathForPermissionCheck() {
         return path;
+    }
+
+    synchronized byte[] getUTF8Path() {
+        if (utf8path == null) {
+            utf8path = path.getBytes(StandardCharsets.UTF_8);
+        }
+        return utf8path;
     }
 
     // use this path for Win32 calls

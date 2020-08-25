@@ -67,27 +67,11 @@ public class Net {
     static {
         // Load all required native libs
         IOUtil.load();
+        UnixDomainNet.init();
     }
-
-    static final UnixDomainSocketAddress UNNAMED
-        = UnixDomainSocketAddress.of("");;
 
     public static void init () {
         // trigger initialization
-    }
-
-    private static final boolean unixDomainSupported =
-        unixDomainSocketSupported();
-
-    static {
-        PrivilegedAction<Void> pa = () -> {
-            // -1 if unsupported or +ve integer otherwise. Prop set after Net initialization
-            // Undocumented. Just use for testing
-            System.setProperty("jdk.nio.channels.unixdomain.maxnamelength",
-                               Integer.toString(unixDomainMaxNameLen()));
-            return null;
-        };
-        AccessController.doPrivileged(pa);
     }
 
     // unspecified protocol family
@@ -664,7 +648,7 @@ public class Net {
     public static SocketAddress localAddress(FileDescriptor fd) throws IOException {
         int family = localAddressFamily(fd);
         if (family == AF_UNIX) {
-            return UnixDomainSocketAddress.of(localUnixAddress(fd));
+            return UnixDomainSocketAddress.of(UnixDomainNet.localAddress(fd));
         } else {
             return new InetSocketAddress(localInetAddress(fd), localPort(fd));
         }
@@ -676,7 +660,7 @@ public class Net {
             // probably a ServerSocketChannel
             return null;
         } else if (family == AF_UNIX) {
-            return UnixDomainSocketAddress.of(remoteUnixAddress(fd));
+            return UnixDomainSocketAddress.of(UnixDomainNet.remoteAddress(fd));
         } else {
             return new InetSocketAddress(remoteInetAddress(fd), remotePort(fd));
         }
@@ -685,16 +669,10 @@ public class Net {
     static native InetAddress localInetAddress(FileDescriptor fd)
         throws IOException;
 
-    static native String localUnixAddress(FileDescriptor fd)
-        throws IOException;
-
     private static native int remotePort(FileDescriptor fd)
         throws IOException;
 
     static native InetAddress remoteInetAddress(FileDescriptor fd)
-        throws IOException;
-
-    static native String remoteUnixAddress(FileDescriptor fd)
         throws IOException;
 
     private static native int getIntOption0(FileDescriptor fd, boolean mayNeedConversion,
@@ -857,99 +835,7 @@ public class Net {
     public static final short POLLIN;
     public static final short POLLOUT;
 
-    public static UnixDomainSocketAddress checkUnixAddress(SocketAddress sa) {
-        if (sa == null)
-            return null;
-        if (!(sa instanceof UnixDomainSocketAddress))
-            throw new UnsupportedAddressTypeException();
-        UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
-        return usa;
-    }
-
-    public static boolean isUnixDomainSupported() {
-        return unixDomainSupported;
-    }
-
-    public static int unixDomainMaxNameLen() {
-        return unixDomainSupported ? unixDomainMaxNameLen0() : -1;
-    }
-
-    public static boolean inTempDirectory(Path path) {
-        Path parent = AccessController.doPrivileged(
-            (PrivilegedAction<Path>) () -> {
-                return path
-                    .normalize()
-                    .toAbsolutePath()
-                    .getParent();
-            }
-        );
-        return parent.equals(tempDir);
-    }
-
-    static final Path tempDir = getTempDir();
-
-    private static Path getTempDir() {
-        return AccessController.doPrivileged(
-            (PrivilegedAction<Path>) () -> {
-                try {
-                    String s = System.getProperty("jdk.nio.channels.tmpdir");
-                    if (s == null) {
-                        s = System.getProperty("java.io.tmpdir");
-                    }
-                    return Path.of(s);
-                } catch (InvalidPathException ipe) {
-                    return null;
-                }
-            }
-        );
-    }
-
-    private static final NetPermission np = new NetPermission("accessUnixDomainSocket");
-
-    static void checkUnixCapability() {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm == null)
-            return;
-        sm.checkPermission(np);
-    }
-
-    static UnixDomainSocketAddress getRevealedLocalAddress(UnixDomainSocketAddress addr) {
-        try{
-            checkUnixCapability();
-            // Security check passed
-        } catch (SecurityException e) {
-            // Return unnamed address only if security check fails
-            addr = UNNAMED;
-        }
-        return addr;
-    }
-
-    static String getRevealedLocalAddressAsString(UnixDomainSocketAddress addr) {
-        return System.getSecurityManager() == null ? addr.toString() : "";
-    }
-
     // -- Socket operations --
-
-    public static FileDescriptor unixDomainSocket() throws IOException {
-        return IOUtil.newFD(unixDomainSocket0());
-    }
-
-    private static native int unixDomainSocket0();
-
-    private static native boolean unixDomainSocketSupported();
-
-    static native void unixDomainBind(FileDescriptor fd, String addr)
-        throws IOException;
-
-    static native int unixDomainConnect(FileDescriptor fd, String remote)
-        throws IOException;
-
-    static native int unixDomainAccept(FileDescriptor fd,
-                                     FileDescriptor newfd,
-                                     String[] isaa)
-        throws IOException;
-
-    static native int unixDomainMaxNameLen0();
 
     public static final short POLLERR;
     public static final short POLLHUP;
