@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,19 @@
  * questions.
  */
 
-package vm;
-
 /*
-* @test
-* @ignore
-*/
-interface StrictfpDefault {
-    default strictfp void m() {}
+ * @test
+ * @bug 8071961
+ * @compile -Xlint:missing-explicit-ctor -Werror --release 8 NoWarningCases.java
+ * @compile -Xlint:missing-explicit-ctor -Werror             NoWarningCases.java
+ */
+
+public class NoWarningCases {
+    // No explicit constructor; use a default.
+
+    public enum NestedEnum {
+        FOO,
+        BAR;
+        // No explicit constructor; use implicit one.
+    }
 }
