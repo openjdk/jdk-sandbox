@@ -25,17 +25,25 @@
 
 #include "precompiled.hpp"
 
-//#define LOG_PLEASE
+#include "memory/metaspace/msChunkManager.hpp"
+#include "memory/metaspace/msSettings.hpp"
+#include "memory/metaspace/msVirtualSpaceList.hpp"
 
-#include "metaspace/metaspace_sparsearray.hpp"
-#include "metaspace/metaspaceTestsCommon.hpp"
-#include "metaspace/metaspaceTestContexts.hpp"
+//#define LOG_PLEASE
+#include "metaspaceGtestCommon.hpp"
+#include "metaspaceGtestContexts.hpp"
+#include "metaspaceGtestRangeHelpers.hpp"
+#include "metaspaceGtestSparseArray.hpp"
+
+
+using metaspace::ChunkManager;
+using metaspace::Settings;
 
 class ChunkManagerRandomChunkAllocTest {
 
   static const size_t max_footprint_words = 8 * M;
 
-  ChunkTestsContext _context;
+  ChunkGtestContext _context;
 
   // All allocated live chunks
   typedef SparseArray<Metachunk*> SparseArrayOfChunks;

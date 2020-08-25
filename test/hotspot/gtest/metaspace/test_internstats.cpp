@@ -25,9 +25,10 @@
 
 #include "precompiled.hpp"
 
-//#define LOG_PLEASE
+#include "memory/metaspace/msInternalStats.hpp"
 
-#include "metaspaceTestsCommon.hpp"
+//#define LOG_PLEASE
+#include "metaspaceGtestCommon.hpp"
 
 // Very simple test, since the VM is fired up we should see a little
 // Metaspace activity already which should show up in the stats.

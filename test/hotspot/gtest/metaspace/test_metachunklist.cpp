@@ -25,14 +25,23 @@
 
 #include "precompiled.hpp"
 
+#include "memory/metaspace/msCounter.hpp"
+#include "memory/metaspace/msFreeChunkList.hpp"
+#include "memory/metaspace/msMetachunkList.hpp"
+
 //#define LOG_PLEASE
-#include "metaspace/metaspaceTestsCommon.hpp"
-#include "metaspace/metaspaceTestContexts.hpp"
-#include "metaspace/metaspace_rangehelpers.hpp"
+#include "metaspaceGtestCommon.hpp"
+#include "metaspaceGtestContexts.hpp"
+#include "metaspaceGtestRangeHelpers.hpp"
+
+using metaspace::MemRangeCounter;
+using metaspace::MetachunkList;
+using metaspace::FreeChunkListVector;
+
 
 TEST_VM(metaspace, metachunklist) {
 
-  ChunkTestsContext context;
+  ChunkGtestContext context;
 
   MetachunkList lst;
 
@@ -75,7 +84,7 @@ TEST_VM(metaspace, metachunklist) {
 
 TEST_VM(metaspace, freechunklist) {
 
-  ChunkTestsContext context;
+  ChunkGtestContext context;
 
   FreeChunkListVector lst;
 

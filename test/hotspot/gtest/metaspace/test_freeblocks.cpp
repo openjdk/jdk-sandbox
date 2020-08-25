@@ -25,9 +25,14 @@
 
 #include "precompiled.hpp"
 
-//#define LOG_PLEASE
+#include "memory/metaspace/msCounter.hpp"
+#include "memory/metaspace/msFreeBlocks.hpp"
 
-#include "metaspaceTestsCommon.hpp"
+//#define LOG_PLEASE
+#include "metaspaceGtestCommon.hpp"
+
+using metaspace::FreeBlocks;
+using metaspace::SizeCounter;
 
 #define CHECK_CONTENT(fb, num_blocks_expected, word_size_expected) \
 { \

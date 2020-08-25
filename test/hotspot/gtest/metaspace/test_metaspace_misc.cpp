@@ -25,11 +25,18 @@
 
 #include "precompiled.hpp"
 
-// #define LOG_PLEASE
 
 #include "classfile/classLoaderData.hpp"
-#include "metaspaceTestsCommon.hpp"
+#include "memory/metaspace/msChunklevel.hpp"
+#include "memory/metaspace/msSettings.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+// #define LOG_PLEASE
+#include "metaspaceGtestCommon.hpp"
+
+using metaspace::chunklevel_t;
+using namespace metaspace::chunklevel;
+using metaspace::Settings;
 
 TEST_VM(metaspace, misc_sizes)   {
 

@@ -25,9 +25,14 @@
 
 #include "precompiled.hpp"
 
-//#define LOG_PLEASE
+#include "memory/metaspace/msBlockTree.hpp"
+#include "memory/metaspace/msCounter.hpp"
 
-#include "metaspaceTestsCommon.hpp"
+//#define LOG_PLEASE
+#include "metaspaceGtestCommon.hpp"
+
+using metaspace::BlockTree;
+using metaspace::MemRangeCounter;
 
 #define CHECK_BT_CONTENT(bt, expected_num, expected_size) { \
   EXPECT_EQ(bt.count(), (unsigned)expected_num); \

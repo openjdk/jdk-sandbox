@@ -25,9 +25,16 @@
 
 #include "precompiled.hpp"
 
-//#define LOG_PLEASE
+#include "memory/metaspace.hpp"
+#include "memory/metaspace/msArenaGrowthPolicy.hpp"
+#include "memory/metaspace/msChunklevel.hpp"
 
-#include "metaspaceTestsCommon.hpp"
+//#define LOG_PLEASE
+#include "metaspaceGtestCommon.hpp"
+
+using metaspace::ArenaGrowthPolicy;
+using metaspace::chunklevel_t;
+using namespace metaspace::chunklevel;
 
 static void test_arena_growth_policy(Metaspace::MetaspaceType spacetype, bool is_class) {
 

@@ -25,10 +25,27 @@
 
 #include "precompiled.hpp"
 
+#include "memory/metaspace/msArena.hpp"
+#include "memory/metaspace/msArenaGrowthPolicy.hpp"
+#include "memory/metaspace/msChunkManager.hpp"
+#include "memory/metaspace/msCounter.hpp"
+#include "memory/metaspace/msStatistics.hpp"
+#include "utilities/debug.hpp"
+#include "utilities/globalDefinitions.hpp"
+
 //#define LOG_PLEASE
-#include "metaspace/metaspaceTestsCommon.hpp"
-#include "metaspace/metaspaceTestContexts.hpp"
-#include "metaspace/metaspace_sparsearray.hpp"
+#include "metaspaceGtestCommon.hpp"
+#include "metaspaceGtestContexts.hpp"
+#include "metaspaceGtestSparseArray.hpp"
+
+using metaspace::ArenaGrowthPolicy;
+using metaspace::ChunkManager;
+using metaspace::IntCounter;
+using metaspace::MemRangeCounter;
+using metaspace::MetaspaceArena;
+using metaspace::SizeAtomicCounter;
+using metaspace::arena_stats_t;
+using metaspace::in_use_chunk_stats_t;
 
 // Little randomness helper
 static bool fifty_fifty() {
@@ -200,7 +217,7 @@ public:
 
 class MetaspaceArenaTest {
 
-  TestContext _context;
+  MetaspaceGtestContext _context;
 
   SizeAtomicCounter _used_words_counter;
 

@@ -24,10 +24,18 @@
  */
 
 #include "precompiled.hpp"
-#include "runtime/os.hpp"
 
-#include "metaspaceTestsCommon.hpp"
-#include "metaspace/metaspace_rangehelpers.hpp"
+#include "memory/metaspace/msCommitMask.hpp"
+#include "memory/metaspace/msSettings.hpp"
+#include "runtime/os.hpp"
+#include "utilities/align.hpp"
+#include "utilities/debug.hpp"
+
+#include "metaspaceGtestCommon.hpp"
+#include "metaspaceGtestRangeHelpers.hpp"
+
+using metaspace::CommitMask;
+using metaspace::Settings;
 
 static int get_random(int limit) { return os::random() % limit; }
 

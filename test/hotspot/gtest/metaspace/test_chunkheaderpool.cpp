@@ -25,7 +25,17 @@
 
 #include "precompiled.hpp"
 
-#include "metaspaceTestsCommon.hpp"
+
+#include "memory/metaspace/msChunkHeaderPool.hpp"
+#include "memory/metaspace/msCounter.hpp"
+#include "memory/metaspace/msMetachunk.hpp"
+
+//#define LOG_PLEASE
+#include "metaspaceGtestCommon.hpp"
+
+using metaspace::ChunkHeaderPool;
+using metaspace::Metachunk;
+using metaspace::SizeCounter;
 
 class ChunkHeaderPoolTest {
 

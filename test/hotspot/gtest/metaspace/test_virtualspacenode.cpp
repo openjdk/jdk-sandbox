@@ -25,12 +25,29 @@
 
 #include "precompiled.hpp"
 
- #define LOG_PLEASE
+#include "memory/metaspace/msChunklevel.hpp"
+#include "memory/metaspace/msCommitLimiter.hpp"
+#include "memory/metaspace/msCounter.hpp"
+#include "memory/metaspace/msFreeChunkList.hpp"
+#include "memory/metaspace/msMetachunk.hpp"
+#include "memory/metaspace/msMetachunkList.hpp"
+#include "memory/metaspace/msSettings.hpp"
+#include "memory/metaspace/msVirtualSpaceNode.hpp"
+#include "runtime/mutexLocker.hpp"
+#include "utilities/debug.hpp"
 
-#include "metaspace/metaspaceTestsCommon.hpp"
-#include "metaspace/metaspace_rangehelpers.hpp"
+//#define LOG_PLEASE
+#include "metaspaceGtestCommon.hpp"
+#include "metaspaceGtestRangeHelpers.hpp"
 
-static int test_node_id = 100000; // start high to make it stick out in logs.
+using metaspace::chunklevel_t;
+using metaspace::CommitLimiter;
+using metaspace::FreeChunkListVector;
+using metaspace::Metachunk;
+using metaspace::MetachunkList;
+using metaspace::VirtualSpaceNode;
+using metaspace::Settings;
+using metaspace::SizeCounter;
 
 class VirtualSpaceNodeTest {
 

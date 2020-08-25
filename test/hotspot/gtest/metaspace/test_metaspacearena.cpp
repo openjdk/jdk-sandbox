@@ -25,18 +25,33 @@
 
 #include "precompiled.hpp"
 
+#include "memory/metaspace/msArena.hpp"
+#include "memory/metaspace/msArenaGrowthPolicy.hpp"
+#include "memory/metaspace/msCommitLimiter.hpp"
+#include "memory/metaspace/msCounter.hpp"
+#include "memory/metaspace/msInternalStats.hpp"
+#include "memory/metaspace/msSettings.hpp"
+#include "memory/metaspace/msStatistics.hpp"
+#include "utilities/debug.hpp"
+#include "utilities/globalDefinitions.hpp"
+
 //#define LOG_PLEASE
+#include "metaspaceGtestCommon.hpp"
+#include "metaspaceGtestContexts.hpp"
+#include "metaspaceGtestRangeHelpers.hpp"
 
-#include "metaspace/metaspaceTestsCommon.hpp"
-#include "metaspace/metaspaceTestContexts.hpp"
-#include "metaspace/metaspace_sparsearray.hpp"
-#include "utilities/ostream.hpp"
+using metaspace::ArenaGrowthPolicy;
+using metaspace::CommitLimiter;
+using metaspace::InternalStats;
+using metaspace::MemRangeCounter;
+using metaspace::MetaspaceArena;
+using metaspace::SizeAtomicCounter;
+using metaspace::Settings;
+using metaspace::arena_stats_t;
 
-// TODO: this class is very similar to MetaspaceArenaTestBed in test_metaspacearena_stress.cpp.
-// should be unified.
 class MetaspaceArenaTestHelper {
 
-  TestContext& _context;
+  MetaspaceGtestContext& _context;
 
   Mutex* _lock;
   const ArenaGrowthPolicy* _growth_policy;
@@ -59,7 +74,7 @@ class MetaspaceArenaTestHelper {
 public:
 
   // Create a helper; growth policy for arena is determined by the given spacetype|class tupel
-  MetaspaceArenaTestHelper(TestContext& helper,
+  MetaspaceArenaTestHelper(MetaspaceGtestContext& helper,
                             Metaspace::MetaspaceType space_type, bool is_class,
                             const char* name = "gtest-MetaspaceArena")
     :_context(helper)
@@ -68,7 +83,7 @@ public:
   }
 
   // Create a helper; growth policy is directly specified
-  MetaspaceArenaTestHelper(TestContext& helper, const ArenaGrowthPolicy* growth_policy,
+  MetaspaceArenaTestHelper(MetaspaceGtestContext& helper, const ArenaGrowthPolicy* growth_policy,
                             const char* name = "gtest-MetaspaceArena")
     :_context(helper)
   {
@@ -218,7 +233,7 @@ public:
 };
 
 static void test_basics(size_t commit_limit, bool is_micro) {
-  TestContext context(commit_limit);
+  MetaspaceGtestContext context(commit_limit);
   MetaspaceArenaTestHelper helper(context, is_micro ? Metaspace::ReflectionMetaspaceType : Metaspace::StandardMetaspaceType, false);
 
   helper.allocate_from_arena_with_tests(1);
@@ -250,7 +265,7 @@ TEST_VM(metaspace, MetaspaceArena_basics_standard_limit) {
 //  We should see at least some occurrences of chunk-in-place enlargement.
 static void test_chunk_enlargment_simple(Metaspace::MetaspaceType spacetype, bool is_class) {
 
-  TestContext context;
+  MetaspaceGtestContext context;
   MetaspaceArenaTestHelper helper(context, (Metaspace::MetaspaceType)spacetype, is_class);
 
   uint64_t n1 = metaspace::InternalStats::num_chunks_enlarged();
@@ -308,7 +323,7 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_2) {
   chunklevel_t growth[] = { HIGHEST_CHUNK_LEVEL, ROOT_CHUNK_LEVEL };
   ArenaGrowthPolicy growth_policy(growth, 2);
 
-  TestContext context;
+  MetaspaceGtestContext context;
   MetaspaceArenaTestHelper helper(context, &growth_policy);
 
   uint64_t n1 = metaspace::InternalStats::num_chunks_enlarged();
@@ -343,7 +358,7 @@ TEST_VM(metaspace, MetaspaceArena_test_failing_to_enlarge_in_place_max_chunk_siz
     return;
   }
 
-  TestContext context;
+  MetaspaceGtestContext context;
 
   for (size_t first_allocation_size = 1; first_allocation_size <= MAX_CHUNK_WORD_SIZE / 2; first_allocation_size *= 2) {
 
@@ -378,7 +393,7 @@ TEST_VM(metaspace, MetaspaceArena_test_failing_to_enlarge_in_place_doubling_chun
     return;
   }
 
-  TestContext context;
+  MetaspaceGtestContext context;
   MetaspaceArenaTestHelper helper(context, Metaspace::StandardMetaspaceType, false);
 
   int n1 = metaspace::InternalStats::num_chunks_enlarged();
@@ -404,7 +419,7 @@ TEST_VM(metaspace, MetaspaceArena_deallocate) {
     return;
   }
   for (size_t s = 2; s <= MAX_CHUNK_WORD_SIZE; s *= 2) {
-    TestContext context;
+    MetaspaceGtestContext context;
     MetaspaceArenaTestHelper helper(context, Metaspace::StandardMetaspaceType, false);
 
     MetaWord* p1 = NULL;
@@ -452,7 +467,7 @@ static void test_recover_from_commit_limit_hit() {
   // retire it and take a fresh chunk from the freelist.
 
   const size_t commit_limit = Settings::commit_granule_words() * 10;
-  TestContext context(commit_limit);
+  MetaspaceGtestContext context(commit_limit);
 
   // The first MetaspaceArena mimicks a micro loader. This will fill the free
   //  chunk list with very small chunks. We allocate from them in an interleaved
@@ -519,7 +534,7 @@ static void test_controlled_growth(Metaspace::MetaspaceType type, bool is_class,
   // large jumps. Also, different types of MetaspaceArena should
   // have different initial capacities.
 
-  TestContext context;
+  MetaspaceGtestContext context;
   MetaspaceArenaTestHelper smhelper(context, type, is_class, "Grower");
 
   MetaspaceArenaTestHelper smhelper_harrasser(context, Metaspace::ReflectionMetaspaceType, true, "Harasser");
