@@ -25,11 +25,12 @@
 
 /*
  * Note: This runs the metaspace-related parts of gtest in configurations which
- *  are not tested explicitely in the standard gtests.
+ *  are not tested explicitly in the standard gtests.
  *
  */
 
 /* @test id=reclaim-none-debug
+ * @bug 8251158
  * @summary Run metaspace-related gtests for reclaim policy none (with verifications)
  * @requires vm.debug
  * @library /test/lib
@@ -39,6 +40,7 @@
  */
 
 /* @test id=reclaim-none-ndebug
+ * @bug 8251158
  * @summary Run metaspace-related gtests for reclaim policy none
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
@@ -50,6 +52,7 @@
 
 
 /* @test id=reclaim-aggressive-debug
+ * @bug 8251158
  * @summary Run metaspace-related gtests for reclaim policy aggressive (with verifications)
  * @requires vm.debug
  * @library /test/lib
@@ -59,6 +62,7 @@
  */
 
 /* @test id=reclaim-aggressive-ndebug
+ * @bug 8251158
  * @summary Run metaspace-related gtests for reclaim policy aggressive
  * @library /test/lib
  * @modules java.base/jdk.internal.misc

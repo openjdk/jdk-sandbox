@@ -27,19 +27,60 @@ import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.JDKToolFinder;
 
 /*
- * @test
+ * @test id=test-64bit-ccs
  * @summary Test the VM.metaspace command
- * @requires vm.gc != "Z" & vm.bits != "32"
+ * @requires vm.bits == "64"
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
  * @run main/othervm -XX:MaxMetaspaceSize=201M -Xmx100M -XX:+UseCompressedOops -XX:+UseCompressedClassPointers PrintMetaspaceDcmd with-compressed-class-space
+ */
+
+/*
+ * @test id=test-64bit-ccs-noreclaim
+ * @summary Test the VM.metaspace command
+ * @requires vm.bits == "64"
+ * @library /test/lib
+ * @modules java.base/jdk.internal.misc
+ *          java.management
+ * @run main/othervm -XX:MaxMetaspaceSize=201M -Xmx100M -XX:+UseCompressedOops -XX:+UseCompressedClassPointers -XX:MetaspaceReclaimPolicy=none PrintMetaspaceDcmd with-compressed-class-space
+ */
+
+/*
+ * @test id=test-64bit-ccs-aggressivereclaim
+ * @summary Test the VM.metaspace command
+ * @requires vm.bits == "64"
+ * @library /test/lib
+ * @modules java.base/jdk.internal.misc
+ *          java.management
+ * @run main/othervm -XX:MaxMetaspaceSize=201M -Xmx100M -XX:+UseCompressedOops -XX:+UseCompressedClassPointers -XX:MetaspaceReclaimPolicy=aggressive PrintMetaspaceDcmd with-compressed-class-space
+ */
+
+/*
+ * @test id=test-64bit-ccs-guarded
+ * @summary Test the VM.metaspace command
+ * @requires vm.bits == "64"
+ * @requires vm.debug == true
+ * @library /test/lib
+ * @modules java.base/jdk.internal.misc
+ *          java.management
+ * @run main/othervm -XX:MaxMetaspaceSize=201M -Xmx100M -XX:+UseCompressedOops -XX:+UseCompressedClassPointers -XX:+MetaspaceGuardAllocations PrintMetaspaceDcmd with-compressed-class-space
+ */
+
+/*
+ * @test id=test-64bit-noccs
+ * @summary Test the VM.metaspace command
+ * @requires vm.bits == "64"
+ * @library /test/lib
+ * @modules java.base/jdk.internal.misc
+ *          java.management
  * @run main/othervm -XX:MaxMetaspaceSize=201M -Xmx100M -XX:-UseCompressedOops -XX:-UseCompressedClassPointers PrintMetaspaceDcmd without-compressed-class-space
  */
+
 /*
- * @test
+ * @test test-32bit
  * @summary Test the VM.metaspace command
- * @requires vm.gc != "Z" & vm.bits == "32"
+ * @requires vm.bits == "32"
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
@@ -48,8 +89,6 @@ import jdk.test.lib.JDKToolFinder;
 
 public class PrintMetaspaceDcmd {
 
-    // Run jcmd VM.metaspace against a VM with CompressedClassPointers on.
-    // The report should detail Non-Class and Class portions separately.
     private static void doTheTest(boolean usesCompressedClassSpace) throws Exception {
         ProcessBuilder pb = new ProcessBuilder();
         OutputAnalyzer output;
