@@ -154,7 +154,7 @@ public class SctpMultiChannelImpl extends SctpMultiChannel
                         sm.checkListen(isa.getPort());
                     Net.bind(fd, isa.getAddress(), isa.getPort());
 
-                    InetSocketAddress boundIsa = (InetSocketAddress)Net.localAddress(fd);
+                    InetSocketAddress boundIsa = Net.localAddress(fd);
                     port = boundIsa.getPort();
                     localAddresses.add(isa);
                     if (isa.getAddress().isAnyLocalAddress())
