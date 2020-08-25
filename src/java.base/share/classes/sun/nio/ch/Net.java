@@ -39,7 +39,6 @@ import java.net.SocketOption;
 import java.net.StandardProtocolFamily;
 import java.net.StandardSocketOptions;
 import java.net.UnknownHostException;
-import java.net.UnixDomainSocketAddress;
 import java.nio.channels.AlreadyBoundException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NotYetBoundException;
@@ -507,8 +506,6 @@ public class Net {
      * Returns 1 for Windows and -1 for Linux/Mac OS
      */
 
-    static native int localAddressFamily(FileDescriptor fd);
-
     private static native int isExclusiveBindAvailable();
 
     private static native boolean shouldSetBothIPv4AndIPv6Options0();
@@ -604,7 +601,7 @@ public class Net {
     private static native int localPort(FileDescriptor fd)
         throws IOException;
 
-    static native InetAddress localInetAddress(FileDescriptor fd)
+    private static native InetAddress localInetAddress(FileDescriptor fd)
         throws IOException;
 
     public static InetSocketAddress localAddress(FileDescriptor fd) throws IOException {
@@ -614,10 +611,10 @@ public class Net {
     private static native int remotePort(FileDescriptor fd)
         throws IOException;
 
-    static native InetAddress remoteInetAddress(FileDescriptor fd)
+    private static native InetAddress remoteInetAddress(FileDescriptor fd)
         throws IOException;
 
-    public static InetSocketAddress remoteAddress(FileDescriptor fd) throws IOException {
+    private static InetSocketAddress remoteAddress(FileDescriptor fd) throws IOException {
         return new InetSocketAddress(remoteInetAddress(fd), remotePort(fd));
     }
 
