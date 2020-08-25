@@ -161,7 +161,7 @@ JNIEXPORT jstring JNICALL
 NET_SockaddrToUnixAddressString(JNIEnv *env, struct sockaddr_un *sa, socklen_t len);
 
 JNIEXPORT jint JNICALL
-NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *sa, int *len);
+NET_UnixSocketAddressToSockaddr(JNIEnv *env, jbyteArray uaddr, struct sockaddr_un *sa, int *len);
 
 void platformInit();
 

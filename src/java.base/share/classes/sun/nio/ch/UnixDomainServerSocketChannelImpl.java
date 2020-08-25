@@ -72,7 +72,7 @@ public class UnixDomainServerSocketChannelImpl
     extends ServerSocketChannelImpl
 {
     public UnixDomainServerSocketChannelImpl(SelectorProvider sp) throws IOException {
-        super(sp, Net.unixDomainSocket(), false);
+        super(sp, UnixDomainNet.socket(), false);
     }
 
     public UnixDomainServerSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
@@ -109,7 +109,7 @@ public class UnixDomainServerSocketChannelImpl
     public SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException {
         boolean found = false;
 
-        Net.checkUnixCapability();
+        UnixDomainNet.checkCapability();
 
         // Attempt up to 10 times to find an unused name in temp directory
         // Unlikely to fail
@@ -118,11 +118,10 @@ public class UnixDomainServerSocketChannelImpl
             if (local == null) {
                 usa = getTempName();
             } else {
-                usa = Net.checkUnixAddress(local);
+                usa = UnixDomainNet.checkAddress(local);
             }
-            String path = usa.getPath().toString();
             try {
-                Net.unixDomainBind(getFD(), path);
+                UnixDomainNet.bind(getFD(), usa.getPath());
                 found = true;
                 break;
             } catch (BindException e) {
@@ -154,7 +153,7 @@ public class UnixDomainServerSocketChannelImpl
     private static UnixDomainSocketAddress getTempName() throws IOException {
         int rnd = random.nextInt(Integer.MAX_VALUE);
         StringBuilder sb = new StringBuilder();
-        sb.append(Net.tempDir).append("/niosocket_").append(rnd);
+        sb.append(UnixDomainNet.tempDir).append("/niosocket_").append(rnd);
         return UnixDomainSocketAddress.of(sb.toString());
     }
 
@@ -162,9 +161,9 @@ public class UnixDomainServerSocketChannelImpl
     protected int acceptImpl(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
         throws IOException
     {
-        Net.checkUnixCapability();
+        UnixDomainNet.checkCapability();
         String[] addrArray = new String[1];
-        int n = Net.unixDomainAccept(fd, newfd, addrArray);
+        int n = UnixDomainNet.accept(fd, newfd, addrArray);
         if (n > 0) {
             addrs[0] = UnixDomainSocketAddress.of(addrArray[0]);
         }
@@ -173,12 +172,12 @@ public class UnixDomainServerSocketChannelImpl
 
     @Override
     String getRevealedLocalAddressAsString(SocketAddress addr) {
-        return Net.getRevealedLocalAddressAsString((UnixDomainSocketAddress)addr);
+        return UnixDomainNet.getRevealedLocalAddressAsString((UnixDomainSocketAddress)addr);
     }
 
     @Override
     SocketAddress getRevealedLocalAddress(SocketAddress addr) {
-        return Net.getRevealedLocalAddress((UnixDomainSocketAddress)addr);
+        return UnixDomainNet.getRevealedLocalAddress((UnixDomainSocketAddress)addr);
     }
 
     SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress sa)
