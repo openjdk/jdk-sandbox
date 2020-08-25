@@ -604,7 +604,9 @@ public class Net {
     private static native InetAddress localInetAddress(FileDescriptor fd)
         throws IOException;
 
-    public static InetSocketAddress localAddress(FileDescriptor fd) throws IOException {
+    public static InetSocketAddress localAddress(FileDescriptor fd) 
+        throws IOException 
+    {
         return new InetSocketAddress(localInetAddress(fd), localPort(fd));
     }
 
@@ -614,7 +616,9 @@ public class Net {
     private static native InetAddress remoteInetAddress(FileDescriptor fd)
         throws IOException;
 
-    private static InetSocketAddress remoteAddress(FileDescriptor fd) throws IOException {
+    static InetSocketAddress remoteAddress(FileDescriptor fd) 
+        throws IOException 
+    {
         return new InetSocketAddress(remoteInetAddress(fd), remotePort(fd));
     }
 
