@@ -53,6 +53,12 @@ class InheritedChannel {
     private static final int O_WRONLY           = 1;
     private static final int O_RDWR             = 2;
 
+    // socket address type
+    static final int AF_UNKNOWN         = -1;
+    static final int AF_INET            = 1;
+    static final int AF_INET6           = 2;
+    static final int AF_UNIX            = 3;
+
     /*
      * In order to "detach" the standard streams we dup them to /dev/null.
      * In order to reduce the possibility of an error at close time we
@@ -222,10 +228,10 @@ class InheritedChannel {
 
         Channel c;
         if (st == SOCK_STREAM) {
-            int family = Net.localAddressFamily(fd);
-            if (family == Net.AF_UNKNOWN)
+            int family = localAddressFamily(fdVal);
+            if (family == AF_UNKNOWN)
                 return null;
-            if (family == Net.AF_UNIX) {
+            if (family == AF_UNIX) {
                 if (isConnected(fdVal)) {
                     var sa = UnixDomainSocketAddress.of(peerAddressUnix(fdVal));
                     return new InheritedUnixSocketChannelImpl(provider, fd, sa);
@@ -287,6 +293,7 @@ class InheritedChannel {
     private static native InetAddress peerAddressInet(int fd);
     private static native String peerAddressUnix(int fd);
     private static native int peerPort0(int fd);
+    private static native int localAddressFamily(int fd);
 
     // return true if socket is connected to a peer
     private static native boolean isConnected(int fd);

@@ -71,12 +71,6 @@ public class Net {
         }
     };
 
-    // socket address type
-    static final int AF_UNKNOWN         = -1;
-    static final int AF_INET            = 1;
-    static final int AF_INET6           = 2;
-    static final int AF_UNIX            = 3;
-
     // set to true if exclusive binding is on for Windows
     private static final boolean exclusiveBind;
 
@@ -514,8 +508,6 @@ public class Net {
      */
 
     static native int localAddressFamily(FileDescriptor fd);
-
-    static native int remoteAddressFamily(FileDescriptor fd);
 
     private static native int isExclusiveBindAvailable();
 

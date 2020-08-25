@@ -339,30 +339,6 @@ static jint checkFamily(sockaddrall *addr) {
     return sun_nio_ch_Net_AF_UNKNOWN;
 }
 
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_localAddressFamily(JNIEnv *env, jclass cla, jobject fdo)
-{
-    sockaddrall addr;
-    int addrlen = sizeof(addr);
-
-    if (getsockname(fdval(env, fdo), (struct sockaddr *)&addr, &addrlen) == SOCKET_ERROR) {
-        return sun_nio_ch_Net_AF_UNKNOWN;
-    }
-    return checkFamily(&addr);
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_remoteAddressFamily(JNIEnv *env, jclass cla, jobject fdo)
-{
-    sockaddrall addr;
-    int addrlen = sizeof(addr);
-
-    if (getpeername(fdval(env, fdo), (struct sockaddr *)&addr, &addrlen) == SOCKET_ERROR) {
-        return sun_nio_ch_Net_AF_UNKNOWN;
-    }
-    return checkFamily(&addr);
-}
-
 JNIEXPORT jobject JNICALL
 Java_sun_nio_ch_Net_localInetAddress(JNIEnv *env, jclass clazz, jobject fdo)
 {
