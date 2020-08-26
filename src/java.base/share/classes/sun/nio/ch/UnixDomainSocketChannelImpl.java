@@ -114,6 +114,17 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         return UnixDomainNet.getRevealedLocalAddress(uaddr);
     }
 
+    @SuppressWarnings("unchecked")
+    @Override
+    <T> T implGetOption(SocketOption<T> name) throws IOException {
+        return (T) Net.getSocketOption(getFD(), name);
+    }
+
+    @Override
+    <T> void implSetOption(SocketOption<T> name, T value) throws IOException {
+        Net.setSocketOption(getFD(), name, value);
+    }
+
     private static class DefaultOptionsHolder {
         static final Set<SocketOption<?>> defaultOptions = defaultOptions();
 
