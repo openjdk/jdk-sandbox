@@ -74,48 +74,42 @@ namespace metaspace {
 #ifdef ASSERT
 
 struct Prefix {
-  uintx _mark;
-  size_t _word_size;       // raw word size including prefix
+  static const uintx eyecatcher =
+      NOT_LP64(0x77698465) LP64_ONLY(0x7769846577698465ULL); // "META" resp "METAMETA"
+
+  const uintx _mark;
+  const size_t _word_size;   // raw word size including prefix
   // MetaWord payload [0];   // varsized (but unfortunately not all our compilers understand that)
 
-  Prefix(uintx mark, size_t word_size)
-    : _mark(mark),
+  Prefix(size_t word_size)
+    : _mark(eyecatcher),
       _word_size(word_size)
   {}
+
+  MetaWord* payload() const {
+    return (MetaWord*)(this + 1);
+  }
+
+  void check() const {
+    assert(_mark == eyecatcher, "Corrupt block: missing eyecatcher (at " PTR_FORMAT ").", p2i(this));
+    assert(_word_size > 0 && _word_size < chunklevel::MAX_CHUNK_WORD_SIZE,
+           "Corrupt block: invalid size " SIZE_FORMAT " (at " PTR_FORMAT ").", _word_size, p2i(this));
+  }
 
 };
 
 // The prefix structure must be aligned to MetaWord size.
 STATIC_ASSERT((sizeof(Prefix) & WordAlignmentMask) == 0);
 
-inline Prefix* prefix_from_payload(MetaWord* p) {
-  return (Prefix*)((address)p - sizeof(Prefix));
-}
-
-inline MetaWord* payload_from_prefix(Prefix* pp) {
-  // return pp->payload;
-  return (MetaWord*)((address)pp + sizeof(Prefix));
-}
-
 inline size_t prefix_size() {
   return sizeof(Prefix);
 }
 
-#define EYECATCHER NOT_LP64(0x77698465) LP64_ONLY(0x7769846577698465ULL) // "META" resp "METAMETA"
-
 // Given a pointer to a memory area, establish the prefix at the start of that area and
 // return the starting pointer to the payload.
 inline MetaWord* establish_prefix(MetaWord* p_raw, size_t raw_word_size) {
-  Prefix* pp = (Prefix*)p_raw;
-  pp->_mark = EYECATCHER;
-  pp->_word_size = raw_word_size;
-  return payload_from_prefix(pp);
-}
-
-inline void check_prefix(const Prefix* pp) {
-  assert(pp->_mark == EYECATCHER, "corrupt block at " PTR_FORMAT ".", p2i(pp));
-  assert(pp->_word_size > 0 && pp->_word_size < chunklevel::MAX_CHUNK_WORD_SIZE,
-         "Invalid size " SIZE_FORMAT " in block at " PTR_FORMAT ".", pp->_word_size, p2i(pp));
+  const Prefix* pp = new(p_raw)Prefix(raw_word_size);
+  return pp->payload();
 }
 
 #endif

@@ -492,7 +492,7 @@ void MetaspaceArena::verify_locked(bool slow) const {
       const MetaWord* p = c->base();
       while (p < c->top()) {
         const Prefix* pp = (const Prefix*)p;
-        check_prefix(pp);
+        pp->check();
         p += pp->_word_size;
       }
     }
