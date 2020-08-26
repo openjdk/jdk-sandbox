@@ -112,6 +112,20 @@ class InetSocketChannelImpl extends SocketChannelImpl
         this.family = family;
     }
 
+    /**
+     * Returns the local address, or null if not bound
+     */
+    InetSocketAddress localAddress() {
+        return (InetSocketAddress)super.localAddress();
+    }
+
+    /**
+     * Returns the remote address, or null if not connected
+     */
+    InetSocketAddress remoteAddress() {
+        return (InetSocketAddress)super.remoteAddress();
+    }
+
     @Override
     SocketAddress getRevealedLocalAddress(SocketAddress address) {
         return Net.getRevealedLocalAddress((InetSocketAddress)address);

@@ -171,6 +171,13 @@ class InetServerSocketChannelImpl
         return Net.getRevealedLocalAddressAsString((InetSocketAddress)addr);
     }
 
+    /**
+     * Returns the local address, or null if not bound
+     */
+    InetSocketAddress localAddress() {
+        return (InetSocketAddress)super.localAddress();
+    }
+
     protected SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress sa)
         throws IOException
     {

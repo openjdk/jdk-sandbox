@@ -96,6 +96,27 @@ Java_sun_nio_ch_InheritedChannel_peerPort0(JNIEnv *env, jclass cla, jint fd)
     return remote_port;
 }
 
+JNIEXPORT jint JNICALL
+Java_sun_nio_ch_InheritedChannel_addressFamily(JNIEnv *env, jclass cla, jint fd)
+{
+    SOCKETADDRESS addr;
+    socklen_t addrlen = sizeof(addr);
+
+    if (getsockname(fd, (struct sockaddr *)&addr, &addrlen) < 0) {
+        return sun_nio_ch_InheritedChannel_AF_UNKNOWN;
+    }
+    if (addr.sa.sa_family == AF_INET) {
+        return sun_nio_ch_InheritedChannel_AF_INET;
+    }
+    if (addr.sa.sa_family == AF_INET6) {
+        return sun_nio_ch_InheritedChannel_AF_INET6;
+    }
+    if (addr.sa.sa_family == AF_UNIX) {
+        return sun_nio_ch_InheritedChannel_AF_UNIX;
+    }
+    return sun_nio_ch_InheritedChannel_AF_UNKNOWN;
+}
+
 JNIEXPORT jboolean JNICALL
 Java_sun_nio_ch_InheritedChannel_isConnected(JNIEnv *env, jclass cla, jint fd)
 {
@@ -182,29 +203,3 @@ Java_sun_nio_ch_InheritedChannel_close0(JNIEnv *env, jclass cla, jint fd)
         JNU_ThrowIOExceptionWithLastError(env, "close failed");
     }
 }
-
-static jint checkFamily(SOCKETADDRESS *addr) {
-    if (addr->sa.sa_family == AF_INET) {
-        return sun_nio_ch_InheritedChannel_AF_INET;
-    }
-    if (addr->sa.sa_family == AF_INET6) {
-        return sun_nio_ch_InheritedChannel_AF_INET6;
-    }
-    if (addr->sa.sa_family == AF_UNIX) {
-        return sun_nio_ch_InheritedChannel_AF_UNIX;
-    }
-    return sun_nio_ch_InheritedChannel_AF_UNKNOWN;
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_InheritedChannel_localAddressFamily(JNIEnv *env, jclass cla, jint fd)
-{
-    SOCKETADDRESS addr;
-    socklen_t addrlen = sizeof(addr);
-
-    if (getsockname(fd, (struct sockaddr *)&addr, &addrlen) < 0) {
-        return sun_nio_ch_InheritedChannel_AF_UNKNOWN;
-    }
-    return checkFamily(&addr);
-}
-

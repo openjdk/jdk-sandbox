@@ -793,8 +793,8 @@ public class Net {
     static native short pollconnValue();
 
     static {
-        initIDs();
         IOUtil.load();
+        initIDs();
 
         POLLIN     = pollinValue();
         POLLOUT    = polloutValue();
