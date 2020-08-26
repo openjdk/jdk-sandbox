@@ -326,19 +326,6 @@ typedef union {
     struct sockaddr_un  saun;
 } sockaddrall;
 
-static jint checkFamily(sockaddrall *addr) {
-    if (addr->sa.sa_family == AF_INET) {
-        return sun_nio_ch_Net_AF_INET;
-    }
-    if (addr->sa.sa_family == AF_INET6) {
-        return sun_nio_ch_Net_AF_INET6;
-    }
-    if (addr->sa.sa_family == AF_UNIX) {
-        return sun_nio_ch_Net_AF_UNIX;
-    }
-    return sun_nio_ch_Net_AF_UNKNOWN;
-}
-
 JNIEXPORT jobject JNICALL
 Java_sun_nio_ch_Net_localInetAddress(JNIEnv *env, jclass clazz, jobject fdo)
 {
