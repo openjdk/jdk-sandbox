@@ -44,8 +44,8 @@ using metaspace::IntCounter;
 using metaspace::MemRangeCounter;
 using metaspace::MetaspaceArena;
 using metaspace::SizeAtomicCounter;
-using metaspace::arena_stats_t;
-using metaspace::in_use_chunk_stats_t;
+using metaspace::ArenaStats;
+using metaspace::InUseChunkStats;
 
 // Little randomness helper
 static bool fifty_fifty() {
@@ -95,9 +95,9 @@ class MetaspaceArenaTestBed : public CHeapObj<mtInternal> {
   // overhead.
   void verify_arena_statistics() const {
 
-    arena_stats_t stats;
+    ArenaStats stats;
     _arena->add_to_statistics(&stats);
-    in_use_chunk_stats_t in_use_stats = stats.totals();
+    InUseChunkStats in_use_stats = stats.totals();
 
     assert(_dealloc_count.total_size() <= _alloc_count.total_size() &&
            _dealloc_count.count() <= _alloc_count.count(), "Sanity");

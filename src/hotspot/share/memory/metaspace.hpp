@@ -41,7 +41,7 @@ class outputStream;
 namespace metaspace {
   class MetaspaceArena;
   class MetaspaceSizesSnapshot;
-  struct clms_stats_t;
+  struct ClmsStats;
 }
 
 ////////////////// Metaspace ///////////////////////
@@ -219,7 +219,7 @@ public:
   void deallocate(MetaWord* ptr, size_t word_size, bool is_class);
 
   // Update statistics. This walks all in-use chunks.
-  void add_to_statistics(metaspace::clms_stats_t* out) const;
+  void add_to_statistics(metaspace::ClmsStats* out) const;
 
   DEBUG_ONLY(void verify() const;)
 

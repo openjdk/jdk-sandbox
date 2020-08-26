@@ -76,7 +76,7 @@ namespace metaspace {
 template <size_t smallest_size, int num_lists>
 class BinListImpl {
 
-  struct block_t { block_t* next; size_t size; };
+  struct Block { Block* next; size_t size; };
 
   // a mask to speed up searching for populated lists.
   // 0 marks an empty list, 1 for a non-empty one.
@@ -86,7 +86,7 @@ class BinListImpl {
   mask_t _mask;
 
   // minimal block size must be large enough to hold a block.
-  STATIC_ASSERT(smallest_size * sizeof(MetaWord) >= sizeof(block_t));
+  STATIC_ASSERT(smallest_size * sizeof(MetaWord) >= sizeof(Block));
 
 public:
 
@@ -96,7 +96,7 @@ public:
 
 private:
 
-  block_t* _blocks[num_lists];
+  Block* _blocks[num_lists];
 
   MemRangeCounter _counter;
 
@@ -146,7 +146,7 @@ public:
     assert(word_size >= minimal_word_size &&
            word_size < maximal_word_size, "bad block size");
     const int index = index_for_word_size(word_size);
-    block_t* b = (block_t*)p;
+    Block* b = (Block*)p;
     b->size = word_size;
     b->next = _blocks[index];
     _blocks[index] = b;
@@ -200,7 +200,7 @@ public:
     for (int i = 0; i < num_lists; i ++) {
       assert(((_mask >> i) & 1) == ((_blocks[i] == 0) ? 0 : 1), "sanity");
       const size_t s = minimal_word_size + i;
-      for (block_t* b = _blocks[i]; b != NULL; b = b->next) {
+      for (Block* b = _blocks[i]; b != NULL; b = b->next) {
         assert(b->size == s, "bad block size");
         local_counter.add(s);
       }

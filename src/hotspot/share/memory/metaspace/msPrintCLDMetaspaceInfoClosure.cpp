@@ -82,7 +82,7 @@ void PrintCLDMetaspaceInfoClosure::do_cld(ClassLoaderData* cld) {
   }
 
   // Collect statistics for this class loader metaspace
-  clms_stats_t this_cld_stat;
+  ClmsStats this_cld_stat;
   msp->add_to_statistics(&this_cld_stat);
 
   // And add it to the running totals

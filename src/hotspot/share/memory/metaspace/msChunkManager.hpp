@@ -35,7 +35,7 @@
 namespace metaspace {
 
 class VirtualSpaceList;
-struct cm_stats_t;
+struct ChunkManagerStats;
 
 // ChunkManager has a somewhat central role.
 
@@ -171,7 +171,7 @@ public:
   size_t total_committed_word_size() const  { return _chunks.committed_word_size(); }
 
   // Update statistics.
-  void add_to_statistics(cm_stats_t* out) const;
+  void add_to_statistics(ChunkManagerStats* out) const;
 
   void print_on(outputStream* st) const;
   void print_on_locked(outputStream* st) const;

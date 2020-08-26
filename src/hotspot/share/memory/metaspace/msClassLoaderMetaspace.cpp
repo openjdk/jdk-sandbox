@@ -38,7 +38,6 @@
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
 
-using metaspace::clms_stats_t;
 using metaspace::ChunkManager;
 using metaspace::MetaspaceArena;
 using metaspace::ArenaGrowthPolicy;
@@ -161,7 +160,7 @@ void ClassLoaderMetaspace::deallocate(MetaWord* ptr, size_t word_size, bool is_c
 }
 
 // Update statistics. This walks all in-use chunks.
-void ClassLoaderMetaspace::add_to_statistics(clms_stats_t* out) const {
+void ClassLoaderMetaspace::add_to_statistics(metaspace::ClmsStats* out) const {
   if (non_class_space_arena() != NULL) {
     non_class_space_arena()->add_to_statistics(&out->arena_stats_nonclass);
   }

@@ -44,11 +44,11 @@ class ChunkHeaderPool : public CHeapObj<mtMetaspace> {
 
   static const int slab_capacity = 128;
 
-  struct slab_t : public CHeapObj<mtMetaspace> {
-    slab_t* next;
+  struct Slab : public CHeapObj<mtMetaspace> {
+    Slab* next;
     int top;
     Metachunk elems [slab_capacity];
-    slab_t() : next(NULL), top(0) {
+    Slab() : next(NULL), top(0) {
       for (int i = 0; i < slab_capacity; i++) {
         elems[i].clear();
       }
@@ -56,8 +56,8 @@ class ChunkHeaderPool : public CHeapObj<mtMetaspace> {
   };
 
   IntCounter _num_slabs;
-  slab_t* _first_slab;
-  slab_t* _current_slab;
+  Slab* _first_slab;
+  Slab* _current_slab;
 
   IntCounter _num_handed_out;
 

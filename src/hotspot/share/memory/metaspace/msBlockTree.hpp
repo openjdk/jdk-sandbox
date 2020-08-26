@@ -74,15 +74,15 @@ namespace metaspace {
 
 class BlockTree: public CHeapObj<mtMetaspace> {
 
-  struct node_t {
+  struct Node {
 
     // Normal tree node stuff...
-    node_t* parent;
-    node_t* left;
-    node_t* right;
+    Node* parent;
+    Node* left;
+    Node* right;
 
     // blocks with the same size are put in a list with this node as head.
-    node_t* next;
+    Node* next;
 
     // word size of node. Note that size cannot be larger than max metaspace size,
     // so this could be very well a 32bit value (in case we ever make this a balancing
@@ -99,11 +99,11 @@ public:
 
   // We need nodes to be at least large enough to hold a node_t
   const static size_t minimal_word_size =
-      (sizeof(node_t) + sizeof(MetaWord) - 1) / sizeof(MetaWord);
+      (sizeof(Node) + sizeof(MetaWord) - 1) / sizeof(MetaWord);
 
 private:
 
-  node_t* _root;
+  Node* _root;
 
   // As a performance optimization, we keep the size of the largest node.
   size_t _largest_size_added;
@@ -111,7 +111,7 @@ private:
   MemRangeCounter _counter;
 
   // given a node n, add it to the list starting at head
-  static void add_to_list(node_t* n, node_t* head) {
+  static void add_to_list(Node* n, Node* head) {
     assert(head->size == n->size, "sanity");
     n->next = head->next;
     head->next = n;
@@ -120,9 +120,9 @@ private:
 
   // given a node list starting at head, remove one node from it and return it.
   // List must contain at least one other node.
-  static node_t* remove_from_list(node_t* head) {
+  static Node* remove_from_list(Node* head) {
     assert(head->next != NULL, "sanity");
-    node_t* n = head->next;
+    Node* n = head->next;
     if (n != NULL) {
       head->next = n->next;
     }
@@ -130,7 +130,7 @@ private:
   }
 
   // Given a node n and a node p, wire up n as left child of p.
-  static void set_left_child(node_t* p, node_t* c) {
+  static void set_left_child(Node* p, Node* c) {
     p->left = c;
     if (c != NULL) {
       assert(c->size < p->size, "sanity");
@@ -139,7 +139,7 @@ private:
   }
 
   // Given a node n and a node p, wire up n as right child of p.
-  static void set_right_child(node_t* p, node_t* c) {
+  static void set_right_child(Node* p, Node* c) {
     p->right = c;
     if (c != NULL) {
       assert(c->size > p->size, "sanity");
@@ -149,8 +149,8 @@ private:
 
   // Given a node n, return its predecessor in the tree
   // (node with the next-smaller size).
-  static node_t* predecessor(node_t* n) {
-    node_t* pred = NULL;
+  static Node* predecessor(Node* n) {
+    Node* pred = NULL;
     if (n->left != NULL) {
       pred = n->left;
       while (pred->right != NULL) {
@@ -158,7 +158,7 @@ private:
       }
     } else {
       pred = n->parent;
-      node_t* n2 = n;
+      Node* n2 = n;
       while (pred != NULL && n2 == pred->left) {
         n2 = pred;
         pred = pred->parent;
@@ -169,8 +169,8 @@ private:
 
   // Given a node n, return its predecessor in the tree
   // (node with the next-smaller size).
-  static node_t* successor(node_t* n) {
-    node_t* succ = NULL;
+  static Node* successor(Node* n) {
+    Node* succ = NULL;
     if (n->right != NULL) {
       // If there is a right child, search the left-most
       // child of that child.
@@ -180,7 +180,7 @@ private:
       }
     } else {
       succ = n->parent;
-      node_t* n2 = n;
+      Node* n2 = n;
       // As long as I am the right child of my parent, search upward
       while (succ != NULL && n2 == succ->right) {
         n2 = succ;
@@ -192,8 +192,8 @@ private:
 
   // Given a node, replace it with a replacement node as a child for its parent.
   // If the node is root and has no parent, sets it as root.
-  void replace_node_in_parent(node_t* child, node_t* replace) {
-    node_t* parent = child->parent;
+  void replace_node_in_parent(Node* child, Node* replace) {
+    Node* parent = child->parent;
     if (parent != NULL) {
       if (parent->left == child) { // I am a left child
         set_left_child(parent, replace);
@@ -211,7 +211,7 @@ private:
   }
 
   // Given a node n and a node forebear, insert n under forebear
-  void insert(node_t* forebear, node_t* n) {
+  void insert(Node* forebear, Node* n) {
     if (n->size == forebear->size) {
       add_to_list(n, forebear); // parent stays NULL in this case.
     } else {
@@ -237,7 +237,7 @@ private:
 
   // Given a node and a wish size, search this node and all children for
   // the node closest (equal or larger sized) to the size s.
-  static node_t* find_closest_fit(node_t* n, size_t s) {
+  static Node* find_closest_fit(Node* n, size_t s) {
 
     if (n->size == s) {
       // Perfect fit.
@@ -266,7 +266,7 @@ private:
 
   // Given a wish size, search the whole tree for a
   // node closest (equal or larger sized) to the size s.
-  node_t* find_closest_fit(size_t s) {
+  Node* find_closest_fit(size_t s) {
     if (_root != NULL) {
       return find_closest_fit(_root, s);
     }
@@ -274,13 +274,13 @@ private:
   }
 
   // Given a node n, remove it from the tree and repair tree.
-  void remove_node_from_tree(node_t* n) {
+  void remove_node_from_tree(Node* n) {
 
     assert(n->next == NULL, "do not delete a node which has a non-empty list");
 
     // Maintain largest size node to speed up lookup
     if (n->size == _largest_size_added) {
-      node_t* pred = predecessor(n);
+      Node* pred = predecessor(n);
       if (pred != NULL) {
         _largest_size_added = pred->size;
       } else {
@@ -302,7 +302,7 @@ private:
       // Node has two children.
 
       // 1) Find direct successor (the next larger node).
-      node_t* succ = successor(n);
+      Node* succ = successor(n);
 
       // There has to be a successor since n->right was != NULL...
       assert(succ != NULL, "must be");
@@ -314,8 +314,8 @@ private:
 
       assert(succ->size > n->size, "sanity");
 
-      node_t* successor_parent = succ->parent;
-      node_t* successor_right_child = succ->right;
+      Node* successor_parent = succ->parent;
+      Node* successor_right_child = succ->right;
 
       // Remove successor from its parent.
       if (successor_parent == n) {
@@ -352,16 +352,16 @@ private:
 
 #ifdef ASSERT
 
-  struct veri_data_t;
-  void verify_node_siblings(node_t* n, veri_data_t* vd) const;
-  void verify_node(node_t* n, size_t left_limit, size_t right_limit, veri_data_t* vd, int lvl) const;
+  struct veridata;
+  void verify_node_siblings(Node* n, veridata* vd) const;
+  void verify_node(Node* n, size_t left_limit, size_t right_limit, veridata* vd, int lvl) const;
   void verify_tree() const;
 
   void zap_range(MetaWord* p, size_t word_size);
 
 #endif // ASSERT
 
-  static void print_node(outputStream* st, node_t* n, int lvl);
+  static void print_node(outputStream* st, Node* n, int lvl);
 
 public:
 
@@ -373,7 +373,7 @@ public:
     DEBUG_ONLY(zap_range(p, word_size));
     assert(word_size >= minimal_word_size && word_size < maximal_word_size,
            "invalid block size " SIZE_FORMAT, word_size);
-    node_t* n = (node_t*)p;
+    Node* n = (Node*)p;
     n->size = word_size;
     n->next = n->left = n->right = n->parent = NULL;
     if (_root == NULL) {
@@ -400,7 +400,7 @@ public:
       return NULL;
     }
 
-    node_t* n = find_closest_fit(word_size);
+    Node* n = find_closest_fit(word_size);
 
     if (n != NULL) {
       assert(n->size >= word_size, "sanity");

@@ -47,7 +47,7 @@ using metaspace::MemRangeCounter;
 using metaspace::MetaspaceArena;
 using metaspace::SizeAtomicCounter;
 using metaspace::Settings;
-using metaspace::arena_stats_t;
+using metaspace::ArenaStats;
 
 class MetaspaceArenaTestHelper {
 
@@ -219,8 +219,8 @@ public:
     ASSERT_EQ(capacity2, capacity);
   }
 
-  arena_stats_t get_arena_statistics() const {
-    arena_stats_t stats;
+  ArenaStats get_arena_statistics() const {
+    ArenaStats stats;
     _arena->add_to_statistics(&stats);
     return stats;
   }

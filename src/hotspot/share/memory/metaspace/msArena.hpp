@@ -42,7 +42,7 @@ namespace metaspace {
 class ArenaGrowthPolicy;
 class FreeBlocks;
 
-struct arena_stats_t;
+struct ArenaStats;
 
 // The MetaspaceArena is a growable metaspace memory pool belonging to a CLD;
 //  internally it consists of a list of metaspace chunks, of which the head chunk
@@ -161,7 +161,7 @@ public:
   void deallocate(MetaWord* p, size_t word_size);
 
   // Update statistics. This walks all in-use chunks.
-  void add_to_statistics(arena_stats_t* out) const;
+  void add_to_statistics(ArenaStats* out) const;
 
   // Convenience method to get the most important usage statistics.
   // For deeper analysis use add_to_statistics().

@@ -283,9 +283,9 @@ void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags)
   out->cr();
   out->print_cr("Chunk freelist%s:", Metaspace::using_class_space() ? "s" : "");
 
-  cm_stats_t non_class_cm_stat;
-  cm_stats_t class_cm_stat;
-  cm_stats_t total_cm_stat;
+  ChunkManagerStats non_class_cm_stat;
+  ChunkManagerStats class_cm_stat;
+  ChunkManagerStats total_cm_stat;
 
   ChunkManager::chunkmanager_nonclass()->add_to_statistics(&non_class_cm_stat);
   if (Metaspace::using_class_space()) {
@@ -321,8 +321,8 @@ void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags)
   out->print_cr("):");
 
   // Print waste for in-use chunks.
-  in_use_chunk_stats_t ucs_nonclass = cl._stats_total.arena_stats_nonclass.totals();
-  in_use_chunk_stats_t ucs_class = cl._stats_total.arena_stats_class.totals();
+  InUseChunkStats ucs_nonclass = cl._stats_total.arena_stats_nonclass.totals();
+  InUseChunkStats ucs_class = cl._stats_total.arena_stats_class.totals();
   const size_t waste_in_chunks_in_use = ucs_nonclass.waste_words + ucs_class.waste_words;
   const size_t free_in_chunks_in_use = ucs_nonclass.free_words + ucs_class.free_words;
 

@@ -73,26 +73,26 @@ namespace metaspace {
 
 #ifdef ASSERT
 
-struct prefix_t {
+struct Prefix {
   uintx mark;
   size_t word_size;       // raw word size including prefix
   // MetaWord payload [0];   // varsized (but unfortunately not all our compilers understand that)
 };
 
 // The prefix structure must be aligned to MetaWord size.
-STATIC_ASSERT((sizeof(prefix_t) & WordAlignmentMask) == 0);
+STATIC_ASSERT((sizeof(Prefix) & WordAlignmentMask) == 0);
 
-inline prefix_t* prefix_from_payload(MetaWord* p) {
-  return (prefix_t*)((address)p - sizeof(prefix_t));
+inline Prefix* prefix_from_payload(MetaWord* p) {
+  return (Prefix*)((address)p - sizeof(Prefix));
 }
 
-inline MetaWord* payload_from_prefix(prefix_t* pp) {
+inline MetaWord* payload_from_prefix(Prefix* pp) {
   // return pp->payload;
-  return (MetaWord*)((address)pp + sizeof(prefix_t));
+  return (MetaWord*)((address)pp + sizeof(Prefix));
 }
 
 inline size_t prefix_size() {
-  return sizeof(prefix_t);
+  return sizeof(Prefix);
 }
 
 #define EYECATCHER NOT_LP64(0x77698465) LP64_ONLY(0x7769846577698465ULL) // "META" resp "METAMETA"
@@ -100,13 +100,13 @@ inline size_t prefix_size() {
 // Given a pointer to a memory area, establish the prefix at the start of that area and
 // return the starting pointer to the payload.
 inline MetaWord* establish_prefix(MetaWord* p_raw, size_t raw_word_size) {
-  prefix_t* pp = (prefix_t*)p_raw;
+  Prefix* pp = (Prefix*)p_raw;
   pp->mark = EYECATCHER;
   pp->word_size = raw_word_size;
   return payload_from_prefix(pp);
 }
 
-inline void check_prefix(const prefix_t* pp) {
+inline void check_prefix(const Prefix* pp) {
   assert(pp->mark == EYECATCHER, "corrupt block at " PTR_FORMAT ".", p2i(pp));
   assert(pp->word_size > 0 && pp->word_size < chunklevel::MAX_CHUNK_WORD_SIZE,
          "Invalid size " SIZE_FORMAT " in block at " PTR_FORMAT ".", pp->word_size, p2i(pp));

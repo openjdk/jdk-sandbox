@@ -42,7 +42,7 @@ namespace metaspace {
 // used for the various XXXX::add_to_statistic() methods in MetaspaceArena, ClassLoaderMetaspace
 //  and ChunkManager, respectively.
 
-struct cm_stats_t {
+struct ChunkManagerStats {
 
   // How many chunks per level are checked in.
   int num_chunks[chunklevel::NUM_CHUNK_LEVELS];
@@ -50,9 +50,9 @@ struct cm_stats_t {
   // Size, in words, of the sum of all committed areas in this chunk manager, per level.
   size_t committed_word_size[chunklevel::NUM_CHUNK_LEVELS];
 
-  cm_stats_t() : num_chunks(), committed_word_size() {}
+  ChunkManagerStats() : num_chunks(), committed_word_size() {}
 
-  void add(const cm_stats_t& other);
+  void add(const ChunkManagerStats& other);
 
   // Returns total word size of all chunks in this manager.
   size_t total_word_size() const;
@@ -67,7 +67,7 @@ struct cm_stats_t {
 };
 
 // Contains statistics for one or multiple chunks in use.
-struct in_use_chunk_stats_t {
+struct InUseChunkStats {
 
   // Number of chunks
   int num;
@@ -92,12 +92,12 @@ struct in_use_chunk_stats_t {
   // Total waste committed area, in words.
   size_t waste_words;
 
-  in_use_chunk_stats_t()
+  InUseChunkStats()
     : num(0), word_size(0), committed_words(0),
       used_words(0), free_words(0), waste_words(0)
   {}
 
-  void add(const in_use_chunk_stats_t& other) {
+  void add(const InUseChunkStats& other) {
     num += other.num;
     word_size += other.word_size;
     committed_words += other.committed_words;
@@ -114,38 +114,38 @@ struct in_use_chunk_stats_t {
 };
 
 // Class containing statistics for one or more MetaspaceArena objects.
-struct  arena_stats_t {
+struct  ArenaStats {
 
   // chunk statistics by chunk level
-  in_use_chunk_stats_t stats[chunklevel::NUM_CHUNK_LEVELS];
+  InUseChunkStats stats[chunklevel::NUM_CHUNK_LEVELS];
   uintx free_blocks_num;
   size_t free_blocks_word_size;
 
-  arena_stats_t()
+  ArenaStats()
     : stats(),
       free_blocks_num(0),
       free_blocks_word_size(0)
   {}
 
-  void add(const arena_stats_t& other);
+  void add(const ArenaStats& other);
 
   void print_on(outputStream* st, size_t scale = K,  bool detailed = true) const;
 
-  in_use_chunk_stats_t totals() const;
+  InUseChunkStats totals() const;
 
   DEBUG_ONLY(void verify() const;)
 
 };
 
 // Statistics for one or multiple ClassLoaderMetaspace objects
-struct clms_stats_t {
+struct ClmsStats {
 
-  arena_stats_t arena_stats_nonclass;
-  arena_stats_t arena_stats_class;
+  ArenaStats arena_stats_nonclass;
+  ArenaStats arena_stats_class;
 
-  clms_stats_t() : arena_stats_nonclass(), arena_stats_class() {}
+  ClmsStats() : arena_stats_nonclass(), arena_stats_class() {}
 
-  void add(const clms_stats_t& other) {
+  void add(const ClmsStats& other) {
     arena_stats_nonclass.add(other.arena_stats_nonclass);
     arena_stats_class.add(other.arena_stats_class);
   }
@@ -153,7 +153,7 @@ struct clms_stats_t {
   void print_on(outputStream* st, size_t scale, bool detailed) const;
 
   // Returns total statistics for both class and non-class metaspace
-  arena_stats_t totals() const;
+  ArenaStats totals() const;
 
   DEBUG_ONLY(void verify() const;)
 

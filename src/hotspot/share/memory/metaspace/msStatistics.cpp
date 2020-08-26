@@ -35,7 +35,7 @@
 namespace metaspace {
 
 // Returns total word size of all chunks in this manager.
-void cm_stats_t::add(const cm_stats_t& other) {
+void ChunkManagerStats::add(const ChunkManagerStats& other) {
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     num_chunks[l] += other.num_chunks[l];
     committed_word_size[l] += other.committed_word_size[l];
@@ -43,7 +43,7 @@ void cm_stats_t::add(const cm_stats_t& other) {
 }
 
 // Returns total word size of all chunks in this manager.
-size_t cm_stats_t::total_word_size() const {
+size_t ChunkManagerStats::total_word_size() const {
   size_t s = 0;
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     s += num_chunks[l] * chunklevel::word_size_for_level(l);
@@ -52,7 +52,7 @@ size_t cm_stats_t::total_word_size() const {
 }
 
 // Returns total committed word size of all chunks in this manager.
-size_t cm_stats_t::total_committed_word_size() const {
+size_t ChunkManagerStats::total_committed_word_size() const {
   size_t s = 0;
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     s += committed_word_size[l];
@@ -60,7 +60,7 @@ size_t cm_stats_t::total_committed_word_size() const {
   return s;
 }
 
-void cm_stats_t::print_on(outputStream* st, size_t scale) const {
+void ChunkManagerStats::print_on(outputStream* st, size_t scale) const {
   // Note: used as part of MetaspaceReport so formatting matters.
   size_t total_size = 0;
   size_t total_committed_size = 0;
@@ -92,13 +92,13 @@ void cm_stats_t::print_on(outputStream* st, size_t scale) const {
 }
 
 #ifdef ASSERT
-void cm_stats_t::verify() const {
+void ChunkManagerStats::verify() const {
   assert(total_committed_word_size() <= total_word_size(),
          "Sanity");
 }
 #endif
 
-void in_use_chunk_stats_t::print_on(outputStream* st, size_t scale) const {
+void InUseChunkStats::print_on(outputStream* st, size_t scale) const {
   int col = st->position();
   st->print("%4d chunk%s, ", num, num != 1 ? "s" : "");
   if (num > 0) {
@@ -127,7 +127,7 @@ void in_use_chunk_stats_t::print_on(outputStream* st, size_t scale) const {
 }
 
 #ifdef ASSERT
-void in_use_chunk_stats_t::verify() const {
+void InUseChunkStats::verify() const {
   assert(word_size >= committed_words &&
       committed_words == used_words + free_words + waste_words,
          "Sanity: cap " SIZE_FORMAT ", committed " SIZE_FORMAT ", used " SIZE_FORMAT ", free " SIZE_FORMAT ", waste " SIZE_FORMAT ".",
@@ -135,7 +135,7 @@ void in_use_chunk_stats_t::verify() const {
 }
 #endif
 
-void arena_stats_t::add(const arena_stats_t& other) {
+void ArenaStats::add(const ArenaStats& other) {
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     stats[l].add(other.stats[l]);
   }
@@ -144,15 +144,15 @@ void arena_stats_t::add(const arena_stats_t& other) {
 }
 
 // Returns total chunk statistics over all chunk types.
-in_use_chunk_stats_t arena_stats_t::totals() const {
-  in_use_chunk_stats_t out;
+InUseChunkStats ArenaStats::totals() const {
+  InUseChunkStats out;
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     out.add(stats[l]);
   }
   return out;
 }
 
-void arena_stats_t::print_on(outputStream* st, size_t scale,  bool detailed) const {
+void ArenaStats::print_on(outputStream* st, size_t scale,  bool detailed) const {
   streamIndentor sti(st);
   if (detailed) {
     st->cr_indent();
@@ -189,7 +189,7 @@ void arena_stats_t::print_on(outputStream* st, size_t scale,  bool detailed) con
 
 #ifdef ASSERT
 
-void arena_stats_t::verify() const {
+void ArenaStats::verify() const {
   size_t total_used = 0;
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
     stats[l].verify();
@@ -202,14 +202,14 @@ void arena_stats_t::verify() const {
 #endif
 
 // Returns total arena statistics for both class and non-class metaspace
-arena_stats_t clms_stats_t::totals() const {
-  arena_stats_t out;
+ArenaStats ClmsStats::totals() const {
+  ArenaStats out;
   out.add(arena_stats_nonclass);
   out.add(arena_stats_class);
   return out;
 }
 
-void clms_stats_t::print_on(outputStream* st, size_t scale, bool detailed) const {
+void ClmsStats::print_on(outputStream* st, size_t scale, bool detailed) const {
   streamIndentor sti(st);
   st->cr_indent();
   if (Metaspace::using_class_space()) {
@@ -237,7 +237,7 @@ void clms_stats_t::print_on(outputStream* st, size_t scale, bool detailed) const
 }
 
 #ifdef ASSERT
-void clms_stats_t::verify() const {
+void ClmsStats::verify() const {
   arena_stats_nonclass.verify();
   arena_stats_class.verify();
 }

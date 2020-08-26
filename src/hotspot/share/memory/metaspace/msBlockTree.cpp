@@ -50,7 +50,7 @@ namespace metaspace {
 	    assert(cond, "sanity"); \
 	  }
 
-struct BlockTree::veri_data_t {
+struct BlockTree::veridata {
   MemRangeCounter counter;
   int max_edge;
   size_t largest;
@@ -58,10 +58,10 @@ struct BlockTree::veri_data_t {
 
 // Given a node, check that all siblings have the same size and that we have no
 // (direct) circularities.
-void BlockTree::verify_node_siblings(node_t* n, veri_data_t* vd) const {
+void BlockTree::verify_node_siblings(Node* n, veridata* vd) const {
   const size_t size = n->size;
-  node_t* n2 = n->next;
-  node_t* prev_sib = NULL;
+  Node* n2 = n->next;
+  Node* prev_sib = NULL;
   while (n2 != NULL) {
     assrt0(n2->size == size);
     vd->counter.add(n2->size);
@@ -75,8 +75,8 @@ void BlockTree::verify_node_siblings(node_t* n, veri_data_t* vd) const {
 }
 
 // Given a node and outer bounds applying to it and all children, check it and all children recursively.
-void BlockTree::verify_node(node_t* n, size_t left_limit, size_t right_limit,
-    veri_data_t* vd, int lvl) const {
+void BlockTree::verify_node(Node* n, size_t left_limit, size_t right_limit,
+    veridata* vd, int lvl) const {
 
   if (lvl > vd->max_edge) {
     vd->max_edge = lvl;
@@ -122,7 +122,7 @@ void BlockTree::verify_node(node_t* n, size_t left_limit, size_t right_limit,
 void BlockTree::verify_tree() const {
   int num = 0;
   size_t size = 0;
-  veri_data_t vd;
+  veridata vd;
   vd.max_edge = 0;
   vd.largest = 0;
   if (_root != NULL) {
@@ -143,7 +143,7 @@ void BlockTree::zap_range(MetaWord* p, size_t word_size) {
 
 #endif // ASSERT
 
-void BlockTree::print_node(outputStream* st, node_t* n, int lvl) {
+void BlockTree::print_node(outputStream* st, Node* n, int lvl) {
   for (int i = 0; i < lvl; i ++) {
     st->print("---");
   }

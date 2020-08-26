@@ -42,16 +42,16 @@ ChunkHeaderPool::ChunkHeaderPool()
 // Note: the global chunk header pool gets never deleted; so this destructor only
 // exists for the sake of tests.
 ChunkHeaderPool::~ChunkHeaderPool() {
-  slab_t* s = _first_slab;
+  Slab* s = _first_slab;
   while (s != NULL) {
-    slab_t* next_slab = s->next;
+    Slab* next_slab = s->next;
     os::free(s);
      s = next_slab;
   }
 }
 
 void ChunkHeaderPool::allocate_new_slab() {
-  slab_t* slab = new slab_t();
+  Slab* slab = new Slab();
   if (_current_slab != NULL) {
     _current_slab->next = slab;
   }
@@ -64,7 +64,7 @@ void ChunkHeaderPool::allocate_new_slab() {
 
 // Returns size of memory used.
 size_t ChunkHeaderPool::memory_footprint_words() const {
-  return (_num_slabs.get() * sizeof(slab_t)) / BytesPerWord;
+  return (_num_slabs.get() * sizeof(Slab)) / BytesPerWord;
 }
 
 void ChunkHeaderPool::initialize() {
@@ -74,7 +74,7 @@ void ChunkHeaderPool::initialize() {
 
 #ifdef ASSERT
 void ChunkHeaderPool::verify(bool slow) const {
-  const slab_t* s = _first_slab;
+  const Slab* s = _first_slab;
   int num = 0;
   while (s != NULL) {
     assert(s->top >= 0 && s->top <= slab_capacity,

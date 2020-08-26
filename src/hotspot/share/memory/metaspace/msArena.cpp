@@ -424,12 +424,12 @@ void MetaspaceArena::deallocate(MetaWord* p, size_t word_size) {
 }
 
 // Update statistics. This walks all in-use chunks.
-void MetaspaceArena::add_to_statistics(arena_stats_t* out) const {
+void MetaspaceArena::add_to_statistics(ArenaStats* out) const {
 
   MutexLocker cl(lock(), Mutex::_no_safepoint_check_flag);
 
   for (const Metachunk* c = _chunks.first(); c != NULL; c = c->next()) {
-    in_use_chunk_stats_t& ucs = out->stats[c->level()];
+    InUseChunkStats& ucs = out->stats[c->level()];
     ucs.num ++;
     ucs.word_size += c->word_size();
     ucs.committed_words += c->committed_words();
@@ -491,7 +491,7 @@ void MetaspaceArena::verify_locked(bool slow) const {
     for (const Metachunk* c = _chunks.first(); c != NULL; c = c->next()) {
       const MetaWord* p = c->base();
       while (p < c->top()) {
-        const prefix_t* pp = (const prefix_t*)p;
+        const Prefix* pp = (const Prefix*)p;
         check_prefix(pp);
         p += pp->word_size;
       }

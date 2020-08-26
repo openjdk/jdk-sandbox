@@ -429,7 +429,7 @@ ChunkManager* ChunkManager::chunkmanager_nonclass() {
 }
 
 // Update statistics.
-void ChunkManager::add_to_statistics(cm_stats_t* out) const {
+void ChunkManager::add_to_statistics(ChunkManagerStats* out) const {
 
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
 
