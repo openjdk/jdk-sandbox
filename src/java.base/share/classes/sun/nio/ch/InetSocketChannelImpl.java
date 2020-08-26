@@ -96,7 +96,7 @@ class InetSocketChannelImpl extends SocketChannelImpl
     }
 
     @Override
-    SocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
+    SocketAddress implLocalAddress(FileDescriptor fd) throws IOException {
         return Net.localAddress(fd);
     }
 
@@ -192,7 +192,7 @@ class InetSocketChannelImpl extends SocketChannelImpl
     }
 
     @Override
-    SocketAddress bindImpl(SocketAddress local) throws IOException {
+    SocketAddress implBind(SocketAddress local) throws IOException {
         InetSocketAddress isa;
         if (local == null) {
             isa = new InetSocketAddress(Net.anyLocalAddress(family), 0);
@@ -235,7 +235,7 @@ class InetSocketChannelImpl extends SocketChannelImpl
     }
 
     @Override
-    protected int connectImpl(FileDescriptor fd, SocketAddress sa) throws IOException {
+    protected int implConnect(FileDescriptor fd, SocketAddress sa) throws IOException {
         InetSocketAddress isa = (InetSocketAddress)sa;
         return Net.connect(family, fd, isa.getAddress(), isa.getPort());
     }

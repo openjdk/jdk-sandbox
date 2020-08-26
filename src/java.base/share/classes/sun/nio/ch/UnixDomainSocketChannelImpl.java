@@ -86,7 +86,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     }
 
     @Override
-    SocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
+    SocketAddress implLocalAddress(FileDescriptor fd) throws IOException {
         return UnixDomainNet.localAddress(fd);
     }
 
@@ -115,7 +115,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     }
 
     @Override
-    SocketAddress bindImpl(SocketAddress local) throws IOException {
+    SocketAddress implBind(SocketAddress local) throws IOException {
         UnixDomainNet.checkCapability();
         UnixDomainSocketAddress usa = UnixDomainNet.checkAddress(local);
         Path path = usa == null ? null : usa.getPath();
@@ -144,7 +144,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     }
 
     @Override
-    int connectImpl(FileDescriptor fd, SocketAddress sa) throws IOException {
+    int implConnect(FileDescriptor fd, SocketAddress sa) throws IOException {
         UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
         return UnixDomainNet.connect(fd, usa.getPath());
     }

@@ -92,7 +92,7 @@ class InetServerSocketChannelImpl
     }
 
 
-    InetSocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
+    InetSocketAddress implLocalAddress(FileDescriptor fd) throws IOException {
         return Net.localAddress(fd);
     }
 
@@ -138,7 +138,7 @@ class InetServerSocketChannelImpl
     }
 
     @Override
-    SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException {
+    SocketAddress implBind(SocketAddress local, int backlog) throws IOException {
         InetSocketAddress isa;
         if (local == null) {
             isa = new InetSocketAddress(Net.anyLocalAddress(family), 0);
@@ -154,7 +154,7 @@ class InetServerSocketChannelImpl
         return Net.localAddress(getFD());
     }
 
-    protected int acceptImpl(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
+    protected int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
         throws IOException
     {
         InetSocketAddress[] a = new InetSocketAddress[1];
@@ -178,7 +178,7 @@ class InetServerSocketChannelImpl
         return (InetSocketAddress)super.localAddress();
     }
 
-    protected SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress sa)
+    protected SocketChannel implFinishAccept(FileDescriptor newfd, SocketAddress sa)
         throws IOException
     {
         InetSocketAddress isa = (InetSocketAddress)sa;
