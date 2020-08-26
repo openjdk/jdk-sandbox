@@ -44,7 +44,7 @@ ChunkHeaderPool::ChunkHeaderPool()
 ChunkHeaderPool::~ChunkHeaderPool() {
   Slab* s = _first_slab;
   while (s != NULL) {
-    Slab* next_slab = s->next;
+    Slab* next_slab = s->_next;
     os::free(s);
      s = next_slab;
   }
@@ -53,7 +53,7 @@ ChunkHeaderPool::~ChunkHeaderPool() {
 void ChunkHeaderPool::allocate_new_slab() {
   Slab* slab = new Slab();
   if (_current_slab != NULL) {
-    _current_slab->next = slab;
+    _current_slab->_next = slab;
   }
   _current_slab = slab;
   if (_first_slab == NULL) {
@@ -77,10 +77,10 @@ void ChunkHeaderPool::verify(bool slow) const {
   const Slab* s = _first_slab;
   int num = 0;
   while (s != NULL) {
-    assert(s->top >= 0 && s->top <= slab_capacity,
+    assert(s->_top >= 0 && s->_top <= slab_capacity,
            "invalid slab at " PTR_FORMAT ", top: %d, slab cap: %d",
-           p2i(s), s->top, slab_capacity );
-    s = s->next;
+           p2i(s), s->_top, slab_capacity );
+    s = s->_next;
     num ++;
   }
   _num_slabs.check(num);

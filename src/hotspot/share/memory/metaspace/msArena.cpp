@@ -429,22 +429,22 @@ void MetaspaceArena::add_to_statistics(ArenaStats* out) const {
   MutexLocker cl(lock(), Mutex::_no_safepoint_check_flag);
 
   for (const Metachunk* c = _chunks.first(); c != NULL; c = c->next()) {
-    InUseChunkStats& ucs = out->stats[c->level()];
-    ucs.num ++;
-    ucs.word_size += c->word_size();
-    ucs.committed_words += c->committed_words();
-    ucs.used_words += c->used_words();
+    InUseChunkStats& ucs = out->_stats[c->level()];
+    ucs._num ++;
+    ucs._word_size += c->word_size();
+    ucs._committed_words += c->committed_words();
+    ucs._used_words += c->used_words();
     // Note: for free and waste, we only count what's committed.
     if (c == current_chunk()) {
-      ucs.free_words += c->free_below_committed_words();
+      ucs._free_words += c->free_below_committed_words();
     } else {
-      ucs.waste_words += c->free_below_committed_words();
+      ucs._waste_words += c->free_below_committed_words();
     }
   }
 
   if (_fbl != NULL) {
-    out->free_blocks_num += _fbl->count();
-    out->free_blocks_word_size += _fbl->total_size();
+    out->_free_blocks_num += _fbl->count();
+    out->_free_blocks_word_size += _fbl->total_size();
   }
 
   SOMETIMES(out->verify();)
@@ -493,7 +493,7 @@ void MetaspaceArena::verify_locked(bool slow) const {
       while (p < c->top()) {
         const Prefix* pp = (const Prefix*)p;
         check_prefix(pp);
-        p += pp->word_size;
+        p += pp->_word_size;
       }
     }
   }

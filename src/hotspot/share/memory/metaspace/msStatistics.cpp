@@ -37,8 +37,8 @@ namespace metaspace {
 // Returns total word size of all chunks in this manager.
 void ChunkManagerStats::add(const ChunkManagerStats& other) {
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
-    num_chunks[l] += other.num_chunks[l];
-    committed_word_size[l] += other.committed_word_size[l];
+    _num_chunks[l] += other._num_chunks[l];
+    _committed_word_size[l] += other._committed_word_size[l];
   }
 }
 
@@ -46,7 +46,7 @@ void ChunkManagerStats::add(const ChunkManagerStats& other) {
 size_t ChunkManagerStats::total_word_size() const {
   size_t s = 0;
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
-    s += num_chunks[l] * chunklevel::word_size_for_level(l);
+    s += _num_chunks[l] * chunklevel::word_size_for_level(l);
   }
   return s;
 }
@@ -55,7 +55,7 @@ size_t ChunkManagerStats::total_word_size() const {
 size_t ChunkManagerStats::total_committed_word_size() const {
   size_t s = 0;
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
-    s += committed_word_size[l];
+    s += _committed_word_size[l];
   }
   return s;
 }
@@ -68,17 +68,17 @@ void ChunkManagerStats::print_on(outputStream* st, size_t scale) const {
     st->cr();
     chunklevel::print_chunk_size(st, l);
     st->print(": ");
-    if (num_chunks[l] > 0) {
-      const size_t word_size = num_chunks[l] * chunklevel::word_size_for_level(l);
+    if (_num_chunks[l] > 0) {
+      const size_t word_size = _num_chunks[l] * chunklevel::word_size_for_level(l);
 
-      st->print("%4d, capacity=", num_chunks[l]);
+      st->print("%4d, capacity=", _num_chunks[l]);
       print_scaled_words(st, word_size, scale);
 
       st->print(", committed=");
-      print_scaled_words_and_percentage(st, committed_word_size[l], word_size, scale);
+      print_scaled_words_and_percentage(st, _committed_word_size[l], word_size, scale);
 
       total_size += word_size;
-      total_committed_size += committed_word_size[l];
+      total_committed_size += _committed_word_size[l];
     } else {
       st->print("(none)");
     }
@@ -100,27 +100,27 @@ void ChunkManagerStats::verify() const {
 
 void InUseChunkStats::print_on(outputStream* st, size_t scale) const {
   int col = st->position();
-  st->print("%4d chunk%s, ", num, num != 1 ? "s" : "");
-  if (num > 0) {
+  st->print("%4d chunk%s, ", _num, _num != 1 ? "s" : "");
+  if (_num > 0) {
     col += 14; st->fill_to(col);
 
-    print_scaled_words(st, word_size, scale, 5);
+    print_scaled_words(st, _word_size, scale, 5);
     st->print(" capacity,");
 
     col += 20; st->fill_to(col);
-    print_scaled_words_and_percentage(st, committed_words, word_size, scale, 5);
+    print_scaled_words_and_percentage(st, _committed_words, _word_size, scale, 5);
     st->print(" committed, ");
 
     col += 18; st->fill_to(col);
-    print_scaled_words_and_percentage(st, used_words, word_size, scale, 5);
+    print_scaled_words_and_percentage(st, _used_words, _word_size, scale, 5);
     st->print(" used, ");
 
     col += 20; st->fill_to(col);
-    print_scaled_words_and_percentage(st, free_words, word_size, scale, 5);
+    print_scaled_words_and_percentage(st, _free_words, _word_size, scale, 5);
     st->print(" free, ");
 
     col += 20; st->fill_to(col);
-    print_scaled_words_and_percentage(st, waste_words, word_size, scale, 5);
+    print_scaled_words_and_percentage(st, _waste_words, _word_size, scale, 5);
     st->print(" waste ");
 
   }
@@ -128,26 +128,26 @@ void InUseChunkStats::print_on(outputStream* st, size_t scale) const {
 
 #ifdef ASSERT
 void InUseChunkStats::verify() const {
-  assert(word_size >= committed_words &&
-      committed_words == used_words + free_words + waste_words,
+  assert(_word_size >= _committed_words &&
+      _committed_words == _used_words + _free_words + _waste_words,
          "Sanity: cap " SIZE_FORMAT ", committed " SIZE_FORMAT ", used " SIZE_FORMAT ", free " SIZE_FORMAT ", waste " SIZE_FORMAT ".",
-         word_size, committed_words, used_words, free_words, waste_words);
+         _word_size, _committed_words, _used_words, _free_words, _waste_words);
 }
 #endif
 
 void ArenaStats::add(const ArenaStats& other) {
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
-    stats[l].add(other.stats[l]);
+    _stats[l].add(other._stats[l]);
   }
-  free_blocks_num += other.free_blocks_num;
-  free_blocks_word_size += other.free_blocks_word_size;
+  _free_blocks_num += other._free_blocks_num;
+  _free_blocks_word_size += other._free_blocks_word_size;
 }
 
 // Returns total chunk statistics over all chunk types.
 InUseChunkStats ArenaStats::totals() const {
   InUseChunkStats out;
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
-    out.add(stats[l]);
+    out.add(_stats[l]);
   }
   return out;
 }
@@ -163,10 +163,10 @@ void ArenaStats::print_on(outputStream* st, size_t scale,  bool detailed) const 
         st->cr_indent();
         chunklevel::print_chunk_size(st, l);
         st->print(" chunks: ");
-        if (stats[l].num == 0) {
+        if (_stats[l]._num == 0) {
           st->print(" (none)");
         } else {
-          stats[l].print_on(st, scale);
+          _stats[l].print_on(st, scale);
         }
       }
 
@@ -174,16 +174,16 @@ void ArenaStats::print_on(outputStream* st, size_t scale,  bool detailed) const 
       st->print("%15s: ", "-total-");
       totals().print_on(st, scale);
     }
-    if (free_blocks_num > 0) {
+    if (_free_blocks_num > 0) {
       st->cr_indent();
-      st->print("deallocated: " UINTX_FORMAT " blocks with ", free_blocks_num);
-      print_scaled_words(st, free_blocks_word_size, scale);
+      st->print("deallocated: " UINTX_FORMAT " blocks with ", _free_blocks_num);
+      print_scaled_words(st, _free_blocks_word_size, scale);
     }
   } else {
     totals().print_on(st, scale);
     st->print(", ");
-    st->print("deallocated: " UINTX_FORMAT " blocks with ", free_blocks_num);
-    print_scaled_words(st, free_blocks_word_size, scale);
+    st->print("deallocated: " UINTX_FORMAT " blocks with ", _free_blocks_num);
+    print_scaled_words(st, _free_blocks_word_size, scale);
   }
 }
 
@@ -192,11 +192,11 @@ void ArenaStats::print_on(outputStream* st, size_t scale,  bool detailed) const 
 void ArenaStats::verify() const {
   size_t total_used = 0;
   for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
-    stats[l].verify();
-    total_used += stats[l].used_words;
+    _stats[l].verify();
+    total_used += _stats[l]._used_words;
   }
   // Deallocated allocations still count as used
-  assert(total_used >= free_blocks_word_size,
+  assert(total_used >= _free_blocks_word_size,
          "Sanity");
 }
 #endif
@@ -204,8 +204,8 @@ void ArenaStats::verify() const {
 // Returns total arena statistics for both class and non-class metaspace
 ArenaStats ClmsStats::totals() const {
   ArenaStats out;
-  out.add(arena_stats_nonclass);
-  out.add(arena_stats_class);
+  out.add(_arena_stats_nonclass);
+  out.add(_arena_stats_class);
   return out;
 }
 
@@ -215,14 +215,14 @@ void ClmsStats::print_on(outputStream* st, size_t scale, bool detailed) const {
   if (Metaspace::using_class_space()) {
     st->print("Non-Class: ");
   }
-  arena_stats_nonclass.print_on(st, scale, detailed);
+  _arena_stats_nonclass.print_on(st, scale, detailed);
   if (detailed) {
     st->cr();
   }
   if (Metaspace::using_class_space()) {
     st->cr_indent();
     st->print("    Class: ");
-    arena_stats_class.print_on(st, scale, detailed);
+    _arena_stats_class.print_on(st, scale, detailed);
     if (detailed) {
       st->cr();
     }
@@ -238,8 +238,8 @@ void ClmsStats::print_on(outputStream* st, size_t scale, bool detailed) const {
 
 #ifdef ASSERT
 void ClmsStats::verify() const {
-  arena_stats_nonclass.verify();
-  arena_stats_class.verify();
+  _arena_stats_nonclass.verify();
+  _arena_stats_class.verify();
 }
 #endif
 

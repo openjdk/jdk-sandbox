@@ -227,7 +227,7 @@ public:
 
   // Convenience method to return number of chunks in arena (including current chunk)
   int get_number_of_chunks() const {
-    return get_arena_statistics().totals().num;
+    return get_arena_statistics().totals()._num;
   }
 
 };

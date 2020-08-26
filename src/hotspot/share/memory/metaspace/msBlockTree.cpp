@@ -51,26 +51,26 @@ namespace metaspace {
 	  }
 
 struct BlockTree::veridata {
-  MemRangeCounter counter;
-  int max_edge;
-  size_t largest;
+  MemRangeCounter _counter;
+  int _max_edge;
+  size_t _largest;
 };
 
 // Given a node, check that all siblings have the same size and that we have no
 // (direct) circularities.
 void BlockTree::verify_node_siblings(Node* n, veridata* vd) const {
-  const size_t size = n->size;
-  Node* n2 = n->next;
+  const size_t size = n->_size;
+  Node* n2 = n->_next;
   Node* prev_sib = NULL;
   while (n2 != NULL) {
-    assrt0(n2->size == size);
-    vd->counter.add(n2->size);
+    assrt0(n2->_size == size);
+    vd->_counter.add(n2->_size);
     if (prev_sib != NULL) {
-      assrt0(prev_sib->next == n2);
+      assrt0(prev_sib->_next == n2);
       assrt0(prev_sib != n2);
     }
     prev_sib = n2;
-    n2 = n2->next;
+    n2 = n2->_next;
   }
 }
 
@@ -78,43 +78,43 @@ void BlockTree::verify_node_siblings(Node* n, veridata* vd) const {
 void BlockTree::verify_node(Node* n, size_t left_limit, size_t right_limit,
     veridata* vd, int lvl) const {
 
-  if (lvl > vd->max_edge) {
-    vd->max_edge = lvl;
+  if (lvl > vd->_max_edge) {
+    vd->_max_edge = lvl;
   }
 
-  if (n->size > vd->largest) {
-    vd->largest = n->size;
+  if (n->_size > vd->_largest) {
+    vd->_largest = n->_size;
   }
 
-  assrt0((n == _root && n->parent == NULL) || (n != _root && n->parent != NULL));
+  assrt0((n == _root && n->_parent == NULL) || (n != _root && n->_parent != NULL));
 
   // check all siblings
-  if (n->next != NULL) {
+  if (n->_next != NULL) {
     verify_node_siblings(n, vd);
   }
 
   // check order
-  assrt(n->size >= minimal_word_size && n->size <= maximal_word_size,
-      "bad node size " SIZE_FORMAT, n->size);
-  assrt0(n->size < right_limit);
-  assrt0(n->size > left_limit);
+  assrt(n->_size >= minimal_word_size && n->_size <= maximal_word_size,
+      "bad node size " SIZE_FORMAT, n->_size);
+  assrt0(n->_size < right_limit);
+  assrt0(n->_size > left_limit);
 
-  vd->counter.add(n->size);
+  vd->_counter.add(n->_size);
 
-  if (n->left != NULL) {
-    assrt0(n != n->left);
-    assrt0(n->left->parent == n);
-    assrt0(n->left->size < n->size);
-    assrt0(n->left->size > left_limit);
-    verify_node(n->left, left_limit, n->size, vd, lvl + 1);
+  if (n->_left != NULL) {
+    assrt0(n != n->_left);
+    assrt0(n->_left->_parent == n);
+    assrt0(n->_left->_size < n->_size);
+    assrt0(n->_left->_size > left_limit);
+    verify_node(n->_left, left_limit, n->_size, vd, lvl + 1);
   }
 
-  if (n->right != NULL) {
-    assrt0(n != n->right);
-    assrt0(n->right->parent == n);
-    assrt0(n->right->size < right_limit);
-    assrt0(n->right->size > n->size);
-    verify_node(n->right, n->size, right_limit, vd, lvl + 1);
+  if (n->_right != NULL) {
+    assrt0(n != n->_right);
+    assrt0(n->_right->_parent == n);
+    assrt0(n->_right->_size < right_limit);
+    assrt0(n->_right->_size > n->_size);
+    verify_node(n->_right, n->_size, right_limit, vd, lvl + 1);
   }
 
 }
@@ -123,14 +123,14 @@ void BlockTree::verify_tree() const {
   int num = 0;
   size_t size = 0;
   veridata vd;
-  vd.max_edge = 0;
-  vd.largest = 0;
+  vd._max_edge = 0;
+  vd._largest = 0;
   if (_root != NULL) {
-    assrt0(_root->parent == NULL);
+    assrt0(_root->_parent == NULL);
     verify_node(_root, 0, maximal_word_size + 1, &vd, 0);
-    assrt0(vd.largest == _largest_size_added);
-    vd.counter.check(_counter);
-    assrt0(vd.counter.count() > 0);
+    assrt0(vd._largest == _largest_size_added);
+    vd._counter.check(_counter);
+    assrt0(vd._counter.count() > 0);
   }
 }
 
@@ -147,12 +147,12 @@ void BlockTree::print_node(outputStream* st, Node* n, int lvl) {
   for (int i = 0; i < lvl; i ++) {
     st->print("---");
   }
-  st->print_cr("<" PTR_FORMAT " (size " SIZE_FORMAT ")", p2i(n), n->size);
-  if (n->left) {
-    print_node(st, n->left, lvl + 1);
+  st->print_cr("<" PTR_FORMAT " (size " SIZE_FORMAT ")", p2i(n), n->_size);
+  if (n->_left) {
+    print_node(st, n->_left, lvl + 1);
   }
-  if (n->right) {
-    print_node(st, n->right, lvl + 1);
+  if (n->_right) {
+    print_node(st, n->_right, lvl + 1);
   }
 }
 

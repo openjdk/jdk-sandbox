@@ -162,10 +162,10 @@ void ClassLoaderMetaspace::deallocate(MetaWord* ptr, size_t word_size, bool is_c
 // Update statistics. This walks all in-use chunks.
 void ClassLoaderMetaspace::add_to_statistics(metaspace::ClmsStats* out) const {
   if (non_class_space_arena() != NULL) {
-    non_class_space_arena()->add_to_statistics(&out->arena_stats_nonclass);
+    non_class_space_arena()->add_to_statistics(&out->_arena_stats_nonclass);
   }
   if (class_space_arena() != NULL) {
-    class_space_arena()->add_to_statistics(&out->arena_stats_class);
+    class_space_arena()->add_to_statistics(&out->_arena_stats_class);
   }
 }
 

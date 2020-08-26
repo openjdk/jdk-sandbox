@@ -321,10 +321,10 @@ void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags)
   out->print_cr("):");
 
   // Print waste for in-use chunks.
-  InUseChunkStats ucs_nonclass = cl._stats_total.arena_stats_nonclass.totals();
-  InUseChunkStats ucs_class = cl._stats_total.arena_stats_class.totals();
-  const size_t waste_in_chunks_in_use = ucs_nonclass.waste_words + ucs_class.waste_words;
-  const size_t free_in_chunks_in_use = ucs_nonclass.free_words + ucs_class.free_words;
+  InUseChunkStats ucs_nonclass = cl._stats_total._arena_stats_nonclass.totals();
+  InUseChunkStats ucs_class = cl._stats_total._arena_stats_class.totals();
+  const size_t waste_in_chunks_in_use = ucs_nonclass._waste_words + ucs_class._waste_words;
+  const size_t free_in_chunks_in_use = ucs_nonclass._free_words + ucs_class._free_words;
 
   out->print("        Waste in chunks in use: ");
   print_scaled_words_and_percentage(out, waste_in_chunks_in_use, committed_words, scale, 6);
@@ -341,11 +341,11 @@ void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags)
 
   // Print waste in deallocated blocks.
   const uintx free_blocks_num =
-      cl._stats_total.arena_stats_nonclass.free_blocks_num +
-      cl._stats_total.arena_stats_class.free_blocks_num;
+      cl._stats_total._arena_stats_nonclass._free_blocks_num +
+      cl._stats_total._arena_stats_class._free_blocks_num;
   const size_t free_blocks_cap_words =
-      cl._stats_total.arena_stats_nonclass.free_blocks_word_size +
-      cl._stats_total.arena_stats_class.free_blocks_word_size;
+      cl._stats_total._arena_stats_nonclass._free_blocks_word_size +
+      cl._stats_total._arena_stats_class._free_blocks_word_size;
   out->print("Deallocated from chunks in use: ");
   print_scaled_words_and_percentage(out, free_blocks_cap_words, committed_words, scale, 6);
   out->print(" (" UINTX_FORMAT " blocks)", free_blocks_num);

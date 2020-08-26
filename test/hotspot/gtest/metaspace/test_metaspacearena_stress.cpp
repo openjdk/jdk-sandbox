@@ -103,10 +103,10 @@ class MetaspaceArenaTestBed : public CHeapObj<mtInternal> {
            _dealloc_count.count() <= _alloc_count.count(), "Sanity");
 
     // Check consistency of stats
-    ASSERT_GE(in_use_stats.word_size, in_use_stats.committed_words);
-    ASSERT_EQ(in_use_stats.committed_words,
-              in_use_stats.used_words + in_use_stats.free_words + in_use_stats.waste_words);
-    ASSERT_GE(in_use_stats.used_words, stats.free_blocks_word_size);
+    ASSERT_GE(in_use_stats._word_size, in_use_stats._committed_words);
+    ASSERT_EQ(in_use_stats._committed_words,
+              in_use_stats._used_words + in_use_stats._free_words + in_use_stats._waste_words);
+    ASSERT_GE(in_use_stats._used_words, stats._free_blocks_word_size);
 
     // Note: reasons why the outside alloc counter and the inside used counter can differ:
     // - alignment/padding of allocations
@@ -121,8 +121,8 @@ class MetaspaceArenaTestBed : public CHeapObj<mtInternal> {
     const size_t max_word_overhead_per_alloc = 4;
     const size_t at_most_allocated = _alloc_count.total_size() + max_word_overhead_per_alloc * _alloc_count.count();
 
-    ASSERT_LE(at_least_allocated, in_use_stats.used_words - stats.free_blocks_word_size);
-    ASSERT_GE(at_most_allocated, in_use_stats.used_words - stats.free_blocks_word_size);
+    ASSERT_LE(at_least_allocated, in_use_stats._used_words - stats._free_blocks_word_size);
+    ASSERT_GE(at_most_allocated, in_use_stats._used_words - stats._free_blocks_word_size);
 
   }
 

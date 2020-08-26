@@ -45,12 +45,12 @@ namespace metaspace {
 struct ChunkManagerStats {
 
   // How many chunks per level are checked in.
-  int num_chunks[chunklevel::NUM_CHUNK_LEVELS];
+  int _num_chunks[chunklevel::NUM_CHUNK_LEVELS];
 
   // Size, in words, of the sum of all committed areas in this chunk manager, per level.
-  size_t committed_word_size[chunklevel::NUM_CHUNK_LEVELS];
+  size_t _committed_word_size[chunklevel::NUM_CHUNK_LEVELS];
 
-  ChunkManagerStats() : num_chunks(), committed_word_size() {}
+  ChunkManagerStats() : _num_chunks(), _committed_word_size() {}
 
   void add(const ChunkManagerStats& other);
 
@@ -70,7 +70,7 @@ struct ChunkManagerStats {
 struct InUseChunkStats {
 
   // Number of chunks
-  int num;
+  int _num;
 
   // Note:
   // capacity = committed + uncommitted
@@ -78,32 +78,32 @@ struct InUseChunkStats {
 
   // Capacity (total sum of all chunk sizes) in words.
   // May contain committed and uncommitted space.
-  size_t word_size;
+  size_t _word_size;
 
   // Total committed area, in words.
-  size_t committed_words;
+  size_t _committed_words;
 
   // Total used area, in words.
-  size_t used_words;
+  size_t _used_words;
 
   // Total free committed area, in words.
-  size_t free_words;
+  size_t _free_words;
 
   // Total waste committed area, in words.
-  size_t waste_words;
+  size_t _waste_words;
 
   InUseChunkStats()
-    : num(0), word_size(0), committed_words(0),
-      used_words(0), free_words(0), waste_words(0)
+    : _num(0), _word_size(0), _committed_words(0),
+      _used_words(0), _free_words(0), _waste_words(0)
   {}
 
   void add(const InUseChunkStats& other) {
-    num += other.num;
-    word_size += other.word_size;
-    committed_words += other.committed_words;
-    used_words += other.used_words;
-    free_words += other.free_words;
-    waste_words += other.waste_words;
+    _num += other._num;
+    _word_size += other._word_size;
+    _committed_words += other._committed_words;
+    _used_words += other._used_words;
+    _free_words += other._free_words;
+    _waste_words += other._waste_words;
 
   }
 
@@ -117,14 +117,14 @@ struct InUseChunkStats {
 struct  ArenaStats {
 
   // chunk statistics by chunk level
-  InUseChunkStats stats[chunklevel::NUM_CHUNK_LEVELS];
-  uintx free_blocks_num;
-  size_t free_blocks_word_size;
+  InUseChunkStats _stats[chunklevel::NUM_CHUNK_LEVELS];
+  uintx _free_blocks_num;
+  size_t _free_blocks_word_size;
 
   ArenaStats()
-    : stats(),
-      free_blocks_num(0),
-      free_blocks_word_size(0)
+    : _stats(),
+      _free_blocks_num(0),
+      _free_blocks_word_size(0)
   {}
 
   void add(const ArenaStats& other);
@@ -140,14 +140,14 @@ struct  ArenaStats {
 // Statistics for one or multiple ClassLoaderMetaspace objects
 struct ClmsStats {
 
-  ArenaStats arena_stats_nonclass;
-  ArenaStats arena_stats_class;
+  ArenaStats _arena_stats_nonclass;
+  ArenaStats _arena_stats_class;
 
-  ClmsStats() : arena_stats_nonclass(), arena_stats_class() {}
+  ClmsStats() : _arena_stats_nonclass(), _arena_stats_class() {}
 
   void add(const ClmsStats& other) {
-    arena_stats_nonclass.add(other.arena_stats_nonclass);
-    arena_stats_class.add(other.arena_stats_class);
+    _arena_stats_nonclass.add(other._arena_stats_nonclass);
+    _arena_stats_class.add(other._arena_stats_class);
   }
 
   void print_on(outputStream* st, size_t scale, bool detailed) const;

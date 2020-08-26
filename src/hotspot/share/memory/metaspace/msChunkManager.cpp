@@ -434,8 +434,8 @@ void ChunkManager::add_to_statistics(ChunkManagerStats* out) const {
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
 
   for (chunklevel_t l = chunklevel::ROOT_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
-    out->num_chunks[l] += _chunks.num_chunks_at_level(l);
-    out->committed_word_size[l] += _chunks.committed_word_size_at_level(l);
+    out->_num_chunks[l] += _chunks.num_chunks_at_level(l);
+    out->_committed_word_size[l] += _chunks.committed_word_size_at_level(l);
   }
 
   DEBUG_ONLY(out->verify();)

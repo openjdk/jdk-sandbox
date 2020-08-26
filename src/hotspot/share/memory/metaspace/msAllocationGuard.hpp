@@ -74,9 +74,15 @@ namespace metaspace {
 #ifdef ASSERT
 
 struct Prefix {
-  uintx mark;
-  size_t word_size;       // raw word size including prefix
+  uintx _mark;
+  size_t _word_size;       // raw word size including prefix
   // MetaWord payload [0];   // varsized (but unfortunately not all our compilers understand that)
+
+  Prefix(uintx mark, size_t word_size)
+    : _mark(mark),
+      _word_size(word_size)
+  {}
+
 };
 
 // The prefix structure must be aligned to MetaWord size.
@@ -101,15 +107,15 @@ inline size_t prefix_size() {
 // return the starting pointer to the payload.
 inline MetaWord* establish_prefix(MetaWord* p_raw, size_t raw_word_size) {
   Prefix* pp = (Prefix*)p_raw;
-  pp->mark = EYECATCHER;
-  pp->word_size = raw_word_size;
+  pp->_mark = EYECATCHER;
+  pp->_word_size = raw_word_size;
   return payload_from_prefix(pp);
 }
 
 inline void check_prefix(const Prefix* pp) {
-  assert(pp->mark == EYECATCHER, "corrupt block at " PTR_FORMAT ".", p2i(pp));
-  assert(pp->word_size > 0 && pp->word_size < chunklevel::MAX_CHUNK_WORD_SIZE,
-         "Invalid size " SIZE_FORMAT " in block at " PTR_FORMAT ".", pp->word_size, p2i(pp));
+  assert(pp->_mark == EYECATCHER, "corrupt block at " PTR_FORMAT ".", p2i(pp));
+  assert(pp->_word_size > 0 && pp->_word_size < chunklevel::MAX_CHUNK_WORD_SIZE,
+         "Invalid size " SIZE_FORMAT " in block at " PTR_FORMAT ".", pp->_word_size, p2i(pp));
 }
 
 #endif
