@@ -97,24 +97,23 @@ class InetServerSocketChannelImpl
     }
 
     @Override
-    <T> boolean setOptionSpecial(SocketOption<T> name, T value) throws IOException {
+    <T> void implSetOption(SocketOption<T> name, T value) throws IOException {
         if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
             // SO_REUSEADDR emulated when using exclusive bind
             isReuseAddress = (Boolean) value;
-            return true;
         } else {
-            return false;
+            Net.setSocketOption(getFD(), Net.UNSPEC, name, value);
         }
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    <T> T getOptionSpecial(SocketOption<T> name) throws IOException {
+    <T> T implGetOption(SocketOption<T> name) throws IOException {
         if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
             // SO_REUSEADDR emulated when using exclusive bind
             return (T) Boolean.valueOf(isReuseAddress);
         }
-        return null;
+        return (T) Net.getSocketOption(getFD(), Net.UNSPEC, name);
     }
 
     private static class DefaultOptionsHolder {

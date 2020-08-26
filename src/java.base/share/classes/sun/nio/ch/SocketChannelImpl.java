@@ -213,32 +213,9 @@ abstract class SocketChannelImpl
         }
     }
 
-    /**
-     * If special handling of a socket option is required, override this in subclass
-     * and return true if no further action required.
-     *
-     * @param name
-     * @param value
-     * @param <T>
-     * @return
-     * @throws IOException
-     */
-    <T> boolean setOptionSpecial(SocketOption<T> name, T value) throws IOException {
-        return false;
-    }
+    abstract <T> void implSetOption(SocketOption<T> name, T value) throws IOException;
 
-    /**
-     * If special handling of a socket option is required, override this in subclass
-     * and return the option value.
-     *
-     * @param name
-     * @param <T>
-     * @return
-     * @throws IOException
-     */
-    <T> T getOptionSpecial(SocketOption<T> name) throws IOException {
-        return null;
-    }
+    abstract <T> T implGetOption(SocketOption<T> name) throws IOException;
 
     @Override
     @SuppressWarnings("unchecked")
@@ -251,12 +228,7 @@ abstract class SocketChannelImpl
 
         synchronized (stateLock) {
             ensureOpen();
-            T ret;
-            if ((ret = getOptionSpecial(name)) != null)
-                return ret;
-
-            // no options that require special handling
-            return (T) Net.getSocketOption(getFD(), name); // AF_UNIX
+            return implGetOption(name);
         }
     }
 
@@ -272,10 +244,7 @@ abstract class SocketChannelImpl
 
         synchronized (stateLock) {
             ensureOpen();
-            if (setOptionSpecial(name, value))
-                return this;
-            // no options that require special handling
-            Net.setSocketOption(getFD(), name, value);
+            implSetOption(name, value);
             return this;
         }
     }

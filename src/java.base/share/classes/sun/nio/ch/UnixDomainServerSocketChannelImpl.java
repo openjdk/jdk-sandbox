@@ -90,6 +90,17 @@ public class UnixDomainServerSocketChannelImpl
         throw new UnsupportedOperationException("socket not supported");
     }
 
+    @Override
+    <T> void implSetOption(SocketOption<T> name, T value) throws IOException {
+        Net.setSocketOption(getFD(), Net.UNSPEC, name, value);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    <T> T implGetOption(SocketOption<T> name) throws IOException {
+        return (T) Net.getSocketOption(getFD(), Net.UNSPEC, name);
+    }
+
     private static class DefaultOptionsHolder {
         static final Set<SocketOption<?>> defaultOptions = defaultOptions();
 

@@ -133,7 +133,10 @@ class InetSocketChannelImpl extends SocketChannelImpl
 
 
     @SuppressWarnings("unchecked")
-    <T> T getOptionSpecial(SocketOption<T> name) throws IOException {
+    @Override
+    <T> T implGetOption(SocketOption<T> name) throws IOException {
+        FileDescriptor fd = getFD();
+
         if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
             // SO_REUSEADDR emulated when using exclusive bind
             return (T)Boolean.valueOf(isReuseAddress);
@@ -143,25 +146,25 @@ class InetSocketChannelImpl extends SocketChannelImpl
         if (name == StandardSocketOptions.IP_TOS) {
             ProtocolFamily family = Net.isIPv6Available() ?
                 StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
-            return (T) Net.getSocketOption(getFD(), family, name);
+            return (T) Net.getSocketOption(fd, family, name);
         }
-        return null;
+        return (T) Net.getSocketOption(fd, name);
     }
 
-    <T> boolean setOptionSpecial(SocketOption<T> name, T value) throws IOException {
+    @Override
+    <T> void implSetOption(SocketOption<T> name, T value) throws IOException {
+        FileDescriptor fd = getFD();
+
         if (name == StandardSocketOptions.IP_TOS) {
             ProtocolFamily family = Net.isIPv6Available() ?
                 StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
-            Net.setSocketOption(getFD(), family, name, value);
-            return true;
-        }
-
-        if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
+            Net.setSocketOption(fd, family, name, value);
+        } else if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
             // SO_REUSEADDR emulated when using exclusive bind
             isReuseAddress = (Boolean)value;
-            return true;
+        } else {
+            Net.setSocketOption(fd, name, value);
         }
-        return false;
     }
 
     private static class DefaultOptionsHolder {
