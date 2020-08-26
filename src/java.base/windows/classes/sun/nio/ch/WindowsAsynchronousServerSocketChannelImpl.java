@@ -146,8 +146,8 @@ class WindowsAsynchronousServerSocketChannelImpl
              */
             updateAcceptContext(handle, channel.handle());
 
-            InetSocketAddress local = (InetSocketAddress)Net.localAddress(channel.fd);
-            final InetSocketAddress remote = (InetSocketAddress)Net.remoteAddress(channel.fd);
+            InetSocketAddress local = Net.localAddress(channel.fd);
+            final InetSocketAddress remote = Net.remoteAddress(channel.fd);
             channel.setConnected(local, remote);
 
             // permission check (in context of initiating thread)
