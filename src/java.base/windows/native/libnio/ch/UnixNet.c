@@ -192,7 +192,7 @@ typedef union {
 } sockaddrall;
 
 JNIEXPORT jobject JNICALL
-Java_sun_nio_ch_UnixDomainNet_localAddress(JNIEnv *env, jclass clazz, jobject fdo)
+Java_sun_nio_ch_UnixDomainNet_localAddress0(JNIEnv *env, jclass clazz, jobject fdo)
 {
     sockaddrall sa;
     int sa_len = sizeof(sa);
@@ -205,7 +205,7 @@ Java_sun_nio_ch_UnixDomainNet_localAddress(JNIEnv *env, jclass clazz, jobject fd
 }
 
 JNIEXPORT jobject JNICALL
-Java_sun_nio_ch_UnixDomainNet_remoteAddress(JNIEnv *env, jclass clazz, jobject fdo)
+Java_sun_nio_ch_UnixDomainNet_remoteAddress0(JNIEnv *env, jclass clazz, jobject fdo)
 {
     sockaddrall sa;
     int sa_len = sizeof(sa);
