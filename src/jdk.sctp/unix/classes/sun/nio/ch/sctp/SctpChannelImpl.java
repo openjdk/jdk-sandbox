@@ -159,7 +159,7 @@ public class SctpChannelImpl extends SctpChannel
         this.fd = fd;
         this.fdVal = IOUtil.fdVal(fd);
         this.state = ChannelState.CONNECTED;
-        port = ((InetSocketAddress)Net.localAddress(fd)).getPort();
+        port = Net.localAddress(fd).getPort();
 
         if (association != null) { /* branched */
             this.association = association;
@@ -192,7 +192,7 @@ public class SctpChannelImpl extends SctpChannel
                         sm.checkListen(isa.getPort());
                     }
                     Net.bind(fd, isa.getAddress(), isa.getPort());
-                    InetSocketAddress boundIsa = (InetSocketAddress)Net.localAddress(fd);
+                    InetSocketAddress boundIsa = Net.localAddress(fd);
                     port = boundIsa.getPort();
                     localAddresses.add(isa);
                     if (isa.getAddress().isAnyLocalAddress())
@@ -400,8 +400,7 @@ public class SctpChannelImpl extends SctpChannel
                             /* Connection succeeded */
                             state = ChannelState.CONNECTED;
                             if (!isBound()) {
-                                InetSocketAddress boundIsa =
-                                        (InetSocketAddress)Net.localAddress(fd);
+                                InetSocketAddress boundIsa = Net.localAddress(fd);
                                 port = boundIsa.getPort();
                             }
 
@@ -507,8 +506,7 @@ public class SctpChannelImpl extends SctpChannel
                     synchronized (stateLock) {
                         state = ChannelState.CONNECTED;
                         if (!isBound()) {
-                            InetSocketAddress boundIsa =
-                                    (InetSocketAddress)Net.localAddress(fd);
+                            InetSocketAddress boundIsa = Net.localAddress(fd);
                             port = boundIsa.getPort();
                         }
 

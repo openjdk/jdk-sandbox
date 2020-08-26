@@ -84,10 +84,18 @@ class UnixDomainNet {
         return addr;
     }
 
-    static native String localAddress(FileDescriptor fd)
+    public static UnixDomainSocketAddress localAddress(FileDescriptor fd) throws IOException {
+        return UnixDomainSocketAddress.of(localAddress0(fd));
+    }
+
+    static native String localAddress0(FileDescriptor fd)
         throws IOException;
 
-    static native String remoteAddress(FileDescriptor fd)
+    public static UnixDomainSocketAddress remoteAddress(FileDescriptor fd) throws IOException {
+        return UnixDomainSocketAddress.of(remoteAddress0(fd));
+    }
+
+    static native String remoteAddress0(FileDescriptor fd)
         throws IOException;
 
     static String getRevealedLocalAddressAsString(UnixDomainSocketAddress addr) {

@@ -157,7 +157,7 @@ Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6,
                             jboolean stream, jboolean reuse, jboolean fastLoopback)
 {
     SOCKET s;
-    int domain = preferIPv6 ? AF_INET6 : AF_INET;
+    int domain = (preferIPv6) ? AF_INET6 : AF_INET;
 
     s = socket(domain, (stream ? SOCK_STREAM : SOCK_DGRAM), 0);
     if (s != INVALID_SOCKET) {
@@ -325,43 +325,6 @@ typedef union {
     struct sockaddr_in6 sa6;
     struct sockaddr_un  saun;
 } sockaddrall;
-
-static jint checkFamily(sockaddrall *addr) {
-    if (addr->sa.sa_family == AF_INET) {
-        return sun_nio_ch_Net_AF_INET;
-    }
-    if (addr->sa.sa_family == AF_INET6) {
-        return sun_nio_ch_Net_AF_INET6;
-    }
-    if (addr->sa.sa_family == AF_UNIX) {
-        return sun_nio_ch_Net_AF_UNIX;
-    }
-    return sun_nio_ch_Net_AF_UNKNOWN;
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_localAddressFamily(JNIEnv *env, jclass cla, jobject fdo)
-{
-    sockaddrall addr;
-    int addrlen = sizeof(addr);
-
-    if (getsockname(fdval(env, fdo), (struct sockaddr *)&addr, &addrlen) == SOCKET_ERROR) {
-        return sun_nio_ch_Net_AF_UNKNOWN;
-    }
-    return checkFamily(&addr);
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_remoteAddressFamily(JNIEnv *env, jclass cla, jobject fdo)
-{
-    sockaddrall addr;
-    int addrlen = sizeof(addr);
-
-    if (getpeername(fdval(env, fdo), (struct sockaddr *)&addr, &addrlen) == SOCKET_ERROR) {
-        return sun_nio_ch_Net_AF_UNKNOWN;
-    }
-    return checkFamily(&addr);
-}
 
 JNIEXPORT jobject JNICALL
 Java_sun_nio_ch_Net_localInetAddress(JNIEnv *env, jclass clazz, jobject fdo)

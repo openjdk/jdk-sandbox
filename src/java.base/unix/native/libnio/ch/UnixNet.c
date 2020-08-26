@@ -203,7 +203,7 @@ Java_sun_nio_ch_UnixDomainNet_accept(JNIEnv *env, jclass clazz, jobject fdo, job
 }
 
 JNIEXPORT jstring JNICALL
-Java_sun_nio_ch_UnixDomainNet_localAddress(JNIEnv *env, jclass clazz, jobject fdo)
+Java_sun_nio_ch_UnixDomainNet_localAddress0(JNIEnv *env, jclass clazz, jobject fdo)
 {
     SOCKETADDRESS sa;
     socklen_t sa_len = sizeof(SOCKETADDRESS);
@@ -216,7 +216,7 @@ Java_sun_nio_ch_UnixDomainNet_localAddress(JNIEnv *env, jclass clazz, jobject fd
 }
 
 JNIEXPORT jstring JNICALL
-Java_sun_nio_ch_UnixDomainNet_remoteAddress(JNIEnv *env, jclass clazz, jobject fdo)
+Java_sun_nio_ch_UnixDomainNet_remoteAddress0(JNIEnv *env, jclass clazz, jobject fdo)
 {
     SOCKETADDRESS sa;
     socklen_t sa_len = sizeof(sa);

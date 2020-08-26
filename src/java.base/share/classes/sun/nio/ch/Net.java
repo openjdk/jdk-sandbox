@@ -26,14 +26,11 @@
 package sun.nio.ch;
 
 import java.io.FileDescriptor;
-import java.io.FilePermission;
 import java.io.IOException;
-import java.lang.annotation.Native;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.NetPermission;
 import java.net.NetworkInterface;
 import java.net.ProtocolFamily;
 import java.net.SocketAddress;
@@ -42,7 +39,6 @@ import java.net.SocketOption;
 import java.net.StandardProtocolFamily;
 import java.net.StandardSocketOptions;
 import java.net.UnknownHostException;
-import java.net.UnixDomainSocketAddress;
 import java.nio.channels.AlreadyBoundException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NetworkChannel;
@@ -50,8 +46,6 @@ import java.nio.channels.NotYetBoundException;
 import java.nio.channels.NotYetConnectedException;
 import java.nio.channels.UnresolvedAddressException;
 import java.nio.channels.UnsupportedAddressTypeException;
-import java.nio.file.Path;
-import java.nio.file.InvalidPathException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Enumeration;
@@ -66,12 +60,7 @@ public class Net {
 
     static {
         // Load all required native libs
-        IOUtil.load();
         UnixDomainNet.init();
-    }
-
-    public static void init () {
-        // trigger initialization
     }
 
     // unspecified protocol family
@@ -80,12 +69,6 @@ public class Net {
             return "UNSPEC";
         }
     };
-
-    // socket address type
-    static final int AF_UNKNOWN         = -1;
-    static final int AF_INET            = 1;
-    static final int AF_INET6           = 2;
-    static final int AF_UNIX            = 3;
 
     // set to true if exclusive binding is on for Windows
     private static final boolean exclusiveBind;
@@ -546,10 +529,6 @@ public class Net {
      * Returns 1 for Windows and -1 for Linux/Mac OS
      */
 
-    static native int localAddressFamily(FileDescriptor fd);
-
-    static native int remoteAddressFamily(FileDescriptor fd);
-
     private static native int isExclusiveBindAvailable();
 
     private static native boolean shouldSetBothIPv4AndIPv6Options0();
@@ -645,35 +624,26 @@ public class Net {
     private static native int localPort(FileDescriptor fd)
         throws IOException;
 
-    public static SocketAddress localAddress(FileDescriptor fd) throws IOException {
-        int family = localAddressFamily(fd);
-        if (family == AF_UNIX) {
-            return UnixDomainSocketAddress.of(UnixDomainNet.localAddress(fd));
-        } else {
-            return new InetSocketAddress(localInetAddress(fd), localPort(fd));
-        }
-    }
-
-    public static SocketAddress remoteAddress(FileDescriptor fd) throws IOException {
-        int family = remoteAddressFamily(fd);
-        if (family == -1) {
-            // probably a ServerSocketChannel
-            return null;
-        } else if (family == AF_UNIX) {
-            return UnixDomainSocketAddress.of(UnixDomainNet.remoteAddress(fd));
-        } else {
-            return new InetSocketAddress(remoteInetAddress(fd), remotePort(fd));
-        }
-    }
-
-    static native InetAddress localInetAddress(FileDescriptor fd)
+    private static native InetAddress localInetAddress(FileDescriptor fd)
         throws IOException;
+
+    public static InetSocketAddress localAddress(FileDescriptor fd) 
+        throws IOException 
+    {
+        return new InetSocketAddress(localInetAddress(fd), localPort(fd));
+    }
 
     private static native int remotePort(FileDescriptor fd)
         throws IOException;
 
-    static native InetAddress remoteInetAddress(FileDescriptor fd)
+    private static native InetAddress remoteInetAddress(FileDescriptor fd)
         throws IOException;
+
+    static InetSocketAddress remoteAddress(FileDescriptor fd) 
+        throws IOException 
+    {
+        return new InetSocketAddress(remoteInetAddress(fd), remotePort(fd));
+    }
 
     private static native int getIntOption0(FileDescriptor fd, boolean mayNeedConversion,
                                             int level, int opt)
@@ -834,9 +804,6 @@ public class Net {
      */
     public static final short POLLIN;
     public static final short POLLOUT;
-
-    // -- Socket operations --
-
     public static final short POLLERR;
     public static final short POLLHUP;
     public static final short POLLNVAL;
@@ -850,6 +817,7 @@ public class Net {
     static native short pollconnValue();
 
     static {
+        IOUtil.load();
         initIDs();
 
         POLLIN     = pollinValue();

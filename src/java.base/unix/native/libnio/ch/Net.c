@@ -49,46 +49,6 @@
 #include <sys/utsname.h>
 #endif
 
-
-static jint checkFamily(SOCKETADDRESS *addr) {
-    if (addr->sa.sa_family == AF_INET) {
-        return sun_nio_ch_Net_AF_INET;
-    }
-    if (addr->sa.sa_family == AF_INET6) {
-        return sun_nio_ch_Net_AF_INET6;
-    }
-    if (addr->sa.sa_family == AF_UNIX) {
-        return sun_nio_ch_Net_AF_UNIX;
-    }
-    return sun_nio_ch_Net_AF_UNKNOWN;
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_localAddressFamily(JNIEnv *env, jclass cla, jobject fdo)
-{
-    SOCKETADDRESS addr;
-    socklen_t addrlen = sizeof(addr);
-    int fd = fdval(env, fdo);
-
-    if (getsockname(fd, (struct sockaddr *)&addr, &addrlen) < 0) {
-        return sun_nio_ch_Net_AF_UNKNOWN;
-    }
-    return checkFamily(&addr);
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_remoteAddressFamily(JNIEnv *env, jclass cla, jobject fdo)
-{
-    SOCKETADDRESS addr;
-    socklen_t addrlen = sizeof(addr);
-    int fd = fdval(env, fdo);
-
-    if (getpeername(fd, (struct sockaddr *)&addr, &addrlen) < 0) {
-        return sun_nio_ch_Net_AF_UNKNOWN;
-    }
-    return checkFamily(&addr);
-}
-
 /**
  * IP_MULTICAST_ALL supported since 2.6.31 but may not be available at
  * build time.

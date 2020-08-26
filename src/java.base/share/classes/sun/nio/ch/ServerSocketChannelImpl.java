@@ -101,7 +101,7 @@ abstract class ServerSocketChannelImpl
 
         if (bound) {
             synchronized (stateLock) {
-                localAddress = localAddressImpl(fd);
+                localAddress = implLocalAddress(fd);
             }
         }
     }
@@ -116,7 +116,7 @@ abstract class ServerSocketChannelImpl
     public ServerSocket socket() {
         synchronized (stateLock) {
             if (socket == null)
-                socket = ServerSocketAdaptor.create(this);
+                socket = ServerSocketAdaptor.create((InetServerSocketChannelImpl)this);
             return socket;
         }
     }
@@ -131,7 +131,7 @@ abstract class ServerSocketChannelImpl
         }
     }
 
-    abstract SocketAddress localAddressImpl(FileDescriptor fd) throws IOException;
+    abstract SocketAddress implLocalAddress(FileDescriptor fd) throws IOException;
 
     abstract SocketAddress getRevealedLocalAddress(SocketAddress addr);
 
@@ -211,12 +211,12 @@ abstract class ServerSocketChannelImpl
             ensureOpen();
             if (localAddress != null)
                 throw new AlreadyBoundException();
-            localAddress = bindImpl(local, backlog);
+            localAddress = implBind(local, backlog);
         }
         return this;
     }
 
-    abstract SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException;
+    abstract SocketAddress implBind(SocketAddress local, int backlog) throws IOException;
 
     /**
      * Marks the beginning of an I/O operation that might block.
@@ -256,7 +256,7 @@ abstract class ServerSocketChannelImpl
         }
     }
 
-    protected abstract int acceptImpl(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] sa)
+    protected abstract int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] sa)
         throws IOException;
 
     @Override
@@ -270,11 +270,11 @@ abstract class ServerSocketChannelImpl
             boolean blocking = isBlocking();
             try {
                 begin(blocking);
-                n = acceptImpl(this.fd, newfd, isaa);
+                n = implAccept(this.fd, newfd, isaa);
                 if (blocking) {
                     while (IOStatus.okayToRetry(n) && isOpen()) {
                         park(Net.POLLIN);
-                        n = acceptImpl(this.fd, newfd, isaa);
+                        n = implAccept(this.fd, newfd, isaa);
                     }
                 }
             } finally {
@@ -319,14 +319,14 @@ abstract class ServerSocketChannelImpl
                 lockedConfigureBlocking(false);
                 try {
                     long startNanos = System.nanoTime();
-                    n = acceptImpl(fd, newfd, isaa);
+                    n = implAccept(fd, newfd, isaa);
                     while (n == IOStatus.UNAVAILABLE && isOpen()) {
                         long remainingNanos = nanos - (System.nanoTime() - startNanos);
                         if (remainingNanos <= 0) {
                             throw new SocketTimeoutException("Accept timed out");
                         }
                         park(Net.POLLIN, remainingNanos);
-                        n = acceptImpl(fd, newfd, isaa);
+                        n = implAccept(fd, newfd, isaa);
                     }
                 } finally {
                     // restore socket to blocking mode (if channel is open)
@@ -343,7 +343,7 @@ abstract class ServerSocketChannelImpl
         return finishAccept(newfd, isaa[0]);
     }
 
-    abstract SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress isa)
+    abstract SocketChannel implFinishAccept(FileDescriptor newfd, SocketAddress isa)
         throws IOException;
 
     protected SocketChannel finishAccept(FileDescriptor newfd, SocketAddress sa)
@@ -352,7 +352,7 @@ abstract class ServerSocketChannelImpl
         try {
             // newly accepted socket is initially in blocking mode
             IOUtil.configureBlocking(newfd, true);
-            return finishAcceptImpl(newfd, sa);
+            return implFinishAccept(newfd, sa);
         } catch (Exception e) {
             nd.close(newfd);
             throw e;

@@ -48,6 +48,12 @@ class InheritedChannel {
     private static final int SOCK_STREAM        = 1;
     private static final int SOCK_DGRAM         = 2;
 
+    // socket address type
+    static final int AF_UNKNOWN         = -1;
+    static final int AF_INET            = 1;
+    static final int AF_INET6           = 2;
+    static final int AF_UNIX            = 3;
+
     // oflag values when opening a file
     private static final int O_RDONLY           = 0;
     private static final int O_WRONLY           = 1;
@@ -222,10 +228,10 @@ class InheritedChannel {
 
         Channel c;
         if (st == SOCK_STREAM) {
-            int family = Net.localAddressFamily(fd);
-            if (family == Net.AF_UNKNOWN)
+            int family = addressFamily(fdVal);
+            if (family == AF_UNKNOWN)
                 return null;
-            if (family == Net.AF_UNIX) {
+            if (family == AF_UNIX) {
                 if (isConnected(fdVal)) {
                     var sa = UnixDomainSocketAddress.of(peerAddressUnix(fdVal));
                     return new InheritedUnixSocketChannelImpl(provider, fd, sa);
@@ -284,6 +290,7 @@ class InheritedChannel {
     private static native int open0(String path, int oflag) throws IOException;
     private static native void close0(int fd) throws IOException;
     private static native int soType0(int fd);
+    private static native int addressFamily(int fd);
     private static native InetAddress peerAddressInet(int fd);
     private static native String peerAddressUnix(int fd);
     private static native int peerPort0(int fd);

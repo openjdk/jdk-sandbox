@@ -257,7 +257,7 @@ class DatagramChannelImpl
         this.cleaner = CleanerFactory.cleaner().register(this, releaser);
 
         synchronized (stateLock) {
-            this.localAddress = (InetSocketAddress)Net.localAddress(fd);
+            this.localAddress = Net.localAddress(fd);
         }
     }
 
@@ -1187,7 +1187,7 @@ class DatagramChannelImpl
             sm.checkListen(isa.getPort());
 
         Net.bind(family, fd, isa.getAddress(), isa.getPort());
-        localAddress = (InetSocketAddress)Net.localAddress(fd);
+        localAddress = Net.localAddress(fd);
     }
 
     @Override
@@ -1252,7 +1252,7 @@ class DatagramChannelImpl
                     state = ST_CONNECTED;
 
                     // refresh local address
-                    localAddress = (InetSocketAddress)Net.localAddress(fd);
+                    localAddress = Net.localAddress(fd);
 
                     // flush any packets already received.
                     boolean blocking = isBlocking();
@@ -1298,7 +1298,7 @@ class DatagramChannelImpl
                     state = ST_UNCONNECTED;
 
                     // refresh localAddress, should be same as it was prior to connect
-                    localAddress = (InetSocketAddress)Net.localAddress(fd);
+                    localAddress = Net.localAddress(fd);
                     try {
                         if (!localAddress.equals(initialLocalAddress)) {
                             // Workaround connect(2) issues on Linux and macOS
@@ -1341,7 +1341,7 @@ class DatagramChannelImpl
         if (localAddress.getPort() == 0) {
             assert localAddress.getAddress().equals(target.getAddress());
             Net.bind(family, fd, target.getAddress(), target.getPort());
-            localAddress = (InetSocketAddress)Net.localAddress(fd);
+            localAddress = Net.localAddress(fd);
             return;
         }
 
@@ -1392,7 +1392,7 @@ class DatagramChannelImpl
         }
 
         // restore local address
-        localAddress = (InetSocketAddress)Net.localAddress(fd);
+        localAddress = Net.localAddress(fd);
 
         // restore all socket options (including those set in first pass)
         for (Map.Entry<SocketOption<?>, Object> e : map.entrySet()) {

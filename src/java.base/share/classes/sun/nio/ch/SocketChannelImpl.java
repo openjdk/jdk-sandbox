@@ -38,6 +38,7 @@ import java.net.SocketOption;
 import java.net.SocketTimeoutException;
 import java.net.StandardProtocolFamily;
 import java.net.StandardSocketOptions;
+import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AlreadyBoundException;
 import java.nio.channels.AlreadyConnectedException;
@@ -132,7 +133,7 @@ abstract class SocketChannelImpl
         this.fdVal = IOUtil.fdVal(fd);
         if (bound) {
             synchronized (stateLock) {
-                this.localAddress = localAddressImpl(fd);
+                this.localAddress = implLocalAddress(fd);
             }
         }
     }
@@ -146,7 +147,7 @@ abstract class SocketChannelImpl
         this.fd = fd;
         this.fdVal = IOUtil.fdVal(fd);
         synchronized (stateLock) {
-            this.localAddress = localAddressImpl(fd);
+            this.localAddress = implLocalAddress(fd);
             this.remoteAddress = isa;
             this.state = ST_CONNECTED;
         }
@@ -187,12 +188,12 @@ abstract class SocketChannelImpl
     public Socket socket() {
         synchronized (stateLock) {
             if (socket == null)
-                socket = SocketAdaptor.create(this);
+                socket = SocketAdaptor.create((InetSocketChannelImpl)this);
             return socket;
         }
     }
 
-    abstract SocketAddress localAddressImpl(FileDescriptor fd) throws IOException;
+    abstract SocketAddress implLocalAddress(FileDescriptor fd) throws IOException;
 
     abstract SocketAddress getRevealedLocalAddress(SocketAddress address);
 
@@ -614,7 +615,7 @@ abstract class SocketChannelImpl
         }
     }
 
-    abstract SocketAddress bindImpl(SocketAddress local) throws IOException;
+    abstract SocketAddress implBind(SocketAddress local) throws IOException;
 
     @Override
     public SocketChannel bind(SocketAddress local) throws IOException {
@@ -628,7 +629,7 @@ abstract class SocketChannelImpl
                         throw new ConnectionPendingException();
                     if (localAddress != null)
                         throw new AlreadyBoundException();
-                    localAddress = bindImpl(local);
+                    localAddress = implBind(local);
                 }
             } finally {
                 writeLock.unlock();
@@ -703,7 +704,7 @@ abstract class SocketChannelImpl
         if (completed) {
             synchronized (stateLock) {
                 if (state == ST_CONNECTIONPENDING) {
-                    localAddress = Net.localAddress(fd);
+                    localAddress = implLocalAddress(fd);
                     state = ST_CONNECTED;
                 }
             }
@@ -715,7 +716,7 @@ abstract class SocketChannelImpl
      */
     abstract SocketAddress checkRemote(SocketAddress sa) throws IOException;
 
-    abstract int connectImpl(FileDescriptor fd,SocketAddress sa) throws IOException;
+    abstract int implConnect(FileDescriptor fd,SocketAddress sa) throws IOException;
 
     @Override
     public boolean connect(SocketAddress remote) throws IOException {
@@ -729,7 +730,7 @@ abstract class SocketChannelImpl
                     boolean connected = false;
                     try {
                         beginConnect(blocking, sa);
-                        int n = connectImpl(fd, sa);
+                        int n = implConnect(fd, sa);
                         if (n > 0) {
                             connected = true;
                         } else if (blocking) {
@@ -795,7 +796,7 @@ abstract class SocketChannelImpl
         if (completed) {
             synchronized (stateLock) {
                 if (state == ST_CONNECTIONPENDING) {
-                    localAddress = Net.localAddress(fd);
+                    localAddress = implLocalAddress(fd);
                     state = ST_CONNECTED;
                 }
             }
@@ -1057,7 +1058,7 @@ abstract class SocketChannelImpl
                         // change socket to non-blocking
                         lockedConfigureBlocking(false);
                         try {
-                            int n = connectImpl(fd, sa);
+                            int n = implConnect(fd, sa);
                             connected = (n > 0) ? true : finishTimedConnect(nanos);
                         } finally {
                             // restore socket to blocking mode (if channel is open)

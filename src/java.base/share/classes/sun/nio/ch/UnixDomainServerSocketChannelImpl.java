@@ -81,7 +81,7 @@ public class UnixDomainServerSocketChannelImpl
         super(sp, fd, bound);
     }
 
-    SocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
+    SocketAddress implLocalAddress(FileDescriptor fd) throws IOException {
         return Net.localAddress(fd);
     }
 
@@ -106,7 +106,7 @@ public class UnixDomainServerSocketChannelImpl
     }
 
     @Override
-    public SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException {
+    public SocketAddress implBind(SocketAddress local, int backlog) throws IOException {
         boolean found = false;
 
         UnixDomainNet.checkCapability();
@@ -133,7 +133,7 @@ public class UnixDomainServerSocketChannelImpl
         if (!found)
             throw new IOException("could not bind to temporary name");
         Net.listen(getFD(), backlog < 1 ? 50 : backlog);
-        return Net.localAddress(getFD());
+        return UnixDomainNet.localAddress(getFD());
     }
 
     private static Random getRandom() {
@@ -158,7 +158,7 @@ public class UnixDomainServerSocketChannelImpl
     }
 
     @Override
-    protected int acceptImpl(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
+    protected int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
         throws IOException
     {
         UnixDomainNet.checkCapability();
@@ -180,7 +180,7 @@ public class UnixDomainServerSocketChannelImpl
         return UnixDomainNet.getRevealedLocalAddress((UnixDomainSocketAddress)addr);
     }
 
-    SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress sa)
+    SocketChannel implFinishAccept(FileDescriptor newfd, SocketAddress sa)
         throws IOException
     {
         UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;

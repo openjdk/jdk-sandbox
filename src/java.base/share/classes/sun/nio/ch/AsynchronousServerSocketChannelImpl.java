@@ -162,7 +162,7 @@ abstract class AsynchronousServerSocketChannelImpl
                 NetHooks.beforeTcpBind(fd, isa.getAddress(), isa.getPort());
                 Net.bind(fd, isa.getAddress(), isa.getPort());
                 Net.listen(fd, backlog < 1 ? 50 : backlog);
-                localAddress = (InetSocketAddress)Net.localAddress(fd);
+                localAddress = Net.localAddress(fd);
             }
         } finally {
             end();

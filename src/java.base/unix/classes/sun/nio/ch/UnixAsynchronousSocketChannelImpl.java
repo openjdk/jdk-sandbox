@@ -242,7 +242,7 @@ class UnixAsynchronousSocketChannelImpl
     private void setConnected() throws IOException {
         synchronized (stateLock) {
             state = ST_CONNECTED;
-            localAddress = (InetSocketAddress)Net.localAddress(fd);
+            localAddress = Net.localAddress(fd);
             remoteAddress = (InetSocketAddress)pendingRemote;
         }
     }
