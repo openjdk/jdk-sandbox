@@ -167,29 +167,28 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * Returns a stream consisting of the results of replacing each element of
      * this stream with multiple elements, specifically zero or more elements.
      * Replacement is performed by applying the provided mapping function to each
-     * element in conjunction with a second {@linkplain DoubleConsumer consumer}
-     * argument that accepts replacing elements. The mapping function operates
-     * on the consumer, zero or more times, for acceptance of replacing elements.
+     * element in conjunction with a {@linkplain DoubleConsumer consumer} argument
+     * that accepts replacement elements. The mapping function calls the consumer
+     * zero or more times to provide the replacement elements.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
-     * <p>The results of this intermediate operation are undefined if the
-     * {@linkplain DoubleConsumer consumer} argument is operated on outside the scope of
-     * its application to the mapping function.
+     *
+     * <p>If the {@linkplain DoubleConsumer consumer} argument is used outside the scope of
+     * its application to the mapping function, the results are undefined.
      *
      * @implSpec
-     * The default implementation accumulates accepted elements into an internal
-     * buffer. When the mapper function returns, a stream is created from the
-     * internal buffer. Finally, method {@link #flatMap(DoubleFunction)} is invoked
-     * with the stream. The implementation classes in {@code java.util.stream} are
-     * much more efficient and do not buffer.
+     * The default implementation invokes {@link #flatMap flatMap} on this stream,
+     * passing a function that behaves as follows. First, it calls the mapper function
+     * with a {@code DoubleConsumer} that accumulates replacement elements into a newly created
+     * internal buffer. When the mapper function returns, it creates a {@code DoubleStream} from the
+     * internal buffer. Finally, it returns this stream to {@code flatMap}.
      *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
-     *               function to apply to each element in conjunction with a
-     *               {@linkplain DoubleConsumer consumer} argument that accepts replacing elements.
+     *               function that generates replacement elements
      * @return the new stream
-     * @see Stream#mapMulti(BiConsumer)
+     * @see Stream#mapMulti Stream.mapMulti
      * @since 16
      */
     default DoubleStream mapMulti(DoubleMapMultiConsumer mapper) {

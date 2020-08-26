@@ -344,59 +344,56 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * Returns a stream consisting of the results of replacing each element of
      * this stream with multiple elements, specifically zero or more elements.
      * Replacement is performed by applying the provided mapping function to each
-     * element in conjunction with a second {@linkplain Consumer consumer} argument that
-     * accepts replacing elements. The mapping function operates on the consumer,
-     * zero or more times, for acceptance of replacing elements.
+     * element in conjunction with a {@linkplain Consumer consumer} argument
+     * that accepts replacement elements. The mapping function calls the consumer
+     * zero or more times to provide the replacement elements.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
-     * <p>The results of this intermediate operation are undefined if the
-     * {@linkplain Consumer consumer} argument is operated on outside the scope of
-     * its application to the mapping function.
+     *
+     * <p>If the {@linkplain Consumer consumer} argument is used outside the scope of
+     * its application to the mapping function, the results are undefined.
      *
      * @implSpec
-     * The default implementation accumulates accepted elements into an internal
-     * buffer. When the mapper function returns, a stream is created from the
-     * internal buffer. Finally, method {@link #flatMap(Function)} is invoked
-     * with the stream. The implementation classes in {@code java.util.stream} are
-     * much more efficient and do not buffer.
+     * The default implementation invokes {@link #flatMap flatMap} on this stream,
+     * passing a function that behaves as follows. First, it calls the mapper function
+     * with a {@code Consumer} that accumulates replacement elements into a newly created
+     * internal buffer. When the mapper function returns, it creates a stream from the
+     * internal buffer. Finally, it returns this stream to {@code flatMap}.
      *
      * @apiNote
-     * This method is similar to {@link #flatMap} in that it applies a one-to-many
+     * This method is similar to {@link #flatMap flatMap} in that it applies a one-to-many
      * transformation to the elements of the stream and flattens the result elements
      * into a new stream. This method is preferable to {@code flatMap} in the following
      * circumstances:
      * <ul>
-     * <li>When replacing each stream element with a small number (possibly zero) of
+     * <li>When replacing each stream element with a small (possibly zero) number of
      * elements. Using this method avoids the overhead of creating a new Stream instance
      * for every group of result elements, as required by {@code flatMap}.</li>
      * <li>When it is easier to use an imperative approach for generating result
      * elements than it is to return them in the form of a Stream.</li>
      * </ul>
-     * <p>If a lambda expression is assigned to the mapping function argument, then
-     * that expression may need to be <em>explicitly typed</em> (all parameters have
-     * declared types), alternatively an explicit type parameter may need to be declared on the call
-     * to {@code mapMulti}. In such cases, where this stream operation is fluently composed,
-     * explicit typing is required to correctly infer the element type ({@code R}) of the
-     * returned stream.
+     *
+     * <p>If a lambda expression is provided as the mapper function argument, additional type
+     * information maybe be necessary for proper inference of the element type {@code <R>} of
+     * the returned stream. This can be provided in the form of explicit type declarations for
+     * the lambda parameters or as an explicit type argument to the {@code mapMulti} call.
      *
      * <p><b>Examples</b>
      *
-     * <p>If {@code numbers} is a stream of Number objects, then the following
-     * produces a stream of only the {@code Integer} objects in {@code numbers}.
+     * <p>Given a stream of {@code Number} objects, the following
+     * produces a stream containing only the {@code Integer} objects:
      * <pre>{@code
-     *     numbers.mapMulti((Number n, Consumer<Integer> c) -> {
-     *         if (n instanceof Integer)
-     *             c.accept((Integer) n);
-     *     });
+     *     Stream<Number> numbers = ... ;
+     *     List<Integer> integers = numbers.<Integer>mapMulti((number, consumer) -> {
+     *             if (number instanceof Integer)
+     *                 consumer.accept((Integer) number);
+     *         })
+     *         .collect(Collectors.toList());
      * }</pre>
-     * In this example the lambda expression is explicitly typed, and {@code Integer}
-     * is correctly inferred for the element type of the returned stream. Alternatively,
-     * an explicit type parameter can be declared, such as
-     * {@code numbers.<Integer>mapMulti((n, c) -> { ... }}).
      *
-     * <p>If we have an {@code Iterable} and need to recursively expand its elements,
-     * which are of type {@code Object}, we can use {@code mapMulti} as follows:
+     * <p>If we have an {@code Iterable<Object>} and need to recursively expand its elements
+     * that are themselves of type {@code Iterable}, we can use {@code mapMulti} as follows:
      * <pre>{@code
      * class C {
      *     static void expandIterable(Object e, Consumer<Object> c) {
@@ -419,10 +416,9 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @param <R> The element type of the new stream
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
-     *               function to apply to each element in conjunction with a
-     *               {@linkplain Consumer consumer} argument that accepts replacing elements.
+     *               function that generates replacement elements
      * @return the new stream
-     * @see #flatMap
+     * @see #flatMap flatMap
      * @since 16
      */
     default <R> Stream<R> mapMulti(BiConsumer<? super T, ? super Consumer<R>> mapper) {
@@ -439,29 +435,28 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * element of this stream with multiple elements, specifically zero or more
      * elements.
      * Replacement is performed by applying the provided mapping function to each
-     * element in conjunction with a second {@linkplain IntConsumer consumer} argument
-     * that accepts replacing elements. The mapping function operates on the
-     * consumer, zero or more times, for acceptance of replacing elements.
+     * element in conjunction with a {@linkplain IntConsumer consumer} argument
+     * that accepts replacement elements. The mapping function calls the consumer
+     * zero or more times to provide the replacement elements.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
-     * <p>The results of this intermediate operation are undefined if the
-     * {@linkplain IntConsumer consumer} argument is operated on outside the scope of
-     * its application to the mapping function.
+     *
+     * <p>If the {@linkplain IntConsumer consumer} argument is used outside the scope of
+     * its application to the mapping function, the results are undefined.
      *
      * @implSpec
-     * The default implementation accumulates accepted elements into an internal
-     * buffer. When the mapper function returns, a stream is created from the
-     * internal buffer. Finally, method {@link #flatMapToInt(Function)} is invoked
-     * with the stream. The implementation classes in {@code java.util.stream} are
-     * much more efficient and do not buffer.
+     * The default implementation invokes {@link #flatMapToInt flatMapToInt} on this stream,
+     * passing a function that behaves as follows. First, it calls the mapper function
+     * with an {@code IntConsumer} that accumulates replacement elements into a newly created
+     * internal buffer. When the mapper function returns, it creates an {@code IntStream} from
+     * the internal buffer. Finally, it returns this stream to {@code flatMapToInt}.
      *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
-     *               function to apply to each element in conjunction with a
-     *               {@linkplain IntConsumer consumer} argument that accepts replacing elements.
+     *               function that generates replacement elements
      * @return the new stream
-     * @see #mapMulti(BiConsumer)
+     * @see #mapMulti mapMulti
      * @since 16
      */
     default IntStream mapMultiToInt(BiConsumer<? super T, ? super IntConsumer> mapper) {
@@ -478,29 +473,28 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * element of this stream with multiple elements, specifically zero or more
      * elements.
      * Replacement is performed by applying the provided mapping function to each
-     * element in conjunction with a second {@linkplain LongConsumer consumer} argument
-     * that accepts replacing elements. The mapping function operates on the
-     * consumer, zero or more times, for acceptance of replacing elements.
+     * element in conjunction with a {@linkplain LongConsumer consumer} argument
+     * that accepts replacement elements. The mapping function calls the consumer
+     * zero or more times to provide the replacement elements.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
-     * <p>The results of this intermediate operation are undefined if the
-     * {@linkplain LongConsumer consumer} argument is operated on outside the scope of
-     * its application to the mapping function.
+     *
+     * <p>If the {@linkplain LongConsumer consumer} argument is used outside the scope of
+     * its application to the mapping function, the results are undefined.
      *
      * @implSpec
-     * The default implementation accumulates accepted elements into an internal
-     * buffer. When the mapper function returns, a stream is created from the
-     * internal buffer. Finally, method {@link #flatMapToLong(Function)} is invoked
-     * with the stream. The implementation classes in {@code java.util.stream} are
-     * much more efficient and do not buffer.
+     * The default implementation invokes {@link #flatMapToLong flatMapToLong} on this stream,
+     * passing a function that behaves as follows. First, it calls the mapper function
+     * with a {@code LongConsumer} that accumulates replacement elements into a newly created
+     * internal buffer. When the mapper function returns, it creates a {@code LongStream} from
+     * the internal buffer. Finally, it returns this stream to {@code flatMapToLong}.
      *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
-     *               function to apply to each element in conjunction with a
-     *               {@linkplain LongConsumer consumer} argument that accepts replacing elements.
+     *               function that generates replacement elements
      * @return the new stream
-     * @see #mapMulti(BiConsumer)
+     * @see #mapMulti mapMulti
      * @since 16
      */
     default LongStream mapMultiToLong(BiConsumer<? super T, ? super LongConsumer> mapper) {
@@ -517,29 +511,28 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * element of this stream with multiple elements, specifically zero or more
      * elements.
      * Replacement is performed by applying the provided mapping function to each
-     * element in conjunction with a second {@linkplain DoubleConsumer consumer} argument
-     * that accepts replacing elements. The mapping function operates on the
-     * consumer, zero or more times, for acceptance of replacing elements.
+     * element in conjunction with a {@linkplain DoubleConsumer consumer} argument
+     * that accepts replacement elements. The mapping function calls the consumer
+     * zero or more times to provide the replacement elements.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
-     * <p>The results of this intermediate operation are undefined if the
-     * {@linkplain DoubleConsumer consumer} argument is operated on outside the scope of
-     * its application to the mapping function.
+     *
+     * <p>If the {@linkplain DoubleConsumer consumer} argument is used outside the scope of
+     * its application to the mapping function, the results are undefined.
      *
      * @implSpec
-     * The default implementation accumulates accepted elements into an internal
-     * buffer. When the mapper function returns, a stream is created from the
-     * internal buffer. Finally, method {@link #flatMapToDouble(Function)} is
-     * invoked with the stream. The implementation classes in
-     * {@code java.util.stream} are much more efficient and do not buffer.
+     * The default implementation invokes {@link #flatMapToDouble flatMapToDouble} on this stream,
+     * passing a function that behaves as follows. First, it calls the mapper function
+     * with an {@code DoubleConsumer} that accumulates replacement elements into a newly created
+     * internal buffer. When the mapper function returns, it creates a {@code DoubleStream} from
+     * the internal buffer. Finally, it returns this stream to {@code flatMapToDouble}.
      *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
-     *               function to apply to each element in conjunction with a
-     *               {@linkplain DoubleConsumer consumer} argument that accepts replacing elements.
+     *               function that generates replacement elements
      * @return the new stream
-     * @see #mapMulti(BiConsumer)
+     * @see #mapMulti mapMulti
      * @since 16
      */
     default DoubleStream mapMultiToDouble(BiConsumer<? super T, ? super DoubleConsumer> mapper) {
