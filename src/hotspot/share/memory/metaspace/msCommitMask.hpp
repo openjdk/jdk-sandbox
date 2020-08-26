@@ -60,11 +60,6 @@ class CommitMask : public CHeapBitMap {
     return bitno_for_word_offset(word_size, words_per_bit);
   }
 
-  struct BitCounterClosure : public BitMapClosure {
-    idx_t cnt;
-    bool do_bit(BitMap::idx_t offset) { cnt ++; return true; }
-  };
-
 #ifdef ASSERT
   // Given a pointer, check if it points into the range this bitmap covers.
   bool is_pointer_valid(const MetaWord* p) const {
