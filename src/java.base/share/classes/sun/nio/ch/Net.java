@@ -59,7 +59,6 @@ public class Net {
 
     static {
         // Load all required native libs
-        IOUtil.load();
         UnixDomainNet.init();
     }
 
@@ -795,6 +794,7 @@ public class Net {
 
     static {
         initIDs();
+        IOUtil.load();
 
         POLLIN     = pollinValue();
         POLLOUT    = polloutValue();
