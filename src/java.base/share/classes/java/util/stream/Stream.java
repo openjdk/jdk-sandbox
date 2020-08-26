@@ -382,7 +382,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * <p><b>Examples</b>
      *
      * <p>Given a stream of {@code Number} objects, the following
-     * produces a stream containing only the {@code Integer} objects:
+     * produces a list containing only the {@code Integer} objects:
      * <pre>{@code
      *     Stream<Number> numbers = ... ;
      *     List<Integer> integers = numbers.<Integer>mapMulti((number, consumer) -> {
