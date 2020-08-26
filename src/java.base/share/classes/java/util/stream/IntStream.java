@@ -168,7 +168,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * Returns a stream consisting of the results of replacing each element of
      * this stream with multiple elements, specifically zero or more elements.
      * Replacement is performed by applying the provided mapping function to each
-     * element in conjunction with an {@linkplain IntConsumer consumer} argument
+     * element in conjunction with a {@linkplain IntConsumer consumer} argument
      * that accepts replacement elements. The mapping function calls the consumer
      * zero or more times to provide the replacement elements.
      *
