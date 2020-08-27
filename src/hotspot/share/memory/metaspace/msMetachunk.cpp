@@ -41,9 +41,9 @@ namespace metaspace {
 // Return a single char presentation of the state ('f', 'u', 'd')
 char Metachunk::get_state_char() const {
   switch (_state) {
-  case state_free:    return 'f';
-  case state_in_use:  return 'u';
-  case state_dead:    return 'd';
+  case State::Free:   return 'f';
+  case State::InUse:  return 'u';
+  case State::Dead:   return 'd';
   }
   return '?';
 }
@@ -162,7 +162,7 @@ void Metachunk::uncommit() {
 void Metachunk::uncommit_locked() {
   // Only uncommit chunks which are free, have no used words set (extra precaution) and are equal or larger in size than a single commit granule.
   assert_lock_strong(MetaspaceExpand_lock);
-  assert(_state == state_free && _used_words == 0 && word_size() >= Settings::commit_granule_words(),
+  assert(_state == State::Free && _used_words == 0 && word_size() >= Settings::commit_granule_words(),
          "Only free chunks equal or larger than commit granule size can be uncommitted "
          "(chunk " METACHUNK_FULL_FORMAT ").", METACHUNK_FULL_FORMAT_ARGS(this));
   if (word_size() >= Settings::commit_granule_words()) {

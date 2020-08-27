@@ -124,12 +124,12 @@ class Metachunk {
   // state_in_use:  in-use, owned by a MetaspaceArena
   // dead:          just a hollow chunk header without associated memory, owned
   //                 by chunk header pool.
-  enum state_t {
-    state_free = 0,
-    state_in_use = 1,
-    state_dead = 2
+  enum class State : uint8_t {
+    Free = 0,
+    InUse = 1,
+    Dead = 2
   };
-  state_t _state;
+  State _state;
 
   // We need unfortunately a back link to the virtual space node
   // for splitting and merging nodes.
@@ -166,7 +166,7 @@ public:
       _used_words(0),
       _committed_words(0),
       _level(chunklevel::ROOT_CHUNK_LEVEL),
-      _state(state_free),
+      _state(State::Free),
       _vsnode(NULL),
       _prev(NULL), _next(NULL),
       _prev_in_vs(NULL), _next_in_vs(NULL)
@@ -177,7 +177,7 @@ public:
    _used_words = 0;
    _committed_words = 0;
    _level = chunklevel::ROOT_CHUNK_LEVEL;
-   _state = state_free;
+   _state = State::Free;
    _vsnode = NULL;
    _prev = NULL;
    _next = NULL;
@@ -206,12 +206,12 @@ public:
   void set_next_in_vs(Metachunk* c) { DEBUG_ONLY(assert_have_expand_lock()); _next_in_vs = c; }
   Metachunk* next_in_vs() const     { DEBUG_ONLY(assert_have_expand_lock()); return _next_in_vs; }
 
-  bool is_free() const            { return _state == state_free; }
-  bool is_in_use() const          { return _state == state_in_use; }
-  bool is_dead() const            { return _state == state_dead; }
-  void set_free()                 { _state = state_free; }
-  void set_in_use()               { _state = state_in_use; }
-  void set_dead()                 { _state = state_dead; }
+  bool is_free() const            { return _state == State::Free; }
+  bool is_in_use() const          { return _state == State::InUse; }
+  bool is_dead() const            { return _state == State::Dead; }
+  void set_free()                 { _state = State::Free; }
+  void set_in_use()               { _state = State::InUse; }
+  void set_dead()                 { _state = State::Dead; }
 
   // Return a single char presentation of the state ('f', 'u', 'd')
   char get_state_char() const;
@@ -268,7 +268,7 @@ public:
   // Initialize structure for reuse.
   void initialize(VirtualSpaceNode* node, MetaWord* base, chunklevel_t lvl) {
     _vsnode = node; _base = base; _level = lvl;
-    _used_words = _committed_words = 0; _state = state_free;
+    _used_words = _committed_words = 0; _state = State::Free;
     _next = _prev = _next_in_vs = _prev_in_vs = NULL;
   }
 
