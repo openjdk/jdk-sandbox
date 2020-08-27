@@ -53,21 +53,22 @@ TEST_VM(metaspace, BlockTree_basic) {
   MetaWord* p = NULL;
   MetaWord arr[10000];
 
+  ASSERT_LE(BlockTree::MinWordSize, (size_t)6); // Sanity check. Adjust if Node is changed.
+
   const size_t minws = BlockTree::MinWordSize;
-  const size_t maxws = 4096;
 
   // remove_block from empty tree should yield nothing
   p = bt.remove_block(minws, &real_size);
-  EXPECT_EQ(p, (MetaWord*)NULL);
-  EXPECT_EQ(real_size, (size_t)0);
+  EXPECT_NULL(p);
+  EXPECT_0(real_size);
   CHECK_BT_CONTENT(bt, 0, 0);
 
   // Add some blocks and retrieve them right away.
   size_t sizes[] = {
-      minws + 10,
-      maxws - 10,
       minws, // smallest possible
-      maxws - 1, // largest possible
+      minws + 10,
+      1024,
+      4711,
       0
   };
 
@@ -198,9 +199,9 @@ class BlockTreeTest {
     right_left = 3
   };
 
+  // Feed the whole feeder buffer to the trees, according to feeding_pattern.
   void feed_all(feeding_pattern_t feeding_pattern) {
 
-    // Feed the whole feaderbuffer space to the trees.
     MetaWord* p = NULL;
     unsigned added = 0;
 
@@ -227,6 +228,7 @@ class BlockTreeTest {
         break;
       }
 
+      // Get a block from the feeder buffer; feed it to alternatingly to either tree
       p = _fb.get(s);
       if (p != NULL) {
         int which = added % 2;
@@ -235,13 +237,13 @@ class BlockTreeTest {
         _cnt[which].add(s);
         CHECK_COUNTERS
       }
-      DEBUG_ONLY(verify_trees();)
-      CHECK_COUNTERS;
     } while (p != NULL && added < max_blocks);
 
-    // Trees should be populated in a balanced way, and not empty
-    EXPECT_TRUE( _bt[0].count() == _bt[1].count() ||
-                (_bt[0].count() == _bt[1].count() + 1 && _bt[0].count() > 0));
+    DEBUG_ONLY(verify_trees();)
+
+    // Trees should contain the same number of nodes (+-1)
+    EXPECT_TRUE(_bt[0].count() == _bt[1].count() ||
+                _bt[0].count() == _bt[1].count() + 1);
 
   }
 
@@ -257,9 +259,7 @@ class BlockTreeTest {
       size_t s =_rgen.get();
       size_t real_size = 0;
       MetaWord* p = _bt[giver].remove_block(s, &real_size);
-      if (p == NULL) {
-        // Todo: check that bt really has no larger block than this.
-      } else {
+      if (p != NULL) {
         ASSERT_TRUE(_fb.is_valid_range(p, real_size));
         ASSERT_GE(real_size, s);
         _bt[taker].add_block(p, real_size);
@@ -296,11 +296,8 @@ class BlockTreeTest {
         _cnt[which].sub(real_size);
         CHECK_COUNTERS;
 
-#ifdef ASSERT
-        if (true) {//i % 1000 == 0) {
-          bt->verify();
-        }
-#endif
+        DEBUG_ONLY(bt->verify();)
+
       }
     }
 
