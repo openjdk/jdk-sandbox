@@ -282,7 +282,7 @@ MetaWord* MetaspaceArena::allocate(size_t requested_word_size) {
 
   // 1) Attempt to allocate from the free blocks list
   if (Settings::handle_deallocations() && _fbl != NULL && !_fbl->is_empty()) {
-    p = _fbl->get_block(raw_word_size);
+    p = _fbl->remove_block(raw_word_size);
     if (p != NULL) {
       DEBUG_ONLY(InternalStats::inc_num_allocs_from_deallocated_blocks();)
       UL2(trace, "taken from fbl (now: %d, " SIZE_FORMAT ").",

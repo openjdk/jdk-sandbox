@@ -27,6 +27,7 @@
 #define SHARE_MEMORY_METASPACE_MSBLOCKTREE_HPP
 
 #include "memory/allocation.hpp"
+#include "memory/metaspace/msChunklevel.hpp"
 #include "memory/metaspace/msCounter.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -98,12 +99,8 @@ class BlockTree: public CHeapObj<mtMetaspace> {
 
 public:
 
-  // Largest node size, (bit arbitrarily) capped at 4M since we know this to
-  // be the max possible metaspace allocation size. TODO. Do this better.
-  const static size_t maximal_word_size = 4 * M;
-
-  // We need nodes to be at least large enough to hold a node_t
-  const static size_t minimal_word_size =
+  // We need stored blocks to be at least large enough to hold a Node structure (note ceil division).
+  const static size_t MinWordSize =
       (sizeof(Node) + sizeof(MetaWord) - 1) / sizeof(MetaWord);
 
 private:
@@ -376,8 +373,7 @@ public:
   // node information.
   void add_block(MetaWord* p, size_t word_size) {
     DEBUG_ONLY(zap_range(p, word_size));
-    assert(word_size >= minimal_word_size && word_size < maximal_word_size,
-           "invalid block size " SIZE_FORMAT, word_size);
+    assert(word_size >= MinWordSize, "invalid block size " SIZE_FORMAT, word_size);
     Node* n = new(p) Node(word_size);
     if (_root == NULL) {
       _root = n;
@@ -395,9 +391,8 @@ public:
 
   // Given a word_size, searches and returns a block of at least that size.
   // Block may be larger. Real block size is returned in *p_real_word_size.
-  MetaWord* get_block(size_t word_size, size_t* p_real_word_size) {
-    assert(word_size >= minimal_word_size && word_size < maximal_word_size,
-           "invalid block size " SIZE_FORMAT, word_size);
+  MetaWord* remove_block(size_t word_size, size_t* p_real_word_size) {
+    assert(word_size >= MinWordSize, "invalid block size " SIZE_FORMAT, word_size);
 
     if (_largest_size_added < word_size) {
       return NULL;

@@ -32,22 +32,22 @@ namespace metaspace {
 
 void FreeBlocks::add_block(MetaWord* p, size_t word_size) {
   assert(word_size >= minimal_word_size, "sanity (" SIZE_FORMAT ")", word_size);
-  if (word_size >= _small_blocks.maximal_word_size) {
+  if (word_size >= _small_blocks.MaxWordSize) {
     _tree.add_block(p, word_size);
   } else {
     _small_blocks.add_block(p, word_size);
   }
 }
 
-MetaWord* FreeBlocks::get_block(size_t requested_word_size) {
+MetaWord* FreeBlocks::remove_block(size_t requested_word_size) {
   assert(requested_word_size >= minimal_word_size,
       "requested_word_size too small (" SIZE_FORMAT ")", requested_word_size);
   size_t real_size = 0;
   MetaWord* p = NULL;
-  if (requested_word_size >= _small_blocks.maximal_word_size) {
-    p = _tree.get_block(requested_word_size, &real_size);
+  if (requested_word_size >= _small_blocks.MaxWordSize) {
+    p = _tree.remove_block(requested_word_size, &real_size);
   } else {
-    p = _small_blocks.get_block(requested_word_size, &real_size);
+    p = _small_blocks.remove_block(requested_word_size, &real_size);
   }
   if (p != NULL) {
     // Blocks which are larger than a certain threshold are split and

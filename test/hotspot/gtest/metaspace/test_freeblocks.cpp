@@ -96,7 +96,7 @@ class FreeBlocksTest {
   bool allocate() {
 
     size_t word_size = MAX2(_rgen_allocations.get(), _freeblocks.minimal_word_size);
-    MetaWord* p = _freeblocks.get_block(word_size);
+    MetaWord* p = _freeblocks.remove_block(word_size);
     if (p != NULL) {
       _allocated_words.increment_by(word_size);
       allocation_t* a = new allocation_t;
@@ -118,11 +118,11 @@ class FreeBlocksTest {
 
   void test_loop() {
     // We loop and in each iteration execute one of three operations:
-    // - allocation from lom
-    // - deallocation to lom of a previously allocated block
-    // - feeding a new larger block into the lom (mimicks chunk retiring)
-    // When we have fed all large blocks into the lom (feedbuffer empty), we
-    //  switch to draining the lom completely (only allocs)
+    // - allocation from fbl
+    // - deallocation to fbl of a previously allocated block
+    // - feeding a new larger block into the fbl (mimicks chunk retiring)
+    // When we have fed all large blocks into the fbl (feedbuffer empty), we
+    //  switch to draining the fbl completely (only allocs)
     bool forcefeed = false;
     bool draining = false;
     bool stop = false;
@@ -135,7 +135,7 @@ class FreeBlocksTest {
         if (feed_some()) {
           _num_feeds++;
         } else {
-          // We fed all input memory into the LOM. Now lets proceed until the lom is drained.
+          // We fed all input memory into the fbl. Now lets proceed until the fbl is drained.
           draining = true;
         }
       } else if (!draining && surprise < 1) {
@@ -201,19 +201,19 @@ public:
 
 TEST_VM(metaspace, freeblocks_basics) {
 
-  FreeBlocks lom;
+  FreeBlocks fbl;
   MetaWord tmp[1024];
-  CHECK_CONTENT(lom, 0, 0);
+  CHECK_CONTENT(fbl, 0, 0);
 
-  lom.add_block(tmp, 1024);
-  DEBUG_ONLY(lom.verify();)
-  ASSERT_FALSE(lom.is_empty());
-  CHECK_CONTENT(lom, 1, 1024);
+  fbl.add_block(tmp, 1024);
+  DEBUG_ONLY(fbl.verify();)
+  ASSERT_FALSE(fbl.is_empty());
+  CHECK_CONTENT(fbl, 1, 1024);
 
-  MetaWord* p = lom.get_block(1024);
+  MetaWord* p = fbl.remove_block(1024);
   EXPECT_EQ(p, tmp);
-  DEBUG_ONLY(lom.verify();)
-  CHECK_CONTENT(lom, 0, 0);
+  DEBUG_ONLY(fbl.verify();)
+  CHECK_CONTENT(fbl, 0, 0);
 
 }
 

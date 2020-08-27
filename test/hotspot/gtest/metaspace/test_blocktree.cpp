@@ -53,11 +53,11 @@ TEST_VM(metaspace, BlockTree_basic) {
   MetaWord* p = NULL;
   MetaWord arr[10000];
 
-  const size_t minws = BlockTree::minimal_word_size;
+  const size_t minws = BlockTree::MinWordSize;
   const size_t maxws = 4096;
 
-  // get_block from empty tree should yield nothing
-  p = bt.get_block(minws, &real_size);
+  // remove_block from empty tree should yield nothing
+  p = bt.remove_block(minws, &real_size);
   EXPECT_EQ(p, (MetaWord*)NULL);
   EXPECT_EQ(real_size, (size_t)0);
   CHECK_BT_CONTENT(bt, 0, 0);
@@ -77,7 +77,7 @@ TEST_VM(metaspace, BlockTree_basic) {
 
     DEBUG_ONLY(bt.verify();)
 
-    MetaWord* p = bt.get_block(sizes[i], &real_size);
+    MetaWord* p = bt.remove_block(sizes[i], &real_size);
     EXPECT_EQ(p, arr);
     EXPECT_EQ(real_size, (size_t)sizes[i]);
     CHECK_BT_CONTENT(bt, 0, 0);
@@ -91,7 +91,7 @@ TEST_VM(metaspace, BlockTree_closest_fit) {
   BlockTree bt;
   FeederBuffer fb(10000);
 
-  const size_t minws = BlockTree::minimal_word_size;
+  const size_t minws = BlockTree::MinWordSize;
   const size_t maxws = 256;
 
   size_t sizes[] = {
@@ -122,7 +122,7 @@ TEST_VM(metaspace, BlockTree_closest_fit) {
   size_t last_size = 0;
   while (bt.is_empty() == false) {
     size_t real_size = 0;
-    MetaWord* p = bt.get_block(minws, &real_size);
+    MetaWord* p = bt.remove_block(minws, &real_size);
     EXPECT_TRUE(fb.is_valid_range(p, real_size));
 
     EXPECT_GE(real_size, last_size);
@@ -142,7 +142,7 @@ TEST_VM(metaspace, BlockTree_basic_siblings)
   BlockTree bt;
   CHECK_BT_CONTENT(bt, 0, 0);
 
-  const size_t minws = BlockTree::minimal_word_size;
+  const size_t minws = BlockTree::MinWordSize;
   const size_t maxws = 256;
   const size_t test_size = minws + 17;
   const int num = 10;
@@ -158,7 +158,7 @@ TEST_VM(metaspace, BlockTree_basic_siblings)
 
   for (int i = num; i > 0; i --) {
     size_t real_size = 4711;
-    MetaWord* p = bt.get_block(test_size, &real_size);
+    MetaWord* p = bt.remove_block(test_size, &real_size);
     EXPECT_LT(p, arr + num * test_size);
     EXPECT_GE(p, arr);
     EXPECT_EQ(real_size, (size_t)test_size);
@@ -256,7 +256,7 @@ class BlockTreeTest {
       }
       size_t s =_rgen.get();
       size_t real_size = 0;
-      MetaWord* p = _bt[giver].get_block(s, &real_size);
+      MetaWord* p = _bt[giver].remove_block(s, &real_size);
       if (p == NULL) {
         // Todo: check that bt really has no larger block than this.
       } else {
@@ -285,9 +285,9 @@ class BlockTreeTest {
       while(!bt->is_empty()) {
 
         // We only query for the minimal size. Actually returned size should be
-        // monotonously growing since get_block should always return the closest fit.
+        // monotonously growing since remove_block should always return the closest fit.
         size_t real_size = 4711;
-        MetaWord* p = bt->get_block(BlockTree::minimal_word_size, &real_size);
+        MetaWord* p = bt->remove_block(BlockTree::MinWordSize, &real_size);
         ASSERT_TRUE(_fb.is_valid_range(p, real_size));
 
         ASSERT_GE(real_size, last_size);
@@ -355,8 +355,8 @@ public:
   DO_TEST(name, right_left, min, max) \
   DO_TEST(name, left_right, min, max)
 
-DO_TEST_ALL_PATTERNS(wide, BlockTree::minimal_word_size, 128 * K);
-DO_TEST_ALL_PATTERNS(narrow, BlockTree::minimal_word_size, 16)
-DO_TEST_ALL_PATTERNS(129, BlockTree::minimal_word_size, 129)
-DO_TEST_ALL_PATTERNS(4K, BlockTree::minimal_word_size, 4*K)
+DO_TEST_ALL_PATTERNS(wide, BlockTree::MinWordSize, 128 * K);
+DO_TEST_ALL_PATTERNS(narrow, BlockTree::MinWordSize, 16)
+DO_TEST_ALL_PATTERNS(129, BlockTree::MinWordSize, 129)
+DO_TEST_ALL_PATTERNS(4K, BlockTree::MinWordSize, 4*K)
 

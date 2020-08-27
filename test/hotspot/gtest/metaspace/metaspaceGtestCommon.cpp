@@ -37,7 +37,7 @@ void zap_range(MetaWord* p, size_t word_size) {
   }
 }
 
-// Writes a uniqe pattern to p
+// Writes a unique pattern to p
 void mark_address(MetaWord* p, uintx pattern) {
   MetaWord x = (MetaWord)((uintx) p ^ pattern);
   *p = x;

@@ -74,13 +74,13 @@ class FreeBlocks : public CHeapObj<mtMetaspace> {
 
 public:
 
-  const static size_t minimal_word_size = SmallBlocksType::minimal_word_size;
+  const static size_t minimal_word_size = SmallBlocksType::MinWordSize;
 
   // Add a block to the deallocation management.
   void add_block(MetaWord* p, size_t word_size);
 
   // Retrieve a block of at least requested_word_size.
-  MetaWord* get_block(size_t requested_word_size);
+  MetaWord* remove_block(size_t requested_word_size);
 
 #ifdef ASSERT
   void verify() const {

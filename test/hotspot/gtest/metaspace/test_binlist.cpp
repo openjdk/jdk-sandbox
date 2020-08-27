@@ -66,7 +66,7 @@ struct BinListBasicTest {
 
     // Try to get a block from an empty list.
     size_t real_size = 4711;
-    MetaWord* p = bl.get_block(innocous_size, &real_size);
+    MetaWord* p = bl.remove_block(innocous_size, &real_size);
     EXPECT_EQ(p, (MetaWord*)NULL);
     EXPECT_EQ((size_t)0, real_size);
 
@@ -77,7 +77,7 @@ struct BinListBasicTest {
 
     // And retrieve it.
     real_size = 4711;
-    p = bl.get_block(innocous_size, &real_size);
+    p = bl.remove_block(innocous_size, &real_size);
     EXPECT_EQ(p, arr);
     EXPECT_EQ((size_t)innocous_size, real_size);
     CHECK_BL_CONTENT(bl, 0, 0);
@@ -101,7 +101,7 @@ struct BinListBasicTest {
         DEBUG_ONLY(bl.verify();)
 
         size_t real_size = 4711;
-        MetaWord* p = bl.get_block(s2, &real_size);
+        MetaWord* p = bl.remove_block(s2, &real_size);
         if (s1 >= s2) {
           EXPECT_EQ(p, arr);
           EXPECT_EQ((size_t)s1, real_size);
@@ -113,7 +113,7 @@ struct BinListBasicTest {
           CHECK_BL_CONTENT(bl, 1, s1);
           DEBUG_ONLY(bl.verify();)
           // drain bl
-          p = bl.get_block(minws, &real_size);
+          p = bl.remove_block(minws, &real_size);
           EXPECT_EQ(p, arr);
           EXPECT_EQ((size_t)s1, real_size);
           CHECK_BL_CONTENT(bl, 0, 0);
@@ -161,7 +161,7 @@ struct BinListBasicTest {
       int giver = taker == 0 ? 1 : 0;
 
       size_t real_size = 4711;
-      MetaWord* p = bl[giver].get_block(s, &real_size);
+      MetaWord* p = bl[giver].remove_block(s, &real_size);
       if (p != NULL) {
 
         ASSERT_TRUE(fb.is_valid_range(p, real_size));
@@ -189,7 +189,7 @@ struct BinListBasicTest {
       while (bl[which].is_empty() == false) {
 
         size_t real_size = 4711;
-        MetaWord* p = bl[which].get_block(minws, &real_size);
+        MetaWord* p = bl[which].remove_block(minws, &real_size);
 
         ASSERT_NE(p, (MetaWord*) NULL);
         ASSERT_GE(real_size, minws);
@@ -210,13 +210,12 @@ struct BinListBasicTest {
   }
 };
 
-template <typename BINLISTTYPE> const size_t BinListBasicTest<BINLISTTYPE>::minws = BINLISTTYPE::minimal_word_size;
-template <typename BINLISTTYPE> const size_t BinListBasicTest<BINLISTTYPE>::maxws = BINLISTTYPE::maximal_word_size;
+template <typename BINLISTTYPE> const size_t BinListBasicTest<BINLISTTYPE>::minws = BINLISTTYPE::MinWordSize;
+template <typename BINLISTTYPE> const size_t BinListBasicTest<BINLISTTYPE>::maxws = BINLISTTYPE::MaxWordSize;
 
 TEST_VM(metaspace, BinList_basic_8)   { BinListBasicTest<BinList8>::basic_test(); }
 TEST_VM(metaspace, BinList_basic_16)  { BinListBasicTest<BinList16>::basic_test(); }
 TEST_VM(metaspace, BinList_basic_32)  { BinListBasicTest<BinList32>::basic_test(); }
-//TEST_VM(metaspace, BinList_basic_64)  { BinListBasicTest<BinList64>::basic_test(); }
 
 TEST_VM(metaspace, BinList_basic_1331)   { BinListBasicTest< BinListImpl<13, 31> >::basic_test(); }
 TEST_VM(metaspace, BinList_basic_131)   { BinListBasicTest< BinListImpl<13, 1> >::basic_test(); }

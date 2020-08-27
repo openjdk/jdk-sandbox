@@ -73,7 +73,7 @@ namespace metaspace {
 // This structure is a bit expensive in memory costs (we pay one pointer per managed
 // block size) so we only use it for a small number of sizes.
 
-template <size_t smallest_size, int num_lists>
+template <size_t smallest_word_size, int num_lists>
 class BinListImpl {
 
   struct Block {
@@ -91,14 +91,14 @@ class BinListImpl {
 
   mask_t _mask;
 
-  // minimal block size must be large enough to hold a block.
-  STATIC_ASSERT(smallest_size * sizeof(MetaWord) >= sizeof(Block));
+  // Smallest block size must be large enough to hold a Block structure.
+  STATIC_ASSERT(smallest_word_size * sizeof(MetaWord) >= sizeof(Block));
 
 public:
 
-  // block sizes this structure can keep are limited by [_min_block_size, _max_block_size)
-  const static size_t minimal_word_size = smallest_size;
-  const static size_t maximal_word_size = minimal_word_size + num_lists;
+  // BinList can hold blocks sized [MinWordSize, MaxWordSize)
+  const static size_t MinWordSize = smallest_word_size;
+  const static size_t MaxWordSize = MinWordSize + num_lists;
 
 private:
 
@@ -107,14 +107,14 @@ private:
   MemRangeCounter _counter;
 
   static int index_for_word_size(size_t word_size) {
-    int index = (int)(word_size - minimal_word_size);
+    int index = (int)(word_size - MinWordSize);
     assert(index >= 0 && index < num_lists, "Invalid index %d", index);
     return index;
   }
 
   static size_t word_size_for_index(int index) {
     assert(index >= 0 && index < num_lists, "Invalid index %d", index);
-    return minimal_word_size + index;
+    return MinWordSize + index;
   }
 
   // Search the range [index, _num_lists) for the smallest non-empty list. Returns -1 on fail.
@@ -149,8 +149,8 @@ public:
   }
 
   void add_block(MetaWord* p, size_t word_size) {
-    assert(word_size >= minimal_word_size &&
-           word_size < maximal_word_size, "bad block size");
+    assert(word_size >= MinWordSize &&
+           word_size < MaxWordSize, "bad block size");
     const int index = index_for_word_size(word_size);
     Block* old_head = _blocks[index];
     Block* new_head = new(p)Block(old_head, word_size);
@@ -161,9 +161,9 @@ public:
 
   // Given a word_size, searches and returns a block of at least that size.
   // Block may be larger. Real block size is returned in *p_real_word_size.
-  MetaWord* get_block(size_t word_size, size_t* p_real_word_size) {
-    assert(word_size >= minimal_word_size &&
-           word_size < maximal_word_size, "bad block size " SIZE_FORMAT ".", word_size);
+  MetaWord* remove_block(size_t word_size, size_t* p_real_word_size) {
+    assert(word_size >= MinWordSize &&
+           word_size < MaxWordSize, "bad block size " SIZE_FORMAT ".", word_size);
     int index = index_for_word_size(word_size);
     index = index_for_next_non_empty_list(index);
     if (index != -1) {
@@ -204,7 +204,7 @@ public:
     MemRangeCounter local_counter;
     for (int i = 0; i < num_lists; i++) {
       assert(((_mask >> i) & 1) == ((_blocks[i] == 0) ? 0 : 1), "sanity");
-      const size_t s = minimal_word_size + i;
+      const size_t s = MinWordSize + i;
       for (Block* b = _blocks[i]; b != NULL; b = b->_next) {
         assert(b->_word_size == s, "bad block size");
         local_counter.add(s);

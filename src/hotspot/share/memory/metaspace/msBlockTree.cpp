@@ -94,8 +94,7 @@ void BlockTree::verify_node(Node* n, size_t left_limit, size_t right_limit,
   }
 
   // check order
-  assrt(n->_word_size >= minimal_word_size && n->_word_size <= maximal_word_size,
-      "bad node size " SIZE_FORMAT, n->_word_size);
+  assrt(n->_word_size >= MinWordSize, "bad node size " SIZE_FORMAT, n->_word_size);
   assrt0(n->_word_size < right_limit);
   assrt0(n->_word_size > left_limit);
 
@@ -127,7 +126,7 @@ void BlockTree::verify_tree() const {
   vd._largest = 0;
   if (_root != NULL) {
     assrt0(_root->_parent == NULL);
-    verify_node(_root, 0, maximal_word_size + 1, &vd, 0);
+    verify_node(_root, 0, SIZE_MAX, &vd, 0);
     assrt0(vd._largest == _largest_size_added);
     vd._counter.check(_counter);
     assrt0(vd._counter.count() > 0);
