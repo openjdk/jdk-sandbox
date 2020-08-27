@@ -30,7 +30,6 @@
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/objectCountEventSender.hpp"
 #include "gc/shared/referenceProcessorStats.hpp"
-#include "memory/metaspace.hpp"
 #include "memory/heapInspection.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/os.hpp"

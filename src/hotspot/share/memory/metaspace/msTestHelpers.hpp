@@ -27,10 +27,10 @@
 #define SHARE_MEMORY_METASPACE_MSTESTHELPERS_HPP
 
 #include "memory/allocation.hpp"
-#include "memory/metaspace.hpp"
 #include "memory/metaspace/msCommitLimiter.hpp"
 #include "memory/metaspace/msContext.hpp"
 #include "memory/metaspace/msCounter.hpp"
+#include "memory/metaspace.hpp"
 #include "memory/virtualspace.hpp"
 #include "utilities/globalDefinitions.hpp"
 
