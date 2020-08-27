@@ -72,8 +72,6 @@ class FreeBlocks : public CHeapObj<mtMetaspace> {
   // A BST for larger blocks.
   BlockTree _tree;
 
-  static const size_t splinter_threshold = 0;// 0x100;
-
 public:
 
   const static size_t minimal_word_size = SmallBlocksType::minimal_word_size;

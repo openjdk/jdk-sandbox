@@ -51,9 +51,9 @@ MetaWord* FreeBlocks::get_block(size_t requested_word_size) {
   }
   if (p != NULL) {
     // Blocks which are larger than a certain threshold are split and
-    // the remainder is handed back to the manager.
+    //  the remainder is handed back to the manager.
     const size_t waste = real_size - requested_word_size;
-    if (waste > MAX2(minimal_word_size, splinter_threshold)) {
+    if (waste > minimal_word_size) {
       add_block(p + requested_word_size, waste);
     }
   }
