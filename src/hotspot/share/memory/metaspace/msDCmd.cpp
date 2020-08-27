@@ -88,11 +88,11 @@ void MetaspaceDCmd::execute(DCmdSource source, TRAPS) {
   } else {
     // Full mode. Requires safepoint.
     int flags = 0;
-    if (_show_loaders.value())         flags |= MetaspaceReporter::rf_show_loaders;
-    if (_show_classes.value())         flags |= MetaspaceReporter::rf_show_classes;
-    if (_by_chunktype.value())         flags |= MetaspaceReporter::rf_break_down_by_chunktype;
-    if (_by_spacetype.value())         flags |= MetaspaceReporter::rf_break_down_by_spacetype;
-    if (_show_vslist.value())          flags |= MetaspaceReporter::rf_show_vslist;
+    if (_show_loaders.value())         flags |= (int)MetaspaceReporter::Option::ShowLoaders;
+    if (_show_classes.value())         flags |= (int)MetaspaceReporter::Option::ShowClasses;
+    if (_by_chunktype.value())         flags |= (int)MetaspaceReporter::Option::BreakDownByChunkType;
+    if (_by_spacetype.value())         flags |= (int)MetaspaceReporter::Option::BreakDownBySpaceType;
+    if (_show_vslist.value())          flags |= (int)MetaspaceReporter::Option::ShowVSList;
     VM_PrintMetadata op(output(), scale, flags);
     VMThread::execute(&op);
   }

@@ -199,10 +199,10 @@ void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags)
     return;
   }
 
-  const bool print_loaders = (flags & rf_show_loaders) > 0;
-  const bool print_classes = (flags & rf_show_classes) > 0;
-  const bool print_by_chunktype = (flags & rf_break_down_by_chunktype) > 0;
-  const bool print_by_spacetype = (flags & rf_break_down_by_spacetype) > 0;
+  const bool print_loaders = (flags & (int)Option::ShowLoaders) > 0;
+  const bool print_classes = (flags & (int)Option::ShowClasses) > 0;
+  const bool print_by_chunktype = (flags & (int)Option::BreakDownByChunkType) > 0;
+  const bool print_by_spacetype = (flags & (int)Option::BreakDownBySpaceType) > 0;
 
   // Some report options require walking the class loader data graph.
   metaspace::PrintCLDMetaspaceInfoClosure cl(out, scale, print_loaders, print_classes, print_by_chunktype);
@@ -261,7 +261,7 @@ void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags)
   print_vs(out, scale);
 
   // -- Print VirtualSpaceList details.
-  if ((flags & rf_show_vslist) > 0) {
+  if ((flags & (int)Option::ShowVSList) > 0) {
     out->cr();
     out->print_cr("Virtual space list%s:", Metaspace::using_class_space() ? "s" : "");
 

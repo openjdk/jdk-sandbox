@@ -34,17 +34,17 @@ class MetaspaceReporter : public AllStatic {
 public:
 
   // Flags for print_report().
-  enum ReportFlag {
+  enum class Option {
     // Show usage by class loader.
-    rf_show_loaders                 = (1 << 0),
+    ShowLoaders                 = (1 << 0),
     // Breaks report down by chunk type (small, medium, ...).
-    rf_break_down_by_chunktype      = (1 << 1),
+    BreakDownByChunkType        = (1 << 1),
     // Breaks report down by space type (anonymous, reflection, ...).
-    rf_break_down_by_spacetype      = (1 << 2),
+    BreakDownBySpaceType        = (1 << 2),
     // Print details about the underlying virtual spaces.
-    rf_show_vslist                  = (1 << 3),
+    ShowVSList                  = (1 << 3),
     // If show_loaders: show loaded classes for each loader.
-    rf_show_classes                 = (1 << 4)
+    ShowClasses                 = (1 << 4)
   };
 
   // This will print out a basic metaspace usage report but

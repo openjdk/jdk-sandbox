@@ -142,9 +142,9 @@ void MetaspaceUtils::print_basic_report(outputStream* out, size_t scale) {
 // convenient, use print_basic_report() instead.
 void MetaspaceUtils::print_report(outputStream* out, size_t scale) {
   const int flags =
-      MetaspaceReporter::rf_show_loaders |
-      MetaspaceReporter::rf_break_down_by_chunktype |
-      MetaspaceReporter::rf_show_classes;
+      (int)MetaspaceReporter::Option::ShowLoaders |
+      (int)MetaspaceReporter::Option::BreakDownByChunkType |
+      (int)MetaspaceReporter::Option::ShowClasses;
   MetaspaceReporter::print_report(out, scale, flags);
 }
 
