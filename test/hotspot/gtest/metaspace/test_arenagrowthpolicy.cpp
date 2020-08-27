@@ -60,7 +60,7 @@ static void test_arena_growth_policy(Metaspace::MetaspaceType spacetype, bool is
 
 #define DEFINE_GROWTH_POLICY_TEST(spacetype, is_class) \
 TEST_VM(metaspace, arena_growth_policy_##spacetype##_##is_class) { \
-	test_arena_growth_policy(Metaspace::spacetype, is_class); \
+  test_arena_growth_policy(Metaspace::spacetype, is_class); \
 }
 
 DEFINE_GROWTH_POLICY_TEST(ReflectionMetaspaceType, true)

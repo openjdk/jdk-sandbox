@@ -178,12 +178,12 @@ class BlockTreeTest {
   RandSizeGenerator _rgen;
 
 #define CHECK_COUNTERS \
-		CHECK_BT_CONTENT(_bt[0], _cnt[0].count(), _cnt[0].total_size()) \
-    CHECK_BT_CONTENT(_bt[1], _cnt[1].count(), _cnt[1].total_size())
+  CHECK_BT_CONTENT(_bt[0], _cnt[0].count(), _cnt[0].total_size()) \
+  CHECK_BT_CONTENT(_bt[1], _cnt[1].count(), _cnt[1].total_size())
 
 #define CHECK_COUNTERS_ARE_0 \
-    CHECK_BT_CONTENT(_bt[0], 0, 0) \
-    CHECK_BT_CONTENT(_bt[1], 0, 0)
+  CHECK_BT_CONTENT(_bt[0], 0, 0) \
+  CHECK_BT_CONTENT(_bt[1], 0, 0)
 
 #ifdef ASSERT
   void verify_trees() {
@@ -345,10 +345,10 @@ public:
 };
 
 #define DO_TEST(name, feedingpattern, min, max) \
-		TEST_VM(metaspace, BlockTree_##name##_##feedingpattern) { \
-      BlockTreeTest btt(min, max); \
-      btt.test_##feedingpattern(); \
-    }
+  TEST_VM(metaspace, BlockTree_##name##_##feedingpattern) { \
+    BlockTreeTest btt(min, max); \
+    btt.test_##feedingpattern(); \
+  }
 
 #define DO_TEST_ALL_PATTERNS(name, min, max) \
   DO_TEST(name, scatter, min, max) \

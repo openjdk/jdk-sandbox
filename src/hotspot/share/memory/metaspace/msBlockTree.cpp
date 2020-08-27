@@ -45,10 +45,10 @@ namespace metaspace {
 
   // This assert prints the tree, then stops (generic message)
 #define assrt0(cond) \
-	  if (!(cond)) { \
-	    print_tree(tty); \
-	    assert(cond, "sanity"); \
-	  }
+    if (!(cond)) { \
+      print_tree(tty); \
+      assert(cond, "sanity"); \
+    }
 
 struct BlockTree::veridata {
   MemRangeCounter _counter;

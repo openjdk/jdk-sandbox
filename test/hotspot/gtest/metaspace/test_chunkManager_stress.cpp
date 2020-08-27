@@ -267,8 +267,8 @@ public:
 
 #define DEFINE_TEST(name, range, commit_factor) \
 TEST_VM(metaspace, chunkmanager_random_alloc_##name) { \
-	ChunkManagerRandomChunkAllocTest test(range, commit_factor); \
-	test.do_tests(); \
+  ChunkManagerRandomChunkAllocTest test(range, commit_factor); \
+  test.do_tests(); \
 }
 
 DEFINE_TEST(test_nolimit_1, ChunkLevelRanges::small_chunks(), 0.0f)

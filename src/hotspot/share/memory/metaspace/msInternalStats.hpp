@@ -49,7 +49,7 @@ class InternalStats : public AllStatic {
                                                     \
   /* Number of external deallocations */            \
   /* (excluding retired chunk remains) */           \
-	DEBUG_ONLY(x_atomic(num_deallocs))                \
+  DEBUG_ONLY(x_atomic(num_deallocs))                \
                                                     \
   /* Number of times an allocation was satisfied */ \
   /*  from deallocated blocks. */                   \
@@ -63,9 +63,9 @@ class InternalStats : public AllStatic {
   x_atomic(num_allocs_failed_limit)                 \
                                                     \
   /* Number of times an arena was born ... */       \
-	x_atomic(num_arena_births)                        \
+  x_atomic(num_arena_births)                        \
   /* ... and died. */                               \
-	x_atomic(num_arena_deaths)                        \
+  x_atomic(num_arena_deaths)                        \
                                                     \
   /* Number of times VirtualSpaceNode were */       \
   /*  born...  */                                   \
