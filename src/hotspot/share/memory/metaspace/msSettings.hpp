@@ -42,14 +42,14 @@ class Settings : public AllStatic {
 
   // The default size of a non-class VirtualSpaceNode (unless created differently).
   // Must be a multiple of the root chunk size.
-  static const size_t _virtual_space_node_default_word_size = chunklevel::MAX_CHUNK_WORD_SIZE * 2; // lets go with 8mb virt size. Seems a good compromise betw. virt and mapping fragmentation.
+  static const size_t VirtualSpaceNodeDefaultWordSize = chunklevel::MAX_CHUNK_WORD_SIZE * 2; // lets go with 8mb virt size. Seems a good compromise betw. virt and mapping fragmentation.
 
   // Alignment of the base address of a virtual space node
-  static const size_t _virtual_space_node_reserve_alignment_words = chunklevel::MAX_CHUNK_WORD_SIZE;
+  static const size_t VirtualSpaceNodeReserveAlignmentWordSize = chunklevel::MAX_CHUNK_WORD_SIZE;
 
   // When allocating from a chunk, if the remaining area in the chunk is too small to hold
   // the requested size, we attempt to double the chunk size in place...
-  static const bool _enlarge_chunks_in_place = true;
+  static const bool EnlargeChunksInPlace = true;
 
   // Whether or not chunks handed out to an arena start out fully committed;
   // if true, this deactivates committing-on-demand (irregardless of whether
@@ -71,9 +71,9 @@ public:
   static size_t commit_granule_bytes()                        { return _commit_granule_bytes; }
   static size_t commit_granule_words()                        { return _commit_granule_words; }
   static bool new_chunks_are_fully_committed()                { return _new_chunks_are_fully_committed; }
-  static size_t virtual_space_node_default_word_size()        { return _virtual_space_node_default_word_size; }
-  static size_t virtual_space_node_reserve_alignment_words()  { return _virtual_space_node_reserve_alignment_words; }
-  static bool enlarge_chunks_in_place()                       { return _enlarge_chunks_in_place; }
+  static size_t virtual_space_node_default_word_size()        { return VirtualSpaceNodeDefaultWordSize; }
+  static size_t virtual_space_node_reserve_alignment_words()  { return VirtualSpaceNodeReserveAlignmentWordSize; }
+  static bool enlarge_chunks_in_place()                       { return EnlargeChunksInPlace; }
   static bool uncommit_free_chunks()                          { return _uncommit_free_chunks; }
 
   static bool use_allocation_guard()                          { return DEBUG_ONLY(_use_allocation_guard) NOT_DEBUG(false); }

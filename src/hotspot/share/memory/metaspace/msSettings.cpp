@@ -91,7 +91,7 @@ void Settings::ergo_initialize() {
   assert(is_power_of_2(commit_granule_words()), "granule size must be a power of 2");
 
   // Should always be true since root chunk size should be much larger than alloc granularity
-  assert(is_aligned(_virtual_space_node_reserve_alignment_words * BytesPerWord,
+  assert(is_aligned(VirtualSpaceNodeReserveAlignmentWordSize * BytesPerWord,
                     os::vm_allocation_granularity()), "Sanity");
 
 #ifdef ASSERT

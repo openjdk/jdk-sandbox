@@ -74,7 +74,7 @@ namespace metaspace {
 #ifdef ASSERT
 
 struct Prefix {
-  static const uintx eyecatcher =
+  static const uintx EyeCatcher =
       NOT_LP64(0x77698465) LP64_ONLY(0x7769846577698465ULL); // "META" resp "METAMETA"
 
   const uintx _mark;
@@ -82,7 +82,7 @@ struct Prefix {
   // MetaWord payload [0];   // varsized (but unfortunately not all our compilers understand that)
 
   Prefix(size_t word_size)
-    : _mark(eyecatcher),
+    : _mark(EyeCatcher),
       _word_size(word_size)
   {}
 
@@ -91,7 +91,7 @@ struct Prefix {
   }
 
   void check() const {
-    assert(_mark == eyecatcher, "Corrupt block: missing eyecatcher (at " PTR_FORMAT ").", p2i(this));
+    assert(_mark == EyeCatcher, "Corrupt block: missing eyecatcher (at " PTR_FORMAT ").", p2i(this));
     assert(_word_size > 0 && _word_size < chunklevel::MAX_CHUNK_WORD_SIZE,
            "Corrupt block: invalid size " SIZE_FORMAT " (at " PTR_FORMAT ").", _word_size, p2i(this));
   }

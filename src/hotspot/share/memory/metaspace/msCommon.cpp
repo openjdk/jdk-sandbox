@@ -182,12 +182,12 @@ size_t get_raw_word_size_for_requested_word_size(size_t word_size) {
   byte_size = MAX2(byte_size, FreeBlocks::minimal_word_size * BytesPerWord);
 
   // Metaspace allocations are aligned to word size.
-  byte_size = align_up(byte_size, allocation_alignment_bytes);
+  byte_size = align_up(byte_size, AllocationAlignmentByteSize);
 
   // If we guard allocations, we need additional space for a prefix.
 #ifdef ASSERT
   if (Settings::use_allocation_guard()) {
-    byte_size += align_up(prefix_size(), allocation_alignment_bytes);
+    byte_size += align_up(prefix_size(), AllocationAlignmentByteSize);
   }
 #endif
 

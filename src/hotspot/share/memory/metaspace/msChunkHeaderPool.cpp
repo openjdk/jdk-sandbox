@@ -77,9 +77,9 @@ void ChunkHeaderPool::verify(bool slow) const {
   const Slab* s = _first_slab;
   int num = 0;
   while (s != NULL) {
-    assert(s->_top >= 0 && s->_top <= slab_capacity,
+    assert(s->_top >= 0 && s->_top <= SlabCapacity,
            "invalid slab at " PTR_FORMAT ", top: %d, slab cap: %d",
-           p2i(s), s->_top, slab_capacity );
+           p2i(s), s->_top, SlabCapacity );
     s = s->_next;
     num++;
   }

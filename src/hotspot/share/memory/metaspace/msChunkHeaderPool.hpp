@@ -42,14 +42,14 @@ namespace metaspace {
 
 class ChunkHeaderPool : public CHeapObj<mtMetaspace> {
 
-  static const int slab_capacity = 128;
+  static const int SlabCapacity = 128;
 
   struct Slab : public CHeapObj<mtMetaspace> {
     Slab* _next;
     int _top;
-    Metachunk _elems [slab_capacity];
+    Metachunk _elems [SlabCapacity];
     Slab() : _next(NULL), _top(0) {
-      for (int i = 0; i < slab_capacity; i++) {
+      for (int i = 0; i < SlabCapacity; i++) {
         _elems[i].clear();
       }
     }
@@ -86,9 +86,9 @@ public:
     if (c == NULL) {
 
       if (_current_slab == NULL ||
-          _current_slab->_top == slab_capacity) {
+          _current_slab->_top == SlabCapacity) {
         allocate_new_slab();
-        assert(_current_slab->_top < slab_capacity, "Sanity");
+        assert(_current_slab->_top < SlabCapacity, "Sanity");
       }
 
       c = _current_slab->_elems + _current_slab->_top;

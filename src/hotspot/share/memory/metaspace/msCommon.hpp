@@ -48,10 +48,10 @@ namespace metaspace {
 //  that case we may think about introducing a separate alignment just for the class space
 //  since that alignment would only be needed for Klass structures.
 
-static const size_t allocation_alignment_bytes = 8;
-STATIC_ASSERT(allocation_alignment_bytes == (size_t)KlassAlignmentInBytes);
+static const size_t AllocationAlignmentByteSize = 8;
+STATIC_ASSERT(AllocationAlignmentByteSize == (size_t)KlassAlignmentInBytes);
 
-static const size_t allocation_alignment_words = allocation_alignment_bytes / BytesPerWord;
+static const size_t AllocationAlignmentWordSize = AllocationAlignmentByteSize / BytesPerWord;
 
 // Returns the raw word size allocated for a given net allocation
 size_t get_raw_word_size_for_requested_word_size(size_t word_size);
