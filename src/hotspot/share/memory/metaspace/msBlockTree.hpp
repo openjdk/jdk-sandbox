@@ -99,16 +99,13 @@ class BlockTree: public CHeapObj<mtMetaspace> {
 
 public:
 
-  // We need stored blocks to be at least large enough to hold a Node structure (note ceil division).
+  // Minimum word size a block has to be to be added to this structure (note ceil division).
   const static size_t MinWordSize =
       (sizeof(Node) + sizeof(MetaWord) - 1) / sizeof(MetaWord);
 
 private:
 
   Node* _root;
-
-  // As a performance optimization, we keep the size of the largest node.
-  size_t _largest_size_added;
 
   MemRangeCounter _counter;
 
@@ -169,8 +166,8 @@ private:
     return pred;
   }
 
-  // Given a node n, return its predecessor in the tree
-  // (node with the next-smaller size).
+  // Given a node n, return its successor in the tree
+  // (node with the next-larger size).
   static Node* successor(Node* n) {
     Node* succ = NULL;
     if (n->_right != NULL) {
@@ -197,7 +194,7 @@ private:
   void replace_node_in_parent(Node* child, Node* replace) {
     Node* parent = child->_parent;
     if (parent != NULL) {
-      if (parent->_left == child) { // I am a left child
+      if (parent->_left == child) { // Child is left child
         set_left_child(parent, replace);
       } else {
         set_right_child(parent, replace);
@@ -227,9 +224,6 @@ private:
         assert(n->_word_size > forebear->_word_size, "sanity");
         if (forebear->_right == NULL) {
           set_right_child(forebear, n);
-          if (_largest_size_added < n->_word_size) {
-            _largest_size_added = n->_word_size;
-          }
         } else {
           insert(forebear->_right, n);
         }
@@ -279,16 +273,6 @@ private:
   void remove_node_from_tree(Node* n) {
 
     assert(n->_next == NULL, "do not delete a node which has a non-empty list");
-
-    // Maintain largest size node to speed up lookup
-    if (n->_word_size == _largest_size_added) {
-      Node* pred = predecessor(n);
-      if (pred != NULL) {
-        _largest_size_added = pred->_word_size;
-      } else {
-        _largest_size_added = 0;
-      }
-    }
 
     if (n->_left == NULL && n->_right == NULL) {
       replace_node_in_parent(n, NULL);
@@ -367,7 +351,7 @@ private:
 
 public:
 
-  BlockTree() : _root(NULL), _largest_size_added(0) {}
+  BlockTree() : _root(NULL) {}
 
   // Add a memory block to the tree. Memory block will be used to store
   // node information.
@@ -382,21 +366,12 @@ public:
     }
     _counter.add(word_size);
 
-    // Maintain largest node to speed up lookup
-    if (_largest_size_added < n->_word_size) {
-      _largest_size_added = n->_word_size;
-    }
-
   }
 
   // Given a word_size, searches and returns a block of at least that size.
   // Block may be larger. Real block size is returned in *p_real_word_size.
   MetaWord* remove_block(size_t word_size, size_t* p_real_word_size) {
     assert(word_size >= MinWordSize, "invalid block size " SIZE_FORMAT, word_size);
-
-    if (_largest_size_added < word_size) {
-      return NULL;
-    }
 
     Node* n = find_closest_fit(word_size);
 

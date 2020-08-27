@@ -53,7 +53,6 @@ namespace metaspace {
 struct BlockTree::veridata {
   MemRangeCounter _counter;
   int _max_edge;
-  size_t _largest;
 };
 
 // Given a node, check that all siblings have the same size and that we have no
@@ -80,10 +79,6 @@ void BlockTree::verify_node(Node* n, size_t left_limit, size_t right_limit,
 
   if (lvl > vd->_max_edge) {
     vd->_max_edge = lvl;
-  }
-
-  if (n->_word_size > vd->_largest) {
-    vd->_largest = n->_word_size;
   }
 
   assrt0((n == _root && n->_parent == NULL) || (n != _root && n->_parent != NULL));
@@ -123,11 +118,9 @@ void BlockTree::verify_tree() const {
   size_t size = 0;
   veridata vd;
   vd._max_edge = 0;
-  vd._largest = 0;
   if (_root != NULL) {
     assrt0(_root->_parent == NULL);
     verify_node(_root, 0, SIZE_MAX, &vd, 0);
-    assrt0(vd._largest == _largest_size_added);
     vd._counter.check(_counter);
     assrt0(vd._counter.count() > 0);
   }
