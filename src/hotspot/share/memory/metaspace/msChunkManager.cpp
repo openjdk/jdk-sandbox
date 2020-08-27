@@ -379,7 +379,7 @@ void ChunkManager::purge() {
         chunklevel::level_fitting_word_size(Settings::commit_granule_words());
     for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL;
          l <= max_level;
-         l ++)
+         l++)
     {
       // Since we uncommit all chunks at this level, we do not break the "committed chunks are
       //  at the front of the list" condition.
@@ -433,7 +433,7 @@ void ChunkManager::add_to_statistics(ChunkManagerStats* out) const {
 
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
 
-  for (chunklevel_t l = chunklevel::ROOT_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::ROOT_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     out->_num_chunks[l] += _chunks.num_chunks_at_level(l);
     out->_committed_word_size[l] += _chunks.committed_word_size_at_level(l);
   }

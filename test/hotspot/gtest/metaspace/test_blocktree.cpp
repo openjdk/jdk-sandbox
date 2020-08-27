@@ -71,7 +71,7 @@ TEST_VM(metaspace, BlockTree_basic) {
       0
   };
 
-  for (int i = 0; sizes[i] > 0; i ++) {
+  for (int i = 0; sizes[i] > 0; i++) {
     bt.add_block(arr, sizes[i]);
     CHECK_BT_CONTENT(bt, 1, sizes[i]);
 
@@ -109,11 +109,11 @@ TEST_VM(metaspace, BlockTree_closest_fit) {
   size_t size_added = 0;
   int num_added = 0;
 
-  for (int i = 0; sizes[i] > 0; i ++) {
+  for (int i = 0; sizes[i] > 0; i++) {
     const size_t s = sizes[i];
     MetaWord* p = fb.get(s);
     bt.add_block(p, s);
-    num_added ++; size_added += s;
+    num_added++; size_added += s;
     CHECK_BT_CONTENT(bt, num_added, size_added);
   }
 
@@ -149,7 +149,7 @@ TEST_VM(metaspace, BlockTree_basic_siblings)
 
   MetaWord* arr = NEW_C_HEAP_ARRAY(MetaWord, num * test_size, mtInternal);
 
-  for (int i = 0; i < num; i ++) {
+  for (int i = 0; i < num; i++) {
     bt.add_block(arr + (i * test_size), test_size);
     CHECK_BT_CONTENT(bt, i + 1, (i + 1) * test_size);
   }
@@ -230,7 +230,7 @@ class BlockTreeTest {
       p = _fb.get(s);
       if (p != NULL) {
         int which = added % 2;
-        added ++;
+        added++;
         _bt[which].add_block(p, s);
         _cnt[which].add(s);
         CHECK_COUNTERS
@@ -248,7 +248,7 @@ class BlockTreeTest {
   void ping_pong_loop(int iterations) {
 
     // We loop and in each iteration randomly retrieve a block from one tree and add it to another.
-    for (int i = 0; i < iterations; i ++) {
+    for (int i = 0; i < iterations; i++) {
       int taker = 0;
       int giver = 1;
       if ((os::random() % 10) > 5) {
@@ -279,7 +279,7 @@ class BlockTreeTest {
   // Drain the trees. While draining, observe the order of the drained items.
   void drain_all() {
 
-    for (int which = 0; which < 2; which ++) {
+    for (int which = 0; which < 2; which++) {
       BlockTree* bt = _bt + which;
       size_t last_size = 0;
       while(!bt->is_empty()) {

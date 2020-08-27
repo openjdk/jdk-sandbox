@@ -202,7 +202,7 @@ class ChunkManagerRandomChunkAllocTest {
 
     IntRange rand(100);
 
-    for (int j = 0; j < 1000; j ++) {
+    for (int j = 0; j < 1000; j++) {
 
       bool force_alloc = false;
       bool force_free = true;
@@ -258,7 +258,7 @@ public:
 
   void do_tests() {
     const int num_runs = 5;
-    for (int n = 0; n < num_runs; n ++) {
+    for (int n = 0; n < num_runs; n++) {
       one_test();
     }
   }

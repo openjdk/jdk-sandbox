@@ -58,9 +58,9 @@ public:
 
   CountKlassClosure() : _num_classes(0), _num_classes_shared(0) {}
   void do_klass(Klass* k) {
-    _num_classes ++;
+    _num_classes++;
     if (k->is_shared()) {
-      _num_classes_shared ++;
+      _num_classes_shared++;
     }
   }
 
@@ -71,13 +71,13 @@ void PrintCLDMetaspaceInfoClosure::do_cld(ClassLoaderData* cld) {
   assert(SafepointSynchronize::is_at_safepoint(), "Must be at a safepoint");
 
   if (cld->is_unloading()) {
-    _num_loaders_unloading ++;
+    _num_loaders_unloading++;
     return;
   }
 
   ClassLoaderMetaspace* msp = cld->metaspace_or_null();
   if (msp == NULL) {
-    _num_loaders_without_metaspace ++;
+    _num_loaders_without_metaspace++;
     return;
   }
 
@@ -87,7 +87,7 @@ void PrintCLDMetaspaceInfoClosure::do_cld(ClassLoaderData* cld) {
 
   // And add it to the running totals
   _stats_total.add(this_cld_stat);
-  _num_loaders ++;
+  _num_loaders++;
   _stats_by_spacetype[msp->space_type()].add(this_cld_stat);
   _num_loaders_by_spacetype[msp->space_type()] ++;
 

@@ -440,7 +440,7 @@ bool VirtualSpaceNode::attempt_purge(FreeChunkListVector* freelists) {
   UL(debug, ": purging.");
 
   // Okay, we can purge. Before we can do this, we need to remove all chunks from the freelist.
-  for (int narea = 0; narea < _root_chunk_area_lut.number_of_areas(); narea ++) {
+  for (int narea = 0; narea < _root_chunk_area_lut.number_of_areas(); narea++) {
     RootChunkArea* ra = _root_chunk_area_lut.get_area_by_index(narea);
     Metachunk* c = ra->first_chunk();
     if (c != NULL) {

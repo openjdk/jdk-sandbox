@@ -93,7 +93,7 @@ class CommitMaskTest {
     ASSERT_EQ(_mask.get_committed_size_in_range(_base, _word_size),
               _word_size);
 
-    for (const MetaWord* p = _base; p < _base + _word_size; p ++) {
+    for (const MetaWord* p = _base; p < _base + _word_size; p++) {
       ASSERT_TRUE(_mask.is_committed_address(p));
     }
 
@@ -119,7 +119,7 @@ class CommitMaskTest {
               _word_size - sr_word_size);
     ASSERT_EQ(_mask.get_committed_size_in_range(_base, _word_size),
               _word_size - sr_word_size);
-    for (const MetaWord* p = _base; p < _base + _word_size; p ++) {
+    for (const MetaWord* p = _base; p < _base + _word_size; p++) {
       if (p >= sr_base && p < sr_base + sr_word_size) {
         ASSERT_FALSE(_mask.is_committed_address(p));
       } else {
@@ -138,7 +138,7 @@ class CommitMaskTest {
               _word_size);
     ASSERT_EQ(_mask.get_committed_size_in_range(_base, _word_size),
               _word_size);
-    for (const MetaWord* p = _base; p < _base + _word_size; p ++) {
+    for (const MetaWord* p = _base; p < _base + _word_size; p++) {
       ASSERT_TRUE(_mask.is_committed_address(p));
     }
 
@@ -171,7 +171,7 @@ class CommitMaskTest {
 
     ASSERT_EQ(_mask.get_committed_size_in_range(sr_base, sr_word_size),
               (size_t)0);
-    for (const MetaWord* p = _base; p < _base + _word_size; p ++) {
+    for (const MetaWord* p = _base; p < _base + _word_size; p++) {
       ASSERT_FALSE(_mask.is_committed_address(p));
     }
 
@@ -190,7 +190,7 @@ class CommitMaskTest {
         sr_word_size);
     ASSERT_EQ(_mask.get_committed_size_in_range(_base, _word_size),
         sr_word_size);
-    for (const MetaWord* p = _base; p < _base + _word_size; p ++) {
+    for (const MetaWord* p = _base; p < _base + _word_size; p++) {
       if (p >= sr_base && p < sr_base + sr_word_size) {
         ASSERT_TRUE(_mask.is_committed_address(p));
       } else {
@@ -209,7 +209,7 @@ class CommitMaskTest {
         (size_t)0);
     EXPECT_EQ(_mask.get_committed_size_in_range(_base, _word_size),
         (size_t)0);
-    for (const MetaWord* p = _base; p < _base + _word_size; p ++) {
+    for (const MetaWord* p = _base; p < _base + _word_size; p++) {
       ASSERT_FALSE(_mask.is_committed_address(p));
     }
 
@@ -222,7 +222,7 @@ class CommitMaskTest {
 
     _mask.clear_large();
 
-    for (int run = 0; run < 100; run ++) {
+    for (int run = 0; run < 100; run++) {
 
       // A random range
       SizeRange r = SizeRange(_word_size).random_aligned_subrange(Settings::commit_granule_words());
@@ -254,7 +254,7 @@ public:
     LOG("mask range: " PTR_FORMAT "-" PTR_FORMAT
          " (" SIZE_FORMAT " words).",
          p2i(_base), p2i(_base + _word_size), _word_size);
-    for (int i = 0; i < 5; i ++) {
+    for (int i = 0; i < 5; i++) {
       test1(); test2(); test3();
     }
   }
@@ -278,7 +278,7 @@ TEST_VM(metaspace, commit_mask_basics) {
   mask3.mark_range_as_committed(base + (Settings::commit_granule_words() * 42), Settings::commit_granule_words());
 
   ASSERT_EQ(mask3.at(0), 1);
-  for (int i = 1; i < 42; i ++) {
+  for (int i = 1; i < 42; i++) {
     ASSERT_EQ(mask3.at(i), 0);
   }
   ASSERT_EQ(mask3.at(42), 1);
@@ -333,7 +333,7 @@ TEST_VM(metaspace, commit_mask_range) {
 
 TEST_VM(metaspace, commit_mask_random) {
 
-  for (int i = 0; i < 5; i ++) {
+  for (int i = 0; i < 5; i++) {
 
     // make up a range out of thin air
     const MetaWord* const base =

@@ -133,17 +133,17 @@ class FreeBlocksTest {
       if (!draining && (surprise >= 7 || forcefeed)) {
         forcefeed = false;
         if (feed_some()) {
-          _num_feeds ++;
+          _num_feeds++;
         } else {
           // We fed all input memory into the LOM. Now lets proceed until the lom is drained.
           draining = true;
         }
       } else if (!draining && surprise < 1) {
         deallocate_top();
-        _num_deallocs ++;
+        _num_deallocs++;
       } else {
         if (allocate()) {
-          _num_allocs ++;
+          _num_allocs++;
         } else {
           if (draining) {
             stop = _freeblocks.total_size() < 512;

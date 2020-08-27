@@ -93,8 +93,8 @@ struct BinListBasicTest {
 
     MetaWord arr[1000];
 
-    for (size_t s1 = minws; s1 < maxws; s1 ++) {
-      for (size_t s2 = minws; s2 < maxws; s2 ++) {
+    for (size_t s1 = minws; s1 < maxws; s1++) {
+      for (size_t s2 = minws; s2 < maxws; s2++) {
 
         bl.add_block(arr, s1);
         CHECK_BL_CONTENT(bl, 1, s1);
@@ -155,7 +155,7 @@ struct BinListBasicTest {
     DEBUG_ONLY(bl[1].verify();)
 
     // play pingpong
-    for (int iter = 0; iter < 1000; iter ++) {
+    for (int iter = 0; iter < 1000; iter++) {
       size_t s = rgen.get();
       int taker = iter % 2;
       int giver = taker == 0 ? 1 : 0;
@@ -184,7 +184,7 @@ struct BinListBasicTest {
     DEBUG_ONLY(bl[1].verify();)
 
     // drain both lists.
-    for (int which = 0; which < 2; which ++) {
+    for (int which = 0; which < 2; which++) {
       size_t last_size = 0;
       while (bl[which].is_empty() == false) {
 

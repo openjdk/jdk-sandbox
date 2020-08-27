@@ -48,7 +48,7 @@ TEST_VM(metaspace, metachunklist) {
   Metachunk* chunks[10];
   size_t total_size = 0;
 
-  for (int i = 0; i < 10; i ++) {
+  for (int i = 0; i < 10; i++) {
     Metachunk* c = NULL;
     context.alloc_chunk_expect_success(&c, ChunkLevelRanges::all_chunks().random_value());
     chunks[i] = c;
@@ -67,11 +67,11 @@ TEST_VM(metaspace, metachunklist) {
 
   }
 
-  for (int i = 0; i < 10; i ++) {
+  for (int i = 0; i < 10; i++) {
     DEBUG_ONLY(EXPECT_TRUE(lst.contains(chunks[i]));)
   }
 
-  for (int i = 0; i < 10; i ++) {
+  for (int i = 0; i < 10; i++) {
     Metachunk* c = lst.remove_first();
     DEBUG_ONLY(EXPECT_FALSE(lst.contains(c));)
     context.return_chunk(c);
@@ -94,7 +94,7 @@ TEST_VM(metaspace, freechunklist) {
   // Add random chunks to list and check the counter apis (word_size, commited_word_size, num_chunks)
   // Make every other chunk randomly uncommitted, and later we check that committed chunks are sorted in at the front
   // of the lists.
-  for (int i = 0; i < 100; i ++) {
+  for (int i = 0; i < 100; i++) {
     Metachunk* c = NULL;
     context.alloc_chunk_expect_success(&c, ChunkLevelRanges::all_chunks().random_value());
     bool uncommitted_chunk = i % 3;
@@ -116,7 +116,7 @@ TEST_VM(metaspace, freechunklist) {
   }
 
   // Drain each list separately
-  for (chunklevel_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl ++) {
+  for (chunklevel_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl++) {
     Metachunk* c = lst.remove_first(lvl);
     bool found_uncommitted = false;
     while (c != NULL) {

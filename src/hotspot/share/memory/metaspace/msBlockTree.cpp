@@ -144,7 +144,7 @@ void BlockTree::zap_range(MetaWord* p, size_t word_size) {
 #endif // ASSERT
 
 void BlockTree::print_node(outputStream* st, Node* n, int lvl) {
-  for (int i = 0; i < lvl; i ++) {
+  for (int i = 0; i < lvl; i++) {
     st->print("---");
   }
   st->print_cr("<" PTR_FORMAT " (size " SIZE_FORMAT ")", p2i(n), n->_word_size);

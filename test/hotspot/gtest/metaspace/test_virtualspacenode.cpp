@@ -234,9 +234,9 @@ class VirtualSpaceNodeTest {
     // buddy chunk to appear of level + 1 (aka, half size).
     size_t expected_wordsize_increase = 0;
     int expected_num_chunks_increase = 0;
-    for (chunklevel_t l = orig_level + 1; l <= target_level; l ++) {
+    for (chunklevel_t l = orig_level + 1; l <= target_level; l++) {
       expected_wordsize_increase += metaspace::chunklevel::word_size_for_level(l);
-      expected_num_chunks_increase ++;
+      expected_num_chunks_increase++;
     }
 
     const int total_num_chunks_in_freelist_after = freelist->num_chunks();
@@ -275,7 +275,7 @@ class VirtualSpaceNodeTest {
     int expected_num_chunks_decrease = 0;
     for (chunklevel_t l = orig_level; l > expected_target_level; l --) {
       expected_wordsize_decrease += metaspace::chunklevel::word_size_for_level(l);
-      expected_num_chunks_decrease ++;
+      expected_num_chunks_decrease++;
     }
 
     const int total_num_chunks_in_freelist_after = freelist->num_chunks();
@@ -352,7 +352,7 @@ public:
     TestMap testmap(c->word_size());
     assert(testmap.get_num_set() == 0, "Sanity");
 
-    for (int run = 0; run < 1000; run ++) {
+    for (int run = 0; run < 1000; run++) {
 
       const size_t committed_words_before = testmap.get_num_set();
       ASSERT_EQ(_commit_limiter.committed_words(), committed_words_before);
@@ -434,7 +434,7 @@ public:
 
     const int granules_per_root_chunk = (int)(c->word_size() / Settings::commit_granule_words());
 
-    for (int granules_to_commit = 0; granules_to_commit < granules_per_root_chunk; granules_to_commit ++) {
+    for (int granules_to_commit = 0; granules_to_commit < granules_per_root_chunk; granules_to_commit++) {
 
       const size_t words_to_commit = Settings::commit_granule_words() * granules_to_commit;
 
@@ -449,7 +449,7 @@ public:
       verify();
 
       for (chunklevel_t target_level = LOWEST_CHUNK_LEVEL + 1;
-           target_level <= HIGHEST_CHUNK_LEVEL; target_level ++) {
+           target_level <= HIGHEST_CHUNK_LEVEL; target_level++) {
 
         // Split:
         Metachunk* c2 = split_chunk_with_checks(c, target_level, &freelist);
@@ -552,7 +552,7 @@ TEST_VM(metaspace, virtual_space_node_test_2) {
 TEST_VM(metaspace, virtual_space_node_test_3) {
   double d = os::elapsedTime();
   // Test committing uncommitting arbitrary ranges
-  for (int run = 0; run < 100; run ++) {
+  for (int run = 0; run < 100; run++) {
     VirtualSpaceNodeTest test(metaspace::chunklevel::MAX_CHUNK_WORD_SIZE,
         metaspace::chunklevel::MAX_CHUNK_WORD_SIZE);
     test.test_split_and_merge_chunks();

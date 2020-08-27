@@ -83,7 +83,7 @@ class SparseArray : public StackObj {
       if (slot_matches(slot, c)) {
         return slot;
       }
-      slot ++;
+      slot++;
     }
     return -1;
   }
@@ -95,7 +95,7 @@ public:
       _num(num),
       _index_range(num)
   {
-    for (int i = 0; i < _num; i ++) {
+    for (int i = 0; i < _num; i++) {
       _slots[i] = NULL;
     }
   }
@@ -113,14 +113,14 @@ public:
 
   // Shuffle all elements randomly
   void shuffle() {
-    for (int i = 0; i < _num; i ++) {
+    for (int i = 0; i < _num; i++) {
       swap(i, random_slot_index());
     }
   }
 
   // Reverse elements
   void reverse() {
-    for (int i = 0; i < _num / 2; i ++) {
+    for (int i = 0; i < _num / 2; i++) {
       swap(i, _num - i);
     }
   }

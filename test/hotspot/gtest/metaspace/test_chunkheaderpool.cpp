@@ -95,7 +95,7 @@ class ChunkHeaderPoolTest {
   // Randomly allocate from the pool and free. Slight preference for allocation.
   void test_random_alloc_free(int num_iterations) {
 
-    for (int iter = 0; iter < num_iterations; iter ++) {
+    for (int iter = 0; iter < num_iterations; iter++) {
       size_t index = (size_t)os::random() % max_cap;
       attempt_allocate_or_free_at(index);
     }
@@ -116,7 +116,7 @@ public:
   }
 
   static void run_tests() {
-    for (int i = 0; i < 1000; i ++) {
+    for (int i = 0; i < 1000; i++) {
       test_once();
     }
   }

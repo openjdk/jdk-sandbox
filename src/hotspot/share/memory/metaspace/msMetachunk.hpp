@@ -216,7 +216,7 @@ public:
   // Return a single char presentation of the state ('f', 'u', 'd')
   char get_state_char() const;
 
-  void inc_level()                { _level ++; DEBUG_ONLY(chunklevel::is_valid_level(_level);) }
+  void inc_level()                { _level++; DEBUG_ONLY(chunklevel::is_valid_level(_level);) }
   void dec_level()                { _level --; DEBUG_ONLY(chunklevel::is_valid_level(_level);) }
   chunklevel_t level() const          { return _level; }
 

@@ -47,9 +47,9 @@ public:
 
   int get_num_set(size_t from, size_t to) const {
     int result = 0;
-    for(size_t i = from; i < to; i ++) {
+    for(size_t i = from; i < to; i++) {
       if (_arr[i] > 0) {
-        result ++;
+        result++;
       }
     }
     return result;

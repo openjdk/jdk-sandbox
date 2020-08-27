@@ -36,7 +36,7 @@ namespace metaspace {
 
 // Returns total word size of all chunks in this manager.
 void ChunkManagerStats::add(const ChunkManagerStats& other) {
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     _num_chunks[l] += other._num_chunks[l];
     _committed_word_size[l] += other._committed_word_size[l];
   }
@@ -45,7 +45,7 @@ void ChunkManagerStats::add(const ChunkManagerStats& other) {
 // Returns total word size of all chunks in this manager.
 size_t ChunkManagerStats::total_word_size() const {
   size_t s = 0;
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     s += _num_chunks[l] * chunklevel::word_size_for_level(l);
   }
   return s;
@@ -54,7 +54,7 @@ size_t ChunkManagerStats::total_word_size() const {
 // Returns total committed word size of all chunks in this manager.
 size_t ChunkManagerStats::total_committed_word_size() const {
   size_t s = 0;
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     s += _committed_word_size[l];
   }
   return s;
@@ -64,7 +64,7 @@ void ChunkManagerStats::print_on(outputStream* st, size_t scale) const {
   // Note: used as part of MetaspaceReport so formatting matters.
   size_t total_size = 0;
   size_t total_committed_size = 0;
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     st->cr();
     chunklevel::print_chunk_size(st, l);
     st->print(": ");
@@ -136,7 +136,7 @@ void InUseChunkStats::verify() const {
 #endif
 
 void ArenaStats::add(const ArenaStats& other) {
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     _stats[l].add(other._stats[l]);
   }
   _free_blocks_num += other._free_blocks_num;
@@ -146,7 +146,7 @@ void ArenaStats::add(const ArenaStats& other) {
 // Returns total chunk statistics over all chunk types.
 InUseChunkStats ArenaStats::totals() const {
   InUseChunkStats out;
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     out.add(_stats[l]);
   }
   return out;
@@ -159,7 +159,7 @@ void ArenaStats::print_on(outputStream* st, size_t scale,  bool detailed) const 
     st->print("Usage by chunk level:");
     {
       streamIndentor sti2(st);
-      for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+      for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
         st->cr_indent();
         chunklevel::print_chunk_size(st, l);
         st->print(" chunks: ");
@@ -191,7 +191,7 @@ void ArenaStats::print_on(outputStream* st, size_t scale,  bool detailed) const 
 
 void ArenaStats::verify() const {
   size_t total_used = 0;
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     _stats[l].verify();
     total_used += _stats[l]._used_words;
   }

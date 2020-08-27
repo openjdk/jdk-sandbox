@@ -92,7 +92,7 @@ public:
       }
 
       c = _current_slab->_elems + _current_slab->_top;
-      _current_slab->_top ++;
+      _current_slab->_top++;
 
     }
 

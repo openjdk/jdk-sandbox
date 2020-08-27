@@ -447,7 +447,7 @@ void RootChunkArea::verify(bool slow) const {
       c->verify(slow);
 
       expected_next_base = c->end();
-      num_chunk ++;
+      num_chunk++;
 
       c = c->next_in_vs();
 
@@ -473,7 +473,7 @@ void RootChunkArea::verify_area_is_ideally_merged() const {
              "Chunk No. %d " METACHUNK_FORMAT " : missed merge opportunity with neighbor " METACHUNK_FORMAT ".",
              num_chunk, METACHUNK_FORMAT_ARGS(c), METACHUNK_FORMAT_ARGS(buddy));
     }
-    num_chunk ++;
+    num_chunk++;
   }
 }
 
@@ -515,7 +515,7 @@ RootChunkAreaLUT::RootChunkAreaLUT(const MetaWord* base, size_t word_size)
   assert_is_aligned(word_size, chunklevel::MAX_CHUNK_WORD_SIZE);
   _arr = NEW_C_HEAP_ARRAY(RootChunkArea, _num, mtClass);
   const MetaWord* this_base = _base;
-  for (int i = 0; i < _num; i ++) {
+  for (int i = 0; i < _num; i++) {
     RootChunkArea* rca = new(_arr + i) RootChunkArea(this_base);
     assert(rca == _arr + i, "Sanity");
     this_base += chunklevel::MAX_CHUNK_WORD_SIZE;
@@ -523,7 +523,7 @@ RootChunkAreaLUT::RootChunkAreaLUT(const MetaWord* base, size_t word_size)
 }
 
 RootChunkAreaLUT::~RootChunkAreaLUT() {
-  for (int i = 0; i < _num; i ++) {
+  for (int i = 0; i < _num; i++) {
     _arr[i].~RootChunkArea();
   }
   FREE_C_HEAP_ARRAY(RootChunkArea, _arr);
@@ -531,7 +531,7 @@ RootChunkAreaLUT::~RootChunkAreaLUT() {
 
 // Returns true if all areas in this area table are free (only contain free chunks).
 bool RootChunkAreaLUT::is_free() const {
-  for (int i = 0; i < _num; i ++) {
+  for (int i = 0; i < _num; i++) {
     if (!_arr[i].is_free()) {
       return false;
     }
@@ -542,7 +542,7 @@ bool RootChunkAreaLUT::is_free() const {
 #ifdef ASSERT
 
 void RootChunkAreaLUT::verify(bool slow) const {
-  for (int i = 0; i < _num; i ++) {
+  for (int i = 0; i < _num; i++) {
     check_pointer(_arr[i].base());
     _arr[i].verify(slow);
   }
@@ -551,7 +551,7 @@ void RootChunkAreaLUT::verify(bool slow) const {
 #endif
 
 void RootChunkAreaLUT::print_on(outputStream* st) const {
-  for (int i = 0; i < _num; i ++) {
+  for (int i = 0; i < _num; i++) {
     st->print("%2d:", i);
     _arr[i].print_on(st);
   }

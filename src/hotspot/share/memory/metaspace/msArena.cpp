@@ -430,7 +430,7 @@ void MetaspaceArena::add_to_statistics(ArenaStats* out) const {
 
   for (const Metachunk* c = _chunks.first(); c != NULL; c = c->next()) {
     InUseChunkStats& ucs = out->_stats[c->level()];
-    ucs._num ++;
+    ucs._num++;
     ucs._word_size += c->word_size();
     ucs._committed_words += c->committed_words();
     ucs._used_words += c->used_words();

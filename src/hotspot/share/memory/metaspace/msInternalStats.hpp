@@ -104,7 +104,7 @@ class InternalStats : public AllStatic {
 public:
 
 // incrementors
-#define INCREMENTOR(name)           static void inc_##name() { _##name ++; }
+#define INCREMENTOR(name)           static void inc_##name() { _##name++; }
 #define INCREMENTOR_ATOMIC(name)    static void inc_##name() { Atomic::inc(&_##name); }
   ALL_MY_COUNTERS(INCREMENTOR, INCREMENTOR_ATOMIC)
 #undef INCREMENTOR

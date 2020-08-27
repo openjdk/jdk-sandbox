@@ -126,7 +126,7 @@ private:
       // count leading zeros would be helpful.
       while ((m & 1) == 0) {
         assert(_blocks[i2] == NULL, "mask mismatch");
-        i2 ++;
+        i2++;
         m >>= 1;
       }
       // We must have found something.
@@ -143,7 +143,7 @@ private:
 public:
 
   BinListImpl() : _mask(0) {
-    for (int i = 0; i < num_lists; i ++) {
+    for (int i = 0; i < num_lists; i++) {
       _blocks[i] = NULL;
     }
   }
@@ -202,7 +202,7 @@ public:
 #ifdef ASSERT
   void verify() const {
     MemRangeCounter local_counter;
-    for (int i = 0; i < num_lists; i ++) {
+    for (int i = 0; i < num_lists; i++) {
       assert(((_mask >> i) & 1) == ((_blocks[i] == 0) ? 0 : 1), "sanity");
       const size_t s = minimal_word_size + i;
       for (Block* b = _blocks[i]; b != NULL; b = b->_next) {

@@ -98,7 +98,7 @@ void print_number_of_classes(outputStream* out, uintx classes, uintx classes_sha
 #define EVERY_NTH(n)          \
 { static int counter_ = 0;    \
   if (n > 0) {                \
-    counter_ ++;              \
+    counter_++;              \
     if (counter_ > n) {       \
       counter_ = 0;           \
 

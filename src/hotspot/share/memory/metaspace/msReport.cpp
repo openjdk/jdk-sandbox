@@ -220,7 +220,7 @@ void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags)
     out->print_cr("Usage per space type:");
     out->cr();
     for (int space_type = (int)Metaspace::ZeroMetaspaceType;
-         space_type < (int)Metaspace::MetaspaceTypeCount; space_type ++)
+         space_type < (int)Metaspace::MetaspaceTypeCount; space_type++)
     {
       uintx num_loaders = cl._num_loaders_by_spacetype[space_type];
       uintx num_classes = cl._num_classes_by_spacetype[space_type];

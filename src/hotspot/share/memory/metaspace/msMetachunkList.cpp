@@ -47,7 +47,7 @@ void MetachunkList::verify() const {
   int num = 0;
   const Metachunk* last_c = NULL;
   for (const Metachunk* c = _first; c != NULL; c = c->next()) {
-    num ++;
+    num++;
     assert(c->prev() != c && c->next() != c, "circularity");
     assert(c->prev() == last_c,
            "Broken link to predecessor. Chunk " METACHUNK_FULL_FORMAT ".",

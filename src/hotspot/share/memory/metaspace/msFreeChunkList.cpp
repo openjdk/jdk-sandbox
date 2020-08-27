@@ -75,7 +75,7 @@ void FreeChunkList::verify() const {
       assert(c != c->prev() && c != c->next(), "circle");
       c->verify(false);
       committed += c->committed_words();
-      num ++;
+      num++;
     }
     _num_chunks.check(num);
     _committed_word_size.check(committed);
@@ -88,7 +88,7 @@ void FreeChunkList::verify() const {
 // Returns total size in all lists (regardless of commit state of underlying memory)
 size_t FreeChunkListVector::word_size() const {
   size_t sum = 0;
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     sum += list_for_level(l)->num_chunks() * chunklevel::word_size_for_level(l);
   }
   return sum;
@@ -97,7 +97,7 @@ size_t FreeChunkListVector::word_size() const {
 // Returns total committed size in all lists
 size_t FreeChunkListVector::committed_word_size() const {
   size_t sum = 0;
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     sum += list_for_level(l)->committed_word_size();
   }
   return sum;
@@ -106,7 +106,7 @@ size_t FreeChunkListVector::committed_word_size() const {
 // Returns total committed size in all lists
 int FreeChunkListVector::num_chunks() const {
   int n = 0;
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     n += list_for_level(l)->num_chunks();
   }
   return n;
@@ -118,7 +118,7 @@ int FreeChunkListVector::num_chunks() const {
 Metachunk* FreeChunkListVector::search_chunk_ascending(chunklevel_t level, chunklevel_t max_level, size_t min_committed_words) {
   assert(min_committed_words <= chunklevel::word_size_for_level(max_level),
          "min chunk size too small to hold min_committed_words");
-  for (chunklevel_t l = level; l <= max_level; l ++) {
+  for (chunklevel_t l = level; l <= max_level; l++) {
     Metachunk* c = list_for_level(l)->first();
     if (c != NULL && c->committed_words() >= min_committed_words) {
       list_for_level(l)->remove(c);
@@ -143,7 +143,7 @@ Metachunk* FreeChunkListVector::search_chunk_descending(chunklevel_t level, size
 }
 
 void FreeChunkListVector::print_on(outputStream* st) const {
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     st->print("-- List[" CHKLVL_FORMAT "]: ", l);
     list_for_level(l)->print_on(st);
     st->cr();
@@ -155,13 +155,13 @@ void FreeChunkListVector::print_on(outputStream* st) const {
 #ifdef ASSERT
 
 void FreeChunkListVector::verify() const {
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     list_for_level(l)->verify();
   }
 }
 
 bool FreeChunkListVector::contains(const Metachunk* c) const {
-  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
     if (list_for_level(l)->contains(c)) {
       return true;
     }

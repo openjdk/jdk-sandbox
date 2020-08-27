@@ -38,7 +38,7 @@ PrintMetaspaceInfoKlassClosure::PrintMetaspaceInfoKlassClosure(outputStream* out
 {}
 
 void PrintMetaspaceInfoKlassClosure::do_klass(Klass* k) {
-  _cnt ++;
+  _cnt++;
   _out->cr_indent();
   _out->print(UINTX_FORMAT_W(4) ": ", _cnt);
 

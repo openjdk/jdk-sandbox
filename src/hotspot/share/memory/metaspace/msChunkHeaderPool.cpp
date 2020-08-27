@@ -81,7 +81,7 @@ void ChunkHeaderPool::verify(bool slow) const {
            "invalid slab at " PTR_FORMAT ", top: %d, slab cap: %d",
            p2i(s), s->_top, slab_capacity );
     s = s->_next;
-    num ++;
+    num++;
   }
   _num_slabs.check(num);
 }

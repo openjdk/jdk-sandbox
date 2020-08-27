@@ -49,7 +49,7 @@ static void test_arena_growth_policy(Metaspace::MetaspaceType spacetype, bool is
     ASSERT_GE(lvl, CHUNK_LEVEL_4K);
   }
 
-  for (int step = 1; step < 100; step ++) {
+  for (int step = 1; step < 100; step++) {
     chunklevel_t lvl2 = a->get_level_at_step(step);
     ASSERT_TRUE(is_valid_level(lvl2));
     // limit steepness: no growth allowed beyond last chunksize * 2

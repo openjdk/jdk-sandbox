@@ -590,7 +590,7 @@ static void test_controlled_growth(Metaspace::MetaspaceType type, bool is_class,
 
     smhelper.allocate_from_arena_with_tests_expect_success(alloc_words);
     words_allocated += alloc_words;
-    num_allocated ++;
+    num_allocated++;
 
     size_t used2 = 0, committed2 = 0, capacity2 = 0;
 
@@ -629,7 +629,7 @@ static void test_controlled_growth(Metaspace::MetaspaceType type, bool is_class,
         */
         highest_capacity_jump = capacity_jump;
       }
-      num_capacity_jumps ++;
+      num_capacity_jumps++;
     }
 
     capacity = capacity2;

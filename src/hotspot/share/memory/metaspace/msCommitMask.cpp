@@ -72,7 +72,7 @@ void CommitMask::verify(bool slow) const {
   assert_is_aligned(_word_size, _words_per_bit);
 
   if (slow) {
-    for (idx_t i = 0; i < size(); i ++) {
+    for (idx_t i = 0; i < size(); i++) {
       const MetaWord* const p = _base + (i * _words_per_bit);
       if (at(i)) {
         // Should be accessible. Just touch it.
@@ -98,7 +98,7 @@ void CommitMask::print_on(outputStream* st) const {
 
   st->print("commit mask, base " PTR_FORMAT ":", p2i(base()));
 
-  for (idx_t i = 0; i < size(); i ++) {
+  for (idx_t i = 0; i < size(); i++) {
     st->print("%c", at(i) ? 'X' : '-');
   }
 

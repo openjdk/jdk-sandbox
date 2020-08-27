@@ -254,7 +254,7 @@ class MetaspaceArenaTest {
 
   // Create test beds for all slots
   void create_all_test_beds() {
-    for (int slot = 0; slot < _testbeds.size(); slot ++) {
+    for (int slot = 0; slot < _testbeds.size(); slot++) {
       if (_testbeds.slot_is_null(slot)) {
         create_random_test_bed_at(slot);
       }
@@ -307,7 +307,7 @@ class MetaspaceArenaTest {
     int n = 0;
     while (success && n < num_allocations) {
       success = random_allocate_from_testbed(slotindex);
-      n ++;
+      n++;
     }
     return success;
   }
@@ -387,7 +387,7 @@ public:
 
     bool force_bed_deletion = false;
 
-    for (int niter = 0; niter < iterations; niter ++) {
+    for (int niter = 0; niter < iterations; niter++) {
 
       const int r = IntRange(100).random_value();
 

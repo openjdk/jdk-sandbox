@@ -58,7 +58,7 @@ void check_marked_address(const MetaWord* p, uintx pattern) {
 // a sub range of the original range.
 void fill_range_with_pattern(MetaWord* p, size_t word_size, uintx pattern) {
   assert(word_size > 0 && p != NULL, "sanity");
-  for (MetaWord* p2 = p; p2 < p + word_size; p2 ++) {
+  for (MetaWord* p2 = p; p2 < p + word_size; p2++) {
     mark_address(p2, pattern);
   }
 }
@@ -68,7 +68,7 @@ void check_range_for_pattern(const MetaWord* p, size_t word_size, uintx pattern)
   const MetaWord* p2 = p;
   while (p2 < p + word_size) {
     check_marked_address(p2, pattern);
-    p2 ++;
+    p2++;
   }
 }
 

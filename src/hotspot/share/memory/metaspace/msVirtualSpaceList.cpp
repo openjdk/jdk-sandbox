@@ -164,13 +164,13 @@ int VirtualSpaceList::purge(FreeChunkListVector* freelists) {
       if (prev_vsn != NULL) {
         prev_vsn->set_next(next_vsn);
       }
-      num_purged ++;
+      num_purged++;
       _nodes_counter.decrement();
     } else {
       prev_vsn = vsn;
     }
     vsn = next_vsn;
-    num ++;
+    num++;
   }
 
   UL2(debug, "purged %d nodes (now: %d)", num_purged, num_nodes());
@@ -190,7 +190,7 @@ void VirtualSpaceList::print_on(outputStream* st) const {
     st->print("- node #%d: ", n);
     vsn->print_on(st);
     vsn = vsn->next();
-    n ++;
+    n++;
   }
   st->print_cr("- total %d nodes, " SIZE_FORMAT " reserved words, " SIZE_FORMAT " committed words.",
                n, reserved_words(), committed_words());
@@ -211,7 +211,7 @@ void VirtualSpaceList::verify_locked(bool slow) const {
     size_t total_committed_words = 0;
     const VirtualSpaceNode* vsn = _first_node;
     while (vsn != NULL) {
-      n ++;
+      n++;
       vsn->verify_locked(slow);
       total_reserved_words += vsn->word_size();
       total_committed_words += vsn->committed_words();

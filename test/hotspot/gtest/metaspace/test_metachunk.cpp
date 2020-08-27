@@ -49,9 +49,9 @@ TEST_VM(metaspace, get_chunk) {
   ChunkGtestContext context(8 * M);
   Metachunk* c = NULL;
 
-  for (chunklevel_t pref_lvl = LOWEST_CHUNK_LEVEL; pref_lvl <= HIGHEST_CHUNK_LEVEL; pref_lvl ++) {
+  for (chunklevel_t pref_lvl = LOWEST_CHUNK_LEVEL; pref_lvl <= HIGHEST_CHUNK_LEVEL; pref_lvl++) {
 
-    for (chunklevel_t max_lvl = pref_lvl; max_lvl <= HIGHEST_CHUNK_LEVEL; max_lvl ++) {
+    for (chunklevel_t max_lvl = pref_lvl; max_lvl <= HIGHEST_CHUNK_LEVEL; max_lvl++) {
 
       for (size_t min_committed_words = Settings::commit_granule_words();
            min_committed_words <= word_size_for_level(max_lvl); min_committed_words *= 2) {
@@ -69,9 +69,9 @@ TEST_VM(metaspace, get_chunk_with_commit_limit) {
   ChunkGtestContext context(commit_limit_words);
   Metachunk* c = NULL;
 
-  for (chunklevel_t pref_lvl = LOWEST_CHUNK_LEVEL; pref_lvl <= HIGHEST_CHUNK_LEVEL; pref_lvl ++) {
+  for (chunklevel_t pref_lvl = LOWEST_CHUNK_LEVEL; pref_lvl <= HIGHEST_CHUNK_LEVEL; pref_lvl++) {
 
-    for (chunklevel_t max_lvl = pref_lvl; max_lvl <= HIGHEST_CHUNK_LEVEL; max_lvl ++) {
+    for (chunklevel_t max_lvl = pref_lvl; max_lvl <= HIGHEST_CHUNK_LEVEL; max_lvl++) {
 
       for (size_t min_committed_words = Settings::commit_granule_words();
            min_committed_words <= word_size_for_level(max_lvl); min_committed_words *= 2) {
@@ -140,7 +140,7 @@ TEST_VM(metaspace, chunk_allocate_full) {
 
   ChunkGtestContext context;
 
-  for (chunklevel_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl ++) {
+  for (chunklevel_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl++) {
     Metachunk* c = NULL;
     context.alloc_chunk_expect_success(&c, lvl);
     context.allocate_from_chunk(c, c->word_size());
@@ -154,7 +154,7 @@ TEST_VM(metaspace, chunk_allocate_random) {
 
   ChunkGtestContext context;
 
-  for (chunklevel_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl ++) {
+  for (chunklevel_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl++) {
 
     Metachunk* c = NULL;
     context.alloc_chunk_expect_success(&c, lvl);
@@ -181,7 +181,7 @@ TEST_VM(metaspace, chunk_allocate_random) {
 
 TEST_VM(metaspace, chunk_buddy_stuff) {
 
-  for (chunklevel_t l = ROOT_CHUNK_LEVEL + 1; l <= HIGHEST_CHUNK_LEVEL; l ++) {
+  for (chunklevel_t l = ROOT_CHUNK_LEVEL + 1; l <= HIGHEST_CHUNK_LEVEL; l++) {
 
     ChunkGtestContext context;
 
@@ -300,7 +300,7 @@ TEST_VM(metaspace, chunk_split_and_merge) {
   ChunkGtestContext context;
 
   const chunklevel_t orig_lvl = ROOT_CHUNK_LEVEL;
-  for (chunklevel_t target_lvl = orig_lvl + 1; target_lvl <= HIGHEST_CHUNK_LEVEL; target_lvl ++) {
+  for (chunklevel_t target_lvl = orig_lvl + 1; target_lvl <= HIGHEST_CHUNK_LEVEL; target_lvl++) {
 
     // Split a fully committed chunk. The resulting chunk should be fully
     //  committed as well, and have its content preserved.
@@ -336,7 +336,7 @@ TEST_VM(metaspace, chunk_split_and_merge) {
 
     // I expect splinter chunks (one for each splinter level:
     //  e.g. splitting a 1M chunk to get a 64K chunk should yield splinters: [512K, 256K, 128K, 64K]
-    for (chunklevel_t l = LOWEST_CHUNK_LEVEL; l < HIGHEST_CHUNK_LEVEL; l ++) {
+    for (chunklevel_t l = LOWEST_CHUNK_LEVEL; l < HIGHEST_CHUNK_LEVEL; l++) {
       const Metachunk* c2 = splinters.first_at_level(l);
       if (l > orig_lvl && l <= target_lvl) {
         EXPECT_NOT_NULL(c2);
