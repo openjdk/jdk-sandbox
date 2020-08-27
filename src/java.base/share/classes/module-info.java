@@ -393,6 +393,7 @@ module java.base {
 
     provides java.util.random.RandomGenerator with
         java.security.SecureRandom,
+        java.util.SplittableRandom,
         java.util.Random;
 
 }
