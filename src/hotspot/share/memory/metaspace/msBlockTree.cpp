@@ -59,12 +59,12 @@ struct BlockTree::veridata {
 // Given a node, check that all siblings have the same size and that we have no
 // (direct) circularities.
 void BlockTree::verify_node_siblings(Node* n, veridata* vd) const {
-  const size_t size = n->_size;
+  const size_t size = n->_word_size;
   Node* n2 = n->_next;
   Node* prev_sib = NULL;
   while (n2 != NULL) {
-    assrt0(n2->_size == size);
-    vd->_counter.add(n2->_size);
+    assrt0(n2->_word_size == size);
+    vd->_counter.add(n2->_word_size);
     if (prev_sib != NULL) {
       assrt0(prev_sib->_next == n2);
       assrt0(prev_sib != n2);
@@ -82,8 +82,8 @@ void BlockTree::verify_node(Node* n, size_t left_limit, size_t right_limit,
     vd->_max_edge = lvl;
   }
 
-  if (n->_size > vd->_largest) {
-    vd->_largest = n->_size;
+  if (n->_word_size > vd->_largest) {
+    vd->_largest = n->_word_size;
   }
 
   assrt0((n == _root && n->_parent == NULL) || (n != _root && n->_parent != NULL));
@@ -94,27 +94,27 @@ void BlockTree::verify_node(Node* n, size_t left_limit, size_t right_limit,
   }
 
   // check order
-  assrt(n->_size >= minimal_word_size && n->_size <= maximal_word_size,
-      "bad node size " SIZE_FORMAT, n->_size);
-  assrt0(n->_size < right_limit);
-  assrt0(n->_size > left_limit);
+  assrt(n->_word_size >= minimal_word_size && n->_word_size <= maximal_word_size,
+      "bad node size " SIZE_FORMAT, n->_word_size);
+  assrt0(n->_word_size < right_limit);
+  assrt0(n->_word_size > left_limit);
 
-  vd->_counter.add(n->_size);
+  vd->_counter.add(n->_word_size);
 
   if (n->_left != NULL) {
     assrt0(n != n->_left);
     assrt0(n->_left->_parent == n);
-    assrt0(n->_left->_size < n->_size);
-    assrt0(n->_left->_size > left_limit);
-    verify_node(n->_left, left_limit, n->_size, vd, lvl + 1);
+    assrt0(n->_left->_word_size < n->_word_size);
+    assrt0(n->_left->_word_size > left_limit);
+    verify_node(n->_left, left_limit, n->_word_size, vd, lvl + 1);
   }
 
   if (n->_right != NULL) {
     assrt0(n != n->_right);
     assrt0(n->_right->_parent == n);
-    assrt0(n->_right->_size < right_limit);
-    assrt0(n->_right->_size > n->_size);
-    verify_node(n->_right, n->_size, right_limit, vd, lvl + 1);
+    assrt0(n->_right->_word_size < right_limit);
+    assrt0(n->_right->_word_size > n->_word_size);
+    verify_node(n->_right, n->_word_size, right_limit, vd, lvl + 1);
   }
 
 }
@@ -147,7 +147,7 @@ void BlockTree::print_node(outputStream* st, Node* n, int lvl) {
   for (int i = 0; i < lvl; i ++) {
     st->print("---");
   }
-  st->print_cr("<" PTR_FORMAT " (size " SIZE_FORMAT ")", p2i(n), n->_size);
+  st->print_cr("<" PTR_FORMAT " (size " SIZE_FORMAT ")", p2i(n), n->_word_size);
   if (n->_left) {
     print_node(st, n->_left, lvl + 1);
   }

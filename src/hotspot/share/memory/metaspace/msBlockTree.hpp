@@ -87,7 +87,12 @@ class BlockTree: public CHeapObj<mtMetaspace> {
     // word size of node. Note that size cannot be larger than max metaspace size,
     // so this could be very well a 32bit value (in case we ever make this a balancing
     // tree and need additional space for weighting information).
-    size_t _size;
+    const size_t _word_size;
+
+    Node(size_t word_size)
+      : _parent(NULL), _left(NULL), _right(NULL),
+        _next(NULL), _word_size(word_size)
+    {}
 
   };
 
@@ -112,7 +117,7 @@ private:
 
   // given a node n, add it to the list starting at head
   static void add_to_list(Node* n, Node* head) {
-    assert(head->_size == n->_size, "sanity");
+    assert(head->_word_size == n->_word_size, "sanity");
     n->_next = head->_next;
     head->_next = n;
     DEBUG_ONLY(n->_left = n->_right = n->_parent = NULL;)
@@ -133,7 +138,7 @@ private:
   static void set_left_child(Node* p, Node* c) {
     p->_left = c;
     if (c != NULL) {
-      assert(c->_size < p->_size, "sanity");
+      assert(c->_word_size < p->_word_size, "sanity");
       c->_parent = p;
     }
   }
@@ -142,7 +147,7 @@ private:
   static void set_right_child(Node* p, Node* c) {
     p->_right = c;
     if (c != NULL) {
-      assert(c->_size > p->_size, "sanity");
+      assert(c->_word_size > p->_word_size, "sanity");
       c->_parent = p;
     }
   }
@@ -212,21 +217,21 @@ private:
 
   // Given a node n and a node forebear, insert n under forebear
   void insert(Node* forebear, Node* n) {
-    if (n->_size == forebear->_size) {
+    if (n->_word_size == forebear->_word_size) {
       add_to_list(n, forebear); // parent stays NULL in this case.
     } else {
-      if (n->_size < forebear->_size) {
+      if (n->_word_size < forebear->_word_size) {
         if (forebear->_left == NULL) {
           set_left_child(forebear, n);
         } else {
           insert(forebear->_left, n);
         }
       } else {
-        assert(n->_size > forebear->_size, "sanity");
+        assert(n->_word_size > forebear->_word_size, "sanity");
         if (forebear->_right == NULL) {
           set_right_child(forebear, n);
-          if (_largest_size_added < n->_size) {
-            _largest_size_added = n->_size;
+          if (_largest_size_added < n->_word_size) {
+            _largest_size_added = n->_word_size;
           }
         } else {
           insert(forebear->_right, n);
@@ -239,11 +244,11 @@ private:
   // the node closest (equal or larger sized) to the size s.
   static Node* find_closest_fit(Node* n, size_t s) {
 
-    if (n->_size == s) {
+    if (n->_word_size == s) {
       // Perfect fit.
       return n;
 
-    } else if (n->_size < s) {
+    } else if (n->_word_size < s) {
       // too small, dive down right side
       if (n->_right != NULL) {
         return find_closest_fit(n->_right, s);
@@ -252,8 +257,8 @@ private:
       }
     } else {
       // n is a possible fit
-      assert(n->_size > s, "Sanity");
-      if (n->_left != NULL && n->_left->_size >= s) {
+      assert(n->_word_size > s, "Sanity");
+      if (n->_left != NULL && n->_left->_word_size >= s) {
         // but not the best - dive down left side.
         return find_closest_fit(n->_left, s);
       } else {
@@ -279,10 +284,10 @@ private:
     assert(n->_next == NULL, "do not delete a node which has a non-empty list");
 
     // Maintain largest size node to speed up lookup
-    if (n->_size == _largest_size_added) {
+    if (n->_word_size == _largest_size_added) {
       Node* pred = predecessor(n);
       if (pred != NULL) {
-        _largest_size_added = pred->_size;
+        _largest_size_added = pred->_word_size;
       } else {
         _largest_size_added = 0;
       }
@@ -312,7 +317,7 @@ private:
       //     in the sub tree rooted at n->right
       assert(succ->_left == NULL, "must be");
 
-      assert(succ->_size > n->_size, "sanity");
+      assert(succ->_word_size > n->_word_size, "sanity");
 
       Node* successor_parent = succ->_parent;
       Node* successor_right_child = succ->_right;
@@ -373,9 +378,7 @@ public:
     DEBUG_ONLY(zap_range(p, word_size));
     assert(word_size >= minimal_word_size && word_size < maximal_word_size,
            "invalid block size " SIZE_FORMAT, word_size);
-    Node* n = (Node*)p;
-    n->_size = word_size;
-    n->_next = n->_left = n->_right = n->_parent = NULL;
+    Node* n = new(p) Node(word_size);
     if (_root == NULL) {
       _root = n;
     } else {
@@ -384,8 +387,8 @@ public:
     _counter.add(word_size);
 
     // Maintain largest node to speed up lookup
-    if (_largest_size_added < n->_size) {
-      _largest_size_added = n->_size;
+    if (_largest_size_added < n->_word_size) {
+      _largest_size_added = n->_word_size;
     }
 
   }
@@ -403,7 +406,7 @@ public:
     Node* n = find_closest_fit(word_size);
 
     if (n != NULL) {
-      assert(n->_size >= word_size, "sanity");
+      assert(n->_word_size >= word_size, "sanity");
 
       // If the node has siblings, remove one of them,
       // otherwise remove this node from the tree.
@@ -414,11 +417,11 @@ public:
       }
 
       MetaWord* p = (MetaWord*)n;
-      *p_real_word_size = n->_size;
+      *p_real_word_size = n->_word_size;
 
-      _counter.sub(n->_size);
+      _counter.sub(n->_word_size);
 
-      DEBUG_ONLY(zap_range(p, n->_size));
+      DEBUG_ONLY(zap_range(p, n->_word_size));
 
       return p;
     }
