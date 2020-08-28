@@ -407,9 +407,16 @@ public class InetAddress implements java.io.Serializable {
     }
 
     private static NameService loadNameService() {
+        String localHostName;
+        try {
+            localHostName = impl.getLocalHostName();
+        } catch (UnknownHostException e) {
+            localHostName = "localhost";
+        }
+        final String finalLocalHostName = localHostName;
         return ServiceLoader.load(InetNameServiceProvider.class)
                 .findFirst()
-                .map(nsp -> nsp.get(DEFAULT_INET_NAME_SERVICE))
+                .map(nsp -> nsp.get(DEFAULT_INET_NAME_SERVICE, finalLocalHostName))
                 .orElse(DEFAULT_INET_NAME_SERVICE);
     }
 

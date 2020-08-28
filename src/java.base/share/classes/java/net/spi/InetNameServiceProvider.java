@@ -92,9 +92,11 @@ public abstract class InetNameServiceProvider {
      *
      * @param defaultNameService The platform default name service which can
      *                 be used to bootstrap this provider.
+     * @param localHostName the local host name which can be used for a resolution of
+     *                      local host addresses.
      * @return the name service provided by this provider
      */
-    public abstract NameService get(NameService defaultNameService);
+    public abstract NameService get(NameService defaultNameService, String localHostName);
 
     /**
      * Returns the name of this provider
