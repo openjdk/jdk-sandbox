@@ -31,10 +31,7 @@
 //#define LOG_PLEASE
 #include "metaspaceGtestCommon.hpp"
 
-using metaspace::BinList8;
-using metaspace::BinList16;
 using metaspace::BinList32;
-using metaspace::BinList64;
 using metaspace::BinListImpl;
 using metaspace::MemRangeCounter;
 
@@ -213,24 +210,21 @@ struct BinListBasicTest {
 template <typename BINLISTTYPE> const size_t BinListBasicTest<BINLISTTYPE>::minws = BINLISTTYPE::MinWordSize;
 template <typename BINLISTTYPE> const size_t BinListBasicTest<BINLISTTYPE>::maxws = BINLISTTYPE::MaxWordSize;
 
-TEST_VM(metaspace, BinList_basic_8)   { BinListBasicTest<BinList8>::basic_test(); }
-TEST_VM(metaspace, BinList_basic_16)  { BinListBasicTest<BinList16>::basic_test(); }
-TEST_VM(metaspace, BinList_basic_32)  { BinListBasicTest<BinList32>::basic_test(); }
-
-TEST_VM(metaspace, BinList_basic_1331)   { BinListBasicTest< BinListImpl<13, 31> >::basic_test(); }
+TEST_VM(metaspace, BinList_basic_8)     { BinListBasicTest< BinListImpl<2, 8> >::basic_test(); }
+TEST_VM(metaspace, BinList_basic_16)    { BinListBasicTest< BinListImpl<2, 16> >::basic_test(); }
+TEST_VM(metaspace, BinList_basic_32)    { BinListBasicTest<BinList32>::basic_test(); }
+TEST_VM(metaspace, BinList_basic_1331)  { BinListBasicTest< BinListImpl<13, 31> >::basic_test(); }
 TEST_VM(metaspace, BinList_basic_131)   { BinListBasicTest< BinListImpl<13, 1> >::basic_test(); }
 
-TEST_VM(metaspace, BinList_basic2_8)   { BinListBasicTest<BinList8>::basic_test_2(); }
-TEST_VM(metaspace, BinList_basic2_16)  { BinListBasicTest<BinList16>::basic_test_2(); }
-TEST_VM(metaspace, BinList_basic2_32)  { BinListBasicTest<BinList32>::basic_test_2(); }
-
-TEST_VM(metaspace, BinList_basic2_1331)   { BinListBasicTest< BinListImpl<13, 31> >::basic_test_2(); }
+TEST_VM(metaspace, BinList_basic2_8)     { BinListBasicTest< BinListImpl<2, 8> >::basic_test_2(); }
+TEST_VM(metaspace, BinList_basic2_16)    { BinListBasicTest< BinListImpl<2, 16> >::basic_test_2(); }
+TEST_VM(metaspace, BinList_basic2_32)    { BinListBasicTest<BinList32 >::basic_test_2(); }
+TEST_VM(metaspace, BinList_basic2_1331)  { BinListBasicTest< BinListImpl<13, 31> >::basic_test_2(); }
 TEST_VM(metaspace, BinList_basic2_131)   { BinListBasicTest< BinListImpl<13, 1> >::basic_test_2(); }
 
-TEST_VM(metaspace, BinList_random_test_8)   { BinListBasicTest<BinList8>::random_test(); }
-TEST_VM(metaspace, BinList_random_test_16)  { BinListBasicTest<BinList16>::random_test(); }
-TEST_VM(metaspace, BinList_random_test_32)  { BinListBasicTest<BinList32>::random_test(); }
-
-TEST_VM(metaspace, BinList_random_test_1331)   { BinListBasicTest< BinListImpl<13, 31> >::random_test(); }
+TEST_VM(metaspace, BinList_random_test_8)     { BinListBasicTest< BinListImpl<2, 8> >::random_test(); }
+TEST_VM(metaspace, BinList_random_test_16)    { BinListBasicTest< BinListImpl<2, 16> >::random_test(); }
+TEST_VM(metaspace, BinList_random_test_32)    { BinListBasicTest<BinList32>::random_test(); }
+TEST_VM(metaspace, BinList_random_test_1331)  { BinListBasicTest< BinListImpl<13, 31> >::random_test(); }
 TEST_VM(metaspace, BinList_random_test_131)   { BinListBasicTest< BinListImpl<13, 1> >::random_test(); }
 

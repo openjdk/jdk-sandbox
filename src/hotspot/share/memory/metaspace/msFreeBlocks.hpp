@@ -64,17 +64,15 @@ namespace metaspace {
 
 class FreeBlocks : public CHeapObj<mtMetaspace> {
 
-  typedef BinList32 SmallBlocksType;
-
   // _small_blocks takes care of small to very small blocks.
-  SmallBlocksType _small_blocks;
+  BinList32 _small_blocks;
 
   // A BST for larger blocks.
   BlockTree _tree;
 
 public:
 
-  const static size_t minimal_word_size = SmallBlocksType::MinWordSize;
+  const static size_t minimal_word_size = BinList32::MinWordSize;
 
   // Add a block to the deallocation management.
   void add_block(MetaWord* p, size_t word_size);

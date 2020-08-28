@@ -216,10 +216,7 @@ public:
 
 };
 
-typedef BinListImpl<2, 8>  BinList8;
-typedef BinListImpl<2, 16> BinList16;
 typedef BinListImpl<2, 32> BinList32;
-typedef BinListImpl<2, 64> BinList64;
 
 } // namespace metaspace
 

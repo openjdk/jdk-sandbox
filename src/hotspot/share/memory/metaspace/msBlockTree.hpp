@@ -117,14 +117,14 @@ private:
     DEBUG_ONLY(n->_left = n->_right = n->_parent = NULL;)
   }
 
-  // given a node list starting at head, remove one node from it and return it.
+  // Given a node list starting at head, remove one of the follow up nodes from
+  //  that list and return it. The head node gets not modified and remains in the
+  //  tree.
   // List must contain at least one other node.
   static Node* remove_from_list(Node* head) {
     assert(head->_next != NULL, "sanity");
     Node* n = head->_next;
-    if (n != NULL) {
-      head->_next = n->_next;
-    }
+    head->_next = n->_next;
     return n;
   }
 
@@ -378,9 +378,11 @@ public:
     if (n != NULL) {
       assert(n->_word_size >= word_size, "sanity");
 
-      // If the node has siblings, remove one of them,
-      // otherwise remove this node from the tree.
       if (n->_next != NULL) {
+        // If the node is head of a chain of same sized nodes, we leave it alone
+        //  and instead remove one of the follow up nodes (which is simpler than
+        //  to remove the chain head node and then having to graft the follow up
+        //  node into its place in the tree).
         n = remove_from_list(n);
       } else {
         remove_node_from_tree(n);
