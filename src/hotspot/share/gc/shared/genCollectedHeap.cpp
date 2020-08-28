@@ -662,7 +662,7 @@ void GenCollectedHeap::do_collection(bool           full,
     _young_gen->compute_new_size();
 
     // Delete metaspaces for unloaded class loaders and clean up loader_data graph
-    ClassLoaderDataGraph::purge();
+    ClassLoaderDataGraph::purge(/*at_safepoint*/true);
     DEBUG_ONLY(MetaspaceUtils::verify(false);)
     // Resize the metaspace capacity after full collections
     MetaspaceGC::compute_new_size();

@@ -157,7 +157,7 @@ void ZUnload::purge() {
     ZNMethod::purge(_workers);
   }
 
-  ClassLoaderDataGraph::purge();
+  ClassLoaderDataGraph::purge(/*at_safepoint*/false);
   CodeCache::purge_exception_caches();
 }
 
