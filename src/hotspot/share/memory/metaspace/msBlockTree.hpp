@@ -210,22 +210,22 @@ private:
   }
 
   // Given a node n and a node forebear, insert n under forebear
-  void insert(Node* forebear, Node* n) {
-    if (n->_word_size == forebear->_word_size) {
-      add_to_list(n, forebear); // parent stays NULL in this case.
+  void insert(Node* insertion_point, Node* n) {
+    if (n->_word_size == insertion_point->_word_size) {
+      add_to_list(n, insertion_point); // parent stays NULL in this case.
     } else {
-      if (n->_word_size < forebear->_word_size) {
-        if (forebear->_left == NULL) {
-          set_left_child(forebear, n);
+      if (n->_word_size < insertion_point->_word_size) {
+        if (insertion_point->_left == NULL) {
+          set_left_child(insertion_point, n);
         } else {
-          insert(forebear->_left, n);
+          insert(insertion_point->_left, n);
         }
       } else {
-        assert(n->_word_size > forebear->_word_size, "sanity");
-        if (forebear->_right == NULL) {
-          set_right_child(forebear, n);
+        assert(n->_word_size > insertion_point->_word_size, "sanity");
+        if (insertion_point->_right == NULL) {
+          set_right_child(insertion_point, n);
         } else {
-          insert(forebear->_right, n);
+          insert(insertion_point->_right, n);
         }
       }
     }
