@@ -32,6 +32,8 @@
 #include "memory/metaspace/msInternalStats.hpp"
 #include "memory/metaspace/msSettings.hpp"
 #include "memory/metaspace/msStatistics.hpp"
+#include "runtime/mutex.hpp"
+#include "runtime/mutexLocker.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 

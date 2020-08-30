@@ -30,6 +30,7 @@
 
 #include "memory/metaspace/msSettings.hpp"
 
+#include "runtime/java.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/debug.hpp"
 

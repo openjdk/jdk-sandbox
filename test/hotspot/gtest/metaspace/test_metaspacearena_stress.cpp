@@ -30,6 +30,7 @@
 #include "memory/metaspace/msChunkManager.hpp"
 #include "memory/metaspace/msCounter.hpp"
 #include "memory/metaspace/msStatistics.hpp"
+#include "runtime/mutexLocker.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
