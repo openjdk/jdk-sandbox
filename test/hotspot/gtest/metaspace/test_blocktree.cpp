@@ -28,7 +28,7 @@
 #include "memory/metaspace/msBlockTree.hpp"
 #include "memory/metaspace/msCounter.hpp"
 
-//#define LOG_PLEASE
+#define LOG_PLEASE
 #include "metaspaceGtestCommon.hpp"
 
 using metaspace::BlockTree;
@@ -86,57 +86,76 @@ TEST_VM(metaspace, BlockTree_basic) {
 
 }
 
-TEST_VM(metaspace, BlockTree_closest_fit) {
+// Helper for test_find_nearest_fit_with_tree.
+// Out of an array of sizes return the closest upper match to a requested size.
+// Returns SIZE_MAX if none found.
+static size_t helper_find_nearest_fit(const size_t sizes[], size_t request_size) {
+  size_t best = SIZE_MAX;
+  for (int i = 0; sizes[i] > 0; i++) {
+    if (sizes[i] >= request_size && sizes[i] < best) {
+      best = sizes[i];
+    }
+  }
+  return best;
+}
 
-  // Test the fact that getting blocks should always return the closest fit
+// Given a sequence of (0-terminated) sizes, add blocks of those sizes to the tree in the order given. Then, ask
+// for a request size and check that it is the expected result.
+static void test_find_nearest_fit_with_tree(const size_t sizes[], size_t request_size) {
+
   BlockTree bt;
-  FeederBuffer fb(10000);
-
-  const size_t minws = BlockTree::MinWordSize;
-  const size_t maxws = 256;
-
-  size_t sizes[] = {
-      minws + 9,
-      minws + 3,
-      minws + 9,
-      minws,
-      minws + 8,
-      maxws - 2,
-      minws,
-      maxws - 1,
-      0
-  };
-
-  size_t size_added = 0;
-  int num_added = 0;
+  FeederBuffer fb(1000);
 
   for (int i = 0; sizes[i] > 0; i++) {
     const size_t s = sizes[i];
     MetaWord* p = fb.get(s);
     bt.add_block(p, s);
-    num_added++; size_added += s;
-    CHECK_BT_CONTENT(bt, num_added, size_added);
   }
 
   DEBUG_ONLY(bt.verify();)
 
-  size_t last_size = 0;
-  while (bt.is_empty() == false) {
-    size_t real_size = 0;
-    MetaWord* p = bt.remove_block(minws, &real_size);
-    EXPECT_TRUE(fb.is_valid_range(p, real_size));
+  size_t expected_size = helper_find_nearest_fit(sizes, request_size);
+  size_t real_size = 0;
+  MetaWord* p = bt.remove_block(request_size, &real_size);
 
-    EXPECT_GE(real_size, last_size);
-    last_size = real_size;
-
-    num_added --;
-    size_added -= real_size;
-    CHECK_BT_CONTENT(bt, num_added, size_added);
+  if (expected_size != SIZE_MAX) {
+    EXPECT_NOT_NULL(p);
+    EXPECT_EQ(real_size, expected_size);
+  } else {
+    EXPECT_NULL(p);
+    EXPECT_0(real_size);
   }
 
-  CHECK_BT_CONTENT(bt, 0, 0);
+  LOG(SIZE_FORMAT ": " SIZE_FORMAT ".", request_size, real_size);
 
 }
+
+TEST_VM(metaspace, BlockTree_find_nearest_fit) {
+
+  // Test tree for test_find_nearest_fit looks like this
+  //                30
+  //               /  \
+  //              /    \
+  //             /      \
+  //            17       50
+  //           /  \     /  \
+  //          /    \   /    \
+  //         10    28 32     51
+  //                    \
+  //                     35
+
+  static const size_t test_tree_sizes[] = {
+    30, 17, 10, 28,
+    50, 32, 51, 35,
+    0 // stop
+  };
+
+  for (int i = BlockTree::MinWordSize; i <= 60; i ++) {
+    test_find_nearest_fit_with_tree(test_tree_sizes, i);
+  }
+
+}
+
 
 TEST_VM(metaspace, BlockTree_basic_siblings)
 {

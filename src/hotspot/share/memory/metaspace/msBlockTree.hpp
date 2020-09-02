@@ -235,29 +235,21 @@ private:
   // the node closest (equal or larger sized) to the size s.
   static Node* find_closest_fit(Node* n, size_t s) {
 
-    if (n->_word_size == s) {
-      // Perfect fit.
-      return n;
+    Node* best_match = NULL;
 
-    } else if (n->_word_size < s) {
-      // too small, dive down right side
-      if (n->_right != NULL) {
-        return find_closest_fit(n->_right, s);
+    while (n != NULL) {
+      if (n->_word_size >= s) {
+        best_match = n;
+        if (n->_word_size == s) {
+          break; // perfect match
+        }
+        n = n->_left;
       } else {
-        return NULL;
-      }
-    } else {
-      // n is a possible fit
-      assert(n->_word_size > s, "Sanity");
-      if (n->_left != NULL && n->_left->_word_size >= s) {
-        // but not the best - dive down left side.
-        return find_closest_fit(n->_left, s);
-      } else {
-        // n is the best fit.
-        return n;
+        n = n->_right;
       }
     }
 
+    return best_match;
   }
 
   // Given a wish size, search the whole tree for a
