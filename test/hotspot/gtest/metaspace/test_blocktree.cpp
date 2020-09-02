@@ -104,7 +104,7 @@ static size_t helper_find_nearest_fit(const size_t sizes[], size_t request_size)
 static void test_find_nearest_fit_with_tree(const size_t sizes[], size_t request_size) {
 
   BlockTree bt;
-  FeederBuffer fb(1000);
+  FeederBuffer fb(4 * K);
 
   for (int i = 0; sizes[i] > 0; i++) {
     const size_t s = sizes[i];
@@ -156,21 +156,20 @@ TEST_VM(metaspace, BlockTree_find_nearest_fit) {
 
 }
 
-
+// Test repeated adding and removing of blocks of the same size, which
+// should exercise the list-part of the tree.
 TEST_VM(metaspace, BlockTree_basic_siblings)
 {
   BlockTree bt;
+  FeederBuffer fb(4 * K);
+
   CHECK_BT_CONTENT(bt, 0, 0);
 
-  const size_t minws = BlockTree::MinWordSize;
-  const size_t maxws = 256;
-  const size_t test_size = minws + 17;
+  const size_t test_size = BlockTree::MinWordSize;
   const int num = 10;
 
-  MetaWord* arr = NEW_C_HEAP_ARRAY(MetaWord, num * test_size, mtInternal);
-
   for (int i = 0; i < num; i++) {
-    bt.add_block(arr + (i * test_size), test_size);
+    bt.add_block(fb.get(test_size), test_size);
     CHECK_BT_CONTENT(bt, i + 1, (i + 1) * test_size);
   }
 
@@ -179,13 +178,11 @@ TEST_VM(metaspace, BlockTree_basic_siblings)
   for (int i = num; i > 0; i --) {
     size_t real_size = 4711;
     MetaWord* p = bt.remove_block(test_size, &real_size);
-    EXPECT_LT(p, arr + num * test_size);
-    EXPECT_GE(p, arr);
+    EXPECT_TRUE(fb.is_valid_pointer(p));
     EXPECT_EQ(real_size, (size_t)test_size);
     CHECK_BT_CONTENT(bt, i - 1, (i - 1) * test_size);
   }
 
-  FREE_C_HEAP_ARRAY(MetaWord, arr);
 }
 
 class BlockTreeTest {
