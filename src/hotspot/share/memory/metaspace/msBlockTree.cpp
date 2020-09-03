@@ -71,30 +71,29 @@ void BlockTree::verify() const {
       Node* n;
       size_t lim1; // (
       size_t lim2; // )
+      int depth;
     };
 
     ResourceMark rm;
 
     GrowableArray<walkinfo> stack;
 
-    walkinfo rootinfo;
-    rootinfo.n = _root;
-    rootinfo.lim1 = 0;
-    rootinfo.lim2 = SIZE_MAX;
+    walkinfo info;
+    info.n = _root;
+    info.lim1 = 0;
+    info.lim2 = SIZE_MAX;
+    info.depth = 0;
 
-    stack.push(rootinfo);
+    stack.push(info);
 
     while (stack.length() > 0) {
 
-      // Keep track of longest edge we encountered
-      longest_edge = MAX2(longest_edge, stack.length());
+      info = stack.pop();
+      const Node* n = info.n;
 
       // Assume a (ridiculously large) edge limit to catch cases
       //  of badly degenerated or circular trees.
-      assrt0(longest_edge < 10000);
-
-      walkinfo info = stack.pop();
-      const Node* n = info.n;
+      assrt0(info.depth < 10000);
 
       counter.add(n->_word_size);
 
@@ -119,6 +118,7 @@ void BlockTree::verify() const {
         info2.n = n->_left;
         info2.lim1 = info.lim1;
         info2.lim2 = n->_word_size;
+        info2.depth = info.depth + 1;
         stack.push(info2);
       }
 
@@ -130,6 +130,7 @@ void BlockTree::verify() const {
         info2.n = n->_right;
         info2.lim1 = n->_word_size;
         info2.lim2 = info.lim2;
+        info2.depth = info.depth + 1;
         stack.push(info2);
       }
 
@@ -161,17 +162,43 @@ void BlockTree::print_node(outputStream* st, Node* n, int lvl) {
     st->print("---");
   }
   st->print_cr("<" PTR_FORMAT " (size " SIZE_FORMAT ")", p2i(n), n->_word_size);
-  if (n->_left) {
-    print_node(st, n->_left, lvl + 1);
-  }
-  if (n->_right) {
-    print_node(st, n->_right, lvl + 1);
-  }
 }
 
 void BlockTree::print_tree(outputStream* st) const {
+
   if (_root != NULL) {
-    print_node(st, _root, 0);
+
+    ResourceMark rm;
+
+    struct walkinfo {
+      Node* n;
+      int depth;
+    };
+
+    GrowableArray<walkinfo> stack;
+
+    walkinfo info;
+    info.n = _root;
+    info.depth = 0;
+
+    stack.push(info);
+    while (stack.length() > 0) {
+      info = stack.pop();
+      print_node(st, info.n, info.depth);
+      if (info.n->_right != NULL) {
+        walkinfo info2;
+        info2.n = info.n->_right;
+        info2.depth = info.depth + 1;
+        stack.push(info2);
+      }
+      if (info.n->_left != NULL) {
+        walkinfo info2;
+        info2.n = info.n->_left;
+        info2.depth = info.depth + 1;
+        stack.push(info2);
+      }
+    }
+
   } else {
     st->print_cr("<no nodes>");
   }

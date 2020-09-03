@@ -28,11 +28,21 @@
 #include "memory/metaspace/msBlockTree.hpp"
 #include "memory/metaspace/msCounter.hpp"
 
-//#define LOG_PLEASE
+#define LOG_PLEASE
 #include "metaspaceGtestCommon.hpp"
 
 using metaspace::BlockTree;
 using metaspace::MemRangeCounter;
+
+// Small helper. Given a 0-terminated array of sizes, a feeder buffer and a tree,
+//  add blocks of these sizes to the tree in the order they appear in the array.
+static void create_nodes(const size_t sizes[], FeederBuffer& fb, BlockTree& bt) {
+  for (int i = 0; sizes[i] > 0; i ++) {
+    size_t s = sizes[i];
+    MetaWord* p = fb.get(s);
+    bt.add_block(p, s);
+  }
+}
 
 #define CHECK_BT_CONTENT(bt, expected_num, expected_size) { \
   EXPECT_EQ(bt.count(), (unsigned)expected_num); \
@@ -106,11 +116,7 @@ static void test_find_nearest_fit_with_tree(const size_t sizes[], size_t request
   BlockTree bt;
   FeederBuffer fb(4 * K);
 
-  for (int i = 0; sizes[i] > 0; i++) {
-    const size_t s = sizes[i];
-    MetaWord* p = fb.get(s);
-    bt.add_block(p, s);
-  }
+  create_nodes(sizes, fb, bt);
 
   DEBUG_ONLY(bt.verify();)
 
@@ -144,14 +150,19 @@ TEST_VM(metaspace, BlockTree_find_nearest_fit) {
   //                    \
   //                     35
 
-  static const size_t test_tree_sizes[] = {
+  static const size_t sizes[] = {
     30, 17, 10, 28,
     50, 32, 51, 35,
     0 // stop
   };
 
+  BlockTree bt;
+  FeederBuffer fb(4 * K);
+
+  create_nodes(sizes, fb, bt);
+
   for (int i = BlockTree::MinWordSize; i <= 60; i ++) {
-    test_find_nearest_fit_with_tree(test_tree_sizes, i);
+    test_find_nearest_fit_with_tree(sizes, i);
   }
 
 }
@@ -184,6 +195,30 @@ TEST_VM(metaspace, BlockTree_basic_siblings)
   }
 
 }
+
+#ifdef ASSERT
+TEST_VM(metaspace, BlockTree_print_test) {
+
+  static const size_t sizes[] = {
+    30, 17, 10, 28,
+    50, 32, 51, 35,
+    0 // stop
+  };
+
+  BlockTree bt;
+  FeederBuffer fb(4 * K);
+
+  create_nodes(sizes, fb, bt);
+
+  ResourceMark rm;
+
+  stringStream ss;
+  bt.print_tree(&ss);
+
+  LOG("%s", ss.as_string());
+
+}
+#endif
 
 class BlockTreeTest {
 
