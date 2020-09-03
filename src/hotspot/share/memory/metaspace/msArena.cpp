@@ -142,7 +142,7 @@ MetaspaceArena::MetaspaceArena(ChunkManager* chunk_manager,
 
 MetaspaceArena::~MetaspaceArena() {
 
-  DEBUG_ONLY(verify(true);)
+  DEBUG_ONLY(verify();)
 
   MutexLocker fcl(lock(), Mutex::_no_safepoint_check_flag);
 
@@ -167,7 +167,7 @@ MetaspaceArena::~MetaspaceArena() {
 
   _total_used_words_counter->decrement_by(return_counter.total_size());
 
-  DEBUG_ONLY(chunk_manager()->verify(true);)
+  DEBUG_ONLY(chunk_manager()->verify();)
 
   delete _fbl;
 
@@ -347,7 +347,7 @@ MetaWord* MetaspaceArena::allocate(size_t requested_word_size) {
     _total_used_words_counter->increment_by(raw_word_size);
   }
 
-  SOMETIMES(verify_locked(true);)
+  SOMETIMES(verify_locked();)
 
   if (p == NULL) {
     UL(info, "allocation failed, returned NULL.");
@@ -383,7 +383,7 @@ void MetaspaceArena::deallocate_locked(MetaWord* p, size_t word_size) {
   size_t raw_word_size = get_raw_word_size_for_requested_word_size(word_size);
   add_allocation_to_fbl(p, raw_word_size);
 
-  DEBUG_ONLY(verify_locked(false);)
+  DEBUG_ONLY(verify_locked();)
 
 }
 
@@ -445,7 +445,7 @@ void MetaspaceArena::usage_numbers(size_t* p_used_words, size_t* p_committed_wor
 
 #ifdef ASSERT
 
-void MetaspaceArena::verify_locked(bool slow) const {
+void MetaspaceArena::verify_locked() const {
 
   assert_lock_strong(lock());
 
@@ -457,24 +457,26 @@ void MetaspaceArena::verify_locked(bool slow) const {
     _fbl->verify();
   }
 
-  // In slow mode, verify guard zones of all allocations
-  if (slow && Settings::use_allocation_guard()) {
-    for (const Metachunk* c = _chunks.first(); c != NULL; c = c->next()) {
-      const MetaWord* p = c->base();
-      while (p < c->top()) {
-        const Prefix* pp = (const Prefix*)p;
-        pp->check();
-        p += pp->_word_size;
+  // Verify guard zones of all allocations.
+  SOMETIMES(
+    if (Settings::use_allocation_guard()) {
+      for (const Metachunk* c = _chunks.first(); c != NULL; c = c->next()) {
+        const MetaWord* p = c->base();
+        while (p < c->top()) {
+          const Prefix* pp = (const Prefix*)p;
+          pp->check();
+          p += pp->_word_size;
+        }
       }
     }
-  }
+  )
 
 }
 
-void MetaspaceArena::verify(bool slow) const {
+void MetaspaceArena::verify() const {
 
   MutexLocker cl(lock(), Mutex::_no_safepoint_check_flag);
-  verify_locked(slow);
+  verify_locked();
 
 }
 

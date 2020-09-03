@@ -104,7 +104,7 @@ public:
   size_t used_words() const       { return _used_words_counter.get(); }
   size_t committed_words() const  { return _commit_limiter.committed_words(); }
 
-  DEBUG_ONLY(void verify(bool slow = false) const;)
+  DEBUG_ONLY(void verify() const;)
 
   void print_on(outputStream* st) const;
 

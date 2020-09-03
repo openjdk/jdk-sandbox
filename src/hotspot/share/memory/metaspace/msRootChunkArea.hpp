@@ -124,7 +124,7 @@ public:
            "pointer " PTR_FORMAT " oob for this root area [" PTR_FORMAT ".." PTR_FORMAT ")",
            p2i(p), p2i(_base), p2i(_base + word_size()));
   }
-  void verify(bool slow) const;
+  void verify() const;
 
   // This is a separate operation from verify(). We should be able to call verify()
   // from almost anywhere, regardless of state, but verify_area_is_ideally_merged()
@@ -196,7 +196,7 @@ public:
   // Returns true if all areas in this area table are free (only contain free chunks).
   bool is_free() const;
 
-  DEBUG_ONLY(void verify(bool slow) const;)
+  DEBUG_ONLY(void verify() const;)
 
   void print_on(outputStream* st) const;
 

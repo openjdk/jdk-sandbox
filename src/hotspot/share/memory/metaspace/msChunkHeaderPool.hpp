@@ -78,7 +78,7 @@ public:
 
     Metachunk* c = NULL;
 
-    DEBUG_ONLY(verify(false));
+    DEBUG_ONLY(verify());
 
     c = _freelist.remove_first();
     assert(c == NULL || c->is_dead(), "Not a freelist chunk header?");
@@ -131,7 +131,7 @@ public:
   // Returns size of memory used.
   size_t memory_footprint_words() const;
 
-  DEBUG_ONLY(void verify(bool slow) const;)
+  DEBUG_ONLY(void verify() const;)
 
   static void initialize();
 

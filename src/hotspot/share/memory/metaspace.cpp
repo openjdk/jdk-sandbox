@@ -174,27 +174,25 @@ void MetaspaceUtils::print_on(outputStream* out) {
 }
 
 #ifdef ASSERT
-void MetaspaceUtils::verify(bool slow) {
+void MetaspaceUtils::verify() {
   if (Metaspace::initialized()) {
 
     // Verify non-class chunkmanager...
     ChunkManager* cm = ChunkManager::chunkmanager_nonclass();
-    cm->verify(slow);
+    cm->verify();
 
     // ... and space list.
     VirtualSpaceList* vsl = VirtualSpaceList::vslist_nonclass();
-    vsl->verify(slow);
+    vsl->verify();
 
     if (Metaspace::using_class_space()) {
       // If we use compressed class pointers, verify class chunkmanager...
       cm = ChunkManager::chunkmanager_class();
-      assert(cm != NULL, "Sanity");
-      cm->verify(slow);
+      cm->verify();
 
       // ... and class spacelist.
-      VirtualSpaceList* vsl = VirtualSpaceList::vslist_nonclass();
-      assert(vsl != NULL, "Sanity");
-      vsl->verify(slow);
+      vsl = VirtualSpaceList::vslist_class();
+      vsl->verify();
     }
 
   }

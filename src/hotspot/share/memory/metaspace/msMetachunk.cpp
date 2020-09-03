@@ -107,7 +107,7 @@ bool Metachunk::commit_up_to(size_t new_committed_words) {
                          SIZE_FORMAT " words.", METACHUNK_FORMAT_ARGS(this), commit_to);
 
     if (!_vsnode->ensure_range_is_committed(base() + commit_from, commit_to - commit_from)) {
-      DEBUG_ONLY(verify(true);)
+      DEBUG_ONLY(verify();)
       return false;
     }
   }
@@ -115,7 +115,7 @@ bool Metachunk::commit_up_to(size_t new_committed_words) {
   // Remember how far we have committed.
   _committed_words = commit_to;
 
-  DEBUG_ONLY(verify(true);)
+  DEBUG_ONLY(verify();)
 
   return true;
 
@@ -192,7 +192,7 @@ MetaWord* Metachunk::allocate(size_t request_word_size) {
 
   _used_words += request_word_size;
 
-  SOMETIMES(verify(false);)
+  SOMETIMES(verify();)
 
   return p;
 
@@ -293,7 +293,7 @@ void Metachunk::verify_neighborhood() const {
 
 volatile MetaWord dummy = 0;
 
-void Metachunk::verify(bool slow) const {
+void Metachunk::verify() const {
 
   // Note. This should be called under CLD lock protection.
 
@@ -329,13 +329,15 @@ void Metachunk::verify(bool slow) const {
   const size_t required_alignment = word_size() * sizeof(MetaWord);
   assert_is_aligned(base(), required_alignment);
 
-  // If slow, test the committed area
-  if (slow && _committed_words > 0) {
-    for (const MetaWord* p = _base; p < _base + _committed_words; p += os::vm_page_size()) {
-      dummy = *p;
+  // Test accessing the committed area.
+  SOMETIMES(
+    if (_committed_words > 0) {
+      for (const MetaWord* p = _base; p < _base + _committed_words; p += os::vm_page_size()) {
+        dummy = *p;
+      }
+      dummy = *(_base + _committed_words - 1);
     }
-    dummy = *(_base + _committed_words - 1);
-  }
+  )
 
 }
 #endif // ASSERT

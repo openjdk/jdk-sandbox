@@ -164,5 +164,5 @@ void ZUnload::purge() {
 void ZUnload::finish() {
   // Resize and verify metaspace
   MetaspaceGC::compute_new_size();
-  DEBUG_ONLY(MetaspaceUtils::verify(false);)
+  DEBUG_ONLY(MetaspaceUtils::verify();)
 }

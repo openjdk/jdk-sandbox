@@ -110,7 +110,7 @@ void RootChunkArea::split(chunklevel_t target_level, Metachunk* c, FreeChunkList
   // new chunks at the end of all splits.
 
   DEBUG_ONLY(check_pointer(c->base());)
-  DEBUG_ONLY(c->verify(false);)
+  DEBUG_ONLY(c->verify();)
   assert(c->is_free(), "Can only split free chunks.");
 
   DEBUG_ONLY(chunklevel::check_valid_level(target_level));
@@ -154,8 +154,8 @@ void RootChunkArea::split(chunklevel_t target_level, Metachunk* c, FreeChunkList
 
   assert(c->level() == target_level, "Sanity");
 
-  DEBUG_ONLY(verify(true);)
-  DEBUG_ONLY(c->verify(true);)
+  DEBUG_ONLY(verify();)
+  DEBUG_ONLY(c->verify();)
 
 }
 
@@ -211,7 +211,7 @@ Metachunk* RootChunkArea::merge(Metachunk* c, FreeChunkListVector* freelists) {
   assert(!c->is_root_chunk(), "Cannot be merged further.");
   assert(c->is_free(), "Can only merge free chunks.");
 
-  DEBUG_ONLY(c->verify(false);)
+  DEBUG_ONLY(c->verify();)
 
   log_trace(metaspace)("Attempting to merge chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
 
@@ -227,7 +227,7 @@ Metachunk* RootChunkArea::merge(Metachunk* c, FreeChunkListVector* freelists) {
 
     // Note: this is either our buddy or a splinter of the buddy.
     Metachunk* const buddy = c->is_leader() ? c->next_in_vs() : c->prev_in_vs();
-    DEBUG_ONLY(buddy->verify(true);)
+    DEBUG_ONLY(buddy->verify();)
 
     // A buddy chunk must be of the same or higher level (so, same size or smaller)
     // never be larger.
@@ -295,16 +295,16 @@ Metachunk* RootChunkArea::merge(Metachunk* c, FreeChunkListVector* freelists) {
 
       result = c = leader;
 
-      DEBUG_ONLY(leader->verify(true);)
+      DEBUG_ONLY(leader->verify();)
 
     }
 
   } while (!stop);
 
 #ifdef ASSERT
-  verify(true);
+  verify();
   if (result != NULL) {
-    result->verify(true);
+    result->verify();
   }
 #endif // ASSERT
 
@@ -330,7 +330,7 @@ bool RootChunkArea::attempt_enlarge_chunk(Metachunk* c, FreeChunkListVector* fre
   // needed on free chunks since they should be merged already:
   assert(c->is_in_use(), "Can only enlarge in use chunks.");
 
-  DEBUG_ONLY(c->verify(false);)
+  DEBUG_ONLY(c->verify();)
 
   if (!c->is_leader()) {
     return false;
@@ -338,7 +338,7 @@ bool RootChunkArea::attempt_enlarge_chunk(Metachunk* c, FreeChunkListVector* fre
 
   // We are the leader, so the buddy must follow us.
   Metachunk* const buddy = c->next_in_vs();
-  DEBUG_ONLY(buddy->verify(true);)
+  DEBUG_ONLY(buddy->verify();)
 
   // Of course buddy cannot be larger than us.
   assert(buddy->level() >= c->level(), "Sanity");
@@ -386,7 +386,7 @@ bool RootChunkArea::attempt_enlarge_chunk(Metachunk* c, FreeChunkListVector* fre
   log_debug(metaspace)("Enlarged chunk " METACHUNK_FULL_FORMAT ".", METACHUNK_FULL_FORMAT_ARGS(c));
 //  log_debug(metaspace)("Enlarged chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
 
-  DEBUG_ONLY(verify(true));
+  DEBUG_ONLY(verify());
 
   return true;
 
@@ -409,7 +409,7 @@ bool RootChunkArea::is_free() const {
     vmassert(cond, __VA_ARGS__); \
   }
 
-void RootChunkArea::verify(bool slow) const {
+void RootChunkArea::verify() const {
 
   assert_lock_strong(MetaspaceExpand_lock);
   assert_is_aligned(_base, chunklevel::MAX_CHUNK_BYTE_SIZE);
@@ -444,7 +444,7 @@ void RootChunkArea::verify(bool slow) const {
              "misaligned chunk %d " METACHUNK_FORMAT ".", num_chunk, METACHUNK_FORMAT_ARGS(c));
 
       c->verify_neighborhood();
-      c->verify(slow);
+      c->verify();
 
       expected_next_base = c->end();
       num_chunk++;
@@ -541,10 +541,10 @@ bool RootChunkAreaLUT::is_free() const {
 
 #ifdef ASSERT
 
-void RootChunkAreaLUT::verify(bool slow) const {
+void RootChunkAreaLUT::verify() const {
   for (int i = 0; i < _num; i++) {
     check_pointer(_arr[i].base());
-    _arr[i].verify(slow);
+    _arr[i].verify();
   }
 }
 

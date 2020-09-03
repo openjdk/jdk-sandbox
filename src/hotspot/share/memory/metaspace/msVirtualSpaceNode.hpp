@@ -278,8 +278,8 @@ public:
   void check_pointer(const MetaWord* p) const {
     assert(contains(p), "invalid pointer");
   }
-  void verify(bool slow) const;
-  void verify_locked(bool slow) const;
+  void verify() const;
+  void verify_locked() const;
 #endif
 
 };

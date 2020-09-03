@@ -343,7 +343,7 @@ TEST_VM(metaspace, chunk_split_and_merge) {
         EXPECT_EQ(c2->level(), l);
         EXPECT_TRUE(c2->is_free());
         EXPECT_TRUE(!c2->is_leader());
-        DEBUG_ONLY(c2->verify(false));
+        DEBUG_ONLY(c2->verify());
         check_range_for_pattern(c2->base(), c2->word_size(), canary);
       } else {
         EXPECT_NULL(c2);

@@ -52,7 +52,7 @@ void MetachunkList::verify() const {
     assert(c->prev() == last_c,
            "Broken link to predecessor. Chunk " METACHUNK_FULL_FORMAT ".",
            METACHUNK_FULL_FORMAT_ARGS(c));
-    c->verify(false);
+    c->verify();
     last_c = c;
   }
   _num_chunks.check(num);

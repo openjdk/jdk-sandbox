@@ -165,7 +165,9 @@ public:
   }
 
   //// Debug stuff ////
-  DEBUG_ONLY(void verify(bool slow) const;)
+
+  // Verify internals.
+  DEBUG_ONLY(void verify() const;)
 
   void print_on(outputStream* st) const;
 

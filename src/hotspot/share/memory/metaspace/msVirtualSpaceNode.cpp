@@ -284,7 +284,7 @@ VirtualSpaceNode* VirtualSpaceNode::create_node(ReservedSpace rs, CommitLimiter*
 
 VirtualSpaceNode::~VirtualSpaceNode() {
 
-  DEBUG_ONLY(verify_locked(true);)
+  DEBUG_ONLY(verify_locked();)
 
   UL(debug, ": dies.");
 
@@ -331,7 +331,7 @@ Metachunk* VirtualSpaceNode::allocate_root_chunk() {
     assert(c->base() == loc && c->vsnode() == this &&
            c->is_free(), "Sanity");
 
-    DEBUG_ONLY(c->verify(true);)
+    DEBUG_ONLY(c->verify();)
 
     UL2(debug, "new root chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
 
@@ -483,13 +483,15 @@ size_t VirtualSpaceNode::committed_words() const {
 }
 
 #ifdef ASSERT
-void VirtualSpaceNode::verify(bool slow) const {
+void VirtualSpaceNode::verify() const {
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
-  verify_locked(slow);
+  verify_locked();
 }
 
+volatile int test_access = 0;
+
 // Verify counters and basic structure. Slow mode: verify all chunks in depth
-void VirtualSpaceNode::verify_locked(bool slow) const {
+void VirtualSpaceNode::verify_locked() const {
 
   assert_lock_strong(MetaspaceExpand_lock);
 
@@ -504,10 +506,20 @@ void VirtualSpaceNode::verify_locked(bool slow) const {
   // to root chunk size.
   assert_is_aligned(used_words(), chunklevel::MAX_CHUNK_WORD_SIZE);
 
-  _commit_mask.verify(slow);
+  _commit_mask.verify();
+
+  // Verify memory against commit mask.
+  SOMETIMES(
+    for (MetaWord* p = base(); p < base() + used_words(); p += os::vm_page_size()) {
+      if (_commit_mask.is_committed_address(p)) {
+        test_access += *(int*)p;
+      }
+    }
+  )
+
   assert(committed_words() <= word_size(), "Sanity");
   assert_is_aligned(committed_words(), Settings::commit_granule_words());
-  _root_chunk_area_lut.verify(slow);
+  _root_chunk_area_lut.verify();
 
 }
 

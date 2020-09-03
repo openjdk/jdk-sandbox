@@ -77,9 +77,9 @@ void MetaspaceContext::print_on(outputStream* st) const {
 }
 
 #ifdef ASSERT
-void MetaspaceContext::verify(bool slow) const {
-  _vslist->verify(slow);
-  _cm->verify(slow);
+void MetaspaceContext::verify() const {
+  _vslist->verify();
+  _cm->verify();
 }
 #endif // ASSERT
 

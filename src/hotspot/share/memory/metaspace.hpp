@@ -342,7 +342,7 @@ public:
 
   static void print_on(outputStream * out);
 
-  DEBUG_ONLY(static void verify(bool slow);)
+  DEBUG_ONLY(static void verify();)
 
 };
 

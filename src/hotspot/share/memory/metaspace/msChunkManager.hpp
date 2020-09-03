@@ -155,8 +155,8 @@ public:
   void purge();
 
   // Run verifications. slow=true: verify chunk-internal integrity too.
-  DEBUG_ONLY(void verify(bool slow) const;)
-  DEBUG_ONLY(void verify_locked(bool slow) const;)
+  DEBUG_ONLY(void verify() const;)
+  DEBUG_ONLY(void verify_locked() const;)
 
   // Returns the name of this chunk manager.
   const char* name() const                  { return _name; }
@@ -175,8 +175,6 @@ public:
 
   void print_on(outputStream* st) const;
   void print_on_locked(outputStream* st) const;
-
-public:
 
   // Convenience methods to return the global class-space chunkmanager
   //  and non-class chunkmanager, respectively.

@@ -83,7 +83,7 @@ class VirtualSpaceNodeTest {
   void lock_and_verify_node() {
 #ifdef ASSERT
     MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
-    _node->verify_locked(true);
+    _node->verify_locked();
 #endif
   }
 
@@ -106,7 +106,7 @@ class VirtualSpaceNodeTest {
 
     } else {
 
-      DEBUG_ONLY(c->verify(true);)
+      DEBUG_ONLY(c->verify();)
       EXPECT_NOT_NULL(c);
       EXPECT_TRUE(c->is_root_chunk());
       EXPECT_TRUE(c->is_free());
@@ -135,7 +135,7 @@ class VirtualSpaceNodeTest {
     bool rc = c->ensure_committed(request_commit_words);
 
     verify();
-    DEBUG_ONLY(c->verify(true);)
+    DEBUG_ONLY(c->verify();)
 
     lock_and_verify_node();
 
@@ -177,7 +177,7 @@ class VirtualSpaceNodeTest {
 
     c->uncommit();
 
-    DEBUG_ONLY(c->verify(true);)
+    DEBUG_ONLY(c->verify();)
 
     lock_and_verify_node();
 
@@ -207,7 +207,7 @@ class VirtualSpaceNodeTest {
 
   Metachunk* split_chunk_with_checks(Metachunk* c, chunklevel_t target_level, FreeChunkListVector* freelist) {
 
-    DEBUG_ONLY(c->verify(true);)
+    DEBUG_ONLY(c->verify();)
 
     const chunklevel_t orig_level = c->level();
     assert(orig_level < target_level, "Sanity");
@@ -501,19 +501,19 @@ TEST_VM(metaspace, virtual_space_node_test_basics) {
   ASSERT_NOT_NULL(node);
   ASSERT_EQ(node->committed_words(), (size_t)0);
   ASSERT_EQ(node->committed_words(), scomm.get());
-  DEBUG_ONLY(node->verify_locked(true);)
+  DEBUG_ONLY(node->verify_locked();)
 
   bool b = node->ensure_range_is_committed(node->base(), node->word_size());
   ASSERT_TRUE(b);
   ASSERT_EQ(node->committed_words(), word_size);
   ASSERT_EQ(node->committed_words(), scomm.get());
-  DEBUG_ONLY(node->verify_locked(true);)
+  DEBUG_ONLY(node->verify_locked();)
   zap_range(node->base(), node->word_size());
 
   node->uncommit_range(node->base(), node->word_size());
   ASSERT_EQ(node->committed_words(), (size_t)0);
   ASSERT_EQ(node->committed_words(), scomm.get());
-  DEBUG_ONLY(node->verify_locked(true);)
+  DEBUG_ONLY(node->verify_locked();)
 
   const int num_granules = (int)(word_size / Settings::commit_granule_words());
   for (int i = 1; i < num_granules; i += 4) {
@@ -521,14 +521,14 @@ TEST_VM(metaspace, virtual_space_node_test_basics) {
     ASSERT_TRUE(b);
     ASSERT_EQ(node->committed_words(), i * Settings::commit_granule_words());
     ASSERT_EQ(node->committed_words(), scomm.get());
-    DEBUG_ONLY(node->verify_locked(true);)
+    DEBUG_ONLY(node->verify_locked();)
     zap_range(node->base(), i * Settings::commit_granule_words());
   }
 
   node->uncommit_range(node->base(), node->word_size());
   ASSERT_EQ(node->committed_words(), (size_t)0);
   ASSERT_EQ(node->committed_words(), scomm.get());
-  DEBUG_ONLY(node->verify_locked(true);)
+  DEBUG_ONLY(node->verify_locked();)
 
 }
 

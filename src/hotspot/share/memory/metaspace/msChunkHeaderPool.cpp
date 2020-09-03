@@ -73,7 +73,7 @@ void ChunkHeaderPool::initialize() {
 }
 
 #ifdef ASSERT
-void ChunkHeaderPool::verify(bool slow) const {
+void ChunkHeaderPool::verify() const {
   const Slab* s = _first_slab;
   int num = 0;
   while (s != NULL) {

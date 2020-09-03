@@ -167,8 +167,8 @@ public:
   // For deeper analysis use add_to_statistics().
   void usage_numbers(size_t* p_used_words, size_t* p_committed_words, size_t* p_capacity_words) const;
 
-  DEBUG_ONLY(void verify(bool slow) const;)
-  DEBUG_ONLY(void verify_locked(bool slow) const;)
+  DEBUG_ONLY(void verify() const;)
+  DEBUG_ONLY(void verify_locked() const;)
 
   void print_on(outputStream* st) const;
   void print_on_locked(outputStream* st) const;

@@ -86,7 +86,7 @@ public:
 
   void print_on(outputStream* st) const;
 
-  DEBUG_ONLY(void verify(bool slow) const;)
+  DEBUG_ONLY(void verify() const;)
 
   static void initialize_class_space_context(ReservedSpace rs);
   static void initialize_nonclass_space_context();

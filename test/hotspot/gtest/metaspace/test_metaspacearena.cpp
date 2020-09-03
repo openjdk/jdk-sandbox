@@ -69,7 +69,7 @@ class MetaspaceArenaTestHelper {
       MutexLocker ml(_lock,  Mutex::_no_safepoint_check_flag);
       _arena = new MetaspaceArena(&_context.cm(), _growth_policy, _lock, &_used_words_counter, name);
     }
-    DEBUG_ONLY(_arena->verify(true));
+    DEBUG_ONLY(_arena->verify());
 
   }
 
@@ -108,7 +108,7 @@ public:
     if (_arena != NULL) {
       size_t used_words_before = _used_words_counter.get();
       size_t committed_words_before = limiter().committed_words();
-      DEBUG_ONLY(_arena->verify(true));
+      DEBUG_ONLY(_arena->verify());
       delete _arena;
       _arena = NULL;
       size_t used_words_after = _used_words_counter.get();
@@ -166,7 +166,7 @@ public:
 
     MetaWord* p = _arena->allocate(word_size);
 
-    SOMETIMES(DEBUG_ONLY(_arena->verify(true);))
+    SOMETIMES(DEBUG_ONLY(_arena->verify();))
 
     size_t used2 = 0, committed2 = 0, capacity2 = 0;
     usage_numbers_with_test(&used2, &committed2, &capacity2);
@@ -209,7 +209,7 @@ public:
 
     _arena->deallocate(p, word_size);
 
-    SOMETIMES(DEBUG_ONLY(_arena->verify(true);))
+    SOMETIMES(DEBUG_ONLY(_arena->verify();))
 
     size_t used2 = 0, committed2 = 0, capacity2 = 0;
     usage_numbers_with_test(&used2, &committed2, &capacity2);

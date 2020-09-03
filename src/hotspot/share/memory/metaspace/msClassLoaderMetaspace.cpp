@@ -172,10 +172,10 @@ void ClassLoaderMetaspace::add_to_statistics(metaspace::ClmsStats* out) const {
 #ifdef ASSERT
 void ClassLoaderMetaspace::verify() const {
   if (non_class_space_arena() != NULL) {
-    non_class_space_arena()->verify(false);
+    non_class_space_arena()->verify();
   }
   if (class_space_arena() != NULL) {
-    class_space_arena()->verify(false);
+    class_space_arena()->verify();
   }
 }
 #endif // ASSERT

@@ -281,7 +281,7 @@ public:
 
   //// Debug stuff ////
 #ifdef ASSERT
-  void verify(bool slow) const;
+  void verify() const;
   // Verifies linking with neighbors in virtual space. Needs expand lock protection.
   void verify_neighborhood() const;
   void zap_header(uint8_t c = 0x17);

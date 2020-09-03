@@ -78,7 +78,7 @@ MetaspaceTestContext::MetaspaceTestContext(const char* name, size_t commit_limit
 }
 
 MetaspaceTestContext::~MetaspaceTestContext() {
-  DEBUG_ONLY(verify(true);)
+  DEBUG_ONLY(verify();)
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
   delete _context;
 }
@@ -100,9 +100,9 @@ void MetaspaceTestContext::purge_area() {
 }
 
 #ifdef ASSERT
-void MetaspaceTestContext::verify(bool slow) const {
+void MetaspaceTestContext::verify() const {
   if (_context != NULL) {
-    _context->verify(slow);
+    _context->verify();
   }
 }
 #endif

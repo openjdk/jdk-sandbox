@@ -121,8 +121,8 @@ public:
   int num_nodes() const             { return _nodes_counter.get(); }
 
   //// Debug stuff ////
-  DEBUG_ONLY(void verify(bool slow) const;)
-  DEBUG_ONLY(void verify_locked(bool slow) const;)
+  DEBUG_ONLY(void verify() const;)
+  DEBUG_ONLY(void verify_locked() const;)
 
   // Print all nodes in this space list.
   void print_on(outputStream* st) const;

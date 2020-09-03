@@ -48,7 +48,7 @@ class CommitMaskTest {
   void verify_mask() {
     // Note: we omit the touch test since we operate on fictional
     // memory
-    DEBUG_ONLY(_mask.verify(false);)
+    DEBUG_ONLY(_mask.verify();)
   }
 
   // Return a random sub range within [_base.._base + word_size),

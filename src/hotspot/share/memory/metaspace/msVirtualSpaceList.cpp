@@ -197,7 +197,7 @@ void VirtualSpaceList::print_on(outputStream* st) const {
 }
 
 #ifdef ASSERT
-void VirtualSpaceList::verify_locked(bool slow) const {
+void VirtualSpaceList::verify_locked() const {
 
   assert_lock_strong(MetaspaceExpand_lock);
 
@@ -212,7 +212,7 @@ void VirtualSpaceList::verify_locked(bool slow) const {
     const VirtualSpaceNode* vsn = _first_node;
     while (vsn != NULL) {
       n++;
-      vsn->verify_locked(slow);
+      vsn->verify_locked();
       total_reserved_words += vsn->word_size();
       total_committed_words += vsn->committed_words();
       vsn = vsn->next();
@@ -230,9 +230,9 @@ void VirtualSpaceList::verify_locked(bool slow) const {
   }
 }
 
-void VirtualSpaceList::verify(bool slow) const {
+void VirtualSpaceList::verify() const {
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
-  verify_locked(slow);
+  verify_locked();
 }
 #endif
 

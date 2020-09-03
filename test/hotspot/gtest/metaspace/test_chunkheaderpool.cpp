@@ -61,7 +61,7 @@ class ChunkHeaderPoolTest {
     _num_allocated.decrement();
     DEBUG_ONLY(_num_allocated.check(_pool.used());)
 
-    DEBUG_ONLY(_pool.verify(true);)
+    DEBUG_ONLY(_pool.verify();)
 
   }
 
@@ -81,7 +81,7 @@ class ChunkHeaderPoolTest {
     _num_allocated.increment();
     DEBUG_ONLY(_num_allocated.check(_pool.used());)
 
-    DEBUG_ONLY(_pool.verify(true);)
+    DEBUG_ONLY(_pool.verify();)
   }
 
   void attempt_allocate_or_free_at(size_t index) {
@@ -100,7 +100,7 @@ class ChunkHeaderPoolTest {
       attempt_allocate_or_free_at(index);
     }
 
-    DEBUG_ONLY(_pool.verify(true);)
+    DEBUG_ONLY(_pool.verify();)
 
   }
 

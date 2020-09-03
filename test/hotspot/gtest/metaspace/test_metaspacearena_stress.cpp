@@ -159,7 +159,7 @@ public:
       a = b;
     }
 
-    DEBUG_ONLY(_arena->verify(true);)
+    DEBUG_ONLY(_arena->verify();)
 
     // Delete MetaspaceArena. That should clean up all metaspace.
     delete _arena;
@@ -187,7 +187,7 @@ public:
       _alloc_count.add(word_size);
       if ((_alloc_count.count() % 20) == 0) {
         verify_arena_statistics();
-        DEBUG_ONLY(_arena->verify(true);)
+        DEBUG_ONLY(_arena->verify();)
       }
       return true;
     } else {
@@ -209,7 +209,7 @@ public:
       a->p = NULL; a->word_size = 0;
       if ((_dealloc_count.count() % 20) == 0) {
         verify_arena_statistics();
-        DEBUG_ONLY(_arena->verify(true);)
+        DEBUG_ONLY(_arena->verify();)
       }
     }
   }

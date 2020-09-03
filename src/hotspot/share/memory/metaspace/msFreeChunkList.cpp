@@ -73,7 +73,7 @@ void FreeChunkList::verify() const {
       assert(c->next() == NULL || c->next()->prev() == c, "front link broken");
       assert(c->prev() == NULL || c->prev()->next() == c, "back link broken");
       assert(c != c->prev() && c != c->next(), "circle");
-      c->verify(false);
+      c->verify();
       committed += c->committed_words();
       num++;
     }

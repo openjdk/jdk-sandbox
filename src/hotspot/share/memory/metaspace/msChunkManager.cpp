@@ -51,7 +51,7 @@ void ChunkManager::return_chunk_simple_locked(Metachunk* c) {
 
   assert_lock_strong(MetaspaceExpand_lock);
 
-  DEBUG_ONLY(c->verify(false));
+  DEBUG_ONLY(c->verify());
 
   const chunklevel_t lvl = c->level();
   _chunks.add(c);
@@ -90,7 +90,7 @@ void ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chunklevel_t targ
   assert(c->prev() == NULL && c->next() == NULL, "Chunk must be outside of any list.");
 
   DEBUG_ONLY(chunklevel::check_valid_level(target_level);)
-  DEBUG_ONLY(c->verify(true);)
+  DEBUG_ONLY(c->verify();)
 
   UL2(debug, "splitting chunk " METACHUNK_FORMAT " to " CHKLVL_FORMAT ".",
       METACHUNK_FORMAT_ARGS(c), target_level);
@@ -112,11 +112,11 @@ void ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chunklevel_t targ
   }
 #endif
 
-  DEBUG_ONLY(c->verify(false));
+  DEBUG_ONLY(c->verify());
 
-  DEBUG_ONLY(verify_locked(true);)
+  DEBUG_ONLY(verify_locked();)
 
-  SOMETIMES(c->vsnode()->verify_locked(true);)
+  SOMETIMES(c->vsnode()->verify_locked();)
 
   InternalStats::inc_num_chunk_splits();
 
@@ -138,7 +138,7 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
 
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
 
-  DEBUG_ONLY(verify_locked(false);)
+  DEBUG_ONLY(verify_locked();)
 
   DEBUG_ONLY(chunklevel::check_valid_level(max_level);)
   DEBUG_ONLY(chunklevel::check_valid_level(preferred_level);)
@@ -245,13 +245,13 @@ Metachunk* ChunkManager::get_chunk(chunklevel_t preferred_level, chunklevel_t ma
 
       InternalStats::inc_num_chunks_taken_from_freelist();
 
-      SOMETIMES(c->vsnode()->verify_locked(true);)
+      SOMETIMES(c->vsnode()->verify_locked();)
 
     }
 
   }
 
-  DEBUG_ONLY(verify_locked(false);)
+  DEBUG_ONLY(verify_locked();)
 
   return c;
 
@@ -275,7 +275,7 @@ void ChunkManager::return_chunk_locked(Metachunk* c) {
 
   UL2(debug, ": returning chunk " METACHUNK_FORMAT ".", METACHUNK_FORMAT_ARGS(c));
 
-  DEBUG_ONLY(c->verify(true);)
+  DEBUG_ONLY(c->verify();)
 
   assert(contains_chunk(c) == false, "A chunk to be added to the freelist must not be in the freelist already.");
 
@@ -296,7 +296,7 @@ void ChunkManager::return_chunk_locked(Metachunk* c) {
 
     InternalStats::inc_num_chunk_merges();
 
-    DEBUG_ONLY(merged->verify(false));
+    DEBUG_ONLY(merged->verify());
 
     // We did merge our chunk into a different chunk.
 
@@ -318,8 +318,8 @@ void ChunkManager::return_chunk_locked(Metachunk* c) {
 
   return_chunk_simple_locked(c);
 
-  DEBUG_ONLY(verify_locked(false);)
-  SOMETIMES(c->vsnode()->verify_locked(true);)
+  DEBUG_ONLY(verify_locked();)
+  SOMETIMES(c->vsnode()->verify_locked();)
 
   InternalStats::inc_num_chunks_returned_to_freelist();
 
@@ -413,8 +413,8 @@ void ChunkManager::purge() {
     }
   }
 
-  DEBUG_ONLY(_vslist->verify_locked(true));
-  DEBUG_ONLY(verify_locked(true));
+  DEBUG_ONLY(_vslist->verify_locked());
+  DEBUG_ONLY(verify_locked());
 
 }
 
@@ -444,12 +444,12 @@ void ChunkManager::add_to_statistics(ChunkManagerStats* out) const {
 
 #ifdef ASSERT
 
-void ChunkManager::verify(bool slow) const {
+void ChunkManager::verify() const {
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
-  verify_locked(slow);
+  verify_locked();
 }
 
-void ChunkManager::verify_locked(bool slow) const {
+void ChunkManager::verify_locked() const {
   assert_lock_strong(MetaspaceExpand_lock);
   assert(_vslist != NULL, "No vslist");
   _chunks.verify();
