@@ -28,7 +28,7 @@
 #include "memory/metaspace/msBlockTree.hpp"
 #include "memory/metaspace/msCounter.hpp"
 
-#define LOG_PLEASE
+//#define LOG_PLEASE
 #include "metaspaceGtestCommon.hpp"
 
 using metaspace::BlockTree;
@@ -233,7 +233,7 @@ class BlockTreeTest {
         s =_rgen.get();
         break;
       case left_right:
-        // fill in ascending order to annoy trees.
+        // fill in ascending order to provoke a misformed tree.
         s = MIN2(_rgen.get(), old_feeding_size);
         old_feeding_size = s;
         break;
@@ -244,7 +244,7 @@ class BlockTreeTest {
         break;
       }
 
-      // Get a block from the feeder buffer; feed it to alternatingly to either tree
+      // Get a block from the feeder buffer; feed it alternatingly to either tree.
       p = _fb.get(s);
       if (p != NULL) {
         int which = added % 2;
@@ -329,7 +329,7 @@ class BlockTreeTest {
         _bt[0].count(), _bt[0].total_size(),
         _bt[1].count(), _bt[1].total_size());
 
-    ping_pong_loop(2000);
+    ping_pong_loop(5000);
 
     LOG("After Pingpong: bt1=%d:" SIZE_FORMAT ", bt2=%d:" SIZE_FORMAT ".",
         _bt[0].count(), _bt[0].total_size(),

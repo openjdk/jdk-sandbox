@@ -50,35 +50,6 @@ namespace metaspace {
 #define LOGFMT         "Arena @" PTR_FORMAT " (%s)"
 #define LOGFMT_ARGS    p2i(this), this->_name
 
-// Given a net allocation word size, return the raw word size we actually allocate.
-// Note: externally visible for gtests.
-//static
-size_t get_raw_allocation_word_size(size_t net_word_size) {
-
-  size_t byte_size = net_word_size * BytesPerWord;
-
-  // Deallocated metablocks are kept in a binlist which limits their minimal
-  //  size to at least the size of a binlist item (2 words).
-  byte_size = MAX2(byte_size, FreeBlocks::minimal_word_size * BytesPerWord);
-
-  // Metaspace allocations are aligned to word size.
-  byte_size = align_up(byte_size, AllocationAlignmentByteSize);
-
-  // If we guard allocations, we need additional space for a prefix.
-#ifdef ASSERT
-  if (Settings::use_allocation_guard()) {
-    byte_size += align_up(prefix_size(), AllocationAlignmentByteSize);
-  }
-#endif
-
-  size_t word_size = byte_size / BytesPerWord;
-
-  assert(word_size * BytesPerWord == byte_size, "Sanity");
-
-  return word_size;
-
-}
-
 // Returns the level of the next chunk to be added, acc to growth policy.
 chunklevel_t MetaspaceArena::next_chunk_level() const {
   const int growth_step = _chunks.count();
@@ -96,7 +67,7 @@ void MetaspaceArena::salvage_chunk(Metachunk* c) {
 
   size_t remaining_words = c->free_below_committed_words();
 
-  if (remaining_words > FreeBlocks::minimal_word_size) {
+  if (remaining_words > FreeBlocks::MinWordSize) {
 
     UL2(trace, "salvaging chunk " METACHUNK_FULL_FORMAT ".", METACHUNK_FULL_FORMAT_ARGS(c));
 

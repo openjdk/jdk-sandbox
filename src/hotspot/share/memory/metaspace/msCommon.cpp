@@ -179,7 +179,7 @@ size_t get_raw_word_size_for_requested_word_size(size_t word_size) {
 
   // Deallocated metablocks are kept in a binlist which limits their minimal
   //  size to at least the size of a binlist item (2 words).
-  byte_size = MAX2(byte_size, FreeBlocks::minimal_word_size * BytesPerWord);
+  byte_size = MAX2(byte_size, FreeBlocks::MinWordSize * BytesPerWord);
 
   // Metaspace allocations are aligned to word size.
   byte_size = align_up(byte_size, AllocationAlignmentByteSize);

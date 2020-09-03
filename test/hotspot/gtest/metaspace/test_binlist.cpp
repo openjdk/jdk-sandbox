@@ -90,8 +90,8 @@ struct BinListBasicTest {
 
     MetaWord arr[1000];
 
-    for (size_t s1 = minws; s1 < maxws; s1++) {
-      for (size_t s2 = minws; s2 < maxws; s2++) {
+    for (size_t s1 = minws; s1 <= maxws; s1++) {
+      for (size_t s2 = minws; s2 <= maxws; s2++) {
 
         bl.add_block(arr, s1);
         CHECK_BL_CONTENT(bl, 1, s1);
@@ -131,7 +131,7 @@ struct BinListBasicTest {
   ASSERT_EQ(cnt[1].total_size(), bl[1].total_size());
 
     FeederBuffer fb(1024);
-    RandSizeGenerator rgen(minws, maxws);
+    RandSizeGenerator rgen(minws, maxws + 1);
 
     // feed all
     int which = 0;

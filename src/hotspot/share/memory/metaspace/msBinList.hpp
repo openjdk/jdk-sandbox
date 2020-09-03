@@ -94,11 +94,15 @@ class BinListImpl {
   // Smallest block size must be large enough to hold a Block structure.
   STATIC_ASSERT(smallest_word_size * sizeof(MetaWord) >= sizeof(Block));
 
+  STATIC_ASSERT(num_lists > 0);
+
 public:
 
-  // BinList can hold blocks sized [MinWordSize, MaxWordSize)
+  // Minimal word size a block must have to be manageable by this structure.
   const static size_t MinWordSize = smallest_word_size;
-  const static size_t MaxWordSize = MinWordSize + num_lists;
+
+  // Maximal (incl) word size a block can have to be manageable by this structure.
+  const static size_t MaxWordSize = MinWordSize + num_lists - 1;
 
 private:
 
@@ -150,7 +154,7 @@ public:
 
   void add_block(MetaWord* p, size_t word_size) {
     assert(word_size >= MinWordSize &&
-           word_size < MaxWordSize, "bad block size");
+           word_size <= MaxWordSize, "bad block size");
     const int index = index_for_word_size(word_size);
     Block* old_head = _blocks[index];
     Block* new_head = new(p)Block(old_head, word_size);
@@ -163,7 +167,7 @@ public:
   // Block may be larger. Real block size is returned in *p_real_word_size.
   MetaWord* remove_block(size_t word_size, size_t* p_real_word_size) {
     assert(word_size >= MinWordSize &&
-           word_size < MaxWordSize, "bad block size " SIZE_FORMAT ".", word_size);
+           word_size <= MaxWordSize, "bad block size " SIZE_FORMAT ".", word_size);
     int index = index_for_word_size(word_size);
     index = index_for_next_non_empty_list(index);
     if (index != -1) {
@@ -184,10 +188,8 @@ public:
       return p;
 
     } else {
-
       *p_real_word_size = 0;
       return NULL;
-
     }
   }
 

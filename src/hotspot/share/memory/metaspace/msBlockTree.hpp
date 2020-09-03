@@ -42,7 +42,7 @@ namespace metaspace {
 //
 // We store node pointer information in these blocks when storing them. That
 //  imposes a minimum size to the managed memory blocks.
-//  See MetaspaceArene::get_raw_allocation_word_size().
+//  See get_raw_word_size_for_requested_word_size() (msCommon.hpp).
 //
 // We want to manage many memory blocks of the same size, but we want
 //  to prevent the tree from blowing up and degenerating into a list. Therefore
@@ -82,10 +82,10 @@ class BlockTree: public CHeapObj<mtMetaspace> {
     Node* _left;
     Node* _right;
 
-    // blocks with the same size are put in a list with this node as head.
+    // Blocks with the same size are put in a list with this node as head.
     Node* _next;
 
-    // word size of node. Note that size cannot be larger than max metaspace size,
+    // Word size of node. Note that size cannot be larger than max metaspace size,
     // so this could be very well a 32bit value (in case we ever make this a balancing
     // tree and need additional space for weighting information).
     const size_t _word_size;
@@ -109,7 +109,7 @@ private:
 
   MemRangeCounter _counter;
 
-  // given a node n, add it to the list starting at head
+  // Given a node n, add it to the list starting at head
   static void add_to_list(Node* n, Node* head) {
     assert(head->_word_size == n->_word_size, "sanity");
     n->_next = head->_next;
@@ -128,7 +128,7 @@ private:
     return n;
   }
 
-  // Given a node n and a node p, wire up n as left child of p.
+  // Given a node c and a node p, wire up c as left child of p.
   static void set_left_child(Node* p, Node* c) {
     p->_left = c;
     if (c != NULL) {
@@ -137,7 +137,7 @@ private:
     }
   }
 
-  // Given a node n and a node p, wire up n as right child of p.
+  // Given a node c and a node p, wire up c as right child of p.
   static void set_right_child(Node* p, Node* c) {
     p->_right = c;
     if (c != NULL) {
@@ -209,23 +209,26 @@ private:
     return;
   }
 
-  // Given a node n and a node forebear, insert n under forebear
+  // Given a node n and an insertion point, insert n under insertion point.
   void insert(Node* insertion_point, Node* n) {
-    if (n->_word_size == insertion_point->_word_size) {
-      add_to_list(n, insertion_point); // parent stays NULL in this case.
-    } else {
-      if (n->_word_size < insertion_point->_word_size) {
-        if (insertion_point->_left == NULL) {
-          set_left_child(insertion_point, n);
-        } else {
-          insert(insertion_point->_left, n);
-        }
-      } else {
-        assert(n->_word_size > insertion_point->_word_size, "sanity");
+    assert(n->_parent == NULL, "Sanity");
+    for(;;) {
+      if (n->_word_size == insertion_point->_word_size) {
+        add_to_list(n, insertion_point); // parent stays NULL in this case.
+        break;
+      } else if (n->_word_size > insertion_point->_word_size) {
         if (insertion_point->_right == NULL) {
           set_right_child(insertion_point, n);
+          break;
         } else {
-          insert(insertion_point->_right, n);
+          insertion_point = insertion_point->_right;
+        }
+      } else {
+        if (insertion_point->_left == NULL) {
+          set_left_child(insertion_point, n);
+          break;
+        } else {
+          insertion_point = insertion_point->_left;
         }
       }
     }
@@ -241,7 +244,7 @@ private:
       if (n->_word_size >= s) {
         best_match = n;
         if (n->_word_size == s) {
-          break; // perfect match
+          break; // perfect match or max depth reached
         }
         n = n->_left;
       } else {
@@ -311,10 +314,11 @@ private:
       } else {
 
         // If the successors parent is not n, we are deeper in the tree,
-        // the successor has to be the left child of its parent.
+        //  the successor has to be the left child of its parent.
         assert(successor_parent->_left == succ, "sanity");
 
-        // The right child of the successor (if there was one) replaces the successor at its parent's left child.
+        // The right child of the successor (if there was one) replaces
+        //  the successor at its parent's left child.
         set_left_child(successor_parent, succ->_right);
 
         // and the successor replaces n at its parent
@@ -329,14 +333,7 @@ private:
   }
 
 #ifdef ASSERT
-
-  struct veridata;
-  void verify_node_siblings(Node* n, veridata* vd) const;
-  void verify_node(Node* n, size_t left_limit, size_t right_limit, veridata* vd, int lvl) const;
-  void verify_tree() const;
-
   void zap_range(MetaWord* p, size_t word_size);
-
 #endif // ASSERT
 
   static void print_node(outputStream* st, Node* n, int lvl);
@@ -345,8 +342,7 @@ public:
 
   BlockTree() : _root(NULL) {}
 
-  // Add a memory block to the tree. Memory block will be used to store
-  // node information.
+  // Add a memory block to the tree. Its content will be overwritten.
   void add_block(MetaWord* p, size_t word_size) {
     DEBUG_ONLY(zap_range(p, word_size));
     assert(word_size >= MinWordSize, "invalid block size " SIZE_FORMAT, word_size);
@@ -357,11 +353,11 @@ public:
       insert(_root, n);
     }
     _counter.add(word_size);
-
   }
 
-  // Given a word_size, searches and returns a block of at least that size.
-  // Block may be larger. Real block size is returned in *p_real_word_size.
+  // Given a word_size, search and return the smallest block that is equal or
+  //  larger than that size. Upon return, *p_real_word_size contains the actual
+  //  block size.
   MetaWord* remove_block(size_t word_size, size_t* p_real_word_size) {
     assert(word_size >= MinWordSize, "invalid block size " SIZE_FORMAT, word_size);
 
@@ -373,7 +369,7 @@ public:
       if (n->_next != NULL) {
         // If the node is head of a chain of same sized nodes, we leave it alone
         //  and instead remove one of the follow up nodes (which is simpler than
-        //  to remove the chain head node and then having to graft the follow up
+        //  removing the chain head node and then having to graft the follow up
         //  node into its place in the tree).
         n = remove_from_list(n);
       } else {
@@ -400,9 +396,8 @@ public:
 
   bool is_empty() const { return _root == NULL; }
 
-  void print_tree(outputStream* st) const;
-
-  DEBUG_ONLY(void verify() const { verify_tree(); })
+  DEBUG_ONLY(void print_tree(outputStream* st) const;)
+  DEBUG_ONLY(void verify() const;)
 
 };
 

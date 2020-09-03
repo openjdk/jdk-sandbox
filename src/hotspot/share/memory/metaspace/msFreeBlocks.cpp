@@ -31,8 +31,8 @@
 namespace metaspace {
 
 void FreeBlocks::add_block(MetaWord* p, size_t word_size) {
-  assert(word_size >= minimal_word_size, "sanity (" SIZE_FORMAT ")", word_size);
-  if (word_size >= _small_blocks.MaxWordSize) {
+  assert(word_size >= MinWordSize, "sanity (" SIZE_FORMAT ")", word_size);
+  if (word_size > MaxSmallBlocksWordSize) {
     _tree.add_block(p, word_size);
   } else {
     _small_blocks.add_block(p, word_size);
@@ -40,11 +40,11 @@ void FreeBlocks::add_block(MetaWord* p, size_t word_size) {
 }
 
 MetaWord* FreeBlocks::remove_block(size_t requested_word_size) {
-  assert(requested_word_size >= minimal_word_size,
+  assert(requested_word_size >= MinWordSize,
       "requested_word_size too small (" SIZE_FORMAT ")", requested_word_size);
   size_t real_size = 0;
   MetaWord* p = NULL;
-  if (requested_word_size >= _small_blocks.MaxWordSize) {
+  if (requested_word_size > MaxSmallBlocksWordSize) {
     p = _tree.remove_block(requested_word_size, &real_size);
   } else {
     p = _small_blocks.remove_block(requested_word_size, &real_size);
@@ -53,7 +53,7 @@ MetaWord* FreeBlocks::remove_block(size_t requested_word_size) {
     // Blocks which are larger than a certain threshold are split and
     //  the remainder is handed back to the manager.
     const size_t waste = real_size - requested_word_size;
-    if (waste > minimal_word_size) {
+    if (waste > MinWordSize) {
       add_block(p + requested_word_size, waste);
     }
   }

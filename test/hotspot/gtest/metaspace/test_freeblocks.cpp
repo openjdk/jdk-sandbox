@@ -95,7 +95,7 @@ class FreeBlocksTest {
 
   bool allocate() {
 
-    size_t word_size = MAX2(_rgen_allocations.get(), _freeblocks.minimal_word_size);
+    size_t word_size = MAX2(_rgen_allocations.get(), _freeblocks.MinWordSize);
     MetaWord* p = _freeblocks.remove_block(word_size);
     if (p != NULL) {
       _allocated_words.increment_by(word_size);

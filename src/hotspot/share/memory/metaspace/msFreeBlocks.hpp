@@ -67,12 +67,18 @@ class FreeBlocks : public CHeapObj<mtMetaspace> {
   // _small_blocks takes care of small to very small blocks.
   BinList32 _small_blocks;
 
-  // A BST for larger blocks.
+  // A BST for larger blocks, only for blocks which are too large
+  // to fit into _smallblocks.
   BlockTree _tree;
+
+  // Cutoff point: blocks larger than this size are kept in the
+  // tree, blocks smaller than or equal to this size in the bin list.
+  const size_t MaxSmallBlocksWordSize = BinList32::MaxWordSize;
 
 public:
 
-  const static size_t minimal_word_size = BinList32::MinWordSize;
+  // Smallest blocks we can keep in this structure.
+  const static size_t MinWordSize = BinList32::MinWordSize;
 
   // Add a block to the deallocation management.
   void add_block(MetaWord* p, size_t word_size);
