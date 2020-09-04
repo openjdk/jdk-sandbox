@@ -59,7 +59,7 @@
 #endif
 
 JNIEXPORT jbyteArray JNICALL
-NET_SockaddrToUnixAddressString(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
+NET_SockaddrToUnixAddressBytes(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
 
     if (sa->sun_family == AF_UNIX) {
         int namelen;
@@ -197,7 +197,7 @@ Java_sun_nio_ch_UnixDomainNet_accept0(JNIEnv *env, jclass clazz, jobject fdo, jo
 
     setfdval(env, newfdo, newfd);
 
-    usa = NET_SockaddrToUnixAddressString(env, &sa, sa_len);
+    usa = NET_SockaddrToUnixAddressBytes(env, &sa, sa_len);
     CHECK_NULL_RETURN(usa, IOS_THROWN);
 
     (*env)->SetObjectArrayElement(env, usaa, 0, usa);
@@ -215,7 +215,7 @@ Java_sun_nio_ch_UnixDomainNet_localAddress0(JNIEnv *env, jclass clazz, jobject f
         handleSocketError(env, errno);
         return NULL;
     }
-    return NET_SockaddrToUnixAddressString(env, &sa.saun, sa_len);
+    return NET_SockaddrToUnixAddressBytes(env, &sa.saun, sa_len);
 }
 
 JNIEXPORT jbyteArray JNICALL
@@ -228,5 +228,5 @@ Java_sun_nio_ch_UnixDomainNet_remoteAddress0(JNIEnv *env, jclass clazz, jobject 
         handleSocketError(env, errno);
         return NULL;
     }
-    return NET_SockaddrToUnixAddressString(env, &sa.saun, sa_len);
+    return NET_SockaddrToUnixAddressBytes(env, &sa.saun, sa_len);
 }
