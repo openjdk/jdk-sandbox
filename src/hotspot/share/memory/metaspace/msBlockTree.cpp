@@ -26,6 +26,7 @@
 #include "precompiled.hpp"
 
 #include "memory/metaspace/msBlockTree.hpp"
+#include "memory/resourceArea.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/growableArray.hpp"
