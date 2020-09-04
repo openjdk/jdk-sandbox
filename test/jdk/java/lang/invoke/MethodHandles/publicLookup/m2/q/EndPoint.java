@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,25 +20,9 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+package q;
 
-
-/*
- * @test
- *
- * @summary converted from VM Testbase vm/compiler/optimizations/partialpeel/ForWhile.
- * VM Testbase keywords: [jit, quick]
- * VM Testbase readme:
- * DESCRIPTION
- *     This test triggers Parial Peel C2 optimization for inner while loop:
- *     "Partially peel (aka loop rotation) the top portion of a loop
- *     (called the peel section below) by cloning it and placing one copy
- *     just before the new loop head and the other copy at the bottom of
- *     the new loop".
- *     This optimization is applicable for non-counted loops, that contains
- *     test (condition) with inductive vars and jumps outside from loop.
- *
- * @library /vmTestbase
- *          /test/lib
- * @run main/othervm vm.compiler.optimizations.partialpeel.ForWhile
- */
-
+public class EndPoint {
+    public void test(T t) {
+    }
+}
