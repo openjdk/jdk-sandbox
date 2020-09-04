@@ -38,11 +38,16 @@
 #include "sun_nio_ch_Net.h"
 #include "sun_nio_ch_PollArrayWrapper.h"
 
-JNIEXPORT jobject JNICALL
+JNIEXPORT jbyteArray JNICALL
 NET_SockaddrToUnixAddressString(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
 
     if (sa->sun_family == AF_UNIX) {
-        return JNU_NewStringPlatform(env, sa->sun_path);
+        int namelen = strlen(sa->sun_path);
+        jbyteArray name = (*env)->NewByteArray(env, namelen);
+        if (name != NULL) {
+            (*env)->SetByteArrayRegion(env, name, 0, namelen, (jbyte*)sa->sun_path);
+        }
+        return name;
     }
     return NULL;
 }
@@ -150,7 +155,7 @@ Java_sun_nio_ch_UnixDomainNet_connect0(JNIEnv *env, jclass clazz, jobject fdo, j
 }
 
 JNIEXPORT jint JNICALL
-Java_sun_nio_ch_UnixDomainNet_accept(JNIEnv *env, jclass clazz, jobject fdo, jobject newfdo,
+Java_sun_nio_ch_UnixDomainNet_accept0(JNIEnv *env, jclass clazz, jobject fdo, jobject newfdo,
                            jobjectArray usaa)
 {
     jint fd = fdval(env, fdo);
@@ -191,7 +196,7 @@ typedef union {
     struct sockaddr_un  saun;
 } sockaddrall;
 
-JNIEXPORT jobject JNICALL
+JNIEXPORT jbyteArray JNICALL
 Java_sun_nio_ch_UnixDomainNet_localAddress0(JNIEnv *env, jclass clazz, jobject fdo)
 {
     sockaddrall sa;
@@ -204,7 +209,7 @@ Java_sun_nio_ch_UnixDomainNet_localAddress0(JNIEnv *env, jclass clazz, jobject f
     return NET_SockaddrToUnixAddressString(env, &sa.saun, sa_len);
 }
 
-JNIEXPORT jobject JNICALL
+JNIEXPORT jbyteArray JNICALL
 Java_sun_nio_ch_UnixDomainNet_remoteAddress0(JNIEnv *env, jclass clazz, jobject fdo)
 {
     sockaddrall sa;

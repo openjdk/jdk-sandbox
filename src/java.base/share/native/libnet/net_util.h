@@ -157,7 +157,7 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port,
 JNIEXPORT jobject JNICALL
 NET_SockaddrToInetAddress(JNIEnv *env, SOCKETADDRESS *sa, int *port);
 
-JNIEXPORT jstring JNICALL
+JNIEXPORT jbyteArray JNICALL
 NET_SockaddrToUnixAddressString(JNIEnv *env, struct sockaddr_un *sa, socklen_t len);
 
 JNIEXPORT jint JNICALL

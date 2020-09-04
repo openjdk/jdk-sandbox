@@ -85,17 +85,19 @@ class UnixDomainNet {
     }
 
     public static UnixDomainSocketAddress localAddress(FileDescriptor fd) throws IOException {
-        return UnixDomainSocketAddress.of(localAddress0(fd));
+        byte[] bytes = localAddress0(fd);
+        return UnixDomainSocketAddress.of(new String(bytes, UnixDomainHelper.getCharset()));
     }
 
-    static native String localAddress0(FileDescriptor fd)
+    static native byte[] localAddress0(FileDescriptor fd)
         throws IOException;
 
     public static UnixDomainSocketAddress remoteAddress(FileDescriptor fd) throws IOException {
-        return UnixDomainSocketAddress.of(remoteAddress0(fd));
+        byte[] bytes = remoteAddress0(fd);
+        return UnixDomainSocketAddress.of(new String(bytes, UnixDomainHelper.getCharset()));
     }
 
-    static native String remoteAddress0(FileDescriptor fd)
+    static native byte[] remoteAddress0(FileDescriptor fd)
         throws IOException;
 
     static String getRevealedLocalAddressAsString(UnixDomainSocketAddress addr) {
@@ -163,6 +165,16 @@ class UnixDomainNet {
         return connect0(fd, path);
     }
 
+    static int accept(FileDescriptor fd, FileDescriptor newfd, String[] isaa)
+        throws IOException
+    {
+        Object[] barray  = new Object[1];
+        int ret = accept0(fd, newfd, barray);
+        byte[] bytes = (byte[])barray[0];
+        isaa[0] = bytes == null ? null : new String(bytes, UnixDomainHelper.getCharset());
+        return ret;
+    }
+
     private static native int socket0();
 
     private static native boolean socketSupported();
@@ -173,8 +185,7 @@ class UnixDomainNet {
     private static native int connect0(FileDescriptor fd, byte[] path)
         throws IOException;
 
-    static native int accept(FileDescriptor fd, FileDescriptor newfd,
-                                     String[] isaa)
+    static native int accept0(FileDescriptor fd, FileDescriptor newfd, Object[] isaa)
         throws IOException;
 
     static native int maxNameLen0();
