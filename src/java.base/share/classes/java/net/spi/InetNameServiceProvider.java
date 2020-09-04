@@ -26,7 +26,6 @@
 package java.net.spi;
 
 import java.net.InetAddress;
-import java.net.InetLookupPolicy;
 import java.net.UnknownHostException;
 import java.util.stream.Stream;
 
@@ -84,6 +83,16 @@ public abstract class InetNameServiceProvider {
          * @throws IllegalArgumentException if IP address is of illegal length
          */
         String lookupAddress(byte[] addr) throws UnknownHostException;
+
+        /**
+         * Returns a name of the local host.
+         * This name is used to resolve the local host name into {@code InetAddress}.
+         *
+         * @return the local host name
+         * @throws UnknownHostException if the local host name could not be retrieved by the name service
+         * @see InetAddress#getLocalHost()
+         */
+        String getLocalHostName() throws UnknownHostException;
     }
 
     /**
@@ -91,12 +100,10 @@ public abstract class InetNameServiceProvider {
      * this provider.
      *
      * @param defaultNameService The platform default name service which can
-     *                 be used to bootstrap this provider.
-     * @param localHostName the local host name which can be used for a resolution of
-     *                      local host addresses.
+     *                           be used to bootstrap this provider.
      * @return the name service provided by this provider
      */
-    public abstract NameService get(NameService defaultNameService, String localHostName);
+    public abstract NameService get(NameService defaultNameService);
 
     /**
      * Returns the name of this provider

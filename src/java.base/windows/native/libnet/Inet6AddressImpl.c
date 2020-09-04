@@ -62,7 +62,7 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
     int error = 0;
     struct addrinfo hints, *res = NULL, *resNew = NULL, *last = NULL,
         *iterator;
-    enum AddressesOrder addressesOrder = lookupPolicyToAddressesOrder(lookupDescriptor);
+    int addressesOrder = lookupPolicyToAddressesOrder(lookupDescriptor);
 
     initInetAddressIDs(env);
     JNU_CHECK_EXCEPTION_RETURN(env, NULL);
@@ -167,13 +167,13 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
             goto cleanupAndReturn;
         }
 
-        if (addressesOrder == IPV6_FIRST) {
+        if (addressesOrder == IPV6_FIRST_ADDRESSES_ORDER_VALUE) {
             inetIndex = inet6Count;
             inet6Index = 0;
-        } else if (addressesOrder == IPV4_FIRST) {
+        } else if (addressesOrder == IPV4_FIRST_ADDRESSES_ORDER_VALUE) {
             inetIndex = 0;
             inet6Index = inetCount;
-        } else if (addressesOrder == SYSTEM) {
+        } else if (addressesOrder == SYSTEM_ADDRESSES_ORDER_VALUE) {
             inetIndex = inet6Index = originalIndex = 0;
         }
 
@@ -216,7 +216,7 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
                 (*env)->SetObjectArrayElement(env, ret, (inet6Index | originalIndex), iaObj);
                 inet6Index++;
             }
-            if (addressesOrder == SYSTEM) {
+            if (addressesOrder == SYSTEM_ADDRESSES_ORDER_VALUE) {
                 originalIndex++;
                 inetIndex = inet6Index = 0;
             }

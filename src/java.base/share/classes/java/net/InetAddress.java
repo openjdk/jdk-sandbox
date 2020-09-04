@@ -25,6 +25,8 @@
 
 package java.net;
 
+import java.net.spi.InetLookupPolicy;
+import java.net.spi.InetLookupPolicy.AddressFamily;
 import java.net.spi.InetNameServiceProvider;
 import java.net.spi.InetNameServiceProvider.NameService;
 import java.security.AccessController;
@@ -62,9 +64,9 @@ import sun.net.InetAddressCachePolicy;
 import sun.net.util.IPAddressUtil;
 import sun.nio.cs.UTF_8;
 
-import static java.net.InetLookupPolicy.AddressFamily.ANY;
-import static java.net.InetLookupPolicy.AddressFamily.IPV4;
-import static java.net.InetLookupPolicy.AddressFamily.IPV6;
+import static java.net.spi.InetLookupPolicy.AddressFamily.ANY;
+import static java.net.spi.InetLookupPolicy.AddressFamily.IPV4;
+import static java.net.spi.InetLookupPolicy.AddressFamily.IPV6;
 
 /**
  * This class represents an Internet Protocol (IP) address.
@@ -407,16 +409,9 @@ public class InetAddress implements java.io.Serializable {
     }
 
     private static NameService loadNameService() {
-        String localHostName;
-        try {
-            localHostName = impl.getLocalHostName();
-        } catch (UnknownHostException e) {
-            localHostName = "localhost";
-        }
-        final String finalLocalHostName = localHostName;
         return ServiceLoader.load(InetNameServiceProvider.class)
                 .findFirst()
-                .map(nsp -> nsp.get(DEFAULT_INET_NAME_SERVICE, finalLocalHostName))
+                .map(nsp -> nsp.get(DEFAULT_INET_NAME_SERVICE))
                 .orElse(DEFAULT_INET_NAME_SERVICE);
     }
 
@@ -984,6 +979,11 @@ public class InetAddress implements java.io.Serializable {
             }
             return impl.getHostByAddr(addr);
         }
+
+        @Override
+        public String getLocalHostName() throws UnknownHostException {
+            return impl.getLocalHostName();
+        }
     }
 
     /**
@@ -1056,6 +1056,11 @@ public class InetAddress implements java.io.Serializable {
             return host;
         }
 
+        @Override
+        public String getLocalHostName() throws UnknownHostException {
+            return impl.getLocalHostName();
+        }
+
         /**
          * <p>Lookup a host mapping by name. Retrieve the IP addresses
          * associated with a host.
@@ -1078,7 +1083,7 @@ public class InetAddress implements java.io.Serializable {
             List<InetAddress> inetAddresses = new ArrayList<>();
             List<InetAddress> inet4Addresses = new ArrayList<>();
             List<InetAddress> inet6Addresses = new ArrayList<>();
-            InetLookupPolicy.AddressFamily af = lookupPolicy.getAddressesFamily();
+            AddressFamily af = lookupPolicy.getAddressesFamily();
             boolean needIPv4 = af == IPV4 || af == ANY;
             boolean needIPv6 = af == IPV6 || af == ANY;
 
@@ -1565,7 +1570,7 @@ public class InetAddress implements java.io.Serializable {
         UnknownHostException ex = null;
 
         try {
-            addresses = nameService().lookupByName(host, InetLookupPolicy.PLATFORM);
+            addresses = nameService().lookupByName(host, InetLookupPolicyImpl.PLATFORM);
         } catch (UnknownHostException uhe) {
                 if (host.equalsIgnoreCase("localhost")) {
                     addresses = Stream.of(impl.loopbackAddress());
@@ -1673,7 +1678,7 @@ public class InetAddress implements java.io.Serializable {
                 return clh.addr;
             }
 
-            String local = impl.getLocalHostName();
+            String local = nameService().getLocalHostName();
 
             if (security != null) {
                 security.checkConnect(local, -1);

@@ -25,10 +25,12 @@
 package java.net;
 
 import java.io.IOException;
+import java.net.spi.InetLookupPolicy;
 
-import static java.net.InetLookupPolicy.AddressesOrder.IPV6_FIRST;
-import static java.net.InetLookupPolicy.AddressesOrder.SYSTEM;
-import static java.net.InetLookupPolicy.PLATFORM;
+import static java.net.InetLookupPolicyImpl.PLATFORM;
+import static java.net.spi.InetLookupPolicy.AddressesOrder.IPV6_FIRST;
+import static java.net.spi.InetLookupPolicy.AddressesOrder.SYSTEM;
+
 
 /*
  * Package private implementation of InetAddressImpl for dual

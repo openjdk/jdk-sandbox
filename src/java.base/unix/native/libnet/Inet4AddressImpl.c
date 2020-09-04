@@ -39,7 +39,7 @@
 
 #if defined(MACOSX)
 extern jobjectArray lookupIfLocalhost(JNIEnv *env, const char *hostname, jboolean includeV6,
-                                      enum AddressesOrder addressesOrder);
+                                      int addressesOrder);
 #endif
 
 #define SET_NONBLOCKING(fd) {       \
@@ -113,7 +113,7 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
 #if defined(MACOSX)
         // If getaddrinfo fails try getifaddrs, see bug 8170910.
         // SYSTEM is ok here since only INET4 addresses will be returned here
-        ret = lookupIfLocalhost(env, hostname, JNI_FALSE, SYSTEM);
+        ret = lookupIfLocalhost(env, hostname, JNI_FALSE, SYSTEM_ADDRESSES_ORDER_VALUE);
         if (ret != NULL || (*env)->ExceptionCheck(env)) {
             goto cleanupAndReturn;
         }

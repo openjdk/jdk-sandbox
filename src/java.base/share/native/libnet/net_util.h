@@ -40,10 +40,13 @@
 #define NET_WAIT_WRITE   0x02
 #define NET_WAIT_CONNECT 0x04
 
-/************************************************************************
- * Misc types
- */
-enum AddressesOrder {SYSTEM, IPV4_FIRST, IPV6_FIRST};
+// Constants below should match values in InetAddressImpl class
+#define ANY_ADDRESS_FAMILY_VALUE         0x01
+#define IPV4_ADDRESS_FAMILY_VALUE        0x02
+#define IPV6_ADDRESS_FAMILY_VALUE        0x04
+#define SYSTEM_ADDRESSES_ORDER_VALUE     0x08
+#define IPV4_FIRST_ADDRESSES_ORDER_VALUE 0x10
+#define IPV6_FIRST_ADDRESSES_ORDER_VALUE 0x20
 
 /************************************************************************
  * Cached field IDs
@@ -204,7 +207,7 @@ unsigned short in_cksum(unsigned short *addr, int len);
 
 int lookupPolicyToAddressFamily(int lookupPolicy);
 
-enum AddressesOrder lookupPolicyToAddressesOrder(int lookupPolicy);
+int lookupPolicyToAddressesOrder(int lookupPolicy);
 
 jint NET_Wait(JNIEnv *env, jint fd, jint flags, jint timeout);
 

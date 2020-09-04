@@ -24,7 +24,10 @@
  */
 
 package java.net;
+
 import java.io.IOException;
+import java.net.spi.InetLookupPolicy;
+
 /*
  * Package private interface to "implementation" used by
  * {@link InetAddress}.
@@ -48,13 +51,28 @@ interface InetAddressImpl {
 
     /**
      * Encodes the lookup policy to an integer descriptor.
-     * The address family type is encoded in 0-7 bits of the descriptor
-     * The addresses order is encoded in 8-15 bits of the descriptor
      * @param lookupPolicy addresses lookup policy
      * @return integer value that contains the encoded lookup policy
      */
     default int policyToNativeDescriptor(InetLookupPolicy lookupPolicy) {
-        return lookupPolicy.getAddressesFamily().ordinal() |
-               lookupPolicy.getAddressesOrder().ordinal() << 8;
+        int value = 0;
+        value |= switch (lookupPolicy.getAddressesFamily()) {
+            case IPV4 -> IPV4_ADDRESS_FAMILY_VALUE;
+            case IPV6 -> IPV6_ADDRESS_FAMILY_VALUE;
+            case ANY -> ANY_ADDRESS_FAMILY_VALUE;
+        };
+
+        return value | switch (lookupPolicy.getAddressesOrder()) {
+            case SYSTEM -> SYSTEM_ADDRESSES_ORDER_VALUE;
+            case IPV4_FIRST -> IPV4_FIRST_ADDRESSES_ORDER_VALUE;
+            case IPV6_FIRST -> IPV6_FIRST_ADDRESSES_ORDER_VALUE;
+        };
     }
+
+    int ANY_ADDRESS_FAMILY_VALUE = 0x01;
+    int IPV4_ADDRESS_FAMILY_VALUE = 0x02;
+    int IPV6_ADDRESS_FAMILY_VALUE = 0x04;
+    int SYSTEM_ADDRESSES_ORDER_VALUE = 0x08;
+    int IPV4_FIRST_ADDRESSES_ORDER_VALUE = 0x10;
+    int IPV6_FIRST_ADDRESSES_ORDER_VALUE = 0x20;
 }

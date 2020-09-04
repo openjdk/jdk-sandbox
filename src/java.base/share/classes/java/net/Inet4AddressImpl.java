@@ -24,6 +24,7 @@
  */
 package java.net;
 import java.io.IOException;
+import java.net.spi.InetLookupPolicy;
 
 /*
  * Package private implementation of InetAddressImpl for IPv4.

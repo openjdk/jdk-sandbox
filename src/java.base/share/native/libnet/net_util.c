@@ -316,19 +316,21 @@ in_cksum(unsigned short *addr, int len) {
 }
 
 int lookupPolicyToAddressFamily(int lookupPolicy) {
-    int type = lookupPolicy & 0xFF;
-    switch (type) {
-        case 1: // IPv4
-            return AF_INET;
-            break;
-        case 2: // IPv6
-            return AF_INET6;
-        default: // ANY, 0 and other values
-            return AF_UNSPEC;
+    if (lookupPolicy & IPV4_ADDRESS_FAMILY_VALUE) {
+        return AF_INET;
     }
+    if (lookupPolicy & IPV6_ADDRESS_FAMILY_VALUE) {
+        return AF_INET6;
+    }
+    return AF_UNSPEC;
 }
 
-enum AddressesOrder lookupPolicyToAddressesOrder(int lookupPolicy) {
-    enum AddressesOrder ao = (lookupPolicy >> 8) & 0xFF;
-    return ao;
+int lookupPolicyToAddressesOrder(int lookupPolicy) {
+    if (lookupPolicy & IPV4_FIRST_ADDRESSES_ORDER_VALUE) {
+        return IPV4_FIRST_ADDRESSES_ORDER_VALUE;
+    }
+    if (lookupPolicy & IPV6_FIRST_ADDRESSES_ORDER_VALUE) {
+        return IPV6_FIRST_ADDRESSES_ORDER_VALUE;
+    }
+    return SYSTEM_ADDRESSES_ORDER_VALUE;
 }
