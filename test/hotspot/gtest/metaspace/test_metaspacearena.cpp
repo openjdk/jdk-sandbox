@@ -51,6 +51,11 @@ using metaspace::SizeAtomicCounter;
 using metaspace::Settings;
 using metaspace::ArenaStats;
 
+// See metaspaceArena.cpp : needed for predicting commit sizes.
+namespace metaspace {
+  extern size_t get_raw_word_size_for_requested_word_size(size_t net_word_size);
+}
+
 class MetaspaceArenaTestHelper {
 
   MetaspaceGtestContext& _context;
@@ -277,7 +282,7 @@ static void test_chunk_enlargment_simple(Metaspace::MetaspaceType spacetype, boo
          metaspace::InternalStats::num_chunks_enlarged() == n1) {
     size_t s = IntRange(32, 128).random_value();
     helper.allocate_from_arena_with_tests_expect_success(s);
-    allocated += s;
+    allocated += metaspace::get_raw_word_size_for_requested_word_size(s);
   }
 
   EXPECT_GT(metaspace::InternalStats::num_chunks_enlarged(), n1);
@@ -334,7 +339,7 @@ TEST_VM(metaspace, MetaspaceArena_test_enlarge_in_place_2) {
   while (allocated <= MAX_CHUNK_WORD_SIZE) {
     size_t s = IntRange(32, 128).random_value();
     helper.allocate_from_arena_with_tests_expect_success(s);
-    allocated += s;
+    allocated += metaspace::get_raw_word_size_for_requested_word_size(s);
     if (allocated <= MAX_CHUNK_WORD_SIZE) {
       // Chunk should have been enlarged in place
       ASSERT_EQ(1, helper.get_number_of_chunks());
@@ -591,7 +596,7 @@ static void test_controlled_growth(Metaspace::MetaspaceType type, bool is_class,
     }
 
     smhelper.allocate_from_arena_with_tests_expect_success(alloc_words);
-    words_allocated += alloc_words;
+    words_allocated += metaspace::get_raw_word_size_for_requested_word_size(alloc_words);
     num_allocated++;
 
     size_t used2 = 0, committed2 = 0, capacity2 = 0;

@@ -68,6 +68,8 @@ TEST_VM(metaspace, misc_max_alloc_size)   {
 
 TEST_VM(metaspace, chunklevel_utils)   {
 
+  // These tests seem to be really basic, but it is amazing what one can
+  // break accidentally...
   LOG(SIZE_FORMAT, MAX_CHUNK_BYTE_SIZE);
   LOG(SIZE_FORMAT, MIN_CHUNK_BYTE_SIZE);
   LOG(SIZE_FORMAT, MIN_CHUNK_WORD_SIZE);
@@ -103,9 +105,9 @@ TEST_VM(metaspace, chunklevel_utils)   {
   EXPECT_EQ(level_fitting_word_size((MAX_CHUNK_WORD_SIZE / 2) + 1), ROOT_CHUNK_LEVEL);
   EXPECT_EQ(level_fitting_word_size(MAX_CHUNK_WORD_SIZE / 2), ROOT_CHUNK_LEVEL + 1);
 
-  EXPECT_EQ(level_fitting_word_size(8 * K), CHUNK_LEVEL_64K);
-  EXPECT_EQ(level_fitting_word_size(8 * K + 13), CHUNK_LEVEL_64K - 1);
-  EXPECT_EQ(level_fitting_word_size(8 * K - 13), CHUNK_LEVEL_64K);
+  EXPECT_EQ(level_fitting_word_size(8 * K), LP64_ONLY(CHUNK_LEVEL_64K) NOT_LP64(CHUNK_LEVEL_32K));
+  EXPECT_EQ(level_fitting_word_size(8 * K + 13), LP64_ONLY(CHUNK_LEVEL_64K) NOT_LP64(CHUNK_LEVEL_32K) - 1);
+  EXPECT_EQ(level_fitting_word_size(8 * K - 13), LP64_ONLY(CHUNK_LEVEL_64K) NOT_LP64(CHUNK_LEVEL_32K));
 
 }
 
