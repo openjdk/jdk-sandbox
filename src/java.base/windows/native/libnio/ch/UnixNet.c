@@ -42,7 +42,7 @@ JNIEXPORT jbyteArray JNICALL
 NET_SockaddrToUnixAddressString(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
 
     if (sa->sun_family == AF_UNIX) {
-        int namelen = strlen(sa->sun_path);
+        int namelen = (int)strlen(sa->sun_path);
         jbyteArray name = (*env)->NewByteArray(env, namelen);
         if (name != NULL) {
             (*env)->SetByteArrayRegion(env, name, 0, namelen, (jbyte*)sa->sun_path);
