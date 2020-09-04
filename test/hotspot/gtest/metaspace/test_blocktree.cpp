@@ -27,8 +27,9 @@
 
 #include "memory/metaspace/msBlockTree.hpp"
 #include "memory/metaspace/msCounter.hpp"
+#include "memory/resourceArea.hpp"
 
-#define LOG_PLEASE
+// #define LOG_PLEASE
 #include "metaspaceGtestCommon.hpp"
 
 using metaspace::BlockTree;

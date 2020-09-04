@@ -97,6 +97,9 @@ class BlockTree: public CHeapObj<mtMetaspace> {
 
   };
 
+  // Needed for verify() and print_tree()
+  struct walkinfo;
+
 public:
 
   // Minimum word size a block has to be to be added to this structure (note ceil division).
@@ -335,8 +338,6 @@ private:
 #ifdef ASSERT
   void zap_range(MetaWord* p, size_t word_size);
 #endif // ASSERT
-
-  static void print_node(outputStream* st, Node* n, int lvl);
 
 public:
 
