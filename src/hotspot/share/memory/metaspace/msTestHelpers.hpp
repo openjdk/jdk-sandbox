@@ -77,6 +77,10 @@ class MetaspaceTestContext : public CHeapObj<mtInternal> {
   CommitLimiter _commit_limiter;
   SizeAtomicCounter _used_words_counter;
 
+  // For non-expandable contexts we keep track of the space
+  // and delete it at destruction time.
+  ReservedSpace _rs;
+
 public:
 
   // Note: limit == 0 means unlimited

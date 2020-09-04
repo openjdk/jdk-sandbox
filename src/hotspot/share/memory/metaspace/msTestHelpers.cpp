@@ -61,15 +61,16 @@ MetaspaceTestContext::MetaspaceTestContext(const char* name, size_t commit_limit
   : _name(name), _reserve_limit(reserve_limit), _commit_limit(commit_limit),
     _context(NULL),
     _commit_limiter(commit_limit == 0 ? max_uintx : commit_limit), // commit_limit == 0 -> no limit
-    _used_words_counter()
+    _used_words_counter(),
+    _rs()
 {
   assert(is_aligned(reserve_limit, Metaspace::reserve_alignment_words()), "reserve_limit (" SIZE_FORMAT ") "
                     "not aligned to metaspace reserve alignment (" SIZE_FORMAT ")",
                     reserve_limit, Metaspace::reserve_alignment_words());
   if (reserve_limit > 0) {
     // have reserve limit -> non-expandable context
-    ReservedSpace rs(reserve_limit * BytesPerWord, Metaspace::reserve_alignment(), false);
-    _context = MetaspaceContext::create_nonexpandable_context(name, rs, &_commit_limiter);
+    _rs = ReservedSpace(reserve_limit * BytesPerWord, Metaspace::reserve_alignment(), false);
+    _context = MetaspaceContext::create_nonexpandable_context(name, _rs, &_commit_limiter);
   } else {
     // no reserve limit -> expandable vslist
     _context = MetaspaceContext::create_expandable_context(name, &_commit_limiter);
@@ -81,6 +82,9 @@ MetaspaceTestContext::~MetaspaceTestContext() {
   DEBUG_ONLY(verify();)
   MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
   delete _context;
+  if (_rs.is_reserved()) {
+    _rs.release();
+  }
 }
 
 // Create an arena, feeding off this area.
