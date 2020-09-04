@@ -65,8 +65,8 @@ Java_sun_nio_ch_InheritedChannel_peerAddressInet(JNIEnv *env, jclass cla, jint f
     return remote_ia;
 }
 
-JNIEXPORT jstring JNICALL
-Java_sun_nio_ch_InheritedChannel_peerAddressUnix(JNIEnv *env, jclass cla, jint fd)
+JNIEXPORT jbyteArray JNICALL
+Java_sun_nio_ch_InheritedChannel_peerAddressUnix0(JNIEnv *env, jclass cla, jint fd)
 {
     struct sockaddr_un sa;
     socklen_t len = sizeof(struct sockaddr_un);

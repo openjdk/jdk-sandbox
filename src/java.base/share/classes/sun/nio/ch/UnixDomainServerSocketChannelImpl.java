@@ -82,7 +82,7 @@ public class UnixDomainServerSocketChannelImpl
     }
 
     SocketAddress implLocalAddress(FileDescriptor fd) throws IOException {
-        return Net.localAddress(fd);
+        return UnixDomainNet.localAddress(fd);
     }
 
     @Override

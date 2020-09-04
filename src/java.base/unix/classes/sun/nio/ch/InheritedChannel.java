@@ -281,6 +281,10 @@ class InheritedChannel {
         return channel;
     }
 
+    private static String peerAddressUnix(int fd) throws IOException {
+        byte[] bytes = peerAddressUnix0(fd);
+        return new String(bytes);
+    }
 
     // -- Native methods --
 
@@ -292,7 +296,7 @@ class InheritedChannel {
     private static native int soType0(int fd);
     private static native int addressFamily(int fd);
     private static native InetAddress peerAddressInet(int fd);
-    private static native String peerAddressUnix(int fd);
+    private static native byte[] peerAddressUnix0(int fd);
     private static native int peerPort0(int fd);
 
     // return true if socket is connected to a peer
