@@ -34,6 +34,9 @@
 
 namespace metaspace {
 
+// Needed to prevent linker errors on MacOS and AIX
+const size_t BlockTree::MinWordSize;
+
 #ifdef ASSERT
 
 // Tree verification
