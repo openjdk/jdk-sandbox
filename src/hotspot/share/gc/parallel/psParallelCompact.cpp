@@ -73,6 +73,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/java.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/vmThread.hpp"
 #include "services/memTracker.hpp"
@@ -1042,7 +1043,7 @@ void PSParallelCompact::post_compact()
 
   // Update heap occupancy information which is used as input to the soft ref
   // clearing policy at the next gc.
-  Universe::update_heap_info_at_gc();
+  Universe::heap()->update_capacity_and_used_at_gc();
 
   bool young_gen_empty = eden_empty && from_space->is_empty() &&
     to_space->is_empty();
@@ -1056,7 +1057,7 @@ void PSParallelCompact::post_compact()
   }
 
   // Delete metaspaces for unloaded class loaders and clean up loader_data graph
-  ClassLoaderDataGraph::purge();
+  ClassLoaderDataGraph::purge(/*at_safepoint*/true);
   MetaspaceUtils::verify_metrics();
 
   heap->prune_scavengable_nmethods();
@@ -1609,6 +1610,7 @@ void PSParallelCompact::summary_phase(ParCompactionManager* cm,
 {
   GCTraceTime(Info, gc, phases) tm("Summary Phase", &_gc_timer);
 
+#ifdef ASSERT
   log_develop_debug(gc, marking)(
       "add_obj_count=" SIZE_FORMAT " "
       "add_obj_bytes=" SIZE_FORMAT,
@@ -1619,6 +1621,7 @@ void PSParallelCompact::summary_phase(ParCompactionManager* cm,
       "mark_bitmap_bytes=" SIZE_FORMAT,
       mark_bitmap_count,
       mark_bitmap_size * HeapWordSize);
+#endif // ASSERT
 
   // Quick summarization of each space into itself, to see how much is live.
   summarize_spaces_quick();

@@ -32,7 +32,7 @@
 #include "logging/logConfiguration.hpp"
 #include "memory/metaspace.hpp"
 #include "memory/metaspaceShared.hpp"
-#include "memory/resourceArea.hpp"
+#include "memory/resourceArea.inline.hpp"
 #include "memory/universe.hpp"
 #include "oops/compressedOops.hpp"
 #include "prims/whitebox.hpp"
@@ -144,8 +144,7 @@ static void print_bug_submit_message(outputStream *out, Thread *thread) {
   // provider of that code.
   if (thread && thread->is_Java_thread() &&
       !thread->is_hidden_from_external_view()) {
-    JavaThread* jt = (JavaThread*)thread;
-    if (jt->thread_state() == _thread_in_native) {
+    if (thread->as_Java_thread()->thread_state() == _thread_in_native) {
       out->print_cr("# The crash happened outside the Java Virtual Machine in native code.\n# See problematic frame for where to report the bug.");
     }
   }
@@ -259,7 +258,7 @@ void VMError::print_native_stack(outputStream* st, frame fr, Thread* t, char* bu
           break;
         }
         if (fr.is_java_frame() || fr.is_native_frame() || fr.is_runtime_frame()) {
-          RegisterMap map((JavaThread*)t, false); // No update
+          RegisterMap map(t->as_Java_thread(), false); // No update
           fr = fr.sender(&map);
         } else {
           // is_first_C_frame() does only simple checks for frame pointer,
@@ -743,7 +742,7 @@ void VMError::report(outputStream* st, bool _verbose) {
   STEP("printing Java stack")
 
      if (_verbose && _thread && _thread->is_Java_thread()) {
-       print_stack_trace(st, (JavaThread*)_thread, buf, sizeof(buf));
+       print_stack_trace(st, _thread->as_Java_thread(), buf, sizeof(buf));
      }
 
   STEP("printing target Java thread stack")
@@ -1866,6 +1865,15 @@ void VMError::controlled_crash(int how) {
         ThreadsListHandle tlh2;
         fatal("Force crash with a nested ThreadsListHandle.");
       }
+    }
+    case 18: {
+      // Check for assert when allocating from resource area without a
+      // ResourceMark.  There must not be a ResourceMark on the
+      // current stack when invoking this test case.
+      ResourceArea* area = Thread::current()->resource_area();
+      assert(area->nesting() == 0, "unexpected ResourceMark");
+      area->allocate_bytes(100);
+      break;
     }
 
     default: tty->print_cr("ERROR: %d: unexpected test_num value.", how);

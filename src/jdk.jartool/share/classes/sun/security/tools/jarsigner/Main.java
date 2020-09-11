@@ -110,7 +110,7 @@ public class Main {
     private static final Set<CryptoPrimitive> SIG_PRIMITIVE_SET = Collections
             .unmodifiableSet(EnumSet.of(CryptoPrimitive.SIGNATURE));
 
-    private static boolean permsDetected;
+    private static boolean extraAttrsDetected;
 
     static final String VERSION = "1.0";
 
@@ -782,8 +782,8 @@ public class Main {
                     JarEntry je = e.nextElement();
                     String name = je.getName();
 
-                    if (!permsDetected && JUZFA.getPosixPerms(je) != -1) {
-                        permsDetected = true;
+                    if (!extraAttrsDetected && JUZFA.getExtraAttributes(je) != -1) {
+                        extraAttrsDetected = true;
                     }
                     hasSignature = hasSignature
                             || SignatureFileVerifier.isBlockOrSF(name);
@@ -1247,8 +1247,8 @@ public class Main {
             }
         }
 
-        if (permsDetected) {
-            warnings.add(rb.getString("posix.attributes.detected"));
+        if (extraAttrsDetected) {
+            warnings.add(rb.getString("extra.attributes.detected"));
         }
 
         if ((strict) && (!errors.isEmpty())) {
@@ -1431,7 +1431,7 @@ public class Main {
             x509Cert = (X509Certificate) c;
             certStr.append(tab).append(x509Cert.getType())
                 .append(rb.getString("COMMA"))
-                .append(x509Cert.getSubjectDN().getName());
+                .append(x509Cert.getSubjectX500Principal().toString());
         } else {
             certStr.append(tab).append(c.getType());
         }
@@ -1777,8 +1777,8 @@ public class Main {
         String failedMessage = null;
 
         try {
-            Event.setReportListener(Event.ReporterCategory.POSIXPERMS,
-                    (t, o) -> permsDetected = true);
+            Event.setReportListener(Event.ReporterCategory.ZIPFILEATTRS,
+                    (t, o) -> extraAttrsDetected = true);
             builder.build().sign(zipFile, fos);
         } catch (JarSignerException e) {
             failedCause = e.getCause();
@@ -1813,7 +1813,7 @@ public class Main {
                 fos.close();
             }
 
-            Event.clearReportListener(Event.ReporterCategory.POSIXPERMS);
+            Event.clearReportListener(Event.ReporterCategory.ZIPFILEATTRS);
         }
 
         if (failedCause != null) {
@@ -2055,7 +2055,7 @@ public class Main {
                         // Only add TrustedCertificateEntry and self-signed
                         // PrivateKeyEntry
                         if (store.isCertificateEntry(a) ||
-                                c.getSubjectDN().equals(c.getIssuerDN())) {
+                                c.getSubjectX500Principal().equals(c.getIssuerX500Principal())) {
                             trustedCerts.add(c);
                         }
                     } catch (Exception e2) {

@@ -157,6 +157,10 @@ ArchiveBuilder::~ArchiveBuilder() {
 
   clean_up_src_obj_table();
 
+  for (int i = 0; i < _symbols->length(); i++) {
+    _symbols->at(i)->decrement_refcount();
+  }
+
   delete _klasses;
   delete _symbols;
   delete _special_refs;
@@ -197,7 +201,10 @@ bool ArchiveBuilder::gather_klass_and_symbol(MetaspaceClosure::Ref* ref, bool re
     }
     _estimated_metsapceobj_bytes += BytesPerWord; // See RunTimeSharedClassInfo::get_for()
   } else if (ref->msotype() == MetaspaceObj::SymbolType) {
-    _symbols->append((Symbol*)ref->obj());
+    // Make sure the symbol won't be GC'ed while we are dumping the archive.
+    Symbol* sym = (Symbol*)ref->obj();
+    sym->increment_refcount();
+    _symbols->append(sym);
   }
 
   int bytes = ref->size() * BytesPerWord;
@@ -274,9 +281,13 @@ void ArchiveBuilder::sort_klasses() {
 void ArchiveBuilder::iterate_sorted_roots(MetaspaceClosure* it, bool is_relocating_pointers) {
   int i;
 
-  int num_symbols = _symbols->length();
-  for (i = 0; i < num_symbols; i++) {
-    it->push(&_symbols->at(i));
+  if (!is_relocating_pointers) {
+    // Don't relocate _symbol, so we can safely call decrement_refcount on the
+    // original symbols.
+    int num_symbols = _symbols->length();
+    for (i = 0; i < num_symbols; i++) {
+      it->push(&_symbols->at(i));
+    }
   }
 
   int num_klasses = _klasses->length();
@@ -322,14 +333,12 @@ bool ArchiveBuilder::gather_one_source_obj(MetaspaceClosure::Ref* enclosing_ref,
 
   FollowMode follow_mode = get_follow_mode(ref);
   SourceObjInfo src_info(ref, read_only, follow_mode);
-  bool created = false;
-  SourceObjInfo* p = _src_obj_table.lookup(src_obj);
-  if (p == NULL) {
-    p = _src_obj_table.add(src_obj, src_info);
+  bool created;
+  SourceObjInfo* p = _src_obj_table.add_if_absent(src_obj, src_info, &created);
+  if (created) {
     if (_src_obj_table.maybe_grow(MAX_TABLE_SIZE)) {
       log_info(cds, hashtables)("Expanded _src_obj_table table to %d", _src_obj_table.table_size());
     }
-    created = true;
   }
 
   assert(p->read_only() == src_info.read_only(), "must be");

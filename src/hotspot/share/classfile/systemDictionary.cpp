@@ -31,6 +31,7 @@
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoaderDataGraph.inline.hpp"
 #include "classfile/classLoaderExt.hpp"
+#include "classfile/classLoadInfo.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/klassFactory.hpp"
@@ -110,46 +111,6 @@ OopHandle   SystemDictionary::_java_platform_loader;
 // Default ProtectionDomainCacheSize value
 
 const int defaultProtectionDomainCacheSize = 1009;
-
-ClassLoadInfo::ClassLoadInfo() {
-  _protection_domain = Handle();
-  _unsafe_anonymous_host = NULL;
-  _cp_patches = NULL;
-  _class_hidden_info._dynamic_nest_host = NULL;
-  _class_hidden_info._class_data = Handle();
-  _is_hidden = false;
-  _is_strong_hidden = false;
-  _can_access_vm_annotations = false;
-}
-
-ClassLoadInfo::ClassLoadInfo(Handle protection_domain) {
-  _protection_domain = protection_domain;
-  _unsafe_anonymous_host = NULL;
-  _cp_patches = NULL;
-  _class_hidden_info._dynamic_nest_host = NULL;
-  _class_hidden_info._class_data = Handle();
-  _is_hidden = false;
-  _is_strong_hidden = false;
-  _can_access_vm_annotations = false;
-}
-
-ClassLoadInfo::ClassLoadInfo(Handle protection_domain,
-                             const InstanceKlass* unsafe_anonymous_host,
-                             GrowableArray<Handle>* cp_patches,
-                             InstanceKlass* dynamic_nest_host,
-                             Handle class_data,
-                             bool is_hidden,
-                             bool is_strong_hidden,
-                             bool can_access_vm_annotations) {
-  _protection_domain = protection_domain;
-  _unsafe_anonymous_host = unsafe_anonymous_host;
-  _cp_patches = cp_patches;
-  _class_hidden_info._dynamic_nest_host = dynamic_nest_host;
-  _class_hidden_info._class_data = class_data;
-  _is_hidden = is_hidden;
-  _is_strong_hidden = is_strong_hidden;
-  _can_access_vm_annotations = can_access_vm_annotations;
-}
 
 // ----------------------------------------------------------------------------
 // Java-level SystemLoader and PlatformLoader
@@ -604,7 +565,7 @@ void SystemDictionary::double_lock_wait(Handle lockObject, TRAPS) {
   assert_lock_strong(SystemDictionary_lock);
 
   bool calledholdinglock
-      = ObjectSynchronizer::current_thread_holds_lock((JavaThread*)THREAD, lockObject);
+      = ObjectSynchronizer::current_thread_holds_lock(THREAD->as_Java_thread(), lockObject);
   assert(calledholdinglock,"must hold lock for notify");
   assert((lockObject() != _system_loader_lock_obj.resolve() &&
          !is_parallelCapable(lockObject)), "unexpected double_lock_wait");
@@ -937,9 +898,7 @@ InstanceKlass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
           }
 
           if (JvmtiExport::should_post_class_load()) {
-            Thread *thread = THREAD;
-            assert(thread->is_Java_thread(), "thread->is_Java_thread()");
-            JvmtiExport::post_class_load((JavaThread *) thread, k);
+            JvmtiExport::post_class_load(THREAD->as_Java_thread(), k);
           }
         }
       }
@@ -1123,8 +1082,7 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
 
     // notify jvmti
     if (JvmtiExport::should_post_class_load()) {
-        assert(THREAD->is_Java_thread(), "thread->is_Java_thread()");
-        JvmtiExport::post_class_load((JavaThread *) THREAD, k);
+      JvmtiExport::post_class_load(THREAD->as_Java_thread(), k);
     }
     if (class_load_start_event.should_commit()) {
       post_class_load_event(&class_load_start_event, k, loader_data);
@@ -1470,15 +1428,6 @@ void SystemDictionary::load_shared_class_misc(InstanceKlass* ik, ClassLoaderData
     ik->set_classpath_index(path_index, THREAD);
   }
 
-  if (DumpLoadedClassList != NULL && classlist_file->is_open()) {
-    // Only dump the classes that can be stored into CDS archive
-    if (SystemDictionaryShared::is_sharing_possible(loader_data)) {
-      ResourceMark rm(THREAD);
-      classlist_file->print_cr("%s", ik->name()->as_C_string());
-      classlist_file->flush();
-    }
-  }
-
   // notify a class loaded from shared object
   ClassLoadingService::notify_class_loaded(ik, true /* shared class */);
 
@@ -1631,8 +1580,7 @@ InstanceKlass* SystemDictionary::load_instance_class(Symbol* class_name, Handle 
     // Use user specified class loader to load class. Call loadClass operation on class_loader.
     ResourceMark rm(THREAD);
 
-    assert(THREAD->is_Java_thread(), "must be a JavaThread");
-    JavaThread* jt = (JavaThread*) THREAD;
+    JavaThread* jt = THREAD->as_Java_thread();
 
     PerfClassTraceTime vmtimer(ClassLoader::perf_app_classload_time(),
                                ClassLoader::perf_app_classload_selftime(),
@@ -1695,15 +1643,15 @@ void SystemDictionary::define_instance_class(InstanceKlass* k, TRAPS) {
   ClassLoaderData* loader_data = k->class_loader_data();
   Handle class_loader_h(THREAD, loader_data->class_loader());
 
- // for bootstrap and other parallel classloaders don't acquire lock,
- // use placeholder token
- // If a parallelCapable class loader calls define_instance_class instead of
- // find_or_define_instance_class to get here, we have a timing
- // hole with systemDictionary updates and check_constraints
- if (!class_loader_h.is_null() && !is_parallelCapable(class_loader_h)) {
-    assert(ObjectSynchronizer::current_thread_holds_lock((JavaThread*)THREAD,
-         compute_loader_lock_object(class_loader_h, THREAD)),
-         "define called without lock");
+  // for bootstrap and other parallel classloaders don't acquire lock,
+  // use placeholder token
+  // If a parallelCapable class loader calls define_instance_class instead of
+  // find_or_define_instance_class to get here, we have a timing
+  // hole with systemDictionary updates and check_constraints
+  if (!class_loader_h.is_null() && !is_parallelCapable(class_loader_h)) {
+    assert(ObjectSynchronizer::current_thread_holds_lock(THREAD->as_Java_thread(),
+           compute_loader_lock_object(class_loader_h, THREAD)),
+           "define called without lock");
   }
 
   // Check class-loading constraints. Throw exception if violation is detected.
@@ -1753,9 +1701,7 @@ void SystemDictionary::define_instance_class(InstanceKlass* k, TRAPS) {
 
   // notify jvmti
   if (JvmtiExport::should_post_class_load()) {
-      assert(THREAD->is_Java_thread(), "thread->is_Java_thread()");
-      JvmtiExport::post_class_load((JavaThread *) THREAD, k);
-
+    JvmtiExport::post_class_load(THREAD->as_Java_thread(), k);
   }
   post_class_define_event(k, loader_data);
 }
@@ -1880,7 +1826,7 @@ void SystemDictionary::check_loader_lock_contention(Handle loader_lock, TRAPS) {
 
   assert(!loader_lock.is_null(), "NULL lock object");
 
-  if (ObjectSynchronizer::query_lock_ownership((JavaThread*)THREAD, loader_lock)
+  if (ObjectSynchronizer::query_lock_ownership(THREAD->as_Java_thread(), loader_lock)
       == ObjectSynchronizer::owner_other) {
     // contention will likely happen, so increment the corresponding
     // contention counter.
@@ -2056,6 +2002,10 @@ bool SystemDictionary::is_well_known_klass(Symbol* class_name) {
   }
   return false;
 }
+
+bool SystemDictionary::is_well_known_klass(Klass* k) {
+  return is_well_known_klass(k->name());
+}
 #endif
 
 bool SystemDictionary::resolve_wk_klass(WKID id, TRAPS) {
@@ -2183,6 +2133,14 @@ void SystemDictionary::resolve_well_known_classes(TRAPS) {
   _box_klasses[T_LONG]    = WK_KLASS(Long_klass);
   //_box_klasses[T_OBJECT]  = WK_KLASS(object_klass);
   //_box_klasses[T_ARRAY]   = WK_KLASS(object_klass);
+
+  if (DiagnoseSyncOnPrimitiveWrappers != 0) {
+    for (int i = T_BOOLEAN; i < T_LONG + 1; i++) {
+      assert(_box_klasses[i] != NULL, "NULL box class");
+      _box_klasses[i]->set_is_box();
+      _box_klasses[i]->set_prototype_header(markWord::prototype());
+    }
+  }
 
 #ifdef ASSERT
   if (UseSharedSpaces) {
@@ -2866,7 +2824,7 @@ Handle SystemDictionary::link_method_handle_constant(Klass* caller,
     // There's special logic on JDK side to handle them
     // (see MethodHandles.linkMethodHandleConstant() and MethodHandles.findVirtualForMH()).
   } else {
-    MethodHandles::resolve_MemberName(mname, caller, /*speculative_resolve*/false, CHECK_(empty));
+    MethodHandles::resolve_MemberName(mname, caller, 0, false /*speculative_resolve*/, CHECK_(empty));
   }
 
   // After method/field resolution succeeded, it's safe to resolve MH signature as well.
@@ -2950,6 +2908,19 @@ void SystemDictionary::invoke_bootstrap_method(BootstrapInfo& bootstrap_specifie
 
 ProtectionDomainCacheEntry* SystemDictionary::cache_get(Handle protection_domain) {
   return _pd_cache_table->get(protection_domain);
+}
+
+ClassLoaderData* SystemDictionary::class_loader_data(Handle class_loader) {
+  return ClassLoaderData::class_loader_data(class_loader());
+}
+
+bool SystemDictionary::is_wk_klass_loaded(InstanceKlass* klass) {
+  return !(klass == NULL || !klass->is_loaded());
+}
+
+bool SystemDictionary::is_nonpublic_Object_method(Method* m) {
+  assert(m != NULL, "Unexpected NULL Method*");
+  return !m->is_public() && m->method_holder() == SystemDictionary::Object_klass();
 }
 
 // ----------------------------------------------------------------------------

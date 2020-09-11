@@ -2740,9 +2740,6 @@ encode %{
 
 frame
 %{
-  // What direction does stack grow in (assumed to be same for C & Java)
-  stack_direction(TOWARDS_LOW);
-
   // These three registers define part of the calling convention
   // between compiled code and the interpreter.
   inline_cache_reg(RAX);                // Inline Cache Register
@@ -2834,7 +2831,7 @@ frame
       RAX_H_num     // Op_RegL
     };
     // Excluded flags and vector registers.
-    assert(ARRAY_SIZE(hi) == _last_machine_leaf - 6, "missing type");
+    assert(ARRAY_SIZE(hi) == _last_machine_leaf - 8, "missing type");
     return OptoRegPair(hi[ideal_reg], lo[ideal_reg]);
   %}
 %}

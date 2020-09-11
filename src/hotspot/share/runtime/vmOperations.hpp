@@ -76,14 +76,11 @@
   template(PopulateDumpSharedSpace)               \
   template(JNIFunctionTableCopier)                \
   template(RedefineClasses)                       \
-  template(UpdateForPopTopFrame)                  \
-  template(SetFramePop)                           \
   template(GetObjectMonitorUsage)                 \
   template(GetAllStackTraces)                     \
   template(GetThreadListStackTraces)              \
   template(ChangeBreakpoints)                     \
   template(GetOrSetLocal)                         \
-  template(GetCurrentLocation)                    \
   template(ChangeSingleStep)                      \
   template(HeapWalkOperation)                     \
   template(HeapIterateOperation)                  \
@@ -104,6 +101,7 @@
   template(ClassLoaderHierarchyOperation)         \
   template(DumpHashtable)                         \
   template(DumpTouchedMethods)                    \
+  template(CleanClassLoaderDataMetaspaces)        \
   template(PrintCompileQueue)                     \
   template(PrintClassHierarchy)                   \
   template(ThreadSuspend)                         \
@@ -234,6 +232,13 @@ class VM_GTestExecuteAtSafepoint: public VM_Operation {
 
  protected:
   VM_GTestExecuteAtSafepoint() {}
+};
+
+class VM_CleanClassLoaderDataMetaspaces : public VM_Operation {
+ public:
+  VM_CleanClassLoaderDataMetaspaces() {}
+  VMOp_Type type() const                         { return VMOp_CleanClassLoaderDataMetaspaces; }
+  void doit();
 };
 
 // Deopt helper that can deoptimize frames in threads other than the

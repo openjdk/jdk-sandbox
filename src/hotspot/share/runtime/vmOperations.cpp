@@ -23,7 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/symbolTable.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
@@ -40,7 +40,6 @@
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
-#include "runtime/sweeper.hpp"
 #include "runtime/synchronizer.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.inline.hpp"
@@ -92,6 +91,10 @@ void VM_ClearICs::doit() {
   } else {
     CodeCache::clear_inline_caches();
   }
+}
+
+void VM_CleanClassLoaderDataMetaspaces::doit() {
+  ClassLoaderDataGraph::walk_metadata_and_clean_metaspaces();
 }
 
 VM_DeoptimizeFrame::VM_DeoptimizeFrame(JavaThread* thread, intptr_t* id, int reason) {
@@ -147,9 +150,7 @@ void VM_DeoptimizeAll::doit() {
 
 
 void VM_ZombieAll::doit() {
-  JavaThread *thread = (JavaThread *)calling_thread();
-  assert(thread->is_Java_thread(), "must be a Java thread");
-  thread->make_zombies();
+  calling_thread()->as_Java_thread()->make_zombies();
 }
 
 #endif // !PRODUCT

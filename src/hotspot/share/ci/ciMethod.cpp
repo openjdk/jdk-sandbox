@@ -809,7 +809,8 @@ ciMethod* ciMethod::resolve_invoke(ciKlass* caller, ciKlass* exact_receiver, boo
    Symbol* h_signature = signature()->get_symbol();
 
    LinkInfo link_info(resolved, h_name, h_signature, caller_klass,
-                      check_access ? LinkInfo::AccessCheck::required : LinkInfo::AccessCheck::skip);
+                      check_access ? LinkInfo::AccessCheck::required : LinkInfo::AccessCheck::skip,
+                      check_access ? LinkInfo::LoaderConstraintCheck::required : LinkInfo::LoaderConstraintCheck::skip);
    Method* m = NULL;
    // Only do exact lookup if receiver klass has been linked.  Otherwise,
    // the vtable has not been setup, and the LinkResolver will fail.
@@ -1240,7 +1241,7 @@ bool ciMethod::has_unloaded_classes_in_signature() {
   {
     EXCEPTION_MARK;
     methodHandle m(THREAD, get_Method());
-    bool has_unloaded = Method::has_unloaded_classes_in_signature(m, (JavaThread *)THREAD);
+    bool has_unloaded = Method::has_unloaded_classes_in_signature(m, thread);
     if( HAS_PENDING_EXCEPTION ) {
       CLEAR_PENDING_EXCEPTION;
       return true;     // Declare that we may have unloaded classes

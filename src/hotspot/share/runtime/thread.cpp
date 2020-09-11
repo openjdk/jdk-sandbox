@@ -355,8 +355,8 @@ void Thread::record_stack_base_and_size() {
 
   // Set stack limits after thread is initialized.
   if (is_Java_thread()) {
-    ((JavaThread*) this)->set_stack_overflow_limit();
-    ((JavaThread*) this)->set_reserved_stack_activation(stack_base());
+    as_Java_thread()->set_stack_overflow_limit();
+    as_Java_thread()->set_reserved_stack_activation(stack_base());
   }
 }
 
@@ -483,9 +483,9 @@ Thread::~Thread() {
 //
 void Thread::check_for_dangling_thread_pointer(Thread *thread) {
   assert(!thread->is_Java_thread() || Thread::current() == thread ||
-         !((JavaThread *) thread)->on_thread_list() ||
+         !thread->as_Java_thread()->on_thread_list() ||
          SafepointSynchronize::is_at_safepoint() ||
-         ThreadsSMRSupport::is_a_protected_JavaThread_with_lock((JavaThread *) thread),
+         ThreadsSMRSupport::is_a_protected_JavaThread_with_lock(thread->as_Java_thread()),
          "possibility of dangling Thread pointer");
 }
 #endif
@@ -514,7 +514,7 @@ void Thread::start(Thread* thread) {
       // Can not set it after the thread started because we do not know the
       // exact thread state at that time. It could be in MONITOR_WAIT or
       // in SLEEPING or some other state.
-      java_lang_Thread::set_thread_status(((JavaThread*)thread)->threadObj(),
+      java_lang_Thread::set_thread_status(thread->as_Java_thread()->threadObj(),
                                           java_lang_Thread::RUNNABLE);
     }
     os::start_thread(thread);
@@ -527,7 +527,7 @@ public:
   InstallAsyncExceptionClosure(Handle throwable) : HandshakeClosure("InstallAsyncException"), _throwable(throwable) {}
 
   void do_thread(Thread* thr) {
-    JavaThread* target = (JavaThread*)thr;
+    JavaThread* target = thr->as_Java_thread();
     // Note that this now allows multiple ThreadDeath exceptions to be
     // thrown at a thread.
     // The target thread has run and has not exited yet.
@@ -989,7 +989,7 @@ void Thread::check_possible_safepoint() {
 
   if (_no_safepoint_count > 0) {
     print_owned_locks();
-    fatal("Possible safepoint reached by thread that does not allow it");
+    assert(false, "Possible safepoint reached by thread that does not allow it");
   }
 #ifdef CHECK_UNHANDLED_OOPS
   // Clear unhandled oops in JavaThreads so we get a crash right away.
@@ -1005,7 +1005,7 @@ void Thread::check_for_valid_safepoint_state() {
   // are held.
   check_possible_safepoint();
 
-  if (((JavaThread*)this)->thread_state() != _thread_in_vm) {
+  if (this->as_Java_thread()->thread_state() != _thread_in_vm) {
     fatal("LEAF method calling lock?");
   }
 
@@ -1030,7 +1030,7 @@ bool Thread::set_as_starting_thread() {
          "_starting_thread=" INTPTR_FORMAT, p2i(_starting_thread));
   // NOTE: this must be called inside the main thread.
   DEBUG_ONLY(_starting_thread = this;)
-  return os::create_main_thread((JavaThread*)this);
+  return os::create_main_thread(this->as_Java_thread());
 }
 
 static void initialize_class(Symbol* class_name, TRAPS) {
@@ -1691,7 +1691,6 @@ void JavaThread::initialize() {
   _on_thread_list = false;
   _thread_state = _thread_new;
   _terminated = _not_terminated;
-  _array_for_gc = NULL;
   _suspend_equivalent = false;
   _in_deopt_handler = 0;
   _doing_unsafe_access = false;
@@ -2279,12 +2278,11 @@ void JavaThread::cleanup_failed_attach_current_thread(bool is_daemon) {
 JavaThread* JavaThread::active() {
   Thread* thread = Thread::current();
   if (thread->is_Java_thread()) {
-    return (JavaThread*) thread;
+    return thread->as_Java_thread();
   } else {
     assert(thread->is_VM_thread(), "this must be a vm thread");
     VM_Operation* op = ((VMThread*) thread)->vm_operation();
-    JavaThread *ret=op == NULL ? NULL : (JavaThread *)op->calling_thread();
-    assert(ret->is_Java_thread(), "must be a Java thread");
+    JavaThread *ret = op == NULL ? NULL : op->calling_thread()->as_Java_thread();
     return ret;
   }
 }
@@ -2555,8 +2553,7 @@ int JavaThread::java_suspend_self() {
     return ret;
   }
 
-  assert(_anchor.walkable() ||
-         (is_Java_thread() && !((JavaThread*)this)->has_last_Java_frame()),
+  assert(_anchor.walkable() || !has_last_Java_frame(),
          "must have walkable stack");
 
   MonitorLocker ml(SR_lock(), Mutex::_no_safepoint_check_flag);
@@ -2614,14 +2611,22 @@ int JavaThread::java_suspend_self() {
 void JavaThread::java_suspend_self_with_safepoint_check() {
   assert(this == Thread::current(), "invariant");
   JavaThreadState state = thread_state();
-  set_thread_state(_thread_blocked);
-  java_suspend_self();
-  set_thread_state_fence(state);
+
+  do {
+    set_thread_state(_thread_blocked);
+    java_suspend_self();
+    // The current thread could have been suspended again. We have to check for
+    // suspend after restoring the saved state. Without this the current thread
+    // might return to _thread_in_Java and execute bytecodes for an arbitrary
+    // long time.
+    set_thread_state_fence(state);
+  } while (is_external_suspend());
+
   // Since we are not using a regular thread-state transition helper here,
   // we must manually emit the instruction barrier after leaving a safe state.
   OrderAccess::cross_modify_fence();
   if (state != _thread_in_native) {
-    SafepointMechanism::block_if_requested(this);
+    SafepointMechanism::process_if_requested(this);
   }
 }
 
@@ -2651,7 +2656,7 @@ void JavaThread::check_safepoint_and_suspend_for_native_trans(JavaThread *thread
   if (thread->is_external_suspend()) {
     thread->java_suspend_self_with_safepoint_check();
   } else {
-    SafepointMechanism::block_if_requested(thread);
+    SafepointMechanism::process_if_requested(thread);
   }
 
   JFR_ONLY(SUSPEND_THREAD_CONDITIONAL(thread);)
@@ -3010,13 +3015,6 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
     // Record JavaThread to GC thread
     RememberProcessedThread rpt(this);
 
-    // traverse the registered growable array
-    if (_array_for_gc != NULL) {
-      for (int index = 0; index < _array_for_gc->length(); index++) {
-        f->do_oop(_array_for_gc->adr_at(index));
-      }
-    }
-
     // Traverse the monitor chunks
     for (MonitorChunk* chunk = monitor_chunks(); chunk != NULL; chunk = chunk->next()) {
       chunk->oops_do(f);
@@ -3202,10 +3200,9 @@ const char* JavaThread::get_thread_name() const {
 #ifdef ASSERT
   // early safepoints can hit while current thread does not yet have TLS
   if (!SafepointSynchronize::is_at_safepoint()) {
-    Thread *cur = Thread::current();
-    if (!(cur->is_Java_thread() && cur == this)) {
-      // Current JavaThreads are allowed to get their own name without
-      // the Threads_lock.
+    // Current JavaThreads are allowed to get their own name without
+    // the Threads_lock.
+    if (Thread::current() != this) {
       assert_locked_or_safepoint_or_handshake(Threads_lock, this);
     }
   }

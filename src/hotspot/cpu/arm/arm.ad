@@ -1006,6 +1006,14 @@ const int Matcher::vector_width_in_bytes(BasicType bt) {
   return MaxVectorSize;
 }
 
+const bool Matcher::supports_scalable_vector() {
+  return false;
+}
+
+const int Matcher::scalable_vector_reg_size(const BasicType bt) {
+  return -1;
+}
+
 // Vector ideal reg corresponding to specified size in bytes
 const uint Matcher::vector_ideal_reg(int size) {
   assert(MaxVectorSize >= size, "");
@@ -1656,9 +1664,6 @@ encode %{
 //         the region from SP to FP meets the minimum stack alignment.
 
 frame %{
-  // What direction does stack grow in (assumed to be same for native & Java)
-  stack_direction(TOWARDS_LOW);
-
   // These two registers define part of the calling convention
   // between compiled code and the interpreter.
   inline_cache_reg(R_Ricklass);          // Inline Cache Register or Method* for I2C
