@@ -27,6 +27,7 @@ package java.net;
 
 import java.net.spi.InetLookupPolicy;
 import java.net.spi.InetLookupPolicy.AddressFamily;
+import java.net.spi.InetLookupPolicy.AddressesOrder;
 import java.net.spi.InetNameServiceProvider;
 import java.net.spi.InetNameServiceProvider.NameService;
 import java.security.AccessController;
@@ -67,6 +68,9 @@ import sun.nio.cs.UTF_8;
 import static java.net.spi.InetLookupPolicy.AddressFamily.ANY;
 import static java.net.spi.InetLookupPolicy.AddressFamily.IPV4;
 import static java.net.spi.InetLookupPolicy.AddressFamily.IPV6;
+import static java.net.spi.InetLookupPolicy.AddressesOrder.IPV4_FIRST;
+import static java.net.spi.InetLookupPolicy.AddressesOrder.IPV6_FIRST;
+import static java.net.spi.InetLookupPolicy.AddressesOrder.SYSTEM;
 
 /**
  * This class represents an Internet Protocol (IP) address.
@@ -333,10 +337,20 @@ public class InetAddress implements java.io.Serializable {
     @java.io.Serial
     private static final long serialVersionUID = 3286316764910316507L;
 
+    // "java.net.preferIPv4Stack" system property value
+    private static final String PREFER_IPV4_STACK_VALUE;
+
+    // "java.net.preferIPv6Addresses" system property value
+    private static final String PREFER_IPV6_ADDRESSES_VALUE;
+
     /*
      * Load net library into runtime, and perform initializations.
      */
     static {
+        PREFER_IPV4_STACK_VALUE =
+                GetPropertyAction.privilegedGetProperty("java.net.preferIPv4Stack");
+        PREFER_IPV6_ADDRESSES_VALUE =
+                GetPropertyAction.privilegedGetProperty("java.net.preferIPv6Addresses");
         jdk.internal.loader.BootLoader.loadLibrary("net");
         SharedSecrets.setJavaNetInetAddressAccess(
                 new JavaNetInetAddressAccess() {
@@ -362,6 +376,50 @@ public class InetAddress implements java.io.Serializable {
         );
         init();
     }
+
+    /**
+     *  Platform-wide {@code InetLookupPolicy} initialized from {@code "java.net.preferIPv4Stack"},
+     * {@code "java.net.preferIPv6Addresses"} system properties.
+     */
+    static final InetLookupPolicy PLATFORM_LOOKUP_POLICY = initializePlatformLookupPolicy();
+
+    /**
+     * Creates an address lookup policy from {@code "java.net.preferIPv4Stack"},
+     * {@code "java.net.preferIPv6Addresses"} system property values, and O/S configuration.
+     */
+    private static final InetLookupPolicy initializePlatformLookupPolicy() {
+        AddressFamily addressFamily = ANY;
+        AddressesOrder addressesOrder = IPV4_FIRST;
+
+        // Calculate AddressFamily value first
+        boolean ipv4Available = isIPv4Available();
+        if ("true".equals(PREFER_IPV4_STACK_VALUE) && ipv4Available) {
+            addressFamily = IPV4;
+        } else if (InetAddress.impl instanceof Inet4AddressImpl) {
+            // Check if IPv6 is not supported
+            addressFamily = IPV4;
+        } else if (!ipv4Available) {
+            // Check if system supports IPv4, if not use IPv6
+            addressFamily = IPV6;
+        }
+
+        // Calculate AddressesOrder value
+        if (addressFamily == ANY) {
+            if (PREFER_IPV6_ADDRESSES_VALUE == null) {
+                addressesOrder = IPV4_FIRST;
+            } else if (PREFER_IPV6_ADDRESSES_VALUE.equalsIgnoreCase("true")) {
+                addressesOrder = IPV6_FIRST;
+            } else if (PREFER_IPV6_ADDRESSES_VALUE.equalsIgnoreCase("false")) {
+                addressesOrder = IPV4_FIRST;
+            } else if (PREFER_IPV6_ADDRESSES_VALUE.equalsIgnoreCase("system")) {
+                addressesOrder = SYSTEM;
+            }
+        }
+        return InetLookupPolicy.of(addressFamily, addressesOrder);
+    }
+
+    // Native method to check if IPv4 is available
+    static native boolean isIPv4Available();
 
     /**
      * The {@code RuntimePermission("nameServiceProvider")} is
@@ -1570,7 +1628,7 @@ public class InetAddress implements java.io.Serializable {
         UnknownHostException ex = null;
 
         try {
-            addresses = nameService().lookupByName(host, InetLookupPolicyImpl.PLATFORM);
+            addresses = nameService().lookupByName(host, PLATFORM_LOOKUP_POLICY);
         } catch (UnknownHostException uhe) {
                 if (host.equalsIgnoreCase("localhost")) {
                     addresses = Stream.of(impl.loopbackAddress());

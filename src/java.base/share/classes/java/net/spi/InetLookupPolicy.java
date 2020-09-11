@@ -34,7 +34,29 @@ package java.net.spi;
  * <a href="doc-files/net-properties.html#Ipv4IPv6">System Properties</a> which affects how IPv4 and IPv6
  * addresses are returned.
  */
-public interface InetLookupPolicy {
+public final class InetLookupPolicy {
+    // Placeholder for address family value
+    private final AddressFamily family;
+
+    // Placeholder for addresses order value
+    private final AddressesOrder addressesOrder;
+
+    // Private constructor
+    private InetLookupPolicy(AddressFamily family, AddressesOrder addressesOrder) {
+        this.family = family;
+        this.addressesOrder  = addressesOrder;
+    }
+
+    /**
+     * This factory method creates {@link InetLookupPolicy} instance from the provided
+     * {@link AddressFamily} and {@link AddressesOrder} values.
+     * @param family an address family
+     * @param addressesOrder an addresses order
+     * @return instance of {@code InetLookupPolicy}
+     */
+    public static InetLookupPolicy of(AddressFamily family, AddressesOrder addressesOrder) {
+        return new InetLookupPolicy(family, addressesOrder);
+    }
 
     /**
      * Returns a type of address family that is used to designate a type of addresses
@@ -43,7 +65,9 @@ public interface InetLookupPolicy {
      * @return an address family type
      * @see java.net.spi.InetNameServiceProvider.NameService#lookupByName(String, InetLookupPolicy)
      */
-    AddressFamily getAddressesFamily();
+    public final AddressFamily getAddressesFamily() {
+        return family;
+    }
 
     /**
      * Returns an order in which IP addresses are returned by
@@ -53,7 +77,9 @@ public interface InetLookupPolicy {
      * @return an addresses order
      * @see java.net.spi.InetNameServiceProvider.NameService#lookupByName(String, InetLookupPolicy)
      */
-    AddressesOrder getAddressesOrder();
+    public AddressesOrder getAddressesOrder() {
+        return addressesOrder;
+    }
 
     /**
      * Specifies type that is used to designate a family of network addresses queried during
@@ -62,7 +88,7 @@ public interface InetLookupPolicy {
      * @see AddressesOrder
      * @see java.net.spi.InetNameServiceProvider.NameService
      */
-    enum AddressFamily {
+    public enum AddressFamily {
         /**
          * Unspecified address family. Instructs {@link java.net.spi.InetNameServiceProvider.NameService}
          * to return network addresses for {@code IPv4} and {@code IPv6} address families.
@@ -87,7 +113,7 @@ public interface InetLookupPolicy {
      *
      * @see java.net.spi.InetNameServiceProvider.NameService
      */
-    enum AddressesOrder {
+    public enum AddressesOrder {
         /**
          * The addresses are ordered in the same way as returned by the name service provider.
          */

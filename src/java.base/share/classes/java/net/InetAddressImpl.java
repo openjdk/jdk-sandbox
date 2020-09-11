@@ -62,17 +62,22 @@ interface InetAddressImpl {
             case ANY -> ANY_ADDRESS_FAMILY_VALUE;
         };
 
-        return value | switch (lookupPolicy.getAddressesOrder()) {
+        value |= switch (lookupPolicy.getAddressesOrder()) {
             case SYSTEM -> SYSTEM_ADDRESSES_ORDER_VALUE;
             case IPV4_FIRST -> IPV4_FIRST_ADDRESSES_ORDER_VALUE;
             case IPV6_FIRST -> IPV6_FIRST_ADDRESSES_ORDER_VALUE;
         };
+
+        return value & (ADDRESS_FAMILY_MASK | ADDRESSES_ORDER_MASK);
     }
 
     int ANY_ADDRESS_FAMILY_VALUE = 0x01;
     int IPV4_ADDRESS_FAMILY_VALUE = 0x02;
     int IPV6_ADDRESS_FAMILY_VALUE = 0x04;
-    int SYSTEM_ADDRESSES_ORDER_VALUE = 0x08;
-    int IPV4_FIRST_ADDRESSES_ORDER_VALUE = 0x10;
-    int IPV6_FIRST_ADDRESSES_ORDER_VALUE = 0x20;
+    int ADDRESS_FAMILY_MASK = 0x0f;
+
+    int SYSTEM_ADDRESSES_ORDER_VALUE = 0x10;
+    int IPV4_FIRST_ADDRESSES_ORDER_VALUE = 0x20;
+    int IPV6_FIRST_ADDRESSES_ORDER_VALUE = 0x40;
+    int ADDRESSES_ORDER_MASK = 0xf0;
 }

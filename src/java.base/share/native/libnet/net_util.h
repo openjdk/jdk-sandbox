@@ -40,13 +40,15 @@
 #define NET_WAIT_WRITE   0x02
 #define NET_WAIT_CONNECT 0x04
 
-// Constants below should match values in InetAddressImpl class
+// Constants below should match values in InetAddressImpl class.
+// Could be read from Java fields with JNI up-call during InetAddress
+// initialization.
 #define ANY_ADDRESS_FAMILY_VALUE         0x01
 #define IPV4_ADDRESS_FAMILY_VALUE        0x02
 #define IPV6_ADDRESS_FAMILY_VALUE        0x04
-#define SYSTEM_ADDRESSES_ORDER_VALUE     0x08
-#define IPV4_FIRST_ADDRESSES_ORDER_VALUE 0x10
-#define IPV6_FIRST_ADDRESSES_ORDER_VALUE 0x20
+#define SYSTEM_ADDRESSES_ORDER_VALUE     0x10
+#define IPV4_FIRST_ADDRESSES_ORDER_VALUE 0x20
+#define IPV6_FIRST_ADDRESSES_ORDER_VALUE 0x40
 
 /************************************************************************
  * Cached field IDs

@@ -74,10 +74,10 @@ Java_java_net_InetAddress_init(JNIEnv *env, jclass cls) {
 }
 
 /*
- * Class:     java_net_InetLookupPolicyImpl
+ * Class:     java_net_InetAddress
  * Method:    isIPv4Available
  */
 JNIEXPORT jboolean JNICALL
-Java_java_net_InetLookupPolicyImpl_isIPv4Available(JNIEnv *env, jclass clazz) {
+Java_java_net_InetAddress_isIPv4Available(JNIEnv *env, jclass clazz) {
     return ipv4_available();
 }
