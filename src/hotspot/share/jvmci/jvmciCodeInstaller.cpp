@@ -919,7 +919,7 @@ JVMCI::CodeInstallResult CodeInstaller::initialize_buffer(CodeBuffer& buffer, bo
     last_pc_offset = pc_offset;
 
     JavaThread* thread = JavaThread::current();
-    if (SafepointMechanism::should_block(thread)) {
+    if (SafepointMechanism::should_process(thread)) {
       // this is a hacky way to force a safepoint check but nothing else was jumping out at me.
       ThreadToNativeFromVM ttnfv(thread);
     }
@@ -1386,6 +1386,10 @@ void CodeInstaller::site_Mark(CodeBuffer& buffer, jint pc_offset, JVMCIObject si
       case CRC_TABLE_ADDRESS:
       case LOG_OF_HEAP_REGION_GRAIN_BYTES:
       case INLINE_CONTIGUOUS_ALLOCATION_SUPPORTED:
+      case VERIFY_OOPS:
+      case VERIFY_OOP_BITS:
+      case VERIFY_OOP_MASK:
+      case VERIFY_OOP_COUNT_ADDRESS:
         break;
       default:
         JVMCI_ERROR("invalid mark id: %d", id);

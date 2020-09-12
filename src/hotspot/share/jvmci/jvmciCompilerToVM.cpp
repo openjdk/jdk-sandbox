@@ -50,6 +50,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
+#include "runtime/reflectionUtils.hpp"
 #include "runtime/timerTrace.hpp"
 #include "runtime/vframe_hp.hpp"
 
@@ -131,7 +132,7 @@ Handle JavaArgumentUnboxer::next_arg(BasicType expectedType) {
   TRACE_CALL(result_type, jvmci_ ## name signature)  \
   JVMCI_VM_ENTRY_MARK;                               \
   ResourceMark rm;                                   \
-  JNI_JVMCIENV(thread, env);
+  JNI_JVMCIENV(JVMCI::compilation_tick(thread), env);
 
 static JavaThread* get_current_thread(bool allow_null=true) {
   Thread* thread = Thread::current_or_null_safe();
@@ -139,8 +140,7 @@ static JavaThread* get_current_thread(bool allow_null=true) {
     assert(allow_null, "npe");
     return NULL;
   }
-  assert(thread->is_Java_thread(), "must be");
-  return (JavaThread*) thread;
+  return thread->as_Java_thread();
 }
 
 // Entry to native method implementation that transitions

@@ -73,6 +73,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/java.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/vmThread.hpp"
 #include "services/memTracker.hpp"
@@ -1042,7 +1043,7 @@ void PSParallelCompact::post_compact()
 
   // Update heap occupancy information which is used as input to the soft ref
   // clearing policy at the next gc.
-  Universe::update_heap_info_at_gc();
+  Universe::heap()->update_capacity_and_used_at_gc();
 
   bool young_gen_empty = eden_empty && from_space->is_empty() &&
     to_space->is_empty();
