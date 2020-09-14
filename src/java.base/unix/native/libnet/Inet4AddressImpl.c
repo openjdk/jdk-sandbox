@@ -112,7 +112,7 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
     if (error) {
 #if defined(MACOSX)
         // If getaddrinfo fails try getifaddrs, see bug 8170910.
-        // SYSTEM is ok here since only INET4 addresses will be returned here
+        // SYSTEM is ok here since only AF_INET addresses will be returned.
         ret = lookupIfLocalhost(env, hostname, JNI_FALSE, SYSTEM_ADDRESSES_ORDER_VALUE);
         if (ret != NULL || (*env)->ExceptionCheck(env)) {
             goto cleanupAndReturn;

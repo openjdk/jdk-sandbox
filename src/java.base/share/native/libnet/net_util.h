@@ -41,8 +41,6 @@
 #define NET_WAIT_CONNECT 0x04
 
 // Constants below should match values in InetAddressImpl class.
-// Could be read from Java fields with JNI up-call during InetAddress
-// initialization.
 #define ANY_ADDRESS_FAMILY_VALUE         0x01
 #define IPV4_ADDRESS_FAMILY_VALUE        0x02
 #define IPV6_ADDRESS_FAMILY_VALUE        0x04
