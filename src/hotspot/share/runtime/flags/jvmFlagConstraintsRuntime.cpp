@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,12 @@
 #include "precompiled.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/flags/jvmFlag.hpp"
+#include "runtime/flags/jvmFlagLimit.hpp"
 #include "runtime/flags/jvmFlagConstraintsRuntime.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/task.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 JVMFlag::Error ObjectAlignmentInBytesConstraintFunc(intx value, bool verbose) {
   if (!is_power_of_2(value)) {
@@ -131,12 +133,31 @@ JVMFlag::Error PerfDataSamplingIntervalFunc(intx value, bool verbose) {
   }
 }
 
-JVMFlag::Error ThreadLocalHandshakesConstraintFunc(bool value, bool verbose) {
-  if (value) {
-    if (!SafepointMechanism::supports_thread_local_poll()) {
-      JVMFlag::printError(verbose, "ThreadLocalHandshakes not yet supported on this platform\n");
-      return JVMFlag::VIOLATES_CONSTRAINT;
-    }
+JVMFlag::Error VMPageSizeConstraintFunc(uintx value, bool verbose) {
+  uintx min = (uintx)os::vm_page_size();
+  if (value < min) {
+    JVMFlag::printError(verbose,
+                        "%s %s=" UINTX_FORMAT " is outside the allowed range [ " UINTX_FORMAT
+                        " ... " UINTX_FORMAT " ]\n",
+                        JVMFlagLimit::last_checked_flag()->type_string(),
+                        JVMFlagLimit::last_checked_flag()->name(),
+                        value, min, max_uintx);
+    return JVMFlag::VIOLATES_CONSTRAINT;
   }
+
+  return JVMFlag::SUCCESS;
+}
+
+JVMFlag::Error NUMAInterleaveGranularityConstraintFunc(size_t value, bool verbose) {
+  size_t min = os::vm_allocation_granularity();
+  size_t max = NOT_LP64(2*G) LP64_ONLY(8192*G);
+
+  if (value < min || value > max) {
+    JVMFlag::printError(verbose,
+                        "size_t NUMAInterleaveGranularity=" UINTX_FORMAT " is outside the allowed range [ " UINTX_FORMAT
+                        " ... " UINTX_FORMAT " ]\n", value, min, max);
+    return JVMFlag::VIOLATES_CONSTRAINT;
+  }
+
   return JVMFlag::SUCCESS;
 }

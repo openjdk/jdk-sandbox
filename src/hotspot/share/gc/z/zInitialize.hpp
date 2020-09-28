@@ -29,6 +29,9 @@
 class ZBarrierSet;
 
 class ZInitialize {
+private:
+  void pd_initialize();
+
 public:
   ZInitialize(ZBarrierSet* barrier_set);
 };

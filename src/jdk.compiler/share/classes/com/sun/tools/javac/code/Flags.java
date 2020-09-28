@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -220,7 +220,11 @@ public class Flags {
      */
     public static final long UNION = 1L<<39;
 
-    // Flag bit (1L << 40) is available.
+    /**
+     * Flags an erroneous TypeSymbol as viable for recovery.
+     * TypeSymbols only.
+     */
+    public static final long RECOVERABLE = 1L<<40;
 
     /**
      * Flag that marks an 'effectively final' local variable.
@@ -228,7 +232,8 @@ public class Flags {
     public static final long EFFECTIVELY_FINAL = 1L<<41;
 
     /**
-     * Flag that marks non-override equivalent methods with the same signature.
+     * Flag that marks non-override equivalent methods with the same signature,
+     * or a conflicting match binding (BindingSymbol).
      */
     public static final long CLASH = 1L<<42;
 
@@ -286,7 +291,17 @@ public class Flags {
     /**
      * Flag to indicate the given ModuleSymbol is an automatic module.
      */
-    public static final long AUTOMATIC_MODULE = 1L<<52;
+    public static final long AUTOMATIC_MODULE = 1L<<52; //ModuleSymbols only
+
+    /**
+     * Flag to indicate the given PackageSymbol contains any non-.java and non-.class resources.
+     */
+    public static final long HAS_RESOURCE = 1L<<52; //PackageSymbols only
+
+    /**
+     * Flag to indicate the given ParamSymbol has a user-friendly name filled.
+     */
+    public static final long NAME_FILLED = 1L<<52; //ParamSymbols only
 
     /**
      * Flag to indicate the given ModuleSymbol is a system module.
@@ -304,9 +319,9 @@ public class Flags {
     public static final long DEPRECATED_REMOVAL = 1L<<55;
 
     /**
-     * Flag to indicate the given PackageSymbol contains any non-.java and non-.class resources.
+     * Flag to indicate the API element in question is for a preview API.
      */
-    public static final long HAS_RESOURCE = 1L<<56;
+    public static final long PREVIEW_API = 1L<<56; //any Symbol kind
 
     /**
      * Flag for synthesized default constructors of anonymous classes that have an enclosing expression.
@@ -320,16 +335,59 @@ public class Flags {
     public static final long BODY_ONLY_FINALIZE = 1L<<17; //blocks only
 
     /**
-     * Flag to indicate the given ParamSymbol has a user-friendly name filled.
+     * Flag to indicate the API element in question is for a preview API.
      */
-    public static final long NAME_FILLED = 1L<<58; //ParamSymbols only
+    public static final long PREVIEW_ESSENTIAL_API = 1L<<58; //any Symbol kind
+
+    /**
+     * Flag to indicate the given variable is a match binding variable.
+     */
+    public static final long MATCH_BINDING = 1L<<59;
+
+    /**
+     * A flag to indicate a match binding variable whose scope extends after the current statement.
+     */
+    public static final long MATCH_BINDING_TO_OUTER = 1L<<60;
+
+    /**
+     * Flag to indicate that a class is a record. The flag is also used to mark fields that are
+     * part of the state vector of a record and to mark the canonical constructor
+     */
+    public static final long RECORD = 1L<<61; // ClassSymbols, MethodSymbols and VarSymbols
+
+    /**
+     * Flag to mark a record constructor as a compact one
+     */
+    public static final long COMPACT_RECORD_CONSTRUCTOR = 1L<<51; // MethodSymbols only
+
+    /**
+     * Flag to mark a record field that was not initialized in the compact constructor
+     */
+    public static final long UNINITIALIZED_FIELD= 1L<<51; // VarSymbols only
+
+    /** Flag is set for compiler-generated record members, it could be applied to
+     *  accessors and fields
+     */
+    public static final int GENERATED_MEMBER = 1<<24; // MethodSymbols and VarSymbols
+
+    /**
+     * Flag to indicate sealed class/interface declaration.
+     */
+    public static final long SEALED = 1L<<62; // ClassSymbols
+
+    /**
+     * Flag to indicate that the class/interface was declared with the non-sealed modifier.
+     */
+    public static final long NON_SEALED = 1L<<63; // ClassSymbols
 
     /** Modifier masks.
      */
     public static final int
         AccessFlags           = PUBLIC | PROTECTED | PRIVATE,
         LocalClassFlags       = FINAL | ABSTRACT | STRICTFP | ENUM | SYNTHETIC,
+        StaticLocalFlags      = LocalClassFlags | STATIC | INTERFACE,
         MemberClassFlags      = LocalClassFlags | INTERFACE | AccessFlags,
+        MemberRecordFlags     = MemberClassFlags | STATIC,
         ClassFlags            = LocalClassFlags | INTERFACE | PUBLIC | ANNOTATION,
         InterfaceVarFlags     = FINAL | STATIC | PUBLIC,
         VarFlags              = AccessFlags | FINAL | STATIC |
@@ -337,16 +395,20 @@ public class Flags {
         ConstructorFlags      = AccessFlags,
         InterfaceMethodFlags  = ABSTRACT | PUBLIC,
         MethodFlags           = AccessFlags | ABSTRACT | STATIC | NATIVE |
+                                SYNCHRONIZED | FINAL | STRICTFP,
+        RecordMethodFlags     = AccessFlags | ABSTRACT | STATIC |
                                 SYNCHRONIZED | FINAL | STRICTFP;
     public static final long
-        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT,
-        ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT,
+        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | SEALED | NON_SEALED,
+        ExtendedMemberClassFlags    = (long)MemberClassFlags | SEALED | NON_SEALED,
+        ExtendedClassFlags          = (long)ClassFlags | SEALED | NON_SEALED,
+        ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED,
         InterfaceMethodMask         = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask   = ABSTRACT | PUBLIC,
         LocalVarFlags               = FINAL | PARAMETER,
         ReceiverParamFlags          = PARAMETER;
 
-
+    @SuppressWarnings("preview")
     public static Set<Modifier> asModifierSet(long flags) {
         Set<Modifier> modifiers = modifierSets.get(flags);
         if (modifiers == null) {
@@ -356,6 +418,9 @@ public class Flags {
             if (0 != (flags & PRIVATE))   modifiers.add(Modifier.PRIVATE);
             if (0 != (flags & ABSTRACT))  modifiers.add(Modifier.ABSTRACT);
             if (0 != (flags & STATIC))    modifiers.add(Modifier.STATIC);
+            if (0 != (flags & SEALED))    modifiers.add(Modifier.SEALED);
+            if (0 != (flags & NON_SEALED))
+                                          modifiers.add(Modifier.NON_SEALED);
             if (0 != (flags & FINAL))     modifiers.add(Modifier.FINAL);
             if (0 != (flags & TRANSIENT)) modifiers.add(Modifier.TRANSIENT);
             if (0 != (flags & VOLATILE))  modifiers.add(Modifier.VOLATILE);
@@ -441,7 +506,20 @@ public class Flags {
         HAS_RESOURCE(Flags.HAS_RESOURCE),
         POTENTIALLY_AMBIGUOUS(Flags.POTENTIALLY_AMBIGUOUS),
         ANONCONSTR_BASED(Flags.ANONCONSTR_BASED),
-        NAME_FILLED(Flags.NAME_FILLED);
+        NAME_FILLED(Flags.NAME_FILLED),
+        PREVIEW_API(Flags.PREVIEW_API),
+        PREVIEW_ESSENTIAL_API(Flags.PREVIEW_ESSENTIAL_API),
+        MATCH_BINDING(Flags.MATCH_BINDING),
+        MATCH_BINDING_TO_OUTER(Flags.MATCH_BINDING_TO_OUTER),
+        RECORD(Flags.RECORD),
+        RECOVERABLE(Flags.RECOVERABLE),
+        SEALED(Flags.SEALED),
+        NON_SEALED(Flags.NON_SEALED) {
+            @Override
+            public String toString() {
+                return "non-sealed";
+            }
+        };
 
         Flag(long flag) {
             this.value = flag;

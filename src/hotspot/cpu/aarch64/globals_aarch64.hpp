@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2015, 2019, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -64,9 +64,6 @@ define_pd_global(bool, RewriteFrequentPairs, true);
 
 define_pd_global(bool, PreserveFramePointer, false);
 
-// GC Ergo Flags
-define_pd_global(uintx, CMSYoungGenPerWorker, 64*M);  // default max size of CMS young gen, per GC worker thread
-
 define_pd_global(uintx, TypeProfileLevel, 111);
 
 define_pd_global(bool, CompactStrings, true);
@@ -74,26 +71,18 @@ define_pd_global(bool, CompactStrings, true);
 // Clear short arrays bigger than one word in an arch-specific way
 define_pd_global(intx, InitArrayShortSize, BytesPerLong);
 
-define_pd_global(bool, ThreadLocalHandshakes, true);
-
 #if defined(COMPILER1) || defined(COMPILER2)
 define_pd_global(intx, InlineSmallCode,          1000);
 #endif
 
-#define ARCH_FLAGS(develop, \
-                   product, \
-                   diagnostic, \
-                   experimental, \
-                   notproduct, \
-                   range, \
-                   constraint, \
-                   writeable) \
+#define ARCH_FLAGS(develop,                                             \
+                   product,                                             \
+                   notproduct,                                          \
+                   range,                                               \
+                   constraint)                                          \
                                                                         \
   product(bool, NearCpool, true,                                        \
          "constant pool is close to instructions")                      \
-                                                                        \
-  product(bool, UseBarriersForVolatile, false,                          \
-          "Use memory barriers to implement volatile accesses")         \
   product(bool, UseNeon, false,                                         \
           "Use Neon for CRC32 computation")                             \
   product(bool, UseCRC32, false,                                        \
@@ -108,6 +97,9 @@ define_pd_global(intx, InlineSmallCode,          1000);
           "Avoid generating unaligned memory accesses")                 \
   product(bool, UseLSE, false,                                          \
           "Use LSE instructions")                                       \
+  product(uint, UseSVE, 0,                                              \
+          "Highest supported SVE instruction set version")              \
+          range(0, 2)                                                   \
   product(bool, UseBlockZeroing, true,                                  \
           "Use DC ZVA for block zeroing")                               \
   product(intx, BlockZeroingLowLimit, 256,                              \
@@ -118,5 +110,7 @@ define_pd_global(intx, InlineSmallCode,          1000);
           "Use prfm hint with specified distance in compiled code."     \
           "Value -1 means off.")                                        \
           range(-1, 4096)
+
+// end of ARCH_FLAGS
 
 #endif // CPU_AARCH64_GLOBALS_AARCH64_HPP

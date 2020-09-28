@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 // Note: Rtemp usage is this file should not impact C2 and should be
 // correct as long as it is not implicitly used in lower layers (the
@@ -199,18 +200,22 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj,
   const int obj_offset = BasicObjectLock::obj_offset_in_bytes();
   const int mark_offset = BasicLock::displaced_header_offset_in_bytes();
 
+  str(obj, Address(disp_hdr, obj_offset));
+
+  null_check_offset = offset();
+
+  if (DiagnoseSyncOnPrimitiveWrappers != 0) {
+    load_klass(tmp1, obj);
+    ldr_u32(tmp1, Address(tmp1, Klass::access_flags_offset()));
+    tst(tmp1, JVM_ACC_IS_BOX_CLASS);
+    b(slow_case, ne);
+  }
+
   if (UseBiasedLocking) {
-    // load object
-    str(obj, Address(disp_hdr, obj_offset));
-    null_check_offset = biased_locking_enter(obj, hdr/*scratched*/, tmp1, false, tmp2, done, slow_case);
+    biased_locking_enter(obj, hdr/*scratched*/, tmp1, false, tmp2, done, slow_case);
   }
 
   assert(oopDesc::mark_offset_in_bytes() == 0, "Required by atomic instructions");
-
-
-  if (!UseBiasedLocking) {
-    null_check_offset = offset();
-  }
 
   // On MP platforms the next load could return a 'stale' value if the memory location has been modified by another thread.
   // That would be acceptable as ether CAS or slow case path is taken in that case.
@@ -218,7 +223,6 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj,
   // Must be the first instruction here, because implicit null check relies on it
   ldr(hdr, Address(obj, oopDesc::mark_offset_in_bytes()));
 
-  str(obj, Address(disp_hdr, obj_offset));
   tst(hdr, markWord::unlocked_value);
   b(fast_lock, ne);
 

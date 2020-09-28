@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2017, Red Hat, Inc. and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -41,7 +41,7 @@ void GCArguments::initialize() {
     MarkSweepAlwaysCompactCount = 1;  // Move objects every gc.
   }
 
-  if (!(UseParallelGC || UseParallelOldGC) && FLAG_IS_DEFAULT(ScavengeBeforeFullGC)) {
+  if (!UseParallelGC && FLAG_IS_DEFAULT(ScavengeBeforeFullGC)) {
     FLAG_SET_DEFAULT(ScavengeBeforeFullGC, false);
   }
 
@@ -101,7 +101,7 @@ bool GCArguments::check_args_consistency() {
       "AllocateHeapAt and AllocateOldGenAt cannot be used together.\n");
     status = false;
   }
-  if (!FLAG_IS_DEFAULT(AllocateOldGenAt) && (UseSerialGC || UseConcMarkSweepGC || UseEpsilonGC || UseZGC)) {
+  if (!FLAG_IS_DEFAULT(AllocateOldGenAt) && (UseSerialGC || UseEpsilonGC || UseZGC)) {
     jio_fprintf(defaultStream::error_stream(),
       "AllocateOldGenAt is not supported for selected GC.\n");
     status = false;

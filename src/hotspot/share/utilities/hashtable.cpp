@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,12 +61,13 @@ template <MEMFLAGS F> BasicHashtableEntry<F>* BasicHashtable<F>::new_entry(unsig
 
   if (entry == NULL) {
     if (_first_free_entry + _entry_size >= _end_block) {
-      int block_size = MIN2(512, MAX2((int)_table_size / 2, (int)_number_of_entries));
+      int block_size = MAX2((int)_table_size / 2, (int)_number_of_entries); // pick a reasonable value
+      block_size = clamp(block_size, 2, 512); // but never go out of this range
       int len = _entry_size * block_size;
       len = 1 << log2_int(len); // round down to power of 2
       assert(len >= _entry_size, "");
       _first_free_entry = NEW_C_HEAP_ARRAY2(char, len, F, CURRENT_PC);
-      _entry_blocks->append(_first_free_entry);
+      _entry_blocks.append(_first_free_entry);
       _end_block = _first_free_entry + len;
     }
     entry = (BasicHashtableEntry<F>*)_first_free_entry;
@@ -94,6 +95,10 @@ template <class T, MEMFLAGS F> HashtableEntry<T, F>* Hashtable<T, F>::new_entry(
 template <class T, MEMFLAGS F> HashtableEntry<T, F>* Hashtable<T, F>::allocate_new_entry(unsigned int hashValue, T obj) {
   HashtableEntry<T, F>* entry = (HashtableEntry<T, F>*) NEW_C_HEAP_ARRAY(char, this->entry_size(), F);
 
+  if (DumpSharedSpaces) {
+    // Avoid random bits in structure padding so we can have deterministic content in CDS archive
+    memset((void*)entry, 0, this->entry_size());
+  }
   entry->set_hash(hashValue);
   entry->set_literal(obj);
   entry->set_next(NULL);
@@ -101,10 +106,8 @@ template <class T, MEMFLAGS F> HashtableEntry<T, F>* Hashtable<T, F>::allocate_n
 }
 
 template <MEMFLAGS F> void BasicHashtable<F>::free_buckets() {
-  if (NULL != _buckets) {
-    FREE_C_HEAP_ARRAY(HashtableBucket, _buckets);
-    _buckets = NULL;
-  }
+  FREE_C_HEAP_ARRAY(HashtableBucket, _buckets);
+  _buckets = NULL;
 }
 
 // For oops and Strings the size of the literal is interesting. For other types, nobody cares.
@@ -129,7 +132,7 @@ static int literal_size(oop obj) {
   }
 }
 
-static int literal_size(WeakHandle<vm_class_loader_data> v) {
+static int literal_size(WeakHandle v) {
   return literal_size(v.peek());
 }
 
@@ -224,7 +227,7 @@ template <class T> void print_literal(T l) {
   l->print();
 }
 
-static void print_literal(WeakHandle<vm_class_loader_data> l) {
+static void print_literal(WeakHandle l) {
   l.print();
 }
 
@@ -288,14 +291,13 @@ template class Hashtable<ConstantPool*, mtClass>;
 template class Hashtable<Symbol*, mtSymbol>;
 template class Hashtable<Klass*, mtClass>;
 template class Hashtable<InstanceKlass*, mtClass>;
-template class Hashtable<WeakHandle<vm_class_loader_data>, mtClass>;
+template class Hashtable<WeakHandle, mtClass>;
 template class Hashtable<Symbol*, mtModule>;
 template class Hashtable<oop, mtSymbol>;
 template class Hashtable<Symbol*, mtClass>;
 template class HashtableEntry<Symbol*, mtSymbol>;
 template class HashtableEntry<Symbol*, mtClass>;
 template class HashtableEntry<oop, mtSymbol>;
-template class HashtableEntry<WeakHandle<vm_class_loader_data>, mtClass>;
 template class HashtableBucket<mtClass>;
 template class BasicHashtableEntry<mtSymbol>;
 template class BasicHashtableEntry<mtCode>;
@@ -306,6 +308,7 @@ template class BasicHashtable<mtCode>;
 template class BasicHashtable<mtInternal>;
 template class BasicHashtable<mtModule>;
 template class BasicHashtable<mtCompiler>;
+template class BasicHashtable<mtTracing>;
 
 template void BasicHashtable<mtClass>::verify_table<DictionaryEntry>(char const*);
 template void BasicHashtable<mtModule>::verify_table<ModuleEntry>(char const*);

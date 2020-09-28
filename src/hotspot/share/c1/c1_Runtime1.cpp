@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeBlob.hpp"
@@ -37,6 +38,7 @@
 #include "code/pcDesc.hpp"
 #include "code/scopeDesc.hpp"
 #include "code/vtableStubs.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c1/barrierSetC1.hpp"
@@ -55,7 +57,6 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -242,8 +243,8 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
   case fpu2long_stub_id:
   case unwind_exception_id:
   case counter_overflow_id:
-#if defined(SPARC) || defined(PPC32)
-  case handle_exception_nofpu_id:  // Unused on sparc
+#if defined(PPC32)
+  case handle_exception_nofpu_id:
 #endif
     expect_oop_map = false;
     break;
@@ -428,7 +429,7 @@ JRT_END
 
 // counter_overflow() is called from within C1-compiled methods. The enclosing method is the method
 // associated with the top activation record. The inlinee (that is possibly included in the enclosing
-// method) method oop is passed as an argument. In order to do that it is embedded in the code as
+// method) method is passed as an argument. In order to do that it is embedded in the code as
 // a constant.
 static nmethod* counter_overflow_helper(JavaThread* THREAD, int branch_bci, Method* m) {
   nmethod* osr_nm = NULL;
@@ -464,9 +465,7 @@ static nmethod* counter_overflow_helper(JavaThread* THREAD, int branch_bci, Meth
     }
     bci = branch_bci + offset;
   }
-  assert(!HAS_PENDING_EXCEPTION, "Should not have any exceptions pending");
   osr_nm = CompilationPolicy::policy()->event(enclosing_method, method, branch_bci, bci, level, nm, THREAD);
-  assert(!HAS_PENDING_EXCEPTION, "Event handler should not throw any exceptions");
   return osr_nm;
 }
 
@@ -699,30 +698,22 @@ JRT_ENTRY(void, Runtime1::throw_incompatible_class_change_error(JavaThread* thre
 JRT_END
 
 
-JRT_ENTRY_NO_ASYNC(void, Runtime1::monitorenter(JavaThread* thread, oopDesc* obj, BasicObjectLock* lock))
+JRT_BLOCK_ENTRY(void, Runtime1::monitorenter(JavaThread* thread, oopDesc* obj, BasicObjectLock* lock))
   NOT_PRODUCT(_monitorenter_slowcase_cnt++;)
-  if (PrintBiasedLockingStatistics) {
-    Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
-  }
-  Handle h_obj(thread, obj);
   if (!UseFastLocking) {
     lock->set_obj(obj);
   }
   assert(obj == lock->obj(), "must match");
-  ObjectSynchronizer::enter(h_obj, lock->lock(), THREAD);
+  SharedRuntime::monitor_enter_helper(obj, lock->lock(), thread);
 JRT_END
 
 
 JRT_LEAF(void, Runtime1::monitorexit(JavaThread* thread, BasicObjectLock* lock))
   NOT_PRODUCT(_monitorexit_slowcase_cnt++;)
-  assert(thread == JavaThread::current(), "threads must correspond");
   assert(thread->last_Java_sp(), "last_Java_sp must be set");
-  // monitorexit is non-blocking (leaf routine) => no exceptions can be thrown
-  EXCEPTION_MARK;
-
   oop obj = lock->obj();
   assert(oopDesc::is_oop(obj), "must be NULL or an object");
-  ObjectSynchronizer::exit(obj, lock->lock(), THREAD);
+  SharedRuntime::monitor_exit_helper(obj, lock->lock(), thread);
 JRT_END
 
 // Cf. OptoRuntime::deoptimize_caller_frame
@@ -1040,7 +1031,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
   // Now copy code back
 
   {
-    MutexLocker ml_patch (Patching_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml_patch (THREAD, Patching_lock, Mutex::_no_safepoint_check_flag);
     //
     // Deoptimization may have happened while we waited for the lock.
     // In that case we don't bother to do any patching we just return
@@ -1141,7 +1132,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
           ShouldNotReachHere();
         }
 
-#if defined(SPARC) || defined(PPC32)
+#if defined(PPC32)
         if (load_klass_or_mirror_patch_id ||
             stub_id == Runtime1::load_appendix_patching_id) {
           // Update the location in the nmethod with the proper
@@ -1232,13 +1223,6 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
             RelocIterator iter(nm, (address)instr_pc, (address)(instr_pc + 1));
             relocInfo::change_reloc_info_for_address(&iter, (address) instr_pc,
                                                      relocInfo::none, rtype);
-#ifdef SPARC
-            // Sparc takes two relocations for an metadata so update the second one.
-            address instr_pc2 = instr_pc + NativeMovConstReg::add_offset;
-            RelocIterator iter2(nm, instr_pc2, instr_pc2 + 1);
-            relocInfo::change_reloc_info_for_address(&iter2, (address) instr_pc2,
-                                                     relocInfo::none, rtype);
-#endif
 #ifdef PPC32
           { address instr_pc2 = instr_pc + NativeMovConstReg::lo_offset;
             RelocIterator iter2(nm, instr_pc2, instr_pc2 + 1);
@@ -1259,7 +1243,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
   // If we are patching in a non-perm oop, make sure the nmethod
   // is on the right list.
   {
-    MutexLocker ml_code (CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml_code (THREAD, CodeCache_lock, Mutex::_no_safepoint_check_flag);
     nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
     guarantee(nm != NULL, "only nmethods can contain non-perm oops");
 
@@ -1271,32 +1255,32 @@ JRT_END
 
 #else // DEOPTIMIZE_WHEN_PATCHING
 
-JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_id ))
-  RegisterMap reg_map(thread, false);
+void Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_id) {
+  NOT_PRODUCT(_patch_code_slowcase_cnt++);
 
-  NOT_PRODUCT(_patch_code_slowcase_cnt++;)
   if (TracePatching) {
     tty->print_cr("Deoptimizing because patch is needed");
   }
 
+  RegisterMap reg_map(thread, false);
+
   frame runtime_frame = thread->last_frame();
   frame caller_frame = runtime_frame.sender(&reg_map);
+  assert(caller_frame.is_compiled_frame(), "Wrong frame type");
 
-  // It's possible the nmethod was invalidated in the last
-  // safepoint, but if it's still alive then make it not_entrant.
+  // Make sure the nmethod is invalidated, i.e. made not entrant.
   nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
   if (nm != NULL) {
     nm->make_not_entrant();
   }
 
   Deoptimization::deoptimize_frame(thread, caller_frame.id());
-
   // Return to the now deoptimized frame.
-JRT_END
+  postcond(caller_is_deopted());
+}
 
 #endif // DEOPTIMIZE_WHEN_PATCHING
 
-//
 // Entry point for compiled code. We want to patch a nmethod.
 // We don't do a normal VM transition here because we want to
 // know after the patching is complete and any safepoint(s) are taken
@@ -1361,7 +1345,7 @@ int Runtime1::move_appendix_patching(JavaThread* thread) {
 
   return caller_is_deopted();
 }
-//
+
 // Entry point for compiled code. We want to patch a nmethod.
 // We don't do a normal VM transition here because we want to
 // know after the patching is complete and any safepoint(s) are taken
@@ -1370,7 +1354,6 @@ int Runtime1::move_appendix_patching(JavaThread* thread) {
 // completes we can check for deoptimization. This simplifies the
 // assembly code in the cpu directories.
 //
-
 int Runtime1::access_field_patching(JavaThread* thread) {
 //
 // NOTE: we are still in Java
@@ -1388,7 +1371,7 @@ int Runtime1::access_field_patching(JavaThread* thread) {
   // Return true if calling code is deoptimized
 
   return caller_is_deopted();
-JRT_END
+}
 
 
 JRT_LEAF(void, Runtime1::trace_block_entry(jint block_id))
@@ -1422,7 +1405,7 @@ JRT_ENTRY(void, Runtime1::predicate_failed_trap(JavaThread* thread))
   assert (nm != NULL, "no more nmethod?");
   nm->make_not_entrant();
 
-  methodHandle m(nm->method());
+  methodHandle m(thread, nm->method());
   MethodData* mdo = m->method_data();
 
   if (mdo == NULL && !HAS_PENDING_EXCEPTION) {
@@ -1430,6 +1413,7 @@ JRT_ENTRY(void, Runtime1::predicate_failed_trap(JavaThread* thread))
     // that simply means we won't have an MDO to update.
     Method::build_interpreter_method_data(m, THREAD);
     if (HAS_PENDING_EXCEPTION) {
+      // Only metaspace OOM is expected. No Java code executed.
       assert((PENDING_EXCEPTION->is_a(SystemDictionary::OutOfMemoryError_klass())), "we expect only an OOM error here");
       CLEAR_PENDING_EXCEPTION;
     }
@@ -1443,7 +1427,7 @@ JRT_ENTRY(void, Runtime1::predicate_failed_trap(JavaThread* thread))
   if (TracePredicateFailedTraps) {
     stringStream ss1, ss2;
     vframeStream vfst(thread);
-    methodHandle inlinee = methodHandle(vfst.method());
+    Method* inlinee = vfst.method();
     inlinee->print_short_name(&ss1);
     m->print_short_name(&ss2);
     tty->print_cr("Predicate failed trap in method %s at bci %d inlined in %s at pc " INTPTR_FORMAT, ss1.as_string(), vfst.bci(), ss2.as_string(), p2i(caller_frame.pc()));

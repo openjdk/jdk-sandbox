@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -223,10 +223,12 @@ final class P11PSSSignature extends SignatureSpi {
             return;
         }
         initialized = false;
+
         try {
             if (session == null) {
                 return;
             }
+
             if (doCancel && token.explicitCancel) {
                 cancelOperation();
             }
@@ -242,14 +244,10 @@ final class P11PSSSignature extends SignatureSpi {
         token.ensureValid();
         if (DEBUG) System.out.print("Cancelling operation");
 
-        if (session.hasObjects() == false) {
-            if (DEBUG) System.out.println(" by killing session");
-            session = token.killSession(session);
-            return;
-        }
-        // "cancel" operation by finishing it
-        if (mode == M_SIGN) {
-            try {
+        // cancel operation by finishing it; avoid killSession as some
+        // hardware vendors may require re-login
+        try {
+            if (mode == M_SIGN) {
                 if (type == T_UPDATE) {
                     if (DEBUG) System.out.println(" by C_SignFinal");
                     token.p11.C_SignFinal(session.id(), 0);
@@ -259,11 +257,7 @@ final class P11PSSSignature extends SignatureSpi {
                     if (DEBUG) System.out.println(" by C_Sign");
                     token.p11.C_Sign(session.id(), digest);
                 }
-            } catch (PKCS11Exception e) {
-                throw new ProviderException("cancel failed", e);
-            }
-        } else { // M_VERIFY
-            try {
+            } else { // M_VERIFY
                 byte[] signature =
                     new byte[(p11Key.length() + 7) >> 3];
                 if (type == T_UPDATE) {
@@ -275,10 +269,12 @@ final class P11PSSSignature extends SignatureSpi {
                     if (DEBUG) System.out.println(" by C_Verify");
                     token.p11.C_Verify(session.id(), digest, signature);
                 }
-            } catch (PKCS11Exception e) {
-                // will fail since the signature is incorrect
-                // XXX check error code
             }
+        } catch (PKCS11Exception e) {
+            if (mode == M_SIGN) {
+                throw new ProviderException("cancel failed", e);
+            }
+            // ignore failure for verification
         }
     }
 
@@ -338,9 +334,6 @@ final class P11PSSSignature extends SignatureSpi {
 
         int keySize = 0; // in bytes
         if (mechInfo != null) {
-            // check against available native info
-            int minKeySize = (int) mechInfo.ulMinKeySize;
-            int maxKeySize = (int) mechInfo.ulMaxKeySize;
             if (key instanceof P11Key) {
                 keySize = (((P11Key) key).length() + 7) >> 3;
             } else if (key instanceof RSAKey) {
@@ -348,13 +341,16 @@ final class P11PSSSignature extends SignatureSpi {
             } else {
                 throw new InvalidKeyException("Unrecognized key type " + key);
             }
-            if ((minKeySize != -1) && (keySize < minKeySize)) {
+            // check against available native info which are in bits
+            if ((mechInfo.iMinKeySize != 0) &&
+                    (keySize < (mechInfo.iMinKeySize >> 3))) {
                 throw new InvalidKeyException(KEY_ALGO +
-                    " key must be at least " + minKeySize + " bytes");
+                    " key must be at least " + mechInfo.iMinKeySize + " bits");
             }
-            if ((maxKeySize != -1) && (keySize > maxKeySize)) {
+            if ((mechInfo.iMaxKeySize != Integer.MAX_VALUE) &&
+                    (keySize > (mechInfo.iMaxKeySize >> 3))) {
                 throw new InvalidKeyException(KEY_ALGO +
-                    " key must be at most " + maxKeySize + " bytes");
+                    " key must be at most " + mechInfo.iMaxKeySize + " bits");
             }
         }
         if (this.sigParams != null) {

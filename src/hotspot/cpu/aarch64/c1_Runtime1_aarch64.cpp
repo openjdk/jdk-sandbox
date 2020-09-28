@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -43,6 +43,7 @@
 #include "runtime/signature.hpp"
 #include "runtime/vframe.hpp"
 #include "runtime/vframeArray.hpp"
+#include "utilities/powerOfTwo.hpp"
 #include "vmreg_aarch64.inline.hpp"
 
 
@@ -552,84 +553,39 @@ OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) {
     __ bind(L);
   }
 #endif
+
   __ reset_last_Java_frame(true);
-  __ maybe_isb();
-
-  // check for pending exceptions
-  { Label L;
-    __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
-    __ cbz(rscratch1, L);
-    // exception pending => remove activation and forward to exception handler
-
-    { Label L1;
-      __ cbnz(r0, L1);                                  // have we deoptimized?
-      __ far_jump(RuntimeAddress(Runtime1::entry_for(Runtime1::forward_exception_id)));
-      __ bind(L1);
-    }
-
-    // the deopt blob expects exceptions in the special fields of
-    // JavaThread, so copy and clear pending exception.
-
-    // load and clear pending exception
-    __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
-    __ str(zr, Address(rthread, Thread::pending_exception_offset()));
-
-    // check that there is really a valid exception
-    __ verify_not_null_oop(r0);
-
-    // load throwing pc: this is the return address of the stub
-    __ mov(r3, lr);
 
 #ifdef ASSERT
-    // check that fields in JavaThread for exception oop and issuing pc are empty
-    Label oop_empty;
-    __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
-    __ cbz(rscratch1, oop_empty);
-    __ stop("exception oop must be empty");
-    __ bind(oop_empty);
+  // check that fields in JavaThread for exception oop and issuing pc are empty
+  Label oop_empty;
+  __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
+  __ cbz(rscratch1, oop_empty);
+  __ stop("exception oop must be empty");
+  __ bind(oop_empty);
 
-    Label pc_empty;
-    __ ldr(rscratch1, Address(rthread, JavaThread::exception_pc_offset()));
-    __ cbz(rscratch1, pc_empty);
-    __ stop("exception pc must be empty");
-    __ bind(pc_empty);
+  Label pc_empty;
+  __ ldr(rscratch1, Address(rthread, JavaThread::exception_pc_offset()));
+  __ cbz(rscratch1, pc_empty);
+  __ stop("exception pc must be empty");
+  __ bind(pc_empty);
 #endif
 
-    // store exception oop and throwing pc to JavaThread
-    __ str(r0, Address(rthread, JavaThread::exception_oop_offset()));
-    __ str(r3, Address(rthread, JavaThread::exception_pc_offset()));
+  // Runtime will return true if the nmethod has been deoptimized, this is the
+  // expected scenario and anything else is  an error. Note that we maintain a
+  // check on the result purely as a defensive measure.
+  Label no_deopt;
+  __ cbz(r0, no_deopt);                                // Have we deoptimized?
 
-    restore_live_registers(sasm);
-
-    __ leave();
-
-    // Forward the exception directly to deopt blob. We can blow no
-    // registers and must leave throwing pc on the stack.  A patch may
-    // have values live in registers so the entry point with the
-    // exception in tls.
-    __ far_jump(RuntimeAddress(deopt_blob->unpack_with_exception_in_tls()));
-
-    __ bind(L);
-  }
-
-
-  // Runtime will return true if the nmethod has been deoptimized during
-  // the patching process. In that case we must do a deopt reexecute instead.
-
-  Label cont;
-
-  __ cbz(r0, cont);                                 // have we deoptimized?
-
-  // Will reexecute. Proper return address is already on the stack we just restore
-  // registers, pop all of our frame but the return address and jump to the deopt blob
+  // Perform a re-execute. The proper return  address is already on the stack,
+  // we just need  to restore registers, pop  all of our frame  but the return
+  // address and jump to the deopt blob.
   restore_live_registers(sasm);
   __ leave();
   __ far_jump(RuntimeAddress(deopt_blob->unpack_with_reexecution()));
 
-  __ bind(cont);
-  restore_live_registers(sasm);
-  __ leave();
-  __ ret(lr);
+  __ bind(no_deopt);
+  __ stop("deopt not performed");
 
   return oop_maps;
 }
@@ -840,6 +796,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ sub(arr_size, arr_size, t1);  // body length
           __ add(t1, t1, obj);       // body start
           __ initialize_body(t1, arr_size, 0, t2);
+          __ membar(Assembler::StoreStore);
           __ verify_oop(obj);
 
           __ ret(lr);
@@ -1123,6 +1080,16 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
+    case dtrace_object_alloc_id:
+      { // c_rarg0: object
+        StubFrame f(sasm, "dtrace_object_alloc", dont_gc_arguments);
+        save_live_registers(sasm);
+
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_object_alloc), c_rarg0);
+
+        restore_live_registers(sasm);
+      }
+      break;
 
     default:
       { StubFrame f(sasm, "unimplemented entry", dont_gc_arguments);

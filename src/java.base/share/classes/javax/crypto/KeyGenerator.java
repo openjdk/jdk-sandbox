@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -97,7 +97,6 @@ import sun.security.util.Debug;
  * parentheses:
  * <ul>
  * <li>{@code AES} (128)</li>
- * <li>{@code DES} (56)</li>
  * <li>{@code DESede} (168)</li>
  * <li>{@code HmacSHA1}</li>
  * <li>{@code HmacSHA256}</li>
@@ -450,7 +449,7 @@ public class KeyGenerator {
     public final void init(AlgorithmParameterSpec params)
         throws InvalidAlgorithmParameterException
     {
-        init(params, JceSecurity.RANDOM);
+        init(params, JCAUtil.getSecureRandom());
     }
 
     /**
@@ -514,7 +513,7 @@ public class KeyGenerator {
      * supported.
      */
     public final void init(int keysize) {
-        init(keysize, JceSecurity.RANDOM);
+        init(keysize, JCAUtil.getSecureRandom());
     }
 
     /**

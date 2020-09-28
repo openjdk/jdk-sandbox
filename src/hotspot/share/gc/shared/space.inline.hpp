@@ -163,10 +163,6 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
   HeapWord* scan_limit = space->scan_limit();
 
   while (cur_obj < scan_limit) {
-    assert(!space->scanned_block_is_obj(cur_obj) ||
-           oop(cur_obj)->mark_raw().is_marked() || oop(cur_obj)->mark_raw().is_unlocked() ||
-           oop(cur_obj)->mark_raw().has_bias_pattern(),
-           "these are the only valid states during a mark sweep");
     if (space->scanned_block_is_obj(cur_obj) && oop(cur_obj)->is_gc_marked()) {
       // prefetch beyond cur_obj
       Prefetch::write(cur_obj, interval);
@@ -332,7 +328,7 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
 
       // size and destination
       size_t size = space->obj_size(cur_obj);
-      HeapWord* compaction_top = (HeapWord*)oop(cur_obj)->forwardee();
+      HeapWord* compaction_top = cast_from_oop<HeapWord*>(oop(cur_obj)->forwardee());
 
       // prefetch beyond compaction_top
       Prefetch::write(compaction_top, copy_interval);
@@ -375,16 +371,6 @@ void ContiguousSpace::oop_since_save_marks_iterate(OopClosureType* blk) {
   } while (t < top());
 
   set_saved_mark_word(p);
-}
-
-template <typename OopClosureType>
-void ContiguousSpace::par_oop_iterate(MemRegion mr, OopClosureType* blk) {
-  HeapWord* obj_addr = mr.start();
-  HeapWord* limit = mr.end();
-  while (obj_addr < limit) {
-    assert(oopDesc::is_oop(oop(obj_addr)), "Should be an oop");
-    obj_addr += oop(obj_addr)->oop_iterate_size(blk);
-  }
 }
 
 #endif // SHARE_GC_SHARED_SPACE_INLINE_HPP

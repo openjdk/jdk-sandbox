@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +48,8 @@ import org.graalvm.compiler.nodes.gc.G1ArrayRangePreWriteBarrier;
 import org.graalvm.compiler.nodes.gc.G1PostWriteBarrier;
 import org.graalvm.compiler.nodes.gc.G1PreWriteBarrier;
 import org.graalvm.compiler.nodes.gc.G1ReferentFieldReadBarrier;
-import org.graalvm.compiler.nodes.memory.HeapAccess.BarrierType;
+import org.graalvm.compiler.nodes.java.InstanceOfNode;
+import org.graalvm.compiler.nodes.memory.OnHeapMemoryAccess.BarrierType;
 import org.graalvm.compiler.nodes.memory.address.AddressNode;
 import org.graalvm.compiler.nodes.memory.address.AddressNode.Address;
 import org.graalvm.compiler.nodes.memory.address.OffsetAddressNode;
@@ -68,6 +69,8 @@ import jdk.internal.vm.compiler.word.LocationIdentity;
 import jdk.internal.vm.compiler.word.Pointer;
 import jdk.internal.vm.compiler.word.UnsignedWord;
 import jdk.internal.vm.compiler.word.WordFactory;
+
+import jdk.vm.ci.meta.ResolvedJavaType;
 
 public abstract class G1WriteBarrierSnippets extends WriteBarrierSnippets implements Snippets {
 
@@ -165,6 +168,15 @@ public abstract class G1WriteBarrierSnippets extends WriteBarrierSnippets implem
     }
 
     @Snippet
+    public void g1ReferentReadBarrier(Address address, Object object, Object expectedObject, @ConstantParameter boolean isDynamicCheck, Word offset,
+                    @ConstantParameter int traceStartCycle, @ConstantParameter Counters counters) {
+        if (!isDynamicCheck ||
+                        (offset == WordFactory.unsigned(referentOffset()) && InstanceOfNode.doInstanceof(referenceType(), object))) {
+            g1PreWriteBarrier(address, object, expectedObject, false, false, traceStartCycle, counters);
+        }
+    }
+
+    @Snippet
     public void g1PostWriteBarrier(Address address, Object object, Object value, @ConstantParameter boolean usePrecise, @ConstantParameter int traceStartCycle,
                     @ConstantParameter Counters counters) {
         Word thread = getThread();
@@ -204,7 +216,7 @@ public abstract class G1WriteBarrierSnippets extends WriteBarrierSnippets implem
             if (probability(FREQUENT_PROBABILITY, writtenValue.notEqual(0))) {
                 // Calculate the address of the card to be enqueued to the
                 // thread local card queue.
-                Word cardAddress = cardTableAddress().add(oop.unsignedShiftRight(cardTableShift()));
+                Word cardAddress = cardTableAddress(oop);
 
                 byte cardByte = cardAddress.readByte(0, GC_CARD_LOCATION);
                 counters.g1EffectiveAfterNullPostWriteBarrierCounter.inc();
@@ -284,10 +296,8 @@ public abstract class G1WriteBarrierSnippets extends WriteBarrierSnippets implem
         Word indexAddress = thread.add(cardQueueIndexOffset());
         long indexValue = thread.readWord(cardQueueIndexOffset(), CARD_QUEUE_INDEX_LOCATION).rawValue();
 
-        int cardShift = cardTableShift();
-        Word cardStart = cardTableAddress();
-        Word start = cardStart.add(getPointerToFirstArrayElement(address, length, elementStride).unsignedShiftRight(cardShift));
-        Word end = cardStart.add(getPointerToLastArrayElement(address, length, elementStride).unsignedShiftRight(cardShift));
+        Word start = cardTableAddress(getPointerToFirstArrayElement(address, length, elementStride));
+        Word end = cardTableAddress(getPointerToLastArrayElement(address, length, elementStride));
 
         Word cur = start;
         do {
@@ -336,9 +346,7 @@ public abstract class G1WriteBarrierSnippets extends WriteBarrierSnippets implem
 
     protected abstract byte youngCardValue();
 
-    protected abstract Word cardTableAddress();
-
-    protected abstract int cardTableShift();
+    protected abstract Word cardTableAddress(Pointer oop);
 
     protected abstract int logOfHeapRegionGrainBytes();
 
@@ -358,6 +366,10 @@ public abstract class G1WriteBarrierSnippets extends WriteBarrierSnippets implem
     protected abstract ForeignCallDescriptor validateObjectCallDescriptor();
 
     protected abstract ForeignCallDescriptor printfCallDescriptor();
+
+    protected abstract ResolvedJavaType referenceType();
+
+    protected abstract long referentOffset();
 
     private boolean isTracingActive(int traceStartCycle) {
         return traceStartCycle > 0 && ((Pointer) WordFactory.pointer(gcTotalCollectionsAddress())).readLong(0) > traceStartCycle;
@@ -380,7 +392,7 @@ public abstract class G1WriteBarrierSnippets extends WriteBarrierSnippets implem
             Word parentWord = Word.objectToTrackedPointer(parent);
             Word childWord = Word.objectToTrackedPointer(child);
             boolean success = validateOop(validateObjectCallDescriptor(), parentWord, childWord);
-            AssertionNode.assertion(false, success, "Verification ERROR, Parent: %p Child: %p\n", parentWord.rawValue(), childWord.rawValue());
+            AssertionNode.dynamicAssert(success, "Verification ERROR, Parent: %p Child: %p\n", parentWord.rawValue(), childWord.rawValue());
         }
     }
 
@@ -446,13 +458,10 @@ public abstract class G1WriteBarrierSnippets extends WriteBarrierSnippets implem
 
         public void lower(AbstractTemplates templates, SnippetInfo snippet, G1ReferentFieldReadBarrier barrier, LoweringTool tool) {
             Arguments args = new Arguments(snippet, barrier.graph().getGuardsStage(), tool.getLoweringStage());
-            AddressNode address = barrier.getAddress();
+            // This is expected to be lowered before address lowering
+            OffsetAddressNode address = (OffsetAddressNode) barrier.getAddress();
             args.add("address", address);
-            if (address instanceof OffsetAddressNode) {
-                args.add("object", ((OffsetAddressNode) address).getBase());
-            } else {
-                args.add("object", null);
-            }
+            args.add("object", address.getBase());
 
             ValueNode expected = barrier.getExpectedObject();
             if (expected != null && expected.stamp(NodeView.DEFAULT) instanceof NarrowOopStamp) {
@@ -460,8 +469,8 @@ public abstract class G1WriteBarrierSnippets extends WriteBarrierSnippets implem
             }
 
             args.add("expectedObject", expected);
-            args.addConst("doLoad", barrier.doLoad());
-            args.addConst("nullCheck", false);
+            args.addConst("isDynamicCheck", barrier.isDynamicCheck());
+            args.add("offset", address.getOffset());
             args.addConst("traceStartCycle", traceStartCycle(barrier.graph()));
             args.addConst("counters", counters);
 

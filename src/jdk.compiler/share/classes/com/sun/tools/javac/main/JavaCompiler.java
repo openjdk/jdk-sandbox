@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -934,8 +934,8 @@ public class JavaCompiler {
             // These method calls must be chained to avoid memory leaks
             processAnnotations(
                 enterTrees(
-                        stopIfError(CompileState.PARSE,
-                                initModules(stopIfError(CompileState.PARSE, parseFiles(sourceFileObjects))))
+                        stopIfError(CompileState.ENTER,
+                                initModules(stopIfError(CompileState.ENTER, parseFiles(sourceFileObjects))))
                 ),
                 classnames
             );
@@ -946,34 +946,36 @@ public class JavaCompiler {
                 todo.retainFiles(inputFiles);
             }
 
-            switch (compilePolicy) {
-            case ATTR_ONLY:
-                attribute(todo);
-                break;
+            if (!CompileState.ATTR.isAfter(shouldStopPolicyIfNoError)) {
+                switch (compilePolicy) {
+                case ATTR_ONLY:
+                    attribute(todo);
+                    break;
 
-            case CHECK_ONLY:
-                flow(attribute(todo));
-                break;
+                case CHECK_ONLY:
+                    flow(attribute(todo));
+                    break;
 
-            case SIMPLE:
-                generate(desugar(flow(attribute(todo))));
-                break;
+                case SIMPLE:
+                    generate(desugar(flow(attribute(todo))));
+                    break;
 
-            case BY_FILE: {
-                    Queue<Queue<Env<AttrContext>>> q = todo.groupByFile();
-                    while (!q.isEmpty() && !shouldStop(CompileState.ATTR)) {
-                        generate(desugar(flow(attribute(q.remove()))));
+                case BY_FILE: {
+                        Queue<Queue<Env<AttrContext>>> q = todo.groupByFile();
+                        while (!q.isEmpty() && !shouldStop(CompileState.ATTR)) {
+                            generate(desugar(flow(attribute(q.remove()))));
+                        }
                     }
+                    break;
+
+                case BY_TODO:
+                    while (!todo.isEmpty())
+                        generate(desugar(flow(attribute(todo.remove()))));
+                    break;
+
+                default:
+                    Assert.error("unknown compile policy");
                 }
-                break;
-
-            case BY_TODO:
-                while (!todo.isEmpty())
-                    generate(desugar(flow(attribute(todo.remove()))));
-                break;
-
-            default:
-                Assert.error("unknown compile policy");
             }
         } catch (Abort ex) {
             if (devVerbose)
@@ -1034,16 +1036,12 @@ public class JavaCompiler {
         return trees.toList();
     }
 
-    /**
-     * Enter the symbols found in a list of parse trees if the compilation
-     * is expected to proceed beyond anno processing into attr.
-     * As a side-effect, this puts elements on the "todo" list.
-     * Also stores a list of all top level classes in rootClasses.
-     */
-    public List<JCCompilationUnit> enterTreesIfNeeded(List<JCCompilationUnit> roots) {
-       if (shouldStop(CompileState.ATTR))
-           return List.nil();
-        return enterTrees(initModules(roots));
+   /**
+    * Returns true iff the compilation will continue after annotation processing
+    * is done.
+    */
+    public boolean continueAfterProcessAnnotations() {
+        return !shouldStop(CompileState.ATTR);
     }
 
     public List<JCCompilationUnit> initModules(List<JCCompilationUnit> roots) {
@@ -1179,7 +1177,7 @@ public class JavaCompiler {
             // Unless all the errors are resolve errors, the errors were parse errors
             // or other errors during enter which cannot be fixed by running
             // any annotation processors.
-            if (unrecoverableError()) {
+            if (processAnnotations) {
                 deferredDiagnosticHandler.reportDeferredDiagnostics();
                 log.popDiagnosticHandler(deferredDiagnosticHandler);
                 return ;
@@ -1490,7 +1488,7 @@ public class JavaCompiler {
                             } finally {
                                 /*
                                  * ignore any updates to hasLambdas made during
-                                 * the nested scan, this ensures an initalized
+                                 * the nested scan, this ensures an initialized
                                  * LambdaToMethod is available only to those
                                  * classes that contain lambdas
                                  */
@@ -1557,6 +1555,12 @@ public class JavaCompiler {
 
             env.tree = transTypes.translateTopLevelClass(env.tree, localMake);
             compileStates.put(env, CompileState.TRANSTYPES);
+
+            if (shouldStop(CompileState.TRANSPATTERNS))
+                return;
+
+            env.tree = TransPatterns.instance(context).translateTopLevelClass(env, env.tree, localMake);
+            compileStates.put(env, CompileState.TRANSPATTERNS);
 
             if (Feature.LAMBDA.allowedInSource(source) && scanner.hasLambdas) {
                 if (shouldStop(CompileState.UNLAMBDA))

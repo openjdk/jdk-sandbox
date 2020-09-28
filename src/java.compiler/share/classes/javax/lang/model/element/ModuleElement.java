@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,7 +51,8 @@ public interface ModuleElement extends Element, QualifiedNameable {
 
     /**
      * Returns the fully qualified name of this module.  For an
-     * {@linkplain #isUnnamed() unnamed module}, an empty name is returned.
+     * {@linkplain #isUnnamed() unnamed module}, an <a
+     * href=Name.html#empty_name>empty name</a> is returned.
      *
      * @apiNote If the module name consists of one identifier, then
      * this method returns that identifier, which is deemed to be
@@ -69,7 +70,8 @@ public interface ModuleElement extends Element, QualifiedNameable {
 
     /**
      * Returns the simple name of this module.  For an {@linkplain
-     * #isUnnamed() unnamed module}, an empty name is returned.
+     * #isUnnamed() unnamed module}, an <a
+     * href=Name.html#empty_name>empty name</a> is returned.
      *
      * @apiNote If the module name consists of one identifier, then
      * this method returns that identifier.  If the module name
@@ -132,7 +134,7 @@ public interface ModuleElement extends Element, QualifiedNameable {
      *
      * <p>Note that it is possible additional directive kinds will be added
      * to accommodate new, currently unknown, language structures added to
-     * future versions of the Java&trade; programming language.
+     * future versions of the Java programming language.
      *
      * @since 9
      * @spec JPMS
@@ -161,6 +163,24 @@ public interface ModuleElement extends Element, QualifiedNameable {
     interface Directive {
         /**
          * Returns the {@code kind} of this directive.
+         * <ul>
+         *
+         * <li> The kind of a {@linkplain RequiresDirective requires
+         * directive} is {@link DirectiveKind#REQUIRES REQUIRES}.
+         *
+         * <li> The kind of an {@linkplain ExportsDirective exports
+         * directive} is {@link DirectiveKind#EXPORTS EXPORTS}.
+         *
+         * <li> The kind of an {@linkplain OpensDirective opens
+         * directive} is {@link DirectiveKind#OPENS OPENS}.
+         *
+         * <li> The kind of a {@linkplain UsesDirective uses
+         * directive} is {@link DirectiveKind#USES USES}.
+         *
+         * <li> The kind of a {@linkplain ProvidesDirective provides
+         * directive} is {@link DirectiveKind#PROVIDES PROVIDES}.
+         *
+         * </ul>
          *
          * @return the kind of this directive
          */
@@ -193,7 +213,7 @@ public interface ModuleElement extends Element, QualifiedNameable {
      *
      * <p> <b>WARNING:</b> It is possible that methods will be added to
      * this interface to accommodate new, currently unknown, language
-     * structures added to future versions of the Java&trade; programming
+     * structures added to future versions of the Java programming
      * language. Methods to accommodate new language constructs will
      * be added in a source <em>compatible</em> way using
      * <em>default methods</em>.

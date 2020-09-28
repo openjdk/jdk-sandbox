@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,22 +23,10 @@
  * questions.
  */
 
-// SAX document handler.
-// http://www.saxproject.org
-// No warranty; no copyright -- use this as you will.
-// $Id: DocumentHandler.java,v 1.2 2004/11/03 22:44:51 jsuttor Exp $
-
 package org.xml.sax;
 
 /**
  * Receive notification of general document events.
- *
- * <blockquote>
- * <em>This module, both source code and documentation, is in the
- * Public Domain, and comes with <strong>NO WARRANTY</strong>.</em>
- * See <a href='http://www.saxproject.org'>http://www.saxproject.org</a>
- * for further information.
- * </blockquote>
  *
  * <p>This was the main event-handling interface for SAX1; in
  * SAX2, it has been replaced by {@link org.xml.sax.ContentHandler
@@ -107,7 +95,7 @@ public interface DocumentHandler {
      * other methods in this interface or in DTDHandler (except for
      * setDocumentLocator).</p>
      *
-     * @exception org.xml.sax.SAXException Any SAX exception, possibly
+     * @throws org.xml.sax.SAXException Any SAX exception, possibly
      *            wrapping another exception.
      */
     public abstract void startDocument ()
@@ -123,7 +111,7 @@ public interface DocumentHandler {
      * (because of an unrecoverable error) or reached the end of
      * input.</p>
      *
-     * @exception org.xml.sax.SAXException Any SAX exception, possibly
+     * @throws org.xml.sax.SAXException Any SAX exception, possibly
      *            wrapping another exception.
      */
     public abstract void endDocument ()
@@ -147,7 +135,7 @@ public interface DocumentHandler {
      *
      * @param name The element type name.
      * @param atts The attributes attached to the element, if any.
-     * @exception org.xml.sax.SAXException Any SAX exception, possibly
+     * @throws org.xml.sax.SAXException Any SAX exception, possibly
      *            wrapping another exception.
      * @see #endElement
      * @see org.xml.sax.AttributeList
@@ -168,7 +156,7 @@ public interface DocumentHandler {
      * still be attached to the name.</p>
      *
      * @param name The element type name
-     * @exception org.xml.sax.SAXException Any SAX exception, possibly
+     * @throws org.xml.sax.SAXException Any SAX exception, possibly
      *            wrapping another exception.
      */
     public abstract void endElement (String name)
@@ -195,7 +183,7 @@ public interface DocumentHandler {
      * @param ch The characters from the XML document.
      * @param start The start position in the array.
      * @param length The number of characters to read from the array.
-     * @exception org.xml.sax.SAXException Any SAX exception, possibly
+     * @throws org.xml.sax.SAXException Any SAX exception, possibly
      *            wrapping another exception.
      * @see #ignorableWhitespace
      * @see org.xml.sax.Locator
@@ -224,7 +212,7 @@ public interface DocumentHandler {
      * @param ch The characters from the XML document.
      * @param start The start position in the array.
      * @param length The number of characters to read from the array.
-     * @exception org.xml.sax.SAXException Any SAX exception, possibly
+     * @throws org.xml.sax.SAXException Any SAX exception, possibly
      *            wrapping another exception.
      * @see #characters
      */
@@ -246,7 +234,7 @@ public interface DocumentHandler {
      * @param target The processing instruction target.
      * @param data The processing instruction data, or null if
      *        none was supplied.
-     * @exception org.xml.sax.SAXException Any SAX exception, possibly
+     * @throws org.xml.sax.SAXException Any SAX exception, possibly
      *            wrapping another exception.
      */
     public abstract void processingInstruction (String target, String data)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,9 @@
 #include "code/codeCache.hpp"
 #include "code/scopeDesc.hpp"
 #include "compiler/compileBroker.hpp"
+#include "compiler/compilerEvent.hpp"
 #include "compiler/compileLog.hpp"
+#include "compiler/compileTask.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/linkResolver.hpp"
@@ -154,6 +156,7 @@ ciEnv::ciEnv(CompileTask* task)
   _the_null_string = NULL;
   _the_min_jint_string = NULL;
 
+  _jvmti_redefinition_count = 0;
   _jvmti_can_hotswap_or_post_breakpoint = false;
   _jvmti_can_access_local_variables = false;
   _jvmti_can_post_on_exceptions = false;
@@ -209,6 +212,7 @@ ciEnv::ciEnv(Arena* arena) : _ciEnv_arena(mtCompiler) {
   _the_null_string = NULL;
   _the_min_jint_string = NULL;
 
+  _jvmti_redefinition_count = 0;
   _jvmti_can_hotswap_or_post_breakpoint = false;
   _jvmti_can_access_local_variables = false;
   _jvmti_can_post_on_exceptions = false;
@@ -227,17 +231,25 @@ ciEnv::~ciEnv() {
 
 // ------------------------------------------------------------------
 // Cache Jvmti state
-void ciEnv::cache_jvmti_state() {
+bool ciEnv::cache_jvmti_state() {
   VM_ENTRY_MARK;
   // Get Jvmti capabilities under lock to get consistant values.
   MutexLocker mu(JvmtiThreadState_lock);
+  _jvmti_redefinition_count             = JvmtiExport::redefinition_count();
   _jvmti_can_hotswap_or_post_breakpoint = JvmtiExport::can_hotswap_or_post_breakpoint();
   _jvmti_can_access_local_variables     = JvmtiExport::can_access_local_variables();
   _jvmti_can_post_on_exceptions         = JvmtiExport::can_post_on_exceptions();
   _jvmti_can_pop_frame                  = JvmtiExport::can_pop_frame();
+  _jvmti_can_get_owned_monitor_info     = JvmtiExport::can_get_owned_monitor_info();
+  return _task != NULL && _task->method()->is_old();
 }
 
 bool ciEnv::jvmti_state_changed() const {
+  // Some classes were redefined
+  if (_jvmti_redefinition_count != JvmtiExport::redefinition_count()) {
+    return true;
+  }
+
   if (!_jvmti_can_access_local_variables &&
       JvmtiExport::can_access_local_variables()) {
     return true;
@@ -254,6 +266,11 @@ bool ciEnv::jvmti_state_changed() const {
       JvmtiExport::can_pop_frame()) {
     return true;
   }
+  if (!_jvmti_can_get_owned_monitor_info &&
+      JvmtiExport::can_get_owned_monitor_info()) {
+    return true;
+  }
+
   return false;
 }
 
@@ -399,12 +416,10 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
 
   // Now we need to check the SystemDictionary
   Symbol* sym = name->get_symbol();
-  if (sym->char_at(0) == 'L' &&
-    sym->char_at(sym->utf8_length()-1) == ';') {
+  if (Signature::has_envelope(sym)) {
     // This is a name from a signature.  Strip off the trimmings.
     // Call recursive to keep scope of strippedsym.
-    TempNewSymbol strippedsym = SymbolTable::new_symbol(sym->as_utf8()+1,
-                                                        sym->utf8_length()-2);
+    TempNewSymbol strippedsym = Signature::strip_envelope(sym);
     ciSymbol* strippedname = get_symbol(strippedsym);
     return get_klass_by_name_impl(accessing_klass, cpool, strippedname, require_local);
   }
@@ -426,7 +441,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
 
   // setup up the proper type to return on OOM
   ciKlass* fail_type;
-  if (sym->char_at(0) == '[') {
+  if (sym->char_at(0) == JVM_SIGNATURE_ARRAY) {
     fail_type = _unloaded_ciobjarrayklass;
   } else {
     fail_type = _unloaded_ciinstance_klass;
@@ -438,10 +453,10 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
     Klass* kls;
     if (!require_local) {
       kls = SystemDictionary::find_constrained_instance_or_array_klass(sym, loader,
-                                                                       KILL_COMPILE_ON_FATAL_(fail_type));
+                                                                       CHECK_AND_CLEAR_(fail_type));
     } else {
       kls = SystemDictionary::find_instance_or_array_klass(sym, loader, domain,
-                                                           KILL_COMPILE_ON_FATAL_(fail_type));
+                                                           CHECK_AND_CLEAR_(fail_type));
     }
     found_klass = kls;
   }
@@ -452,18 +467,17 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   // we must build an array type around it.  The CI requires array klasses
   // to be loaded if their element klasses are loaded, except when memory
   // is exhausted.
-  if (sym->char_at(0) == '[' &&
-      (sym->char_at(1) == '[' || sym->char_at(1) == 'L')) {
+  if (Signature::is_array(sym) &&
+      (sym->char_at(1) == JVM_SIGNATURE_ARRAY || sym->char_at(1) == JVM_SIGNATURE_CLASS)) {
     // We have an unloaded array.
     // Build it on the fly if the element class exists.
-    TempNewSymbol elem_sym = SymbolTable::new_symbol(sym->as_utf8()+1,
-                                                     sym->utf8_length()-1);
-
+    SignatureStream ss(sym, false);
+    ss.skip_array_prefix(1);
     // Get element ciKlass recursively.
     ciKlass* elem_klass =
       get_klass_by_name_impl(accessing_klass,
                              cpool,
-                             get_symbol(elem_sym),
+                             get_symbol(ss.as_symbol()),
                              require_local);
     if (elem_klass != NULL && elem_klass->is_loaded()) {
       // Now make an array for it
@@ -539,7 +553,7 @@ ciKlass* ciEnv::get_klass_by_index_impl(const constantPoolHandle& cpool,
     // Calculate accessibility the hard way.
     if (!k->is_loaded()) {
       is_accessible = false;
-    } else if (!oopDesc::equals(k->loader(), accessor->loader()) &&
+    } else if (k->loader() != accessor->loader() &&
                get_klass_by_name_impl(accessor, cpool, k->name(), true) == NULL) {
       // Loaded only remotely.  Not linked yet.
       is_accessible = false;
@@ -590,12 +604,12 @@ ciConstant ciEnv::get_constant_by_index_impl(const constantPoolHandle& cpool,
     index = cpool->object_to_cp_index(cache_index);
     oop obj = cpool->resolved_references()->obj_at(cache_index);
     if (obj != NULL) {
-      if (oopDesc::equals(obj, Universe::the_null_sentinel())) {
+      if (obj == Universe::the_null_sentinel()) {
         return ciConstant(T_OBJECT, get_object(NULL));
       }
       BasicType bt = T_OBJECT;
       if (cpool->tag_at(index).is_dynamic_constant())
-        bt = FieldType::basic_type(cpool->uncached_signature_ref_at(index));
+        bt = Signature::basic_type(cpool->uncached_signature_ref_at(index));
       if (is_reference_type(bt)) {
       } else {
         // we have to unbox the primitive value
@@ -746,8 +760,8 @@ Method* ciEnv::lookup_method(ciInstanceKlass* accessor,
 
   InstanceKlass* accessor_klass = accessor->get_instanceKlass();
   Klass* holder_klass = holder->get_Klass();
-  methodHandle dest_method;
-  LinkInfo link_info(holder_klass, name, sig, accessor_klass, LinkInfo::needs_access_check, tag);
+  Method* dest_method;
+  LinkInfo link_info(holder_klass, name, sig, accessor_klass, LinkInfo::AccessCheck::required, LinkInfo::LoaderConstraintCheck::required, tag);
   switch (bc) {
   case Bytecodes::_invokestatic:
     dest_method =
@@ -768,7 +782,7 @@ Method* ciEnv::lookup_method(ciInstanceKlass* accessor,
   default: ShouldNotReachHere();
   }
 
-  return dest_method();
+  return dest_method;
 }
 
 
@@ -777,6 +791,8 @@ Method* ciEnv::lookup_method(ciInstanceKlass* accessor,
 ciMethod* ciEnv::get_method_by_index_impl(const constantPoolHandle& cpool,
                                           int index, Bytecodes::Code bc,
                                           ciInstanceKlass* accessor) {
+  assert(cpool.not_null(), "need constant pool");
+  assert(accessor != NULL, "need origin of access");
   if (bc == Bytecodes::_invokedynamic) {
     ConstantPoolCacheEntry* cpce = cpool->invokedynamic_cp_cache_entry_at(index);
     bool is_resolved = !cpce->is_f1_null();
@@ -957,7 +973,7 @@ void ciEnv::register_method(ciMethod* target,
   nmethod* nm = NULL;
   {
     // To prevent compile queue updates.
-    MutexLocker locker(MethodCompileQueue_lock, THREAD);
+    MutexLocker locker(THREAD, MethodCompileQueue_lock);
 
     // Prevent SystemDictionary::add_to_hierarchy from running
     // and invalidating our dependencies until we install this method.
@@ -1072,7 +1088,10 @@ void ciEnv::register_method(ciMethod* target,
                     task()->comp_level(), method_name);
         }
         // Allow the code to be executed
-        method->set_code(method, nm);
+        MutexLocker ml(CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+        if (nm->make_in_use()) {
+          method->set_code(method, nm);
+        }
       } else {
         LogTarget(Info, nmethod, install) lt;
         if (lt.is_enabled()) {
@@ -1081,9 +1100,11 @@ void ciEnv::register_method(ciMethod* target,
           lt.print("Installing osr method (%d) %s @ %d",
                     task()->comp_level(), method_name, entry_bci);
         }
-        method->method_holder()->add_osr_nmethod(nm);
+        MutexLocker ml(CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+        if (nm->make_in_use()) {
+          method->method_holder()->add_osr_nmethod(nm);
+        }
       }
-      nm->make_in_use();
     }
   }  // safepoints are allowed again
 
@@ -1142,9 +1163,7 @@ void ciEnv::record_failure(const char* reason) {
 void ciEnv::report_failure(const char* reason) {
   EventCompilationFailure event;
   if (event.should_commit()) {
-    event.set_compileId(compile_id());
-    event.set_failureMessage(reason);
-    event.commit();
+    CompilerEvent::CompilationFailureEvent::post(event, compile_id(), reason);
   }
 }
 

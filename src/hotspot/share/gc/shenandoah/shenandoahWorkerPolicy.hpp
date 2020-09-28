@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2017, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -34,8 +35,6 @@ private:
   static uint _prev_conc_evac;
   static uint _prev_fullgc;
   static uint _prev_degengc;
-  static uint _prev_stw_traversal;
-  static uint _prev_conc_traversal;
   static uint _prev_conc_update_ref;
   static uint _prev_par_update_ref;
   static uint _prev_conc_cleanup;
@@ -62,12 +61,6 @@ public:
 
   // Calculate workers for parallel degenerated gc
   static uint calc_workers_for_stw_degenerated();
-
-  // Calculate workers for Stop-the-world traversal GC
-  static uint calc_workers_for_stw_traversal();
-
-  // Calculate workers for concurrent traversal GC
-  static uint calc_workers_for_conc_traversal();
 
   // Calculate workers for concurrent reference update
   static uint calc_workers_for_conc_update_ref();

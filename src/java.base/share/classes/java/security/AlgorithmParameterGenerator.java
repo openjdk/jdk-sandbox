@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package java.security;
 
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Objects;
+import sun.security.jca.JCAUtil;
 
 /**
  * The {@code AlgorithmParameterGenerator} class is used to generate a
@@ -308,7 +309,7 @@ public class AlgorithmParameterGenerator {
      * @param size the size (number of bits).
      */
     public final void init(int size) {
-        paramGenSpi.engineInit(size, new SecureRandom());
+        paramGenSpi.engineInit(size, JCAUtil.getSecureRandom());
     }
 
     /**
@@ -334,12 +335,12 @@ public class AlgorithmParameterGenerator {
      *
      * @param genParamSpec the set of algorithm-specific parameter generation values.
      *
-     * @exception InvalidAlgorithmParameterException if the given parameter
+     * @throws    InvalidAlgorithmParameterException if the given parameter
      * generation values are inappropriate for this parameter generator.
      */
     public final void init(AlgorithmParameterSpec genParamSpec)
         throws InvalidAlgorithmParameterException {
-            paramGenSpi.engineInit(genParamSpec, new SecureRandom());
+            paramGenSpi.engineInit(genParamSpec, JCAUtil.getSecureRandom());
     }
 
     /**
@@ -349,7 +350,7 @@ public class AlgorithmParameterGenerator {
      * @param genParamSpec the set of algorithm-specific parameter generation values.
      * @param random the source of randomness.
      *
-     * @exception InvalidAlgorithmParameterException if the given parameter
+     * @throws    InvalidAlgorithmParameterException if the given parameter
      * generation values are inappropriate for this parameter generator.
      */
     public final void init(AlgorithmParameterSpec genParamSpec,

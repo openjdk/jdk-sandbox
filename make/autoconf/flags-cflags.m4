@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -35,8 +35,6 @@
 AC_DEFUN([FLAGS_SETUP_SHARED_LIBS],
 [
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    C_FLAG_REORDER=''
-
     # Default works for linux, might work on other platforms as well.
     SHARED_LIBRARY_FLAGS='-shared'
     SET_EXECUTABLE_ORIGIN='-Wl,-rpath,\$$ORIGIN[$]1'
@@ -45,8 +43,6 @@ AC_DEFUN([FLAGS_SETUP_SHARED_LIBS],
     SET_SHARED_LIBRARY_MAPFILE='-Wl,-version-script=[$]1'
 
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    C_FLAG_REORDER=''
-
     if test "x$OPENJDK_TARGET_OS" = xmacosx; then
       # Linking is different on MacOSX
       SHARED_LIBRARY_FLAGS="-dynamiclib -compatibility_version 1.0.0 -current_version 1.0.0"
@@ -71,16 +67,7 @@ AC_DEFUN([FLAGS_SETUP_SHARED_LIBS],
       fi
     fi
 
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    C_FLAG_REORDER='-xF'
-    SHARED_LIBRARY_FLAGS="-G"
-    SET_EXECUTABLE_ORIGIN='-R\$$ORIGIN[$]1'
-    SET_SHARED_LIBRARY_ORIGIN="$SET_EXECUTABLE_ORIGIN"
-    SET_SHARED_LIBRARY_NAME='-h [$]1'
-    SET_SHARED_LIBRARY_MAPFILE='-M[$]1'
-
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    C_FLAG_REORDER=''
     SHARED_LIBRARY_FLAGS="-qmkshrobj -bM:SRE -bnoentry"
     SET_EXECUTABLE_ORIGIN=""
     SET_SHARED_LIBRARY_ORIGIN=''
@@ -88,7 +75,6 @@ AC_DEFUN([FLAGS_SETUP_SHARED_LIBS],
     SET_SHARED_LIBRARY_MAPFILE=''
 
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    C_FLAG_REORDER=''
     SHARED_LIBRARY_FLAGS="-dll"
     SET_EXECUTABLE_ORIGIN=''
     SET_SHARED_LIBRARY_ORIGIN=''
@@ -96,7 +82,6 @@ AC_DEFUN([FLAGS_SETUP_SHARED_LIBS],
     SET_SHARED_LIBRARY_MAPFILE='-def:[$]1'
   fi
 
-  AC_SUBST(C_FLAG_REORDER)
   AC_SUBST(SET_EXECUTABLE_ORIGIN)
   AC_SUBST(SET_SHARED_LIBRARY_ORIGIN)
   AC_SUBST(SET_SHARED_LIBRARY_NAME)
@@ -117,17 +102,10 @@ AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     CFLAGS_DEBUG_SYMBOLS="-g"
     ASFLAGS_DEBUG_SYMBOLS="-g"
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    # -g0 enables debug symbols without disabling inlining.
-    CFLAGS_DEBUG_SYMBOLS="-g0 -xs"
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    if test "x$XLC_USES_CLANG" = xtrue; then
-      CFLAGS_DEBUG_SYMBOLS="-g1"
-    else
-      CFLAGS_DEBUG_SYMBOLS="-g"
-    fi
+    CFLAGS_DEBUG_SYMBOLS="-g1"
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    CFLAGS_DEBUG_SYMBOLS="-Z7 -d2Zi+"
+    CFLAGS_DEBUG_SYMBOLS="-Z7"
   fi
 
   AC_SUBST(CFLAGS_DEBUG_SYMBOLS)
@@ -136,29 +114,17 @@ AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
 
 AC_DEFUN([FLAGS_SETUP_WARNINGS],
 [
-  AC_ARG_ENABLE([warnings-as-errors], [AS_HELP_STRING([--disable-warnings-as-errors],
-      [do not consider native warnings to be an error @<:@enabled@:>@])])
-
   # Set default value.
-  if test "x$TOOLCHAIN_TYPE" = xxlc; then
-    WARNINGS_AS_ERRORS=false
+  if test "x$TOOLCHAIN_TYPE" != xxlc; then
+    WARNINGS_AS_ERRORS_DEFAULT=true
   else
-    WARNINGS_AS_ERRORS=true
+    WARNINGS_AS_ERRORS_DEFAULT=false
   fi
 
-  AC_MSG_CHECKING([if native warnings are errors])
-  if test "x$enable_warnings_as_errors" = "xyes"; then
-    AC_MSG_RESULT([yes (explicitly set)])
-    WARNINGS_AS_ERRORS=true
-  elif test "x$enable_warnings_as_errors" = "xno"; then
-    AC_MSG_RESULT([no (explicitly set)])
-    WARNINGS_AS_ERRORS=false
-  elif test "x$enable_warnings_as_errors" = "x"; then
-    AC_MSG_RESULT([${WARNINGS_AS_ERRORS} (default)])
-  else
-    AC_MSG_ERROR([--enable-warnings-as-errors accepts no argument])
-  fi
-
+  UTIL_ARG_ENABLE(NAME: warnings-as-errors, DEFAULT: $WARNINGS_AS_ERRORS_DEFAULT,
+      RESULT: WARNINGS_AS_ERRORS,
+      DEFAULT_DESC: [auto],
+      DESC: [consider native warnings to be an error])
   AC_SUBST(WARNINGS_AS_ERRORS)
 
   case "${TOOLCHAIN_TYPE}" in
@@ -168,17 +134,10 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
 
       WARNINGS_ENABLE_ALL="-W3"
       DISABLED_WARNINGS="4800"
-      ;;
-
-    solstudio)
-      DISABLE_WARNING_PREFIX="-erroff="
-      CFLAGS_WARNINGS_ARE_ERRORS="-errwarn=%all"
-
-      WARNINGS_ENABLE_ALL_CFLAGS="-v"
-      WARNINGS_ENABLE_ALL_CXXFLAGS="+w"
-
-      DISABLED_WARNINGS_C=""
-      DISABLED_WARNINGS_CXX=""
+      if test "x$TOOLCHAIN_VERSION" = x2017; then
+        # VS2017 incorrectly triggers this warning for constexpr
+        DISABLED_WARNINGS+=" 4307"
+      fi
       ;;
 
     gcc)
@@ -194,20 +153,7 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
       WARNINGS_ENABLE_ALL_CXXFLAGS="$WARNINGS_ENABLE_ALL_CFLAGS $WARNINGS_ENABLE_ADDITIONAL_CXX"
 
       DISABLED_WARNINGS="unused-parameter unused"
-
-      # Repeate the check for the BUILD_CC and BUILD_CXX. Need to also reset
-      # CFLAGS since any target specific flags will likely not work with the
-      # build compiler
-      CC_OLD="$CC"
-      CXX_OLD="$CXX"
-      CC="$BUILD_CC"
-      CXX="$BUILD_CXX"
-      CFLAGS_OLD="$CFLAGS"
-      CFLAGS=""
       BUILD_CC_DISABLE_WARNING_PREFIX="-Wno-"
-      CC="$CC_OLD"
-      CXX="$CXX_OLD"
-      CFLAGS="$CFLAGS_OLD"
       ;;
 
     clang)
@@ -273,25 +219,7 @@ AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],
 
 AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
 [
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    CC_HIGHEST="-fns -fsimple -fsingle -xbuiltin=%all -xdepend -xrestrict -xlibmil"
-
-    C_O_FLAG_HIGHEST_JVM="-xO4"
-    C_O_FLAG_DEBUG_JVM=""
-    C_O_FLAG_SIZE=""
-    C_O_FLAG_DEBUG=""
-    C_O_FLAG_NONE=""
-    if test "x$OPENJDK_TARGET_CPU_ARCH" = "xx86"; then
-      C_O_FLAG_HIGHEST="-xO4 -Wu,-O4~yz $CC_HIGHEST"
-      C_O_FLAG_HI="-xO4 -Wu,-O4~yz"
-      C_O_FLAG_NORM="-xO2 -Wu,-O2~yz"
-    elif test "x$OPENJDK_TARGET_CPU_ARCH" = "xsparc"; then
-      C_O_FLAG_HIGHEST="-xO4 -Wc,-Qrm-s -Wc,-Qiselect-T0 \
-          -xprefetch=auto,explicit $CC_HIGHEST"
-      C_O_FLAG_HI="-xO4 -Wc,-Qrm-s -Wc,-Qiselect-T0"
-      C_O_FLAG_NORM="-xO2 -Wc,-Qrm-s -Wc,-Qiselect-T0"
-    fi
-  elif test "x$TOOLCHAIN_TYPE" = xgcc; then
+  if test "x$TOOLCHAIN_TYPE" = xgcc; then
     C_O_FLAG_HIGHEST_JVM="-O3"
     C_O_FLAG_HIGHEST="-O3"
     C_O_FLAG_HI="-O3"
@@ -315,21 +243,11 @@ AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
       C_O_FLAG_NONE="${C_O_FLAG_NONE} ${DISABLE_FORTIFY_CFLAGS}"
     fi
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-      # On MacOSX we optimize for size, something
-      # we should do for all platforms?
-      C_O_FLAG_HIGHEST_JVM="-Os"
-      C_O_FLAG_HIGHEST="-Os"
-      C_O_FLAG_HI="-Os"
-      C_O_FLAG_NORM="-Os"
-      C_O_FLAG_DEBUG_JVM=""
-    else
-      C_O_FLAG_HIGHEST_JVM="-O3"
-      C_O_FLAG_HIGHEST="-O3"
-      C_O_FLAG_HI="-O3"
-      C_O_FLAG_NORM="-O2"
-      C_O_FLAG_DEBUG_JVM="-O0"
-    fi
+    C_O_FLAG_HIGHEST_JVM="-O3"
+    C_O_FLAG_HIGHEST="-O3"
+    C_O_FLAG_HI="-O3"
+    C_O_FLAG_NORM="-O2"
+    C_O_FLAG_DEBUG_JVM="-O0"
     C_O_FLAG_SIZE="-Os"
     C_O_FLAG_DEBUG="-O0"
     C_O_FLAG_NONE="-O0"
@@ -362,11 +280,6 @@ AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
   CXX_O_FLAG_DEBUG_JVM="$C_O_FLAG_DEBUG_JVM"
   CXX_O_FLAG_NONE="$C_O_FLAG_NONE"
   CXX_O_FLAG_SIZE="$C_O_FLAG_SIZE"
-
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    # In solstudio, also add this to C (but not C++) flags...
-    C_O_FLAG_HIGHEST="$C_O_FLAG_HIGHEST -xalias_level=basic"
-  fi
 
   # Adjust optimization flags according to debug level.
   case $DEBUG_LEVEL in
@@ -424,6 +337,17 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS],
 
   FLAGS_SETUP_CFLAGS_CPU_DEP([TARGET])
 
+  # Repeat the check for the BUILD_CC and BUILD_CXX. Need to also reset CFLAGS
+  # since any target specific flags will likely not work with the build compiler.
+  CC_OLD="$CC"
+  CXX_OLD="$CXX"
+  CFLAGS_OLD="$CFLAGS"
+  CXXFLAGS_OLD="$CXXFLAGS"
+  CC="$BUILD_CC"
+  CXX="$BUILD_CXX"
+  CFLAGS=""
+  CXXFLAGS=""
+
   FLAGS_OS=$OPENJDK_BUILD_OS
   FLAGS_OS_TYPE=$OPENJDK_BUILD_OS_TYPE
   FLAGS_CPU=$OPENJDK_BUILD_CPU
@@ -434,6 +358,11 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS],
   FLAGS_CPU_LEGACY_LIB=$OPENJDK_BUILD_CPU_LEGACY_LIB
 
   FLAGS_SETUP_CFLAGS_CPU_DEP([BUILD], [OPENJDK_BUILD_], [BUILD_])
+
+  CC="$CC_OLD"
+  CXX="$CXX_OLD"
+  CFLAGS="$CFLAGS_OLD"
+  CXXFLAGS="$CXXFLAGS_OLD"
 ])
 
 ################################################################################
@@ -444,9 +373,6 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   if test "x$OPENJDK_TARGET_OS" = xlinux; then
     CFLAGS_OS_DEF_JVM="-DLINUX"
     CFLAGS_OS_DEF_JDK="-D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE"
-  elif test "x$OPENJDK_TARGET_OS" = xsolaris; then
-    CFLAGS_OS_DEF_JVM="-DSOLARIS"
-    CFLAGS_OS_DEF_JDK="-D__solaris__"
   elif test "x$OPENJDK_TARGET_OS" = xmacosx; then
     CFLAGS_OS_DEF_JVM="-D_ALLBSD_SOURCE -D_DARWIN_C_SOURCE -D_XOPEN_SOURCE"
     CFLAGS_OS_DEF_JDK="-D_ALLBSD_SOURCE -D_DARWIN_UNLIMITED_SELECT"
@@ -482,9 +408,6 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   # Setup debug/release defines
   if test "x$DEBUG_LEVEL" = xrelease; then
     DEBUG_CFLAGS_JDK="-DNDEBUG"
-    if test "x$OPENJDK_TARGET_OS" = xsolaris; then
-      DEBUG_CFLAGS_JDK="$DEBUG_CFLAGS_JDK -DTRIMMED"
-    fi
   else
     DEBUG_CFLAGS_JDK="-DDEBUG"
 
@@ -507,10 +430,6 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
     ALWAYS_DEFINES_JVM="-D_GNU_SOURCE -D_REENTRANT"
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     ALWAYS_DEFINES_JVM="-D_GNU_SOURCE"
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    ALWAYS_DEFINES_JVM="-DSPARC_WORKS -D_Crun_inline_placement"
-    ALWAYS_DEFINES_JDK="-DTRACING -DMACRO_MEMSYS_OPS -DBREAKPTS"
-    ALWAYS_DEFINES_JDK_CXXONLY="-DCC_NOEX"
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
     ALWAYS_DEFINES_JVM="-D_REENTRANT"
     ALWAYS_DEFINES_JDK="-D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE -DSTDC"
@@ -533,6 +452,14 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM -fcheck-new -fstack-protector"
     TOOLCHAIN_CFLAGS_JDK="-pipe -fstack-protector"
+    # reduce lib size on linux in link step, this needs also special compile flags
+    # do this on s390x also for libjvm (where serviceability agent is not supported)
+    if test "x$ENABLE_LINKTIME_GC" = xtrue; then
+      TOOLCHAIN_CFLAGS_JDK="$TOOLCHAIN_CFLAGS_JDK -ffunction-sections -fdata-sections"
+      if test "x$OPENJDK_TARGET_CPU" = xs390x; then
+        TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM -ffunction-sections -fdata-sections"
+      fi
+    fi
     # technically NOT for CXX (but since this gives *worse* performance, use
     # no-strict-aliasing everywhere!)
     TOOLCHAIN_CFLAGS_JDK_CONLY="-fno-strict-aliasing"
@@ -559,20 +486,6 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
       TOOLCHAIN_CFLAGS_JDK="-pipe"
       TOOLCHAIN_CFLAGS_JDK_CONLY="-fno-strict-aliasing" # technically NOT for CXX
     fi
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    TOOLCHAIN_FLAGS="-errtags -errfmt"
-    TOOLCHAIN_CFLAGS="-errshort=tags"
-
-    TOOLCHAIN_CFLAGS_JDK="-mt $TOOLCHAIN_FLAGS"
-    TOOLCHAIN_CFLAGS_JDK_CONLY="-W0,-noglobal $TOOLCHAIN_CFLAGS" # C only
-    TOOLCHAIN_CFLAGS_JDK_CXXONLY="-features=no%except -norunpath -xnolib" # CXX only
-    TOOLCHAIN_CFLAGS_JVM="-template=no%extdef -features=no%split_init \
-        -library=stlport4 -mt -features=no%except $TOOLCHAIN_FLAGS"
-    if test "x$DEBUG_LEVEL" = xslowdebug; then
-      # Previously -g was used instead of -g0 for slowdebug; this is equivalent
-      # to setting +d.
-      TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM +d"
-    fi
 
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
     # Suggested additions: -qsrcmsg to get improved error reporting
@@ -591,23 +504,29 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   # our toolchains are in a condition to support that. But what we loosely aim for is
   # C99 level.
   if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang || test "x$TOOLCHAIN_TYPE" = xxlc; then
-    # This raises the language level for older 4.8 gcc, while lowering it for later
-    # versions. clang and xlclang support the same flag.
+    # Explicitly set C99. clang and xlclang support the same flag.
     LANGSTD_CFLAGS="-std=c99"
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    # We can't turn on -std=c99 without breaking compilation of the splashscreen/png
-    # utilities. But we can enable c99 as below (previously achieved by using -Xa).
-    # It is the no_lib that makes the difference.
-    LANGSTD_CFLAGS="-xc99=all,no_lib"
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     # MSVC doesn't support C99/C11 explicitly, unless you compile as C++:
-    # LANGSTD_CFLAGS="/TP"
+    # LANGSTD_CFLAGS="-TP"
     # but that requires numerous changes to the sources files. So we are limited
     # to C89/C90 plus whatever extensions Visual Studio has decided to implement.
     # This is the lowest bar for shared code.
     LANGSTD_CFLAGS=""
   fi
   TOOLCHAIN_CFLAGS_JDK_CONLY="$LANGSTD_CFLAGS $TOOLCHAIN_CFLAGS_JDK_CONLY"
+
+  # CXXFLAGS C++ language level for all of JDK, including Hotspot.
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang || test "x$TOOLCHAIN_TYPE" = xxlc; then
+    LANGSTD_CXXFLAGS="-std=c++14"
+  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    LANGSTD_CXXFLAGS="-std:c++14"
+  else
+    AC_MSG_ERROR([Don't know how to enable C++14 for this toolchain])
+  fi
+  TOOLCHAIN_CFLAGS_JDK_CXXONLY="$TOOLCHAIN_CFLAGS_JDK_CXXONLY $LANGSTD_CXXFLAGS"
+  TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM $LANGSTD_CXXFLAGS"
+  ADLC_LANGSTD_CXXFLAGS="$LANGSTD_CXXFLAGS"
 
   # CFLAGS WARNINGS STUFF
   # Set JVM_CFLAGS warning handling
@@ -618,11 +537,6 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
 
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     WARNING_CFLAGS="$WARNINGS_ENABLE_ALL"
-
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    WARNING_CFLAGS_JDK_CONLY="$WARNINGS_ENABLE_ALL_CFLAGS"
-    WARNING_CFLAGS_JDK_CXXONLY="$WARNINGS_ENABLE_ALL_CXXFLAGS"
-    WARNING_CFLAGS_JVM="$WARNINGS_ENABLE_ALL_CXXFLAGS"
 
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     WARNING_CFLAGS="$WARNINGS_ENABLE_ALL"
@@ -647,8 +561,7 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   # Where does this really belong??
   if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
     PICFLAG="-fPIC"
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    PICFLAG="-KPIC"
+    PIEFLAG="-fPIE"
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
     # '-qpic' defaults to 'qpic=small'. This means that the compiler generates only
     # one instruction for accessing the TOC. If the TOC grows larger than 64K, the linker
@@ -698,6 +611,23 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
       OS_CFLAGS_JVM="$OS_CFLAGS_JVM -DNEEDS_LIBRT"
     fi
   fi
+
+  # Extra flags needed when building optional static versions of certain
+  # JDK libraries.
+  STATIC_LIBS_CFLAGS="-DSTATIC_BUILD=1"
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
+    STATIC_LIBS_CFLAGS="$STATIC_LIBS_CFLAGS -ffunction-sections -fdata-sections \
+      -DJNIEXPORT='__attribute__((visibility(\"hidden\")))'"
+  else
+    STATIC_LIBS_CFLAGS="$STATIC_LIBS_CFLAGS -DJNIEXPORT="
+  fi
+  if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    # Disable relax-relocation to enable compatibility with older linkers
+    RELAX_RELOCATIONS_FLAG="-Xassembler -mrelax-relocations=no"
+    FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [${RELAX_RELOCATIONS_FLAG}],
+        IF_TRUE: [STATIC_LIBS_CFLAGS="$STATIC_LIBS_CFLAGS ${RELAX_RELOCATIONS_FLAG}"])
+  fi
+  AC_SUBST(STATIC_LIBS_CFLAGS)
 ])
 
 ################################################################################
@@ -713,21 +643,9 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
   # Setup endianness
   if test "x$FLAGS_CPU_ENDIAN" = xlittle; then
     $1_DEFINES_CPU_JVM="-DVM_LITTLE_ENDIAN"
-  fi
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    # The macro _LITTLE_ENDIAN needs to be defined the same to avoid the
-    #   Sun C compiler warning message: warning: macro redefined: _LITTLE_ENDIAN
-    if test "x$FLAGS_CPU_ENDIAN" = xlittle; then
-      $1_DEFINES_CPU_JDK="-D_LITTLE_ENDIAN="
-    else
-      $1_DEFINES_CPU_JDK="-D_BIG_ENDIAN="
-    fi
+    $1_DEFINES_CPU_JDK="-D_LITTLE_ENDIAN"
   else
-    if test "x$FLAGS_CPU_ENDIAN" = xlittle; then
-      $1_DEFINES_CPU_JDK="-D_LITTLE_ENDIAN"
-    else
-      $1_DEFINES_CPU_JDK="-D_BIG_ENDIAN"
-    fi
+    $1_DEFINES_CPU_JDK="-D_BIG_ENDIAN"
   fi
 
   # setup CPU bit size
@@ -740,19 +658,14 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
     if test "x$FLAGS_OS" = xlinux || test "x$FLAGS_OS" = xmacosx; then
       $1_DEFINES_CPU_JDK="${$1_DEFINES_CPU_JDK} -D_LP64=1"
     fi
-    if test "x$FLAGS_OS" != xsolaris && test "x$FLAGS_OS" != xaix; then
-      # Solaris does not have _LP64=1 in the old build.
+    if test "x$FLAGS_OS" != xaix; then
       # xlc on AIX defines _LP64=1 by default and issues a warning if we redefine it.
       $1_DEFINES_CPU_JVM="${$1_DEFINES_CPU_JVM} -D_LP64=1"
     fi
   fi
 
   # toolchain dependend, per-cpu
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    if test "x$FLAGS_CPU_ARCH" = xx86; then
-      $1_DEFINES_CPU_JDK="${$1_DEFINES_CPU_JDK} -DcpuIntel -Di586 -D$FLAGS_CPU_LEGACY_LIB"
-    fi
-  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+  if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     if test "x$FLAGS_CPU" = xx86_64; then
       $1_DEFINES_CPU_JDK="${$1_DEFINES_CPU_JDK} -D_AMD64_ -Damd64"
     else
@@ -770,7 +683,10 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
   fi
 
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    if test "x$FLAGS_CPU" = xarm; then
+    if test "x$FLAGS_CPU" = xaarch64; then
+      # -Wno-psabi to get rid of annoying "note: parameter passing for argument of type '<type> changed in GCC 9.1"
+      $1_CFLAGS_CPU="-Wno-psabi"
+    elif test "x$FLAGS_CPU" = xarm; then
       # -Wno-psabi to get rid of annoying "note: the mangling of 'va_list' has changed in GCC 4.4"
       $1_CFLAGS_CPU="-fsigned-char -Wno-psabi $ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS -DJDK_ARCH_ABI_PROP_NAME='\"\$(JDK_ARCH_ABI_PROP_NAME)\"'"
       $1_CFLAGS_CPU_JVM="-DARM"
@@ -794,13 +710,6 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
       $1_CFLAGS_CPU_JDK="${$1_CFLAGS_CPU_JDK} -fno-omit-frame-pointer"
     fi
 
-    $1_CXXSTD_CXXFLAG="-std=gnu++98"
-    FLAGS_CXX_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [${$1_CXXSTD_CXXFLAG} -Werror],
-        PREFIX: $3, IF_FALSE: [$1_CXXSTD_CXXFLAG=""])
-    $1_TOOLCHAIN_CFLAGS_JDK_CXXONLY="${$1_CXXSTD_CXXFLAG}"
-    $1_TOOLCHAIN_CFLAGS_JVM="${$1_TOOLCHAIN_CFLAGS_JVM} ${$1_CXXSTD_CXXFLAG}"
-    $2ADLC_CXXFLAG="${$1_CXXSTD_CXXFLAG}"
-
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     if test "x$FLAGS_OS" = xlinux; then
       # ppc test not really needed for clang
@@ -808,15 +717,6 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
         # for all archs except arm and ppc, prevent gcc to omit frame pointer
         $1_CFLAGS_CPU_JDK="${$1_CFLAGS_CPU_JDK} -fno-omit-frame-pointer"
       fi
-    fi
-
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    if test "x$FLAGS_CPU" = xx86_64; then
-      # NOTE: -xregs=no%frameptr is supposed to be default on x64
-      $1_CFLAGS_CPU_JDK="-xregs=no%frameptr"
-    elif test "x$FLAGS_CPU" = xsparcv9; then
-      $1_CFLAGS_CPU_JVM="-xarch=sparc"
-      $1_CFLAGS_CPU_JDK_LIBONLY="-xregs=no%appl"
     fi
 
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
@@ -843,18 +743,27 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
     $1_WARNING_CFLAGS_JVM="-Wno-format-zero-length -Wtype-limits -Wuninitialized"
   fi
 
-  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
-    # Check if compiler supports -fmacro-prefix-map. If so, use that to make
-    # the __FILE__ macro resolve to paths relative to the workspace root.
-    workspace_root_trailing_slash="${WORKSPACE_ROOT%/}/"
-    FILE_MACRO_CFLAGS="-fmacro-prefix-map=${workspace_root_trailing_slash}="
-    FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [${FILE_MACRO_CFLAGS}],
-        PREFIX: $3,
-        IF_FALSE: [
-            FILE_MACRO_CFLAGS=
-        ]
-    )
+  # Prevent the __FILE__ macro from generating absolute paths into the built
+  # binaries. Depending on toolchain, different mitigations are possible.
+  # * GCC and Clang of new enough versions have -fmacro-prefix-map.
+  # * For most other toolchains, supplying all source files and -I flags as
+  #   relative paths fixes the issue.
+  FILE_MACRO_CFLAGS=
+  if test "x$ALLOW_ABSOLUTE_PATHS_IN_OUTPUT" = "xfalse"; then
+    if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
+      # Check if compiler supports -fmacro-prefix-map. If so, use that to make
+      # the __FILE__ macro resolve to paths relative to the workspace root.
+      workspace_root_trailing_slash="${WORKSPACE_ROOT%/}/"
+      FILE_MACRO_CFLAGS="-fmacro-prefix-map=${workspace_root_trailing_slash}="
+      FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [${FILE_MACRO_CFLAGS}],
+          PREFIX: $3,
+          IF_FALSE: [
+              FILE_MACRO_CFLAGS=
+          ]
+      )
+    fi
   fi
+  AC_SUBST(FILE_MACRO_CFLAGS)
 
   # EXPORT to API
   CFLAGS_JVM_COMMON="$ALWAYS_CFLAGS_JVM $ALWAYS_DEFINES_JVM \
@@ -883,17 +792,19 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
 
   $2JVM_CFLAGS="$CFLAGS_JVM_COMMON ${$1_CFLAGS_JVM} ${$2EXTRA_CXXFLAGS}"
 
-  $2CFLAGS_JDKEXE="$CFLAGS_JDK_COMMON $CFLAGS_JDK_COMMON_CONLY ${$1_CFLAGS_JDK}"
-  $2CXXFLAGS_JDKEXE="$CFLAGS_JDK_COMMON $CFLAGS_JDK_COMMON_CXXONLY ${$1_CFLAGS_JDK}"
-  $2CFLAGS_JDKLIB="${$2CFLAGS_JDKEXE} $JDK_PICFLAG ${$1_CFLAGS_CPU_JDK_LIBONLY}"
-  $2CXXFLAGS_JDKLIB="${$2CXXFLAGS_JDKEXE} $JDK_PICFLAG ${$1_CFLAGS_CPU_JDK_LIBONLY}"
+  $2CFLAGS_JDKEXE="$CFLAGS_JDK_COMMON $CFLAGS_JDK_COMMON_CONLY ${$1_CFLAGS_JDK} $PIEFLAG"
+  $2CXXFLAGS_JDKEXE="$CFLAGS_JDK_COMMON $CFLAGS_JDK_COMMON_CXXONLY ${$1_CFLAGS_JDK} $PIEFLAG"
+  $2CFLAGS_JDKLIB="$CFLAGS_JDK_COMMON $CFLAGS_JDK_COMMON_CONLY ${$1_CFLAGS_JDK} \
+      $JDK_PICFLAG ${$1_CFLAGS_CPU_JDK_LIBONLY}"
+  $2CXXFLAGS_JDKLIB="$CFLAGS_JDK_COMMON $CFLAGS_JDK_COMMON_CXXONLY ${$1_CFLAGS_JDK} \
+      $JDK_PICFLAG ${$1_CFLAGS_CPU_JDK_LIBONLY}"
 
   AC_SUBST($2JVM_CFLAGS)
   AC_SUBST($2CFLAGS_JDKLIB)
   AC_SUBST($2CFLAGS_JDKEXE)
   AC_SUBST($2CXXFLAGS_JDKLIB)
   AC_SUBST($2CXXFLAGS_JDKEXE)
-  AC_SUBST($2ADLC_CXXFLAG)
+  AC_SUBST($2ADLC_LANGSTD_CXXFLAGS)
 
   COMPILER_FP_CONTRACT_OFF_FLAG="-ffp-contract=off"
   # Check that the compiler supports -ffp-contract=off flag
@@ -922,34 +833,10 @@ AC_DEFUN([FLAGS_SETUP_GCC6_COMPILER_FLAGS],
   # Notably, value range propagation now assumes that the this pointer of C++
   # member functions is non-null.
   NO_DELETE_NULL_POINTER_CHECKS_CFLAG="-fno-delete-null-pointer-checks"
-  FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$NO_DELETE_NULL_POINTER_CHECKS_CFLAG -Werror],
+  FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$NO_DELETE_NULL_POINTER_CHECKS_CFLAG],
       PREFIX: $2, IF_FALSE: [NO_DELETE_NULL_POINTER_CHECKS_CFLAG=""])
   NO_LIFETIME_DSE_CFLAG="-fno-lifetime-dse"
-  FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$NO_LIFETIME_DSE_CFLAG -Werror],
+  FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$NO_LIFETIME_DSE_CFLAG],
       PREFIX: $2, IF_FALSE: [NO_LIFETIME_DSE_CFLAG=""])
   $1_GCC6_CFLAGS="${NO_DELETE_NULL_POINTER_CHECKS_CFLAG} ${NO_LIFETIME_DSE_CFLAG}"
 ])
-
-# Documentation on common flags used for solstudio in HIGHEST.
-#
-# WARNING: Use of OPTIMIZATION_LEVEL=HIGHEST in your Makefile needs to be
-#          done with care, there are some assumptions below that need to
-#          be understood about the use of pointers, and IEEE behavior.
-#
-# -fns: Use non-standard floating point mode (not IEEE 754)
-# -fsimple: Do some simplification of floating point arithmetic (not IEEE 754)
-# -fsingle: Use single precision floating point with 'float'
-# -xalias_level=basic: Assume memory references via basic pointer types do not alias
-#   (Source with excessing pointer casting and data access with mixed
-#    pointer types are not recommended)
-# -xbuiltin=%all: Use intrinsic or inline versions for math/std functions
-#   (If you expect perfect errno behavior, do not use this)
-# -xdepend: Loop data dependency optimizations (need -xO3 or higher)
-# -xrestrict: Pointer parameters to functions do not overlap
-#   (Similar to -xalias_level=basic usage, but less obvious sometimes.
-#    If you pass in multiple pointers to the same data, do not use this)
-# -xlibmil: Inline some library routines
-#   (If you expect perfect errno behavior, do not use this)
-# -xlibmopt: Use optimized math routines (CURRENTLY DISABLED)
-#   (If you expect perfect errno behavior, do not use this)
-#  Can cause undefined external on Solaris 8 X86 on __sincos, removing for now

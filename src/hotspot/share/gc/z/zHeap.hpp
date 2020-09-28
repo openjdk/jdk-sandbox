@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,8 @@
 #ifndef SHARE_GC_Z_ZHEAP_HPP
 #define SHARE_GC_Z_ZHEAP_HPP
 
-#include "gc/shared/gcTimer.hpp"
 #include "gc/z/zAllocationFlags.hpp"
-#include "gc/z/zArray.hpp"
 #include "gc/z/zForwardingTable.hpp"
-#include "gc/z/zList.hpp"
-#include "gc/z/zLock.hpp"
 #include "gc/z/zMark.hpp"
 #include "gc/z/zObjectAllocator.hpp"
 #include "gc/z/zPage.hpp"
@@ -38,13 +34,12 @@
 #include "gc/z/zReferenceProcessor.hpp"
 #include "gc/z/zRelocate.hpp"
 #include "gc/z/zRelocationSet.hpp"
-#include "gc/z/zRelocationSetSelector.hpp"
-#include "gc/z/zRootsIterator.hpp"
 #include "gc/z/zWeakRootsProcessor.hpp"
 #include "gc/z/zServiceability.hpp"
 #include "gc/z/zUnload.hpp"
 #include "gc/z/zWorkers.hpp"
-#include "memory/allocation.hpp"
+
+class ThreadClosure;
 
 class ZHeap {
   friend class VMStructs;
@@ -65,19 +60,10 @@ private:
   ZUnload             _unload;
   ZServiceability     _serviceability;
 
-  size_t heap_min_size() const;
-  size_t heap_initial_size() const;
-  size_t heap_max_size() const;
-  size_t heap_max_reserve_size() const;
-
-  void before_flip();
-  void after_flip();
-
   void flip_to_marked();
   void flip_to_remapped();
 
   void out_of_memory();
-  void fixup_partial_loads();
 
 public:
   static ZHeap* heap();
@@ -105,14 +91,13 @@ public:
   size_t unsafe_max_tlab_alloc() const;
 
   bool is_in(uintptr_t addr) const;
-  uint32_t hash_oop(oop obj) const;
+  uint32_t hash_oop(uintptr_t addr) const;
 
-  // Workers
+  // Threads
   uint nconcurrent_worker_threads() const;
   uint nconcurrent_no_boost_worker_threads() const;
   void set_boost_worker_threads(bool boost);
-  void worker_threads_do(ThreadClosure* tc) const;
-  void print_worker_threads_on(outputStream* st) const;
+  void threads_do(ThreadClosure* tc) const;
 
   // Reference processing
   ReferenceDiscoverer* reference_discoverer();
@@ -126,9 +111,6 @@ public:
   void undo_alloc_page(ZPage* page);
   void free_page(ZPage* page, bool reclaimed);
 
-  // Uncommit memory
-  uint64_t uncommit(uint64_t delay);
-
   // Object allocation
   uintptr_t alloc_tlab(size_t size);
   uintptr_t alloc_object(size_t size);
@@ -140,11 +122,12 @@ public:
   // Marking
   bool is_object_live(uintptr_t addr) const;
   bool is_object_strongly_live(uintptr_t addr) const;
-  template <bool finalizable, bool publish> void mark_object(uintptr_t addr);
+  template <bool follow, bool finalizable, bool publish> void mark_object(uintptr_t addr);
   void mark_start();
   void mark(bool initial);
   void mark_flush_and_free(Thread* thread);
   bool mark_end();
+  void keep_alive(oop obj);
 
   // Relocation set
   void select_relocation_set();
@@ -158,6 +141,7 @@ public:
 
   // Iteration
   void object_iterate(ObjectClosure* cl, bool visit_weaks);
+  void pages_do(ZPageClosure* cl);
 
   // Serviceability
   void serviceability_initialize();
@@ -168,9 +152,10 @@ public:
   // Printing
   void print_on(outputStream* st) const;
   void print_extended_on(outputStream* st) const;
+  bool print_location(outputStream* st, uintptr_t addr) const;
 
   // Verification
-  bool is_oop(oop object) const;
+  bool is_oop(uintptr_t addr) const;
   void verify();
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,9 +32,8 @@
  * @summary Test command line flag combinations that
  *          could likely affect the behaviour of AppCDS
  * @library /test/lib
- * @modules jdk.jartool/sun.tools.jar
  * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @compile test-classes/Hello.java
  * @run main/othervm/timeout=240 -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. CommandLineFlagCombo
  */
@@ -44,12 +43,13 @@ import jdk.test.lib.Platform;
 import jdk.test.lib.process.OutputAnalyzer;
 
 import sun.hotspot.code.Compiler;
+import sun.hotspot.WhiteBox;
 
 public class CommandLineFlagCombo {
 
     // shared base address test table
     private static final String[] testTable = {
-        "-XX:+UseG1GC", "-XX:+UseSerialGC", "-XX:+UseParallelGC", "-XX:+UseConcMarkSweepGC",
+        "-XX:+UseG1GC", "-XX:+UseSerialGC", "-XX:+UseParallelGC",
         "-XX:+FlightRecorder",
         "-XX:+UseLargePages", // may only take effect on machines with large-pages
         "-XX:+UseCompressedClassPointers",
@@ -122,12 +122,11 @@ public class CommandLineFlagCombo {
             }
         }
 
-        if (Compiler.isGraalEnabled() && testEntry.equals("-XX:+UseConcMarkSweepGC"))
+        if (!WhiteBox.getWhiteBox().isJFRIncludedInVmBuild() && testEntry.equals("-XX:+FlightRecorder"))
         {
-            System.out.println("Graal does not support CMS");
+            System.out.println("JFR does not exist");
             return true;
         }
-
         return false;
     }
 }

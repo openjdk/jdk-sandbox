@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -81,9 +81,6 @@ define_pd_global(intx, StackReservedPages, DEFAULT_STACK_RESERVED_PAGES);
 define_pd_global(bool, RewriteBytecodes,     true);
 define_pd_global(bool, RewriteFrequentPairs, true);
 
-// GC Ergo Flags
-define_pd_global(size_t, CMSYoungGenPerWorker, 64*M);  // default max size of CMS young gen, per GC worker thread
-
 define_pd_global(uintx, TypeProfileLevel, 111);
 
 define_pd_global(bool, CompactStrings, true);
@@ -92,27 +89,21 @@ define_pd_global(bool, PreserveFramePointer, false);
 
 define_pd_global(intx, InitArrayShortSize, 8*BytesPerLong);
 
-#if defined(_LP64) || defined(_WINDOWS)
-define_pd_global(bool, ThreadLocalHandshakes, true);
-#else
-// get_thread() is slow on linux 32 bit, therefore off by default
-define_pd_global(bool, ThreadLocalHandshakes, false);
-#endif
-
-#define ARCH_FLAGS(develop, \
-                   product, \
-                   diagnostic, \
-                   experimental, \
-                   notproduct, \
-                   range, \
-                   constraint, \
-                   writeable) \
+#define ARCH_FLAGS(develop,                                                 \
+                   product,                                                 \
+                   notproduct,                                              \
+                   range,                                                   \
+                   constraint)                                              \
                                                                             \
   develop(bool, IEEEPrecision, true,                                        \
           "Enables IEEE precision (for INTEL only)")                        \
                                                                             \
   product(bool, UseStoreImmI16, true,                                       \
           "Use store immediate 16-bits value instruction on x86")           \
+                                                                            \
+  product(intx, UseSSE, 99,                                                 \
+          "Highest supported SSE instructions set on x86/x64")              \
+          range(0, 99)                                                      \
                                                                             \
   product(intx, UseAVX, 3,                                                  \
           "Highest supported AVX instructions set on x86/x64")              \
@@ -121,7 +112,7 @@ define_pd_global(bool, ThreadLocalHandshakes, false);
   product(bool, UseCLMUL, false,                                            \
           "Control whether CLMUL instructions can be used on x86/x64")      \
                                                                             \
-  diagnostic(bool, UseIncDec, true,                                         \
+  product(bool, UseIncDec, true, DIAGNOSTIC,                                \
           "Use INC, DEC instructions on x86")                               \
                                                                             \
   product(bool, UseNewLongLShift, false,                                    \
@@ -155,7 +146,7 @@ define_pd_global(bool, ThreadLocalHandshakes, false);
   product(bool, UseRTMLocking, false,                                       \
           "Enable RTM lock eliding for inflated locks in compiled code")    \
                                                                             \
-  experimental(bool, UseRTMForStackLocks, false,                            \
+  product(bool, UseRTMForStackLocks, false, EXPERIMENTAL,                   \
           "Enable RTM lock eliding for stack locks in compiled code")       \
                                                                             \
   product(bool, UseRTMDeopt, false,                                         \
@@ -165,33 +156,33 @@ define_pd_global(bool, ThreadLocalHandshakes, false);
           "Number of RTM retries on lock abort or busy")                    \
           range(0, max_jint)                                                \
                                                                             \
-  experimental(int, RTMSpinLoopCount, 100,                                  \
+  product(int, RTMSpinLoopCount, 100, EXPERIMENTAL,                         \
           "Spin count for lock to become free before RTM retry")            \
           range(0, max_jint)                                                \
                                                                             \
-  experimental(int, RTMAbortThreshold, 1000,                                \
+  product(int, RTMAbortThreshold, 1000, EXPERIMENTAL,                       \
           "Calculate abort ratio after this number of aborts")              \
           range(0, max_jint)                                                \
                                                                             \
-  experimental(int, RTMLockingThreshold, 10000,                             \
+  product(int, RTMLockingThreshold, 10000, EXPERIMENTAL,                    \
           "Lock count at which to do RTM lock eliding without "             \
           "abort ratio calculation")                                        \
           range(0, max_jint)                                                \
                                                                             \
-  experimental(int, RTMAbortRatio, 50,                                      \
+  product(int, RTMAbortRatio, 50, EXPERIMENTAL,                             \
           "Lock abort ratio at which to stop use RTM lock eliding")         \
           range(0, 100) /* natural range */                                 \
                                                                             \
-  experimental(int, RTMTotalCountIncrRate, 64,                              \
+  product(int, RTMTotalCountIncrRate, 64, EXPERIMENTAL,                     \
           "Increment total RTM attempted lock count once every n times")    \
           range(1, max_jint)                                                \
           constraint(RTMTotalCountIncrRateConstraintFunc,AfterErgo)         \
                                                                             \
-  experimental(intx, RTMLockingCalculationDelay, 0,                         \
+  product(intx, RTMLockingCalculationDelay, 0, EXPERIMENTAL,                \
           "Number of milliseconds to wait before start calculating aborts " \
           "for RTM locking")                                                \
                                                                             \
-  experimental(bool, UseRTMXendForLockBusy, true,                           \
+  product(bool, UseRTMXendForLockBusy, true, EXPERIMENTAL,                  \
           "Use RTM Xend instead of Xabort when lock busy")                  \
                                                                             \
   /* assembler */                                                           \
@@ -210,6 +201,23 @@ define_pd_global(bool, ThreadLocalHandshakes, false);
   product(bool, UseBMI2Instructions, false,                                 \
           "Use BMI2 instructions")                                          \
                                                                             \
-  diagnostic(bool, UseLibmIntrinsic, true,                                  \
-          "Use Libm Intrinsics")
+  product(bool, UseLibmIntrinsic, true, DIAGNOSTIC,                         \
+          "Use Libm Intrinsics")                                            \
+                                                                            \
+  /* Minimum array size in bytes to use AVX512 intrinsics */                \
+  /* for copy, inflate and fill which don't bail out early based on any */  \
+  /* condition. When this value is set to zero compare operations like */   \
+  /* compare, vectorizedMismatch, compress can also use AVX512 intrinsics.*/\
+  product(int, AVX3Threshold, 4096, DIAGNOSTIC,                             \
+             "Minimum array size in bytes to use AVX512 intrinsics"         \
+             "for copy, inflate and fill. When this value is set as zero"   \
+             "compare operations can also use AVX512 intrinsics.")          \
+             range(0, max_jint)                                             \
+                                                                            \
+  product(bool, IntelJccErratumMitigation, true, DIAGNOSTIC,                \
+             "Turn off JVM mitigations related to Intel micro code "        \
+             "mitigations for the Intel JCC erratum")
+
+// end of ARCH_FLAGS
+
 #endif // CPU_X86_GLOBALS_X86_HPP

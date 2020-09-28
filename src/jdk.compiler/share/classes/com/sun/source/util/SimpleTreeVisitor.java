@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,7 +54,7 @@ public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
 
     /**
      * Creates a visitor, with a specified DEFAULT_VALUE.
-     * @param defaultValue the default value to be returned by the default action.
+     * @param defaultValue the default value to be returned by the default action
      */
     protected SimpleTreeVisitor(R defaultValue) {
         DEFAULT_VALUE = defaultValue;
@@ -85,7 +85,7 @@ public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
      * @param nodes the nodes on which to dispatch
      * @param p a parameter value to be passed to each appropriate visit method
      * @return the value return from the last of the visit methods, or null
-     *      if none were called.
+     *      if none were called
      */
     public final R visit(Iterable<? extends Tree> nodes, P p) {
         R r = null;
@@ -269,15 +269,8 @@ public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
      * @param node {@inheritDoc}
      * @param p {@inheritDoc}
      * @return  the result of {@code defaultAction}
-     *
-     * @deprecated
-     * This method is modeling switch expressions,
-     * which are part of a preview feature and may be removed
-     * if the preview feature is removed.
      */
     @Override
-    @Deprecated(forRemoval=true, since="12")
-    @SuppressWarnings("removal")
     public R visitSwitchExpression(SwitchExpressionTree node, P p) {
         return defaultAction(node, p);
     }
@@ -564,6 +557,19 @@ public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
      * @param node {@inheritDoc}
      * @param p {@inheritDoc}
      * @return  the result of {@code defaultAction}
+     * @since 14
+     */
+    @Override
+    public R visitBindingPattern(BindingPatternTree node, P p) {
+        return defaultAction(node, p);
+    }
+
+    /**
+     * {@inheritDoc} This implementation calls {@code defaultAction}.
+     *
+     * @param node {@inheritDoc}
+     * @param p {@inheritDoc}
+     * @return  the result of {@code defaultAction}
      */
     @Override
     public R visitArrayAccess(ArrayAccessTree node, P p) {
@@ -791,8 +797,6 @@ public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
      * @return  the result of {@code defaultAction}
      */
     @Override
-    @Deprecated(forRemoval=true, since="13")
-    @SuppressWarnings("removal")
     public R visitYield(YieldTree node, P p) {
         return defaultAction(node, p);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "jvm.h"
 #include "classfile/classFileParser.hpp"
 #include "classfile/classFileStream.hpp"
+#include "classfile/classLoadInfo.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/modules.hpp"
@@ -37,14 +38,14 @@
 #include "jfr/jfr.hpp"
 #include "jfr/jni/jfrJavaSupport.hpp"
 #include "jfr/jni/jfrUpcalls.hpp"
-#include "jfr/support/jfrEventClass.hpp"
+#include "jfr/recorder/checkpoint/types/traceid/jfrTraceId.inline.hpp"
+#include "jfr/support/jfrJdkJfrEvent.hpp"
 #include "jfr/utilities/jfrBigEndian.hpp"
 #include "jfr/writers/jfrBigEndianWriter.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/array.hpp"
-#include "oops/constantPool.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
@@ -624,7 +625,7 @@ static jlong add_method_info(JfrBigEndianWriter& writer,
   DEBUG_ONLY(assert(start_offset + 8 == writer.current_offset(), "invariant");)
   // Code attribute
   writer.write(code_index); // "Code"
-  writer.bytes(code, code_len);
+  writer.write_bytes(code, code_len);
   DEBUG_ONLY(assert((start_offset + 8 + 2 + (jlong)code_len) == writer.current_offset(), "invariant");)
   return writer.current_offset();
 }
@@ -683,6 +684,10 @@ static u2 position_stream_after_cp(const ClassFileStream* stream) {
           stream->skip_u2_fast(1); // skip 3 bytes
         }
       }
+      continue;
+      case JVM_CONSTANT_Dynamic:
+        stream->skip_u2_fast(1);
+        stream->skip_u2_fast(1);
       continue;
       default:
         assert(false, "error in skip logic!");
@@ -763,8 +768,8 @@ static u2 position_stream_after_methods(JfrBigEndianWriter& writer,
       // We will need to re-create a new <clinit> in a later step.
       // For now, ensure that this method is excluded from the methods
       // being copied.
-      writer.bytes(stream->buffer() + orig_method_len_offset,
-                   method_offset - orig_method_len_offset);
+      writer.write_bytes(stream->buffer() + orig_method_len_offset,
+                         method_offset - orig_method_len_offset);
       assert(writer.is_valid(), "invariant");
 
       // Update copy position to skip copy of <clinit> method
@@ -1086,7 +1091,7 @@ static jlong insert_clinit_method(const InstanceKlass* ik,
     writer.write<u1>((u1)Bytecodes::_nop);
     writer.write<u1>((u1)Bytecodes::_nop);
     // insert original clinit code
-    writer.bytes(orig_bytecodes, orig_bytecodes_length);
+    writer.write_bytes(orig_bytecodes, orig_bytecodes_length);
   }
 
   /* END CLINIT CODE */
@@ -1285,7 +1290,7 @@ static u1* new_bytes_for_lazy_instrumentation(const InstanceKlass* ik,
   const u4 orig_access_flag_offset = orig_stream->current_offset();
   // Copy original stream from the beginning up to AccessFlags
   // This means the original constant pool contents are copied unmodified
-  writer.bytes(orig_stream->buffer(), orig_access_flag_offset);
+  writer.write_bytes(orig_stream->buffer(), orig_access_flag_offset);
   assert(writer.is_valid(), "invariant");
   assert(writer.current_offset() == (intptr_t)orig_access_flag_offset, "invariant"); // same positions
   // Our writer now sits just after the last original constant pool entry.
@@ -1319,14 +1324,14 @@ static u1* new_bytes_for_lazy_instrumentation(const InstanceKlass* ik,
   orig_stream->skip_u2_fast(iface_len);
   const u4 orig_fields_len_offset = orig_stream->current_offset();
   // Copy from AccessFlags up to and including interfaces
-  writer.bytes(orig_stream->buffer() + orig_access_flag_offset,
-               orig_fields_len_offset - orig_access_flag_offset);
+  writer.write_bytes(orig_stream->buffer() + orig_access_flag_offset,
+                     orig_fields_len_offset - orig_access_flag_offset);
   assert(writer.is_valid(), "invariant");
   const jlong new_fields_len_offset = writer.current_offset();
   const u2 orig_fields_len = position_stream_after_fields(orig_stream);
   u4 orig_method_len_offset = orig_stream->current_offset();
   // Copy up to and including fields
-  writer.bytes(orig_stream->buffer() + orig_fields_len_offset, orig_method_len_offset - orig_fields_len_offset);
+  writer.write_bytes(orig_stream->buffer() + orig_fields_len_offset, orig_method_len_offset - orig_fields_len_offset);
   assert(writer.is_valid(), "invariant");
   // We are sitting just after the original number of field_infos
   // so this is a position where we can add (append) new field_infos
@@ -1345,7 +1350,7 @@ static u1* new_bytes_for_lazy_instrumentation(const InstanceKlass* ik,
                                                             orig_method_len_offset);
   const u4 orig_attributes_count_offset = orig_stream->current_offset();
   // Copy existing methods
-  writer.bytes(orig_stream->buffer() + orig_method_len_offset, orig_attributes_count_offset - orig_method_len_offset);
+  writer.write_bytes(orig_stream->buffer() + orig_method_len_offset, orig_attributes_count_offset - orig_method_len_offset);
   assert(writer.is_valid(), "invariant");
   // We are sitting just after the original number of method_infos
   // so this is a position where we can add (append) new method_infos
@@ -1367,7 +1372,7 @@ static u1* new_bytes_for_lazy_instrumentation(const InstanceKlass* ik,
   writer.write_at_offset<u2>(orig_methods_len + number_of_new_methods, new_method_len_offset);
   assert(writer.is_valid(), "invariant");
   // Copy last remaining bytes
-  writer.bytes(orig_stream->buffer() + orig_attributes_count_offset, orig_stream_size - orig_attributes_count_offset);
+  writer.write_bytes(orig_stream->buffer() + orig_attributes_count_offset, orig_stream_size - orig_attributes_count_offset);
   assert(writer.is_valid(), "invariant");
   assert(writer.current_offset() > orig_stream->length(), "invariant");
   size_of_new_bytes = (jint)writer.current_offset();
@@ -1405,7 +1410,7 @@ static ClassFileStream* create_new_bytes_for_subklass(const InstanceKlass* ik, c
     jint size_instrumented_data = 0;
     unsigned char* instrumented_data = NULL;
     const jclass super = (jclass)JNIHandles::make_local(ik->super()->java_mirror());
-    JfrUpcalls::new_bytes_eager_instrumentation(TRACE_ID(ik),
+    JfrUpcalls::new_bytes_eager_instrumentation(JfrTraceId::load_raw(ik),
                                                 force_instrumentation,
                                                 super,
                                                 size_of_new_bytes,
@@ -1461,12 +1466,11 @@ static InstanceKlass* create_new_instance_klass(InstanceKlass* ik, ClassFileStre
   Handle pd(THREAD, ik->protection_domain());
   Symbol* const class_name = ik->name();
   const char* const klass_name = class_name != NULL ? class_name->as_C_string() : "";
+  ClassLoadInfo cl_info(pd);
   ClassFileParser new_parser(stream,
                              class_name,
                              cld,
-                             pd,
-                             NULL, // host klass
-                             NULL, // cp_patches
+                             &cl_info,
                              ClassFileParser::INTERNAL, // internal visibility
                              THREAD);
   if (HAS_PENDING_EXCEPTION) {
@@ -1474,7 +1478,8 @@ static InstanceKlass* create_new_instance_klass(InstanceKlass* ik, ClassFileStre
     CLEAR_PENDING_EXCEPTION;
     return NULL;
   }
-  InstanceKlass* const new_ik = new_parser.create_instance_klass(false, THREAD);
+  const ClassInstanceInfo* cl_inst_info = cl_info.class_hidden_info_ptr();
+  InstanceKlass* const new_ik = new_parser.create_instance_klass(false, *cl_inst_info, THREAD);
   if (HAS_PENDING_EXCEPTION) {
     log_pending_exception(PENDING_EXCEPTION);
     CLEAR_PENDING_EXCEPTION;
@@ -1498,35 +1503,6 @@ static void rewrite_klass_pointer(InstanceKlass*& ik, InstanceKlass* new_ik, Cla
   ik = new_ik;
 }
 
-// During retransform/redefine, copy the Method specific trace flags
-// from the previous ik ("the original klass") to the new ik ("the scratch_klass").
-// The open code for retransform/redefine does not know about these.
-// In doing this migration here, we ensure the new Methods (defined in scratch klass)
-// will carry over trace tags from the old Methods being replaced,
-// ensuring flag/tag continuity while being transparent to open code.
-static void copy_method_trace_flags(const InstanceKlass* the_original_klass, const InstanceKlass* the_scratch_klass) {
-  assert(the_original_klass != NULL, "invariant");
-  assert(the_scratch_klass != NULL, "invariant");
-  assert(the_original_klass->name() == the_scratch_klass->name(), "invariant");
-  const Array<Method*>* old_methods = the_original_klass->methods();
-  const Array<Method*>* new_methods = the_scratch_klass->methods();
-  const bool equal_array_length = old_methods->length() == new_methods->length();
-  // The Method array has the property of being sorted.
-  // If they are the same length, there is a one-to-one mapping.
-  // If they are unequal, there was a method added (currently only
-  // private static methods allowed to be added), use lookup.
-  for (int i = 0; i < old_methods->length(); ++i) {
-    const Method* const old_method = old_methods->at(i);
-    Method* const new_method = equal_array_length ? new_methods->at(i) :
-      the_scratch_klass->find_method(old_method->name(), old_method->signature());
-    assert(new_method != NULL, "invariant");
-    assert(new_method->name() == old_method->name(), "invariant");
-    assert(new_method->signature() == old_method->signature(), "invariant");
-    *new_method->trace_flags_addr() = old_method->trace_flags();
-    assert(new_method->trace_flags() == old_method->trace_flags(), "invariant");
-  }
-}
-
 static bool is_retransforming(const InstanceKlass* ik, TRAPS) {
   assert(ik != NULL, "invariant");
   assert(JdkJfrEvent::is_a(ik), "invariant");
@@ -1534,16 +1510,7 @@ static bool is_retransforming(const InstanceKlass* ik, TRAPS) {
   assert(name != NULL, "invariant");
   Handle class_loader(THREAD, ik->class_loader());
   Handle protection_domain(THREAD, ik->protection_domain());
-  // nota bene: use lock-free dictionary lookup
-  const InstanceKlass* prev_ik = (const InstanceKlass*)SystemDictionary::find(name, class_loader, protection_domain, THREAD);
-  if (prev_ik == NULL) {
-    return false;
-  }
-  // an existing ik implies a retransform/redefine
-  assert(prev_ik != NULL, "invariant");
-  assert(JdkJfrEvent::is_a(prev_ik), "invariant");
-  copy_method_trace_flags(prev_ik, ik);
-  return true;
+  return SystemDictionary::find(name, class_loader, protection_domain, THREAD) != NULL;
 }
 
 // target for JFR_ON_KLASS_CREATION hook
@@ -1572,12 +1539,8 @@ void JfrEventClassTransformer::on_klass_creation(InstanceKlass*& ik, ClassFilePa
     return;
   }
   assert(JdkJfrEvent::is_subklass(ik), "invariant");
-  if (is_retransforming(ik, THREAD)) {
-    // not the initial klass load
-    return;
-  }
-  if (ik->is_abstract()) {
-    // abstract classes are not instrumented
+  if (ik->is_abstract() || is_retransforming(ik, THREAD)) {
+    // abstract and scratch classes are not instrumented
     return;
   }
   ResourceMark rm(THREAD);

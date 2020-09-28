@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -109,7 +109,7 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
      * instead of the Latin numbering system.
      *
      * @param locale the desired locale
-     * @exception NullPointerException if {@code locale} is null
+     * @throws    NullPointerException if {@code locale} is null
      */
     public DecimalFormatSymbols( Locale locale ) {
         initialize( locale );
@@ -172,7 +172,7 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
      *
      * @param locale the desired locale.
      * @return a {@code DecimalFormatSymbols} instance.
-     * @exception NullPointerException if {@code locale} is null
+     * @throws    NullPointerException if {@code locale} is null
      * @since 1.6
      */
     public static final DecimalFormatSymbols getInstance(Locale locale) {
@@ -202,11 +202,12 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
      * @param zeroDigit the character used for zero
      */
     public void setZeroDigit(char zeroDigit) {
+        hashCode = 0;
         this.zeroDigit = zeroDigit;
     }
 
     /**
-     * Gets the character used for thousands separator. Different for French, etc.
+     * Gets the character used for grouping separator. Different for French, etc.
      *
      * @return the grouping separator
      */
@@ -215,11 +216,12 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
     }
 
     /**
-     * Sets the character used for thousands separator. Different for French, etc.
+     * Sets the character used for grouping separator. Different for French, etc.
      *
      * @param groupingSeparator the grouping separator
      */
     public void setGroupingSeparator(char groupingSeparator) {
+        hashCode = 0;
         this.groupingSeparator = groupingSeparator;
     }
 
@@ -238,6 +240,7 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
      * @param decimalSeparator the character used for decimal sign
      */
     public void setDecimalSeparator(char decimalSeparator) {
+        hashCode = 0;
         this.decimalSeparator = decimalSeparator;
     }
 
@@ -256,8 +259,344 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
      * @param perMill the character used for per mille sign
      */
     public void setPerMill(char perMill) {
+        hashCode = 0;
         this.perMill = perMill;
         this.perMillText = Character.toString(perMill);
+    }
+
+    /**
+     * Gets the character used for percent sign. Different for Arabic, etc.
+     *
+     * @return the character used for percent sign
+     */
+    public char getPercent() {
+        return percent;
+    }
+
+    /**
+     * Sets the character used for percent sign. Different for Arabic, etc.
+     *
+     * @param percent the character used for percent sign
+     */
+    public void setPercent(char percent) {
+        hashCode = 0;
+        this.percent = percent;
+        this.percentText = Character.toString(percent);
+    }
+
+    /**
+     * Gets the character used for a digit in a pattern.
+     *
+     * @return the character used for a digit in a pattern
+     */
+    public char getDigit() {
+        return digit;
+    }
+
+    /**
+     * Sets the character used for a digit in a pattern.
+     *
+     * @param digit the character used for a digit in a pattern
+     */
+    public void setDigit(char digit) {
+        hashCode = 0;
+        this.digit = digit;
+    }
+
+    /**
+     * Gets the character used to separate positive and negative subpatterns
+     * in a pattern.
+     *
+     * @return the pattern separator
+     */
+    public char getPatternSeparator() {
+        return patternSeparator;
+    }
+
+    /**
+     * Sets the character used to separate positive and negative subpatterns
+     * in a pattern.
+     *
+     * @param patternSeparator the pattern separator
+     */
+    public void setPatternSeparator(char patternSeparator) {
+        hashCode = 0;
+        this.patternSeparator = patternSeparator;
+    }
+
+    /**
+     * Gets the string used to represent infinity. Almost always left
+     * unchanged.
+     *
+     * @return the string representing infinity
+     */
+    public String getInfinity() {
+        return infinity;
+    }
+
+    /**
+     * Sets the string used to represent infinity. Almost always left
+     * unchanged.
+     *
+     * @param infinity the string representing infinity
+     */
+    public void setInfinity(String infinity) {
+        hashCode = 0;
+        this.infinity = infinity;
+    }
+
+    /**
+     * Gets the string used to represent "not a number". Almost always left
+     * unchanged.
+     *
+     * @return the string representing "not a number"
+     */
+    public String getNaN() {
+        return NaN;
+    }
+
+    /**
+     * Sets the string used to represent "not a number". Almost always left
+     * unchanged.
+     *
+     * @param NaN the string representing "not a number"
+     */
+    public void setNaN(String NaN) {
+        hashCode = 0;
+        this.NaN = NaN;
+    }
+
+    /**
+     * Gets the character used to represent minus sign. If no explicit
+     * negative format is specified, one is formed by prefixing
+     * minusSign to the positive format.
+     *
+     * @return the character representing minus sign
+     */
+    public char getMinusSign() {
+        return minusSign;
+    }
+
+    /**
+     * Sets the character used to represent minus sign. If no explicit
+     * negative format is specified, one is formed by prefixing
+     * minusSign to the positive format.
+     *
+     * @param minusSign the character representing minus sign
+     */
+    public void setMinusSign(char minusSign) {
+        hashCode = 0;
+        this.minusSign = minusSign;
+        this.minusSignText = Character.toString(minusSign);
+    }
+
+    /**
+     * Returns the currency symbol for the currency of these
+     * DecimalFormatSymbols in their locale.
+     *
+     * @return the currency symbol
+     * @since 1.2
+     */
+    public String getCurrencySymbol()
+    {
+        initializeCurrency(locale);
+        return currencySymbol;
+    }
+
+    /**
+     * Sets the currency symbol for the currency of these
+     * DecimalFormatSymbols in their locale.
+     *
+     * @param currency the currency symbol
+     * @since 1.2
+     */
+    public void setCurrencySymbol(String currency)
+    {
+        initializeCurrency(locale);
+        hashCode = 0;
+        currencySymbol = currency;
+    }
+
+    /**
+     * Returns the ISO 4217 currency code of the currency of these
+     * DecimalFormatSymbols.
+     *
+     * @return the currency code
+     * @since 1.2
+     */
+    public String getInternationalCurrencySymbol()
+    {
+        initializeCurrency(locale);
+        return intlCurrencySymbol;
+    }
+
+    /**
+     * Sets the ISO 4217 currency code of the currency of these
+     * DecimalFormatSymbols.
+     * If the currency code is valid (as defined by
+     * {@link java.util.Currency#getInstance(java.lang.String) Currency.getInstance}),
+     * this also sets the currency attribute to the corresponding Currency
+     * instance and the currency symbol attribute to the currency's symbol
+     * in the DecimalFormatSymbols' locale. If the currency code is not valid,
+     * then the currency attribute is set to null and the currency symbol
+     * attribute is not modified.
+     *
+     * @param currencyCode the currency code
+     * @see #setCurrency
+     * @see #setCurrencySymbol
+     * @since 1.2
+     */
+    public void setInternationalCurrencySymbol(String currencyCode)
+    {
+        initializeCurrency(locale);
+        hashCode = 0;
+        intlCurrencySymbol = currencyCode;
+        currency = null;
+        if (currencyCode != null) {
+            try {
+                currency = Currency.getInstance(currencyCode);
+                currencySymbol = currency.getSymbol();
+            } catch (IllegalArgumentException e) {
+            }
+        }
+    }
+
+    /**
+     * Gets the currency of these DecimalFormatSymbols. May be null if the
+     * currency symbol attribute was previously set to a value that's not
+     * a valid ISO 4217 currency code.
+     *
+     * @return the currency used, or null
+     * @since 1.4
+     */
+    public Currency getCurrency() {
+        initializeCurrency(locale);
+        return currency;
+    }
+
+    /**
+     * Sets the currency of these DecimalFormatSymbols.
+     * This also sets the currency symbol attribute to the currency's symbol
+     * in the DecimalFormatSymbols' locale, and the international currency
+     * symbol attribute to the currency's ISO 4217 currency code.
+     *
+     * @param currency the new currency to be used
+     * @throws    NullPointerException if {@code currency} is null
+     * @since 1.4
+     * @see #setCurrencySymbol
+     * @see #setInternationalCurrencySymbol
+     */
+    public void setCurrency(Currency currency) {
+        if (currency == null) {
+            throw new NullPointerException();
+        }
+        initializeCurrency(locale);
+        hashCode = 0;
+        this.currency = currency;
+        intlCurrencySymbol = currency.getCurrencyCode();
+        currencySymbol = currency.getSymbol(locale);
+    }
+
+
+    /**
+     * Returns the monetary decimal separator.
+     *
+     * @return the monetary decimal separator
+     * @since 1.2
+     */
+    public char getMonetaryDecimalSeparator()
+    {
+        return monetarySeparator;
+    }
+
+    /**
+     * Sets the monetary decimal separator.
+     *
+     * @param sep the monetary decimal separator
+     * @since 1.2
+     */
+    public void setMonetaryDecimalSeparator(char sep)
+    {
+        hashCode = 0;
+        monetarySeparator = sep;
+    }
+
+    /**
+     * Returns the string used to separate the mantissa from the exponent.
+     * Examples: "x10^" for 1.23x10^4, "E" for 1.23E4.
+     *
+     * @return the exponent separator string
+     * @see #setExponentSeparator(java.lang.String)
+     * @since 1.6
+     */
+    public String getExponentSeparator()
+    {
+        return exponentialSeparator;
+    }
+
+    /**
+     * Sets the string used to separate the mantissa from the exponent.
+     * Examples: "x10^" for 1.23x10^4, "E" for 1.23E4.
+     *
+     * @param exp the exponent separator string
+     * @throws    NullPointerException if {@code exp} is null
+     * @see #getExponentSeparator()
+     * @since 1.6
+     */
+    public void setExponentSeparator(String exp)
+    {
+        if (exp == null) {
+            throw new NullPointerException();
+        }
+        hashCode = 0;
+        exponentialSeparator = exp;
+    }
+
+    /**
+     * Gets the character used for grouping separator for currencies.
+     * May be different from {@code grouping separator} in some locales,
+     * e.g, German in Austria.
+     *
+     * @return the monetary grouping separator
+     * @since 15
+     */
+    public char getMonetaryGroupingSeparator() {
+        return monetaryGroupingSeparator;
+    }
+
+    /**
+     * Sets the character used for grouping separator for currencies.
+     * Invocation of this method will not affect the normal
+     * {@code grouping separator}.
+     *
+     * @param monetaryGroupingSeparator the monetary grouping separator
+     * @see #setGroupingSeparator(char)
+     * @since 15
+     */
+    public void setMonetaryGroupingSeparator(char monetaryGroupingSeparator)
+    {
+        hashCode = 0;
+        this.monetaryGroupingSeparator = monetaryGroupingSeparator;
+    }
+
+    //------------------------------------------------------------
+    // BEGIN   Package Private methods ... to be made public later
+    //------------------------------------------------------------
+
+    /**
+     * Returns the character used to separate the mantissa from the exponent.
+     */
+    char getExponentialSymbol()
+    {
+        return exponential;
+    }
+
+    /**
+     * Sets the character used to separate the mantissa from the exponent.
+     */
+    void setExponentialSymbol(char exp)
+    {
+        exponential = exp;
     }
 
     /**
@@ -290,27 +629,9 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
             throw new IllegalArgumentException("Empty argument string");
         }
 
+        hashCode = 0;
         this.perMillText = perMillText;
         this.perMill = findNonFormatChar(perMillText, '\u2030');
-    }
-
-    /**
-     * Gets the character used for percent sign. Different for Arabic, etc.
-     *
-     * @return the character used for percent sign
-     */
-    public char getPercent() {
-        return percent;
-    }
-
-    /**
-     * Sets the character used for percent sign. Different for Arabic, etc.
-     *
-     * @param percent the character used for percent sign
-     */
-    public void setPercent(char percent) {
-        this.percent = percent;
-        this.percentText = Character.toString(percent);
     }
 
     /**
@@ -343,109 +664,9 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
             throw new IllegalArgumentException("Empty argument string");
         }
 
+        hashCode = 0;
         this.percentText = percentText;
         this.percent = findNonFormatChar(percentText, '%');
-    }
-
-    /**
-     * Gets the character used for a digit in a pattern.
-     *
-     * @return the character used for a digit in a pattern
-     */
-    public char getDigit() {
-        return digit;
-    }
-
-    /**
-     * Sets the character used for a digit in a pattern.
-     *
-     * @param digit the character used for a digit in a pattern
-     */
-    public void setDigit(char digit) {
-        this.digit = digit;
-    }
-
-    /**
-     * Gets the character used to separate positive and negative subpatterns
-     * in a pattern.
-     *
-     * @return the pattern separator
-     */
-    public char getPatternSeparator() {
-        return patternSeparator;
-    }
-
-    /**
-     * Sets the character used to separate positive and negative subpatterns
-     * in a pattern.
-     *
-     * @param patternSeparator the pattern separator
-     */
-    public void setPatternSeparator(char patternSeparator) {
-        this.patternSeparator = patternSeparator;
-    }
-
-    /**
-     * Gets the string used to represent infinity. Almost always left
-     * unchanged.
-     *
-     * @return the string representing infinity
-     */
-    public String getInfinity() {
-        return infinity;
-    }
-
-    /**
-     * Sets the string used to represent infinity. Almost always left
-     * unchanged.
-     *
-     * @param infinity the string representing infinity
-     */
-    public void setInfinity(String infinity) {
-        this.infinity = infinity;
-    }
-
-    /**
-     * Gets the string used to represent "not a number". Almost always left
-     * unchanged.
-     *
-     * @return the string representing "not a number"
-     */
-    public String getNaN() {
-        return NaN;
-    }
-
-    /**
-     * Sets the string used to represent "not a number". Almost always left
-     * unchanged.
-     *
-     * @param NaN the string representing "not a number"
-     */
-    public void setNaN(String NaN) {
-        this.NaN = NaN;
-    }
-
-    /**
-     * Gets the character used to represent minus sign. If no explicit
-     * negative format is specified, one is formed by prefixing
-     * minusSign to the positive format.
-     *
-     * @return the character representing minus sign
-     */
-    public char getMinusSign() {
-        return minusSign;
-    }
-
-    /**
-     * Sets the character used to represent minus sign. If no explicit
-     * negative format is specified, one is formed by prefixing
-     * minusSign to the positive format.
-     *
-     * @param minusSign the character representing minus sign
-     */
-    public void setMinusSign(char minusSign) {
-        this.minusSign = minusSign;
-        this.minusSignText = Character.toString(minusSign);
     }
 
     /**
@@ -483,187 +704,10 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
             throw new IllegalArgumentException("Empty argument string");
         }
 
+        hashCode = 0;
         this.minusSignText = minusSignText;
         this.minusSign = findNonFormatChar(minusSignText, '-');
     }
-
-    /**
-     * Returns the currency symbol for the currency of these
-     * DecimalFormatSymbols in their locale.
-     *
-     * @return the currency symbol
-     * @since 1.2
-     */
-    public String getCurrencySymbol()
-    {
-        initializeCurrency(locale);
-        return currencySymbol;
-    }
-
-    /**
-     * Sets the currency symbol for the currency of these
-     * DecimalFormatSymbols in their locale.
-     *
-     * @param currency the currency symbol
-     * @since 1.2
-     */
-    public void setCurrencySymbol(String currency)
-    {
-        initializeCurrency(locale);
-        currencySymbol = currency;
-    }
-
-    /**
-     * Returns the ISO 4217 currency code of the currency of these
-     * DecimalFormatSymbols.
-     *
-     * @return the currency code
-     * @since 1.2
-     */
-    public String getInternationalCurrencySymbol()
-    {
-        initializeCurrency(locale);
-        return intlCurrencySymbol;
-    }
-
-    /**
-     * Sets the ISO 4217 currency code of the currency of these
-     * DecimalFormatSymbols.
-     * If the currency code is valid (as defined by
-     * {@link java.util.Currency#getInstance(java.lang.String) Currency.getInstance}),
-     * this also sets the currency attribute to the corresponding Currency
-     * instance and the currency symbol attribute to the currency's symbol
-     * in the DecimalFormatSymbols' locale. If the currency code is not valid,
-     * then the currency attribute is set to null and the currency symbol
-     * attribute is not modified.
-     *
-     * @param currencyCode the currency code
-     * @see #setCurrency
-     * @see #setCurrencySymbol
-     * @since 1.2
-     */
-    public void setInternationalCurrencySymbol(String currencyCode)
-    {
-        initializeCurrency(locale);
-        intlCurrencySymbol = currencyCode;
-        currency = null;
-        if (currencyCode != null) {
-            try {
-                currency = Currency.getInstance(currencyCode);
-                currencySymbol = currency.getSymbol();
-            } catch (IllegalArgumentException e) {
-            }
-        }
-    }
-
-    /**
-     * Gets the currency of these DecimalFormatSymbols. May be null if the
-     * currency symbol attribute was previously set to a value that's not
-     * a valid ISO 4217 currency code.
-     *
-     * @return the currency used, or null
-     * @since 1.4
-     */
-    public Currency getCurrency() {
-        initializeCurrency(locale);
-        return currency;
-    }
-
-    /**
-     * Sets the currency of these DecimalFormatSymbols.
-     * This also sets the currency symbol attribute to the currency's symbol
-     * in the DecimalFormatSymbols' locale, and the international currency
-     * symbol attribute to the currency's ISO 4217 currency code.
-     *
-     * @param currency the new currency to be used
-     * @exception NullPointerException if {@code currency} is null
-     * @since 1.4
-     * @see #setCurrencySymbol
-     * @see #setInternationalCurrencySymbol
-     */
-    public void setCurrency(Currency currency) {
-        if (currency == null) {
-            throw new NullPointerException();
-        }
-        initializeCurrency(locale);
-        this.currency = currency;
-        intlCurrencySymbol = currency.getCurrencyCode();
-        currencySymbol = currency.getSymbol(locale);
-    }
-
-
-    /**
-     * Returns the monetary decimal separator.
-     *
-     * @return the monetary decimal separator
-     * @since 1.2
-     */
-    public char getMonetaryDecimalSeparator()
-    {
-        return monetarySeparator;
-    }
-
-    /**
-     * Sets the monetary decimal separator.
-     *
-     * @param sep the monetary decimal separator
-     * @since 1.2
-     */
-    public void setMonetaryDecimalSeparator(char sep)
-    {
-        monetarySeparator = sep;
-    }
-
-    //------------------------------------------------------------
-    // BEGIN   Package Private methods ... to be made public later
-    //------------------------------------------------------------
-
-    /**
-     * Returns the character used to separate the mantissa from the exponent.
-     */
-    char getExponentialSymbol()
-    {
-        return exponential;
-    }
-
-    /**
-     * Returns the string used to separate the mantissa from the exponent.
-     * Examples: "x10^" for 1.23x10^4, "E" for 1.23E4.
-     *
-     * @return the exponent separator string
-     * @see #setExponentSeparator(java.lang.String)
-     * @since 1.6
-     */
-    public String getExponentSeparator()
-    {
-        return exponentialSeparator;
-    }
-
-    /**
-     * Sets the character used to separate the mantissa from the exponent.
-     */
-    void setExponentialSymbol(char exp)
-    {
-        exponential = exp;
-    }
-
-    /**
-     * Sets the string used to separate the mantissa from the exponent.
-     * Examples: "x10^" for 1.23x10^4, "E" for 1.23E4.
-     *
-     * @param exp the exponent separator string
-     * @exception NullPointerException if {@code exp} is null
-     * @see #getExponentSeparator()
-     * @since 1.6
-     */
-    public void setExponentSeparator(String exp)
-    {
-        if (exp == null) {
-            throw new NullPointerException();
-        }
-        exponentialSeparator = exp;
-    }
-
 
     //------------------------------------------------------------
     // END     Package Private methods ... to be made public later
@@ -692,24 +736,25 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
         if (getClass() != obj.getClass()) return false;
         DecimalFormatSymbols other = (DecimalFormatSymbols) obj;
         return (zeroDigit == other.zeroDigit &&
-        groupingSeparator == other.groupingSeparator &&
-        decimalSeparator == other.decimalSeparator &&
-        percent == other.percent &&
-        percentText.equals(other.percentText) &&
-        perMill == other.perMill &&
-        perMillText.equals(other.perMillText) &&
-        digit == other.digit &&
-        minusSign == other.minusSign &&
-        minusSignText.equals(other.minusSignText) &&
-        patternSeparator == other.patternSeparator &&
-        infinity.equals(other.infinity) &&
-        NaN.equals(other.NaN) &&
-        getCurrencySymbol().equals(other.getCurrencySymbol()) && // possible currency init occurs here
-        intlCurrencySymbol.equals(other.intlCurrencySymbol) &&
-        currency == other.currency &&
-        monetarySeparator == other.monetarySeparator &&
-        exponentialSeparator.equals(other.exponentialSeparator) &&
-        locale.equals(other.locale));
+            groupingSeparator == other.groupingSeparator &&
+            decimalSeparator == other.decimalSeparator &&
+            percent == other.percent &&
+            percentText.equals(other.percentText) &&
+            perMill == other.perMill &&
+            perMillText.equals(other.perMillText) &&
+            digit == other.digit &&
+            minusSign == other.minusSign &&
+            minusSignText.equals(other.minusSignText) &&
+            patternSeparator == other.patternSeparator &&
+            infinity.equals(other.infinity) &&
+            NaN.equals(other.NaN) &&
+            getCurrencySymbol().equals(other.getCurrencySymbol()) && // possible currency init occurs here
+            intlCurrencySymbol.equals(other.intlCurrencySymbol) &&
+            currency == other.currency &&
+            monetarySeparator == other.monetarySeparator &&
+            monetaryGroupingSeparator == other.monetaryGroupingSeparator &&
+            exponentialSeparator.equals(other.exponentialSeparator) &&
+            locale.equals(other.locale));
     }
 
     /**
@@ -717,10 +762,30 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
      */
     @Override
     public int hashCode() {
-            int result = zeroDigit;
-            result = result * 37 + groupingSeparator;
-            result = result * 37 + decimalSeparator;
-            return result;
+        if (hashCode == 0) {
+            hashCode = Objects.hash(
+                zeroDigit,
+                groupingSeparator,
+                decimalSeparator,
+                percent,
+                percentText,
+                perMill,
+                perMillText,
+                digit,
+                minusSign,
+                minusSignText,
+                patternSeparator,
+                infinity,
+                NaN,
+                getCurrencySymbol(), // possible currency init occurs here
+                intlCurrencySymbol,
+                currency,
+                monetarySeparator,
+                monetaryGroupingSeparator,
+                exponentialSeparator,
+                locale);
+        }
+        return hashCode;
     }
 
     /**
@@ -759,14 +824,15 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
         infinity  = numberElements[9];
         NaN = numberElements[10];
 
+        // monetary decimal/grouping separators may be missing in resource bundles
+        monetarySeparator = numberElements.length < 12 || numberElements[11].isEmpty() ?
+            decimalSeparator : numberElements[11].charAt(0);
+        monetaryGroupingSeparator = numberElements.length < 13 || numberElements[12].isEmpty() ?
+            groupingSeparator : numberElements[12].charAt(0);
+
         // maybe filled with previously cached values, or null.
         intlCurrencySymbol = (String) data[1];
         currencySymbol = (String) data[2];
-
-        // Currently the monetary decimal separator is the same as the
-        // standard decimal separator for all locales that we support.
-        // If that changes, add a new entry to NumberElements.
-        monetarySeparator = decimalSeparator;
     }
 
     /**
@@ -837,13 +903,15 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
      * the same as {@code decimalSeparator} and {@code exponential}
      * to be 'E'.
      * If {@code serialVersionOnStream} is less than 2,
-     * initializes {@code locale}to the root locale, and initializes
+     * initializes {@code locale} to the root locale, and initializes
      * If {@code serialVersionOnStream} is less than 3, it initializes
      * {@code exponentialSeparator} using {@code exponential}.
      * If {@code serialVersionOnStream} is less than 4, it initializes
      * {@code perMillText}, {@code percentText}, and
      * {@code minusSignText} using {@code perMill}, {@code percent}, and
      * {@code minusSign} respectively.
+     * If {@code serialVersionOnStream} is less than 5, it initializes
+     * {@code monetaryGroupingSeparator} using {@code groupingSeparator}.
      * Sets {@code serialVersionOnStream} back to the maximum allowed value so that
      * default serialization will work properly if this object is streamed out again.
      * Initializes the currency from the intlCurrencySymbol field.
@@ -886,6 +954,10 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
                     "per mille, and/or minus sign disagree.");
             }
         }
+        if (serialVersionOnStream < 5) {
+            // didn't have monetaryGroupingSeparator. Create one using groupingSeparator
+            monetaryGroupingSeparator = groupingSeparator;
+        }
 
         serialVersionOnStream = currentSerialVersion;
 
@@ -907,7 +979,7 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
     private  char    zeroDigit;
 
     /**
-     * Character used for thousands separator.
+     * Character used for grouping separator.
      *
      * @serial
      * @see #getGroupingSeparator
@@ -1063,9 +1135,22 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
      */
     private  String minusSignText;
 
+    /**
+     * The grouping separator used when formatting currency values.
+     *
+     * @serial
+     * @since 15
+     */
+    private  char    monetaryGroupingSeparator;
+
     // currency; only the ISO code is serialized.
     private transient Currency currency;
     private transient volatile boolean currencyInitialized;
+
+    /**
+     * Cached hash code.
+     */
+    private transient volatile int hashCode;
 
     // Proclaim JDK 1.1 FCS compatibility
     @java.io.Serial
@@ -1079,7 +1164,8 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
     // - 3 for version from J2SE 1.6, which includes exponentialSeparator field.
     // - 4 for version from Java SE 13, which includes perMillText, percentText,
     //      and minusSignText field.
-    private static final int currentSerialVersion = 4;
+    // - 5 for version from Java SE 15, which includes monetaryGroupingSeparator.
+    private static final int currentSerialVersion = 5;
 
     /**
      * Describes the version of {@code DecimalFormatSymbols} present on the stream.
@@ -1096,7 +1182,9 @@ public class DecimalFormatSymbols implements Cloneable, Serializable {
      * <li><b>4</b>: Versions written by Java SE 13 or later, which include
      *      new {@code perMillText}, {@code percentText}, and
      *      {@code minusSignText} field.
-     * </ul>
+     * <li><b>5</b>: Versions written by Java SE 15 or later, which include
+     *      new {@code monetaryGroupingSeparator} field.
+     * * </ul>
      * When streaming out a {@code DecimalFormatSymbols}, the most recent format
      * (corresponding to the highest allowable {@code serialVersionOnStream})
      * is always written.

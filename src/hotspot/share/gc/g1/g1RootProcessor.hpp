@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #ifndef SHARE_GC_G1_G1ROOTPROCESSOR_HPP
 #define SHARE_GC_G1_G1ROOTPROCESSOR_HPP
 
+#include "gc/shared/oopStorageSetParState.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/mutex.hpp"
@@ -49,17 +50,11 @@ class G1RootProcessor : public StackObj {
   G1CollectedHeap* _g1h;
   SubTasksDone _process_strong_tasks;
   StrongRootsScope _srs;
-
-  // Used to implement the Thread work barrier.
-  Monitor _lock;
-  volatile jint _n_workers_discovered_strong_classes;
+  OopStorageSetStrongParState<false, false> _oop_storage_set_strong_par_state;
 
   enum G1H_process_roots_tasks {
     G1RP_PS_Universe_oops_do,
-    G1RP_PS_JNIHandles_oops_do,
-    G1RP_PS_ObjectSynchronizer_oops_do,
     G1RP_PS_Management_oops_do,
-    G1RP_PS_SystemDictionary_oops_do,
     G1RP_PS_ClassLoaderDataGraph_oops_do,
     G1RP_PS_jvmti_oops_do,
     G1RP_PS_CodeCache_oops_do,
@@ -69,20 +64,17 @@ class G1RootProcessor : public StackObj {
     G1RP_PS_NumElements
   };
 
-  void worker_has_discovered_all_strong_classes();
-  void wait_until_all_strong_classes_discovered();
-
   void process_java_roots(G1RootClosures* closures,
                           G1GCPhaseTimes* phase_times,
-                          uint worker_i);
+                          uint worker_id);
 
   void process_vm_roots(G1RootClosures* closures,
                         G1GCPhaseTimes* phase_times,
-                        uint worker_i);
+                        uint worker_id);
 
   void process_code_cache_roots(CodeBlobClosure* code_closure,
                                 G1GCPhaseTimes* phase_times,
-                                uint worker_i);
+                                uint worker_id);
 
 public:
   G1RootProcessor(G1CollectedHeap* g1h, uint n_workers);

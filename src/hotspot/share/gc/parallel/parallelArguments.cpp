@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2017, Red Hat, Inc. and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -35,6 +35,7 @@
 #include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
 #include "utilities/defaultStream.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 static const double MaxRamFractionForYoung = 0.8;
 
@@ -44,12 +45,7 @@ size_t ParallelArguments::conservative_max_heap_alignment() {
 
 void ParallelArguments::initialize() {
   GCArguments::initialize();
-  assert(UseParallelGC || UseParallelOldGC, "Error");
-  // Enable ParallelOld unless it was explicitly disabled (cmd line or rc file).
-  if (FLAG_IS_DEFAULT(UseParallelOldGC)) {
-    FLAG_SET_DEFAULT(UseParallelOldGC, true);
-  }
-  FLAG_SET_DEFAULT(UseParallelGC, true);
+  assert(UseParallelGC, "Error");
 
   // If no heap maximum was requested explicitly, use some reasonable fraction
   // of the physical memory, up to a maximum of 1GB.
@@ -85,13 +81,11 @@ void ParallelArguments::initialize() {
     }
   }
 
-  if (UseParallelOldGC) {
-    // Par compact uses lower default values since they are treated as
-    // minimums.  These are different defaults because of the different
-    // interpretation and are not ergonomically set.
-    if (FLAG_IS_DEFAULT(MarkSweepDeadRatio)) {
-      FLAG_SET_DEFAULT(MarkSweepDeadRatio, 1);
-    }
+  // Par compact uses lower default values since they are treated as
+  // minimums.  These are different defaults because of the different
+  // interpretation and are not ergonomically set.
+  if (FLAG_IS_DEFAULT(MarkSweepDeadRatio)) {
+    FLAG_SET_DEFAULT(MarkSweepDeadRatio, 1);
   }
 }
 
@@ -128,10 +122,8 @@ void ParallelArguments::initialize_heap_flags_and_sizes() {
 
   initialize_heap_flags_and_sizes_one_pass();
 
-  const size_t max_page_sz = os::page_size_for_region_aligned(MaxHeapSize, 8);
   const size_t min_pages = 4; // 1 for eden + 1 for each survivor + 1 for old
-  const size_t min_page_sz = os::page_size_for_region_aligned(MinHeapSize, min_pages);
-  const size_t page_sz = MIN2(max_page_sz, min_page_sz);
+  const size_t page_sz = os::page_size_for_region_aligned(MinHeapSize, min_pages);
 
   // Can a page size be something else than a power of two?
   assert(is_power_of_2((intptr_t)page_sz), "must be a power of 2");
@@ -200,18 +192,7 @@ bool ParallelArguments::is_heterogeneous_heap() {
 }
 
 size_t ParallelArguments::heap_reserved_size_bytes() {
-  if (!is_heterogeneous_heap() || !UseAdaptiveGCBoundary) {
-    return MaxHeapSize;
-  }
-
-  // Heterogeneous heap and adaptive size gc boundary
-
-  // This is the size that young gen can grow to, when UseAdaptiveGCBoundary is true.
-  size_t max_yg_size = MaxHeapSize - MinOldSize;
-  // This is the size that old gen can grow to, when UseAdaptiveGCBoundary is true.
-  size_t max_old_size = MaxHeapSize - MinNewSize;
-
-  return max_yg_size + max_old_size;
+  return MaxHeapSize;
 }
 
 size_t ParallelArguments::heap_max_size_bytes() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,11 +32,35 @@ import java.util.Set;
 
 /**
  * Abstract datagram and multicast socket implementation base class.
+ *
+ * @implNote Sockets created with the {@code DatagramSocket} and {@code
+ * MulticastSocket} public constructors historically delegated all socket
+ * operations to a {@code DatagramSocketImpl} implementation named
+ * "PlainDatagramSocketImpl". {@code DatagramSocket} and {@code MulticastSocket}
+ * have since been changed to a new implementation based on {@code DatagramChannel}.
+ * The JDK continues to ship with the older implementation to allow code to run
+ * that depends on unspecified behavior that differs between the old and new
+ * implementations. The old implementation will be used if the Java virtual
+ * machine is started with the system property {@systemProperty
+ * jdk.net.usePlainDatagramSocketImpl} set to use the old implementation. It may
+ * also be set in the JDK's network configuration file, located in {@code
+ * ${java.home}/conf/net.properties}. The value of the property is the string
+ * representation of a boolean. If set without a value then it defaults to {@code
+ * true}, hence running with {@code -Djdk.net.usePlainDatagramSocketImpl} or
+ * {@code -Djdk.net.usePlainDatagramSocketImpl=true} will configure the Java
+ * virtual machine to use the old implementation. The property and old
+ * implementation will be removed in a future version.
+ *
  * @author Pavani Diwanji
  * @since  1.1
  */
 
 public abstract class DatagramSocketImpl implements SocketOptions {
+
+    /**
+     * Constructor for subclasses to call.
+     */
+    public DatagramSocketImpl() {}
 
     /**
      * The local port number.
@@ -48,20 +72,6 @@ public abstract class DatagramSocketImpl implements SocketOptions {
      */
     protected FileDescriptor fd;
 
-    /**
-     * The DatagramSocket or MulticastSocket
-     * that owns this impl
-     */
-    DatagramSocket socket;
-
-    void setDatagramSocket(DatagramSocket socket) {
-        this.socket = socket;
-    }
-
-    DatagramSocket getDatagramSocket() {
-        return socket;
-    }
-
     int dataAvailable() {
         // default impl returns zero, which disables the calling
         // functionality
@@ -70,29 +80,29 @@ public abstract class DatagramSocketImpl implements SocketOptions {
 
     /**
      * Creates a datagram socket.
-     * @exception SocketException if there is an error in the
+     * @throws    SocketException if there is an error in the
      * underlying protocol, such as a TCP error.
      */
     protected abstract void create() throws SocketException;
 
     /**
      * Binds a datagram socket to a local port and address.
-     * @param lport the local port
-     * @param laddr the local address
-     * @exception SocketException if there is an error in the
-     * underlying protocol, such as a TCP error.
+     * @param     lport the local port
+     * @param     laddr the local address
+     * @throws    SocketException if there is an error in the
+     *            underlying protocol, such as a TCP error.
      */
     protected abstract void bind(int lport, InetAddress laddr) throws SocketException;
 
     /**
      * Sends a datagram packet. The packet contains the data and the
      * destination address to send the packet to.
-     * @param p the packet to be sent.
-     * @exception IOException if an I/O exception occurs while sending the
-     * datagram packet.
-     * @exception  PortUnreachableException may be thrown if the socket is connected
-     * to a currently unreachable destination. Note, there is no guarantee that
-     * the exception will be thrown.
+     * @param    p the packet to be sent.
+     * @throws   IOException if an I/O exception occurs while sending the
+     *           datagram packet.
+     * @throws   PortUnreachableException may be thrown if the socket is connected
+     *           to a currently unreachable destination. Note, there is no guarantee that
+     *           the exception will be thrown.
      */
     protected abstract void send(DatagramPacket p) throws IOException;
 
@@ -107,11 +117,11 @@ public abstract class DatagramSocketImpl implements SocketOptions {
      * packet has been received for that address, then a subsequent call to
      * send or receive may throw a PortUnreachableException.
      * Note, there is no guarantee that the exception will be thrown.
-     * @param address the remote InetAddress to connect to
-     * @param port the remote port number
-     * @exception   SocketException may be thrown if the socket cannot be
-     * connected to the remote destination
-     * @since 1.4
+     * @param   address the remote InetAddress to connect to
+     * @param   port the remote port number
+     * @throws  SocketException may be thrown if the socket cannot be
+     *          connected to the remote destination
+     * @since   1.4
      */
     protected void connect(InetAddress address, int port) throws SocketException {}
 
@@ -124,12 +134,12 @@ public abstract class DatagramSocketImpl implements SocketOptions {
     /**
      * Peek at the packet to see who it is from. Updates the specified {@code InetAddress}
      * to the address which the packet came from.
-     * @param i an InetAddress object
-     * @return the port number which the packet came from.
-     * @exception IOException if an I/O exception occurs
-     * @exception  PortUnreachableException may be thrown if the socket is connected
-     *       to a currently unreachable destination. Note, there is no guarantee that the
-     *       exception will be thrown.
+     * @param     i an InetAddress object
+     * @return    the port number which the packet came from.
+     * @throws    IOException if an I/O exception occurs
+     * @throws    PortUnreachableException may be thrown if the socket is connected
+     *            to a currently unreachable destination. Note, there is no guarantee that the
+     *            exception will be thrown.
      */
     protected abstract int peek(InetAddress i) throws IOException;
 
@@ -138,23 +148,23 @@ public abstract class DatagramSocketImpl implements SocketOptions {
      * {@code DatagramPacket}. The data is returned,
      * but not consumed, so that a subsequent peekData/receive operation
      * will see the same data.
-     * @param p the Packet Received.
-     * @return the port number which the packet came from.
-     * @exception IOException if an I/O exception occurs
-     * @exception  PortUnreachableException may be thrown if the socket is connected
-     *       to a currently unreachable destination. Note, there is no guarantee that the
-     *       exception will be thrown.
+     * @param     p the Packet Received.
+     * @return    the port number which the packet came from.
+     * @throws    IOException if an I/O exception occurs
+     * @throws    PortUnreachableException may be thrown if the socket is connected
+     *            to a currently unreachable destination. Note, there is no guarantee that the
+     *            exception will be thrown.
      * @since 1.4
      */
     protected abstract int peekData(DatagramPacket p) throws IOException;
     /**
      * Receive the datagram packet.
-     * @param p the Packet Received.
-     * @exception IOException if an I/O exception occurs
-     * while receiving the datagram packet.
-     * @exception  PortUnreachableException may be thrown if the socket is connected
-     *       to a currently unreachable destination. Note, there is no guarantee that the
-     *       exception will be thrown.
+     * @param     p the Packet Received.
+     * @throws    IOException if an I/O exception occurs
+     *            while receiving the datagram packet.
+     * @throws    PortUnreachableException may be thrown if the socket is connected
+     *            to a currently unreachable destination. Note, there is no guarantee that the
+     *            exception will be thrown.
      */
     protected abstract void receive(DatagramPacket p) throws IOException;
 
@@ -163,7 +173,7 @@ public abstract class DatagramSocketImpl implements SocketOptions {
      * @param ttl a byte specifying the TTL value
      *
      * @deprecated use setTimeToLive instead.
-     * @exception IOException if an I/O exception occurs while setting
+     * @throws    IOException if an I/O exception occurs while setting
      * the time-to-live option.
      * @see #getTTL()
      */
@@ -173,7 +183,7 @@ public abstract class DatagramSocketImpl implements SocketOptions {
     /**
      * Retrieve the TTL (time-to-live) option.
      *
-     * @exception IOException if an I/O exception occurs
+     * @throws    IOException if an I/O exception occurs
      * while retrieving the time-to-live option
      * @deprecated use getTimeToLive instead.
      * @return a byte representing the TTL value
@@ -185,7 +195,7 @@ public abstract class DatagramSocketImpl implements SocketOptions {
     /**
      * Set the TTL (time-to-live) option.
      * @param ttl an {@code int} specifying the time-to-live value
-     * @exception IOException if an I/O exception occurs
+     * @throws    IOException if an I/O exception occurs
      * while setting the time-to-live option.
      * @see #getTimeToLive()
      */
@@ -193,7 +203,7 @@ public abstract class DatagramSocketImpl implements SocketOptions {
 
     /**
      * Retrieve the TTL (time-to-live) option.
-     * @exception IOException if an I/O exception occurs
+     * @throws    IOException if an I/O exception occurs
      * while retrieving the time-to-live option
      * @return an {@code int} representing the time-to-live value
      * @see #setTimeToLive(int)
@@ -203,7 +213,7 @@ public abstract class DatagramSocketImpl implements SocketOptions {
     /**
      * Join the multicast group.
      * @param inetaddr multicast address to join.
-     * @exception IOException if an I/O exception occurs
+     * @throws    IOException if an I/O exception occurs
      * while joining the multicast group.
      */
     protected abstract void join(InetAddress inetaddr) throws IOException;
@@ -211,7 +221,7 @@ public abstract class DatagramSocketImpl implements SocketOptions {
     /**
      * Leave the multicast group.
      * @param inetaddr multicast address to leave.
-     * @exception IOException if an I/O exception occurs
+     * @throws    IOException if an I/O exception occurs
      * while leaving the multicast group.
      */
     protected abstract void leave(InetAddress inetaddr) throws IOException;
@@ -272,9 +282,9 @@ public abstract class DatagramSocketImpl implements SocketOptions {
      * UnsupportedOperationException}. Subclasses should override this method
      * with an appropriate implementation.
      *
-     * @param <T> The type of the socket option value
-     * @param name The socket option
-     * @param value The value of the socket option. A value of {@code null}
+     * @param  <T> The type of the socket option value
+     * @param  name The socket option
+     * @param  value The value of the socket option. A value of {@code null}
      *              may be valid for some options.
      *
      * @throws UnsupportedOperationException if the DatagramSocketImpl does not
@@ -300,8 +310,8 @@ public abstract class DatagramSocketImpl implements SocketOptions {
      * UnsupportedOperationException}. Subclasses should override this method
      * with an appropriate implementation.
      *
-     * @param <T> The type of the socket option value
-     * @param name The socket option
+     * @param  <T> The type of the socket option value
+     * @param  name The socket option
      * @return the socket option
      *
      * @throws UnsupportedOperationException if the DatagramSocketImpl does not

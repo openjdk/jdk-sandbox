@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,6 +56,7 @@ import org.graalvm.compiler.hotspot.HotSpotForeignCallLinkage;
 import org.graalvm.compiler.hotspot.HotSpotLIRGenerationResult;
 import org.graalvm.compiler.hotspot.HotSpotLIRGenerator;
 import org.graalvm.compiler.hotspot.HotSpotLockStack;
+import org.graalvm.compiler.hotspot.HotSpotMarkId;
 import org.graalvm.compiler.hotspot.debug.BenchmarkCounters;
 import org.graalvm.compiler.hotspot.meta.HotSpotConstantLoadAction;
 import org.graalvm.compiler.hotspot.meta.HotSpotProviders;
@@ -138,6 +139,11 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
         return config.maxVectorSize;
     }
 
+    @Override
+    protected int getAVX3Threshold() {
+        return config.useAVX3Threshold;
+    }
+
     /**
      * Utility for emitting the instruction to save RBP.
      */
@@ -153,7 +159,7 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
         SaveRbp(NoOp placeholder) {
             this.placeholder = placeholder;
             AMD64FrameMapBuilder frameMapBuilder = (AMD64FrameMapBuilder) getResult().getFrameMapBuilder();
-            this.reservedSlot = frameMapBuilder.allocateRBPSpillSlot();
+            this.reservedSlot = config.preserveFramePointer ? null : frameMapBuilder.allocateRBPSpillSlot();
         }
 
         /**
@@ -162,6 +168,7 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
          * @param useStack specifies if rbp must be saved to the stack
          */
         public AllocatableValue finalize(boolean useStack) {
+            assert !config.preserveFramePointer : "rbp has been pushed onto the stack";
             AllocatableValue dst;
             if (useStack) {
                 dst = reservedSlot;
@@ -173,6 +180,10 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
             placeholder.replace(getResult().getLIR(), new MoveFromRegOp(AMD64Kind.QWORD, dst, rbp.asValue(LIRKind.value(AMD64Kind.QWORD))));
             return dst;
         }
+
+        public void remove() {
+            placeholder.remove(getResult().getLIR());
+        }
     }
 
     private SaveRbp saveRbp;
@@ -181,10 +192,6 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
         NoOp placeholder = new NoOp(getCurrentBlock(), getResult().getLIR().getLIRforBlock(getCurrentBlock()).size());
         append(placeholder);
         saveRbp = new SaveRbp(placeholder);
-    }
-
-    protected SaveRbp getSaveRbp() {
-        return saveRbp;
     }
 
     /**
@@ -299,7 +306,7 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
              * machine instruction actually zeros _all_ XMM registers which is fine since we know
              * that their upper half is not used.
              */
-            append(new AMD64VZeroUpper(arguments));
+            append(new AMD64VZeroUpper(arguments, getRegisterConfig()));
         }
         super.emitForeignCallOp(linkage, result, arguments, temps, info);
     }
@@ -307,10 +314,9 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
     /**
      * @param savedRegisters the registers saved by this operation which may be subject to pruning
      * @param savedRegisterLocations the slots to which the registers are saved
-     * @param supportsRemove determines if registers can be pruned
      */
-    protected AMD64SaveRegistersOp emitSaveRegisters(Register[] savedRegisters, AllocatableValue[] savedRegisterLocations, boolean supportsRemove) {
-        AMD64SaveRegistersOp save = new AMD64SaveRegistersOp(savedRegisters, savedRegisterLocations, supportsRemove);
+    protected AMD64SaveRegistersOp emitSaveRegisters(Register[] savedRegisters, AllocatableValue[] savedRegisterLocations) {
+        AMD64SaveRegistersOp save = new AMD64SaveRegistersOp(savedRegisters, savedRegisterLocations);
         append(save);
         return save;
     }
@@ -330,15 +336,19 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
     /**
      * Adds a node to the graph that saves all allocatable registers to the stack.
      *
-     * @param supportsRemove determines if registers can be pruned
      * @return the register save node
      */
-    private AMD64SaveRegistersOp emitSaveAllRegisters(Register[] savedRegisters, boolean supportsRemove) {
+    private AMD64SaveRegistersOp emitSaveAllRegisters() {
+        Register[] savedRegisters = getSaveableRegisters();
         AllocatableValue[] savedRegisterLocations = new AllocatableValue[savedRegisters.length];
         for (int i = 0; i < savedRegisters.length; i++) {
             savedRegisterLocations[i] = allocateSaveRegisterLocation(savedRegisters[i]);
         }
-        return emitSaveRegisters(savedRegisters, savedRegisterLocations, supportsRemove);
+        return emitSaveRegisters(savedRegisters, savedRegisterLocations);
+    }
+
+    protected Register[] getSaveableRegisters() {
+        return getResult().getRegisterAllocationConfig().getAllocatableRegisters().toArray();
     }
 
     protected void emitRestoreRegisters(AMD64SaveRegistersOp save) {
@@ -369,11 +379,8 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
 
         AMD64SaveRegistersOp save = null;
         Stub stub = getStub();
-        if (destroysRegisters) {
-            if (stub != null && stub.preservesRegisters()) {
-                Register[] savedRegisters = getRegisterConfig().getAllocatableRegisters().toArray();
-                save = emitSaveAllRegisters(savedRegisters, true);
-            }
+        if (destroysRegisters && stub != null && stub.shouldSaveRegistersAroundCalls()) {
+            save = emitSaveAllRegisters();
         }
 
         Variable result;
@@ -392,19 +399,15 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
             result = super.emitForeignCall(hotspotLinkage, debugInfo, args);
         }
 
-        if (destroysRegisters) {
-            if (stub != null) {
-                if (stub.preservesRegisters()) {
-                    HotSpotLIRGenerationResult generationResult = getResult();
-                    LIRFrameState key = currentRuntimeCallInfo;
-                    if (key == null) {
-                        key = LIRFrameState.NO_STATE;
-                    }
-                    assert !generationResult.getCalleeSaveInfo().containsKey(key);
-                    generationResult.getCalleeSaveInfo().put(key, save);
-                    emitRestoreRegisters(save);
-                }
+        if (save != null) {
+            HotSpotLIRGenerationResult generationResult = getResult();
+            LIRFrameState key = currentRuntimeCallInfo;
+            if (key == null) {
+                key = LIRFrameState.NO_STATE;
             }
+            assert !generationResult.getCalleeSaveInfo().containsKey(key);
+            generationResult.getCalleeSaveInfo().put(key, save);
+            emitRestoreRegisters(save);
         }
 
         return result;
@@ -474,7 +477,7 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
     }
 
     @Override
-    public Value emitLoadConfigValue(int markId, LIRKind kind) {
+    public Value emitLoadConfigValue(HotSpotMarkId markId, LIRKind kind) {
         Variable result = newVariable(kind);
         append(new AMD64HotSpotLoadConfigValueOp(markId, result));
         return result;
@@ -548,19 +551,29 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
     }
 
     @Override
+    public void emitDeoptimizeWithExceptionInCaller(Value exception) {
+        append(new AMD64HotSpotDeoptimizeWithExceptionCallerOp(config, exception));
+    }
+
+    @Override
     public void beforeRegisterAllocation() {
         super.beforeRegisterAllocation();
         boolean hasDebugInfo = getResult().getLIR().hasDebugInfo();
-        AllocatableValue savedRbp = saveRbp.finalize(hasDebugInfo);
+
+        if (config.preserveFramePointer) {
+            saveRbp.remove();
+        } else {
+            AllocatableValue savedRbp = saveRbp.finalize(hasDebugInfo);
+            for (AMD64HotSpotRestoreRbpOp op : epilogueOps) {
+                op.setSavedRbp(savedRbp);
+            }
+        }
+
         if (hasDebugInfo) {
             getResult().setDeoptimizationRescueSlot(((AMD64FrameMapBuilder) getResult().getFrameMapBuilder()).allocateDeoptimizationRescueSlot());
         }
-
         getResult().setMaxInterpreterFrameSize(debugInfoBuilder.maxInterpreterFrameSize());
 
-        for (AMD64HotSpotRestoreRbpOp op : epilogueOps) {
-            op.setSavedRbp(savedRbp);
-        }
         if (BenchmarkCounters.enabled) {
             // ensure that the rescue slot is available
             LIRInstruction op = getOrInitRescueSlotOp();
@@ -590,7 +603,7 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
             if (encoding.hasBase() || GeneratePIC.getValue(options)) {
                 if (GeneratePIC.getValue(options)) {
                     Variable baseAddress = newVariable(lirKindTool.getWordKind());
-                    AMD64HotSpotMove.BaseMove move = new AMD64HotSpotMove.BaseMove(baseAddress, config);
+                    AMD64HotSpotMove.BaseMove move = new AMD64HotSpotMove.BaseMove(baseAddress);
                     append(move);
                     base = baseAddress;
                 } else {
@@ -621,7 +634,7 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
             if (encoding.hasBase() || GeneratePIC.getValue(options)) {
                 if (GeneratePIC.getValue(options)) {
                     Variable baseAddress = newVariable(uncompressedKind);
-                    AMD64HotSpotMove.BaseMove move = new AMD64HotSpotMove.BaseMove(baseAddress, config);
+                    AMD64HotSpotMove.BaseMove move = new AMD64HotSpotMove.BaseMove(baseAddress);
                     append(move);
                     base = baseAddress;
                 } else {
@@ -638,10 +651,12 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
         if (address.getValueKind().getPlatformKind() == getLIRKindTool().getNarrowOopKind().getPlatformKind()) {
             CompressEncoding encoding = config.getOopEncoding();
             Value uncompressed;
-            if (encoding.getShift() <= 3) {
+            int shift = encoding.getShift();
+            if (Scale.isScaleShiftSupported(shift)) {
                 LIRKind wordKind = LIRKind.unknownReference(target().arch.getWordKind());
-                uncompressed = new AMD64AddressValue(wordKind, getProviders().getRegisters().getHeapBaseRegister().asValue(wordKind), asAllocatable(address), Scale.fromInt(1 << encoding.getShift()),
-                                0);
+                RegisterValue heapBase = getProviders().getRegisters().getHeapBaseRegister().asValue(wordKind);
+                Scale scale = Scale.fromShift(shift);
+                uncompressed = new AMD64AddressValue(wordKind, heapBase, asAllocatable(address), scale, 0);
             } else {
                 uncompressed = emitUncompress(address, encoding, false);
             }

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2019, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2019, 2020, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -24,9 +25,12 @@
 #define SHARE_GC_SHENANDOAH_SHENANDOAHCLOSURES_HPP
 
 #include "memory/iterator.hpp"
+#include "oops/accessDecorators.hpp"
+#include "runtime/handshake.hpp"
 
 class ShenandoahHeap;
 class ShenandoahMarkingContext;
+class ShenandoahHeapRegionSet;
 class Thread;
 
 class ShenandoahForwardedIsAliveClosure: public BoolObjectClosure {
@@ -65,6 +69,7 @@ private:
   inline void do_oop_work(T* p);
 };
 
+template <DecoratorSet MO = MO_UNORDERED>
 class ShenandoahEvacuateUpdateRootsClosure: public BasicOopIterateClosure {
 private:
   ShenandoahHeap* _heap;
@@ -87,6 +92,33 @@ public:
   inline ShenandoahEvacUpdateOopStorageRootsClosure();
   inline void do_oop(oop* p);
   inline void do_oop(narrowOop* p);
+};
+
+template <bool CONCURRENT, typename IsAlive, typename KeepAlive>
+class ShenandoahCleanUpdateWeakOopsClosure : public OopClosure {
+private:
+  IsAlive*    _is_alive;
+  KeepAlive*  _keep_alive;
+
+public:
+  inline ShenandoahCleanUpdateWeakOopsClosure(IsAlive* is_alive, KeepAlive* keep_alive);
+  inline void do_oop(oop* p);
+  inline void do_oop(narrowOop* p);
+};
+
+class ShenandoahCodeBlobAndDisarmClosure: public CodeBlobToOopClosure {
+private:
+  BarrierSetNMethod* const _bs;
+
+public:
+  inline ShenandoahCodeBlobAndDisarmClosure(OopClosure* cl);
+  inline void do_code_blob(CodeBlob* cb);
+};
+
+class ShenandoahRendezvousClosure : public HandshakeClosure {
+public:
+  inline ShenandoahRendezvousClosure();
+  inline void do_thread(Thread* thread);
 };
 
 #ifdef ASSERT

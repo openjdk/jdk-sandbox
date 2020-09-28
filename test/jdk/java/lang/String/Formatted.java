@@ -23,8 +23,9 @@
 
 /*
  * @test
- * bug 8203444
+ * @bug 8203444
  * @summary Unit tests for instance versions of String#format
+ * @compile Formatted.java
  * @run main Formatted
  */
 

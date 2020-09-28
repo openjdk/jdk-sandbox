@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "utilities/bitMap.inline.hpp"
 #include "utilities/copy.hpp"
 
 // Static array so we can figure out which bytecodes stop us from compiling
@@ -671,7 +672,7 @@ void Parse::do_all_blocks() {
             // Need correct bci for predicate.
             // It is fine to set it here since do_one_block() will set it anyway.
             set_parse_bci(block->start());
-            add_predicate();
+            add_empty_predicates();
           }
           // Add new region for back branches.
           int edges = block->pred_count() - block->preds_parsed() + 1; // +1 for original region
@@ -979,15 +980,18 @@ void Parse::do_exits() {
   //    Rather than put a barrier on only those writes which are required
   //    to complete, we force all writes to complete.
   //
-  // 2. On PPC64, also add MemBarRelease for constructors which write
-  //    volatile fields. As support_IRIW_for_not_multiple_copy_atomic_cpu
-  //    is set on PPC64, no sync instruction is issued after volatile
-  //    stores. We want to guarantee the same behavior as on platforms
-  //    with total store order, although this is not required by the Java
-  //    memory model. So as with finals, we add a barrier here.
-  //
-  // 3. Experimental VM option is used to force the barrier if any field
+  // 2. Experimental VM option is used to force the barrier if any field
   //    was written out in the constructor.
+  //
+  // 3. On processors which are not CPU_MULTI_COPY_ATOMIC (e.g. PPC64),
+  //    support_IRIW_for_not_multiple_copy_atomic_cpu selects that
+  //    MemBarVolatile is used before volatile load instead of after volatile
+  //    store, so there's no barrier after the store.
+  //    We want to guarantee the same behavior as on platforms with total store
+  //    order, although this is not required by the Java memory model.
+  //    In this case, we want to enforce visibility of volatile field
+  //    initializations which are performed in constructors.
+  //    So as with finals, we add a barrier here.
   //
   // "All bets are off" unless the first publication occurs after a
   // normal return from the constructor.  We do not attempt to detect
@@ -995,9 +999,9 @@ void Parse::do_exits() {
   // exceptional returns, since they cannot publish normally.
   //
   if (method()->is_initializer() &&
-        (wrote_final() ||
-           PPC64_ONLY(wrote_volatile() ||)
-           (AlwaysSafeConstructors && wrote_fields()))) {
+       (wrote_final() ||
+         (AlwaysSafeConstructors && wrote_fields()) ||
+         (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
     _exits.insert_mem_bar(Op_MemBarRelease, alloc_with_final());
 
     // If Memory barrier is created for final fields write
@@ -1289,9 +1293,11 @@ void Parse::Block::init_graph(Parse* outer) {
     _successors[i] = block2;
 
     // Accumulate pred info for the other block, too.
-    if (i < ns) {
-      block2->_pred_count++;
-    } else {
+    // Note: We also need to set _pred_count for exception blocks since they could
+    // also have normal predecessors (reached without athrow by an explicit jump).
+    // This also means that next_path_num can be called along exception paths.
+    block2->_pred_count++;
+    if (i >= ns) {
       block2->_is_handler = true;
     }
 
@@ -1306,10 +1312,6 @@ void Parse::Block::init_graph(Parse* outer) {
     }
     #endif
   }
-
-  // Note: We never call next_path_num along exception paths, so they
-  // never get processed as "ready".  Also, the input phis of exception
-  // handlers get specially processed, so that
 }
 
 //---------------------------successor_for_bci---------------------------------
@@ -1650,7 +1652,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         if (target->start() == 0) {
           // Add loop predicate for the special case when
           // there are backbranches to the method entry.
-          add_predicate();
+          add_empty_predicates();
         }
       }
       // Add a Region to start the new basic block.  Phis will be added
@@ -2249,8 +2251,7 @@ void Parse::add_safepoint() {
   // See if we can avoid this safepoint.  No need for a SafePoint immediately
   // after a Call (except Leaf Call) or another SafePoint.
   Node *proj = control();
-  bool add_poll_param = SafePointNode::needs_polling_address_input();
-  uint parms = add_poll_param ? TypeFunc::Parms+1 : TypeFunc::Parms;
+  uint parms = TypeFunc::Parms+1;
   if( proj->is_Proj() ) {
     Node *n0 = proj->in(0);
     if( n0->is_Catch() ) {
@@ -2297,17 +2298,11 @@ void Parse::add_safepoint() {
   sfpnt->init_req(TypeFunc::FramePtr , top() );
 
   // Create a node for the polling address
-  if( add_poll_param ) {
-    Node *polladr;
-    if (SafepointMechanism::uses_thread_local_poll()) {
-      Node *thread = _gvn.transform(new ThreadLocalNode());
-      Node *polling_page_load_addr = _gvn.transform(basic_plus_adr(top(), thread, in_bytes(Thread::polling_page_offset())));
-      polladr = make_load(control(), polling_page_load_addr, TypeRawPtr::BOTTOM, T_ADDRESS, Compile::AliasIdxRaw, MemNode::unordered);
-    } else {
-      polladr = ConPNode::make((address)os::get_polling_page());
-    }
-    sfpnt->init_req(TypeFunc::Parms+0, _gvn.transform(polladr));
-  }
+  Node *polladr;
+  Node *thread = _gvn.transform(new ThreadLocalNode());
+  Node *polling_page_load_addr = _gvn.transform(basic_plus_adr(top(), thread, in_bytes(Thread::polling_page_offset())));
+  polladr = make_load(control(), polling_page_load_addr, TypeRawPtr::BOTTOM, T_ADDRESS, Compile::AliasIdxRaw, MemNode::unordered);
+  sfpnt->init_req(TypeFunc::Parms+0, _gvn.transform(polladr));
 
   // Fix up the JVM State edges
   add_safepoint_edges(sfpnt);

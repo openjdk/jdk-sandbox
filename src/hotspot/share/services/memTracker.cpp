@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 #include "precompiled.hpp"
 #include "jvm.h"
 
+#include "runtime/atomic.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/vmThread.hpp"
 #include "runtime/vmOperations.hpp"
@@ -38,12 +39,6 @@
 
 #ifdef _WINDOWS
 #include <windows.h>
-#endif
-
-#ifdef SOLARIS
-  volatile bool NMT_stack_walkable = false;
-#else
-  volatile bool NMT_stack_walkable = true;
 #endif
 
 volatile NMT_TrackingLevel MemTracker::_tracking_level = NMT_unknown;
@@ -147,7 +142,7 @@ void Tracker::record(address addr, size_t size) {
 // Shutdown can only be issued via JCmd, and NMT JCmd is serialized by lock
 void MemTracker::shutdown() {
   // We can only shutdown NMT to minimal tracking level if it is ever on.
-  if (tracking_level () > NMT_minimal) {
+  if (tracking_level() > NMT_minimal) {
     transition_to(NMT_minimal);
   }
 }
@@ -183,7 +178,7 @@ void MemTracker::final_report(outputStream* output) {
   // printing the final report during normal VM exit, it should not print
   // the final report again. In addition, it should be guarded from
   // recursive calls in case NMT reporting itself crashes.
-  if (Atomic::cmpxchg(true, &g_final_report_did_run, false) == false) {
+  if (Atomic::cmpxchg(&g_final_report_did_run, false, true) == false) {
     NMT_TrackingLevel level = tracking_level();
     if (level >= NMT_summary) {
       report(level == NMT_summary, output);

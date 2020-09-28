@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@
 #include "oops/oopsHierarchy.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/prefetch.inline.hpp"
+#include "utilities/align.hpp"
 
 template <class T>
 inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj) {
@@ -57,7 +58,7 @@ inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj) {
          obj->forwardee() == RawAccess<>::oop_load(p)),
          "p should still be pointing to obj or to its forwardee");
 
-  _par_scan_state->push_on_queue(p);
+  _par_scan_state->push_on_queue(ScannerTask(p));
 }
 
 template <class T>
@@ -101,7 +102,7 @@ inline void G1CMOopClosure::do_oop_work(T* p) {
 
 template <class T>
 inline void G1RootRegionScanClosure::do_oop_work(T* p) {
-  T heap_oop = RawAccess<MO_VOLATILE>::oop_load(p);
+  T heap_oop = RawAccess<MO_RELAXED>::oop_load(p);
   if (CompressedOops::is_null(heap_oop)) {
     return;
   }
@@ -115,8 +116,8 @@ inline static void check_obj_during_refinement(T* p, oop const obj) {
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
   // can't do because of races
   // assert(oopDesc::is_oop_or_null(obj), "expected an oop");
-  assert(check_obj_alignment(obj), "not oop aligned");
-  assert(g1h->is_in_reserved(obj), "must be in heap");
+  assert(is_object_aligned(obj), "oop must be aligned");
+  assert(g1h->is_in_reserved(obj), "oop must be in reserved");
 
   HeapRegion* from = g1h->heap_region_containing(p);
 
@@ -132,7 +133,7 @@ inline static void check_obj_during_refinement(T* p, oop const obj) {
 
 template <class T>
 inline void G1ConcurrentRefineOopClosure::do_oop_work(T* p) {
-  T o = RawAccess<MO_VOLATILE>::oop_load(p);
+  T o = RawAccess<MO_RELAXED>::oop_load(p);
   if (CompressedOops::is_null(o)) {
     return;
   }
@@ -155,7 +156,7 @@ inline void G1ConcurrentRefineOopClosure::do_oop_work(T* p) {
 
   assert(to_rem_set != NULL, "Need per-region 'into' remsets.");
   if (to_rem_set->is_tracked()) {
-    to_rem_set->add_reference(p, _worker_i);
+    to_rem_set->add_reference(p, _worker_id);
   }
 }
 
@@ -245,12 +246,12 @@ void G1ParCopyClosure<barrier, do_mark_object>::do_oop_work(T* p) {
   } else {
     if (state.is_humongous()) {
       _g1h->set_humongous_is_live(obj);
-    } else if (state.is_optional()) {
+    } else if ((barrier != G1BarrierNoOptRoots) && state.is_optional()) {
       _par_scan_state->remember_root_into_optional_region(p);
     }
 
     // The object is not in collection set. If we're a root scanning
-    // closure during an initial mark pause then attempt to mark the object.
+    // closure during a concurrent start pause then attempt to mark the object.
     if (do_mark_object == G1MarkFromRoot) {
       mark_object(obj);
     }
@@ -259,7 +260,7 @@ void G1ParCopyClosure<barrier, do_mark_object>::do_oop_work(T* p) {
 }
 
 template <class T> void G1RebuildRemSetClosure::do_oop_work(T* p) {
-  oop const obj = RawAccess<MO_VOLATILE>::oop_load(p);
+  oop const obj = RawAccess<MO_RELAXED>::oop_load(p);
   if (obj == NULL) {
     return;
   }

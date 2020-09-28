@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -27,6 +28,7 @@
 #include "gc/shenandoah/shenandoahAsserts.hpp"
 #include "gc/shenandoah/shenandoahBarrierSet.inline.hpp"
 #include "gc/shenandoah/shenandoahConcurrentMark.hpp"
+#include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
 #include "gc/shenandoah/shenandoahStringDedup.inline.hpp"
 #include "gc/shenandoah/shenandoahTaskqueue.inline.hpp"
@@ -36,10 +38,10 @@
 #include "runtime/prefetch.inline.hpp"
 
 template <class T>
-void ShenandoahConcurrentMark::do_task(ShenandoahObjToScanQueue* q, T* cl, jushort* live_data, ShenandoahMarkTask* task) {
+void ShenandoahConcurrentMark::do_task(ShenandoahObjToScanQueue* q, T* cl, ShenandoahLiveData* live_data, ShenandoahMarkTask* task) {
   oop obj = task->obj();
 
-  shenandoah_assert_not_forwarded_except(NULL, obj, _heap->is_concurrent_traversal_in_progress() && _heap->cancelled_gc());
+  shenandoah_assert_not_forwarded(NULL, obj);
   shenandoah_assert_marked(NULL, obj);
   shenandoah_assert_not_in_cset_except(NULL, obj, _heap->cancelled_gc());
 
@@ -66,28 +68,22 @@ void ShenandoahConcurrentMark::do_task(ShenandoahObjToScanQueue* q, T* cl, jusho
   }
 }
 
-inline void ShenandoahConcurrentMark::count_liveness(jushort* live_data, oop obj) {
+inline void ShenandoahConcurrentMark::count_liveness(ShenandoahLiveData* live_data, oop obj) {
   size_t region_idx = _heap->heap_region_index_containing(obj);
   ShenandoahHeapRegion* region = _heap->get_region(region_idx);
   size_t size = obj->size();
 
   if (!region->is_humongous_start()) {
     assert(!region->is_humongous(), "Cannot have continuations here");
-    size_t max = (1 << (sizeof(jushort) * 8)) - 1;
-    if (size >= max) {
-      // too big, add to region data directly
-      region->increase_live_data_gc_words(size);
+    ShenandoahLiveData cur = live_data[region_idx];
+    size_t new_val = size + cur;
+    if (new_val >= SHENANDOAH_LIVEDATA_MAX) {
+      // overflow, flush to region data
+      region->increase_live_data_gc_words(new_val);
+      live_data[region_idx] = 0;
     } else {
-      jushort cur = live_data[region_idx];
-      size_t new_val = cur + size;
-      if (new_val >= max) {
-        // overflow, flush to region data
-        region->increase_live_data_gc_words(new_val);
-        live_data[region_idx] = 0;
-      } else {
-        // still good, remember in locals
-        live_data[region_idx] = (jushort) new_val;
-      }
+      // still good, remember in locals
+      live_data[region_idx] = (ShenandoahLiveData) new_val;
     }
   } else {
     shenandoah_assert_in_correct_region(NULL, obj);
@@ -207,26 +203,19 @@ public:
   }
 
   void do_buffer(void **buffer, size_t size) {
-    if (_heap->has_forwarded_objects()) {
-      if (ShenandoahStringDedup::is_enabled()) {
-        do_buffer_impl<RESOLVE, ENQUEUE_DEDUP>(buffer, size);
-      } else {
-        do_buffer_impl<RESOLVE, NO_DEDUP>(buffer, size);
-      }
+    assert(size == 0 || !_heap->has_forwarded_objects(), "Forwarded objects are not expected here");
+    if (ShenandoahStringDedup::is_enabled()) {
+      do_buffer_impl<ENQUEUE_DEDUP>(buffer, size);
     } else {
-      if (ShenandoahStringDedup::is_enabled()) {
-        do_buffer_impl<NONE, ENQUEUE_DEDUP>(buffer, size);
-      } else {
-        do_buffer_impl<NONE, NO_DEDUP>(buffer, size);
-      }
+      do_buffer_impl<NO_DEDUP>(buffer, size);
     }
   }
 
-  template<UpdateRefsMode UPDATE_REFS, StringDedupMode STRING_DEDUP>
+  template<StringDedupMode STRING_DEDUP>
   void do_buffer_impl(void **buffer, size_t size) {
     for (size_t i = 0; i < size; ++i) {
       oop *p = (oop *) &buffer[i];
-      ShenandoahConcurrentMark::mark_through_ref<oop, UPDATE_REFS, STRING_DEDUP>(p, _heap, _queue, _mark_context);
+      ShenandoahConcurrentMark::mark_through_ref<oop, NONE, STRING_DEDUP>(p, _heap, _queue, _mark_context);
     }
   }
 };

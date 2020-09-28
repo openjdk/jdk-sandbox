@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -24,23 +25,28 @@
 #ifndef SHARE_GC_SHENANDOAH_SHENANDOAHLOCK_HPP
 #define SHARE_GC_SHENANDOAH_SHENANDOAHLOCK_HPP
 
+#include "gc/shenandoah/shenandoahPadding.hpp"
 #include "memory/allocation.hpp"
+#include "runtime/safepoint.hpp"
 #include "runtime/thread.hpp"
 
 class ShenandoahLock  {
 private:
   enum LockState { unlocked = 0, locked = 1 };
 
-  DEFINE_PAD_MINUS_SIZE(0, DEFAULT_CACHE_LINE_SIZE, sizeof(volatile int));
+  shenandoah_padding(0);
   volatile int _state;
-  DEFINE_PAD_MINUS_SIZE(1, DEFAULT_CACHE_LINE_SIZE, sizeof(volatile Thread*));
+  shenandoah_padding(1);
   volatile Thread* _owner;
-  DEFINE_PAD_MINUS_SIZE(2, DEFAULT_CACHE_LINE_SIZE, 0);
+  shenandoah_padding(2);
 
 public:
   ShenandoahLock() : _state(unlocked), _owner(NULL) {};
 
   void lock() {
+#ifdef ASSERT
+    assert(_owner != Thread::current(), "reentrant locking attempt, would deadlock");
+#endif
     Thread::SpinAcquire(&_state, "Shenandoah Heap Lock");
 #ifdef ASSERT
     assert(_state == locked, "must be locked");
@@ -57,23 +63,14 @@ public:
     Thread::SpinRelease(&_state);
   }
 
+  bool owned_by_self() {
 #ifdef ASSERT
-  void assert_owned_by_current_thread() {
-    assert(_state == locked, "must be locked");
-    assert(_owner == Thread::current(), "must be owned by current thread");
-  }
-
-  void assert_not_owned_by_current_thread() {
-    assert(_owner != Thread::current(), "must be not owned by current thread");
-  }
-
-  void assert_owned_by_current_thread_or_safepoint() {
-    Thread* thr = Thread::current();
-    assert((_state == locked && _owner == thr) ||
-           (SafepointSynchronize::is_at_safepoint() && thr->is_VM_thread()),
-           "must own heap lock or by VM thread at safepoint");
-  }
+    return _state == locked && _owner == Thread::current();
+#else
+    ShouldNotReachHere();
+    return false;
 #endif
+  }
 };
 
 class ShenandoahLocker : public StackObj {
@@ -88,6 +85,52 @@ public:
 
   ~ShenandoahLocker() {
     if (_lock != NULL) {
+      _lock->unlock();
+    }
+  }
+};
+
+class ShenandoahSimpleLock {
+private:
+  os::PlatformMonitor   _lock; // native lock
+public:
+  ShenandoahSimpleLock();
+
+  virtual void lock();
+  virtual void unlock();
+};
+
+class ShenandoahReentrantLock : public ShenandoahSimpleLock {
+private:
+  Thread* volatile      _owner;
+  uint64_t              _count;
+
+public:
+  ShenandoahReentrantLock();
+  ~ShenandoahReentrantLock();
+
+  virtual void lock();
+  virtual void unlock();
+
+  // If the lock already owned by this thread
+  bool owned_by_self() const ;
+};
+
+class ShenandoahReentrantLocker : public StackObj {
+private:
+  ShenandoahReentrantLock* const _lock;
+
+public:
+  ShenandoahReentrantLocker(ShenandoahReentrantLock* lock) :
+    _lock(lock) {
+    if (_lock != NULL) {
+      _lock->lock();
+    }
+  }
+
+  ~ShenandoahReentrantLocker() {
+    if (_lock != NULL) {
+      assert(_lock->owned_by_self(), "Must be owner");
       _lock->unlock();
     }
   }

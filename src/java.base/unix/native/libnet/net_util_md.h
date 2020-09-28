@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,8 +47,6 @@
 #ifndef SO_REUSEPORT
 #ifdef __linux__
 #define SO_REUSEPORT 15
-#elif defined(__solaris__)
-#define SO_REUSEPORT 0x100e
 #elif defined(AIX) || defined(MACOSX)
 #define SO_REUSEPORT 0x0200
 #else
@@ -82,7 +80,6 @@ int NET_Read(int s, void* buf, size_t len);
 int NET_NonBlockingRead(int s, void* buf, size_t len);
 int NET_RecvFrom(int s, void *buf, int len, unsigned int flags,
                  struct sockaddr *from, socklen_t *fromlen);
-int NET_ReadV(int s, const struct iovec * vector, int count);
 int NET_Send(int s, void *msg, int len, unsigned int flags);
 int NET_SendTo(int s, const void *msg, int len,  unsigned  int
                flags, const struct sockaddr *to, int tolen);
@@ -98,13 +95,5 @@ void NET_ThrowUnknownHostExceptionWithGaiError(JNIEnv *env,
 void NET_ThrowByNameWithLastError(JNIEnv *env, const char *name,
                                   const char *defaultDetail);
 void NET_SetTrafficClass(SOCKETADDRESS *sa, int trafficClass);
-
-#ifdef __linux__
-int kernelIsV24();
-#endif
-
-#ifdef __solaris__
-int net_getParam(char *driver, char *param);
-#endif
 
 #endif /* NET_UTILS_MD_H */

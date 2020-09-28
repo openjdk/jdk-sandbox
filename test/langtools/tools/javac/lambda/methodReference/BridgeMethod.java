@@ -76,8 +76,8 @@ public class BridgeMethod {
         Set<String> types = setOfStringObject();
         System.out.println("methods in SAM conversion of L:");
         for(Method m : methods) {
-            System.out.println(m.toGenericString());
             assertTrue(m.getName().equals("m"));
+            System.out.println(m.toGenericString());
             Class[] parameterTypes = m.getParameterTypes();
             assertTrue(parameterTypes.length == 1);
             assertTrue(types.remove(parameterTypes[0].getName()));
@@ -91,8 +91,8 @@ public class BridgeMethod {
         types = setOfStringObject();
         System.out.println("methods in SAM conversion of KM:");
         for(Method m : methods) {
-            System.out.println(m.toGenericString());
             assertTrue(m.getName().equals("m"));
+            System.out.println(m.toGenericString());
             Class<?>[] parameterTypes = m.getParameterTypes();
             assertTrue(parameterTypes.length == 1);
             assertTrue(types.remove(parameterTypes[0].getName()));

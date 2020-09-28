@@ -115,9 +115,7 @@ class JProjNode : public ProjNode {
 //------------------------------PhiNode----------------------------------------
 // PhiNodes merge values from different Control paths.  Slot 0 points to the
 // controlling RegionNode.  Other slots map 1-for-1 with incoming control flow
-// paths to the RegionNode.  For speed reasons (to avoid another pass) we
-// can turn PhiNodes into copys in-place by NULL'ing out their RegionNode
-// input in slot 0.
+// paths to the RegionNode.
 class PhiNode : public TypeNode {
   friend class PhaseRenumberLive;
 
@@ -136,6 +134,7 @@ class PhiNode : public TypeNode {
 
   // Determine if CMoveNode::is_cmove_id can be used at this join point.
   Node* is_cmove_id(PhaseTransform* phase, int true_path);
+  bool wait_for_region_igvn(PhaseGVN* phase);
 
 public:
   // Node layout (parallels RegionNode):
@@ -171,13 +170,6 @@ public:
 
   // Accessors
   RegionNode* region() const { Node* r = in(Region); assert(!r || r->is_Region(), ""); return (RegionNode*)r; }
-
-  Node* is_copy() const {
-    // The node is a real phi if _in[0] is a Region node.
-    DEBUG_ONLY(const Node* r = _in[Region];)
-    assert(r != NULL && r->is_Region(), "Not valid control");
-    return NULL;  // not a copy!
-  }
 
   bool is_tripcount() const;
 
@@ -289,7 +281,7 @@ class IfNode : public MultiBranchNode {
 
 private:
   // Helper methods for fold_compares
-  bool cmpi_folds(PhaseIterGVN* igvn);
+  bool cmpi_folds(PhaseIterGVN* igvn, bool fold_ne = false);
   bool is_ctrl_folds(Node* ctrl, PhaseIterGVN* igvn);
   bool has_shared_region(ProjNode* proj, ProjNode*& success, ProjNode*& fail);
   bool has_only_uncommon_traps(ProjNode* proj, ProjNode*& success, ProjNode*& fail, PhaseIterGVN* igvn);
@@ -307,6 +299,8 @@ protected:
   ProjNode* range_check_trap_proj(int& flip, Node*& l, Node*& r);
   Node* Ideal_common(PhaseGVN *phase, bool can_reshape);
   Node* search_identical(int dist);
+
+  Node* simple_subsuming(PhaseIterGVN* igvn);
 
 public:
 

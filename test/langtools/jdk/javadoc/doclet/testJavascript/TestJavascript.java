@@ -23,9 +23,8 @@
 
 /*
  * @test
- * @bug      4665566 4855876 7025314 8012375 8015997 8016328 8024756 8148985 8151921 8151743 8196202
+ * @bug      4665566 4855876 7025314 8012375 8015997 8016328 8024756 8148985 8151921 8151743 8196202 8223378
  * @summary  Verify that the output has the right javascript.
- * @author   jamieh
  * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    javadoc.tester.*
@@ -48,20 +47,24 @@ public class TestJavascript extends JavadocTester {
                 "pkg", testSrc("TestJavascript.java"));
         checkExit(Exit.OK);
 
-        checkOutput("pkg/C.html", true,
-                "<script type=\"text/javascript\"><!--\n"
-                + "$('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "//-->\n"
-                + "</script>");
+        checkOutput("pkg/C.html", false,
+                """
+                    <script type="text/javascript"><!--
+                    $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
+                    //-->
+                    </script>""");
 
-        checkOutput("index.html", true,
-                "<script type=\"text/javascript\"><!--\n"
-                + "$('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "//-->\n");
+        checkOutput("index.html", false,
+                """
+                    <script type="text/javascript"><!--
+                    $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
+                    //-->
+                    """);
 
-        checkOutput("script.js", true,
-                "$(window).resize(function() {\n"
-                + "        $('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "    });");
+        checkOutput("script.js", false,
+                """
+                    $(window).resize(function() {
+                            $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
+                        });""");
     }
 }

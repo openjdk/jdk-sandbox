@@ -52,13 +52,6 @@ inline bool os::must_commit_stack_guard_pages() {
 #endif
 }
 
-
-// On Bsd, reservations are made on a page by page basis, nothing to do.
-inline void os::pd_split_reserved_memory(char *base, size_t size,
-                                      size_t split, bool realloc) {
-}
-
-
 // Bang the shadow pages if they need to be touched to be mapped.
 inline void os::map_stack_shadow_pages(address sp) {
 }
@@ -66,8 +59,6 @@ inline void os::map_stack_shadow_pages(address sp) {
 inline void os::dll_unload(void *lib) {
   ::dlclose(lib);
 }
-
-inline const int os::default_file_open_flags() { return 0;}
 
 inline jlong os::lseek(int fd, jlong offset, int whence) {
   return (jlong) ::lseek(fd, offset, whence);

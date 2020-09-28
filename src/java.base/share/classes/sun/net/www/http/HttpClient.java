@@ -743,11 +743,7 @@ public class HttpClient extends NetworkClient {
                 }  else {
                     // try once more
                     openServer();
-                    if (needsTunneling()) {
-                        MessageHeader origRequests = requests;
-                        httpuc.doTunneling();
-                        requests = origRequests;
-                    }
+                    checkTunneling(httpuc);
                     afterConnect();
                     writeRequests(requests, poster);
                     return parseHTTP(responses, pi, httpuc);
@@ -756,6 +752,18 @@ public class HttpClient extends NetworkClient {
             throw e;
         }
 
+    }
+
+    // Check whether tunnel must be open and open it if necessary
+    // (in the case of HTTPS with proxy)
+    private void checkTunneling(HttpURLConnection httpuc) throws IOException {
+        if (needsTunneling()) {
+            MessageHeader origRequests = requests;
+            PosterOutputStream origPoster = poster;
+            httpuc.doTunneling();
+            requests = origRequests;
+            poster = origPoster;
+        }
     }
 
     private boolean parseHTTPHeader(MessageHeader responses, ProgressSource pi, HttpURLConnection httpuc)
@@ -885,11 +893,7 @@ public class HttpClient extends NetworkClient {
                         closeServer();
                         cachedHttpClient = false;
                         openServer();
-                        if (needsTunneling()) {
-                            MessageHeader origRequests = requests;
-                            httpuc.doTunneling();
-                            requests = origRequests;
-                        }
+                        checkTunneling(httpuc);
                         afterConnect();
                         writeRequests(requests, poster);
                         return parseHTTP(responses, pi, httpuc);

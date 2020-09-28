@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
 
 #include "ci/ciClassList.hpp"
 #include "ci/ciObjectFactory.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/dependencies.hpp"
 #include "code/exceptionHandlerTable.hpp"
@@ -68,10 +67,12 @@ private:
   int   _name_buffer_len;
 
   // Cache Jvmti state
+  uint64_t _jvmti_redefinition_count;
   bool  _jvmti_can_hotswap_or_post_breakpoint;
   bool  _jvmti_can_access_local_variables;
   bool  _jvmti_can_post_on_exceptions;
   bool  _jvmti_can_pop_frame;
+  bool  _jvmti_can_get_owned_monitor_info; // includes can_get_owned_monitor_stack_depth_info
 
   // Cache DTrace flags
   bool  _dtrace_extended_probes;
@@ -339,13 +340,14 @@ public:
   void set_break_at_compile(bool z) { _break_at_compile = z; }
 
   // Cache Jvmti state
-  void  cache_jvmti_state();
+  bool  cache_jvmti_state();
   bool  jvmti_state_changed() const;
   bool  should_retain_local_variables() const {
     return _jvmti_can_access_local_variables || _jvmti_can_pop_frame;
   }
   bool  jvmti_can_hotswap_or_post_breakpoint() const { return _jvmti_can_hotswap_or_post_breakpoint; }
   bool  jvmti_can_post_on_exceptions()         const { return _jvmti_can_post_on_exceptions; }
+  bool  jvmti_can_get_owned_monitor_info()     const { return _jvmti_can_get_owned_monitor_info; }
 
   // Cache DTrace flags
   void  cache_dtrace_flags();

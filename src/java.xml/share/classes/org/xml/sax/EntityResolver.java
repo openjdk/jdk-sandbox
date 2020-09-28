@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,6 @@
  * questions.
  */
 
-// SAX entity resolver.
-// http://www.saxproject.org
-// No warranty; no copyright -- use this as you will.
-// $Id: EntityResolver.java,v 1.2 2004/11/03 22:44:52 jsuttor Exp $
-
 package org.xml.sax;
 
 import java.io.IOException;
@@ -35,13 +30,6 @@ import java.io.IOException;
 
 /**
  * Basic interface for resolving entities.
- *
- * <blockquote>
- * <em>This module, both source code and documentation, is in the
- * Public Domain, and comes with <strong>NO WARRANTY</strong>.</em>
- * See <a href='http://www.saxproject.org'>http://www.saxproject.org</a>
- * for further information.
- * </blockquote>
  *
  * <p>If a SAX application needs to implement customized handling
  * for external entities, it must implement this interface and
@@ -127,9 +115,9 @@ public interface EntityResolver {
      * @return An InputSource object describing the new input source,
      *         or null to request that the parser open a regular
      *         URI connection to the system identifier.
-     * @exception org.xml.sax.SAXException Any SAX exception, possibly
+     * @throws org.xml.sax.SAXException Any SAX exception, possibly
      *            wrapping another exception.
-     * @exception java.io.IOException A Java-specific IO exception,
+     * @throws java.io.IOException A Java-specific IO exception,
      *            possibly the result of creating a new InputStream
      *            or Reader for the InputSource.
      * @see org.xml.sax.InputSource

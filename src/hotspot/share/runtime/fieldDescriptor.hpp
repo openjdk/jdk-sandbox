@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@
 #include "oops/fieldInfo.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/symbol.hpp"
-#include "runtime/fieldType.hpp"
 #include "utilities/accessFlags.hpp"
 #include "utilities/constantTag.hpp"
 
@@ -102,6 +101,8 @@ class fieldDescriptor {
                                            { return access_flags().is_field_modification_watched(); }
   bool has_initialized_final_update() const { return access_flags().has_field_initialized_final_update(); }
   bool has_generic_signature()    const    { return access_flags().field_has_generic_signature(); }
+
+  bool is_trusted_final()         const;
 
   inline void set_is_field_access_watched(const bool value);
   inline void set_is_field_modification_watched(const bool value);

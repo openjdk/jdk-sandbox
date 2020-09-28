@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 6802846 8172529
+ * @bug 6802846 8172529 8227758
  * @summary jarsigner needs enhanced cert validation(options)
  * @library /test/lib
  * @run main/timeout=240 ConciseJarsigner
@@ -41,10 +41,10 @@ import java.util.List;
 public class ConciseJarsigner {
 
     static OutputAnalyzer kt(String cmd) throws Exception {
-        // Choose 1024-bit RSA to make sure it runs fine and fast. In
+        // Choose 2048-bit RSA to make sure it runs fine and fast. In
         // fact, every keyalg/keysize combination is OK for this test.
         return SecurityTools.keytool("-storepass changeit -keypass changeit "
-                + "-keystore ks -keyalg rsa -keysize 1024 " + cmd);
+                + "-keystore ks -keyalg rsa -keysize 2048 " + cmd);
     }
 
     static void gencert(String owner, String cmd) throws Exception {
@@ -227,17 +227,11 @@ public class ConciseJarsigner {
                 + "a.jar altchain")
                 .shouldHaveExitValue(0);
 
-        // if ca2 is removed, -certchain still work because altchain is a
-        // self-signed entry and it is trusted by jarsigner
+        // if ca2 is removed and cert is imported, -certchain won't work
+        // because this certificate entry is not trusted
         // save ca2.cert for easy replay
         kt("-exportcert -file ca2.cert -alias ca2");
         kt("-delete -alias ca2");
-        js("-strict -keystore ks -storepass changeit "
-                + "-certchain certchain a.jar altchain")
-                .shouldHaveExitValue(0);
-
-        // if cert is imported, -certchain won't work because this
-        // certificate entry is not trusted
         kt("-importcert -file certchain -alias altchain -noprompt");
         js("-strict -keystore ks -storepass changeit "
                 + "-certchain certchain a.jar altchain")
@@ -250,8 +244,8 @@ public class ConciseJarsigner {
         // ==========================================================
 
         kt("-genkeypair -alias ee -dname CN=ee");
-        kt("-genkeypair -alias caone -dname CN=caone");
-        kt("-genkeypair -alias catwo -dname CN=catwo");
+        kt("-genkeypair -alias caone -dname CN=caone -ext bc:c");
+        kt("-genkeypair -alias catwo -dname CN=catwo -ext bc:c");
 
         kt("-certreq -alias ee -file ee.req");
         kt("-certreq -alias catwo -file catwo.req");

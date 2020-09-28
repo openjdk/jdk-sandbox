@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import static java.lang.invoke.GenerateJLIClassesHelper.traceSpeciesType;
 import static java.lang.invoke.LambdaForm.*;
 import static java.lang.invoke.MethodHandleNatives.Constants.REF_getStatic;
 import static java.lang.invoke.MethodHandleNatives.Constants.REF_putStatic;
@@ -351,7 +352,7 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
          * You can override this to return null or throw if there are no transforms.
          * This method exists so that the transforms can be "grown" lazily.
          * This is necessary if the transform *adds* a field to an instance,
-         * which sometimtes requires the creation, on the fly, of an extended species.
+         * which sometimes requires the creation, on the fly, of an extended species.
          * This method is only called once for any particular parameter.
          * The species caches the result in a private array.
          *
@@ -459,6 +460,11 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
      */
     public class Factory {
         /**
+         * Constructs a factory.
+         */
+        Factory() {}
+
+        /**
          * Get a concrete subclass of the top class for a given combination of bound types.
          *
          * @param speciesData the species requiring the class, not yet linked
@@ -470,15 +476,8 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
             Class<?> salvage = null;
             try {
                 salvage = BootLoader.loadClassOrNull(className);
-                if (TRACE_RESOLVE && salvage != null) {
-                    // Used by jlink species pregeneration plugin, see
-                    // jdk.tools.jlink.internal.plugins.GenerateJLIClassesPlugin
-                    System.out.println("[SPECIES_RESOLVE] " + className + " (salvaged)");
-                }
+                traceSpeciesType(className, salvage);
             } catch (Error ex) {
-                if (TRACE_RESOLVE) {
-                    System.out.println("[SPECIES_FRESOLVE] " + className + " (Error) " + ex.getMessage());
-                }
             }
             final Class<? extends T> speciesCode;
             if (salvage != null) {
@@ -489,19 +488,12 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
                 // Not pregenerated, generate the class
                 try {
                     speciesCode = generateConcreteSpeciesCode(className, speciesData);
-                    if (TRACE_RESOLVE) {
-                        // Used by jlink species pregeneration plugin, see
-                        // jdk.tools.jlink.internal.plugins.GenerateJLIClassesPlugin
-                        System.out.println("[SPECIES_RESOLVE] " + className + " (generated)");
-                    }
+                    traceSpeciesType(className, salvage);
                     // This operation causes a lot of churn:
                     linkSpeciesDataToCode(speciesData, speciesCode);
                     // This operation commits the relation, but causes little churn:
                     linkCodeToSpeciesData(speciesCode, speciesData, false);
                 } catch (Error ex) {
-                    if (TRACE_RESOLVE) {
-                        System.out.println("[SPECIES_RESOLVE] " + className + " (Error #2)" );
-                    }
                     // We can get here if there is a race condition loading a class.
                     // Or maybe we are out of resources.  Back out of the CHM.get and retry.
                     throw ex;
@@ -539,31 +531,33 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
          * has a shape like the following:
          *
          * <pre>
-         * class TopClass { ... private static
-         * final class Species_LLI extends TopClass {
-         *     final Object argL0;
-         *     final Object argL1;
-         *     final int argI2;
-         *     private Species_LLI(CT ctarg, ..., Object argL0, Object argL1, int argI2) {
-         *         super(ctarg, ...);
-         *         this.argL0 = argL0;
-         *         this.argL1 = argL1;
-         *         this.argI2 = argI2;
-         *     }
-         *     final SpeciesData speciesData() { return BMH_SPECIES; }
-         *     &#64;Stable static SpeciesData BMH_SPECIES; // injected afterwards
-         *     static TopClass make(CT ctarg, ..., Object argL0, Object argL1, int argI2) {
-         *         return new Species_LLI(ctarg, ..., argL0, argL1, argI2);
-         *     }
-         *     final TopClass copyWith(CT ctarg, ...) {
-         *         return new Species_LLI(ctarg, ..., argL0, argL1, argI2);
-         *     }
-         *     // two transforms, for the sake of illustration:
-         *     final TopClass copyWithExtendL(CT ctarg, ..., Object narg) {
-         *         return BMH_SPECIES.transform(L_TYPE).invokeBasic(ctarg, ..., argL0, argL1, argI2, narg);
-         *     }
-         *     final TopClass copyWithExtendI(CT ctarg, ..., int narg) {
-         *         return BMH_SPECIES.transform(I_TYPE).invokeBasic(ctarg, ..., argL0, argL1, argI2, narg);
+         * class TopClass {
+         *     ...
+         *     private static final class Species_LLI extends TopClass {
+         *         final Object argL0;
+         *         final Object argL1;
+         *         final int argI2;
+         *         private Species_LLI(CT ctarg, ..., Object argL0, Object argL1, int argI2) {
+         *             super(ctarg, ...);
+         *             this.argL0 = argL0;
+         *             this.argL1 = argL1;
+         *             this.argI2 = argI2;
+         *         }
+         *         final SpeciesData speciesData() { return BMH_SPECIES; }
+         *         &#64;Stable static SpeciesData BMH_SPECIES; // injected afterwards
+         *         static TopClass make(CT ctarg, ..., Object argL0, Object argL1, int argI2) {
+         *             return new Species_LLI(ctarg, ..., argL0, argL1, argI2);
+         *         }
+         *         final TopClass copyWith(CT ctarg, ...) {
+         *             return new Species_LLI(ctarg, ..., argL0, argL1, argI2);
+         *         }
+         *         // two transforms, for the sake of illustration:
+         *         final TopClass copyWithExtendL(CT ctarg, ..., Object narg) {
+         *             return BMH_SPECIES.transform(L_TYPE).invokeBasic(ctarg, ..., argL0, argL1, argI2, narg);
+         *         }
+         *         final TopClass copyWithExtendI(CT ctarg, ..., int narg) {
+         *             return BMH_SPECIES.transform(I_TYPE).invokeBasic(ctarg, ..., argL0, argL1, argI2, narg);
+         *         }
          *     }
          * }
          * </pre>
@@ -619,7 +613,8 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
         }
         private static final int ACC_PPP = ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED;
 
-        /*non-public*/ byte[] generateConcreteSpeciesCodeFile(String className0, ClassSpecializer<T,K,S>.SpeciesData speciesData) {
+        /*non-public*/
+        byte[] generateConcreteSpeciesCodeFile(String className0, ClassSpecializer<T,K,S>.SpeciesData speciesData) {
             final String className = classBCName(className0);
             final String superClassName = classBCName(speciesData.deriveSuperClass());
 

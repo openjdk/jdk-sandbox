@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 #ifndef SHARE_PRIMS_METHODHANDLES_HPP
 #define SHARE_PRIMS_METHODHANDLES_HPP
 
-#include "classfile/javaClasses.hpp"
+#include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/globals.hpp"
@@ -35,7 +35,6 @@
 # include "entry_zero.hpp"
 # include "interpreter/interpreter.hpp"
 #endif
-
 
 class MacroAssembler;
 class Label;
@@ -61,12 +60,12 @@ class MethodHandles: AllStatic {
 
  public:
   // working with member names
-  static Handle resolve_MemberName(Handle mname, Klass* caller,
+  static Handle resolve_MemberName(Handle mname, Klass* caller, int lookup_mode,
                                    bool speculative_resolve, TRAPS); // compute vmtarget/vmindex from name/type
   static void expand_MemberName(Handle mname, int suppress, TRAPS);  // expand defc/name/type if missing
   static oop init_MemberName(Handle mname_h, Handle target_h, TRAPS); // compute vmtarget/vmindex from target
   static oop init_field_MemberName(Handle mname_h, fieldDescriptor& fd, bool is_setter = false);
-  static oop init_method_MemberName(Handle mname_h, CallInfo& info);
+  static oop init_method_MemberName(Handle mname_h, CallInfo& info, TRAPS);
   static int find_MemberNames(Klass* k, Symbol* name, Symbol* sig,
                               int mflags, Klass* caller,
                               int skip, objArrayHandle results, TRAPS);
@@ -155,7 +154,7 @@ public:
   }
   static bool is_basic_type_signature(Symbol* sig);
 
-  static void print_as_basic_type_signature_on(outputStream* st, Symbol* sig, bool keep_arrays = false, bool keep_basic_names = false);
+  static void print_as_basic_type_signature_on(outputStream* st, Symbol* sig);
 
   // decoding CONSTANT_MethodHandle constants
   enum { JVM_REF_MIN = JVM_REF_getField, JVM_REF_MAX = JVM_REF_invokeInterface };

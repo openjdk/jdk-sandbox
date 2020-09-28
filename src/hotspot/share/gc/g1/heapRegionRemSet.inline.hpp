@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
 #include "gc/g1/sparsePRT.hpp"
+#include "runtime/atomic.hpp"
 #include "utilities/bitMap.inline.hpp"
 
 template <class Closure>
@@ -35,20 +36,15 @@ inline void HeapRegionRemSet::iterate_prts(Closure& cl) {
   _other_regions.iterate(cl);
 }
 
-inline void PerRegionTable::add_card_work(CardIdx_t from_card, bool par) {
-  if (!_bm.at(from_card)) {
-    if (par) {
-      if (_bm.par_set_bit(from_card)) {
-        Atomic::inc(&_occupied);
-      }
-    } else {
-      _bm.set_bit(from_card);
-      _occupied++;
-    }
+inline bool PerRegionTable::add_card(CardIdx_t from_card_index) {
+  if (_bm.par_set_bit(from_card_index)) {
+    Atomic::inc(&_occupied, memory_order_relaxed);
+    return true;
   }
+  return false;
 }
 
-inline void PerRegionTable::add_reference_work(OopOrNarrowOopStar from, bool par) {
+inline bool PerRegionTable::add_reference(OopOrNarrowOopStar from) {
   // Must make this robust in case "from" is not in "_hr", because of
   // concurrency.
 
@@ -58,42 +54,26 @@ inline void PerRegionTable::add_reference_work(OopOrNarrowOopStar from, bool par
   // and adding a bit to the new table is never incorrect.
   if (loc_hr->is_in_reserved(from)) {
     CardIdx_t from_card = OtherRegionsTable::card_within_region(from, loc_hr);
-    add_card_work(from_card, par);
+    return add_card(from_card);
   }
-}
-
-inline void PerRegionTable::add_card(CardIdx_t from_card_index) {
-  add_card_work(from_card_index, /*parallel*/ true);
-}
-
-inline void PerRegionTable::seq_add_card(CardIdx_t from_card_index) {
-  add_card_work(from_card_index, /*parallel*/ false);
-}
-
-inline void PerRegionTable::add_reference(OopOrNarrowOopStar from) {
-  add_reference_work(from, /*parallel*/ true);
-}
-
-inline void PerRegionTable::seq_add_reference(OopOrNarrowOopStar from) {
-  add_reference_work(from, /*parallel*/ false);
+  return false;
 }
 
 inline void PerRegionTable::init(HeapRegion* hr, bool clear_links_to_all_list) {
   if (clear_links_to_all_list) {
     set_next(NULL);
-    set_prev(NULL);
   }
   _collision_list_next = NULL;
   _occupied = 0;
   _bm.clear();
   // Make sure that the bitmap clearing above has been finished before publishing
   // this PRT to concurrent threads.
-  OrderAccess::release_store(&_hr, hr);
+  Atomic::release_store(&_hr, hr);
 }
 
 template <class Closure>
 void OtherRegionsTable::iterate(Closure& cl) {
-  if (_n_coarse_entries > 0) {
+  if (Atomic::load(&_has_coarse_entries)) {
     BitMap::idx_t cur = _coarse_map.get_next_one_offset(0);
     while (cur != _coarse_map.size()) {
       cl.next_coarse_prt((uint)cur);

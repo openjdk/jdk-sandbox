@@ -26,7 +26,6 @@
 package com.sun.tools.javac.tree;
 
 import com.sun.source.tree.*;
-import com.sun.source.tree.Tree.Kind;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
@@ -144,7 +143,6 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
     }
 
     @DefinedBy(Api.COMPILER_TREE)
-    @SuppressWarnings("removal")
     public JCTree visitYield(YieldTree node, P p) {
         JCYield t = (JCYield) node;
         JCExpression value = copy(t.value, p);
@@ -156,7 +154,13 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
         JCCase t = (JCCase) node;
         List<JCExpression> pats = copy(t.pats, p);
         List<JCStatement> stats = copy(t.stats, p);
-        JCTree body = copy(t.body, p);
+        JCTree body;
+        if (node.getCaseKind() == CaseTree.CaseKind.RULE) {
+            body = t.body instanceof JCExpression && t.stats.head.hasTag(Tag.YIELD)
+                    ? ((JCYield) t.stats.head).value : t.stats.head;
+        } else {
+            body = null;
+        }
         return M.at(t.pos).Case(t.caseKind, pats, stats, body);
     }
 
@@ -380,7 +384,6 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
     }
 
     @DefinedBy(Api.COMPILER_TREE)
-    @SuppressWarnings("removal")
     public JCTree visitSwitchExpression(SwitchExpressionTree node, P p) {
         JCSwitchExpression t = (JCSwitchExpression) node;
         JCExpression selector = copy(t.selector, p);
@@ -483,8 +486,15 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
     public JCTree visitInstanceOf(InstanceOfTree node, P p) {
         JCInstanceOf t = (JCInstanceOf) node;
         JCExpression expr = copy(t.expr, p);
-        JCTree clazz = copy(t.clazz, p);
-        return M.at(t.pos).TypeTest(expr, clazz);
+        JCTree pattern = copy(t.pattern, p);
+        return M.at(t.pos).TypeTest(expr, pattern);
+    }
+
+    @DefinedBy(Api.COMPILER_TREE)
+    public JCTree visitBindingPattern(BindingPatternTree node, P p) {
+        JCBindingPattern t = (JCBindingPattern) node;
+        JCTree vartype = copy(t.vartype, p);
+        return M.at(t.pos).BindingPattern(t.name, vartype);
     }
 
     @DefinedBy(Api.COMPILER_TREE)

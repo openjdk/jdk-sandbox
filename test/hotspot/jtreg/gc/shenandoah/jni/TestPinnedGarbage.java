@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -23,8 +24,9 @@
 
 /* @test TestPinnedGarbage
  * @summary Test that garbage in the pinned region does not crash VM
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
+ * @library /test/lib
  *
  * @run main/othervm/native -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx512m
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=passive
@@ -39,8 +41,9 @@
 
 /* @test TestPinnedGarbage
  * @summary Test that garbage in the pinned region does not crash VM
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
+ * @library /test/lib
  *
  * @run main/othervm/native -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx512m
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=aggressive
@@ -53,7 +56,8 @@
  */
 
 import java.util.Arrays;
-import java.util.concurrent.*;
+import java.util.Random;
+import jdk.test.lib.Utils;
 
 public class TestPinnedGarbage {
     static {
@@ -80,12 +84,13 @@ public class TestPinnedGarbage {
         }
 
         int[] cog = new int[10];
-        int cogIdx = ThreadLocalRandom.current().nextInt(OBJS_COUNT);
+        Random rng = Utils.getRandomInstance();
+        int cogIdx = rng.nextInt(OBJS_COUNT);
         objs[cogIdx] = cog;
         pin(cog);
 
         for (int i = 0; i < GARBAGE_COUNT; i++) {
-            int rIdx = ThreadLocalRandom.current().nextInt(OBJS_COUNT);
+            int rIdx = rng.nextInt(OBJS_COUNT);
             if (rIdx != cogIdx) {
                 objs[rIdx] = new MyClass();
             }

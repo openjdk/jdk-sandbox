@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -26,7 +27,6 @@
 #include "gc/epsilon/epsilonHeap.hpp"
 #include "gc/shared/generationCounters.hpp"
 #include "memory/allocation.hpp"
-#include "memory/allocation.inline.hpp"
 #include "memory/metaspaceCounters.hpp"
 #include "memory/resourceArea.hpp"
 #include "services/memoryService.hpp"
@@ -72,9 +72,7 @@ public:
   }
 
   ~EpsilonSpaceCounters() {
-    if (_name_space != NULL) {
-      FREE_C_HEAP_ARRAY(char, _name_space);
-    }
+    FREE_C_HEAP_ARRAY(char, _name_space);
   }
 
   inline void update_all(size_t capacity, size_t used) {

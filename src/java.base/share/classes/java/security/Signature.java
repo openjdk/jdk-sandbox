@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,7 @@ import jdk.internal.access.SharedSecrets;
 import sun.security.util.Debug;
 import sun.security.jca.*;
 import sun.security.jca.GetInstance.Instance;
+import sun.security.util.KnownOIDs;
 
 /**
  * The Signature class is used to provide applications the functionality
@@ -271,7 +272,7 @@ public abstract class Signature extends SignatureSpi {
         NoSuchAlgorithmException failure;
         do {
             Service s = t.next();
-            if (isSpi(s)) {
+            if (isSpi(s)) { // delayed provider selection
                 return new Delegate(s, t, algorithm);
             } else {
                 // must be a subclass of Signature, disable dynamic selection
@@ -294,7 +295,7 @@ public abstract class Signature extends SignatureSpi {
             sig.algorithm = algorithm;
         } else {
             SignatureSpi spi = (SignatureSpi)instance.impl;
-            sig = new Delegate(spi, algorithm);
+            sig = Delegate.of(spi, algorithm);
         }
         sig.provider = instance.provider;
         return sig;
@@ -463,7 +464,7 @@ public abstract class Signature extends SignatureSpi {
         // check Cipher
         try {
             Cipher c = Cipher.getInstance(RSA_CIPHER, p);
-            return new Delegate(new CipherAdapter(c), RSA_SIGNATURE);
+            return Delegate.of(new CipherAdapter(c), RSA_SIGNATURE);
         } catch (GeneralSecurityException e) {
             // throw Signature style exception message to avoid confusion,
             // but append Cipher exception as cause
@@ -498,7 +499,7 @@ public abstract class Signature extends SignatureSpi {
      * @param publicKey the public key of the identity whose signature is
      * going to be verified.
      *
-     * @exception InvalidKeyException if the key is invalid.
+     * @throws    InvalidKeyException if the key is invalid.
      */
     public final void initVerify(PublicKey publicKey)
             throws InvalidKeyException {
@@ -520,8 +521,8 @@ public abstract class Signature extends SignatureSpi {
      * going to be verified.
      * @param params the parameters used for verifying this signature.
      *
-     * @exception InvalidKeyException if the key is invalid.
-     * @exception InvalidAlgorithmParameterException if the params is invalid.
+     * @throws    InvalidKeyException if the key is invalid.
+     * @throws    InvalidAlgorithmParameterException if the params is invalid.
      */
     final void initVerify(PublicKey publicKey, AlgorithmParameterSpec params)
             throws InvalidKeyException, InvalidAlgorithmParameterException {
@@ -548,7 +549,7 @@ public abstract class Signature extends SignatureSpi {
             Set<String> critSet = c.getCriticalExtensionOIDs();
 
             if (critSet != null && !critSet.isEmpty()
-                && critSet.contains("2.5.29.15")) {
+                && critSet.contains(KnownOIDs.KeyUsage.value())) {
                 boolean[] keyUsageInfo = c.getKeyUsage();
                 // keyUsageInfo[0] is for digitalSignature.
                 if ((keyUsageInfo != null) && (keyUsageInfo[0] == false))
@@ -571,7 +572,7 @@ public abstract class Signature extends SignatureSpi {
      * @param certificate the certificate of the identity whose signature is
      * going to be verified.
      *
-     * @exception InvalidKeyException  if the public key in the certificate
+     * @throws    InvalidKeyException  if the public key in the certificate
      * is not encoded properly or does not include required  parameter
      * information or cannot be used for digital signature purposes.
      * @since 1.3
@@ -601,10 +602,10 @@ public abstract class Signature extends SignatureSpi {
      * going to be verified.
      * @param params the parameters used for verifying this signature.
      *
-     * @exception InvalidKeyException  if the public key in the certificate
+     * @throws    InvalidKeyException  if the public key in the certificate
      * is not encoded properly or does not include required  parameter
      * information or cannot be used for digital signature purposes.
-     * @exception InvalidAlgorithmParameterException if the params is invalid.
+     * @throws    InvalidAlgorithmParameterException if the params is invalid.
      *
      * @since 13
      */
@@ -628,7 +629,7 @@ public abstract class Signature extends SignatureSpi {
      * @param privateKey the private key of the identity whose signature
      * is going to be generated.
      *
-     * @exception InvalidKeyException if the key is invalid.
+     * @throws    InvalidKeyException if the key is invalid.
      */
     public final void initSign(PrivateKey privateKey)
             throws InvalidKeyException {
@@ -651,7 +652,7 @@ public abstract class Signature extends SignatureSpi {
      *
      * @param random the source of randomness for this signature.
      *
-     * @exception InvalidKeyException if the key is invalid.
+     * @throws    InvalidKeyException if the key is invalid.
      */
     public final void initSign(PrivateKey privateKey, SecureRandom random)
             throws InvalidKeyException {
@@ -674,8 +675,8 @@ public abstract class Signature extends SignatureSpi {
      * @param params the parameters used for generating signature.
      * @param random the source of randomness for this signature.
      *
-     * @exception InvalidKeyException if the key is invalid.
-     * @exception InvalidAlgorithmParameterException if the params is invalid
+     * @throws    InvalidKeyException if the key is invalid.
+     * @throws    InvalidAlgorithmParameterException if the params is invalid
      */
     final void initSign(PrivateKey privateKey,
             AlgorithmParameterSpec params, SecureRandom random)
@@ -703,7 +704,7 @@ public abstract class Signature extends SignatureSpi {
      *
      * @return the signature bytes of the signing operation's result.
      *
-     * @exception SignatureException if this signature object is not
+     * @throws    SignatureException if this signature object is not
      * initialized properly or if this signature algorithm is unable to
      * process the input data provided.
      */
@@ -736,11 +737,11 @@ public abstract class Signature extends SignatureSpi {
      *
      * @return the number of bytes placed into {@code outbuf}.
      *
-     * @exception SignatureException if this signature object is not
+     * @throws    SignatureException if this signature object is not
      *     initialized properly, if this signature algorithm is unable to
      *     process the input data provided, or if {@code len} is less
      *     than the actual signature length.
-     * @exception IllegalArgumentException if {@code outbuf} is {@code null},
+     * @throws    IllegalArgumentException if {@code outbuf} is {@code null},
      *     or {@code offset} or {@code len} is less than 0, or the sum of
      *     {@code offset} and {@code len} is greater than the length of
      *     {@code outbuf}.
@@ -779,7 +780,7 @@ public abstract class Signature extends SignatureSpi {
      *
      * @return true if the signature was verified, false if not.
      *
-     * @exception SignatureException if this signature object is not
+     * @throws    SignatureException if this signature object is not
      * initialized properly, the passed-in signature is improperly
      * encoded or of the wrong type, if this signature algorithm is unable to
      * process the input data provided, etc.
@@ -809,11 +810,11 @@ public abstract class Signature extends SignatureSpi {
      *
      * @return true if the signature was verified, false if not.
      *
-     * @exception SignatureException if this signature object is not
+     * @throws    SignatureException if this signature object is not
      * initialized properly, the passed-in signature is improperly
      * encoded or of the wrong type, if this signature algorithm is unable to
      * process the input data provided, etc.
-     * @exception IllegalArgumentException if the {@code signature}
+     * @throws    IllegalArgumentException if the {@code signature}
      * byte array is {@code null}, or the {@code offset} or {@code length}
      * is less than 0, or the sum of the {@code offset} and
      * {@code length} is greater than the length of the
@@ -846,7 +847,7 @@ public abstract class Signature extends SignatureSpi {
      *
      * @param b the byte to use for the update.
      *
-     * @exception SignatureException if this signature object is not
+     * @throws    SignatureException if this signature object is not
      * initialized properly.
      */
     public final void update(byte b) throws SignatureException {
@@ -864,7 +865,7 @@ public abstract class Signature extends SignatureSpi {
      *
      * @param data the byte array to use for the update.
      *
-     * @exception SignatureException if this signature object is not
+     * @throws    SignatureException if this signature object is not
      * initialized properly.
      */
     public final void update(byte[] data) throws SignatureException {
@@ -879,9 +880,9 @@ public abstract class Signature extends SignatureSpi {
      * @param off the offset to start from in the array of bytes.
      * @param len the number of bytes to use, starting at offset.
      *
-     * @exception SignatureException if this signature object is not
+     * @throws    SignatureException if this signature object is not
      *     initialized properly.
-     * @exception IllegalArgumentException if {@code data} is {@code null},
+     * @throws    IllegalArgumentException if {@code data} is {@code null},
      *     or {@code off} or {@code len} is less than 0, or the sum of
      *     {@code off} and {@code len} is greater than the length of
      *     {@code data}.
@@ -915,7 +916,7 @@ public abstract class Signature extends SignatureSpi {
      *
      * @param data the ByteBuffer
      *
-     * @exception SignatureException if this signature object is not
+     * @throws    SignatureException if this signature object is not
      * initialized properly.
      * @since 1.5
      */
@@ -976,7 +977,7 @@ public abstract class Signature extends SignatureSpi {
      * @param param the string identifier of the parameter.
      * @param value the parameter value.
      *
-     * @exception InvalidParameterException if {@code param} is an
+     * @throws    InvalidParameterException if {@code param} is an
      * invalid parameter for this signature algorithm engine,
      * the parameter is already set
      * and cannot be set again, a security exception occurs, and so on.
@@ -998,7 +999,7 @@ public abstract class Signature extends SignatureSpi {
      *
      * @param params the parameters
      *
-     * @exception InvalidAlgorithmParameterException if the given parameters
+     * @throws    InvalidAlgorithmParameterException if the given parameters
      * are inappropriate for this signature engine
      *
      * @see #getParameters
@@ -1011,13 +1012,15 @@ public abstract class Signature extends SignatureSpi {
     /**
      * Returns the parameters used with this signature object.
      *
-     * <p> If this signature has been previously initialized with parameters
-     * (by calling the {@code setParameter} method), this method returns
-     * the same parameters. If this signature has not been initialized with
-     * parameters, this method may return a combination of default and
-     * randomly generated parameter values if the underlying
-     * signature implementation supports it and can successfully generate
-     * them. Otherwise, {@code null} is returned.
+     * <p> If this signature has been initialized with parameters
+     * (by calling {@link #setParameter(AlgorithmParameterSpec)} or
+     * {@link #setParameter(String, Object)}) and the underlying signature
+     * implementation supports returning the parameters as
+     * {@code AlgorithmParameters}, this method returns the same parameters.
+     * If the parameters were not set, this method may return a combination
+     * of default and randomly generated parameter values if the
+     * underlying signature implementation supports it and can successfully
+     * generate them. Otherwise, {@code null} is returned.
      *
      * @return the parameters used with this signature, or {@code null}
      *
@@ -1043,7 +1046,7 @@ public abstract class Signature extends SignatureSpi {
      * @return the object that represents the parameter value, or {@code null} if
      * there is none.
      *
-     * @exception InvalidParameterException if {@code param} is an invalid
+     * @throws    InvalidParameterException if {@code param} is an invalid
      * parameter for this engine, or another exception occurs while
      * trying to get this parameter.
      *
@@ -1062,7 +1065,7 @@ public abstract class Signature extends SignatureSpi {
      *
      * @return a clone if the implementation is cloneable.
      *
-     * @exception CloneNotSupportedException if this is called
+     * @throws    CloneNotSupportedException if this is called
      * on an implementation that does not support {@code Cloneable}.
      */
     public Object clone() throws CloneNotSupportedException {
@@ -1089,6 +1092,14 @@ public abstract class Signature extends SignatureSpi {
 
     @SuppressWarnings("deprecation")
     private static class Delegate extends Signature {
+        // use this class for spi objects which implements Cloneable
+        private static final class CloneableDelegate extends Delegate
+                implements Cloneable {
+            private CloneableDelegate(SignatureSpi digestSpi,
+                    String algorithm) {
+                super(digestSpi, algorithm);
+            }
+        }
 
         // The provider implementation (delegate)
         // filled in once the provider is selected
@@ -1105,15 +1116,24 @@ public abstract class Signature extends SignatureSpi {
         // null once provider is selected
         private Iterator<Service> serviceIterator;
 
-        // constructor
-        Delegate(SignatureSpi sigSpi, String algorithm) {
+        // factory method used by Signature class to create Delegate objs
+        static Delegate of(SignatureSpi sigSpi, String algorithm) {
+            if (sigSpi instanceof Cloneable) {
+                return new CloneableDelegate(sigSpi, algorithm);
+            } else {
+                return new Delegate(sigSpi, algorithm);
+            }
+        }
+
+        // private constructor
+        private Delegate(SignatureSpi sigSpi, String algorithm) {
             super(algorithm);
             this.sigSpi = sigSpi;
             this.lock = null; // no lock needed
         }
 
-        // used with delayed provider selection
-        Delegate(Service service,
+        // constructor used with delayed provider selection
+        private Delegate(Service service,
                         Iterator<Service> iterator, String algorithm) {
             super(algorithm);
             this.firstService = service;
@@ -1126,18 +1146,19 @@ public abstract class Signature extends SignatureSpi {
          *
          * @return a clone if the delegate is cloneable.
          *
-         * @exception CloneNotSupportedException if this is called on a
+         * @throws    CloneNotSupportedException if this is called on a
          * delegate that does not support {@code Cloneable}.
          */
+        @Override
         public Object clone() throws CloneNotSupportedException {
             chooseFirstProvider();
             if (sigSpi instanceof Cloneable) {
-                SignatureSpi sigSpiClone = (SignatureSpi)sigSpi.clone();
                 // Because 'algorithm' and 'provider' are private
                 // members of our supertype, we must perform a cast to
                 // access them.
-                Signature that =
-                    new Delegate(sigSpiClone, ((Signature)this).algorithm);
+                Signature that = new CloneableDelegate(
+                   (SignatureSpi)sigSpi.clone(),
+                   ((Signature)this).algorithm);
                 that.provider = ((Signature)this).provider;
                 return that;
             } else {

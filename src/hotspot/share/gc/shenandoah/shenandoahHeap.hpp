@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2013, 2019, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2013, 2020, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -31,18 +32,23 @@
 #include "gc/shenandoah/shenandoahAllocRequest.hpp"
 #include "gc/shenandoah/shenandoahLock.hpp"
 #include "gc/shenandoah/shenandoahEvacOOMHandler.hpp"
+#include "gc/shenandoah/shenandoahPadding.hpp"
 #include "gc/shenandoah/shenandoahSharedVariables.hpp"
+#include "gc/shenandoah/shenandoahUnload.hpp"
 #include "services/memoryManager.hpp"
+#include "utilities/globalDefinitions.hpp"
+#include "utilities/stack.hpp"
 
 class ConcurrentGCTimer;
+class ObjectIterateScanRootClosure;
 class ReferenceProcessor;
-class ShenandoahAllocTracker;
 class ShenandoahCollectorPolicy;
 class ShenandoahControlThread;
 class ShenandoahGCSession;
 class ShenandoahGCStateResetter;
 class ShenandoahHeuristics;
 class ShenandoahMarkingContext;
+class ShenandoahMarkCompact;
 class ShenandoahMode;
 class ShenandoahPhaseTimings;
 class ShenandoahHeap;
@@ -53,23 +59,32 @@ class ShenandoahFreeSet;
 class ShenandoahConcurrentMark;
 class ShenandoahMarkCompact;
 class ShenandoahMonitoringSupport;
+class ShenandoahObjToScanQueueSet;
 class ShenandoahPacer;
-class ShenandoahTraversalGC;
 class ShenandoahVerifier;
 class ShenandoahWorkGang;
 class VMStructs;
+
+// Used for buffering per-region liveness data.
+// Needed since ShenandoahHeapRegion uses atomics to update liveness.
+// The ShenandoahHeap array has max-workers elements, each of which is an array of
+// uint16_t * max_regions. The choice of uint16_t is not accidental:
+// there is a tradeoff between static/dynamic footprint that translates
+// into cache pressure (which is already high during marking), and
+// too many atomic updates. uint32_t is too large, uint8_t is too small.
+typedef uint16_t ShenandoahLiveData;
+#define SHENANDOAH_LIVEDATA_MAX ((ShenandoahLiveData)-1)
 
 class ShenandoahRegionIterator : public StackObj {
 private:
   ShenandoahHeap* _heap;
 
-  DEFINE_PAD_MINUS_SIZE(0, DEFAULT_CACHE_LINE_SIZE, sizeof(volatile size_t));
+  shenandoah_padding(0);
   volatile size_t _index;
-  DEFINE_PAD_MINUS_SIZE(1, DEFAULT_CACHE_LINE_SIZE, 0);
+  shenandoah_padding(1);
 
   // No implicit copying: iterators should be passed by reference to capture the state
-  ShenandoahRegionIterator(const ShenandoahRegionIterator& that);
-  ShenandoahRegionIterator& operator=(const ShenandoahRegionIterator& o);
+  NONCOPYABLE(ShenandoahRegionIterator);
 
 public:
   ShenandoahRegionIterator();
@@ -93,19 +108,9 @@ public:
   virtual bool is_thread_safe() { return false; }
 };
 
-#ifdef ASSERT
-class ShenandoahAssertToSpaceClosure : public OopClosure {
-private:
-  template <class T>
-  void do_oop_work(T* p);
-public:
-  void do_oop(narrowOop* p);
-  void do_oop(oop* p);
-};
-#endif
-
 typedef ShenandoahLock    ShenandoahHeapLock;
 typedef ShenandoahLocker  ShenandoahHeapLocker;
+typedef Stack<oop, mtGC>  ShenandoahScanObjectStack;
 
 // Shenandoah GC is low-pause concurrent GC that uses Brooks forwarding pointers
 // to encode forwarding data. See BrooksPointer for details on forwarding data encoding.
@@ -116,7 +121,7 @@ class ShenandoahHeap : public CollectedHeap {
   friend class VMStructs;
   friend class ShenandoahGCSession;
   friend class ShenandoahGCStateResetter;
-
+  friend class ShenandoahParallelObjectIterator;
 // ---------- Locks that guard important data structures in Heap
 //
 private:
@@ -127,15 +132,10 @@ public:
     return &_lock;
   }
 
-  void assert_heaplock_owned_by_current_thread()     NOT_DEBUG_RETURN;
-  void assert_heaplock_not_owned_by_current_thread() NOT_DEBUG_RETURN;
-  void assert_heaplock_or_safepoint()                NOT_DEBUG_RETURN;
-
 // ---------- Initialization, termination, identification, printing routines
 //
 public:
   static ShenandoahHeap* heap();
-  static ShenandoahHeap* heap_no_check();
 
   const char* name()          const { return "Shenandoah"; }
   ShenandoahHeap::Name kind() const { return CollectedHeap::Shenandoah; }
@@ -150,7 +150,6 @@ public:
   void print_on(outputStream* st)              const;
   void print_extended_on(outputStream *st)     const;
   void print_tracing_info()                    const;
-  void print_gc_threads_on(outputStream* st)   const;
   void print_heap_regions_on(outputStream* st) const;
 
   void stop();
@@ -163,11 +162,12 @@ public:
 private:
            size_t _initial_size;
            size_t _minimum_size;
-  DEFINE_PAD_MINUS_SIZE(0, DEFAULT_CACHE_LINE_SIZE, sizeof(volatile size_t));
+  volatile size_t _soft_max_size;
+  shenandoah_padding(0);
   volatile size_t _used;
   volatile size_t _committed;
   volatile size_t _bytes_allocated_since_gc_start;
-  DEFINE_PAD_MINUS_SIZE(1, DEFAULT_CACHE_LINE_SIZE, 0);
+  shenandoah_padding(1);
 
 public:
   void increase_used(size_t bytes);
@@ -181,12 +181,15 @@ public:
   size_t bytes_allocated_since_gc_start();
   void reset_bytes_allocated_since_gc_start();
 
-  size_t min_capacity()     const;
-  size_t max_capacity()     const;
-  size_t initial_capacity() const;
-  size_t capacity()         const;
-  size_t used()             const;
-  size_t committed()        const;
+  size_t min_capacity()      const;
+  size_t max_capacity()      const;
+  size_t soft_max_capacity() const;
+  size_t initial_capacity()  const;
+  size_t capacity()          const;
+  size_t used()              const;
+  size_t committed()         const;
+
+  void set_soft_max_capacity(size_t v);
 
 // ---------- Workers handling
 //
@@ -200,7 +203,7 @@ public:
   void assert_gc_workers(uint nworker) NOT_DEBUG_RETURN;
 
   WorkGang* workers() const;
-  WorkGang* get_safepoint_workers();
+  WorkGang* safepoint_workers();
 
   void gc_threads_do(ThreadClosure* tcl) const;
 
@@ -214,6 +217,9 @@ private:
   ShenandoahRegionIterator _update_refs_iterator;
 
 public:
+
+  inline HeapWord* base() const { return _heap_region.start(); }
+
   inline size_t num_regions() const { return _num_regions; }
   inline bool is_heap_region_special() { return _heap_region_special; }
 
@@ -247,9 +253,6 @@ public:
 
     // Heap is under updating: needs no additional barriers.
     UPDATEREFS_BITPOS = 3,
-
-    // Heap is under traversal collection
-    TRAVERSAL_BITPOS  = 4
   };
 
   enum GCState {
@@ -258,7 +261,6 @@ public:
     MARKING       = 1 << MARKING_BITPOS,
     EVACUATION    = 1 << EVACUATION_BITPOS,
     UPDATEREFS    = 1 << UPDATEREFS_BITPOS,
-    TRAVERSAL     = 1 << TRAVERSAL_BITPOS
   };
 
 private:
@@ -267,6 +269,8 @@ private:
   ShenandoahSharedFlag   _full_gc_in_progress;
   ShenandoahSharedFlag   _full_gc_move_in_progress;
   ShenandoahSharedFlag   _progress_last_gc;
+  ShenandoahSharedFlag   _concurrent_strong_root_in_progress;
+  ShenandoahSharedFlag   _concurrent_weak_root_in_progress;
 
   void set_gc_state_all_threads(char state);
   void set_gc_state_mask(uint mask, bool value);
@@ -281,8 +285,9 @@ public:
   void set_degenerated_gc_in_progress(bool in_progress);
   void set_full_gc_in_progress(bool in_progress);
   void set_full_gc_move_in_progress(bool in_progress);
-  void set_concurrent_traversal_in_progress(bool in_progress);
   void set_has_forwarded_objects(bool cond);
+  void set_concurrent_strong_root_in_progress(bool cond);
+  void set_concurrent_weak_root_in_progress(bool cond);
 
   inline bool is_stable() const;
   inline bool is_idle() const;
@@ -292,9 +297,11 @@ public:
   inline bool is_degenerated_gc_in_progress() const;
   inline bool is_full_gc_in_progress() const;
   inline bool is_full_gc_move_in_progress() const;
-  inline bool is_concurrent_traversal_in_progress() const;
   inline bool has_forwarded_objects() const;
   inline bool is_gc_in_progress_mask(uint mask) const;
+  inline bool is_stw_gc_in_progress() const;
+  inline bool is_concurrent_strong_root_in_progress() const;
+  inline bool is_concurrent_weak_root_in_progress() const;
 
 // ---------- GC cancellation and degeneration machinery
 //
@@ -303,7 +310,6 @@ public:
 public:
   enum ShenandoahDegenPoint {
     _degenerated_unset,
-    _degenerated_traversal,
     _degenerated_outside_cycle,
     _degenerated_mark,
     _degenerated_evac,
@@ -315,8 +321,6 @@ public:
     switch (point) {
       case _degenerated_unset:
         return "<UNSET>";
-      case _degenerated_traversal:
-        return "Traversal";
       case _degenerated_outside_cycle:
         return "Outside of Cycle";
       case _degenerated_mark:
@@ -367,11 +371,8 @@ public:
   // call the entry method below
   void vmop_entry_init_mark();
   void vmop_entry_final_mark();
-  void vmop_entry_final_evac();
   void vmop_entry_init_updaterefs();
   void vmop_entry_final_updaterefs();
-  void vmop_entry_init_traversal();
-  void vmop_entry_final_traversal();
   void vmop_entry_full(GCCause::Cause cause);
   void vmop_degenerated(ShenandoahDegenPoint point);
 
@@ -379,11 +380,8 @@ public:
   // and workers for net VM operation
   void entry_init_mark();
   void entry_final_mark();
-  void entry_final_evac();
   void entry_init_updaterefs();
   void entry_final_updaterefs();
-  void entry_init_traversal();
-  void entry_final_traversal();
   void entry_full(GCCause::Cause cause);
   void entry_degenerated(int point);
 
@@ -392,22 +390,22 @@ public:
   void entry_reset();
   void entry_mark();
   void entry_preclean();
-  void entry_roots();
-  void entry_cleanup();
+  void entry_weak_roots();
+  void entry_class_unloading();
+  void entry_strong_roots();
+  void entry_cleanup_early();
+  void entry_rendezvous_roots();
   void entry_evac();
   void entry_updaterefs();
-  void entry_traversal();
-  void entry_uncommit(double shrink_before);
+  void entry_cleanup_complete();
+  void entry_uncommit(double shrink_before, size_t shrink_until);
 
 private:
   // Actual work for the phases
   void op_init_mark();
   void op_final_mark();
-  void op_final_evac();
   void op_init_updaterefs();
   void op_final_updaterefs();
-  void op_init_traversal();
-  void op_final_traversal();
   void op_full(GCCause::Cause cause);
   void op_degenerated(ShenandoahDegenPoint point);
   void op_degenerated_fail();
@@ -416,13 +414,18 @@ private:
   void op_reset();
   void op_mark();
   void op_preclean();
-  void op_roots();
-  void op_cleanup();
+  void op_weak_roots();
+  void op_class_unloading();
+  void op_strong_roots();
+  void op_cleanup_early();
+  void op_rendezvous_roots();
   void op_conc_evac();
   void op_stw_evac();
   void op_updaterefs();
-  void op_traversal();
-  void op_uncommit(double shrink_before);
+  void op_cleanup_complete();
+  void op_uncommit(double shrink_before, size_t shrink_until);
+
+  void rendezvous_threads();
 
   // Messages for GC trace events, they have to be immortal for
   // passing around the logging/tracing systems
@@ -440,12 +443,10 @@ private:
   ShenandoahHeuristics*      _heuristics;
   ShenandoahFreeSet*         _free_set;
   ShenandoahConcurrentMark*  _scm;
-  ShenandoahTraversalGC*     _traversal_gc;
   ShenandoahMarkCompact*     _full_gc;
   ShenandoahPacer*           _pacer;
   ShenandoahVerifier*        _verifier;
 
-  ShenandoahAllocTracker*    _alloc_tracker;
   ShenandoahPhaseTimings*    _phase_timings;
 
   ShenandoahControlThread*   control_thread()          { return _control_thread;    }
@@ -453,15 +454,13 @@ private:
 
 public:
   ShenandoahCollectorPolicy* shenandoah_policy() const { return _shenandoah_policy; }
+  ShenandoahMode*            mode()              const { return _gc_mode;           }
   ShenandoahHeuristics*      heuristics()        const { return _heuristics;        }
   ShenandoahFreeSet*         free_set()          const { return _free_set;          }
   ShenandoahConcurrentMark*  concurrent_mark()         { return _scm;               }
-  ShenandoahTraversalGC*     traversal_gc()      const { return _traversal_gc;      }
-  bool                       is_traversal_mode() const { return _traversal_gc != NULL; }
   ShenandoahPacer*           pacer()             const { return _pacer;             }
 
   ShenandoahPhaseTimings*    phase_timings()     const { return _phase_timings;     }
-  ShenandoahAllocTracker*    alloc_tracker()     const { return _alloc_tracker;     }
 
   ShenandoahVerifier*        verifier();
 
@@ -487,7 +486,7 @@ public:
   GrowableArray<MemoryPool*> memory_pools();
   MemoryUsage memory_usage();
   GCTracer* tracer();
-  GCTimer* gc_timer() const;
+  ConcurrentGCTimer* gc_timer() const;
 
 // ---------- Reference processing
 //
@@ -495,11 +494,15 @@ private:
   AlwaysTrueClosure    _subject_to_discovery;
   ReferenceProcessor*  _ref_processor;
   ShenandoahSharedFlag _process_references;
+  bool                 _ref_proc_mt_discovery;
+  bool                 _ref_proc_mt_processing;
 
   void ref_processing_init();
 
 public:
   ReferenceProcessor* ref_processor() { return _ref_processor; }
+  bool ref_processor_mt_discovery()   { return _ref_proc_mt_discovery;  }
+  bool ref_processor_mt_processing()  { return _ref_proc_mt_processing; }
   void set_process_references(bool pr);
   bool process_references() const;
 
@@ -507,6 +510,7 @@ public:
 //
 private:
   ShenandoahSharedFlag _unload_classes;
+  ShenandoahUnload     _unloader;
 
 public:
   void set_unload_classes(bool uc);
@@ -519,6 +523,16 @@ private:
   void stw_unload_classes(bool full_gc);
   void stw_process_weak_roots(bool full_gc);
 
+  // Prepare concurrent root processing
+  void prepare_concurrent_roots();
+  // Prepare and finish concurrent unloading
+  void prepare_concurrent_unloading();
+  void finish_concurrent_unloading();
+  // Heap iteration support
+  void scan_roots_for_iteration(ShenandoahScanObjectStack* oop_stack, ObjectIterateScanRootClosure* oops);
+  bool prepare_aux_bitmap_for_iteration();
+  void reclaim_aux_bitmap_for_iteration();
+
 // ---------- Generic interface hooks
 // Minor things that super-interface expects us to implement to play nice with
 // the rest of runtime. Some of the things here are not required to be implemented,
@@ -530,6 +544,9 @@ public:
 
   bool is_in(const void* p) const;
 
+  MemRegion reserved_region() const { return _reserved; }
+  bool is_in_reserved(const void* addr) const { return _reserved.contains(addr); }
+
   void collect(GCCause::Cause cause);
   void do_full_collection(bool clear_all_soft_refs);
 
@@ -540,10 +557,11 @@ public:
 
   // Used for native heap walkers: heap dumpers, mostly
   void object_iterate(ObjectClosure* cl);
-  void safe_object_iterate(ObjectClosure* cl);
+  // Parallel heap iteration support
+  virtual ParallelObjectIterator* parallel_object_iterator(uint workers);
 
-  // Used by RMI
-  jlong millis_since_last_gc();
+  // Keep alive an object that was loaded with AS_NO_KEEPALIVE.
+  void keep_alive(oop obj);
 
 // ---------- Safepoint interface hooks
 //
@@ -556,7 +574,7 @@ public:
 public:
   void register_nmethod(nmethod* nm);
   void unregister_nmethod(nmethod* nm);
-  void flush_nmethod(nmethod* nm) {}
+  void flush_nmethod(nmethod* nm);
   void verify_nmethod(nmethod* nm) {}
 
 // ---------- Pinning hooks
@@ -568,6 +586,9 @@ public:
   oop pin_object(JavaThread* thread, oop obj);
   void unpin_object(JavaThread* thread, oop obj);
 
+  void sync_pinned_region_status();
+  void assert_pinned_region_status() NOT_DEBUG_RETURN;
+
 // ---------- Allocation support
 //
 private:
@@ -575,7 +596,6 @@ private:
   inline HeapWord* allocate_from_gclab(Thread* thread, size_t size);
   HeapWord* allocate_from_gclab_slow(Thread* thread, size_t size);
   HeapWord* allocate_new_gclab(size_t min_size, size_t word_size, size_t* actual_size);
-  void retire_and_reset_gclabs();
 
 public:
   HeapWord* allocate_memory(ShenandoahAllocRequest& request);
@@ -586,19 +606,17 @@ public:
 
   void notify_mutator_alloc_words(size_t words, bool waste);
 
-  // Shenandoah supports TLAB allocation
-  bool supports_tlab_allocation() const { return true; }
-
   HeapWord* allocate_new_tlab(size_t min_size, size_t requested_size, size_t* actual_size);
   size_t tlab_capacity(Thread *thr) const;
   size_t unsafe_max_tlab_alloc(Thread *thread) const;
   size_t max_tlab_size() const;
   size_t tlab_used(Thread* ignored) const;
 
-  void resize_tlabs();
+  void ensure_parsability(bool retire_labs);
 
-  void ensure_parsability(bool retire_tlabs);
-  void make_parsable(bool retire_tlabs);
+  void labs_make_parsable();
+  void tlabs_retire(bool resize);
+  void gclabs_retire(bool resize);
 
 // ---------- Marking support
 //
@@ -613,18 +631,13 @@ private:
   size_t _bitmap_regions_per_slice;
   size_t _bitmap_bytes_per_slice;
 
+  size_t _pretouch_heap_page_size;
+  size_t _pretouch_bitmap_page_size;
+
   bool _bitmap_region_special;
   bool _aux_bitmap_region_special;
 
-  // Used for buffering per-region liveness data.
-  // Needed since ShenandoahHeapRegion uses atomics to update liveness.
-  //
-  // The array has max-workers elements, each of which is an array of
-  // jushort * max_regions. The choice of jushort is not accidental:
-  // there is a tradeoff between static/dynamic footprint that translates
-  // into cache pressure (which is already high during marking), and
-  // too many atomic updates. size_t/jint is too large, jbyte is too small.
-  jushort** _liveness_cache;
+  ShenandoahLiveData** _liveness_cache;
 
 public:
   inline ShenandoahMarkingContext* complete_marking_context() const;
@@ -644,7 +657,6 @@ public:
   void reset_mark_bitmap();
 
   // SATB barriers hooks
-  template<bool RESOLVE>
   inline bool requires_marking(const void* entry) const;
   void force_satb_flush_all_threads();
 
@@ -654,8 +666,10 @@ public:
   bool is_bitmap_slice_committed(ShenandoahHeapRegion* r, bool skip_self = false);
 
   // Liveness caching support
-  jushort* get_liveness_cache(uint worker_id);
+  ShenandoahLiveData* get_liveness_cache(uint worker_id);
   void flush_liveness_cache(uint worker_id);
+
+  size_t pretouch_heap_page_size() { return _pretouch_heap_page_size; }
 
 // ---------- Evacuation support
 //
@@ -670,19 +684,19 @@ public:
 
   ShenandoahCollectionSet* collection_set() const { return _collection_set; }
 
-  template <class T>
-  inline bool in_collection_set(T obj) const;
+  // Checks if object is in the collection set.
+  inline bool in_collection_set(oop obj) const;
 
-  // Avoid accidentally calling the method above with ShenandoahHeapRegion*, which would be *wrong*.
-  inline bool in_collection_set(ShenandoahHeapRegion* r) shenandoah_not_implemented_return(false);
+  // Checks if location is in the collection set. Can be interior pointer, not the oop itself.
+  inline bool in_collection_set_loc(void* loc) const;
 
   // Evacuates object src. Returns the evacuated object, either evacuated
   // by this thread, or by some other thread.
   inline oop evacuate_object(oop src, Thread* thread);
 
   // Call before/after evacuation.
-  void enter_evacuation();
-  void leave_evacuation();
+  inline void enter_evacuation(Thread* t);
+  inline void leave_evacuation(Thread* t);
 
 // ---------- Helper functions
 //
@@ -701,12 +715,11 @@ public:
 
   static inline oop cas_oop(oop n, narrowOop* addr, oop c);
   static inline oop cas_oop(oop n, oop* addr, oop c);
+  static inline oop cas_oop(oop n, narrowOop* addr, narrowOop c);
 
   void trash_humongous_region_at(ShenandoahHeapRegion *r);
 
   void deduplicate_string(oop str);
-
-  void stop_concurrent_marking();
 
 private:
   void trash_cset_regions();

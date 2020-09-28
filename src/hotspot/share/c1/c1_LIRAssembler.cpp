@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -481,7 +481,7 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
     compilation()->set_has_method_handle_invokes(true);
   }
 
-#if defined(X86) && defined(TIERED)
+#if defined(IA32) && defined(TIERED)
   // C2 leave fpu stack dirty clean it
   if (UseSSE < 2) {
     int i;
@@ -532,6 +532,7 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
       safepoint_poll(op->in_opr(), op->info());
       break;
 
+#ifdef IA32
     case lir_fxch:
       fxch(op->in_opr()->as_jint());
       break;
@@ -539,10 +540,7 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
     case lir_fld:
       fld(op->in_opr()->as_jint());
       break;
-
-    case lir_ffree:
-      ffree(op->in_opr()->as_jint());
-      break;
+#endif // IA32
 
     case lir_branch:
       break;
@@ -574,16 +572,6 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
       monitor_address(op->in_opr()->as_constant_ptr()->as_jint(), op->result_opr());
       break;
 
-#ifdef SPARC
-    case lir_pack64:
-      pack64(op->in_opr(), op->result_opr());
-      break;
-
-    case lir_unpack64:
-      unpack64(op->in_opr(), op->result_opr());
-      break;
-#endif
-
     case lir_unwind:
       unwind_op(op->in_opr());
       break;
@@ -597,11 +585,6 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
 
 void LIR_Assembler::emit_op0(LIR_Op0* op) {
   switch (op->code()) {
-    case lir_word_align: {
-      _masm->align(BytesPerWord);
-      break;
-    }
-
     case lir_nop:
       assert(op->info() == NULL, "not supported");
       _masm->nop();
@@ -609,10 +592,6 @@ void LIR_Assembler::emit_op0(LIR_Op0* op) {
 
     case lir_label:
       Unimplemented();
-      break;
-
-    case lir_build_frame:
-      build_frame();
       break;
 
     case lir_std_entry:
@@ -636,20 +615,14 @@ void LIR_Assembler::emit_op0(LIR_Op0* op) {
       osr_entry();
       break;
 
-    case lir_24bit_FPU:
-      set_24bit_FPU();
+#ifdef IA32
+    case lir_fpop_raw:
+      fpop();
       break;
-
-    case lir_reset_FPU:
-      reset_FPU();
-      break;
+#endif // IA32
 
     case lir_breakpoint:
       breakpoint();
-      break;
-
-    case lir_fpop_raw:
-      fpop();
       break;
 
     case lir_membar:
@@ -786,6 +759,7 @@ void LIR_Assembler::build_frame() {
 
 
 void LIR_Assembler::roundfp_op(LIR_Opr src, LIR_Opr tmp, LIR_Opr dest, bool pop_fpu_stack) {
+  assert(strict_fp_requires_explicit_rounding, "not required");
   assert((src->is_single_fpu() && dest->is_single_stack()) ||
          (src->is_double_fpu() && dest->is_double_stack()),
          "round_fp: rounds register -> stack location");
@@ -851,11 +825,7 @@ void LIR_Assembler::verify_oop_map(CodeEmitInfo* info) {
         if (!r->is_stack()) {
           stringStream st;
           st.print("bad oop %s at %d", r->as_Register()->name(), _masm->offset());
-#ifdef SPARC
-          _masm->_verify_oop(r->as_Register(), os::strdup(st.as_string(), mtCompiler), __FILE__, __LINE__);
-#else
           _masm->verify_oop(r->as_Register());
-#endif
         } else {
           _masm->verify_stack_oop(r->reg2stack() * VMRegImpl::stack_slot_size);
         }

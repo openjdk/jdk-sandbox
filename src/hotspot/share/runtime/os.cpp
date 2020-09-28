@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,24 +88,6 @@ static size_t cur_malloc_words = 0;  // current size for MallocMaxTestWords
 
 DEBUG_ONLY(bool os::_mutex_init_done = false;)
 
-void os_init_globals() {
-  // Called from init_globals().
-  // See Threads::create_vm() in thread.cpp, and init.cpp.
-  os::init_globals();
-}
-
-static time_t get_timezone(const struct tm* time_struct) {
-#if defined(_ALLBSD_SOURCE)
-  return time_struct->tm_gmtoff;
-#elif defined(_WINDOWS)
-  long zone;
-  _get_timezone(&zone);
-  return static_cast<time_t>(zone);
-#else
-  return timezone;
-#endif
-}
-
 int os::snprintf(char* buf, size_t len, const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
@@ -158,21 +140,32 @@ char* os::iso8601_time(char* buffer, size_t buffer_length, bool utc) {
       return NULL;
     }
   }
-  const time_t zone = get_timezone(&time_struct);
 
-  // If daylight savings time is in effect,
-  // we are 1 hour East of our time zone
   const time_t seconds_per_minute = 60;
   const time_t minutes_per_hour = 60;
   const time_t seconds_per_hour = seconds_per_minute * minutes_per_hour;
-  time_t UTC_to_local = zone;
-  if (time_struct.tm_isdst > 0) {
-    UTC_to_local = UTC_to_local - seconds_per_hour;
-  }
 
   // No offset when dealing with UTC
-  if (utc) {
-    UTC_to_local = 0;
+  time_t UTC_to_local = 0;
+  if (!utc) {
+#if defined(_ALLBSD_SOURCE) || defined(_GNU_SOURCE)
+    UTC_to_local = -(time_struct.tm_gmtoff);
+#elif defined(_WINDOWS)
+    long zone;
+    _get_timezone(&zone);
+    UTC_to_local = static_cast<time_t>(zone);
+#else
+    UTC_to_local = timezone;
+#endif
+
+    // tm_gmtoff already includes adjustment for daylight saving
+#if !defined(_ALLBSD_SOURCE) && !defined(_GNU_SOURCE)
+    // If daylight savings time is in effect,
+    // we are 1 hour East of our time zone
+    if (time_struct.tm_isdst > 0) {
+      UTC_to_local = UTC_to_local - seconds_per_hour;
+    }
+#endif
   }
 
   // Compute the time zone offset.
@@ -297,7 +290,7 @@ bool os::dll_locate_lib(char *buffer, size_t buflen,
   bool retval = false;
 
   size_t fullfnamelen = strlen(JNI_LIB_PREFIX) + strlen(fname) + strlen(JNI_LIB_SUFFIX);
-  char* fullfname = (char*)NEW_C_HEAP_ARRAY(char, fullfnamelen + 1, mtInternal);
+  char* fullfname = NEW_C_HEAP_ARRAY(char, fullfnamelen + 1, mtInternal);
   if (dll_build_name(fullfname, fullfnamelen + 1, fname)) {
     const size_t pnamelen = pname ? strlen(pname) : 0;
 
@@ -498,7 +491,7 @@ void os::initialize_jdk_signal_support(TRAPS) {
                             thread_oop,
                             CHECK);
 
-    { MutexLocker mu(Threads_lock);
+    { MutexLocker mu(THREAD, Threads_lock);
       JavaThread* signal_thread = new JavaThread(&signal_thread_entry);
 
       // At this point it may be possible that no osthread was created for the
@@ -541,14 +534,6 @@ void* os::native_java_library() {
   if (_native_java_library == NULL) {
     char buffer[JVM_MAXPATHLEN];
     char ebuf[1024];
-
-    // Try to load verify dll first. In 1.3 java dll depends on it and is not
-    // always able to find it when the loading executable is outside the JDK.
-    // In order to keep working with 1.2 we ignore any loading errors.
-    if (dll_locate_lib(buffer, sizeof(buffer), Arguments::get_dll_dir(),
-                       "verify")) {
-      dll_load(buffer, ebuf, sizeof(ebuf));
-    }
 
     // Load java dll
     if (dll_locate_lib(buffer, sizeof(buffer), Arguments::get_dll_dir(),
@@ -682,7 +667,7 @@ static bool has_reached_max_malloc_test_peak(size_t alloc_size) {
     if ((cur_malloc_words + words) > MallocMaxTestWords) {
       return true;
     }
-    Atomic::add(words, &cur_malloc_words);
+    Atomic::add(&cur_malloc_words, words);
   }
   return false;
 }
@@ -769,8 +754,8 @@ void* os::realloc(void *memblock, size_t size, MEMFLAGS memflags, const NativeCa
   NOT_PRODUCT(inc_stat_counter(&num_mallocs, 1));
   NOT_PRODUCT(inc_stat_counter(&alloc_bytes, size));
    // NMT support
-  void* membase = MemTracker::record_free(memblock);
   NMT_TrackingLevel level = MemTracker::tracking_level();
+  void* membase = MemTracker::record_free(memblock, level);
   size_t  nmt_header_size = MemTracker::malloc_header_size(level);
   void* ptr = ::realloc(membase, size + nmt_header_size);
   return MemTracker::record_malloc(ptr, size, memflags, stack, level);
@@ -802,7 +787,7 @@ void* os::realloc(void *memblock, size_t size, MEMFLAGS memflags, const NativeCa
 #endif
 }
 
-
+// handles NULL pointers
 void  os::free(void *memblock) {
   NOT_PRODUCT(inc_stat_counter(&num_frees, 1));
 #ifdef ASSERT
@@ -811,7 +796,7 @@ void  os::free(void *memblock) {
     log_warning(malloc, free)("os::free caught " PTR_FORMAT, p2i(memblock));
     breakpoint();
   }
-  void* membase = MemTracker::record_free(memblock);
+  void* membase = MemTracker::record_free(memblock, MemTracker::tracking_level());
   verify_memory(membase);
 
   GuardedMemory guarded(membase);
@@ -820,7 +805,7 @@ void  os::free(void *memblock) {
   membase = guarded.release_for_freeing();
   ::free(membase);
 #else
-  void* membase = MemTracker::record_free(memblock);
+  void* membase = MemTracker::record_free(memblock, MemTracker::tracking_level());
   ::free(membase);
 #endif
 }
@@ -830,7 +815,7 @@ void os::init_random(unsigned int initval) {
 }
 
 
-static int random_helper(unsigned int rand_seed) {
+int os::next_random(unsigned int rand_seed) {
   /* standard, well-known linear congruential random generator with
    * next_rand = (16807*seed) mod (2**31-1)
    * see
@@ -868,8 +853,8 @@ int os::random() {
   // Make updating the random seed thread safe.
   while (true) {
     unsigned int seed = _rand_seed;
-    unsigned int rand = random_helper(seed);
-    if (Atomic::cmpxchg(rand, &_rand_seed, seed) == seed) {
+    unsigned int rand = next_random(seed);
+    if (Atomic::cmpxchg(&_rand_seed, seed, rand) == seed) {
       return static_cast<int>(rand);
     }
   }
@@ -942,6 +927,14 @@ void os::print_hex_dump(outputStream* st, address start, address end, int unitsi
   st->cr();
 }
 
+void os::print_dhm(outputStream* st, const char* startStr, long sec) {
+  long days    = sec/86400;
+  long hours   = (sec/3600) - (days * 24);
+  long minutes = (sec/60) - (days * 1440) - (hours * 60);
+  if (startStr == NULL) startStr = "";
+  st->print_cr("%s %ld days %ld:%02ld hours", startStr, days, hours, minutes);
+}
+
 void os::print_instructions(outputStream* st, address pc, int unitsize) {
   st->print_cr("Instructions: (pc=" PTR_FORMAT ")", p2i(pc));
   print_hex_dump(st, pc - 256, pc + 256, unitsize);
@@ -965,7 +958,7 @@ void os::print_environment_variables(outputStream* st, const char** env_list) {
 void os::print_cpu_info(outputStream* st, char* buf, size_t buflen) {
   // cpu
   st->print("CPU:");
-  st->print("total %d", os::processor_count());
+  st->print(" total %d", os::processor_count());
   // It's not safe to query number of active processors after crash
   // st->print("(active %d)", os::active_processor_count()); but we can
   // print the initial number of active processors.
@@ -1022,10 +1015,9 @@ void os::print_date_and_time(outputStream *st, char* buf, size_t buflen) {
   }
 
   double t = os::elapsedTime();
-  // NOTE: It tends to crash after a SEGV if we want to printf("%f",...) in
-  //       Linux. Must be a bug in glibc ? Workaround is to round "t" to int
-  //       before printf. We lost some precision, but who cares?
+  // NOTE: a crash using printf("%f",...) on Linux was historically noted here.
   int eltime = (int)t;  // elapsed time in seconds
+  int eltimeFraction = (int) ((t - eltime) * 1000000);
 
   // print elapsed time in a human-readable format:
   int eldays = eltime / secs_per_day;
@@ -1035,7 +1027,7 @@ void os::print_date_and_time(outputStream *st, char* buf, size_t buflen) {
   int elmins = (eltime - day_secs - hour_secs) / secs_per_min;
   int minute_secs = elmins * secs_per_min;
   int elsecs = (eltime - day_secs - hour_secs - minute_secs);
-  st->print_cr(" elapsed time: %d seconds (%dd %dh %dm %ds)", eltime, eldays, elhours, elmins, elsecs);
+  st->print_cr(" elapsed time: %d.%06d seconds (%dd %dh %dm %ds)", eltime, eltimeFraction, eldays, elhours, elmins, elsecs);
 }
 
 
@@ -1120,7 +1112,7 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
     }
     // If the addr is in the stack region for this thread then report that
     // and print thread info
-    if (thread->on_local_stack(addr)) {
+    if (thread->is_in_full_stack(addr)) {
       st->print_cr(INTPTR_FORMAT " is pointing into the stack for thread: "
                    INTPTR_FORMAT, p2i(addr), p2i(thread));
       if (verbose) thread->print_on(st);
@@ -1164,6 +1156,9 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
 
   if (accessible) {
     st->print(INTPTR_FORMAT " points into unknown readable memory:", p2i(addr));
+    if (is_aligned(addr, sizeof(intptr_t))) {
+      st->print(" " PTR_FORMAT " |", *(intptr_t*)addr);
+    }
     for (address p = addr; p < align_up(addr + 1, sizeof(intptr_t)); ++p) {
       st->print(" %02x", *(u1*)p);
     }
@@ -1230,9 +1225,6 @@ char* os::format_boot_path(const char* format_string,
     }
 
     char* formatted_path = NEW_C_HEAP_ARRAY(char, formatted_path_len + 1, mtInternal);
-    if (formatted_path == NULL) {
-        return NULL;
-    }
 
     // Create boot classpath from format, substituting separator chars and
     // java home directory.
@@ -1335,10 +1327,7 @@ char** os::split_path(const char* path, size_t* elements, size_t file_name_lengt
     return NULL;
   }
   const char psepchar = *os::path_separator();
-  char* inpath = (char*)NEW_C_HEAP_ARRAY(char, strlen(path) + 1, mtInternal);
-  if (inpath == NULL) {
-    return NULL;
-  }
+  char* inpath = NEW_C_HEAP_ARRAY(char, strlen(path) + 1, mtInternal);
   strcpy(inpath, path);
   size_t count = 1;
   char* p = strchr(inpath, psepchar);
@@ -1348,7 +1337,8 @@ char** os::split_path(const char* path, size_t* elements, size_t file_name_lengt
     p++;
     p = strchr(p, psepchar);
   }
-  char** opath = (char**) NEW_C_HEAP_ARRAY(char*, count, mtInternal);
+
+  char** opath = NEW_C_HEAP_ARRAY(char*, count, mtInternal);
 
   // do the actual splitting
   p = inpath;
@@ -1362,12 +1352,7 @@ char** os::split_path(const char* path, size_t* elements, size_t file_name_lengt
                                     "sun.boot.library.path, to identify potential sources for this path.");
     }
     // allocate the string and add terminator storage
-    char* s  = (char*)NEW_C_HEAP_ARRAY_RETURN_NULL(char, len + 1, mtInternal);
-    if (s == NULL) {
-      // release allocated storage before returning null
-      free_array_of_char_arrays(opath, i++);
-      return NULL;
-    }
+    char* s = NEW_C_HEAP_ARRAY(char, len + 1, mtInternal);
     strncpy(s, p, len);
     s[len] = '\0';
     opath[i] = s;
@@ -1390,7 +1375,7 @@ bool os::stack_shadow_pages_available(Thread *thread, const methodHandle& method
   const int framesize_in_bytes =
     Interpreter::size_top_interpreter_activation(method()) * wordSize;
 
-  address limit = ((JavaThread*)thread)->stack_end() +
+  address limit = thread->as_Java_thread()->stack_end() +
                   (JavaThread::stack_guard_zone_size() + JavaThread::stack_shadow_zone_size());
 
   return sp > (limit + framesize_in_bytes);
@@ -1667,56 +1652,52 @@ bool os::create_stack_guard_pages(char* addr, size_t bytes) {
   return os::pd_create_stack_guard_pages(addr, bytes);
 }
 
-char* os::reserve_memory(size_t bytes, char* addr, size_t alignment_hint, int file_desc) {
-  char* result = NULL;
+char* os::reserve_memory(size_t bytes, size_t alignment_hint, MEMFLAGS flags) {
+  char* result = pd_reserve_memory(bytes, alignment_hint);
+  if (result != NULL) {
+    MemTracker::record_virtual_memory_reserve(result, bytes, CALLER_PC);
+    if (flags != mtOther) {
+      MemTracker::record_virtual_memory_type(result, flags);
+    }
+  }
+
+  return result;
+}
+
+char* os::reserve_memory_with_fd(size_t bytes, size_t alignment_hint, int file_desc) {
+  char* result;
 
   if (file_desc != -1) {
     // Could have called pd_reserve_memory() followed by replace_existing_mapping_with_file_mapping(),
     // but AIX may use SHM in which case its more trouble to detach the segment and remap memory to the file.
-    result = os::map_memory_to_file(addr, bytes, file_desc);
+    result = os::map_memory_to_file(NULL /* addr */, bytes, file_desc);
     if (result != NULL) {
-      MemTracker::record_virtual_memory_reserve_and_commit((address)result, bytes, CALLER_PC);
+      MemTracker::record_virtual_memory_reserve_and_commit(result, bytes, CALLER_PC);
     }
   } else {
-    result = pd_reserve_memory(bytes, addr, alignment_hint);
+    result = pd_reserve_memory(bytes, alignment_hint);
     if (result != NULL) {
-      MemTracker::record_virtual_memory_reserve((address)result, bytes, CALLER_PC);
+      MemTracker::record_virtual_memory_reserve(result, bytes, CALLER_PC);
     }
   }
 
   return result;
 }
 
-char* os::reserve_memory(size_t bytes, char* addr, size_t alignment_hint,
-   MEMFLAGS flags) {
-  char* result = pd_reserve_memory(bytes, addr, alignment_hint);
-  if (result != NULL) {
-    MemTracker::record_virtual_memory_reserve((address)result, bytes, CALLER_PC);
-    MemTracker::record_virtual_memory_type((address)result, flags);
-  }
-
-  return result;
-}
-
-char* os::attempt_reserve_memory_at(size_t bytes, char* addr, int file_desc) {
+char* os::attempt_reserve_memory_at(char* addr, size_t bytes, int file_desc) {
   char* result = NULL;
   if (file_desc != -1) {
-    result = pd_attempt_reserve_memory_at(bytes, addr, file_desc);
+    result = pd_attempt_reserve_memory_at(addr, bytes, file_desc);
     if (result != NULL) {
       MemTracker::record_virtual_memory_reserve_and_commit((address)result, bytes, CALLER_PC);
     }
   } else {
-    result = pd_attempt_reserve_memory_at(bytes, addr);
+    result = pd_attempt_reserve_memory_at(addr, bytes);
     if (result != NULL) {
       MemTracker::record_virtual_memory_reserve((address)result, bytes, CALLER_PC);
     }
   }
   return result;
-}
-
-void os::split_reserved_memory(char *base, size_t size,
-                                 size_t split, bool realloc) {
-  pd_split_reserved_memory(base, size, split, realloc);
 }
 
 bool os::commit_memory(char* addr, size_t bytes, bool executable) {
@@ -1765,6 +1746,7 @@ bool os::uncommit_memory(char* addr, size_t bytes) {
 bool os::release_memory(char* addr, size_t bytes) {
   bool res;
   if (MemTracker::tracking_level() > NMT_minimal) {
+    // Note: Tracker contains a ThreadCritical.
     Tracker tkr(Tracker::release);
     res = pd_release_memory(addr, bytes);
     if (res) {
@@ -1784,10 +1766,10 @@ void os::pretouch_memory(void* start, void* end, size_t page_size) {
 
 char* os::map_memory(int fd, const char* file_name, size_t file_offset,
                            char *addr, size_t bytes, bool read_only,
-                           bool allow_exec) {
+                           bool allow_exec, MEMFLAGS flags) {
   char* result = pd_map_memory(fd, file_name, file_offset, addr, bytes, read_only, allow_exec);
   if (result != NULL) {
-    MemTracker::record_virtual_memory_reserve_and_commit((address)result, bytes, CALLER_PC);
+    MemTracker::record_virtual_memory_reserve_and_commit((address)result, bytes, CALLER_PC, flags);
   }
   return result;
 }
@@ -1821,6 +1803,35 @@ void os::realign_memory(char *addr, size_t bytes, size_t alignment_hint) {
   pd_realign_memory(addr, bytes, alignment_hint);
 }
 
+char* os::reserve_memory_special(size_t size, size_t alignment,
+                                 char* addr, bool executable) {
+
+  assert(is_aligned(addr, alignment), "Unaligned request address");
+
+  char* result = pd_reserve_memory_special(size, alignment, addr, executable);
+  if (result != NULL) {
+    // The memory is committed
+    MemTracker::record_virtual_memory_reserve_and_commit((address)result, size, CALLER_PC);
+  }
+
+  return result;
+}
+
+bool os::release_memory_special(char* addr, size_t bytes) {
+  bool res;
+  if (MemTracker::tracking_level() > NMT_minimal) {
+    // Note: Tracker contains a ThreadCritical.
+    Tracker tkr(Tracker::release);
+    res = pd_release_memory_special(addr, bytes);
+    if (res) {
+      tkr.record((address)addr, bytes);
+    }
+  } else {
+    res = pd_release_memory_special(addr, bytes);
+  }
+  return res;
+}
+
 #ifndef _WINDOWS
 /* try to switch state from state "from" to state "to"
  * returns the state set after the method is complete
@@ -1828,7 +1839,7 @@ void os::realign_memory(char *addr, size_t bytes, size_t alignment_hint) {
 os::SuspendResume::State os::SuspendResume::switch_state(os::SuspendResume::State from,
                                                          os::SuspendResume::State to)
 {
-  os::SuspendResume::State result = Atomic::cmpxchg(to, &_state, from);
+  os::SuspendResume::State result = Atomic::cmpxchg(&_state, from, to);
   if (result == from) {
     // success
     return to;
@@ -1836,3 +1847,15 @@ os::SuspendResume::State os::SuspendResume::switch_state(os::SuspendResume::Stat
   return result;
 }
 #endif
+
+// Convenience wrapper around naked_short_sleep to allow for longer sleep
+// times. Only for use by non-JavaThreads.
+void os::naked_sleep(jlong millis) {
+  assert(!Thread::current()->is_Java_thread(), "not for use by JavaThreads");
+  const jlong limit = 999;
+  while (millis > limit) {
+    naked_short_sleep(limit);
+    millis -= limit;
+  }
+  naked_short_sleep(millis);
+}

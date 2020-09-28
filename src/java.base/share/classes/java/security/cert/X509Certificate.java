@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -141,8 +141,8 @@ implements X509Extension {
      *     generalTime    GeneralizedTime }
      * </pre>
      *
-     * @exception CertificateExpiredException if the certificate has expired.
-     * @exception CertificateNotYetValidException if the certificate is not
+     * @throws    CertificateExpiredException if the certificate has expired.
+     * @throws    CertificateNotYetValidException if the certificate is not
      * yet valid.
      */
     public abstract void checkValidity()
@@ -156,9 +156,9 @@ implements X509Extension {
      * @param date the Date to check against to see if this certificate
      *        is valid at that date/time.
      *
-     * @exception CertificateExpiredException if the certificate has expired
+     * @throws    CertificateExpiredException if the certificate has expired
      * with respect to the {@code date} supplied.
-     * @exception CertificateNotYetValidException if the certificate is not
+     * @throws    CertificateNotYetValidException if the certificate is not
      * yet valid with respect to the {@code date} supplied.
      *
      * @see #checkValidity()
@@ -197,12 +197,6 @@ implements X509Extension {
     public abstract BigInteger getSerialNumber();
 
     /**
-     * <strong>Denigrated</strong>, replaced by {@linkplain
-     * #getIssuerX500Principal()}. This method returns the {@code issuer}
-     * as an implementation specific Principal object, which should not be
-     * relied upon by portable code.
-     *
-     * <p>
      * Gets the {@code issuer} (issuer distinguished name) value from
      * the certificate. The issuer name identifies the entity that signed (and
      * issued) the certificate.
@@ -234,7 +228,13 @@ implements X509Extension {
      * {@code TeletexString} or {@code UniversalString}.
      *
      * @return a Principal whose name is the issuer distinguished name.
+     *
+     * @deprecated Use {@link #getIssuerX500Principal} instead. This method
+     * returns the {@code issuer} as an implementation specific
+     * {@code Principal} object, which should not be relied upon by portable
+     * code.
      */
+    @Deprecated(since="16")
     public abstract Principal getIssuerDN();
 
     /**
@@ -255,12 +255,6 @@ implements X509Extension {
     }
 
     /**
-     * <strong>Denigrated</strong>, replaced by {@linkplain
-     * #getSubjectX500Principal()}. This method returns the {@code subject}
-     * as an implementation specific Principal object, which should not be
-     * relied upon by portable code.
-     *
-     * <p>
      * Gets the {@code subject} (subject distinguished name) value
      * from the certificate.  If the {@code subject} value is empty,
      * then the {@code getName()} method of the returned
@@ -275,7 +269,13 @@ implements X509Extension {
      * and other relevant definitions.
      *
      * @return a Principal whose name is the subject name.
+     *
+     * @deprecated Use {@link #getSubjectX500Principal} instead. This method
+     * returns the {@code subject} as an implementation specific
+     * {@code Principal} object, which should not be relied upon by portable
+     * code.
      */
+    @Deprecated(since="16")
     public abstract Principal getSubjectDN();
 
     /**
@@ -334,7 +334,7 @@ implements X509Extension {
      * This can be used to verify the signature independently.
      *
      * @return the DER-encoded certificate information.
-     * @exception CertificateEncodingException if an encoding error occurs.
+     * @throws    CertificateEncodingException if an encoding error occurs.
      */
     public abstract byte[] getTBSCertificate()
         throws CertificateEncodingException;
@@ -666,12 +666,12 @@ implements X509Extension {
      * @param key the PublicKey used to carry out the verification.
      * @param sigProvider the signature provider.
      *
-     * @exception NoSuchAlgorithmException on unsupported signature
+     * @throws    NoSuchAlgorithmException on unsupported signature
      * algorithms.
-     * @exception InvalidKeyException on incorrect key.
-     * @exception SignatureException on signature errors.
-     * @exception CertificateException on encoding errors.
-     * @exception UnsupportedOperationException if the method is not supported
+     * @throws    InvalidKeyException on incorrect key.
+     * @throws    SignatureException on signature errors.
+     * @throws    CertificateException on encoding errors.
+     * @throws    UnsupportedOperationException if the method is not supported
      * @since 1.8
      */
     public void verify(PublicKey key, Provider sigProvider)

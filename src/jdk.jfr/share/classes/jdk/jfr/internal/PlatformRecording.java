@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -83,12 +83,14 @@ public final class PlatformRecording implements AutoCloseable {
     private TimerTask stopTask;
     private TimerTask startTask;
     private AccessControlContext noDestinationDumpOnExitAccessControlContext;
-    private boolean shuoldWriteActiveRecordingEvent = true;
+    private boolean shouldWriteActiveRecordingEvent = true;
+    private Duration flushInterval = Duration.ofSeconds(1);
+    private long finalStartChunkNanos = Long.MIN_VALUE;
 
     PlatformRecording(PlatformRecorder recorder, long id) {
         // Typically the access control context is taken
-        // when you call dump(Path) or setDdestination(Path),
-        // but if no destination is set and dumponexit=true
+        // when you call dump(Path) or setDestination(Path),
+        // but if no destination is set and dumpOnExit=true
         // the control context of the recording is taken when the
         // Recording object is constructed. This works well for
         // -XX:StartFlightRecording and JFR.dump
@@ -98,9 +100,10 @@ public final class PlatformRecording implements AutoCloseable {
         this.name = String.valueOf(id);
     }
 
-    public void start() {
+    public long start() {
         RecordingState oldState;
         RecordingState newState;
+        long startNanos = -1;
         synchronized (recorder) {
             oldState = getState();
             if (!Utils.isBefore(state, RecordingState.RUNNING)) {
@@ -111,8 +114,8 @@ public final class PlatformRecording implements AutoCloseable {
                 startTask = null;
                 startTime = null;
             }
-            recorder.start(this);
-            Logger.log(LogTag.JFR, LogLevel.INFO, () -> {
+            startNanos = recorder.start(this);
+            if (Logger.shouldLog(LogTag.JFR, LogLevel.INFO)) {
                 // Only print non-default values so it easy to see
                 // which options were added
                 StringJoiner options = new StringJoiner(", ");
@@ -138,11 +141,14 @@ public final class PlatformRecording implements AutoCloseable {
                 if (optionText.length() != 0) {
                     optionText = "{" + optionText + "}";
                 }
-                return "Started recording \"" + getName() + "\" (" + getId() + ") " + optionText;
-            });
+                Logger.log(LogTag.JFR, LogLevel.INFO,
+                        "Started recording \"" + getName() + "\" (" + getId() + ") " + optionText);
+            };
             newState = getState();
         }
         notifyIfStateChanged(oldState, newState);
+
+        return startNanos;
     }
 
     public boolean stop(String reason) {
@@ -185,14 +191,20 @@ public final class PlatformRecording implements AutoCloseable {
             LocalDateTime now = LocalDateTime.now().plus(delay);
             setState(RecordingState.DELAYED);
             startTask = createStartTask();
-            recorder.getTimer().schedule(startTask, delay.toMillis());
-            Logger.log(LogTag.JFR, LogLevel.INFO, "Scheduled recording \"" + getName() + "\" (" + getId() + ") to start at " + now);
+            try {
+                recorder.getTimer().schedule(startTask, delay.toMillis());
+                Logger.log(LogTag.JFR, LogLevel.INFO, "Scheduled recording \"" + getName() + "\" (" + getId() + ") to start at " + now);
+            } catch (IllegalStateException ise) {
+                // This can happen in the unlikely case that a recording
+                // is scheduled after the Timer has been cancelled in
+                // the shutdown hook. Just ignore.
+            }
         }
     }
 
     private void ensureOkForSchedule() {
         if (getState() != RecordingState.NEW) {
-            throw new IllegalStateException("Only a new recoridng can be scheduled for start");
+            throw new IllegalStateException("Only a new recording can be scheduled for start");
         }
     }
 
@@ -366,10 +378,16 @@ public final class PlatformRecording implements AutoCloseable {
 
     public void setDestination(WriteableUserPath userSuppliedPath) throws IOException {
         synchronized (recorder) {
+            checkSetDestination(userSuppliedPath);
+            this.destination = userSuppliedPath;
+        }
+    }
+
+    public void checkSetDestination(WriteableUserPath userSuppliedPath) throws IOException {
+        synchronized (recorder) {
             if (Utils.isState(getState(), RecordingState.STOPPED, RecordingState.CLOSED)) {
                 throw new IllegalStateException("Destination can't be set on a recording that has been stopped/closed");
             }
-            this.destination = userSuppliedPath;
         }
     }
 
@@ -474,7 +492,10 @@ public final class PlatformRecording implements AutoCloseable {
         }
         for (FlightRecorderListener cl : PlatformRecorder.getListeners()) {
             try {
-                cl.recordingStateChanged(getRecording());
+                // Skip internal recordings
+                if (recording != null) {
+                    cl.recordingStateChanged(recording);
+                }
             } catch (RuntimeException re) {
                 Logger.log(JFR, WARN, "Error notifying recorder listener:" + re.getMessage());
             }
@@ -556,12 +577,16 @@ public final class PlatformRecording implements AutoCloseable {
     private void added(RepositoryChunk c) {
         c.use();
         size += c.getSize();
-        Logger.log(JFR, DEBUG, () -> "Recording \"" + name + "\" (" + id + ") added chunk " + c.toString() + ", current size=" + size);
+        if (Logger.shouldLog(JFR, DEBUG)) {
+            Logger.log(JFR, DEBUG, "Recording \"" + name + "\" (" + id + ") added chunk " + c.toString() + ", current size=" + size);
+        }
     }
 
     private void removed(RepositoryChunk c) {
         size -= c.getSize();
-        Logger.log(JFR, DEBUG, () -> "Recording \"" + name + "\" (" + id + ") removed chunk " + c.toString() + ", current size=" + size);
+        if (Logger.shouldLog(JFR, DEBUG)) {
+            Logger.log(JFR, DEBUG, "Recording \"" + name + "\" (" + id + ") removed chunk " + c.toString() + ", current size=" + size);
+        }
         c.release();
     }
 
@@ -662,11 +687,11 @@ public final class PlatformRecording implements AutoCloseable {
     }
 
     void setShouldWriteActiveRecordingEvent(boolean shouldWrite) {
-        this.shuoldWriteActiveRecordingEvent = shouldWrite;
+        this.shouldWriteActiveRecordingEvent = shouldWrite;
     }
 
     boolean shouldWriteMetadataEvent() {
-        return shuoldWriteActiveRecordingEvent;
+        return shouldWriteActiveRecordingEvent;
     }
 
     // Dump running and stopped recordings
@@ -680,7 +705,7 @@ public final class PlatformRecording implements AutoCloseable {
 
     public void dumpStopped(WriteableUserPath userPath) throws IOException {
         synchronized (recorder) {
-                userPath.doPriviligedIO(() -> {
+                userPath.doPrivilegedIO(() -> {
                     try (ChunksChannel cc = new ChunksChannel(chunks); FileChannel fc = FileChannel.open(userPath.getReal(), StandardOpenOption.WRITE, StandardOpenOption.APPEND)) {
                         cc.transferTo(fc);
                         fc.force(true);
@@ -773,5 +798,37 @@ public final class PlatformRecording implements AutoCloseable {
 
     public SafePath getDumpOnExitDirectory()  {
         return this.dumpOnExitDirectory;
+    }
+
+    public void setFlushInterval(Duration interval) {
+        synchronized (recorder) {
+            if (getState() == RecordingState.CLOSED) {
+                throw new IllegalStateException("Can't set stream interval when recording is closed");
+            }
+            this.flushInterval = interval;
+        }
+    }
+
+    public Duration getFlushInterval() {
+        synchronized (recorder) {
+            return flushInterval;
+        }
+    }
+
+    public long getStreamIntervalMillis() {
+        synchronized (recorder) {
+            if (flushInterval != null) {
+                return flushInterval.toMillis();
+            }
+            return Long.MAX_VALUE;
+        }
+    }
+
+    public long getFinalChunkStartNanos() {
+        return finalStartChunkNanos;
+    }
+
+    public void setFinalStartnanos(long chunkStartNanos) {
+       this.finalStartChunkNanos = chunkStartNanos;
     }
 }

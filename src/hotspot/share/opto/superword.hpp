@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -359,16 +359,19 @@ class SuperWord : public ResourceObj {
   void set_bb_idx(Node* n, int i) { _bb_idx.at_put_grow(n->_idx, i); }
 
   // visited set accessors
-  void visited_clear()           { _visited.Clear(); }
+  void visited_clear()           { _visited.clear(); }
   void visited_set(Node* n)      { return _visited.set(bb_idx(n)); }
   int visited_test(Node* n)      { return _visited.test(bb_idx(n)); }
   int visited_test_set(Node* n)  { return _visited.test_set(bb_idx(n)); }
-  void post_visited_clear()      { _post_visited.Clear(); }
+  void post_visited_clear()      { _post_visited.clear(); }
   void post_visited_set(Node* n) { return _post_visited.set(bb_idx(n)); }
   int post_visited_test(Node* n) { return _post_visited.test(bb_idx(n)); }
 
   // Ensure node_info contains element "i"
   void grow_node_info(int i) { if (i >= _node_info.length()) _node_info.at_put_grow(i, SWNodeInfo::initial); }
+
+  // should we align vector memory references on this platform?
+  bool vectors_should_be_aligned() { return !Matcher::misaligned_vectors_ok() || AlignVector; }
 
   // memory alignment for a node
   int alignment(Node* n)                     { return _node_info.adr_at(bb_idx(n))->_alignment; }
@@ -408,7 +411,7 @@ class SuperWord : public ResourceObj {
   void print_loop(bool whole);
   #endif
   // Find a memory reference to align the loop induction variable to.
-  MemNode* find_align_to_ref(Node_List &memops);
+  MemNode* find_align_to_ref(Node_List &memops, int &idx);
   // Calculate loop's iv adjustment for this memory ops.
   int get_iv_adjustment(MemNode* mem);
   // Can the preloop align the reference to position zero in the vector?
@@ -481,6 +484,10 @@ class SuperWord : public ResourceObj {
   // Within a store pack, schedule stores together by moving out the sandwiched memory ops according
   // to dependence info; and within a load pack, move loads down to the last executed load.
   void co_locate_pack(Node_List* p);
+  Node* pick_mem_state(Node_List* pk);
+  Node* find_first_mem_state(Node_List* pk);
+  Node* find_last_mem_state(Node_List* pk, Node* first_mem);
+
   // Convert packs into vector node operations
   void output();
   // Create a vector operand for the nodes in pack p for operand: in(opd_idx)

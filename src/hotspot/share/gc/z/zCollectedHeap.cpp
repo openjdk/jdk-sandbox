@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,24 +23,25 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
-#include "gc/shared/locationPrinter.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/z/zCollectedHeap.hpp"
+#include "gc/z/zDirector.hpp"
+#include "gc/z/zDriver.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zNMethod.hpp"
 #include "gc/z/zObjArrayAllocator.hpp"
+#include "gc/z/zOop.inline.hpp"
 #include "gc/z/zServiceability.hpp"
 #include "gc/z/zStat.hpp"
 #include "gc/z/zUtils.inline.hpp"
+#include "memory/iterator.hpp"
 #include "memory/universe.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "utilities/align.hpp"
 
 ZCollectedHeap* ZCollectedHeap::heap() {
-  CollectedHeap* heap = Universe::heap();
-  assert(heap != NULL, "Uninitialized access to ZCollectedHeap::heap()");
-  assert(heap->kind() == CollectedHeap::Z, "Invalid name");
-  return (ZCollectedHeap*)heap;
+  return named_heap<ZCollectedHeap>(CollectedHeap::Z);
 }
 
 ZCollectedHeap::ZCollectedHeap() :
@@ -50,7 +51,6 @@ ZCollectedHeap::ZCollectedHeap() :
     _heap(),
     _director(new ZDirector()),
     _driver(new ZDriver()),
-    _uncommitter(new ZUncommitter()),
     _stat(new ZStat()),
     _runtime_workers() {}
 
@@ -67,8 +67,7 @@ jint ZCollectedHeap::initialize() {
     return JNI_ENOMEM;
   }
 
-  initialize_reserved_region((HeapWord*)ZAddressReservedStart,
-                             (HeapWord*)ZAddressReservedEnd);
+  Universe::calculate_verify_data((HeapWord*)0, (HeapWord*)UINTPTR_MAX);
 
   return JNI_OK;
 }
@@ -77,11 +76,19 @@ void ZCollectedHeap::initialize_serviceability() {
   _heap.serviceability_initialize();
 }
 
+class ZStopConcurrentGCThreadClosure : public ThreadClosure {
+public:
+  virtual void do_thread(Thread* thread) {
+    if (thread->is_ConcurrentGC_thread() &&
+        !thread->is_GC_task_thread()) {
+      static_cast<ConcurrentGCThread*>(thread)->stop();
+    }
+  }
+};
+
 void ZCollectedHeap::stop() {
-  _director->stop();
-  _driver->stop();
-  _uncommitter->stop();
-  _stat->stop();
+  ZStopConcurrentGCThreadClosure cl;
+  gc_threads_do(&cl);
 }
 
 SoftRefPolicy* ZCollectedHeap::soft_ref_policy() {
@@ -115,7 +122,7 @@ bool ZCollectedHeap::is_in(const void* p) const {
 }
 
 uint32_t ZCollectedHeap::hash_oop(oop obj) const {
-  return _heap.hash_oop(obj);
+  return _heap.hash_oop(ZOop::to_address(obj));
 }
 
 HeapWord* ZCollectedHeap::allocate_new_tlab(size_t min_size, size_t requested_size, size_t* actual_size) {
@@ -198,10 +205,6 @@ void ZCollectedHeap::do_full_collection(bool clear_all_soft_refs) {
   ShouldNotReachHere();
 }
 
-bool ZCollectedHeap::supports_tlab_allocation() const {
-  return true;
-}
-
 size_t ZCollectedHeap::tlab_capacity(Thread* ignored) const {
   return _heap.tlab_capacity();
 }
@@ -218,22 +221,6 @@ size_t ZCollectedHeap::unsafe_max_tlab_alloc(Thread* ignored) const {
   return _heap.unsafe_max_tlab_alloc();
 }
 
-bool ZCollectedHeap::can_elide_tlab_store_barriers() const {
-  return false;
-}
-
-bool ZCollectedHeap::can_elide_initializing_store_barrier(oop new_obj) {
-  // Not supported
-  ShouldNotReachHere();
-  return true;
-}
-
-bool ZCollectedHeap::card_mark_must_follow_store() const {
-  // Not supported
-  ShouldNotReachHere();
-  return false;
-}
-
 GrowableArray<GCMemoryManager*> ZCollectedHeap::memory_managers() {
   return GrowableArray<GCMemoryManager*>(1, 1, _heap.serviceability_memory_manager());
 }
@@ -246,8 +233,8 @@ void ZCollectedHeap::object_iterate(ObjectClosure* cl) {
   _heap.object_iterate(cl, true /* visit_weaks */);
 }
 
-void ZCollectedHeap::safe_object_iterate(ObjectClosure* cl) {
-  _heap.object_iterate(cl, true /* visit_weaks */);
+void ZCollectedHeap::keep_alive(oop obj) {
+  _heap.keep_alive(obj);
 }
 
 void ZCollectedHeap::register_nmethod(nmethod* nm) {
@@ -266,29 +253,20 @@ void ZCollectedHeap::verify_nmethod(nmethod* nm) {
   // Does nothing
 }
 
-WorkGang* ZCollectedHeap::get_safepoint_workers() {
+WorkGang* ZCollectedHeap::safepoint_workers() {
   return _runtime_workers.workers();
-}
-
-jlong ZCollectedHeap::millis_since_last_gc() {
-  return ZStatCycle::time_since_last() / MILLIUNITS;
 }
 
 void ZCollectedHeap::gc_threads_do(ThreadClosure* tc) const {
   tc->do_thread(_director);
   tc->do_thread(_driver);
-  tc->do_thread(_uncommitter);
   tc->do_thread(_stat);
-  _heap.worker_threads_do(tc);
+  _heap.threads_do(tc);
   _runtime_workers.threads_do(tc);
 }
 
 VirtualSpaceSummary ZCollectedHeap::create_heap_space_summary() {
-  const size_t capacity_in_words = capacity() / HeapWordSize;
-  const size_t max_capacity_in_words = max_capacity() / HeapWordSize;
-  return VirtualSpaceSummary(reserved_region().start(),
-                             reserved_region().start() + capacity_in_words,
-                             reserved_region().start() + max_capacity_in_words);
+  return VirtualSpaceSummary((HeapWord*)0, (HeapWord*)capacity(), (HeapWord*)max_capacity());
 }
 
 void ZCollectedHeap::safepoint_synchronize_begin() {
@@ -308,41 +286,28 @@ void ZCollectedHeap::print_on(outputStream* st) const {
 }
 
 void ZCollectedHeap::print_on_error(outputStream* st) const {
+  st->print_cr("ZGC Globals:");
+  st->print_cr(" GlobalPhase:       %u (%s)", ZGlobalPhase, ZGlobalPhaseToString());
+  st->print_cr(" GlobalSeqNum:      %u", ZGlobalSeqNum);
+  st->print_cr(" Offset Max:        " SIZE_FORMAT "%s (" PTR_FORMAT ")",
+               byte_size_in_exact_unit(ZAddressOffsetMax),
+               exact_unit_for_byte_size(ZAddressOffsetMax),
+               ZAddressOffsetMax);
+  st->print_cr(" Page Size Small:   " SIZE_FORMAT "M", ZPageSizeSmall / M);
+  st->print_cr(" Page Size Medium:  " SIZE_FORMAT "M", ZPageSizeMedium / M);
+  st->cr();
+  st->print_cr("ZGC Metadata Bits:");
+  st->print_cr(" Good:              " PTR_FORMAT, ZAddressGoodMask);
+  st->print_cr(" Bad:               " PTR_FORMAT, ZAddressBadMask);
+  st->print_cr(" WeakBad:           " PTR_FORMAT, ZAddressWeakBadMask);
+  st->print_cr(" Marked:            " PTR_FORMAT, ZAddressMetadataMarked);
+  st->print_cr(" Remapped:          " PTR_FORMAT, ZAddressMetadataRemapped);
+  st->cr();
   CollectedHeap::print_on_error(st);
-
-  st->print_cr("Address Space");
-  st->print_cr( "     Start:             " PTR_FORMAT, ZAddressSpaceStart);
-  st->print_cr( "     End:               " PTR_FORMAT, ZAddressSpaceEnd);
-  st->print_cr( "     Size:              " SIZE_FORMAT_W(-15) " (" PTR_FORMAT ")", ZAddressSpaceSize, ZAddressSpaceSize);
-  st->print_cr( "Heap");
-  st->print_cr( "     GlobalPhase:       %u", ZGlobalPhase);
-  st->print_cr( "     GlobalSeqNum:      %u", ZGlobalSeqNum);
-  st->print_cr( "     Offset Max:        " SIZE_FORMAT_W(-15) " (" PTR_FORMAT ")", ZAddressOffsetMax, ZAddressOffsetMax);
-  st->print_cr( "     Page Size Small:   " SIZE_FORMAT_W(-15) " (" PTR_FORMAT ")", ZPageSizeSmall, ZPageSizeSmall);
-  st->print_cr( "     Page Size Medium:  " SIZE_FORMAT_W(-15) " (" PTR_FORMAT ")", ZPageSizeMedium, ZPageSizeMedium);
-  st->print_cr( "Metadata Bits");
-  st->print_cr( "     Good:              " PTR_FORMAT, ZAddressGoodMask);
-  st->print_cr( "     Bad:               " PTR_FORMAT, ZAddressBadMask);
-  st->print_cr( "     WeakBad:           " PTR_FORMAT, ZAddressWeakBadMask);
-  st->print_cr( "     Marked:            " PTR_FORMAT, ZAddressMetadataMarked);
-  st->print_cr( "     Remapped:          " PTR_FORMAT, ZAddressMetadataRemapped);
 }
 
 void ZCollectedHeap::print_extended_on(outputStream* st) const {
   _heap.print_extended_on(st);
-}
-
-void ZCollectedHeap::print_gc_threads_on(outputStream* st) const {
-  _director->print_on(st);
-  st->cr();
-  _driver->print_on(st);
-  st->cr();
-  _uncommitter->print_on(st);
-  st->cr();
-  _stat->print_on(st);
-  st->cr();
-  _heap.print_worker_threads_on(st);
-  _runtime_workers.print_threads_on(st);
 }
 
 void ZCollectedHeap::print_tracing_info() const {
@@ -350,13 +315,7 @@ void ZCollectedHeap::print_tracing_info() const {
 }
 
 bool ZCollectedHeap::print_location(outputStream* st, void* addr) const {
-  if (LocationPrinter::is_valid_obj(addr)) {
-    st->print(INTPTR_FORMAT " is a %s oop: ", p2i(addr),
-              ZAddress::is_good(reinterpret_cast<uintptr_t>(addr)) ? "good" : "bad");
-    cast_to_oop(addr)->print_on(st);
-    return true;
-  }
-  return false;
+  return _heap.print_location(st, (uintptr_t)addr);
 }
 
 void ZCollectedHeap::verify(VerifyOption option /* ignored */) {
@@ -364,5 +323,9 @@ void ZCollectedHeap::verify(VerifyOption option /* ignored */) {
 }
 
 bool ZCollectedHeap::is_oop(oop object) const {
-  return CollectedHeap::is_oop(object) && _heap.is_oop(object);
+  return _heap.is_oop(ZOop::to_address(object));
+}
+
+bool ZCollectedHeap::supports_concurrent_gc_breakpoints() const {
+  return true;
 }

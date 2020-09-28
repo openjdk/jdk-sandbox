@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -244,18 +244,15 @@ public:
   bool is_at_poll_return(address pc);
   bool is_at_poll_or_poll_return(address pc);
 
-  bool  is_marked_for_deoptimization() const      { return _mark_for_deoptimization_status != not_marked; }
-  void  mark_for_deoptimization(bool inc_recompile_counts = true) {
-    _mark_for_deoptimization_status = (inc_recompile_counts ? deoptimize : deoptimize_noupdate);
-  }
+  bool  is_marked_for_deoptimization() const { return _mark_for_deoptimization_status != not_marked; }
+  void  mark_for_deoptimization(bool inc_recompile_counts = true);
+
   bool update_recompile_counts() const {
     // Update recompile counts when either the update is explicitly requested (deoptimize)
     // or the nmethod is not marked for deoptimization at all (not_marked).
     // The latter happens during uncommon traps when deoptimized nmethod is made not entrant.
     return _mark_for_deoptimization_status != deoptimize_noupdate;
   }
-
-  static bool nmethod_access_is_safe(nmethod* nm);
 
   // tells whether frames described by this nmethod can be deoptimized
   // note: native wrappers cannot be deoptimized.
@@ -331,7 +328,7 @@ public:
   // Deopt
   // Return true is the PC is one would expect if the frame is being deopted.
   inline bool is_deopt_pc(address pc);
-  bool is_deopt_mh_entry(address pc) { return pc == deopt_mh_handler_begin(); }
+  inline bool is_deopt_mh_entry(address pc);
   inline bool is_deopt_entry(address pc);
 
   virtual bool can_convert_to_zombie() = 0;
@@ -366,6 +363,9 @@ public:
 
   virtual void clear_inline_caches();
   void clear_ic_callsites();
+
+  // Execute nmethod barrier code, as if entering through nmethod call.
+  void run_nmethod_entry_barrier();
 
   // Verify and count cached icholder relocations.
   int  verify_icholder_relocations();

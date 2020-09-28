@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -198,13 +198,17 @@ void G1FullCollector::phase1_mark_live_objects() {
   // Recursively traverse all live objects and mark them.
   GCTraceTime(Info, gc, phases) info("Phase 1: Mark live objects", scope()->timer());
 
-  // Do the actual marking.
-  G1FullGCMarkTask marking_task(this);
-  run_task(&marking_task);
+  {
+    // Do the actual marking.
+    G1FullGCMarkTask marking_task(this);
+    run_task(&marking_task);
+  }
 
-  // Process references discovered during marking.
-  G1FullGCReferenceProcessingExecutor reference_processing(this);
-  reference_processing.execute(scope()->timer(), scope()->tracer());
+  {
+    // Process references discovered during marking.
+    G1FullGCReferenceProcessingExecutor reference_processing(this);
+    reference_processing.execute(scope()->timer(), scope()->tracer());
+  }
 
   // Weak oops cleanup.
   {
@@ -259,8 +263,7 @@ void G1FullCollector::phase4_do_compaction() {
 }
 
 void G1FullCollector::restore_marks() {
-  SharedRestorePreservedMarksTaskExecutor task_executor(_heap->workers());
-  _preserved_marks_set.restore(&task_executor);
+  _preserved_marks_set.restore(_heap->workers());
   _preserved_marks_set.reclaim();
 }
 
@@ -274,7 +277,6 @@ void G1FullCollector::verify_after_marking() {
     return;
   }
 
-  HandleMark hm;  // handle scope
 #if COMPILER2_OR_JVMCI
   DerivedPointerTableDeactivate dpt_deact;
 #endif

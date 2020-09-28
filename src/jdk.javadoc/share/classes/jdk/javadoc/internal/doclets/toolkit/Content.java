@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ package jdk.javadoc.internal.doclets.toolkit;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.util.Objects;
 
 /**
  * A class to create content for javadoc output pages.
@@ -37,8 +36,6 @@ import java.util.Objects;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Bhavesh Patel
  */
 public abstract class Content {
 
@@ -61,17 +58,36 @@ public abstract class Content {
 
     /**
      * Adds content to the existing content.
+     * This is an optional operation.
      *
-     * @param content content that needs to be added
+     * @implSpec This implementation throws {@linkplain UnsupportedOperationException}.
+     *
+     * @param content content to be added
+     * @return this object
+     * @throws UnsupportedOperationException if this operation is not supported by
+     *                                       a particular implementation
+     * @throws IllegalArgumentException      if the content is not suitable to be added
      */
-    public abstract void add(Content content);
+    public Content add(Content content) {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Adds a string content to the existing content.
+     * This is an optional operation.
+     *
+     * @implSpec
+     * This implementation throws {@linkplain UnsupportedOperationException}.
      *
      * @param stringContent the string content to be added
+     * @return this object
+     * @throws UnsupportedOperationException if this operation is not supported by
+     *                                       a particular implementation
+     * @throws IllegalArgumentException      if the content is not suitable to be added
      */
-    public abstract void add(CharSequence stringContent);
+    public Content add(CharSequence stringContent) {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Writes content to a writer.
@@ -106,16 +122,5 @@ public abstract class Content {
      */
     public int charCount() {
         return 0;
-    }
-
-    /**
-     * Checks for null values.
-     *
-     * @param <T> the type of the item being checked
-     * @param t reference type to check for null values
-     * @return the reference type if not null or else throws a null pointer exception
-     */
-    protected static <T> T nullCheck(T t) {
-        return Objects.requireNonNull(t);
     }
 }

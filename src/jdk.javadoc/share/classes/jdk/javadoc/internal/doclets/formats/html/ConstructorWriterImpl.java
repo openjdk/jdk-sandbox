@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ import javax.lang.model.element.TypeElement;
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.Entity;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
+import jdk.javadoc.internal.doclets.formats.html.markup.TagName;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.formats.html.markup.Table;
@@ -55,10 +55,6 @@ import static jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable.Kind.
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Robert Field
- * @author Atul M Dambalkar
- * @author Bhavesh Patel (Modified)
  */
 public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
     implements ConstructorWriter, MemberSummaryWriter {
@@ -93,62 +89,45 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
         super(writer);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Content getMemberSummaryHeader(TypeElement typeElement,
             Content memberSummaryTree) {
         memberSummaryTree.add(MarkerComments.START_OF_CONSTRUCTOR_SUMMARY);
         Content memberTree = new ContentBuilder();
-        writer.addSummaryHeader(this, typeElement, memberTree);
+        writer.addSummaryHeader(this, memberTree);
         return memberTree;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public void addMemberTree(Content memberSummaryTree, Content memberTree) {
-        writer.addMemberTree(HtmlStyle.constructorSummary, memberSummaryTree, memberTree);
+    public void addSummary(Content summariesList, Content content) {
+        writer.addSummary(HtmlStyle.constructorSummary,
+                SectionName.CONSTRUCTOR_SUMMARY, summariesList, content);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public Content getConstructorDetailsTreeHeader(TypeElement typeElement,
-            Content memberDetailsTree) {
+    public Content getConstructorDetailsTreeHeader(Content memberDetailsTree) {
         memberDetailsTree.add(MarkerComments.START_OF_CONSTRUCTOR_DETAILS);
         Content constructorDetailsTree = new ContentBuilder();
         Content heading = HtmlTree.HEADING(Headings.TypeDeclaration.DETAILS_HEADING,
                 contents.constructorDetailsLabel);
-        constructorDetailsTree.add(links.createAnchor(
-                SectionName.CONSTRUCTOR_DETAIL));
         constructorDetailsTree.add(heading);
         return constructorDetailsTree;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public Content getConstructorDocTreeHeader(ExecutableElement constructor,
-            Content constructorDetailsTree) {
+    public Content getConstructorDocTreeHeader(ExecutableElement constructor) {
         String erasureAnchor;
         Content constructorDocTree = new ContentBuilder();
-        Content heading = new HtmlTree(Headings.TypeDeclaration.MEMBER_HEADING);
+        HtmlTree heading = HtmlTree.HEADING(Headings.TypeDeclaration.MEMBER_HEADING,
+                new StringContent(name(constructor)));
         if ((erasureAnchor = getErasureAnchor(constructor)) != null) {
-            heading.add(links.createAnchor((erasureAnchor)));
+            heading.setId(erasureAnchor);
         }
-        heading.add(links.createAnchor(writer.getAnchor(constructor), new StringContent(name(constructor))));
         constructorDocTree.add(heading);
-        return HtmlTree.SECTION(HtmlStyle.detail, constructorDocTree);
+        return HtmlTree.SECTION(HtmlStyle.detail, constructorDocTree)
+                .setId(links.getName(writer.getAnchor(constructor)));
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Content getSignature(ExecutableElement constructor) {
         return new MemberSignature(constructor)
@@ -157,60 +136,35 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
                 .toContent();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addDeprecated(ExecutableElement constructor, Content constructorDocTree) {
         addDeprecatedInfo(constructor, constructorDocTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addComments(ExecutableElement constructor, Content constructorDocTree) {
         addComment(constructor, constructorDocTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addTags(ExecutableElement constructor, Content constructorDocTree) {
         writer.addTagsInfo(constructor, constructorDocTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Content getConstructorDetails(Content constructorDetailsTreeHeader, Content constructorDetailsTree) {
-        Content constructorDetails = new ContentBuilder(constructorDetailsTreeHeader, constructorDetailsTree);
-        return getMemberTree(HtmlTree.SECTION(HtmlStyle.constructorDetails, constructorDetails));
+        return writer.getDetailsListItem(
+                HtmlTree.SECTION(HtmlStyle.constructorDetails)
+                        .setId(SectionName.CONSTRUCTOR_DETAIL.getName())
+                        .add(constructorDetailsTreeHeader)
+                        .add(constructorDetailsTree));
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Content getConstructorDoc(Content constructorDocTree) {
-        return getMemberTree(constructorDocTree);
-    }
-
-    /**
-     * Let the writer know whether a non public constructor was found.
-     *
-     * @param foundNonPubConstructor true if we found a non public constructor.
-     */
     @Override
     public void setFoundNonPubConstructor(boolean foundNonPubConstructor) {
         this.foundNonPubConstructor = foundNonPubConstructor;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addSummaryLabel(Content memberTree) {
         Content label = HtmlTree.HEADING(Headings.TypeDeclaration.SUMMARY_HEADING,
@@ -218,9 +172,6 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
         memberTree.add(label);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public TableHeader getSummaryTableHeader(Element member) {
         if (foundNonPubConstructor) {
@@ -245,42 +196,21 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
             rowScopeColumn = 0;
         }
 
-        return new Table(HtmlStyle.memberSummary)
+        return new Table(HtmlStyle.memberSummary, HtmlStyle.summaryTable)
                 .setCaption(contents.constructors)
                 .setHeader(getSummaryTableHeader(typeElement))
                 .setRowScopeColumn(rowScopeColumn)
                 .setColumnStyles(bodyRowStyles);
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void addSummaryAnchor(TypeElement typeElement, Content memberTree) {
-        memberTree.add(links.createAnchor(SectionName.CONSTRUCTOR_SUMMARY));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void addInheritedSummaryAnchor(TypeElement typeElement, Content inheritedTree) {
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addInheritedSummaryLabel(TypeElement typeElement, Content inheritedTree) {
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void addSummaryType(Element member, Content tdSummaryType) {
         if (foundNonPubConstructor) {
-            Content code = new HtmlTree(HtmlTag.CODE);
+            Content code = new HtmlTree(TagName.CODE);
             if (utils.isProtected(member)) {
                 code.add("protected ");
             } else if (utils.isPrivate(member)) {

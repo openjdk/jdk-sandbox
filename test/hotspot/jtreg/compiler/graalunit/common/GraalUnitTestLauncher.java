@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -113,7 +113,7 @@ public class GraalUnitTestLauncher {
         String classPath = String.join(File.pathSeparator, System.getProperty("java.class.path"),
                 String.join(File.separator, libsDir, MXTOOL_JARFILE));
 
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(false,
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                 "-cp",  classPath,
                 "com.oracle.mxtool.junit.FindClassesByAnnotatedMethods", graalUnitTestFilePath, testAnnotationName);
 
@@ -183,6 +183,7 @@ public class GraalUnitTestLauncher {
 
         String testPrefix = null;
         String excludeFileName = null;
+        ArrayList<String> testJavaFlags = new ArrayList<String>();
 
         int i=0;
         String arg, val;
@@ -198,6 +199,10 @@ public class GraalUnitTestLauncher {
                 case "-exclude":
                     excludeFileName = val;
                     break;
+
+                case "-vmargs":
+                   testJavaFlags.addAll(Arrays.asList(val.split("(?i):space:")));
+                   break;
 
                 default:
                     System.out.println("WARN: illegal option " + arg);
@@ -229,9 +234,13 @@ public class GraalUnitTestLauncher {
         javaFlags.add("jdk.internal.vm.compiler,jdk.internal.vm.ci");
         javaFlags.add("--add-exports");
         javaFlags.add("java.base/jdk.internal.module=ALL-UNNAMED");
+        javaFlags.add("--add-exports");
+        javaFlags.add("java.base/jdk.internal.misc=ALL-UNNAMED");
         javaFlags.addAll(getModuleExports("jdk.internal.vm.compiler", "ALL-UNNAMED"));
         javaFlags.addAll(getModuleExports("jdk.internal.vm.ci", "ALL-UNNAMED,jdk.internal.vm.compiler"));
 
+        // add test specific flags
+        javaFlags.addAll(testJavaFlags);
 
         // add VM flags
         javaFlags.add("-XX:+UnlockExperimentalVMOptions");
@@ -268,8 +277,7 @@ public class GraalUnitTestLauncher {
 
         javaFlags.add("@"+GENERATED_TESTCLASSES_FILENAME);
 
-        ProcessBuilder javaPB = ProcessTools.createJavaProcessBuilder(true,
-                javaFlags.toArray(new String[javaFlags.size()]));
+        ProcessBuilder javaPB = ProcessTools.createTestJvm(javaFlags);
 
         // Some tests rely on MX_SUBPROCESS_COMMAND_FILE env variable which contains
         // name of the file with java executable and java args used to launch the current process.

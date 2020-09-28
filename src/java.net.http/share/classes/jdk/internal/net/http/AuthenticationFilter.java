@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@ import java.net.URI;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.util.Base64;
 import java.util.LinkedList;
 import java.util.List;
@@ -246,20 +245,23 @@ class AuthenticationFilter implements HeaderFilter {
         HttpHeaders hdrs = r.headers();
         HttpRequestImpl req = r.request();
 
-        if (status != UNAUTHORIZED && status != PROXY_UNAUTHORIZED) {
-            // check if any authentication succeeded for first time
-            if (exchange.serverauth != null && !exchange.serverauth.fromcache) {
-                AuthInfo au = exchange.serverauth;
-                cache.store(au.scheme, req.uri(), false, au.credentials, au.isUTF8);
-            }
+        if (status != PROXY_UNAUTHORIZED) {
             if (exchange.proxyauth != null && !exchange.proxyauth.fromcache) {
                 AuthInfo au = exchange.proxyauth;
                 URI proxyURI = getProxyURI(req);
                 if (proxyURI != null) {
+                    exchange.proxyauth = null;
                     cache.store(au.scheme, proxyURI, true, au.credentials, au.isUTF8);
                 }
             }
-            return null;
+            if (status != UNAUTHORIZED) {
+                // check if any authentication succeeded for first time
+                if (exchange.serverauth != null && !exchange.serverauth.fromcache) {
+                    AuthInfo au = exchange.serverauth;
+                    cache.store(au.scheme, req.uri(), false, au.credentials, au.isUTF8);
+                }
+                return null;
+            }
         }
 
         boolean proxy = status == PROXY_UNAUTHORIZED;
@@ -380,10 +382,18 @@ class AuthenticationFilter implements HeaderFilter {
             return null;
         }
 
+        private static boolean equalsIgnoreCase(String s1, String s2) {
+            return s1 == s2 || (s1 != null && s1.equalsIgnoreCase(s2));
+        }
+
         synchronized void remove(String authscheme, URI domain, boolean proxy) {
-            for (CacheEntry entry : entries) {
-                if (entry.equalsKey(domain, proxy)) {
-                    entries.remove(entry);
+            var iterator = entries.iterator();
+            while (iterator.hasNext()) {
+                var entry = iterator.next();
+                if (equalsIgnoreCase(entry.scheme, authscheme)) {
+                    if (entry.equalsKey(domain, proxy)) {
+                        iterator.remove();
+                    }
                 }
             }
         }

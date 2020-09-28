@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,9 @@
 #define SHARE_RUNTIME_SEMAPHORE_HPP
 
 #include "memory/allocation.hpp"
+#include "utilities/globalDefinitions.hpp"
 
-#if defined(LINUX) || defined(SOLARIS) || defined(AIX)
+#if defined(LINUX) || defined(AIX)
 # include "semaphore_posix.hpp"
 #elif defined(BSD)
 # include "semaphore_bsd.hpp"
@@ -43,9 +44,7 @@ class JavaThread;
 class Semaphore : public CHeapObj<mtSynchronizer> {
   SemaphoreImpl _impl;
 
-  // Prevent copying and assignment of Semaphore instances.
-  Semaphore(const Semaphore&);
-  Semaphore& operator=(const Semaphore&);
+  NONCOPYABLE(Semaphore);
 
  public:
   Semaphore(uint value = 0) : _impl(value) {}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@ import com.sun.jdi.request.*;
 import com.sun.jdi.connect.*;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.io.*;
 
 public class TTY implements EventNotifier {
@@ -48,7 +49,7 @@ public class TTY implements EventNotifier {
     /**
      * List of Strings to execute at each stop.
      */
-    private List<String> monitorCommands = new ArrayList<String>();
+    private List<String> monitorCommands = new CopyOnWriteArrayList<>();
     private int monitorCount = 0;
 
     /**
@@ -1068,8 +1069,8 @@ public class TTY implements EventNotifier {
         /*
          * Here are examples of jdb command lines and how the options
          * are interpreted as arguments to the program being debugged.
-         * arg1       arg2
-         * ----       ----
+         *                     arg1       arg2
+         *                     ----       ----
          * jdb hello a b       a          b
          * jdb hello "a b"     a b
          * jdb hello a,b       a,b
@@ -1106,14 +1107,10 @@ public class TTY implements EventNotifier {
                            connectSpec);
                 return;
             }
-            connectSpec += "options=" + javaArgs + ",";
         }
 
         try {
-            if (! connectSpec.endsWith(",")) {
-                connectSpec += ","; // (Bug ID 4285874)
-            }
-            Env.init(connectSpec, launchImmediately, traceFlags);
+            Env.init(connectSpec, launchImmediately, traceFlags, javaArgs);
             new TTY();
         } catch(Exception e) {
             MessageOutput.printException("Internal exception:", e);

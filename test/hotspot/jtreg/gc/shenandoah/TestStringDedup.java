@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -24,8 +25,8 @@
 /*
  * @test TestStringDedup
  * @summary Test Shenandoah string deduplication implementation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
  * @library /test/lib
  * @modules java.base/jdk.internal.misc:open
  * @modules java.base/java.lang:open
@@ -45,8 +46,8 @@
 /*
  * @test TestStringDedup
  * @summary Test Shenandoah string deduplication implementation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
  * @library /test/lib
  * @modules java.base/jdk.internal.misc:open
  * @modules java.base/java.lang:open
@@ -68,24 +69,25 @@
 /*
  * @test TestStringDedup
  * @summary Test Shenandoah string deduplication implementation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
  * @library /test/lib
  * @modules java.base/jdk.internal.misc:open
  * @modules java.base/java.lang:open
  *          java.management
  *
  * @run main/othervm -Xmx256m -Xlog:gc+stats -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseStringDeduplication
- *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=traversal
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu
  *      TestStringDedup
  *
  * @run main/othervm -Xmx256m -Xlog:gc+stats -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseStringDeduplication
- *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=traversal -XX:ShenandoahGCHeuristics=aggressive
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu -XX:ShenandoahGCHeuristics=aggressive
  *      TestStringDedup
  */
 
 import java.lang.reflect.*;
 import java.util.*;
+import jdk.test.lib.Utils;
 
 import sun.misc.*;
 
@@ -135,7 +137,7 @@ public class TestStringDedup {
     }
 
     private static void generateStrings(ArrayList<StringAndId> strs, int unique_strs) {
-        Random rn = new Random();
+        Random rn = Utils.getRandomInstance();
         for (int u = 0; u < unique_strs; u++) {
             int n = rn.nextInt() % 10;
             n = Math.max(n, 2);

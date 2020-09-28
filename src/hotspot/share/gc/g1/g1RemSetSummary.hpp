@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,33 +33,23 @@ class G1RemSet;
 // A G1RemSetSummary manages statistical information about the G1RemSet
 
 class G1RemSetSummary {
-private:
-  friend class GetRSThreadVTimeClosure;
-
-  G1RemSet* _rem_set;
-
-  size_t _num_conc_refined_cards;
-  size_t _num_processed_buf_mutator;
-  size_t _num_processed_buf_rs_threads;
-
   size_t _num_coarsenings;
 
   size_t _num_vtimes;
   double* _rs_threads_vtimes;
 
-  double _sampling_thread_vtime;
+  double _service_thread_vtime;
 
   void set_rs_thread_vtime(uint thread, double value);
-  void set_sampling_thread_vtime(double value) {
-    _sampling_thread_vtime = value;
+  void set_service_thread_vtime(double value) {
+    _service_thread_vtime = value;
   }
 
   // update this summary with current data from various places
   void update();
 
 public:
-  G1RemSetSummary();
-  G1RemSetSummary(G1RemSet* remset);
+  G1RemSetSummary(bool should_update = true);
 
   ~G1RemSetSummary();
 
@@ -72,24 +62,8 @@ public:
 
   double rs_thread_vtime(uint thread) const;
 
-  double sampling_thread_vtime() const {
-    return _sampling_thread_vtime;
-  }
-
-  size_t num_conc_refined_cards() const {
-    return _num_conc_refined_cards;
-  }
-
-  size_t num_processed_buf_mutator() const {
-    return _num_processed_buf_mutator;
-  }
-
-  size_t num_processed_buf_rs_threads() const {
-    return _num_processed_buf_rs_threads;
-  }
-
-  size_t num_processed_buf_total() const {
-    return num_processed_buf_mutator() + num_processed_buf_rs_threads();
+  double service_thread_vtime() const {
+    return _service_thread_vtime;
   }
 
   size_t num_coarsenings() const {

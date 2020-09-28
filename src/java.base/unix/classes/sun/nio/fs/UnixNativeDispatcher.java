@@ -33,7 +33,7 @@ class UnixNativeDispatcher {
     protected UnixNativeDispatcher() { }
 
     // returns a NativeBuffer containing the given path
-    private static NativeBuffer copyToNativeBuffer(UnixPath path) {
+    static NativeBuffer copyToNativeBuffer(UnixPath path) {
         byte[] cstr = path.getByteArrayForSysCalls();
         int size = cstr.length + 1;
         NativeBuffer buffer = NativeBuffers.getNativeBufferFromCache(size);
@@ -98,25 +98,14 @@ class UnixNativeDispatcher {
     private static native void close0(int fd);
 
     /**
-     * FILE* fopen(const char *filename, const char* mode);
+     * void rewind(FILE* stream);
      */
-    static long fopen(UnixPath filename, String mode) throws UnixException {
-        NativeBuffer pathBuffer = copyToNativeBuffer(filename);
-        NativeBuffer modeBuffer = NativeBuffers.asNativeBuffer(Util.toBytes(mode));
-        try {
-            return fopen0(pathBuffer.address(), modeBuffer.address());
-        } finally {
-            modeBuffer.release();
-            pathBuffer.release();
-        }
-    }
-    private static native long fopen0(long pathAddress, long modeAddress)
-        throws UnixException;
+    static native void rewind(long stream) throws UnixException;
 
     /**
-     * fclose(FILE* stream)
+     * ssize_t getline(char **lineptr, size_t *n, FILE *stream);
      */
-    static native void fclose(long stream) throws UnixException;
+    static native int getlinelen(long stream) throws UnixException;
 
     /**
      * link(const char* existing, const char* new)
@@ -568,25 +557,6 @@ class UnixNativeDispatcher {
     }
     private static native void statvfs0(long pathAddress, UnixFileStoreAttributes attrs)
         throws UnixException;
-
-    /**
-     * long int pathconf(const char *path, int name);
-     */
-    static long pathconf(UnixPath path, int name) throws UnixException {
-        NativeBuffer buffer = copyToNativeBuffer(path);
-        try {
-            return pathconf0(buffer.address(), name);
-        } finally {
-            buffer.release();
-        }
-    }
-    private static native long pathconf0(long pathAddress, int name)
-        throws UnixException;
-
-    /**
-     * long fpathconf(int fildes, int name);
-     */
-    static native long fpathconf(int filedes, int name) throws UnixException;
 
     /**
      * char* strerror(int errnum)

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE ldml SYSTEM "../../common/dtd/ldml.dtd">
-<!-- Copyright © 1991-2019 Unicode, Inc.
+<!-- Copyright © 1991-2020 Unicode, Inc.
 For terms of use, see http://www.unicode.org/copyright.html
 Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
 CLDR data files are interpreted according to the LDML specification (http://unicode.org/reports/tr35/)
 -->
 <ldml>
 	<identity>
-		<version number="$Revision: 14783 $"/>
+		<version number="$Revision$"/>
 		<language type="se"/>
 		<territory type="FI"/>
 	</identity>
@@ -44,14 +44,13 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			<language type="th">thaigiella</language>
 			<language type="vi">vietnamagiella</language>
 			<language type="zh_Hans">álkes kiinnágiella</language>
+			<language type="zh_Hant">árbevirolaš kiinnágiella</language>
 		</languages>
 		<scripts>
 			<script type="Arab">arábalaš</script>
 			<script type="Hani">kiinnálaš</script>
 			<script type="Hans">álkes kiinnálaš</script>
-			<script type="Hans" alt="stand-alone">álkes kiinnálaš</script>
 			<script type="Hant">árbevirolaš kiinnálaš</script>
-			<script type="Hant" alt="stand-alone">árbevirolaš kiinnálaš</script>
 			<script type="Zxxx">orrut čállojuvvot</script>
 			<script type="Zzzz">dovdameahttun čállin</script>
 		</scripts>
@@ -86,7 +85,6 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			<type key="calendar" type="ethiopic">etiohpalaš kaleandar</type>
 			<type key="calendar" type="ethiopic-amete-alem">etiohpalaš-amete-alem kaleandar</type>
 			<type key="calendar" type="gregorian">gregorialaš kalendar</type>
-			<type key="numbers" type="fullwide">fullwide</type>
 		</types>
 		<codePatterns>
 			<codePattern type="script">čállin: {0}</codePattern>
@@ -653,9 +651,6 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			</field>
 			<field type="day">
 				<relative type="-2">ovddet beaivvi</relative>
-				<relative type="-1">ikte</relative>
-				<relative type="0">odne</relative>
-				<relative type="1">ihttin</relative>
 				<relative type="2">don beaivve</relative>
 				<relativeTime type="future">
 					<relativeTimePattern count="one">{0} beaivve siste</relativeTimePattern>

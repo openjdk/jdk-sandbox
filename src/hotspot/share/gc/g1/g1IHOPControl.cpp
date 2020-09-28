@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,14 +26,15 @@
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1IHOPControl.hpp"
 #include "gc/g1/g1Predictions.hpp"
-#include "gc/shared/gcTrace.hpp"
+#include "gc/g1/g1Trace.hpp"
 #include "logging/log.hpp"
 
-G1IHOPControl::G1IHOPControl(double initial_ihop_percent) :
+G1IHOPControl::G1IHOPControl(double initial_ihop_percent,
+                             G1OldGenAllocationTracker const* old_gen_alloc_tracker) :
   _initial_ihop_percent(initial_ihop_percent),
   _target_occupancy(0),
   _last_allocation_time_s(0.0),
-  _last_allocated_bytes(0)
+  _old_gen_alloc_tracker(old_gen_alloc_tracker)
 {
   assert(_initial_ihop_percent >= 0.0 && _initial_ihop_percent <= 100.0, "Initial IHOP value must be between 0 and 100 but is %.3f", initial_ihop_percent);
 }
@@ -44,11 +45,10 @@ void G1IHOPControl::update_target_occupancy(size_t new_target_occupancy) {
   _target_occupancy = new_target_occupancy;
 }
 
-void G1IHOPControl::update_allocation_info(double allocation_time_s, size_t allocated_bytes, size_t additional_buffer_size) {
+void G1IHOPControl::update_allocation_info(double allocation_time_s, size_t additional_buffer_size) {
   assert(allocation_time_s >= 0.0, "Allocation time must be positive but is %.3f", allocation_time_s);
 
   _last_allocation_time_s = allocation_time_s;
-  _last_allocated_bytes = allocated_bytes;
 }
 
 void G1IHOPControl::print() {
@@ -60,9 +60,9 @@ void G1IHOPControl::print() {
                       percent_of(cur_conc_mark_start_threshold, _target_occupancy),
                       _target_occupancy,
                       G1CollectedHeap::heap()->used(),
-                      _last_allocated_bytes,
+                      _old_gen_alloc_tracker->last_period_old_gen_bytes(),
                       _last_allocation_time_s * 1000.0,
-                      _last_allocation_time_s > 0.0 ? _last_allocated_bytes / _last_allocation_time_s : 0.0,
+                      _last_allocation_time_s > 0.0 ? _old_gen_alloc_tracker->last_period_old_gen_bytes() / _last_allocation_time_s : 0.0,
                       last_marking_length_s() * 1000.0);
 }
 
@@ -71,26 +71,28 @@ void G1IHOPControl::send_trace_event(G1NewTracer* tracer) {
   tracer->report_basic_ihop_statistics(get_conc_mark_start_threshold(),
                                        _target_occupancy,
                                        G1CollectedHeap::heap()->used(),
-                                       _last_allocated_bytes,
+                                       _old_gen_alloc_tracker->last_period_old_gen_bytes(),
                                        _last_allocation_time_s,
                                        last_marking_length_s());
 }
 
-G1StaticIHOPControl::G1StaticIHOPControl(double ihop_percent) :
-  G1IHOPControl(ihop_percent),
+G1StaticIHOPControl::G1StaticIHOPControl(double ihop_percent,
+                                         G1OldGenAllocationTracker const* old_gen_alloc_tracker) :
+  G1IHOPControl(ihop_percent, old_gen_alloc_tracker),
   _last_marking_length_s(0.0) {
 }
 
 G1AdaptiveIHOPControl::G1AdaptiveIHOPControl(double ihop_percent,
+                                             G1OldGenAllocationTracker const* old_gen_alloc_tracker,
                                              G1Predictions const* predictor,
                                              size_t heap_reserve_percent,
                                              size_t heap_waste_percent) :
-  G1IHOPControl(ihop_percent),
+  G1IHOPControl(ihop_percent, old_gen_alloc_tracker),
   _heap_reserve_percent(heap_reserve_percent),
   _heap_waste_percent(heap_waste_percent),
   _predictor(predictor),
-  _marking_times_s(10, 0.95),
-  _allocation_rate_s(10, 0.95),
+  _marking_times_s(10, 0.05),
+  _allocation_rate_s(10, 0.05),
   _last_unrestrained_young_size(0)
 {
 }
@@ -113,6 +115,10 @@ size_t G1AdaptiveIHOPControl::actual_target_threshold() const {
     );
 }
 
+double G1AdaptiveIHOPControl::predict(TruncatedSeq const* seq) const {
+  return _predictor->predict_zero_bounded(seq);
+}
+
 bool G1AdaptiveIHOPControl::have_enough_data_for_prediction() const {
   return ((size_t)_marking_times_s.num() >= G1AdaptiveIHOPNumInitialSamples) &&
          ((size_t)_allocation_rate_s.num() >= G1AdaptiveIHOPNumInitialSamples);
@@ -120,8 +126,8 @@ bool G1AdaptiveIHOPControl::have_enough_data_for_prediction() const {
 
 size_t G1AdaptiveIHOPControl::get_conc_mark_start_threshold() {
   if (have_enough_data_for_prediction()) {
-    double pred_marking_time = _predictor->get_new_prediction(&_marking_times_s);
-    double pred_promotion_rate = _predictor->get_new_prediction(&_allocation_rate_s);
+    double pred_marking_time = predict(&_marking_times_s);
+    double pred_promotion_rate = predict(&_allocation_rate_s);
     size_t pred_promotion_size = (size_t)(pred_marking_time * pred_promotion_rate);
 
     size_t predicted_needed_bytes_during_marking =
@@ -141,13 +147,16 @@ size_t G1AdaptiveIHOPControl::get_conc_mark_start_threshold() {
   }
 }
 
-void G1AdaptiveIHOPControl::update_allocation_info(double allocation_time_s,
-                                                   size_t allocated_bytes,
-                                                   size_t additional_buffer_size) {
-  G1IHOPControl::update_allocation_info(allocation_time_s, allocated_bytes, additional_buffer_size);
+double G1AdaptiveIHOPControl::last_mutator_period_old_allocation_rate() const {
+  assert(_last_allocation_time_s > 0, "This should not be called when the last GC is full");
 
-  double allocation_rate = (double) allocated_bytes / allocation_time_s;
-  _allocation_rate_s.add(allocation_rate);
+  return _old_gen_alloc_tracker->last_period_old_gen_growth() / _last_allocation_time_s;
+ }
+
+void G1AdaptiveIHOPControl::update_allocation_info(double allocation_time_s,
+                                                   size_t additional_buffer_size) {
+  G1IHOPControl::update_allocation_info(allocation_time_s, additional_buffer_size);
+  _allocation_rate_s.add(last_mutator_period_old_allocation_rate());
 
   _last_unrestrained_young_size = additional_buffer_size;
 }
@@ -168,8 +177,8 @@ void G1AdaptiveIHOPControl::print() {
                       actual_target,
                       G1CollectedHeap::heap()->used(),
                       _last_unrestrained_young_size,
-                      _predictor->get_new_prediction(&_allocation_rate_s),
-                      _predictor->get_new_prediction(&_marking_times_s) * 1000.0,
+                      predict(&_allocation_rate_s),
+                      predict(&_marking_times_s) * 1000.0,
                       have_enough_data_for_prediction() ? "true" : "false");
 }
 
@@ -179,7 +188,7 @@ void G1AdaptiveIHOPControl::send_trace_event(G1NewTracer* tracer) {
                                           actual_target_threshold(),
                                           G1CollectedHeap::heap()->used(),
                                           _last_unrestrained_young_size,
-                                          _predictor->get_new_prediction(&_allocation_rate_s),
-                                          _predictor->get_new_prediction(&_marking_times_s),
+                                          predict(&_allocation_rate_s),
+                                          predict(&_marking_times_s),
                                           have_enough_data_for_prediction());
 }

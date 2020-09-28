@@ -699,8 +699,7 @@ public class ToolBasicTest extends ReplToolTesting {
                     a -> assertCommand(a, "/set feedback " + off, ""),
                     a -> assertCommand(a, "int a", ""),
                     a -> assertCommand(a, "void f() {}", ""),
-                    a -> assertCommandCheckOutput(a, "aaaa", assertStartsWith("|  Error:")),
-                    a -> assertCommandCheckOutput(a, "static void f() {}", assertStartsWith("|  Warning:"))
+                    a -> assertCommandCheckOutput(a, "aaaa", assertStartsWith("|  Error:"))
             );
         }
     }
@@ -876,6 +875,17 @@ public class ToolBasicTest extends ReplToolTesting {
                             assertTrue(s.contains("unchecked call"));
                             assertFalse(s.contains("Exception"));
                         })
+        );
+    }
+
+    public void testIndent() { //8223688
+        prefsMap.remove("INDENT");
+        test(false, new String[]{"--no-startup"},
+                a -> assertCommand(a, "/set indent", "|  /set indent 4"),
+                a -> assertCommand(a, "/set indent 2", "|  Indent level set to: 2"),
+                a -> assertCommand(a, "/set indent", "|  /set indent 2"),
+                a -> assertCommand(a, "/set indent broken", "|  Invalid indent level: broken"),
+                a -> assertCommandOutputContains(a, "/set", "|  /set indent 2")
         );
     }
 

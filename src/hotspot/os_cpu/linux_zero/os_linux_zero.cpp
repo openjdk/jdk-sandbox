@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2009, 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -38,7 +38,6 @@
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
@@ -86,14 +85,8 @@ char* os::non_memory_address_word() {
   // Must never look like an address returned by reserve_memory,
   // even in its subfields (as defined by the CPU immediate fields,
   // if the CPU splits constants across multiple instructions).
-#ifdef SPARC
-  // On SPARC, 0 != %hi(any real address), because there is no
-  // allocation in the first 1Kb of the virtual address space.
-  return (char *) 0;
-#else
   // This is the value for x86; works pretty well for PPC too.
   return (char *) -1;
-#endif // SPARC
 }
 
 address os::Linux::ucontext_get_pc(const ucontext_t* uc) {
@@ -105,9 +98,9 @@ void os::Linux::ucontext_set_pc(ucontext_t * uc, address pc) {
   ShouldNotCallThis();
 }
 
-ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
-                                        intptr_t** ret_sp,
-                                        intptr_t** ret_fp) {
+address os::fetch_frame_from_context(const void* ucVoid,
+                                     intptr_t** ret_sp,
+                                     intptr_t** ret_fp) {
   ShouldNotCallThis();
   return NULL; // silence compile warnings
 }
@@ -159,7 +152,7 @@ JVM_handle_linux_signal(int sig,
   if (os::Linux::signal_handlers_are_installed) {
     if (t != NULL ){
       if(t->is_Java_thread()) {
-        thread = (JavaThread*)t;
+        thread = t->as_Java_thread();
       }
       else if(t->is_VM_thread()){
         vmthread = (VMThread *)t;
@@ -173,7 +166,7 @@ JVM_handle_linux_signal(int sig,
       address addr = (address) info->si_addr;
 
       // check if fault address is within thread stack
-      if (thread->on_local_stack(addr)) {
+      if (thread->is_in_full_stack(addr)) {
         // stack overflow
         if (thread->in_stack_yellow_reserved_zone(addr)) {
           thread->disable_stack_yellow_reserved_zone();
@@ -280,7 +273,7 @@ bool os::is_allocatable(size_t bytes) {
     return true;
   }
 
-  char* addr = reserve_memory(bytes, NULL);
+  char* addr = reserve_memory(bytes);
 
   if (addr != NULL) {
     release_memory(addr, bytes);
@@ -410,42 +403,42 @@ extern "C" {
   }
 
 
-  void _Copy_conjoint_jshorts_atomic(jshort* from, jshort* to, size_t count) {
+  void _Copy_conjoint_jshorts_atomic(const jshort* from, jshort* to, size_t count) {
     if (from > to) {
-      jshort *end = from + count;
+      const jshort *end = from + count;
       while (from < end)
         *(to++) = *(from++);
     }
     else if (from < to) {
-      jshort *end = from;
+      const jshort *end = from;
       from += count - 1;
       to   += count - 1;
       while (from >= end)
         *(to--) = *(from--);
     }
   }
-  void _Copy_conjoint_jints_atomic(jint* from, jint* to, size_t count) {
+  void _Copy_conjoint_jints_atomic(const jint* from, jint* to, size_t count) {
     if (from > to) {
-      jint *end = from + count;
+      const jint *end = from + count;
       while (from < end)
         *(to++) = *(from++);
     }
     else if (from < to) {
-      jint *end = from;
+      const jint *end = from;
       from += count - 1;
       to   += count - 1;
       while (from >= end)
         *(to--) = *(from--);
     }
   }
-  void _Copy_conjoint_jlongs_atomic(jlong* from, jlong* to, size_t count) {
+  void _Copy_conjoint_jlongs_atomic(const jlong* from, jlong* to, size_t count) {
     if (from > to) {
-      jlong *end = from + count;
+      const jlong *end = from + count;
       while (from < end)
         os::atomic_copy64(from++, to++);
     }
     else if (from < to) {
-      jlong *end = from;
+      const jlong *end = from;
       from += count - 1;
       to   += count - 1;
       while (from >= end)
@@ -453,22 +446,22 @@ extern "C" {
     }
   }
 
-  void _Copy_arrayof_conjoint_bytes(HeapWord* from,
+  void _Copy_arrayof_conjoint_bytes(const HeapWord* from,
                                     HeapWord* to,
                                     size_t    count) {
     memmove(to, from, count);
   }
-  void _Copy_arrayof_conjoint_jshorts(HeapWord* from,
+  void _Copy_arrayof_conjoint_jshorts(const HeapWord* from,
                                       HeapWord* to,
                                       size_t    count) {
     memmove(to, from, count * 2);
   }
-  void _Copy_arrayof_conjoint_jints(HeapWord* from,
+  void _Copy_arrayof_conjoint_jints(const HeapWord* from,
                                     HeapWord* to,
                                     size_t    count) {
     memmove(to, from, count * 4);
   }
-  void _Copy_arrayof_conjoint_jlongs(HeapWord* from,
+  void _Copy_arrayof_conjoint_jlongs(const HeapWord* from,
                                      HeapWord* to,
                                      size_t    count) {
     memmove(to, from, count * 8);

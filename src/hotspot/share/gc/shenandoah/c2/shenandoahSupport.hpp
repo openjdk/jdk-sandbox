@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2015, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2015, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -52,25 +53,22 @@ private:
 #endif
   static Node* dom_mem(Node* mem, Node* ctrl, int alias, Node*& mem_ctrl, PhaseIdealLoop* phase);
   static Node* no_branches(Node* c, Node* dom, bool allow_one_proj, PhaseIdealLoop* phase);
-  static bool is_heap_state_test(Node* iff, int mask);
-  static bool try_common_gc_state_load(Node *n, PhaseIdealLoop *phase);
+  static bool is_gc_state_test(Node* iff, int mask);
   static bool has_safepoint_between(Node* start, Node* stop, PhaseIdealLoop *phase);
   static Node* find_bottom_mem(Node* ctrl, PhaseIdealLoop* phase);
   static void follow_barrier_uses(Node* n, Node* ctrl, Unique_Node_List& uses, PhaseIdealLoop* phase);
   static void test_null(Node*& ctrl, Node* val, Node*& null_ctrl, PhaseIdealLoop* phase);
-  static void test_heap_stable(Node*& ctrl, Node* raw_mem, Node*& heap_stable_ctrl,
-                               PhaseIdealLoop* phase);
-  static void call_lrb_stub(Node*& ctrl, Node*& val, Node*& result_mem, Node* raw_mem, bool is_native, PhaseIdealLoop* phase);
-  static Node* clone_null_check(Node*& c, Node* val, Node* unc_ctrl, PhaseIdealLoop* phase);
-  static void fix_null_check(Node* unc, Node* unc_ctrl, Node* new_unc_ctrl, Unique_Node_List& uses,
-                             PhaseIdealLoop* phase);
-  static void in_cset_fast_test(Node*& ctrl, Node*& not_cset_ctrl, Node* val, Node* raw_mem, PhaseIdealLoop* phase);
-  static void move_heap_stable_test_out_of_loop(IfNode* iff, PhaseIdealLoop* phase);
+  static void test_gc_state(Node*& ctrl, Node* raw_mem, Node*& heap_stable_ctrl,
+                            PhaseIdealLoop* phase, int flags);
+  static void call_lrb_stub(Node*& ctrl, Node*& val, Node* load_addr, Node*& result_mem, Node* raw_mem, bool is_native, PhaseIdealLoop* phase);
+  static void test_in_cset(Node*& ctrl, Node*& not_cset_ctrl, Node* val, Node* raw_mem, PhaseIdealLoop* phase);
+  static void move_gc_state_test_out_of_loop(IfNode* iff, PhaseIdealLoop* phase);
   static void merge_back_to_back_tests(Node* n, PhaseIdealLoop* phase);
   static bool identical_backtoback_ifs(Node *n, PhaseIdealLoop* phase);
   static void fix_ctrl(Node* barrier, Node* region, const MemoryGraphFixer& fixer, Unique_Node_List& uses, Unique_Node_List& uses_to_ignore, uint last, PhaseIdealLoop* phase);
   static IfNode* find_unswitching_candidate(const IdealLoopTree *loop, PhaseIdealLoop* phase);
 
+  static Node* get_load_addr(PhaseIdealLoop* phase, VectorSet& visited, Node* lrb);
 public:
   static bool is_dominator(Node* d_c, Node* n_c, Node* d, Node* n, PhaseIdealLoop* phase);
   static bool is_dominator_same_ctrl(Node* c, Node* d, Node* n, PhaseIdealLoop* phase);
@@ -230,10 +228,6 @@ public:
     ValueIn
   };
 
-  enum Strength {
-    NONE, STRONG
-  };
-
 private:
   bool _native;
 
@@ -255,9 +249,6 @@ public:
   virtual uint size_of() const;
   virtual uint hash() const;
   virtual bool cmp( const Node &n ) const;
-
-  Strength get_barrier_strength();
-  CallStaticJavaNode* pin_and_expand_null_check(PhaseIterGVN& igvn);
 
 private:
   bool needs_barrier(PhaseGVN* phase, Node* n);

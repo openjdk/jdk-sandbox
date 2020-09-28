@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -383,7 +383,7 @@ final class ProxyGenerator extends ClassWriter {
      * separator, the external representation used by the Java language
      * and APIs, to a fully qualified class name that uses '/' as the
      * package separator, the representation used in the class file
-     * format (see JVMS section 4.2).
+     * format (see JVMS section {@jvms 4.2}).
      */
     private static String dotToSlash(String name) {
         return name.replace('.', '/');
@@ -392,7 +392,7 @@ final class ProxyGenerator extends ClassWriter {
     /**
      * Return the number of abstract "words", or consecutive local variable
      * indexes, required to contain a value of the given type.  See JVMS
-     * section 3.6.1.
+     * section {@jvms 3.6.1}.
      * <p>
      * Note that the original version of the JVMS contained a definition of
      * this abstract notion of a "word" in section 3.4, but that definition
@@ -670,7 +670,10 @@ final class ProxyGenerator extends ClassWriter {
         private void generateMethod(ClassWriter cw, String className) {
             MethodType mt = MethodType.methodType(returnType, parameterTypes);
             String desc = mt.toMethodDescriptorString();
-            MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_FINAL,
+            int accessFlags = ACC_PUBLIC | ACC_FINAL;
+            if (method.isVarArgs()) accessFlags |= ACC_VARARGS;
+
+            MethodVisitor mv = cw.visitMethod(accessFlags,
                     method.getName(), desc, null,
                     typeNames(Arrays.asList(exceptionTypes)));
 

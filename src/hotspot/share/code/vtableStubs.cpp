@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@
 #include "runtime/mutexLocker.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
+#include "utilities/powerOfTwo.hpp"
 #ifdef COMPILER2
 #include "opto/matcher.hpp"
 #endif
@@ -128,7 +129,7 @@ void VtableStubs::initialize() {
   {
     MutexLocker ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
     assert(_number_of_vtable_stubs == 0, "potential performance bug: VtableStubs initialized more than once");
-    assert(is_power_of_2(N), "N must be a power of 2");
+    assert(is_power_of_2(int(N)), "N must be a power of 2");
     for (int i = 0; i < N; i++) {
       _table[i] = NULL;
     }
@@ -319,7 +320,6 @@ void VtableStubs::vtable_stub_do(void f(VtableStub*)) {
 
 extern "C" void bad_compiled_vtable_index(JavaThread* thread, oop receiver, int index) {
   ResourceMark rm;
-  HandleMark hm;
   Klass* klass = receiver->klass();
   InstanceKlass* ik = InstanceKlass::cast(klass);
   klassVtable vt = ik->vtable();

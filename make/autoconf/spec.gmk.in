@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,9 @@ COMMA:=,
 # What make to use for main processing, after bootstrapping top-level Makefile.
 MAKE := @MAKE@
 
+# Make sure all shell commands are executed with the C locale
+export LC_ALL := C
+
 # The default make arguments
 MAKE_ARGS = $(MAKE_LOG_FLAGS) -r -R -I $(TOPDIR)/make/common SPEC=$(SPEC) \
     MAKE_LOG_FLAGS="$(MAKE_LOG_FLAGS)" $(MAKE_LOG_VARS)
@@ -80,7 +83,6 @@ OPENJDK_TARGET_CPU_ENDIAN:=@OPENJDK_TARGET_CPU_ENDIAN@
 COMPILE_TYPE:=@COMPILE_TYPE@
 
 # Legacy support
-OPENJDK_TARGET_CPU_ISADIR:=@OPENJDK_TARGET_CPU_ISADIR@
 OPENJDK_TARGET_CPU_LEGACY:=@OPENJDK_TARGET_CPU_LEGACY@
 OPENJDK_TARGET_CPU_LEGACY_LIB:=@OPENJDK_TARGET_CPU_LEGACY_LIB@
 OPENJDK_TARGET_CPU_OSARCH:=@OPENJDK_TARGET_CPU_OSARCH@
@@ -115,6 +117,9 @@ OPENJDK_MODULE_TARGET_PLATFORM:=@OPENJDK_MODULE_TARGET_PLATFORM@
 # OS_* properties in release file
 RELEASE_FILE_OS_NAME:=@RELEASE_FILE_OS_NAME@
 RELEASE_FILE_OS_ARCH:=@RELEASE_FILE_OS_ARCH@
+
+SOURCE_DATE := @SOURCE_DATE@
+ENABLE_REPRODUCIBLE_BUILD := @ENABLE_REPRODUCIBLE_BUILD@
 
 LIBM:=@LIBM@
 LIBDL:=@LIBDL@
@@ -153,6 +158,7 @@ IMPORT_MODULES_SRC:=@IMPORT_MODULES_SRC@
 IMPORT_MODULES_MAKE:=@IMPORT_MODULES_MAKE@
 
 COPYRIGHT_YEAR:=@COPYRIGHT_YEAR@
+HOTSPOT_BUILD_TIME:=@HOTSPOT_BUILD_TIME@
 
 # Platform naming variables
 LAUNCHER_NAME:=@LAUNCHER_NAME@
@@ -164,6 +170,7 @@ COMPANY_NAME:=@COMPANY_NAME@
 HOTSPOT_VM_DISTRO:=@HOTSPOT_VM_DISTRO@
 MACOSX_BUNDLE_NAME_BASE=@MACOSX_BUNDLE_NAME_BASE@
 MACOSX_BUNDLE_ID_BASE=@MACOSX_BUNDLE_ID_BASE@
+MACOSX_BUNDLE_BUILD_VERSION=@MACOSX_BUNDLE_BUILD_VERSION@
 USERNAME:=@USERNAME@
 VENDOR_URL:=@VENDOR_URL@
 VENDOR_URL_BUG:=@VENDOR_URL_BUG@
@@ -242,7 +249,7 @@ ifneq ($(COMPANY_NAME),)
   # Only export "VENDOR" to the build if COMPANY_NAME contains a real value.
   # Otherwise the default value for VENDOR, which is used to set the "java.vendor"
   # and "java.vm.vendor" properties is hard-coded into the source code (i.e. in
-  # VersionProps.java.template in the jdk for "vm.vendor" and
+  # VersionProps.java.template in the jdk for "java.vendor" and
   # vm_version.cpp in the VM for "java.vm.vendor")
   ifneq ($(COMPANY_NAME), N/A)
     VERSION_CFLAGS += -DVENDOR='"$(COMPANY_NAME)"'
@@ -286,9 +293,6 @@ JVM_FEATURES_custom := @JVM_FEATURES_custom@
 VALID_JVM_FEATURES := @VALID_JVM_FEATURES@
 VALID_JVM_VARIANTS := @VALID_JVM_VARIANTS@
 
-# Control wether Hotspot builds gtest tests
-BUILD_GTEST := @BUILD_GTEST@
-
 # Allow overriding the default hotspot library path
 HOTSPOT_OVERRIDE_LIBPATH := @HOTSPOT_OVERRIDE_LIBPATH@
 
@@ -297,6 +301,11 @@ USE_PRECOMPILED_HEADER := @USE_PRECOMPILED_HEADER@
 
 # Only build headless support or not
 ENABLE_HEADLESS_ONLY := @ENABLE_HEADLESS_ONLY@
+
+ENABLE_LINKTIME_GC := @ENABLE_LINKTIME_GC@
+
+# Ship debug symbols (e.g. pdbs on Windows)
+SHIP_DEBUG_SYMBOLS := @SHIP_DEBUG_SYMBOLS@
 
 ENABLE_FULL_DOCS := @ENABLE_FULL_DOCS@
 
@@ -329,6 +338,8 @@ BUILD_MANPAGES := @BUILD_MANPAGES@
 
 BUILD_CDS_ARCHIVE := @BUILD_CDS_ARCHIVE@
 
+ALLOW_ABSOLUTE_PATHS_IN_OUTPUT := @ALLOW_ABSOLUTE_PATHS_IN_OUTPUT@
+
 # The boot jdk to use. This is overridden in bootcycle-spec.gmk. Make sure to keep
 # it in sync.
 BOOT_JDK:=@BOOT_JDK@
@@ -344,13 +355,10 @@ BOOT_JDK_SOURCETARGET:=@BOOT_JDK_SOURCETARGET@
 # Information about the build system
 NUM_CORES:=@NUM_CORES@
 MEMORY_SIZE:=@MEMORY_SIZE@
-# Enable sjavac support = use a javac server,
-# multi core javac compilation and dependency tracking.
-ENABLE_SJAVAC:=@ENABLE_SJAVAC@
 ENABLE_JAVAC_SERVER:=@ENABLE_JAVAC_SERVER@
-# Store sjavac server synchronization files here, and
-# the sjavac server log files.
-SJAVAC_SERVER_DIR=$(MAKESUPPORT_OUTPUTDIR)/javacservers
+# Store javac server synchronization files here, and
+# the javac server log files.
+JAVAC_SERVER_DIR=$(MAKESUPPORT_OUTPUTDIR)/javacservers
 
 # Number of parallel jobs to use for compilation
 JOBS?=@JOBS@
@@ -372,12 +380,17 @@ LIBFFI_CFLAGS:=@LIBFFI_CFLAGS@
 ENABLE_LIBFFI_BUNDLING:=@ENABLE_LIBFFI_BUNDLING@
 LIBFFI_LIB_FILE:=@LIBFFI_LIB_FILE@
 GRAALUNIT_LIB := @GRAALUNIT_LIB@
+FILE_MACRO_CFLAGS := @FILE_MACRO_CFLAGS@
+
+STATIC_LIBS_CFLAGS := @STATIC_LIBS_CFLAGS@
 
 JMH_CORE_JAR := @JMH_CORE_JAR@
 JMH_GENERATOR_JAR := @JMH_GENERATOR_JAR@
 JMH_JOPT_SIMPLE_JAR := @JMH_JOPT_SIMPLE_JAR@
 JMH_COMMONS_MATH_JAR := @JMH_COMMONS_MATH_JAR@
 JMH_VERSION := @JMH_VERSION@
+
+GTEST_FRAMEWORK_SRC := @GTEST_FRAMEWORK_SRC@
 
 # Source file for cacerts
 CACERTS_FILE=@CACERTS_FILE@
@@ -410,7 +423,10 @@ MACOSX_VERSION_MIN=@MACOSX_VERSION_MIN@
 # The highest allowed version of macosx
 MACOSX_VERSION_MAX=@MACOSX_VERSION_MAX@
 
-# Toolchain type: gcc, clang, solstudio, lxc, microsoft...
+# The macosx code signing identity to use
+MACOSX_CODESIGN_IDENTITY=@MACOSX_CODESIGN_IDENTITY@
+
+# Toolchain type: gcc, clang, xlc, microsoft...
 TOOLCHAIN_TYPE:=@TOOLCHAIN_TYPE@
 TOOLCHAIN_VERSION := @TOOLCHAIN_VERSION@
 CC_VERSION_NUMBER := @CC_VERSION_NUMBER@
@@ -453,7 +469,6 @@ CXX_FLAG_DEPS:=@CXX_FLAG_DEPS@
 
 DISABLE_WARNING_PREFIX := @DISABLE_WARNING_PREFIX@
 CFLAGS_WARNINGS_ARE_ERRORS:=@CFLAGS_WARNINGS_ARE_ERRORS@
-LDFLAGS_WARNINGS_ARE_ERRORS:=@LDFLAGS_WARNINGS_ARE_ERRORS@
 DISABLED_WARNINGS := @DISABLED_WARNINGS@
 DISABLED_WARNINGS_C := @DISABLED_WARNINGS_C@
 DISABLED_WARNINGS_CXX := @DISABLED_WARNINGS_CXX@
@@ -462,7 +477,8 @@ DISABLED_WARNINGS_CXX := @DISABLED_WARNINGS_CXX@
 WARNINGS_AS_ERRORS := @WARNINGS_AS_ERRORS@
 
 CFLAGS_CCACHE:=@CFLAGS_CCACHE@
-ADLC_CXXFLAG=@ADLC_CXXFLAG@
+ADLC_LANGSTD_CXXFLAGS=@ADLC_LANGSTD_CXXFLAGS@
+ADLC_LDFLAGS=@ADLC_LDFLAGS@
 
 # Tools that potentially need to be cross compilation aware.
 CC:=@FIXPATH@ @CCACHE@ @ICECC@ @CC@
@@ -475,15 +491,11 @@ CXXFLAGS_JDKLIB:=@CXXFLAGS_JDKLIB@
 CFLAGS_JDKEXE:=@CFLAGS_JDKEXE@
 CXXFLAGS_JDKEXE:=@CXXFLAGS_JDKEXE@
 
-LIBJSIG_HASHSTYLE_LDFLAGS := @LIBJSIG_HASHSTYLE_LDFLAGS@
-LIBJSIG_NOEXECSTACK_LDFLAGS := @LIBJSIG_NOEXECSTACK_LDFLAGS@
-
 FDLIBM_CFLAGS := @FDLIBM_CFLAGS@
 JVM_CFLAGS := @JVM_CFLAGS@
 JVM_LDFLAGS := @JVM_LDFLAGS@
 JVM_ASFLAGS := @JVM_ASFLAGS@
 JVM_LIBS := @JVM_LIBS@
-JVM_RCFLAGS := @JVM_RCFLAGS@
 
 # These flags might contain variables set by a custom extension that is included later.
 EXTRA_CFLAGS = @EXTRA_CFLAGS@
@@ -507,7 +519,6 @@ SDKROOT:=@SDKROOT@
 # LDFLAGS used to link the jdk native libraries (C-code)
 LDFLAGS_JDKLIB:=@LDFLAGS_JDKLIB@
 JDKLIB_LIBS:=@JDKLIB_LIBS@
-GLOBAL_LIBS:=@GLOBAL_LIBS@
 
 # LDFLAGS used to link the jdk native launchers (C-code)
 LDFLAGS_JDKEXE:=@LDFLAGS_JDKEXE@
@@ -557,10 +568,6 @@ INSTALL_NAME_TOOL:=@INSTALL_NAME_TOOL@
 # (Note absence of := assignment, because we do not want to evaluate the macro body here)
 SET_SHARED_LIBRARY_MAPFILE=@SET_SHARED_LIBRARY_MAPFILE@
 
-# Options for C/CXX compiler to be used if linking is performed
-#   using reorder file
-C_FLAG_REORDER:=@C_FLAG_REORDER@
-
 #
 # Options for generating debug symbols
 COMPILE_WITH_DEBUG_SYMBOLS := @COMPILE_WITH_DEBUG_SYMBOLS@
@@ -603,9 +610,8 @@ STRIPFLAGS:=@STRIPFLAGS@
 JAVA_FLAGS:=@JAVA_FLAGS@
 JAVA_FLAGS_BIG:=@JAVA_FLAGS_BIG@
 JAVA_FLAGS_SMALL:=@JAVA_FLAGS_SMALL@
-JAVA_FLAGS_JAVAC:=@JAVA_FLAGS_JAVAC@
+BUILDJDK_JAVA_FLAGS_SMALL:=@BUILDJDK_JAVA_FLAGS_SMALL@
 JAVA_TOOL_FLAGS_SMALL:=@JAVA_TOOL_FLAGS_SMALL@
-SJAVAC_SERVER_JAVA_FLAGS:=@SJAVAC_SERVER_JAVA_FLAGS@
 
 # The *_CMD variables are defined separately to be easily overridden in bootcycle-spec.gmk
 # for bootcycle-images build. Make sure to keep them in sync. Do not use the *_CMD
@@ -617,39 +623,30 @@ JAR_CMD:=@JAR@
 JLINK_CMD := @JLINK@
 JMOD_CMD := @JMOD@
 JARSIGNER_CMD:=@JARSIGNER@
-SJAVAC_SERVER_JAVA_CMD:=@SJAVAC_SERVER_JAVA@
 # These variables are meant to be used. They are defined with = instead of := to make
 # it possible to override only the *_CMD variables.
 JAVA=@FIXPATH@ $(JAVA_CMD) $(JAVA_FLAGS_BIG) $(JAVA_FLAGS)
 JAVA_SMALL=@FIXPATH@ $(JAVA_CMD) $(JAVA_FLAGS_SMALL) $(JAVA_FLAGS)
-JAVA_JAVAC=@FIXPATH@ $(JAVA_CMD) $(JAVA_FLAGS_JAVAC) $(JAVA_FLAGS)
+JAVA_DETACH =@FIXPATH@ @FIXPATH_DETACH_FLAG@ $(JAVA_CMD) $(JAVA_FLAGS_BIG) $(JAVA_FLAGS)
 JAVAC=@FIXPATH@ $(JAVAC_CMD)
 JAVADOC=@FIXPATH@ $(JAVADOC_CMD)
 JAR=@FIXPATH@ $(JAR_CMD)
-JLINK = @FIXPATH@ $(JLINK_CMD) $(JAVA_TOOL_FLAGS_SMALL)
+JLINK = @FIXPATH@ $(JLINK_CMD)
 JMOD = @FIXPATH@ $(JMOD_CMD) $(JAVA_TOOL_FLAGS_SMALL)
 JARSIGNER=@FIXPATH@ $(JARSIGNER_CMD)
-# A specific java binary with specific options can be used to run
-# the long running background sjavac servers and other long running tasks.
-SJAVAC_SERVER_JAVA=@FIXPATH@ @FIXPATH_DETACH_FLAG@ $(SJAVAC_SERVER_JAVA_CMD) \
-    $(SJAVAC_SERVER_JAVA_FLAGS)
-
-# Hotspot sets this variable before reading the SPEC when compiling sa-jdi.jar. Avoid
-# overriding that value by using ?=.
-JAVAC_FLAGS?=@JAVAC_FLAGS@
-
 
 BUILD_JAVA_FLAGS := @BOOTCYCLE_JVM_ARGS_BIG@
 BUILD_JAVA=@FIXPATH@ $(BUILD_JDK)/bin/java $(BUILD_JAVA_FLAGS)
 BUILD_JAR=@FIXPATH@ $(BUILD_JDK)/bin/jar
 
-# Interim langtools and rmic modules and arguments
+# Interim langtools modules and arguments
 INTERIM_LANGTOOLS_BASE_MODULES := java.compiler jdk.compiler jdk.javadoc
 INTERIM_LANGTOOLS_MODULES := $(addsuffix .interim, $(INTERIM_LANGTOOLS_BASE_MODULES))
 INTERIM_LANGTOOLS_ADD_EXPORTS := \
     --add-exports java.base/sun.reflect.annotation=jdk.compiler.interim \
     --add-exports java.base/jdk.internal.jmod=jdk.compiler.interim \
     --add-exports java.base/jdk.internal.misc=jdk.compiler.interim \
+    --add-exports java.base/sun.invoke.util=jdk.compiler.interim \
     #
 INTERIM_LANGTOOLS_MODULES_COMMA := $(strip $(subst $(SPACE),$(COMMA),$(strip \
     $(INTERIM_LANGTOOLS_MODULES))))
@@ -662,15 +659,6 @@ INTERIM_LANGTOOLS_ARGS := \
 JAVAC_MAIN_CLASS = -m jdk.compiler.interim/com.sun.tools.javac.Main
 JAVADOC_MAIN_CLASS = -m jdk.javadoc.interim/jdk.javadoc.internal.tool.Main
 
-INTERIM_RMIC_BASE_MODULES := jdk.rmic
-INTERIM_RMIC_MODULES := $(addsuffix .interim, $(INTERIM_RMIC_BASE_MODULES))
-    #
-# Use = to delay expansion of PathList since it's not available in this file.
-INTERIM_RMIC_ARGS = --limit-modules java.base,jdk.compiler,jdk.javadoc \
-    --module-path $(call PathList, $(BUILDTOOLS_OUTPUTDIR)/interim_rmic_modules \
-        $(BUILDTOOLS_OUTPUTDIR)/interim_langtools_modules) \
-    #
-
 # You run the new javac using the boot jdk with $(BOOT_JDK)/bin/java $(NEW_JAVAC) ...
 # Use = assignment to be able to override in bootcycle-spec.gmk
 NEW_JAVAC   = $(INTERIM_LANGTOOLS_ARGS) $(JAVAC_MAIN_CLASS)
@@ -678,12 +666,7 @@ NEW_JAVADOC = $(INTERIM_LANGTOOLS_ARGS) $(JAVADOC_MAIN_CLASS)
 
 JLINK_KEEP_PACKAGED_MODULES:=@JLINK_KEEP_PACKAGED_MODULES@
 
-# Base flags for RC
-# Guarding this against resetting value. Legacy make files include spec multiple
-# times.
-ifndef RC_FLAGS
-  RC_FLAGS:=@RC_FLAGS@
-endif
+RCFLAGS := @RCFLAGS@
 
 # Tools adhering to a minimal and common standard of posix compliance.
 AWK:=@AWK@
@@ -747,7 +730,6 @@ WSLPATH:=@WSLPATH@
 LDD:=@LDD@
 OTOOL:=@OTOOL@
 READELF:=@READELF@
-ELFEDIT:=@ELFEDIT@
 EXPR:=@EXPR@
 FILE:=@FILE@
 DOT:=@DOT@
@@ -757,14 +739,13 @@ OBJCOPY:=@OBJCOPY@
 SETFILE:=@SETFILE@
 XATTR:=@XATTR@
 JT_HOME:=@JT_HOME@
-JTREGEXE:=@JTREGEXE@
 JIB_HOME:=@JIB_HOME@
 XCODEBUILD=@XCODEBUILD@
 DTRACE := @DTRACE@
 FIXPATH:=@FIXPATH@
+ULIMIT:=@ULIMIT@
 
 TAR_TYPE:=@TAR_TYPE@
-TAR_CREATE_EXTRA_PARAM:=@TAR_CREATE_EXTRA_PARAM@
 TAR_INCLUDE_PARAM:=@TAR_INCLUDE_PARAM@
 TAR_SUPPORTS_TRANSFORM:=@TAR_SUPPORTS_TRANSFORM@
 
@@ -778,9 +759,9 @@ LIBZ_CFLAGS:=@LIBZ_CFLAGS@
 LIBZ_LIBS:=@LIBZ_LIBS@
 LIBZIP_CAN_USE_MMAP:=@LIBZIP_CAN_USE_MMAP@
 MSVCR_DLL:=@MSVCR_DLL@
+VCRUNTIME_1_DLL:=@VCRUNTIME_1_DLL@
 MSVCP_DLL:=@MSVCP_DLL@
 UCRT_DLL_DIR:=@UCRT_DLL_DIR@
-STLPORT_LIB:=@STLPORT_LIB@
 ENABLE_PANDOC:=@ENABLE_PANDOC@
 PANDOC_MARKDOWN_FLAG:=@PANDOC_MARKDOWN_FLAG@
 
@@ -844,6 +825,10 @@ USE_EXTERNAL_LCMS:=@USE_EXTERNAL_LCMS@
 LCMS_CFLAGS:=@LCMS_CFLAGS@
 LCMS_LIBS:=@LCMS_LIBS@
 
+USE_EXTERNAL_HARFBUZZ:=@USE_EXTERNAL_HARFBUZZ@
+HARFBUZZ_CFLAGS:=@HARFBUZZ_CFLAGS@
+HARFBUZZ_LIBS:=@HARFBUZZ_LIBS@
+
 USE_EXTERNAL_LIBPNG:=@USE_EXTERNAL_LIBPNG@
 PNG_LIBS:=@PNG_LIBS@
 PNG_CFLAGS:=@PNG_CFLAGS@
@@ -889,13 +874,27 @@ DOCS_IMAGE_DIR = $(IMAGES_OUTPUTDIR)/$(DOCS_IMAGE_SUBDIR)
 # Output docs directly into image
 DOCS_OUTPUTDIR := $(DOCS_IMAGE_DIR)
 
+# Static libs image
+STATIC_LIBS_IMAGE_SUBDIR := static-libs
+STATIC_LIBS_IMAGE_DIR := $(IMAGES_OUTPUTDIR)/$(STATIC_LIBS_IMAGE_SUBDIR)
+
+# Graal builder image
+GRAAL_BUILDER_IMAGE_SUBDIR := graal-builder-jdk
+GRAAL_BUILDER_IMAGE_DIR := $(IMAGES_OUTPUTDIR)/$(GRAAL_BUILDER_IMAGE_SUBDIR)
+
 # Macosx bundles directory definitions
 JDK_MACOSX_BUNDLE_SUBDIR=jdk-bundle
 JRE_MACOSX_BUNDLE_SUBDIR=jre-bundle
+JDK_MACOSX_BUNDLE_SUBDIR_SIGNED=jdk-bundle-signed
+JRE_MACOSX_BUNDLE_SUBDIR_SIGNED=jre-bundle-signed
 JDK_MACOSX_BUNDLE_DIR=$(IMAGES_OUTPUTDIR)/$(JDK_MACOSX_BUNDLE_SUBDIR)
 JRE_MACOSX_BUNDLE_DIR=$(IMAGES_OUTPUTDIR)/$(JRE_MACOSX_BUNDLE_SUBDIR)
-JDK_MACOSX_CONTENTS_SUBDIR=jdk-$(VERSION_NUMBER).jdk/Contents
-JRE_MACOSX_CONTENTS_SUBDIR=jre-$(VERSION_NUMBER).jre/Contents
+JDK_MACOSX_BUNDLE_DIR_SIGNED=$(IMAGES_OUTPUTDIR)/$(JDK_MACOSX_BUNDLE_SUBDIR_SIGNED)
+JRE_MACOSX_BUNDLE_DIR_SIGNED=$(IMAGES_OUTPUTDIR)/$(JRE_MACOSX_BUNDLE_SUBDIR_SIGNED)
+JDK_MACOSX_BUNDLE_TOP_DIR=jdk-$(VERSION_NUMBER).jdk
+JRE_MACOSX_BUNDLE_TOP_DIR=jre-$(VERSION_NUMBER).jre
+JDK_MACOSX_CONTENTS_SUBDIR=$(JDK_MACOSX_BUNDLE_TOP_DIR)/Contents
+JRE_MACOSX_CONTENTS_SUBDIR=$(JRE_MACOSX_BUNDLE_TOP_DIR)/Contents
 JDK_MACOSX_CONTENTS_DIR=$(JDK_MACOSX_BUNDLE_DIR)/$(JDK_MACOSX_CONTENTS_SUBDIR)
 JRE_MACOSX_CONTENTS_DIR=$(JRE_MACOSX_BUNDLE_DIR)/$(JRE_MACOSX_CONTENTS_SUBDIR)
 
@@ -917,6 +916,7 @@ JDK_SYMBOLS_BUNDLE_NAME := jdk-$(BASE_NAME)_bin$(DEBUG_PART)-symbols.tar.gz
 TEST_DEMOS_BUNDLE_NAME := jdk-$(BASE_NAME)_bin-tests-demos$(DEBUG_PART).tar.gz
 TEST_BUNDLE_NAME := jdk-$(BASE_NAME)_bin-tests$(DEBUG_PART).tar.gz
 DOCS_BUNDLE_NAME := jdk-$(BASE_NAME)_doc-api-spec$(DEBUG_PART).tar.gz
+STATIC_LIBS_BUNDLE_NAME := jdk-$(BASE_NAME)_bin-static-libs$(DEBUG_PART).tar.gz
 JCOV_BUNDLE_NAME := jdk-jcov-$(BASE_NAME)_bin$(DEBUG_PART).$(JDK_BUNDLE_EXTENSION)
 
 JDK_BUNDLE := $(BUNDLES_OUTPUTDIR)/$(JDK_BUNDLE_NAME)

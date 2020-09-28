@@ -91,7 +91,7 @@ import sun.swing.text.UndoableEditLockSupport;
  * future Swing releases. The current serialization support is
  * appropriate for short term storage or RMI between applications running
  * the same version of Swing.  As of 1.4, support for long term storage
- * of all JavaBeans&trade;
+ * of all JavaBeans
  * has been added to the <code>java.beans</code> package.
  * Please see {@link java.beans.XMLEncoder}.
  *
@@ -1775,7 +1775,7 @@ public abstract class AbstractDocument implements Document, Serializable {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
@@ -2245,7 +2245,7 @@ public abstract class AbstractDocument implements Document, Serializable {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      */
@@ -2500,7 +2500,7 @@ public abstract class AbstractDocument implements Document, Serializable {
      * future Swing releases. The current serialization support is
      * appropriate for short term storage or RMI between applications running
      * the same version of Swing.  As of 1.4, support for long term storage
-     * of all JavaBeans&trade;
+     * of all JavaBeans
      * has been added to the <code>java.beans</code> package.
      * Please see {@link java.beans.XMLEncoder}.
      *
@@ -2961,11 +2961,12 @@ public abstract class AbstractDocument implements Document, Serializable {
 
     }
 
-    static class DefaultDocumentEventUndoableWrapper implements
+    class DefaultDocumentEventUndoableWrapper extends DefaultDocumentEvent implements
             UndoableEdit, UndoableEditLockSupport
     {
         final DefaultDocumentEvent dde;
         public DefaultDocumentEventUndoableWrapper(DefaultDocumentEvent dde) {
+            super(dde.getOffset(),dde.getLength(),dde.type);
             this.dde = dde;
         }
 

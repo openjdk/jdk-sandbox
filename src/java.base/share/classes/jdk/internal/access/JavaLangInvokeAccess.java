@@ -25,8 +25,13 @@
 
 package jdk.internal.access;
 
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 public interface JavaLangInvokeAccess {
     /**
@@ -64,46 +69,90 @@ public interface JavaLangInvokeAccess {
     Class<?> getDeclaringClass(Object mname);
 
     /**
-     * Returns a {@code byte[]} representation of a class implementing
-     * DirectMethodHandle of each pairwise combination of {@code MethodType} and
-     * an {@code int} representing method type.  Used by
-     * GenerateJLIClassesPlugin to generate such a class during the jlink phase.
+     * Returns a map of class name in internal forms to its corresponding
+     * class bytes per the given stream of LF_RESOLVE and SPECIES_RESOLVE
+     * trace logs. Used by GenerateJLIClassesPlugin to enable generation
+     * of such classes during the jlink phase.
      */
-    byte[] generateDirectMethodHandleHolderClassBytes(String className,
-            MethodType[] methodTypes, int[] types);
+    Map<String, byte[]> generateHolderClasses(Stream<String> traces);
 
     /**
-     * Returns a {@code byte[]} representation of a class implementing
-     * DelegatingMethodHandles of each {@code MethodType} kind in the
-     * {@code methodTypes} argument.  Used by GenerateJLIClassesPlugin to
-     * generate such a class during the jlink phase.
+     * Returns a var handle view of a given memory address.
+     * Used by {@code jdk.internal.foreign.LayoutPath} and
+     * {@code jdk.incubator.foreign.MemoryHandles}.
      */
-    byte[] generateDelegatingMethodHandleHolderClassBytes(String className,
-            MethodType[] methodTypes);
+    VarHandle memoryAccessVarHandle(Class<?> carrier, long alignmentMask,
+                                    ByteOrder order, long offset, long[] strides);
 
     /**
-     * Returns a {@code byte[]} representation of {@code BoundMethodHandle}
-     * species class implementing the signature defined by {@code types}. Used
-     * by GenerateJLIClassesPlugin to enable generation of such classes during
-     * the jlink phase. Should do some added validation since this string may be
-     * user provided.
+     * Is {@code handle} a memory access varhandle?
+     * Used by {@code jdk.incubator.foreign.MemoryHandles}.
      */
-    Map.Entry<String, byte[]> generateConcreteBMHClassBytes(
-            final String types);
+    boolean isMemoryAccessVarHandle(VarHandle handle);
 
     /**
-     * Returns a {@code byte[]} representation of a class implementing
-     * the zero and identity forms of all {@code LambdaForm.BasicType}s.
+     * Returns the carrier associated with a memory access var handle.
+     * Used by {@code jdk.incubator.foreign.MemoryHandles}.
      */
-    byte[] generateBasicFormsClassBytes(final String className);
+    Class<?> memoryAddressCarrier(VarHandle handle);
 
     /**
-     * Returns a {@code byte[]} representation of a class implementing
-     * the invoker forms for the set of supplied {@code invokerMethodTypes}
-     * and {@code callSiteMethodTypes}.
+     * Returns the alignment mask associated with a memory access var handle.
+     * Used by {@code jdk.incubator.foreign.MemoryHandles}.
      */
-    byte[] generateInvokersHolderClassBytes(String className,
-            MethodType[] invokerMethodTypes,
-            MethodType[] callSiteMethodTypes);
+    long memoryAddressAlignmentMask(VarHandle handle);
 
+    /**
+     * Returns the byte order associated with a memory access var handle.
+     * Used by {@code jdk.incubator.foreign.MemoryHandles}.
+     */
+    ByteOrder memoryAddressByteOrder(VarHandle handle);
+
+    /**
+     * Returns the offset associated with a memory access var handle.
+     * Used by {@code jdk.incubator.foreign.MemoryHandles}.
+     */
+    long memoryAddressOffset(VarHandle handle);
+
+    /**
+     * Returns the strides associated with a memory access var handle.
+     * Used by {@code jdk.incubator.foreign.MemoryHandles}.
+     */
+    long[] memoryAddressStrides(VarHandle handle);
+
+    /**
+     * Var handle carrier combinator.
+     * Used by {@code jdk.incubator.foreign.MemoryHandles}.
+     */
+    VarHandle filterValue(VarHandle target, MethodHandle filterToTarget, MethodHandle filterFromTarget);
+
+    /**
+     * Var handle filter coordinates combinator.
+     * Used by {@code jdk.incubator.foreign.MemoryHandles}.
+     */
+    VarHandle filterCoordinates(VarHandle target, int pos, MethodHandle... filters);
+
+    /**
+     * Var handle drop coordinates combinator.
+     * Used by {@code jdk.incubator.foreign.MemoryHandles}.
+     */
+    VarHandle dropCoordinates(VarHandle target, int pos, Class<?>... valueTypes);
+
+    /**
+     * Var handle permute coordinates combinator.
+     * Used by {@code jdk.incubator.foreign.MemoryHandles}.
+     */
+    VarHandle permuteCoordinates(VarHandle target, List<Class<?>> newCoordinates, int... reorder);
+
+    /**
+     * Var handle collect coordinates combinator.
+     * Used by {@code jdk.incubator.foreign.MemoryHandles}.
+     */
+    VarHandle collectCoordinates(VarHandle target, int pos, MethodHandle filter);
+
+    /**
+     * Var handle insert coordinates combinator.
+     * Used by {@code jdk.incubator.foreign.MemoryHandles}.
+     */
+    VarHandle insertCoordinates(VarHandle target, int pos, Object... values);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -30,6 +30,7 @@
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
+#include "classfile/javaClasses.hpp"
 #include "nativeInst_ppc.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
@@ -322,7 +323,7 @@ inline void compare_with_patch_site(address template_start, address pc_start, in
 void PatchingStub::emit_code(LIR_Assembler* ce) {
   // copy original code here
   assert(NativeGeneralJump::instruction_size <= _bytes_to_copy && _bytes_to_copy <= 0xFF,
-         "not enough room for call");
+         "not enough room for call, need %d", _bytes_to_copy);
   assert((_bytes_to_copy & 0x3) == 0, "must copy a multiple of four bytes");
 
   Label call_patch;
@@ -340,7 +341,7 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
     __ load_const(_obj, addrlit, R0);
     DEBUG_ONLY( compare_with_patch_site(__ code_section()->start() + being_initialized_entry, _pc_start, _bytes_to_copy); )
   } else {
-    // Make a copy the code which is going to be patched.
+    // Make a copy of the code which is going to be patched.
     for (int i = 0; i < _bytes_to_copy; i++) {
       address ptr = (address)(_pc_start + i);
       int a_byte = (*ptr) & 0xFF;
@@ -361,7 +362,7 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
     assert(_obj != noreg, "must be a valid register");
     assert(_index >= 0, "must have oop index");
     __ mr(R0, _obj); // spill
-    __ ld(_obj, java_lang_Class::klass_offset_in_bytes(), _obj);
+    __ ld(_obj, java_lang_Class::klass_offset(), _obj);
     __ ld(_obj, in_bytes(InstanceKlass::init_thread_offset()), _obj);
     __ cmpd(CCR0, _obj, R16_thread);
     __ mr(_obj, R0); // restore

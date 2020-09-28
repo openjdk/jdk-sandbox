@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@
 #include "oops/klass.hpp"
 #include "oops/method.hpp"
 #include "oops/symbol.hpp"
+#include "runtime/globals_extension.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.hpp"
 #include "runtime/os.hpp"
@@ -380,10 +381,12 @@ static OracleCommand parse_command_name(const char * line, int* bytes_read) {
 
   *bytes_read = 0;
   char command[33];
-  int result = sscanf(line, "%32[a-z]%n", command, bytes_read);
-  for (uint i = 0; i < ARRAY_SIZE(command_names); i++) {
-    if (strcmp(command, command_names[i]) == 0) {
-      return (OracleCommand)i;
+  int matches = sscanf(line, "%32[a-z]%n", command, bytes_read);
+  if (matches > 0) {
+    for (uint i = 0; i < ARRAY_SIZE(command_names); i++) {
+      if (strcmp(command, command_names[i]) == 0) {
+        return (OracleCommand)i;
+      }
     }
   }
   return UnknownCommand;
@@ -488,12 +491,12 @@ static void scan_flag_and_value(const char* type, const char* line, int& total_b
       ResourceMark rm;
       char* value = NEW_RESOURCE_ARRAY(char, strlen(line) + 1);
       char* next_value = value;
-      if (sscanf(line, "%*[ \t]%255[_a-zA-Z0-9]%n", next_value, &bytes_read) == 1) {
+      if (sscanf(line, "%*[ \t]%255[_a-zA-Z0-9+\\-]%n", next_value, &bytes_read) == 1) {
         total_bytes_read += bytes_read;
         line += bytes_read;
         next_value += bytes_read;
         char* end_value = next_value-1;
-        while (sscanf(line, "%*[ \t]%255[_a-zA-Z0-9]%n", next_value, &bytes_read) == 1) {
+        while (sscanf(line, "%*[ \t]%255[_a-zA-Z0-9+\\-]%n", next_value, &bytes_read) == 1) {
           total_bytes_read += bytes_read;
           line += bytes_read;
           *end_value = ' '; // override '\0'

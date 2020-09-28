@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,9 +34,6 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
-#ifdef __solaris__
-#include <sys/systeminfo.h>
-#endif
 
 #include <jni.h>
 #include <jni_util.h>
@@ -64,57 +61,7 @@ extern Display *awt_display;
 
 #define MAXFDIRS 512    /* Max number of directories that contain fonts */
 
-#if defined(__solaris__)
-/*
- * This can be set in the makefile to "/usr/X11" if so desired.
- */
-#ifndef OPENWINHOMELIB
-#define OPENWINHOMELIB "/usr/openwin/lib/"
-#endif
-
-/* This is all known Solaris X11 directories on Solaris 8, 9 and 10.
- * It is ordered to give precedence to TrueType directories.
- * It is needed if fontconfig is not installed or configured properly.
- */
-static char *fullSolarisFontPath[] = {
-    OPENWINHOMELIB "X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/euro_fonts/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/iso_8859_2/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/iso_8859_5/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/iso_8859_7/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/iso_8859_8/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/iso_8859_9/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/iso_8859_13/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/iso_8859_15/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/ar/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/hi_IN.UTF-8/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/ja/X11/fonts/TT",
-    OPENWINHOMELIB "locale/ko/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/ko.UTF-8/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/KOI8-R/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/ru.ansi-1251/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/th_TH/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/zh_TW/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/zh_TW.BIG5/X11/fonts/TT",
-    OPENWINHOMELIB "locale/zh_HK.BIG5HK/X11/fonts/TT",
-    OPENWINHOMELIB "locale/zh_CN.GB18030/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/zh/X11/fonts/TrueType",
-    OPENWINHOMELIB "locale/zh.GBK/X11/fonts/TrueType",
-    OPENWINHOMELIB "X11/fonts/Type1",
-    OPENWINHOMELIB "X11/fonts/Type1/sun",
-    OPENWINHOMELIB "X11/fonts/Type1/sun/outline",
-    OPENWINHOMELIB "locale/iso_8859_2/X11/fonts/Type1",
-    OPENWINHOMELIB "locale/iso_8859_4/X11/fonts/Type1",
-    OPENWINHOMELIB "locale/iso_8859_5/X11/fonts/Type1",
-    OPENWINHOMELIB "locale/iso_8859_7/X11/fonts/Type1",
-    OPENWINHOMELIB "locale/iso_8859_8/X11/fonts/Type1",
-    OPENWINHOMELIB "locale/iso_8859_9/X11/fonts/Type1",
-    OPENWINHOMELIB "locale/iso_8859_13/X11/fonts/Type1",
-    OPENWINHOMELIB "locale/ar/X11/fonts/Type1",
-    NULL, /* terminates the list */
-};
-
-#elif defined( __linux__)
+#if defined( __linux__)
 /* All the known interesting locations we have discovered on
  * various flavors of Linux
  */
@@ -341,6 +288,9 @@ static char **getX11FontPath ()
      * cost us a little wasted effort upstream.
      */
     fontdirs = (char**)calloc(nPaths+1, sizeof(char*));
+    if (fontdirs == NULL) {
+        return NULL;
+    }
     pos = 0;
     for (i=0; i < nPaths; i++) {
         if (x11Path[i][0] != '/') {
@@ -361,14 +311,6 @@ static char **getX11FontPath ()
         if (strstr(x11Path[i], ".gnome") != NULL) {
             continue;
         }
-#ifdef __solaris__
-        if (strstr(x11Path[i], "/F3/") != NULL) {
-            continue;
-        }
-        if (strstr(x11Path[i], "bitmap") != NULL) {
-            continue;
-        }
-#endif
         fontdirs[pos] = strdup(x11Path[i]);
         slen = strlen(fontdirs[pos]);
         if (slen > 0 && fontdirs[pos][slen-1] == '/') {
@@ -420,6 +362,9 @@ static char* mergePaths(char **p1, char **p2, char **p3, jboolean noType1) {
     }
     totalLen = len1+len2+len3;
     fontdirs = (char**)calloc(totalLen, sizeof(char*));
+    if (fontdirs == NULL) {
+        return NULL;
+    }
 
     for (i=0; i < len1; i++) {
         if (noType1 && strstr(p1[i], "Type1") != NULL) {
@@ -515,8 +460,6 @@ static char *getPlatformFontPathChars(JNIEnv *env, jboolean noType1, jboolean is
 
 #if defined(__linux__)
     knowndirs = fullLinuxFontPath;
-#elif defined(__solaris__)
-    knowndirs = fullSolarisFontPath;
 #elif defined(_AIX)
     knowndirs = fullAixFontPath;
 #endif
@@ -586,10 +529,6 @@ static void* openFontConfig() {
     char *homeEnv;
     static char *homeEnvStr = "HOME="; /* must be static */
     void* libfontconfig = NULL;
-#ifdef __solaris__
-#define SYSINFOBUFSZ 8
-    char sysinfobuf[SYSINFOBUFSZ];
-#endif
 
     /* Private workaround to not use fontconfig library.
      * May be useful during testing/debugging
@@ -598,21 +537,6 @@ static void* openFontConfig() {
     if (useFC != NULL && !strcmp(useFC, "no")) {
         return NULL;
     }
-
-#ifdef __solaris__
-    /* fontconfig is likely not properly configured on S8/S9 - skip it,
-     * although allow user to override this behaviour with an env. variable
-     * ie if USE_J2D_FONTCONFIG=yes then we skip this test.
-     * NB "4" is the length of a string which matches our patterns.
-     */
-    if (useFC == NULL || strcmp(useFC, "yes")) {
-        if (sysinfo(SI_RELEASE, sysinfobuf, SYSINFOBUFSZ) == 4) {
-            if ((!strcmp(sysinfobuf, "5.8") || !strcmp(sysinfobuf, "5.9"))) {
-                return NULL;
-            }
-        }
-    }
-#endif
 
 #if defined(_AIX)
     /* On AIX, fontconfig is not a standard package supported by IBM.
@@ -816,6 +740,10 @@ static char **getFontConfigLocations() {
         fontdirs = NULL;
     } else {
         fontdirs = (char**)calloc(fontSet->nfont+1, sizeof(char*));
+        if (fontdirs == NULL) {
+            (*FcFontSetDestroy)(fontSet);
+            goto cleanup;
+        }
         for (f=0; f < fontSet->nfont; f++) {
             FcChar8 *file;
             FcChar8 *dir;
@@ -840,6 +768,7 @@ static char **getFontConfigLocations() {
         (*FcFontSetDestroy)(fontSet);
     }
 
+cleanup:
     /* Free memory and close the ".so" */
     (*FcPatternDestroy)(pattern);
     closeFontConfig(libfontconfig, JNI_TRUE);
@@ -887,9 +816,9 @@ Java_sun_font_FontConfigManager_getFontConfigAASettings
     locale = (*env)->GetStringUTFChars(env, localeStr, 0);
 
     if ((libfontconfig = openFontConfig()) == NULL) {
-        (*env)->ReleaseStringUTFChars (env, fcNameStr, (const char*)fcName);
+        (*env)->ReleaseStringUTFChars(env, fcNameStr, (const char*)fcName);
         if (locale) {
-            (*env)->ReleaseStringUTFChars (env, localeStr,(const char*)locale);
+            (*env)->ReleaseStringUTFChars(env, localeStr,(const char*)locale);
         }
         return -1;
     }
@@ -918,9 +847,9 @@ Java_sun_font_FontConfigManager_getFontConfigAASettings
         FcPatternGetInteger  == NULL ||
         FcPatternDestroy     == NULL) { /* problem with the library: return. */
 
-        (*env)->ReleaseStringUTFChars (env, fcNameStr, (const char*)fcName);
+        (*env)->ReleaseStringUTFChars(env, fcNameStr, (const char*)fcName);
         if (locale) {
-            (*env)->ReleaseStringUTFChars (env, localeStr,(const char*)locale);
+            (*env)->ReleaseStringUTFChars(env, localeStr,(const char*)locale);
         }
         closeFontConfig(libfontconfig, JNI_FALSE);
         return -1;
@@ -945,9 +874,9 @@ Java_sun_font_FontConfigManager_getFontConfigAASettings
     }
     (*FcPatternDestroy)(pattern);
 
-    (*env)->ReleaseStringUTFChars (env, fcNameStr, (const char*)fcName);
+    (*env)->ReleaseStringUTFChars(env, fcNameStr, (const char*)fcName);
     if (locale) {
-        (*env)->ReleaseStringUTFChars (env, localeStr, (const char*)locale);
+        (*env)->ReleaseStringUTFChars(env, localeStr, (const char*)locale);
     }
     closeFontConfig(libfontconfig, JNI_TRUE);
 
@@ -1179,6 +1108,9 @@ Java_sun_font_FontConfigManager_getFontConfig
         (*env)->DeleteLocalRef(env, fcNameStr);
         if (pattern == NULL) {
             closeFontConfig(libfontconfig, JNI_FALSE);
+            if (locale) {
+                (*env)->ReleaseStringUTFChars(env, localeStr, (const char*)locale);
+            }
             return;
         }
 
@@ -1196,6 +1128,9 @@ Java_sun_font_FontConfigManager_getFontConfig
         if (fontset == NULL) {
             (*FcPatternDestroy)(pattern);
             closeFontConfig(libfontconfig, JNI_FALSE);
+            if (locale) {
+                (*env)->ReleaseStringUTFChars(env, localeStr, (const char*)locale);
+            }
             return;
         }
 
@@ -1227,6 +1162,9 @@ Java_sun_font_FontConfigManager_getFontConfig
             (*FcPatternDestroy)(pattern);
             (*FcFontSetDestroy)(fontset);
             closeFontConfig(libfontconfig, JNI_FALSE);
+            if (locale) {
+                (*env)->ReleaseStringUTFChars(env, localeStr, (const char*)locale);
+            }
             return;
         }
         fontCount = 0;
@@ -1269,6 +1207,9 @@ Java_sun_font_FontConfigManager_getFontConfig
                 (*FcPatternDestroy)(pattern);
                 (*FcFontSetDestroy)(fontset);
                 closeFontConfig(libfontconfig, JNI_FALSE);
+                if (locale) {
+                    (*env)->ReleaseStringUTFChars(env, localeStr, (const char*)locale);
+                }
                 return;
             }
 
@@ -1323,6 +1264,9 @@ Java_sun_font_FontConfigManager_getFontConfig
                 (*FcPatternDestroy)(pattern);
                 (*FcFontSetDestroy)(fontset);
                 closeFontConfig(libfontconfig, JNI_FALSE);
+                if (locale) {
+                    (*env)->ReleaseStringUTFChars(env, localeStr, (const char*)locale);
+                }
                 return;
             }
             (*env)->SetObjectField(env,fcCompFontObj, fcAllFontsID, fcFontArr);
@@ -1384,7 +1328,7 @@ Java_sun_font_FontConfigManager_getFontConfig
     /* release resources and close the ".so" */
 
     if (locale) {
-        (*env)->ReleaseStringUTFChars (env, localeStr, (const char*)locale);
+        (*env)->ReleaseStringUTFChars(env, localeStr, (const char*)locale);
     }
     closeFontConfig(libfontconfig, JNI_TRUE);
 }

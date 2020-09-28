@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include "jimage.hpp"
 #include "classfile/classListParser.hpp"
 #include "classfile/classLoaderExt.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
@@ -34,8 +35,8 @@
 #include "logging/logTag.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
-#include "runtime/fieldType.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/hashtable.inline.hpp"
@@ -62,7 +63,7 @@ ClassListParser::ClassListParser(const char* file) {
     vm_exit_during_initialization("Loading classlist failed", errmsg);
   }
   _line_no = 0;
-  _interfaces = new (ResourceObj::C_HEAP, mtClass) GrowableArray<int>(10, true);
+  _interfaces = new (ResourceObj::C_HEAP, mtClass) GrowableArray<int>(10, mtClass);
 }
 
 ClassListParser::~ClassListParser() {
@@ -229,17 +230,17 @@ void ClassListParser::print_specified_interfaces() {
   jio_fprintf(defaultStream::error_stream(), "}\n");
 }
 
-void ClassListParser::print_actual_interfaces(InstanceKlass *ik) {
+void ClassListParser::print_actual_interfaces(InstanceKlass* ik) {
   int n = ik->local_interfaces()->length();
   jio_fprintf(defaultStream::error_stream(), "Actual interfaces[%d] = {\n", n);
   for (int i = 0; i < n; i++) {
-    InstanceKlass* e = InstanceKlass::cast(ik->local_interfaces()->at(i));
+    InstanceKlass* e = ik->local_interfaces()->at(i);
     jio_fprintf(defaultStream::error_stream(), "  %s\n", e->name()->as_klass_external_name());
   }
   jio_fprintf(defaultStream::error_stream(), "}\n");
 }
 
-void ClassListParser::error(const char *msg, ...) {
+void ClassListParser::error(const char* msg, ...) {
   va_list ap;
   va_start(ap, msg);
   int error_index = _token - _line;
@@ -281,7 +282,7 @@ void ClassListParser::error(const char *msg, ...) {
 // This function is used for loading classes for customized class loaders
 // during archive dumping.
 InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS) {
-#if !(defined(_LP64) && (defined(LINUX)|| defined(SOLARIS) || defined(__APPLE__)))
+#if !(defined(_LP64) && (defined(LINUX) || defined(__APPLE__)))
   // The only supported platforms are: (1) Linux/64-bit and (2) Solaris/64-bit and
   // (3) MacOSX/64-bit
   // This #if condition should be in sync with the areCustomLoadersSupportedForCDS
@@ -319,7 +320,7 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
 
     // This tells JVM_FindLoadedClass to not find this class.
     k->set_shared_classpath_index(UNREGISTERED_INDEX);
-    k->clear_class_loader_type();
+    k->clear_shared_class_loader_type();
   }
 
   return k;
@@ -328,7 +329,7 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
 Klass* ClassListParser::load_current_class(TRAPS) {
   TempNewSymbol class_name_symbol = SymbolTable::new_symbol(_class_name);
 
-  Klass *klass = NULL;
+  Klass* klass = NULL;
   if (!is_loading_from_source()) {
     // Load classes for the boot/platform/app loaders only.
     if (is_super_specified()) {
@@ -338,7 +339,7 @@ Klass* ClassListParser::load_current_class(TRAPS) {
       error("If source location is not specified, interface(s) must not be specified");
     }
 
-    bool non_array = !FieldType::is_array(class_name_symbol);
+    bool non_array = !Signature::is_array(class_name_symbol);
 
     JavaValue result(T_OBJECT);
     if (non_array) {
@@ -350,9 +351,9 @@ Klass* ClassListParser::load_current_class(TRAPS) {
       // delegate to the correct loader (boot, platform or app) depending on
       // the class name.
 
-      Handle s = java_lang_String::create_from_symbol(class_name_symbol, CHECK_0);
+      Handle s = java_lang_String::create_from_symbol(class_name_symbol, CHECK_NULL);
       // ClassLoader.loadClass() wants external class name format, i.e., convert '/' chars to '.'
-      Handle ext_class_name = java_lang_String::externalize_classname(s, CHECK_0);
+      Handle ext_class_name = java_lang_String::externalize_classname(s, CHECK_NULL);
       Handle loader = Handle(THREAD, SystemDictionary::java_system_loader());
 
       JavaCalls::call_virtual(&result,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,11 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/gcConfig.hpp"
+#include "gc/shared/gcLogPrecious.hpp"
 #include "logging/logConfiguration.hpp"
-#include "jfr/jfrEvents.hpp"
-#include "memory/resourceArea.hpp"
+#include "memory/metaspace.hpp"
+#include "memory/metaspaceShared.hpp"
+#include "memory/resourceArea.inline.hpp"
 #include "memory/universe.hpp"
 #include "oops/compressedOops.hpp"
 #include "prims/whitebox.hpp"
@@ -39,6 +41,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/os.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vmThread.hpp"
@@ -79,18 +82,19 @@ void* VMError::get_segfault_address() {
 // List of environment variables that should be reported in error log file.
 const char *env_list[] = {
   // All platforms
-  "JAVA_HOME", "JRE_HOME", "JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "CLASSPATH",
-  "JAVA_COMPILER", "PATH", "USERNAME",
+  "JAVA_HOME", "JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "CLASSPATH",
+  "PATH", "USERNAME",
 
-  // Env variables that are defined on Solaris/Linux/BSD
+  // Env variables that are defined on Linux/BSD
   "LD_LIBRARY_PATH", "LD_PRELOAD", "SHELL", "DISPLAY",
   "HOSTTYPE", "OSTYPE", "ARCH", "MACHTYPE",
+  "LANG", "LC_ALL", "LC_CTYPE", "TZ",
 
   // defined on AIX
   "LIBPATH", "LDR_PRELOAD", "LDR_PRELOAD64",
 
-  // defined on Linux
-  "LD_ASSUME_KERNEL", "_JAVA_SR_SIGNUM",
+  // defined on Linux/AIX/BSD
+  "_JAVA_SR_SIGNUM",
 
   // defined on Darwin
   "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH",
@@ -128,15 +132,19 @@ static char* next_OnError_command(char* buf, int buflen, const char** ptr) {
 
 static void print_bug_submit_message(outputStream *out, Thread *thread) {
   if (out == NULL) return;
-  out->print_raw_cr("# If you would like to submit a bug report, please visit:");
-  out->print_raw   ("#   ");
-  out->print_raw_cr(Arguments::java_vendor_url_bug());
+  const char *url = Arguments::java_vendor_url_bug();
+  if (url == NULL || *url == '\0')
+    url = JDK_Version::runtime_vendor_vm_bug_url();
+  if (url != NULL && *url != '\0') {
+    out->print_raw_cr("# If you would like to submit a bug report, please visit:");
+    out->print_raw   ("#   ");
+    out->print_raw_cr(url);
+  }
   // If the crash is in native code, encourage user to submit a bug to the
   // provider of that code.
   if (thread && thread->is_Java_thread() &&
       !thread->is_hidden_from_external_view()) {
-    JavaThread* jt = (JavaThread*)thread;
-    if (jt->thread_state() == _thread_in_native) {
+    if (thread->as_Java_thread()->thread_state() == _thread_in_native) {
       out->print_cr("# The crash happened outside the Java Virtual Machine in native code.\n# See problematic frame for where to report the bug.");
     }
   }
@@ -246,11 +254,11 @@ void VMError::print_native_stack(outputStream* st, frame fr, Thread* t, char* bu
       if (t && t->is_Java_thread()) {
         // Catch very first native frame by using stack address.
         // For JavaThread stack_base and stack_size should be set.
-        if (!t->on_local_stack((address)(fr.real_fp() + 1))) {
+        if (!t->is_in_full_stack((address)(fr.real_fp() + 1))) {
           break;
         }
         if (fr.is_java_frame() || fr.is_native_frame() || fr.is_runtime_frame()) {
-          RegisterMap map((JavaThread*)t, false); // No update
+          RegisterMap map(t->as_Java_thread(), false); // No update
           fr = fr.sender(&map);
         } else {
           // is_first_C_frame() does only simple checks for frame pointer,
@@ -321,15 +329,19 @@ static void report_vm_version(outputStream* st, char* buf, int buflen) {
                                 JDK_Version::runtime_name() : "";
    const char* runtime_version = JDK_Version::runtime_version() != NULL ?
                                    JDK_Version::runtime_version() : "";
+   const char* vendor_version = JDK_Version::runtime_vendor_version() != NULL ?
+                                  JDK_Version::runtime_vendor_version() : "";
    const char* jdk_debug_level = VM_Version::printable_jdk_debug_level() != NULL ?
                                    VM_Version::printable_jdk_debug_level() : "";
 
-   st->print_cr("# JRE version: %s (%s) (%sbuild %s)", runtime_name, buf,
-                 jdk_debug_level, runtime_version);
+   st->print_cr("# JRE version: %s%s%s (%s) (%sbuild %s)", runtime_name,
+                (*vendor_version != '\0') ? " " : "", vendor_version,
+                buf, jdk_debug_level, runtime_version);
 
    // This is the long version with some default settings added
-   st->print_cr("# Java VM: %s (%s%s, %s%s%s%s%s, %s, %s)",
+   st->print_cr("# Java VM: %s%s%s (%s%s, %s%s%s%s%s, %s, %s)",
                  VM_Version::vm_name(),
+                (*vendor_version != '\0') ? " " : "", vendor_version,
                  jdk_debug_level,
                  VM_Version::vm_release(),
                  VM_Version::vm_info_string(),
@@ -390,7 +402,7 @@ jlong VMError::get_current_timestamp() {
 
 void VMError::record_reporting_start_time() {
   const jlong now = get_current_timestamp();
-  Atomic::store(now, &_reporting_start_time);
+  Atomic::store(&_reporting_start_time, now);
 }
 
 jlong VMError::get_reporting_start_time() {
@@ -399,7 +411,7 @@ jlong VMError::get_reporting_start_time() {
 
 void VMError::record_step_start_time() {
   const jlong now = get_current_timestamp();
-  Atomic::store(now, &_step_start_time);
+  Atomic::store(&_step_start_time, now);
 }
 
 jlong VMError::get_step_start_time() {
@@ -407,7 +419,7 @@ jlong VMError::get_step_start_time() {
 }
 
 void VMError::clear_step_start_time() {
-  return Atomic::store((jlong)0, &_step_start_time);
+  return Atomic::store(&_step_start_time, (jlong)0);
 }
 
 void VMError::report(outputStream* st, bool _verbose) {
@@ -609,6 +621,9 @@ void VMError::report(outputStream* st, bool _verbose) {
     st->cr();
     st->print_cr("#");
 
+  JFR_ONLY(STEP("printing jfr information"))
+  JFR_ONLY(Jfr::on_vm_error_report(st);)
+
   STEP("printing bug submit message")
 
      if (should_report_bug(_id) && _verbose) {
@@ -727,7 +742,7 @@ void VMError::report(outputStream* st, bool _verbose) {
   STEP("printing Java stack")
 
      if (_verbose && _thread && _thread->is_Java_thread()) {
-       print_stack_trace(st, (JavaThread*)_thread, buf, sizeof(buf));
+       print_stack_trace(st, _thread->as_Java_thread(), buf, sizeof(buf));
      }
 
   STEP("printing target Java thread stack")
@@ -761,7 +776,8 @@ void VMError::report(outputStream* st, bool _verbose) {
   STEP("printing register info")
 
      // decode register contents if possible
-     if (_verbose && _context && Universe::is_fully_initialized()) {
+     if (_verbose && _context && _thread && Universe::is_fully_initialized()) {
+       ResourceMark rm(_thread);
        os::print_register_info(st, _context);
        st->cr();
      }
@@ -777,7 +793,7 @@ void VMError::report(outputStream* st, bool _verbose) {
   STEP("inspecting top of stack")
 
      // decode stack contents if possible
-     if (_verbose && _context && Universe::is_fully_initialized()) {
+     if (_verbose && _context && _thread && Universe::is_fully_initialized()) {
        frame fr = os::fetch_frame_from_context(_context);
        const int slots = 8;
        const intptr_t *start = fr.sp();
@@ -786,6 +802,7 @@ void VMError::report(outputStream* st, bool _verbose) {
          st->print_cr("Stack slot to memory mapping:");
          for (int i = 0; i < slots; ++i) {
            st->print("stack at sp + %d slots: ", i);
+           ResourceMark rm(_thread);
            os::print_location(st, *(start + i));
          }
        }
@@ -860,7 +877,7 @@ void VMError::report(outputStream* st, bool _verbose) {
 
      if (_verbose) {
        // Safepoint state
-       st->print("VM state:");
+       st->print("VM state: ");
 
        if (SafepointSynchronize::is_synchronizing()) st->print("synchronizing");
        else if (SafepointSynchronize::is_at_safepoint()) st->print("at safepoint");
@@ -894,23 +911,34 @@ void VMError::report(outputStream* st, bool _verbose) {
        st->cr();
      }
 
+#ifdef _LP64
   STEP("printing compressed oops mode")
 
      if (_verbose && UseCompressedOops) {
        CompressedOops::print_mode(st);
        if (UseCompressedClassPointers) {
+         CDS_ONLY(MetaspaceShared::print_on(st);)
          Metaspace::print_compressed_class_space(st);
+         CompressedKlassPointers::print_mode(st);
        }
        st->cr();
      }
+#endif
 
   STEP("printing heap information")
 
-     if (_verbose && Universe::is_fully_initialized()) {
-       Universe::heap()->print_on_error(st);
-       st->cr();
-       st->print_cr("Polling page: " INTPTR_FORMAT, p2i(os::get_polling_page()));
-       st->cr();
+     if (_verbose) {
+       GCLogPrecious::print_on_error(st);
+
+       if (Universe::heap() != NULL) {
+         Universe::heap()->print_on_error(st);
+         st->cr();
+       }
+
+       if (Universe::is_fully_initialized()) {
+         st->print_cr("Polling page: " INTPTR_FORMAT, p2i(SafepointMechanism::get_polling_page()));
+         st->cr();
+       }
      }
 
   STEP("printing metaspace information")
@@ -1095,23 +1123,27 @@ void VMError::print_vm_info(outputStream* st) {
     st->cr();
   }
 
+#ifdef _LP64
   // STEP("printing compressed oops mode")
-
   if (UseCompressedOops) {
     CompressedOops::print_mode(st);
     if (UseCompressedClassPointers) {
+      CDS_ONLY(MetaspaceShared::print_on(st);)
       Metaspace::print_compressed_class_space(st);
+      CompressedKlassPointers::print_mode(st);
     }
     st->cr();
   }
+#endif
 
   // STEP("printing heap information")
 
   if (Universe::is_fully_initialized()) {
     MutexLocker hl(Heap_lock);
+    GCLogPrecious::print_on_error(st);
     Universe::heap()->print_on_error(st);
     st->cr();
-    st->print_cr("Polling page: " INTPTR_FORMAT, p2i(os::get_polling_page()));
+    st->print_cr("Polling page: " INTPTR_FORMAT, p2i(SafepointMechanism::get_polling_page()));
     st->cr();
   }
 
@@ -1205,7 +1237,7 @@ void VMError::print_vm_info(outputStream* st) {
   st->print_cr("END.");
 }
 
-volatile intptr_t VMError::first_error_tid = -1;
+volatile intptr_t VMError::_first_error_tid = -1;
 
 /** Expand a pattern into a buffer starting at pos and open a file using constructed path */
 static int expand_and_open(const char* pattern, bool overwrite_existing, char* buf, size_t buflen, size_t pos) {
@@ -1355,8 +1387,8 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
       os::abort(CreateCoredumpOnCrash);
   }
   intptr_t mytid = os::current_thread_id();
-  if (first_error_tid == -1 &&
-      Atomic::cmpxchg(mytid, &first_error_tid, (intptr_t)-1) == -1) {
+  if (_first_error_tid == -1 &&
+      Atomic::cmpxchg(&_first_error_tid, (intptr_t)-1, mytid) == -1) {
 
     // Initialize time stamps to use the same base.
     out.time_stamp().update_to(1);
@@ -1399,15 +1431,6 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     // reset signal handlers or exception filter; make sure recursive crashes
     // are handled properly.
     reset_signal_handlers();
-
-    EventShutdown e;
-    if (e.should_commit()) {
-      e.set_reason("VM Error");
-      e.commit();
-    }
-
-    JFR_ONLY(Jfr::on_vm_shutdown(true);)
-
   } else {
     // If UseOsErrorReporting we call this for each level of the call stack
     // while searching for the exception handler.  Only the first level needs
@@ -1416,7 +1439,7 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
 
     // This is not the first error, see if it happened in a different thread
     // or in the same thread during error reporting.
-    if (first_error_tid != mytid) {
+    if (_first_error_tid != mytid) {
       char msgbuf[64];
       jio_snprintf(msgbuf, sizeof(msgbuf),
                    "[thread " INTX_FORMAT " also had an error]",
@@ -1529,6 +1552,8 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     log.set_fd(-1);
   }
 
+  JFR_ONLY(Jfr::on_vm_shutdown(true);)
+
   if (PrintNMTStatistics) {
     fdStream fds(fd_out);
     MemTracker::final_report(&fds);
@@ -1583,8 +1608,6 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
       out.print_raw   ("#   Executing ");
 #if defined(LINUX) || defined(_ALLBSD_SOURCE)
       out.print_raw   ("/bin/sh -c ");
-#elif defined(SOLARIS)
-      out.print_raw   ("/usr/bin/sh -c ");
 #elif defined(_WINDOWS)
       out.print_raw   ("cmd /C ");
 #endif
@@ -1646,8 +1669,6 @@ void VM_ReportJavaOutOfMemory::doit() {
     tty->print("#   Executing ");
 #if defined(LINUX)
     tty->print  ("/bin/sh -c ");
-#elif defined(SOLARIS)
-    tty->print  ("/usr/bin/sh -c ");
 #endif
     tty->print_cr("\"%s\"...", cmd);
 
@@ -1725,22 +1746,23 @@ bool VMError::check_timeout() {
 }
 
 #ifndef PRODUCT
-#if defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x5140
-#pragma error_messages(off, SEC_NULL_PTR_DEREF)
-#endif
 typedef void (*voidfun_t)();
+
 // Crash with an authentic sigfpe
+volatile int sigfpe_int = 0;
 static void crash_with_sigfpe() {
+
   // generate a native synchronous SIGFPE where possible;
+  sigfpe_int = sigfpe_int/sigfpe_int;
+
   // if that did not cause a signal (e.g. on ppc), just
   // raise the signal.
-  volatile int x = 0;
-  volatile int y = 1/x;
 #ifndef _WIN32
   // OSX implements raise(sig) incorrectly so we need to
   // explicitly target the current thread
   pthread_kill(pthread_self(), SIGFPE);
 #endif
+
 } // end: crash_with_sigfpe
 
 // crash with sigsegv at non-null address.
@@ -1843,6 +1865,15 @@ void VMError::controlled_crash(int how) {
         ThreadsListHandle tlh2;
         fatal("Force crash with a nested ThreadsListHandle.");
       }
+    }
+    case 18: {
+      // Check for assert when allocating from resource area without a
+      // ResourceMark.  There must not be a ResourceMark on the
+      // current stack when invoking this test case.
+      ResourceArea* area = Thread::current()->resource_area();
+      assert(area->nesting() == 0, "unexpected ResourceMark");
+      area->allocate_bytes(100);
+      break;
     }
 
     default: tty->print_cr("ERROR: %d: unexpected test_num value.", how);

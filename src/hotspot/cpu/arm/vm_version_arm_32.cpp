@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,12 @@
 #include "jvm.h"
 #include "asm/macroAssembler.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "runtime/arguments.hpp"
+#include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/stubCodeGenerator.hpp"
-#include "vm_version_arm.hpp"
+#include "runtime/vm_version.hpp"
 
 int  VM_Version::_stored_pc_adjustment = 4;
 int  VM_Version::_arm_arch             = 5;
@@ -207,6 +209,11 @@ void VM_Version::initialize() {
   if (UseFMA) {
     warning("FMA instructions are not available on this CPU");
     FLAG_SET_DEFAULT(UseFMA, false);
+  }
+
+  if (UseMD5Intrinsics) {
+    warning("MD5 intrinsics are not available on this CPU");
+    FLAG_SET_DEFAULT(UseMD5Intrinsics, false);
   }
 
   if (UseSHA) {

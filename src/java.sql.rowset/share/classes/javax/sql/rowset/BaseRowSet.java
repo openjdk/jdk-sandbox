@@ -37,7 +37,7 @@ import javax.sql.rowset.serial.*;
 /**
  * An abstract class providing a <code>RowSet</code> object with its basic functionality.
  * The basic functions include having properties and sending event notifications,
- * which all JavaBeans&trade; components must implement.
+ * which all JavaBeans components must implement.
  *
  * <h2>1.0 Overview</h2>
  * The <code>BaseRowSet</code> class provides the core functionality
@@ -92,7 +92,7 @@ import javax.sql.rowset.serial.*;
  * NOTE:  In order to use a <code>DataSource</code> object for making a
  * connection, the <code>DataSource</code> object must have been registered
  * with a naming service that uses the Java Naming and Directory
- * Interface&trade; (JNDI) API.  This registration
+ * Interface (JNDI) API.  This registration
  * is usually done by a person acting in the capacity of a system administrator.
  *
  * <h2>3.0 Setting the Command and Its Parameters</h2>
@@ -105,7 +105,7 @@ import javax.sql.rowset.serial.*;
  * to <code>null</code> if required.
  * <P>
  * The following code fragment illustrates how the
- * <code>CachedRowSet</code>&trade;
+ * <code>CachedRowSet</code>
  * object <code>crs</code> might have its command property set.  Note that if a
  * tool is used to set properties, this is the code that the tool would use.
  * <PRE>{@code
@@ -330,6 +330,7 @@ public abstract class BaseRowSet implements Serializable, Cloneable {
      * specified in the <code>ResultSet</code> interface.
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected java.io.InputStream binaryStream;
 
     /**
@@ -338,6 +339,7 @@ public abstract class BaseRowSet implements Serializable, Cloneable {
      * which is specified in the <code>ResultSet</code> interface.
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected java.io.InputStream unicodeStream;
 
     /**
@@ -346,6 +348,7 @@ public abstract class BaseRowSet implements Serializable, Cloneable {
      * which is specified in the <code>ResultSet</code> interface.
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected java.io.InputStream asciiStream;
 
     /**
@@ -354,6 +357,7 @@ public abstract class BaseRowSet implements Serializable, Cloneable {
      * which is specified in the <code>ResultSet</code> interface.
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected java.io.Reader charStream;
 
     /**
@@ -506,6 +510,7 @@ public abstract class BaseRowSet implements Serializable, Cloneable {
      * custom mapping of user-defined types.
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private Map<String, Class<?>> map;
 
     /**

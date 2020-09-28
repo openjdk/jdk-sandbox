@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcLocker.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
+#include "gc/z/zBreakpoint.hpp"
 #include "gc/z/zCollectedHeap.hpp"
 #include "gc/z/zDriver.hpp"
 #include "gc/z/zHeap.inline.hpp"
@@ -163,7 +164,7 @@ public:
 
   virtual bool do_operation() {
     ZStatTimer timer(ZPhasePauseMarkStart);
-    ZServiceabilityMarkStartTracer tracer;
+    ZServiceabilityPauseTracer tracer;
 
     // Set up soft reference policy
     const bool clear = should_clear_soft_references();
@@ -188,7 +189,7 @@ public:
 
   virtual bool do_operation() {
     ZStatTimer timer(ZPhasePauseMarkEnd);
-    ZServiceabilityMarkEndTracer tracer;
+    ZServiceabilityPauseTracer tracer;
     return ZHeap::heap()->mark_end();
   }
 };
@@ -205,7 +206,7 @@ public:
 
   virtual bool do_operation() {
     ZStatTimer timer(ZPhasePauseRelocateStart);
-    ZServiceabilityRelocateStartTracer tracer;
+    ZServiceabilityPauseTracer tracer;
     ZHeap::heap()->relocate_start();
     return true;
   }
@@ -260,6 +261,11 @@ void ZDriver::collect(GCCause::Cause cause) {
     _gc_locker_port.signal();
     break;
 
+  case GCCause::_wb_breakpoint:
+    ZBreakpoint::start_gc();
+    _gc_cycle_port.send_async(cause);
+    break;
+
   default:
     // Other causes not supported
     fatal("Unsupported GC cause (%s)", GCCause::to_string(cause));
@@ -292,7 +298,9 @@ void ZDriver::pause_mark_start() {
 
 void ZDriver::concurrent_mark() {
   ZStatTimer timer(ZPhaseConcurrentMark);
+  ZBreakpoint::at_after_marking_started();
   ZHeap::heap()->mark(true /* initial */);
+  ZBreakpoint::at_before_marking_completed();
 }
 
 bool ZDriver::pause_mark_end() {
@@ -346,15 +354,19 @@ void ZDriver::check_out_of_memory() {
 
 class ZDriverGCScope : public StackObj {
 private:
-  GCIdMark      _gc_id;
-  GCCauseSetter _gc_cause_setter;
-  ZStatTimer    _timer;
+  GCIdMark                   _gc_id;
+  GCCause::Cause             _gc_cause;
+  GCCauseSetter              _gc_cause_setter;
+  ZStatTimer                 _timer;
+  ZServiceabilityCycleTracer _tracer;
 
 public:
   ZDriverGCScope(GCCause::Cause cause) :
       _gc_id(),
+      _gc_cause(cause),
       _gc_cause_setter(ZCollectedHeap::heap(), cause),
-      _timer(ZPhaseCycle) {
+      _timer(ZPhaseCycle),
+      _tracer() {
     // Update statistics
     ZStatCycle::at_start();
   }
@@ -365,10 +377,13 @@ public:
                                 (double)ZHeap::heap()->nconcurrent_no_boost_worker_threads();
 
     // Update statistics
-    ZStatCycle::at_end(boost_factor);
+    ZStatCycle::at_end(_gc_cause, boost_factor);
 
     // Update data used by soft reference policy
-    Universe::update_heap_info_at_gc();
+    Universe::heap()->update_capacity_and_used_at_gc();
+
+    // Signal that we have completed a visit to all live objects
+    Universe::heap()->record_whole_heap_examined_timestamp();
   }
 };
 
@@ -415,6 +430,8 @@ void ZDriver::run_service() {
       continue;
     }
 
+    ZBreakpoint::at_before_gc();
+
     // Run GC
     gc(cause);
 
@@ -423,6 +440,8 @@ void ZDriver::run_service() {
 
     // Check for out of memory condition
     check_out_of_memory();
+
+    ZBreakpoint::at_after_gc();
   }
 }
 

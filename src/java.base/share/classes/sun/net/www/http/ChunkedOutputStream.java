@@ -28,6 +28,8 @@ import java.io.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import sun.nio.cs.US_ASCII;
+
 /**
  * OutputStream that sends the output to the underlying stream using chunked
  * encoding as specified in RFC 2068.
@@ -71,20 +73,15 @@ public class ChunkedOutputStream extends PrintStream {
     }
 
     /* return a header for a particular chunk size */
-    private static byte[] getHeader(int size){
-        try {
-            String hexStr =  Integer.toHexString(size);
-            byte[] hexBytes = hexStr.getBytes("US-ASCII");
-            byte[] header = new byte[getHeaderSize(size)];
-            for (int i=0; i<hexBytes.length; i++)
-                header[i] = hexBytes[i];
-            header[hexBytes.length] = CRLF[0];
-            header[hexBytes.length+1] = CRLF[1];
-            return header;
-        } catch (java.io.UnsupportedEncodingException e) {
-            /* This should never happen */
-            throw new InternalError(e.getMessage(), e);
-        }
+    private static byte[] getHeader(int size) {
+        String hexStr = Integer.toHexString(size);
+        byte[] hexBytes = hexStr.getBytes(US_ASCII.INSTANCE);
+        byte[] header = new byte[getHeaderSize(size)];
+        for (int i=0; i<hexBytes.length; i++)
+            header[i] = hexBytes[i];
+        header[hexBytes.length] = CRLF[0];
+        header[hexBytes.length+1] = CRLF[1];
+        return header;
     }
 
     public ChunkedOutputStream(PrintStream o) {

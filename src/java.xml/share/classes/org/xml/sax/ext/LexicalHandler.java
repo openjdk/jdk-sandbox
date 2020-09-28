@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,24 +23,12 @@
  * questions.
  */
 
-// LexicalHandler.java - optional handler for lexical parse events.
-// http://www.saxproject.org
-// Public Domain: no warranty.
-// $Id: LexicalHandler.java,v 1.2 2004/11/03 22:49:08 jsuttor Exp $
-
 package org.xml.sax.ext;
 
 import org.xml.sax.SAXException;
 
 /**
  * SAX2 extension handler for lexical events.
- *
- * <blockquote>
- * <em>This module, both source code and documentation, is in the
- * Public Domain, and comes with <strong>NO WARRANTY</strong>.</em>
- * See <a href='http://www.saxproject.org'>http://www.saxproject.org</a>
- * for further information.
- * </blockquote>
  *
  * <p>This is an optional extension handler for SAX2 to provide
  * lexical information about an XML document, such as comments
@@ -101,7 +89,7 @@ public interface LexicalHandler
      *        external DTD subset, or null if none was declared.
      *        (Note that this is not resolved against the document
      *        base URI.)
-     * @exception SAXException The application may raise an
+     * @throws SAXException The application may raise an
      *            exception.
      * @see #endDTD
      * @see #startEntity
@@ -118,7 +106,7 @@ public interface LexicalHandler
      * DOCTYPE declaration; if the document has no DOCTYPE declaration,
      * this method will not be invoked.</p>
      *
-     * @exception SAXException The application may raise an exception.
+     * @throws SAXException The application may raise an exception.
      * @see #startDTD
      */
     public abstract void endDTD ()
@@ -169,7 +157,7 @@ public interface LexicalHandler
      * @param name The name of the entity.  If it is a parameter
      *        entity, the name will begin with '%', and if it is the
      *        external DTD subset, it will be "[dtd]".
-     * @exception SAXException The application may raise an exception.
+     * @throws SAXException The application may raise an exception.
      * @see #endEntity
      * @see org.xml.sax.ext.DeclHandler#internalEntityDecl
      * @see org.xml.sax.ext.DeclHandler#externalEntityDecl
@@ -182,7 +170,7 @@ public interface LexicalHandler
      * Report the end of an entity.
      *
      * @param name The name of the entity that is ending.
-     * @exception SAXException The application may raise an exception.
+     * @throws SAXException The application may raise an exception.
      * @see #startEntity
      */
     public abstract void endEntity (String name)
@@ -197,7 +185,7 @@ public interface LexicalHandler
      * characters} event; this event is intended only to report
      * the boundary.</p>
      *
-     * @exception SAXException The application may raise an exception.
+     * @throws SAXException The application may raise an exception.
      * @see #endCDATA
      */
     public abstract void startCDATA ()
@@ -207,7 +195,7 @@ public interface LexicalHandler
     /**
      * Report the end of a CDATA section.
      *
-     * @exception SAXException The application may raise an exception.
+     * @throws SAXException The application may raise an exception.
      * @see #startCDATA
      */
     public abstract void endCDATA ()
@@ -226,7 +214,7 @@ public interface LexicalHandler
      * @param ch An array holding the characters in the comment.
      * @param start The starting position in the array.
      * @param length The number of characters to use from the array.
-     * @exception SAXException The application may raise an exception.
+     * @throws SAXException The application may raise an exception.
      */
     public abstract void comment (char ch[], int start, int length)
         throws SAXException;

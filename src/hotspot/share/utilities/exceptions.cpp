@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,6 +69,16 @@ void ThreadShadow::clear_pending_exception() {
   _exception_file    = NULL;
   _exception_line    = 0;
 }
+
+void ThreadShadow::clear_pending_nonasync_exception() {
+  // Do not clear probable async exceptions.
+  if (!_pending_exception->is_a(SystemDictionary::ThreadDeath_klass()) &&
+      (_pending_exception->klass() != SystemDictionary::InternalError_klass() ||
+       java_lang_InternalError::during_unsafe_access(_pending_exception) != JNI_TRUE)) {
+    clear_pending_exception();
+  }
+}
+
 // Implementation of Exceptions
 
 bool Exceptions::special_exception(Thread* thread, const char* file, int line, Handle h_exception) {
@@ -229,7 +239,7 @@ void Exceptions::throw_stack_overflow_exception(Thread* THREAD, const char* file
     exception = Handle(THREAD, e);  // fill_in_stack trace does gc
     assert(k->is_initialized(), "need to increase java_thread_min_stack_allowed calculation");
     if (StackTraceInThrowable) {
-      java_lang_Throwable::fill_in_stack_trace(exception, method());
+      java_lang_Throwable::fill_in_stack_trace(exception, method);
     }
     // Increment counter for hs_err file reporting
     Atomic::inc(&Exceptions::_stack_overflow_errors);
@@ -238,6 +248,12 @@ void Exceptions::throw_stack_overflow_exception(Thread* THREAD, const char* file
     exception = Handle(THREAD, THREAD->pending_exception());
   }
   _throw(THREAD, file, line, exception);
+}
+
+void Exceptions::throw_unsafe_access_internal_error(Thread* thread, const char* file, int line, const char* message) {
+  Handle h_exception = new_exception(thread, vmSymbols::java_lang_InternalError(), message);
+  java_lang_InternalError::set_during_unsafe_access(h_exception());
+  _throw(thread, file, line, h_exception, message);
 }
 
 void Exceptions::fthrow(Thread* thread, const char* file, int line, Symbol* h_name, const char* format, ...) {
@@ -401,25 +417,36 @@ Handle Exceptions::new_exception(Thread* thread, Symbol* name,
 // dynamically computed constant uses wrap_dynamic_exception for:
 //    - bootstrap method resolution
 //    - post call to MethodHandleNatives::linkDynamicConstant
-void Exceptions::wrap_dynamic_exception(Thread* THREAD) {
+void Exceptions::wrap_dynamic_exception(bool is_indy, Thread* THREAD) {
   if (THREAD->has_pending_exception()) {
+    bool log_indy = log_is_enabled(Debug, methodhandles, indy) && is_indy;
+    bool log_condy = log_is_enabled(Debug, methodhandles, condy) && !is_indy;
+    LogStreamHandle(Debug, methodhandles, indy) lsh_indy;
+    LogStreamHandle(Debug, methodhandles, condy) lsh_condy;
+    LogStream* ls = NULL;
+    if (log_indy) {
+      ls = &lsh_indy;
+    } else if (log_condy) {
+      ls = &lsh_condy;
+    }
     oop exception = THREAD->pending_exception();
+
     // See the "Linking Exceptions" section for the invokedynamic instruction
     // in JVMS 6.5.
     if (exception->is_a(SystemDictionary::Error_klass())) {
       // Pass through an Error, including BootstrapMethodError, any other form
       // of linkage error, or say ThreadDeath/OutOfMemoryError
-      if (TraceMethodHandles) {
-        tty->print_cr("bootstrap method invocation wraps BSME around " INTPTR_FORMAT, p2i((void *)exception));
-        exception->print();
+      if (ls != NULL) {
+        ls->print_cr("bootstrap method invocation wraps BSME around " INTPTR_FORMAT, p2i((void *)exception));
+        exception->print_on(ls);
       }
       return;
     }
 
     // Otherwise wrap the exception in a BootstrapMethodError
-    if (TraceMethodHandles) {
-      tty->print_cr("[constant/invoke]dynamic throws BSME for " INTPTR_FORMAT, p2i((void *)exception));
-      exception->print();
+    if (ls != NULL) {
+      ls->print_cr("%s throws BSME for " INTPTR_FORMAT, is_indy ? "invokedynamic" : "dynamic constant", p2i((void *)exception));
+      exception->print_on(ls);
     }
     Handle nested_exception(THREAD, exception);
     THREAD->clear_pending_exception();
@@ -435,9 +462,9 @@ volatile int Exceptions::_out_of_memory_error_metaspace_errors = 0;
 volatile int Exceptions::_out_of_memory_error_class_metaspace_errors = 0;
 
 void Exceptions::count_out_of_memory_exceptions(Handle exception) {
-  if (oopDesc::equals(exception(), Universe::out_of_memory_error_metaspace())) {
+  if (exception() == Universe::out_of_memory_error_metaspace()) {
      Atomic::inc(&_out_of_memory_error_metaspace_errors);
-  } else if (oopDesc::equals(exception(), Universe::out_of_memory_error_class_metaspace())) {
+  } else if (exception() == Universe::out_of_memory_error_class_metaspace()) {
      Atomic::inc(&_out_of_memory_error_class_metaspace_errors);
   } else {
      // everything else reported as java heap OOM

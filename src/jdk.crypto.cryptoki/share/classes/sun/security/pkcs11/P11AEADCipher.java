@@ -1,4 +1,5 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/*
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -279,7 +280,9 @@ final class P11AEADCipher extends CipherSpi {
         SecureRandom sr)
         throws InvalidKeyException, InvalidAlgorithmParameterException {
         reset(true);
-        if (fixedKeySize != -1 && key.getEncoded().length != fixedKeySize) {
+        if (fixedKeySize != -1 &&
+                ((key instanceof P11Key) ? ((P11Key) key).length() >> 3 :
+                            key.getEncoded().length) != fixedKeySize) {
             throw new InvalidKeyException("Key size is invalid");
         }
         P11Key newKey = P11SecretKeyFactory.convertKey(token, key, ALGO);
@@ -324,30 +327,33 @@ final class P11AEADCipher extends CipherSpi {
         try {
             initialize();
         } catch (PKCS11Exception e) {
+            if (e.getErrorCode() == CKR_MECHANISM_PARAM_INVALID) {
+                throw new InvalidAlgorithmParameterException("Bad params", e);
+            }
             throw new InvalidKeyException("Could not initialize cipher", e);
         }
     }
 
     private void cancelOperation() {
+        // cancel operation by finishing it; avoid killSession as some
+        // hardware vendors may require re-login
+        int bufLen = doFinalLength(0);
+        byte[] buffer = new byte[bufLen];
+        byte[] in = dataBuffer.toByteArray();
+        int inLen = in.length;
         try {
-            if (session.hasObjects() == false) {
-                session = token.killSession(session);
-                return;
+            if (encrypt) {
+                token.p11.C_Encrypt(session.id(), 0, in, 0, inLen,
+                        0, buffer, 0, bufLen);
             } else {
-                // cancel operation by finishing it
-                int bufLen = doFinalLength(0);
-                byte[] buffer = new byte[bufLen];
-
-                if (encrypt) {
-                    token.p11.C_Encrypt(session.id(), 0, buffer, 0, bufLen,
-                            0, buffer, 0, bufLen);
-                } else {
-                    token.p11.C_Decrypt(session.id(), 0, buffer, 0, bufLen,
-                            0, buffer, 0, bufLen);
-                }
+                token.p11.C_Decrypt(session.id(), 0, in, 0, inLen,
+                        0, buffer, 0, bufLen);
             }
         } catch (PKCS11Exception e) {
-            throw new ProviderException("Cancel failed", e);
+            if (encrypt) {
+                throw new ProviderException("Cancel failed", e);
+            }
+            // ignore failure for decryption
         }
     }
 
@@ -378,9 +384,6 @@ final class P11AEADCipher extends CipherSpi {
 
         long p11KeyID = p11Key.getKeyID();
         try {
-            if (session == null) {
-                session = token.getOpSession();
-            }
             CK_MECHANISM mechWithParams;
             switch (blockMode) {
                 case MODE_GCM:
@@ -390,6 +393,9 @@ final class P11AEADCipher extends CipherSpi {
                 default:
                     throw new ProviderException("Unsupported mode: " + blockMode);
             }
+            if (session == null) {
+                session = token.getOpSession();
+            }
             if (encrypt) {
                 token.p11.C_EncryptInit(session.id(), mechWithParams,
                     p11KeyID);
@@ -398,7 +404,6 @@ final class P11AEADCipher extends CipherSpi {
                     p11KeyID);
             }
         } catch (PKCS11Exception e) {
-            //e.printStackTrace();
             p11Key.releaseKeyID();
             session = token.releaseSession(session);
             throw e;
@@ -430,18 +435,21 @@ final class P11AEADCipher extends CipherSpi {
         if (!initialized) {
             return;
         }
+        initialized = false;
+
         try {
             if (session == null) {
                 return;
             }
+
             if (doCancel && token.explicitCancel) {
                 cancelOperation();
             }
         } finally {
             p11Key.releaseKeyID();
             session = token.releaseSession(session);
+            dataBuffer.reset();
         }
-        initialized = false;
     }
 
     // see JCE spec
@@ -718,7 +726,9 @@ final class P11AEADCipher extends CipherSpi {
                    errorCode == CKR_ENCRYPTED_DATA_LEN_RANGE) {
             throw (IllegalBlockSizeException)
                     (new IllegalBlockSizeException(e.toString()).initCause(e));
-        } else if (errorCode == CKR_ENCRYPTED_DATA_INVALID) {
+        } else if (errorCode == CKR_ENCRYPTED_DATA_INVALID ||
+                // Solaris-specific
+                errorCode == CKR_GENERAL_ERROR) {
             throw (BadPaddingException)
                     (new BadPaddingException(e.toString()).initCause(e));
         }

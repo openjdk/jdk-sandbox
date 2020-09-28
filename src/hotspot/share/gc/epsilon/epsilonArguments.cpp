@@ -28,7 +28,6 @@
 #include "gc/shared/gcArguments.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
-#include "runtime/vm_version.hpp"
 #include "utilities/macros.hpp"
 
 size_t EpsilonArguments::conservative_max_heap_alignment() {
@@ -46,12 +45,12 @@ void EpsilonArguments::initialize() {
   }
 
   if (EpsilonMaxTLABSize < MinTLABSize) {
-    warning("EpsilonMaxTLABSize < MinTLABSize, adjusting it to " SIZE_FORMAT, MinTLABSize);
+    log_warning(gc)("EpsilonMaxTLABSize < MinTLABSize, adjusting it to " SIZE_FORMAT, MinTLABSize);
     EpsilonMaxTLABSize = MinTLABSize;
   }
 
   if (!EpsilonElasticTLAB && EpsilonElasticTLABDecay) {
-    warning("Disabling EpsilonElasticTLABDecay because EpsilonElasticTLAB is disabled");
+    log_warning(gc)("Disabling EpsilonElasticTLABDecay because EpsilonElasticTLAB is disabled");
     FLAG_SET_DEFAULT(EpsilonElasticTLABDecay, false);
   }
 

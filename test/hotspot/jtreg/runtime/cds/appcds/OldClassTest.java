@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@
  * @requires vm.cds
  * @library /test/lib
  * @modules java.base/jdk.internal.org.objectweb.asm
- *          jdk.jartool/sun.tools.jar
  * @compile test-classes/Hello.java
  * @run build TestCommon JarBuilder
  * @run driver OldClassTest
@@ -46,10 +45,8 @@ public class OldClassTest implements Opcodes {
 
   public static void main(String[] args) throws Exception {
     File jarSrcFile = new File(JarBuilder.getOrCreateHelloJar());
-
-    File dir = new File(System.getProperty("test.classes", "."));
-    File jarFile = new File(dir, "OldClassTest_old.jar");
-    String jar = jarFile.getPath();
+    String jar = JarBuilder.getJarFilePath("OldClassTest_old");
+    File jarFile = new File(jar);
 
     if (!jarFile.exists() || jarFile.lastModified() < jarSrcFile.lastModified()) {
       createTestJarFile(jarSrcFile, jarFile);

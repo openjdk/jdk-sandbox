@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -107,6 +107,16 @@ public class Net {
     }
 
     /**
+     * Tells whether both IPV6_XXX and IP_XXX socket options should be set on
+     * IPv6 sockets. On some kernels, both IPV6_XXX and IP_XXX socket options
+     * need to be set so that the settings are effective for IPv4 multicast
+     * datagrams sent using the socket.
+     */
+    static boolean shouldSetBothIPv4AndIPv6Options() {
+        return shouldSetBothIPv4AndIPv6Options0();
+    }
+
+    /**
      * Tells whether IPv6 sockets can join IPv4 multicast groups
      */
     static boolean canIPv6SocketJoinIPv4Group() {
@@ -119,6 +129,14 @@ public class Net {
      */
     static boolean canJoin6WithIPv4Group() {
         return canJoin6WithIPv4Group0();
+    }
+
+    /**
+     * Tells whether IPV6_XXX socket options should be used on an IPv6 socket
+     * that is bound to an IPv4 address.
+     */
+    static boolean canUseIPv6OptionsWithIPv4LocalAddress() {
+        return canUseIPv6OptionsWithIPv4LocalAddress0();
     }
 
     public static InetSocketAddress checkAddress(SocketAddress sa) {
@@ -167,8 +185,10 @@ public class Net {
             nx = new SocketException("Socket is not bound yet");
         else if (x instanceof UnsupportedAddressTypeException)
             nx = new SocketException("Unsupported address type");
-        else if (x instanceof UnresolvedAddressException) {
+        else if (x instanceof UnresolvedAddressException)
             nx = new SocketException("Unresolved address");
+        else if (x instanceof IOException) {
+            nx = new SocketException(x.getMessage());
         }
         if (nx != x)
             nx.initCause(x);
@@ -229,6 +249,57 @@ public class Net {
     private static InetSocketAddress getLoopbackAddress(int port) {
         return new InetSocketAddress(InetAddress.getLoopbackAddress(),
                                      port);
+    }
+
+    private static final InetAddress anyLocalInet4Address;
+    private static final InetAddress anyLocalInet6Address;
+    private static final InetAddress inet4LoopbackAddress;
+    private static final InetAddress inet6LoopbackAddress;
+    static {
+        try {
+            anyLocalInet4Address = inet4FromInt(0);
+            assert anyLocalInet4Address instanceof Inet4Address
+                    && anyLocalInet4Address.isAnyLocalAddress();
+
+            anyLocalInet6Address = InetAddress.getByAddress(new byte[16]);
+            assert anyLocalInet6Address instanceof Inet6Address
+                    && anyLocalInet6Address.isAnyLocalAddress();
+
+            inet4LoopbackAddress = inet4FromInt(0x7f000001);
+            assert inet4LoopbackAddress instanceof Inet4Address
+                    && inet4LoopbackAddress.isLoopbackAddress();
+
+            byte[] bytes = new byte[16];
+            bytes[15] = 0x01;
+            inet6LoopbackAddress = InetAddress.getByAddress(bytes);
+            assert inet6LoopbackAddress instanceof Inet6Address
+                    && inet6LoopbackAddress.isLoopbackAddress();
+        } catch (Exception e) {
+            throw new InternalError(e);
+        }
+    }
+
+    static InetAddress inet4LoopbackAddress() {
+        return inet4LoopbackAddress;
+    }
+
+    static InetAddress inet6LoopbackAddress() {
+        return inet6LoopbackAddress;
+    }
+
+    /**
+     * Returns the wildcard address that corresponds to the given protocol family.
+     *
+     * @see InetAddress#isAnyLocalAddress()
+     */
+    static InetAddress anyLocalAddress(ProtocolFamily family) {
+        if (family == StandardProtocolFamily.INET) {
+            return anyLocalInet4Address;
+        } else if (family == StandardProtocolFamily.INET6) {
+            return anyLocalInet6Address;
+        } else {
+            throw new IllegalArgumentException();
+        }
     }
 
     /**
@@ -426,13 +497,17 @@ public class Net {
     private static native boolean isReusePortAvailable0();
 
     /*
-     * Returns 1 for Windows and -1 for Solaris/Linux/Mac OS
+     * Returns 1 for Windows and -1 for Linux/Mac OS
      */
     private static native int isExclusiveBindAvailable();
+
+    private static native boolean shouldSetBothIPv4AndIPv6Options0();
 
     private static native boolean canIPv6SocketJoinIPv4Group0();
 
     private static native boolean canJoin6WithIPv4Group0();
+
+    private static native boolean canUseIPv6OptionsWithIPv4LocalAddress0();
 
     static FileDescriptor socket(boolean stream) throws IOException {
         return socket(UNSPEC, stream);
@@ -445,7 +520,13 @@ public class Net {
     }
 
     static FileDescriptor serverSocket(boolean stream) {
-        return IOUtil.newFD(socket0(isIPv6Available(), stream, true, fastLoopback));
+        return serverSocket(UNSPEC, stream);
+    }
+
+    static FileDescriptor serverSocket(ProtocolFamily family, boolean stream) {
+        boolean preferIPv6 = isIPv6Available() &&
+            (family != StandardProtocolFamily.INET);
+        return IOUtil.newFD(socket0(preferIPv6, stream, true, fastLoopback));
     }
 
     // Due to oddities SO_REUSEADDR on windows reuse is ignored

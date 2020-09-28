@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -111,6 +111,7 @@ public final class Subject implements java.io.Serializable {
      *          {@code java.security.Principal}.
      *          The set is a {@code Subject.SecureSet}.
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     Set<Principal> principals;
 
     /**
@@ -125,7 +126,7 @@ public final class Subject implements java.io.Serializable {
      *
      * @serial
      */
-    private volatile boolean readOnly = false;
+    private volatile boolean readOnly;
 
     private static final int PRINCIPAL_SET = 1;
     private static final int PUB_CREDENTIAL_SET = 2;
@@ -202,18 +203,20 @@ public final class Subject implements java.io.Serializable {
      *          Sets.
      */
     public Subject(boolean readOnly, Set<? extends Principal> principals,
-                   Set<?> pubCredentials, Set<?> privCredentials)
-    {
-        collectionNullClean(principals);
-        collectionNullClean(pubCredentials);
-        collectionNullClean(privCredentials);
+                   Set<?> pubCredentials, Set<?> privCredentials) {
+        LinkedList<Principal> principalList
+                = collectionNullClean(principals);
+        LinkedList<Object> pubCredsList
+                = collectionNullClean(pubCredentials);
+        LinkedList<Object> privCredsList
+                = collectionNullClean(privCredentials);
 
-        this.principals = Collections.synchronizedSet(new SecureSet<>
-                                (this, PRINCIPAL_SET, principals));
-        this.pubCredentials = Collections.synchronizedSet(new SecureSet<>
-                                (this, PUB_CREDENTIAL_SET, pubCredentials));
-        this.privCredentials = Collections.synchronizedSet(new SecureSet<>
-                                (this, PRIV_CREDENTIAL_SET, privCredentials));
+        this.principals = Collections.synchronizedSet(
+                new SecureSet<>(this, PRINCIPAL_SET, principalList));
+        this.pubCredentials = Collections.synchronizedSet(
+                new SecureSet<>(this, PUB_CREDENTIAL_SET, pubCredsList));
+        this.privCredentials = Collections.synchronizedSet(
+                new SecureSet<>(this, PRIV_CREDENTIAL_SET, privCredsList));
         this.readOnly = readOnly;
     }
 
@@ -974,8 +977,9 @@ public final class Subject implements java.io.Serializable {
 
         // Rewrap the principals into a SecureSet
         try {
+            LinkedList<Principal> principalList = collectionNullClean(inputPrincs);
             principals = Collections.synchronizedSet(new SecureSet<>
-                                (this, PRINCIPAL_SET, inputPrincs));
+                                (this, PRINCIPAL_SET, principalList));
         } catch (NullPointerException npe) {
             // Sometimes people deserialize the principals set only.
             // Subject is not accessible, so just don't fail.
@@ -1000,26 +1004,18 @@ public final class Subject implements java.io.Serializable {
      * @throws NullPointerException if the specified collection is either
      *            {@code null} or contains a {@code null} element
      */
-    private static void collectionNullClean(Collection<?> coll) {
-        boolean hasNullElements = false;
+    private static <E> LinkedList<E> collectionNullClean(
+            Collection<? extends E> coll) {
 
         Objects.requireNonNull(coll,
                 ResourcesMgr.getString("invalid.null.input.s."));
 
-        try {
-            hasNullElements = coll.contains(null);
-        } catch (NullPointerException npe) {
-            // A null-hostile collection may choose to throw
-            // NullPointerException if contains(null) is called on it
-            // rather than returning false.
-            // If this happens we know the collection is null-clean.
-            hasNullElements = false;
-        } finally {
-            if (hasNullElements) {
-                throw new NullPointerException
-                    (ResourcesMgr.getString("invalid.null.input.s."));
-            }
+        LinkedList<E> output = new LinkedList<>();
+        for (E e : coll) {
+            output.add(Objects.requireNonNull(e,
+                    ResourcesMgr.getString("invalid.null.input.s.")));
         }
+        return output;
     }
 
     /**
@@ -1065,10 +1061,10 @@ public final class Subject implements java.io.Serializable {
             this.elements = new LinkedList<E>();
         }
 
-        SecureSet(Subject subject, int which, Set<? extends E> set) {
+        SecureSet(Subject subject, int which, LinkedList<E> list) {
             this.subject = subject;
             this.which = which;
-            this.elements = new LinkedList<E>(set);
+            this.elements = list;
         }
 
         public int size() {
@@ -1241,7 +1237,7 @@ public final class Subject implements java.io.Serializable {
         public boolean addAll(Collection<? extends E> c) {
             boolean result = false;
 
-            collectionNullClean(c);
+            c = collectionNullClean(c);
 
             for (E item : c) {
                 result |= this.add(item);
@@ -1251,7 +1247,7 @@ public final class Subject implements java.io.Serializable {
         }
 
         public boolean removeAll(Collection<?> c) {
-            collectionNullClean(c);
+            c = collectionNullClean(c);
 
             boolean modified = false;
             final Iterator<E> e = iterator();
@@ -1281,7 +1277,7 @@ public final class Subject implements java.io.Serializable {
         }
 
         public boolean containsAll(Collection<?> c) {
-            collectionNullClean(c);
+            c = collectionNullClean(c);
 
             for (Object item : c) {
                 if (this.contains(item) == false) {
@@ -1293,7 +1289,7 @@ public final class Subject implements java.io.Serializable {
         }
 
         public boolean retainAll(Collection<?> c) {
-            collectionNullClean(c);
+            c = collectionNullClean(c);
 
             boolean modified = false;
             final Iterator<E> e = iterator();
@@ -1313,8 +1309,8 @@ public final class Subject implements java.io.Serializable {
                 if (c.contains(next) == false) {
                     e.remove();
                     modified = true;
-                    }
                 }
+            }
 
             return modified;
         }
@@ -1442,13 +1438,7 @@ public final class Subject implements java.io.Serializable {
 
             LinkedList<E> tmp = (LinkedList<E>) fields.get("elements", null);
 
-            Subject.collectionNullClean(tmp);
-
-            if (tmp.getClass() != LinkedList.class) {
-                elements = new LinkedList<E>(tmp);
-            } else {
-                elements = tmp;
-            }
+            elements = Subject.collectionNullClean(tmp);
         }
 
     }

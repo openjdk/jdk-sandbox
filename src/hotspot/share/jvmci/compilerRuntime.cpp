@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,11 @@
 #include "aot/aotLoader.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "jvmci/compilerRuntime.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -72,13 +72,11 @@ Klass* CompilerRuntime::resolve_klass_helper(JavaThread *thread, const char* nam
   Handle loader(THREAD, caller->method_holder()->class_loader());
   Handle protection_domain(THREAD, caller->method_holder()->protection_domain());
 
-  // Ignore wrapping L and ;
-  if (name[0] == 'L') {
-    assert(len > 2, "small name %s", name);
-    name++;
-    len -= 2;
-  }
   TempNewSymbol sym = SymbolTable::new_symbol(name, len);
+  if (sym != NULL && Signature::has_envelope(sym)) {
+    // Ignore wrapping L and ;
+    sym = Signature::strip_envelope(sym);
+  }
   if (sym == NULL) {
     return NULL;
   }
@@ -141,7 +139,7 @@ JRT_BLOCK_ENTRY(void, CompilerRuntime::resolve_dynamic_invoke(JavaThread *thread
 
     // Make sure it's resolved first
     CallInfo callInfo;
-    constantPoolHandle cp(holder->constants());
+    constantPoolHandle cp(THREAD, holder->constants());
     ConstantPoolCacheEntry* cp_cache_entry = cp->cache()->entry_at(cp->decode_cpcache_index(index, true));
     Bytecodes::Code invoke_code = bytecode.invoke_code();
     if (!cp_cache_entry->is_resolved(invoke_code)) {
@@ -157,7 +155,7 @@ JRT_BLOCK_ENTRY(void, CompilerRuntime::resolve_dynamic_invoke(JavaThread *thread
     Handle appendix(THREAD, cp_cache_entry->appendix_if_resolved(cp));
     Klass *appendix_klass = appendix.is_null() ? NULL : appendix->klass();
 
-    methodHandle adapter_method(cp_cache_entry->f1_as_method());
+    methodHandle adapter_method(THREAD, cp_cache_entry->f1_as_method());
     InstanceKlass *adapter_klass = adapter_method->method_holder();
 
     if (appendix_klass != NULL && appendix_klass->is_instance_klass()) {
@@ -254,16 +252,12 @@ JRT_BLOCK_ENTRY(void, CompilerRuntime::invocation_event(JavaThread *thread, Meth
   JRT_BLOCK
     methodHandle mh(THREAD, counters->method());
     RegisterMap map(thread, false);
-
     // Compute the enclosing method
     frame fr = thread->last_frame().sender(&map);
     CompiledMethod* cm = fr.cb()->as_compiled_method_or_null();
     assert(cm != NULL && cm->is_compiled(), "Sanity check");
     methodHandle emh(THREAD, cm->method());
-
-    assert(!HAS_PENDING_EXCEPTION, "Should not have any exceptions pending");
-    CompilationPolicy::policy()->event(emh, mh, InvocationEntryBci, InvocationEntryBci, CompLevel_aot, cm, thread);
-    assert(!HAS_PENDING_EXCEPTION, "Event handler should not throw any exceptions");
+    CompilationPolicy::policy()->event(emh, mh, InvocationEntryBci, InvocationEntryBci, CompLevel_aot, cm, THREAD);
   JRT_BLOCK_END
 JRT_END
 
@@ -283,9 +277,7 @@ JRT_BLOCK_ENTRY(void, CompilerRuntime::backedge_event(JavaThread *thread, Method
     CompiledMethod* cm = fr.cb()->as_compiled_method_or_null();
     assert(cm != NULL && cm->is_compiled(), "Sanity check");
     methodHandle emh(THREAD, cm->method());
-    assert(!HAS_PENDING_EXCEPTION, "Should not have any exceptions pending");
-    nmethod* osr_nm = CompilationPolicy::policy()->event(emh, mh, branch_bci, target_bci, CompLevel_aot, cm, thread);
-    assert(!HAS_PENDING_EXCEPTION, "Event handler should not throw any exceptions");
+    nmethod* osr_nm = CompilationPolicy::policy()->event(emh, mh, branch_bci, target_bci, CompLevel_aot, cm, THREAD);
     if (osr_nm != NULL) {
       Deoptimization::deoptimize_frame(thread, fr.id());
     }

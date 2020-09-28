@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,6 +56,8 @@ private:
   bool                   _has_nonstatic_fields;
   bool                   _has_nonstatic_concrete_methods;
   bool                   _is_unsafe_anonymous;
+  bool                   _is_hidden;
+  bool                   _is_record;
 
   ciFlags                _flags;
   jint                   _nonstatic_field_size;
@@ -191,8 +193,16 @@ public:
     return _has_nonstatic_concrete_methods;
   }
 
-  bool is_unsafe_anonymous() {
+  bool is_unsafe_anonymous() const {
     return _is_unsafe_anonymous;
+  }
+
+  bool is_hidden() const {
+    return _is_hidden;
+  }
+
+  bool is_record() const {
+    return _is_record;
   }
 
   ciInstanceKlass* get_canonical_holder(int offset);
@@ -225,9 +235,7 @@ public:
   ciInstanceKlass* unique_concrete_subklass();
   bool has_finalizable_subclass();
 
-  bool contains_field_offset(int offset) {
-    return instanceOopDesc::contains_field_offset(offset, nonstatic_field_size());
-  }
+  bool contains_field_offset(int offset);
 
   // Get the instance of java.lang.Class corresponding to
   // this klass.  This instance is used for locking of
@@ -247,6 +255,12 @@ public:
 
   bool is_leaf_type();
   ciInstanceKlass* implementor();
+
+  ciInstanceKlass* unique_implementor() {
+    assert(is_loaded(), "must be loaded");
+    ciInstanceKlass* impl = implementor();
+    return (impl != this ? impl : NULL);
+  }
 
   // Is the defining class loader of this class the default loader?
   bool uses_default_loader() const;

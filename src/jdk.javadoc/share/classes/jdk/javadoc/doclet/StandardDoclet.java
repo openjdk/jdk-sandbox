@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,6 +70,10 @@ public class StandardDoclet implements Doclet {
 
     private final HtmlDoclet htmlDoclet;
 
+    /**
+     * Creates an instance of the standard doclet, used to generate HTML-formatted
+     * documentation.
+     */
     public StandardDoclet() {
         htmlDoclet = new HtmlDoclet(this);
     }
@@ -85,7 +89,7 @@ public class StandardDoclet implements Doclet {
     }
 
     @Override
-    public Set<Doclet.Option> getSupportedOptions() {
+    public Set<? extends Doclet.Option> getSupportedOptions() {
         return htmlDoclet.getSupportedOptions();
     }
 

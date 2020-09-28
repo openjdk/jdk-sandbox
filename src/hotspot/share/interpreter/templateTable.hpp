@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,13 +30,12 @@
 #include "runtime/frame.hpp"
 #include "utilities/macros.hpp"
 
-#ifndef CC_INTERP
+#ifndef ZERO
 // All the necessary definitions used for (bytecode) template generation. Instead of
 // spreading the implementation functionality for each bytecode in the interpreter
 // and the snippet generator, a template is assigned to each bytecode which can be
 // used to generate the bytecode's implementation if needed.
 
-class BarrierSet;
 class InterpreterMacroAssembler;
 
 // A Template describes the properties of a code template for a given bytecode
@@ -87,14 +86,11 @@ class TemplateTable: AllStatic {
   enum RewriteControl { may_rewrite, may_not_rewrite };  // control for fast code under CDS
 
  private:
-  static bool            _is_initialized;        // true if TemplateTable has been initialized
   static Template        _template_table     [Bytecodes::number_of_codes];
   static Template        _template_table_wide[Bytecodes::number_of_codes];
 
   static Template*       _desc;                  // the current template to be generated
   static Bytecodes::Code bytecode()              { return _desc->bytecode(); }
-
-  static BarrierSet*     _bs;                    // Cache the barrier set.
  public:
   //%note templates_1
   static InterpreterMacroAssembler* _masm;       // the assembler used when generating templates
@@ -355,6 +351,6 @@ class TemplateTable: AllStatic {
 #include CPU_HEADER(templateTable)
 
 };
-#endif /* !CC_INTERP */
+#endif /* !ZERO */
 
 #endif // SHARE_INTERPRETER_TEMPLATETABLE_HPP

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -113,7 +113,7 @@ void BarrierSetAssembler::resolve_jobject(MacroAssembler* masm, Register value,
   __ clrrdi(tmp1, value, JNIHandles::weak_tag_size);
   __ ld(value, 0, tmp1);      // Resolve (untagged) jobject.
 
-  __ verify_oop(value);
+  __ verify_oop(value, FILE_AND_LINE);
   __ bind(done);
 }
 

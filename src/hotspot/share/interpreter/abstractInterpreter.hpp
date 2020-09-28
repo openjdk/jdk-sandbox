@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,21 +39,19 @@
 // an assembly language version (aka template interpreter) and a high level language version
 // (aka c++ interpreter). Th division of labor is as follows:
 
-// Template Interpreter          C++ Interpreter        Functionality
+// Template Interpreter          Zero Interpreter       Functionality
 //
 // templateTable*                bytecodeInterpreter*   actual interpretation of bytecodes
 //
-// templateInterpreter*          cppInterpreter*        generation of assembly code that creates
+// templateInterpreter*          zeroInterpreter*       generation of assembly code that creates
 //                                                      and manages interpreter runtime frames.
-//                                                      Also code for populating interpreter
-//                                                      frames created during deoptimization.
 //
 
 class InterpreterMacroAssembler;
 
 class AbstractInterpreter: AllStatic {
   friend class VMStructs;
-  friend class CppInterpreterGenerator;
+  friend class ZeroInterpreterGenerator;
   friend class TemplateInterpreterGenerator;
  public:
   enum MethodKind {
@@ -241,7 +239,7 @@ class AbstractInterpreter: AllStatic {
   }
 
   static int expr_offset_in_bytes(int i) {
-#if !defined(ZERO) && (defined(PPC) || defined(S390) || defined(SPARC))
+#if !defined(ZERO) && (defined(PPC) || defined(S390))
     return stackElementSize * i + wordSize;  // both point to one word past TOS
 #else
     return stackElementSize * i;
@@ -287,34 +285,6 @@ class AbstractInterpreter: AllStatic {
       *(jlong*) slot_addr = value;
     } else {
       Bytes::put_native_u8((address)slot_addr, value);
-    }
-  }
-  static void get_jvalue_in_slot(intptr_t* slot_addr, BasicType type, jvalue* value) {
-    switch (type) {
-    case T_BOOLEAN: value->z = *int_addr_in_slot(slot_addr);            break;
-    case T_CHAR:    value->c = *int_addr_in_slot(slot_addr);            break;
-    case T_BYTE:    value->b = *int_addr_in_slot(slot_addr);            break;
-    case T_SHORT:   value->s = *int_addr_in_slot(slot_addr);            break;
-    case T_INT:     value->i = *int_addr_in_slot(slot_addr);            break;
-    case T_LONG:    value->j = long_in_slot(slot_addr);                 break;
-    case T_FLOAT:   value->f = *(jfloat*)int_addr_in_slot(slot_addr);   break;
-    case T_DOUBLE:  value->d = jdouble_cast(long_in_slot(slot_addr));   break;
-    case T_OBJECT:  value->l = (jobject)*oop_addr_in_slot(slot_addr);   break;
-    default:        ShouldNotReachHere();
-    }
-  }
-  static void set_jvalue_in_slot(intptr_t* slot_addr, BasicType type, jvalue* value) {
-    switch (type) {
-    case T_BOOLEAN: *int_addr_in_slot(slot_addr) = (value->z != 0);     break;
-    case T_CHAR:    *int_addr_in_slot(slot_addr) = value->c;            break;
-    case T_BYTE:    *int_addr_in_slot(slot_addr) = value->b;            break;
-    case T_SHORT:   *int_addr_in_slot(slot_addr) = value->s;            break;
-    case T_INT:     *int_addr_in_slot(slot_addr) = value->i;            break;
-    case T_LONG:    set_long_in_slot(slot_addr, value->j);              break;
-    case T_FLOAT:   *(jfloat*)int_addr_in_slot(slot_addr) = value->f;   break;
-    case T_DOUBLE:  set_long_in_slot(slot_addr, jlong_cast(value->d));  break;
-    case T_OBJECT:  *oop_addr_in_slot(slot_addr) = (oop) value->l;      break;
-    default:        ShouldNotReachHere();
     }
   }
 

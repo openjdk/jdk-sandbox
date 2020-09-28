@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -723,13 +723,7 @@ void ArchDesc::build_pipe_classes(FILE *fp_cpp) {
   if (!_pipeline)
     /* Do Nothing */;
 
-  else if (_pipeline->_maxcycleused <=
-#ifdef SPARC
-    64
-#else
-    32
-#endif
-      ) {
+  else if (_pipeline->_maxcycleused <= 32) {
     fprintf(fp_cpp, "Pipeline_Use_Cycle_Mask operator&(const Pipeline_Use_Cycle_Mask &in1, const Pipeline_Use_Cycle_Mask &in2) {\n");
     fprintf(fp_cpp, "  return Pipeline_Use_Cycle_Mask(in1._mask & in2._mask);\n");
     fprintf(fp_cpp, "}\n\n");
@@ -2605,7 +2599,7 @@ void ArchDesc::defineEmit(FILE* fp, InstructForm& inst) {
 
   // For MachConstantNodes which are ideal jump nodes, fill the jump table.
   if (inst.is_mach_constant() && inst.is_ideal_jump()) {
-    fprintf(fp, "  ra_->C->constant_table().fill_jump_table(cbuf, (MachConstantNode*) this, _index2label);\n");
+    fprintf(fp, "  ra_->C->output()->constant_table().fill_jump_table(cbuf, (MachConstantNode*) this, _index2label);\n");
   }
 
   // Output each operand's offset into the array of registers.
@@ -2679,7 +2673,7 @@ void ArchDesc::defineEvalConstant(FILE* fp, InstructForm& inst) {
 
   // For ideal jump nodes, add a jump-table entry.
   if (inst.is_ideal_jump()) {
-    fprintf(fp, "  _constant = C->constant_table().add_jump_table(this);\n");
+    fprintf(fp, "  _constant = C->output()->constant_table().add_jump_table(this);\n");
   }
 
   // If user did not define an encode section,
@@ -2781,6 +2775,8 @@ static void defineIn_RegMask(FILE *fp, FormDict &globals, OperandForm &oper) {
       // Return the sole RegMask.
       if (strcmp(first_reg_class, "stack_slots") == 0) {
         fprintf(fp,"  return &(Compile::current()->FIRST_STACK_mask());\n");
+      } else if (strcmp(first_reg_class, "dynamic") == 0) {
+        fprintf(fp,"  return &RegMask::Empty;\n");
       } else {
         const char* first_reg_class_to_upper = toUpper(first_reg_class);
         fprintf(fp,"  return &%s_mask();\n", first_reg_class_to_upper);
@@ -3937,6 +3933,10 @@ void ArchDesc::buildMachNode(FILE *fp_cpp, InstructForm *inst, const char *inden
     fprintf(fp_cpp, "%s node->_prob = _leaf->as_If()->_prob;\n", indent);
     fprintf(fp_cpp, "%s node->_fcnt = _leaf->as_If()->_fcnt;\n", indent);
   }
+  if (inst->is_ideal_halt()) {
+    fprintf(fp_cpp, "%s node->_halt_reason = _leaf->as_Halt()->_halt_reason;\n", indent);
+    fprintf(fp_cpp, "%s node->_reachable   = _leaf->as_Halt()->_reachable;\n", indent);
+  }
   if (inst->is_ideal_jump()) {
     fprintf(fp_cpp, "%s node->_probs = _leaf->as_Jump()->_probs;\n", indent);
   }
@@ -4143,9 +4143,6 @@ void ArchDesc::buildInstructMatchCheck(FILE *fp_cpp) const {
 // Output the methods to Matcher which specify frame behavior
 void ArchDesc::buildFrameMethods(FILE *fp_cpp) {
   fprintf(fp_cpp,"\n\n");
-  // Stack Direction
-  fprintf(fp_cpp,"bool Matcher::stack_direction() const { return %s; }\n\n",
-          _frame->_direction ? "true" : "false");
   // Sync Stack Slots
   fprintf(fp_cpp,"int Compile::sync_stack_slots() const { return %s; }\n\n",
           _frame->_sync_stack_slots);
@@ -4195,12 +4192,12 @@ void ArchDesc::buildFrameMethods(FILE *fp_cpp) {
   fprintf(fp_cpp,"int Matcher::inline_cache_reg_encode() {");
   fprintf(fp_cpp," return _regEncode[inline_cache_reg()]; }\n\n");
 
-  // Interpreter's Method Oop Register, mask definition, and encoding
-  fprintf(fp_cpp,"OptoReg::Name Matcher::interpreter_method_oop_reg() {");
+  // Interpreter's Method Register, mask definition, and encoding
+  fprintf(fp_cpp,"OptoReg::Name Matcher::interpreter_method_reg() {");
   fprintf(fp_cpp," return OptoReg::Name(%s_num); }\n\n",
-          _frame->_interpreter_method_oop_reg);
-  fprintf(fp_cpp,"int Matcher::interpreter_method_oop_reg_encode() {");
-  fprintf(fp_cpp," return _regEncode[interpreter_method_oop_reg()]; }\n\n");
+          _frame->_interpreter_method_reg);
+  fprintf(fp_cpp,"int Matcher::interpreter_method_reg_encode() {");
+  fprintf(fp_cpp," return _regEncode[interpreter_method_reg()]; }\n\n");
 
   // Interpreter's Frame Pointer Register, mask definition, and encoding
   fprintf(fp_cpp,"OptoReg::Name Matcher::interpreter_frame_pointer_reg() {");

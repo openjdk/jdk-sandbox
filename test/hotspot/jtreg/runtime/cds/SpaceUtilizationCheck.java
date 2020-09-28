@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,11 @@
  * @library /test/lib
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                              sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI SpaceUtilizationCheck
  */
 
 import jdk.test.lib.cds.CDSTestUtils;
+import jdk.test.lib.cds.CDSOptions;
 import jdk.test.lib.process.OutputAnalyzer;
 import sun.hotspot.WhiteBox;
 
@@ -43,28 +43,42 @@ import java.util.Hashtable;
 import java.lang.Integer;
 
 public class SpaceUtilizationCheck {
+    // For the MC/RW/RO regions:
     // [1] Each region must have strictly less than
     //     WhiteBox.metaspaceReserveAlignment() bytes of unused space.
     // [2] There must be no gap between two consecutive regions.
 
     public static void main(String[] args) throws Exception {
         // (1) Default VM arguments
-        test();
+        test("-Xlog:cds=debug");
 
         // (2) Use the now deprecated VM arguments. They should have no effect.
-        test("-XX:SharedReadWriteSize=128M",
+        test("-Xlog:cds=debug",
+             "-XX:SharedReadWriteSize=128M",
              "-XX:SharedReadOnlySize=128M",
              "-XX:SharedMiscDataSize=128M",
              "-XX:SharedMiscCodeSize=128M");
     }
 
     static void test(String... extra_options) throws Exception {
-        OutputAnalyzer output = CDSTestUtils.createArchive(extra_options);
+        CDSOptions opts = new CDSOptions();
+        opts.addSuffix(extra_options);
+        OutputAnalyzer output = CDSTestUtils.createArchive(opts);
         CDSTestUtils.checkDump(output);
-        Pattern pattern = Pattern.compile("^(..) *space: *([0-9]+).* out of *([0-9]+) bytes .* at 0x([0-9a0-f]+)");
+        Pattern pattern = Pattern.compile("(..)  space: *([0-9]+).* out of *([0-9]+) bytes .* at 0x([0-9a0-f]+)");
         WhiteBox wb = WhiteBox.getWhiteBox();
         long reserve_alignment = wb.metaspaceReserveAlignment();
         System.out.println("Metaspace::reserve_alignment() = " + reserve_alignment);
+
+        // Look for output like this. The pattern will only match the first 3 regions, which is what we need to check
+        //
+        // [4.682s][debug][cds] mc  space:     24912 [  0.2% of total] out of     28672 bytes [ 86.9% used] at 0x0000000800000000
+        // [4.682s][debug][cds] rw  space:   4391632 [ 33.7% of total] out of   4395008 bytes [ 99.9% used] at 0x0000000800007000
+        // [4.682s][debug][cds] ro  space:   7570632 [ 58.0% of total] out of   7573504 bytes [100.0% used] at 0x0000000800438000
+        // [4.682s][debug][cds] bm  space:    213528 [  1.6% of total] out of    213528 bytes [100.0% used]
+        // [4.682s][debug][cds] ca0 space:    507904 [  3.9% of total] out of    507904 bytes [100.0% used] at 0x00000000fff00000
+        // [4.682s][debug][cds] oa0 space:    327680 [  2.5% of total] out of    327680 bytes [100.0% used] at 0x00000000ffe00000
+        // [4.682s][debug][cds] total    :  13036288 [100.0% of total] out of  13049856 bytes [ 99.9% used]
 
         long last_region = -1;
         Hashtable<String,String> checked = new Hashtable<>();
@@ -73,13 +87,8 @@ public class SpaceUtilizationCheck {
                 Matcher matcher = pattern.matcher(line);
                 if (matcher.find()) {
                     String name = matcher.group(1);
-                    if (name.equals("s0") || name.equals("s1")) {
-                      // String regions are listed at the end and they may not be fully occupied.
-                      break;
-                    } else {
-                      System.out.println("Checking " + name + " in : " + line);
-                      checked.put(name, name);
-                    }
+                    System.out.println("Checking " + name + " in : " + line);
+                    checked.put(name, name);
                     long used = Long.parseLong(matcher.group(2));
                     long capacity = Long.parseLong(matcher.group(3));
                     long address = Long.parseLong(matcher.group(4), 16);
@@ -100,8 +109,8 @@ public class SpaceUtilizationCheck {
                 }
             }
         }
-        if (checked.size() != 4) {
-          throw new RuntimeException("Must have 4 consecutive, fully utilized regions");
+        if (checked.size() != 3) {
+          throw new RuntimeException("Must have 3 consecutive, fully utilized regions"); // MC,RW,RO
         }
     }
 }

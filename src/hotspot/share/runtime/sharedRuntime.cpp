@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,6 @@
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
@@ -66,6 +65,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/synchronizer.hpp"
 #include "runtime/vframe.inline.hpp"
 #include "runtime/vframeArray.hpp"
 #include "utilities/copy.hpp"
@@ -771,17 +771,12 @@ address SharedRuntime::continuation_for_implicit_exception(JavaThread* thread,
   address target_pc = NULL;
 
   if (Interpreter::contains(pc)) {
-#ifdef CC_INTERP
-    // C++ interpreter doesn't throw implicit exceptions
-    ShouldNotReachHere();
-#else
     switch (exception_kind) {
       case IMPLICIT_NULL:           return Interpreter::throw_NullPointerException_entry();
       case IMPLICIT_DIVIDE_BY_ZERO: return Interpreter::throw_ArithmeticException_entry();
       case STACK_OVERFLOW:          return Interpreter::throw_StackOverflowError_entry();
       default:                      ShouldNotReachHere();
     }
-#endif // !CC_INTERP
   } else {
     switch (exception_kind) {
       case STACK_OVERFLOW: {
@@ -955,7 +950,7 @@ JRT_END
 jlong SharedRuntime::get_java_tid(Thread* thread) {
   if (thread != NULL) {
     if (thread->is_Java_thread()) {
-      oop obj = ((JavaThread*)thread)->threadObj();
+      oop obj = thread->as_Java_thread()->threadObj();
       return (obj == NULL) ? 0 : java_lang_Thread::thread_id(obj);
     }
   }
@@ -1023,7 +1018,7 @@ Handle SharedRuntime::find_callee_info(JavaThread* thread, Bytecodes::Code& bc, 
   return find_callee_info_helper(thread, vfst, bc, callinfo, THREAD);
 }
 
-methodHandle SharedRuntime::extract_attached_method(vframeStream& vfst) {
+Method* SharedRuntime::extract_attached_method(vframeStream& vfst) {
   CompiledMethod* caller = vfst.nm();
 
   nmethodLocker caller_lock(caller);
@@ -1056,9 +1051,9 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
   int bytecode_index = bytecode.index();
   bc = bytecode.invoke_code();
 
-  methodHandle attached_method = extract_attached_method(vfst);
+  methodHandle attached_method(THREAD, extract_attached_method(vfst));
   if (attached_method.not_null()) {
-    methodHandle callee = bytecode.static_target(CHECK_NH);
+    Method* callee = bytecode.static_target(CHECK_NH);
     vmIntrinsics::ID id = callee->intrinsic_id();
     // When VM replaces MH.invokeBasic/linkTo* call with a direct/virtual call,
     // it attaches statically resolved method to the call site.
@@ -1106,8 +1101,8 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
     frame callerFrame = stubFrame.sender(&reg_map2);
 
     if (attached_method.is_null()) {
-      methodHandle callee = bytecode.static_target(CHECK_NH);
-      if (callee.is_null()) {
+      Method* callee = bytecode.static_target(CHECK_NH);
+      if (callee == NULL) {
         THROW_(vmSymbols::java_lang_NoSuchMethodException(), nullHandle);
       }
     }
@@ -1145,7 +1140,6 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
       rk = constants->klass_ref_at(bytecode_index, CHECK_NH);
     }
     Klass* static_receiver_klass = rk;
-    methodHandle callee = callinfo.selected_method();
     assert(receiver_klass->is_subtype_of(static_receiver_klass),
            "actual receiver must be subclass of static receiver klass");
     if (receiver_klass->is_instance_klass()) {
@@ -1183,7 +1177,7 @@ methodHandle SharedRuntime::find_callee_method(JavaThread* thread, TRAPS) {
     Bytecodes::Code bc;
     CallInfo callinfo;
     find_callee_info_helper(thread, vfst, bc, callinfo, CHECK_(methodHandle()));
-    callee_method = callinfo.selected_method();
+    callee_method = methodHandle(THREAD, callinfo.selected_method());
   }
   assert(callee_method()->is_method(), "must be");
   return callee_method;
@@ -1269,6 +1263,7 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
     // will be supported.
     if (!callee_method->is_old() &&
         (callee == NULL || (callee->is_in_use() && callee_method->code() == callee))) {
+      NoSafepointVerifier nsv;
 #ifdef ASSERT
       // We must not try to patch to jump to an already unloaded method.
       if (dest_entry_point != 0) {
@@ -1325,7 +1320,7 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
   Bytecodes::Code invoke_code = Bytecodes::_illegal;
   Handle receiver = find_callee_info(thread, invoke_code,
                                      call_info, CHECK_(methodHandle()));
-  methodHandle callee_method = call_info.selected_method();
+  methodHandle callee_method(THREAD, call_info.selected_method());
 
   assert((!is_virtual && invoke_code == Bytecodes::_invokestatic ) ||
          (!is_virtual && invoke_code == Bytecodes::_invokespecial) ||
@@ -1479,7 +1474,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_abstract(JavaThread*
   // Get the called method from the invoke bytecode.
   vframeStream vfst(thread, true);
   assert(!vfst.at_end(), "Java frame must exist");
-  methodHandle caller(vfst.method());
+  methodHandle caller(thread, vfst.method());
   Bytecode_invoke invoke(caller, vfst.bci());
   DEBUG_ONLY( invoke.verify(); )
 
@@ -1493,7 +1488,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_abstract(JavaThread*
   // Install exception and return forward entry.
   address res = StubRoutines::throw_AbstractMethodError_entry();
   JRT_BLOCK
-    methodHandle callee = invoke.static_target(thread);
+    methodHandle callee(thread, invoke.static_target(thread));
     if (!callee.is_null()) {
       oop recv = callerFrame.retrieve_receiver(&reg_map);
       Klass *recv_klass = (recv != NULL) ? recv->klass() : NULL;
@@ -1657,7 +1652,7 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, TRAPS) {
     return callee_method;
   }
 
-  methodHandle callee_method = call_info.selected_method();
+  methodHandle callee_method(thread, call_info.selected_method());
 
 #ifndef PRODUCT
   Atomic::inc(&_ic_miss_ctr);
@@ -2073,20 +2068,17 @@ JRT_LEAF(void, SharedRuntime::reguard_yellow_pages())
   (void) JavaThread::current()->reguard_stack();
 JRT_END
 
-
-// Handles the uncommon case in locking, i.e., contention or an inflated lock.
-JRT_BLOCK_ENTRY(void, SharedRuntime::complete_monitor_locking_C(oopDesc* _obj, BasicLock* lock, JavaThread* thread))
+void SharedRuntime::monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThread* thread) {
   if (!SafepointSynchronize::is_synchronizing()) {
     // Only try quick_enter() if we're not trying to reach a safepoint
     // so that the calling thread reaches the safepoint more quickly.
-    if (ObjectSynchronizer::quick_enter(_obj, thread, lock)) return;
+    if (ObjectSynchronizer::quick_enter(obj, thread, lock)) return;
   }
   // NO_ASYNC required because an async exception on the state transition destructor
   // would leave you with the lock held and it would never be released.
   // The normal monitorenter NullPointerException is thrown without acquiring a lock
   // and the model is that an exception implies the method failed.
   JRT_BLOCK_NO_ASYNC
-  oop obj(_obj);
   if (PrintBiasedLockingStatistics) {
     Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
   }
@@ -2094,42 +2086,31 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::complete_monitor_locking_C(oopDesc* _obj, B
   ObjectSynchronizer::enter(h_obj, lock, CHECK);
   assert(!HAS_PENDING_EXCEPTION, "Should have no exception here");
   JRT_BLOCK_END
+}
+
+// Handles the uncommon case in locking, i.e., contention or an inflated lock.
+JRT_BLOCK_ENTRY(void, SharedRuntime::complete_monitor_locking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread))
+  SharedRuntime::monitor_enter_helper(obj, lock, thread);
 JRT_END
 
+void SharedRuntime::monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThread* thread) {
+  assert(JavaThread::current() == thread, "invariant");
+  // Exit must be non-blocking, and therefore no exceptions can be thrown.
+  EXCEPTION_MARK;
+  // The object could become unlocked through a JNI call, which we have no other checks for.
+  // Give a fatal message if CheckJNICalls. Otherwise we ignore it.
+  if (obj->is_unlocked()) {
+    if (CheckJNICalls) {
+      fatal("Object has been unlocked by JNI");
+    }
+    return;
+  }
+  ObjectSynchronizer::exit(obj, lock, THREAD);
+}
+
 // Handles the uncommon cases of monitor unlocking in compiled code
-JRT_LEAF(void, SharedRuntime::complete_monitor_unlocking_C(oopDesc* _obj, BasicLock* lock, JavaThread * THREAD))
-   oop obj(_obj);
-  assert(JavaThread::current() == THREAD, "invariant");
-  // I'm not convinced we need the code contained by MIGHT_HAVE_PENDING anymore
-  // testing was unable to ever fire the assert that guarded it so I have removed it.
-  assert(!HAS_PENDING_EXCEPTION, "Do we need code below anymore?");
-#undef MIGHT_HAVE_PENDING
-#ifdef MIGHT_HAVE_PENDING
-  // Save and restore any pending_exception around the exception mark.
-  // While the slow_exit must not throw an exception, we could come into
-  // this routine with one set.
-  oop pending_excep = NULL;
-  const char* pending_file;
-  int pending_line;
-  if (HAS_PENDING_EXCEPTION) {
-    pending_excep = PENDING_EXCEPTION;
-    pending_file  = THREAD->exception_file();
-    pending_line  = THREAD->exception_line();
-    CLEAR_PENDING_EXCEPTION;
-  }
-#endif /* MIGHT_HAVE_PENDING */
-
-  {
-    // Exit must be non-blocking, and therefore no exceptions can be thrown.
-    EXCEPTION_MARK;
-    ObjectSynchronizer::exit(obj, lock, THREAD);
-  }
-
-#ifdef MIGHT_HAVE_PENDING
-  if (pending_excep != NULL) {
-    THREAD->set_pending_exception(pending_excep, pending_file, pending_line);
-  }
-#endif /* MIGHT_HAVE_PENDING */
+JRT_LEAF(void, SharedRuntime::complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread))
+  SharedRuntime::monitor_exit_helper(obj, lock, thread);
 JRT_END
 
 #ifndef PRODUCT
@@ -2200,8 +2181,8 @@ class MethodArityHistogram {
   static int _max_size;                       // max. arg size seen
 
   static void add_method_to_histogram(nmethod* nm) {
-    if (CompiledMethod::nmethod_access_is_safe(nm)) {
-      Method* method = nm->method();
+    Method* method = (nm == NULL) ? NULL : nm->method();
+    if ((method != NULL) && nm->is_alive()) {
       ArgumentCount args(method->signature());
       int arity   = args.size() + (method->is_static() ? 0 : 1);
       int argsize = method->size_of_parameters();
@@ -2242,7 +2223,10 @@ class MethodArityHistogram {
 
  public:
   MethodArityHistogram() {
-    MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    // Take the Compile_lock to protect against changes in the CodeBlob structures
+    MutexLocker mu1(Compile_lock, Mutex::_safepoint_check_flag);
+    // Take the CodeCache_lock to protect against changes in the CodeHeap structure
+    MutexLocker mu2(CodeCache_lock, Mutex::_no_safepoint_check_flag);
     _max_arity = _max_size = 0;
     for (int i = 0; i < MAX_ARITY; i++) _arity_histogram[i] = _size_histogram[i] = 0;
     CodeCache::nmethods_do(add_method_to_histogram);
@@ -2615,7 +2599,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* finger
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
   AdapterHandlerEntry* entry = get_adapter0(method);
-  if (method->is_shared()) {
+  if (entry != NULL && method->is_shared()) {
     // See comments around Method::link_method()
     MutexLocker mu(AdapterHandlerLibrary_lock);
     if (method->adapter() == NULL) {
@@ -2627,6 +2611,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
       MacroAssembler _masm(&buffer);
       SharedRuntime::generate_trampoline(&_masm, entry->get_c2i_entry());
       assert(*(int*)trampoline != 0, "Instruction(s) for trampoline must not be encoded as zeros.");
+      _masm.flush();
 
       if (PrintInterpreter) {
         Disassembler::decode(buffer.insts_begin(), buffer.insts_end());
@@ -2809,7 +2794,7 @@ void AdapterHandlerEntry::relocate(address new_base) {
 void AdapterHandlerEntry::deallocate() {
   delete _fingerprint;
 #ifdef ASSERT
-  if (_saved_code) FREE_C_HEAP_ARRAY(unsigned char, _saved_code);
+  FREE_C_HEAP_ARRAY(unsigned char, _saved_code);
 #endif
 }
 
@@ -2873,6 +2858,12 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
       CodeBuffer buffer(buf);
       double locs_buf[20];
       buffer.insts()->initialize_shared_locs((relocInfo*)locs_buf, sizeof(locs_buf) / sizeof(relocInfo));
+#if defined(AARCH64)
+      // On AArch64 with ZGC and nmethod entry barriers, we need all oops to be
+      // in the constant pool to ensure ordering between the barrier and oops
+      // accesses. For native_wrappers we need a constant.
+      buffer.initialize_consts_size(8);
+#endif
       MacroAssembler _masm(&buffer);
 
       // Fill in the signature array, for the calling-convention call.
@@ -2902,7 +2893,12 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
       nm = SharedRuntime::generate_native_wrapper(&_masm, method, compile_id, sig_bt, regs, ret_type, critical_entry);
 
       if (nm != NULL) {
-        method->set_code(method, nm);
+        {
+          MutexLocker pl(CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+          if (nm->make_in_use()) {
+            method->set_code(method, nm);
+          }
+        }
 
         DirectiveSet* directive = DirectivesStack::getDefaultDirective(CompileBroker::compiler(CompLevel_simple));
         if (directive->PrintAssemblyOption) {
@@ -2974,9 +2970,6 @@ VMReg SharedRuntime::name_for_receiver() {
 VMRegPair *SharedRuntime::find_callee_arguments(Symbol* sig, bool has_receiver, bool has_appendix, int* arg_size) {
   // This method is returning a data structure allocating as a
   // ResourceObject, so do not put any ResourceMarks in here.
-  char *s = sig->as_C_string();
-  int len = (int)strlen(s);
-  s++; len--;                   // Skip opening paren
 
   BasicType *sig_bt = NEW_RESOURCE_ARRAY(BasicType, 256);
   VMRegPair *regs = NEW_RESOURCE_ARRAY(VMRegPair, 256);
@@ -2985,33 +2978,11 @@ VMRegPair *SharedRuntime::find_callee_arguments(Symbol* sig, bool has_receiver, 
     sig_bt[cnt++] = T_OBJECT; // Receiver is argument 0; not in signature
   }
 
-  while (*s != ')') {          // Find closing right paren
-    switch (*s++) {            // Switch on signature character
-    case 'B': sig_bt[cnt++] = T_BYTE;    break;
-    case 'C': sig_bt[cnt++] = T_CHAR;    break;
-    case 'D': sig_bt[cnt++] = T_DOUBLE;  sig_bt[cnt++] = T_VOID; break;
-    case 'F': sig_bt[cnt++] = T_FLOAT;   break;
-    case 'I': sig_bt[cnt++] = T_INT;     break;
-    case 'J': sig_bt[cnt++] = T_LONG;    sig_bt[cnt++] = T_VOID; break;
-    case 'S': sig_bt[cnt++] = T_SHORT;   break;
-    case 'Z': sig_bt[cnt++] = T_BOOLEAN; break;
-    case 'V': sig_bt[cnt++] = T_VOID;    break;
-    case 'L':                   // Oop
-      while (*s++ != ';');   // Skip signature
-      sig_bt[cnt++] = T_OBJECT;
-      break;
-    case '[': {                 // Array
-      do {                      // Skip optional size
-        while (*s >= '0' && *s <= '9') s++;
-      } while (*s++ == '[');   // Nested arrays?
-      // Skip element type
-      if (s[-1] == 'L')
-        while (*s++ != ';'); // Skip signature
-      sig_bt[cnt++] = T_ARRAY;
-      break;
-    }
-    default : ShouldNotReachHere();
-    }
+  for (SignatureStream ss(sig); !ss.at_return_type(); ss.next()) {
+    BasicType type = ss.type();
+    sig_bt[cnt++] = type;
+    if (is_double_word_type(type))
+      sig_bt[cnt++] = T_VOID;
   }
 
   if (has_appendix) {
@@ -3106,10 +3077,15 @@ JRT_LEAF(intptr_t*, SharedRuntime::OSR_migration_begin( JavaThread *thread) )
        kptr2 = fr.next_monitor_in_interpreter_frame(kptr2) ) {
     if (kptr2->obj() != NULL) {         // Avoid 'holes' in the monitor array
       BasicLock *lock = kptr2->lock();
-      // Inflate so the displaced header becomes position-independent
-      if (lock->displaced_header().is_unlocked())
+      // Inflate so the object's header no longer refers to the BasicLock.
+      if (lock->displaced_header().is_unlocked()) {
+        // The object is locked and the resulting ObjectMonitor* will also be
+        // locked so it can't be async deflated until ownership is dropped.
+        // See the big comment in basicLock.cpp: BasicLock::move_to().
         ObjectSynchronizer::inflate_helper(kptr2->obj());
-      // Now the displaced header is free to move
+      }
+      // Now the displaced header is free to move because the
+      // object's header no longer refers to it.
       buf[i++] = (intptr_t)lock->displaced_header().value();
       buf[i++] = cast_from_oop<intptr_t>(kptr2->obj());
     }
@@ -3182,9 +3158,8 @@ void AdapterHandlerLibrary::print_statistics() {
 #endif /* PRODUCT */
 
 JRT_LEAF(void, SharedRuntime::enable_stack_reserved_zone(JavaThread* thread))
-  assert(thread->is_Java_thread(), "Only Java threads have a stack reserved zone");
   if (thread->stack_reserved_zone_disabled()) {
-  thread->enable_stack_reserved_zone();
+    thread->enable_stack_reserved_zone();
   }
   thread->set_reserved_stack_activation(thread->stack_base());
 JRT_END

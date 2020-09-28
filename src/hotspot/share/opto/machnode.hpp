@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #define SHARE_OPTO_MACHNODE_HPP
 
 #include "opto/callnode.hpp"
+#include "opto/constantTable.hpp"
 #include "opto/matcher.hpp"
 #include "opto/multnode.hpp"
 #include "opto/node.hpp"
@@ -197,7 +198,7 @@ public:
 // ADLC inherit from this class.
 class MachNode : public Node {
 public:
-  MachNode() : Node((uint)0), _num_opnds(0), _opnds(NULL) {
+  MachNode() : Node((uint)0), _barrier(0), _num_opnds(0), _opnds(NULL) {
     init_class_id(Class_Mach);
   }
   // Required boilerplate
@@ -210,6 +211,9 @@ public:
   // Position of constant base node in node's inputs. -1 if
   // no constant base node input.
   virtual uint mach_constant_base_node_input() const { return (uint)-1; }
+
+  uint8_t barrier_data() const { return _barrier; }
+  void set_barrier_data(uint data) { _barrier = data; }
 
   // Copy inputs and operands to new node of instruction.
   // Called from cisc_version() and short_branch_version().
@@ -240,6 +244,7 @@ public:
   // First index in _in[] corresponding to operand, or -1 if there is none
   int  operand_index(uint operand) const;
   int  operand_index(const MachOper *oper) const;
+  int  operand_index(Node* m) const;
 
   // Register class input is expected in
   virtual const RegMask &in_RegMask(uint) const;
@@ -254,6 +259,9 @@ public:
   // both an input and an output).  It is nessecary when the input and
   // output have choices - but they must use the same choice.
   virtual uint two_adr( ) const { return 0; }
+
+  // The GC might require some barrier metadata for machine code emission.
+  uint8_t _barrier;
 
   // Array of complex operand pointers.  Each corresponds to zero or
   // more leafs.  Must be set by MachNode constructor to point to an
@@ -278,11 +286,12 @@ public:
 
   // Return the alignment required (in units of relocInfo::addr_unit())
   // for this instruction (must be a power of 2)
-  virtual int   alignment_required() const { return 1; }
+  int           pd_alignment_required() const;
+  virtual int   alignment_required() const { return pd_alignment_required(); }
 
   // Return the padding (in bytes) to be emitted before this
   // instruction to properly align it.
-  virtual int   compute_padding(int current_offset) const { return 0; }
+  virtual int   compute_padding(int current_offset) const;
 
   // Return number of relocatable values contained in this instruction
   virtual int   reloc() const { return 0; }
@@ -440,7 +449,7 @@ public:
 // Machine node that holds a constant which is stored in the constant table.
 class MachConstantNode : public MachTypeNode {
 protected:
-  Compile::Constant _constant;  // This node's constant.
+  ConstantTable::Constant _constant;  // This node's constant.
 
 public:
   MachConstantNode() : MachTypeNode() {
@@ -514,9 +523,6 @@ private:
 
 public:
   bool do_polling() const { return _do_polling; }
-
-  // Offset of safepoint from the beginning of the node
-  int safepoint_offset() const;
 
 #ifndef PRODUCT
   virtual const char *Name() const { return "Epilog"; }
@@ -874,17 +880,14 @@ public:
   const TypeFunc *_tf;        // Function type
   address      _entry_point;  // Address of the method being called
   float        _cnt;          // Estimate of number of times called
-  uint         _argsize;      // Size of argument block on stack
 
   const TypeFunc* tf()        const { return _tf; }
   const address entry_point() const { return _entry_point; }
   const float   cnt()         const { return _cnt; }
-  uint argsize()              const { return _argsize; }
 
   void set_tf(const TypeFunc* tf) { _tf = tf; }
   void set_entry_point(address p) { _entry_point = p; }
   void set_cnt(float c)           { _cnt = c; }
-  void set_argsize(int s)         { _argsize = s; }
 
   MachCallNode() : MachSafePointNode() {
     init_class_id(Class_MachCall);
@@ -1004,7 +1007,12 @@ public:
 // Machine-specific versions of halt nodes
 class MachHaltNode : public MachReturnNode {
 public:
+  bool _reachable;
+  const char* _halt_reason;
   virtual JVMState* jvms() const;
+  bool is_reachable() const {
+    return _reachable;
+  }
 };
 
 class MachMemBarNode : public MachNode {

@@ -26,6 +26,7 @@
  * @bug 8003280
  * @summary Add lambda tests
  *   Test bridge methods for certain SAM conversions
+ *   Test the set of generated methods
  * @compile LambdaTest6.java
  * @run main LambdaTest6
  */
@@ -60,18 +61,34 @@ public class LambdaTest6<T> {
         return s;
     }
 
+    private static Set<String> allowedMethods() {
+        Set<String> s = new HashSet<>();
+        s.add("m");
+        return s;
+    }
+
+    private static boolean matchingMethodNames(Method[] methods) {
+        Set<String> methodNames = new HashSet<>();
+        for (Method m : methods) {
+            methodNames.add(m.getName());
+        }
+        return methodNames.equals(allowedMethods());
+    }
+
     private void test1()
     {
         L la = s -> { };
         la.m("hi");
         Class<? extends L> c1 = la.getClass();
         Method[] methods = c1.getDeclaredMethods();
+        assertTrue(matchingMethodNames(methods));
         Set<String> types = setOfStringObject();
         for(Method m : methods) {
-            assertTrue(m.getName().equals("m"));
-            Class[] parameterTypes = m.getParameterTypes();
-            assertTrue(parameterTypes.length == 1);
-            assertTrue(types.remove(parameterTypes[0].getName()));
+            if ("m".equals(m.getName())) {
+                Class[] parameterTypes = m.getParameterTypes();
+                assertTrue(parameterTypes.length == 1);
+                assertTrue(types.remove(parameterTypes[0].getName()));
+            }
         }
         assertTrue(types.isEmpty() || (types.size() == 1 && types.contains("java.lang.String")));
     }
@@ -82,12 +99,14 @@ public class LambdaTest6<T> {
         //km.m("hi");
         Class<? extends KM> c2 = km.getClass();
         Method[] methods = c2.getDeclaredMethods();
+        assertTrue(matchingMethodNames(methods));
         Set<String> types = setOfStringObject();
         for(Method m : methods) {
-            assertTrue(m.getName().equals("m"));
-            Class[] parameterTypes = m.getParameterTypes();
-            assertTrue(parameterTypes.length == 1);
-            assertTrue(types.remove(parameterTypes[0].getName()));
+            if ("m".equals(m.getName())) {
+                Class[] parameterTypes = m.getParameterTypes();
+                assertTrue(parameterTypes.length == 1);
+                assertTrue(types.remove(parameterTypes[0].getName()));
+            }
         }
         assertTrue(types.isEmpty());
     }
@@ -99,11 +118,13 @@ public class LambdaTest6<T> {
         assertTrue( ((H)na).m().equals("hi") );
         Class<? extends N> c3 = na.getClass();
         Method[] methods = c3.getDeclaredMethods();
+        assertTrue(matchingMethodNames(methods));
         Set<String> types = setOfStringObject();
         for(Method m : methods) {
-            assertTrue(m.getName().equals("m"));
-            Class returnType = m.getReturnType();
-            assertTrue(types.remove(returnType.getName()));
+            if ("m".equals(m.getName())) {
+                Class returnType = m.getReturnType();
+                assertTrue(types.remove(returnType.getName()));
+            }
         }
         assertTrue(types.size() == 1); //there's a bridge
     }

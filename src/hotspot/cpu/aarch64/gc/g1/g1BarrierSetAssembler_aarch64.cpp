@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,18 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
                                                             Register addr, Register count, RegSet saved_regs) {
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
   if (!dest_uninitialized) {
+    Label done;
+    Address in_progress(rthread, in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset()));
+
+    // Is marking active?
+    if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
+      __ ldrw(rscratch1, in_progress);
+    } else {
+      assert(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
+      __ ldrb(rscratch1, in_progress);
+    }
+    __ cbzw(rscratch1, done);
+
     __ push(saved_regs, sp);
     if (count == c_rarg0) {
       if (addr == c_rarg1) {
@@ -68,6 +80,8 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
       __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_pre_oop_entry), 2);
     }
     __ pop(saved_regs, sp);
+
+    __ bind(done);
   }
 }
 
@@ -251,7 +265,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
 
 void G1BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                     Register dst, Address src, Register tmp1, Register tmp_thread) {
-  bool on_oop = type == T_OBJECT || type == T_ARRAY;
+  bool on_oop = is_reference_type(type);
   bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
   bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
   bool on_reference = on_weak || on_phantom;

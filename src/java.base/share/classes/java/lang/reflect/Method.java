@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -277,7 +277,7 @@ public final class Method extends Executable {
      * @throws GenericSignatureFormatError
      *     if the generic method signature does not conform to the format
      *     specified in
-     *     <cite>The Java&trade; Virtual Machine Specification</cite>
+     *     <cite>The Java Virtual Machine Specification</cite>
      * @throws TypeNotPresentException if the underlying method's
      *     return type refers to a non-existent type declaration
      * @throws MalformedParameterizedTypeException if the
@@ -503,7 +503,7 @@ public final class Method extends Executable {
      *
      * <p>If the underlying method is an instance method, it is invoked
      * using dynamic method lookup as documented in The Java Language
-     * Specification, section 15.12.4.4; in particular,
+     * Specification, section {@jls 15.12.4.4}; in particular,
      * overriding based on the runtime type of the target object may occur.
      *
      * <p>If the underlying method is static, the class that declared
@@ -524,10 +524,10 @@ public final class Method extends Executable {
      * this object on {@code obj} with parameters
      * {@code args}
      *
-     * @exception IllegalAccessException    if this {@code Method} object
+     * @throws    IllegalAccessException    if this {@code Method} object
      *              is enforcing Java language access control and the underlying
      *              method is inaccessible.
-     * @exception IllegalArgumentException  if the method is an
+     * @throws    IllegalArgumentException  if the method is an
      *              instance method and the specified object argument
      *              is not an instance of the class or interface
      *              declaring the underlying method (or of a subclass
@@ -537,11 +537,11 @@ public final class Method extends Executable {
      *              after possible unwrapping, a parameter value
      *              cannot be converted to the corresponding formal
      *              parameter type by a method invocation conversion.
-     * @exception InvocationTargetException if the underlying method
+     * @throws    InvocationTargetException if the underlying method
      *              throws an exception.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the method is an instance method.
-     * @exception ExceptionInInitializerError if the initialization
+     * @throws    ExceptionInInitializerError if the initialization
      * provoked by this method fails.
      */
     @CallerSensitive
@@ -686,9 +686,10 @@ public final class Method extends Executable {
 
     /**
      * {@inheritDoc}
-     * @throws NullPointerException  {@inheritDoc}
+     * @throws NullPointerException {@inheritDoc}
      * @since 1.5
      */
+    @Override
     public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
         return super.getAnnotation(annotationClass);
     }
@@ -697,6 +698,7 @@ public final class Method extends Executable {
      * {@inheritDoc}
      * @since 1.5
      */
+    @Override
     public Annotation[] getDeclaredAnnotations()  {
         return super.getDeclaredAnnotations();
     }

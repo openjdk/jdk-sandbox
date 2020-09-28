@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,9 +63,6 @@ define_pd_global(bool,  RewriteFrequentPairs,     true);
 
 define_pd_global(bool,  PreserveFramePointer,     false);
 
-// GC Ergo Flags
-define_pd_global(size_t, CMSYoungGenPerWorker,    16*M);  // default max size of CMS young gen, per GC worker thread
-
 define_pd_global(uintx, TypeProfileLevel, 0);
 
 // No performance work done here yet.
@@ -73,14 +70,12 @@ define_pd_global(bool, CompactStrings, false);
 
 define_pd_global(intx, InitArrayShortSize, 8*BytesPerLong);
 
-define_pd_global(bool, ThreadLocalHandshakes, false);
+#define ARCH_FLAGS(develop,     \
+                   product,     \
+                   notproduct,  \
+                   range,       \
+                   constraint)
 
-#define ARCH_FLAGS(develop, \
-                   product, \
-                   diagnostic, \
-                   experimental, \
-                   notproduct, \
-                   range, \
-                   constraint, \
-                   writeable)
+// end of ARCH_FLAGS
+
 #endif // CPU_ARM_GLOBALS_ARM_HPP

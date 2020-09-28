@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include "gc/shared/stringdedup/stringDedupQueue.hpp"
 #include "gc/shared/stringdedup/stringDedupTable.hpp"
 #include "gc/shared/stringdedup/stringDedupThread.hpp"
+#include "memory/iterator.hpp"
 
 bool StringDedup::_enabled = false;
 
@@ -62,12 +63,6 @@ void StringDedup::parallel_unlink(StringDedupUnlinkOrOopsDoClosure* unlink, uint
 void StringDedup::threads_do(ThreadClosure* tc) {
   assert(is_enabled(), "String deduplication not enabled");
   tc->do_thread(StringDedupThread::thread());
-}
-
-void StringDedup::print_worker_threads_on(outputStream* st) {
-  assert(is_enabled(), "String deduplication not enabled");
-  StringDedupThread::thread()->print_on(st);
-  st->cr();
 }
 
 void StringDedup::verify() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,12 +27,11 @@ package gc.logging;
  * @test TestGCId
  * @bug 8043607
  * @summary Ensure that the GCId is logged
- * @key gc
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
  * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI gc.logging.TestGCId
  */
 
@@ -53,10 +52,6 @@ public class TestGCId {
       noneGCSupported = false;
       testGCId("UseG1GC");
     }
-    if (GC.ConcMarkSweep.isSupported()) {
-      noneGCSupported = false;
-      testGCId("UseConcMarkSweepGC");
-    }
     if (GC.Serial.isSupported()) {
       noneGCSupported = false;
       testGCId("UseSerialGC");
@@ -67,7 +62,7 @@ public class TestGCId {
     }
 
     if (noneGCSupported) {
-      throw new SkippedException("Skipping test because none of Parallel/G1/ConcMarkSweep/Serial/Shenandoah is supported.");
+      throw new SkippedException("Skipping test because none of Parallel/G1/Serial/Shenandoah is supported.");
     }
   }
 

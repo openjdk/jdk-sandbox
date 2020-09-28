@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,13 +31,15 @@
 
 package sun.security.krb5.internal;
 
-import sun.security.krb5.internal.crypto.EType;
-import sun.security.util.*;
-import sun.security.krb5.Asn1Exception;
 import java.io.IOException;
 import java.util.Vector;
 
+import static java.nio.charset.StandardCharsets.*;
+
+import sun.security.krb5.Asn1Exception;
 import sun.security.krb5.internal.util.KerberosString;
+import sun.security.krb5.internal.crypto.EType;
+import sun.security.util.*;
 
 /**
  * Implements the ASN.1 PA-DATA type.
@@ -263,7 +265,7 @@ public class PAData {
             switch (p.getType()) {
                 case Krb5.PA_PW_SALT:
                     paPwSalt = new String(p.getValue(),
-                            KerberosString.MSNAME?"UTF8":"8859_1");
+                            KerberosString.MSNAME ? UTF_8 : ISO_8859_1);
                     break;
                 case Krb5.PA_ETYPE_INFO:
                     d = new DerValue(p.getValue());

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2009, 2010, 2011 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -66,9 +66,6 @@ define_pd_global(intx,  StackReservedPages,   DEFAULT_STACK_RESERVED_PAGES);
 define_pd_global(bool,  RewriteBytecodes,     true);
 define_pd_global(bool,  RewriteFrequentPairs, true);
 
-// GC Ergo Flags
-define_pd_global(size_t, CMSYoungGenPerWorker, 16*M);  // default max size of CMS young gen, per GC worker thread
-
 define_pd_global(uintx, TypeProfileLevel, 0);
 
 define_pd_global(bool, PreserveFramePointer, false);
@@ -76,22 +73,18 @@ define_pd_global(bool, PreserveFramePointer, false);
 // No performance work done here yet.
 define_pd_global(bool, CompactStrings, false);
 
-define_pd_global(bool, ThreadLocalHandshakes, true);
-
-#define ARCH_FLAGS(develop, \
-                   product, \
-                   diagnostic, \
-                   experimental, \
-                   notproduct, \
-                   range, \
-                   constraint, \
-                   writeable)  \
+#define ARCH_FLAGS(develop,                                                 \
+                   product,                                                 \
+                   notproduct,                                              \
+                   range,                                                   \
+                   constraint)                                              \
                                                                             \
   product(bool, UseFastEmptyMethods, true,                                  \
           "Use fast method entry code for empty methods")                   \
                                                                             \
   product(bool, UseFastAccessorMethods, true,                               \
-          "Use fast method entry code for accessor methods")                \
-                                                                            \
+          "Use fast method entry code for accessor methods")
+
+// end of ARCH_FLAGS
 
 #endif // CPU_ZERO_GLOBALS_ZERO_HPP

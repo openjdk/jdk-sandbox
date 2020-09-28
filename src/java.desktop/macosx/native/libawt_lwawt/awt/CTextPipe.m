@@ -36,11 +36,6 @@
 #import "QuartzSurfaceData.h"
 #include "AWTStrike.h"
 
-/* Use THIS_FILE when it is available. */
-#ifndef THIS_FILE
-    #define THIS_FILE __FILE__
-#endif
-
 static const CGAffineTransform sInverseTX = { 1, 0, 0, -1, 0, 0 };
 
 
@@ -247,10 +242,10 @@ void JavaCT_DrawTextUsingQSD(JNIEnv *env, const QuartzSDOps *qsdo, const AWTStri
 
     NSString *string = [NSString stringWithCharacters:chars length:length];
     /*
-       The calls below were used previously but for unknown reason did not 
-       render using the right font (see bug 7183516) when attribString is not 
-       initialized with font dictionary attributes.  It seems that "options" 
-       in CTTypesetterCreateWithAttributedStringAndOptions which contains the 
+       The calls below were used previously but for unknown reason did not
+       render using the right font (see bug 7183516) when attribString is not
+       initialized with font dictionary attributes.  It seems that "options"
+       in CTTypesetterCreateWithAttributedStringAndOptions which contains the
        font dictionary is ignored.
 
     NSAttributedString *attribString = [[NSAttributedString alloc] initWithString:string];
@@ -260,7 +255,7 @@ void JavaCT_DrawTextUsingQSD(JNIEnv *env, const QuartzSDOps *qsdo, const AWTStri
     NSAttributedString *attribString = [[NSAttributedString alloc]
         initWithString:string
         attributes:ctsDictionaryFor(nsFont, JRSFontStyleUsesFractionalMetrics(strike->fStyle))];
-    
+
     CTTypesetterRef typeSetterRef = CTTypesetterCreateWithAttributedString((CFAttributedStringRef) attribString);
 
     CFRange range = {0, length};
@@ -357,12 +352,12 @@ static inline void doDrawGlyphsPipe_checkForPerGlyphTransforms
     jdoubleArray g_gtiTransformsArray = JNFGetObjectField(env, gti, jm_StandardGlyphVector_GlyphTransformInfo_transforms); //(*env)->GetObjectField(env, gti, g_gtiTransforms);
     if (g_gtiTransformsArray == NULL) {
         return;
-    } 
+    }
     jdouble *g_gvTransformsAsDoubles = (*env)->GetPrimitiveArrayCritical(env, g_gtiTransformsArray, NULL);
     if (g_gvTransformsAsDoubles == NULL) {
         (*env)->DeleteLocalRef(env, g_gtiTransformsArray);
         return;
-    } 
+    }
 
     static JNF_MEMBER_CACHE(jm_StandardGlyphVector_GlyphTransformInfo_indices, jc_StandardGlyphVector_GlyphTransformInfo, "indices", "[I");
     jintArray g_gtiTXIndicesArray = JNFGetObjectField(env, gti, jm_StandardGlyphVector_GlyphTransformInfo_indices);
@@ -531,7 +526,7 @@ static inline void doDrawGlyphsPipe_getGlyphVectorLengthAndAlloc
         if (glyphs == NULL || uniChars == NULL || advances == NULL)
         {
             (*env)->DeleteLocalRef(env, glyphsArray);
-            [NSException raise:NSMallocException format:@"%s-%s:%d", THIS_FILE, __FUNCTION__, __LINE__];
+            [NSException raise:NSMallocException format:@"%s-%s:%d", __FILE__, __FUNCTION__, __LINE__];
             if (glyphs)
             {
                 free(glyphs);

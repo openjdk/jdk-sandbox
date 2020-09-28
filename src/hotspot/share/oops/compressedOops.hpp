@@ -26,10 +26,12 @@
 #define SHARE_OOPS_COMPRESSEDOOPS_HPP
 
 #include "memory/allocation.hpp"
+#include "memory/memRegion.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 class outputStream;
+class ReservedHeapSpace;
 
 struct NarrowPtrStruct {
   // Base address for oop-within-java-object materialization.
@@ -49,7 +51,8 @@ class CompressedOops : public AllStatic {
   // For UseCompressedOops.
   static NarrowPtrStruct _narrow_oop;
 
-  static address _narrow_ptrs_base;
+  // The address range of the heap
+  static MemRegion _heap_address_range;
 
 public:
   // For UseCompressedOops
@@ -73,21 +76,24 @@ public:
     AnyNarrowOopMode = 4
   };
 
-  static void initialize();
+  static void initialize(const ReservedHeapSpace& heap_space);
 
   static void set_base(address base);
   static void set_shift(int shift);
   static void set_use_implicit_null_checks(bool use);
 
-  static void set_ptrs_base(address addr);
-
-  static address  base()                     { return  _narrow_oop._base; }
+  static address  base()                     { return _narrow_oop._base; }
+  static address  begin()                    { return (address)_heap_address_range.start(); }
+  static address  end()                      { return (address)_heap_address_range.end(); }
   static bool     is_base(void* addr)        { return (base() == (address)addr); }
-  static int      shift()                    { return  _narrow_oop._shift; }
-  static bool     use_implicit_null_checks() { return  _narrow_oop._use_implicit_null_checks; }
+  static int      shift()                    { return _narrow_oop._shift; }
+  static bool     use_implicit_null_checks() { return _narrow_oop._use_implicit_null_checks; }
 
-  static address* ptrs_base_addr()           { return &_narrow_ptrs_base; }
-  static address  ptrs_base()                { return _narrow_ptrs_base; }
+  static address* ptrs_base_addr()           { return &_narrow_oop._base; }
+  static address  ptrs_base()                { return _narrow_oop._base; }
+
+  static bool is_in(void* addr);
+  static bool is_in(MemRegion mr);
 
   static Mode mode();
   static const char* mode_to_string(Mode mode);
@@ -127,16 +133,37 @@ class CompressedKlassPointers : public AllStatic {
 
   static NarrowPtrStruct _narrow_klass;
 
-  // CompressedClassSpaceSize set to 1GB, but appear 3GB away from _narrow_ptrs_base during CDS dump.
-  static uint64_t _narrow_klass_range;
+  // Together with base, this defines the address range within which Klass
+  //  structures will be located: [base, base+range). While the maximal
+  //  possible encoding range is 4|32G for shift 0|3, if we know beforehand
+  //  the expected range of Klass* pointers will be smaller, a platform
+  //  could use this info to optimize encoding.
+  static size_t _range;
+
+  static void set_base(address base);
+  static void set_range(size_t range);
 
 public:
-  static void set_base(address base);
+
   static void set_shift(int shift);
-  static void set_range(uint64_t range);
+
+
+  // Given an address p, return true if p can be used as an encoding base.
+  //  (Some platforms have restrictions of what constitutes a valid base
+  //   address).
+  static bool is_valid_base(address p);
+
+  // Given an address range [addr, addr+len) which the encoding is supposed to
+  //  cover, choose base, shift and range.
+  //  The address range is the expected range of uncompressed Klass pointers we
+  //  will encounter (and the implicit promise that there will be no Klass
+  //  structures outside this range).
+  static void initialize(address addr, size_t len);
+
+  static void     print_mode(outputStream* st);
 
   static address  base()               { return  _narrow_klass._base; }
-  static uint64_t range()              { return  _narrow_klass_range; }
+  static size_t   range()              { return  _range; }
   static int      shift()              { return  _narrow_klass._shift; }
 
   static bool is_null(Klass* v)      { return v == NULL; }
@@ -147,6 +174,7 @@ public:
   static inline Klass* decode(narrowKlass v);
   static inline narrowKlass encode_not_null(Klass* v);
   static inline narrowKlass encode(Klass* v);
+
 };
 
 #endif // SHARE_OOPS_COMPRESSEDOOPS_HPP

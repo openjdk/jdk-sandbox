@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,7 +98,9 @@ final class MetadataBuilder {
             byte[] scopeDesc = metaData.scopesDescBytes();
             byte[] relocationInfo = metaData.relocBytes();
             byte[] oopMapInfo = metaData.oopMaps();
+            // this may be null as the field does not exist before JDK 13
             byte[] implicitExceptionBytes = HotSpotGraalServices.getImplicitExceptionBytes(metaData);
+            byte[] exceptionBytes = metaData.exceptionBytes();
 
             // create a global symbol at this position for this method
             NativeOrderOutputStream metadataStream = new NativeOrderOutputStream();
@@ -112,6 +114,7 @@ final class MetadataBuilder {
             int verifiedEntry = co.verifiedEntry();
             int exceptionHandler = co.exceptionHandler();
             int deoptHandler = co.deoptHandler();
+            int deoptMHHandler = co.deoptMHHandler();
             int frameSize = methodInfo.getCompilationResult().getTotalFrameSize();
             StackSlot deoptRescueSlot = methodInfo.getCompilationResult().getCustomStackArea();
             int origPcOffset = deoptRescueSlot != null ? deoptRescueSlot.getOffset(frameSize) : -1;
@@ -133,6 +136,7 @@ final class MetadataBuilder {
                                putInt(verifiedEntry).
                                putInt(exceptionHandler).
                                putInt(deoptHandler).
+                               putInt(deoptMHHandler).
                                putInt(stubsOffset).
                                putInt(frameSize).
                                putInt(origPcOffset).
@@ -160,7 +164,7 @@ final class MetadataBuilder {
                 metadataStream.put(relocationInfo).align(8);
 
                 exceptionOffset.set(metadataStream.position());
-                metadataStream.put(metaData.exceptionBytes()).align(8);
+                metadataStream.put(exceptionBytes).align(8);
 
                 if (implicitExceptionBytes != null) {
                     implictTableOffset.set(metadataStream.position());
@@ -234,7 +238,7 @@ final class MetadataBuilder {
                 infopointProcessor.process(methodInfo, infoPoint);
             }
 
-            for (Mark mark : compilationResult.getMarks()) {
+            for (CompilationResult.CodeMark mark : compilationResult.getMarks()) {
                 markProcessor.process(methodInfo, mark);
             }
 

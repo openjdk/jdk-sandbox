@@ -25,7 +25,6 @@
  * @test
  * @bug 4524350 4662945 4633447 8196202
  * @summary stddoclet: {@docRoot} inserts an extra trailing "/"
- * @author dkramer
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build javadoc.tester.*
@@ -57,7 +56,8 @@ public class DocRootSlash extends JavadocTester {
         javadoc("-d", "out",
                 "-Xdoclint:none",
                 "-overview", (srcdir + "/overview.html"),
-                "-header", "<A HREF=\"{@docroot}/element-list\">{&#064;docroot}</A> <A HREF=\"{@docRoot}/help-doc.html\">{&#064;docRoot}</A>",
+                "-header", """
+                    <A HREF="{@docroot}/element-list">{&#064;docroot}</A> <A HREF="{@docRoot}/help-doc.html">{&#064;docRoot}</A>""",
                 "-sourcepath", srcdir,
                 "p1", "p2");
 

@@ -41,6 +41,7 @@
 #include "runtime/stubCodeGenerator.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/align.hpp"
+#include "utilities/powerOfTwo.hpp"
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif
@@ -179,9 +180,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ mov(Rtemp, SP);
     __ push(RegisterSet(FP) | RegisterSet(LR));
-#ifndef __SOFTFP__
-    __ fstmdbd(SP, FloatRegisterSet(D8, 8), writeback);
-#endif
+    __ fpush_hardfp(FloatRegisterSet(D8, 8));
     __ stmdb(SP, RegisterSet(R0, R2) | RegisterSet(R4, R6) | RegisterSet(R8, R10) | altFP_7_11, writeback);
     __ mov(Rmethod, R3);
     __ ldmia(Rtemp, RegisterSet(R1, R3) | Rthread); // stacked arguments
@@ -243,9 +242,7 @@ class StubGenerator: public StubCodeGenerator {
 #endif
 
     __ pop(RegisterSet(R4, R6) | RegisterSet(R8, R10) | altFP_7_11);
-#ifndef __SOFTFP__
-    __ fldmiad(SP, FloatRegisterSet(D8, 8), writeback);
-#endif
+    __ fpop_hardfp(FloatRegisterSet(D8, 8));
     __ pop(RegisterSet(FP) | RegisterSet(PC));
 
     return start;
@@ -437,7 +434,8 @@ class StubGenerator: public StubCodeGenerator {
   // for which we do not support MP and so membars are not necessary. This ARMv5 code will
   // be removed in the future.
 
-  // Support for jint Atomic::add(jint add_value, volatile jint *dest)
+  // Implementation of atomic_add(jint add_value, volatile jint* dest)
+  // used by Atomic::add(volatile jint* dest, jint add_value)
   //
   // Arguments :
   //
@@ -487,7 +485,8 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  // Support for jint Atomic::xchg(jint exchange_value, volatile jint *dest)
+  // Implementation of jint atomic_xchg(jint exchange_value, volatile jint* dest)
+  // used by Atomic::add(volatile jint* dest, jint exchange_value)
   //
   // Arguments :
   //
@@ -535,7 +534,8 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  // Support for jint Atomic::cmpxchg(jint exchange_value, volatile jint *dest, jint compare_value)
+  // Implementation of jint atomic_cmpxchg(jint exchange_value, volatile jint *dest, jint compare_value)
+  // used by Atomic::cmpxchg(volatile jint *dest, jint compare_value, jint exchange_value)
   //
   // Arguments :
   //
@@ -3028,6 +3028,15 @@ class StubGenerator: public StubCodeGenerator {
     StubRoutines::_atomic_cmpxchg_long_entry = generate_atomic_cmpxchg_long();
     StubRoutines::_atomic_load_long_entry = generate_atomic_load_long();
     StubRoutines::_atomic_store_long_entry = generate_atomic_store_long();
+
+    // Safefetch stubs.
+    generate_safefetch("SafeFetch32", sizeof(int), &StubRoutines::_safefetch32_entry,
+                                                   &StubRoutines::_safefetch32_fault_pc,
+                                                   &StubRoutines::_safefetch32_continuation_pc);
+    assert (sizeof(int) == wordSize, "32-bit architecture");
+    StubRoutines::_safefetchN_entry           = StubRoutines::_safefetch32_entry;
+    StubRoutines::_safefetchN_fault_pc        = StubRoutines::_safefetch32_fault_pc;
+    StubRoutines::_safefetchN_continuation_pc = StubRoutines::_safefetch32_continuation_pc;
   }
 
   void generate_all() {
@@ -3052,15 +3061,6 @@ class StubGenerator: public StubCodeGenerator {
 
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();
-
-    // Safefetch stubs.
-    generate_safefetch("SafeFetch32", sizeof(int), &StubRoutines::_safefetch32_entry,
-                                                   &StubRoutines::_safefetch32_fault_pc,
-                                                   &StubRoutines::_safefetch32_continuation_pc);
-    assert (sizeof(int) == wordSize, "32-bit architecture");
-    StubRoutines::_safefetchN_entry           = StubRoutines::_safefetch32_entry;
-    StubRoutines::_safefetchN_fault_pc        = StubRoutines::_safefetch32_fault_pc;
-    StubRoutines::_safefetchN_continuation_pc = StubRoutines::_safefetch32_continuation_pc;
 
 #ifdef COMPILE_CRYPTO
     // generate AES intrinsics code

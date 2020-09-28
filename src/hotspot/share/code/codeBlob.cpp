@@ -99,6 +99,7 @@ CodeBlob::CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& la
   // probably wrong for tiered
   assert(_frame_size >= -1, "must use frame size or -1 for runtime stubs");
 #endif // COMPILER1
+  S390_ONLY(_ctable_offset = 0;) // avoid uninitialized fields
 }
 
 CodeBlob::CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, CodeBuffer* cb, int frame_complete_offset, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments) :
@@ -128,6 +129,7 @@ CodeBlob::CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& la
   // probably wrong for tiered
   assert(_frame_size >= -1, "must use frame size or -1 for runtime stubs");
 #endif // COMPILER1
+  S390_ONLY(_ctable_offset = 0;) // avoid uninitialized fields
 }
 
 
@@ -155,10 +157,8 @@ RuntimeBlob::RuntimeBlob(
 }
 
 void CodeBlob::flush() {
-  if (_oop_maps) {
-    FREE_C_HEAP_ARRAY(unsigned char, _oop_maps);
-    _oop_maps = NULL;
-  }
+  FREE_C_HEAP_ARRAY(unsigned char, _oop_maps);
+  _oop_maps = NULL;
   _strings.free();
 }
 

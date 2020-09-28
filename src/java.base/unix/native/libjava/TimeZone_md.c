@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,12 +35,11 @@
 #include <string.h>
 #include <dirent.h>
 #include <unistd.h>
-#if defined(__solaris__)
-#include <libscf.h>
-#endif
 
 #include "jvm.h"
 #include "TimeZone_md.h"
+
+static char *isFileIdentical(char* buf, size_t size, char *pathname);
 
 #define SKIP_SPACE(p)   while (*p == ' ' || *p == '\t') p++;
 
@@ -50,11 +49,9 @@
   } while((_result == -1) && (errno == EINTR)); \
 } while(0)
 
-#if !defined(__solaris__) || defined(__sparcv9) || defined(amd64)
 #define fileopen        fopen
 #define filegets        fgets
 #define fileclose       fclose
-#endif
 
 #if defined(_ALLBSD_SOURCE)
 #define stat64 stat
@@ -72,11 +69,13 @@ static const char *ZONEINFO_DIR = "/usr/share/lib/zoneinfo";
 static const char *DEFAULT_ZONEINFO_FILE = "/usr/share/lib/zoneinfo/localtime";
 #endif /* defined(__linux__) || defined(_ALLBSD_SOURCE) */
 
+static const char popularZones[][4] = {"UTC", "GMT"};
+
 #if defined(_AIX)
 static const char *ETC_ENVIRONMENT_FILE = "/etc/environment";
 #endif
 
-#if defined(__linux__) || defined(MACOSX) || defined(__solaris__)
+#if defined(__linux__) || defined(MACOSX)
 
 /*
  * Returns a pointer to the zone ID portion of the given zoneinfo file
@@ -121,13 +120,26 @@ static char *
 findZoneinfoFile(char *buf, size_t size, const char *dir)
 {
     DIR *dirp = NULL;
-    struct stat64 statbuf;
     struct dirent *dp = NULL;
     char *pathname = NULL;
-    int fd = -1;
-    char *dbuf = NULL;
     char *tz = NULL;
     int res;
+
+    if (strcmp(dir, ZONEINFO_DIR) == 0) {
+        /* fast path for 1st iteration */
+        for (unsigned int i = 0; i < sizeof (popularZones) / sizeof (popularZones[0]); i++) {
+            pathname = getPathName(dir, popularZones[i]);
+            if (pathname == NULL) {
+                continue;
+            }
+            tz = isFileIdentical(buf, size, pathname);
+            free((void *) pathname);
+            pathname = NULL;
+            if (tz != NULL) {
+                return tz;
+            }
+        }
+    }
 
     dirp = opendir(dir);
     if (dirp == NULL) {
@@ -147,13 +159,6 @@ findZoneinfoFile(char *buf, size_t size, const char *dir)
          */
         if ((strcmp(dp->d_name, "ROC") == 0)
             || (strcmp(dp->d_name, "posixrules") == 0)
-#if defined(__solaris__)
-            /*
-             * Skip the "src" and "tab" directories on Solaris.
-             */
-            || (strcmp(dp->d_name, "src") == 0)
-            || (strcmp(dp->d_name, "tab") == 0)
-#endif
             || (strcmp(dp->d_name, "localtime") == 0)) {
             continue;
         }
@@ -162,61 +167,68 @@ findZoneinfoFile(char *buf, size_t size, const char *dir)
         if (pathname == NULL) {
             break;
         }
-        RESTARTABLE(stat64(pathname, &statbuf), res);
-        if (res == -1) {
-            break;
-        }
 
-        if (S_ISDIR(statbuf.st_mode)) {
-            tz = findZoneinfoFile(buf, size, pathname);
-            if (tz != NULL) {
-                break;
-            }
-        } else if (S_ISREG(statbuf.st_mode) && (size_t)statbuf.st_size == size) {
-            dbuf = (char *) malloc(size);
-            if (dbuf == NULL) {
-                break;
-            }
-            RESTARTABLE(open(pathname, O_RDONLY), fd);
-            if (fd == -1) {
-                break;
-            }
-            RESTARTABLE(read(fd, dbuf, size), res);
-            if (res != (ssize_t) size) {
-                break;
-            }
-            if (memcmp(buf, dbuf, size) == 0) {
-                tz = getZoneName(pathname);
-                if (tz != NULL) {
-                    tz = strdup(tz);
-                }
-                break;
-            }
-            free((void *) dbuf);
-            dbuf = NULL;
-            (void) close(fd);
-            fd = -1;
-        }
+        tz = isFileIdentical(buf, size, pathname);
         free((void *) pathname);
         pathname = NULL;
+        if (tz != NULL) {
+           break;
+        }
     }
 
     if (dirp != NULL) {
         (void) closedir(dirp);
     }
-    if (pathname != NULL) {
-        free((void *) pathname);
-    }
-    if (fd != -1) {
-        (void) close(fd);
-    }
-    if (dbuf != NULL) {
-        free((void *) dbuf);
-    }
     return tz;
 }
 
-#if defined(__linux__) || defined(MACOSX)
+/*
+ * Checks if the file pointed to by pathname matches
+ * the data contents in buf.
+ * Returns a representation of the timezone file name
+ * if file match is found, otherwise NULL.
+ */
+static char *
+isFileIdentical(char *buf, size_t size, char *pathname)
+{
+    char *possibleMatch = NULL;
+    struct stat64 statbuf;
+    char *dbuf = NULL;
+    int fd = -1;
+    int res;
+
+    RESTARTABLE(stat64(pathname, &statbuf), res);
+    if (res == -1) {
+        return NULL;
+    }
+
+    if (S_ISDIR(statbuf.st_mode)) {
+        possibleMatch  = findZoneinfoFile(buf, size, pathname);
+    } else if (S_ISREG(statbuf.st_mode) && (size_t)statbuf.st_size == size) {
+        dbuf = (char *) malloc(size);
+        if (dbuf == NULL) {
+            return NULL;
+        }
+        RESTARTABLE(open(pathname, O_RDONLY), fd);
+        if (fd == -1) {
+            goto freedata;
+        }
+        RESTARTABLE(read(fd, dbuf, size), res);
+        if (res != (ssize_t) size) {
+            goto freedata;
+        }
+        if (memcmp(buf, dbuf, size) == 0) {
+            possibleMatch = getZoneName(pathname);
+            if (possibleMatch != NULL) {
+                possibleMatch = strdup(possibleMatch);
+            }
+        }
+        freedata:
+        free((void *) dbuf);
+        (void) close(fd);
+    }
+    return possibleMatch;
+}
 
 /*
  * Performs Linux specific mapping and returns a zone ID
@@ -326,311 +338,6 @@ getPlatformTimeZoneID()
     free((void *) buf);
     return tz;
 }
-
-#elif defined(__solaris__)
-
-#if !defined(__sparcv9) && !defined(amd64)
-
-/*
- * Those file* functions mimic the UNIX stream io functions. This is
- * because of the limitation of the number of open files on Solaris
- * (32-bit mode only) due to the System V ABI.
- */
-
-#define BUFFER_SIZE     4096
-
-static struct iobuffer {
-    int     magic;      /* -1 to distinguish from the real FILE */
-    int     fd;         /* file descriptor */
-    char    *buffer;    /* pointer to buffer */
-    char    *ptr;       /* current read pointer */
-    char    *endptr;    /* end pointer */
-};
-
-static int
-fileclose(FILE *stream)
-{
-    struct iobuffer *iop = (struct iobuffer *) stream;
-
-    if (iop->magic != -1) {
-        return fclose(stream);
-    }
-
-    if (iop == NULL) {
-        return 0;
-    }
-    close(iop->fd);
-    free((void *)iop->buffer);
-    free((void *)iop);
-    return 0;
-}
-
-static FILE *
-fileopen(const char *fname, const char *fmode)
-{
-    FILE *fp;
-    int fd;
-    struct iobuffer *iop;
-
-    if ((fp = fopen(fname, fmode)) != NULL) {
-        return fp;
-    }
-
-    /*
-     * It assumes read open.
-     */
-    RESTARTABLE(open(fname, O_RDONLY), fd);
-    if (fd == -1) {
-        return NULL;
-    }
-
-    /*
-     * Allocate struct iobuffer and its buffer
-     */
-    iop = malloc(sizeof(struct iobuffer));
-    if (iop == NULL) {
-        (void) close(fd);
-        errno = ENOMEM;
-        return NULL;
-    }
-    iop->magic = -1;
-    iop->fd = fd;
-    iop->buffer = malloc(BUFFER_SIZE);
-    if (iop->buffer == NULL) {
-        (void) close(fd);
-        free((void *) iop);
-        errno = ENOMEM;
-        return NULL;
-    }
-    iop->ptr = iop->buffer;
-    iop->endptr = iop->buffer;
-    return (FILE *)iop;
-}
-
-/*
- * This implementation assumes that n is large enough and the line
- * separator is '\n'.
- */
-static char *
-filegets(char *s, int n, FILE *stream)
-{
-    struct iobuffer *iop = (struct iobuffer *) stream;
-    char *p;
-
-    if (iop->magic != -1) {
-        return fgets(s, n, stream);
-    }
-
-    p = s;
-    for (;;) {
-        char c;
-
-        if (iop->ptr == iop->endptr) {
-            ssize_t len;
-
-            RESTARTABLE(read(iop->fd, (void *)iop->buffer, BUFFER_SIZE), len);
-            if (len == -1) {
-                return NULL;
-            }
-            if (len == 0) {
-                *p = 0;
-                if (s == p) {
-                    return NULL;
-                }
-                return s;
-            }
-            iop->ptr = iop->buffer;
-            iop->endptr = iop->buffer + len;
-        }
-        c = *iop->ptr++;
-        *p++ = c;
-        if ((p - s) == (n - 1)) {
-            *p = 0;
-            return s;
-        }
-        if (c == '\n') {
-            *p = 0;
-            return s;
-        }
-    }
-    /*NOTREACHED*/
-}
-#endif /* !defined(__sparcv9) && !defined(amd64) */
-
-/*
- * Performs Solaris dependent mapping. Returns a zone ID if
- * found. Otherwise, NULL is returned.  Solaris libc looks up
- * "/etc/default/init" to get the default TZ value if TZ is not defined
- * as an environment variable.
- */
-static char *
-getPlatformTimeZoneID()
-{
-    char *tz = NULL;
-    FILE *fp;
-
-    /*
-     * Try the TZ entry in /etc/default/init.
-     */
-    if ((fp = fileopen(SYS_INIT_FILE, "r")) != NULL) {
-        char line[256];
-        char quote = '\0';
-
-        while (filegets(line, sizeof(line), fp) != NULL) {
-            char *p = line;
-            char *s;
-            char c;
-
-            /* quick check for comment lines */
-            if (*p == '#') {
-                continue;
-            }
-            if (strncmp(p, "TZ=", 3) == 0) {
-                p += 3;
-                SKIP_SPACE(p);
-                c = *p;
-                if (c == '"' || c == '\'') {
-                    quote = c;
-                    p++;
-                }
-
-                /*
-                 * PSARC/2001/383: quoted string support
-                 */
-                for (s = p; (c = *s) != '\0' && c != '\n'; s++) {
-                    /* No '\\' is supported here. */
-                    if (c == quote) {
-                        quote = '\0';
-                        break;
-                    }
-                    if (c == ' ' && quote == '\0') {
-                        break;
-                    }
-                }
-                if (quote != '\0') {
-                    jio_fprintf(stderr, "ZoneInfo: unterminated time zone name in /etc/TIMEZONE\n");
-                }
-                *s = '\0';
-                tz = strdup(p);
-                break;
-            }
-        }
-        (void) fileclose(fp);
-    }
-    return tz;
-}
-
-#define TIMEZONE_FMRI   "svc:/system/timezone:default"
-#define TIMEZONE_PG     "timezone"
-#define LOCALTIME_PROP  "localtime"
-
-static void
-cleanupScf(scf_handle_t *h,
-           scf_snapshot_t *snap,
-           scf_instance_t *inst,
-           scf_propertygroup_t *pg,
-           scf_property_t *prop,
-           scf_value_t *val,
-           char *buf) {
-    if (buf != NULL) {
-        free(buf);
-    }
-    if (snap != NULL) {
-        scf_snapshot_destroy(snap);
-    }
-    if (val != NULL) {
-        scf_value_destroy(val);
-    }
-    if (prop != NULL) {
-        scf_property_destroy(prop);
-    }
-    if (pg != NULL) {
-        scf_pg_destroy(pg);
-    }
-    if (inst != NULL) {
-        scf_instance_destroy(inst);
-    }
-    if (h != NULL) {
-        scf_handle_destroy(h);
-    }
-}
-
-/*
- * Returns a zone ID of Solaris when the TZ value is "localtime".
- * First, it tries scf. If scf fails, it looks for the same file as
- * /usr/share/lib/zoneinfo/localtime under /usr/share/lib/zoneinfo/.
- */
-static char *
-getSolarisDefaultZoneID() {
-    char *tz = NULL;
-    struct stat64 statbuf;
-    size_t size;
-    char *buf;
-    int fd;
-    int res;
-    /* scf specific variables */
-    scf_handle_t *h = NULL;
-    scf_snapshot_t *snap = NULL;
-    scf_instance_t *inst = NULL;
-    scf_propertygroup_t *pg = NULL;
-    scf_property_t *prop = NULL;
-    scf_value_t *val = NULL;
-
-    if ((h = scf_handle_create(SCF_VERSION)) != NULL
-        && scf_handle_bind(h) == 0
-        && (inst = scf_instance_create(h)) != NULL
-        && (snap = scf_snapshot_create(h)) != NULL
-        && (pg = scf_pg_create(h)) != NULL
-        && (prop = scf_property_create(h)) != NULL
-        && (val = scf_value_create(h)) != NULL
-        && scf_handle_decode_fmri(h, TIMEZONE_FMRI, NULL, NULL, inst,
-                                  NULL, NULL, SCF_DECODE_FMRI_REQUIRE_INSTANCE) == 0
-        && scf_instance_get_snapshot(inst, "running", snap) == 0
-        && scf_instance_get_pg_composed(inst, snap, TIMEZONE_PG, pg) == 0
-        && scf_pg_get_property(pg, LOCALTIME_PROP, prop) == 0
-        && scf_property_get_value(prop, val) == 0) {
-        ssize_t len;
-
-        /* Gets the length of the zone ID string */
-        len = scf_value_get_astring(val, NULL, 0);
-        if (len != -1) {
-            tz = malloc(++len); /* +1 for a null byte */
-            if (tz != NULL && scf_value_get_astring(val, tz, len) != -1) {
-                cleanupScf(h, snap, inst, pg, prop, val, NULL);
-                return tz;
-            }
-        }
-    }
-    cleanupScf(h, snap, inst, pg, prop, val, tz);
-
-    RESTARTABLE(stat64(DEFAULT_ZONEINFO_FILE, &statbuf), res);
-    if (res == -1) {
-        return NULL;
-    }
-    size = (size_t) statbuf.st_size;
-    buf = malloc(size);
-    if (buf == NULL) {
-        return NULL;
-    }
-    RESTARTABLE(open(DEFAULT_ZONEINFO_FILE, O_RDONLY), fd);
-    if (fd == -1) {
-        free((void *) buf);
-        return NULL;
-    }
-
-    RESTARTABLE(read(fd, buf, size), res);
-    if (res != (ssize_t) size) {
-        (void) close(fd);
-        free((void *) buf);
-        return NULL;
-    }
-    (void) close(fd);
-    tz = findZoneinfoFile(buf, size, ZONEINFO_DIR);
-    free((void *) buf);
-    return tz;
-}
-
-#endif /* defined(__solaris__) */
 
 #elif defined(_AIX)
 
@@ -798,15 +505,6 @@ findJavaTZ_md(const char *java_home_dir)
             free((void *) freetz);
         }
 #else
-#if defined(__solaris__)
-        /* Solaris might use localtime, so handle it here. */
-        if (strcmp(tz, "localtime") == 0) {
-            javatz = getSolarisDefaultZoneID();
-            if (freetz != NULL) {
-                free((void *) freetz);
-            }
-        } else
-#endif
         if (freetz == NULL) {
             /* strdup if we are still working on getenv result. */
             javatz = strdup(tz);
@@ -864,19 +562,7 @@ getGMTOffsetID()
 {
     time_t offset;
     char sign, buf[32];
-#if defined(__solaris__)
-    struct tm localtm;
-    time_t currenttime;
-
-    currenttime = time(NULL);
-    if (localtime_r(&currenttime, &localtm) == NULL) {
-        return strdup("GMT");
-    }
-
-    offset = localtm.tm_isdst ? altzone : timezone;
-#else
     offset = timezone;
-#endif
 
     if (offset == 0) {
         return strdup("GMT");

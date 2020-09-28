@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ import com.sun.source.doctree.DocTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.Entity;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
+import jdk.javadoc.internal.doclets.formats.html.markup.TagName;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.Links;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
@@ -51,6 +51,7 @@ import jdk.javadoc.internal.doclets.formats.html.markup.Table;
 import jdk.javadoc.internal.doclets.formats.html.markup.TableHeader;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.MemberSummaryWriter;
+import jdk.javadoc.internal.doclets.toolkit.MemberWriter;
 import jdk.javadoc.internal.doclets.toolkit.Resources;
 import jdk.javadoc.internal.doclets.toolkit.taglets.DeprecatedTaglet;
 import jdk.javadoc.internal.doclets.toolkit.util.DocletConstants;
@@ -69,15 +70,11 @@ import static javax.lang.model.element.Modifier.SYNCHRONIZED;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Robert Field
- * @author Atul M Dambalkar
- * @author Jamie Ho (Re-write)
- * @author Bhavesh Patel (Modified)
  */
-public abstract class AbstractMemberWriter implements MemberSummaryWriter {
+public abstract class AbstractMemberWriter implements MemberSummaryWriter, MemberWriter {
 
     protected final HtmlConfiguration configuration;
+    protected final HtmlOptions options;
     protected final Utils utils;
     protected final SubWriterHolderWriter writer;
     protected final Contents contents;
@@ -85,18 +82,15 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
     protected final Links links;
 
     protected final TypeElement typeElement;
-    public final boolean nodepr;
-
-    protected boolean printedSummaryHeader = false;
 
     public AbstractMemberWriter(SubWriterHolderWriter writer, TypeElement typeElement) {
         this.configuration = writer.configuration;
+        this.options = configuration.getOptions();
         this.writer = writer;
-        this.nodepr = configuration.nodeprecated;
         this.typeElement = typeElement;
         this.utils = configuration.utils;
         this.contents = configuration.contents;
-        this.resources = configuration.resources;
+        this.resources = configuration.docResources;
         this.links = writer.links;
     }
 
@@ -147,8 +141,6 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
      */
     protected abstract Table createSummaryTable();
 
-
-
     /**
      * Add inherited summary label for the member.
      *
@@ -156,22 +148,6 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
      * @param inheritedTree the content tree to which the inherited summary label will be added
      */
     public abstract void addInheritedSummaryLabel(TypeElement typeElement, Content inheritedTree);
-
-    /**
-     * Add the anchor for the summary section of the member.
-     *
-     * @param typeElement the TypeElement to be documented
-     * @param memberTree the content tree to which the summary anchor will be added
-     */
-    public abstract void addSummaryAnchor(TypeElement typeElement, Content memberTree);
-
-    /**
-     * Add the anchor for the inherited summary section of the member.
-     *
-     * @param typeElement the TypeElement to be documented
-     * @param inheritedTree the content tree to which the inherited summary anchor will be added
-     */
-    public abstract void addInheritedSummaryAnchor(TypeElement typeElement, Content inheritedTree);
 
     /**
      * Add the summary type for the member.
@@ -221,17 +197,6 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
      */
     protected abstract Content getDeprecatedLink(Element member);
 
-    protected CharSequence makeSpace(int len) {
-        if (len <= 0) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder(len);
-        for (int i = 0; i < len; i++) {
-            sb.append(' ');
-        }
-        return sb;
-    }
-
     /**
      * Add the modifier and type for the member in the member summary.
      *
@@ -241,7 +206,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
      */
     protected void addModifierAndType(Element member, TypeMirror type,
             Content tdSummaryType) {
-        HtmlTree code = new HtmlTree(HtmlTag.CODE);
+        HtmlTree code = new HtmlTree(TagName.CODE);
         addModifier(member, code);
         if (type == null) {
             code.add(utils.isClass(member) ? "class" : "interface");
@@ -256,7 +221,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
                     code.add(typeParameters);
                 //Code to avoid ugly wrapping in member summary table.
                 if (typeParameters.charCount() > 10) {
-                    code.add(new HtmlTree(HtmlTag.BR));
+                    code.add(new HtmlTree(TagName.BR));
                 } else {
                     code.add(Entity.NO_BREAK_SPACE);
                 }
@@ -363,7 +328,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
         List<? extends Element> members = mems;
         boolean printedUseTableHeader = false;
         if (members.size() > 0) {
-            Table useTable = new Table(HtmlStyle.useSummary)
+            Table useTable = new Table(HtmlStyle.useSummary, HtmlStyle.summaryTable)
                     .setCaption(heading)
                     .setRowScopeColumn(1)
                     .setColumnStyles(HtmlStyle.colFirst, HtmlStyle.colSecond, HtmlStyle.colLast);
@@ -383,7 +348,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
                         && !utils.isClass(element)
                         && !utils.isInterface(element)
                         && !utils.isAnnotationType(element)) {
-                    HtmlTree name = new HtmlTree(HtmlTag.SPAN);
+                    HtmlTree name = new HtmlTree(TagName.SPAN);
                     name.setStyle(HtmlStyle.typeNameLabel);
                     name.add(name(te) + ".");
                     typeContent.add(name);
@@ -396,12 +361,12 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
                 writer.addSummaryLinkComment(this, element, desc);
                 useTable.addRow(summaryType, typeContent, desc);
             }
-            contentTree.add(useTable.toContent());
+            contentTree.add(useTable);
         }
     }
 
     protected void serialWarning(Element e, String key, String a1, String a2) {
-        if (configuration.serialwarn) {
+        if (options.serialWarn()) {
             configuration.messages.warning(e, key, a1, a2);
         }
     }
@@ -471,7 +436,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
      */
     @Override
     public Content getInheritedSummaryLinksTree() {
-        return new HtmlTree(HtmlTag.CODE);
+        return new HtmlTree(TagName.CODE);
     }
 
     /**
@@ -489,7 +454,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
         if (table.needsScript()) {
             writer.getMainBodyScript().append(table.getScript());
         }
-        return table.toContent();
+        return table;
     }
 
     /**
@@ -501,6 +466,16 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
     @Override
     public Content getMemberTree(Content memberTree) {
         return writer.getMemberTree(memberTree);
+    }
+
+    @Override
+    public Content getMemberList() {
+        return writer.getMemberList();
+    }
+
+    @Override
+    public Content getMemberListItem(Content memberTree) {
+        return writer.getMemberListItem(memberTree);
     }
 
     /**
@@ -515,11 +490,11 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
         private Content exceptions;
 
         // Threshold for length of type parameters before switching from inline to block representation.
-        private final static int TYPE_PARAMS_MAX_INLINE_LENGTH = 50;
+        private static final int TYPE_PARAMS_MAX_INLINE_LENGTH = 50;
 
         // Threshold for combined length of modifiers, type params and return type before breaking
         // it up with a line break before the return type.
-        private final static int RETURN_TYPE_MAX_LINE_LENGTH = 50;
+        private static final int RETURN_TYPE_MAX_LINE_LENGTH = 50;
 
         /**
          * Create a new member signature builder.
@@ -617,9 +592,9 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
             }
 
             // Name
-            HtmlTree nameSpan = new HtmlTree(HtmlTag.SPAN);
+            HtmlTree nameSpan = new HtmlTree(TagName.SPAN);
             nameSpan.setStyle(HtmlStyle.memberName);
-            if (configuration.linksource) {
+            if (options.linkSource()) {
                 Content name = new StringContent(name(element));
                 writer.addSrcLink(element, name, nameSpan);
             } else {
@@ -651,21 +626,16 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
             set.remove(STRICTFP);
 
             // According to JLS, we should not be showing public modifier for
-            // interface methods.
-            if ((utils.isField(element) || utils.isMethod(element))
-                    && ((writer instanceof ClassWriterImpl
-                    && utils.isInterface(((ClassWriterImpl) writer).getTypeElement())  ||
-                    writer instanceof AnnotationTypeWriterImpl) )) {
-                // Remove the implicit abstract and public modifiers
-                if (utils.isMethod(element) &&
-                        (utils.isInterface(element.getEnclosingElement()) ||
-                                utils.isAnnotationType(element.getEnclosingElement()))) {
-                    set.remove(ABSTRACT);
-                    set.remove(PUBLIC);
-                }
-                if (!utils.isMethod(element)) {
-                    set.remove(PUBLIC);
-                }
+            // interface methods and fields.
+            if ((utils.isField(element) || utils.isMethod(element))) {
+               Element te = element.getEnclosingElement();
+               if (utils.isInterface(te) || utils.isAnnotationType(te)) {
+                   // Remove the implicit abstract and public modifiers
+                   if (utils.isMethod(element)) {
+                       set.remove(ABSTRACT);
+                   }
+                   set.remove(PUBLIC);
+               }
             }
             if (!set.isEmpty()) {
                 String mods = set.stream().map(Modifier::toString).collect(Collectors.joining(" "));
@@ -716,18 +686,17 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
             // Record current position for indentation of exceptions
             int indentSize = htmltree.charCount() - lastLineSeparator;
 
-            if (parameters.isEmpty()) {
-                htmltree.add("()");
+            if (parameters.charCount() == 2) {
+                // empty parameters are added without packing
+                htmltree.add(parameters);
             } else {
-                parameters.add(")");
                 htmltree.add(Entity.ZERO_WIDTH_SPACE);
-                htmltree.add("(");
-                htmltree.add(HtmlTree.SPAN(HtmlStyle.arguments, parameters));
+                htmltree.add(HtmlTree.SPAN(HtmlStyle.parameters, parameters));
             }
 
             // Exceptions
             if (exceptions != null && !exceptions.isEmpty()) {
-                CharSequence indent = makeSpace(indentSize + 1 - 7);
+                CharSequence indent = " ".repeat(Math.max(0, indentSize + 1 - 7));
                 htmltree.add(DocletConstants.NL);
                 htmltree.add(indent);
                 htmltree.add("throws ");

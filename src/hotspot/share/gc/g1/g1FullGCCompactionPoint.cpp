@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ G1FullGCCompactionPoint::G1FullGCCompactionPoint() :
     _current_region(NULL),
     _threshold(NULL),
     _compaction_top(NULL) {
-  _compaction_regions = new (ResourceObj::C_HEAP, mtGC) GrowableArray<HeapRegion*>(32, true, mtGC);
+  _compaction_regions = new (ResourceObj::C_HEAP, mtGC) GrowableArray<HeapRegion*>(32, mtGC);
   _compaction_region_iterator = _compaction_regions->begin();
 }
 
@@ -102,7 +102,7 @@ void G1FullGCCompactionPoint::forward(oop object, size_t size) {
   }
 
   // Store a forwarding pointer if the object should be moved.
-  if ((HeapWord*)object != _compaction_top) {
+  if (cast_from_oop<HeapWord*>(object) != _compaction_top) {
     object->forward_to(oop(_compaction_top));
   } else {
     if (object->forwardee() != NULL) {

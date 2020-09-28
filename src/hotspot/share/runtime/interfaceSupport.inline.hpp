@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,10 +48,9 @@
 class InterfaceSupport: AllStatic {
 # ifdef ASSERT
  public:
-  static long _scavenge_alot_counter;
-  static long _fullgc_alot_counter;
-  static long _number_of_calls;
-  static long _fullgc_alot_invocation;
+  static unsigned int _scavenge_alot_counter;
+  static unsigned int _fullgc_alot_counter;
+  static int _fullgc_alot_invocation;
 
   // Helper methods used to implement +ScavengeALot and +FullGCALot
   static void check_gc_alot() { if (ScavengeALot || FullGCALot) gc_alot(); }
@@ -62,7 +61,6 @@ class InterfaceSupport: AllStatic {
 
   static void zombieAll();
   static void deoptimizeAll();
-  static void stress_derived_pointers();
   static void verify_stack();
   static void verify_last_frame();
 # endif
@@ -77,7 +75,7 @@ class ThreadStateTransition : public StackObj {
  public:
   ThreadStateTransition(JavaThread *thread) {
     _thread = thread;
-    assert(thread != NULL && thread->is_Java_thread(), "must be Java thread");
+    assert(thread != NULL, "must be active Java thread");
   }
 
   // Change threadstate in a manner, so safepoint can detect changes.
@@ -95,7 +93,7 @@ class ThreadStateTransition : public StackObj {
     // Change to transition state and ensure it is seen by the VM thread.
     thread->set_thread_state_fence((JavaThreadState)(from + 1));
 
-    SafepointMechanism::block_if_requested(thread);
+    SafepointMechanism::process_if_requested(thread);
     thread->set_thread_state(to);
   }
 
@@ -116,7 +114,7 @@ class ThreadStateTransition : public StackObj {
     // We never install asynchronous exceptions when coming (back) in
     // to the runtime from native code because the runtime is not set
     // up to handle exceptions floating around at arbitrary points.
-    if (SafepointMechanism::should_block(thread) || thread->is_suspend_after_native()) {
+    if (SafepointMechanism::should_process(thread) || thread->is_suspend_after_native()) {
       JavaThread::check_safepoint_and_suspend_for_native_trans(thread);
     }
 
@@ -137,7 +135,7 @@ class ThreadInVMForHandshake : public ThreadStateTransition {
     // Change to transition state and ensure it is seen by the VM thread.
     _thread->set_thread_state_fence(_thread_in_vm_trans);
 
-    SafepointMechanism::block_if_requested(_thread);
+    SafepointMechanism::process_if_requested(_thread);
 
     _thread->set_thread_state(_original_state);
 
@@ -188,7 +186,7 @@ class ThreadInVMfromUnknown {
   ThreadInVMfromUnknown() : _thread(NULL) {
     Thread* t = Thread::current();
     if (t->is_Java_thread()) {
-      JavaThread* t2 = (JavaThread*) t;
+      JavaThread* t2 = t->as_Java_thread();
       if (t2->thread_state() == _thread_in_native) {
         _thread = t2;
         ThreadStateTransition::transition_from_native(t2, _thread_in_vm);
@@ -292,9 +290,9 @@ class ThreadBlockInVMWithDeadlockCheck : public ThreadStateTransition {
     // Change to transition state and ensure it is seen by the VM thread.
     _thread->set_thread_state_fence((JavaThreadState)(_thread_blocked_trans));
 
-    if (SafepointMechanism::should_block(_thread)) {
+    if (SafepointMechanism::should_process(_thread)) {
       release_mutex();
-      SafepointMechanism::block_if_requested(_thread);
+      SafepointMechanism::process_if_requested(_thread);
     }
 
     _thread->set_thread_state(_thread_in_vm);
@@ -355,7 +353,6 @@ class RuntimeHistogramElement : public HistogramElement {
 
 #ifdef ASSERT
 #define TRACE_CALL(result_type, header)                            \
-  InterfaceSupport::_number_of_calls++;                            \
   if (CountRuntimeCalls) {                                         \
     static RuntimeHistogramElement* e = new RuntimeHistogramElement(#header); \
     if (e != NULL) e->increment_count();                           \
@@ -388,16 +385,6 @@ class RuntimeHistogramElement : public HistogramElement {
 #define VM_ENTRY_BASE(result_type, header, thread)                   \
   TRACE_CALL(result_type, header)                                    \
   HandleMarkCleaner __hm(thread);                                    \
-  Thread* THREAD = thread;                                           \
-  os::verify_stack_alignment();                                      \
-  /* begin of body */
-
-
-// QUICK_ENTRY routines behave like ENTRY but without a handle mark
-
-#define VM_QUICK_ENTRY_BASE(result_type, header, thread)             \
-  TRACE_CALL(result_type, header)                                    \
-  debug_only(NoHandleMark __hm;)                                     \
   Thread* THREAD = thread;                                           \
   os::verify_stack_alignment();                                      \
   /* begin of body */
@@ -474,18 +461,6 @@ extern "C" {                                                         \
     VM_ENTRY_BASE(result_type, header, thread)
 
 
-// Ensure that the VMNativeEntryWrapper constructor, which can cause
-// a GC, is called outside the NoHandleMark (set via VM_QUICK_ENTRY_BASE).
-#define JNI_QUICK_ENTRY(result_type, header)                         \
-extern "C" {                                                         \
-  result_type JNICALL header {                                       \
-    JavaThread* thread=JavaThread::thread_from_jni_environment(env); \
-    assert( !VerifyJNIEnvThread || (thread == Thread::current()), "JNIEnv is only valid in same thread"); \
-    ThreadInVMfromNative __tiv(thread);                              \
-    debug_only(VMNativeEntryWrapper __vew;)                          \
-    VM_QUICK_ENTRY_BASE(result_type, header, thread)
-
-
 #define JNI_LEAF(result_type, header)                                \
 extern "C" {                                                         \
   result_type JNICALL header {                                       \
@@ -517,15 +492,6 @@ extern "C" {                                                         \
     ThreadInVMfromNative __tiv(thread);                              \
     debug_only(VMNativeEntryWrapper __vew;)                          \
     VM_ENTRY_BASE(result_type, header, thread)
-
-
-#define JVM_QUICK_ENTRY(result_type, header)                         \
-extern "C" {                                                         \
-  result_type JNICALL header {                                       \
-    JavaThread* thread=JavaThread::thread_from_jni_environment(env); \
-    ThreadInVMfromNative __tiv(thread);                              \
-    debug_only(VMNativeEntryWrapper __vew;)                          \
-    VM_QUICK_ENTRY_BASE(result_type, header, thread)
 
 
 #define JVM_LEAF(result_type, header)                                \

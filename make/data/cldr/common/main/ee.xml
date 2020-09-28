@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE ldml SYSTEM "../../common/dtd/ldml.dtd">
-<!-- Copyright © 1991-2019 Unicode, Inc.
+<!-- Copyright © 1991-2020 Unicode, Inc.
 For terms of use, see http://www.unicode.org/copyright.html
 Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
 CLDR data files are interpreted according to the LDML specification (http://unicode.org/reports/tr35/)
 -->
 <ldml>
 	<identity>
-		<version number="$Revision: 14782 $"/>
+		<version number="$Revision$"/>
 		<language type="ee"/>
 	</identity>
 	<localeDisplayNames>
@@ -600,8 +600,6 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			<territory type="MF">Saint Martin nutome</territory>
 			<territory type="MG">Madagaska nutome</territory>
 			<territory type="MH">Marshal ƒudomekpowo nutome</territory>
-			<territory type="MK">Makedonia nutome</territory>
-			<territory type="MK" alt="variant">Makedonia (FYROM) nutome</territory>
 			<territory type="ML">Mali nutome</territory>
 			<territory type="MM">Myanmar (Burma) nutome</territory>
 			<territory type="MN">Mongolia nutome</territory>
@@ -818,8 +816,8 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 		<exemplarCharacters>[a á à ã b d ɖ e é è ẽ ɛ {ɛ\u0301} {ɛ\u0300} {ɛ\u0303} f ƒ g ɣ h x i í ì ĩ k l m n ŋ o ó ò õ ɔ {ɔ\u0301} {ɔ\u0300} {ɔ\u0303} p r s t u ú ù ũ v ʋ w y z]</exemplarCharacters>
 		<exemplarCharacters type="auxiliary">[ă â å ä ā æ c ç ĕ ê ë ĭ î ï j ñ ŏ ô ö ø œ q ŭ û ü ÿ]</exemplarCharacters>
 		<exemplarCharacters type="index">[A B D Ɖ E Ɛ F Ƒ G Ɣ H X I K L M N Ŋ O Ɔ P R S T U V Ʋ W Y Z]</exemplarCharacters>
-		<exemplarCharacters type="numbers">[\- , . % ‰ + 0 1 2 3 4 5 6 7 8 9]</exemplarCharacters>
-		<exemplarCharacters type="punctuation">[\- ‐ – — , ; \: ! ? . … ' ‘ ’ &quot; “ ” ( ) \[ \] \{ \} § @ * / \&amp; # † ‡ ′ ″]</exemplarCharacters>
+		<exemplarCharacters type="numbers">[\- ‑ , . % ‰ + 0 1 2 3 4 5 6 7 8 9]</exemplarCharacters>
+		<exemplarCharacters type="punctuation">[\- ‐ ‑ – — , ; \: ! ? . … ' ‘ ’ &quot; “ ” ( ) \[ \] \{ \} § @ * / \&amp; # † ‡ ′ ″]</exemplarCharacters>
 		<ellipsis type="final" draft="unconfirmed">{0}…</ellipsis>
 		<ellipsis type="initial" draft="unconfirmed">…{0}</ellipsis>
 		<ellipsis type="medial" draft="unconfirmed">{0}…{1}</ellipsis>
@@ -4257,7 +4255,9 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			</metazone>
 			<metazone type="Norfolk">
 				<long>
-					<standard>Norfolk Island gaƒoƒo me</standard>
+					<generic draft="contributed">Norfolk Island gaƒoƒo me</generic>
+					<standard draft="contributed">Norfolk Island nutome gaƒoƒo me</standard>
+					<daylight draft="contributed">Norfolk Island dzomeŋɔli gaƒoƒo me</daylight>
 				</long>
 			</metazone>
 			<metazone type="Noronha">
@@ -5169,7 +5169,6 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 				<displayName count="other">ethiopiaga birr</displayName>
 			</currency>
 			<currency type="EUR">
-				<displayName>EUR</displayName>
 				<displayName count="one">euro</displayName>
 				<displayName count="other">euro</displayName>
 				<symbol draft="contributed">€</symbol>

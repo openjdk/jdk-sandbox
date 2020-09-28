@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@ import com.sun.tools.javac.tree.JCTree.JCMemberReference.ReferenceKind;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.code.Attribute;
-import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.DynamicMethodSymbol;
@@ -127,6 +126,9 @@ public class LambdaToMethod extends TreeTranslator {
     /** deduplicate lambda implementation methods */
     private final boolean deduplicateLambdas;
 
+    /** lambda proxy is a dynamic nestmate */
+    private final boolean nestmateLambdas;
+
     /** Flag for alternate metafactories indicating the lambda object is intended to be serializable */
     public static final int FLAG_SERIALIZABLE = 1 << 0;
 
@@ -168,6 +170,7 @@ public class LambdaToMethod extends TreeTranslator {
                 || options.isSet(Option.G_CUSTOM, "vars");
         verboseDeduplication = options.isSet("debug.dumpLambdaToMethodDeduplication");
         deduplicateLambdas = options.getBoolean("deduplicateLambdas", true);
+        nestmateLambdas = Target.instance(context).runtimeUseNestAccess();
     }
     // </editor-fold>
 
@@ -381,7 +384,7 @@ public class LambdaToMethod extends TreeTranslator {
         //translate lambda body
         //As the lambda body is translated, all references to lambda locals,
         //captured variables, enclosing members are adjusted accordingly
-        //to refer to the static method parameters (rather than i.e. acessing to
+        //to refer to the static method parameters (rather than i.e. accessing
         //captured members directly).
         lambdaDecl.body = translate(makeLambdaBody(tree, lambdaDecl));
 
@@ -963,7 +966,7 @@ public class LambdaToMethod extends TreeTranslator {
             // are used as pointers to the current parameter type information
             // and are thus not usable afterwards.
             for (int i = 0; implPTypes.nonEmpty() && i < last; ++i) {
-                // By default use the implementation method parmeter type
+                // By default use the implementation method parameter type
                 Type parmType = implPTypes.head;
                 // If the unerased parameter type is a type variable whose
                 // bound is an intersection (eg. <T extends A & B>) then
@@ -996,7 +999,10 @@ public class LambdaToMethod extends TreeTranslator {
         private JCExpression makeReceiver(VarSymbol rcvr) {
             if (rcvr == null) return null;
             JCExpression rcvrExpr = make.Ident(rcvr);
-            Type rcvrType = tree.ownerAccessible ? tree.sym.enclClass().type : tree.expr.type;
+            boolean protAccess =
+                    isProtectedInSuperClassOfEnclosingClassInOtherPackage(tree.sym, owner);
+            Type rcvrType = tree.ownerAccessible && !protAccess ? tree.sym.enclClass().type
+                                                                : tree.expr.type;
             if (rcvrType == syms.arrayClass.type) {
                 // Map the receiver type to the actually type, not just "array"
                 rcvrType = tree.getQualifierExpression().type;
@@ -2254,20 +2260,17 @@ public class LambdaToMethod extends TreeTranslator {
             }
 
             /**
-             * The VM does not support access across nested classes (8010319).
-             * Were that ever to change, this should be removed.
+             * This method should be called only when target release <= 14
+             * where LambdaMetaFactory does not spin nestmate classes.
+             *
+             * This method should be removed when --release 14 is not supported.
              */
             boolean isPrivateInOtherClass() {
+                assert !nestmateLambdas;
                 return  (tree.sym.flags() & PRIVATE) != 0 &&
                         !types.isSameType(
                               types.erasure(tree.sym.enclClass().asType()),
                               types.erasure(owner.enclClass().asType()));
-            }
-
-            boolean isProtectedInSuperClassOfEnclosingClassInOtherPackage() {
-                return ((tree.sym.flags() & PROTECTED) != 0 &&
-                        tree.sym.packge() != owner.packge() &&
-                        !owner.enclClass().isSubClass(tree.sym.owner, types));
             }
 
             /**
@@ -2305,8 +2308,8 @@ public class LambdaToMethod extends TreeTranslator {
                         isSuper ||
                         needsVarArgsConversion() ||
                         isArrayOp() ||
-                        isPrivateInOtherClass() ||
-                        isProtectedInSuperClassOfEnclosingClassInOtherPackage() ||
+                        (!nestmateLambdas && isPrivateInOtherClass()) ||
+                        isProtectedInSuperClassOfEnclosingClassInOtherPackage(tree.sym, owner) ||
                         !receiverAccessible() ||
                         (tree.getMode() == ReferenceMode.NEW &&
                           tree.kind != ReferenceKind.ARRAY_CTOR &&
@@ -2381,6 +2384,12 @@ public class LambdaToMethod extends TreeTranslator {
         }
     }
 
+    private boolean isProtectedInSuperClassOfEnclosingClassInOtherPackage(Symbol targetReference,
+                                                                          Symbol currentClass) {
+        return ((targetReference.flags() & PROTECTED) != 0 &&
+                targetReference.packge() != currentClass.packge());
+    }
+
     /**
      * Signature Generation
      */
@@ -2416,7 +2425,8 @@ public class LambdaToMethod extends TreeTranslator {
 
         @Override
         protected void append(byte[] ba) {
-            sb.append(new String(ba));
+            Name name = names.fromUtf(ba);
+            sb.append(name.toString());
         }
 
         @Override

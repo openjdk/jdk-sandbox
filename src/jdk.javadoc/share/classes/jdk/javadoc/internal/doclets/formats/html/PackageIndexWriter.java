@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,8 +33,6 @@ import javax.lang.model.element.PackageElement;
 
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
@@ -48,9 +46,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.Group;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Atul M Dambalkar
- * @author Bhavesh Patel (Modified)
  */
 public class PackageIndexWriter extends AbstractOverviewIndexWriter {
 
@@ -96,9 +91,10 @@ public class PackageIndexWriter extends AbstractOverviewIndexWriter {
                 = configuration.group.groupPackages(packages);
 
         if (!groupPackageMap.keySet().isEmpty()) {
-            Table table =  new Table(HtmlStyle.overviewSummary)
+            Table table =  new Table(HtmlStyle.overviewSummary, HtmlStyle.summaryTable)
                     .setHeader(getPackageTableHeader())
                     .setColumnStyles(HtmlStyle.colFirst, HtmlStyle.colLast)
+                    .setId("all-packages-table")
                     .setDefaultTab(resources.getText("doclet.All_Packages"))
                     .setTabScript(i -> "show(" + i + ");")
                     .setTabId(i -> (i == 0) ? "t0" : ("t" + (1 << (i - 1))));
@@ -113,7 +109,7 @@ public class PackageIndexWriter extends AbstractOverviewIndexWriter {
 
             for (PackageElement pkg : configuration.packages) {
                 if (!pkg.isUnnamed()) {
-                    if (!(configuration.nodeprecated && utils.isDeprecated(pkg))) {
+                    if (!(options.noDeprecated() && utils.isDeprecated(pkg))) {
                         Content packageLinkContent = getPackageLink(pkg, getPackageName(pkg));
                         Content summaryContent = new ContentBuilder();
                         addSummaryComment(pkg, summaryContent);
@@ -122,8 +118,7 @@ public class PackageIndexWriter extends AbstractOverviewIndexWriter {
                 }
             }
 
-            Content div = HtmlTree.DIV(HtmlStyle.contentContainer, table.toContent());
-            main.add(div);
+            main.add(table);
 
             if (table.needsScript()) {
                 getMainBodyScript().append(table.getScript());

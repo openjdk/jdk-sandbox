@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE ldml SYSTEM "../../common/dtd/ldml.dtd">
-<!-- Copyright © 1991-2019 Unicode, Inc.
+<!-- Copyright © 1991-2020 Unicode, Inc.
 For terms of use, see http://www.unicode.org/copyright.html
 Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
 CLDR data files are interpreted according to the LDML specification (http://unicode.org/reports/tr35/)
 -->
 <ldml>
 	<identity>
-		<version number="$Revision: 14772 $"/>
+		<version number="$Revision$"/>
 		<language type="ckb"/>
 	</identity>
 	<localeDisplayNames>
@@ -37,7 +37,6 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			<language type="awa">ئاوادهی</language>
 			<language type="ay">ئایمارا</language>
 			<language type="az">ئازەربایجانی</language>
-			<language type="az" alt="short">ئازەربایجانی</language>
 			<language type="az_Arab">ئازەربایجانی باشووری</language>
 			<language type="ba">باشکیەر</language>
 			<language type="ban">بالی</language>
@@ -137,7 +136,7 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			<language type="hr">كرواتی</language>
 			<language type="hsb">سربیی سەروو</language>
 			<language type="ht">کریولی هائیتی</language>
-			<language type="hu">هەنگاری (مەجاری)</language>
+			<language type="hu">هەنگاری</language>
 			<language type="hup">هووپا</language>
 			<language type="hy">ئەرمەنی</language>
 			<language type="hz">هێرێرۆ</language>
@@ -523,7 +522,7 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			<territory type="CA">کەنەدا</territory>
 			<territory type="CC">دوورگەکانی کیلینگ</territory>
 			<territory type="CD">کۆنگۆ کینشاسا</territory>
-			<territory type="CD" alt="variant">کۆماری دیموکراتیکی کۆنگۆ</territory>
+			<territory type="CD" alt="variant">کۆماری دیموکراتیی کۆنگۆ</territory>
 			<territory type="CF">کۆماری ئەفریقای ناوەڕاست</territory>
 			<territory type="CG">کۆنگۆ برازاڤیل</territory>
 			<territory type="CG" alt="variant">کۆماری کۆنگۆ</territory>
@@ -561,13 +560,12 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			<territory type="EZ">ناوچەی یۆرۆ</territory>
 			<territory type="FI">فینلاند</territory>
 			<territory type="FJ">فیجی</territory>
-			<territory type="FK">دوورگەکانی مالڤیناس</territory>
+			<territory type="FK">دوورگەکانی مالڤیناس (دوورگەکانی فاڵکلاند)</territory>
 			<territory type="FM">مایکرۆنیزیا</territory>
 			<territory type="FO">دوورگەکانی فارەو</territory>
 			<territory type="FR">فەڕەنسا</territory>
 			<territory type="GA">گابۆن</territory>
 			<territory type="GB">شانشینی یەکگرتوو</territory>
-			<territory type="GB" alt="short">شانشینی یەکگرتوو</territory>
 			<territory type="GD">گرینادا</territory>
 			<territory type="GE">گورجستان</territory>
 			<territory type="GF">گیانای فەرەنسا</territory>
@@ -586,7 +584,6 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			<territory type="GW">گینێ بیساو</territory>
 			<territory type="GY">گویانا</territory>
 			<territory type="HK">هۆنگ کۆنگ</territory>
-			<territory type="HK" alt="short">هۆنگ کۆنگ</territory>
 			<territory type="HM">دوورگەکانی هێرد و مەکدانڵد</territory>
 			<territory type="HN">ھۆندووراس</territory>
 			<territory type="HR">کرۆواتیا</territory>
@@ -608,7 +605,7 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			<territory type="JO">ئوردن</territory>
 			<territory type="JP">ژاپۆن</territory>
 			<territory type="KE">کینیا</territory>
-			<territory type="KG">قرغیزستان</territory>
+			<territory type="KG">کرگیزستان</territory>
 			<territory type="KH">کەمبۆدیا</territory>
 			<territory type="KI">کیریباس</territory>
 			<territory type="KM">دوورگەکانی کۆمۆر</territory>
@@ -636,12 +633,11 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			<territory type="MF">سەن مارتین</territory>
 			<territory type="MG">ماداگاسکار</territory>
 			<territory type="MH">دوورگەکانی مارشاڵ</territory>
-			<territory type="MK">ماکەدۆنیا</territory>
+			<territory type="MK">مەکدۆنیای باکوور</territory>
 			<territory type="ML">مالی</territory>
 			<territory type="MM">میانمار</territory>
 			<territory type="MN">مەنگۆلیا</territory>
 			<territory type="MO">ماکائۆ</territory>
-			<territory type="MO" alt="short">ماکائۆ</territory>
 			<territory type="MP">دوورگەکانی ماریانای باکوور</territory>
 			<territory type="MQ">مارتینیک</territory>
 			<territory type="MR">مۆریتانیا</territory>
@@ -731,7 +727,6 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			<territory type="UM">دوورگەکانی دەرەوەی ئەمریکا</territory>
 			<territory type="UN">نەتەوە یەکگرتووەکان</territory>
 			<territory type="US">ویلایەتە یەکگرتووەکان</territory>
-			<territory type="US" alt="short">ویلایەتە یەکگرتووەکان</territory>
 			<territory type="UY">ئوروگوای</territory>
 			<territory type="UZ">ئوزبەکستان</territory>
 			<territory type="VA">ڤاتیکان</territory>
@@ -790,101 +785,11 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 		<exemplarCharacters>[ئ ا ب پ ت ج چ ح خ د ر ز ڕ ژ س ش ع غ ف ڤ ق ک گ ل ڵ م ن ھ ە و ۆ ی ێ]</exemplarCharacters>
 		<exemplarCharacters type="auxiliary">[\u200E\u200F \u064B \u064C \u064D \u064E \u064F \u0650 \u0651 \u0652 ء آ أ ؤ إ ة ث ذ ص ض ط ظ ك ه ى ي]</exemplarCharacters>
 		<exemplarCharacters type="index" draft="unconfirmed">[ئ ا ب پ ت ج چ ح خ د ر ز ڕ ژ س ش ع غ ف ڤ ق ک گ ل ڵ م ن ھ ە و ۆ ی ێ]</exemplarCharacters>
-		<exemplarCharacters type="numbers">[\u200E\u200F \- , ٫ ٬ . % ٪ ‰ ؉ + 0٠ 1١ 2٢ 3٣ 4٤ 5٥ 6٦ 7٧ 8٨ 9٩]</exemplarCharacters>
+		<exemplarCharacters type="numbers">[\u200E\u200F \- ‑ , ٫ ٬ . % ٪ ‰ ؉ + 0٠ 1١ 2٢ 3٣ 4٤ 5٥ 6٦ 7٧ 8٨ 9٩]</exemplarCharacters>
 	</characters>
 	<dates>
 		<calendars>
 			<calendar type="generic">
-				<days>
-					<dayContext type="format">
-						<dayWidth type="abbreviated">
-							<day type="sun" draft="unconfirmed">یەکشەممە</day>
-							<day type="mon" draft="unconfirmed">دووشەممە</day>
-							<day type="tue" draft="unconfirmed">سێشەممە</day>
-							<day type="wed" draft="unconfirmed">چوارشەممە</day>
-							<day type="thu" draft="unconfirmed">پێنجشەممە</day>
-							<day type="fri" draft="unconfirmed">ھەینی</day>
-							<day type="sat" draft="unconfirmed">شەممە</day>
-						</dayWidth>
-						<dayWidth type="narrow">
-							<day type="sun" draft="unconfirmed">ی</day>
-							<day type="mon" draft="unconfirmed">د</day>
-							<day type="tue" draft="unconfirmed">س</day>
-							<day type="wed" draft="unconfirmed">چ</day>
-							<day type="thu" draft="unconfirmed">پ</day>
-							<day type="fri" draft="unconfirmed">ھ</day>
-							<day type="sat" draft="unconfirmed">ش</day>
-						</dayWidth>
-						<dayWidth type="wide">
-							<day type="sun" draft="unconfirmed">یەکشەممە</day>
-							<day type="mon" draft="unconfirmed">دووشەممە</day>
-							<day type="tue" draft="unconfirmed">سێشەممە</day>
-							<day type="wed" draft="unconfirmed">چوارشەممە</day>
-							<day type="thu" draft="unconfirmed">پێنجشەممە</day>
-							<day type="fri" draft="unconfirmed">ھەینی</day>
-							<day type="sat" draft="unconfirmed">شەممە</day>
-						</dayWidth>
-					</dayContext>
-					<dayContext type="stand-alone">
-						<dayWidth type="abbreviated">
-							<day type="sun" draft="unconfirmed">یەکشەممە</day>
-							<day type="mon" draft="unconfirmed">دووشەممە</day>
-							<day type="tue" draft="unconfirmed">سێشەممە</day>
-							<day type="wed" draft="unconfirmed">چوارشەممە</day>
-							<day type="thu" draft="unconfirmed">پێنجشەممە</day>
-							<day type="fri" draft="unconfirmed">ھەینی</day>
-							<day type="sat" draft="unconfirmed">شەممە</day>
-						</dayWidth>
-						<dayWidth type="narrow">
-							<day type="sun" draft="unconfirmed">ی</day>
-							<day type="mon" draft="unconfirmed">د</day>
-							<day type="tue" draft="unconfirmed">س</day>
-							<day type="wed" draft="unconfirmed">چ</day>
-							<day type="thu" draft="unconfirmed">پ</day>
-							<day type="fri" draft="unconfirmed">ھ</day>
-							<day type="sat" draft="unconfirmed">ش</day>
-						</dayWidth>
-						<dayWidth type="wide">
-							<day type="sun" draft="unconfirmed">یەکشەممە</day>
-							<day type="mon" draft="unconfirmed">دووشەممە</day>
-							<day type="tue" draft="unconfirmed">سێشەممە</day>
-							<day type="wed" draft="unconfirmed">چوارشەممە</day>
-							<day type="thu" draft="unconfirmed">پێنجشەممە</day>
-							<day type="fri" draft="unconfirmed">ھەینی</day>
-							<day type="sat" draft="unconfirmed">شەممە</day>
-						</dayWidth>
-					</dayContext>
-				</days>
-				<quarters>
-					<quarterContext type="format">
-						<quarterWidth type="wide">
-							<quarter type="1" draft="unconfirmed">چارەکی یەکەم</quarter>
-							<quarter type="2" draft="unconfirmed">چارەکی دووەم</quarter>
-							<quarter type="3" draft="unconfirmed">چارەکی سێەم</quarter>
-							<quarter type="4" draft="unconfirmed">چارەکی چوارەم</quarter>
-						</quarterWidth>
-					</quarterContext>
-					<quarterContext type="stand-alone">
-						<quarterWidth type="wide">
-							<quarter type="1" draft="unconfirmed">چارەکی یەکەم</quarter>
-							<quarter type="2" draft="unconfirmed">چارەکی دووەم</quarter>
-							<quarter type="3" draft="unconfirmed">چارەکی سێەم</quarter>
-							<quarter type="4" draft="unconfirmed">چارەکی چوارەم</quarter>
-						</quarterWidth>
-					</quarterContext>
-				</quarters>
-				<dayPeriods>
-					<dayPeriodContext type="format">
-						<dayPeriodWidth type="abbreviated">
-							<dayPeriod type="am" draft="unconfirmed">ب.ن</dayPeriod>
-							<dayPeriod type="pm" draft="unconfirmed">د.ن</dayPeriod>
-						</dayPeriodWidth>
-						<dayPeriodWidth type="wide">
-							<dayPeriod type="am" draft="unconfirmed">ب.ن</dayPeriod>
-							<dayPeriod type="pm" draft="unconfirmed">د.ن</dayPeriod>
-						</dayPeriodWidth>
-					</dayPeriodContext>
-				</dayPeriods>
 				<dateFormats>
 					<dateFormatLength type="full">
 						<dateFormat>
@@ -1550,8 +1455,8 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 			<decimal>.</decimal>
 			<group>,</group>
 			<percentSign>%</percentSign>
-			<plusSign>‎+</plusSign> <!-- includes LRM before sign -->
-			<minusSign>-</minusSign> <!-- includes LRM before sign (002D) -->
+			<plusSign>‎+</plusSign>
+			<minusSign>-</minusSign>
 			<exponential>E</exponential>
 			<superscriptingExponent>×</superscriptingExponent>
 			<perMille>‰</perMille>

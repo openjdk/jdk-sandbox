@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -33,11 +33,13 @@ hotspot_compiler = \
 
 hotspot_compiler_xcomp = \
   :hotspot_compiler \
-  -:tier1_compiler_not_xcomp
+  -:tier1_compiler_not_xcomp \
+  -compiler/graalunit
 
 hotspot_compiler_all_gcs = \
   :hotspot_compiler \
-  -:tier1_compiler_not_cms
+  -:tier1_compiler_aot_jvmci \
+  -compiler/graalunit
 
 hotspot_gc = \
   gc \
@@ -152,9 +154,12 @@ tier1_compiler_not_xcomp = \
   compiler/aot \
   compiler/profiling
 
-tier1_compiler_not_cms = \
+tier1_compiler_aot_jvmci = \
   compiler/aot \
   compiler/jvmci
+
+tier1_compiler_graal = \
+  compiler/graalunit/HotspotTest.java
 
 ctw_1 = \
   applications/ctw/modules/ \
@@ -172,7 +177,7 @@ ctw_3 = \
   applications/ctw/modules/jdk_compiler.java \
   applications/ctw/modules/jdk_internal_vm_compiler.java \
   applications/ctw/modules/jdk_localedata.java \
-  applications/ctw/modules/jdk_scripting_nashorn.java \
+  applications/ctw/modules/jdk_localedata_2.java
 
 tier1_gc = \
   :tier1_gc_1 \
@@ -189,7 +194,6 @@ tier1_gc_1 = \
   :gc_epsilon \
   gc/g1/ \
   -gc/g1/ihop/TestIHOPErgo.java
-  -gc/g1/TestTimelyCompaction.java
 
 tier1_gc_2 = \
   gc/ \
@@ -198,7 +202,6 @@ tier1_gc_2 = \
   -gc/logging/TestUnifiedLoggingSwitchStress.java \
   -gc/stress \
   -gc/survivorAlignment/TestPromotionFromSurvivorToTenuredAfterMinorGC.java \
-  -gc/cms/TestMBeanCMS.java \
   -gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java \
   -gc/shenandoah \
   -gc/nvdimm
@@ -210,13 +213,11 @@ gc_epsilon = \
 
 tier1_gc_gcold = \
   gc/stress/gcold/TestGCOldWithG1.java \
-  gc/stress/gcold/TestGCOldWithCMS.java \
   gc/stress/gcold/TestGCOldWithSerial.java \
   gc/stress/gcold/TestGCOldWithParallel.java
 
 tier1_gc_gcbasher = \
   gc/stress/gcbasher/TestGCBasherWithG1.java \
-  gc/stress/gcbasher/TestGCBasherWithCMS.java \
   gc/stress/gcbasher/TestGCBasherWithSerial.java \
   gc/stress/gcbasher/TestGCBasherWithParallel.java
 
@@ -240,6 +241,7 @@ tier2_gc_shenandoah = \
   gc/ergonomics/TestInitialGCThreadLogging.java \
   gc/ergonomics/TestDynamicNumberOfGCThreads.java \
   gc/logging/TestGCId.java \
+  gc/logging/TestMetaSpaceLog.java \
   gc/metaspace/TestMetaspacePerfCounters.java \
   gc/metaspace/TestMetaspacePerfCounters.java \
   gc/startup_warnings/TestShenandoah.java \
@@ -307,7 +309,6 @@ tier1_runtime = \
  -runtime/Thread/TestThreadDumpMonitorContention.java \
  -runtime/Unsafe/RangeCheck.java \
   sanity/ \
-  testlibrary_tests/TestMutuallyExclusivePlatformPredicates.java \
  -:tier1_runtime_appcds_exclude \
  -runtime/signal
 
@@ -321,18 +322,34 @@ hotspot_appcds_dynamic = \
  -runtime/cds/appcds/cacheObject \
  -runtime/cds/appcds/customLoader \
  -runtime/cds/appcds/dynamicArchive \
+ -runtime/cds/appcds/loaderConstraints/DynamicLoaderConstraintsTest.java \
  -runtime/cds/appcds/javaldr/ArrayTest.java \
  -runtime/cds/appcds/javaldr/GCSharedStringsDuringDump.java \
  -runtime/cds/appcds/javaldr/HumongousDuringDump.java \
+ -runtime/cds/appcds/javaldr/LockDuringDump.java \
  -runtime/cds/appcds/sharedStrings \
+ -runtime/cds/appcds/ArchiveRelocationTest.java \
  -runtime/cds/appcds/DumpClassList.java \
  -runtime/cds/appcds/ExtraSymbols.java \
  -runtime/cds/appcds/LongClassListPath.java \
  -runtime/cds/appcds/LotsOfClasses.java \
+ -runtime/cds/appcds/NonExistClasspath.java \
  -runtime/cds/appcds/RelativePath.java \
  -runtime/cds/appcds/SharedArchiveConsistency.java \
+ -runtime/cds/appcds/TestCombinedCompressedFlags.java \
+ -runtime/cds/appcds/TestZGCWithCDS.java \
  -runtime/cds/appcds/UnusedCPDuringDump.java \
  -runtime/cds/appcds/VerifierTest_1B.java
+
+hotspot_cds_relocation = \
+  gc/g1/TestSharedArchiveWithPreTouch.java \
+  runtime/cds \
+  runtime/modules/ModulesSymLink.java \
+  runtime/modules/PatchModule/PatchModuleCDS.java \
+  runtime/modules/PatchModule/PatchModuleClassList.java \
+  runtime/NMT \
+  serviceability/sa \
+ -runtime/cds/DeterministicDump.java
 
 # A subset of AppCDS tests to be run in tier1
 tier1_runtime_appcds = \
@@ -360,17 +377,15 @@ hotspot_appcds_with_jfr = \
  -runtime/cds/appcds/jigsaw/modulepath/MainModuleOnly.java
 
 tier1_serviceability = \
-  serviceability/dcmd/compiler \
+  serviceability/ \
   -serviceability/dcmd/compiler/CompilerQueueTest.java \
-  serviceability/jvmti/RedefineClasses \
   -serviceability/jvmti/RedefineClasses/RedefineLeak.java \
   -serviceability/jvmti/RedefineClasses/RedefinePreviousVersions.java \
   -serviceability/jvmti/RedefineClasses/RedefineRunningMethods.java \
   -serviceability/jvmti/RedefineClasses/RedefineRunningMethodsWithBacktrace.java \
   -serviceability/jvmti/RedefineClasses/TestRedefineObject.java \
-  serviceability/logging \
-  serviceability/sa \
   -serviceability/sa/ClhsdbScanOops.java \
+  -serviceability/sa/ClhsdbJstackXcompStress.java \
   -serviceability/sa/TestJmapCore.java \
   -serviceability/sa/TestJmapCoreMetaspace.java
 
@@ -383,16 +398,18 @@ tier1 = \
 
 hotspot_tier2_runtime = \
   runtime/ \
-  serviceability/ \
  -runtime/CommandLine/OptionsValidation/TestOptionsWithRanges.java \
  -runtime/CompressedOops/UseCompressedOops.java \
  -runtime/InvocationTests \
  -runtime/Thread/TestThreadDumpMonitorContention.java \
  -:tier1_runtime \
- -:tier1_serviceability \
  -:hotspot_tier2_runtime_platform_agnostic \
  -runtime/signal \
  -runtime/NMT/MallocStressTest.java
+
+hotspot_tier2_serviceability = \
+  serviceability/ \
+ -:tier1_serviceability
 
 hotspot_tier2_runtime_platform_agnostic = \
   runtime/SelectionResolution \
@@ -400,9 +417,7 @@ hotspot_tier2_runtime_platform_agnostic = \
 
 hotspot_tier3_runtime = \
   runtime/ \
-  serviceability/ \
  -:tier1_runtime \
- -:tier1_serviceability \
  -:hotspot_tier2_runtime_platform_agnostic \
  -:hotspot_tier2_runtime
 
@@ -539,7 +554,7 @@ vmTestbase_largepages = \
   vmTestbase/metaspace/stressDictionary/StressDictionary.java \
   vmTestbase/metaspace/stressHierarchy/stressHierarchy001/TestDescription.java \
   vmTestbase/metaspace/stressHierarchy/stressHierarchy011/TestDescription.java \
-  vmTestbase/metaspace/flags/maxMetaspaceSize/TestDescription.java \
+  vmTestbase/metaspace/flags/maxMetaspaceSize/TestMaxMetaspaceSize.java \
   vmTestbase/metaspace/shrink_grow/ShrinkGrowTest/ShrinkGrowTest.java \
   vmTestbase/metaspace/shrink_grow/ShrinkGrowMultiJVM/ShrinkGrowMultiJVM.java \
   vmTestbase/metaspace/shrink_grow/CompressedClassSpaceSize/TestDescription.java

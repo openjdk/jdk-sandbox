@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/symbolTable.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
@@ -40,7 +40,7 @@
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
-#include "runtime/sweeper.hpp"
+#include "runtime/synchronizer.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.inline.hpp"
 #include "runtime/vmOperations.hpp"
@@ -73,37 +73,15 @@ void VM_Operation::evaluate() {
   }
 }
 
-const char* VM_Operation::mode_to_string(Mode mode) {
-  switch(mode) {
-    case _safepoint      : return "safepoint";
-    case _no_safepoint   : return "no safepoint";
-    case _concurrent     : return "concurrent";
-    case _async_safepoint: return "async safepoint";
-    default              : return "unknown";
-  }
-}
 // Called by fatal error handler.
 void VM_Operation::print_on_error(outputStream* st) const {
   st->print("VM_Operation (" PTR_FORMAT "): ", p2i(this));
   st->print("%s", name());
 
-  const char* mode = mode_to_string(evaluation_mode());
-  st->print(", mode: %s", mode);
+  st->print(", mode: %s", evaluate_at_safepoint() ? "safepoint" : "no safepoint");
 
   if (calling_thread()) {
     st->print(", requested by thread " PTR_FORMAT, p2i(calling_thread()));
-  }
-}
-
-void VM_ThreadStop::doit() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at a safepoint");
-  ThreadsListHandle tlh;
-  JavaThread* target = java_lang_Thread::thread(target_thread());
-  // Note that this now allows multiple ThreadDeath exceptions to be
-  // thrown at a thread.
-  if (target != NULL && (!EnableThreadSMRExtraValidityChecks || tlh.includes(target))) {
-    // The target thread has run and has not exited yet.
-    target->send_thread_stop(throwable());
   }
 }
 
@@ -115,20 +93,8 @@ void VM_ClearICs::doit() {
   }
 }
 
-void VM_Deoptimize::doit() {
-  // We do not want any GCs to happen while we are in the middle of this VM operation
-  ResourceMark rm;
-  DeoptimizationMarker dm;
-
-  // Deoptimize all activations depending on marked nmethods
-  Deoptimization::deoptimize_dependents();
-
-  // Make the dependent methods not entrant
-  CodeCache::make_marked_nmethods_not_entrant();
-}
-
-void VM_MarkActiveNMethods::doit() {
-  NMethodSweeper::mark_active_nmethods();
+void VM_CleanClassLoaderDataMetaspaces::doit() {
+  ClassLoaderDataGraph::walk_metadata_and_clean_metaspaces();
 }
 
 VM_DeoptimizeFrame::VM_DeoptimizeFrame(JavaThread* thread, intptr_t* id, int reason) {
@@ -168,12 +134,11 @@ void VM_DeoptimizeAll::doit() {
         tcount = 0;
           int fcount = 0;
           // Deoptimize some selected frames.
-          // Biased llocking wants a updated register map
-          for(StackFrameStream fst(thread, UseBiasedLocking); !fst.is_done(); fst.next()) {
+          for(StackFrameStream fst(thread, false); !fst.is_done(); fst.next()) {
             if (fst.current()->can_be_deoptimized()) {
               if (fcount++ == fnum) {
                 fcount = 0;
-                Deoptimization::deoptimize(thread, *fst.current(), fst.register_map());
+                Deoptimization::deoptimize(thread, *fst.current());
               }
             }
           }
@@ -185,9 +150,7 @@ void VM_DeoptimizeAll::doit() {
 
 
 void VM_ZombieAll::doit() {
-  JavaThread *thread = (JavaThread *)calling_thread();
-  assert(thread->is_Java_thread(), "must be a Java thread");
-  thread->make_zombies();
+  calling_thread()->as_Java_thread()->make_zombies();
 }
 
 #endif // !PRODUCT
@@ -466,6 +429,16 @@ int VM_Exit::wait_for_threads_in_native_to_block() {
     MonitorLocker ml(&timer, Mutex::_no_safepoint_check_flag);
     ml.wait(10);
   }
+}
+
+bool VM_Exit::doit_prologue() {
+  if (log_is_enabled(Info, monitorinflation)) {
+    // Do a deflation in order to reduce the in-use monitor population
+    // that is reported by ObjectSynchronizer::log_in_use_monitor_details()
+    // at VM exit.
+    ObjectSynchronizer::request_deflate_idle_monitors();
+  }
+  return true;
 }
 
 void VM_Exit::doit() {

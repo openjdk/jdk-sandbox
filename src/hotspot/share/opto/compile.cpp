@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "ci/ciReplay.hpp"
-#include "classfile/systemDictionary.hpp"
+#include "classfile/javaClasses.hpp"
 #include "code/exceptionHandlerTable.hpp"
 #include "code/nmethod.hpp"
 #include "compiler/compileBroker.hpp"
@@ -35,6 +35,7 @@
 #include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
 #include "opto/addnode.hpp"
 #include "opto/block.hpp"
@@ -69,6 +70,7 @@
 #include "opto/type.hpp"
 #include "opto/vectornode.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/globals_extension.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -76,9 +78,7 @@
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_ZGC
-#include "gc/z/c2/zBarrierSetC2.hpp"
-#endif
+#include "utilities/resourceHash.hpp"
 
 
 // -------------------- Compile::mach_constant_base_node -----------------------
@@ -253,7 +253,7 @@ void Compile::print_statistics() {
     Parse::print_statistics();
     PhaseCCP::print_statistics();
     PhaseRegAlloc::print_statistics();
-    Scheduling::print_statistics();
+    PhaseOutput::print_statistics();
     PhasePeephole::print_statistics();
     PhaseIdealLoop::print_statistics();
     if (xtty != NULL)  xtty->tail("statistics");
@@ -264,17 +264,6 @@ void Compile::print_statistics() {
   }
 }
 #endif //PRODUCT
-
-// Support for bundling info
-Bundle* Compile::node_bundling(const Node *n) {
-  assert(valid_bundle_info(n), "oob");
-  return &_node_bundling_base[n->_idx];
-}
-
-bool Compile::valid_bundle_info(const Node *n) {
-  return (_node_bundling_limit > n->_idx);
-}
-
 
 void Compile::gvn_replace_by(Node* n, Node* nn) {
   for (DUIterator_Last imin, i = n->last_outs(imin); i >= imin; ) {
@@ -341,7 +330,7 @@ void Compile::update_dead_node_list(Unique_Node_List &useful) {
   for (uint node_idx = 0; node_idx < max_idx; node_idx++) {
     // If node with index node_idx is not in useful set,
     // mark it as dead in dead node list.
-    if (! useful_node_set.test(node_idx) ) {
+    if (!useful_node_set.test(node_idx)) {
       record_dead_node(node_idx);
     }
   }
@@ -426,24 +415,6 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
   debug_only(verify_graph_edges(true/*check for no_dead_code*/);)
 }
 
-//------------------------------frame_size_in_words-----------------------------
-// frame_slots in units of words
-int Compile::frame_size_in_words() const {
-  // shift is 0 in LP32 and 1 in LP64
-  const int shift = (LogBytesPerWord - LogBytesPerInt);
-  int words = _frame_slots >> shift;
-  assert( words << shift == _frame_slots, "frame size must be properly aligned in LP64" );
-  return words;
-}
-
-// To bang the stack of this compiled method we use the stack size
-// that the interpreter would need in case of a deoptimization. This
-// removes the need to bang the stack in the deoptimization blob which
-// in turn simplifies stack overflow handling.
-int Compile::bang_size_in_bytes() const {
-  return MAX2(frame_size_in_bytes() + os::extra_bang_size_in_bytes(), _interpreter_frame_size);
-}
-
 // ============================================================================
 //------------------------------CompileWrapper---------------------------------
 class CompileWrapper : public StackObj {
@@ -471,14 +442,11 @@ CompileWrapper::CompileWrapper(Compile* compile) : _compile(compile) {
   compile->set_indexSet_free_block_list(NULL);
   compile->init_type_arena();
   Type::Initialize(compile);
-  _compile->set_scratch_buffer_blob(NULL);
   _compile->begin_method();
   _compile->clone_map().set_debug(_compile->has_method() && _compile->directive()->CloneMapDebugOption);
 }
 CompileWrapper::~CompileWrapper() {
   _compile->end_method();
-  if (_compile->scratch_buffer_blob() != NULL)
-    BufferBlob::free(_compile->scratch_buffer_blob());
   _compile->env()->set_compiler_data(NULL);
 }
 
@@ -523,104 +491,6 @@ void Compile::print_compile_messages() {
 #endif
 }
 
-
-//-----------------------init_scratch_buffer_blob------------------------------
-// Construct a temporary BufferBlob and cache it for this compile.
-void Compile::init_scratch_buffer_blob(int const_size) {
-  // If there is already a scratch buffer blob allocated and the
-  // constant section is big enough, use it.  Otherwise free the
-  // current and allocate a new one.
-  BufferBlob* blob = scratch_buffer_blob();
-  if ((blob != NULL) && (const_size <= _scratch_const_size)) {
-    // Use the current blob.
-  } else {
-    if (blob != NULL) {
-      BufferBlob::free(blob);
-    }
-
-    ResourceMark rm;
-    _scratch_const_size = const_size;
-    int size = C2Compiler::initial_code_buffer_size(const_size);
-    blob = BufferBlob::create("Compile::scratch_buffer", size);
-    // Record the buffer blob for next time.
-    set_scratch_buffer_blob(blob);
-    // Have we run out of code space?
-    if (scratch_buffer_blob() == NULL) {
-      // Let CompilerBroker disable further compilations.
-      record_failure("Not enough space for scratch buffer in CodeCache");
-      return;
-    }
-  }
-
-  // Initialize the relocation buffers
-  relocInfo* locs_buf = (relocInfo*) blob->content_end() - MAX_locs_size;
-  set_scratch_locs_memory(locs_buf);
-}
-
-
-//-----------------------scratch_emit_size-------------------------------------
-// Helper function that computes size by emitting code
-uint Compile::scratch_emit_size(const Node* n) {
-  // Start scratch_emit_size section.
-  set_in_scratch_emit_size(true);
-
-  // Emit into a trash buffer and count bytes emitted.
-  // This is a pretty expensive way to compute a size,
-  // but it works well enough if seldom used.
-  // All common fixed-size instructions are given a size
-  // method by the AD file.
-  // Note that the scratch buffer blob and locs memory are
-  // allocated at the beginning of the compile task, and
-  // may be shared by several calls to scratch_emit_size.
-  // The allocation of the scratch buffer blob is particularly
-  // expensive, since it has to grab the code cache lock.
-  BufferBlob* blob = this->scratch_buffer_blob();
-  assert(blob != NULL, "Initialize BufferBlob at start");
-  assert(blob->size() > MAX_inst_size, "sanity");
-  relocInfo* locs_buf = scratch_locs_memory();
-  address blob_begin = blob->content_begin();
-  address blob_end   = (address)locs_buf;
-  assert(blob->contains(blob_end), "sanity");
-  CodeBuffer buf(blob_begin, blob_end - blob_begin);
-  buf.initialize_consts_size(_scratch_const_size);
-  buf.initialize_stubs_size(MAX_stubs_size);
-  assert(locs_buf != NULL, "sanity");
-  int lsize = MAX_locs_size / 3;
-  buf.consts()->initialize_shared_locs(&locs_buf[lsize * 0], lsize);
-  buf.insts()->initialize_shared_locs( &locs_buf[lsize * 1], lsize);
-  buf.stubs()->initialize_shared_locs( &locs_buf[lsize * 2], lsize);
-  // Mark as scratch buffer.
-  buf.consts()->set_scratch_emit();
-  buf.insts()->set_scratch_emit();
-  buf.stubs()->set_scratch_emit();
-
-  // Do the emission.
-
-  Label fakeL; // Fake label for branch instructions.
-  Label*   saveL = NULL;
-  uint save_bnum = 0;
-  bool is_branch = n->is_MachBranch();
-  if (is_branch) {
-    MacroAssembler masm(&buf);
-    masm.bind(fakeL);
-    n->as_MachBranch()->save_label(&saveL, &save_bnum);
-    n->as_MachBranch()->label_set(&fakeL, 0);
-  }
-  n->emit(buf, this->regalloc());
-
-  // Emitting into the scratch buffer should not fail
-  assert (!failing(), "Must not have pending failure. Reason is: %s", failure_reason());
-
-  if (is_branch) // Restore label.
-    n->as_MachBranch()->label_set(saveL, save_bnum);
-
-  // End scratch_emit_size section.
-  set_in_scratch_emit_size(false);
-
-  return buf.insts_size();
-}
-
-
 // ============================================================================
 //------------------------------Compile standard-------------------------------
 debug_only( int Compile::_debug_idx = 100000; )
@@ -629,13 +499,14 @@ debug_only( int Compile::_debug_idx = 100000; )
 // the continuation bci for on stack replacement.
 
 
-Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr_bci,
-                  bool subsume_loads, bool do_escape_analysis, bool eliminate_boxing, DirectiveSet* directive)
+Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
+                  bool subsume_loads, bool do_escape_analysis, bool eliminate_boxing, bool install_code, DirectiveSet* directive)
                 : Phase(Compiler),
                   _compile_id(ci_env->compile_id()),
                   _save_argument_registers(false),
                   _subsume_loads(subsume_loads),
                   _do_escape_analysis(do_escape_analysis),
+                  _install_code(install_code),
                   _eliminate_boxing(eliminate_boxing),
                   _method(target),
                   _entry_bci(osr_bci),
@@ -643,17 +514,17 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
                   _stub_name(NULL),
                   _stub_entry_point(NULL),
                   _max_node_limit(MaxNodeLimit),
-                  _orig_pc_slot(0),
-                  _orig_pc_slot_offset_in_bytes(0),
                   _inlining_progress(false),
                   _inlining_incrementally(false),
                   _do_cleanup(false),
                   _has_reserved_stack_access(target->has_reserved_stack_access()),
 #ifndef PRODUCT
                   _trace_opto_output(directive->TraceOptoOutputOption),
+                  _print_ideal(directive->PrintIdealOption),
 #endif
                   _has_method_handle_invokes(false),
                   _clinit_barrier_on_entry(false),
+                  _stress_seed(0),
                   _comp_arena(mtCompiler),
                   _barrier_set_state(BarrierSet::barrier_set()->barrier_set_c2()->create_barrier_state(comp_arena())),
                   _env(ci_env),
@@ -661,9 +532,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
                   _log(ci_env->log()),
                   _failure_reason(NULL),
                   _congraph(NULL),
-#ifndef PRODUCT
-                  _printer(IdealGraphPrinter::printer()),
-#endif
+                  NOT_PRODUCT(_printer(NULL) COMMA)
                   _dead_node_list(comp_arena()),
                   _dead_node_count(0),
                   _node_arena(mtCompiler),
@@ -685,22 +554,12 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
                   _replay_inline_data(NULL),
                   _java_calls(0),
                   _inner_loops(0),
-                  _interpreter_frame_size(0),
-                  _node_bundling_limit(0),
-                  _node_bundling_base(NULL),
-                  _code_buffer("Compile::Fill_buffer"),
-                  _scratch_const_size(-1),
-                  _in_scratch_emit_size(false)
+                  _interpreter_frame_size(0)
 #ifndef PRODUCT
                   , _in_dump_cnt(0)
 #endif
 {
   C = this;
-#ifndef PRODUCT
-  if (_printer != NULL) {
-    _printer->set_compile(this);
-  }
-#endif
   CompileWrapper cw(this);
 
   if (CITimeVerbose) {
@@ -862,7 +721,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
   // Drain the list.
   Finish_Warm();
 #ifndef PRODUCT
-  if (_printer && _printer->should_print(1)) {
+  if (should_print(1)) {
     _printer->print_inlining();
   }
 #endif
@@ -870,13 +729,25 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
   if (failing())  return;
   NOT_PRODUCT( verify_graph_edges(); )
 
+  // If IGVN is randomized for stress testing, seed random number
+  // generation and log the seed for repeatability.
+  if (StressIGVN) {
+    _stress_seed = FLAG_IS_DEFAULT(StressSeed) ?
+      static_cast<uint>(Ticks::now().nanoseconds()) : StressSeed;
+    if (_log != NULL) {
+      _log->elem("stress_test seed='%u'", _stress_seed);
+    } else if (FLAG_IS_DEFAULT(StressSeed)) {
+      tty->print_cr("Warning:  set +LogCompilation to log the seed.");
+    }
+  }
+
   // Now optimize
   Optimize();
   if (failing())  return;
   NOT_PRODUCT( verify_graph_edges(); )
 
 #ifndef PRODUCT
-  if (PrintIdeal) {
+  if (print_ideal()) {
     ttyLocker ttyl;  // keep the following output all in one block
     // This output goes directly to the tty, not the compiler log.
     // To enable tools to match it up with the compilation activity,
@@ -908,9 +779,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
 
   // Now that we know the size of all the monitors we can add a fixed slot
   // for the original deopt pc.
-
-  _orig_pc_slot =  fixed_slots();
-  int next_slot = _orig_pc_slot + (sizeof(address) / VMRegImpl::stack_slot_size);
+  int next_slot = fixed_slots() + (sizeof(address) / VMRegImpl::stack_slot_size);
   set_fixed_slots(next_slot);
 
   // Compute when to use implicit null checks. Used by matching trap based
@@ -919,41 +788,6 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
 
   // Now generate code
   Code_Gen();
-  if (failing())  return;
-
-  // Check if we want to skip execution of all compiled code.
-  {
-#ifndef PRODUCT
-    if (OptoNoExecute) {
-      record_method_not_compilable("+OptoNoExecute");  // Flag as failed
-      return;
-    }
-#endif
-    TracePhase tp("install_code", &timers[_t_registerMethod]);
-
-    if (is_osr_compilation()) {
-      _code_offsets.set_value(CodeOffsets::Verified_Entry, 0);
-      _code_offsets.set_value(CodeOffsets::OSR_Entry, _first_block_size);
-    } else {
-      _code_offsets.set_value(CodeOffsets::Verified_Entry, _first_block_size);
-      _code_offsets.set_value(CodeOffsets::OSR_Entry, 0);
-    }
-
-    env()->register_method(_method, _entry_bci,
-                           &_code_offsets,
-                           _orig_pc_slot_offset_in_bytes,
-                           code_buffer(),
-                           frame_size_in_words(), _oop_map_set,
-                           &_handler_table, &_inc_table,
-                           compiler,
-                           has_unsafe_access(),
-                           SharedRuntime::is_wide_vector(max_vector_size()),
-                           rtm_state()
-                           );
-
-    if (log() != NULL) // Print code cache state into compiler log
-      log()->code_cache_state();
-  }
 }
 
 //------------------------------Compile----------------------------------------
@@ -972,6 +806,7 @@ Compile::Compile( ciEnv* ci_env,
     _save_argument_registers(save_arg_registers),
     _subsume_loads(true),
     _do_escape_analysis(false),
+    _install_code(true),
     _eliminate_boxing(false),
     _method(NULL),
     _entry_bci(InvocationEntryBci),
@@ -979,25 +814,24 @@ Compile::Compile( ciEnv* ci_env,
     _stub_name(stub_name),
     _stub_entry_point(NULL),
     _max_node_limit(MaxNodeLimit),
-    _orig_pc_slot(0),
-    _orig_pc_slot_offset_in_bytes(0),
     _inlining_progress(false),
     _inlining_incrementally(false),
     _has_reserved_stack_access(false),
 #ifndef PRODUCT
     _trace_opto_output(directive->TraceOptoOutputOption),
+    _print_ideal(directive->PrintIdealOption),
 #endif
     _has_method_handle_invokes(false),
     _clinit_barrier_on_entry(false),
+    _stress_seed(0),
     _comp_arena(mtCompiler),
+    _barrier_set_state(BarrierSet::barrier_set()->barrier_set_c2()->create_barrier_state(comp_arena())),
     _env(ci_env),
     _directive(directive),
     _log(ci_env->log()),
     _failure_reason(NULL),
     _congraph(NULL),
-#ifndef PRODUCT
-    _printer(NULL),
-#endif
+    NOT_PRODUCT(_printer(NULL) COMMA)
     _dead_node_list(comp_arena()),
     _dead_node_count(0),
     _node_arena(mtCompiler),
@@ -1016,9 +850,6 @@ Compile::Compile( ciEnv* ci_env,
     _java_calls(0),
     _inner_loops(0),
     _interpreter_frame_size(0),
-    _node_bundling_limit(0),
-    _node_bundling_base(NULL),
-    _code_buffer("Compile::Fill_buffer"),
 #ifndef PRODUCT
     _in_dump_cnt(0),
 #endif
@@ -1053,34 +884,8 @@ Compile::Compile( ciEnv* ci_env,
   }
 
   NOT_PRODUCT( verify_graph_edges(); )
+
   Code_Gen();
-  if (failing())  return;
-
-
-  // Entry point will be accessed using compile->stub_entry_point();
-  if (code_buffer() == NULL) {
-    Matcher::soft_match_failure();
-  } else {
-    if (PrintAssembly && (WizardMode || Verbose))
-      tty->print_cr("### Stub::%s", stub_name);
-
-    if (!failing()) {
-      assert(_fixed_slots == 0, "no fixed slots used for runtime stubs");
-
-      // Make the NMethod
-      // For now we mark the frame as never safe for profile stackwalking
-      RuntimeStub *rs = RuntimeStub::new_runtime_stub(stub_name,
-                                                      code_buffer(),
-                                                      CodeOffsets::frame_never_safe,
-                                                      // _code_offsets.value(CodeOffsets::Frame_Complete),
-                                                      frame_size_in_words(),
-                                                      _oop_map_set,
-                                                      save_arg_registers);
-      assert(rs != NULL && rs->is_runtime_stub(), "sanity check");
-
-      _stub_entry_point = rs->entry_point();
-    }
-  }
 }
 
 //------------------------------Init-------------------------------------------
@@ -1094,7 +899,7 @@ void Compile::Init(int aliaslevel) {
   _matcher = NULL;  // filled in later
   _cfg     = NULL;  // filled in later
 
-  set_24_bit_selection_and_mode(Use24BitFP, false);
+  IA32_ONLY( set_24_bit_selection_and_mode(true, false); )
 
   _node_note_array = NULL;
   _default_node_notes = NULL;
@@ -1214,6 +1019,10 @@ void Compile::Init(int aliaslevel) {
   _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _opaque4_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   register_library_intrinsics();
+#ifdef ASSERT
+  _type_verify_symmetry = true;
+  _phase_optimize_finished = false;
+#endif
 }
 
 //---------------------------init_start----------------------------------------
@@ -1475,8 +1284,6 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         tj = TypeInstPtr::MARK;
         ta = TypeAryPtr::RANGE; // generic ignored junk
         ptr = TypePtr::BotPTR;
-      } else if (BarrierSet::barrier_set()->barrier_set_c2()->flatten_gc_alias_type(tj)) {
-        ta = tj->isa_aryptr();
       } else {                  // Random constant offset into array body
         offset = Type::OffsetBot;   // Flatten constant access into array body
         tj = ta = TypeAryPtr::make(ptr,ta->ary(),ta->klass(),false,offset);
@@ -1541,8 +1348,6 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       if (!is_known_inst) { // Do it only for non-instance types
         tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, offset);
       }
-    } else if (BarrierSet::barrier_set()->barrier_set_c2()->flatten_gc_alias_type(tj)) {
-      to = tj->is_instptr();
     } else if (offset < 0 || offset >= k->size_helper() * wordSize) {
       // Static fields are in the space above the normal instance
       // fields in the java.lang.Class instance.
@@ -1641,8 +1446,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
           (offset == Type::OffsetBot && tj == TypePtr::BOTTOM) ||
           (offset == oopDesc::mark_offset_in_bytes() && tj->base() == Type::AryPtr) ||
           (offset == oopDesc::klass_offset_in_bytes() && tj->base() == Type::AryPtr) ||
-          (offset == arrayOopDesc::length_offset_in_bytes() && tj->base() == Type::AryPtr) ||
-          (BarrierSet::barrier_set()->barrier_set_c2()->verify_gc_alias_type(tj, offset)),
+          (offset == arrayOopDesc::length_offset_in_bytes() && tj->base() == Type::AryPtr),
           "For oops, klasses, raw offset must be constant; for arrays the offset is never known" );
   assert( tj->ptr() != TypePtr::TopPTR &&
           tj->ptr() != TypePtr::AnyNull &&
@@ -1655,6 +1459,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
 }
 
 void Compile::AliasType::Init(int i, const TypePtr* at) {
+  assert(AliasIdxTop <= i && i < Compile::current()->_max_alias_types, "Invalid alias index");
   _index = i;
   _adr_type = at;
   _field = NULL;
@@ -1789,7 +1594,7 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
     if (flat == TypeInstPtr::KLASS)  alias_type(idx)->set_rewritable(false);
     if (flat == TypeAryPtr::RANGE)   alias_type(idx)->set_rewritable(false);
     if (flat->isa_instptr()) {
-      if (flat->offset() == java_lang_Class::klass_offset_in_bytes()
+      if (flat->offset() == java_lang_Class::klass_offset()
           && flat->is_instptr()->klass() == env()->Class_klass())
         alias_type(idx)->set_rewritable(false);
     }
@@ -1811,6 +1616,8 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
       if (flat->offset() == in_bytes(Klass::access_flags_offset()))
         alias_type(idx)->set_rewritable(false);
       if (flat->offset() == in_bytes(Klass::java_mirror_offset()))
+        alias_type(idx)->set_rewritable(false);
+      if (flat->offset() == in_bytes(Klass::secondary_super_cache_offset()))
         alias_type(idx)->set_rewritable(false);
     }
     // %%% (We would like to finalize JavaThread::threadObj_offset(),
@@ -1907,8 +1714,9 @@ bool Compile::must_alias(const TypePtr* adr_type, int alias_idx) {
 bool Compile::can_alias(const TypePtr* adr_type, int alias_idx) {
   if (alias_idx == AliasIdxTop)         return false; // the empty category
   if (adr_type == NULL)                 return false; // NULL serves as TypePtr::TOP
-  if (alias_idx == AliasIdxBot)         return true;  // the universal category
-  if (adr_type->base() == Type::AnyPtr) return true;  // TypePtr::BOTTOM or its twins
+  // Known instance doesn't alias with bottom memory
+  if (alias_idx == AliasIdxBot)         return !adr_type->is_known_instance();                   // the universal category
+  if (adr_type->base() == Type::AnyPtr) return !C->get_adr_type(alias_idx)->is_known_instance(); // TypePtr::BOTTOM or its twins
 
   // the only remaining possible overlap is identity
   int adr_idx = get_alias_index(adr_type);
@@ -2007,7 +1815,17 @@ void Compile::remove_opaque4_nodes(PhaseIterGVN &igvn) {
   for (int i = opaque4_count(); i > 0; i--) {
     Node* opaq = opaque4_node(i-1);
     assert(opaq->Opcode() == Op_Opaque4, "Opaque4 only");
+    // With Opaque4 nodes, the expectation is that the test of input 1
+    // is always equal to the constant value of input 2. So we can
+    // remove the Opaque4 and replace it by input 2. In debug builds,
+    // leave the non constant test in instead to sanity check that it
+    // never fails (if it does, that subgraph was constructed so, at
+    // runtime, a Halt node is executed).
+#ifdef ASSERT
+    igvn.replace_node(opaq, opaq->in(1));
+#else
     igvn.replace_node(opaq, opaq->in(2));
+#endif
   }
   assert(opaque4_count() == 0, "should be empty");
 }
@@ -2195,6 +2013,11 @@ void Compile::remove_root_to_sfpts_edges(PhaseIterGVN& igvn) {
         --i;
       }
     }
+    // Parsing may have added top inputs to the root node (Path
+    // leading to the Halt node proven dead). Make sure we get a
+    // chance to clean them up.
+    igvn._worklist.push(r);
+    igvn.optimize();
   }
 }
 
@@ -2291,7 +2114,7 @@ void Compile::Optimize() {
     if (has_loops()) {
       // Cleanup graph (remove dead nodes).
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop::optimize(igvn, LoopOptsNone);
+      PhaseIdealLoop::optimize(igvn, LoopOptsMaxUnroll);
       if (major_progress()) print_method(PHASE_PHASEIDEAL_BEFORE_EA, 2);
       if (failing())  return;
     }
@@ -2412,13 +2235,6 @@ void Compile::Optimize() {
     print_method(PHASE_MACRO_EXPANSION, 2);
   }
 
-#ifdef ASSERT
-  bs->verify_gc_barriers(this, BarrierSetC2::BeforeLateInsertion);
-#endif
-
-  bs->barrier_insertion_phase(C, igvn);
-  if (failing())  return;
-
   {
     TracePhase tp("barrierExpand", &timers[_t_barrierExpand]);
     if (bs->expand_barriers(this, igvn)) {
@@ -2430,6 +2246,11 @@ void Compile::Optimize() {
 
   if (opaque4_count() > 0) {
     C->remove_opaque4_nodes(igvn);
+    igvn.optimize();
+  }
+
+  if (C->max_vector_size() > 0) {
+    C->optimize_logic_cones(igvn);
     igvn.optimize();
   }
 
@@ -2447,8 +2268,329 @@ void Compile::Optimize() {
  }
 
  print_method(PHASE_OPTIMIZE_FINISHED, 2);
+ DEBUG_ONLY(set_phase_optimize_finished();)
 }
 
+//---------------------------- Bitwise operation packing optimization ---------------------------
+
+static bool is_vector_unary_bitwise_op(Node* n) {
+  return n->Opcode() == Op_XorV &&
+         VectorNode::is_vector_bitwise_not_pattern(n);
+}
+
+static bool is_vector_binary_bitwise_op(Node* n) {
+  switch (n->Opcode()) {
+    case Op_AndV:
+    case Op_OrV:
+      return true;
+
+    case Op_XorV:
+      return !is_vector_unary_bitwise_op(n);
+
+    default:
+      return false;
+  }
+}
+
+static bool is_vector_ternary_bitwise_op(Node* n) {
+  return n->Opcode() == Op_MacroLogicV;
+}
+
+static bool is_vector_bitwise_op(Node* n) {
+  return is_vector_unary_bitwise_op(n)  ||
+         is_vector_binary_bitwise_op(n) ||
+         is_vector_ternary_bitwise_op(n);
+}
+
+static bool is_vector_bitwise_cone_root(Node* n) {
+  if (!is_vector_bitwise_op(n)) {
+    return false;
+  }
+  for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+    if (is_vector_bitwise_op(n->fast_out(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static uint collect_unique_inputs(Node* n, Unique_Node_List& partition, Unique_Node_List& inputs) {
+  uint cnt = 0;
+  if (is_vector_bitwise_op(n)) {
+    if (VectorNode::is_vector_bitwise_not_pattern(n)) {
+      for (uint i = 1; i < n->req(); i++) {
+        Node* in = n->in(i);
+        bool skip = VectorNode::is_all_ones_vector(in);
+        if (!skip && !inputs.member(in)) {
+          inputs.push(in);
+          cnt++;
+        }
+      }
+      assert(cnt <= 1, "not unary");
+    } else {
+      uint last_req = n->req();
+      if (is_vector_ternary_bitwise_op(n)) {
+        last_req = n->req() - 1; // skip last input
+      }
+      for (uint i = 1; i < last_req; i++) {
+        Node* def = n->in(i);
+        if (!inputs.member(def)) {
+          inputs.push(def);
+          cnt++;
+        }
+      }
+    }
+    partition.push(n);
+  } else { // not a bitwise operations
+    if (!inputs.member(n)) {
+      inputs.push(n);
+      cnt++;
+    }
+  }
+  return cnt;
+}
+
+void Compile::collect_logic_cone_roots(Unique_Node_List& list) {
+  Unique_Node_List useful_nodes;
+  C->identify_useful_nodes(useful_nodes);
+
+  for (uint i = 0; i < useful_nodes.size(); i++) {
+    Node* n = useful_nodes.at(i);
+    if (is_vector_bitwise_cone_root(n)) {
+      list.push(n);
+    }
+  }
+}
+
+Node* Compile::xform_to_MacroLogicV(PhaseIterGVN& igvn,
+                                    const TypeVect* vt,
+                                    Unique_Node_List& partition,
+                                    Unique_Node_List& inputs) {
+  assert(partition.size() == 2 || partition.size() == 3, "not supported");
+  assert(inputs.size()    == 2 || inputs.size()    == 3, "not supported");
+  assert(Matcher::match_rule_supported_vector(Op_MacroLogicV, vt->length(), vt->element_basic_type()), "not supported");
+
+  Node* in1 = inputs.at(0);
+  Node* in2 = inputs.at(1);
+  Node* in3 = (inputs.size() == 3 ? inputs.at(2) : in2);
+
+  uint func = compute_truth_table(partition, inputs);
+  return igvn.transform(MacroLogicVNode::make(igvn, in3, in2, in1, func, vt));
+}
+
+static uint extract_bit(uint func, uint pos) {
+  return (func & (1 << pos)) >> pos;
+}
+
+//
+//  A macro logic node represents a truth table. It has 4 inputs,
+//  First three inputs corresponds to 3 columns of a truth table
+//  and fourth input captures the logic function.
+//
+//  eg.  fn = (in1 AND in2) OR in3;
+//
+//      MacroNode(in1,in2,in3,fn)
+//
+//  -----------------
+//  in1 in2 in3  fn
+//  -----------------
+//  0    0   0    0
+//  0    0   1    1
+//  0    1   0    0
+//  0    1   1    1
+//  1    0   0    0
+//  1    0   1    1
+//  1    1   0    1
+//  1    1   1    1
+//
+
+uint Compile::eval_macro_logic_op(uint func, uint in1 , uint in2, uint in3) {
+  int res = 0;
+  for (int i = 0; i < 8; i++) {
+    int bit1 = extract_bit(in1, i);
+    int bit2 = extract_bit(in2, i);
+    int bit3 = extract_bit(in3, i);
+
+    int func_bit_pos = (bit1 << 2 | bit2 << 1 | bit3);
+    int func_bit = extract_bit(func, func_bit_pos);
+
+    res |= func_bit << i;
+  }
+  return res;
+}
+
+static uint eval_operand(Node* n, ResourceHashtable<Node*,uint>& eval_map) {
+  assert(n != NULL, "");
+  assert(eval_map.contains(n), "absent");
+  return *(eval_map.get(n));
+}
+
+static void eval_operands(Node* n,
+                          uint& func1, uint& func2, uint& func3,
+                          ResourceHashtable<Node*,uint>& eval_map) {
+  assert(is_vector_bitwise_op(n), "");
+
+  if (is_vector_unary_bitwise_op(n)) {
+    Node* opnd = n->in(1);
+    if (VectorNode::is_vector_bitwise_not_pattern(n) && VectorNode::is_all_ones_vector(opnd)) {
+      opnd = n->in(2);
+    }
+    func1 = eval_operand(opnd, eval_map);
+  } else if (is_vector_binary_bitwise_op(n)) {
+    func1 = eval_operand(n->in(1), eval_map);
+    func2 = eval_operand(n->in(2), eval_map);
+  } else {
+    assert(is_vector_ternary_bitwise_op(n), "unknown operation");
+    func1 = eval_operand(n->in(1), eval_map);
+    func2 = eval_operand(n->in(2), eval_map);
+    func3 = eval_operand(n->in(3), eval_map);
+  }
+}
+
+uint Compile::compute_truth_table(Unique_Node_List& partition, Unique_Node_List& inputs) {
+  assert(inputs.size() <= 3, "sanity");
+  ResourceMark rm;
+  uint res = 0;
+  ResourceHashtable<Node*,uint> eval_map;
+
+  // Populate precomputed functions for inputs.
+  // Each input corresponds to one column of 3 input truth-table.
+  uint input_funcs[] = { 0xAA,   // (_, _, a) -> a
+                         0xCC,   // (_, b, _) -> b
+                         0xF0 }; // (c, _, _) -> c
+  for (uint i = 0; i < inputs.size(); i++) {
+    eval_map.put(inputs.at(i), input_funcs[i]);
+  }
+
+  for (uint i = 0; i < partition.size(); i++) {
+    Node* n = partition.at(i);
+
+    uint func1 = 0, func2 = 0, func3 = 0;
+    eval_operands(n, func1, func2, func3, eval_map);
+
+    switch (n->Opcode()) {
+      case Op_OrV:
+        assert(func3 == 0, "not binary");
+        res = func1 | func2;
+        break;
+      case Op_AndV:
+        assert(func3 == 0, "not binary");
+        res = func1 & func2;
+        break;
+      case Op_XorV:
+        if (VectorNode::is_vector_bitwise_not_pattern(n)) {
+          assert(func2 == 0 && func3 == 0, "not unary");
+          res = (~func1) & 0xFF;
+        } else {
+          assert(func3 == 0, "not binary");
+          res = func1 ^ func2;
+        }
+        break;
+      case Op_MacroLogicV:
+        // Ordering of inputs may change during evaluation of sub-tree
+        // containing MacroLogic node as a child node, thus a re-evaluation
+        // makes sure that function is evaluated in context of current
+        // inputs.
+        res = eval_macro_logic_op(n->in(4)->get_int(), func1, func2, func3);
+        break;
+
+      default: assert(false, "not supported: %s", n->Name());
+    }
+    assert(res <= 0xFF, "invalid");
+    eval_map.put(n, res);
+  }
+  return res;
+}
+
+bool Compile::compute_logic_cone(Node* n, Unique_Node_List& partition, Unique_Node_List& inputs) {
+  assert(partition.size() == 0, "not empty");
+  assert(inputs.size() == 0, "not empty");
+  if (is_vector_ternary_bitwise_op(n)) {
+    return false;
+  }
+
+  bool is_unary_op = is_vector_unary_bitwise_op(n);
+  if (is_unary_op) {
+    assert(collect_unique_inputs(n, partition, inputs) == 1, "not unary");
+    return false; // too few inputs
+  }
+
+  assert(is_vector_binary_bitwise_op(n), "not binary");
+  Node* in1 = n->in(1);
+  Node* in2 = n->in(2);
+
+  int in1_unique_inputs_cnt = collect_unique_inputs(in1, partition, inputs);
+  int in2_unique_inputs_cnt = collect_unique_inputs(in2, partition, inputs);
+  partition.push(n);
+
+  // Too many inputs?
+  if (inputs.size() > 3) {
+    partition.clear();
+    inputs.clear();
+    { // Recompute in2 inputs
+      Unique_Node_List not_used;
+      in2_unique_inputs_cnt = collect_unique_inputs(in2, not_used, not_used);
+    }
+    // Pick the node with minimum number of inputs.
+    if (in1_unique_inputs_cnt >= 3 && in2_unique_inputs_cnt >= 3) {
+      return false; // still too many inputs
+    }
+    // Recompute partition & inputs.
+    Node* child       = (in1_unique_inputs_cnt < in2_unique_inputs_cnt ? in1 : in2);
+    collect_unique_inputs(child, partition, inputs);
+
+    Node* other_input = (in1_unique_inputs_cnt < in2_unique_inputs_cnt ? in2 : in1);
+    inputs.push(other_input);
+
+    partition.push(n);
+  }
+
+  return (partition.size() == 2 || partition.size() == 3) &&
+         (inputs.size()    == 2 || inputs.size()    == 3);
+}
+
+
+void Compile::process_logic_cone_root(PhaseIterGVN &igvn, Node *n, VectorSet &visited) {
+  assert(is_vector_bitwise_op(n), "not a root");
+
+  visited.set(n->_idx);
+
+  // 1) Do a DFS walk over the logic cone.
+  for (uint i = 1; i < n->req(); i++) {
+    Node* in = n->in(i);
+    if (!visited.test(in->_idx) && is_vector_bitwise_op(in)) {
+      process_logic_cone_root(igvn, in, visited);
+    }
+  }
+
+  // 2) Bottom up traversal: Merge node[s] with
+  // the parent to form macro logic node.
+  Unique_Node_List partition;
+  Unique_Node_List inputs;
+  if (compute_logic_cone(n, partition, inputs)) {
+    const TypeVect* vt = n->bottom_type()->is_vect();
+    Node* macro_logic = xform_to_MacroLogicV(igvn, vt, partition, inputs);
+    igvn.replace_node(n, macro_logic);
+  }
+}
+
+void Compile::optimize_logic_cones(PhaseIterGVN &igvn) {
+  ResourceMark rm;
+  if (Matcher::match_rule_supported(Op_MacroLogicV)) {
+    Unique_Node_List list;
+    collect_logic_cone_roots(list);
+
+    while (list.size() > 0) {
+      Node* n = list.pop();
+      const TypeVect* vt = n->bottom_type()->is_vect();
+      bool supported = Matcher::match_rule_supported_vector(Op_MacroLogicV, vt->length(), vt->element_basic_type());
+      if (supported) {
+        VectorSet visited(comp_arena());
+        process_logic_cone_root(igvn, n, visited);
+      }
+    }
+  }
+}
 
 //------------------------------Code_Gen---------------------------------------
 // Given a graph, generate code for it
@@ -2472,7 +2614,11 @@ void Compile::Code_Gen() {
   {
     TracePhase tp("matcher", &timers[_t_matcher]);
     matcher.match();
+    if (failing()) {
+      return;
+    }
   }
+
   // In debug mode can dump m._nodes.dump() for mapping of ideal to machine
   // nodes.  Mapping is only valid at the root of each matched subtree.
   NOT_PRODUCT( verify_graph_edges(); )
@@ -2545,8 +2691,11 @@ void Compile::Code_Gen() {
 
   // Convert Nodes to instruction bits in a buffer
   {
-    TraceTime tp("output", &timers[_t_output], CITime);
-    Output();
+    TracePhase tp("output", &timers[_t_output]);
+    PhaseOutput output;
+    output.Output();
+    if (failing())  return;
+    output.install();
   }
 
   print_method(PHASE_FINAL_CODE);
@@ -2555,143 +2704,6 @@ void Compile::Code_Gen() {
   _cfg     = (PhaseCFG*)((intptr_t)0xdeadbeef);
   _regalloc = (PhaseChaitin*)((intptr_t)0xdeadbeef);
 }
-
-
-//------------------------------dump_asm---------------------------------------
-// Dump formatted assembly
-#if defined(SUPPORT_OPTO_ASSEMBLY)
-void Compile::dump_asm_on(outputStream* st, int* pcs, uint pc_limit) {
-
-  int pc_digits = 3; // #chars required for pc
-  int sb_chars  = 3; // #chars for "start bundle" indicator
-  int tab_size  = 8;
-  if (pcs != NULL) {
-    int max_pc = 0;
-    for (uint i = 0; i < pc_limit; i++) {
-      max_pc = (max_pc < pcs[i]) ? pcs[i] : max_pc;
-    }
-    pc_digits  = ((max_pc < 4096) ? 3 : ((max_pc < 65536) ? 4 : ((max_pc < 65536*256) ? 6 : 8))); // #chars required for pc
-  }
-  int prefix_len = ((pc_digits + sb_chars + tab_size - 1)/tab_size)*tab_size;
-
-  bool cut_short = false;
-  st->print_cr("#");
-  st->print("#  ");  _tf->dump_on(st);  st->cr();
-  st->print_cr("#");
-
-  // For all blocks
-  int pc = 0x0;                 // Program counter
-  char starts_bundle = ' ';
-  _regalloc->dump_frame();
-
-  Node *n = NULL;
-  for (uint i = 0; i < _cfg->number_of_blocks(); i++) {
-    if (VMThread::should_terminate()) {
-      cut_short = true;
-      break;
-    }
-    Block* block = _cfg->get_block(i);
-    if (block->is_connector() && !Verbose) {
-      continue;
-    }
-    n = block->head();
-    if ((pcs != NULL) && (n->_idx < pc_limit)) {
-      pc = pcs[n->_idx];
-      st->print("%*.*x", pc_digits, pc_digits, pc);
-    }
-    st->fill_to(prefix_len);
-    block->dump_head(_cfg, st);
-    if (block->is_connector()) {
-      st->fill_to(prefix_len);
-      st->print_cr("# Empty connector block");
-    } else if (block->num_preds() == 2 && block->pred(1)->is_CatchProj() && block->pred(1)->as_CatchProj()->_con == CatchProjNode::fall_through_index) {
-      st->fill_to(prefix_len);
-      st->print_cr("# Block is sole successor of call");
-    }
-
-    // For all instructions
-    Node *delay = NULL;
-    for (uint j = 0; j < block->number_of_nodes(); j++) {
-      if (VMThread::should_terminate()) {
-        cut_short = true;
-        break;
-      }
-      n = block->get_node(j);
-      if (valid_bundle_info(n)) {
-        Bundle* bundle = node_bundling(n);
-        if (bundle->used_in_unconditional_delay()) {
-          delay = n;
-          continue;
-        }
-        if (bundle->starts_bundle()) {
-          starts_bundle = '+';
-        }
-      }
-
-      if (WizardMode) {
-        n->dump();
-      }
-
-      if( !n->is_Region() &&    // Dont print in the Assembly
-          !n->is_Phi() &&       // a few noisely useless nodes
-          !n->is_Proj() &&
-          !n->is_MachTemp() &&
-          !n->is_SafePointScalarObject() &&
-          !n->is_Catch() &&     // Would be nice to print exception table targets
-          !n->is_MergeMem() &&  // Not very interesting
-          !n->is_top() &&       // Debug info table constants
-          !(n->is_Con() && !n->is_Mach())// Debug info table constants
-          ) {
-        if ((pcs != NULL) && (n->_idx < pc_limit)) {
-          pc = pcs[n->_idx];
-          st->print("%*.*x", pc_digits, pc_digits, pc);
-        } else {
-          st->fill_to(pc_digits);
-        }
-        st->print(" %c ", starts_bundle);
-        starts_bundle = ' ';
-        st->fill_to(prefix_len);
-        n->format(_regalloc, st);
-        st->cr();
-      }
-
-      // If we have an instruction with a delay slot, and have seen a delay,
-      // then back up and print it
-      if (valid_bundle_info(n) && node_bundling(n)->use_unconditional_delay()) {
-        // Coverity finding - Explicit null dereferenced.
-        guarantee(delay != NULL, "no unconditional delay instruction");
-        if (WizardMode) delay->dump();
-
-        if (node_bundling(delay)->starts_bundle())
-          starts_bundle = '+';
-        if ((pcs != NULL) && (n->_idx < pc_limit)) {
-          pc = pcs[n->_idx];
-          st->print("%*.*x", pc_digits, pc_digits, pc);
-        } else {
-          st->fill_to(pc_digits);
-        }
-        st->print(" %c ", starts_bundle);
-        starts_bundle = ' ';
-        st->fill_to(prefix_len);
-        delay->format(_regalloc, st);
-        st->cr();
-        delay = NULL;
-      }
-
-      // Dump the exception table as well
-      if( n->is_Catch() && (Verbose || WizardMode) ) {
-        // Print the exception table for this offset
-        _handler_table.print_subtable_for(pc);
-      }
-      st->bol(); // Make sure we start on a new line
-    }
-    st->cr(); // one empty line between blocks
-    assert(cut_short || delay == NULL, "no unconditional delay branch");
-  } // End of per-block dump
-
-  if (cut_short)  st->print_cr("*** disassembly is cut short ***");
-}
-#endif
 
 //------------------------------Final_Reshape_Counts---------------------------
 // This class defines counters to help identify when a method
@@ -2707,8 +2719,7 @@ struct Final_Reshape_Counts : public StackObj {
 
   Final_Reshape_Counts() :
     _call_count(0), _float_count(0), _double_count(0),
-    _java_call_count(0), _inner_loop_count(0),
-    _visited( Thread::current()->resource_area() ) { }
+    _java_call_count(0), _inner_loop_count(0) { }
 
   void inc_call_count  () { _call_count  ++; }
   void inc_float_count () { _float_count ++; }
@@ -2722,15 +2733,6 @@ struct Final_Reshape_Counts : public StackObj {
   int  get_java_call_count() const { return _java_call_count; }
   int  get_inner_loop_count() const { return _inner_loop_count; }
 };
-
-#ifdef ASSERT
-static bool oop_offset_is_sane(const TypeInstPtr* tp) {
-  ciInstanceKlass *k = tp->klass()->as_instance_klass();
-  // Make sure the offset goes inside the instance layout.
-  return k->contains_field_offset(tp->offset());
-  // Note that OffsetBot and OffsetTop are very negative.
-}
-#endif
 
 // Eliminate trivially redundant StoreCMs and accumulate their
 // precedence edges.
@@ -2854,6 +2856,8 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_ConF:
   case Op_CmpF:
   case Op_CmpF3:
+  case Op_StoreF:
+  case Op_LoadF:
   // case Op_ConvL2F: // longs are split into 32-bit halves
     frc.inc_float_count();
     break;
@@ -2878,6 +2882,9 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_ConD:
   case Op_CmpD:
   case Op_CmpD3:
+  case Op_StoreD:
+  case Op_LoadD:
+  case Op_LoadD_unaligned:
     frc.inc_double_count();
     break;
   case Op_Opaque1:              // Remove Opaque Nodes before matching
@@ -2918,16 +2925,6 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     }
     break;
   }
-
-  case Op_StoreD:
-  case Op_LoadD:
-  case Op_LoadD_unaligned:
-    frc.inc_double_count();
-    goto handle_mem;
-  case Op_StoreF:
-  case Op_LoadF:
-    frc.inc_float_count();
-    goto handle_mem;
 
   case Op_StoreCM:
     {
@@ -2990,18 +2987,8 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_LoadP:
   case Op_LoadN:
   case Op_LoadRange:
-  case Op_LoadS: {
-  handle_mem:
-#ifdef ASSERT
-    if( VerifyOptoOopOffsets ) {
-      MemNode* mem  = n->as_Mem();
-      // Check to see if address types have grounded out somehow.
-      const TypeInstPtr *tp = mem->in(MemNode::Address)->bottom_type()->isa_instptr();
-      assert( !tp || oop_offset_is_sane(tp), "" );
-    }
-#endif
+  case Op_LoadS:
     break;
-  }
 
   case Op_AddP: {               // Assert sane base pointers
     Node *addp = n->in(AddPNode::Address);
@@ -3372,6 +3359,9 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_MulReductionVD:
   case Op_MinReductionV:
   case Op_MaxReductionV:
+  case Op_AndReductionV:
+  case Op_OrReductionV:
+  case Op_XorReductionV:
     break;
 
   case Op_PackB:
@@ -3471,7 +3461,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       // address computations.
       n->as_Type()->set_type(TypeLong::INT);
       ResourceMark rm;
-      Node_List wq;
+      Unique_Node_List wq;
       wq.push(n);
       for (uint next = 0; next < wq.size(); next++) {
         Node *m = wq.at(next);
@@ -3486,7 +3476,6 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
           // redundant
           for (DUIterator_Fast imax, i = k->fast_outs(imax); i < imax; i++) {
             Node* u = k->fast_out(i);
-            assert(!wq.contains(u), "shouldn't process one node several times");
             if (u->Opcode() == Op_LShiftL ||
                 u->Opcode() == Op_AddL ||
                 u->Opcode() == Op_SubL ||
@@ -3526,8 +3515,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
 // Replacing Opaque nodes with their input in final_graph_reshaping_impl(),
 // requires that the walk visits a node's inputs before visiting the node.
 void Compile::final_graph_reshaping_walk( Node_Stack &nstack, Node *root, Final_Reshape_Counts &frc ) {
-  ResourceArea *area = Thread::current()->resource_area();
-  Unique_Node_List sfpt(area);
+  Unique_Node_List sfpt;
 
   frc._visited.set(root->_idx); // first, mark node as visited
   uint cnt = root->req();
@@ -3716,14 +3704,16 @@ bool Compile::final_graph_reshaping() {
     }
   }
 
+#ifdef IA32
   // If original bytecodes contained a mixture of floats and doubles
   // check if the optimizer has made it homogenous, item (3).
-  if( Use24BitFPMode && Use24BitFP && UseSSE == 0 &&
+  if (UseSSE == 0 &&
       frc.get_float_count() > 32 &&
       frc.get_double_count() == 0 &&
       (10 * frc.get_call_count() < frc.get_float_count()) ) {
-    set_24_bit_selection_and_mode( false,  true );
+    set_24_bit_selection_and_mode(false, true);
   }
+#endif // IA32
 
   set_java_calls(frc.get_java_call_count());
   set_inner_loops(frc.get_inner_loop_count());
@@ -3887,14 +3877,13 @@ bool Compile::needs_clinit_barrier(ciInstanceKlass* holder, ciMethod* accessing_
 // between Use-Def edges and Def-Use edges in the graph.
 void Compile::verify_graph_edges(bool no_dead_code) {
   if (VerifyGraphEdges) {
-    ResourceArea *area = Thread::current()->resource_area();
-    Unique_Node_List visited(area);
+    Unique_Node_List visited;
     // Call recursive graph walk to check edges
     _root->verify_edges(visited);
     if (no_dead_code) {
       // Now make sure that no visited node is used by an unvisited node.
       bool dead_nodes = false;
-      Unique_Node_List checked(area);
+      Unique_Node_List checked;
       while (visited.size() > 0) {
         Node* n = visited.pop();
         checked.push(n);
@@ -3981,222 +3970,6 @@ Compile::TracePhase::~TracePhase() {
 
   if (_log != NULL) {
     _log->done("phase name='%s' nodes='%d' live='%d'", _phase_name, C->unique(), C->live_nodes());
-  }
-}
-
-//=============================================================================
-// Two Constant's are equal when the type and the value are equal.
-bool Compile::Constant::operator==(const Constant& other) {
-  if (type()          != other.type()         )  return false;
-  if (can_be_reused() != other.can_be_reused())  return false;
-  // For floating point values we compare the bit pattern.
-  switch (type()) {
-  case T_INT:
-  case T_FLOAT:   return (_v._value.i == other._v._value.i);
-  case T_LONG:
-  case T_DOUBLE:  return (_v._value.j == other._v._value.j);
-  case T_OBJECT:
-  case T_ADDRESS: return (_v._value.l == other._v._value.l);
-  case T_VOID:    return (_v._value.l == other._v._value.l);  // jump-table entries
-  case T_METADATA: return (_v._metadata == other._v._metadata);
-  default: ShouldNotReachHere(); return false;
-  }
-}
-
-static int type_to_size_in_bytes(BasicType t) {
-  switch (t) {
-  case T_INT:     return sizeof(jint   );
-  case T_LONG:    return sizeof(jlong  );
-  case T_FLOAT:   return sizeof(jfloat );
-  case T_DOUBLE:  return sizeof(jdouble);
-  case T_METADATA: return sizeof(Metadata*);
-    // We use T_VOID as marker for jump-table entries (labels) which
-    // need an internal word relocation.
-  case T_VOID:
-  case T_ADDRESS:
-  case T_OBJECT:  return sizeof(jobject);
-  default:
-    ShouldNotReachHere();
-    return -1;
-  }
-}
-
-int Compile::ConstantTable::qsort_comparator(Constant* a, Constant* b) {
-  // sort descending
-  if (a->freq() > b->freq())  return -1;
-  if (a->freq() < b->freq())  return  1;
-  return 0;
-}
-
-void Compile::ConstantTable::calculate_offsets_and_size() {
-  // First, sort the array by frequencies.
-  _constants.sort(qsort_comparator);
-
-#ifdef ASSERT
-  // Make sure all jump-table entries were sorted to the end of the
-  // array (they have a negative frequency).
-  bool found_void = false;
-  for (int i = 0; i < _constants.length(); i++) {
-    Constant con = _constants.at(i);
-    if (con.type() == T_VOID)
-      found_void = true;  // jump-tables
-    else
-      assert(!found_void, "wrong sorting");
-  }
-#endif
-
-  int offset = 0;
-  for (int i = 0; i < _constants.length(); i++) {
-    Constant* con = _constants.adr_at(i);
-
-    // Align offset for type.
-    int typesize = type_to_size_in_bytes(con->type());
-    offset = align_up(offset, typesize);
-    con->set_offset(offset);   // set constant's offset
-
-    if (con->type() == T_VOID) {
-      MachConstantNode* n = (MachConstantNode*) con->get_jobject();
-      offset = offset + typesize * n->outcnt();  // expand jump-table
-    } else {
-      offset = offset + typesize;
-    }
-  }
-
-  // Align size up to the next section start (which is insts; see
-  // CodeBuffer::align_at_start).
-  assert(_size == -1, "already set?");
-  _size = align_up(offset, (int)CodeEntryAlignment);
-}
-
-void Compile::ConstantTable::emit(CodeBuffer& cb) {
-  MacroAssembler _masm(&cb);
-  for (int i = 0; i < _constants.length(); i++) {
-    Constant con = _constants.at(i);
-    address constant_addr = NULL;
-    switch (con.type()) {
-    case T_INT:    constant_addr = _masm.int_constant(   con.get_jint()   ); break;
-    case T_LONG:   constant_addr = _masm.long_constant(  con.get_jlong()  ); break;
-    case T_FLOAT:  constant_addr = _masm.float_constant( con.get_jfloat() ); break;
-    case T_DOUBLE: constant_addr = _masm.double_constant(con.get_jdouble()); break;
-    case T_OBJECT: {
-      jobject obj = con.get_jobject();
-      int oop_index = _masm.oop_recorder()->find_index(obj);
-      constant_addr = _masm.address_constant((address) obj, oop_Relocation::spec(oop_index));
-      break;
-    }
-    case T_ADDRESS: {
-      address addr = (address) con.get_jobject();
-      constant_addr = _masm.address_constant(addr);
-      break;
-    }
-    // We use T_VOID as marker for jump-table entries (labels) which
-    // need an internal word relocation.
-    case T_VOID: {
-      MachConstantNode* n = (MachConstantNode*) con.get_jobject();
-      // Fill the jump-table with a dummy word.  The real value is
-      // filled in later in fill_jump_table.
-      address dummy = (address) n;
-      constant_addr = _masm.address_constant(dummy);
-      // Expand jump-table
-      for (uint i = 1; i < n->outcnt(); i++) {
-        address temp_addr = _masm.address_constant(dummy + i);
-        assert(temp_addr, "consts section too small");
-      }
-      break;
-    }
-    case T_METADATA: {
-      Metadata* obj = con.get_metadata();
-      int metadata_index = _masm.oop_recorder()->find_index(obj);
-      constant_addr = _masm.address_constant((address) obj, metadata_Relocation::spec(metadata_index));
-      break;
-    }
-    default: ShouldNotReachHere();
-    }
-    assert(constant_addr, "consts section too small");
-    assert((constant_addr - _masm.code()->consts()->start()) == con.offset(),
-            "must be: %d == %d", (int) (constant_addr - _masm.code()->consts()->start()), (int)(con.offset()));
-  }
-}
-
-int Compile::ConstantTable::find_offset(Constant& con) const {
-  int idx = _constants.find(con);
-  guarantee(idx != -1, "constant must be in constant table");
-  int offset = _constants.at(idx).offset();
-  guarantee(offset != -1, "constant table not emitted yet?");
-  return offset;
-}
-
-void Compile::ConstantTable::add(Constant& con) {
-  if (con.can_be_reused()) {
-    int idx = _constants.find(con);
-    if (idx != -1 && _constants.at(idx).can_be_reused()) {
-      _constants.adr_at(idx)->inc_freq(con.freq());  // increase the frequency by the current value
-      return;
-    }
-  }
-  (void) _constants.append(con);
-}
-
-Compile::Constant Compile::ConstantTable::add(MachConstantNode* n, BasicType type, jvalue value) {
-  Block* b = Compile::current()->cfg()->get_block_for_node(n);
-  Constant con(type, value, b->_freq);
-  add(con);
-  return con;
-}
-
-Compile::Constant Compile::ConstantTable::add(Metadata* metadata) {
-  Constant con(metadata);
-  add(con);
-  return con;
-}
-
-Compile::Constant Compile::ConstantTable::add(MachConstantNode* n, MachOper* oper) {
-  jvalue value;
-  BasicType type = oper->type()->basic_type();
-  switch (type) {
-  case T_LONG:    value.j = oper->constantL(); break;
-  case T_FLOAT:   value.f = oper->constantF(); break;
-  case T_DOUBLE:  value.d = oper->constantD(); break;
-  case T_OBJECT:
-  case T_ADDRESS: value.l = (jobject) oper->constant(); break;
-  case T_METADATA: return add((Metadata*)oper->constant()); break;
-  default: guarantee(false, "unhandled type: %s", type2name(type));
-  }
-  return add(n, type, value);
-}
-
-Compile::Constant Compile::ConstantTable::add_jump_table(MachConstantNode* n) {
-  jvalue value;
-  // We can use the node pointer here to identify the right jump-table
-  // as this method is called from Compile::Fill_buffer right before
-  // the MachNodes are emitted and the jump-table is filled (means the
-  // MachNode pointers do not change anymore).
-  value.l = (jobject) n;
-  Constant con(T_VOID, value, next_jump_table_freq(), false);  // Labels of a jump-table cannot be reused.
-  add(con);
-  return con;
-}
-
-void Compile::ConstantTable::fill_jump_table(CodeBuffer& cb, MachConstantNode* n, GrowableArray<Label*> labels) const {
-  // If called from Compile::scratch_emit_size do nothing.
-  if (Compile::current()->in_scratch_emit_size())  return;
-
-  assert(labels.is_nonempty(), "must be");
-  assert((uint) labels.length() == n->outcnt(), "must be equal: %d == %d", labels.length(), n->outcnt());
-
-  // Since MachConstantNode::constant_offset() also contains
-  // table_base_offset() we need to subtract the table_base_offset()
-  // to get the plain offset into the constant table.
-  int offset = n->constant_offset() - table_base_offset();
-
-  MacroAssembler _masm(&cb);
-  address* jump_table_base = (address*) (_masm.code()->consts()->start() + offset);
-
-  for (uint i = 0; i < n->outcnt(); i++) {
-    address* constant_addr = &jump_table_base[i];
-    assert(*constant_addr == (((address) n) + i), "all jump-table entries must contain adjusted node pointer: " INTPTR_FORMAT " == " INTPTR_FORMAT, p2i(*constant_addr), p2i(((address) n) + i));
-    *constant_addr = cb.consts()->target(*labels.at(i), (address) constant_addr);
-    cb.consts()->relocate((address) constant_addr, relocInfo::internal_word_type);
   }
 }
 
@@ -4288,6 +4061,13 @@ Node* Compile::constrained_convI2L(PhaseGVN* phase, Node* value, const TypeInt* 
   return phase->transform(new ConvI2LNode(value, ltype));
 }
 
+void Compile::print_inlining_stream_free() {
+  if (_print_inlining_stream != NULL) {
+    _print_inlining_stream->~stringStream();
+    _print_inlining_stream = NULL;
+  }
+}
+
 // The message about the current inlining is accumulated in
 // _print_inlining_stream and transfered into the _print_inlining_list
 // once we know whether inlining succeeds or not. For regular
@@ -4298,13 +4078,21 @@ Node* Compile::constrained_convI2L(PhaseGVN* phase, Node* value, const TypeInt* 
 // when the inlining is attempted again.
 void Compile::print_inlining_init() {
   if (print_inlining() || print_intrinsics()) {
+    // print_inlining_init is actually called several times.
+    print_inlining_stream_free();
     _print_inlining_stream = new stringStream();
+    // Watch out: The memory initialized by the constructor call PrintInliningBuffer()
+    // will be copied into the only initial element. The default destructor of
+    // PrintInliningBuffer will be called when leaving the scope here. If it
+    // would destuct the  enclosed stringStream _print_inlining_list[0]->_ss
+    // would be destructed, too!
     _print_inlining_list = new (comp_arena())GrowableArray<PrintInliningBuffer>(comp_arena(), 1, 1, PrintInliningBuffer());
   }
 }
 
 void Compile::print_inlining_reinit() {
   if (print_inlining() || print_intrinsics()) {
+    print_inlining_stream_free();
     // Re allocate buffer when we change ResourceMark
     _print_inlining_stream = new stringStream();
   }
@@ -4318,7 +4106,7 @@ void Compile::print_inlining_commit() {
   assert(print_inlining() || print_intrinsics(), "PrintInlining off?");
   // Transfer the message from _print_inlining_stream to the current
   // _print_inlining_list buffer and clear _print_inlining_stream.
-  _print_inlining_list->at(_print_inlining_idx).ss()->write(_print_inlining_stream->as_string(), _print_inlining_stream->size());
+  _print_inlining_list->at(_print_inlining_idx).ss()->write(_print_inlining_stream->base(), _print_inlining_stream->size());
   print_inlining_reset();
 }
 
@@ -4399,9 +4187,16 @@ void Compile::process_print_inlining() {
   if (do_print_inlining) {
     ResourceMark rm;
     stringStream ss;
+    assert(_print_inlining_list != NULL, "process_print_inlining should be called only once.");
     for (int i = 0; i < _print_inlining_list->length(); i++) {
       ss.print("%s", _print_inlining_list->adr_at(i)->ss()->as_string());
+      _print_inlining_list->at(i).freeStream();
     }
+    // Reset _print_inlining_list, it only contains destructed objects.
+    // It is on the arena, so it will be freed when the arena is reset.
+    _print_inlining_list = NULL;
+    // _print_inlining_stream won't be used anymore, either.
+    print_inlining_stream_free();
     size_t end = ss.size();
     _print_inlining_output = NEW_ARENA_ARRAY(comp_arena(), char, end+1);
     strncpy(_print_inlining_output, ss.base(), end+1);
@@ -4656,8 +4451,13 @@ void Compile::remove_speculative_types(PhaseIterGVN &igvn) {
   }
 }
 
-// Auxiliary method to support randomized stressing/fuzzing.
-//
+// Auxiliary methods to support randomized stressing/fuzzing.
+
+int Compile::random() {
+  _stress_seed = os::next_random(_stress_seed);
+  return static_cast<int>(_stress_seed);
+}
+
 // This method can be called the arbitrary number of times, with current count
 // as the argument. The logic allows selecting a single candidate from the
 // running list of candidates as follows:
@@ -4749,3 +4549,129 @@ void CloneMap::dump(node_idx_t key) const {
     ni.dump();
   }
 }
+
+// Move Allocate nodes to the start of the list
+void Compile::sort_macro_nodes() {
+  int count = macro_count();
+  int allocates = 0;
+  for (int i = 0; i < count; i++) {
+    Node* n = macro_node(i);
+    if (n->is_Allocate()) {
+      if (i != allocates) {
+        Node* tmp = macro_node(allocates);
+        _macro_nodes->at_put(allocates, n);
+        _macro_nodes->at_put(i, tmp);
+      }
+      allocates++;
+    }
+  }
+}
+
+void Compile::print_method(CompilerPhaseType cpt, int level, int idx) {
+  EventCompilerPhase event;
+  if (event.should_commit()) {
+    CompilerEvent::PhaseEvent::post(event, C->_latest_stage_start_counter, cpt, C->_compile_id, level);
+  }
+
+#ifndef PRODUCT
+  if (should_print(level)) {
+    char output[1024];
+    if (idx != 0) {
+      jio_snprintf(output, sizeof(output), "%s:%d", CompilerPhaseTypeHelper::to_string(cpt), idx);
+    } else {
+      jio_snprintf(output, sizeof(output), "%s", CompilerPhaseTypeHelper::to_string(cpt));
+    }
+    _printer->print_method(output, level);
+  }
+#endif
+  C->_latest_stage_start_counter.stamp();
+}
+
+void Compile::end_method(int level) {
+  EventCompilerPhase event;
+  if (event.should_commit()) {
+    CompilerEvent::PhaseEvent::post(event, C->_latest_stage_start_counter, PHASE_END, C->_compile_id, level);
+  }
+
+#ifndef PRODUCT
+  if (_method != NULL && should_print(level)) {
+    _printer->end_method();
+  }
+#endif
+}
+
+
+#ifndef PRODUCT
+IdealGraphPrinter* Compile::_debug_file_printer = NULL;
+IdealGraphPrinter* Compile::_debug_network_printer = NULL;
+
+// Called from debugger. Prints method to the default file with the default phase name.
+// This works regardless of any Ideal Graph Visualizer flags set or not.
+void igv_print() {
+  Compile::current()->igv_print_method_to_file();
+}
+
+// Same as igv_print() above but with a specified phase name.
+void igv_print(const char* phase_name) {
+  Compile::current()->igv_print_method_to_file(phase_name);
+}
+
+// Called from debugger. Prints method with the default phase name to the default network or the one specified with
+// the network flags for the Ideal Graph Visualizer, or to the default file depending on the 'network' argument.
+// This works regardless of any Ideal Graph Visualizer flags set or not.
+void igv_print(bool network) {
+  if (network) {
+    Compile::current()->igv_print_method_to_network();
+  } else {
+    Compile::current()->igv_print_method_to_file();
+  }
+}
+
+// Same as igv_print(bool network) above but with a specified phase name.
+void igv_print(bool network, const char* phase_name) {
+  if (network) {
+    Compile::current()->igv_print_method_to_network(phase_name);
+  } else {
+    Compile::current()->igv_print_method_to_file(phase_name);
+  }
+}
+
+// Called from debugger. Normal write to the default _printer. Only works if Ideal Graph Visualizer printing flags are set.
+void igv_print_default() {
+  Compile::current()->print_method(PHASE_DEBUG, 0, 0);
+}
+
+// Called from debugger, especially when replaying a trace in which the program state cannot be altered like with rr replay.
+// A method is appended to an existing default file with the default phase name. This means that igv_append() must follow
+// an earlier igv_print(*) call which sets up the file. This works regardless of any Ideal Graph Visualizer flags set or not.
+void igv_append() {
+  Compile::current()->igv_print_method_to_file("Debug", true);
+}
+
+// Same as igv_append() above but with a specified phase name.
+void igv_append(const char* phase_name) {
+  Compile::current()->igv_print_method_to_file(phase_name, true);
+}
+
+void Compile::igv_print_method_to_file(const char* phase_name, bool append) {
+  const char* file_name = "custom_debug.xml";
+  if (_debug_file_printer == NULL) {
+    _debug_file_printer = new IdealGraphPrinter(C, file_name, append);
+  } else {
+    _debug_file_printer->update_compiled_method(C->method());
+  }
+  tty->print_cr("Method %s to %s", append ? "appended" : "printed", file_name);
+  _debug_file_printer->print_method(phase_name, 0);
+}
+
+void Compile::igv_print_method_to_network(const char* phase_name) {
+  if (_debug_network_printer == NULL) {
+    _debug_network_printer = new IdealGraphPrinter(C);
+  } else {
+    _debug_network_printer->update_compiled_method(C->method());
+  }
+  tty->print_cr("Method printed over network stream to IGV");
+  _debug_network_printer->print_method(phase_name, 0);
+}
+#endif
+

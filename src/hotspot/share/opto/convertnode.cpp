@@ -334,6 +334,13 @@ Node *ConvI2LNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   Node* z = in(1);
   int op = z->Opcode();
   if (op == Op_AddI || op == Op_SubI) {
+    if (!can_reshape) {
+      // Postpone this optimization to after parsing because with deep AddNode
+      // chains a large amount of dead ConvI2L nodes might be created that are
+      // not removed during parsing. As a result, we might hit the node limit.
+      phase->record_for_igvn(this);
+      return this_changed;
+    }
     Node* x = z->in(1);
     Node* y = z->in(2);
     assert (x != z && y != z, "dead loop in ConvI2LNode::Ideal");
@@ -531,4 +538,21 @@ const Type* RoundDoubleNode::Value(PhaseGVN* phase) const {
   return phase->type( in(1) );
 }
 
+//=============================================================================
+RoundDoubleModeNode* RoundDoubleModeNode::make(PhaseGVN& gvn, Node* arg, RoundDoubleModeNode::RoundingMode rmode) {
+  ConINode* rm = gvn.intcon(rmode);
+  return new RoundDoubleModeNode(arg, (Node *)rm);
+}
 
+//------------------------------Identity---------------------------------------
+// Remove redundant roundings.
+Node* RoundDoubleModeNode::Identity(PhaseGVN* phase) {
+  int op = in(1)->Opcode();
+  // Redundant rounding e.g. floor(ceil(n)) -> ceil(n)
+  if(op == Op_RoundDoubleMode) return in(1);
+  return this;
+}
+const Type* RoundDoubleModeNode::Value(PhaseGVN* phase) const {
+  return Type::DOUBLE;
+}
+//=============================================================================

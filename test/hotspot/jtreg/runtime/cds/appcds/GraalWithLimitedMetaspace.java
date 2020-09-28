@@ -28,9 +28,6 @@
  *          VM should not crash but CDS dump will abort upon failure in allocating metaspace.
  * @requires vm.cds & vm.graal.enabled & vm.compMode == "Xmixed"
  * @library /test/lib
- * @modules java.base/jdk.internal.misc
- *          java.management
- *          jdk.jartool/sun.tools.jar
  * @build UseAppCDS_Test
  * @run driver ClassFileInstaller -jar test.jar UseAppCDS_Test
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI
@@ -86,7 +83,7 @@ public class GraalWithLimitedMetaspace {
     }
 
     static void dumpLoadedClasses(String[] expectedClasses) throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
+        ProcessBuilder pb = ProcessTools.createTestJvm(
             "-XX:DumpLoadedClassList=" + CLASSLIST_FILE,
             // trigger JVMCI runtime init so that JVMCI classes will be
             // included in the classlist
@@ -113,7 +110,7 @@ public class GraalWithLimitedMetaspace {
     }
 
     static void dumpArchive() throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
+        ProcessBuilder pb = ProcessTools.createTestJvm(
             "-cp",
             TESTJAR,
             "-XX:SharedClassListFile=" + CLASSLIST_FILE,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "logging/log.hpp"
+#include "logging/logTag.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/instanceKlass.hpp"
@@ -106,7 +108,7 @@ char* NativeLookup::long_jni_name(const methodHandle& method) {
   st.print("__");
   // find ')'
   int end;
-  for (end = 0; end < signature->utf8_length() && signature->char_at(end) != ')'; end++);
+  for (end = 0; end < signature->utf8_length() && signature->char_at(end) != JVM_SIGNATURE_ENDFUNC; end++);
   // skip first '('
   mangle_name_on(&st, signature, 1, end);
   return st.as_string();
@@ -157,7 +159,7 @@ address NativeLookup::lookup_style(const methodHandle& method, char* pure_name, 
 
   // If the loader is null we have a system class, so we attempt a lookup in
   // the native Java library. This takes care of any bootstrapping problems.
-  // Note: It is critical for bootstrapping that Java_java_lang_ClassLoader_00024NativeLibrary_find
+  // Note: It is critical for bootstrapping that Java_java_lang_ClassLoader_findNative
   // gets found the first time around - otherwise an infinite loop can occure. This is
   // another VM/library dependency
   Handle loader(THREAD, method->method_holder()->class_loader());
@@ -378,7 +380,7 @@ address NativeLookup::lookup_entry_prefixed(const methodHandle& method, bool& in
       if (wrapper_method != NULL && !wrapper_method->is_native()) {
         // we found a wrapper method, use its native entry
         method->set_is_prefixed_native();
-        return lookup_entry(wrapper_method, in_base_library, THREAD);
+        return lookup_entry(methodHandle(THREAD, wrapper_method), in_base_library, THREAD);
       }
     }
   }
@@ -413,11 +415,11 @@ address NativeLookup::lookup(const methodHandle& method, bool& in_base_library, 
     method->set_native_function(entry,
       Method::native_bind_event_is_interesting);
     // -verbose:jni printing
-    if (PrintJNIResolving) {
+    if (log_is_enabled(Debug, jni, resolve)) {
       ResourceMark rm(THREAD);
-      tty->print_cr("[Dynamic-linking native method %s.%s ... JNI]",
-        method->method_holder()->external_name(),
-        method->name()->as_C_string());
+      log_debug(jni, resolve)("[Dynamic-linking native method %s.%s ... JNI]",
+                              method->method_holder()->external_name(),
+                              method->name()->as_C_string());
     }
   }
   return method->native_function();
@@ -436,7 +438,7 @@ address NativeLookup::base_library_lookup(const char* class_name, const char* me
 
   // Find method and invoke standard lookup
   methodHandle method (THREAD,
-                       klass->uncached_lookup_method(m_name, s_name, Klass::find_overpass));
+                       klass->uncached_lookup_method(m_name, s_name, Klass::OverpassLookupMode::find));
   address result = lookup(method, in_base_library, CATCH);
   assert(in_base_library, "must be in basic library");
   guarantee(result != NULL, "must be non NULL");

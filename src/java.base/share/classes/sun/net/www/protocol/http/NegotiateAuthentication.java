@@ -33,7 +33,6 @@ import java.util.HashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 import sun.net.www.HeaderParser;
-import sun.util.logging.PlatformLogger;
 import static sun.net.www.protocol.http.AuthScheme.NEGOTIATE;
 import static sun.net.www.protocol.http.AuthScheme.KERBEROS;
 import sun.security.action.GetPropertyAction;
@@ -49,8 +48,8 @@ class NegotiateAuthentication extends AuthenticationInfo {
 
     @java.io.Serial
     private static final long serialVersionUID = 100L;
-    private static final PlatformLogger logger = HttpURLConnection.getHttpLogger();
 
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private final HttpCallerInfo hci;
 
     // These maps are used to manage the GSS availability for diffrent
@@ -71,6 +70,7 @@ class NegotiateAuthentication extends AuthenticationInfo {
     }
 
     // The HTTP Negotiate Helper
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private Negotiator negotiator = null;
 
    /**
@@ -95,31 +95,6 @@ class NegotiateAuthentication extends AuthenticationInfo {
     }
 
     /**
-     * Find out if the HttpCallerInfo supports Negotiate protocol.
-     * @return true if supported
-     */
-    public static boolean isSupported(HttpCallerInfo hci) {
-        ClassLoader loader = null;
-        try {
-            loader = Thread.currentThread().getContextClassLoader();
-        } catch (SecurityException se) {
-            if (logger.isLoggable(PlatformLogger.Level.FINER)) {
-                logger.finer("NegotiateAuthentication: " +
-                    "Attempt to get the context class loader failed - " + se);
-            }
-        }
-
-        if (loader != null) {
-            // Lock on the class loader instance to avoid the deadlock engaging
-            // the lock in "ClassLoader.loadClass(String, boolean)" method.
-            synchronized (loader) {
-                return isSupportedImpl(hci);
-            }
-        }
-        return isSupportedImpl(hci);
-    }
-
-    /**
      * Find out if the HttpCallerInfo supports Negotiate protocol. In order to
      * find out yes or no, an initialization of a Negotiator object against it
      * is tried. The generated object will be cached under the name of ths
@@ -130,7 +105,7 @@ class NegotiateAuthentication extends AuthenticationInfo {
      *
      * @return true if supported
      */
-    private static boolean isSupportedImpl(HttpCallerInfo hci) {
+    public static boolean isSupportedImpl(HttpCallerInfo hci) {
         negotiateLock.lock();
         try {
             if (supported == null) {

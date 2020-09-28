@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,9 +33,6 @@
 #include "runtime/handles.inline.hpp"
 
 CompileTask*  CompileTask::_task_free_list = NULL;
-#ifdef ASSERT
-int CompileTask::_num_allocated_tasks = 0;
-#endif
 
 /**
  * Allocate a CompileTask, from the free list if possible.
@@ -50,8 +47,6 @@ CompileTask* CompileTask::allocate() {
     task->set_next(NULL);
   } else {
     task = new CompileTask();
-    DEBUG_ONLY(_num_allocated_tasks++;)
-    assert (WhiteBoxAPI || JVMCI_ONLY(UseJVMCICompiler ||) _num_allocated_tasks < 10000, "Leaking compilation tasks?");
     task->set_next(NULL);
     task->set_is_free(true);
   }
@@ -105,7 +100,7 @@ void CompileTask::initialize(int compile_id,
   _osr_bci = osr_bci;
   _is_blocking = is_blocking;
   JVMCI_ONLY(_has_waiter = CompileBroker::compiler(comp_level)->is_jvmci();)
-  JVMCI_ONLY(_jvmci_compiler_thread = NULL;)
+  JVMCI_ONLY(_blocking_jvmci_compile_state = NULL;)
   _comp_level = comp_level;
   _num_inlined_bytecodes = 0;
 
@@ -242,7 +237,7 @@ void CompileTask::print_impl(outputStream* st, Method* method, int compile_id, i
                              jlong time_queued, jlong time_started) {
   if (!short_form) {
     // Print current time
-    st->print("%7d ", (int)st->time_stamp().milliseconds());
+    st->print("%7d ", (int)tty->time_stamp().milliseconds());
     if (Verbose && time_queued != 0) {
       // Print time in queue and time being processed by compiler thread
       jlong now = os::elapsed_counter();
@@ -340,7 +335,7 @@ void CompileTask::log_task(xmlStream* log) {
   if (_osr_bci != CompileBroker::standard_entry_bci) {
     log->print(" compile_kind='osr'");  // same as nmethod::compile_kind
   } // else compile_kind='c2c'
-  if (!method.is_null())  log->method(method);
+  if (!method.is_null())  log->method(method());
   if (_osr_bci != CompileBroker::standard_entry_bci) {
     log->print(" osr_bci='%d'", _osr_bci);
   }
@@ -356,21 +351,16 @@ void CompileTask::log_task(xmlStream* log) {
 // ------------------------------------------------------------------
 // CompileTask::log_task_queued
 void CompileTask::log_task_queued() {
-  Thread* thread = Thread::current();
   ttyLocker ttyl;
-  ResourceMark rm(thread);
+  ResourceMark rm;
 
   xtty->begin_elem("task_queued");
   log_task(xtty);
   assert(_compile_reason > CompileTask::Reason_None && _compile_reason < CompileTask::Reason_Count, "Valid values");
   xtty->print(" comment='%s'", reason_name(_compile_reason));
 
-  if (_hot_method != NULL) {
-    methodHandle hot(thread, _hot_method);
-    methodHandle method(thread, _method);
-    if (hot() != method()) {
-      xtty->method(hot);
-    }
+  if (_hot_method != NULL && _hot_method != _method) {
+    xtty->method(_hot_method);
   }
   if (_hot_count != 0) {
     xtty->print(" hot_count='%d'", _hot_count);
@@ -398,7 +388,10 @@ void CompileTask::log_task_done(CompileLog* log) {
   if (!_is_success) {
     assert(_failure_reason != NULL, "missing");
     const char* reason = _failure_reason != NULL ? _failure_reason : "unknown";
-    log->elem("failure reason='%s'", reason);
+    log->begin_elem("failure reason='");
+    log->text("%s", reason);
+    log->print("'");
+    log->end_elem();
   }
 
   // <task_done ... stamp='1.234'>  </task>

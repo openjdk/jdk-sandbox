@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
-import java.io.UnsupportedEncodingException;
 import java.lang.System.Logger.Level;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
@@ -74,6 +73,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.util.stream.Collectors.joining;
 import jdk.internal.net.http.HttpRequestImpl;
 
@@ -286,11 +286,21 @@ public final class Utils {
     }
 
     public static Throwable getCompletionCause(Throwable x) {
-        if (!(x instanceof CompletionException)
-                && !(x instanceof ExecutionException)) return x;
-        final Throwable cause = x.getCause();
-        if (cause == null) {
+        Throwable cause = x;
+        while ((cause instanceof CompletionException)
+                || (cause instanceof ExecutionException)) {
+            cause = cause.getCause();
+        }
+        if (cause == null && cause != x) {
             throw new InternalError("Unexpected null cause", x);
+        }
+        return cause;
+    }
+
+    public static Throwable getCancelCause(Throwable x) {
+        Throwable cause = getCompletionCause(x);
+        if (cause instanceof ConnectionExpiredException) {
+            cause = cause.getCause();
         }
         return cause;
     }
@@ -538,15 +548,9 @@ public final class Utils {
 
     public static String stackTrace(Throwable t) {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        String s = null;
-        try {
-            PrintStream p = new PrintStream(bos, true, "US-ASCII");
-            t.printStackTrace(p);
-            s = bos.toString("US-ASCII");
-        } catch (UnsupportedEncodingException ex) {
-            throw new InternalError(ex); // Can't happen
-        }
-        return s;
+        PrintStream p = new PrintStream(bos, true, US_ASCII);
+        t.printStackTrace(p);
+        return bos.toString(US_ASCII);
     }
 
     /**

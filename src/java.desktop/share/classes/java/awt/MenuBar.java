@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,9 +50,9 @@ import sun.awt.AWTAccessor;
  * This is what a menu bar might look like:
  * <p>
  * <img src="doc-files/MenuBar-1.gif"
- * alt="Diagram of MenuBar containing 2 menus: Examples and Options.
- * Examples menu is expanded showing items: Basic, Simple, Check, and More Examples."
- * style="float:center; margin: 7px 10px;">
+ * alt="Diagram of MenuBar containing 2 menus: Examples and Options. Examples
+ * menu is expanded showing items: Basic, Simple, Check, and More Examples."
+ * style="margin: 7px 10px;">
  * <p>
  * A menu bar handles keyboard shortcuts for menu items, passing them
  * along to its child menus.
@@ -510,6 +510,11 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
          * JDK 1.3 serialVersionUID
          */
         private static final long serialVersionUID = -8577604491830083815L;
+
+        /**
+         * Constructs an {@code AccessibleAWTMenuBar}.
+         */
+        protected AccessibleAWTMenuBar() {}
 
         /**
          * Get the role of this object.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -97,50 +97,23 @@ public class DocPaths {
     /** The name of the default javascript file. */
     public static final DocPath JAVASCRIPT = DocPath.create("script.js");
 
+    /** The name of the stylesheet file overriding jQuery UI stylesheet. */
+    public static final DocPath JQUERY_OVERRIDES_CSS = DocPath.create("jquery-ui.overrides.css");
+
     /** The name of the directory for the jQuery. */
     public static final DocPath JQUERY_FILES = DocPath.create("script-dir");
 
-    /** The name of the default jQuery stylesheet file. */
-    public static final DocPath JQUERY_STYLESHEET_FILE = DocPath.create("jquery-ui.css");
-
     /** The name of the default jQuery javascript file. */
-    public static final DocPath JQUERY_JS_3_4 = DocPath.create("jquery-3.4.1.js");
+    public static final DocPath JQUERY_JS = DocPath.create("jquery-3.5.1.min.js");
 
-    /** The name of the default jQuery javascript file. */
-    public static final DocPath JQUERY_JS = DocPath.create("jquery-ui.js");
+    /** The name of the default jQuery UI stylesheet file. */
+    public static final DocPath JQUERY_UI_CSS = DocPath.create("jquery-ui.min.css");
 
-    /** The name of the default jszip javascript file. */
-    public static final DocPath JSZIP = DocPath.create("jszip/dist/jszip.js");
-
-    /** The name of the default jszip javascript file. */
-    public static final DocPath JSZIP_MIN = DocPath.create("jszip/dist/jszip.min.js");
-
-    /** The name of the default jszip-utils javascript file. */
-    public static final DocPath JSZIPUTILS = DocPath.create("jszip-utils/dist/jszip-utils.js");
-
-    /** The name of the default jszip-utils javascript file. */
-    public static final DocPath JSZIPUTILS_MIN = DocPath.create("jszip-utils/dist/jszip-utils.min.js");
-
-    /** The name of the default jszip-utils javascript file. */
-    public static final DocPath JSZIPUTILS_IE = DocPath.create("jszip-utils/dist/jszip-utils-ie.js");
-
-    /** The name of the default jszip-utils javascript file. */
-    public static final DocPath JSZIPUTILS_IE_MIN = DocPath.create("jszip-utils/dist/jszip-utils-ie.min.js");
-
-    /** The name of the member search index file. */
-    public static final DocPath MEMBER_SEARCH_INDEX_JSON = DocPath.create("member-search-index.json");
-
-    /** The name of the member search index zip file. */
-    public static final DocPath MEMBER_SEARCH_INDEX_ZIP = DocPath.create("member-search-index.zip");
+    /** The name of the default jQuery UI javascript file. */
+    public static final DocPath JQUERY_UI_JS = DocPath.create("jquery-ui.min.js");
 
     /** The name of the member search index js file. */
     public static final DocPath MEMBER_SEARCH_INDEX_JS = DocPath.create("member-search-index.js");
-
-    /** The name of the module search index file. */
-    public static final DocPath MODULE_SEARCH_INDEX_JSON = DocPath.create("module-search-index.json");
-
-    /** The name of the module search index zip file. */
-    public static final DocPath MODULE_SEARCH_INDEX_ZIP = DocPath.create("module-search-index.zip");
 
     /** The name of the module search index js file. */
     public static final DocPath MODULE_SEARCH_INDEX_JS = DocPath.create("module-search-index.js");
@@ -154,12 +127,6 @@ public class DocPaths {
     /** The name of the file for the package list. This is to support the legacy mode. */
     public static final DocPath PACKAGE_LIST = DocPath.create("package-list");
 
-    /** The name of the package search index file. */
-    public static final DocPath PACKAGE_SEARCH_INDEX_JSON = DocPath.create("package-search-index.json");
-
-    /** The name of the package search index zip file. */
-    public static final DocPath PACKAGE_SEARCH_INDEX_ZIP = DocPath.create("package-search-index.zip");
-
     /** The name of the package search index js file. */
     public static final DocPath PACKAGE_SEARCH_INDEX_JS = DocPath.create("package-search-index.js");
 
@@ -171,6 +138,9 @@ public class DocPaths {
 
     /** The name of the file for the package usage info. */
     public static final DocPath PACKAGE_USE = DocPath.create("package-use.html");
+
+    /** The name of the file for all system properties. */
+    public static final DocPath SYSTEM_PROPERTIES = DocPath.create("system-properties.html");
 
     /**
      * Returns the path for a type element.
@@ -316,20 +286,8 @@ public class DocPaths {
     /** The name of the default stylesheet. */
     public static final DocPath STYLESHEET = DocPath.create("stylesheet.css");
 
-    /** The name of the tag search index file. */
-    public static final DocPath TAG_SEARCH_INDEX_JSON = DocPath.create("tag-search-index.json");
-
-    /** The name of the tag search index zip file. */
-    public static final DocPath TAG_SEARCH_INDEX_ZIP = DocPath.create("tag-search-index.zip");
-
     /** The name of the tag search index js file. */
     public static final DocPath TAG_SEARCH_INDEX_JS = DocPath.create("tag-search-index.js");
-
-    /** The name of the type search index file. */
-    public static final DocPath TYPE_SEARCH_INDEX_JSON = DocPath.create("type-search-index.json");
-
-    /** The name of the type search index zip file. */
-    public static final DocPath TYPE_SEARCH_INDEX_ZIP = DocPath.create("type-search-index.zip");
 
     /** The name of the type search index js file. */
     public static final DocPath TYPE_SEARCH_INDEX_JS = DocPath.create("type-search-index.js");

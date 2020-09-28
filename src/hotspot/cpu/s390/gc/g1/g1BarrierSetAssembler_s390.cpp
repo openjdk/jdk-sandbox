@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2018, 2019 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -100,7 +100,7 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
 
 void G1BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                     const Address& src, Register dst, Register tmp1, Register tmp2, Label *L_handle_null) {
-  bool on_oop = type == T_OBJECT || type == T_ARRAY;
+  bool on_oop = is_reference_type(type);
   bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
   bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
   bool on_reference = on_weak || on_phantom;
@@ -400,11 +400,11 @@ void G1BarrierSetAssembler::resolve_jobject(MacroAssembler* masm, Register value
 
   __ z_tmll(tmp1, JNIHandles::weak_tag_mask); // Test for jweak tag.
   __ z_braz(Lnot_weak);
-  __ verify_oop(value);
+  __ verify_oop(value, FILE_AND_LINE);
   DecoratorSet decorators = IN_NATIVE | ON_PHANTOM_OOP_REF;
   g1_write_barrier_pre(masm, decorators, (const Address*)NULL, value, noreg, tmp1, tmp2, true);
   __ bind(Lnot_weak);
-  __ verify_oop(value);
+  __ verify_oop(value, FILE_AND_LINE);
   __ bind(Ldone);
 }
 

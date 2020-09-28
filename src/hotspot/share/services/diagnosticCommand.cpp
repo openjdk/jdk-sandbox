@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "jvm.h"
 #include "classfile/classLoaderHierarchyDCmd.hpp"
 #include "classfile/classLoaderStats.hpp"
+#include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/directivesParser.hpp"
 #include "gc/shared/gcVMOperations.hpp"
@@ -90,7 +91,6 @@ void DCmdRegistrant::register_dcmds(){
 #if INCLUDE_SERVICES
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<HeapDumpDCmd>(DCmd_Source_Internal | DCmd_Source_AttachAPI, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassHistogramDCmd>(full_export, true, false));
-  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassStatsDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<SystemDictionaryDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassHierarchyDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<SymboltableDCmd>(full_export, true, false));
@@ -441,8 +441,7 @@ void SystemGCDCmd::execute(DCmdSource source, TRAPS) {
 }
 
 void RunFinalizationDCmd::execute(DCmdSource source, TRAPS) {
-  Klass* k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_System(),
-                                                 true, CHECK);
+  Klass* k = SystemDictionary::System_klass();
   JavaValue result(T_VOID);
   JavaCalls::call_static(&result, k,
                          vmSymbols::run_finalization_name(),
@@ -450,12 +449,12 @@ void RunFinalizationDCmd::execute(DCmdSource source, TRAPS) {
 }
 
 void HeapInfoDCmd::execute(DCmdSource source, TRAPS) {
-  MutexLocker hl(Heap_lock);
+  MutexLocker hl(THREAD, Heap_lock);
   Universe::heap()->print_on(output());
 }
 
 void FinalizerInfoDCmd::execute(DCmdSource source, TRAPS) {
-  ResourceMark rm;
+  ResourceMark rm(THREAD);
 
   Klass* k = SystemDictionary::resolve_or_fail(
     vmSymbols::finalizer_histogram_klass(), true, CHECK);
@@ -506,29 +505,32 @@ HeapDumpDCmd::HeapDumpDCmd(outputStream* output, bool heap) :
                            DCmdWithParser(output, heap),
   _filename("filename","Name of the dump file", "STRING",true),
   _all("-all", "Dump all objects, including unreachable objects",
-       "BOOLEAN", false, "false") {
+       "BOOLEAN", false, "false"),
+  _gzip("-gz", "If specified, the heap dump is written in gzipped format "
+               "using the given compression level. 1 (recommended) is the fastest, "
+               "9 the strongest compression.", "INT", false, "1") {
   _dcmdparser.add_dcmd_option(&_all);
   _dcmdparser.add_dcmd_argument(&_filename);
+  _dcmdparser.add_dcmd_option(&_gzip);
 }
 
 void HeapDumpDCmd::execute(DCmdSource source, TRAPS) {
+  jlong level = -1; // -1 means no compression.
+
+  if (_gzip.is_set()) {
+    level = _gzip.value();
+
+    if (level < 1 || level > 9) {
+      output()->print_cr("Compression level out of range (1-9): " JLONG_FORMAT, level);
+      return;
+    }
+  }
+
   // Request a full GC before heap dump if _all is false
   // This helps reduces the amount of unreachable objects in the dump
   // and makes it easier to browse.
   HeapDumper dumper(!_all.value() /* request GC if _all is false*/);
-  int res = dumper.dump(_filename.value());
-  if (res == 0) {
-    output()->print_cr("Heap dump file created");
-  } else {
-    // heap dump failed
-    ResourceMark rm;
-    char* error = dumper.error_as_C_string();
-    if (error == NULL) {
-      output()->print_cr("Dump failed - reason unknown");
-    } else {
-      output()->print_cr("%s", error);
-    }
-  }
+  dumper.dump(_filename.value(), output(), (int) level);
 }
 
 int HeapDumpDCmd::num_arguments() {
@@ -566,57 +568,6 @@ int ClassHistogramDCmd::num_arguments() {
   }
 }
 
-#define DEFAULT_COLUMNS "InstBytes,KlassBytes,CpAll,annotations,MethodCount,Bytecodes,MethodAll,ROAll,RWAll,Total"
-ClassStatsDCmd::ClassStatsDCmd(outputStream* output, bool heap) :
-                                       DCmdWithParser(output, heap),
-  _all("-all", "Show all columns",
-       "BOOLEAN", false, "false"),
-  _csv("-csv", "Print in CSV (comma-separated values) format for spreadsheets",
-       "BOOLEAN", false, "false"),
-  _help("-help", "Show meaning of all the columns",
-       "BOOLEAN", false, "false"),
-  _columns("columns", "Comma-separated list of all the columns to show. "
-           "If not specified, the following columns are shown: " DEFAULT_COLUMNS,
-           "STRING", false) {
-  _dcmdparser.add_dcmd_option(&_all);
-  _dcmdparser.add_dcmd_option(&_csv);
-  _dcmdparser.add_dcmd_option(&_help);
-  _dcmdparser.add_dcmd_argument(&_columns);
-}
-
-void ClassStatsDCmd::execute(DCmdSource source, TRAPS) {
-  VM_GC_HeapInspection heapop(output(),
-                              true /* request_full_gc */);
-  heapop.set_csv_format(_csv.value());
-  heapop.set_print_help(_help.value());
-  heapop.set_print_class_stats(true);
-  if (_all.value()) {
-    if (_columns.has_value()) {
-      output()->print_cr("Cannot specify -all and individual columns at the same time");
-      return;
-    } else {
-      heapop.set_columns(NULL);
-    }
-  } else {
-    if (_columns.has_value()) {
-      heapop.set_columns(_columns.value());
-    } else {
-      heapop.set_columns(DEFAULT_COLUMNS);
-    }
-  }
-  VMThread::execute(&heapop);
-}
-
-int ClassStatsDCmd::num_arguments() {
-  ResourceMark rm;
-  ClassStatsDCmd* dcmd = new ClassStatsDCmd(NULL, false);
-  if (dcmd != NULL) {
-    DCmdMark mark(dcmd);
-    return dcmd->_dcmdparser.num_arguments();
-  } else {
-    return 0;
-  }
-}
 #endif // INCLUDE_SERVICES
 
 ThreadDumpDCmd::ThreadDumpDCmd(outputStream* output, bool heap) :
@@ -712,7 +663,7 @@ JMXStartRemoteDCmd::JMXStartRemoteDCmd(outputStream *output, bool heap_allocated
 
   _jmxremote_ssl_config_file
   ("jmxremote.ssl.config.file",
-   "set com.sun.management.jmxremote.ssl_config_file", "STRING", false),
+   "set com.sun.management.jmxremote.ssl.config.file", "STRING", false),
 
 // JDP Protocol support
   _jmxremote_autodiscovery
@@ -1122,7 +1073,7 @@ void DebugOnCmdStartDCmd::execute(DCmdSource source, TRAPS) {
   char const* transport = NULL;
   char const* addr = NULL;
   jboolean is_first_start = JNI_FALSE;
-  JavaThread* thread = (JavaThread*) THREAD;
+  JavaThread* thread = THREAD->as_Java_thread();
   jthread jt = JNIHandles::make_local(thread->threadObj());
   ThreadToNativeFromVM ttn(thread);
   const char *error = "Could not find jdwp agent.";

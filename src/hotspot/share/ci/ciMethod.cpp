@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,25 +72,25 @@ ciMethod::ciMethod(const methodHandle& h_m, ciInstanceKlass* holder) :
   assert(h_m() != NULL, "no null method");
 
   if (LogTouchedMethods) {
-    h_m()->log_touched(Thread::current());
+    h_m->log_touched(Thread::current());
   }
   // These fields are always filled in in loaded methods.
-  _flags = ciFlags(h_m()->access_flags());
+  _flags = ciFlags(h_m->access_flags());
 
   // Easy to compute, so fill them in now.
-  _max_stack          = h_m()->max_stack();
-  _max_locals         = h_m()->max_locals();
-  _code_size          = h_m()->code_size();
-  _intrinsic_id       = h_m()->intrinsic_id();
-  _handler_count      = h_m()->exception_table_length();
-  _size_of_parameters = h_m()->size_of_parameters();
-  _uses_monitors      = h_m()->access_flags().has_monitor_bytecodes();
-  _balanced_monitors  = !_uses_monitors || h_m()->access_flags().is_monitor_matching();
-  _is_c1_compilable   = !h_m()->is_not_c1_compilable();
-  _is_c2_compilable   = !h_m()->is_not_c2_compilable();
+  _max_stack          = h_m->max_stack();
+  _max_locals         = h_m->max_locals();
+  _code_size          = h_m->code_size();
+  _intrinsic_id       = h_m->intrinsic_id();
+  _handler_count      = h_m->exception_table_length();
+  _size_of_parameters = h_m->size_of_parameters();
+  _uses_monitors      = h_m->access_flags().has_monitor_bytecodes();
+  _balanced_monitors  = !_uses_monitors || h_m->access_flags().is_monitor_matching();
+  _is_c1_compilable   = !h_m->is_not_c1_compilable();
+  _is_c2_compilable   = !h_m->is_not_c2_compilable();
   _can_be_parsed      = true;
-  _has_reserved_stack_access = h_m()->has_reserved_stack_access();
-  _is_overpass        = h_m()->is_overpass();
+  _has_reserved_stack_access = h_m->has_reserved_stack_access();
+  _is_overpass        = h_m->is_overpass();
   // Lazy fields, filled in on demand.  Require allocation.
   _code               = NULL;
   _exception_handlers = NULL;
@@ -114,8 +114,8 @@ ciMethod::ciMethod(const methodHandle& h_m, ciInstanceKlass* holder) :
     DEBUG_ONLY(CompilerThread::current()->check_possible_safepoint());
   }
 
-  if (h_m()->method_holder()->is_linked()) {
-    _can_be_statically_bound = h_m()->can_be_statically_bound();
+  if (h_m->method_holder()->is_linked()) {
+    _can_be_statically_bound = h_m->can_be_statically_bound();
   } else {
     // Have to use a conservative value in this case.
     _can_be_statically_bound = false;
@@ -123,25 +123,25 @@ ciMethod::ciMethod(const methodHandle& h_m, ciInstanceKlass* holder) :
 
   // Adjust the definition of this condition to be more useful:
   // %%% take these conditions into account in vtable generation
-  if (!_can_be_statically_bound && h_m()->is_private())
+  if (!_can_be_statically_bound && h_m->is_private())
     _can_be_statically_bound = true;
-  if (_can_be_statically_bound && h_m()->is_abstract())
+  if (_can_be_statically_bound && h_m->is_abstract())
     _can_be_statically_bound = false;
 
   // generating _signature may allow GC and therefore move m.
   // These fields are always filled in.
-  _name = env->get_symbol(h_m()->name());
-  ciSymbol* sig_symbol = env->get_symbol(h_m()->signature());
-  constantPoolHandle cpool = h_m()->constants();
+  _name = env->get_symbol(h_m->name());
+  ciSymbol* sig_symbol = env->get_symbol(h_m->signature());
+  constantPoolHandle cpool(Thread::current(), h_m->constants());
   _signature = new (env->arena()) ciSignature(_holder, cpool, sig_symbol);
   _method_data = NULL;
-  _nmethod_age = h_m()->nmethod_age();
+  _nmethod_age = h_m->nmethod_age();
   // Take a snapshot of these values, so they will be commensurate with the MDO.
   if (ProfileInterpreter || TieredCompilation) {
-    int invcnt = h_m()->interpreter_invocation_count();
+    int invcnt = h_m->interpreter_invocation_count();
     // if the value overflowed report it as max int
     _interpreter_invocation_count = invcnt < 0 ? max_jint : invcnt ;
-    _interpreter_throwout_count   = h_m()->interpreter_throwout_count();
+    _interpreter_throwout_count   = h_m->interpreter_throwout_count();
   } else {
     _interpreter_invocation_count = 0;
     _interpreter_throwout_count = 0;
@@ -431,7 +431,7 @@ MethodLivenessResult ciMethod::liveness_at_bci(int bci) {
 ResourceBitMap ciMethod::live_local_oops_at_bci(int bci) {
   VM_ENTRY_MARK;
   InterpreterOopMap mask;
-  OopMapCache::compute_one_oop_map(get_Method(), bci, &mask);
+  OopMapCache::compute_one_oop_map(methodHandle(THREAD, get_Method()), bci, &mask);
   int mask_size = max_locals();
   ResourceBitMap result(mask_size);
   int i;
@@ -749,8 +749,8 @@ ciMethod* ciMethod::find_monomorphic_target(ciInstanceKlass* caller,
   {
     MutexLocker locker(Compile_lock);
     Klass* context = actual_recv->get_Klass();
-    target = Dependencies::find_unique_concrete_method(context,
-                                                       root_m->get_Method());
+    target = methodHandle(THREAD, Dependencies::find_unique_concrete_method(context,
+                                                       root_m->get_Method()));
     // %%% Should upgrade this ciMethod API to look for 1 or 2 concrete methods.
   }
 
@@ -809,8 +809,9 @@ ciMethod* ciMethod::resolve_invoke(ciKlass* caller, ciKlass* exact_receiver, boo
    Symbol* h_signature = signature()->get_symbol();
 
    LinkInfo link_info(resolved, h_name, h_signature, caller_klass,
-                      check_access ? LinkInfo::needs_access_check : LinkInfo::skip_access_check);
-   methodHandle m;
+                      check_access ? LinkInfo::AccessCheck::required : LinkInfo::AccessCheck::skip,
+                      check_access ? LinkInfo::LoaderConstraintCheck::required : LinkInfo::LoaderConstraintCheck::skip);
+   Method* m = NULL;
    // Only do exact lookup if receiver klass has been linked.  Otherwise,
    // the vtable has not been setup, and the LinkResolver will fail.
    if (recv->is_array_klass()
@@ -823,14 +824,14 @@ ciMethod* ciMethod::resolve_invoke(ciKlass* caller, ciKlass* exact_receiver, boo
      }
    }
 
-   if (m.is_null()) {
+   if (m == NULL) {
      // Return NULL only if there was a problem with lookup (uninitialized class, etc.)
      return NULL;
    }
 
    ciMethod* result = this;
-   if (m() != get_Method()) {
-     result = CURRENT_THREAD_ENV->get_method(m());
+   if (m != get_Method()) {
+     result = CURRENT_THREAD_ENV->get_method(m);
    }
 
    // Don't return abstract methods because they aren't
@@ -1035,7 +1036,8 @@ bool ciMethod::ensure_method_data() {
   bool result = true;
   if (_method_data == NULL || _method_data->is_empty()) {
     GUARDED_VM_ENTRY({
-      result = ensure_method_data(get_Method());
+      methodHandle mh(Thread::current(), get_Method());
+      result = ensure_method_data(mh);
     });
   }
   return result;
@@ -1239,7 +1241,7 @@ bool ciMethod::has_unloaded_classes_in_signature() {
   {
     EXCEPTION_MARK;
     methodHandle m(THREAD, get_Method());
-    bool has_unloaded = Method::has_unloaded_classes_in_signature(m, (JavaThread *)THREAD);
+    bool has_unloaded = Method::has_unloaded_classes_in_signature(m, thread);
     if( HAS_PENDING_EXCEPTION ) {
       CLEAR_PENDING_EXCEPTION;
       return true;     // Declare that we may have unloaded classes
@@ -1268,7 +1270,7 @@ bool ciMethod::check_call(int refinfo_index, bool is_static) const {
     HandleMark hm(THREAD);
     constantPoolHandle pool (THREAD, get_Method()->constants());
     Bytecodes::Code code = (is_static ? Bytecodes::_invokestatic : Bytecodes::_invokevirtual);
-    methodHandle spec_method = LinkResolver::resolve_method_statically(code, pool, refinfo_index, THREAD);
+    Method* spec_method = LinkResolver::resolve_method_statically(code, pool, refinfo_index, THREAD);
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
       return false;
@@ -1454,8 +1456,8 @@ void ciMethod::print_impl(outputStream* st) {
 // ------------------------------------------------------------------
 
 static BasicType erase_to_word_type(BasicType bt) {
-  if (is_subword_type(bt)) return T_INT;
-  if (bt == T_ARRAY)       return T_OBJECT;
+  if (is_subword_type(bt))   return T_INT;
+  if (is_reference_type(bt)) return T_OBJECT;
   return bt;
 }
 

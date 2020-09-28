@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -222,8 +222,9 @@ import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
  * refers directly to an associated {@code CONSTANT_Methodref},
  * {@code CONSTANT_InterfaceMethodref}, or {@code CONSTANT_Fieldref}
  * constant pool entry.
- * (For full details on method handle constants,
- * see sections 4.4.8 and 5.4.3.5 of the Java Virtual Machine Specification.)
+ * (For full details on method handle constants, see sections {@jvms
+ * 4.4.8} and {@jvms 5.4.3.5} of the Java Virtual Machine
+ * Specification.)
  * <p>
  * Method handles produced by lookups or constant loads from methods or
  * constructors with the variable arity modifier bit ({@code 0x0080})
@@ -448,11 +449,14 @@ public abstract class MethodHandle implements Constable {
     @interface PolymorphicSignature { }
 
     private final MethodType type;
-    /*private*/ final LambdaForm form;
+    /*private*/
+    final LambdaForm form;
     // form is not private so that invokers can easily fetch it
-    /*private*/ MethodHandle asTypeCache;
+    /*private*/
+    MethodHandle asTypeCache;
     // asTypeCache is not private so that invokers can easily fetch it
-    /*non-public*/ byte customizationCount;
+    /*non-public*/
+    byte customizationCount;
     // customizationCount should be accessible from invokers
 
     /**
@@ -470,7 +474,8 @@ public abstract class MethodHandle implements Constable {
      * the {@code java.lang.invoke} package.
      */
     // @param type type (permanently assigned) of the new method handle
-    /*non-public*/ MethodHandle(MethodType type, LambdaForm form) {
+    /*non-public*/
+    MethodHandle(MethodType type, LambdaForm form) {
         this.type = Objects.requireNonNull(type);
         this.form = Objects.requireNonNull(form).uncustomize();
 
@@ -553,7 +558,8 @@ public abstract class MethodHandle implements Constable {
      * @return the signature-polymorphic result, statically represented using {@code Object}
      */
     @HotSpotIntrinsicCandidate
-    /*non-public*/ final native @PolymorphicSignature Object invokeBasic(Object... args) throws Throwable;
+    /*non-public*/
+    final native @PolymorphicSignature Object invokeBasic(Object... args) throws Throwable;
 
     /**
      * Private method for trusted invocation of a MemberName of kind {@code REF_invokeVirtual}.
@@ -563,7 +569,8 @@ public abstract class MethodHandle implements Constable {
      * @return the signature-polymorphic result, statically represented using {@code Object}
      */
     @HotSpotIntrinsicCandidate
-    /*non-public*/ static native @PolymorphicSignature Object linkToVirtual(Object... args) throws Throwable;
+    /*non-public*/
+    static native @PolymorphicSignature Object linkToVirtual(Object... args) throws Throwable;
 
     /**
      * Private method for trusted invocation of a MemberName of kind {@code REF_invokeStatic}.
@@ -573,7 +580,8 @@ public abstract class MethodHandle implements Constable {
      * @return the signature-polymorphic result, statically represented using {@code Object}
      */
     @HotSpotIntrinsicCandidate
-    /*non-public*/ static native @PolymorphicSignature Object linkToStatic(Object... args) throws Throwable;
+    /*non-public*/
+    static native @PolymorphicSignature Object linkToStatic(Object... args) throws Throwable;
 
     /**
      * Private method for trusted invocation of a MemberName of kind {@code REF_invokeSpecial}.
@@ -583,7 +591,8 @@ public abstract class MethodHandle implements Constable {
      * @return the signature-polymorphic result, statically represented using {@code Object}
      */
     @HotSpotIntrinsicCandidate
-    /*non-public*/ static native @PolymorphicSignature Object linkToSpecial(Object... args) throws Throwable;
+    /*non-public*/
+    static native @PolymorphicSignature Object linkToSpecial(Object... args) throws Throwable;
 
     /**
      * Private method for trusted invocation of a MemberName of kind {@code REF_invokeInterface}.
@@ -593,7 +602,8 @@ public abstract class MethodHandle implements Constable {
      * @return the signature-polymorphic result, statically represented using {@code Object}
      */
     @HotSpotIntrinsicCandidate
-    /*non-public*/ static native @PolymorphicSignature Object linkToInterface(Object... args) throws Throwable;
+    /*non-public*/
+    static native @PolymorphicSignature Object linkToInterface(Object... args) throws Throwable;
 
     /**
      * Performs a variable arity invocation, passing the arguments in the given array
@@ -865,7 +875,8 @@ public abstract class MethodHandle implements Constable {
     }
 
     /** Override this to change asType behavior. */
-    /*non-public*/ MethodHandle asTypeUncached(MethodType newType) {
+    /*non-public*/
+    MethodHandle asTypeUncached(MethodType newType) {
         if (!type.isConvertibleTo(newType))
             throw new WrongMethodTypeException("cannot convert "+this+" to "+newType);
         return asTypeCache = MethodHandleImpl.makePairwiseConvert(this, newType, true);
@@ -1062,36 +1073,37 @@ assertEquals("[A, B, C]", (String) caToString2.invokeExact('A', "BC".toCharArray
                 throw newIllegalArgumentException("array length is not legal for long[] or double[]", arrayLength);
         }
     }
+
     /**
-      * Adapts this method handle to be {@linkplain #asVarargsCollector variable arity}
-      * if the boolean flag is true, else {@linkplain #asFixedArity fixed arity}.
-      * If the method handle is already of the proper arity mode, it is returned
-      * unchanged.
-      * @apiNote
-      * <p>This method is sometimes useful when adapting a method handle that
-      * may be variable arity, to ensure that the resulting adapter is also
-      * variable arity if and only if the original handle was.  For example,
-      * this code changes the first argument of a handle {@code mh} to {@code int} without
-      * disturbing its variable arity property:
-      * {@code mh.asType(mh.type().changeParameterType(0,int.class))
-      *     .withVarargs(mh.isVarargsCollector())}
-      * <p>
-      * This call is approximately equivalent to the following code:
-      * <blockquote><pre>{@code
-      * if (makeVarargs == isVarargsCollector())
-      *   return this;
-      * else if (makeVarargs)
-      *   return asVarargsCollector(type().lastParameterType());
-      * else
-      *   return asFixedArity();
-      * }</pre></blockquote>
-      * @param makeVarargs true if the return method handle should have variable arity behavior
-      * @return a method handle of the same type, with possibly adjusted variable arity behavior
-      * @throws IllegalArgumentException if {@code makeVarargs} is true and
-      *         this method handle does not have a trailing array parameter
-      * @since 9
-      * @see #asVarargsCollector
-      * @see #asFixedArity
+     * Adapts this method handle to be {@linkplain #asVarargsCollector variable arity}
+     * if the boolean flag is true, else {@linkplain #asFixedArity fixed arity}.
+     * If the method handle is already of the proper arity mode, it is returned
+     * unchanged.
+     * @apiNote
+     * <p>This method is sometimes useful when adapting a method handle that
+     * may be variable arity, to ensure that the resulting adapter is also
+     * variable arity if and only if the original handle was.  For example,
+     * this code changes the first argument of a handle {@code mh} to {@code int} without
+     * disturbing its variable arity property:
+     * {@code mh.asType(mh.type().changeParameterType(0,int.class))
+     *     .withVarargs(mh.isVarargsCollector())}
+     * <p>
+     * This call is approximately equivalent to the following code:
+     * <blockquote><pre>{@code
+     * if (makeVarargs == isVarargsCollector())
+     *   return this;
+     * else if (makeVarargs)
+     *   return asVarargsCollector(type().lastParameterType());
+     * else
+     *   return asFixedArity();
+     * }</pre></blockquote>
+     * @param makeVarargs true if the return method handle should have variable arity behavior
+     * @return a method handle of the same type, with possibly adjusted variable arity behavior
+     * @throws IllegalArgumentException if {@code makeVarargs} is true and
+     *         this method handle does not have a trailing array parameter
+     * @since 9
+     * @see #asVarargsCollector
+     * @see #asFixedArity
      */
     public MethodHandle withVarargs(boolean makeVarargs) {
         assert(!isVarargsCollector());  // subclass responsibility
@@ -1242,7 +1254,8 @@ assertEquals("[123]", (String) longsToString.invokeExact((long)123));
      * See if {@code asCollector} can be validly called with the given arguments.
      * Return false if the last parameter is not an exact match to arrayType.
      */
-    /*non-public*/ boolean asCollectorChecks(Class<?> arrayType, int pos, int arrayLength) {
+    /*non-public*/
+    boolean asCollectorChecks(Class<?> arrayType, int pos, int arrayLength) {
         spreadArrayChecks(arrayType, arrayLength);
         int nargs = type().parameterCount();
         if (pos < 0 || pos >= nargs) {
@@ -1627,12 +1640,9 @@ assertEquals("[three, thee, tee]", asListFix.invoke((Object)argv).toString());
     /*non-public*/
     MethodHandle viewAsType(MethodType newType, boolean strict) {
         // No actual conversions, just a new view of the same method.
-        // Note that this operation must not produce a DirectMethodHandle,
-        // because retyped DMHs, like any transformed MHs,
-        // cannot be cracked into MethodHandleInfo.
-        assert viewAsTypeChecks(newType, strict);
-        BoundMethodHandle mh = rebind();
-        return mh.copyWith(newType, mh.form);
+        // Overridden in DMH, which has special rules
+        assert(viewAsTypeChecks(newType, strict));
+        return copyWith(newType, form);
     }
 
     /*non-public*/
@@ -1675,12 +1685,12 @@ assertEquals("[three, thee, tee]", asListFix.invoke((Object)argv).toString());
         if (member != null) {
             return MethodHandleImpl.makeWrappedMember(this, member, isInvokeSpecial);
         } else if (internalMemberName() == null) {
-            // The required internaMemberName is null, and this MH (like most) doesn't have one.
+            // The required internalMemberName is null, and this MH (like most) doesn't have one.
             return this;
         } else {
             // The following case is rare. Mask the internalMemberName by wrapping the MH in a BMH.
             MethodHandle result = rebind();
-            assert (result.internalMemberName() == null);
+            assert(result.internalMemberName() == null);
             return result;
         }
     }
@@ -1688,6 +1698,11 @@ assertEquals("[three, thee, tee]", asListFix.invoke((Object)argv).toString());
     /*non-public*/
     boolean isInvokeSpecial() {
         return false;  // DMH.Special returns true
+    }
+
+    /*non-public*/
+    boolean isCrackable() {
+        return false;
     }
 
     /*non-public*/

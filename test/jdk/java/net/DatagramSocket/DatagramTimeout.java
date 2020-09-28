@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,32 +23,94 @@
 
 /**
  * @test
- * @bug 4163126
- * @summary  test to see if timeout hangs
- * @run main/timeout=15 DatagramTimeout
+ * @bug 4163126 8222829
+ * @summary Test to see if timeout hangs. Also checks that
+ * negative timeout value fails as expected.
+ * @run testng DatagramTimeout
+ * @run testng/othervm -Djdk.net.usePlainDatagramSocketImpl DatagramTimeout
  */
+
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.MulticastSocket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.nio.channels.DatagramChannel;
+
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 
 public class DatagramTimeout {
-    public static void main(String[] args) throws Exception {
-        boolean success = false;
-        DatagramSocket sock = new DatagramSocket();
+    private static final Class<IllegalArgumentException> IAE =
+            IllegalArgumentException.class;
+    private static final Class<SocketTimeoutException> STE =
+            SocketTimeoutException.class;
+    private static final Class<SocketException> SE = SocketException.class;
 
-        try {
-            DatagramPacket p;
-            byte[] buffer = new byte[50];
-            p = new DatagramPacket(buffer, buffer.length);
-            sock.setSoTimeout(2);
-            sock.receive(p);
-        } catch (SocketTimeoutException e) {
-            success = true;
-        } finally {
-            sock.close();
-        }
-        if (!success)
-            throw new RuntimeException("Socket timeout failure.");
+    private DatagramSocket datagramSocket, multicastSocket,
+            datagramSocketAdaptor;
+
+    @BeforeTest
+    public void setUp() throws Exception {
+        datagramSocket = new DatagramSocket();
+        multicastSocket = new MulticastSocket();
+        datagramSocketAdaptor = DatagramChannel.open().socket();
     }
 
+    @DataProvider(name = "data")
+    public Object[][] variants() {
+        return new Object[][]{
+                { datagramSocket        },
+                { datagramSocketAdaptor },
+                { multicastSocket       },
+        };
+    }
+
+    @Test(dataProvider = "data")
+    public void testSetNegTimeout(DatagramSocket ds)  {
+        assertThrows(IAE, () -> ds.setSoTimeout(-1));
+    }
+
+    @Test(dataProvider = "data")
+    public void testSetTimeout(DatagramSocket ds) throws Exception {
+        byte[] buffer = new byte[50];
+        DatagramPacket pkt = new DatagramPacket(buffer, buffer.length);
+        ds.setSoTimeout(2);
+        assertThrows(STE, () -> ds.receive(pkt));
+    }
+
+    @Test(dataProvider = "data")
+    public void testGetTimeout(DatagramSocket ds) throws Exception {
+        ds.setSoTimeout(10);
+        assertEquals(10, ds.getSoTimeout());
+    }
+
+    @AfterTest
+    public void tearDown() {
+        datagramSocket.close();
+        multicastSocket.close();
+        datagramSocketAdaptor.close();
+    }
+
+    @Test
+    public void testSetGetAfterClose() throws Exception {
+        var ds = new DatagramSocket();
+        var ms = new MulticastSocket();
+        var dsa = DatagramChannel.open().socket();
+
+        ds.close();
+        ms.close();
+        dsa.close();
+        assertThrows(SE, () -> ds.setSoTimeout(10));
+        assertThrows(SE, () -> ds.getSoTimeout());
+        assertThrows(SE, () -> ms.setSoTimeout(10));
+        assertThrows(SE, () -> ms.getSoTimeout());
+        assertThrows(SE, () -> dsa.setSoTimeout(10));
+        assertThrows(SE, () -> dsa.getSoTimeout());
+    }
 }

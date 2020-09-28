@@ -26,7 +26,6 @@
  * @bug      4034096 4764726 6235799 8182765 8196202
  * @summary  Add support for HTML keywords via META tag for
  *           class and member names to improve API search
- * @author   dkramer
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    javadoc.tester.*
@@ -78,17 +77,24 @@ public class MetaTag extends JavadocTester {
 
     void checkMeta(String metaNameDate, boolean found) {
         checkOutput("p1/C1.html", found,
-                "<meta name=\"keywords\" content=\"p1.C1 class\">",
-                "<meta name=\"keywords\" content=\"field1\">",
-                "<meta name=\"keywords\" content=\"field2\">",
-                "<meta name=\"keywords\" content=\"method1()\">",
-                "<meta name=\"keywords\" content=\"method2()\">");
+                """
+                    <meta name="keywords" content="p1.C1 class">""",
+                """
+                    <meta name="keywords" content="field1">""",
+                """
+                    <meta name="keywords" content="field2">""",
+                """
+                    <meta name="keywords" content="method1()">""",
+                """
+                    <meta name="keywords" content="method2()">""");
 
         checkOutput("p1/package-summary.html", found,
-                "<meta name=\"keywords\" content=\"p1 package\">");
+                """
+                    <meta name="keywords" content="p1 package">""");
 
         checkOutput("index.html", found,
-                "<meta name=\"keywords\" content=\"Overview, Sample Packages\">");
+                """
+                    <meta name="keywords" content="Overview, Sample Packages">""");
 
         // NOTE: Hopefully, this regression test is not run at midnight.  If the output
         // was generated yesterday and this test is run today, this check could fail ...

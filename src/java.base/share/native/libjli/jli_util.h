@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,7 +80,6 @@ JLI_GetAppArgIndex();
 #define JLI_StrSpn(p1, p2)      strspn((p1), (p2))
 #define JLI_StrCSpn(p1, p2)     strcspn((p1), (p2))
 #define JLI_StrPBrk(p1, p2)     strpbrk((p1), (p2))
-#define JLI_StrTok(p1, p2)      strtok((p1), (p2))
 
 /* On Windows lseek() is in io.h rather than the location dictated by POSIX. */
 #ifdef _WIN32
@@ -105,9 +104,6 @@ JLI_CmdToArgs(char *cmdline);
 #define JLI_Open                        open
 #define JLI_PutEnv                      putenv
 #define JLI_GetPid                      getpid
-#ifdef __solaris__
-#define JLI_Lseek                       llseek
-#endif
 #ifdef __linux__
 #define _LARGFILE64_SOURCE
 #define JLI_Lseek                       lseek64

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,6 +73,10 @@ public class Basic {
 
     /* used for AIX only */
     static final String libpath = System.getenv("LIBPATH");
+
+    /* Used for regex String matching for long error messages */
+    static final String PERMISSION_DENIED_ERROR_MSG = "(Permission denied|error=13)";
+    static final String NO_SUCH_FILE_ERROR_MSG = "(No such file|error=2)";
 
     /**
      * Returns the number of milliseconds since time given by
@@ -305,7 +309,7 @@ public class Basic {
         } catch (IOException e) {
             String m = e.getMessage();
             if (EnglishUnix.is() &&
-                ! matches(m, "Permission denied"))
+                ! matches(m, PERMISSION_DENIED_ERROR_MSG))
                 unexpected(e);
         } catch (Throwable t) { unexpected(t); }
     }
@@ -415,7 +419,7 @@ public class Basic {
                         } catch (IOException e) {
                             String m = e.getMessage();
                             if (EnglishUnix.is() &&
-                                ! matches(m, "No such file"))
+                                ! matches(m, NO_SUCH_FILE_ERROR_MSG))
                                 unexpected(e);
                         } catch (Throwable t) { unexpected(t); }
 
@@ -428,7 +432,7 @@ public class Basic {
                         } catch (IOException e) {
                             String m = e.getMessage();
                             if (EnglishUnix.is() &&
-                                ! matches(m, "No such file"))
+                                ! matches(m, NO_SUCH_FILE_ERROR_MSG))
                                 unexpected(e);
                         } catch (Throwable t) { unexpected(t); }
 
@@ -1982,7 +1986,7 @@ public class Basic {
         } catch (IOException e) {
             String m = e.getMessage();
             if (EnglishUnix.is() &&
-                ! matches(m, "No such file or directory"))
+                ! matches(m, NO_SUCH_FILE_ERROR_MSG))
                 unexpected(e);
         } catch (Throwable t) { unexpected(t); }
 
@@ -1998,8 +2002,8 @@ public class Basic {
                 String m = e.getMessage();
                 Pattern p = Pattern.compile(programName);
                 if (! matches(m, programName)
-                    || (EnglishUnix.is()
-                        && ! matches(m, "No such file or directory")))
+                    || (EnglishUnix.is() &&
+                        ! matches(m, NO_SUCH_FILE_ERROR_MSG)))
                     unexpected(e);
             } catch (Throwable t) { unexpected(t); }
 
@@ -2015,7 +2019,7 @@ public class Basic {
             String m = e.getMessage();
             if (! matches(m, "in directory")
                 || (EnglishUnix.is() &&
-                    ! matches(m, "No such file or directory")))
+                    ! matches(m, NO_SUCH_FILE_ERROR_MSG)))
                 unexpected(e);
         } catch (Throwable t) { unexpected(t); }
 
@@ -2111,6 +2115,19 @@ public class Basic {
                                 case 2: r = s.read(bytes); break;
                                 default: throw new Error();
                             }
+                            if (r >= 0) {
+                                // The child sent unexpected output; print it to diagnose
+                                System.out.println("Unexpected child output:");
+                                if ((action & 0x2) == 0) {
+                                    System.out.write(r);    // Single character
+
+                                } else {
+                                    System.out.write(bytes, 0, r);
+                                }
+                                for (int c = s.read(); c >= 0; c = s.read())
+                                    System.out.write(c);
+                                System.out.println("\nEND Child output.");
+                            }
                             equal(-1, r);
                         } catch (IOException ioe) {
                             if (!ioe.getMessage().equals("Stream closed")) {
@@ -2123,30 +2140,7 @@ public class Basic {
                 latch.await();
                 Thread.sleep(10);
 
-                String os = System.getProperty("os.name");
-                if (os.equalsIgnoreCase("Solaris") ||
-                    os.equalsIgnoreCase("SunOS"))
-                {
-                    final Object deferred;
-                    Class<?> c = s.getClass();
-                    if (c.getName().equals(
-                        "java.lang.ProcessImpl$DeferredCloseInputStream"))
-                    {
-                        deferred = s;
-                    } else {
-                        Field deferredField = p.getClass().
-                            getDeclaredField("stdout_inner_stream");
-                        deferredField.setAccessible(true);
-                        deferred = deferredField.get(p);
-                    }
-                    Field useCountField = deferred.getClass().
-                        getDeclaredField("useCount");
-                    useCountField.setAccessible(true);
-
-                    while (useCountField.getInt(deferred) <= 0) {
-                        Thread.yield();
-                    }
-                } else if (s instanceof BufferedInputStream) {
+                if (s instanceof BufferedInputStream) {
                     // Wait until after the s.read occurs in "thread" by
                     // checking when the input stream monitor is acquired
                     // (BufferedInputStream.read is synchronized)
@@ -2282,7 +2276,7 @@ public class Basic {
             new File("./emptyCommand").delete();
             String m = e.getMessage();
             if (EnglishUnix.is() &&
-                ! matches(m, "Permission denied"))
+                ! matches(m, PERMISSION_DENIED_ERROR_MSG))
                 unexpected(e);
         } catch (Throwable t) { unexpected(t); }
 

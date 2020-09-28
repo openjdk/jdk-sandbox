@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/stringTable.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "code/icBuffer.hpp"
@@ -47,7 +46,10 @@
 #include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/genOopClosures.inline.hpp"
 #include "gc/shared/generationSpec.hpp"
+#include "gc/shared/gcInitLogger.hpp"
 #include "gc/shared/locationPrinter.inline.hpp"
+#include "gc/shared/oopStorage.inline.hpp"
+#include "gc/shared/oopStorageSet.inline.hpp"
 #include "gc/shared/oopStorageParState.inline.hpp"
 #include "gc/shared/scavengableNMethods.hpp"
 #include "gc/shared/space.hpp"
@@ -55,18 +57,18 @@
 #include "gc/shared/weakProcessor.hpp"
 #include "gc/shared/workgroup.hpp"
 #include "memory/filemap.hpp"
+#include "memory/iterator.hpp"
 #include "memory/metaspaceCounters.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/flags/flagSetting.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/vmThread.hpp"
-#include "services/management.hpp"
 #include "services/memoryService.hpp"
+#include "utilities/autoRestore.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/formatBuffer.hpp"
 #include "utilities/macros.hpp"
@@ -80,6 +82,8 @@ GenCollectedHeap::GenCollectedHeap(Generation::Name young,
                                    Generation::Name old,
                                    const char* policy_counters_name) :
   CollectedHeap(),
+  _young_gen(NULL),
+  _old_gen(NULL),
   _young_gen_spec(new GenerationSpec(young,
                                      NewSize,
                                      MaxNewSize,
@@ -90,9 +94,13 @@ GenCollectedHeap::GenCollectedHeap(Generation::Name young,
                                    GenAlignment)),
   _rem_set(NULL),
   _soft_ref_gen_policy(),
+  _size_policy(NULL),
   _gc_policy_counters(new GCPolicyCounters(policy_counters_name, 2, 2)),
+  _incremental_collection_failed(false),
   _full_collections_completed(0),
-  _process_strong_tasks(new SubTasksDone(GCH_PS_NumElements)) {
+  _process_strong_tasks(new SubTasksDone(GCH_PS_NumElements)),
+  _young_manager(NULL),
+  _old_manager(NULL) {
 }
 
 jint GenCollectedHeap::initialize() {
@@ -105,10 +113,7 @@ jint GenCollectedHeap::initialize() {
 
   // Allocate space for the heap.
 
-  char* heap_address;
-  ReservedSpace heap_rs;
-
-  heap_address = allocate(HeapAlignment, &heap_rs);
+  ReservedHeapSpace heap_rs = allocate(HeapAlignment);
 
   if (!heap_rs.is_reserved()) {
     vm_shutdown_during_initialization(
@@ -116,21 +121,22 @@ jint GenCollectedHeap::initialize() {
     return JNI_ENOMEM;
   }
 
-  initialize_reserved_region((HeapWord*)heap_rs.base(), (HeapWord*)(heap_rs.base() + heap_rs.size()));
+  initialize_reserved_region(heap_rs);
 
-  _rem_set = create_rem_set(reserved_region());
+  _rem_set = create_rem_set(heap_rs.region());
   _rem_set->initialize();
   CardTableBarrierSet *bs = new CardTableBarrierSet(_rem_set);
   bs->initialize();
   BarrierSet::set_barrier_set(bs);
 
-  ReservedSpace young_rs = heap_rs.first_part(_young_gen_spec->max_size(), false, false);
+  ReservedSpace young_rs = heap_rs.first_part(_young_gen_spec->max_size());
   _young_gen = _young_gen_spec->init(young_rs, rem_set());
-  heap_rs = heap_rs.last_part(_young_gen_spec->max_size());
+  ReservedSpace old_rs = heap_rs.last_part(_young_gen_spec->max_size());
 
-  ReservedSpace old_rs = heap_rs.first_part(_old_gen_spec->max_size(), false, false);
+  old_rs = old_rs.first_part(_old_gen_spec->max_size());
   _old_gen = _old_gen_spec->init(old_rs, rem_set());
-  clear_incremental_collection_failed();
+
+  GCInitLogger::print();
 
   return JNI_OK;
 }
@@ -150,8 +156,7 @@ void GenCollectedHeap::initialize_size_policy(size_t init_eden_size,
                                         GCTimeRatio);
 }
 
-char* GenCollectedHeap::allocate(size_t alignment,
-                                 ReservedSpace* heap_rs){
+ReservedHeapSpace GenCollectedHeap::allocate(size_t alignment) {
   // Now figure out the total size.
   const size_t pageSize = UseLargePages ? os::large_page_size() : os::vm_page_size();
   assert(alignment % pageSize == 0, "Must be");
@@ -166,16 +171,16 @@ char* GenCollectedHeap::allocate(size_t alignment,
          "Gen size; total_reserved=" SIZE_FORMAT ", alignment="
          SIZE_FORMAT, total_reserved, alignment);
 
-  *heap_rs = Universe::reserve_heap(total_reserved, alignment);
+  ReservedHeapSpace heap_rs = Universe::reserve_heap(total_reserved, alignment);
 
   os::trace_page_sizes("Heap",
                        MinHeapSize,
                        total_reserved,
                        alignment,
-                       heap_rs->base(),
-                       heap_rs->size());
+                       heap_rs.base(),
+                       heap_rs.size());
 
-  return heap_rs->base();
+  return heap_rs;
 }
 
 class GenIsScavengable : public BoolObjectClosure {
@@ -205,6 +210,19 @@ void GenCollectedHeap::post_initialize() {
 void GenCollectedHeap::ref_processing_init() {
   _young_gen->ref_processor_init();
   _old_gen->ref_processor_init();
+}
+
+PreGenGCValues GenCollectedHeap::get_pre_gc_values() const {
+  const DefNewGeneration* const def_new_gen = (DefNewGeneration*) young_gen();
+
+  return PreGenGCValues(def_new_gen->used(),
+                        def_new_gen->capacity(),
+                        def_new_gen->eden()->used(),
+                        def_new_gen->eden()->capacity(),
+                        def_new_gen->from()->used(),
+                        def_new_gen->from()->capacity(),
+                        old_gen()->used(),
+                        old_gen()->capacity());
 }
 
 GenerationSpec* GenCollectedHeap::young_gen_spec() const {
@@ -299,7 +317,6 @@ HeapWord* GenCollectedHeap::mem_allocate_work(size_t size,
 
   // Loop until the allocation is satisfied, or unsatisfied after GC.
   for (uint try_count = 1, gclocker_stalled_count = 0; /* return or throw */; try_count += 1) {
-    HandleMark hm; // Discard any handles allocated in each iteration.
 
     // First allocation attempt is lock-free.
     Generation *young = _young_gen;
@@ -409,35 +426,6 @@ HeapWord* GenCollectedHeap::mem_allocate_work(size_t size,
   }
 }
 
-#ifndef PRODUCT
-// Override of memory state checking method in CollectedHeap:
-// Some collectors (CMS for example) can't have badHeapWordVal written
-// in the first two words of an object. (For instance , in the case of
-// CMS these words hold state used to synchronize between certain
-// (concurrent) GC steps and direct allocating mutators.)
-// The skip_header_HeapWords() method below, allows us to skip
-// over the requisite number of HeapWord's. Note that (for
-// generational collectors) this means that those many words are
-// skipped in each object, irrespective of the generation in which
-// that object lives. The resultant loss of precision seems to be
-// harmless and the pain of avoiding that imprecision appears somewhat
-// higher than we are prepared to pay for such rudimentary debugging
-// support.
-void GenCollectedHeap::check_for_non_bad_heap_word_value(HeapWord* addr,
-                                                         size_t size) {
-  if (CheckMemoryInitialization && ZapUnusedHeapArea) {
-    // We are asked to check a size in HeapWords,
-    // but the memory is mangled in juint words.
-    juint* start = (juint*) (addr + skip_header_HeapWords());
-    juint* end   = (juint*) (addr + size);
-    for (juint* slot = start; slot < end; slot += 1) {
-      assert(*slot == badHeapWordVal,
-             "Found non badHeapWordValue in pre-allocation check");
-    }
-  }
-}
-#endif
-
 HeapWord* GenCollectedHeap::attempt_allocation(size_t size,
                                                bool is_tlab,
                                                bool first_only) {
@@ -488,10 +476,9 @@ void GenCollectedHeap::collect_generation(Generation* gen, bool full, size_t siz
   log_trace(gc)("%s invoke=%d size=" SIZE_FORMAT, heap()->is_young_gen(gen) ? "Young" : "Old", gen->stat_record()->invocations, size * HeapWordSize);
 
   if (run_verification && VerifyBeforeGC) {
-    HandleMark hm;  // Discard invalid handles created during verification
     Universe::verify("Before GC");
   }
-  COMPILER2_PRESENT(DerivedPointerTable::clear());
+  COMPILER2_OR_JVMCI_PRESENT(DerivedPointerTable::clear());
 
   if (restore_marks_for_biased_locking) {
     // We perform this mark word preservation work lazily
@@ -513,7 +500,6 @@ void GenCollectedHeap::collect_generation(Generation* gen, bool full, size_t siz
     // weak refs more uniform (and indeed remove such concerns
     // from GCH). XXX
 
-    HandleMark hm;  // Discard invalid handles created during gc
     save_marks();   // save marks for all gens
     // We want to discover references, but not process them yet.
     // This mode is disabled in process_discovered_references if the
@@ -539,14 +525,13 @@ void GenCollectedHeap::collect_generation(Generation* gen, bool full, size_t siz
     rp->verify_no_references_recorded();
   }
 
-  COMPILER2_PRESENT(DerivedPointerTable::update_pointers());
+  COMPILER2_OR_JVMCI_PRESENT(DerivedPointerTable::update_pointers());
 
   gen->stat_record()->accumulated_time.stop();
 
   update_gc_stats(gen, full);
 
   if (run_verification && VerifyAfterGC) {
-    HandleMark hm;  // Discard invalid handles created during verification
     Universe::verify("After GC");
   }
 }
@@ -576,15 +561,13 @@ void GenCollectedHeap::do_collection(bool           full,
 
   ClearedAllSoftRefs casr(do_clear_all_soft_refs, soft_ref_policy());
 
-  FlagSetting fl(_is_gc_active, true);
+  AutoModifyRestore<bool> temporarily(_is_gc_active, true);
 
   bool complete = full && (max_generation == OldGen);
   bool old_collects_young = complete && !ScavengeBeforeFullGC;
   bool do_young_collection = !old_collects_young && _young_gen->should_collect(full, size, is_tlab);
 
-  size_t young_prev_used = _young_gen->used();
-  size_t old_prev_used = _old_gen->used();
-  const metaspace::MetaspaceSizesSnapshot prev_meta_sizes;
+  const PreGenGCValues pre_gc_values = get_pre_gc_values();
 
   bool run_verification = total_collections() >= VerifyGCStartAt;
   bool prepared_for_verification = false;
@@ -626,8 +609,7 @@ void GenCollectedHeap::do_collection(bool           full,
       // Adjust generation sizes.
       _young_gen->compute_new_size();
 
-      print_heap_change(young_prev_used, old_prev_used);
-      MetaspaceUtils::print_metaspace_change(prev_meta_sizes);
+      print_heap_change(pre_gc_values);
 
       // Track memory usage and detect low memory after GC finishes
       MemoryService::track_memory_usage();
@@ -679,14 +661,13 @@ void GenCollectedHeap::do_collection(bool           full,
     _young_gen->compute_new_size();
 
     // Delete metaspaces for unloaded class loaders and clean up loader_data graph
-    ClassLoaderDataGraph::purge();
+    ClassLoaderDataGraph::purge(/*at_safepoint*/true);
     MetaspaceUtils::verify_metrics();
     // Resize the metaspace capacity after full collections
     MetaspaceGC::compute_new_size();
     update_full_collections_completed();
 
-    print_heap_change(young_prev_used, old_prev_used);
-    MetaspaceUtils::print_metaspace_change(prev_meta_sizes);
+    print_heap_change(pre_gc_values);
 
     // Track memory usage and detect low memory after GC finishes
     MemoryService::track_memory_usage();
@@ -699,10 +680,6 @@ void GenCollectedHeap::do_collection(bool           full,
 
     print_heap_after_gc();
   }
-
-#ifdef TRACESPINNING
-  ParallelTaskTerminator::print_termination_counts();
-#endif
 }
 
 bool GenCollectedHeap::should_do_full_collection(size_t size, bool full, bool is_tlab,
@@ -840,30 +817,13 @@ void GenCollectedHeap::process_roots(StrongRootsScope* scope,
   bool is_par = scope->n_threads() > 1;
   Threads::possibly_parallel_oops_do(is_par, strong_roots, roots_from_code_p);
 
-  if (_process_strong_tasks->try_claim_task(GCH_PS_Universe_oops_do)) {
-    Universe::oops_do(strong_roots);
-  }
-  // Global (strong) JNI handles
-  if (_process_strong_tasks->try_claim_task(GCH_PS_JNIHandles_oops_do)) {
-    JNIHandles::oops_do(strong_roots);
-  }
-
-  if (_process_strong_tasks->try_claim_task(GCH_PS_ObjectSynchronizer_oops_do)) {
-    ObjectSynchronizer::oops_do(strong_roots);
-  }
-  if (_process_strong_tasks->try_claim_task(GCH_PS_Management_oops_do)) {
-    Management::oops_do(strong_roots);
-  }
-  if (_process_strong_tasks->try_claim_task(GCH_PS_jvmti_oops_do)) {
-    JvmtiExport::oops_do(strong_roots);
-  }
 #if INCLUDE_AOT
   if (UseAOT && _process_strong_tasks->try_claim_task(GCH_PS_aot_oops_do)) {
     AOTLoader::oops_do(strong_roots);
   }
 #endif
-  if (_process_strong_tasks->try_claim_task(GCH_PS_SystemDictionary_oops_do)) {
-    SystemDictionary::oops_do(strong_roots);
+  if (_process_strong_tasks->try_claim_task(GCH_PS_OopStorageSet_oops_do)) {
+    OopStorageSet::strong_oops_do(strong_roots);
   }
 
   if (_process_strong_tasks->try_claim_task(GCH_PS_CodeCache_oops_do)) {
@@ -887,33 +847,11 @@ void GenCollectedHeap::process_roots(StrongRootsScope* scope,
   }
 }
 
-void GenCollectedHeap::young_process_roots(StrongRootsScope* scope,
-                                           OopsInGenClosure* root_closure,
-                                           OopsInGenClosure* old_gen_closure,
-                                           CLDClosure* cld_closure) {
-  MarkingCodeBlobClosure mark_code_closure(root_closure, CodeBlobToOopClosure::FixRelocations);
-
-  process_roots(scope, SO_ScavengeCodeCache, root_closure,
-                cld_closure, cld_closure, &mark_code_closure);
-
-  if (_process_strong_tasks->try_claim_task(GCH_PS_younger_gens)) {
-    root_closure->reset_generation();
-  }
-
-  // When collection is parallel, all threads get to cooperate to do
-  // old generation scanning.
-  old_gen_closure->set_generation(_old_gen);
-  rem_set()->younger_refs_iterate(_old_gen, old_gen_closure, scope->n_threads());
-  old_gen_closure->reset_generation();
-
-  _process_strong_tasks->all_tasks_completed(scope->n_threads());
-}
-
 void GenCollectedHeap::full_process_roots(StrongRootsScope* scope,
                                           bool is_adjust_phase,
                                           ScanningOption so,
                                           bool only_strong_roots,
-                                          OopsInGenClosure* root_closure,
+                                          OopClosure* root_closure,
                                           CLDClosure* cld_closure) {
   MarkingCodeBlobClosure mark_code_closure(root_closure, is_adjust_phase);
   CLDClosure* weak_cld_closure = only_strong_roots ? NULL : cld_closure;
@@ -1027,7 +965,7 @@ void GenCollectedHeap::do_full_collection(bool clear_all_soft_refs,
 }
 
 bool GenCollectedHeap::is_in_young(oop p) {
-  bool result = ((HeapWord*)p) < _old_gen->reserved().start();
+  bool result = cast_from_oop<HeapWord*>(p) < _old_gen->reserved().start();
   assert(result == _young_gen->is_in_reserved(p),
          "incorrect test - result=%d, p=" INTPTR_FORMAT, result, p2i((void*)p));
   return result;
@@ -1056,11 +994,6 @@ void GenCollectedHeap::oop_iterate(OopIterateClosure* cl) {
 void GenCollectedHeap::object_iterate(ObjectClosure* cl) {
   _young_gen->object_iterate(cl);
   _old_gen->object_iterate(cl);
-}
-
-void GenCollectedHeap::safe_object_iterate(ObjectClosure* cl) {
-  _young_gen->safe_object_iterate(cl);
-  _old_gen->safe_object_iterate(cl);
 }
 
 Space* GenCollectedHeap::space_containing(const void* addr) const {
@@ -1096,33 +1029,22 @@ bool GenCollectedHeap::block_is_obj(const HeapWord* addr) const {
   return _old_gen->block_is_obj(addr);
 }
 
-bool GenCollectedHeap::supports_tlab_allocation() const {
-  assert(!_old_gen->supports_tlab_allocation(), "Old gen supports TLAB allocation?!");
-  return _young_gen->supports_tlab_allocation();
-}
-
 size_t GenCollectedHeap::tlab_capacity(Thread* thr) const {
   assert(!_old_gen->supports_tlab_allocation(), "Old gen supports TLAB allocation?!");
-  if (_young_gen->supports_tlab_allocation()) {
-    return _young_gen->tlab_capacity();
-  }
-  return 0;
+  assert(_young_gen->supports_tlab_allocation(), "Young gen doesn't support TLAB allocation?!");
+  return _young_gen->tlab_capacity();
 }
 
 size_t GenCollectedHeap::tlab_used(Thread* thr) const {
   assert(!_old_gen->supports_tlab_allocation(), "Old gen supports TLAB allocation?!");
-  if (_young_gen->supports_tlab_allocation()) {
-    return _young_gen->tlab_used();
-  }
-  return 0;
+  assert(_young_gen->supports_tlab_allocation(), "Young gen doesn't support TLAB allocation?!");
+  return _young_gen->tlab_used();
 }
 
 size_t GenCollectedHeap::unsafe_max_tlab_alloc(Thread* thr) const {
   assert(!_old_gen->supports_tlab_allocation(), "Old gen supports TLAB allocation?!");
-  if (_young_gen->supports_tlab_allocation()) {
-    return _young_gen->unsafe_max_tlab_alloc();
-  }
-  return 0;
+  assert(_young_gen->supports_tlab_allocation(), "Young gen doesn't support TLAB allocation?!");
+  return _young_gen->unsafe_max_tlab_alloc();
 }
 
 HeapWord* GenCollectedHeap::allocate_new_tlab(size_t min_size,
@@ -1222,11 +1144,8 @@ void GenCollectedHeap::save_marks() {
 }
 
 GenCollectedHeap* GenCollectedHeap::heap() {
-  CollectedHeap* heap = Universe::heap();
-  assert(heap != NULL, "Uninitialized access to GenCollectedHeap::heap()");
-  assert(heap->kind() == CollectedHeap::Serial ||
-         heap->kind() == CollectedHeap::CMS, "Invalid name");
-  return (GenCollectedHeap*) heap;
+  // SerialHeap is the only subtype of GenCollectedHeap.
+  return named_heap<GenCollectedHeap>(CollectedHeap::Serial);
 }
 
 #if INCLUDE_SERIALGC
@@ -1250,15 +1169,16 @@ void GenCollectedHeap::verify(VerifyOption option /* ignored */) {
 }
 
 void GenCollectedHeap::print_on(outputStream* st) const {
-  _young_gen->print_on(st);
-  _old_gen->print_on(st);
+  if (_young_gen != NULL) {
+    _young_gen->print_on(st);
+  }
+  if (_old_gen != NULL) {
+    _old_gen->print_on(st);
+  }
   MetaspaceUtils::print_on(st);
 }
 
 void GenCollectedHeap::gc_threads_do(ThreadClosure* tc) const {
-}
-
-void GenCollectedHeap::print_gc_threads_on(outputStream* st) const {
 }
 
 bool GenCollectedHeap::print_location(outputStream* st, void* addr) const {
@@ -1273,11 +1193,34 @@ void GenCollectedHeap::print_tracing_info() const {
   }
 }
 
-void GenCollectedHeap::print_heap_change(size_t young_prev_used, size_t old_prev_used) const {
-  log_info(gc, heap)("%s: " SIZE_FORMAT "K->" SIZE_FORMAT "K("  SIZE_FORMAT "K)",
-                     _young_gen->short_name(), young_prev_used / K, _young_gen->used() /K, _young_gen->capacity() /K);
-  log_info(gc, heap)("%s: " SIZE_FORMAT "K->" SIZE_FORMAT "K("  SIZE_FORMAT "K)",
-                     _old_gen->short_name(), old_prev_used / K, _old_gen->used() /K, _old_gen->capacity() /K);
+void GenCollectedHeap::print_heap_change(const PreGenGCValues& pre_gc_values) const {
+  const DefNewGeneration* const def_new_gen = (DefNewGeneration*) young_gen();
+
+  log_info(gc, heap)(HEAP_CHANGE_FORMAT" "
+                     HEAP_CHANGE_FORMAT" "
+                     HEAP_CHANGE_FORMAT,
+                     HEAP_CHANGE_FORMAT_ARGS(def_new_gen->short_name(),
+                                             pre_gc_values.young_gen_used(),
+                                             pre_gc_values.young_gen_capacity(),
+                                             def_new_gen->used(),
+                                             def_new_gen->capacity()),
+                     HEAP_CHANGE_FORMAT_ARGS("Eden",
+                                             pre_gc_values.eden_used(),
+                                             pre_gc_values.eden_capacity(),
+                                             def_new_gen->eden()->used(),
+                                             def_new_gen->eden()->capacity()),
+                     HEAP_CHANGE_FORMAT_ARGS("From",
+                                             pre_gc_values.from_used(),
+                                             pre_gc_values.from_capacity(),
+                                             def_new_gen->from()->used(),
+                                             def_new_gen->from()->capacity()));
+  log_info(gc, heap)(HEAP_CHANGE_FORMAT,
+                     HEAP_CHANGE_FORMAT_ARGS(old_gen()->short_name(),
+                                             pre_gc_values.old_gen_used(),
+                                             pre_gc_values.old_gen_capacity(),
+                                             old_gen()->used(),
+                                             old_gen()->capacity()));
+  MetaspaceUtils::print_metaspace_change(pre_gc_values.metaspace_sizes());
 }
 
 class GenGCPrologueClosure: public GenCollectedHeap::GenClosure {
@@ -1371,41 +1314,7 @@ oop GenCollectedHeap::handle_failed_promotion(Generation* old_gen,
   result = old_gen->expand_and_allocate(obj_size, false);
 
   if (result != NULL) {
-    Copy::aligned_disjoint_words((HeapWord*)obj, result, obj_size);
+    Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(obj), result, obj_size);
   }
   return oop(result);
-}
-
-class GenTimeOfLastGCClosure: public GenCollectedHeap::GenClosure {
-  jlong _time;   // in ms
-  jlong _now;    // in ms
-
- public:
-  GenTimeOfLastGCClosure(jlong now) : _time(now), _now(now) { }
-
-  jlong time() { return _time; }
-
-  void do_generation(Generation* gen) {
-    _time = MIN2(_time, gen->time_of_last_gc(_now));
-  }
-};
-
-jlong GenCollectedHeap::millis_since_last_gc() {
-  // javaTimeNanos() is guaranteed to be monotonically non-decreasing
-  // provided the underlying platform provides such a time source
-  // (and it is bug free). So we still have to guard against getting
-  // back a time later than 'now'.
-  jlong now = os::javaTimeNanos() / NANOSECS_PER_MILLISEC;
-  GenTimeOfLastGCClosure tolgc_cl(now);
-  // iterate over generations getting the oldest
-  // time that a generation was collected
-  generation_iterate(&tolgc_cl, false);
-
-  jlong retVal = now - tolgc_cl.time();
-  if (retVal < 0) {
-    log_warning(gc)("millis_since_last_gc() would return : " JLONG_FORMAT
-       ". returning zero instead.", retVal);
-    return 0;
-  }
-  return retVal;
 }

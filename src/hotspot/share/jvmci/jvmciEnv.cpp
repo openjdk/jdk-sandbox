@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,30 +26,54 @@
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
 #include "code/codeCache.hpp"
+#include "compiler/compileTask.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "runtime/deoptimization.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "jvmci/jniAccessMark.inline.hpp"
+#include "jvmci/jvmciCompiler.hpp"
 #include "jvmci/jvmciRuntime.hpp"
 
-JVMCICompileState::JVMCICompileState(CompileTask* task):
+JVMCICompileState::JVMCICompileState(CompileTask* task, JVMCICompiler* compiler):
   _task(task),
+  _compiler(compiler),
   _retryable(true),
   _failure_reason(NULL),
   _failure_reason_on_C_heap(false) {
   // Get Jvmti capabilities under lock to get consistent values.
   MutexLocker mu(JvmtiThreadState_lock);
+  _jvmti_redefinition_count             = JvmtiExport::redefinition_count();
   _jvmti_can_hotswap_or_post_breakpoint = JvmtiExport::can_hotswap_or_post_breakpoint() ? 1 : 0;
   _jvmti_can_access_local_variables     = JvmtiExport::can_access_local_variables() ? 1 : 0;
   _jvmti_can_post_on_exceptions         = JvmtiExport::can_post_on_exceptions() ? 1 : 0;
   _jvmti_can_pop_frame                  = JvmtiExport::can_pop_frame() ? 1 : 0;
+  _target_method_is_old                 = _task != NULL && _task->method()->is_old();
+  if (task->is_blocking()) {
+    task->set_blocking_jvmci_compile_state(this);
+  }
+}
+
+// Update global JVMCI compilation ticks after 512 thread-local JVMCI compilation ticks.
+// This mitigates the overhead of the atomic operation used for the global update.
+#define THREAD_TICKS_PER_GLOBAL_TICKS (2 << 9)
+#define THREAD_TICKS_PER_GLOBAL_TICKS_MASK (THREAD_TICKS_PER_GLOBAL_TICKS - 1)
+
+void JVMCICompileState::inc_compilation_ticks() {
+  if ((++_compilation_ticks & THREAD_TICKS_PER_GLOBAL_TICKS_MASK) == 0) {
+    _compiler->inc_global_compilation_ticks();
+  }
 }
 
 bool JVMCICompileState::jvmti_state_changed() const {
+  // Some classes were redefined
+  if (jvmti_redefinition_count() != JvmtiExport::redefinition_count()) {
+    return true;
+  }
   if (!jvmti_can_access_local_variables() &&
       JvmtiExport::can_access_local_variables()) {
     return true;
@@ -68,10 +92,6 @@ bool JVMCICompileState::jvmti_state_changed() const {
   }
   return false;
 }
-
-JavaVM* JVMCIEnv::_shared_library_javavm = NULL;
-void* JVMCIEnv::_shared_library_handle = NULL;
-char* JVMCIEnv::_shared_library_path = NULL;
 
 void JVMCIEnv::copy_saved_properties() {
   assert(!is_hotspot(), "can only copy saved properties from HotSpot to native image");
@@ -123,7 +143,7 @@ void JVMCIEnv::copy_saved_properties() {
   // Initialize saved properties in shared library
   jclass servicesClass = JNIJVMCI::Services::clazz();
   jmethodID initializeSavedProperties = JNIJVMCI::Services::initializeSavedProperties_method();
-  JNIAccessMark jni(this);
+  JNIAccessMark jni(this, THREAD);
   jni()->CallStaticVoidMethod(servicesClass, initializeSavedProperties, buf.as_jobject());
   if (jni()->ExceptionCheck()) {
     jni()->ExceptionDescribe();
@@ -131,67 +151,14 @@ void JVMCIEnv::copy_saved_properties() {
   }
 }
 
-JNIEnv* JVMCIEnv::init_shared_library(JavaThread* thread) {
-  if (_shared_library_javavm == NULL) {
-    MutexLocker locker(JVMCI_lock);
-    if (_shared_library_javavm == NULL) {
-      char path[JVM_MAXPATHLEN];
-      char ebuf[1024];
-      if (JVMCILibPath != NULL) {
-        if (!os::dll_locate_lib(path, sizeof(path), JVMCILibPath, JVMCI_SHARED_LIBRARY_NAME)) {
-          vm_exit_during_initialization("Unable to create JVMCI shared library path from -XX:JVMCILibPath value", JVMCILibPath);
-        }
-      } else {
-        if (!os::dll_locate_lib(path, sizeof(path), Arguments::get_dll_dir(), JVMCI_SHARED_LIBRARY_NAME)) {
-          vm_exit_during_initialization("Unable to create path to JVMCI shared library");
-        }
-      }
-
-      void* handle = os::dll_load(path, ebuf, sizeof ebuf);
-      if (handle == NULL) {
-        vm_exit_during_initialization("Unable to load JVMCI shared library", ebuf);
-      }
-      _shared_library_handle = handle;
-      _shared_library_path = strdup(path);
-      jint (*JNI_CreateJavaVM)(JavaVM **pvm, void **penv, void *args);
-      typedef jint (*JNI_CreateJavaVM_t)(JavaVM **pvm, void **penv, void *args);
-
-      JNI_CreateJavaVM = CAST_TO_FN_PTR(JNI_CreateJavaVM_t, os::dll_lookup(handle, "JNI_CreateJavaVM"));
-      JNIEnv* env;
-      if (JNI_CreateJavaVM == NULL) {
-        vm_exit_during_initialization("Unable to find JNI_CreateJavaVM", path);
-      }
-
-      ResourceMark rm;
-      JavaVMInitArgs vm_args;
-      vm_args.version = JNI_VERSION_1_2;
-      vm_args.ignoreUnrecognized = JNI_TRUE;
-      vm_args.options = NULL;
-      vm_args.nOptions = 0;
-
-      JavaVM* the_javavm = NULL;
-      int result = (*JNI_CreateJavaVM)(&the_javavm, (void**) &env, &vm_args);
-      if (result == JNI_OK) {
-        guarantee(env != NULL, "missing env");
-        _shared_library_javavm = the_javavm;
-        return env;
-      } else {
-        vm_exit_during_initialization(err_msg("JNI_CreateJavaVM failed with return value %d", result), path);
-      }
-    }
-  }
-  return NULL;
-}
-
 void JVMCIEnv::init_env_mode_runtime(JavaThread* thread, JNIEnv* parent_env) {
   assert(thread != NULL, "npe");
-  // By default there is only one runtime which is the compiler runtime.
-  _runtime = JVMCI::compiler_runtime();
   _env = NULL;
   _pop_frame_on_close = false;
   _detach_on_close = false;
   if (!UseJVMCINativeLibrary) {
     // In HotSpot mode, JNI isn't used at all.
+    _runtime = JVMCI::java_runtime();
     _is_hotspot = true;
     return;
   }
@@ -205,6 +172,8 @@ void JVMCIEnv::init_env_mode_runtime(JavaThread* thread, JNIEnv* parent_env) {
       _runtime = JVMCI::java_runtime();
       return;
     }
+    _runtime = JVMCI::compiler_runtime();
+    assert(_runtime != NULL, "npe");
     _env = parent_env;
     return;
   }
@@ -212,13 +181,15 @@ void JVMCIEnv::init_env_mode_runtime(JavaThread* thread, JNIEnv* parent_env) {
   // Running in JVMCI shared library mode so ensure the shared library
   // is loaded and initialized and get a shared library JNIEnv
   _is_hotspot = false;
-  _env = init_shared_library(thread);
+
+  _runtime = JVMCI::compiler_runtime();
+  _env = _runtime->init_shared_library_javavm();
 
   if (_env != NULL) {
     // Creating the JVMCI shared library VM also attaches the current thread
     _detach_on_close = true;
   } else {
-    _shared_library_javavm->GetEnv((void**)&parent_env, JNI_VERSION_1_2);
+    _runtime->GetEnv(thread, (void**)&parent_env, JNI_VERSION_1_2);
     if (parent_env != NULL) {
       // Even though there's a parent JNI env, there's no guarantee
       // it was opened by a JVMCIEnv scope and thus may not have
@@ -232,7 +203,7 @@ void JVMCIEnv::init_env_mode_runtime(JavaThread* thread, JNIEnv* parent_env) {
       attach_args.version = JNI_VERSION_1_2;
       attach_args.name = thread->name();
       attach_args.group = NULL;
-      if (_shared_library_javavm->AttachCurrentThread((void**)&_env, &attach_args) != JNI_OK) {
+      if (_runtime->AttachCurrentThread(thread, (void**) &_env, &attach_args) != JNI_OK) {
         fatal("Error attaching current thread (%s) to JVMCI shared library JNI interface", attach_args.name);
       }
       _detach_on_close = true;
@@ -242,7 +213,7 @@ void JVMCIEnv::init_env_mode_runtime(JavaThread* thread, JNIEnv* parent_env) {
   assert(_env != NULL, "missing env");
   assert(_throw_to_caller == false, "must be");
 
-  JNIAccessMark jni(this);
+  JNIAccessMark jni(this, thread);
   jint result = _env->PushLocalFrame(32);
   if (result != JNI_OK) {
     char message[256];
@@ -286,8 +257,9 @@ void JVMCIEnv::init(JavaThread* thread, bool is_hotspot, const char* file, int l
 
 // Prints a pending exception (if any) and its stack trace.
 void JVMCIEnv::describe_pending_exception(bool clear) {
+  JavaThread* THREAD = JavaThread::current();
   if (!is_hotspot()) {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     if (jni()->ExceptionCheck()) {
       jthrowable ex = !clear ? jni()->ExceptionOccurred() : NULL;
       jni()->ExceptionDescribe();
@@ -296,9 +268,8 @@ void JVMCIEnv::describe_pending_exception(bool clear) {
       }
     }
   } else {
-    Thread* THREAD = Thread::current();
     if (HAS_PENDING_EXCEPTION) {
-      JVMCIRuntime::describe_pending_hotspot_exception((JavaThread*) THREAD, clear);
+      JVMCIRuntime::describe_pending_hotspot_exception(THREAD, clear);
     }
   }
 }
@@ -324,7 +295,7 @@ void JVMCIEnv::translate_hotspot_exception_to_jni_exception(JavaThread* THREAD, 
   ResourceMark rm;
   const char* encoded_throwable_chars = java_lang_String::as_utf8_string(encoded_throwable_string);
 
-  JNIAccessMark jni(this);
+  JNIAccessMark jni(this, THREAD);
   jobject jni_encoded_throwable_string = jni()->NewStringUTF(encoded_throwable_chars);
   jthrowable jni_throwable = (jthrowable) jni()->CallStaticObjectMethod(JNIJVMCI::HotSpotJVMCIRuntime::clazz(),
                                 JNIJVMCI::HotSpotJVMCIRuntime::decodeThrowable_method(),
@@ -337,8 +308,9 @@ JVMCIEnv::~JVMCIEnv() {
     if (is_hotspot()) {
       // Nothing to do
     } else {
-      if (Thread::current()->is_Java_thread()) {
-        JavaThread* THREAD = JavaThread::current();
+      Thread* thread = Thread::current();
+      if (thread->is_Java_thread()) {
+        JavaThread* THREAD = thread->as_Java_thread();
         if (HAS_PENDING_EXCEPTION) {
           Handle throwable = Handle(THREAD, PENDING_EXCEPTION);
           CLEAR_PENDING_EXCEPTION;
@@ -360,7 +332,7 @@ JVMCIEnv::~JVMCIEnv() {
     }
 
     if (_detach_on_close) {
-      get_shared_library_javavm()->DetachCurrentThread();
+      _runtime->DetachCurrentThread(JavaThread::current());
     }
   }
 }
@@ -595,12 +567,12 @@ JVMCIObject JVMCIEnv::create_box(BasicType type, jvalue* value, JVMCI_TRAPS) {
     default:
       JVMCI_THROW_MSG_(IllegalArgumentException, "Only boxes for primitive values can be created", JVMCIObject());
   }
+  JavaThread* THREAD = JavaThread::current();
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current();
     oop box = java_lang_boxing_object::create(type, value, CHECK_(JVMCIObject()));
     return HotSpotJVMCI::wrap(box);
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject box = jni()->NewObjectA(JNIJVMCI::box_class(type), JNIJVMCI::box_constructor(type), value);
     assert(box != NULL, "");
     return wrap(box);
@@ -613,23 +585,10 @@ const char* JVMCIEnv::as_utf8_string(JVMCIObject str) {
   } else {
     JNIAccessMark jni(this);
     int length = jni()->GetStringLength(str.as_jstring());
-    char* result = NEW_RESOURCE_ARRAY(char, length + 1);
+    int utf8_length = jni()->GetStringUTFLength(str.as_jstring());
+    char* result = NEW_RESOURCE_ARRAY(char, utf8_length + 1);
     jni()->GetStringUTFRegion(str.as_jstring(), 0, length, result);
     return result;
-  }
-}
-
-char* JVMCIEnv::as_utf8_string(JVMCIObject str, char* buf, int buflen) {
-  if (is_hotspot()) {
-    return java_lang_String::as_utf8_string(HotSpotJVMCI::resolve(str), buf, buflen);
-  } else {
-    JNIAccessMark jni(this);
-    int length = jni()->GetStringLength(str.as_jstring());
-    if (length >= buflen) {
-      length = buflen;
-    }
-    jni()->GetStringUTFRegion(str.as_jstring(), 0, length, buf);
-    return buf;
   }
 }
 
@@ -664,21 +623,21 @@ void JVMCIEnv::fthrow_error(const char* file, int line, const char* format, ...)
   vsnprintf(msg, max_msg_size, format, ap);
   msg[max_msg_size-1] = '\0';
   va_end(ap);
+  JavaThread* THREAD = JavaThread::current();
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current();
     Handle h_loader = Handle();
     Handle h_protection_domain = Handle();
     Exceptions::_throw_msg(THREAD, file, line, vmSymbols::jdk_vm_ci_common_JVMCIError(), msg, h_loader, h_protection_domain);
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jni()->ThrowNew(JNIJVMCI::JVMCIError::clazz(), msg);
   }
 }
 
 JVMCIObject JVMCIEnv::call_HotSpotJVMCIRuntime_compileMethod (JVMCIObject runtime, JVMCIObject method, int entry_bci,
                                                               jlong compile_state, int id) {
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
   if (is_hotspot()) {
-    Thread* THREAD = Thread::current();
     JavaCallArguments jargs;
     jargs.push_oop(Handle(THREAD, HotSpotJVMCI::resolve(runtime)));
     jargs.push_oop(Handle(THREAD, HotSpotJVMCI::resolve(method)));
@@ -692,7 +651,7 @@ JVMCIObject JVMCIEnv::call_HotSpotJVMCIRuntime_compileMethod (JVMCIObject runtim
                             vmSymbols::compileMethod_signature(), &jargs, CHECK_(JVMCIObject()));
     return wrap((oop) result.get_jobject());
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject result = jni()->CallNonvirtualObjectMethod(runtime.as_jobject(),
                                                      JNIJVMCI::HotSpotJVMCIRuntime::clazz(),
                                                      JNIJVMCI::HotSpotJVMCIRuntime::compileMethod_method(),
@@ -705,29 +664,29 @@ JVMCIObject JVMCIEnv::call_HotSpotJVMCIRuntime_compileMethod (JVMCIObject runtim
 }
 
 void JVMCIEnv::call_HotSpotJVMCIRuntime_bootstrapFinished (JVMCIObject runtime, JVMCIEnv* JVMCIENV) {
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
   if (is_hotspot()) {
-    Thread* THREAD = Thread::current();
     JavaCallArguments jargs;
     jargs.push_oop(Handle(THREAD, HotSpotJVMCI::resolve(runtime)));
     JavaValue result(T_VOID);
     JavaCalls::call_special(&result, HotSpotJVMCI::HotSpotJVMCIRuntime::klass(), vmSymbols::bootstrapFinished_name(), vmSymbols::void_method_signature(), &jargs, CHECK);
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jni()->CallNonvirtualVoidMethod(runtime.as_jobject(), JNIJVMCI::HotSpotJVMCIRuntime::clazz(), JNIJVMCI::HotSpotJVMCIRuntime::bootstrapFinished_method());
 
   }
 }
 
 void JVMCIEnv::call_HotSpotJVMCIRuntime_shutdown (JVMCIObject runtime) {
-  HandleMark hm;
   JavaThread* THREAD = JavaThread::current();
+  HandleMark hm(THREAD);
   if (is_hotspot()) {
     JavaCallArguments jargs;
     jargs.push_oop(Handle(THREAD, HotSpotJVMCI::resolve(runtime)));
     JavaValue result(T_VOID);
     JavaCalls::call_special(&result, HotSpotJVMCI::HotSpotJVMCIRuntime::klass(), vmSymbols::shutdown_name(), vmSymbols::void_method_signature(), &jargs, THREAD);
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jni()->CallNonvirtualVoidMethod(runtime.as_jobject(), JNIJVMCI::HotSpotJVMCIRuntime::clazz(), JNIJVMCI::HotSpotJVMCIRuntime::shutdown_method());
   }
   if (has_pending_exception()) {
@@ -738,14 +697,14 @@ void JVMCIEnv::call_HotSpotJVMCIRuntime_shutdown (JVMCIObject runtime) {
 }
 
 JVMCIObject JVMCIEnv::call_HotSpotJVMCIRuntime_runtime (JVMCIEnv* JVMCIENV) {
-  JavaThread* THREAD = JavaThread::current();
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
   if (is_hotspot()) {
     JavaCallArguments jargs;
     JavaValue result(T_OBJECT);
     JavaCalls::call_static(&result, HotSpotJVMCI::HotSpotJVMCIRuntime::klass(), vmSymbols::runtime_name(), vmSymbols::runtime_signature(), &jargs, CHECK_(JVMCIObject()));
     return wrap((oop) result.get_jobject());
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject result = jni()->CallStaticObjectMethod(JNIJVMCI::HotSpotJVMCIRuntime::clazz(), JNIJVMCI::HotSpotJVMCIRuntime::runtime_method());
     if (jni()->ExceptionCheck()) {
       return JVMCIObject();
@@ -755,14 +714,14 @@ JVMCIObject JVMCIEnv::call_HotSpotJVMCIRuntime_runtime (JVMCIEnv* JVMCIENV) {
 }
 
 JVMCIObject JVMCIEnv::call_JVMCI_getRuntime (JVMCIEnv* JVMCIENV) {
-  JavaThread* THREAD = JavaThread::current();
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
   if (is_hotspot()) {
     JavaCallArguments jargs;
     JavaValue result(T_OBJECT);
     JavaCalls::call_static(&result, HotSpotJVMCI::JVMCI::klass(), vmSymbols::getRuntime_name(), vmSymbols::getRuntime_signature(), &jargs, CHECK_(JVMCIObject()));
     return wrap((oop) result.get_jobject());
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject result = jni()->CallStaticObjectMethod(JNIJVMCI::JVMCI::clazz(), JNIJVMCI::JVMCI::getRuntime_method());
     if (jni()->ExceptionCheck()) {
       return JVMCIObject();
@@ -772,7 +731,7 @@ JVMCIObject JVMCIEnv::call_JVMCI_getRuntime (JVMCIEnv* JVMCIENV) {
 }
 
 JVMCIObject JVMCIEnv::call_HotSpotJVMCIRuntime_getCompiler (JVMCIObject runtime, JVMCIEnv* JVMCIENV) {
-  JavaThread* THREAD = JavaThread::current();
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
   if (is_hotspot()) {
     JavaCallArguments jargs;
     jargs.push_oop(Handle(THREAD, HotSpotJVMCI::resolve(runtime)));
@@ -780,7 +739,7 @@ JVMCIObject JVMCIEnv::call_HotSpotJVMCIRuntime_getCompiler (JVMCIObject runtime,
     JavaCalls::call_virtual(&result, HotSpotJVMCI::HotSpotJVMCIRuntime::klass(), vmSymbols::getCompiler_name(), vmSymbols::getCompiler_signature(), &jargs, CHECK_(JVMCIObject()));
     return wrap((oop) result.get_jobject());
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject result = jni()->CallObjectMethod(runtime.as_jobject(), JNIJVMCI::HotSpotJVMCIRuntime::getCompiler_method());
     if (jni()->ExceptionCheck()) {
       return JVMCIObject();
@@ -791,7 +750,7 @@ JVMCIObject JVMCIEnv::call_HotSpotJVMCIRuntime_getCompiler (JVMCIObject runtime,
 
 
 JVMCIObject JVMCIEnv::call_HotSpotJVMCIRuntime_callToString(JVMCIObject object, JVMCIEnv* JVMCIENV) {
-  JavaThread* THREAD = JavaThread::current();
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
   if (is_hotspot()) {
     JavaCallArguments jargs;
     jargs.push_oop(Handle(THREAD, HotSpotJVMCI::resolve(object)));
@@ -802,7 +761,7 @@ JVMCIObject JVMCIEnv::call_HotSpotJVMCIRuntime_callToString(JVMCIObject object, 
                            vmSymbols::callToString_signature(), &jargs, CHECK_(JVMCIObject()));
     return wrap((oop) result.get_jobject());
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject result = (jstring) jni()->CallStaticObjectMethod(JNIJVMCI::HotSpotJVMCIRuntime::clazz(),
                                                      JNIJVMCI::HotSpotJVMCIRuntime::callToString_method(),
                                                      object.as_jobject());
@@ -815,7 +774,7 @@ JVMCIObject JVMCIEnv::call_HotSpotJVMCIRuntime_callToString(JVMCIObject object, 
 
 
 JVMCIObject JVMCIEnv::call_PrimitiveConstant_forTypeChar(jchar kind, jlong value, JVMCI_TRAPS) {
-  JavaThread* THREAD = JavaThread::current();
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
   if (is_hotspot()) {
     JavaCallArguments jargs;
     jargs.push_int(kind);
@@ -827,7 +786,7 @@ JVMCIObject JVMCIEnv::call_PrimitiveConstant_forTypeChar(jchar kind, jlong value
                            vmSymbols::forTypeChar_signature(), &jargs, CHECK_(JVMCIObject()));
     return wrap((oop) result.get_jobject());
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject result = (jstring) jni()->CallStaticObjectMethod(JNIJVMCI::PrimitiveConstant::clazz(),
                                                      JNIJVMCI::PrimitiveConstant::forTypeChar_method(),
                                                      kind, value);
@@ -839,7 +798,7 @@ JVMCIObject JVMCIEnv::call_PrimitiveConstant_forTypeChar(jchar kind, jlong value
 }
 
 JVMCIObject JVMCIEnv::call_JavaConstant_forFloat(float value, JVMCI_TRAPS) {
-  JavaThread* THREAD = JavaThread::current();
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
   if (is_hotspot()) {
     JavaCallArguments jargs;
     jargs.push_float(value);
@@ -850,7 +809,7 @@ JVMCIObject JVMCIEnv::call_JavaConstant_forFloat(float value, JVMCI_TRAPS) {
                            vmSymbols::forFloat_signature(), &jargs, CHECK_(JVMCIObject()));
     return wrap((oop) result.get_jobject());
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject result = (jstring) jni()->CallStaticObjectMethod(JNIJVMCI::JavaConstant::clazz(),
                                                      JNIJVMCI::JavaConstant::forFloat_method(),
                                                      value);
@@ -862,7 +821,7 @@ JVMCIObject JVMCIEnv::call_JavaConstant_forFloat(float value, JVMCI_TRAPS) {
 }
 
 JVMCIObject JVMCIEnv::call_JavaConstant_forDouble(double value, JVMCI_TRAPS) {
-  JavaThread* THREAD = JavaThread::current();
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
   if (is_hotspot()) {
     JavaCallArguments jargs;
     jargs.push_double(value);
@@ -873,7 +832,7 @@ JVMCIObject JVMCIEnv::call_JavaConstant_forDouble(double value, JVMCI_TRAPS) {
                            vmSymbols::forDouble_signature(), &jargs, CHECK_(JVMCIObject()));
     return wrap((oop) result.get_jobject());
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject result = (jstring) jni()->CallStaticObjectMethod(JNIJVMCI::JavaConstant::clazz(),
                                                      JNIJVMCI::JavaConstant::forDouble_method(),
                                                      value);
@@ -892,12 +851,11 @@ JVMCIObject JVMCIEnv::get_jvmci_primitive_type(BasicType type) {
 
 JVMCIObject JVMCIEnv::new_StackTraceElement(const methodHandle& method, int bci, JVMCI_TRAPS) {
   JavaThread* THREAD = JavaThread::current();
-  Symbol* method_name_sym;
   Symbol* file_name_sym;
   int line_number;
-  Handle mirror (THREAD, method->method_holder()->java_mirror());
-  java_lang_StackTraceElement::decode(mirror, method, bci, method_name_sym, file_name_sym, line_number);
+  java_lang_StackTraceElement::decode(method, bci, file_name_sym, line_number, CHECK_(JVMCIObject()));
 
+  Symbol* method_name_sym = method->name();
   InstanceKlass* holder = method->method_holder();
   const char* declaring_class_str = holder->external_name();
 
@@ -919,7 +877,7 @@ JVMCIObject JVMCIEnv::new_StackTraceElement(const methodHandle& method, int bci,
     HotSpotJVMCI::StackTraceElement::set_lineNumber(this, obj(), line_number);
     return wrap(obj());
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject declaring_class = jni()->NewStringUTF(declaring_class_str);
     if (jni()->ExceptionCheck()) {
       return JVMCIObject();
@@ -944,9 +902,9 @@ JVMCIObject JVMCIEnv::new_StackTraceElement(const methodHandle& method, int bci,
 }
 
 JVMCIObject JVMCIEnv::new_HotSpotNmethod(const methodHandle& method, const char* name, jboolean isDefault, jlong compileId, JVMCI_TRAPS) {
-  JavaThread* THREAD = JavaThread::current();
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
 
-  JVMCIObject methodObject = get_jvmci_method(method(), JVMCI_CHECK_(JVMCIObject()));
+  JVMCIObject methodObject = get_jvmci_method(method, JVMCI_CHECK_(JVMCIObject()));
 
   if (is_hotspot()) {
     InstanceKlass* ik = InstanceKlass::cast(HotSpotJVMCI::HotSpotNmethod::klass());
@@ -971,7 +929,7 @@ JVMCIObject JVMCIEnv::new_HotSpotNmethod(const methodHandle& method, const char*
                             &jargs, CHECK_(JVMCIObject()));
     return wrap(obj_h());
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject nameStr = name == NULL ? NULL : jni()->NewStringUTF(name);
     if (jni()->ExceptionCheck()) {
       return JVMCIObject();
@@ -1008,18 +966,6 @@ JVMCIObject JVMCIEnv::make_global(JVMCIObject object) {
   }
 }
 
-JVMCIObject JVMCIEnv::make_weak(JVMCIObject object) {
-  if (object.is_null()) {
-    return JVMCIObject();
-  }
-  if (is_hotspot()) {
-    return wrap(JNIHandles::make_weak_global(Handle(Thread::current(), HotSpotJVMCI::resolve(object))));
-  } else {
-    JNIAccessMark jni(this);
-    return wrap(jni()->NewWeakGlobalRef(object.as_jobject()));
-  }
-}
-
 void JVMCIEnv::destroy_local(JVMCIObject object) {
   if (is_hotspot()) {
     JNIHandles::destroy_local(object.as_jobject());
@@ -1035,15 +981,6 @@ void JVMCIEnv::destroy_global(JVMCIObject object) {
   } else {
     JNIAccessMark jni(this);
     jni()->DeleteGlobalRef(object.as_jobject());
-  }
-}
-
-void JVMCIEnv::destroy_weak(JVMCIObject object) {
-  if (is_hotspot()) {
-    JNIHandles::destroy_weak_global(object.as_jweak());
-  } else {
-    JNIAccessMark jni(this);
-    jni()->DeleteWeakGlobalRef(object.as_jweak());
   }
 }
 
@@ -1068,8 +1005,8 @@ JVMCIObject JVMCIEnv::get_jvmci_method(const methodHandle& method, JVMCI_TRAPS) 
     return method_object;
   }
 
-  Thread* THREAD = Thread::current();
-  jmetadata handle = JVMCI::allocate_handle(method);
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
+  jmetadata handle = _runtime->allocate_handle(method);
   jboolean exception = false;
   if (is_hotspot()) {
     JavaValue result(T_OBJECT);
@@ -1084,7 +1021,7 @@ JVMCIObject JVMCIEnv::get_jvmci_method(const methodHandle& method, JVMCI_TRAPS) 
       method_object = wrap((oop)result.get_jobject());
     }
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     method_object = JNIJVMCI::wrap(jni()->CallStaticObjectMethod(JNIJVMCI::HotSpotResolvedJavaMethodImpl::clazz(),
                                                                   JNIJVMCI::HotSpotResolvedJavaMethodImpl_fromMetaspace_method(),
                                                                   (jlong) handle));
@@ -1092,13 +1029,13 @@ JVMCIObject JVMCIEnv::get_jvmci_method(const methodHandle& method, JVMCI_TRAPS) 
   }
 
   if (exception) {
-    JVMCI::release_handle(handle);
+    _runtime->release_handle(handle);
     return JVMCIObject();
   }
 
   assert(asMethod(method_object) == method(), "must be");
   if (get_HotSpotResolvedJavaMethodImpl_metadataHandle(method_object) != (jlong) handle) {
-    JVMCI::release_handle(handle);
+    _runtime->release_handle(handle);
   }
   assert(!method_object.is_null(), "must be");
   return method_object;
@@ -1111,7 +1048,7 @@ JVMCIObject JVMCIEnv::get_jvmci_type(const JVMCIKlassHandle& klass, JVMCI_TRAPS)
   }
 
   jlong pointer = (jlong) klass();
-  JavaThread* THREAD = JavaThread::current();
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
   JVMCIObject signature = create_string(klass->signature_name(), JVMCI_CHECK_(JVMCIObject()));
   jboolean exception = false;
   if (is_hotspot()) {
@@ -1130,7 +1067,7 @@ JVMCIObject JVMCIEnv::get_jvmci_type(const JVMCIKlassHandle& klass, JVMCI_TRAPS)
       type = wrap((oop)result.get_jobject());
     }
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
 
     HandleMark hm(THREAD);
     type = JNIJVMCI::wrap(jni()->CallStaticObjectMethod(JNIJVMCI::HotSpotResolvedObjectTypeImpl::clazz(),
@@ -1148,10 +1085,10 @@ JVMCIObject JVMCIEnv::get_jvmci_type(const JVMCIKlassHandle& klass, JVMCI_TRAPS)
 
 JVMCIObject JVMCIEnv::get_jvmci_constant_pool(const constantPoolHandle& cp, JVMCI_TRAPS) {
   JVMCIObject cp_object;
-  jmetadata handle = JVMCI::allocate_handle(cp);
+  jmetadata handle = _runtime->allocate_handle(cp);
   jboolean exception = false;
+  JavaThread* THREAD = JVMCI::compilation_tick(JavaThread::current());
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current();
     JavaValue result(T_OBJECT);
     JavaCallArguments args;
     args.push_long((jlong) handle);
@@ -1165,7 +1102,7 @@ JVMCIObject JVMCIEnv::get_jvmci_constant_pool(const constantPoolHandle& cp, JVMC
       cp_object = wrap((oop)result.get_jobject());
     }
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     cp_object = JNIJVMCI::wrap(jni()->CallStaticObjectMethod(JNIJVMCI::HotSpotConstantPool::clazz(),
                                                              JNIJVMCI::HotSpotConstantPool_fromMetaspace_method(),
                                                              (jlong) handle));
@@ -1173,7 +1110,7 @@ JVMCIObject JVMCIEnv::get_jvmci_constant_pool(const constantPoolHandle& cp, JVMC
   }
 
   if (exception) {
-    JVMCI::release_handle(handle);
+    _runtime->release_handle(handle);
     return JVMCIObject();
   }
 
@@ -1184,69 +1121,69 @@ JVMCIObject JVMCIEnv::get_jvmci_constant_pool(const constantPoolHandle& cp, JVMC
 }
 
 JVMCIPrimitiveArray JVMCIEnv::new_booleanArray(int length, JVMCI_TRAPS) {
+  JavaThread* THREAD = JavaThread::current();
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current();
     typeArrayOop result = oopFactory::new_boolArray(length, CHECK_(JVMCIObject()));
     return wrap(result);
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jbooleanArray result = jni()->NewBooleanArray(length);
     return wrap(result);
   }
 }
 
 JVMCIPrimitiveArray JVMCIEnv::new_byteArray(int length, JVMCI_TRAPS) {
+  JavaThread* THREAD = JavaThread::current();
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current();
     typeArrayOop result = oopFactory::new_byteArray(length, CHECK_(JVMCIObject()));
     return wrap(result);
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jbyteArray result = jni()->NewByteArray(length);
     return wrap(result);
   }
 }
 
 JVMCIObjectArray JVMCIEnv::new_byte_array_array(int length, JVMCI_TRAPS) {
+  JavaThread* THREAD = JavaThread::current();
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current();
     Klass* byteArrayArrayKlass = TypeArrayKlass::cast(Universe::byteArrayKlassObj  ())->array_klass(CHECK_(JVMCIObject()));
     objArrayOop result = ObjArrayKlass::cast(byteArrayArrayKlass) ->allocate(length, CHECK_(JVMCIObject()));
     return wrap(result);
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobjectArray result = jni()->NewObjectArray(length, JNIJVMCI::byte_array(), NULL);
     return wrap(result);
   }
 }
 
 JVMCIPrimitiveArray JVMCIEnv::new_intArray(int length, JVMCI_TRAPS) {
+  JavaThread* THREAD = JavaThread::current();
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current();
     typeArrayOop result = oopFactory::new_intArray(length, CHECK_(JVMCIObject()));
     return wrap(result);
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jintArray result = jni()->NewIntArray(length);
     return wrap(result);
   }
 }
 
 JVMCIPrimitiveArray JVMCIEnv::new_longArray(int length, JVMCI_TRAPS) {
+  JavaThread* THREAD = JavaThread::current();
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current();
     typeArrayOop result = oopFactory::new_longArray(length, CHECK_(JVMCIObject()));
     return wrap(result);
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jlongArray result = jni()->NewLongArray(length);
     return wrap(result);
   }
 }
 
 JVMCIObject JVMCIEnv::new_VMField(JVMCIObject name, JVMCIObject type, jlong offset, jlong address, JVMCIObject value, JVMCI_TRAPS) {
+  JavaThread* THREAD = JavaThread::current();
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current();
     HotSpotJVMCI::VMField::klass()->initialize(CHECK_(JVMCIObject()));
     oop obj = HotSpotJVMCI::VMField::klass()->allocate_instance(CHECK_(JVMCIObject()));
     HotSpotJVMCI::VMField::set_name(this, obj, HotSpotJVMCI::resolve(name));
@@ -1256,7 +1193,7 @@ JVMCIObject JVMCIEnv::new_VMField(JVMCIObject name, JVMCIObject type, jlong offs
     HotSpotJVMCI::VMField::set_value(this, obj, HotSpotJVMCI::resolve(value));
     return wrap(obj);
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject result = jni()->NewObject(JNIJVMCI::VMField::clazz(),
                                     JNIJVMCI::VMField::constructor(),
                                     get_jobject(name), get_jobject(type), offset, address, get_jobject(value));
@@ -1265,8 +1202,8 @@ JVMCIObject JVMCIEnv::new_VMField(JVMCIObject name, JVMCIObject type, jlong offs
 }
 
 JVMCIObject JVMCIEnv::new_VMFlag(JVMCIObject name, JVMCIObject type, JVMCIObject value, JVMCI_TRAPS) {
+  JavaThread* THREAD = JavaThread::current();
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current();
     HotSpotJVMCI::VMFlag::klass()->initialize(CHECK_(JVMCIObject()));
     oop obj = HotSpotJVMCI::VMFlag::klass()->allocate_instance(CHECK_(JVMCIObject()));
     HotSpotJVMCI::VMFlag::set_name(this, obj, HotSpotJVMCI::resolve(name));
@@ -1274,7 +1211,7 @@ JVMCIObject JVMCIEnv::new_VMFlag(JVMCIObject name, JVMCIObject type, JVMCIObject
     HotSpotJVMCI::VMFlag::set_value(this, obj, HotSpotJVMCI::resolve(value));
     return wrap(obj);
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject result = jni()->NewObject(JNIJVMCI::VMFlag::clazz(),
                                     JNIJVMCI::VMFlag::constructor(),
                                     get_jobject(name), get_jobject(type), get_jobject(value));
@@ -1283,8 +1220,8 @@ JVMCIObject JVMCIEnv::new_VMFlag(JVMCIObject name, JVMCIObject type, JVMCIObject
 }
 
 JVMCIObject JVMCIEnv::new_VMIntrinsicMethod(JVMCIObject declaringClass, JVMCIObject name, JVMCIObject descriptor, int id, JVMCI_TRAPS) {
+  JavaThread* THREAD = JavaThread::current();
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current();
     HotSpotJVMCI::VMIntrinsicMethod::klass()->initialize(CHECK_(JVMCIObject()));
     oop obj = HotSpotJVMCI::VMIntrinsicMethod::klass()->allocate_instance(CHECK_(JVMCIObject()));
     HotSpotJVMCI::VMIntrinsicMethod::set_declaringClass(this, obj, HotSpotJVMCI::resolve(declaringClass));
@@ -1293,7 +1230,7 @@ JVMCIObject JVMCIEnv::new_VMIntrinsicMethod(JVMCIObject declaringClass, JVMCIObj
     HotSpotJVMCI::VMIntrinsicMethod::set_id(this, obj, id);
     return wrap(obj);
   } else {
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject result = jni()->NewObject(JNIJVMCI::VMIntrinsicMethod::clazz(),
                                     JNIJVMCI::VMIntrinsicMethod::constructor(),
                                     get_jobject(declaringClass), get_jobject(name), get_jobject(descriptor), id);
@@ -1339,7 +1276,7 @@ JVMCIObject JVMCIEnv::get_object_constant(oop objOop, bool compressed, bool dont
     return wrap(constant);
   } else {
     jlong handle = make_handle(obj);
-    JNIAccessMark jni(this);
+    JNIAccessMark jni(this, THREAD);
     jobject result = jni()->NewObject(JNIJVMCI::IndirectHotSpotObjectConstantImpl::clazz(),
                                       JNIJVMCI::IndirectHotSpotObjectConstantImpl::constructor(),
                                       handle, compressed, dont_register);
@@ -1378,7 +1315,7 @@ JVMCIObject JVMCIEnv::wrap(jobject object) {
 
 jlong JVMCIEnv::make_handle(const Handle& obj) {
   assert(!obj.is_null(), "should only create handle for non-NULL oops");
-  jobject handle = JVMCI::make_global(obj);
+  jobject handle = _runtime->make_global(obj);
   return (jlong) handle;
 }
 
@@ -1392,15 +1329,15 @@ oop JVMCIEnv::resolve_handle(jlong objectHandle) {
 }
 
 JVMCIObject JVMCIEnv::create_string(const char* str, JVMCI_TRAPS) {
+  JavaThread* THREAD = JavaThread::current();
   if (is_hotspot()) {
-    JavaThread* THREAD = JavaThread::current();
     Handle result = java_lang_String::create_from_str(str, CHECK_(JVMCIObject()));
     return HotSpotJVMCI::wrap(result());
   } else {
     jobject result;
     jboolean exception = false;
     {
-      JNIAccessMark jni(this);
+      JNIAccessMark jni(this, THREAD);
       result = jni()->NewStringUTF(str);
       exception = jni()->ExceptionCheck();
     }
@@ -1471,8 +1408,8 @@ void JVMCIEnv::invalidate_nmethod_mirror(JVMCIObject mirror, JVMCI_TRAPS) {
     JVMCI_THROW(NullPointerException);
   }
 
-  jlong nativeMethod = get_InstalledCode_address(mirror);
-  nmethod* nm = JVMCIENV->asNmethod(mirror);
+  nmethodLocker locker;
+  nmethod* nm = JVMCIENV->get_nmethod(mirror, locker);
   if (nm == NULL) {
     // Nothing to do
     return;
@@ -1488,11 +1425,8 @@ void JVMCIEnv::invalidate_nmethod_mirror(JVMCIObject mirror, JVMCI_TRAPS) {
 
   nmethodLocker nml(nm);
   if (nm->is_alive()) {
-    // Invalidating the HotSpotNmethod means we want the nmethod
-    // to be deoptimized.
-    nm->mark_for_deoptimization();
-    VM_Deoptimize op;
-    VMThread::execute(&op);
+    // Invalidating the HotSpotNmethod means we want the nmethod to be deoptimized.
+    Deoptimization::deoptimize_all_marked(nm);
   }
 
   // A HotSpotNmethod instance can only reference a single nmethod
@@ -1514,45 +1448,81 @@ ConstantPool* JVMCIEnv::asConstantPool(JVMCIObject obj) {
   return *metadataHandle;
 }
 
-
-CodeBlob* JVMCIEnv::asCodeBlob(JVMCIObject obj) {
+CodeBlob* JVMCIEnv::get_code_blob(JVMCIObject obj, nmethodLocker& locker) {
   address code = (address) get_InstalledCode_address(obj);
   if (code == NULL) {
     return NULL;
   }
   if (isa_HotSpotNmethod(obj)) {
-    jlong compile_id_snapshot = get_HotSpotNmethod_compileIdSnapshot(obj);
-    if (compile_id_snapshot != 0L) {
-      // A HotSpotNMethod not in an nmethod's oops table so look up
-      // the nmethod and then update the fields based on its state.
+    nmethod* nm = NULL;
+    {
+      // Lookup the CodeBlob while holding the CodeCache_lock to ensure the nmethod can't be freed
+      // by nmethod::flush while we're interrogating it.
+      MutexLocker cm_lock(CodeCache_lock, Mutex::_no_safepoint_check_flag);
       CodeBlob* cb = CodeCache::find_blob_unsafe(code);
       if (cb == (CodeBlob*) code) {
-        // Found a live CodeBlob with the same address, make sure it's the same nmethod
-        nmethod* nm = cb->as_nmethod_or_null();
-        if (nm != NULL && nm->compile_id() == compile_id_snapshot) {
-          if (!nm->is_alive()) {
-            // Break the links from the mirror to the nmethod
-            set_InstalledCode_address(obj, 0);
-            set_InstalledCode_entryPoint(obj, 0);
-          } else if (nm->is_not_entrant()) {
-            // Zero the entry point so that the nmethod
-            // cannot be invoked by the mirror but can
-            // still be deoptimized.
-            set_InstalledCode_entryPoint(obj, 0);
-          }
-          return cb;
+        nmethod* the_nm = cb->as_nmethod_or_null();
+        if (the_nm != NULL && the_nm->is_alive()) {
+          // Lock the nmethod to stop any further transitions by the sweeper.  It's still possible
+          // for this code to execute in the middle of the sweeping of the nmethod but that will be
+          // handled below.
+          locker.set_code(nm, true);
+          nm = the_nm;
         }
       }
-      // Clear the InstalledCode fields of this HotSpotNmethod
-      // that no longer refers to an nmethod in the code cache.
+    }
+
+    if (nm != NULL) {
+      // We found the nmethod but it could be in the process of being freed.  Check the state of the
+      // nmethod while holding the CompiledMethod_lock.  This ensures that any transitions by other
+      // threads have seen the is_locked_by_vm() update above.
+      MutexLocker cm_lock(CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+      if (!nm->is_alive()) {
+        //  It was alive when we looked it up but it's no longer alive so release it.
+        locker.set_code(NULL);
+        nm = NULL;
+      }
+    }
+
+    jlong compile_id_snapshot = get_HotSpotNmethod_compileIdSnapshot(obj);
+    if (compile_id_snapshot != 0L) {
+      // Found a live nmethod with the same address, make sure it's the same nmethod
+      if (nm == (nmethod*) code && nm->compile_id() == compile_id_snapshot && nm->is_alive()) {
+        if (nm->is_not_entrant()) {
+          // Zero the entry point so that the nmethod
+          // cannot be invoked by the mirror but can
+          // still be deoptimized.
+          set_InstalledCode_entryPoint(obj, 0);
+        }
+        return nm;
+      }
+      // The HotSpotNmethod no longer refers to a valid nmethod so clear the state
+      locker.set_code(NULL);
+      nm = NULL;
+    }
+
+    if (nm == NULL) {
+      // The HotSpotNmethod was pointing at some nmethod but the nmethod is no longer valid, so
+      // clear the InstalledCode fields of this HotSpotNmethod so that it no longer refers to a
+      // nmethod in the code cache.
       set_InstalledCode_address(obj, 0);
       set_InstalledCode_entryPoint(obj, 0);
-      return NULL;
     }
+    return nm;
   }
-  return (CodeBlob*) code;
+
+  CodeBlob* cb = (CodeBlob*) code;
+  assert(!cb->is_nmethod(), "unexpected nmethod");
+  return cb;
 }
 
+nmethod* JVMCIEnv::get_nmethod(JVMCIObject obj, nmethodLocker& locker) {
+  CodeBlob* cb = get_code_blob(obj, locker);
+  if (cb != NULL) {
+    return cb->as_nmethod_or_null();
+  }
+  return NULL;
+}
 
 // Generate implementations for the initialize, new, isa, get and set methods for all the types and
 // fields declared in the JVMCI_CLASSES_DO macro.

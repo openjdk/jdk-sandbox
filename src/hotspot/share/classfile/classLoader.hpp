@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -169,8 +169,6 @@ class ClassLoader: AllStatic {
   static PerfCounter* _perf_classes_linked;
   static PerfCounter* _perf_class_link_time;
   static PerfCounter* _perf_class_link_selftime;
-  static PerfCounter* _perf_class_parse_time;
-  static PerfCounter* _perf_class_parse_selftime;
   static PerfCounter* _perf_sys_class_lookup_time;
   static PerfCounter* _perf_shared_classload_time;
   static PerfCounter* _perf_sys_classload_time;
@@ -236,6 +234,8 @@ class ClassLoader: AllStatic {
   CDS_ONLY(static ClassPathEntry* app_classpath_entries() {return _app_classpath_entries;})
   CDS_ONLY(static ClassPathEntry* module_path_entries() {return _module_path_entries;})
 
+  static bool has_bootclasspath_append() { return _first_append_entry != NULL; }
+
  protected:
   // Initialization:
   //   - setup the boot loader's system class path
@@ -246,8 +246,15 @@ class ClassLoader: AllStatic {
   static void setup_patch_mod_entries();
   static void create_javabase();
 
+  static void* dll_lookup(void* lib, const char* name, const char* path);
+  static void load_java_library();
   static void load_zip_library();
   static void load_jimage_library();
+
+ private:
+  static int  _libzip_loaded; // used to sync loading zip.
+  static void release_load_zip_library();
+  static inline void load_zip_library_if_needed();
 
  public:
   static ClassPathEntry* create_class_path_entry(const char *path, const struct stat* st,
@@ -255,24 +262,12 @@ class ClassLoader: AllStatic {
                                                  bool is_boot_append,
                                                  bool from_class_path_attr, TRAPS);
 
-  // If the package for the fully qualified class name is in the boot
-  // loader's package entry table then add_package() sets the classpath_index
-  // field so that get_system_package() will know to return a non-null value
-  // for the package's location.  And, so that the package will be added to
-  // the list of packages returned by get_system_packages().
-  // For packages whose classes are loaded from the boot loader class path, the
-  // classpath_index indicates which entry on the boot loader class path.
-  static bool add_package(const char *fullq_class_name, s2 classpath_index, TRAPS);
-
   // Canonicalizes path names, so strcmp will work properly. This is mainly
   // to avoid confusing the zip library
   static bool get_canonical_path(const char* orig, char* out, int len);
   static const char* file_name_for_class_name(const char* class_name,
                                               int class_name_len);
-  static PackageEntry* get_package_entry(const char* class_name, ClassLoaderData* loader_data, TRAPS);
-
- public:
-  static jboolean decompress(void *in, u8 inSize, void *out, u8 outSize, char **pmsg);
+  static PackageEntry* get_package_entry(Symbol* pkg_name, ClassLoaderData* loader_data);
   static int crc32(int crc, const char* buf, int len);
   static bool update_class_path_entry_list(const char *path,
                                            bool check_for_duplicates,
@@ -293,8 +288,6 @@ class ClassLoader: AllStatic {
   static PerfCounter* perf_classes_linked()           { return _perf_classes_linked; }
   static PerfCounter* perf_class_link_time()          { return _perf_class_link_time; }
   static PerfCounter* perf_class_link_selftime()      { return _perf_class_link_selftime; }
-  static PerfCounter* perf_class_parse_time()         { return _perf_class_parse_time; }
-  static PerfCounter* perf_class_parse_selftime()     { return _perf_class_parse_selftime; }
   static PerfCounter* perf_sys_class_lookup_time()    { return _perf_sys_class_lookup_time; }
   static PerfCounter* perf_shared_classload_time()    { return _perf_shared_classload_time; }
   static PerfCounter* perf_sys_classload_time()       { return _perf_sys_classload_time; }
@@ -394,21 +387,14 @@ class ClassLoader: AllStatic {
 
   // Helper function used by CDS code to get the number of module path
   // entries during shared classpath setup time.
-  static int num_module_path_entries() {
-    assert(DumpSharedSpaces || DynamicDumpSharedSpaces,
-           "Should only be called at CDS dump time");
-    int num_entries = 0;
-    ClassPathEntry* e= ClassLoader::_module_path_entries;
-    while (e != NULL) {
-      num_entries ++;
-      e = e->next();
-    }
-    return num_entries;
-  }
+  static int num_module_path_entries();
   static void  exit_with_path_failure(const char* error, const char* message);
   static char* skip_uri_protocol(char* source);
   static void  record_result(InstanceKlass* ik, const ClassFileStream* stream, TRAPS);
 #endif
+
+  static char* lookup_vm_options();
+
   static JImageLocationRef jimage_find_resource(JImageFile* jf, const char* module_name,
                                                 const char* file_name, jlong &size);
 
@@ -434,10 +420,10 @@ class ClassLoader: AllStatic {
 
   static bool string_ends_with(const char* str, const char* str_to_find);
 
-  // obtain package name from a fully qualified class name
+  // Extract package name from a fully qualified class name
   // *bad_class_name is set to true if there's a problem with parsing class_name, to
   // distinguish from a class_name with no package name, as both cases have a NULL return value
-  static const char* package_from_name(const char* const class_name, bool* bad_class_name = NULL);
+  static Symbol* package_from_class_name(const Symbol* class_name, bool* bad_class_name = NULL);
 
   // Debugging
   static void verify()              PRODUCT_RETURN;
@@ -454,12 +440,11 @@ class PerfClassTraceTime {
  public:
   enum {
     CLASS_LOAD   = 0,
-    PARSE_CLASS  = 1,
-    CLASS_LINK   = 2,
-    CLASS_VERIFY = 3,
-    CLASS_CLINIT = 4,
-    DEFINE_CLASS = 5,
-    EVENT_TYPE_COUNT = 6
+    CLASS_LINK   = 1,
+    CLASS_VERIFY = 2,
+    CLASS_CLINIT = 3,
+    DEFINE_CLASS = 4,
+    EVENT_TYPE_COUNT = 5
   };
  protected:
   // _t tracks time from initialization to destruction of this timer instance
@@ -496,9 +481,6 @@ class PerfClassTraceTime {
       _timep(timep), _selftimep(NULL), _eventp(NULL), _recursion_counters(NULL), _timers(timers), _event_type(type) {
     initialize();
   }
-
-  inline void suspend() { _t.stop(); _timers[_event_type].stop(); }
-  inline void resume()  { _t.start(); _timers[_event_type].start(); }
 
   ~PerfClassTraceTime();
   void initialize();

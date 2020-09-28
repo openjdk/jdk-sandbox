@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,7 +70,6 @@ typedef class     typeArrayOopDesc*           typeArrayOop;
 // instead, which generates less code anyway.
 
 class Thread;
-class PromotedObject;
 class oopDesc;
 
 extern "C" bool CheckUnhandledOops;
@@ -81,52 +80,28 @@ class oop {
   void register_oop();
   void unregister_oop();
 
-public:
-  void set_obj(const void* p)         {
-    raw_set_obj(p);
+  void register_if_checking() {
     if (CheckUnhandledOops) register_oop();
   }
-  void raw_set_obj(const void* p)     { _o = (oopDesc*)p; }
 
-  oop()                               { set_obj(NULL); }
-  oop(const oop& o)                   { set_obj(o.obj()); }
-  oop(const volatile oop& o)          { set_obj(o.obj()); }
-  oop(const void* p)                  { set_obj(p); }
-  ~oop()                              {
+public:
+  oop()              : _o(NULL)        { register_if_checking(); }
+  oop(const oop& o)  : _o(o._o)        { register_if_checking(); }
+  oop(const void* p) : _o((oopDesc*)p) { register_if_checking(); }
+  ~oop() {
     if (CheckUnhandledOops) unregister_oop();
   }
 
-  oopDesc* obj()  const volatile      { return _o; }
+  oopDesc* obj() const                 { return _o; }
+  oopDesc* operator->() const          { return _o; }
+  operator oopDesc* () const           { return _o; }
 
-  // General access
-  oopDesc*  operator->() const        { return obj(); }
-  bool operator==(const oop o) const;
-  bool operator==(void *p) const      { return obj() == p; }
-  bool operator!=(const volatile oop o) const;
-  bool operator!=(void *p) const      { return obj() != p; }
+  bool operator==(const oop& o) const  { return _o == o._o; }
+  bool operator==(void *p) const       { return _o == p; }
+  bool operator!=(const oop& o) const  { return _o != o._o; }
+  bool operator!=(void *p) const       { return _o != p; }
 
-  // Assignment
-  oop& operator=(const oop& o)                            { _o = o.obj(); return *this; }
-  volatile oop& operator=(const oop& o) volatile          { _o = o.obj(); return *this; }
-  volatile oop& operator=(const volatile oop& o) volatile { _o = o.obj(); return *this; }
-
-  // Explict user conversions
-  operator void* () const             { return (void *)obj(); }
-#ifndef SOLARIS
-  operator void* () const volatile    { return (void *)obj(); }
-#endif
-  operator HeapWord* () const         { return (HeapWord*)obj(); }
-  operator oopDesc* () const volatile { return obj(); }
-  operator intptr_t* () const         { return (intptr_t*)obj(); }
-  operator PromotedObject* () const   { return (PromotedObject*)obj(); }
-  operator address   () const         { return (address)obj(); }
-
-  // from javaCalls.cpp
-  operator jobject () const           { return (jobject)obj(); }
-
-  // from parNewGeneration and other things that want to get to the end of
-  // an oop for stuff (like ObjArrayKlass.cpp)
-  operator oop* () const              { return (oop *)obj(); }
+  oop& operator=(const oop& o)        { _o = o._o; return *this; }
 };
 
 template<>
@@ -143,8 +118,8 @@ struct PrimitiveConversions::Translate<oop> : public TrueType {
    class type##Oop : public oop {                                          \
      public:                                                               \
        type##Oop() : oop() {}                                              \
+       type##Oop(const type##Oop& o) : oop(o) {}                           \
        type##Oop(const oop& o) : oop(o) {}                                 \
-       type##Oop(const volatile oop& o) : oop(o) {}                        \
        type##Oop(const void* p) : oop(p) {}                                \
        operator type##OopDesc* () const { return (type##OopDesc*)obj(); }  \
        type##OopDesc* operator->() const {                                 \
@@ -152,14 +127,6 @@ struct PrimitiveConversions::Translate<oop> : public TrueType {
        }                                                                   \
        type##Oop& operator=(const type##Oop& o) {                          \
             oop::operator=(o);                                             \
-            return *this;                                                  \
-       }                                                                   \
-       volatile type##Oop& operator=(const type##Oop& o) volatile {        \
-            (void)const_cast<oop&>(oop::operator=(o));                     \
-            return *this;                                                  \
-       }                                                                   \
-       volatile type##Oop& operator=(const volatile type##Oop& o) volatile {\
-            (void)const_cast<oop&>(oop::operator=(o));                     \
             return *this;                                                  \
        }                                                                   \
    };                                                                      \
@@ -187,11 +154,7 @@ template <class T> inline oop cast_to_oop(T value) {
   return (oop)(CHECK_UNHANDLED_OOPS_ONLY((void *))(value));
 }
 template <class T> inline T cast_from_oop(oop o) {
-  return (T)(CHECK_UNHANDLED_OOPS_ONLY((void*))o);
-}
-
-inline bool check_obj_alignment(oop obj) {
-  return (cast_from_oop<intptr_t>(obj) & MinObjAlignmentInBytesMask) == 0;
+  return (T)(CHECK_UNHANDLED_OOPS_ONLY((oopDesc*))o);
 }
 
 // The metadata hierarchy is separate from the oop hierarchy

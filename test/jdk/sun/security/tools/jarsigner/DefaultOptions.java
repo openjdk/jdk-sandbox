@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,7 @@ public class DefaultOptions {
     public static void main(String[] args) throws Throwable {
         keytool("-genkeypair -dname CN=A -alias a -keyalg rsa")
                 .shouldHaveExitValue(0);
-        keytool("-genkeypair -dname CN=CA -alias ca -keyalg rsa")
+        keytool("-genkeypair -dname CN=CA -alias ca -keyalg rsa -ext bc:c")
                 .shouldHaveExitValue(0);
         keytool("-alias a -certreq -file a.req");
         keytool("-alias ca -gencert -infile a.req -outfile a.cert");
@@ -68,7 +68,7 @@ public class DefaultOptions {
         Files.write(Path.of("js.conf"), List.of(
                 "jarsigner.all = -keystore ${user.dir}/ks -storepass:env PASS "
                         + "-debug -strict",
-                "jarsigner.sign = -digestalg SHA1",
+                "jarsigner.sign = -digestalg SHA-512",
                 "jarsigner.verify = -verbose:summary"));
 
         JarUtils.createJarFile(Path.of("a.jar"), Path.of("."),
@@ -81,7 +81,7 @@ public class DefaultOptions {
         try (JarFile jf = new JarFile("a.jar")) {
             Asserts.assertTrue(jf.getManifest().getAttributes("ks").keySet()
                     .stream()
-                    .anyMatch(s -> s.toString().contains("SHA1-Digest")));
+                    .anyMatch(s -> s.toString().contains("SHA-512-Digest")));
         }
     }
 }

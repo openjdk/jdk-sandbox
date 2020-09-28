@@ -32,6 +32,8 @@
 
 #include    "jni.h"
 
+#include    "jdk_util.h"
+
 #include    "Utilities.h"
 #include    "JPLISAssert.h"
 #include    "JPLISAgent.h"
@@ -200,6 +202,19 @@ DEF_Agent_OnLoad(JavaVM *vm, char *tail, void * reserved) {
          */
         oldLen = (int)strlen(premainClass);
         newLen = modifiedUtf8LengthOfUtf8(premainClass, oldLen);
+        /*
+         * According to JVMS class name is represented as CONSTANT_Utf8_info,
+         * so its length is u2 (i.e. must be <= 0xFFFF).
+         * Negative oldLen or newLen means we got signed integer overflow
+         * (modifiedUtf8LengthOfUtf8 returns negative value if oldLen is negative).
+         */
+        if (oldLen < 0 || newLen < 0 || newLen > 0xFFFF) {
+            fprintf(stderr, "-javaagent: Premain-Class value is too big\n");
+            free(jarfile);
+            if (options != NULL) free(options);
+            freeAttributes(attributes);
+            return JNI_ERR;
+        }
         if (newLen == oldLen) {
             premainClass = strdup(premainClass);
         } else {
@@ -358,6 +373,19 @@ DEF_Agent_OnAttach(JavaVM* vm, char *args, void * reserved) {
          */
         oldLen = (int)strlen(agentClass);
         newLen = modifiedUtf8LengthOfUtf8(agentClass, oldLen);
+        /*
+         * According to JVMS class name is represented as CONSTANT_Utf8_info,
+         * so its length is u2 (i.e. must be <= 0xFFFF).
+         * Negative oldLen or newLen means we got signed integer overflow
+         * (modifiedUtf8LengthOfUtf8 returns negative value if oldLen is negative).
+         */
+        if (oldLen < 0 || newLen < 0 || newLen > 0xFFFF) {
+            fprintf(stderr, "Agent-Class value is too big\n");
+            free(jarfile);
+            if (options != NULL) free(options);
+            freeAttributes(attributes);
+            return AGENT_ERROR_BADJAR;
+        }
         if (newLen == oldLen) {
             agentClass = strdup(agentClass);
         } else {
@@ -483,6 +511,15 @@ jint loadAgent(JNIEnv* env, jstring path) {
     // The value of Launcher-Agent-Class is in UTF-8, convert it to modified UTF-8
     oldLen = (int) strlen(agentClass);
     newLen = modifiedUtf8LengthOfUtf8(agentClass, oldLen);
+    /*
+     * According to JVMS class name is represented as CONSTANT_Utf8_info,
+     * so its length is u2 (i.e. must be <= 0xFFFF).
+     * Negative oldLen or newLen means we got signed integer overflow
+     * (modifiedUtf8LengthOfUtf8 returns negative value if oldLen is negative).
+     */
+    if (oldLen < 0 || newLen < 0 || newLen > 0xFFFF) {
+        goto releaseAndReturn;
+    }
     if (newLen == oldLen) {
         agentClass = strdup(agentClass);
     } else {
@@ -525,16 +562,16 @@ jint loadAgent(JNIEnv* env, jstring path) {
     // initialization complete
     result = JNI_OK;
 
-    releaseAndReturn:
-        if (agentClass != NULL) {
-            free(agentClass);
-        }
-        if (attributes != NULL) {
-            freeAttributes(attributes);
-        }
-        if (jarfile != NULL) {
-            (*env)->ReleaseStringUTFChars(env, path, jarfile);
-        }
+releaseAndReturn:
+    if (agentClass != NULL) {
+        free(agentClass);
+    }
+    if (attributes != NULL) {
+        freeAttributes(attributes);
+    }
+    if (jarfile != NULL) {
+        (*env)->ReleaseStringUTFChars(env, path, jarfile);
+    }
 
     return result;
 }
@@ -708,6 +745,10 @@ char *decodePath(const char *s, int* decodedLen) {
     }
 
     resultp = result = calloc(n+1, 1);
+    if (result == NULL) {
+        *decodedLen = 0;
+        return NULL;
+    }
     c = s[0];
     for (i = 0; i < n;) {
         if (c != '%') {
@@ -775,14 +816,6 @@ appendClassPath( JPLISAgent* agent,
     }                            \
     jplis_assert((void*)res != (void*)NULL);     \
 }
-
-/**
- * Convert a pathname to canonical form.
- * This method is exported from libjava.
- */
-extern int
-Canonicalize(JNIEnv *unused, char *orig, char *out, int len);
-
 
 /*
  * This function takes the value of the Boot-Class-Path attribute,
@@ -904,8 +937,7 @@ appendBootClassPath( JPLISAgent* agent,
             char* resolved;
 
             if (!haveBasePath) {
-                /* Use NULL as the JNIEnv since we know that Canonicalize does not use it. */
-                if (Canonicalize(NULL, (char*)jarfile, canonicalPath, sizeof(canonicalPath)) != 0) {
+                if (JDK_Canonicalize((char*)jarfile, canonicalPath, sizeof(canonicalPath)) != 0) {
                     fprintf(stderr, "WARNING: unable to canonicalize %s\n", jarfile);
                     free(path);
                     continue;

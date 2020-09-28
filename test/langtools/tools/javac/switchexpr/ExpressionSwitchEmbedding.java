@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,10 @@
 
 /*
  * @test
- * @bug 8214031 8214114
+ * @bug 8214031 8214114 8236546
  * @summary Verify switch expressions embedded in various statements work properly.
- * @compile --enable-preview -source ${jdk.version} ExpressionSwitchEmbedding.java
- * @run main/othervm --enable-preview ExpressionSwitchEmbedding
+ * @compile ExpressionSwitchEmbedding.java
+ * @run main ExpressionSwitchEmbedding
  */
 
 public class ExpressionSwitchEmbedding {
@@ -318,6 +318,13 @@ public class ExpressionSwitchEmbedding {
                     throw new AssertionError();
             });
             if (o != 6 && i >= 0) {
+                throw new IllegalStateException();
+            }
+        }
+        {
+            String s = "";
+            Object o = switch (s) { default -> s != null && s == s; };
+            if (!(Boolean) o) {
                 throw new IllegalStateException();
             }
         }

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -46,7 +46,6 @@ JVM_ConstantPoolGetSize
 JVM_ConstantPoolGetStringAt
 JVM_ConstantPoolGetTagAt
 JVM_ConstantPoolGetUTF8At
-JVM_CountStackFrames
 JVM_CurrentThread
 JVM_CurrentTimeMillis
 JVM_DefineClass
@@ -97,6 +96,7 @@ JVM_GetCPMethodSignatureUTF
 JVM_GetDeclaredClasses
 JVM_GetDeclaringClass
 JVM_GetEnclosingMethodInfo
+JVM_GetExtendedNPEMessage
 JVM_GetFieldIxModifiers
 JVM_GetFieldTypeAnnotations
 JVM_GetInheritedAccessControlContext
@@ -119,9 +119,12 @@ JVM_GetMethodTypeAnnotations
 JVM_GetNanoTimeAdjustment
 JVM_GetNestHost
 JVM_GetNestMembers
+JVM_GetPermittedSubclasses
 JVM_GetPrimitiveArrayElement
 JVM_GetProperties
 JVM_GetProtectionDomain
+JVM_GetRandomSeedForDumping
+JVM_GetRecordComponents
 JVM_GetSimpleBinaryName
 JVM_GetStackAccessControlContext
 JVM_GetSystemPackage
@@ -140,16 +143,21 @@ JVM_InternString
 JVM_Interrupt
 JVM_InvokeMethod
 JVM_IsArrayClass
+JVM_IsDynamicDumpingEnabled
+JVM_IsSharingEnabled
 JVM_IsConstructorIx
+JVM_IsHiddenClass
 JVM_IsInterface
-JVM_IsInterrupted
 JVM_IsPrimitiveClass
+JVM_IsRecord
 JVM_IsSameClassPackage
 JVM_IsSupportedJNIVersion
 JVM_IsThreadAlive
 JVM_IsVMGeneratedMethodIx
 JVM_LatestUserDefinedLoader
 JVM_LoadLibrary
+JVM_LookupDefineClass
+JVM_LookupLambdaProxyClassFromArchive
 JVM_MaxMemory
 JVM_MaxObjectInspectionAge
 JVM_MonitorNotify
@@ -166,6 +174,7 @@ JVM_RawMonitorCreate
 JVM_RawMonitorDestroy
 JVM_RawMonitorEnter
 JVM_RawMonitorExit
+JVM_RegisterLambdaProxyClassForArchiving
 JVM_RegisterSignal
 JVM_ReleaseUTF
 JVM_ResumeThread
@@ -189,5 +198,6 @@ JVM_AddModuleExports
 JVM_AddModuleExportsToAll
 JVM_AddModuleExportsToAllUnnamed
 JVM_AddReadsModule
+JVM_DefineArchivedModules
 JVM_DefineModule
 JVM_SetBootLoaderUnnamedModule

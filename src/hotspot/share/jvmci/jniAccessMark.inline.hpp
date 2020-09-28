@@ -25,6 +25,7 @@
 #ifndef SHARE_JVMCI_JNIACCESSMARK_INLINE_HPP
 #define SHARE_JVMCI_JNIACCESSMARK_INLINE_HPP
 
+#include "code/nmethod.hpp"
 #include "jvmci/jvmciEnv.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 
@@ -34,12 +35,12 @@
 // to a GC in the shared library).
 class JNIAccessMark : public StackObj {
  private:
-  ThreadToNativeFromVM ttnfv;
-  HandleMark hm;
+  ThreadToNativeFromVM _ttnfv;
+  HandleMark _hm;
   JNIEnv* _env;
  public:
-  inline JNIAccessMark(JVMCIEnv* jvmci_env) :
-    ttnfv(JavaThread::current()), hm(JavaThread::current()) {
+  inline JNIAccessMark(JVMCIEnv* jvmci_env, JavaThread* thread=JavaThread::current()) :
+    _ttnfv(thread), _hm(thread) {
     _env = jvmci_env->_env;
   }
   JNIEnv* env() const { return _env; }

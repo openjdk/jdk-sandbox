@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -32,6 +33,11 @@ public:
   static bool can_do_concurrent_roots();
   // If current GC cycle can process roots concurrently
   static bool should_do_concurrent_roots();
+
+  // If GC settings allow concurrent class unloading
+  static bool can_do_concurrent_class_unloading();
+  // If current GC cycle can unload classes concurrently
+  static bool should_do_concurrent_class_unloading();
 };
 
 

@@ -25,7 +25,6 @@
  * @test
  * @bug 4636667 7052425 8016549 8196202
  * @summary  Use <H1, <H2>, and <H3> in proper sequence for accessibility
- * @author dkramer
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build javadoc.tester.*
@@ -58,6 +57,7 @@ public class AccessH1 extends JavadocTester {
 
         // Test the doc title in the overview page
         checkOutput("index.html", true,
-                "<h1 class=\"title\">Document Title</h1>");
+                """
+                    <h1 class="title">Document Title</h1>""");
     }
 }

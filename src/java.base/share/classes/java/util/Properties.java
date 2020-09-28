@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,9 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import sun.nio.cs.ISO_8859_1;
+import sun.nio.cs.UTF_8;
+
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.util.ArraysSupport;
@@ -91,8 +94,8 @@ import jdk.internal.util.xml.PropertiesDefaultHandler;
  * methods work the same way as the load(Reader)/store(Writer, String) pair, except
  * the input/output stream is encoded in ISO 8859-1 character encoding.
  * Characters that cannot be directly represented in this encoding can be written using
- * Unicode escapes as defined in section 3.3 of
- * <cite>The Java&trade; Language Specification</cite>;
+ * Unicode escapes as defined in section {@jls 3.3} of
+ * <cite>The Java Language Specification</cite>;
  * only a single 'u' character is allowed in an escape
  * sequence.
  *
@@ -137,8 +140,7 @@ import jdk.internal.util.xml.PropertiesDefaultHandler;
  * @author  Xueming Shen
  * @since   1.0
  */
-public
-class Properties extends Hashtable<Object,Object> {
+public class Properties extends Hashtable<Object,Object> {
     /**
      * use serialVersionUID from JDK 1.1.X for interoperability
      */
@@ -334,8 +336,8 @@ class Properties extends Hashtable<Object,Object> {
      * <a id="unicodeescapes"></a>
      * Characters in keys and elements can be represented in escape
      * sequences similar to those used for character and string literals
-     * (see sections 3.3 and 3.10.6 of
-     * <cite>The Java&trade; Language Specification</cite>).
+     * (see sections {@jls 3.3} and {@jls 3.10.6} of
+     * <cite>The Java Language Specification</cite>).
      *
      * The differences from the character escape sequences and Unicode
      * escapes used for characters and strings are:
@@ -388,13 +390,13 @@ class Properties extends Hashtable<Object,Object> {
      * the ISO 8859-1 character encoding; that is each byte is one Latin1
      * character. Characters not in Latin1, and certain special characters,
      * are represented in keys and elements using Unicode escapes as defined in
-     * section 3.3 of
-     * <cite>The Java&trade; Language Specification</cite>.
+     * section {@jls 3.3} of
+     * <cite>The Java Language Specification</cite>.
      * <p>
      * The specified stream remains open after this method returns.
      *
      * @param      inStream   the input stream.
-     * @exception  IOException  if an error occurred when reading from the
+     * @throws     IOException  if an error occurred when reading from the
      *             input stream.
      * @throws     IllegalArgumentException if the input stream contains a
      *             malformed Unicode escape sequence.
@@ -801,7 +803,7 @@ class Properties extends Hashtable<Object,Object> {
      *
      * @param   out      an output stream.
      * @param   comments   a description of the property list.
-     * @exception  ClassCastException  if this {@code Properties} object
+     * @throws     ClassCastException  if this {@code Properties} object
      *             contains any keys or values that are not
      *             {@code Strings}.
      */
@@ -853,11 +855,11 @@ class Properties extends Hashtable<Object,Object> {
      *
      * @param   writer      an output character stream writer.
      * @param   comments   a description of the property list.
-     * @exception  IOException if writing this property list to the specified
+     * @throws     IOException if writing this property list to the specified
      *             output stream throws an {@code IOException}.
-     * @exception  ClassCastException  if this {@code Properties} object
+     * @throws     ClassCastException  if this {@code Properties} object
      *             contains any keys or values that are not {@code Strings}.
-     * @exception  NullPointerException  if {@code writer} is null.
+     * @throws     NullPointerException  if {@code writer} is null.
      * @since 1.6
      */
     public void store(Writer writer, String comments)
@@ -900,17 +902,17 @@ class Properties extends Hashtable<Object,Object> {
      *
      * @param   out      an output stream.
      * @param   comments   a description of the property list.
-     * @exception  IOException if writing this property list to the specified
+     * @throws     IOException if writing this property list to the specified
      *             output stream throws an {@code IOException}.
-     * @exception  ClassCastException  if this {@code Properties} object
+     * @throws     ClassCastException  if this {@code Properties} object
      *             contains any keys or values that are not {@code Strings}.
-     * @exception  NullPointerException  if {@code out} is null.
+     * @throws     NullPointerException  if {@code out} is null.
      * @since 1.2
      */
     public void store(OutputStream out, String comments)
         throws IOException
     {
-        store0(new BufferedWriter(new OutputStreamWriter(out, "8859_1")),
+        store0(new BufferedWriter(new OutputStreamWriter(out, ISO_8859_1.INSTANCE)),
                comments,
                true);
     }
@@ -1002,7 +1004,7 @@ class Properties extends Hashtable<Object,Object> {
     public void storeToXML(OutputStream os, String comment)
         throws IOException
     {
-        storeToXML(os, comment, "UTF-8");
+        storeToXML(os, comment, UTF_8.INSTANCE);
     }
 
     /**
@@ -1400,6 +1402,21 @@ class Properties extends Hashtable<Object,Object> {
         @Override
         public boolean containsAll(Collection<?> c) {
             return entrySet.containsAll(c);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o == this || entrySet.equals(o);
+        }
+
+        @Override
+        public int hashCode() {
+            return entrySet.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return entrySet.toString();
         }
 
         @Override

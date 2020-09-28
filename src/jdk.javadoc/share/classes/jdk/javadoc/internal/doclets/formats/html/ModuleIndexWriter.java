@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,12 +31,9 @@ import jdk.javadoc.internal.doclets.formats.html.markup.TableHeader;
 import java.util.*;
 
 import javax.lang.model.element.ModuleElement;
-import javax.lang.model.element.PackageElement;
 
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
@@ -50,8 +47,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Bhavesh Patel
  */
 public class ModuleIndexWriter extends AbstractOverviewIndexWriter {
 
@@ -95,9 +90,10 @@ public class ModuleIndexWriter extends AbstractOverviewIndexWriter {
 
         if (!groupModuleMap.keySet().isEmpty()) {
             TableHeader tableHeader = new TableHeader(contents.moduleLabel, contents.descriptionLabel);
-            Table table =  new Table(HtmlStyle.overviewSummary)
+            Table table =  new Table(HtmlStyle.overviewSummary, HtmlStyle.summaryTable)
                     .setHeader(tableHeader)
                     .setColumnStyles(HtmlStyle.colFirst, HtmlStyle.colLast)
+                    .setId("all-modules-table")
                     .setDefaultTab(resources.getText("doclet.All_Modules"))
                     .setTabScript(i -> "show(" + i + ");")
                     .setTabId(i -> (i == 0) ? "t0" : ("t" + (1 << (i - 1))));
@@ -112,7 +108,7 @@ public class ModuleIndexWriter extends AbstractOverviewIndexWriter {
 
             for (ModuleElement mdle : modules) {
                 if (!mdle.isUnnamed()) {
-                    if (!(configuration.nodeprecated && utils.isDeprecated(mdle))) {
+                    if (!(options.noDeprecated() && utils.isDeprecated(mdle))) {
                         Content moduleLinkContent = getModuleLink(mdle, new StringContent(mdle.getQualifiedName().toString()));
                         Content summaryContent = new ContentBuilder();
                         addSummaryComment(mdle, summaryContent);
@@ -121,8 +117,7 @@ public class ModuleIndexWriter extends AbstractOverviewIndexWriter {
                 }
             }
 
-            Content div = HtmlTree.DIV(HtmlStyle.contentContainer, table.toContent());
-            main.add(div);
+            main.add(table);
 
             if (table.needsScript()) {
                 mainBodyScript.append(table.getScript());

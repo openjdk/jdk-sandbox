@@ -1,5 +1,5 @@
 //
-// Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -245,12 +245,12 @@ void ArchDesc::inspectOperands() {
     // Construct chain rules
     build_chain_rule(op);
 
-    MatchRule &mrule = *op->_matrule;
-    Predicate *pred  =  op->_predicate;
+    MatchRule *mrule = op->_matrule;
+    Predicate *pred  = op->_predicate;
 
     // Grab the machine type of the operand
     const char  *rootOp    = op->_ident;
-    mrule._machType  = rootOp;
+    mrule->_machType  = rootOp;
 
     // Check for special cases
     if (strcmp(rootOp,"Universe")==0) continue;
@@ -271,10 +271,13 @@ void ArchDesc::inspectOperands() {
 
     // Find result type for match.
     const char *result      = op->reduce_result();
-    bool        has_root    = false;
 
-    // Construct a MatchList for this entry
-    buildMatchList(op->_matrule, result, rootOp, pred, cost);
+    // Construct a MatchList for this entry.
+    // Iterate over the list to enumerate all match cases for operands with multiple match rules.
+    for (; mrule != NULL; mrule = mrule->_next) {
+      mrule->_machType = rootOp;
+      buildMatchList(mrule, result, rootOp, pred, cost);
+    }
   }
 }
 
@@ -805,6 +808,8 @@ static const char *getRegMask(const char *reg_class_name) {
     return "RegMask::Empty";
   } else if (strcmp(reg_class_name,"stack_slots")==0) {
     return "(Compile::current()->FIRST_STACK_mask())";
+  } else if (strcmp(reg_class_name, "dynamic")==0) {
+    return "*_opnds[0]->in_RegMask(0)";
   } else {
     char       *rc_name = toUpper(reg_class_name);
     const char *mask    = "_mask";
@@ -867,7 +872,7 @@ const char *ArchDesc::reg_mask(InstructForm &inForm) {
   }
 
   // Instructions producing 'Universe' use RegMask::Empty
-  if( strcmp(result,"Universe")==0 ) {
+  if (strcmp(result,"Universe") == 0) {
     return "RegMask::Empty";
   }
 
@@ -929,6 +934,7 @@ const char *ArchDesc::getIdealType(const char *idealOp) {
   // Match Vector types.
   if (strncmp(idealOp, "Vec",3)==0) {
     switch(last_char) {
+    case 'A':  return "TypeVect::VECTA";
     case 'S':  return "TypeVect::VECTS";
     case 'D':  return "TypeVect::VECTD";
     case 'X':  return "TypeVect::VECTX";
@@ -937,6 +943,10 @@ const char *ArchDesc::getIdealType(const char *idealOp) {
     default:
       internal_err("Vector type %s with unrecognized type\n",idealOp);
     }
+  }
+
+  if (strncmp(idealOp, "RegVMask", 8) == 0) {
+    return "Type::BOTTOM";
   }
 
   // !!!!!

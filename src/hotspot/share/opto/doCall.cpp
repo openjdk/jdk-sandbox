@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,7 +65,7 @@ void trace_type_profile(Compile* C, ciMethod *method, int depth, int bci, ciMeth
 CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool call_does_dispatch,
                                        JVMState* jvms, bool allow_inline,
                                        float prof_factor, ciKlass* speculative_receiver_type,
-                                       bool allow_intrinsics, bool delayed_forbidden) {
+                                       bool allow_intrinsics) {
   ciMethod*       caller   = jvms->method();
   int             bci      = jvms->bci();
   Bytecodes::Code bytecode = caller->java_code_at_bci(bci);
@@ -145,13 +145,13 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
   // MethodHandle.invoke* are native methods which obviously don't
   // have bytecodes and so normal inlining fails.
   if (callee->is_method_handle_intrinsic()) {
-    CallGenerator* cg = CallGenerator::for_method_handle_call(jvms, caller, callee, delayed_forbidden);
-    assert(cg == NULL || !delayed_forbidden || !cg->is_late_inline() || cg->is_mh_late_inline(), "unexpected CallGenerator");
+    CallGenerator* cg = CallGenerator::for_method_handle_call(jvms, caller, callee);
     return cg;
   }
 
-  // Do not inline strict fp into non-strict code, or the reverse
-  if (caller->is_strict() ^ callee->is_strict()) {
+  // If explicit rounding is required, do not inline strict into non-strict code (or the reverse).
+  if (Matcher::strict_fp_requires_explicit_rounding &&
+      caller->is_strict() != callee->is_strict()) {
     allow_inline = false;
   }
 
@@ -181,12 +181,10 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
           // opportunity to perform some high level optimizations
           // first.
           if (should_delay_string_inlining(callee, jvms)) {
-            assert(!delayed_forbidden, "strange");
             return CallGenerator::for_string_late_inline(callee, cg);
           } else if (should_delay_boxing_inlining(callee, jvms)) {
-            assert(!delayed_forbidden, "strange");
             return CallGenerator::for_boxing_late_inline(callee, cg);
-          } else if ((should_delay || AlwaysIncrementalInline) && !delayed_forbidden) {
+          } else if ((should_delay || AlwaysIncrementalInline)) {
             return CallGenerator::for_late_inline(callee, cg);
           }
         }
@@ -310,10 +308,12 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
     if (call_does_dispatch && bytecode == Bytecodes::_invokeinterface) {
       ciInstanceKlass* declared_interface =
           caller->get_declared_method_holder_at_bci(bci)->as_instance_klass();
+      ciInstanceKlass* singleton = declared_interface->unique_implementor();
 
-      if (declared_interface->nof_implementors() == 1 &&
+      if (singleton != NULL &&
           (!callee->is_default_method() || callee->is_overpass()) /* CHA doesn't support default methods yet */) {
-        ciInstanceKlass* singleton = declared_interface->implementor();
+        assert(singleton != declared_interface, "not a unique implementor");
+
         ciMethod* cha_monomorphic_target =
             callee->find_monomorphic_target(caller->holder(), declared_interface, singleton);
 
@@ -700,8 +700,8 @@ void Parse::do_call() {
         } else if (rt == T_INT || is_subword_type(rt)) {
           // Nothing.  These cases are handled in lambda form bytecode.
           assert(ct == T_INT || is_subword_type(ct), "must match: rt=%s, ct=%s", type2name(rt), type2name(ct));
-        } else if (rt == T_OBJECT || rt == T_ARRAY) {
-          assert(ct == T_OBJECT || ct == T_ARRAY, "rt=%s, ct=%s", type2name(rt), type2name(ct));
+        } else if (is_reference_type(rt)) {
+          assert(is_reference_type(ct), "rt=%s, ct=%s", type2name(rt), type2name(ct));
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
@@ -748,7 +748,7 @@ void Parse::do_call() {
       set_bci(iter().cur_bci()); // put it back
     }
     BasicType ct = ctype->basic_type();
-    if (ct == T_OBJECT || ct == T_ARRAY) {
+    if (is_reference_type(ct)) {
       record_profiled_return_for_speculation();
     }
   }

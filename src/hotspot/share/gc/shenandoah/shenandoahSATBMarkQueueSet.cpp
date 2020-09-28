@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -27,25 +28,14 @@
 #include "gc/shenandoah/shenandoahSATBMarkQueueSet.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 
-ShenandoahSATBMarkQueueSet::ShenandoahSATBMarkQueueSet() :
-  _heap(NULL),
-  _satb_mark_queue_buffer_allocator("SATB Buffer Allocator", ShenandoahSATBBufferSize)
+ShenandoahSATBMarkQueueSet::ShenandoahSATBMarkQueueSet(BufferNode::Allocator* allocator) :
+  SATBMarkQueueSet(allocator)
 {}
-
-void ShenandoahSATBMarkQueueSet::initialize(ShenandoahHeap* const heap,
-                                            int process_completed_threshold,
-                                            uint buffer_enqueue_threshold_percentage) {
-  SATBMarkQueueSet::initialize(&_satb_mark_queue_buffer_allocator,
-                               process_completed_threshold,
-                               buffer_enqueue_threshold_percentage);
-  _heap = heap;
-}
 
 SATBMarkQueue& ShenandoahSATBMarkQueueSet::satb_queue_for_thread(Thread* const t) const {
   return ShenandoahThreadLocalData::satb_mark_queue(t);
 }
 
-template <bool RESOLVE>
 class ShenandoahSATBMarkQueueFilterFn {
   ShenandoahHeap* const _heap;
 
@@ -55,17 +45,13 @@ public:
   // Return true if entry should be filtered out (removed), false if
   // it should be retained.
   bool operator()(const void* entry) const {
-    return !_heap->requires_marking<RESOLVE>(entry);
+    return !_heap->requires_marking(entry);
   }
 };
 
 void ShenandoahSATBMarkQueueSet::filter(SATBMarkQueue* queue) {
-  assert(_heap != NULL, "SATB queue set not initialized");
-  if (_heap->has_forwarded_objects()) {
-    apply_filter(ShenandoahSATBMarkQueueFilterFn<true>(_heap), queue);
-  } else {
-    apply_filter(ShenandoahSATBMarkQueueFilterFn<false>(_heap), queue);
-  }
+  ShenandoahHeap* heap = ShenandoahHeap::heap();
+  apply_filter(ShenandoahSATBMarkQueueFilterFn(heap), queue);
 }
 
 void ShenandoahSATBMarkQueue::handle_completed_buffer() {

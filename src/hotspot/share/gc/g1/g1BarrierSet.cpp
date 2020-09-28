@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
-#include "runtime/mutexLocker.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/macros.hpp"
 #ifdef COMPILER1
@@ -57,8 +57,8 @@ G1BarrierSet::G1BarrierSet(G1CardTable* card_table) :
                       BarrierSet::FakeRtti(BarrierSet::G1BarrierSet)),
   _satb_mark_queue_buffer_allocator("SATB Buffer Allocator", G1SATBBufferSize),
   _dirty_card_queue_buffer_allocator("DC Buffer Allocator", G1UpdateBufferSize),
-  _satb_mark_queue_set(),
-  _dirty_card_queue_set(),
+  _satb_mark_queue_set(&_satb_mark_queue_buffer_allocator),
+  _dirty_card_queue_set(&_dirty_card_queue_buffer_allocator),
   _shared_dirty_card_queue(&_dirty_card_queue_set)
 {}
 
@@ -157,13 +157,5 @@ void G1BarrierSet::on_thread_detach(Thread* thread) {
   // Flush any deferred card marks.
   CardTableBarrierSet::on_thread_detach(thread);
   G1ThreadLocalData::satb_mark_queue(thread).flush();
-  G1ThreadLocalData::dirty_card_queue(thread).flush();
-}
-
-BufferNode::Allocator& G1BarrierSet::satb_mark_queue_buffer_allocator() {
-  return _satb_mark_queue_buffer_allocator;
-}
-
-BufferNode::Allocator& G1BarrierSet::dirty_card_queue_buffer_allocator() {
-  return _dirty_card_queue_buffer_allocator;
+  G1ThreadLocalData::dirty_card_queue(thread).on_thread_detach();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,6 @@
  * questions.
  */
 
-// Attributes2Impl.java - extended AttributesImpl
-// http://www.saxproject.org
-// Public Domain: no warranty.
-// $Id: Attributes2Impl.java,v 1.3 2005/02/24 11:20:18 gg156739 Exp $
-
 package org.xml.sax.ext;
 
 import org.xml.sax.Attributes;
@@ -37,11 +32,6 @@ import org.xml.sax.helpers.AttributesImpl;
 /**
  * SAX2 extension helper for additional Attributes information,
  * implementing the {@link Attributes2} interface.
- *
- * <blockquote>
- * <em>This module, both source code and documentation, is in the
- * Public Domain, and comes with <strong>NO WARRANTY</strong>.</em>
- * </blockquote>
  *
  * <p>This is not part of core-only SAX2 distributions.</p>
  *
@@ -148,7 +138,7 @@ public class Attributes2Impl extends AttributesImpl implements Attributes2
      *
      * @param index The attribute index (zero-based).
      * @return current flag value
-     * @exception java.lang.ArrayIndexOutOfBoundsException When the
+     * @throws java.lang.ArrayIndexOutOfBoundsException When the
      *            supplied index does not identify an attribute.
      */
     public boolean isSpecified (int index)
@@ -167,7 +157,7 @@ public class Attributes2Impl extends AttributesImpl implements Attributes2
      *        the name has no Namespace URI.
      * @param localName The attribute's local name.
      * @return current flag value
-     * @exception java.lang.IllegalArgumentException When the
+     * @throws java.lang.IllegalArgumentException When the
      *            supplied names do not identify an attribute.
      */
     public boolean isSpecified (String uri, String localName)
@@ -187,7 +177,7 @@ public class Attributes2Impl extends AttributesImpl implements Attributes2
      *
      * @param qName The XML qualified (prefixed) name.
      * @return current flag value
-     * @exception java.lang.IllegalArgumentException When the
+     * @throws java.lang.IllegalArgumentException When the
      *            supplied name does not identify an attribute.
      */
     public boolean isSpecified (String qName)
@@ -299,7 +289,7 @@ public class Attributes2Impl extends AttributesImpl implements Attributes2
      *
      * @param index The index of the attribute (zero-based).
      * @param value The desired flag value.
-     * @exception java.lang.ArrayIndexOutOfBoundsException When the
+     * @throws java.lang.ArrayIndexOutOfBoundsException When the
      *            supplied index does not identify an attribute.
      * @see #setType
      */
@@ -319,7 +309,7 @@ public class Attributes2Impl extends AttributesImpl implements Attributes2
      *
      * @param index The index of the attribute (zero-based).
      * @param value The desired flag value.
-     * @exception java.lang.ArrayIndexOutOfBoundsException When the
+     * @throws java.lang.ArrayIndexOutOfBoundsException When the
      *            supplied index does not identify an attribute.
      */
     public void setSpecified (int index, boolean value)

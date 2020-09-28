@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import java.security.AlgorithmParameters;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchProviderException;
+import java.security.Policy;
 import java.security.Provider;
 import java.security.ProviderException;
 import java.security.Security;
@@ -82,11 +83,11 @@ public abstract class PKCS11Test {
     static {
         // hack
         String absBase = new File(BASE).getAbsolutePath();
-        int k = absBase.indexOf(SEP + "test" + SEP + "sun" + SEP);
+        int k = absBase.indexOf(SEP + "test" + SEP + "jdk" + SEP);
         if (k < 0) k = 0;
-        String p1 = absBase.substring(0, k + 6);
-        String p2 = absBase.substring(k + 5);
-        CLOSED_BASE = p1 + "closed" + p2;
+        String p1 = absBase.substring(0, k);
+        String p2 = absBase.substring(k);
+        CLOSED_BASE = p1 + "/../closed" + p2;
 
         // set it as a system property to make it available in policy file
         System.setProperty("closed.base", CLOSED_BASE);
@@ -136,19 +137,6 @@ public abstract class PKCS11Test {
             }
         }
         pkcs11 = p;
-    }
-
-    /*
-     * Use Solaris SPARC 11.2 or later to avoid an intermittent failure
-     * when running SunPKCS11-Solaris (8044554)
-     */
-    static boolean isBadSolarisSparc(Provider p) {
-        if ("SunPKCS11-Solaris".equals(p.getName()) && badSolarisSparc) {
-            System.out.println("SunPKCS11-Solaris provider requires " +
-                "Solaris SPARC 11.2 or later, skipping");
-            return true;
-        }
-        return false;
     }
 
     // Return a SunPKCS11 provider configured with the specified config file
@@ -683,10 +671,6 @@ public abstract class PKCS11Test {
         }
 
         osMap = new HashMap<>();
-        osMap.put("SunOS-sparc-32", new String[] { "/usr/lib/mps/" });
-        osMap.put("SunOS-sparcv9-64", new String[] { "/usr/lib/mps/64/" });
-        osMap.put("SunOS-x86-32", new String[] { "/usr/lib/mps/" });
-        osMap.put("SunOS-amd64-64", new String[] { "/usr/lib/mps/64/" });
         osMap.put("Linux-i386-32", new String[] {
                 "/usr/lib/i386-linux-gnu/",
                 "/usr/lib32/",
@@ -745,14 +729,6 @@ public abstract class PKCS11Test {
     }
 
     private final static char[] hexDigits = "0123456789abcdef".toCharArray();
-
-    private static final String distro = distro();
-
-    static final boolean badSolarisSparc =
-            System.getProperty("os.name").equals("SunOS") &&
-            System.getProperty("os.arch").equals("sparcv9") &&
-            System.getProperty("os.version").compareTo("5.11") <= 0 &&
-            getDistro().compareTo("11.2") < 0;
 
     public static String toString(byte[] b) {
         if (b == null) {
@@ -837,29 +813,6 @@ public abstract class PKCS11Test {
         return algorithms;
     }
 
-    /**
-     * Get the identifier for the operating system distribution
-     */
-    static String getDistro() {
-        return distro;
-    }
-
-    private static String distro() {
-        if (props.getProperty("os.name").equals("SunOS")) {
-            try (BufferedReader in =
-                         new BufferedReader(new InputStreamReader(
-                                 Runtime.getRuntime().exec("uname -v").getInputStream()))) {
-
-                return in.readLine();
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to determine distro.", e);
-            }
-        } else {
-            // Not used outside Solaris
-            return null;
-        }
-    }
-
     static byte[] generateData(int length) {
         byte data[] = new byte[length];
         for (int i=0; i<data.length; i++) {
@@ -878,6 +831,9 @@ public abstract class PKCS11Test {
 
         case "MacOSX-x86_64-64":
             return fetchNssLib(MACOSX_X64.class);
+
+        case "Linux-amd64-64":
+            return fetchNssLib(LINUX_X64.class);
 
         default:
             return null;
@@ -900,27 +856,35 @@ public abstract class PKCS11Test {
                         + "\nPlease make sure the artifact is available.");
             }
         }
+        Policy.setPolicy(null); // Clear the policy created by JIB if any
         return path;
     }
 
     @Artifact(
             organization = "jpg.tests.jdk.nsslib",
             name = "nsslib-windows_x64",
-            revision = "3.41-VS2017",
+            revision = "3.46-VS2017",
             extension = "zip")
     private static class WINDOWS_X64 { }
 
     @Artifact(
             organization = "jpg.tests.jdk.nsslib",
             name = "nsslib-windows_x86",
-            revision = "3.41-VS2017",
+            revision = "3.46-VS2017",
             extension = "zip")
     private static class WINDOWS_X86 { }
 
     @Artifact(
             organization = "jpg.tests.jdk.nsslib",
             name = "nsslib-macosx_x64",
-            revision = "3.41",
+            revision = "3.46",
             extension = "zip")
     private static class MACOSX_X64 { }
+
+    @Artifact(
+            organization = "jpg.tests.jdk.nsslib",
+            name = "nsslib-linux_x64",
+            revision = "3.46",
+            extension = "zip")
+    private static class LINUX_X64 { }
 }

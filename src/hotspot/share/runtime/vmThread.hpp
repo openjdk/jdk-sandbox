@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,11 @@
 #include "runtime/task.hpp"
 #include "runtime/vmOperations.hpp"
 
+class VM_QueueHead : public VM_None {
+ public:
+  VM_QueueHead() : VM_None("QueueHead") {}
+};
+
 //
 // Prioritized queue of VM operations.
 //
@@ -48,9 +53,8 @@ class VMOperationQueue : public CHeapObj<mtInternal> {
   int           _queue_length[nof_priorities];
   int           _queue_counter;
   VM_Operation* _queue       [nof_priorities];
-  // we also allow the vmThread to register the ops it has drained so we
-  // can scan them from oops_do
-  VM_Operation* _drain_list;
+
+  static VM_QueueHead _queue_head[nof_priorities];
 
   // Double-linked non-empty list insert.
   void insert(VM_Operation* q,VM_Operation* n);
@@ -58,12 +62,8 @@ class VMOperationQueue : public CHeapObj<mtInternal> {
 
   // Basic queue manipulation
   bool queue_empty                (int prio);
-  void queue_add_front            (int prio, VM_Operation *op);
-  void queue_add_back             (int prio, VM_Operation *op);
+  void queue_add                  (int prio, VM_Operation *op);
   VM_Operation* queue_remove_front(int prio);
-  void queue_oops_do(int queue, OopClosure* f);
-  void drain_list_oops_do(OopClosure* f);
-  VM_Operation* queue_drain(int prio);
   // lock-free query: may return the wrong answer but must not break
   bool queue_peek(int prio) { return _queue_length[prio] > 0; }
 
@@ -73,15 +73,7 @@ class VMOperationQueue : public CHeapObj<mtInternal> {
   // Highlevel operations. Encapsulates policy
   void add(VM_Operation *op);
   VM_Operation* remove_next();                        // Returns next or null
-  VM_Operation* remove_next_at_safepoint_priority()   { return queue_remove_front(SafepointPriority); }
-  VM_Operation* drain_at_safepoint_priority() { return queue_drain(SafepointPriority); }
-  void set_drain_list(VM_Operation* list) { _drain_list = list; }
   bool peek_at_safepoint_priority() { return queue_peek(SafepointPriority); }
-
-  // GC support
-  void oops_do(OopClosure* f);
-
-  void verify_queue(int prio) PRODUCT_RETURN;
 };
 
 
@@ -119,7 +111,6 @@ class VMThread: public NamedThread {
   static bool _terminated;
   static Monitor * _terminate_lock;
   static PerfCounter* _perf_accumulated_vm_operation_time;
-  static uint64_t _coalesced_count;
 
   static VMOperationTimeoutTask* _timeout_task;
 
@@ -139,7 +130,6 @@ class VMThread: public NamedThread {
 
   // Tester
   bool is_VM_thread() const                      { return true; }
-  bool is_GC_thread() const                      { return true; }
 
   // The ever running loop for the VMThread
   void loop();
@@ -155,13 +145,9 @@ class VMThread: public NamedThread {
   // Returns the current vm operation if any.
   static VM_Operation* vm_operation()             { return _cur_vm_operation; }
   static VM_Operation::VMOp_Type vm_op_type()     { return _cur_vm_operation->type(); }
-  static uint64_t get_coalesced_count()           { return _coalesced_count; }
 
   // Returns the single instance of VMThread.
   static VMThread* vm_thread()                    { return _vm_thread; }
-
-  // GC support
-  void oops_do(OopClosure* f, CodeBlobClosure* cf);
 
   void verify();
 

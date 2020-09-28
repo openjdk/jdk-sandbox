@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE ldml SYSTEM "../../common/dtd/ldml.dtd">
-<!-- Copyright © 1991-2019 Unicode, Inc.
+<!-- Copyright © 1991-2020 Unicode, Inc.
 For terms of use, see http://www.unicode.org/copyright.html
 Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
 CLDR data files are interpreted according to the LDML specification (http://unicode.org/reports/tr35/)
 -->
 <ldml>
 	<identity>
-		<version number="$Revision: 14782 $"/>
+		<version number="$Revision$"/>
 		<language type="lrc"/>
 	</identity>
 	<localeDisplayNames>
@@ -347,8 +347,8 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 		<exemplarCharacters>[\u0659 \u065B آ أ ؤ ئ ا ب پ ت ث ج چ ح خ د ذ ر ز ژ س ش ص ض ط ظ ع غ ف ڤ ق ک گ ل م ن ھ ە و ۉ ۊ ی ؽ]</exemplarCharacters>
 		<exemplarCharacters type="auxiliary">[\u200B\u200C\u200D\u200E\u200F \u064B \u064C \u064D \u064E \u064F \u0650 \u0651 \u0652 \u0654 إ ة ك ه ى ي]</exemplarCharacters>
 		<exemplarCharacters type="index">[آ ا ب پ ت ث ج چ ح خ د ذ ر ز ژ س ش ص ض ط ظ ع غ ف ق ک گ ل م ن ھ و ی]</exemplarCharacters>
-		<exemplarCharacters type="numbers">[\- , . % ‰ + 0 1 2 3 4 5 6 7 8 9]</exemplarCharacters>
-		<exemplarCharacters type="punctuation">[\- ‐ ، ٫ ٬ ؛ \: ! ؟ . … ‹ › « » ( ) \[ \] * / \\]</exemplarCharacters>
+		<exemplarCharacters type="numbers">[\- ‑ , . % ‰ + 0 1 2 3 4 5 6 7 8 9]</exemplarCharacters>
+		<exemplarCharacters type="punctuation">[\- ‐ ‑ ، ٫ ٬ ؛ \: ! ؟ . … ‹ › « » ( ) \[ \] * / \\]</exemplarCharacters>
 	</characters>
 	<delimiters>
 		<quotationStart>“</quotationStart>
@@ -883,8 +883,6 @@ CLDR data files are interpreted according to the LDML specification (http://unic
 				<symbol alt="narrow" draft="contributed">₽</symbol>
 			</currency>
 			<currency type="USD">
-				<displayName>USD</displayName>
-				<displayName count="other">USD</displayName>
 				<symbol draft="contributed">US$</symbol>
 				<symbol alt="narrow" draft="contributed">$</symbol>
 			</currency>

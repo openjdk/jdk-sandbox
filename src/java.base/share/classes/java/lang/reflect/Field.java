@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,6 +72,7 @@ class Field extends AccessibleObject implements Member {
     private String              name;
     private Class<?>            type;
     private int                 modifiers;
+    private boolean             trustedFinal;
     // Generics and annotations support
     private transient String    signature;
     // generic info repository; lazily initialized
@@ -119,6 +120,7 @@ class Field extends AccessibleObject implements Member {
           String name,
           Class<?> type,
           int modifiers,
+          boolean trustedFinal,
           int slot,
           String signature,
           byte[] annotations)
@@ -127,6 +129,7 @@ class Field extends AccessibleObject implements Member {
         this.name = name;
         this.type = type;
         this.modifiers = modifiers;
+        this.trustedFinal = trustedFinal;
         this.slot = slot;
         this.signature = signature;
         this.annotations = annotations;
@@ -148,7 +151,7 @@ class Field extends AccessibleObject implements Member {
         if (this.root != null)
             throw new IllegalArgumentException("Can not copy a non-root Field");
 
-        Field res = new Field(clazz, name, type, modifiers, slot, signature, annotations);
+        Field res = new Field(clazz, name, type, modifiers, trustedFinal, slot, signature, annotations);
         res.root = this;
         // Might as well eagerly propagate this if already present
         res.fieldAccessor = fieldAccessor;
@@ -252,7 +255,7 @@ class Field extends AccessibleObject implements Member {
      *     the field represented by this {@code Field} object
      * @throws GenericSignatureFormatError if the generic field
      *     signature does not conform to the format specified in
-     *     <cite>The Java&trade; Virtual Machine Specification</cite>
+     *     <cite>The Java Virtual Machine Specification</cite>
      * @throws TypeNotPresentException if the generic type
      *     signature of the underlying field refers to a non-existent
      *     type declaration
@@ -393,15 +396,15 @@ class Field extends AccessibleObject implements Member {
      * {@code obj}; primitive values are wrapped in an appropriate
      * object before being returned
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
      *              field is inaccessible.
-     * @exception IllegalArgumentException  if the specified object is not an
+     * @throws    IllegalArgumentException  if the specified object is not an
      *              instance of the class or interface declaring the underlying
      *              field (or a subclass or implementor thereof).
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      */
     @CallerSensitive
@@ -423,18 +426,18 @@ class Field extends AccessibleObject implements Member {
      * from
      * @return the value of the {@code boolean} field
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
      *              field is inaccessible.
-     * @exception IllegalArgumentException  if the specified object is not
+     * @throws    IllegalArgumentException  if the specified object is not
      *              an instance of the class or interface declaring the
      *              underlying field (or a subclass or implementor
      *              thereof), or if the field value cannot be
      *              converted to the type {@code boolean} by a
      *              widening conversion.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#get
      */
@@ -457,18 +460,18 @@ class Field extends AccessibleObject implements Member {
      * from
      * @return the value of the {@code byte} field
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
      *              field is inaccessible.
-     * @exception IllegalArgumentException  if the specified object is not
+     * @throws    IllegalArgumentException  if the specified object is not
      *              an instance of the class or interface declaring the
      *              underlying field (or a subclass or implementor
      *              thereof), or if the field value cannot be
      *              converted to the type {@code byte} by a
      *              widening conversion.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#get
      */
@@ -493,18 +496,18 @@ class Field extends AccessibleObject implements Member {
      * from
      * @return the value of the field converted to type {@code char}
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
      *              field is inaccessible.
-     * @exception IllegalArgumentException  if the specified object is not
+     * @throws    IllegalArgumentException  if the specified object is not
      *              an instance of the class or interface declaring the
      *              underlying field (or a subclass or implementor
      *              thereof), or if the field value cannot be
      *              converted to the type {@code char} by a
      *              widening conversion.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see Field#get
      */
@@ -529,18 +532,18 @@ class Field extends AccessibleObject implements Member {
      * from
      * @return the value of the field converted to type {@code short}
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
      *              field is inaccessible.
-     * @exception IllegalArgumentException  if the specified object is not
+     * @throws    IllegalArgumentException  if the specified object is not
      *              an instance of the class or interface declaring the
      *              underlying field (or a subclass or implementor
      *              thereof), or if the field value cannot be
      *              converted to the type {@code short} by a
      *              widening conversion.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#get
      */
@@ -565,18 +568,18 @@ class Field extends AccessibleObject implements Member {
      * from
      * @return the value of the field converted to type {@code int}
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
      *              field is inaccessible.
-     * @exception IllegalArgumentException  if the specified object is not
+     * @throws    IllegalArgumentException  if the specified object is not
      *              an instance of the class or interface declaring the
      *              underlying field (or a subclass or implementor
      *              thereof), or if the field value cannot be
      *              converted to the type {@code int} by a
      *              widening conversion.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#get
      */
@@ -601,18 +604,18 @@ class Field extends AccessibleObject implements Member {
      * from
      * @return the value of the field converted to type {@code long}
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
      *              field is inaccessible.
-     * @exception IllegalArgumentException  if the specified object is not
+     * @throws    IllegalArgumentException  if the specified object is not
      *              an instance of the class or interface declaring the
      *              underlying field (or a subclass or implementor
      *              thereof), or if the field value cannot be
      *              converted to the type {@code long} by a
      *              widening conversion.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#get
      */
@@ -637,18 +640,18 @@ class Field extends AccessibleObject implements Member {
      * from
      * @return the value of the field converted to type {@code float}
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
      *              field is inaccessible.
-     * @exception IllegalArgumentException  if the specified object is not
+     * @throws    IllegalArgumentException  if the specified object is not
      *              an instance of the class or interface declaring the
      *              underlying field (or a subclass or implementor
      *              thereof), or if the field value cannot be
      *              converted to the type {@code float} by a
      *              widening conversion.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see Field#get
      */
@@ -673,18 +676,18 @@ class Field extends AccessibleObject implements Member {
      * from
      * @return the value of the field converted to type {@code double}
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
      *              field is inaccessible.
-     * @exception IllegalArgumentException  if the specified object is not
+     * @throws    IllegalArgumentException  if the specified object is not
      *              an instance of the class or interface declaring the
      *              underlying field (or a subclass or implementor
      *              thereof), or if the field value cannot be
      *              converted to the type {@code double} by a
      *              widening conversion.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#get
      */
@@ -721,10 +724,21 @@ class Field extends AccessibleObject implements Member {
      * the underlying field is inaccessible, the method throws an
      * {@code IllegalAccessException}.
      *
-     * <p>If the underlying field is final, the method throws an
-     * {@code IllegalAccessException} unless {@code setAccessible(true)}
-     * has succeeded for this {@code Field} object
-     * and the field is non-static. Setting a final field in this way
+     * <p>If the underlying field is final, this {@code Field} object has
+     * <em>write</em> access if and only if the following conditions are met:
+     * <ul>
+     * <li>{@link #setAccessible(boolean) setAccessible(true)} has succeeded for
+     *     this {@code Field} object;</li>
+     * <li>the field is non-static; and</li>
+     * <li>the field's declaring class is not a {@linkplain Class#isHidden()
+     *     hidden class}; and</li>
+     * <li>the field's declaring class is not a {@linkplain Class#isRecord()
+     *     record class}.</li>
+     * </ul>
+     * If any of the above checks is not met, this method throws an
+     * {@code IllegalAccessException}.
+     *
+     * <p> Setting a final field in this way
      * is meaningful only during deserialization or reconstruction of
      * instances of classes with blank final fields, before they are
      * made available for access by other parts of a program. Use in
@@ -754,16 +768,17 @@ class Field extends AccessibleObject implements Member {
      * @param value the new value for the field of {@code obj}
      * being modified
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
-     *              field is either inaccessible or final.
-     * @exception IllegalArgumentException  if the specified object is not an
+     *              field is inaccessible or final;
+     *              or if this {@code Field} object has no write access.
+     * @throws    IllegalArgumentException  if the specified object is not an
      *              instance of the class or interface declaring the underlying
      *              field (or a subclass or implementor thereof),
      *              or if an unwrapping conversion fails.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      */
     @CallerSensitive
@@ -789,16 +804,17 @@ class Field extends AccessibleObject implements Member {
      * @param z   the new value for the field of {@code obj}
      * being modified
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
-     *              field is either inaccessible or final.
-     * @exception IllegalArgumentException  if the specified object is not an
+     *              field is either inaccessible or final;
+     *              or if this {@code Field} object has no write access.
+     * @throws    IllegalArgumentException  if the specified object is not an
      *              instance of the class or interface declaring the underlying
      *              field (or a subclass or implementor thereof),
      *              or if an unwrapping conversion fails.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#set
      */
@@ -825,16 +841,17 @@ class Field extends AccessibleObject implements Member {
      * @param b   the new value for the field of {@code obj}
      * being modified
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
-     *              field is either inaccessible or final.
-     * @exception IllegalArgumentException  if the specified object is not an
+     *              field is either inaccessible or final;
+     *              or if this {@code Field} object has no write access.
+     * @throws    IllegalArgumentException  if the specified object is not an
      *              instance of the class or interface declaring the underlying
      *              field (or a subclass or implementor thereof),
      *              or if an unwrapping conversion fails.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#set
      */
@@ -861,16 +878,17 @@ class Field extends AccessibleObject implements Member {
      * @param c   the new value for the field of {@code obj}
      * being modified
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
-     *              field is either inaccessible or final.
-     * @exception IllegalArgumentException  if the specified object is not an
+     *              field is either inaccessible or final;
+     *              or if this {@code Field} object has no write access.
+     * @throws    IllegalArgumentException  if the specified object is not an
      *              instance of the class or interface declaring the underlying
      *              field (or a subclass or implementor thereof),
      *              or if an unwrapping conversion fails.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#set
      */
@@ -897,16 +915,17 @@ class Field extends AccessibleObject implements Member {
      * @param s   the new value for the field of {@code obj}
      * being modified
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
-     *              field is either inaccessible or final.
-     * @exception IllegalArgumentException  if the specified object is not an
+     *              field is either inaccessible or final;
+     *              or if this {@code Field} object has no write access.
+     * @throws    IllegalArgumentException  if the specified object is not an
      *              instance of the class or interface declaring the underlying
      *              field (or a subclass or implementor thereof),
      *              or if an unwrapping conversion fails.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#set
      */
@@ -933,16 +952,17 @@ class Field extends AccessibleObject implements Member {
      * @param i   the new value for the field of {@code obj}
      * being modified
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
-     *              field is either inaccessible or final.
-     * @exception IllegalArgumentException  if the specified object is not an
+     *              field is either inaccessible or final;
+     *              or if this {@code Field} object has no write access.
+     * @throws    IllegalArgumentException  if the specified object is not an
      *              instance of the class or interface declaring the underlying
      *              field (or a subclass or implementor thereof),
      *              or if an unwrapping conversion fails.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#set
      */
@@ -969,16 +989,17 @@ class Field extends AccessibleObject implements Member {
      * @param l   the new value for the field of {@code obj}
      * being modified
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
-     *              field is either inaccessible or final.
-     * @exception IllegalArgumentException  if the specified object is not an
+     *              field is either inaccessible or final;
+     *              or if this {@code Field} object has no write access.
+     * @throws    IllegalArgumentException  if the specified object is not an
      *              instance of the class or interface declaring the underlying
      *              field (or a subclass or implementor thereof),
      *              or if an unwrapping conversion fails.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#set
      */
@@ -1005,16 +1026,17 @@ class Field extends AccessibleObject implements Member {
      * @param f   the new value for the field of {@code obj}
      * being modified
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
-     *              field is either inaccessible or final.
-     * @exception IllegalArgumentException  if the specified object is not an
+     *              field is either inaccessible or final;
+     *              or if this {@code Field} object has no write access.
+     * @throws    IllegalArgumentException  if the specified object is not an
      *              instance of the class or interface declaring the underlying
      *              field (or a subclass or implementor thereof),
      *              or if an unwrapping conversion fails.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#set
      */
@@ -1041,16 +1063,17 @@ class Field extends AccessibleObject implements Member {
      * @param d   the new value for the field of {@code obj}
      * being modified
      *
-     * @exception IllegalAccessException    if this {@code Field} object
+     * @throws    IllegalAccessException    if this {@code Field} object
      *              is enforcing Java language access control and the underlying
-     *              field is either inaccessible or final.
-     * @exception IllegalArgumentException  if the specified object is not an
+     *              field is either inaccessible or final;
+     *              or if this {@code Field} object has no write access.
+     * @throws    IllegalArgumentException  if the specified object is not an
      *              instance of the class or interface declaring the underlying
      *              field (or a subclass or implementor thereof),
      *              or if an unwrapping conversion fails.
-     * @exception NullPointerException      if the specified object is null
+     * @throws    NullPointerException      if the specified object is null
      *              and the field is an instance field.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      * @see       Field#set
      */
@@ -1127,14 +1150,21 @@ class Field extends AccessibleObject implements Member {
     }
 
     @Override
-    Field getRoot() {
+    /* package-private */ Field getRoot() {
         return root;
     }
 
+    /* package-private */ boolean isTrustedFinal() {
+        return trustedFinal;
+    }
+
     /**
+     * {@inheritDoc}
+     *
      * @throws NullPointerException {@inheritDoc}
      * @since 1.5
      */
+    @Override
     public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
         Objects.requireNonNull(annotationClass);
         return annotationClass.cast(declaredAnnotations().get(annotationClass));
@@ -1142,6 +1172,7 @@ class Field extends AccessibleObject implements Member {
 
     /**
      * {@inheritDoc}
+     *
      * @throws NullPointerException {@inheritDoc}
      * @since 1.8
      */
@@ -1155,6 +1186,7 @@ class Field extends AccessibleObject implements Member {
     /**
      * {@inheritDoc}
      */
+    @Override
     public Annotation[] getDeclaredAnnotations()  {
         return AnnotationParser.toArray(declaredAnnotations());
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -773,11 +773,8 @@ bool InstructForm::captures_bottom_type(FormDict &globals) const {
        !strcmp(_matrule->_rChild->_opType,"CheckCastPP")  ||
        !strcmp(_matrule->_rChild->_opType,"GetAndSetP")   ||
        !strcmp(_matrule->_rChild->_opType,"GetAndSetN")   ||
-#if INCLUDE_ZGC
-       !strcmp(_matrule->_rChild->_opType,"ZGetAndSetP") ||
-       !strcmp(_matrule->_rChild->_opType,"ZCompareAndExchangeP") ||
-       !strcmp(_matrule->_rChild->_opType,"LoadBarrierSlowReg") ||
-#endif
+       !strcmp(_matrule->_rChild->_opType,"RotateLeft")   ||
+       !strcmp(_matrule->_rChild->_opType,"RotateRight")   ||
 #if INCLUDE_SHENANDOAHGC
        !strcmp(_matrule->_rChild->_opType,"ShenandoahCompareAndExchangeP") ||
        !strcmp(_matrule->_rChild->_opType,"ShenandoahCompareAndExchangeN") ||
@@ -1048,11 +1045,7 @@ uint  InstructForm::reloc(FormDict &globals) {
     const char  *opType   = NULL;
     while (_matrule->base_operand(position, globals, result, name, opType)) {
       if ( strcmp(opType,"ConP") == 0 ) {
-#ifdef SPARC
-        reloc_entries += 2; // 1 for sethi + 1 for setlo
-#else
         ++reloc_entries;
-#endif
       }
       ++position;
     }
@@ -1086,13 +1079,7 @@ uint  InstructForm::reloc(FormDict &globals) {
   // Check for any component being an immediate float or double.
   Form::DataType data_type = is_chain_of_constant(globals);
   if( data_type==idealD || data_type==idealF ) {
-#ifdef SPARC
-    // sparc required more relocation entries for floating constants
-    // (expires 9/98)
-    reloc_entries += 6;
-#else
     reloc_entries++;
-#endif
   }
 
   return reloc_entries;
@@ -3510,9 +3497,6 @@ int MatchNode::needs_ideal_memory_edge(FormDict &globals) const {
     "StoreCM",
     "GetAndSetB", "GetAndSetS", "GetAndAddI", "GetAndSetI", "GetAndSetP",
     "GetAndAddB", "GetAndAddS", "GetAndAddL", "GetAndSetL", "GetAndSetN",
-#if INCLUDE_ZGC
-    "ZGetAndSetP", "ZCompareAndSwapP", "ZCompareAndExchangeP", "ZWeakCompareAndSwapP",
-#endif
     "ClearArray"
   };
   int cnt = sizeof(needs_ideal_memory_list)/sizeof(char*);
@@ -3958,6 +3942,8 @@ bool MatchRule::is_base_register(FormDict &globals) const {
          strcmp(opType,"RegL")==0 ||
          strcmp(opType,"RegF")==0 ||
          strcmp(opType,"RegD")==0 ||
+         strcmp(opType,"RegVMask")==0 ||
+         strcmp(opType,"VecA")==0 ||
          strcmp(opType,"VecS")==0 ||
          strcmp(opType,"VecD")==0 ||
          strcmp(opType,"VecX")==0 ||
@@ -4007,39 +3993,12 @@ bool MatchRule::is_chain_rule(FormDict &globals) const {
 }
 
 int MatchRule::is_ideal_copy() const {
-  if( _rChild ) {
-    const char  *opType = _rChild->_opType;
-#if 1
-    if( strcmp(opType,"CastIP")==0 )
-      return 1;
-#else
-    if( strcmp(opType,"CastII")==0 )
-      return 1;
-    // Do not treat *CastPP this way, because it
-    // may transfer a raw pointer to an oop.
-    // If the register allocator were to coalesce this
-    // into a single LRG, the GC maps would be incorrect.
-    //if( strcmp(opType,"CastPP")==0 )
-    //  return 1;
-    //if( strcmp(opType,"CheckCastPP")==0 )
-    //  return 1;
-    //
-    // Do not treat CastX2P or CastP2X this way, because
-    // raw pointers and int types are treated differently
-    // when saving local & stack info for safepoints in
-    // Output().
-    //if( strcmp(opType,"CastX2P")==0 )
-    //  return 1;
-    //if( strcmp(opType,"CastP2X")==0 )
-    //  return 1;
-#endif
-  }
-  if( is_chain_rule(_AD.globalNames()) &&
-      _lChild && strncmp(_lChild->_opType,"stackSlot",9)==0 )
+  if (is_chain_rule(_AD.globalNames()) &&
+      _lChild && strncmp(_lChild->_opType, "stackSlot", 9) == 0) {
     return 1;
+  }
   return 0;
 }
-
 
 int MatchRule::is_expensive() const {
   if( _rChild ) {
@@ -4074,6 +4033,7 @@ int MatchRule::is_expensive() const {
         strcmp(opType,"FmaD") == 0 ||
         strcmp(opType,"FmaF") == 0 ||
         strcmp(opType,"RoundDouble")==0 ||
+        strcmp(opType,"RoundDoubleMode")==0 ||
         strcmp(opType,"RoundFloat")==0 ||
         strcmp(opType,"ReverseBytesI")==0 ||
         strcmp(opType,"ReverseBytesL")==0 ||
@@ -4093,6 +4053,11 @@ int MatchRule::is_expensive() const {
         strcmp(opType,"MulReductionVL")==0 ||
         strcmp(opType,"MulReductionVF")==0 ||
         strcmp(opType,"MulReductionVD")==0 ||
+        strcmp(opType,"MinReductionV")==0 ||
+        strcmp(opType,"MaxReductionV")==0 ||
+        strcmp(opType,"AndReductionV")==0 ||
+        strcmp(opType,"OrReductionV")==0 ||
+        strcmp(opType,"XorReductionV")==0 ||
         0 /* 0 to line up columns nicely */ )
       return 1;
   }
@@ -4195,14 +4160,15 @@ bool MatchRule::is_vector() const {
     "AddReductionVF", "AddReductionVD",
     "MulReductionVI", "MulReductionVL",
     "MulReductionVF", "MulReductionVD",
-    "MulAddVS2VI",
+    "MaxReductionV", "MinReductionV",
+    "AndReductionV", "OrReductionV", "XorReductionV",
+    "MulAddVS2VI", "MacroLogicV",
     "LShiftCntV","RShiftCntV",
     "LShiftVB","LShiftVS","LShiftVI","LShiftVL",
     "RShiftVB","RShiftVS","RShiftVI","RShiftVL",
     "URShiftVB","URShiftVS","URShiftVI","URShiftVL",
-    "MaxReductionV", "MinReductionV",
     "ReplicateB","ReplicateS","ReplicateI","ReplicateL","ReplicateF","ReplicateD",
-    "LoadVector","StoreVector",
+    "RoundDoubleModeV","RotateLeftV" , "RotateRightV", "LoadVector","StoreVector",
     "FmaVD", "FmaVF","PopCountVI",
     // Next are not supported currently.
     "PackB","PackS","PackI","PackL","PackF","PackD","Pack2L","Pack2D",

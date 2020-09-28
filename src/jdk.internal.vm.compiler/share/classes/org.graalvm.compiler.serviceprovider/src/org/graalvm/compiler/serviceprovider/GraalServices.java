@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import static java.lang.Thread.currentThread;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,6 +40,8 @@ import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
+import jdk.vm.ci.meta.ConstantPool;
+import jdk.vm.ci.meta.JavaType;
 import org.graalvm.compiler.serviceprovider.SpeculationReasonGroup.SpeculationContextObject;
 
 import jdk.vm.ci.code.BytecodePosition;
@@ -89,13 +92,8 @@ public final class GraalServices {
             synchronized (servicesCache) {
                 ArrayList<S> providersList = new ArrayList<>();
                 for (S provider : providers) {
-                    /*
-                     * When building libgraal, we want providers that comes from the Graal community
-                     * and enterprise modules but not those available on the native-image class
-                     * path.
-                     */
                     Module module = provider.getClass().getModule();
-                    if (module.isNamed()) {
+                    if (isHotSpotGraalModule(module.getName())) {
                         providersList.add(provider);
                     }
                 }
@@ -108,8 +106,29 @@ public final class GraalServices {
         return providers;
     }
 
+    /**
+     * Determines if the module named by {@code name} is part of Graal when it is configured as a
+     * HotSpot JIT compiler.
+     */
+    private static boolean isHotSpotGraalModule(String name) {
+        if (name != null) {
+            return name.equals("jdk.internal.vm.compiler") ||
+                            name.equals("jdk.internal.vm.compiler.management") ||
+                            name.equals("com.oracle.graal.graal_enterprise");
+        }
+        return false;
+    }
+
     protected static <S> Iterable<S> load0(Class<S> service) {
-        Iterable<S> iterable = ServiceLoader.load(service);
+        Module module = GraalServices.class.getModule();
+        // Graal cannot know all the services used by another module
+        // (e.g. enterprise) so dynamically register the service use now.
+        if (!module.canUse(service)) {
+            module.addUses(service);
+        }
+
+        ModuleLayer layer = module.getLayer();
+        Iterable<S> iterable = ServiceLoader.load(layer, service);
         return new Iterable<>() {
             @Override
             public Iterator<S> iterator() {
@@ -220,6 +239,10 @@ public final class GraalServices {
      * trusted code.
      */
     public static boolean isToStringTrusted(Class<?> c) {
+        if (IS_IN_NATIVE_IMAGE) {
+            return true;
+        }
+
         Module module = c.getModule();
         Module jvmciModule = JVMCI_MODULE;
         assert jvmciModule.getPackages().contains("jdk.vm.ci.runtime");
@@ -533,5 +556,38 @@ public final class GraalServices {
 
     public static VirtualObject createVirtualObject(ResolvedJavaType type, int id, boolean isAutoBox) {
         return VirtualObject.get(type, id, isAutoBox);
+    }
+
+    public static int getJavaUpdateVersion() {
+        return Runtime.version().update();
+    }
+
+    private static final Method constantPoolLookupReferencedType;
+
+    static {
+        Method lookupReferencedType = null;
+        Class<?> constantPool = ConstantPool.class;
+        try {
+            lookupReferencedType = constantPool.getDeclaredMethod("lookupReferencedType", Integer.TYPE, Integer.TYPE);
+        } catch (NoSuchMethodException e) {
+        }
+        constantPoolLookupReferencedType = lookupReferencedType;
+    }
+
+    public static JavaType lookupReferencedType(ConstantPool constantPool, int cpi, int opcode) {
+        if (constantPoolLookupReferencedType != null) {
+            try {
+                return (JavaType) constantPoolLookupReferencedType.invoke(constantPool, cpi, opcode);
+            } catch (Error e) {
+                throw e;
+            } catch (Throwable throwable) {
+                throw new InternalError(throwable);
+            }
+        }
+        throw new InternalError("This JVMCI version doesn't support ConstantPool.lookupReferencedType()");
+    }
+
+    public static boolean hasLookupReferencedType() {
+        return constantPoolLookupReferencedType != null;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "code/codeCache.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
 #include "compiler/compilerDefinitions.hpp"
@@ -37,22 +38,38 @@ const char* compilertype2name_tab[compiler_number_of_types] = {
   "jvmci"
 };
 
+#ifdef TIERED
+bool CompilationModeFlag::_quick_only = false;
+bool CompilationModeFlag::_high_only = false;
+bool CompilationModeFlag::_high_only_quick_internal = false;
+
+
+bool CompilationModeFlag::initialize() {
+  if (CompilationMode != NULL) {
+    if (strcmp(CompilationMode, "default") == 0) {
+      // Do nothing, just support the "default" keyword.
+    } else if (strcmp(CompilationMode, "quick-only") == 0) {
+      _quick_only = true;
+    } else if (strcmp(CompilationMode, "high-only") == 0) {
+      _high_only = true;
+    } else if (strcmp(CompilationMode, "high-only-quick-internal") == 0) {
+      _high_only_quick_internal = true;
+    } else {
+      jio_fprintf(defaultStream::error_stream(), "Unsupported compilation mode '%s', supported modes are: quick-only, high-only, high-only-quick-internal\n", CompilationMode);
+      return false;
+    }
+  }
+  return true;
+}
+
+#endif
+
 #if defined(COMPILER2)
 CompLevel  CompLevel_highest_tier      = CompLevel_full_optimization;  // pure C2 and tiered or JVMCI and tiered
 #elif defined(COMPILER1)
 CompLevel  CompLevel_highest_tier      = CompLevel_simple;             // pure C1 or JVMCI
 #else
 CompLevel  CompLevel_highest_tier      = CompLevel_none;
-#endif
-
-#if defined(TIERED)
-CompLevel  CompLevel_initial_compile   = CompLevel_full_profile;        // tiered
-#elif defined(COMPILER1) || INCLUDE_JVMCI
-CompLevel  CompLevel_initial_compile   = CompLevel_simple;              // pure C1 or JVMCI
-#elif defined(COMPILER2)
-CompLevel  CompLevel_initial_compile   = CompLevel_full_optimization;   // pure C2
-#else
-CompLevel  CompLevel_initial_compile   = CompLevel_none;
 #endif
 
 #if defined(COMPILER2)
@@ -116,7 +133,6 @@ intx CompilerConfig::scaled_freq_log(intx freq_log, double scale) {
 void set_client_compilation_mode() {
   Compilation_mode = CompMode_client;
   CompLevel_highest_tier = CompLevel_simple;
-  CompLevel_initial_compile = CompLevel_simple;
   FLAG_SET_ERGO(TieredCompilation, false);
   FLAG_SET_ERGO(ProfileInterpreter, false);
 #if INCLUDE_JVMCI
@@ -185,17 +201,8 @@ void select_compilation_mode_ergonomically() {
   }
 }
 
-#endif // TIERED
 
 void CompilerConfig::set_tiered_flags() {
-  // With tiered, set default policy to SimpleThresholdPolicy, which is 2.
-  if (FLAG_IS_DEFAULT(CompilationPolicyChoice)) {
-    FLAG_SET_DEFAULT(CompilationPolicyChoice, 2);
-  }
-  if (CompilationPolicyChoice < 2) {
-    vm_exit_during_initialization(
-      "Incompatible compilation policy selected", NULL);
-  }
   // Increase the code cache size - tiered compiles a lot more.
   if (FLAG_IS_DEFAULT(ReservedCodeCacheSize)) {
     FLAG_SET_ERGO(ReservedCodeCacheSize,
@@ -214,6 +221,12 @@ void CompilerConfig::set_tiered_flags() {
 
   if (CompileThresholdScaling < 0) {
     vm_exit_during_initialization("Negative value specified for CompileThresholdScaling", NULL);
+  }
+
+  if (CompilationModeFlag::disable_intermediate()) {
+    if (FLAG_IS_DEFAULT(Tier0ProfilingStartPercentage)) {
+      FLAG_SET_DEFAULT(Tier0ProfilingStartPercentage, 33);
+    }
   }
 
   // Scale tiered compilation thresholds.
@@ -242,8 +255,40 @@ void CompilerConfig::set_tiered_flags() {
     FLAG_SET_ERGO(Tier4MinInvocationThreshold, scaled_compile_threshold(Tier4MinInvocationThreshold));
     FLAG_SET_ERGO(Tier4CompileThreshold, scaled_compile_threshold(Tier4CompileThreshold));
     FLAG_SET_ERGO(Tier4BackEdgeThreshold, scaled_compile_threshold(Tier4BackEdgeThreshold));
+
+    if (CompilationModeFlag::disable_intermediate()) {
+      FLAG_SET_ERGO(Tier40InvocationThreshold, scaled_compile_threshold(Tier40InvocationThreshold));
+      FLAG_SET_ERGO(Tier40MinInvocationThreshold, scaled_compile_threshold(Tier40MinInvocationThreshold));
+      FLAG_SET_ERGO(Tier40CompileThreshold, scaled_compile_threshold(Tier40CompileThreshold));
+      FLAG_SET_ERGO(Tier40BackEdgeThreshold, scaled_compile_threshold(Tier40BackEdgeThreshold));
+    }
+
+#if INCLUDE_AOT
+    if (UseAOT) {
+      FLAG_SET_ERGO(Tier3AOTInvocationThreshold, scaled_compile_threshold(Tier3AOTInvocationThreshold));
+      FLAG_SET_ERGO(Tier3AOTMinInvocationThreshold, scaled_compile_threshold(Tier3AOTMinInvocationThreshold));
+      FLAG_SET_ERGO(Tier3AOTCompileThreshold, scaled_compile_threshold(Tier3AOTCompileThreshold));
+      FLAG_SET_ERGO(Tier3AOTBackEdgeThreshold, scaled_compile_threshold(Tier3AOTBackEdgeThreshold));
+
+      if (CompilationModeFlag::disable_intermediate()) {
+        FLAG_SET_ERGO(Tier0AOTInvocationThreshold, scaled_compile_threshold(Tier0AOTInvocationThreshold));
+        FLAG_SET_ERGO(Tier0AOTMinInvocationThreshold, scaled_compile_threshold(Tier0AOTMinInvocationThreshold));
+        FLAG_SET_ERGO(Tier0AOTCompileThreshold, scaled_compile_threshold(Tier0AOTCompileThreshold));
+        FLAG_SET_ERGO(Tier0AOTBackEdgeThreshold, scaled_compile_threshold(Tier0AOTBackEdgeThreshold));
+      }
+    }
+#endif // INCLUDE_AOT
+  }
+
+  // Reduce stack usage due to inlining of methods which require much stack.
+  // (High tier compiler can inline better based on profiling information.)
+  if (FLAG_IS_DEFAULT(C1InlineStackLimit) &&
+      TieredStopAtLevel == CompLevel_full_optimization && !CompilationModeFlag::quick_only()) {
+    FLAG_SET_DEFAULT(C1InlineStackLimit, 5);
   }
 }
+
+#endif // TIERED
 
 #if INCLUDE_JVMCI
 void set_jvmci_specific_flags() {
@@ -252,11 +297,6 @@ void set_jvmci_specific_flags() {
 
     if (FLAG_IS_DEFAULT(TypeProfileWidth)) {
       FLAG_SET_DEFAULT(TypeProfileWidth, 8);
-    }
-    if (TieredStopAtLevel != CompLevel_full_optimization) {
-      // Currently JVMCI compiler can only work at the full optimization level
-      warning("forcing TieredStopAtLevel to full optimization because JVMCI is enabled");
-      FLAG_SET_ERGO(TieredStopAtLevel, CompLevel_full_optimization);
     }
     if (FLAG_IS_DEFAULT(TypeProfileLevel)) {
       FLAG_SET_DEFAULT(TypeProfileLevel, 0);
@@ -278,11 +318,26 @@ void set_jvmci_specific_flags() {
         }
       }
     } else {
+#ifdef TIERED
+      if (!TieredCompilation) {
+         warning("Disabling tiered compilation with non-native JVMCI compiler is not recommended. "
+                 "Turning on tiered compilation and disabling intermediate compilation levels instead. ");
+         FLAG_SET_ERGO(TieredCompilation, true);
+         if (CompilationModeFlag::normal()) {
+           CompilationModeFlag::set_high_only_quick_internal(true);
+         }
+         if (CICompilerCount < 2 && CompilationModeFlag::quick_internal()) {
+            warning("Increasing number of compiler threads for JVMCI compiler.");
+            FLAG_SET_ERGO(CICompilerCount, 2);
+         }
+      }
+#else // TIERED
       // Adjust the on stack replacement percentage to avoid early
       // OSR compilations while JVMCI itself is warming up
       if (FLAG_IS_DEFAULT(OnStackReplacePercentage)) {
         FLAG_SET_DEFAULT(OnStackReplacePercentage, 933);
       }
+#endif // !TIERED
       // JVMCI needs values not less than defaults
       if (FLAG_IS_DEFAULT(ReservedCodeCacheSize)) {
         FLAG_SET_DEFAULT(ReservedCodeCacheSize, MAX2(64*M, ReservedCodeCacheSize));
@@ -348,17 +403,6 @@ bool CompilerConfig::check_args_consistency(bool status) {
     }
     FLAG_SET_CMDLINE(PostLoopMultiversioning, false);
   }
-  if (UseCountedLoopSafepoints && LoopStripMiningIter == 0) {
-    if (!FLAG_IS_DEFAULT(UseCountedLoopSafepoints) || !FLAG_IS_DEFAULT(LoopStripMiningIter)) {
-      warning("When counted loop safepoints are enabled, LoopStripMiningIter must be at least 1 (a safepoint every 1 iteration): setting it to 1");
-    }
-    LoopStripMiningIter = 1;
-  } else if (!UseCountedLoopSafepoints && LoopStripMiningIter > 0) {
-    if (!FLAG_IS_DEFAULT(UseCountedLoopSafepoints) || !FLAG_IS_DEFAULT(LoopStripMiningIter)) {
-      warning("Disabling counted safepoints implies no loop strip mining: setting LoopStripMiningIter to 0");
-    }
-    LoopStripMiningIter = 0;
-  }
 #endif // COMPILER2
 
   if (Arguments::is_interpreter_only()) {
@@ -417,24 +461,23 @@ void CompilerConfig::ergo_initialize() {
   set_jvmci_specific_flags();
 #endif
 
+#ifdef TIERED
   if (TieredCompilation) {
     set_tiered_flags();
-  } else {
-    int max_compilation_policy_choice = 1;
-#ifdef COMPILER2
-    if (is_server_compilation_mode_vm()) {
-      max_compilation_policy_choice = 2;
-    }
+  } else
 #endif
-    // Check if the policy is valid.
-    if (CompilationPolicyChoice >= max_compilation_policy_choice) {
-      vm_exit_during_initialization(
-        "Incompatible compilation policy selected", NULL);
-    }
+  {
     // Scale CompileThreshold
     // CompileThresholdScaling == 0.0 is equivalent to -Xint and leaves CompileThreshold unchanged.
     if (!FLAG_IS_DEFAULT(CompileThresholdScaling) && CompileThresholdScaling > 0.0) {
       FLAG_SET_ERGO(CompileThreshold, scaled_compile_threshold(CompileThreshold));
+    }
+  }
+
+  if (FLAG_IS_DEFAULT(SweeperThreshold)) {
+    if ((SweeperThreshold * ReservedCodeCacheSize / 100) > (1.2 * M)) {
+      // Cap default SweeperThreshold value to an equivalent of 1.2 Mb
+      FLAG_SET_ERGO(SweeperThreshold, (1.2 * M * 100) / ReservedCodeCacheSize);
     }
   }
 
@@ -454,8 +497,8 @@ void CompilerConfig::ergo_initialize() {
   if (!IncrementalInline) {
     AlwaysIncrementalInline = false;
   }
-  if (PrintIdealGraphLevel > 0) {
-    FLAG_SET_ERGO(PrintIdealGraph, true);
+  if (FLAG_IS_CMDLINE(PrintIdealGraph) && !PrintIdealGraph) {
+    FLAG_SET_ERGO(PrintIdealGraphLevel, -1);
   }
 #endif
   if (!UseTypeSpeculation && FLAG_IS_DEFAULT(TypeProfileLevel)) {
@@ -470,4 +513,43 @@ void CompilerConfig::ergo_initialize() {
     LoopStripMiningIterShortLoop = LoopStripMiningIter / 10;
   }
 #endif // COMPILER2
+}
+
+static CompLevel highest_compile_level() {
+  return TieredCompilation ? MIN2((CompLevel) TieredStopAtLevel, CompLevel_highest_tier) : CompLevel_highest_tier;
+}
+
+bool is_c1_or_interpreter_only() {
+  if (Arguments::is_interpreter_only()) {
+    return true;
+  }
+
+#if INCLUDE_AOT
+  if (UseAOT) {
+    return false;
+  }
+#endif
+
+  if (highest_compile_level() < CompLevel_full_optimization) {
+#if INCLUDE_JVMCI
+    if (TieredCompilation) {
+       return true;
+    }
+    // This happens on jvm variant with C2 disabled and JVMCI
+    // enabled.
+    return !UseJVMCICompiler;
+#else
+    return true;
+#endif
+  }
+
+#ifdef TIERED
+  // The quick-only compilation mode is c1 only. However,
+  // CompilationModeFlag only takes effect with TieredCompilation
+  // enabled.
+  if (TieredCompilation && CompilationModeFlag::quick_only()) {
+    return true;
+  }
+#endif
+  return false;
 }

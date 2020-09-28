@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 
 import jdk.vm.ci.common.JVMCIError;
@@ -61,6 +63,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
 
     private static final HotSpotResolvedJavaField[] NO_FIELDS = new HotSpotResolvedJavaField[0];
     private static final int METHOD_CACHE_ARRAY_CAPACITY = 8;
+    private static final SortByOffset fieldSortingMethod = new SortByOffset();
 
     /**
      * The Java class this type represents.
@@ -74,6 +77,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     private HotSpotConstantPool constantPool;
     private final JavaConstant mirror;
     private HotSpotResolvedObjectTypeImpl superClass;
+    private HotSpotResolvedJavaType componentType;
 
     /**
      * Managed exclusively by {@link HotSpotJDKReflection#getField}.
@@ -154,7 +158,14 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
 
     @Override
     public ResolvedJavaType getComponentType() {
-        return runtime().compilerToVm.getComponentType(this);
+        if (componentType == null) {
+            if (isArray()) {
+                componentType = runtime().compilerToVm.getComponentType(this);
+            } else {
+                componentType = this;
+            }
+        }
+        return this.equals(componentType) ? null : componentType;
     }
 
     @Override
@@ -295,12 +306,12 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
 
     @Override
     public HotSpotResolvedObjectTypeImpl getSupertype() {
-        if (isArray()) {
-            ResolvedJavaType componentType = getComponentType();
-            if (componentType.equals(getJavaLangObject()) || componentType.isPrimitive()) {
+        ResolvedJavaType component = getComponentType();
+        if (component != null) {
+            if (component.equals(getJavaLangObject()) || component.isPrimitive()) {
                 return getJavaLangObject();
             }
-            HotSpotResolvedObjectTypeImpl supertype = ((HotSpotResolvedObjectTypeImpl) componentType).getSupertype();
+            HotSpotResolvedObjectTypeImpl supertype = ((HotSpotResolvedObjectTypeImpl) component).getSupertype();
             return (HotSpotResolvedObjectTypeImpl) supertype.getArrayClass();
         }
         if (isInterface()) {
@@ -360,8 +371,34 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     }
 
     @Override
+    public boolean isBeingInitialized() {
+        return isArray() ? false : getInitState() == config().instanceKlassStateBeingInitialized;
+    }
+
+    @Override
     public boolean isLinked() {
         return isArray() ? true : getInitState() >= config().instanceKlassStateLinked;
+    }
+
+    @Override
+    public void link() {
+        if (!isLinked()) {
+            runtime().compilerToVm.ensureLinked(this);
+        }
+    }
+
+    @Override
+    public boolean hasDefaultMethods() {
+        HotSpotVMConfig config = config();
+        int miscFlags = UNSAFE.getChar(getMetaspaceKlass() + config.instanceKlassMiscFlagsOffset);
+        return (miscFlags & config.jvmMiscFlagsHasDefaultMethods) != 0;
+    }
+
+    @Override
+    public boolean declaresDefaultMethods() {
+        HotSpotVMConfig config = config();
+        int miscFlags = UNSAFE.getChar(getMetaspaceKlass() + config.instanceKlassMiscFlagsOffset);
+        return (miscFlags & config.jvmMiscFlagsDeclaresDefaultMethods) != 0;
     }
 
     /**
@@ -379,7 +416,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     public void initialize() {
         if (!isInitialized()) {
             runtime().compilerToVm.ensureInitialized(this);
-            assert isInitialized();
+            assert isInitialized() || isBeingInitialized();
         }
     }
 
@@ -558,6 +595,10 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
          * a deopt instead since they can't really be used if they aren't linked yet.
          */
         if (!declaredHolder.isAssignableFrom(this) || this.isArray() || this.equals(declaredHolder) || !isLinked() || isInterface()) {
+            if (hmethod.canBeStaticallyBound()) {
+                // No assumptions are required.
+                return new AssumptionResult<>(hmethod);
+            }
             ResolvedJavaMethod result = hmethod.uniqueConcreteMethod(declaredHolder);
             if (result != null) {
                 return new AssumptionResult<>(result, new ConcreteMethod(method, declaredHolder, result));
@@ -573,11 +614,6 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
             // The type isn't known to implement the method.
             return null;
         }
-        if (resolvedMethod.canBeStaticallyBound()) {
-            // No assumptions are required.
-            return new AssumptionResult<>(resolvedMethod);
-        }
-
         if (resolvedMethod.canBeStaticallyBound()) {
             // No assumptions are required.
             return new AssumptionResult<>(resolvedMethod);
@@ -704,6 +740,12 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
         }
     }
 
+    static class SortByOffset implements Comparator<ResolvedJavaField> {
+        public int compare(ResolvedJavaField a, ResolvedJavaField b) {
+            return a.getOffset() - b.getOffset();
+        }
+    }
+
     @Override
     public ResolvedJavaField[] getInstanceFields(boolean includeSuperclasses) {
         if (instanceFields == null) {
@@ -723,8 +765,17 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
                 // This class does not have any instance fields of its own.
                 return NO_FIELDS;
             } else if (superClassFieldCount != 0) {
+                // Fields of the current class can be interleaved with fields of its super-classes
+                // but the array of fields to be returned must be sorted by increasing offset
+                // This code populates the array, then applies the sorting function
                 HotSpotResolvedJavaField[] result = new HotSpotResolvedJavaField[instanceFields.length - superClassFieldCount];
-                System.arraycopy(instanceFields, superClassFieldCount, result, 0, result.length);
+                int i = 0;
+                for (HotSpotResolvedJavaField f : instanceFields) {
+                    if (f.getDeclaringClass() == this) {
+                        result[i++] = f;
+                    }
+                }
+                Arrays.sort(result, fieldSortingMethod);
                 return result;
             } else {
                 // The super classes of this class do not have any instance fields.
@@ -777,34 +828,28 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
             System.arraycopy(prepend, 0, result, 0, prependLength);
         }
 
+        // Fields of the current class can be interleaved with fields of its super-classes
+        // but the array of fields to be returned must be sorted by increasing offset
+        // This code populates the array, then applies the sorting function
         int resultIndex = prependLength;
         for (int i = 0; i < index; ++i) {
             FieldInfo field = new FieldInfo(i);
             if (field.isStatic() == retrieveStaticFields) {
                 int offset = field.getOffset();
                 HotSpotResolvedJavaField resolvedJavaField = createField(field.getType(), offset, field.getAccessFlags(), i);
-
-                // Make sure the result is sorted by offset.
-                int j;
-                for (j = resultIndex - 1; j >= prependLength && result[j].getOffset() > offset; j--) {
-                    result[j + 1] = result[j];
-                }
-                result[j + 1] = resolvedJavaField;
-                resultIndex++;
+                result[resultIndex++] = resolvedJavaField;
             }
         }
-
+        Arrays.sort(result, fieldSortingMethod);
         return result;
     }
 
     @Override
     public String getSourceFileName() {
-        HotSpotVMConfig config = config();
-        final int sourceFileNameIndex = UNSAFE.getChar(getMetaspaceKlass() + config.instanceKlassSourceFileNameIndexOffset);
-        if (sourceFileNameIndex == 0) {
+        if (isArray()) {
             return null;
         }
-        return getConstantPool().lookupUtf8(sourceFileNameIndex);
+        return getConstantPool().getSourceFileName();
     }
 
     @Override

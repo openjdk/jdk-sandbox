@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@
 #include "code/icBuffer.hpp"
 #include "code/nmethod.hpp"
 #include "code/pcDesc.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "compiler/compileBroker.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
@@ -46,8 +47,9 @@
 #include "oops/oop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/compilationPolicy.hpp"
+#include "runtime/atomic.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/globals_extension.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/java.hpp"
@@ -149,10 +151,10 @@ int CodeCache::_number_of_nmethods_with_dependencies = 0;
 ExceptionCache* volatile CodeCache::_exception_cache_purge_list = NULL;
 
 // Initialize arrays of CodeHeap subsets
-GrowableArray<CodeHeap*>* CodeCache::_heaps = new(ResourceObj::C_HEAP, mtCode) GrowableArray<CodeHeap*> (CodeBlobType::All, true);
-GrowableArray<CodeHeap*>* CodeCache::_compiled_heaps = new(ResourceObj::C_HEAP, mtCode) GrowableArray<CodeHeap*> (CodeBlobType::All, true);
-GrowableArray<CodeHeap*>* CodeCache::_nmethod_heaps = new(ResourceObj::C_HEAP, mtCode) GrowableArray<CodeHeap*> (CodeBlobType::All, true);
-GrowableArray<CodeHeap*>* CodeCache::_allocable_heaps = new(ResourceObj::C_HEAP, mtCode) GrowableArray<CodeHeap*> (CodeBlobType::All, true);
+GrowableArray<CodeHeap*>* CodeCache::_heaps = new(ResourceObj::C_HEAP, mtCode) GrowableArray<CodeHeap*> (CodeBlobType::All, mtCode);
+GrowableArray<CodeHeap*>* CodeCache::_compiled_heaps = new(ResourceObj::C_HEAP, mtCode) GrowableArray<CodeHeap*> (CodeBlobType::All, mtCode);
+GrowableArray<CodeHeap*>* CodeCache::_nmethod_heaps = new(ResourceObj::C_HEAP, mtCode) GrowableArray<CodeHeap*> (CodeBlobType::All, mtCode);
+GrowableArray<CodeHeap*>* CodeCache::_allocable_heaps = new(ResourceObj::C_HEAP, mtCode) GrowableArray<CodeHeap*> (CodeBlobType::All, mtCode);
 
 void CodeCache::check_heap_sizes(size_t non_nmethod_size, size_t profiled_size, size_t non_profiled_size, size_t cache_size, bool all_set) {
   size_t total_size = non_nmethod_size + profiled_size + non_profiled_size;
@@ -483,7 +485,7 @@ CodeBlob* CodeCache::next_blob(CodeHeap* heap, CodeBlob* cb) {
  */
 CodeBlob* CodeCache::allocate(int size, int code_blob_type, int orig_code_blob_type) {
   // Possibly wakes up the sweeper thread.
-  NMethodSweeper::notify(code_blob_type);
+  NMethodSweeper::report_allocation(code_blob_type);
   assert_locked_or_safepoint(CodeCache_lock);
   assert(size > 0, "Code cache allocation request must be > 0 but is %d", size);
   if (size <= 0) {
@@ -749,7 +751,7 @@ void CodeCache::release_exception_cache(ExceptionCache* entry) {
     for (;;) {
       ExceptionCache* purge_list_head = Atomic::load(&_exception_cache_purge_list);
       entry->set_purge_list_next(purge_list_head);
-      if (Atomic::cmpxchg(entry, &_exception_cache_purge_list, purge_list_head) == purge_list_head) {
+      if (Atomic::cmpxchg(&_exception_cache_purge_list, purge_list_head, entry) == purge_list_head) {
         break;
       }
     }
@@ -1035,14 +1037,14 @@ bool CodeCache::is_far_target(address target) {
 #endif
 }
 
-#ifdef INCLUDE_JVMTI
+#if INCLUDE_JVMTI
 // RedefineClasses support for unloading nmethods that are dependent on "old" methods.
 // We don't really expect this table to grow very large.  If it does, it can become a hashtable.
 static GrowableArray<CompiledMethod*>* old_compiled_method_table = NULL;
 
 static void add_to_old_table(CompiledMethod* c) {
   if (old_compiled_method_table == NULL) {
-    old_compiled_method_table = new (ResourceObj::C_HEAP, mtCode) GrowableArray<CompiledMethod*>(100, true);
+    old_compiled_method_table = new (ResourceObj::C_HEAP, mtCode) GrowableArray<CompiledMethod*>(100, mtCode);
   }
   old_compiled_method_table->push(c);
 }
@@ -1072,8 +1074,8 @@ void CodeCache::old_nmethods_do(MetadataClosure* f) {
     length = old_compiled_method_table->length();
     for (int i = 0; i < length; i++) {
       CompiledMethod* cm = old_compiled_method_table->at(i);
-      // Only walk alive nmethods, the dead ones will get removed by the sweeper.
-      if (cm->is_alive()) {
+      // Only walk alive nmethods, the dead ones will get removed by the sweeper or GC.
+      if (cm->is_alive() && !cm->is_unloading()) {
         old_compiled_method_table->at(i)->metadata_do(f);
       }
     }
@@ -1143,28 +1145,17 @@ void CodeCache::flush_evol_dependents() {
 
   // At least one nmethod has been marked for deoptimization
 
-  // All this already happens inside a VM_Operation, so we'll do all the work here.
-  // Stuff copied from VM_Deoptimize and modified slightly.
-
-  // We do not want any GCs to happen while we are in the middle of this VM operation
-  ResourceMark rm;
-  DeoptimizationMarker dm;
-
-  // Deoptimize all activations depending on marked nmethods
-  Deoptimization::deoptimize_dependents();
-
-  // Make the dependent methods not entrant
-  make_marked_nmethods_not_entrant();
+  Deoptimization::deoptimize_all_marked();
 }
 #endif // INCLUDE_JVMTI
 
-// Deoptimize all methods
+// Mark methods for deopt (if safe or possible).
 void CodeCache::mark_all_nmethods_for_deoptimization() {
   MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
   CompiledMethodIterator iter(CompiledMethodIterator::only_alive_and_not_unloading);
   while(iter.next()) {
     CompiledMethod* nm = iter.method();
-    if (!nm->method()->is_method_handle_intrinsic()) {
+    if (!nm->is_native_method()) {
       nm->mark_for_deoptimization();
     }
   }
@@ -1192,7 +1183,7 @@ void CodeCache::make_marked_nmethods_not_entrant() {
   CompiledMethodIterator iter(CompiledMethodIterator::only_alive_and_not_unloading);
   while(iter.next()) {
     CompiledMethod* nm = iter.method();
-    if (nm->is_marked_for_deoptimization() && !nm->is_not_entrant()) {
+    if (nm->is_marked_for_deoptimization()) {
       nm->make_not_entrant();
     }
   }
@@ -1204,17 +1195,12 @@ void CodeCache::flush_dependents_on(InstanceKlass* dependee) {
 
   if (number_of_nmethods_with_dependencies() == 0) return;
 
-  // CodeCache can only be updated by a thread_in_VM and they will all be
-  // stopped during the safepoint so CodeCache will be safe to update without
-  // holding the CodeCache_lock.
-
   KlassDepChange changes(dependee);
 
   // Compute the dependent nmethods
   if (mark_for_deoptimization(changes) > 0) {
     // At least one nmethod has been marked for deoptimization
-    VM_Deoptimize op;
-    VMThread::execute(&op);
+    Deoptimization::deoptimize_all_marked();
   }
 }
 
@@ -1223,26 +1209,9 @@ void CodeCache::flush_dependents_on_method(const methodHandle& m_h) {
   // --- Compile_lock is not held. However we are at a safepoint.
   assert_locked_or_safepoint(Compile_lock);
 
-  // CodeCache can only be updated by a thread_in_VM and they will all be
-  // stopped dring the safepoint so CodeCache will be safe to update without
-  // holding the CodeCache_lock.
-
   // Compute the dependent nmethods
   if (mark_for_deoptimization(m_h()) > 0) {
-    // At least one nmethod has been marked for deoptimization
-
-    // All this already happens inside a VM_Operation, so we'll do all the work here.
-    // Stuff copied from VM_Deoptimize and modified slightly.
-
-    // We do not want any GCs to happen while we are in the middle of this VM operation
-    ResourceMark rm;
-    DeoptimizationMarker dm;
-
-    // Deoptimize all activations depending on marked nmethods
-    Deoptimization::deoptimize_dependents();
-
-    // Make the dependent methods not entrant
-    make_marked_nmethods_not_entrant();
+    Deoptimization::deoptimize_all_marked();
   }
 }
 

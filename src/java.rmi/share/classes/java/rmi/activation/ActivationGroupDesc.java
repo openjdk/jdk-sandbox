@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,7 +55,11 @@ import java.util.Properties;
  * @since       1.2
  * @see         ActivationGroup
  * @see         ActivationGroupID
+ * @deprecated
+ * See the <a href="{@docRoot}/java.rmi/java/rmi/activation/package-summary.html">
+ * {@code java.rmi.activation}</a> package specification for further information.
  */
+@Deprecated(forRemoval=true, since="15")
 public final class ActivationGroupDesc implements Serializable {
 
     /**
@@ -86,6 +90,7 @@ public final class ActivationGroupDesc implements Serializable {
     private Properties props;
 
     /** indicate compatibility with the Java 2 SDK v1.2 version of class */
+    @java.io.Serial
     private static final long serialVersionUID = -4936225423168276595L;
 
     /**
@@ -200,6 +205,7 @@ public final class ActivationGroupDesc implements Serializable {
      * @since 1.2
      */
     public static class CommandEnvironment implements Serializable {
+        @java.io.Serial
         private static final long serialVersionUID = 6165754737887770191L;
 
         /**
@@ -304,12 +310,17 @@ public final class ActivationGroupDesc implements Serializable {
          *
          * <p>This method reads this object's serialized form for this
          * class as follows:
-         *
          * <p>This method first invokes <code>defaultReadObject</code> on
          * the specified object input stream, and if <code>options</code>
          * is <code>null</code>, then <code>options</code> is set to a
          * zero-length array of <code>String</code>.
+         *
+         * @param  in the {@code ObjectInputStream} from which data is read
+         * @throws IOException if an I/O error occurs
+         * @throws ClassNotFoundException if a serialized class cannot be loaded
+         *
          */
+        @java.io.Serial
         private void readObject(ObjectInputStream in)
             throws IOException, ClassNotFoundException
         {

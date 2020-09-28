@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,8 +44,15 @@ import static java.util.Objects.requireNonNull;
  *
  * More information about enums, including descriptions of the
  * implicitly declared methods synthesized by the compiler, can be
- * found in section 8.9 of
- * <cite>The Java&trade; Language Specification</cite>.
+ * found in section {@jls 8.9} of <cite>The Java Language
+ * Specification</cite>.
+ *
+ * Enumeration types are all serializable and receive special handling
+ * by the serialization mechanism. The serialized representation used
+ * for enum constants cannot be customized. Declarations of methods
+ * and fields that would otherwise interact with serialization are
+ * ignored, including {@code serialVersionUID}; see the <cite>Java
+ * Object Serialization Specification</cite> for details.
  *
  * <p> Note that when using an enumeration type as the type of a set
  * or as the type of the keys in a map, specialized and efficient

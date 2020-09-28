@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,8 +40,8 @@ import javax.accessibility.*;
  * depicts three views of a "{@code Quit}" button as it appears
  * under the Solaris operating system:
  * <p>
- * <img src="doc-files/Button-1.gif" alt="The following context describes the graphic"
- * style="float:center; margin: 7px 10px;">
+ * <img src="doc-files/Button-1.gif" alt="The following context describes the
+ * graphic" style="margin: 7px 10px;">
  * <p>
  * The first view shows the button as it appears normally.
  * The second view shows the button
@@ -536,6 +536,11 @@ public class Button extends Component implements Accessible {
          * JDK 1.3 serialVersionUID
          */
         private static final long serialVersionUID = -5932203980244017102L;
+
+        /**
+         * Constructs an {@code AccessibleAWTButton}.
+         */
+        protected AccessibleAWTButton() {}
 
         /**
          * Get the accessible name of this object.

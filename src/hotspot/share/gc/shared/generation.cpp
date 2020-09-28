@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@
 #include "gc/shared/generation.hpp"
 #include "gc/shared/generationSpec.hpp"
 #include "gc/shared/space.inline.hpp"
-#include "gc/shared/spaceDecorator.hpp"
+#include "gc/shared/spaceDecorator.inline.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -68,12 +68,6 @@ size_t Generation::initial_size() {
   return gch->old_gen_spec()->init_size();
 }
 
-// This is for CMS. It returns stable monotonic used space size.
-// Remove this when CMS is removed.
-size_t Generation::used_stable() const {
-  return used();
-}
-
 size_t Generation::max_capacity() const {
   return reserved().byte_size();
 }
@@ -85,9 +79,6 @@ void Generation::ref_processor_init() {
   assert(!_reserved.is_empty(), "empty generation?");
   _span_based_discoverer.set_span(_reserved);
   _ref_processor = new ReferenceProcessor(&_span_based_discoverer);    // a vanilla reference processor
-  if (_ref_processor == NULL) {
-    vm_exit_during_initialization("Could not allocate ReferenceProcessor object");
-  }
 }
 
 void Generation::print() const { print_on(tty); }
@@ -175,7 +166,7 @@ oop Generation::promote(oop obj, size_t obj_size) {
 
   HeapWord* result = allocate(obj_size, false);
   if (result != NULL) {
-    Copy::aligned_disjoint_words((HeapWord*)obj, result, obj_size);
+    Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(obj), result, obj_size);
     return oop(result);
   } else {
     GenCollectedHeap* gch = GenCollectedHeap::heap();
@@ -273,13 +264,6 @@ void Generation::oop_iterate(OopIterateClosure* cl) {
   space_iterate(&blk);
 }
 
-void Generation::younger_refs_in_space_iterate(Space* sp,
-                                               OopsInGenClosure* cl,
-                                               uint n_threads) {
-  CardTableRS* rs = GenCollectedHeap::heap()->rem_set();
-  rs->younger_refs_in_space_iterate(sp, cl, n_threads);
-}
-
 class GenerationObjIterateClosure : public SpaceClosure {
  private:
   ObjectClosure* _cl;
@@ -292,21 +276,6 @@ class GenerationObjIterateClosure : public SpaceClosure {
 
 void Generation::object_iterate(ObjectClosure* cl) {
   GenerationObjIterateClosure blk(cl);
-  space_iterate(&blk);
-}
-
-class GenerationSafeObjIterateClosure : public SpaceClosure {
- private:
-  ObjectClosure* _cl;
- public:
-  virtual void do_space(Space* s) {
-    s->safe_object_iterate(_cl);
-  }
-  GenerationSafeObjIterateClosure(ObjectClosure* cl) : _cl(cl) {}
-};
-
-void Generation::safe_object_iterate(ObjectClosure* cl) {
-  GenerationSafeObjIterateClosure blk(cl);
   space_iterate(&blk);
 }
 

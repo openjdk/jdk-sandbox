@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@
 #include "jni.h"
 #include "jni_util.h"
 #include "jlong.h"
+#include "jdk_util.h"
 #include "io_util.h"
 #include "io_util_md.h"
 #include "java_io_FileSystem.h"
@@ -60,10 +61,6 @@
   #define readdir readdir64
   #define closedir closedir64
   #define stat stat64
-#endif
-
-#if defined(__solaris__) && !defined(NAME_MAX)
-  #define NAME_MAX MAXNAMLEN
 #endif
 
 #if defined(_ALLBSD_SOURCE)
@@ -91,8 +88,6 @@ Java_java_io_UnixFileSystem_initIDs(JNIEnv *env, jclass cls)
 
 /* -- Path operations -- */
 
-extern int canonicalize(char *path, const char *out, int len);
-
 JNIEXPORT jstring JNICALL
 Java_java_io_UnixFileSystem_canonicalize0(JNIEnv *env, jobject this,
                                           jstring pathname)
@@ -101,7 +96,7 @@ Java_java_io_UnixFileSystem_canonicalize0(JNIEnv *env, jobject this,
 
     WITH_PLATFORM_STRING(env, pathname, path) {
         char canonicalPath[PATH_MAX];
-        if (canonicalize((char *)path,
+        if (JDK_Canonicalize((char *)path,
                          canonicalPath, PATH_MAX) < 0) {
             JNU_ThrowIOExceptionWithLastError(env, "Bad pathname");
         } else {

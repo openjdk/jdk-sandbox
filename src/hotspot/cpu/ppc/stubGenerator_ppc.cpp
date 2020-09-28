@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2019, SAP SE. All rights reserved.
+ * Copyright (c) 2012, 2019 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/align.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
@@ -440,7 +441,6 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "StubRoutines", "forward_exception");
     address start = __ pc();
 
-#if !defined(PRODUCT)
     if (VerifyOops) {
       // Get pending exception oop.
       __ ld(R3_ARG1,
@@ -456,7 +456,6 @@ class StubGenerator: public StubCodeGenerator {
       }
       __ verify_oop(R3_ARG1, "StubRoutines::forward exception: not an oop");
     }
-#endif
 
     // Save LR/CR and copy exception pc (LR) into R4_ARG2.
     __ save_LR_CR(R4_ARG2);
@@ -548,7 +547,7 @@ class StubGenerator: public StubCodeGenerator {
     address frame_complete_pc = __ pc();
 
     if (restore_saved_exception_pc) {
-      __ unimplemented("StubGenerator::throw_exception with restore_saved_exception_pc", 74);
+      __ unimplemented("StubGenerator::throw_exception with restore_saved_exception_pc");
     }
 
     // Note that we always have a runtime stub frame on the top of
@@ -702,9 +701,9 @@ class StubGenerator: public StubCodeGenerator {
 #if !defined(PRODUCT)
   // Wrapper which calls oopDesc::is_oop_or_null()
   // Only called by MacroAssembler::verify_oop
-  static void verify_oop_helper(const char* message, oop o) {
+  static void verify_oop_helper(const char* message, oopDesc* o) {
     if (!oopDesc::is_oop_or_null(o)) {
-      fatal("%s", message);
+      fatal("%s. oop: " PTR_FORMAT, message, p2i(o));
     }
     ++ StubRoutines::_verify_oop_count;
   }
@@ -724,7 +723,6 @@ class StubGenerator: public StubCodeGenerator {
 
     return start;
   }
-
 
   // -XX:+OptimizeFill : convert fill/copy loops into intrinsic
   //
@@ -923,7 +921,7 @@ class StubGenerator: public StubCodeGenerator {
   inline void assert_positive_int(Register count) {
 #ifdef ASSERT
     __ srdi_(R0, count, 31);
-    __ asm_assert_eq("missing zero extend", 0xAFFE);
+    __ asm_assert_eq("missing zero extend");
 #endif
   }
 
@@ -2183,7 +2181,7 @@ class StubGenerator: public StubCodeGenerator {
     // Overlaps if Src before dst and distance smaller than size.
     // Branch to forward copy routine otherwise.
     __ blt(CCR0, no_overlap);
-    __ stop("overlap in checkcast_copy", 0x9543);
+    __ stop("overlap in checkcast_copy");
     __ bind(no_overlap);
     }
 #endif
@@ -3029,8 +3027,8 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ function_entry();
 
     __ sha256 (multi_block);
-
     __ blr();
+
     return start;
   }
 
@@ -3040,8 +3038,36 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ function_entry();
 
     __ sha512 (multi_block);
-
     __ blr();
+
+    return start;
+  }
+
+  address generate_data_cache_writeback() {
+    const Register cacheline = R3_ARG1;
+    StubCodeMark mark(this, "StubRoutines", "_data_cache_writeback");
+    address start = __ pc();
+
+    __ cache_wb(Address(cacheline));
+    __ blr();
+
+    return start;
+  }
+
+  address generate_data_cache_writeback_sync() {
+    const Register is_presync = R3_ARG1;
+    Register temp = R4;
+    Label SKIP;
+
+    StubCodeMark mark(this, "StubRoutines", "_data_cache_writeback_sync");
+    address start = __ pc();
+
+    __ andi_(temp, is_presync, 1);
+    __ bne(CCR0, SKIP);
+    __ cache_wbsync(false); // post sync => emit 'sync'
+    __ bind(SKIP);          // pre sync => emit nothing
+    __ blr();
+
     return start;
   }
 
@@ -3103,6 +3129,7 @@ class StubGenerator: public StubCodeGenerator {
                                                              STUB_ENTRY(checkcast_arraycopy));
 
     // fill routines
+#ifdef COMPILER2
     if (OptimizeFill) {
       StubRoutines::_jbyte_fill          = generate_fill(T_BYTE,  false, "jbyte_fill");
       StubRoutines::_jshort_fill         = generate_fill(T_SHORT, false, "jshort_fill");
@@ -3111,6 +3138,7 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_arrayof_jshort_fill = generate_fill(T_SHORT, true, "arrayof_jshort_fill");
       StubRoutines::_arrayof_jint_fill   = generate_fill(T_INT,   true, "arrayof_jint_fill");
     }
+#endif
   }
 
   // Safefetch stubs.
@@ -3549,6 +3577,14 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_crc32c_table_addr = StubRoutines::generate_crc_constants(REVERSE_CRC32C_POLY);
       StubRoutines::_updateBytesCRC32C = generate_CRC32_updateBytes(true);
     }
+
+    // Safefetch stubs.
+    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
+                                                       &StubRoutines::_safefetch32_fault_pc,
+                                                       &StubRoutines::_safefetch32_continuation_pc);
+    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
+                                                       &StubRoutines::_safefetchN_fault_pc,
+                                                       &StubRoutines::_safefetchN_continuation_pc);
   }
 
   void generate_all() {
@@ -3567,20 +3603,10 @@ class StubGenerator: public StubCodeGenerator {
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();
 
-    // Safefetch stubs.
-    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
-                                                       &StubRoutines::_safefetch32_fault_pc,
-                                                       &StubRoutines::_safefetch32_continuation_pc);
-    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
-                                                       &StubRoutines::_safefetchN_fault_pc,
-                                                       &StubRoutines::_safefetchN_continuation_pc);
-
 #ifdef COMPILER2
     if (UseMultiplyToLenIntrinsic) {
       StubRoutines::_multiplyToLen = generate_multiplyToLen();
     }
-#endif
-
     if (UseSquareToLenIntrinsic) {
       StubRoutines::_squareToLen = generate_squareToLen();
     }
@@ -3594,6 +3620,13 @@ class StubGenerator: public StubCodeGenerator {
     if (UseMontgomerySquareIntrinsic) {
       StubRoutines::_montgomerySquare
         = CAST_FROM_FN_PTR(address, SharedRuntime::montgomery_square);
+    }
+#endif
+
+    // data cache line writeback
+    if (VM_Version::supports_data_cache_line_flush()) {
+      StubRoutines::_data_cache_writeback = generate_data_cache_writeback();
+      StubRoutines::_data_cache_writeback_sync = generate_data_cache_writeback_sync();
     }
 
     if (UseAESIntrinsics) {

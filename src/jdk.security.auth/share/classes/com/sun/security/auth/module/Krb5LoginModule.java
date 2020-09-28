@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,7 +104,7 @@ import static sun.security.util.ResourcesMgr.getAuthResourceString;
  * to false if you do not want this module to use the ticket cache.
  * (Default is False).
  * This module will search for the ticket
- * cache in the following locations: On Solaris and Linux
+ * cache in the following locations: On Linux
  * it will look for the ticket cache in /tmp/krb5cc_{@code uid}
  * where the uid is numeric user identifier. If the ticket cache is
  * not available in the above location, or if we are on a
@@ -420,6 +420,11 @@ public class Krb5LoginModule implements LoginModule {
     private static final String PWD = "javax.security.auth.login.password";
 
     /**
+     * Creates a {@code Krb5LoginModule}.
+     */
+    public Krb5LoginModule() {}
+
+    /**
      * Initialize this {@code LoginModule}.
      *
      * @param subject the {@code Subject} to be authenticated.
@@ -644,6 +649,7 @@ public class Krb5LoginModule implements LoginModule {
                         // renew if ticket is old.
                         Credentials newCred = renewCredentials(cred);
                         if (newCred != null) {
+                            newCred.setProxy(cred.getProxy());
                             cred = newCred;
                         }
                     }
@@ -1070,6 +1076,10 @@ public class Krb5LoginModule implements LoginModule {
             // create Kerberos Ticket
             if (isInitiator) {
                 kerbTicket = Krb5Util.credsToTicket(cred);
+                if (cred.getProxy() != null) {
+                    KerberosSecrets.getJavaxSecurityAuthKerberosAccess()
+                            .kerberosTicketSetProxy(kerbTicket,Krb5Util.credsToTicket(cred.getProxy()));
+                }
             }
 
             if (storeKey && encKeys != null) {

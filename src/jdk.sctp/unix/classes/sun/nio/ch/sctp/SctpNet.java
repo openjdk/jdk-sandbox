@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import sun.net.util.IPAddressUtil;
 import sun.nio.ch.IOUtil;
 import sun.nio.ch.Net;
 import com.sun.nio.sctp.SctpSocketOption;
@@ -46,11 +47,6 @@ public class SctpNet {
     /* -- Miscellaneous SCTP utilities -- */
 
     private static boolean IPv4MappedAddresses() {
-        if ("SunOS".equals(osName)) {
-            /* Solaris supports IPv4Mapped Addresses with bindx */
-            return true;
-        } /* else {  //other OS/implementations  */
-
         /* lksctp/linux requires Ipv4 addresses */
         return false;
     }
@@ -169,9 +165,13 @@ public class SctpNet {
             InetSocketAddress netAddr = (InetSocketAddress)addr;
 
             if (name.equals(SCTP_PRIMARY_ADDR)) {
+                InetAddress inetAddress = netAddr.getAddress();
+                if (inetAddress.isLinkLocalAddress()) {
+                    inetAddress = IPAddressUtil.toScopedAddress(inetAddress);
+                }
                 setPrimAddrOption0(fd,
                                    assocId,
-                                   netAddr.getAddress(),
+                                   inetAddress,
                                    netAddr.getPort());
             } else {
                 setPeerPrimAddrOption0(fd,
@@ -335,6 +335,14 @@ public class SctpNet {
     static native void init();
 
     static {
+        IOUtil.load();   // loads nio & net native libraries
+        java.security.AccessController.doPrivileged(
+                new java.security.PrivilegedAction<Void>() {
+                    public Void run() {
+                        System.loadLibrary("sctp");
+                        return null;
+                    }
+                });
         init();
     }
 }

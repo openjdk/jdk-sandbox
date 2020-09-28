@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,6 @@
 #include "oops/markWord.inline.hpp"
 #include "oops/oop.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "utilities/align.hpp"
 #include "utilities/macros.hpp"
@@ -44,7 +43,7 @@
 // We need a separate file to avoid circular references
 
 markWord oopDesc::mark() const {
-  uintptr_t v = HeapAccess<MO_VOLATILE>::load_at(as_oop(), mark_offset_in_bytes());
+  uintptr_t v = HeapAccess<MO_RELAXED>::load_at(as_oop(), mark_offset_in_bytes());
   return markWord(v);
 }
 
@@ -57,11 +56,11 @@ markWord* oopDesc::mark_addr_raw() const {
 }
 
 void oopDesc::set_mark(markWord m) {
-  HeapAccess<MO_VOLATILE>::store_at(as_oop(), mark_offset_in_bytes(), m.value());
+  HeapAccess<MO_RELAXED>::store_at(as_oop(), mark_offset_in_bytes(), m.value());
 }
 
 void oopDesc::set_mark_raw(markWord m) {
-  Atomic::store(m, &_mark);
+  Atomic::store(&_mark, m);
 }
 
 void oopDesc::set_mark_raw(HeapWord* mem, markWord m) {
@@ -73,12 +72,12 @@ void oopDesc::release_set_mark(markWord m) {
 }
 
 markWord oopDesc::cas_set_mark(markWord new_mark, markWord old_mark) {
-  uintptr_t v = HeapAccess<>::atomic_cmpxchg_at(new_mark.value(), as_oop(), mark_offset_in_bytes(), old_mark.value());
+  uintptr_t v = HeapAccess<>::atomic_cmpxchg_at(as_oop(), mark_offset_in_bytes(), old_mark.value(), new_mark.value());
   return markWord(v);
 }
 
 markWord oopDesc::cas_set_mark_raw(markWord new_mark, markWord old_mark, atomic_memory_order order) {
-  return Atomic::cmpxchg(new_mark, &_mark, old_mark, order);
+  return Atomic::cmpxchg(&_mark, old_mark, new_mark, order);
 }
 
 void oopDesc::init_mark() {
@@ -97,7 +96,7 @@ Klass* oopDesc::klass() const {
   }
 }
 
-Klass* oopDesc::klass_or_null() const volatile {
+Klass* oopDesc::klass_or_null() const {
   if (UseCompressedClassPointers) {
     return CompressedKlassPointers::decode(_metadata._compressed_klass);
   } else {
@@ -105,65 +104,34 @@ Klass* oopDesc::klass_or_null() const volatile {
   }
 }
 
-Klass* oopDesc::klass_or_null_acquire() const volatile {
+Klass* oopDesc::klass_or_null_acquire() const {
   if (UseCompressedClassPointers) {
-    // Workaround for non-const load_acquire parameter.
-    const volatile narrowKlass* addr = &_metadata._compressed_klass;
-    volatile narrowKlass* xaddr = const_cast<volatile narrowKlass*>(addr);
-    return CompressedKlassPointers::decode(OrderAccess::load_acquire(xaddr));
+    narrowKlass nklass = Atomic::load_acquire(&_metadata._compressed_klass);
+    return CompressedKlassPointers::decode(nklass);
   } else {
-    return OrderAccess::load_acquire(&_metadata._klass);
+    return Atomic::load_acquire(&_metadata._klass);
   }
 }
-
-Klass** oopDesc::klass_addr(HeapWord* mem) {
-  // Only used internally and with CMS and will not work with
-  // UseCompressedOops
-  assert(!UseCompressedClassPointers, "only supported with uncompressed klass pointers");
-  ByteSize offset = byte_offset_of(oopDesc, _metadata._klass);
-  return (Klass**) (((char*)mem) + in_bytes(offset));
-}
-
-narrowKlass* oopDesc::compressed_klass_addr(HeapWord* mem) {
-  assert(UseCompressedClassPointers, "only called by compressed klass pointers");
-  ByteSize offset = byte_offset_of(oopDesc, _metadata._compressed_klass);
-  return (narrowKlass*) (((char*)mem) + in_bytes(offset));
-}
-
-Klass** oopDesc::klass_addr() {
-  return klass_addr((HeapWord*)this);
-}
-
-narrowKlass* oopDesc::compressed_klass_addr() {
-  return compressed_klass_addr((HeapWord*)this);
-}
-
-#define CHECK_SET_KLASS(k)                                                \
-  do {                                                                    \
-    assert(Universe::is_bootstrapping() || k != NULL, "NULL Klass");      \
-    assert(Universe::is_bootstrapping() || k->is_klass(), "not a Klass"); \
-  } while (0)
 
 void oopDesc::set_klass(Klass* k) {
-  CHECK_SET_KLASS(k);
+  assert(Universe::is_bootstrapping() || (k != NULL && k->is_klass()), "incorrect Klass");
   if (UseCompressedClassPointers) {
-    *compressed_klass_addr() = CompressedKlassPointers::encode_not_null(k);
+    _metadata._compressed_klass = CompressedKlassPointers::encode_not_null(k);
   } else {
-    *klass_addr() = k;
+    _metadata._klass = k;
   }
 }
 
-void oopDesc::release_set_klass(HeapWord* mem, Klass* klass) {
-  CHECK_SET_KLASS(klass);
+void oopDesc::release_set_klass(HeapWord* mem, Klass* k) {
+  assert(Universe::is_bootstrapping() || (k != NULL && k->is_klass()), "incorrect Klass");
+  char* raw_mem = ((char*)mem + klass_offset_in_bytes());
   if (UseCompressedClassPointers) {
-    OrderAccess::release_store(compressed_klass_addr(mem),
-                               CompressedKlassPointers::encode_not_null(klass));
+    Atomic::release_store((narrowKlass*)raw_mem,
+                          CompressedKlassPointers::encode_not_null(k));
   } else {
-    OrderAccess::release_store(klass_addr(mem), klass);
+    Atomic::release_store((Klass**)raw_mem, k);
   }
 }
-
-#undef CHECK_SET_KLASS
 
 int oopDesc::klass_gap() const {
   return *(int*)(((intptr_t)this) + klass_gap_offset_in_bytes());
@@ -177,26 +145,6 @@ void oopDesc::set_klass_gap(HeapWord* mem, int v) {
 
 void oopDesc::set_klass_gap(int v) {
   set_klass_gap((HeapWord*)this, v);
-}
-
-void oopDesc::set_klass_to_list_ptr(oop k) {
-  // This is only to be used during GC, for from-space objects, so no
-  // barrier is needed.
-  if (UseCompressedClassPointers) {
-    _metadata._compressed_klass = (narrowKlass)CompressedOops::encode(k);  // may be null (parnew overflow handling)
-  } else {
-    _metadata._klass = (Klass*)(address)k;
-  }
-}
-
-oop oopDesc::list_ptr_from_klass() {
-  // This is only to be used during GC, for from-space objects.
-  if (UseCompressedClassPointers) {
-    return CompressedOops::decode((narrowOop)_metadata._compressed_klass);
-  } else {
-    // Special case for GC
-    return (oop)(address)_metadata._klass;
-  }
 }
 
 bool oopDesc::is_a(Klass* k) const {
@@ -244,25 +192,13 @@ int oopDesc::size_given_klass(Klass* klass)  {
       // skipping the intermediate round to HeapWordSize.
       s = (int)(align_up(size_in_bytes, MinObjAlignmentInBytes) / HeapWordSize);
 
-      // ParNew (used by CMS), UseParallelGC and UseG1GC can change the length field
+      // UseParallelGC and UseG1GC can change the length field
       // of an "old copy" of an object array in the young gen so it indicates
       // the grey portion of an already copied array. This will cause the first
       // disjunct below to fail if the two comparands are computed across such
       // a concurrent change.
-      // ParNew also runs with promotion labs (which look like int
-      // filler arrays) which are subject to changing their declared size
-      // when finally retiring a PLAB; this also can cause the first disjunct
-      // to fail for another worker thread that is concurrently walking the block
-      // offset table. Both these invariant failures are benign for their
-      // current uses; we relax the assertion checking to cover these two cases below:
-      //     is_objArray() && is_forwarded()   // covers first scenario above
-      //  || is_typeArray()                    // covers second scenario above
-      // If and when UseParallelGC uses the same obj array oop stealing/chunking
-      // technique, we will need to suitably modify the assertion.
       assert((s == klass->oop_size(this)) ||
-             (Universe::heap()->is_gc_active() &&
-              ((is_typeArray() && UseConcMarkSweepGC) ||
-               (is_objArray()  && is_forwarded() && (UseConcMarkSweepGC || UseParallelGC || UseG1GC)))),
+             (Universe::heap()->is_gc_active() && is_objArray() && is_forwarded() && (UseParallelGC || UseG1GC)),
              "wrong array object size");
     } else {
       // Must be zero, so bite the bullet and take the virtual call.
@@ -301,9 +237,10 @@ inline void  oopDesc::byte_field_put(int offset, jbyte value)       { HeapAccess
 inline jchar oopDesc::char_field(int offset) const                  { return HeapAccess<>::load_at(as_oop(), offset);  }
 inline void  oopDesc::char_field_put(int offset, jchar value)       { HeapAccess<>::store_at(as_oop(), offset, value); }
 
-inline jboolean oopDesc::bool_field(int offset) const               { return HeapAccess<>::load_at(as_oop(), offset);                }
+inline jboolean oopDesc::bool_field(int offset) const               { return HeapAccess<>::load_at(as_oop(), offset); }
 inline void     oopDesc::bool_field_put(int offset, jboolean value) { HeapAccess<>::store_at(as_oop(), offset, jboolean(value & 1)); }
-
+inline jboolean oopDesc::bool_field_volatile(int offset) const      { return HeapAccess<MO_SEQ_CST>::load_at(as_oop(), offset); }
+inline void     oopDesc::bool_field_put_volatile(int offset, jboolean value) { HeapAccess<MO_SEQ_CST>::store_at(as_oop(), offset, jboolean(value & 1)); }
 inline jshort oopDesc::short_field(int offset) const                { return HeapAccess<>::load_at(as_oop(), offset);  }
 inline void   oopDesc::short_field_put(int offset, jshort value)    { HeapAccess<>::store_at(as_oop(), offset, value); }
 
@@ -350,13 +287,7 @@ bool oopDesc::is_forwarded() const {
 
 // Used by scavengers
 void oopDesc::forward_to(oop p) {
-  assert(check_obj_alignment(p),
-         "forwarding to something not aligned");
-  assert(Universe::heap()->is_in_reserved(p),
-         "forwarding to something not in heap");
-  assert(!is_archived_object(oop(this)) &&
-         !is_archived_object(p),
-         "forwarding archive object");
+  verify_forwardee(p);
   markWord m = markWord::encode_pointer_as_mark(p);
   assert(m.decode_pointer() == p, "encoding must be reversable");
   set_mark_raw(m);
@@ -364,22 +295,14 @@ void oopDesc::forward_to(oop p) {
 
 // Used by parallel scavengers
 bool oopDesc::cas_forward_to(oop p, markWord compare, atomic_memory_order order) {
-  assert(check_obj_alignment(p),
-         "forwarding to something not aligned");
-  assert(Universe::heap()->is_in_reserved(p),
-         "forwarding to something not in heap");
+  verify_forwardee(p);
   markWord m = markWord::encode_pointer_as_mark(p);
   assert(m.decode_pointer() == p, "encoding must be reversable");
   return cas_set_mark_raw(m, compare, order) == compare;
 }
 
 oop oopDesc::forward_to_atomic(oop p, markWord compare, atomic_memory_order order) {
-  // CMS forwards some non-heap value into the mark oop to reserve oops during
-  // promotion, so the next two asserts do not hold.
-  assert(UseConcMarkSweepGC || check_obj_alignment(p),
-         "forwarding to something not aligned");
-  assert(UseConcMarkSweepGC || Universe::heap()->is_in_reserved(p),
-         "forwarding to something not in heap");
+  verify_forwardee(p);
   markWord m = markWord::encode_pointer_as_mark(p);
   assert(m.decode_pointer() == p, "encoding must be reversable");
   markWord old_mark = cas_set_mark_raw(m, compare, order);
@@ -401,7 +324,7 @@ oop oopDesc::forwardee() const {
 // The forwardee is used when copying during scavenge and mark-sweep.
 // It does need to clear the low two locking- and GC-related bits.
 oop oopDesc::forwardee_acquire() const {
-  return (oop) OrderAccess::load_acquire(&_mark).decode_pointer();
+  return (oop) Atomic::load_acquire(&_mark).decode_pointer();
 }
 
 // The following method needs to be MT safe.

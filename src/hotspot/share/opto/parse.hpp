@@ -48,12 +48,7 @@ class InlineTree : public ResourceObj {
   ciMethod*   _method;            // method being called by the caller_jvms
   InlineTree* _caller_tree;
   uint        _count_inline_bcs;  // Accumulated count of inlined bytecodes
-  // Call-site count / interpreter invocation count, scaled recursively.
-  // Always between 0.0 and 1.0.  Represents the percentage of the method's
-  // total execution time used at this call site.
-  const float _site_invoke_ratio;
   const int   _max_inline_level;  // the maximum inline level for this sub-tree (may be adjusted)
-  float compute_callee_frequency( int caller_bci ) const;
 
   GrowableArray<InlineTree*> _subtrees;
 
@@ -67,7 +62,6 @@ protected:
              ciMethod* callee_method,
              JVMState* caller_jvms,
              int caller_bci,
-             float site_invoke_ratio,
              int max_inline_level);
   InlineTree *build_inline_tree_for_callee(ciMethod* callee_method,
                                            JVMState* caller_jvms,
@@ -107,9 +101,6 @@ public:
   static InlineTree* build_inline_tree_root();
   static InlineTree* find_subtree_from_root(InlineTree* root, JVMState* jvms, ciMethod* callee);
 
-  // For temporary (stack-allocated, stateless) ilts:
-  InlineTree(Compile* c, ciMethod* callee_method, JVMState* caller_jvms, float site_invoke_ratio, int max_inline_level);
-
   // See if it is OK to inline.
   // The receiver is the inline tree for the caller.
   //
@@ -128,7 +119,6 @@ public:
   ciMethod   *method()            const { return _method; }
   int         caller_bci()        const { return _caller_jvms ? _caller_jvms->bci() : InvocationEntryBci; }
   uint        count_inline_bcs()  const { return _count_inline_bcs; }
-  float       site_invoke_ratio() const { return _site_invoke_ratio; };
 
 #ifndef PRODUCT
 private:
@@ -480,7 +470,7 @@ class Parse : public GraphKit {
   // Helper function to generate array store
   void array_store(BasicType etype);
   // Helper function to compute array addressing
-  Node* array_addressing(BasicType type, int vals, const Type* *result2=NULL);
+  Node* array_addressing(BasicType type, int vals, const Type*& elemtype);
 
   void clinit_deopt();
 

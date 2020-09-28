@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -25,55 +25,7 @@
 
 ################################################################################
 # The order of these defines the priority by which we try to find them.
-VALID_VS_VERSIONS="2017 2019 2013 2015 2012 2010"
-
-VS_DESCRIPTION_2010="Microsoft Visual Studio 2010"
-VS_VERSION_INTERNAL_2010=100
-VS_MSVCR_2010=msvcr100.dll
-# We don't use msvcp on Visual Studio 2010
-#VS_MSVCP_2010=msvcp100.dll
-VS_ENVVAR_2010="VS100COMNTOOLS"
-VS_VS_INSTALLDIR_2010="Microsoft Visual Studio 10.0"
-VS_SDK_INSTALLDIR_2010="Microsoft SDKs/Windows/v7.1"
-VS_VS_PLATFORM_NAME_2010="v100"
-VS_SDK_PLATFORM_NAME_2010="Windows7.1SDK"
-VS_SUPPORTED_2010=false
-
-VS_DESCRIPTION_2012="Microsoft Visual Studio 2012"
-VS_VERSION_INTERNAL_2012=110
-VS_MSVCR_2012=msvcr110.dll
-VS_MSVCP_2012=msvcp110.dll
-VS_ENVVAR_2012="VS110COMNTOOLS"
-VS_VS_INSTALLDIR_2012="Microsoft Visual Studio 11.0"
-VS_SDK_INSTALLDIR_2012=
-VS_VS_PLATFORM_NAME_2012="v110"
-VS_SDK_PLATFORM_NAME_2012=
-VS_SUPPORTED_2012=false
-
-VS_DESCRIPTION_2013="Microsoft Visual Studio 2013"
-VS_VERSION_INTERNAL_2013=120
-VS_MSVCR_2013=msvcr120.dll
-VS_MSVCP_2013=msvcp120.dll
-VS_ENVVAR_2013="VS120COMNTOOLS"
-VS_VS_INSTALLDIR_2013="Microsoft Visual Studio 12.0"
-VS_SDK_INSTALLDIR_2013=
-VS_VS_PLATFORM_NAME_2013="v120"
-VS_SDK_PLATFORM_NAME_2013=
-VS_SUPPORTED_2013=false
-
-VS_DESCRIPTION_2015="Microsoft Visual Studio 2015"
-VS_VERSION_INTERNAL_2015=140
-VS_MSVCR_2015=vcruntime140.dll
-VS_MSVCP_2015=msvcp140.dll
-VS_ENVVAR_2015="VS140COMNTOOLS"
-VS_VS_INSTALLDIR_2015="Microsoft Visual Studio 14.0"
-VS_SDK_INSTALLDIR_2015=
-VS_VS_PLATFORM_NAME_2015="v140"
-VS_SDK_PLATFORM_NAME_2015=
-# The vcvars of 2015 breaks if 2017 is also installed. Work around this by
-# explicitly specifying Windows Kit 8.1 to be used.
-VS_ENV_ARGS_2015="8.1"
-VS_SUPPORTED_2015=false
+VALID_VS_VERSIONS="2019 2017"
 
 VS_DESCRIPTION_2017="Microsoft Visual Studio 2017"
 VS_VERSION_INTERNAL_2017=141
@@ -90,8 +42,9 @@ VS_SUPPORTED_2017=true
 VS_TOOLSET_SUPPORTED_2017=true
 
 VS_DESCRIPTION_2019="Microsoft Visual Studio 2019"
-VS_VERSION_INTERNAL_2019=141
+VS_VERSION_INTERNAL_2019=142
 VS_MSVCR_2019=vcruntime140.dll
+VS_VCRUNTIME_1_2019=vcruntime140_1.dll
 VS_MSVCP_2019=msvcp140.dll
 VS_ENVVAR_2019="VS160COMNTOOLS"
 VS_USE_UCRT_2019="true"
@@ -100,8 +53,8 @@ VS_EDITIONS_2019="BuildTools Community Professional Enterprise"
 VS_SDK_INSTALLDIR_2019=
 VS_VS_PLATFORM_NAME_2019="v142"
 VS_SDK_PLATFORM_NAME_2019=
-VS_SUPPORTED_2019=false
-VS_TOOLSET_SUPPORTED_2019=false
+VS_SUPPORTED_2019=true
+VS_TOOLSET_SUPPORTED_2019=true
 
 ################################################################################
 
@@ -112,7 +65,7 @@ AC_DEFUN([TOOLCHAIN_CHECK_POSSIBLE_VISUAL_STUDIO_ROOT],
     VS_BASE="$2"
     METHOD="$3"
 
-    BASIC_WINDOWS_REWRITE_AS_UNIX_PATH(VS_BASE)
+    UTIL_REWRITE_AS_UNIX_PATH(VS_BASE)
     # In VS 2017 and VS 2019, the default installation is in a subdir named after the edition.
     # Find the first one present and use that.
     if test "x$VS_EDITIONS" != x; then
@@ -160,7 +113,7 @@ AC_DEFUN([TOOLCHAIN_CHECK_POSSIBLE_WIN_SDK_ROOT],
     VS_VERSION="$1"
     WIN_SDK_BASE="$2"
     METHOD="$3"
-    BASIC_WINDOWS_REWRITE_AS_UNIX_PATH(WIN_SDK_BASE)
+    UTIL_REWRITE_AS_UNIX_PATH(WIN_SDK_BASE)
     if test -d "$WIN_SDK_BASE"; then
       # There have been cases of partial or broken SDK installations. A missing
       # lib dir is not going to work.
@@ -210,6 +163,8 @@ AC_DEFUN([TOOLCHAIN_FIND_VISUAL_STUDIO_BAT_FILE],
   eval VS_ENV_ARGS="\${VS_ENV_ARGS_${VS_VERSION}}"
   eval VS_TOOLSET_SUPPORTED="\${VS_TOOLSET_SUPPORTED_${VS_VERSION}}"
 
+  VS_ENV_CMD=""
+
   # When using --with-tools-dir, assume it points to the correct and default
   # version of Visual Studio or that --with-toolchain-version was also set.
   if test "x$with_tools_dir" != x; then
@@ -226,8 +181,6 @@ AC_DEFUN([TOOLCHAIN_FIND_VISUAL_STUDIO_BAT_FILE],
       AC_MSG_ERROR([Cannot locate a valid Visual Studio installation])
     fi
   fi
-
-  VS_ENV_CMD=""
 
   if test "x$VS_COMNTOOLS" != x; then
     TOOLCHAIN_CHECK_POSSIBLE_VISUAL_STUDIO_ROOT([${VS_VERSION}],
@@ -299,6 +252,7 @@ AC_DEFUN([TOOLCHAIN_FIND_VISUAL_STUDIO],
     fi
     eval VS_VERSION_INTERNAL="\${VS_VERSION_INTERNAL_${VS_VERSION}}"
     eval MSVCR_NAME="\${VS_MSVCR_${VS_VERSION}}"
+    eval VCRUNTIME_1_NAME="\${VS_VCRUNTIME_1_${VS_VERSION}}"
     eval MSVCP_NAME="\${VS_MSVCP_${VS_VERSION}}"
     eval USE_UCRT="\${VS_USE_UCRT_${VS_VERSION}}"
     eval VS_SUPPORTED="\${VS_SUPPORTED_${VS_VERSION}}"
@@ -313,7 +267,7 @@ AC_DEFUN([TOOLCHAIN_FIND_VISUAL_STUDIO],
       VS_PATH_WINDOWS=""
       for i in $TOOLCHAIN_PATH; do
         path=$i
-        BASIC_WINDOWS_REWRITE_AS_WINDOWS_MIXED_PATH([path])
+        UTIL_REWRITE_AS_WINDOWS_MIXED_PATH([path])
         VS_PATH_WINDOWS="$VS_PATH_WINDOWS;$path"
       done
       IFS="$OLDIFS"
@@ -331,14 +285,14 @@ AC_DEFUN([TOOLCHAIN_FIND_VISUAL_STUDIO],
     IFS=";"
     for i in $DEVKIT_VS_INCLUDE; do
       ipath=$i
-      BASIC_WINDOWS_REWRITE_AS_WINDOWS_MIXED_PATH([ipath])
+      UTIL_REWRITE_AS_WINDOWS_MIXED_PATH([ipath])
       VS_INCLUDE="$VS_INCLUDE;$ipath"
     done
     # Convert DEVKIT_VS_LIB into VS_LIB so that it can still be exported
     # as LIB for compiler invocations without SYSROOT_LDFLAGS
     for i in $DEVKIT_VS_LIB; do
       libpath=$i
-      BASIC_WINDOWS_REWRITE_AS_WINDOWS_MIXED_PATH([libpath])
+      UTIL_REWRITE_AS_WINDOWS_MIXED_PATH([libpath])
       VS_LIB="$VS_LIB;$libpath"
     done
     IFS="$OLDIFS"
@@ -365,6 +319,7 @@ AC_DEFUN([TOOLCHAIN_FIND_VISUAL_STUDIO],
       eval VS_DESCRIPTION="\${VS_DESCRIPTION_${VS_VERSION}}"
       eval VS_VERSION_INTERNAL="\${VS_VERSION_INTERNAL_${VS_VERSION}}"
       eval MSVCR_NAME="\${VS_MSVCR_${VS_VERSION}}"
+      eval VCRUNTIME_1_NAME="\${VS_VCRUNTIME_1_${VS_VERSION}}"
       eval MSVCP_NAME="\${VS_MSVCP_${VS_VERSION}}"
       eval USE_UCRT="\${VS_USE_UCRT_${VS_VERSION}}"
       eval VS_SUPPORTED="\${VS_SUPPORTED_${VS_VERSION}}"
@@ -408,7 +363,7 @@ AC_DEFUN([TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV],
   if test "x$DEVKIT_VS_VERSION" = x; then
     if test "x$VS_ENV_CMD" != x; then
       # We have found a Visual Studio environment on disk, let's extract variables from the vsvars bat file.
-      BASIC_FIXUP_EXECUTABLE(VS_ENV_CMD)
+      UTIL_FIXUP_EXECUTABLE(VS_ENV_CMD)
 
       # Lets extract the variables that are set by vcvarsall.bat/vsvars32.bat/vsvars64.bat
       AC_MSG_NOTICE([Trying to extract Visual Studio environment variables])
@@ -420,13 +375,13 @@ AC_DEFUN([TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV],
       # Cannot use the VS10 setup script directly (since it only updates the DOS subshell environment).
       # Instead create a shell script which will set the relevant variables when run.
       WINPATH_VS_ENV_CMD="$VS_ENV_CMD"
-      BASIC_WINDOWS_REWRITE_AS_WINDOWS_MIXED_PATH([WINPATH_VS_ENV_CMD])
+      UTIL_REWRITE_AS_WINDOWS_MIXED_PATH([WINPATH_VS_ENV_CMD])
 
       if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
         WINPATH_BASH="bash"
       else
         WINPATH_BASH="$BASH"
-        BASIC_WINDOWS_REWRITE_AS_WINDOWS_MIXED_PATH([WINPATH_BASH])
+        UTIL_REWRITE_AS_WINDOWS_MIXED_PATH([WINPATH_BASH])
       fi
 
       # Generate a DOS batch file which runs $VS_ENV_CMD, and then creates a shell
@@ -482,10 +437,9 @@ AC_DEFUN([TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV],
       fi
 
       # Now execute the newly created bat file.
-      # The | cat is to stop SetEnv.Cmd to mess with system colors on msys.
       # Change directory so we don't need to mess with Windows paths in redirects.
       cd $VS_ENV_TMP_DIR
-      $CMD /c extract-vs-env.bat | $CAT
+      $CMD /c extract-vs-env.bat > extract-vs-env.log 2>&1
       cd $CONFIGURE_START_DIR
 
       if test ! -s $VS_ENV_TMP_DIR/set-vs-env.sh; then
@@ -521,10 +475,10 @@ AC_DEFUN([TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV],
             IFS="$OLDIFS"
             # Check that directory exists before calling fixup_path
             testpath=$path
-            BASIC_WINDOWS_REWRITE_AS_UNIX_PATH([testpath])
+            UTIL_REWRITE_AS_UNIX_PATH([testpath])
             if test -d "$testpath"; then
-              BASIC_FIXUP_PATH([path])
-              BASIC_APPEND_TO_PATH(VS_PATH, $path)
+              UTIL_FIXUP_PATH([path])
+              UTIL_APPEND_TO_PATH(VS_PATH, $path)
             fi
             IFS=";"
           fi
@@ -576,9 +530,9 @@ AC_DEFUN([TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV],
           IFS="$OLDIFS"
           # Check that directory exists before calling fixup_path
           testpath=$ipath
-          BASIC_WINDOWS_REWRITE_AS_UNIX_PATH([testpath])
+          UTIL_REWRITE_AS_UNIX_PATH([testpath])
           if test -d "$testpath"; then
-            BASIC_FIXUP_PATH([ipath])
+            UTIL_FIXUP_PATH([ipath])
             SYSROOT_CFLAGS="$SYSROOT_CFLAGS -I$ipath"
           fi
           IFS=";"
@@ -592,9 +546,9 @@ AC_DEFUN([TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV],
           IFS="$OLDIFS"
           # Check that directory exists before calling fixup_path
           testpath=$libpath
-          BASIC_WINDOWS_REWRITE_AS_UNIX_PATH([testpath])
+          UTIL_REWRITE_AS_UNIX_PATH([testpath])
           if test -d "$testpath"; then
-            BASIC_FIXUP_PATH([libpath])
+            UTIL_FIXUP_PATH([libpath])
             SYSROOT_LDFLAGS="$SYSROOT_LDFLAGS -libpath:$libpath"
           fi
           IFS=";"
@@ -665,7 +619,7 @@ AC_DEFUN([TOOLCHAIN_SETUP_MSVC_DLL],
   if test "x$MSVC_DLL" = x; then
     if test "x$VCINSTALLDIR" != x; then
       CYGWIN_VC_INSTALL_DIR="$VCINSTALLDIR"
-      BASIC_FIXUP_PATH(CYGWIN_VC_INSTALL_DIR)
+      UTIL_FIXUP_PATH(CYGWIN_VC_INSTALL_DIR)
       if test "$VS_VERSION" -lt 2017; then
         # Probe: Using well-known location from Visual Studio 12.0 and older
         if test "x$OPENJDK_TARGET_CPU_BITS" = x64; then
@@ -675,7 +629,7 @@ AC_DEFUN([TOOLCHAIN_SETUP_MSVC_DLL],
         fi
       else
         CYGWIN_VC_TOOLS_REDIST_DIR="$VCToolsRedistDir"
-        BASIC_FIXUP_PATH(CYGWIN_VC_TOOLS_REDIST_DIR)
+        UTIL_FIXUP_PATH(CYGWIN_VC_TOOLS_REDIST_DIR)
         # Probe: Using well-known location from VS 2017 and VS 2019
         if test "x$OPENJDK_TARGET_CPU_BITS" = x64; then
           POSSIBLE_MSVC_DLL="`ls $CYGWIN_VC_TOOLS_REDIST_DIR/x64/Microsoft.VC${VS_VERSION_INTERNAL}.CRT/$DLL_NAME`"
@@ -702,7 +656,7 @@ AC_DEFUN([TOOLCHAIN_SETUP_MSVC_DLL],
   if test "x$MSVC_DLL" = x; then
     # Probe: Look in the Windows system32 directory
     CYGWIN_SYSTEMROOT="$SYSTEMROOT"
-    BASIC_WINDOWS_REWRITE_AS_UNIX_PATH(CYGWIN_SYSTEMROOT)
+    UTIL_REWRITE_AS_UNIX_PATH(CYGWIN_SYSTEMROOT)
     POSSIBLE_MSVC_DLL="$CYGWIN_SYSTEMROOT/system32/$DLL_NAME"
     TOOLCHAIN_CHECK_POSSIBLE_MSVC_DLL([$DLL_NAME], [$POSSIBLE_MSVC_DLL],
         [well-known location in SYSTEMROOT])
@@ -712,7 +666,7 @@ AC_DEFUN([TOOLCHAIN_SETUP_MSVC_DLL],
     # Probe: If Visual Studio Express is installed, there is usually one with the debugger
     if test "x$VS100COMNTOOLS" != x; then
       CYGWIN_VS_TOOLS_DIR="$VS100COMNTOOLS/.."
-      BASIC_WINDOWS_REWRITE_AS_UNIX_PATH(CYGWIN_VS_TOOLS_DIR)
+      UTIL_REWRITE_AS_UNIX_PATH(CYGWIN_VS_TOOLS_DIR)
       if test "x$OPENJDK_TARGET_CPU_BITS" = x64; then
         POSSIBLE_MSVC_DLL=`$FIND "$CYGWIN_VS_TOOLS_DIR" -name $DLL_NAME \
         | $GREP -i /x64/ | $HEAD --lines 1`
@@ -802,26 +756,51 @@ AC_DEFUN([TOOLCHAIN_SETUP_VS_RUNTIME_DLLS],
     AC_SUBST(MSVCP_DLL)
   fi
 
+  AC_ARG_WITH(vcruntime-1-dll, [AS_HELP_STRING([--with-vcruntime-1-dll],
+      [path to microsoft C++ runtime dll (vcruntime*_1.dll) (Windows only) @<:@probed@:>@])])
+
+  if test "x$VCRUNTIME_1_NAME" != "x"; then
+    if test "x$with_vcruntime_1_dll" != x; then
+      # If given explicitly by user, do not probe. If not present, fail directly.
+      TOOLCHAIN_CHECK_POSSIBLE_MSVC_DLL($VCRUNTIME_1_NAME, [$with_vcruntime_1_dll],
+          [--with-vcruntime-1-dll])
+      if test "x$MSVC_DLL" = x; then
+        AC_MSG_ERROR([Could not find a proper $VCRUNTIME_1_NAME as specified by --with-vcruntime-1-dll])
+      fi
+      VCRUNTIME_1_DLL="$MSVC_DLL"
+    elif test "x$DEVKIT_VCRUNTIME_1_DLL" != x; then
+      TOOLCHAIN_CHECK_POSSIBLE_MSVC_DLL($VCRUNTIME_1_NAME, [$DEVKIT_VCRUNTIME_1_DLL], [devkit])
+      if test "x$MSVC_DLL" = x; then
+        AC_MSG_ERROR([Could not find a proper $VCRUNTIME_1_NAME as specified by devkit])
+      fi
+      VCRUNTIME_1_DLL="$MSVC_DLL"
+    else
+      TOOLCHAIN_SETUP_MSVC_DLL([${VCRUNTIME_1_NAME}])
+      VCRUNTIME_1_DLL="$MSVC_DLL"
+    fi
+    AC_SUBST(VCRUNTIME_1_DLL)
+  fi
+
   AC_ARG_WITH(ucrt-dll-dir, [AS_HELP_STRING([--with-ucrt-dll-dir],
       [path to Microsoft Windows Kit UCRT DLL dir (Windows only) @<:@probed@:>@])])
 
   if test "x$USE_UCRT" = "xtrue"; then
     AC_MSG_CHECKING([for UCRT DLL dir])
     if test "x$with_ucrt_dll_dir" != x; then
-      if test -z "$(ls -d $with_ucrt_dll_dir/*.dll 2> /dev/null)"; then
+      if test -z "$(ls -d "$with_ucrt_dll_dir/"*.dll 2> /dev/null)"; then
         AC_MSG_RESULT([no])
         AC_MSG_ERROR([Could not find any dlls in $with_ucrt_dll_dir])
       else
         AC_MSG_RESULT([$with_ucrt_dll_dir])
         UCRT_DLL_DIR="$with_ucrt_dll_dir"
-        BASIC_FIXUP_PATH([UCRT_DLL_DIR])
+        UTIL_FIXUP_PATH([UCRT_DLL_DIR])
       fi
     elif test "x$DEVKIT_UCRT_DLL_DIR" != "x"; then
       UCRT_DLL_DIR="$DEVKIT_UCRT_DLL_DIR"
       AC_MSG_RESULT($UCRT_DLL_DIR)
     else
       CYGWIN_WINDOWSSDKDIR="${WINDOWSSDKDIR}"
-      BASIC_FIXUP_PATH([CYGWIN_WINDOWSSDKDIR])
+      UTIL_FIXUP_PATH([CYGWIN_WINDOWSSDKDIR])
       dll_subdir=$OPENJDK_TARGET_CPU
       if test "x$dll_subdir" = "xx86_64"; then
         dll_subdir="x64"

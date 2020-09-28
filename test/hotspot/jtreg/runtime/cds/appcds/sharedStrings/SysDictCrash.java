@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
  * @summary Regression test for JDK-8098821
  * @bug 8098821
  * @requires vm.cds.archived.java.heap
- * @modules jdk.jartool/sun.tools.jar
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds
  * @run driver SysDictCrash
  */
@@ -43,9 +42,8 @@ public class SysDictCrash {
     public static void test(String[] args) throws Exception {
         String vmOptionsPrefix[] = SharedStringsUtils.getChildVMOptionsPrefix();
 
-        // SharedBaseAddress=0 puts the archive at a very high address on solaris,
-        // which provokes the crash.
-        ProcessBuilder dumpPb = ProcessTools.createJavaProcessBuilder(true,
+        // SharedBaseAddress=0 puts the archive at a very high address, which provokes the crash.
+        ProcessBuilder dumpPb = ProcessTools.createTestJvm(
           TestCommon.concat(vmOptionsPrefix,
             "-XX:+UseG1GC", "-XX:MaxRAMPercentage=12.5",
             "-cp", ".",
@@ -70,7 +68,7 @@ public class SysDictCrash {
             return;
         }
 
-        ProcessBuilder runPb = ProcessTools.createJavaProcessBuilder(true,
+        ProcessBuilder runPb = ProcessTools.createTestJvm(
           TestCommon.concat(vmOptionsPrefix,
             "-XX:+UseG1GC", "-XX:MaxRAMPercentage=12.5",
             "-XX:SharedArchiveFile=./SysDictCrash.jsa",

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,11 +42,13 @@ import java.net.SocketPermission;
 import java.net.NetPermission;
 import java.util.concurrent.ConcurrentHashMap;
 import jdk.internal.access.JavaSecurityAccess;
-import static jdk.internal.access.JavaSecurityAccess.ProtectionDomainCache;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.util.StaticProperty;
 import sun.security.util.*;
 import sun.net.www.ParseUtil;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static jdk.internal.access.JavaSecurityAccess.ProtectionDomainCache;
 
 /**
  * This class represents a default Policy implementation for the
@@ -298,7 +300,7 @@ public class PolicyFile extends java.security.Policy {
      * initialize the Policy object.
      */
     private void init(URL url) {
-        // Properties are set once for each init(); ignore changes between
+        // Properties are set once for each init(); ignore changes
         // between diff invocations of initPolicyFile(policy, url, info).
         String numCacheStr =
           AccessController.doPrivileged(new PrivilegedAction<>() {
@@ -323,7 +325,6 @@ public class PolicyFile extends java.security.Policy {
         } else {
             numCaches = DEFAULT_CACHE_SIZE;
         }
-        // System.out.println("number caches=" + numCaches);
         PolicyInfo newInfo = new PolicyInfo(numCaches);
         initPolicyFile(newInfo, url);
         policyInfo = newInfo;
@@ -559,8 +560,7 @@ public class PolicyFile extends java.security.Policy {
         return false;
     }
 
-    private InputStreamReader getInputStreamReader(InputStream is)
-                              throws IOException {
+    private InputStreamReader getInputStreamReader(InputStream is) {
         /*
          * Read in policy using UTF-8 by default.
          *
@@ -569,7 +569,7 @@ public class PolicyFile extends java.security.Policy {
          */
         return (notUtf8)
             ? new InputStreamReader(is)
-            : new InputStreamReader(is, "UTF-8");
+            : new InputStreamReader(is, UTF_8);
     }
 
     private void initStaticPolicy(final PolicyInfo newInfo) {
@@ -1555,8 +1555,8 @@ public class PolicyFile extends java.security.Policy {
         while (i < certs.length) {
             count++;
             while (((i+1) < certs.length)
-                   && ((X509Certificate)certs[i]).getIssuerDN().equals(
-                           ((X509Certificate)certs[i+1]).getSubjectDN())) {
+                   && ((X509Certificate)certs[i]).getIssuerX500Principal().equals(
+                           ((X509Certificate)certs[i+1]).getSubjectX500Principal())) {
                 i++;
             }
             i++;
@@ -1570,8 +1570,8 @@ public class PolicyFile extends java.security.Policy {
         while (i < certs.length) {
             userCertList.add(certs[i]);
             while (((i+1) < certs.length)
-                   && ((X509Certificate)certs[i]).getIssuerDN().equals(
-                           ((X509Certificate)certs[i+1]).getSubjectDN())) {
+                   && ((X509Certificate)certs[i]).getIssuerX500Principal().equals(
+                           ((X509Certificate)certs[i+1]).getSubjectX500Principal())) {
                 i++;
             }
             i++;
@@ -2017,8 +2017,8 @@ public class PolicyFile extends java.security.Policy {
                     while (i < certs.length) {
                         count++;
                         while (((i+1) < certs.length) &&
-                            ((X509Certificate)certs[i]).getIssuerDN().equals(
-                            ((X509Certificate)certs[i+1]).getSubjectDN())) {
+                            ((X509Certificate)certs[i]).getIssuerX500Principal().equals(
+                            ((X509Certificate)certs[i+1]).getSubjectX500Principal())) {
                             i++;
                         }
                         i++;
@@ -2036,8 +2036,8 @@ public class PolicyFile extends java.security.Policy {
                         while (i < certs.length) {
                             signerCerts.add(certs[i]);
                             while (((i+1) < certs.length) &&
-                                ((X509Certificate)certs[i]).getIssuerDN().equals(
-                                ((X509Certificate)certs[i+1]).getSubjectDN())) {
+                                ((X509Certificate)certs[i]).getIssuerX500Principal().equals(
+                                ((X509Certificate)certs[i+1]).getSubjectX500Principal())) {
                                 i++;
                             }
                             i++;

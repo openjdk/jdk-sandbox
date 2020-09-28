@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,13 +43,18 @@ import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.Vector;
 import java.util.concurrent.locks.Lock;
+
+import javax.security.auth.x500.X500Principal;
+
 import javax.net.ssl.*;
 import sun.net.www.http.HttpClient;
 import sun.net.www.protocol.http.AuthenticatorKeys;
 import sun.net.www.protocol.http.HttpURLConnection;
 import sun.security.action.*;
+
 import sun.security.util.HostnameChecker;
 import sun.security.ssl.SSLSocketImpl;
+
 import sun.util.logging.PlatformLogger;
 import static sun.net.www.protocol.http.HttpURLConnection.TunnelState.*;
 

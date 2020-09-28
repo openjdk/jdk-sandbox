@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,12 +34,13 @@
 #include "logging/log.hpp"
 #include "logging/logTag.hpp"
 #include "memory/universe.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/atomic.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/init.hpp"
-#include "runtime/orderAccess.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "services/memTracker.hpp"
@@ -50,7 +51,7 @@
 void check_ThreadShadow();
 void eventlog_init();
 void mutex_init();
-void oopstorage_init();
+void universe_oopstorage_init();
 void chunkpool_init();
 void perfMemory_init();
 void SuspendibleThreadSet_init();
@@ -62,20 +63,18 @@ void classLoader_init1();
 void compilationPolicy_init();
 void codeCache_init();
 void VM_Version_init();
-void os_init_globals();        // depends on VM_Version_init, before universe_init
 void stubRoutines_init1();
 jint universe_init();          // depends on codeCache_init and stubRoutines_init
 // depends on universe_init, must be before interpreter_init (currently only on SPARC)
 void gc_barrier_stubs_init();
-void interpreter_init();       // before any methods loaded
-void invocationCounter_init(); // before any methods loaded
+void interpreter_init_stub();  // before any methods loaded
+void interpreter_init_code();  // after methods loaded, but before they are linked
 void accessFlags_init();
-void templateTable_init();
 void InterfaceSupport_init();
 void universe2_init();  // dependent on codeCache_init and stubRoutines_init, loads primordial classes
 void referenceProcessor_init();
 void jni_handles_init();
-void vmStructs_init();
+void vmStructs_init() NOT_DEBUG_RETURN;
 
 void vtableStubs_init();
 void InlineCacheBuffer_init();
@@ -99,7 +98,7 @@ void vm_init_globals() {
   basic_types_init();
   eventlog_init();
   mutex_init();
-  oopstorage_init();
+  universe_oopstorage_init();
   chunkpool_init();
   perfMemory_init();
   SuspendibleThreadSet_init();
@@ -107,30 +106,28 @@ void vm_init_globals() {
 
 
 jint init_globals() {
-  HandleMark hm;
   management_init();
+  JvmtiExport::initialize_oop_storage();
   bytecodes_init();
   classLoader_init1();
   compilationPolicy_init();
   codeCache_init();
   VM_Version_init();
-  os_init_globals();
   stubRoutines_init1();
   jint status = universe_init();  // dependent on codeCache_init and
                                   // stubRoutines_init1 and metaspace_init.
   if (status != JNI_OK)
     return status;
 
-  gc_barrier_stubs_init();   // depends on universe_init, must be before interpreter_init
-  interpreter_init();        // before any methods loaded
-  invocationCounter_init();  // before any methods loaded
+  gc_barrier_stubs_init();  // depends on universe_init, must be before interpreter_init
+  interpreter_init_stub();  // before methods get loaded
   accessFlags_init();
-  templateTable_init();
   InterfaceSupport_init();
-  VMRegImpl::set_regName();  // need this before generate_stubs (for printing oop maps).
+  VMRegImpl::set_regName(); // need this before generate_stubs (for printing oop maps).
   SharedRuntime::generate_stubs();
   universe2_init();  // dependent on codeCache_init and stubRoutines_init1
   javaClasses_init();// must happen after vtable initialization, before referenceProcessor_init
+  interpreter_init_code();  // after javaClasses_init and before any method gets linked
   referenceProcessor_init();
   jni_handles_init();
 #if INCLUDE_VM_STRUCTS
@@ -157,12 +154,6 @@ jint init_globals() {
   stubRoutines_init2(); // note: StubRoutines need 2-phase init
   MethodHandles::generate_adapters();
 
-#if INCLUDE_NMT
-  // Solaris stack is walkable only after stubRoutines are set up.
-  // On Other platforms, the stack is always walkable.
-  NMT_stack_walkable = true;
-#endif // INCLUDE_NMT
-
   // All the flags that get adjusted by VM_Version_init and os::init_2
   // have been set so dump the flags now.
   if (PrintFlagsFinal || PrintFlagsRanges) {
@@ -180,8 +171,10 @@ void exit_globals() {
     if (log_is_enabled(Info, monitorinflation)) {
       // The ObjectMonitor subsystem uses perf counters so
       // do this before perfMemory_exit().
-      // ObjectSynchronizer::finish_deflate_idle_monitors()'s call
-      // to audit_and_print_stats() is done at the Debug level.
+      // This other audit_and_print_stats() call is done at the
+      // Debug level at a safepoint:
+      // - for async deflation auditing:
+      //   ObjectSynchronizer::do_safepoint_work()
       ObjectSynchronizer::audit_and_print_stats(true /* on_exit */);
     }
     perfMemory_exit();
@@ -197,7 +190,7 @@ void exit_globals() {
 static volatile bool _init_completed = false;
 
 bool is_init_completed() {
-  return OrderAccess::load_acquire(&_init_completed);
+  return Atomic::load_acquire(&_init_completed);
 }
 
 void wait_init_completed() {
@@ -210,6 +203,6 @@ void wait_init_completed() {
 void set_init_completed() {
   assert(Universe::is_fully_initialized(), "Should have completed initialization");
   MonitorLocker ml(InitCompleted_lock, Monitor::_no_safepoint_check_flag);
-  OrderAccess::release_store(&_init_completed, true);
+  Atomic::release_store(&_init_completed, true);
   ml.notify_all();
 }

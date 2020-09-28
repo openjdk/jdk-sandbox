@@ -36,8 +36,14 @@ import java.util.Objects;
 @SuppressWarnings("serial")
 final class TranslatedException extends Exception {
 
-    private TranslatedException(String message, Throwable translationFailure) {
-        super("[" + translationFailure + "]" + Objects.toString(message, ""));
+    /**
+     * Class name of exception that could not be instantiated.
+     */
+    private String originalExceptionClassName;
+
+    private TranslatedException(String message, String originalExceptionClassName) {
+        super(message);
+        this.originalExceptionClassName = originalExceptionClassName;
     }
 
     /**
@@ -47,6 +53,18 @@ final class TranslatedException extends Exception {
     @Override
     public Throwable fillInStackTrace() {
         return this;
+    }
+
+    @Override
+    public String toString() {
+        String s;
+        if (originalExceptionClassName.equals(TranslatedException.class.getName())) {
+            s = getClass().getName();
+        } else {
+            s = getClass().getName() + "[" + originalExceptionClassName + "]";
+        }
+        String message = getMessage();
+        return (message != null) ? (s + ": " + message) : s;
     }
 
     /**
@@ -86,14 +104,9 @@ final class TranslatedException extends Exception {
             if (message == null) {
                 return initCause((Throwable) cls.getConstructor().newInstance(), cause);
             }
-            cls.getDeclaredConstructor(String.class);
-            return initCause((Throwable) cls.getConstructor(String.class).newInstance(message), cause);
+            return initCause((Throwable) cls.getDeclaredConstructor(String.class).newInstance(message), cause);
         } catch (Throwable translationFailure) {
-            if (className.equals(TranslatedException.class.getName())) {
-                // Chop the class name when boxing another TranslatedException
-                return initCause(new TranslatedException(message, translationFailure), cause);
-            }
-            return initCause(new TranslatedException(null, translationFailure), cause);
+            return initCause(new TranslatedException(message, className), cause);
         }
     }
 
@@ -122,7 +135,7 @@ final class TranslatedException extends Exception {
      * a single exception is:
      *
      * <pre>
-     * <exception class name> '|' <exception message> '|' <stack size> '|' [<class> '|' <method> '|' <file> '|' <line> '|' ]*
+     * <exception class name> '|' <exception message> '|' <stack size> '|' [ <classLoader> '|' <module> '|' <moduleVersion> '|' <class> '|' <method> '|' <file> '|' <line> '|' ]*
      * </pre>
      *
      * Each exception is encoded before the exception it causes.
@@ -149,8 +162,10 @@ final class TranslatedException extends Exception {
                 for (int i = 0; i < stackTrace.length; i++) {
                     StackTraceElement frame = stackTrace[i];
                     if (frame != null) {
-                        enc.format("%s|%s|%s|%d|", frame.getClassName(), frame.getMethodName(),
-                                        encodedString(frame.getFileName()), frame.getLineNumber());
+                        enc.format("%s|%s|%s|%s|%s|%s|%d|", encodedString(frame.getClassLoaderName()),
+                                encodedString(frame.getModuleName()), encodedString(frame.getModuleVersion()),
+                                frame.getClassName(), frame.getMethodName(),
+                                encodedString(frame.getFileName()), frame.getLineNumber());
                     }
                 }
             }
@@ -206,14 +221,26 @@ final class TranslatedException extends Exception {
                 StackTraceElement[] suffix = getStackTraceSuffix();
                 StackTraceElement[] stackTrace = new StackTraceElement[stackTraceDepth + suffix.length];
                 for (int j = 0; j < stackTraceDepth; j++) {
+                    String classLoaderName = parts[i++];
+                    String moduleName = parts[i++];
+                    String moduleVersion = parts[i++];
                     String className = parts[i++];
                     String methodName = parts[i++];
                     String fileName = parts[i++];
                     int lineNumber = Integer.parseInt(parts[i++]);
+                    if (classLoaderName.isEmpty()) {
+                        classLoaderName = null;
+                    }
+                    if (moduleName.isEmpty()) {
+                        moduleName = null;
+                    }
+                    if (moduleVersion.isEmpty()) {
+                        moduleVersion = null;
+                    }
                     if (fileName.isEmpty()) {
                         fileName = null;
                     }
-                    stackTrace[j] = new StackTraceElement(className, methodName, fileName, lineNumber);
+                    stackTrace[j] = new StackTraceElement(classLoaderName, moduleName, moduleVersion, className, methodName, fileName, lineNumber);
                 }
                 System.arraycopy(suffix, 0, stackTrace, stackTraceDepth, suffix.length);
                 throwable.setStackTrace(stackTrace);
@@ -222,7 +249,7 @@ final class TranslatedException extends Exception {
             return throwable;
         } catch (Throwable translationFailure) {
             assert printStackTrace(translationFailure);
-            return new TranslatedException("Error decoding exception: " + encodedThrowable, translationFailure);
+            return new TranslatedException("Error decoding exception: " + encodedThrowable, translationFailure.getClass().getName());
         }
     }
 }

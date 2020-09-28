@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2017, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -31,8 +32,8 @@
 template <uint buffer_size>
 class ShenandoahOopBuffer : public CHeapObj<mtGC> {
 private:
-  oop   _buf[buffer_size];
-  uint  _index;
+  oop           _buf[buffer_size];
+  volatile uint _index;
   ShenandoahOopBuffer<buffer_size>* _next;
 
 public:
@@ -52,6 +53,10 @@ public:
 
   void unlink_or_oops_do(StringDedupUnlinkOrOopsDoClosure* cl);
   void oops_do(OopClosure* cl);
+
+private:
+  uint index_acquire() const;
+  void set_index_release(uint index);
 };
 
 typedef ShenandoahOopBuffer<64> ShenandoahQueueBuffer;
@@ -94,9 +99,11 @@ public:
   void verify_impl();
 
 protected:
-  size_t num_queues() const { return (_num_producer_queue + 2); }
+  size_t num_queues() const { return num_queues_nv(); }
 
 private:
+  inline size_t num_queues_nv() const { return (_num_producer_queue + 2); }
+
   ShenandoahQueueBuffer* new_buffer();
 
   void release_buffers(ShenandoahQueueBuffer* list);
@@ -106,8 +113,6 @@ private:
   bool pop_candidate(oop& obj);
 
   void set_producer_buffer(ShenandoahQueueBuffer* buf, size_t queue_id);
-
-  void verify(ShenandoahQueueBuffer* head);
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHSTRDEDUPQUEUE_HPP

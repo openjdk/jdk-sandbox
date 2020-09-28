@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@ import java.util.jar.Manifest;
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.VM;
+import jdk.internal.module.ServicesCatalog;
 
 /**
  * Creates and provides access to the built-in platform and application class
@@ -56,14 +57,22 @@ public class ClassLoaders {
 
     // Creates the built-in class loaders.
     static {
-        // -Xbootclasspath/a or -javaagent with Boot-Class-Path attribute
-        String append = VM.getSavedProperty("jdk.boot.class.path.append");
-        BOOT_LOADER =
-            new BootClassLoader((append != null && !append.isEmpty())
-                ? new URLClassPath(append, true)
-                : null);
-        PLATFORM_LOADER = new PlatformClassLoader(BOOT_LOADER);
-
+        ArchivedClassLoaders archivedClassLoaders = ArchivedClassLoaders.get();
+        if (archivedClassLoaders != null) {
+            // assert VM.getSavedProperty("jdk.boot.class.path.append") == null
+            BOOT_LOADER = (BootClassLoader) archivedClassLoaders.bootLoader();
+            PLATFORM_LOADER = (PlatformClassLoader) archivedClassLoaders.platformLoader();
+            ServicesCatalog catalog = archivedClassLoaders.servicesCatalog(PLATFORM_LOADER);
+            ServicesCatalog.putServicesCatalog(PLATFORM_LOADER, catalog);
+        } else {
+            // -Xbootclasspath/a or -javaagent with Boot-Class-Path attribute
+            String append = VM.getSavedProperty("jdk.boot.class.path.append");
+            URLClassPath ucp = (append != null && !append.isEmpty())
+                    ? new URLClassPath(append, true)
+                    : null;
+            BOOT_LOADER = new BootClassLoader(ucp);
+            PLATFORM_LOADER = new PlatformClassLoader(BOOT_LOADER);
+        }
         // A class path is required when no initial module is specified.
         // In this case the class path defaults to "", meaning the current
         // working directory.  When an initial module is specified, on the
@@ -75,7 +84,15 @@ public class ClassLoaders {
             cp = (initialModuleName == null) ? "" : null;
         }
         URLClassPath ucp = new URLClassPath(cp, false);
-        APP_LOADER = new AppClassLoader(PLATFORM_LOADER, ucp);
+        if (archivedClassLoaders != null) {
+            APP_LOADER = (AppClassLoader) archivedClassLoaders.appLoader();
+            ServicesCatalog catalog = archivedClassLoaders.servicesCatalog(APP_LOADER);
+            ServicesCatalog.putServicesCatalog(APP_LOADER, catalog);
+            APP_LOADER.setClassPath(ucp);
+        } else {
+            APP_LOADER = new AppClassLoader(PLATFORM_LOADER, ucp);
+            ArchivedClassLoaders.archive();
+        }
     }
 
     /**
@@ -132,16 +149,6 @@ public class ClassLoaders {
         PlatformClassLoader(BootClassLoader parent) {
             super("platform", parent, null);
         }
-
-        /**
-         * Called by the VM to support define package for AppCDS.
-         *
-         * Shared classes are returned in ClassLoader::findLoadedClass
-         * that bypass the defineClass call.
-         */
-        private Package definePackage(String pn, Module module) {
-            return JLA.definePackage(this, pn, module);
-        }
     }
 
     /**
@@ -154,11 +161,8 @@ public class ClassLoaders {
                 throw new InternalError();
         }
 
-        final URLClassPath ucp;
-
-        AppClassLoader(PlatformClassLoader parent, URLClassPath ucp) {
+        AppClassLoader(BuiltinClassLoader parent, URLClassPath ucp) {
             super("app", parent, ucp);
-            this.ucp = ucp;
         }
 
         @Override
@@ -191,17 +195,7 @@ public class ClassLoaders {
          * @see java.lang.instrument.Instrumentation#appendToSystemClassLoaderSearch
          */
         void appendToClassPathForInstrumentation(String path) {
-            ucp.addFile(path);
-        }
-
-        /**
-         * Called by the VM to support define package for AppCDS
-         *
-         * Shared classes are returned in ClassLoader::findLoadedClass
-         * that bypass the defineClass call.
-         */
-        private Package definePackage(String pn, Module module) {
-            return JLA.definePackage(this, pn, module);
+            appendClassPath(path);
         }
 
         /**
@@ -209,6 +203,13 @@ public class ClassLoaders {
          */
         protected Package defineOrCheckPackage(String pn, Manifest man, URL url) {
             return super.defineOrCheckPackage(pn, man, url);
+        }
+
+        /**
+         * Called by the VM, during -Xshare:dump
+         */
+        private void resetArchivedStates() {
+            setClassPath(null);
         }
     }
 

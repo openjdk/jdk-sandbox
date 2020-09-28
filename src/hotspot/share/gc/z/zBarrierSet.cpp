@@ -66,7 +66,7 @@ bool ZBarrierSet::barrier_needed(DecoratorSet decorators, BasicType type) {
   assert((decorators & AS_NO_KEEPALIVE) == 0, "Unexpected decorator");
   //assert((decorators & ON_UNKNOWN_OOP_REF) == 0, "Unexpected decorator");
 
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
     assert((decorators & (IN_HEAP | IN_NATIVE)) != 0, "Where is reference?");
     // Barrier needed even when IN_NATIVE, to allow concurrent scanning.
     return true;
@@ -94,4 +94,8 @@ void ZBarrierSet::on_thread_attach(Thread* thread) {
 void ZBarrierSet::on_thread_detach(Thread* thread) {
   // Flush and free any remaining mark stacks
   ZHeap::heap()->mark_flush_and_free(thread);
+}
+
+void ZBarrierSet::print_on(outputStream* st) const {
+  st->print_cr("ZBarrierSet");
 }

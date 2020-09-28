@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -116,11 +116,8 @@ public class SocketOptionTests {
 
             checkOption(smc, SO_LINGER, -1);  /* default should be negative */
 
-            /* Setting SO_LINGER not support for one-to-many on Solaris */
-            if (!"SunOS".equals(osName)) {
-                smc.setOption(SO_LINGER, 2000, null);
-                checkOption(smc, SO_LINGER, 2000);
-            }
+            smc.setOption(SO_LINGER, 2000, null);
+            checkOption(smc, SO_LINGER, 2000);
 
             /* SCTP_PRIMARY_ADDR */
             sctpPrimaryAddr();
@@ -154,7 +151,6 @@ public class SocketOptionTests {
 
     /* SCTP_PRIMARY_ADDR */
     void sctpPrimaryAddr() throws IOException {
-        SocketAddress addrToSet = null;
         ByteBuffer buffer = ByteBuffer.allocate(Util.SMALL_BUFFER);
 
         System.out.println("TESTING SCTP_PRIMARY_ADDR");
@@ -189,43 +185,29 @@ public class SocketOptionTests {
 
         SctpChannel peerChannel = ssc.accept();
         ssc.close();
-        Set<SocketAddress> peerAddrs = peerChannel.getAllLocalAddresses();
-        debug("Peer local Addresses: ");
-        for (Iterator<SocketAddress> it = peerAddrs.iterator(); it.hasNext(); ) {
+        Set<SocketAddress> remoteAddresses = smc.getRemoteAddresses(assoc);
+        debug("Remote Addresses: ");
+        for (Iterator<SocketAddress> it = remoteAddresses.iterator(); it.hasNext(); ) {
             InetSocketAddress addr = (InetSocketAddress)it.next();
             debug("\t" + addr);
-            addrToSet = addr;   // any of the peer addresses will do!
         }
 
-        /* retrieval of SCTP_PRIMARY_ADDR is not supported on Solaris */
-        if ("SunOS".equals(osName)) {
-            /* For now do not set this option. There is a bug on Solaris 10 pre Update 5
-             * where setting this option returns Invalid argument */
-            //debug("Set SCTP_PRIMARY_ADDR with " + addrToSet);
-            //smc.setOption(SCTP_PRIMARY_ADDR, addrToSet, assoc);
-            return;
-        } else { /* Linux */
-            SocketAddress primaryAddr = smc.getOption(SCTP_PRIMARY_ADDR, assoc);
-            System.out.println("SCTP_PRIMARY_ADDR returned: " + primaryAddr);
-            /* Verify that this is one of the peer addresses */
-            boolean found = false;
-            addrToSet = primaryAddr; // may not have more than one addr
-            for (Iterator<SocketAddress> it = peerAddrs.iterator(); it.hasNext(); ) {
-                InetSocketAddress addr = (InetSocketAddress)it.next();
-                if (addr.equals(primaryAddr)) {
-                    found = true;
-                }
-                addrToSet = addr;
-            }
-            check(found, "SCTP_PRIMARY_ADDR returned bogus address!");
+        SocketAddress primaryAddr = smc.getOption(SCTP_PRIMARY_ADDR, assoc);
+        System.out.println("SCTP_PRIMARY_ADDR returned: " + primaryAddr);
+        /* Verify that this is one of the remote addresses */
+        check(remoteAddresses.contains(primaryAddr), "SCTP_PRIMARY_ADDR returned bogus address!");
 
-            System.out.println("Try SCTP_PRIMARY_ADDR set to: " + addrToSet);
+        for (Iterator<SocketAddress> it = remoteAddresses.iterator(); it.hasNext(); ) {
+            InetSocketAddress addrToSet = (InetSocketAddress) it.next();
+            System.out.println("SCTP_PRIMARY_ADDR try set to: " + addrToSet);
             smc.setOption(SCTP_PRIMARY_ADDR, addrToSet, assoc);
-            System.out.println("SCTP_PRIMARY_ADDR set to: " + addrToSet);
+            System.out.println("SCTP_PRIMARY_ADDR set to    : " + addrToSet);
             primaryAddr = smc.getOption(SCTP_PRIMARY_ADDR, assoc);
-            System.out.println("SCTP_PRIMARY_ADDR returned: " + primaryAddr);
-            check(addrToSet.equals(primaryAddr),"SCTP_PRIMARY_ADDR not set correctly");
+            System.out.println("SCTP_PRIMARY_ADDR returned  : " + primaryAddr);
+            check(addrToSet.equals(primaryAddr), "SCTP_PRIMARY_ADDR not set correctly");
         }
+        smc.close();
+        peerChannel.close();
     }
 
     class SOTNotificationHandler extends AbstractNotificationHandler<Object>

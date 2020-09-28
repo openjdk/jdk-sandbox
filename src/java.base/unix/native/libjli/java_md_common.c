@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+#include <sys/time.h>
 #include "java.h"
 
 /*
  * Find the last occurrence of a string
  */
-char* findLastPathComponent(char *buffer, const char *comp) {
+static char* findLastPathComponent(char *buffer, const char *comp) {
     char* t = buffer;
     char* p = NULL;
     size_t l = JLI_StrLen(comp);
@@ -47,7 +48,7 @@ char* findLastPathComponent(char *buffer, const char *comp) {
  * Ex: if a buffer contains "/foo/bin/javac" or "/foo/bin/x64/javac", the
  * truncated resulting buffer will contain "/foo".
  */
-jboolean
+static jboolean
 TruncatePath(char *buf)
 {
     // try bin directory, maybe an executable
@@ -363,4 +364,21 @@ jobjectArray
 CreateApplicationArgs(JNIEnv *env, char **strv, int argc)
 {
     return NewPlatformStringArray(env, strv, argc);
+}
+
+/*
+ * Provide a CurrentTimeMicros() implementation based on gettimeofday() which
+ * is universally available, even though it may not be 'high resolution'
+ * compared to platforms that provide gethrtime() (like Solaris). It is
+ * also subject to time-of-day changes, but alternatives may not be
+ * known to be available at either build time or run time.
+ */
+jlong CurrentTimeMicros() {
+    jlong result = 0;
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) != -1) {
+        result = 1000000LL * (jlong)tv.tv_sec;
+        result += (jlong)tv.tv_usec;
+    }
+    return result;
 }

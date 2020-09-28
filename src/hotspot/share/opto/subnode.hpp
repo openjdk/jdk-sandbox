@@ -195,6 +195,7 @@ class CmpLNode : public CmpNode {
 public:
   CmpLNode( Node *in1, Node *in2 ) : CmpNode(in1,in2) {}
   virtual int    Opcode() const;
+  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
   virtual const Type *sub( const Type *, const Type * ) const;
 };
 
@@ -308,7 +309,7 @@ class BoolNode : public Node {
                   int cmp1_op, const TypeInt* cmp2_type);
 public:
   const BoolTest _test;
-  BoolNode( Node *cc, BoolTest::mask t): Node(0,cc), _test(t) {
+  BoolNode(Node *cc, BoolTest::mask t): Node(NULL,cc), _test(t) {
     init_class_id(Class_Bool);
   }
   // Convert an arbitrary int value to a Bool or other suitable predicate.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,7 @@ import jdk.jfr.internal.LogLevel;
 import jdk.jfr.internal.LogTag;
 import jdk.jfr.internal.Logger;
 import jdk.jfr.internal.OldObjectSample;
+import jdk.jfr.internal.PlatformRecording;
 import jdk.jfr.internal.PrivateAccess;
 import jdk.jfr.internal.SecuritySupport.SafePath;
 import jdk.jfr.internal.Type;
@@ -68,10 +69,10 @@ final class DCmdStart extends AbstractDCmd {
      * @param disk if recording should be persisted to disk
      * @param path file path where recording data should be written
      * @param maxAge how long recording data should be kept in the disk
-     *        repository, or <code>0</code> if no limit should be set.
+     *        repository, or {@code 0} if no limit should be set.
      *
      * @param maxSize the minimum amount data to keep in the disk repository
-     *        before it is discarded, or <code>0</code> if no limit should be
+     *        before it is discarded, or {@code 0} if no limit should be
      *        set.
      *
      * @param dumpOnExit if recording should dump on exit
@@ -81,7 +82,7 @@ final class DCmdStart extends AbstractDCmd {
      * @throws DCmdException if recording could not be started
      */
     @SuppressWarnings("resource")
-    public String execute(String name, String[] settings, Long delay, Long duration, Boolean disk, String path, Long maxAge, Long maxSize, Boolean dumpOnExit, Boolean pathToGcRoots) throws DCmdException {
+    public String execute(String name, String[] settings, Long delay, Long duration, Boolean disk, String path, Long maxAge, Long maxSize, Long flush, Boolean dumpOnExit, Boolean pathToGcRoots) throws DCmdException {
         if (Logger.shouldLog(LogTag.JFR_DCMD, LogLevel.DEBUG)) {
             Logger.log(LogTag.JFR_DCMD, LogLevel.DEBUG, "Executing DCmdStart: name=" + name +
                     ", settings=" + Arrays.asList(settings) +
@@ -90,8 +91,9 @@ final class DCmdStart extends AbstractDCmd {
                     ", disk=" + disk+
                     ", filename=" + path +
                     ", maxage=" + maxAge +
+                    ", flush-interval=" + flush +
                     ", maxsize=" + maxSize +
-                    ", dumponexit =" + dumpOnExit +
+                    ", dumponexit=" + dumpOnExit +
                     ", path-to-gc-roots=" + pathToGcRoots);
         }
         if (name != null) {
@@ -136,6 +138,12 @@ final class DCmdStart extends AbstractDCmd {
             }
         }
 
+        if (flush != null) {
+            if (Boolean.FALSE.equals(disk)) {
+                throw new DCmdException("Flush can only be set for recordings that are to disk.");
+            }
+        }
+
         if (!FlightRecorder.isInitialized() && delay == null) {
             initializeWithForcedInstrumentation(s);
         }
@@ -148,6 +156,7 @@ final class DCmdStart extends AbstractDCmd {
         if (disk != null) {
             recording.setToDisk(disk.booleanValue());
         }
+
         recording.setSettings(s);
         SafePath safePath = null;
 
@@ -175,6 +184,11 @@ final class DCmdStart extends AbstractDCmd {
 
         if (maxAge != null) {
             recording.setMaxAge(Duration.ofNanos(maxAge));
+        }
+
+        if (flush != null) {
+            PlatformRecording p = PrivateAccess.getInstance().getPlatformRecording(recording);
+            p.setFlushInterval(Duration.ofNanos(flush));
         }
 
         if (maxSize != null) {
@@ -222,6 +236,7 @@ final class DCmdStart extends AbstractDCmd {
             print("Use jcmd " + getPid() + " JFR." + cmd + " " + recordingspecifier + " " + fileOption + "to copy recording data to file.");
             println();
         }
+
         return getResult();
     }
 

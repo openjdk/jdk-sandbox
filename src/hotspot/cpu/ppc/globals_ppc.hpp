@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,9 +67,6 @@ define_pd_global(bool, RewriteFrequentPairs,  true);
 
 define_pd_global(bool, PreserveFramePointer,  false);
 
-// GC Ergo Flags
-define_pd_global(size_t, CMSYoungGenPerWorker, 16*M);  // Default max size of CMS young gen, per GC worker thread.
-
 define_pd_global(uintx, TypeProfileLevel, 111);
 
 define_pd_global(bool, CompactStrings, true);
@@ -77,21 +74,17 @@ define_pd_global(bool, CompactStrings, true);
 // 2x unrolled loop is shorter with more than 9 HeapWords.
 define_pd_global(intx, InitArrayShortSize, 9*BytesPerLong);
 
-define_pd_global(bool, ThreadLocalHandshakes, true);
-
 // Platform dependent flag handling: flags only defined on this platform.
-#define ARCH_FLAGS(develop,      \
-                   product,      \
-                   diagnostic,   \
-                   experimental, \
-                   notproduct,   \
-                   range,        \
-                   constraint,   \
-                   writeable)    \
+#define ARCH_FLAGS(develop,                                                 \
+                   product,                                                 \
+                   notproduct,                                              \
+                   range,                                                   \
+                   constraint)                                              \
                                                                             \
   product(uintx, PowerArchitecturePPC64, 0,                                 \
-          "CPU Version: x for PowerX. Currently recognizes Power5 to "      \
-          "Power8. Default is 0. Newer CPUs will be recognized as Power8.") \
+          "Specify the PowerPC family version in use. If not provided, "    \
+          "HotSpot will determine it automatically. Host family version "   \
+          "is the maximum value allowed (instructions are not emulated).")  \
                                                                             \
   product(bool, SuperwordUseVSX, false,                                     \
           "Use Power8 VSX instructions for superword optimization.")        \
@@ -118,6 +111,11 @@ define_pd_global(bool, ThreadLocalHandshakes, true);
           "Use load instructions for stack banging.")                       \
                                                                             \
   /* special instructions */                                                \
+  product(bool, UseByteReverseInstructions, false,                          \
+          "Use byte reverse instructions.")                                 \
+                                                                            \
+  product(bool, UseVectorByteReverseInstructionsPPC64, false,               \
+          "Use Power9 xxbr* vector byte reverse instructions.")             \
                                                                             \
   product(bool, UseCountLeadingZerosInstructionsPPC64, true,                \
           "Use count leading zeros instructions.")                          \
@@ -136,12 +134,6 @@ define_pd_global(bool, ThreadLocalHandshakes, true);
   product(bool, UseStaticBranchPredictionForUncommonPathsPPC64, false,      \
           "Use static branch prediction hints for uncommon paths.")         \
                                                                             \
-  product(bool, UsePower6SchedulerPPC64, false,                             \
-          "Use Power6 Scheduler.")                                          \
-                                                                            \
-  product(bool, InsertEndGroupPPC64, false,                                 \
-          "Insert EndGroup instructions to optimize for Power6.")           \
-                                                                            \
   /* Trap based checks. */                                                  \
   /* Trap based checks use the ppc trap instructions to check certain */    \
   /* conditions. This instruction raises a SIGTRAP caught by the      */    \
@@ -151,9 +143,6 @@ define_pd_global(bool, ThreadLocalHandshakes, true);
           "switch off all optimizations requiring SIGTRAP.")                \
   product(bool, TrapBasedICMissChecks, true,                                \
           "Raise and handle SIGTRAP if inline cache miss detected.")        \
-  product(bool, TrapBasedNotEntrantChecks, true,                            \
-          "Raise and handle SIGTRAP if calling not entrant or zombie"       \
-          " method.")                                                       \
   product(bool, TraceTraps, false, "Trace all traps the signal handler"     \
           "handles.")                                                       \
                                                                             \
@@ -164,7 +153,7 @@ define_pd_global(bool, ThreadLocalHandshakes, true);
   product(bool, UseRTMLocking, false,                                       \
           "Enable RTM lock eliding for inflated locks in compiled code")    \
                                                                             \
-  experimental(bool, UseRTMForStackLocks, false,                            \
+  product(bool, UseRTMForStackLocks, false, EXPERIMENTAL,                   \
           "Enable RTM lock eliding for stack locks in compiled code")       \
                                                                             \
   product(bool, UseRTMDeopt, false,                                         \
@@ -174,33 +163,35 @@ define_pd_global(bool, ThreadLocalHandshakes, true);
           "Number of RTM retries on lock abort or busy")                    \
           range(0, max_jint)                                                \
                                                                             \
-  experimental(int, RTMSpinLoopCount, 100,                                  \
+  product(int, RTMSpinLoopCount, 100, EXPERIMENTAL,                         \
           "Spin count for lock to become free before RTM retry")            \
           range(0, 32767) /* immediate operand limit on ppc */              \
                                                                             \
-  experimental(int, RTMAbortThreshold, 1000,                                \
+  product(int, RTMAbortThreshold, 1000, EXPERIMENTAL,                       \
           "Calculate abort ratio after this number of aborts")              \
           range(0, max_jint)                                                \
                                                                             \
-  experimental(int, RTMLockingThreshold, 10000,                             \
+  product(int, RTMLockingThreshold, 10000, EXPERIMENTAL,                    \
           "Lock count at which to do RTM lock eliding without "             \
           "abort ratio calculation")                                        \
           range(0, max_jint)                                                \
                                                                             \
-  experimental(int, RTMAbortRatio, 50,                                      \
+  product(int, RTMAbortRatio, 50, EXPERIMENTAL,                             \
           "Lock abort ratio at which to stop use RTM lock eliding")         \
           range(0, 100) /* natural range */                                 \
                                                                             \
-  experimental(int, RTMTotalCountIncrRate, 64,                              \
+  product(int, RTMTotalCountIncrRate, 64, EXPERIMENTAL,                     \
           "Increment total RTM attempted lock count once every n times")    \
           range(1, 32767) /* immediate operand limit on ppc */              \
           constraint(RTMTotalCountIncrRateConstraintFunc,AfterErgo)         \
                                                                             \
-  experimental(intx, RTMLockingCalculationDelay, 0,                         \
+  product(intx, RTMLockingCalculationDelay, 0, EXPERIMENTAL,                \
           "Number of milliseconds to wait before start calculating aborts " \
           "for RTM locking")                                                \
                                                                             \
-  experimental(bool, UseRTMXendForLockBusy, true,                           \
-          "Use RTM Xend instead of Xabort when lock busy")                  \
+  product(bool, UseRTMXendForLockBusy, true, EXPERIMENTAL,                  \
+          "Use RTM Xend instead of Xabort when lock busy")
+
+// end of ARCH_FLAGS
 
 #endif // CPU_PPC_GLOBALS_PPC_HPP

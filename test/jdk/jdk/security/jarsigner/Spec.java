@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
  *          jdk.jartool
  *          jdk.crypto.ec
  * @build jdk.test.lib.util.JarUtils
- * @run main Spec
+ * @run main/othervm Spec
  */
 
 import com.sun.jarsigner.ContentSigner;
@@ -190,7 +190,7 @@ public class Spec {
                 .equals("SHA256withDSA"));
 
         kpg = KeyPairGenerator.getInstance("EC");
-        kpg.initialize(192);
+        kpg.initialize(256);
         assertTrue(JarSigner.Builder
                 .getDefaultSignatureAlgorithm(kpg.generateKeyPair().getPrivate())
                 .equals("SHA256withECDSA"));
@@ -198,7 +198,7 @@ public class Spec {
         assertTrue(JarSigner.Builder
                 .getDefaultSignatureAlgorithm(kpg.generateKeyPair().getPrivate())
                 .equals("SHA384withECDSA"));
-        kpg.initialize(571);
+        kpg.initialize(521);
         assertTrue(JarSigner.Builder
                 .getDefaultSignatureAlgorithm(kpg.generateKeyPair().getPrivate())
                 .equals("SHA512withECDSA"));

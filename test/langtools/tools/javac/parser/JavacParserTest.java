@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 7073631 7159445 7156633 8028235 8065753 8205418 8205913
+ * @bug 7073631 7159445 7156633 8028235 8065753 8205418 8205913 8228451 8237041
  * @summary tests error and diagnostics positions
  * @author  Jan Lahoda
  * @modules jdk.compiler/com.sun.tools.javac.api
@@ -1096,7 +1096,7 @@ public class JavacParserTest extends TestCase {
         String expectedErrors = "Test.java:1:178: compiler.err.switch.case.unexpected.statement\n";
         StringWriter out = new StringWriter();
         JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(out, fm, null,
-                Arrays.asList("-XDrawDiagnostics", "--enable-preview", "-source", SOURCE_VERSION),
+                Arrays.asList("-XDrawDiagnostics"),
                 null, Arrays.asList(new MyFileObject(code)));
 
         CompilationUnitTree cut = ct.parse().iterator().next();
@@ -1462,6 +1462,106 @@ public class JavacParserTest extends TestCase {
         assertEquals("The expected and actual AST do not match, actual AST: " + actualAST,
                      actualAST,
                      expectedAST);
+    }
+
+    @Test
+    void testCompoundAssignment() throws IOException {
+        assert tool != null;
+
+        String code = "package test; class Test { v += v v;}";
+        StringWriter output = new StringWriter();
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(output, fm, null, List.of("-XDrawDiagnostics"),
+                null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        List<String> actual = List.of(output.toString().split("\r?\n"));
+        List<String> expected = List.of("Test.java:1:29: compiler.err.expected: token.identifier");
+
+        assertEquals("The expected and actual errors do not match, actual errors: " + actual,
+                     actual,
+                     expected);
+
+        String actualAST = cut.toString().replaceAll("\\R", "\n");
+        String expectedAST = "package test;\n" +
+                             "\n" +
+                             "class Test {\n" +
+                             "    v <error>;\n" +
+                             "    v v;\n" +
+                             "}";
+        assertEquals("The expected and actual AST do not match, actual AST: " + actualAST,
+                     actualAST,
+                     expectedAST);
+    }
+
+    @Test
+    void testStartAndEndPositionForClassesInPermitsClause() throws IOException {
+        String code = "package t; sealed class Test permits Sub1, Sub2 {} final class Sub1 extends Test {} final class Sub2 extends Test {}";
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, fm, null,
+                List.of("--enable-preview", "-source", Integer.toString(Runtime.version().feature())),
+                null, Arrays.asList(new MyFileObject(code)));
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
+        List<? extends Tree> permitsList = clazz.getPermitsClause();
+        assertEquals("testStartAndEndPositionForClassesInPermitsClause", 2, permitsList.size());
+        Trees t = Trees.instance(ct);
+        List<String> expected = List.of("Sub1", "Sub2");
+        int i = 0;
+        for (Tree permitted: permitsList) {
+            int start = (int) t.getSourcePositions().getStartPosition(cut, permitted);
+            int end = (int) t.getSourcePositions().getEndPosition(cut, permitted);
+            assertEquals("testStartAndEndPositionForClassesInPermitsClause", expected.get(i++), code.substring(start, end));
+        }
+    }
+
+    @Test //JDK-8237041
+    void testDeepNestingNoClose() throws IOException {
+        //verify that many nested unclosed classes do not crash javac
+        //due to the safety fallback in JavacParser.reportSyntaxError:
+        String code = "package t; class Test {\n";
+        for (int i = 0; i < 100; i++) {
+            code += "class C" + i + " {\n";
+        }
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, fm, null, List.of("-XDdev"),
+                null, Arrays.asList(new MyFileObject(code)));
+        Result result = ct.doCall();
+        assertEquals("Expected a (plain) error, got: " + result, result, Result.ERROR);
+    }
+
+    @Test //JDK-8237041
+    void testErrorRecoveryClassNotBrace() throws IOException {
+        //verify the AST form produced for classes without opening brace
+        //(classes without an opening brace do not nest the upcoming content):
+        String code = """
+                      package t;
+                      class Test {
+                          String.class,
+                          String.class,
+                          class A
+                          public
+                          class B
+                      }
+                      """;
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, fm, null, List.of("-XDdev"),
+                null, Arrays.asList(new MyFileObject(code)));
+        String ast = ct.parse().iterator().next().toString().replaceAll("\\R", "\n");
+        String expected = """
+                          package t;
+                          \n\
+                          class Test {
+                              String.<error> <error>;
+                              \n\
+                              class <error> {
+                              }
+                              \n\
+                              class <error> {
+                              }
+                              \n\
+                              class A {
+                              }
+                              \n\
+                              public class B {
+                              }
+                          }""";
+        assertEquals("Unexpected AST, got:\n" + ast, expected, ast);
     }
 
     void run(String[] args) throws Exception {

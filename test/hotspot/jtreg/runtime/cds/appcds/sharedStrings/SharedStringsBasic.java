@@ -27,7 +27,6 @@
  * @summary Basic test for shared strings
  * @requires vm.cds.archived.java.heap
  * @library /test/hotspot/jtreg/runtime/cds/appcds /test/lib
- * @modules jdk.jartool/sun.tools.jar
  * @build HelloString
  * @run driver SharedStringsBasic
  */
@@ -51,7 +50,7 @@ public class SharedStringsBasic {
         String sharedArchiveConfigFile =
             TestCommon.getSourceFile("SharedStringsBasic.txt").toString();
 
-        ProcessBuilder dumpPb = ProcessTools.createJavaProcessBuilder(true,
+        ProcessBuilder dumpPb = ProcessTools.createTestJvm(
           TestCommon.concat(vmOptionsPrefix,
             "-cp", appJar,
             "-XX:SharedArchiveConfigFile=" + sharedArchiveConfigFile,
@@ -63,7 +62,7 @@ public class SharedStringsBasic {
             .shouldContain("Shared string table stats")
             .shouldHaveExitValue(0);
 
-        ProcessBuilder runPb = ProcessTools.createJavaProcessBuilder(true,
+        ProcessBuilder runPb = ProcessTools.createTestJvm(
           TestCommon.concat(vmOptionsPrefix,
             "-cp", appJar,
             "-XX:SharedArchiveFile=./SharedStringsBasic.jsa",

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,24 +23,12 @@
  * questions.
  */
 
-// SAX parser factory.
-// http://www.saxproject.org
-// No warranty; no copyright -- use this as you will.
-// $Id: ParserFactory.java,v 1.2 2004/11/03 22:53:09 jsuttor Exp $
-
 package org.xml.sax.helpers;
 
 import jdk.xml.internal.SecuritySupport;
 
 /**
  * Java-specific class for dynamically loading SAX parsers.
- *
- * <blockquote>
- * <em>This module, both source code and documentation, is in the
- * Public Domain, and comes with <strong>NO WARRANTY</strong>.</em>
- * See <a href='http://www.saxproject.org'>http://www.saxproject.org</a>
- * for further information.
- * </blockquote>
  *
  * <p><strong>Note:</strong> This class is designed to work with the now-deprecated
  * SAX1 {@link org.xml.sax.Parser Parser} class.  SAX2 applications should use
@@ -82,16 +70,17 @@ public class ParserFactory {
      * <p>The named class must exist and must implement the
      * {@link org.xml.sax.Parser Parser} interface.</p>
      *
-     * @exception java.lang.NullPointerException There is no value
+     * @return a new SAX parser
+     * @throws java.lang.NullPointerException There is no value
      *            for the `org.xml.sax.parser' system property.
-     * @exception java.lang.ClassNotFoundException The SAX parser
+     * @throws java.lang.ClassNotFoundException The SAX parser
      *            class was not found (check your CLASSPATH).
-     * @exception IllegalAccessException The SAX parser class was
+     * @throws IllegalAccessException The SAX parser class was
      *            found, but you do not have permission to load
      *            it.
-     * @exception InstantiationException The SAX parser class was
+     * @throws InstantiationException The SAX parser class was
      *            found but could not be instantiated.
-     * @exception java.lang.ClassCastException The SAX parser class
+     * @throws java.lang.ClassCastException The SAX parser class
      *            was found and instantiated, but does not implement
      *            org.xml.sax.Parser.
      * @see #makeParser(java.lang.String)
@@ -121,14 +110,15 @@ public class ParserFactory {
      *
      * @param className A string containing the name of the
      *                  SAX parser class.
-     * @exception java.lang.ClassNotFoundException The SAX parser
+     * @return a new SAX parser
+     * @throws java.lang.ClassNotFoundException The SAX parser
      *            class was not found (check your CLASSPATH).
-     * @exception IllegalAccessException The SAX parser class was
+     * @throws IllegalAccessException The SAX parser class was
      *            found, but you do not have permission to load
      *            it.
-     * @exception InstantiationException The SAX parser class was
+     * @throws InstantiationException The SAX parser class was
      *            found but could not be instantiated.
-     * @exception java.lang.ClassCastException The SAX parser class
+     * @throws java.lang.ClassCastException The SAX parser class
      *            was found and instantiated, but does not implement
      *            org.xml.sax.Parser.
      * @see #makeParser()

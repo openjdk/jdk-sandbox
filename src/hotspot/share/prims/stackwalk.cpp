@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,7 +50,7 @@ void BaseFrameStream::setup_magic_on_entry(objArrayHandle frames_array) {
 bool BaseFrameStream::check_magic(objArrayHandle frames_array) {
   oop   m1 = frames_array->obj_at(magic_pos);
   jlong m2 = _anchor;
-  if (oopDesc::equals(m1, _thread->threadObj()) && m2 == address_value())  return true;
+  if (m1 == _thread->threadObj() && m2 == address_value())  return true;
   return false;
 }
 
@@ -79,9 +79,8 @@ void JavaFrameStream::next() { _vfst.next();}
 BaseFrameStream* BaseFrameStream::from_current(JavaThread* thread, jlong magic,
                                                objArrayHandle frames_array)
 {
-  assert(thread != NULL && thread->is_Java_thread(), "");
   oop m1 = frames_array->obj_at(magic_pos);
-  if (!oopDesc::equals(m1, thread->threadObj())) return NULL;
+  if (m1 != thread->threadObj()) return NULL;
   if (magic == 0L)                    return NULL;
   BaseFrameStream* stream = (BaseFrameStream*) (intptr_t) magic;
   if (!stream->is_valid_in(thread, frames_array))   return NULL;
@@ -156,7 +155,7 @@ int StackWalk::fill_in_frames(jlong mode, BaseFrameStream& stream,
                 method->external_name()));
     }
     // fill in StackFrameInfo and initialize MemberName
-    stream.fill_frame(index, frames_array, method, CHECK_0);
+    stream.fill_frame(index, frames_array, methodHandle(THREAD, method), CHECK_0);
     if (++frames_decoded >= max_nframes)  break;
   }
   return frames_decoded;
@@ -187,7 +186,7 @@ void JavaFrameStream::fill_frame(int index, objArrayHandle  frames_array,
 // T_OBJECT, or T_CONFLICT.
 oop LiveFrameStream::create_primitive_slot_instance(StackValueCollection* values,
                                                     int i, BasicType type, TRAPS) {
-  Klass* k = SystemDictionary::resolve_or_null(vmSymbols::java_lang_LiveStackFrameInfo(), CHECK_NULL);
+  Klass* k = SystemDictionary::LiveStackFrameInfo_klass();
   InstanceKlass* ik = InstanceKlass::cast(k);
 
   JavaValue result(T_OBJECT);
@@ -288,6 +287,9 @@ void LiveFrameStream::fill_live_stackframe(Handle stackFrame,
                                            const methodHandle& method, TRAPS) {
   fill_stackframe(stackFrame, method, CHECK);
   if (_jvf != NULL) {
+    ResourceMark rm(THREAD);
+    HandleMark hm(THREAD);
+
     StackValueCollection* locals = _jvf->locals();
     StackValueCollection* expressions = _jvf->expressions();
     GrowableArray<MonitorInfo*>* monitors = _jvf->monitors();
@@ -335,7 +337,7 @@ oop StackWalk::walk(Handle stackStream, jlong mode,
                     objArrayHandle frames_array,
                     TRAPS) {
   ResourceMark rm(THREAD);
-  JavaThread* jt = (JavaThread*)THREAD;
+  JavaThread* jt = THREAD->as_Java_thread();
   log_debug(stackwalk)("Start walking: mode " JLONG_FORMAT " skip %d frames batch size %d",
                        mode, skip_frames, frame_count);
 
@@ -455,7 +457,7 @@ jint StackWalk::fetchNextBatch(Handle stackStream, jlong mode, jlong magic,
                                objArrayHandle frames_array,
                                TRAPS)
 {
-  JavaThread* jt = (JavaThread*)THREAD;
+  JavaThread* jt = THREAD->as_Java_thread();
   BaseFrameStream* existing_stream = BaseFrameStream::from_current(jt, magic, frames_array);
   if (existing_stream == NULL) {
     THROW_MSG_(vmSymbols::java_lang_InternalError(), "doStackWalk: corrupted buffers", 0L);

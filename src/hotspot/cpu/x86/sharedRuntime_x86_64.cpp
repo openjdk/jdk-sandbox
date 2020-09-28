@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,12 +41,13 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/compiledICHolder.hpp"
+#include "oops/klass.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/vframeArray.hpp"
+#include "runtime/vm_version.hpp"
 #include "utilities/align.hpp"
 #include "utilities/formatBuffer.hpp"
-#include "vm_version_x86.hpp"
 #include "vmreg_x86.inline.hpp"
 #ifdef COMPILER1
 #include "c1/c1_Runtime1.hpp"
@@ -954,7 +955,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   Register temp = rbx;
 
   {
-    __ load_klass(temp, receiver);
+    __ load_klass(temp, receiver, rscratch1);
     __ cmpptr(temp, Address(holder, CompiledICHolder::holder_klass_offset()));
     __ movptr(rbx, Address(holder, CompiledICHolder::holder_metadata_offset()));
     __ jcc(Assembler::equal, ok);
@@ -1119,7 +1120,7 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
 }
 
 // On 64 bit we will store integer like items to the stack as
-// 64 bits items (sparc abi) even though java would only store
+// 64 bits items (x86_32/64 abi) even though java would only store
 // 32bits for a parameter. On 32bit it will simply be 32 bits
 // So this routine will do 32->32 on 32bit and 32->64 on 64bit
 static void move32_64(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
@@ -1245,7 +1246,6 @@ static void float_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
 
   // The calling conventions assures us that each VMregpair is either
   // all really one physical register or adjacent stack slots.
-  // This greatly simplifies the cases here compared to sparc.
 
   if (src.first()->is_stack()) {
     if (dst.first()->is_stack()) {
@@ -1274,7 +1274,6 @@ static void long_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
 
   // The calling conventions assures us that each VMregpair is either
   // all really one physical register or adjacent stack slots.
-  // This greatly simplifies the cases here compared to sparc.
 
   if (src.is_single_phys_reg() ) {
     if (dst.is_single_phys_reg()) {
@@ -1300,7 +1299,6 @@ static void double_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
 
   // The calling conventions assures us that each VMregpair is either
   // all really one physical register or adjacent stack slots.
-  // This greatly simplifies the cases here compared to sparc.
 
   if (src.is_single_phys_reg() ) {
     if (dst.is_single_phys_reg()) {
@@ -1816,8 +1814,7 @@ static void verify_oop_args(MacroAssembler* masm,
   Register temp_reg = rbx;  // not part of any compiled calling seq
   if (VerifyOops) {
     for (int i = 0; i < method->size_of_parameters(); i++) {
-      if (sig_bt[i] == T_OBJECT ||
-          sig_bt[i] == T_ARRAY) {
+      if (is_reference_type(sig_bt[i])) {
         VMReg r = regs[i].first();
         assert(r->is_valid(), "bad oop arg");
         if (r->is_stack()) {
@@ -2002,28 +1999,16 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
         // Arrays are passed as int, elem* pair
         out_sig_bt[argc++] = T_INT;
         out_sig_bt[argc++] = T_ADDRESS;
-        Symbol* atype = ss.as_symbol();
-        const char* at = atype->as_C_string();
-        if (strlen(at) == 2) {
-          assert(at[0] == '[', "must be");
-          switch (at[1]) {
-            case 'B': in_elem_bt[i]  = T_BYTE; break;
-            case 'C': in_elem_bt[i]  = T_CHAR; break;
-            case 'D': in_elem_bt[i]  = T_DOUBLE; break;
-            case 'F': in_elem_bt[i]  = T_FLOAT; break;
-            case 'I': in_elem_bt[i]  = T_INT; break;
-            case 'J': in_elem_bt[i]  = T_LONG; break;
-            case 'S': in_elem_bt[i]  = T_SHORT; break;
-            case 'Z': in_elem_bt[i]  = T_BOOLEAN; break;
-            default: ShouldNotReachHere();
-          }
-        }
+        ss.skip_array_prefix(1);  // skip one '['
+        assert(ss.is_primitive(), "primitive type expected");
+        in_elem_bt[i] = ss.type();
       } else {
         out_sig_bt[argc++] = in_sig_bt[i];
         in_elem_bt[i] = T_VOID;
       }
       if (in_sig_bt[i] != T_VOID) {
-        assert(in_sig_bt[i] == ss.type(), "must match");
+        assert(in_sig_bt[i] == ss.type() ||
+               in_sig_bt[i] == T_ARRAY, "must match");
         ss.next();
       }
     }
@@ -2151,7 +2136,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   assert_different_registers(ic_reg, receiver, rscratch1);
   __ verify_oop(receiver);
-  __ load_klass(rscratch1, receiver);
+  __ load_klass(rscratch1, receiver, rscratch2);
   __ cmpq(ic_reg, rscratch1);
   __ jcc(Assembler::equal, hit);
 
@@ -2495,7 +2480,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     __ resolve(IS_NOT_NULL, obj_reg);
     if (UseBiasedLocking) {
-      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, false, lock_done, &slow_path_lock);
+      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, rscratch2, false, lock_done, &slow_path_lock);
     }
 
     // Load immediate 1 into swap_reg %rax
@@ -2717,7 +2702,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   __ reset_last_Java_frame(false);
 
   // Unbox oop result, e.g. JNIHandles::resolve value.
-  if (ret_type == T_OBJECT || ret_type == T_ARRAY) {
+  if (is_reference_type(ret_type)) {
     __ resolve_jobject(rax /* value */,
                        r15_thread /* thread */,
                        rcx /* tmp */);
@@ -3524,7 +3509,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
 #ifdef ASSERT
   Label bail;
 #endif
-  if (SafepointMechanism::uses_thread_local_poll() && !cause_return) {
+  if (!cause_return) {
     Label no_prefix, not_special;
 
     // If our stashed return pc was modified by the runtime we avoid touching it
@@ -3691,14 +3676,11 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
 
 #ifndef _WINDOWS
 
-#define ASM_SUBTRACT
-
-#ifdef ASM_SUBTRACT
 // Subtract 0:b from carry:a.  Return carry.
-static unsigned long
-sub(unsigned long a[], unsigned long b[], unsigned long carry, long len) {
-  long i = 0, cnt = len;
-  unsigned long tmp;
+static julong
+sub(julong a[], julong b[], julong carry, long len) {
+  long long i = 0, cnt = len;
+  julong tmp;
   asm volatile("clc; "
                "0: ; "
                "mov (%[b], %[i], 8), %[tmp]; "
@@ -3711,24 +3693,6 @@ sub(unsigned long a[], unsigned long b[], unsigned long carry, long len) {
                : "memory");
   return tmp;
 }
-#else // ASM_SUBTRACT
-typedef int __attribute__((mode(TI))) int128;
-
-// Subtract 0:b from carry:a.  Return carry.
-static unsigned long
-sub(unsigned long a[], unsigned long b[], unsigned long carry, int len) {
-  int128 tmp = 0;
-  int i;
-  for (i = 0; i < len; i++) {
-    tmp += a[i];
-    tmp -= b[i];
-    a[i] = tmp;
-    tmp >>= 64;
-    assert(-1 <= tmp && tmp <= 0, "invariant");
-  }
-  return tmp + carry;
-}
-#endif // ! ASM_SUBTRACT
 
 // Multiply (unsigned) Long A by Long B, accumulating the double-
 // length result into the accumulator formed of T0, T1, and T2.
@@ -3751,17 +3715,59 @@ do {                                                            \
            : "r"(A), "a"(B) : "cc");                            \
  } while(0)
 
+#else //_WINDOWS
+
+static julong
+sub(julong a[], julong b[], julong carry, long len) {
+  long i;
+  julong tmp;
+  unsigned char c = 1;
+  for (i = 0; i < len; i++) {
+    c = _addcarry_u64(c, a[i], ~b[i], &tmp);
+    a[i] = tmp;
+  }
+  c = _addcarry_u64(c, carry, ~0, &tmp);
+  return tmp;
+}
+
+// Multiply (unsigned) Long A by Long B, accumulating the double-
+// length result into the accumulator formed of T0, T1, and T2.
+#define MACC(A, B, T0, T1, T2)                          \
+do {                                                    \
+  julong hi, lo;                            \
+  lo = _umul128(A, B, &hi);                             \
+  unsigned char c = _addcarry_u64(0, lo, T0, &T0);      \
+  c = _addcarry_u64(c, hi, T1, &T1);                    \
+  _addcarry_u64(c, T2, 0, &T2);                         \
+ } while(0)
+
+// As above, but add twice the double-length result into the
+// accumulator.
+#define MACC2(A, B, T0, T1, T2)                         \
+do {                                                    \
+  julong hi, lo;                            \
+  lo = _umul128(A, B, &hi);                             \
+  unsigned char c = _addcarry_u64(0, lo, T0, &T0);      \
+  c = _addcarry_u64(c, hi, T1, &T1);                    \
+  _addcarry_u64(c, T2, 0, &T2);                         \
+  c = _addcarry_u64(0, lo, T0, &T0);                    \
+  c = _addcarry_u64(c, hi, T1, &T1);                    \
+  _addcarry_u64(c, T2, 0, &T2);                         \
+ } while(0)
+
+#endif //_WINDOWS
+
 // Fast Montgomery multiplication.  The derivation of the algorithm is
 // in  A Cryptographic Library for the Motorola DSP56000,
 // Dusse and Kaliski, Proc. EUROCRYPT 90, pp. 230-237.
 
-static void __attribute__((noinline))
-montgomery_multiply(unsigned long a[], unsigned long b[], unsigned long n[],
-                    unsigned long m[], unsigned long inv, int len) {
-  unsigned long t0 = 0, t1 = 0, t2 = 0; // Triple-precision accumulator
+static void NOINLINE
+montgomery_multiply(julong a[], julong b[], julong n[],
+                    julong m[], julong inv, int len) {
+  julong t0 = 0, t1 = 0, t2 = 0; // Triple-precision accumulator
   int i;
 
-  assert(inv * n[0] == -1UL, "broken inverse in Montgomery multiply");
+  assert(inv * n[0] == ULLONG_MAX, "broken inverse in Montgomery multiply");
 
   for (i = 0; i < len; i++) {
     int j;
@@ -3797,13 +3803,13 @@ montgomery_multiply(unsigned long a[], unsigned long b[], unsigned long n[],
 // multiplication.  However, its loop control is more complex and it
 // may actually run slower on some machines.
 
-static void __attribute__((noinline))
-montgomery_square(unsigned long a[], unsigned long n[],
-                  unsigned long m[], unsigned long inv, int len) {
-  unsigned long t0 = 0, t1 = 0, t2 = 0; // Triple-precision accumulator
+static void NOINLINE
+montgomery_square(julong a[], julong n[],
+                  julong m[], julong inv, int len) {
+  julong t0 = 0, t1 = 0, t2 = 0; // Triple-precision accumulator
   int i;
 
-  assert(inv * n[0] == -1UL, "broken inverse in Montgomery multiply");
+  assert(inv * n[0] == ULLONG_MAX, "broken inverse in Montgomery square");
 
   for (i = 0; i < len; i++) {
     int j;
@@ -3849,13 +3855,13 @@ montgomery_square(unsigned long a[], unsigned long n[],
 }
 
 // Swap words in a longword.
-static unsigned long swap(unsigned long x) {
+static julong swap(julong x) {
   return (x << 32) | (x >> 32);
 }
 
 // Copy len longwords from s to d, word-swapping as we go.  The
 // destination array is reversed.
-static void reverse_words(unsigned long *s, unsigned long *d, int len) {
+static void reverse_words(julong *s, julong *d, int len) {
   d += len;
   while(len-- > 0) {
     d--;
@@ -3877,24 +3883,24 @@ void SharedRuntime::montgomery_multiply(jint *a_ints, jint *b_ints, jint *n_ints
   // Make very sure we don't use so much space that the stack might
   // overflow.  512 jints corresponds to an 16384-bit integer and
   // will use here a total of 8k bytes of stack space.
-  int total_allocation = longwords * sizeof (unsigned long) * 4;
+  int total_allocation = longwords * sizeof (julong) * 4;
   guarantee(total_allocation <= 8192, "must be");
-  unsigned long *scratch = (unsigned long *)alloca(total_allocation);
+  julong *scratch = (julong *)alloca(total_allocation);
 
   // Local scratch arrays
-  unsigned long
+  julong
     *a = scratch + 0 * longwords,
     *b = scratch + 1 * longwords,
     *n = scratch + 2 * longwords,
     *m = scratch + 3 * longwords;
 
-  reverse_words((unsigned long *)a_ints, a, longwords);
-  reverse_words((unsigned long *)b_ints, b, longwords);
-  reverse_words((unsigned long *)n_ints, n, longwords);
+  reverse_words((julong *)a_ints, a, longwords);
+  reverse_words((julong *)b_ints, b, longwords);
+  reverse_words((julong *)n_ints, n, longwords);
 
-  ::montgomery_multiply(a, b, n, m, (unsigned long)inv, longwords);
+  ::montgomery_multiply(a, b, n, m, (julong)inv, longwords);
 
-  reverse_words(m, (unsigned long *)m_ints, longwords);
+  reverse_words(m, (julong *)m_ints, longwords);
 }
 
 void SharedRuntime::montgomery_square(jint *a_ints, jint *n_ints,
@@ -3906,29 +3912,27 @@ void SharedRuntime::montgomery_square(jint *a_ints, jint *n_ints,
   // Make very sure we don't use so much space that the stack might
   // overflow.  512 jints corresponds to an 16384-bit integer and
   // will use here a total of 6k bytes of stack space.
-  int total_allocation = longwords * sizeof (unsigned long) * 3;
+  int total_allocation = longwords * sizeof (julong) * 3;
   guarantee(total_allocation <= 8192, "must be");
-  unsigned long *scratch = (unsigned long *)alloca(total_allocation);
+  julong *scratch = (julong *)alloca(total_allocation);
 
   // Local scratch arrays
-  unsigned long
+  julong
     *a = scratch + 0 * longwords,
     *n = scratch + 1 * longwords,
     *m = scratch + 2 * longwords;
 
-  reverse_words((unsigned long *)a_ints, a, longwords);
-  reverse_words((unsigned long *)n_ints, n, longwords);
+  reverse_words((julong *)a_ints, a, longwords);
+  reverse_words((julong *)n_ints, n, longwords);
 
   if (len >= MONTGOMERY_SQUARING_THRESHOLD) {
-    ::montgomery_square(a, n, m, (unsigned long)inv, longwords);
+    ::montgomery_square(a, n, m, (julong)inv, longwords);
   } else {
-    ::montgomery_multiply(a, a, n, m, (unsigned long)inv, longwords);
+    ::montgomery_multiply(a, a, n, m, (julong)inv, longwords);
   }
 
-  reverse_words(m, (unsigned long *)m_ints, longwords);
+  reverse_words(m, (julong *)m_ints, longwords);
 }
-
-#endif // WINDOWS
 
 #ifdef COMPILER2
 // This is here instead of runtime_x86_64.cpp because it uses SimpleRuntimeFrame

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -168,7 +168,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
     private static int timeout4ESBuffer = 0;
 
     /* buffer size for buffered error stream;
-    */
+     */
     private static int bufSize4ES = 0;
 
     /*
@@ -314,6 +314,8 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
     private CookieHandler cookieHandler;
     private final ResponseCache cacheHandler;
 
+    private volatile boolean usingProxy;
+
     // the cached response, and cached response headers and body
     protected CacheResponse cachedResponse;
     private MessageHeader cachedHeaders;
@@ -321,7 +323,6 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
 
     /* output stream to server */
     protected PrintStream ps = null;
-
 
     /* buffered error stream */
     private InputStream errorStream = null;
@@ -1231,7 +1232,12 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                             if (p != Proxy.NO_PROXY) {
                                 sel.connectFailed(uri, p.address(), ioex);
                                 if (!it.hasNext()) {
-                                    throw ioex;
+                                    if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
+                                        logger.finest("Retrying with proxy: " + p.toString());
+                                    }
+                                    http = getNewHttpClient(url, p, connectTimeout, false);
+                                    http.setReadTimeout(readTimeout);
+                                    break;
                                 }
                             } else {
                                 throw ioex;
@@ -1263,6 +1269,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                 }
             }
 
+            usingProxy = usingProxy || usingProxyInternal();
             ps = (PrintStream)http.getOutputStream();
         } catch (IOException e) {
             throw e;
@@ -2217,6 +2224,10 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
             } while (retryTunnel < maxRedirects);
 
             if (retryTunnel >= maxRedirects || (respCode != HTTP_OK)) {
+                if (respCode != HTTP_PROXY_AUTH) {
+                    // remove all but authenticate responses
+                    responses.reset();
+                }
                 throw new IOException("Unable to tunnel through proxy."+
                                       " Proxy returns \"" +
                                       statusLine + "\"");
@@ -2390,8 +2401,8 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                                     NTLMAuthenticationProxy.supportsTransparentAuth;
                             /* If the platform supports transparent authentication
                              * then normally it's ok to do transparent auth to a proxy
-                                         * because we generally trust proxies (chosen by the user)
-                                         * But not in the case of 305 response where the server
+                             * because we generally trust proxies (chosen by the user)
+                             * But not in the case of 305 response where the server
                              * chose it. */
                             if (tryTransparentNTLMProxy && useProxyResponseCode) {
                                 tryTransparentNTLMProxy = false;
@@ -2412,7 +2423,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                          * transparent authentication (Windows only) the username
                          * and password will be picked up from the current logged
                          * on users credentials.
-                        */
+                         */
                         if (tryTransparentNTLMProxy ||
                               (!tryTransparentNTLMProxy && a != null)) {
                             ret = NTLMAuthenticationProxy.proxy.create(true, host,
@@ -2959,7 +2970,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
      * closed the connection to the web server.
      */
     private void disconnectWeb() throws IOException {
-        if (usingProxy() && http.isKeepingAlive()) {
+        if (usingProxyInternal() && http.isKeepingAlive()) {
             responseCode = -1;
             // clean up, particularly, skip the content part
             // of a 401 error response
@@ -3062,10 +3073,28 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
         }
     }
 
-    public boolean usingProxy() {
+    /**
+     * Returns true only if the established connection is using a proxy
+     */
+    boolean usingProxyInternal() {
         if (http != null) {
             return (http.getProxyHostUsed() != null);
         }
+        return false;
+    }
+
+    /**
+     * Returns true if the established connection is using a proxy
+     * or if a proxy is specified for the inactive connection
+     */
+    @Override
+    public boolean usingProxy() {
+        if (usingProxy || usingProxyInternal())
+            return true;
+
+        if (instProxy != null)
+            return instProxy.type().equals(Proxy.Type.HTTP);
+
         return false;
     }
 

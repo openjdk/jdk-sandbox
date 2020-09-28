@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 *
 * This code is free software; you can redistribute it and/or modify it
@@ -28,12 +28,14 @@
 #include "classfile/classLoader.hpp"
 #include "classfile/classLoaderData.hpp"
 #include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoadInfo.hpp"
 #include "classfile/klassFactory.hpp"
 #include "memory/filemap.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "prims/jvmtiEnvBase.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
 #include "utilities/macros.hpp"
 #if INCLUDE_JFR
@@ -79,23 +81,24 @@ InstanceKlass* KlassFactory::check_shared_class_file_load_hook(
                                                     end_ptr - ptr,
                                                     cfs->source(),
                                                     ClassFileStream::verify);
+      ClassLoadInfo cl_info(protection_domain);
       ClassFileParser parser(stream,
                              class_name,
                              loader_data,
-                             protection_domain,
-                             NULL,
-                             NULL,
+                             &cl_info,
                              ClassFileParser::BROADCAST, // publicity level
                              CHECK_NULL);
-      InstanceKlass* new_ik = parser.create_instance_klass(true /* changed_by_loadhook */,
+      const ClassInstanceInfo* cl_inst_info = cl_info.class_hidden_info_ptr();
+      InstanceKlass* new_ik = parser.create_instance_klass(true, // changed_by_loadhook
+                                                           *cl_inst_info,  // dynamic_nest_host and classData
                                                            CHECK_NULL);
+
       if (cached_class_file != NULL) {
         new_ik->set_cached_class_file(cached_class_file);
       }
 
       if (class_loader.is_null()) {
-        ResourceMark rm;
-        ClassLoader::add_package(class_name->as_C_string(), path_index, THREAD);
+        new_ik->set_classpath_index(path_index, THREAD);
       }
 
       return new_ik;
@@ -117,8 +120,7 @@ static ClassFileStream* check_class_file_load_hook(ClassFileStream* stream,
   assert(stream != NULL, "invariant");
 
   if (JvmtiExport::should_post_class_file_load_hook()) {
-    assert(THREAD->is_Java_thread(), "must be a JavaThread");
-    const JavaThread* jt = (JavaThread*)THREAD;
+    const JavaThread* jt = THREAD->as_Java_thread();
 
     Handle class_loader(THREAD, loader_data->class_loader());
 
@@ -166,16 +168,14 @@ static ClassFileStream* check_class_file_load_hook(ClassFileStream* stream,
 InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
                                                 Symbol* name,
                                                 ClassLoaderData* loader_data,
-                                                Handle protection_domain,
-                                                const InstanceKlass* unsafe_anonymous_host,
-                                                GrowableArray<Handle>* cp_patches,
+                                                const ClassLoadInfo& cl_info,
                                                 TRAPS) {
   assert(stream != NULL, "invariant");
   assert(loader_data != NULL, "invariant");
   assert(THREAD->is_Java_thread(), "must be a JavaThread");
 
-  ResourceMark rm;
-  HandleMark hm;
+  ResourceMark rm(THREAD);
+  HandleMark hm(THREAD);
 
   JvmtiCachedClassFileData* cached_class_file = NULL;
 
@@ -184,12 +184,15 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
   // increment counter
   THREAD->statistical_info().incr_define_class_count();
 
-  // Skip this processing for VM anonymous classes
-  if (unsafe_anonymous_host == NULL) {
+  assert(!(cl_info.is_hidden() && (cl_info.unsafe_anonymous_host() != NULL)),
+         "hidden class has an anonymous host");
+
+  // Skip this processing for VM hidden or anonymous classes
+  if (!cl_info.is_hidden() && (cl_info.unsafe_anonymous_host() == NULL)) {
     stream = check_class_file_load_hook(stream,
                                         name,
                                         loader_data,
-                                        protection_domain,
+                                        cl_info.protection_domain(),
                                         &cached_class_file,
                                         CHECK_NULL);
   }
@@ -197,14 +200,12 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
   ClassFileParser parser(stream,
                          name,
                          loader_data,
-                         protection_domain,
-                         unsafe_anonymous_host,
-                         cp_patches,
+                         &cl_info,
                          ClassFileParser::BROADCAST, // publicity level
                          CHECK_NULL);
 
-  InstanceKlass* result = parser.create_instance_klass(old_stream != stream, CHECK_NULL);
-  assert(result == parser.create_instance_klass(old_stream != stream, THREAD), "invariant");
+  const ClassInstanceInfo* cl_inst_info = cl_info.class_hidden_info_ptr();
+  InstanceKlass* result = parser.create_instance_klass(old_stream != stream, *cl_inst_info, CHECK_NULL);
 
   if (result == NULL) {
     return NULL;
@@ -218,7 +219,7 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
   JFR_ONLY(ON_KLASS_CREATION(result, parser, THREAD);)
 
 #if INCLUDE_CDS
-  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
+  if (Arguments::is_dumping_archive()) {
     ClassLoader::record_result(result, stream, THREAD);
   }
 #endif // INCLUDE_CDS

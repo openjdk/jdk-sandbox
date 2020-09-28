@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,18 +26,17 @@
 #define OS_WINDOWS_GLOBALS_WINDOWS_HPP
 
 //
-// Defines Windows specific flags. They are not available on other platforms.
+// Declare Windows specific flags. They are not available on other platforms.
 //
-#define RUNTIME_OS_FLAGS(develop, \
-                         develop_pd, \
-                         product, \
-                         product_pd, \
-                         diagnostic, \
-                         diagnostic_pd, \
-                         notproduct, \
-                         range, \
-                         constraint, \
-                         writeable)
+#define RUNTIME_OS_FLAGS(develop,     \
+                         develop_pd,  \
+                         product,     \
+                         product_pd,  \
+                         notproduct,  \
+                         range,       \
+                         constraint)
+
+// end of RUNTIME_OS_FLAGS
 
 
 //

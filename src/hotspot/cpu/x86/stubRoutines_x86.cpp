@@ -62,7 +62,7 @@ address StubRoutines::x86::_right_shift_mask = NULL;
 address StubRoutines::x86::_left_shift_mask = NULL;
 address StubRoutines::x86::_and_mask = NULL;
 address StubRoutines::x86::_url_charset = NULL;
-
+address StubRoutines::x86::_counter_mask_addr = NULL;
 #endif
 address StubRoutines::x86::_pshuffle_byte_flip_mask_addr = NULL;
 
@@ -183,6 +183,38 @@ juint StubRoutines::x86::_crc_table[] =
     0x5d681b02UL, 0x2a6f2b94UL, 0xb40bbe37UL, 0xc30c8ea1UL, 0x5a05df1bUL,
     0x2d02ef8dUL
 };
+
+#ifdef _LP64
+juint StubRoutines::x86::_crc_table_avx512[] =
+{
+    0xe95c1271UL, 0x00000000UL, 0xce3371cbUL, 0x00000000UL,
+    0xccaa009eUL, 0x00000000UL, 0x751997d0UL, 0x00000001UL,
+    0x4a7fe880UL, 0x00000001UL, 0xe88ef372UL, 0x00000001UL,
+    0xccaa009eUL, 0x00000000UL, 0x63cd6124UL, 0x00000001UL,
+    0xf7011640UL, 0x00000001UL, 0xdb710640UL, 0x00000001UL,
+    0xd7cfc6acUL, 0x00000001UL, 0xea89367eUL, 0x00000001UL,
+    0x8cb44e58UL, 0x00000001UL, 0xdf068dc2UL, 0x00000000UL,
+    0xae0b5394UL, 0x00000000UL, 0xc7569e54UL, 0x00000001UL,
+    0xc6e41596UL, 0x00000001UL, 0x54442bd4UL, 0x00000001UL,
+    0x74359406UL, 0x00000001UL, 0x3db1ecdcUL, 0x00000000UL,
+    0x5a546366UL, 0x00000001UL, 0xf1da05aaUL, 0x00000000UL,
+    0xccaa009eUL, 0x00000000UL, 0x751997d0UL, 0x00000001UL,
+    0x00000000UL, 0x00000000UL, 0x00000000UL, 0x00000000UL
+};
+
+juint StubRoutines::x86::_crc_by128_masks_avx512[] =
+{
+    0xffffffffUL, 0xffffffffUL, 0x00000000UL, 0x00000000UL,
+    0x00000000UL, 0xffffffffUL, 0xffffffffUL, 0xffffffffUL,
+    0x80808080UL, 0x80808080UL, 0x80808080UL, 0x80808080UL
+};
+
+juint StubRoutines::x86::_shuf_table_crc32_avx512[] =
+{
+    0x83828100UL, 0x87868584UL, 0x8b8a8988UL, 0x8f8e8d8cUL,
+    0x03020100UL, 0x07060504UL, 0x0b0a0908UL, 0x000e0d0cUL
+};
+#endif // _LP64
 
 #define D 32
 #define P 0x82F63B78 // Reflection of Castagnoli (0x11EDC6F41)

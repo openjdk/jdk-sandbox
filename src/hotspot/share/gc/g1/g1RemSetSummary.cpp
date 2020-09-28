@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,50 +23,37 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1ConcurrentRefine.hpp"
 #include "gc/g1/g1ConcurrentRefineThread.hpp"
 #include "gc/g1/g1DirtyCardQueue.hpp"
 #include "gc/g1/g1RemSet.hpp"
 #include "gc/g1/g1RemSetSummary.hpp"
-#include "gc/g1/g1YoungRemSetSamplingThread.hpp"
+#include "gc/g1/g1ServiceThread.hpp"
 #include "gc/g1/heapRegion.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
 #include "memory/allocation.inline.hpp"
+#include "memory/iterator.hpp"
 #include "runtime/thread.inline.hpp"
 
-class GetRSThreadVTimeClosure : public ThreadClosure {
-private:
-  G1RemSetSummary* _summary;
-  uint _counter;
-
-public:
-  GetRSThreadVTimeClosure(G1RemSetSummary * summary) : ThreadClosure(), _summary(summary), _counter(0) {
-    assert(_summary != NULL, "just checking");
-  }
-
-  virtual void do_thread(Thread* t) {
-    G1ConcurrentRefineThread* crt = (G1ConcurrentRefineThread*) t;
-    _summary->set_rs_thread_vtime(_counter, crt->vtime_accum());
-    _counter++;
-  }
-};
-
 void G1RemSetSummary::update() {
-  _num_conc_refined_cards = _rem_set->num_conc_refined_cards();
-  G1DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
-  _num_processed_buf_mutator = dcqs.processed_buffers_mut();
-  _num_processed_buf_rs_threads = dcqs.processed_buffers_rs_thread();
-
+  class CollectData : public ThreadClosure {
+    G1RemSetSummary* _summary;
+    uint _counter;
+  public:
+    CollectData(G1RemSetSummary * summary) : _summary(summary),  _counter(0) {}
+    virtual void do_thread(Thread* t) {
+      G1ConcurrentRefineThread* crt = static_cast<G1ConcurrentRefineThread*>(t);
+      _summary->set_rs_thread_vtime(_counter, crt->vtime_accum());
+      _counter++;
+    }
+  } collector(this);
+  G1CollectedHeap* g1h = G1CollectedHeap::heap();
+  g1h->concurrent_refine()->threads_do(&collector);
   _num_coarsenings = HeapRegionRemSet::n_coarsenings();
 
-  G1CollectedHeap* g1h = G1CollectedHeap::heap();
-  G1ConcurrentRefine* cg1r = g1h->concurrent_refine();
-  if (_rs_threads_vtimes != NULL) {
-    GetRSThreadVTimeClosure p(this);
-    cg1r->threads_do(&p);
-  }
-  set_sampling_thread_vtime(g1h->sampling_thread()->vtime_accum());
+  set_service_thread_vtime(g1h->service_thread()->vtime_accum());
 }
 
 void G1RemSetSummary::set_rs_thread_vtime(uint thread, double value) {
@@ -81,61 +68,37 @@ double G1RemSetSummary::rs_thread_vtime(uint thread) const {
   return _rs_threads_vtimes[thread];
 }
 
-G1RemSetSummary::G1RemSetSummary() :
-  _rem_set(NULL),
-  _num_conc_refined_cards(0),
-  _num_processed_buf_mutator(0),
-  _num_processed_buf_rs_threads(0),
+G1RemSetSummary::G1RemSetSummary(bool should_update) :
   _num_coarsenings(0),
   _num_vtimes(G1ConcurrentRefine::max_num_threads()),
   _rs_threads_vtimes(NEW_C_HEAP_ARRAY(double, _num_vtimes, mtGC)),
-  _sampling_thread_vtime(0.0f) {
+  _service_thread_vtime(0.0f) {
 
   memset(_rs_threads_vtimes, 0, sizeof(double) * _num_vtimes);
-}
 
-G1RemSetSummary::G1RemSetSummary(G1RemSet* rem_set) :
-  _rem_set(rem_set),
-  _num_conc_refined_cards(0),
-  _num_processed_buf_mutator(0),
-  _num_processed_buf_rs_threads(0),
-  _num_coarsenings(0),
-  _num_vtimes(G1ConcurrentRefine::max_num_threads()),
-  _rs_threads_vtimes(NEW_C_HEAP_ARRAY(double, _num_vtimes, mtGC)),
-  _sampling_thread_vtime(0.0f) {
-  update();
+  if (should_update) {
+    update();
+  }
 }
 
 G1RemSetSummary::~G1RemSetSummary() {
-  if (_rs_threads_vtimes) {
-    FREE_C_HEAP_ARRAY(double, _rs_threads_vtimes);
-  }
+  FREE_C_HEAP_ARRAY(double, _rs_threads_vtimes);
 }
 
 void G1RemSetSummary::set(G1RemSetSummary* other) {
   assert(other != NULL, "just checking");
   assert(_num_vtimes == other->_num_vtimes, "just checking");
 
-  _num_conc_refined_cards = other->num_conc_refined_cards();
-
-  _num_processed_buf_mutator = other->num_processed_buf_mutator();
-  _num_processed_buf_rs_threads = other->num_processed_buf_rs_threads();
-
-  _num_coarsenings = other->_num_coarsenings;
+  _num_coarsenings = other->num_coarsenings();
 
   memcpy(_rs_threads_vtimes, other->_rs_threads_vtimes, sizeof(double) * _num_vtimes);
 
-  set_sampling_thread_vtime(other->sampling_thread_vtime());
+  set_service_thread_vtime(other->service_thread_vtime());
 }
 
 void G1RemSetSummary::subtract_from(G1RemSetSummary* other) {
   assert(other != NULL, "just checking");
   assert(_num_vtimes == other->_num_vtimes, "just checking");
-
-  _num_conc_refined_cards = other->num_conc_refined_cards() - _num_conc_refined_cards;
-
-  _num_processed_buf_mutator = other->num_processed_buf_mutator() - _num_processed_buf_mutator;
-  _num_processed_buf_rs_threads = other->num_processed_buf_rs_threads() - _num_processed_buf_rs_threads;
 
   _num_coarsenings = other->num_coarsenings() - _num_coarsenings;
 
@@ -143,7 +106,7 @@ void G1RemSetSummary::subtract_from(G1RemSetSummary* other) {
     set_rs_thread_vtime(i, other->rs_thread_vtime(i) - rs_thread_vtime(i));
   }
 
-  _sampling_thread_vtime = other->sampling_thread_vtime() - _sampling_thread_vtime;
+  _service_thread_vtime = other->service_thread_vtime() - _service_thread_vtime;
 }
 
 class RegionTypeCounter {
@@ -357,24 +320,15 @@ public:
 };
 
 void G1RemSetSummary::print_on(outputStream* out) {
-  out->print_cr(" Recent concurrent refinement statistics");
-  out->print_cr("  Processed " SIZE_FORMAT " cards concurrently", num_conc_refined_cards());
-  out->print_cr("  Of " SIZE_FORMAT " completed buffers:", num_processed_buf_total());
-  out->print_cr("     " SIZE_FORMAT_W(8) " (%5.1f%%) by concurrent RS threads.",
-                num_processed_buf_total(),
-                percent_of(num_processed_buf_rs_threads(), num_processed_buf_total()));
-  out->print_cr("     " SIZE_FORMAT_W(8) " (%5.1f%%) by mutator threads.",
-                num_processed_buf_mutator(),
-                percent_of(num_processed_buf_mutator(), num_processed_buf_total()));
   out->print_cr("  Did " SIZE_FORMAT " coarsenings.", num_coarsenings());
-  out->print_cr("  Concurrent RS threads times (s)");
+  out->print_cr("  Concurrent refinement threads times (s)");
   out->print("     ");
   for (uint i = 0; i < _num_vtimes; i++) {
     out->print("    %5.2f", rs_thread_vtime(i));
   }
   out->cr();
-  out->print_cr("  Concurrent sampling threads times (s)");
-  out->print_cr("         %5.2f", sampling_thread_vtime());
+  out->print_cr("  Service thread time (s)");
+  out->print_cr("         %5.2f", service_thread_vtime());
 
   HRRSStatsIter blk;
   G1CollectedHeap::heap()->heap_region_iterate(&blk);

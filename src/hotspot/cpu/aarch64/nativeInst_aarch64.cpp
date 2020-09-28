@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, 2018, Red Hat Inc. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,13 @@
 
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
+#include "code/codeCache.hpp"
 #include "code/compiledIC.hpp"
 #include "memory/resourceArea.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/ostream.hpp"
@@ -287,8 +289,6 @@ void NativeMovConstReg::print() {
 
 //-------------------------------------------------------------------
 
-address NativeMovRegMem::instruction_address() const      { return addr_at(instruction_offset); }
-
 int NativeMovRegMem::offset() const  {
   address pc = instruction_address();
   unsigned insn = *(unsigned*)pc;
@@ -305,7 +305,7 @@ void NativeMovRegMem::set_offset(int x) {
   unsigned insn = *(unsigned*)pc;
   if (maybe_cpool_ref(pc)) {
     address addr = MacroAssembler::target_addr_for_insn(pc);
-    *(long*)addr = x;
+    *(int64_t*)addr = x;
   } else {
     MacroAssembler::pd_patch_instruction(pc, (address)intptr_t(x));
     ICache::invalidate_range(instruction_address(), instruction_size);
@@ -332,9 +332,14 @@ address NativeJump::jump_destination() const          {
 
   // We use jump to self as the unresolved address which the inline
   // cache code (and relocs) know about
+  // As a special case we also use sequence movptr(r,0); br(r);
+  // i.e. jump to 0 when we need leave space for a wide immediate
+  // load
 
-  // return -1 if jump to self
-  dest = (dest == (address) this) ? (address) -1 : dest;
+  // return -1 if jump to self or to 0
+  if ((dest == (address)this) || dest == 0) {
+    dest = (address) -1;
+  }
   return dest;
 }
 
@@ -356,9 +361,13 @@ address NativeGeneralJump::jump_destination() const {
 
   // We use jump to self as the unresolved address which the inline
   // cache code (and relocs) know about
+  // As a special case we also use jump to 0 when first generating
+  // a general jump
 
-  // return -1 if jump to self
-  dest = (dest == (address) this) ? (address) -1 : dest;
+  // return -1 if jump to self or to 0
+  if ((dest == (address)this) || dest == 0) {
+    dest = (address) -1;
+  }
   return dest;
 }
 
@@ -452,6 +461,10 @@ bool NativeInstruction::is_sigill_zombie_not_entrant() {
 
 void NativeIllegalInstruction::insert(address code_pos) {
   *(juint*)code_pos = 0xd4bbd5a1; // dcps1 #0xdead
+}
+
+bool NativeInstruction::is_stop() {
+  return uint_at(0) == 0xd4bbd5c1; // dcps1 #0xdeae
 }
 
 //-------------------------------------------------------------------

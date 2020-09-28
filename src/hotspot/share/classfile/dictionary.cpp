@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,9 +32,11 @@
 #include "memory/iterator.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
+#include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/atomic.hpp"
-#include "runtime/orderAccess.hpp"
+#include "oops/oopHandle.inline.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "utilities/hashtable.inline.hpp"
@@ -153,13 +155,13 @@ bool DictionaryEntry::contains_protection_domain(oop protection_domain) const {
   // a Dictionary entry, which can be moved if the Dictionary is resized.
   MutexLocker ml(ProtectionDomainSet_lock, Mutex::_no_safepoint_check_flag);
 #ifdef ASSERT
-  if (oopDesc::equals(protection_domain, instance_klass()->protection_domain())) {
+  if (protection_domain == instance_klass()->protection_domain()) {
     // Ensure this doesn't show up in the pd_set (invariant)
     bool in_pd_set = false;
     for (ProtectionDomainEntry* current = pd_set();
                                 current != NULL;
                                 current = current->next()) {
-      if (oopDesc::equals(current->object_no_keepalive(), protection_domain)) {
+      if (current->object_no_keepalive() == protection_domain) {
         in_pd_set = true;
         break;
       }
@@ -171,7 +173,7 @@ bool DictionaryEntry::contains_protection_domain(oop protection_domain) const {
   }
 #endif /* ASSERT */
 
-  if (oopDesc::equals(protection_domain, instance_klass()->protection_domain())) {
+  if (protection_domain == instance_klass()->protection_domain()) {
     // Succeeds trivially
     return true;
   }
@@ -179,7 +181,7 @@ bool DictionaryEntry::contains_protection_domain(oop protection_domain) const {
   for (ProtectionDomainEntry* current = pd_set();
                               current != NULL;
                               current = current->next()) {
-    if (oopDesc::equals(current->object_no_keepalive(), protection_domain)) return true;
+    if (current->object_no_keepalive() == protection_domain) return true;
   }
   return false;
 }
@@ -246,7 +248,7 @@ void Dictionary::all_entries_do(KlassClosure* closure) {
 
 // Used to scan and relocate the classes during CDS archive dump.
 void Dictionary::classes_do(MetaspaceClosure* it) {
-  assert(DumpSharedSpaces || DynamicDumpSharedSpaces, "dump-time only");
+  Arguments::assert_is_dumping_archive();
   for (int index = 0; index < table_size(); index++) {
     for (DictionaryEntry* probe = bucket(index);
                           probe != NULL;
@@ -356,6 +358,7 @@ bool Dictionary::is_valid_protection_domain(unsigned int hash,
 // since been unreferenced, so this entry should be cleared.
 void Dictionary::clean_cached_protection_domains() {
   assert_locked_or_safepoint(SystemDictionary_lock);
+  assert(!loader_data()->has_class_mirror_holder(), "cld should have a ClassLoader holder not a Class holder");
 
   if (loader_data()->is_the_null_class_loader_data()) {
     // Classes in the boot loader are not loaded with protection domains
@@ -401,6 +404,37 @@ void Dictionary::clean_cached_protection_domains() {
   }
 }
 
+oop SymbolPropertyEntry::method_type() const {
+  return _method_type.resolve();
+}
+
+void SymbolPropertyEntry::set_method_type(oop p) {
+  _method_type = OopHandle(Universe::vm_global(), p);
+}
+
+void SymbolPropertyEntry::free_entry() {
+  // decrement Symbol refcount here because hashtable doesn't.
+  literal()->decrement_refcount();
+  // Free OopHandle
+  _method_type.release(Universe::vm_global());
+}
+
+void SymbolPropertyEntry::print_entry(outputStream* st) const {
+  symbol()->print_value_on(st);
+  st->print("/mode=" INTX_FORMAT, symbol_mode());
+  st->print(" -> ");
+  bool printed = false;
+  if (method() != NULL) {
+    method()->print_value_on(st);
+    printed = true;
+  }
+  if (method_type() != NULL) {
+    if (printed)  st->print(" and ");
+    st->print(INTPTR_FORMAT, p2i((void *)method_type()));
+    printed = true;
+  }
+  st->print_cr(printed ? "" : "(empty)");
+}
 
 SymbolPropertyTable::SymbolPropertyTable(int table_size)
   : Hashtable<Symbol*, mtSymbol>(table_size, sizeof(SymbolPropertyEntry))
@@ -437,16 +471,6 @@ SymbolPropertyEntry* SymbolPropertyTable::add_entry(int index, unsigned int hash
   return p;
 }
 
-void SymbolPropertyTable::oops_do(OopClosure* f) {
-  for (int index = 0; index < table_size(); index++) {
-    for (SymbolPropertyEntry* p = bucket(index); p != NULL; p = p->next()) {
-      if (p->method_type() != NULL) {
-        f->do_oop(p->method_type_addr());
-      }
-    }
-  }
-}
-
 void SymbolPropertyTable::methods_do(void f(Method*)) {
   for (int index = 0; index < table_size(); index++) {
     for (SymbolPropertyEntry* p = bucket(index); p != NULL; p = p->next()) {
@@ -456,6 +480,11 @@ void SymbolPropertyTable::methods_do(void f(Method*)) {
       }
     }
   }
+}
+
+void SymbolPropertyTable::free_entry(SymbolPropertyEntry* entry) {
+  entry->free_entry();
+  Hashtable<Symbol*, mtSymbol>::free_entry(entry);
 }
 
 void DictionaryEntry::verify_protection_domain_set() {
@@ -484,6 +513,7 @@ void Dictionary::print_on(outputStream* st) const {
   ResourceMark rm;
 
   assert(loader_data() != NULL, "loader data should not be null");
+  assert(!loader_data()->has_class_mirror_holder(), "cld should have a ClassLoader holder not a Class holder");
   st->print_cr("Java dictionary (table_size=%d, classes=%d, resizable=%s)",
                table_size(), number_of_entries(), BOOL_TO_STR(_resizable));
   st->print_cr("^ indicates that initiating loader is different from defining loader");

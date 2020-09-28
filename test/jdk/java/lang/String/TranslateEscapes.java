@@ -25,6 +25,7 @@
  * @test
  * @bug 8223780
  * @summary This exercises String#translateEscapes patterns and limits.
+ * @compile TranslateEscapes.java
  * @run main TranslateEscapes
  */
 
@@ -33,6 +34,7 @@ public class TranslateEscapes {
         test1();
         test2();
         test3();
+        test4();
     }
 
     /*
@@ -43,6 +45,7 @@ public class TranslateEscapes {
         verifyEscape("f", '\f');
         verifyEscape("n", '\n');
         verifyEscape("r", '\r');
+        verifyEscape("s", '\s');
         verifyEscape("t", '\t');
         verifyEscape("'", '\'');
         verifyEscape("\"", '\"');
@@ -71,7 +74,16 @@ public class TranslateEscapes {
      */
     static void test3() {
         exceptionThrown("+");
-        exceptionThrown("\n");
+        exceptionThrown("q");
+    }
+
+    /*
+     * Escape line terminator.
+     */
+    static void test4() {
+        verifyLineTerminator("\n");
+        verifyLineTerminator("\r\n");
+        verifyLineTerminator("\r");
     }
 
     static void verifyEscape(String string, char ch) {
@@ -99,6 +111,15 @@ public class TranslateEscapes {
 
         } catch (IllegalArgumentException ex) {
             // okay
+        }
+    }
+
+    static void verifyLineTerminator(String string) {
+        String escapes = "\\" + string;
+        if (!escapes.translateEscapes().isEmpty()) {
+            System.err.format("escape for line terminator not handled %s%n",
+                              string.replace("\n", "\\n").replace("\r", "\\r"));
+            throw new RuntimeException();
         }
     }
 }

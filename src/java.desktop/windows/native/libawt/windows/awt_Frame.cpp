@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -99,7 +99,6 @@ jfieldID AwtFrame::handleID;
 
 jfieldID AwtFrame::undecoratedID;
 jmethodID AwtFrame::getExtendedStateMID;
-jmethodID AwtFrame::setExtendedStateMID;
 
 jmethodID AwtFrame::activateEmbeddingTopLevelMID;
 jfieldID AwtFrame::isEmbeddedInIEID;
@@ -814,13 +813,6 @@ AwtFrame::Show()
 }
 
 void
-AwtFrame::SendWindowStateEvent(int oldState, int newState)
-{
-    SendWindowEvent(java_awt_event_WindowEvent_WINDOW_STATE_CHANGED,
-                    NULL, oldState, newState);
-}
-
-void
 AwtFrame::ClearMaximizedBounds()
 {
     m_maxBoundsSet = FALSE;
@@ -897,6 +889,21 @@ MsgRouting AwtFrame::WmGetMinMaxInfo(LPMINMAXINFO lpmmi)
     return mrConsume;
 }
 
+MsgRouting AwtFrame::WmWindowPosChanging(LPARAM windowPos) {
+    if (::IsZoomed(GetHWnd()) && m_maxBoundsSet) {
+        // Limits the size of the maximized window, effectively cuts the
+        // adjustments added by the window manager
+        WINDOWPOS *wp = (WINDOWPOS *) windowPos;
+        if (m_maxSize.x < java_lang_Integer_MAX_VALUE && wp->cx > m_maxSize.x) {
+            wp->cx = m_maxSize.x;
+        }
+        if (m_maxSize.y < java_lang_Integer_MAX_VALUE && wp->cy > m_maxSize.y) {
+            wp->cy = m_maxSize.y;
+        }
+    }
+    return AwtWindow::WmWindowPosChanging(windowPos);
+}
+
 MsgRouting AwtFrame::WmSize(UINT type, int w, int h)
 {
     currentWmSizeState = type;
@@ -958,24 +965,7 @@ MsgRouting AwtFrame::WmSize(UINT type, int w, int h)
 
     jint changed = oldState ^ newState;
     if (changed != 0) {
-        DTRACE_PRINTLN2("AwtFrame::WmSize: reporting state change %x -> %x",
-                oldState, newState);
-
-        // sync target with peer
-        JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
-        env->CallVoidMethod(GetPeer(env), AwtFrame::setExtendedStateMID, newState);
-
-        // report (de)iconification to old clients
-        if (changed & java_awt_Frame_ICONIFIED) {
-            if (newState & java_awt_Frame_ICONIFIED) {
-                SendWindowEvent(java_awt_event_WindowEvent_WINDOW_ICONIFIED);
-            } else {
-                SendWindowEvent(java_awt_event_WindowEvent_WINDOW_DEICONIFIED);
-            }
-        }
-
-        // New (since 1.4) state change event
-        SendWindowStateEvent(oldState, newState);
+        NotifyWindowStateChanged(oldState, newState);
     }
 
     // If window is in iconic state, do not send COMPONENT_RESIZED event
@@ -1680,10 +1670,6 @@ JNIEXPORT void JNICALL
 Java_sun_awt_windows_WFramePeer_initIDs(JNIEnv *env, jclass cls)
 {
     TRY;
-
-    AwtFrame::setExtendedStateMID = env->GetMethodID(cls, "setExtendedState", "(I)V");
-    DASSERT(AwtFrame::setExtendedStateMID);
-    CHECK_NULL(AwtFrame::setExtendedStateMID);
 
     AwtFrame::getExtendedStateMID = env->GetMethodID(cls, "getExtendedState", "()I");
     DASSERT(AwtFrame::getExtendedStateMID);

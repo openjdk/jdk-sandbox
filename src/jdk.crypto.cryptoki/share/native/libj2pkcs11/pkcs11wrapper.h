@@ -159,7 +159,6 @@
 /* include the platform dependent part of the header */
 #include "p11_md.h"
 
-#include "pkcs11.h"
 #include <jni.h>
 #include <jni_util.h>
 #include <stdarg.h>
@@ -296,6 +295,10 @@ void printDebug(const char *format, ...);
 #define CLASS_TLS_PRF_PARAMS "sun/security/pkcs11/wrapper/CK_TLS_PRF_PARAMS"
 #define CLASS_TLS_MAC_PARAMS "sun/security/pkcs11/wrapper/CK_TLS_MAC_PARAMS"
 
+/* function to update the CK_NSS_GCM_PARAMS in mechanism pointer with
+ * CK_GCM_PARAMS
+ */
+CK_MECHANISM_PTR updateGCMParams(JNIEnv *env, CK_MECHANISM_PTR mechPtr);
 
 /* function to convert a PKCS#11 return value other than CK_OK into a Java Exception
  * or to throw a PKCS11RuntimeException
@@ -474,14 +477,9 @@ void *p11malloc(size_t c, char *file, int line);
 void *p11calloc(size_t c, size_t s, char *file, int line);
 void p11free(void *p, char *file, int line);
 
-/* Use THIS_FILE when it is available. */
-#ifndef THIS_FILE
-    #define THIS_FILE __FILE__
-#endif
-
-#define malloc(c)       (p11malloc((c), THIS_FILE, __LINE__))
-#define calloc(c, s)    (p11calloc((c), (s), THIS_FILE, __LINE__))
-#define free(c)         (p11free((c), THIS_FILE, __LINE__))
+#define malloc(c)       (p11malloc((c), __FILE__, __LINE__))
+#define calloc(c, s)    (p11calloc((c), (s), __FILE__, __LINE__))
+#define free(c)         (p11free((c), __FILE__, __LINE__))
 
 #endif
 

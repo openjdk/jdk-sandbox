@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,8 +104,8 @@ class Metaspace : public AllStatic {
     ZeroMetaspaceType = 0,
     StandardMetaspaceType = ZeroMetaspaceType,
     BootMetaspaceType = StandardMetaspaceType + 1,
-    UnsafeAnonymousMetaspaceType = BootMetaspaceType + 1,
-    ReflectionMetaspaceType = UnsafeAnonymousMetaspaceType + 1,
+    ClassMirrorHolderMetaspaceType = BootMetaspaceType + 1,
+    ReflectionMetaspaceType = ClassMirrorHolderMetaspaceType + 1,
     MetaspaceTypeCount
   };
 
@@ -171,19 +171,25 @@ class Metaspace : public AllStatic {
   static void assert_not_frozen() {
     assert(!_frozen, "sanity");
   }
-#ifdef _LP64
-  static void allocate_metaspace_compressed_klass_ptrs(char* requested_addr, address cds_base);
-#endif
 
  private:
 
 #ifdef _LP64
-  static void set_narrow_klass_base_and_shift(address metaspace_base, address cds_base);
 
-  // Returns true if can use CDS with metaspace allocated as specified address.
-  static bool can_use_cds_with_metaspace_addr(char* metaspace_base, address cds_base);
+  // Reserve a range of memory at an address suitable for en/decoding narrow
+  // Klass pointers (see: CompressedClassPointers::is_valid_base()).
+  // The returned address shall both be suitable as a compressed class pointers
+  //  base, and aligned to Metaspace::reserve_alignment (which is equal to or a
+  //  multiple of allocation granularity).
+  // On error, returns an unreserved space.
+  static ReservedSpace reserve_address_space_for_compressed_classes(size_t size);
 
+  // Given a prereserved space, use that to set up the compressed class space list.
   static void initialize_class_space(ReservedSpace rs);
+
+  // Returns true if class space has been setup (initialize_class_space).
+  static bool class_space_is_initialized() { return _class_space_list != NULL; }
+
 #endif
 
  public:
@@ -217,7 +223,7 @@ class Metaspace : public AllStatic {
 
   static const char* metadata_type_name(Metaspace::MetadataType mdtype);
 
-  static void print_compressed_class_space(outputStream* st, const char* requested_addr = 0) NOT_LP64({});
+  static void print_compressed_class_space(outputStream* st) NOT_LP64({});
 
   // Return TRUE only if UseCompressedClassPointers is True.
   static bool using_class_space() {
@@ -248,7 +254,7 @@ class ClassLoaderMetaspace : public CHeapObj<mtClass> {
 
   // Initialize the first chunk for a Metaspace.  Used for
   // special cases such as the boot class loader, reflection
-  // class loader and anonymous class loader.
+  // class loader and hidden class loader.
   void initialize_first_chunk(Metaspace::MetaspaceType type, Metaspace::MetadataType mdtype);
   metaspace::Metachunk* get_initialization_chunk(Metaspace::MetaspaceType type, Metaspace::MetadataType mdtype);
 
@@ -393,7 +399,7 @@ public:
     rf_show_loaders                 = (1 << 0),
     // Breaks report down by chunk type (small, medium, ...).
     rf_break_down_by_chunktype      = (1 << 1),
-    // Breaks report down by space type (anonymous, reflection, ...).
+    // Breaks report down by space type (hidden, reflection, ...).
     rf_break_down_by_spacetype      = (1 << 2),
     // Print details about the underlying virtual spaces.
     rf_show_vslist                  = (1 << 3),
@@ -439,11 +445,6 @@ class MetaspaceGC : AllStatic {
   // When committed memory of all metaspaces reaches this value,
   // a GC is induced and the value is increased. Size is in bytes.
   static volatile size_t _capacity_until_GC;
-
-  // For a CMS collection, signal that a concurrent collection should
-  // be started.
-  static bool _should_concurrent_collect;
-
   static uint _shrink_factor;
 
   static size_t shrink_factor() { return _shrink_factor; }
@@ -460,11 +461,6 @@ class MetaspaceGC : AllStatic {
                                     size_t* old_cap_until_GC = NULL,
                                     bool* can_retry = NULL);
   static size_t dec_capacity_until_GC(size_t v);
-
-  static bool should_concurrent_collect() { return _should_concurrent_collect; }
-  static void set_should_concurrent_collect(bool v) {
-    _should_concurrent_collect = v;
-  }
 
   // The amount to increase the high-water-mark (_capacity_until_GC)
   static size_t delta_capacity_until_GC(size_t bytes);

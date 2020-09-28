@@ -20,11 +20,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 /*
    @test
    @key headful
    @bug 4973721
-   @summary Up and Down Arrow key buttons are not working for the JSpinner in Synth LAF
+   @summary Up and Down Arrow key buttons are not working for the JSpinner in
+   @        Synth LAF
    @library ../../regtesthelpers
    @build Util
    @author Oleg Mokhovikov
@@ -44,6 +46,7 @@ public class bug4973721 implements ChangeListener, FocusListener {
     static volatile boolean bFocusGained = false;
     static JSpinner spinner;
     static final Object listener = new bug4973721();
+    static JFrame frame;
 
     public void focusLost(FocusEvent e) {}
 
@@ -62,58 +65,71 @@ public class bug4973721 implements ChangeListener, FocusListener {
     public static void main(String[] args) throws Exception {
         UIManager.setLookAndFeel("javax.swing.plaf.synth.SynthLookAndFeel");
 
-        SwingUtilities.invokeAndWait(new Runnable() {
-            public void run() {
-                final JFrame frame = new JFrame();
-                spinner = new JSpinner();
-                frame.getContentPane().add(spinner);
-                frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        try {
+            SwingUtilities.invokeAndWait(new Runnable() {
+                public void run() {
+                    frame = new JFrame();
+                    spinner = new JSpinner();
+                    frame.getContentPane().add(spinner);
+                    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-                frame.pack();
-                frame.setVisible(true);
-                spinner.addChangeListener((ChangeListener)listener);
-                spinner.addFocusListener((FocusListener)listener);
-                spinner.requestFocus();
+                    frame.pack();
+                    frame.setVisible(true);
+                    spinner.addChangeListener((ChangeListener)listener);
+                    spinner.addFocusListener((FocusListener)listener);
+                    spinner.requestFocus();
 
+                }
+            });
+
+            synchronized(listener) {
+                if (!bFocusGained) {
+                    System.out.println("waiting focusGained...");
+                    try {
+                        listener.wait(5000);
+                    }
+                    catch (InterruptedException e) {}
+                }
             }
-        });
 
-        synchronized(listener) {
-            if (!bFocusGained) {
-                System.out.println("waiting focusGained...");
-                try { listener.wait(5000); } catch (InterruptedException e) {}
+            boolean hasFocus = Util.invokeOnEDT(
+                    new java.util.concurrent.Callable<Boolean>() {
+                @Override
+                public Boolean call() throws Exception {
+                    return spinner.hasFocus();
+                }
+            });
+
+            if (!bFocusGained && !hasFocus) {
+                throw new RuntimeException("Couldn't request focus for" +
+                        " spinner");
             }
-        }
+            Robot robot = new Robot();
+            robot.setAutoDelay(50);
 
-        boolean hasFocus = Util.invokeOnEDT(new java.util.concurrent.Callable<Boolean>() {
-            @Override
-            public Boolean call() throws Exception {
-                return spinner.hasFocus();
+            Util.hitKeys(robot, KeyEvent.VK_UP);
+            robot.waitForIdle();
+            Thread.sleep(1000);
+
+            if (!bStateChanged) {
+                throw new RuntimeException("Up arrow key button doesn't work" +
+                        " for a spinner in Synth L&F");
             }
-        });
 
-        if (!bFocusGained && !hasFocus) {
-            throw new RuntimeException("Couldn't request focus for spinner");
-        }
-        Robot robot = new Robot();
-        robot.setAutoDelay(50);
+            bStateChanged = false;
 
-        Util.hitKeys(robot, KeyEvent.VK_UP);
-        robot.waitForIdle();
-        Thread.sleep(1000);
+            Util.hitKeys(robot, KeyEvent.VK_DOWN);
+            robot.waitForIdle();
+            Thread.sleep(1000);
 
-        if (!bStateChanged) {
-            throw new RuntimeException("Up arrow key button doesn't work for a spinner in Synth L&F");
-        }
-
-        bStateChanged = false;
-
-        Util.hitKeys(robot, KeyEvent.VK_DOWN);
-        robot.waitForIdle();
-        Thread.sleep(1000);
-
-        if (!bStateChanged) {
-            throw new RuntimeException("Down arrow key button doesn't work for a spinner in Synth L&F");
+            if (!bStateChanged) {
+                throw new RuntimeException("Down arrow key button doesn't" +
+                        " work for a spinner in Synth L&F");
+            }
+        } finally {
+            if (frame != null) {
+                SwingUtilities.invokeAndWait(() -> frame.dispose());
+            }
         }
     }
 }

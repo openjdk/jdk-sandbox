@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,22 @@
 #include "precompiled.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/metadataOnStackMark.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
 #include "code/debugInfoRec.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/bytecodeTracer.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/oopMapCache.hpp"
+#include "logging/log.hpp"
+#include "logging/logTag.hpp"
+#include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
-#include "memory/heapInspection.hpp"
+#include "memory/cppVtables.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/metaspaceShared.hpp"
@@ -54,7 +59,7 @@
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/compilationPolicy.hpp"
+#include "runtime/atomic.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
@@ -63,6 +68,7 @@
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
+#include "services/memTracker.hpp"
 #include "utilities/align.hpp"
 #include "utilities/quickSort.hpp"
 #include "utilities/vmError.hpp"
@@ -103,7 +109,7 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags) {
   // Fix and bury in Method*
   set_interpreter_entry(NULL); // sets i2i entry and from_int
   set_adapter_entry(NULL);
-  clear_code(false /* don't need a lock */); // from_c/from_i get set to c2i/i2i
+  Method::clear_code(); // from_c/from_i get set to c2i/i2i
 
   if (access_flags.is_native()) {
     clear_native_function();
@@ -118,17 +124,22 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags) {
 void Method::deallocate_contents(ClassLoaderData* loader_data) {
   MetadataFactory::free_metadata(loader_data, constMethod());
   set_constMethod(NULL);
-#if INCLUDE_JVMCI
-  if (method_data()) {
-    FailedSpeculation::free_failed_speculations(method_data()->get_failed_speculations_address());
-  }
-#endif
   MetadataFactory::free_metadata(loader_data, method_data());
   set_method_data(NULL);
   MetadataFactory::free_metadata(loader_data, method_counters());
   clear_method_counters();
   // The nmethod will be gone when we get here.
   if (code() != NULL) _code = NULL;
+}
+
+void Method::release_C_heap_structures() {
+  if (method_data()) {
+#if INCLUDE_JVMCI
+    FailedSpeculation::free_failed_speculations(method_data()->get_failed_speculations_address());
+#endif
+    // Destroy MethodData
+    method_data()->~MethodData();
+  }
 }
 
 address Method::get_i2c_entry() {
@@ -324,11 +335,9 @@ int Method::size(bool is_native) {
   return align_metadata_size(header_size() + extra_words);
 }
 
-
 Symbol* Method::klass_name() const {
   return method_holder()->name();
 }
-
 
 void Method::metaspace_pointers_do(MetaspaceClosure* it) {
   log_trace(cds)("Iter(Method): %p", this);
@@ -336,15 +345,21 @@ void Method::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_constMethod);
   it->push(&_method_data);
   it->push(&_method_counters);
+
+  Method* this_ptr = this;
+  it->push_method_entry(&this_ptr, (intptr_t*)&_i2i_entry);
+  it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_entry);
+  it->push_method_entry(&this_ptr, (intptr_t*)&_from_interpreted_entry);
 }
 
-// Attempt to return method oop to original state.  Clear any pointers
+// Attempt to return method to original state.  Clear any pointers
 // (to objects outside the shared spaces).  We won't be able to predict
 // where they should point in a new JVM.  Further initialize some
 // entries now in order allow them to be write protected later.
 
 void Method::remove_unshareable_info() {
   unlink_method();
+  JFR_ONLY(REMOVE_METHOD_ID(this);)
 }
 
 void Method::set_vtable_index(int index) {
@@ -373,7 +388,83 @@ void Method::set_itable_index(int index) {
   assert(valid_itable_index(), "");
 }
 
+// The RegisterNatives call being attempted tried to register with a method that
+// is not native.  Ask JVM TI what prefixes have been specified.  Then check
+// to see if the native method is now wrapped with the prefixes.  See the
+// SetNativeMethodPrefix(es) functions in the JVM TI Spec for details.
+static Method* find_prefixed_native(Klass* k, Symbol* name, Symbol* signature, TRAPS) {
+#if INCLUDE_JVMTI
+  ResourceMark rm(THREAD);
+  Method* method;
+  int name_len = name->utf8_length();
+  char* name_str = name->as_utf8();
+  int prefix_count;
+  char** prefixes = JvmtiExport::get_all_native_method_prefixes(&prefix_count);
+  for (int i = 0; i < prefix_count; i++) {
+    char* prefix = prefixes[i];
+    int prefix_len = (int)strlen(prefix);
 
+    // try adding this prefix to the method name and see if it matches another method name
+    int trial_len = name_len + prefix_len;
+    char* trial_name_str = NEW_RESOURCE_ARRAY(char, trial_len + 1);
+    strcpy(trial_name_str, prefix);
+    strcat(trial_name_str, name_str);
+    TempNewSymbol trial_name = SymbolTable::probe(trial_name_str, trial_len);
+    if (trial_name == NULL) {
+      continue; // no such symbol, so this prefix wasn't used, try the next prefix
+    }
+    method = k->lookup_method(trial_name, signature);
+    if (method == NULL) {
+      continue; // signature doesn't match, try the next prefix
+    }
+    if (method->is_native()) {
+      method->set_is_prefixed_native();
+      return method; // wahoo, we found a prefixed version of the method, return it
+    }
+    // found as non-native, so prefix is good, add it, probably just need more prefixes
+    name_len = trial_len;
+    name_str = trial_name_str;
+  }
+#endif // INCLUDE_JVMTI
+  return NULL; // not found
+}
+
+bool Method::register_native(Klass* k, Symbol* name, Symbol* signature, address entry, TRAPS) {
+  Method* method = k->lookup_method(name, signature);
+  if (method == NULL) {
+    ResourceMark rm(THREAD);
+    stringStream st;
+    st.print("Method '");
+    print_external_name(&st, k, name, signature);
+    st.print("' name or signature does not match");
+    THROW_MSG_(vmSymbols::java_lang_NoSuchMethodError(), st.as_string(), false);
+  }
+  if (!method->is_native()) {
+    // trying to register to a non-native method, see if a JVM TI agent has added prefix(es)
+    method = find_prefixed_native(k, name, signature, THREAD);
+    if (method == NULL) {
+      ResourceMark rm(THREAD);
+      stringStream st;
+      st.print("Method '");
+      print_external_name(&st, k, name, signature);
+      st.print("' is not declared as native");
+      THROW_MSG_(vmSymbols::java_lang_NoSuchMethodError(), st.as_string(), false);
+    }
+  }
+
+  if (entry != NULL) {
+    method->set_native_function(entry, native_bind_event_is_interesting);
+  } else {
+    method->clear_native_function();
+  }
+  if (log_is_enabled(Debug, jni, resolve)) {
+    ResourceMark rm(THREAD);
+    log_debug(jni, resolve)("[Registering JNI native method %s.%s]",
+                            method->method_holder()->external_name(),
+                            method->name()->as_C_string());
+  }
+  return true;
+}
 
 bool Method::was_executed_more_than(int n) {
   // Invocation counter is reset when the Method* is compiled.
@@ -435,7 +526,7 @@ void Method::build_interpreter_method_data(const methodHandle& method, TRAPS) {
 
   // Grab a lock here to prevent multiple
   // MethodData*s from being created.
-  MutexLocker ml(MethodData_lock, THREAD);
+  MutexLocker ml(THREAD, MethodData_lock);
   if (method->method_data() == NULL) {
     ClassLoaderData* loader_data = method->method_holder()->class_loader_data();
     MethodData* method_data = MethodData::allocate(loader_data, method, THREAD);
@@ -462,7 +553,7 @@ MethodCounters* Method::build_method_counters(Method* m, TRAPS) {
     return NULL;
   }
 
-  methodHandle mh(m);
+  methodHandle mh(THREAD, m);
   MethodCounters* counters = MethodCounters::allocate(mh, THREAD);
   if (HAS_PENDING_EXCEPTION) {
     CompileBroker::log_metaspace_failure();
@@ -482,7 +573,7 @@ MethodCounters* Method::build_method_counters(Method* m, TRAPS) {
 
 bool Method::init_method_counters(MethodCounters* counters) {
   // Try to install a pointer to MethodCounters, return true on success.
-  return Atomic::replace_if_null(counters, &_method_counters);
+  return Atomic::replace_if_null(&_method_counters, counters);
 }
 
 int Method::extra_stack_words() {
@@ -490,23 +581,22 @@ int Method::extra_stack_words() {
   return extra_stack_entries() * Interpreter::stackElementSize;
 }
 
-
-void Method::compute_size_of_parameters(Thread *thread) {
-  ArgumentSizeComputer asc(signature());
-  set_size_of_parameters(asc.size() + (is_static() ? 0 : 1));
+// Derive size of parameters, return type, and fingerprint,
+// all in one pass, which is run at load time.
+// We need the first two, and might as well grab the third.
+void Method::compute_from_signature(Symbol* sig) {
+  // At this point, since we are scanning the signature,
+  // we might as well compute the whole fingerprint.
+  Fingerprinter fp(sig, is_static());
+  set_size_of_parameters(fp.size_of_parameters());
+  constMethod()->set_result_type(fp.return_type());
+  constMethod()->set_fingerprint(fp.fingerprint());
 }
-
-BasicType Method::result_type() const {
-  ResultTypeFinder rtf(signature());
-  return rtf.type();
-}
-
 
 bool Method::is_empty_method() const {
   return  code_size() == 1
       && *code_base() == Bytecodes::_return;
 }
-
 
 bool Method::is_vanilla_constructor() const {
   // Returns true if this method is a vanilla constructor, i.e. an "<init>" "()V" method
@@ -552,7 +642,7 @@ bool Method::is_vanilla_constructor() const {
 
 
 bool Method::compute_has_loops_flag() {
-  BytecodeStream bcs(this);
+  BytecodeStream bcs(methodHandle(Thread::current(), this));
   Bytecodes::Code bc;
 
   while ((bc = bcs.next()) >= 0) {
@@ -717,7 +807,7 @@ bool Method::needs_clinit_barrier() const {
 objArrayHandle Method::resolved_checked_exceptions_impl(Method* method, TRAPS) {
   int length = method->checked_exceptions_length();
   if (length == 0) {  // common case
-    return objArrayHandle(THREAD, Universe::the_empty_class_klass_array());
+    return objArrayHandle(THREAD, Universe::the_empty_class_array());
   } else {
     methodHandle h_this(THREAD, method);
     objArrayOop m_oop = oopFactory::new_objArray(SystemDictionary::Class_klass(), length, CHECK_(objArrayHandle()));
@@ -725,7 +815,13 @@ objArrayHandle Method::resolved_checked_exceptions_impl(Method* method, TRAPS) {
     for (int i = 0; i < length; i++) {
       CheckedExceptionElement* table = h_this->checked_exceptions_start(); // recompute on each iteration, not gc safe
       Klass* k = h_this->constants()->klass_at(table[i].class_cp_index, CHECK_(objArrayHandle()));
-      assert(k->is_subclass_of(SystemDictionary::Throwable_klass()), "invalid exception class");
+      if (log_is_enabled(Warning, exceptions) &&
+          !k->is_subclass_of(SystemDictionary::Throwable_klass())) {
+        ResourceMark rm(THREAD);
+        log_warning(exceptions)(
+          "Class %s in throws clause of method %s is not a subtype of class java.lang.Throwable",
+          k->external_name(), method->external_name());
+      }
       mirrors->obj_at_put(i, k->java_mirror());
     }
     return mirrors;
@@ -825,7 +921,7 @@ void Method::clear_native_function() {
   set_native_function(
     SharedRuntime::native_method_throw_unsatisfied_link_error_entry(),
     !native_bind_event_is_interesting);
-  clear_code();
+  this->unlink_code();
 }
 
 
@@ -909,8 +1005,7 @@ void Method::set_not_compilable(const char* reason, int comp_level, bool report)
     if (is_c2_compile(comp_level))
       set_not_c2_compilable();
   }
-  CompilationPolicy::policy()->disable_compilation(this);
-  assert(!CompilationPolicy::can_be_compiled(this, comp_level), "sanity check");
+  assert(!CompilationPolicy::can_be_compiled(methodHandle(Thread::current(), this), comp_level), "sanity check");
 }
 
 bool Method::is_not_osr_compilable(int comp_level) const {
@@ -936,13 +1031,11 @@ void Method::set_not_osr_compilable(const char* reason, int comp_level, bool rep
     if (is_c2_compile(comp_level))
       set_not_c2_osr_compilable();
   }
-  CompilationPolicy::policy()->disable_compilation(this);
-  assert(!CompilationPolicy::can_be_osr_compiled(this, comp_level), "sanity check");
+  assert(!CompilationPolicy::can_be_osr_compiled(methodHandle(Thread::current(), this), comp_level), "sanity check");
 }
 
 // Revert to using the interpreter and clear out the nmethod
-void Method::clear_code(bool acquire_lock /* = true */) {
-  MutexLocker pl(acquire_lock ? Patching_lock : NULL, Mutex::_no_safepoint_check_flag);
+void Method::clear_code() {
   // this may be NULL if c2i adapters have not been made yet
   // Only should happen at allocate time.
   if (adapter() == NULL) {
@@ -956,15 +1049,34 @@ void Method::clear_code(bool acquire_lock /* = true */) {
   _code = NULL;
 }
 
+void Method::unlink_code(CompiledMethod *compare) {
+  MutexLocker ml(CompiledMethod_lock->owned_by_self() ? NULL : CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+  // We need to check if either the _code or _from_compiled_code_entry_point
+  // refer to this nmethod because there is a race in setting these two fields
+  // in Method* as seen in bugid 4947125.
+  // If the vep() points to the zombie nmethod, the memory for the nmethod
+  // could be flushed and the compiler and vtable stubs could still call
+  // through it.
+  if (code() == compare ||
+      from_compiled_entry() == compare->verified_entry_point()) {
+    clear_code();
+  }
+}
+
+void Method::unlink_code() {
+  MutexLocker ml(CompiledMethod_lock->owned_by_self() ? NULL : CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+  clear_code();
+}
+
 #if INCLUDE_CDS
 // Called by class data sharing to remove any entry points (which are not shared)
 void Method::unlink_method() {
   _code = NULL;
 
-  assert(DumpSharedSpaces || DynamicDumpSharedSpaces, "dump time only");
+  Arguments::assert_is_dumping_archive();
   // Set the values to what they should be at run time. Note that
   // this Method can no longer be executed during dump time.
-  _i2i_entry = Interpreter::entry_for_cds_method(this);
+  _i2i_entry = Interpreter::entry_for_cds_method(methodHandle(Thread::current(), this));
   _from_interpreted_entry = _i2i_entry;
 
   if (DynamicDumpSharedSpaces) {
@@ -1067,14 +1179,12 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
   // If the code cache is full, we may reenter this function for the
   // leftover methods that weren't linked.
   if (is_shared()) {
-    address entry = Interpreter::entry_for_cds_method(h_method);
-    assert(entry != NULL && entry == _i2i_entry,
-           "should be correctly set during dump time");
+    // Can't assert that the adapters are sane, because methods get linked before
+    // the interpreter is generated, and hence before its adapters are generated.
+    // If you messed them up you will notice soon enough though, don't you worry.
     if (adapter() != NULL) {
       return;
     }
-    assert(entry == _from_interpreted_entry,
-           "should be correctly set during dump time");
   } else if (_i2i_entry != NULL) {
     return;
   }
@@ -1150,7 +1260,7 @@ void Method::restore_unshareable_info(TRAPS) {
 }
 
 address Method::from_compiled_entry_no_trampoline() const {
-  CompiledMethod *code = OrderAccess::load_acquire(&_code);
+  CompiledMethod *code = Atomic::load_acquire(&_code);
   if (code) {
     return code->verified_entry_point();
   } else {
@@ -1176,13 +1286,13 @@ address Method::verified_code_entry() {
 // Not inline to avoid circular ref.
 bool Method::check_code() const {
   // cached in a register or local.  There's a race on the value of the field.
-  CompiledMethod *code = OrderAccess::load_acquire(&_code);
+  CompiledMethod *code = Atomic::load_acquire(&_code);
   return code == NULL || (code->method() == NULL) || (code->method() == (Method*)this && !code->is_osr_method());
 }
 
 // Install compiled code.  Instantly it can execute.
 void Method::set_code(const methodHandle& mh, CompiledMethod *code) {
-  MutexLocker pl(Patching_lock, Mutex::_no_safepoint_check_flag);
+  assert_lock_strong(CompiledMethod_lock);
   assert( code, "use clear_code to remove code" );
   assert( mh->check_code(), "" );
 
@@ -1301,15 +1411,14 @@ bool Method::has_member_arg() const {
 methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
                                                          Symbol* signature,
                                                          TRAPS) {
-  ResourceMark rm;
+  ResourceMark rm(THREAD);
   methodHandle empty;
 
   InstanceKlass* holder = SystemDictionary::MethodHandle_klass();
   Symbol* name = MethodHandles::signature_polymorphic_intrinsic_name(iid);
   assert(iid == MethodHandles::signature_polymorphic_name_id(name), "");
-  if (TraceMethodHandles) {
-    tty->print_cr("make_method_handle_intrinsic MH.%s%s", name->as_C_string(), signature->as_C_string());
-  }
+
+  log_info(methodhandles)("make_method_handle_intrinsic MH.%s%s", name->as_C_string(), signature->as_C_string());
 
   // invariant:   cp->symbol_at_put is preceded by a refcount increment (more usually a lookup)
   name->increment_refcount();
@@ -1322,6 +1431,7 @@ methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
     ConstantPool* cp_oop = ConstantPool::allocate(loader_data, cp_length, CHECK_(empty));
     cp = constantPoolHandle(THREAD, cp_oop);
   }
+  cp->copy_fields(holder->constants());
   cp->set_pool_holder(holder);
   cp->symbol_at_put(_imcp_invoke_name,       name);
   cp->symbol_at_put(_imcp_invoke_signature,  signature);
@@ -1346,9 +1456,7 @@ methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
   m->set_signature_index(_imcp_invoke_signature);
   assert(MethodHandles::is_signature_polymorphic_name(m->name()), "");
   assert(m->signature() == signature, "");
-  ResultTypeFinder rtf(signature);
-  m->constMethod()->set_result_type(rtf.type());
-  m->compute_size_of_parameters(THREAD);
+  m->compute_from_signature(signature);
   m->init_intrinsic_id();
   assert(m->is_method_handle_intrinsic(), "");
 #ifdef ASSERT
@@ -1362,9 +1470,10 @@ methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
   m->set_vtable_index(Method::nonvirtual_vtable_index);
   m->link_method(m, CHECK_(empty));
 
-  if (TraceMethodHandles && (Verbose || WizardMode)) {
-    ttyLocker ttyl;
-    m->print_on(tty);
+  if (log_is_enabled(Info, methodhandles) && (Verbose || WizardMode)) {
+    LogTarget(Info, methodhandles) lt;
+    LogStream ls(lt);
+    m->print_on(&ls);
   }
 
   return m;
@@ -1476,14 +1585,14 @@ methodHandle Method::clone_with_new_data(const methodHandle& m, u_char* new_code
   if (m->has_stackmap_table()) {
     int code_attribute_length = m->stackmap_data()->length();
     Array<u1>* stackmap_data =
-      MetadataFactory::new_array<u1>(loader_data, code_attribute_length, 0, CHECK_NULL);
+      MetadataFactory::new_array<u1>(loader_data, code_attribute_length, 0, CHECK_(methodHandle()));
     memcpy((void*)stackmap_data->adr_at(0),
            (void*)m->stackmap_data()->adr_at(0), code_attribute_length);
     newm->set_stackmap_data(stackmap_data);
   }
 
   // copy annotations over to new method
-  newcm->copy_annotations_from(loader_data, cm, CHECK_NULL);
+  newcm->copy_annotations_from(loader_data, cm, CHECK_(methodHandle()));
   return newm;
 }
 
@@ -1574,7 +1683,6 @@ void Method::init_intrinsic_id() {
   }
 }
 
-// These two methods are static since a GC may move the Method
 bool Method::load_signature_classes(const methodHandle& m, TRAPS) {
   if (!THREAD->can_call_java()) {
     // There is nothing useful this routine can do from within the Compile thread.
@@ -1583,16 +1691,11 @@ bool Method::load_signature_classes(const methodHandle& m, TRAPS) {
     return false;
   }
   bool sig_is_loaded = true;
-  Handle class_loader(THREAD, m->method_holder()->class_loader());
-  Handle protection_domain(THREAD, m->method_holder()->protection_domain());
   ResourceMark rm(THREAD);
-  Symbol*  signature = m->signature();
-  for(SignatureStream ss(signature); !ss.is_done(); ss.next()) {
-    if (ss.is_object()) {
-      Symbol* sym = ss.as_symbol();
-      Symbol*  name  = sym;
-      Klass* klass = SystemDictionary::resolve_or_null(name, class_loader,
-                                             protection_domain, THREAD);
+  for (ResolvingSignatureStream ss(m()); !ss.is_done(); ss.next()) {
+    if (ss.is_reference()) {
+      // load everything, including arrays "[Lfoo;"
+      Klass* klass = ss.as_klass(SignatureStream::ReturnNull, THREAD);
       // We are loading classes eagerly. If a ClassNotFoundException or
       // a LinkageError was generated, be sure to ignore it.
       if (HAS_PENDING_EXCEPTION) {
@@ -1610,15 +1713,13 @@ bool Method::load_signature_classes(const methodHandle& m, TRAPS) {
 }
 
 bool Method::has_unloaded_classes_in_signature(const methodHandle& m, TRAPS) {
-  Handle class_loader(THREAD, m->method_holder()->class_loader());
-  Handle protection_domain(THREAD, m->method_holder()->protection_domain());
   ResourceMark rm(THREAD);
-  Symbol*  signature = m->signature();
-  for(SignatureStream ss(signature); !ss.is_done(); ss.next()) {
+  for(ResolvingSignatureStream ss(m()); !ss.is_done(); ss.next()) {
     if (ss.type() == T_OBJECT) {
-      Symbol* name = ss.as_symbol_or_null();
-      if (name == NULL) return true;
-      Klass* klass = SystemDictionary::find(name, class_loader, protection_domain, THREAD);
+      // Do not use ss.is_reference() here, since we don't care about
+      // unloaded array component types.
+      Klass* klass = ss.as_klass_if_loaded(THREAD);
+      assert(!HAS_PENDING_EXCEPTION, "as_klass_if_loaded contract");
       if (klass == NULL) return true;
     }
   }
@@ -1636,7 +1737,7 @@ void Method::print_short_name(outputStream* st) {
   name()->print_symbol_on(st);
   if (WizardMode) signature()->print_symbol_on(st);
   else if (MethodHandles::is_signature_polymorphic(intrinsic_id()))
-    MethodHandles::print_as_basic_type_signature_on(st, signature(), true);
+    MethodHandles::print_as_basic_type_signature_on(st, signature());
 }
 
 // Comparer for sorting an object array containing
@@ -1647,12 +1748,15 @@ static int method_comparator(Method* a, Method* b) {
 
 // This is only done during class loading, so it is OK to assume method_idnum matches the methods() array
 // default_methods also uses this without the ordering for fast find_method
-void Method::sort_methods(Array<Method*>* methods, bool set_idnums) {
+void Method::sort_methods(Array<Method*>* methods, bool set_idnums, method_comparator_func func) {
   int length = methods->length();
   if (length > 1) {
+    if (func == NULL) {
+      func = method_comparator;
+    }
     {
       NoSafepointVerifier nsv;
-      QuickSort::sort(methods->data(), length, method_comparator, /*idempotent=*/false);
+      QuickSort::sort(methods->data(), length, func, /*idempotent=*/false);
     }
     // Reset method ordering
     if (set_idnums) {
@@ -1686,8 +1790,8 @@ class SignatureTypePrinter : public SignatureTypeNames {
     _use_separator = false;
   }
 
-  void print_parameters()              { _use_separator = false; iterate_parameters(); }
-  void print_returntype()              { _use_separator = false; iterate_returntype(); }
+  void print_parameters()              { _use_separator = false; do_parameters_on(this); }
+  void print_returntype()              { _use_separator = false; do_type(return_type()); }
 };
 
 
@@ -2082,9 +2186,9 @@ void Method::ensure_jmethod_ids(ClassLoaderData* loader_data, int capacity) {
   ClassLoaderData* cld = loader_data;
   if (!SafepointSynchronize::is_at_safepoint()) {
     // Have to add jmethod_ids() to class loader data thread-safely.
-    // Also have to add the method to the list safely, which the cld lock
+    // Also have to add the method to the list safely, which the lock
     // protects as well.
-    MutexLocker ml(cld->metaspace_lock(),  Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(JmethodIdCreation_lock,  Mutex::_no_safepoint_check_flag);
     if (cld->jmethod_ids() == NULL) {
       cld->set_jmethod_ids(new JNIMethodBlock(capacity));
     } else {
@@ -2106,9 +2210,9 @@ jmethodID Method::make_jmethod_id(ClassLoaderData* loader_data, Method* m) {
 
   if (!SafepointSynchronize::is_at_safepoint()) {
     // Have to add jmethod_ids() to class loader data thread-safely.
-    // Also have to add the method to the list safely, which the cld lock
+    // Also have to add the method to the list safely, which the lock
     // protects as well.
-    MutexLocker ml(cld->metaspace_lock(),  Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(JmethodIdCreation_lock,  Mutex::_no_safepoint_check_flag);
     if (cld->jmethod_ids() == NULL) {
       cld->set_jmethod_ids(new JNIMethodBlock());
     }
@@ -2122,6 +2226,11 @@ jmethodID Method::make_jmethod_id(ClassLoaderData* loader_data, Method* m) {
     // jmethodID is a pointer to Method*
     return (jmethodID)cld->jmethod_ids()->add_method(m);
   }
+}
+
+jmethodID Method::jmethod_id() {
+  methodHandle mh(Thread::current(), this);
+  return method_holder()->get_jmethod_id(mh);
 }
 
 // Mark a jmethodID as free.  This is called when there is a data race in
@@ -2195,7 +2304,7 @@ bool Method::is_valid_method(const Method* m) {
     // Quick sanity check on pointer.
     return false;
   } else if (m->is_shared()) {
-    return MetaspaceShared::is_valid_shared_method(m);
+    return CppVtables::is_valid_shared_method(m);
   } else if (Metaspace::contains_non_shared(m)) {
     return has_method_vptr((const void*)m);
   } else {
@@ -2321,23 +2430,6 @@ void Method::print_value_on(outputStream* st) const {
   if (WizardMode && code() != NULL) st->print(" ((nmethod*)%p)", code());
 }
 
-#if INCLUDE_SERVICES
-// Size Statistics
-void Method::collect_statistics(KlassSizeStats *sz) const {
-  int mysize = sz->count(this);
-  sz->_method_bytes += mysize;
-  sz->_method_all_bytes += mysize;
-  sz->_rw_bytes += mysize;
-
-  if (constMethod()) {
-    constMethod()->collect_statistics(sz);
-  }
-  if (method_data()) {
-    method_data()->collect_statistics(sz);
-  }
-}
-#endif // INCLUDE_SERVICES
-
 // LogTouchedMethods and PrintTouchedMethods
 
 // TouchedMethodRecord -- we can't use a HashtableEntry<Method*> because
@@ -2367,7 +2459,7 @@ void Method::log_touched(TRAPS) {
                       my_sig->identity_hash();
   juint index = juint(hash) % table_size;
 
-  MutexLocker ml(TouchedMethodLog_lock, THREAD);
+  MutexLocker ml(THREAD, TouchedMethodLog_lock);
   if (_touched_method_table == NULL) {
     _touched_method_table = NEW_C_HEAP_ARRAY2(TouchedMethodRecord*, table_size,
                                               mtTracing, CURRENT_PC);

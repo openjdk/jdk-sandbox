@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2017, 2020, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -24,52 +25,54 @@
 /*
  * @test TestVerifyJCStress
  * @summary Tests that we pass at least one jcstress-like test with all verification turned on
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
  * @modules java.base/jdk.internal.misc
  *          java.management
  *
- * @run main/othervm -Xmx1g -Xms1g -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=passive
- *      -XX:+ShenandoahDegeneratedGC -XX:+ShenandoahVerify -XX:+VerifyObjectEquals
+ *      -XX:+ShenandoahDegeneratedGC -XX:+ShenandoahVerify
  *      TestVerifyJCStress
  *
- * @run main/othervm -Xmx1g -Xms1g -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=passive
- *      -XX:-ShenandoahDegeneratedGC -XX:+ShenandoahVerify -XX:+VerifyObjectEquals
+ *      -XX:-ShenandoahDegeneratedGC -XX:+ShenandoahVerify
  *      TestVerifyJCStress
  */
 
 /*
  * @test TestVerifyJCStress
  * @summary Tests that we pass at least one jcstress-like test with all verification turned on
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
  * @modules java.base/jdk.internal.misc
  *          java.management
  *
- * @run main/othervm -Xmx1g -Xms1g -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=adaptive
- *      -XX:+ShenandoahVerify -XX:+VerifyObjectEquals -XX:+ShenandoahVerifyOptoBarriers
+ *      -XX:+ShenandoahVerify -XX:+IgnoreUnrecognizedVMOptions -XX:+ShenandoahVerifyOptoBarriers
  *      TestVerifyJCStress
  *
- * @run main/othervm -Xmx1g -Xms1g -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=compact
- *      -XX:+ShenandoahVerify -XX:+VerifyObjectEquals -XX:+ShenandoahVerifyOptoBarriers
+ *      -XX:+ShenandoahVerify -XX:+IgnoreUnrecognizedVMOptions -XX:+ShenandoahVerifyOptoBarriers
  *      TestVerifyJCStress
  */
 
 /*
  * @test TestVerifyJCStress
  * @summary Tests that we pass at least one jcstress-like test with all verification turned on
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
  * @modules java.base/jdk.internal.misc
  *          java.management
  *
- * @run main/othervm -Xmx1g -Xms1g -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions
- *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=traversal
- *      -XX:+ShenandoahVerify -XX:+VerifyObjectEquals -XX:+ShenandoahVerifyOptoBarriers
+ * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu
+ *      -XX:+ShenandoahVerify -XX:+IgnoreUnrecognizedVMOptions -XX:+ShenandoahVerifyOptoBarriers
+ *      TestVerifyJCStress
+ *
+ * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockExperimentalVMOptions -XX:+UnlockDiagnosticVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu
+ *      -XX:+ShenandoahVerify -XX:+IgnoreUnrecognizedVMOptions -XX:TieredStopAtLevel=1
  *      TestVerifyJCStress
  */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,10 @@
  * @requires vm.cds
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds /test/hotspot/jtreg/runtime/cds/appcds/test-classes
  * @build Hello
+ * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller -jar hello.jar Hello
- * @run driver HelloDynamic
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. HelloDynamic
  */
 
 public class HelloDynamic extends DynamicArchiveTestBase {
@@ -48,9 +50,12 @@ public class HelloDynamic extends DynamicArchiveTestBase {
     static void testCustomBase() throws Exception {
         String topArchiveName = getNewArchiveName("top2");
         String baseArchiveName = getNewArchiveName("base");
-        dumpBaseArchive(baseArchiveName);
+        TestCommon.dumpBaseArchive(baseArchiveName);
         doTest(baseArchiveName, topArchiveName);
     }
+
+    private static final String JDWP_OPTION =
+        "-Xrunjdwp:transport=dt_socket,server=y,suspend=n";
 
     private static void doTest(String baseArchiveName, String topArchiveName) throws Exception {
         String appJar = ClassFileInstaller.getJarPath("hello.jar");
@@ -71,5 +76,19 @@ public class HelloDynamic extends DynamicArchiveTestBase {
                     output.shouldContain("Hello source: shared objects file")
                           .shouldHaveExitValue(0);
                 });
+
+        // Sanity test with JDWP options.
+        // Test with the default base archive should be sufficient.
+        if (baseArchiveName == null) {
+            run2(baseArchiveName, topArchiveName,
+                JDWP_OPTION,
+                "-Xlog:class+load",
+                "-Xlog:cds+dynamic=debug,cds=debug",
+                "-cp", appJar, mainClass)
+                .assertNormalExit(output -> {
+                    output.shouldContain("Hello source: shared objects file")
+                          .shouldHaveExitValue(0);
+                    });
+        }
     }
 }

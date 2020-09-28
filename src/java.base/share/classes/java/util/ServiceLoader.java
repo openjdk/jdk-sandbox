@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,8 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import sun.nio.cs.UTF_8;
+
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.ClassLoaders;
 import jdk.internal.access.JavaLangAccess;
@@ -54,7 +56,6 @@ import jdk.internal.module.ServicesCatalog;
 import jdk.internal.module.ServicesCatalog.ServiceProvider;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
-
 
 /**
  * A facility to load implementations of a service.
@@ -198,7 +199,7 @@ import jdk.internal.reflect.Reflection;
  * module does not export the package containing the service provider. There is
  * no support for a module specifying, in a <i>provides</i> directive, a service
  * provider in another module.
-
+ *
  * <p> A service provider that is developed in a module has no control over when
  * it is instantiated, since that occurs at the behest of the application, but it
  * does have control over how it is instantiated:
@@ -226,10 +227,10 @@ import jdk.internal.reflect.Reflection;
  * the application module path must have a provider constructor. There is no
  * support for a provider method in this case.
  *
- * <p> As an example, suppose a module specifies the following directives:
+ * <p> As an example, suppose a module specifies the following directive:
  * <pre>{@code
- *     provides com.example.CodecFactory with com.example.impl.StandardCodecs;
- *     provides com.example.CodecFactory with com.example.impl.ExtendedCodecsFactory;
+ *     provides com.example.CodecFactory with com.example.impl.StandardCodecs,
+ *              com.example.impl.ExtendedCodecsFactory;
  * }</pre>
  *
  * <p> where
@@ -1164,7 +1165,7 @@ public final class ServiceLoader<S>
                 uc.setUseCaches(false);
                 try (InputStream in = uc.getInputStream();
                      BufferedReader r
-                         = new BufferedReader(new InputStreamReader(in, "utf-8")))
+                         = new BufferedReader(new InputStreamReader(in, UTF_8.INSTANCE)))
                 {
                     int lc = 1;
                     while ((lc = parseLine(u, r, lc, names)) >= 0);

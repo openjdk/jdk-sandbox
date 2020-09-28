@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,14 @@
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "os_posix.inline.hpp"
+#include "runtime/globals_extension.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "services/memTracker.hpp"
+#include "runtime/atomic.hpp"
+#include "runtime/java.hpp"
+#include "runtime/orderAccess.hpp"
 #include "utilities/align.hpp"
 #include "utilities/events.hpp"
 #include "utilities/formatBuffer.hpp"
@@ -47,6 +51,7 @@
 #include <sys/utsname.h>
 #include <time.h>
 #include <unistd.h>
+#include <utmpx.h>
 
 // Todo: provide a os::get_max_process_id() or similar. Number of processes
 // may have been configured, can be read more accurately from proc fs etc.
@@ -167,48 +172,56 @@ size_t os::lasterror(char *buf, size_t len) {
   return n;
 }
 
-bool os::is_debugger_attached() {
-  // not implemented
-  return false;
-}
-
 void os::wait_for_keypress_at_exit(void) {
   // don't do anything on posix platforms
   return;
 }
 
 int os::create_file_for_heap(const char* dir) {
+  int fd;
 
-  const char name_template[] = "/jvmheap.XXXXXX";
-
-  size_t fullname_len = strlen(dir) + strlen(name_template);
-  char *fullname = (char*)os::malloc(fullname_len + 1, mtInternal);
-  if (fullname == NULL) {
-    vm_exit_during_initialization(err_msg("Malloc failed during creation of backing file for heap (%s)", os::strerror(errno)));
+#if defined(LINUX) && defined(O_TMPFILE)
+  char* native_dir = os::strdup(dir);
+  if (native_dir == NULL) {
+    vm_exit_during_initialization(err_msg("strdup failed during creation of backing file for heap (%s)", os::strerror(errno)));
     return -1;
   }
-  int n = snprintf(fullname, fullname_len + 1, "%s%s", dir, name_template);
-  assert((size_t)n == fullname_len, "Unexpected number of characters in string");
+  os::native_path(native_dir);
+  fd = os::open(dir, O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
+  os::free(native_dir);
 
-  os::native_path(fullname);
+  if (fd == -1)
+#endif
+  {
+    const char name_template[] = "/jvmheap.XXXXXX";
 
-  // set the file creation mask.
-  mode_t file_mode = S_IRUSR | S_IWUSR;
+    size_t fullname_len = strlen(dir) + strlen(name_template);
+    char *fullname = (char*)os::malloc(fullname_len + 1, mtInternal);
+    if (fullname == NULL) {
+      vm_exit_during_initialization(err_msg("Malloc failed during creation of backing file for heap (%s)", os::strerror(errno)));
+      return -1;
+    }
+    int n = snprintf(fullname, fullname_len + 1, "%s%s", dir, name_template);
+    assert((size_t)n == fullname_len, "Unexpected number of characters in string");
 
-  // create a new file.
-  int fd = mkstemp(fullname);
+    os::native_path(fullname);
 
-  if (fd < 0) {
-    warning("Could not create file for heap with template %s", fullname);
+    // create a new file.
+    fd = mkstemp(fullname);
+
+    if (fd < 0) {
+      warning("Could not create file for heap with template %s", fullname);
+      os::free(fullname);
+      return -1;
+    } else {
+      // delete the name from the filesystem. When 'fd' is closed, the file (and space) will be deleted.
+      int ret = unlink(fullname);
+      assert_with_errno(ret == 0, "unlink returned error");
+    }
+
     os::free(fullname);
-    return -1;
   }
 
-  // delete the name from the filesystem. When 'fd' is closed, the file (and space) will be deleted.
-  int ret = unlink(fullname);
-  assert_with_errno(ret == 0, "unlink returned error");
-
-  os::free(fullname);
   return fd;
 }
 
@@ -313,7 +326,7 @@ char* os::reserve_memory_aligned(size_t size, size_t alignment, int file_desc) {
       MemTracker::record_virtual_memory_reserve((address)extra_base, extra_size, CALLER_PC);
     }
   } else {
-    extra_base = os::reserve_memory(extra_size, NULL, alignment);
+    extra_base = os::reserve_memory(extra_size, alignment);
   }
 
   if (extra_base == NULL) {
@@ -351,6 +364,20 @@ char* os::reserve_memory_aligned(size_t size, size_t alignment, int file_desc) {
   return aligned_base;
 }
 
+// On Posix platforms, reservations are done using mmap which can be released in parts. So splitting is a no-op.
+void os::split_reserved_memory(char *base, size_t size, size_t split) {
+  char* const split_address = base + split;
+  assert(size > 0, "Sanity");
+  assert(size > split, "Sanity");
+  assert(split > 0, "Sanity");
+  assert(is_aligned(base, os::vm_allocation_granularity()), "Sanity");
+  assert(is_aligned(split_address, os::vm_allocation_granularity()), "Sanity");
+
+  // NMT: tell NMT to track both parts individually from now on.
+  MemTracker::record_virtual_memory_split_reserved(base, size, split);
+
+}
+
 int os::vsnprintf(char* buf, size_t len, const char* fmt, va_list args) {
   // All supported POSIX platforms provide C99 semantics.
   int result = ::vsnprintf(buf, len, fmt, args);
@@ -371,64 +398,101 @@ struct tm* os::gmtime_pd(const time_t* clock, struct tm*  res) {
 }
 
 void os::Posix::print_load_average(outputStream* st) {
-  st->print("load average:");
+  st->print("load average: ");
   double loadavg[3];
-  os::loadavg(loadavg, 3);
-  st->print("%0.02f %0.02f %0.02f", loadavg[0], loadavg[1], loadavg[2]);
+  int res = os::loadavg(loadavg, 3);
+  if (res != -1) {
+    st->print("%0.02f %0.02f %0.02f", loadavg[0], loadavg[1], loadavg[2]);
+  } else {
+    st->print(" Unavailable");
+  }
   st->cr();
 }
 
-void os::Posix::print_rlimit_info(outputStream* st) {
-  st->print("rlimit:");
+// boot/uptime information;
+// unfortunately it does not work on macOS and Linux because the utx chain has no entry
+// for reboot at least on my test machines
+void os::Posix::print_uptime_info(outputStream* st) {
+  int bootsec = -1;
+  int currsec = time(NULL);
+  struct utmpx* ent;
+  setutxent();
+  while ((ent = getutxent())) {
+    if (!strcmp("system boot", ent->ut_line)) {
+      bootsec = ent->ut_tv.tv_sec;
+      break;
+    }
+  }
+
+  if (bootsec != -1) {
+    os::print_dhm(st, "OS uptime:", (long) (currsec-bootsec));
+  }
+}
+
+static void print_rlimit(outputStream* st, const char* msg,
+                         int resource, bool output_k = false) {
   struct rlimit rlim;
 
-  st->print(" STACK ");
-  getrlimit(RLIMIT_STACK, &rlim);
-  if (rlim.rlim_cur == RLIM_INFINITY) st->print("infinity");
-  else st->print(UINT64_FORMAT "k", uint64_t(rlim.rlim_cur) / 1024);
+  st->print(" %s ", msg);
+  int res = getrlimit(resource, &rlim);
+  if (res == -1) {
+    st->print("could not obtain value");
+  } else {
+    // soft limit
+    if (rlim.rlim_cur == RLIM_INFINITY) { st->print("infinity"); }
+    else {
+      if (output_k) { st->print(UINT64_FORMAT "k", uint64_t(rlim.rlim_cur) / 1024); }
+      else { st->print(UINT64_FORMAT, uint64_t(rlim.rlim_cur)); }
+    }
+    // hard limit
+    st->print("/");
+    if (rlim.rlim_max == RLIM_INFINITY) { st->print("infinity"); }
+    else {
+      if (output_k) { st->print(UINT64_FORMAT "k", uint64_t(rlim.rlim_max) / 1024); }
+      else { st->print(UINT64_FORMAT, uint64_t(rlim.rlim_max)); }
+    }
+  }
+}
 
-  st->print(", CORE ");
-  getrlimit(RLIMIT_CORE, &rlim);
-  if (rlim.rlim_cur == RLIM_INFINITY) st->print("infinity");
-  else st->print(UINT64_FORMAT "k", uint64_t(rlim.rlim_cur) / 1024);
+void os::Posix::print_rlimit_info(outputStream* st) {
+  st->print("rlimit (soft/hard):");
+  print_rlimit(st, "STACK", RLIMIT_STACK, true);
+  print_rlimit(st, ", CORE", RLIMIT_CORE, true);
 
-  // Isn't there on solaris
 #if defined(AIX)
   st->print(", NPROC ");
   st->print("%d", sysconf(_SC_CHILD_MAX));
-#elif !defined(SOLARIS)
-  st->print(", NPROC ");
-  getrlimit(RLIMIT_NPROC, &rlim);
-  if (rlim.rlim_cur == RLIM_INFINITY) st->print("infinity");
-  else st->print(UINT64_FORMAT, uint64_t(rlim.rlim_cur));
+
+  print_rlimit(st, ", THREADS", RLIMIT_THREADS);
+#else
+  print_rlimit(st, ", NPROC", RLIMIT_NPROC);
 #endif
 
-  st->print(", NOFILE ");
-  getrlimit(RLIMIT_NOFILE, &rlim);
-  if (rlim.rlim_cur == RLIM_INFINITY) st->print("infinity");
-  else st->print(UINT64_FORMAT, uint64_t(rlim.rlim_cur));
+  print_rlimit(st, ", NOFILE", RLIMIT_NOFILE);
+  print_rlimit(st, ", AS", RLIMIT_AS, true);
+  print_rlimit(st, ", CPU", RLIMIT_CPU);
+  print_rlimit(st, ", DATA", RLIMIT_DATA, true);
 
-  st->print(", AS ");
-  getrlimit(RLIMIT_AS, &rlim);
-  if (rlim.rlim_cur == RLIM_INFINITY) st->print("infinity");
-  else st->print(UINT64_FORMAT "k", uint64_t(rlim.rlim_cur) / 1024);
+  // maximum size of files that the process may create
+  print_rlimit(st, ", FSIZE", RLIMIT_FSIZE, true);
 
-  st->print(", DATA ");
-  getrlimit(RLIMIT_DATA, &rlim);
-  if (rlim.rlim_cur == RLIM_INFINITY) st->print("infinity");
-  else st->print(UINT64_FORMAT "k", uint64_t(rlim.rlim_cur) / 1024);
+#if defined(LINUX) || defined(__APPLE__)
+  // maximum number of bytes of memory that may be locked into RAM
+  // (rounded down to the nearest  multiple of system pagesize)
+  print_rlimit(st, ", MEMLOCK", RLIMIT_MEMLOCK, true);
+#endif
 
-  st->print(", FSIZE ");
-  getrlimit(RLIMIT_FSIZE, &rlim);
-  if (rlim.rlim_cur == RLIM_INFINITY) st->print("infinity");
-  else st->print(UINT64_FORMAT "k", uint64_t(rlim.rlim_cur) / 1024);
+  // MacOS; The maximum size (in bytes) to which a process's resident set size may grow.
+#if defined(__APPLE__)
+  print_rlimit(st, ", RSS", RLIMIT_RSS, true);
+#endif
 
   st->cr();
 }
 
 void os::Posix::print_uname_info(outputStream* st) {
   // kernel
-  st->print("uname:");
+  st->print("uname: ");
   struct utsname name;
   uname(&name);
   st->print("%s ", name.sysname);
@@ -624,78 +688,6 @@ char* os::build_agent_function_name(const char *sym_name, const char *lib_name,
   return agent_entry_name;
 }
 
-int os::sleep(Thread* thread, jlong millis, bool interruptible) {
-  assert(thread == Thread::current(),  "thread consistency check");
-
-  ParkEvent * const slp = thread->_SleepEvent ;
-  slp->reset() ;
-  OrderAccess::fence() ;
-
-  if (interruptible) {
-    jlong prevtime = javaTimeNanos();
-
-    for (;;) {
-      if (os::is_interrupted(thread, true)) {
-        return OS_INTRPT;
-      }
-
-      jlong newtime = javaTimeNanos();
-
-      if (newtime - prevtime < 0) {
-        // time moving backwards, should only happen if no monotonic clock
-        // not a guarantee() because JVM should not abort on kernel/glibc bugs
-        assert(!os::supports_monotonic_clock(), "unexpected time moving backwards detected in os::sleep(interruptible)");
-      } else {
-        millis -= (newtime - prevtime) / NANOSECS_PER_MILLISEC;
-      }
-
-      if (millis <= 0) {
-        return OS_OK;
-      }
-
-      prevtime = newtime;
-
-      {
-        assert(thread->is_Java_thread(), "sanity check");
-        JavaThread *jt = (JavaThread *) thread;
-        ThreadBlockInVM tbivm(jt);
-        OSThreadWaitState osts(jt->osthread(), false /* not Object.wait() */);
-
-        jt->set_suspend_equivalent();
-        // cleared by handle_special_suspend_equivalent_condition() or
-        // java_suspend_self() via check_and_wait_while_suspended()
-
-        slp->park(millis);
-
-        // were we externally suspended while we were waiting?
-        jt->check_and_wait_while_suspended();
-      }
-    }
-  } else {
-    OSThreadWaitState osts(thread->osthread(), false /* not Object.wait() */);
-    jlong prevtime = javaTimeNanos();
-
-    for (;;) {
-      // It'd be nice to avoid the back-to-back javaTimeNanos() calls on
-      // the 1st iteration ...
-      jlong newtime = javaTimeNanos();
-
-      if (newtime - prevtime < 0) {
-        // time moving backwards, should only happen if no monotonic clock
-        // not a guarantee() because JVM should not abort on kernel/glibc bugs
-        assert(!os::supports_monotonic_clock(), "unexpected time moving backwards detected on os::sleep(!interruptible)");
-      } else {
-        millis -= (newtime - prevtime) / NANOSECS_PER_MILLISEC;
-      }
-
-      if (millis <= 0) break ;
-
-      prevtime = newtime;
-      slp->park(millis);
-    }
-    return OS_OK ;
-  }
-}
 
 void os::naked_short_nanosleep(jlong ns) {
   struct timespec req;
@@ -708,64 +700,9 @@ void os::naked_short_nanosleep(jlong ns) {
 
 void os::naked_short_sleep(jlong ms) {
   assert(ms < MILLIUNITS, "Un-interruptable sleep, short time use only");
-  os::naked_short_nanosleep(ms * (NANOUNITS / MILLIUNITS));
+  os::naked_short_nanosleep(millis_to_nanos(ms));
   return;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// interrupt support
-
-void os::interrupt(Thread* thread) {
-  debug_only(Thread::check_for_dangling_thread_pointer(thread);)
-
-  OSThread* osthread = thread->osthread();
-
-  if (!osthread->interrupted()) {
-    osthread->set_interrupted(true);
-    // More than one thread can get here with the same value of osthread,
-    // resulting in multiple notifications.  We do, however, want the store
-    // to interrupted() to be visible to other threads before we execute unpark().
-    OrderAccess::fence();
-    ParkEvent * const slp = thread->_SleepEvent ;
-    if (slp != NULL) slp->unpark() ;
-  }
-
-  // For JSR166. Unpark even if interrupt status already was set
-  if (thread->is_Java_thread())
-    ((JavaThread*)thread)->parker()->unpark();
-
-  ParkEvent * ev = thread->_ParkEvent ;
-  if (ev != NULL) ev->unpark() ;
-}
-
-bool os::is_interrupted(Thread* thread, bool clear_interrupted) {
-  debug_only(Thread::check_for_dangling_thread_pointer(thread);)
-
-  OSThread* osthread = thread->osthread();
-
-  bool interrupted = osthread->interrupted();
-
-  // NOTE that since there is no "lock" around the interrupt and
-  // is_interrupted operations, there is the possibility that the
-  // interrupted flag (in osThread) will be "false" but that the
-  // low-level events will be in the signaled state. This is
-  // intentional. The effect of this is that Object.wait() and
-  // LockSupport.park() will appear to have a spurious wakeup, which
-  // is allowed and not harmful, and the possibility is so rare that
-  // it is not worth the added complexity to add yet another lock.
-  // For the sleep event an explicit reset is performed on entry
-  // to os::sleep, so there is no early return. It has also been
-  // recommended not to put the interrupted flag into the "event"
-  // structure because it hides the issue.
-  if (interrupted && clear_interrupted) {
-    osthread->set_interrupted(false);
-    // consider thread->_SleepEvent->reset() ... optional optimization
-  }
-
-  return interrupted;
-}
-
-
 
 static const struct {
   int sig; const char* name;
@@ -813,6 +750,9 @@ static const struct {
 #endif
   {  SIGHUP,      "SIGHUP" },
   {  SIGILL,      "SIGILL" },
+#ifdef SIGINFO
+  {  SIGINFO,     "SIGINFO" },
+#endif
   {  SIGINT,      "SIGINT" },
 #ifdef SIGIO
   {  SIGIO,       "SIGIO" },
@@ -1165,21 +1105,6 @@ static bool get_signal_code_description(const siginfo_t* si, enum_sigcode_desc_t
 #if defined(IA64) && !defined(AIX)
     { SIGSEGV, SEGV_PSTKOVF, "SEGV_PSTKOVF", "Paragraph stack overflow" },
 #endif
-#if defined(__sparc) && defined(SOLARIS)
-// define Solaris Sparc M7 ADI SEGV signals
-#if !defined(SEGV_ACCADI)
-#define SEGV_ACCADI 3
-#endif
-    { SIGSEGV, SEGV_ACCADI,  "SEGV_ACCADI",  "ADI not enabled for mapped object." },
-#if !defined(SEGV_ACCDERR)
-#define SEGV_ACCDERR 4
-#endif
-    { SIGSEGV, SEGV_ACCDERR, "SEGV_ACCDERR", "ADI disrupting exception." },
-#if !defined(SEGV_ACCPERR)
-#define SEGV_ACCPERR 5
-#endif
-    { SIGSEGV, SEGV_ACCPERR, "SEGV_ACCPERR", "ADI precise exception." },
-#endif // defined(__sparc) && defined(SOLARIS)
     { SIGBUS,  BUS_ADRALN,   "BUS_ADRALN",   "Invalid address alignment." },
     { SIGBUS,  BUS_ADRERR,   "BUS_ADRERR",   "Nonexistent physical address." },
     { SIGBUS,  BUS_OBJERR,   "BUS_OBJERR",   "Object-specific hardware error." },
@@ -1338,13 +1263,7 @@ void os::print_siginfo(outputStream* os, const void* si0) {
 bool os::signal_thread(Thread* thread, int sig, const char* reason) {
   OSThread* osthread = thread->osthread();
   if (osthread) {
-#if defined (SOLARIS)
-    // Note: we cannot use pthread_kill on Solaris - not because
-    // its missing, but because we do not have the pthread_t id.
-    int status = thr_kill(osthread->thread_id(), sig);
-#else
     int status = pthread_kill(osthread->pthread_id(), sig);
-#endif
     if (status == 0) {
       Events::log(Thread::current(), "sent signal %d to Thread " INTPTR_FORMAT " because %s.",
                   sig, p2i(thread), reason);
@@ -1365,8 +1284,6 @@ address os::Posix::ucontext_get_pc(const ucontext_t* ctx) {
    return Bsd::ucontext_get_pc(ctx);
 #elif defined(LINUX)
    return Linux::ucontext_get_pc(ctx);
-#elif defined(SOLARIS)
-   return Solaris::ucontext_get_pc(ctx);
 #else
    VMError::report_and_die("unimplemented ucontext_get_pc");
 #endif
@@ -1379,8 +1296,6 @@ void os::Posix::ucontext_set_pc(ucontext_t* ctx, address pc) {
    Bsd::ucontext_set_pc(ctx, pc);
 #elif defined(LINUX)
    Linux::ucontext_set_pc(ctx, pc);
-#elif defined(SOLARIS)
-   Solaris::ucontext_set_pc(ctx, pc);
 #else
    VMError::report_and_die("unimplemented ucontext_get_pc");
 #endif
@@ -1485,7 +1400,7 @@ bool os::same_files(const char* file1, const char* file2) {
 // page size which again depends on the concrete system the VM is running
 // on. Space for libc guard pages is not included in this size.
 jint os::Posix::set_minimum_stack_sizes() {
-  size_t os_min_stack_allowed = SOLARIS_ONLY(thr_min_stack()) NOT_SOLARIS(PTHREAD_STACK_MIN);
+  size_t os_min_stack_allowed = PTHREAD_STACK_MIN;
 
   _java_thread_min_stack_allowed = _java_thread_min_stack_allowed +
                                    JavaThread::stack_guard_zone_size() +
@@ -1695,11 +1610,9 @@ static void pthread_init_common(void) {
   if ((status = pthread_mutexattr_settype(_mutexAttr, PTHREAD_MUTEX_NORMAL)) != 0) {
     fatal("pthread_mutexattr_settype: %s", os::strerror(status));
   }
-  // Solaris has it's own PlatformMutex, distinct from the one for POSIX.
-  NOT_SOLARIS(os::PlatformMutex::init();)
+  os::PlatformMutex::init();
 }
 
-#ifndef SOLARIS
 sigset_t sigs;
 struct sigaction sigact[NSIG];
 
@@ -1715,7 +1628,6 @@ void os::Posix::save_preinstalled_handler(int sig, struct sigaction& oldAct) {
   sigact[sig] = oldAct;
   sigaddset(&sigs, sig);
 }
-#endif
 
 // Not all POSIX types and API's are available on all notionally "posix"
 // platforms. If we have build-time support then we will check for actual
@@ -1732,6 +1644,8 @@ void os::Posix::save_preinstalled_handler(int sig, struct sigaction& oldAct) {
 int (*os::Posix::_clock_gettime)(clockid_t, struct timespec *) = NULL;
 int (*os::Posix::_clock_getres)(clockid_t, struct timespec *) = NULL;
 
+bool os::Posix::_supports_monotonic_clock = false;
+
 static int (*_pthread_condattr_setclock)(pthread_condattr_t *, clockid_t) = NULL;
 
 static bool _use_clock_monotonic_condattr = false;
@@ -1747,7 +1661,7 @@ void os::Posix::init(void) {
 
   void* handle = NULL;
 
-  // For linux we need librt, for other OS we can find
+  // For older linux we need librt, for other OS we can find
   // this function in regular libc.
 #ifdef NEEDS_LIBRT
   // We do dlopen's in this particular order due to bug in linux
@@ -1767,6 +1681,8 @@ void os::Posix::init(void) {
   int (*clock_gettime_func)(clockid_t, struct timespec*) =
     (int(*)(clockid_t, struct timespec*))dlsym(handle, "clock_gettime");
   if (clock_getres_func != NULL && clock_gettime_func != NULL) {
+    _clock_gettime = clock_gettime_func;
+    _clock_getres = clock_getres_func;
     // We assume that if both clock_gettime and clock_getres support
     // CLOCK_MONOTONIC then the OS provides true high-res monotonic clock.
     struct timespec res;
@@ -1774,15 +1690,7 @@ void os::Posix::init(void) {
     if (clock_getres_func(CLOCK_MONOTONIC, &res) == 0 &&
         clock_gettime_func(CLOCK_MONOTONIC, &tp) == 0) {
       // Yes, monotonic clock is supported.
-      _clock_gettime = clock_gettime_func;
-      _clock_getres = clock_getres_func;
-    } else {
-#ifdef NEEDS_LIBRT
-      // Close librt if there is no monotonic clock.
-      if (handle != RTLD_DEFAULT) {
-        dlclose(handle);
-      }
-#endif
+      _supports_monotonic_clock = true;
     }
   }
 
@@ -1800,7 +1708,6 @@ void os::Posix::init(void) {
 
   pthread_init_common();
 
-#ifndef SOLARIS
   int status;
   if (_pthread_condattr_setclock != NULL && _clock_gettime != NULL) {
     if ((status = _pthread_condattr_setclock(_condAttr, CLOCK_MONOTONIC)) != 0) {
@@ -1815,12 +1722,9 @@ void os::Posix::init(void) {
       _use_clock_monotonic_condattr = true;
     }
   }
-#endif // !SOLARIS
-
 }
 
 void os::Posix::init_2(void) {
-#ifndef SOLARIS
   log_info(os)("Use of CLOCK_MONOTONIC is%s supported",
                (_clock_gettime != NULL ? "" : " not"));
   log_info(os)("Use of pthread_condattr_setclock is%s supported",
@@ -1828,7 +1732,6 @@ void os::Posix::init_2(void) {
   log_info(os)("Relative timed-wait using pthread_cond_timedwait is associated with %s",
                _use_clock_monotonic_condattr ? "CLOCK_MONOTONIC" : "the default clock");
   sigemptyset(&sigs);
-#endif // !SOLARIS
 }
 
 #else // !SUPPORTS_CLOCK_MONOTONIC
@@ -1838,12 +1741,10 @@ void os::Posix::init(void) {
 }
 
 void os::Posix::init_2(void) {
-#ifndef SOLARIS
   log_info(os)("Use of CLOCK_MONOTONIC is not supported");
   log_info(os)("Use of pthread_condattr_setclock is not supported");
   log_info(os)("Relative timed-wait using pthread_cond_timedwait is associated with the default clock");
   sigemptyset(&sigs);
-#endif // !SOLARIS
 }
 
 #endif // SUPPORTS_CLOCK_MONOTONIC
@@ -1912,18 +1813,18 @@ static void unpack_abs_time(timespec* abstime, jlong deadline, jlong now_sec) {
     abstime->tv_nsec = 0;
   } else {
     abstime->tv_sec = seconds;
-    abstime->tv_nsec = millis * (NANOUNITS / MILLIUNITS);
+    abstime->tv_nsec = millis_to_nanos(millis);
   }
 }
 
-static jlong millis_to_nanos(jlong millis) {
+static jlong millis_to_nanos_bounded(jlong millis) {
   // We have to watch for overflow when converting millis to nanos,
   // but if millis is that large then we will end up limiting to
   // MAX_SECS anyway, so just do that here.
   if (millis / MILLIUNITS > MAX_SECS) {
     millis = jlong(MAX_SECS) * MILLIUNITS;
   }
-  return millis * (NANOUNITS / MILLIUNITS);
+  return millis_to_nanos(millis);
 }
 
 static void to_abstime(timespec* abstime, jlong timeout,
@@ -1976,7 +1877,7 @@ static void to_abstime(timespec* abstime, jlong timeout,
 // Create an absolute time 'millis' milliseconds in the future, using the
 // real-time (time-of-day) clock. Used by PosixSemaphore.
 void os::Posix::to_RTC_abstime(timespec* abstime, int64_t millis) {
-  to_abstime(abstime, millis_to_nanos(millis),
+  to_abstime(abstime, millis_to_nanos_bounded(millis),
              false /* not absolute */,
              true  /* use real-time clock */);
 }
@@ -1984,7 +1885,6 @@ void os::Posix::to_RTC_abstime(timespec* abstime, int64_t millis) {
 // Shared pthread_mutex/cond based PlatformEvent implementation.
 // Not currently usable by Solaris.
 
-#ifndef SOLARIS
 
 // PlatformEvent
 //
@@ -2025,7 +1925,7 @@ void os::PlatformEvent::park() {       // AKA "down()"
   // atomically decrement _event
   for (;;) {
     v = _event;
-    if (Atomic::cmpxchg(v - 1, &_event, v) == v) break;
+    if (Atomic::cmpxchg(&_event, v, v - 1) == v) break;
   }
   guarantee(v >= 0, "invariant");
 
@@ -2037,7 +1937,8 @@ void os::PlatformEvent::park() {       // AKA "down()"
     while (_event < 0) {
       // OS-level "spurious wakeups" are ignored
       status = pthread_cond_wait(_cond, _mutex);
-      assert_status(status == 0, status, "cond_wait");
+      assert_status(status == 0 MACOS_ONLY(|| status == ETIMEDOUT),
+                    status, "cond_wait");
     }
     --_nParked;
 
@@ -2065,13 +1966,13 @@ int os::PlatformEvent::park(jlong millis) {
   // atomically decrement _event
   for (;;) {
     v = _event;
-    if (Atomic::cmpxchg(v - 1, &_event, v) == v) break;
+    if (Atomic::cmpxchg(&_event, v, v - 1) == v) break;
   }
   guarantee(v >= 0, "invariant");
 
   if (v == 0) { // Do this the hard way by blocking ...
     struct timespec abst;
-    to_abstime(&abst, millis_to_nanos(millis), false, false);
+    to_abstime(&abst, millis_to_nanos_bounded(millis), false, false);
 
     int ret = OS_TIMEOUT;
     int status = pthread_mutex_lock(_mutex);
@@ -2121,9 +2022,9 @@ void os::PlatformEvent::unpark() {
   // shake out uses of park() and unpark() without checking state conditions
   // properly. This spurious return doesn't manifest itself in any user code
   // but only in the correctly written condition checking loops of ObjectMonitor,
-  // Mutex/Monitor, Thread::muxAcquire and os::sleep
+  // Mutex/Monitor, Thread::muxAcquire and JavaThread::sleep
 
-  if (Atomic::xchg(1, &_event) >= 0) return;
+  if (Atomic::xchg(&_event, 1) >= 0) return;
 
   int status = pthread_mutex_lock(_mutex);
   assert_status(status == 0, status, "mutex_lock");
@@ -2171,15 +2072,13 @@ void Parker::park(bool isAbsolute, jlong time) {
   // Return immediately if a permit is available.
   // We depend on Atomic::xchg() having full barrier semantics
   // since we are doing a lock-free update to _counter.
-  if (Atomic::xchg(0, &_counter) > 0) return;
+  if (Atomic::xchg(&_counter, 0) > 0) return;
 
-  Thread* thread = Thread::current();
-  assert(thread->is_Java_thread(), "Must be JavaThread");
-  JavaThread *jt = (JavaThread *)thread;
+  JavaThread *jt = JavaThread::current();
 
   // Optional optimization -- avoid state transitions if there's
   // an interrupt pending.
-  if (Thread::is_interrupted(thread, false)) {
+  if (jt->is_interrupted(false)) {
     return;
   }
 
@@ -2200,10 +2099,12 @@ void Parker::park(bool isAbsolute, jlong time) {
   // the ThreadBlockInVM() CTOR and DTOR may grab Threads_lock.
   ThreadBlockInVM tbivm(jt);
 
+  // Can't access interrupt state now that we are _thread_blocked. If we've
+  // been interrupted since we checked above then _counter will be > 0.
+
   // Don't wait if cannot get lock since interference arises from
-  // unparking. Also re-check interrupt before trying wait.
-  if (Thread::is_interrupted(thread, false) ||
-      pthread_mutex_trylock(_mutex) != 0) {
+  // unparking.
+  if (pthread_mutex_trylock(_mutex) != 0) {
     return;
   }
 
@@ -2218,7 +2119,7 @@ void Parker::park(bool isAbsolute, jlong time) {
     return;
   }
 
-  OSThreadWaitState osts(thread->osthread(), false /* not Object.wait() */);
+  OSThreadWaitState osts(jt->osthread(), false /* not Object.wait() */);
   jt->set_suspend_equivalent();
   // cleared by handle_special_suspend_equivalent_condition() or java_suspend_self()
 
@@ -2226,7 +2127,8 @@ void Parker::park(bool isAbsolute, jlong time) {
   if (time == 0) {
     _cur_index = REL_INDEX; // arbitrary choice when not timed
     status = pthread_cond_wait(&_cond[_cur_index], _mutex);
-    assert_status(status == 0, status, "cond_timedwait");
+    assert_status(status == 0 MACOS_ONLY(|| status == ETIMEDOUT),
+                  status, "cond_wait");
   }
   else {
     _cur_index = isAbsolute ? ABS_INDEX : REL_INDEX;
@@ -2395,7 +2297,7 @@ int os::PlatformMonitor::wait(jlong millis) {
     if (millis / MILLIUNITS > MAX_SECS) {
       millis = jlong(MAX_SECS) * MILLIUNITS;
     }
-    to_abstime(&abst, millis * (NANOUNITS / MILLIUNITS), false, false);
+    to_abstime(&abst, millis_to_nanos(millis), false, false);
 
     int ret = OS_TIMEOUT;
     int status = pthread_cond_timedwait(cond(), mutex(), &abst);
@@ -2407,9 +2309,8 @@ int os::PlatformMonitor::wait(jlong millis) {
     return ret;
   } else {
     int status = pthread_cond_wait(cond(), mutex());
-    assert_status(status == 0, status, "cond_wait");
+    assert_status(status == 0 MACOS_ONLY(|| status == ETIMEDOUT),
+                  status, "cond_wait");
     return OS_OK;
   }
 }
-
-#endif // !SOLARIS

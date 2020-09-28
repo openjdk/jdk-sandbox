@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #include <sys/stat.h>
 #include <wtypes.h>
 #include <commctrl.h>
+#include <assert.h>
 
 #include <jni.h>
 #include "java.h"
@@ -250,6 +251,23 @@ LoadMSVCRT()
             }
         }
 #endif /* MSVCR_DLL_NAME */
+#ifdef VCRUNTIME_1_DLL_NAME
+        if (GetJREPath(crtpath, MAXPATHLEN)) {
+            if (JLI_StrLen(crtpath) + JLI_StrLen("\\bin\\") +
+                    JLI_StrLen(VCRUNTIME_1_DLL_NAME) >= MAXPATHLEN) {
+                JLI_ReportErrorMessage(JRE_ERROR11);
+                return JNI_FALSE;
+            }
+            (void)JLI_StrCat(crtpath, "\\bin\\" VCRUNTIME_1_DLL_NAME);   /* Add crt dll */
+            JLI_TraceLauncher("CRT path is %s\n", crtpath);
+            if (_access(crtpath, 0) == 0) {
+                if (LoadLibrary(crtpath) == 0) {
+                    JLI_ReportErrorMessage(DLL_ERROR4, crtpath);
+                    return JNI_FALSE;
+                }
+            }
+        }
+#endif /* VCRUNTIME_1_DLL_NAME */
 #ifdef MSVCP_DLL_NAME
         if (GetJREPath(crtpath, MAXPATHLEN)) {
             if (JLI_StrLen(crtpath) + JLI_StrLen("\\bin\\") +
@@ -441,7 +459,7 @@ static jboolean counterAvailable = JNI_FALSE;
 static jboolean counterInitialized = JNI_FALSE;
 static LARGE_INTEGER counterFrequency;
 
-jlong CounterGet()
+jlong CurrentTimeMicros()
 {
     LARGE_INTEGER count;
 
@@ -453,16 +471,10 @@ jlong CounterGet()
         return 0;
     }
     QueryPerformanceCounter(&count);
-    return (jlong)(count.QuadPart);
+
+    return (jlong)(count.QuadPart * 1000 * 1000 / counterFrequency.QuadPart);
 }
 
-jlong Counter2Micros(jlong counts)
-{
-    if (!counterAvailable || !counterInitialized) {
-        return 0;
-    }
-    return (counts * 1000 * 1000)/counterFrequency.QuadPart;
-}
 /*
  * windows snprintf does not guarantee a null terminator in the buffer,
  * if the computed size is equal to or greater than the buffer size,
@@ -495,6 +507,38 @@ JLI_Snprintf(char* buffer, size_t size, const char* format, ...) {
     return rc;
 }
 
+static errno_t convert_to_unicode(const char* path, const wchar_t* prefix, wchar_t** wpath) {
+    int unicode_path_len;
+    size_t prefix_len, wpath_len;
+
+    /*
+     * Get required buffer size to convert to Unicode.
+     * The return value includes the terminating null character.
+     */
+    unicode_path_len = MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS,
+                                           path, -1, NULL, 0);
+    if (unicode_path_len == 0) {
+        return EINVAL;
+    }
+
+    prefix_len = wcslen(prefix);
+    wpath_len = prefix_len + unicode_path_len;
+    *wpath = (wchar_t*)JLI_MemAlloc(wpath_len * sizeof(wchar_t));
+    if (*wpath == NULL) {
+        return ENOMEM;
+    }
+
+    wcsncpy(*wpath, prefix, prefix_len);
+    if (MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS,
+                            path, -1, &((*wpath)[prefix_len]), (int)wpath_len) == 0) {
+        JLI_MemFree(*wpath);
+        *wpath = NULL;
+        return EINVAL;
+    }
+
+    return ERROR_SUCCESS;
+}
+
 /* taken from hotspot and slightly adjusted for jli lib;
  * creates a UNC/ELP path from input 'path'
  * the return buffer is allocated in C heap and needs to be freed using
@@ -507,30 +551,13 @@ static wchar_t* create_unc_path(const char* path, errno_t* err) {
     if (path[0] == '\\' && path[1] == '\\') {
         if (path[2] == '?' && path[3] == '\\') {
             /* if it already has a \\?\ don't do the prefix */
-            wpath = (wchar_t*) JLI_MemAlloc(path_len * sizeof(wchar_t));
-            if (wpath != NULL) {
-                *err = mbstowcs_s(&converted_chars, wpath, path_len, path, path_len);
-            } else {
-                *err = ENOMEM;
-            }
+            *err = convert_to_unicode(path, L"", &wpath);
         } else {
             /* only UNC pathname includes double slashes here */
-            wpath = (wchar_t*) JLI_MemAlloc((path_len + 7) * sizeof(wchar_t));
-            if (wpath != NULL) {
-                wcscpy(wpath, L"\\\\?\\UNC\0");
-                *err = mbstowcs_s(&converted_chars, &wpath[7], path_len, path, path_len);
-            } else {
-                *err = ENOMEM;
-            }
+            *err = convert_to_unicode(path, L"\\\\?\\UNC", &wpath);
         }
     } else {
-        wpath = (wchar_t*) JLI_MemAlloc((path_len + 4) * sizeof(wchar_t));
-        if (wpath != NULL) {
-            wcscpy(wpath, L"\\\\?\\\0");
-            *err = mbstowcs_s(&converted_chars, &wpath[4], path_len, path, path_len);
-        } else {
-            *err = ENOMEM;
-        }
+        *err = convert_to_unicode(path, L"\\\\?\\", &wpath);
     }
     return wpath;
 }
@@ -704,13 +731,6 @@ void* SplashProcAddress(const char* name) {
     }
 }
 
-void SplashFreeLibrary() {
-    if (hSplashLib) {
-        FreeLibrary(hSplashLib);
-        hSplashLib = NULL;
-    }
-}
-
 /*
  * Signature adapter for _beginthreadex().
  */
@@ -802,9 +822,6 @@ CallJavaMainInNewThread(jlong stack_size, void* args) {
 
     return rslt;
 }
-
-/* Unix only, empty on windows. */
-void SetJavaLauncherPlatformProps() {}
 
 /*
  * The implementation for finding classes from the bootstrap
@@ -1018,6 +1035,17 @@ CreateApplicationArgs(JNIEnv *env, char **strv, int argc)
 
     // sanity check, match the args we have, to the holy grail
     idx = JLI_GetAppArgIndex();
+
+    // First arg index is NOT_FOUND
+    if (idx < 0) {
+        // The only allowed value should be NOT_FOUND (-1) unless another change introduces
+        // a different negative index
+        assert (idx == -1);
+        JLI_TraceLauncher("Warning: first app arg index not found, %d\n", idx);
+        JLI_TraceLauncher("passing arguments as-is.\n");
+        return NewPlatformStringArray(env, strv, argc);
+    }
+
     isTool = (idx == 0);
     if (isTool) { idx++; } // skip tool name
     JLI_TraceLauncher("AppArgIndex: %d points to %s\n", idx, stdargs[idx].arg);

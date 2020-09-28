@@ -171,9 +171,8 @@ void MemAllocator::Allocation::check_for_valid_allocation_state() const {
   // This is a VM policy failure, so how do we exhaustively test it?
   assert(!_thread->has_pending_exception(),
          "shouldn't be allocating with pending exception");
-  // Allocation of an oop can always invoke a safepoint,
-  // hence, the true argument.
-  _thread->check_for_valid_safepoint_state(true);
+  // Allocation of an oop can always invoke a safepoint.
+  _thread->check_for_valid_safepoint_state();
 }
 #endif
 
@@ -222,7 +221,7 @@ void MemAllocator::Allocation::notify_allocation_low_memory_detector() {
 }
 
 void MemAllocator::Allocation::notify_allocation_jfr_sampler() {
-  HeapWord* mem = (HeapWord*)obj();
+  HeapWord* mem = cast_from_oop<HeapWord*>(obj());
   size_t size_in_bytes = _allocator._word_size * HeapWordSize;
 
   if (_allocated_outside_tlab) {
@@ -407,7 +406,7 @@ MemRegion ObjArrayAllocator::obj_memory_range(oop obj) const {
   }
   ArrayKlass* array_klass = ArrayKlass::cast(_klass);
   const size_t hs = arrayOopDesc::header_size(array_klass->element_type());
-  return MemRegion(((HeapWord*)obj) + hs, _word_size - hs);
+  return MemRegion(cast_from_oop<HeapWord*>(obj) + hs, _word_size - hs);
 }
 
 oop ObjArrayAllocator::initialize(HeapWord* mem) const {

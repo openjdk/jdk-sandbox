@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -223,7 +223,7 @@ public class Types {
      * A downwards projection maps a type T into a type S such that (i) T has no variables in V,
      * and (ii) S is a lower bound of T.
      *
-     * Note that projections are only allowed to touch variables in V. Theferore it is possible for
+     * Note that projections are only allowed to touch variables in V. Therefore, it is possible for
      * a projection to leave its input type unchanged if it does not contain any variables in V.
      *
      * Moreover, note that while an upwards projection is always defined (every type as an upper bound),
@@ -639,7 +639,7 @@ public class Types {
     public static class FunctionDescriptorLookupError extends RuntimeException {
         private static final long serialVersionUID = 0;
 
-        JCDiagnostic diagnostic;
+        transient JCDiagnostic diagnostic;
 
         FunctionDescriptorLookupError() {
             this.diagnostic = null;
@@ -730,7 +730,7 @@ public class Types {
          */
         public FunctionDescriptor findDescriptorInternal(TypeSymbol origin,
                 CompoundScope membersCache) throws FunctionDescriptorLookupError {
-            if (!origin.isInterface() || (origin.flags() & ANNOTATION) != 0) {
+            if (!origin.isInterface() || (origin.flags() & ANNOTATION) != 0 || origin.isSealed()) {
                 //t must be an interface
                 throw failure("not.a.functional.intf", origin);
             }
@@ -2115,6 +2115,8 @@ public class Types {
     // where
         private SimpleVisitor<Type,Symbol> asSuper = new SimpleVisitor<Type,Symbol>() {
 
+            private Set<Symbol> seenTypes = new HashSet<>();
+
             public Type visitType(Type t, Symbol sym) {
                 return null;
             }
@@ -2124,22 +2126,30 @@ public class Types {
                 if (t.tsym == sym)
                     return t;
 
-                Type st = supertype(t);
-                if (st.hasTag(CLASS) || st.hasTag(TYPEVAR)) {
-                    Type x = asSuper(st, sym);
-                    if (x != null)
-                        return x;
+                Symbol c = t.tsym;
+                if (!seenTypes.add(c)) {
+                    return null;
                 }
-                if ((sym.flags() & INTERFACE) != 0) {
-                    for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
-                        if (!l.head.hasTag(ERROR)) {
-                            Type x = asSuper(l.head, sym);
-                            if (x != null)
-                                return x;
+                try {
+                    Type st = supertype(t);
+                    if (st.hasTag(CLASS) || st.hasTag(TYPEVAR)) {
+                        Type x = asSuper(st, sym);
+                        if (x != null)
+                            return x;
+                    }
+                    if ((sym.flags() & INTERFACE) != 0) {
+                        for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
+                            if (!l.head.hasTag(ERROR)) {
+                                Type x = asSuper(l.head, sym);
+                                if (x != null)
+                                    return x;
+                            }
                         }
                     }
+                    return null;
+                } finally {
+                    seenTypes.remove(c);
                 }
-                return null;
             }
 
             @Override
@@ -3745,12 +3755,9 @@ public class Types {
             return cl1;
         } else if (shouldSkip.test(cl1.head, cl2.head)) {
             return union(cl1.tail, cl2.tail, shouldSkip).prepend(cl1.head);
-        } else if (cl1.head.tsym.precedes(cl2.head.tsym, this)) {
-            return union(cl1.tail, cl2, shouldSkip).prepend(cl1.head);
         } else if (cl2.head.tsym.precedes(cl1.head.tsym, this)) {
             return union(cl1, cl2.tail, shouldSkip).prepend(cl2.head);
         } else {
-            // unrelated types
             return union(cl1.tail, cl2, shouldSkip).prepend(cl1.head);
         }
     }
@@ -5002,7 +5009,7 @@ public class Types {
         public static class InvalidSignatureException extends RuntimeException {
             private static final long serialVersionUID = 0;
 
-            private final Type type;
+            private final transient Type type;
 
             InvalidSignatureException(Type type) {
                 this.type = type;
@@ -5177,7 +5184,7 @@ public class Types {
             append('>');
         }
 
-        private void assembleSig(List<Type> types) {
+        public void assembleSig(List<Type> types) {
             for (List<Type> ts = types; ts.nonEmpty(); ts = ts.tail) {
                 assembleSig(ts.head);
             }

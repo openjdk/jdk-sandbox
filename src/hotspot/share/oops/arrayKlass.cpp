@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -79,7 +79,7 @@ Method* ArrayKlass::uncached_lookup_method(const Symbol* name,
   // Always ignore overpass methods in superclasses, although technically the
   // super klass of an array, (j.l.Object) should not have
   // any overpass methods present.
-  return super()->uncached_lookup_method(name, signature, Klass::skip_overpass, private_mode);
+  return super()->uncached_lookup_method(name, signature, OverpassLookupMode::skip, private_mode);
 }
 
 ArrayKlass::ArrayKlass(Symbol* name, KlassID id) :
@@ -110,7 +110,7 @@ void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, 
   assert((module_entry != NULL) || ((module_entry == NULL) && !ModuleEntryTable::javabase_defined()),
          "module entry not available post " JAVA_BASE_NAME " definition");
   oop module = (module_entry != NULL) ? module_entry->module() : (oop)NULL;
-  java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(THREAD, module), Handle(), CHECK);
+  java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(THREAD, module), Handle(), Handle(), CHECK);
 }
 
 GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
@@ -124,12 +124,12 @@ GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
 }
 
 objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
-  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_ARRAY), CHECK_0);
+  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_ARRAY), CHECK_NULL);
   int size = objArrayOopDesc::object_size(length);
-  Klass* k = array_klass(n+dimension(), CHECK_0);
+  Klass* k = array_klass(n+dimension(), CHECK_NULL);
   ArrayKlass* ak = ArrayKlass::cast(k);
   objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
-                                                                /* do_zero */ true, CHECK_0);
+                                                                /* do_zero */ true, CHECK_NULL);
   // initialization to NULL not necessary, area already cleared
   return o;
 }

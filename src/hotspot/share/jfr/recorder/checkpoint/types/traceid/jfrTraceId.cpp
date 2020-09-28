@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.inline.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceId.inline.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
@@ -33,7 +34,6 @@
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/orderAccess.hpp"
 #include "runtime/vm_version.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/thread.inline.hpp"
@@ -45,14 +45,14 @@ static traceid atomic_inc(traceid volatile* const dest) {
   traceid compare_value;
   traceid exchange_value;
   do {
-    compare_value = OrderAccess::load_acquire(dest);
+    compare_value = *dest;
     exchange_value = compare_value + 1;
-  } while (Atomic::cmpxchg(exchange_value, dest, compare_value) != compare_value);
+  } while (Atomic::cmpxchg(dest, compare_value, exchange_value) != compare_value);
   return exchange_value;
 }
 
 static traceid next_class_id() {
-  static volatile traceid class_id_counter = MaxJfrEventId + 100;
+  static volatile traceid class_id_counter = LAST_TYPE_ID;
   return atomic_inc(&class_id_counter) << TRACE_ID_SHIFT;
 }
 
@@ -62,17 +62,17 @@ static traceid next_thread_id() {
 }
 
 static traceid next_module_id() {
-  static volatile traceid module_id_counter = 1;
+  static volatile traceid module_id_counter = 0;
   return atomic_inc(&module_id_counter) << TRACE_ID_SHIFT;
 }
 
 static traceid next_package_id() {
-  static volatile traceid package_id_counter = 1;
+  static volatile traceid package_id_counter = 0;
   return atomic_inc(&package_id_counter) << TRACE_ID_SHIFT;
 }
 
 static traceid next_class_loader_data_id() {
-  static volatile traceid cld_id_counter = 1;
+  static volatile traceid cld_id_counter = 0;
   return atomic_inc(&cld_id_counter) << TRACE_ID_SHIFT;
 }
 
@@ -141,7 +141,7 @@ void JfrTraceId::assign(const PackageEntry* package) {
 
 void JfrTraceId::assign(const ClassLoaderData* cld) {
   assert(cld != NULL, "invariant");
-  if (cld->is_unsafe_anonymous()) {
+  if (cld->has_class_mirror_holder()) {
     cld->set_trace_id(0);
     return;
   }
@@ -152,6 +152,14 @@ traceid JfrTraceId::assign_thread_id() {
   return next_thread_id();
 }
 
+traceid JfrTraceId::load_raw(jclass jc) {
+  assert(jc != NULL, "invariant");
+  assert(JavaThread::current()->thread_state() == _thread_in_vm, "invariant");
+  const oop my_oop = JNIHandles::resolve(jc);
+  assert(my_oop != NULL, "invariant");
+  return load_raw(java_lang_Class::as_Klass(my_oop));
+}
+
 // used by CDS / APPCDS as part of "remove_unshareable_info"
 void JfrTraceId::remove(const Klass* k) {
   assert(k != NULL, "invariant");
@@ -159,7 +167,14 @@ void JfrTraceId::remove(const Klass* k) {
   // This mechanism will retain the event specific flags
   // in the archive, allowing for event flag restoration
   // when renewing the traceid on klass revival.
-  k->set_trace_id(EVENT_FLAGS_MASK(k));
+  k->set_trace_id(EVENT_KLASS_MASK(k));
+}
+
+// used by CDS / APPCDS as part of "remove_unshareable_info"
+void JfrTraceId::remove(const Method* method) {
+  assert(method != NULL, "invariant");
+  // Clear all bits.
+  method->set_trace_flags(0);
 }
 
 // used by CDS / APPCDS as part of "restore_unshareable_info"
@@ -173,25 +188,9 @@ void JfrTraceId::restore(const Klass* k) {
   k->set_trace_id(next_class_id() | event_flags);
 }
 
-traceid JfrTraceId::get(jclass jc) {
-  assert(jc != NULL, "invariant");
-  assert(((JavaThread*)Thread::current())->thread_state() == _thread_in_vm, "invariant");
-  const oop my_oop = JNIHandles::resolve(jc);
-  assert(my_oop != NULL, "invariant");
-  return get(java_lang_Class::as_Klass(my_oop));
-}
-
-traceid JfrTraceId::use(jclass jc, bool leakp /* false */) {
-  assert(jc != NULL, "invariant");
-  assert(((JavaThread*)Thread::current())->thread_state() == _thread_in_vm, "invariant");
-  const oop my_oop = JNIHandles::resolve(jc);
-  assert(my_oop != NULL, "invariant");
-  return use(java_lang_Class::as_Klass(my_oop), leakp);
-}
-
 bool JfrTraceId::in_visible_set(const jclass jc) {
   assert(jc != NULL, "invariant");
-  assert(((JavaThread*)Thread::current())->thread_state() == _thread_in_vm, "invariant");
+  assert(JavaThread::current()->thread_state() == _thread_in_vm, "invariant");
   const oop mirror = JNIHandles::resolve(jc);
   assert(mirror != NULL, "invariant");
   return in_visible_set(java_lang_Class::as_Klass(mirror));

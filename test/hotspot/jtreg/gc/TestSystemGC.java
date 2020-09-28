@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@ package gc;
 
 /*
  * @test TestSystemGCSerial
- * @key gc
  * @requires vm.gc.Serial
  * @summary Runs System.gc() with different flags.
  * @run main/othervm -XX:+UseSerialGC gc.TestSystemGC
@@ -33,16 +32,13 @@ package gc;
 
 /*
  * @test TestSystemGCParallel
- * @key gc
  * @requires vm.gc.Parallel
  * @summary Runs System.gc() with different flags.
  * @run main/othervm -XX:+UseParallelGC gc.TestSystemGC
- * @run main/othervm -XX:+UseParallelGC -XX:-UseParallelOldGC gc.TestSystemGC
  */
 
 /*
  * @test TestSystemGCG1
- * @key gc
  * @requires vm.gc.G1
  * @summary Runs System.gc() with different flags.
  * @run main/othervm -XX:+UseG1GC gc.TestSystemGC
@@ -52,18 +48,8 @@ package gc;
  */
 
 /*
- * @test TestSystemGCCMS
- * @key gc
- * @comment Graal does not support CMS
- * @requires vm.gc.ConcMarkSweep & !vm.graal.enabled
- * @run main/othervm -XX:+UseConcMarkSweepGC gc.TestSystemGC
- * @run main/othervm -XX:+UseConcMarkSweepGC -XX:+ExplicitGCInvokesConcurrent gc.TestSystemGC
- */
-
-/*
  * @test TestSystemGCShenandoah
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
  * @summary Runs System.gc() with different flags.
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC gc.TestSystemGC
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC -XX:+ExplicitGCInvokesConcurrent gc.TestSystemGC

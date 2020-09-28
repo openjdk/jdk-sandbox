@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -718,8 +718,7 @@ address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
 
   address entry = __ pc();
 
-  const int referent_offset = java_lang_ref_Reference::referent_offset;
-  guarantee(referent_offset > 0, "referent offset not initialized");
+  const int referent_offset = java_lang_ref_Reference::referent_offset();
 
   Label slow_path;
   // rbx: method
@@ -954,7 +953,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   assert(InterpreterRuntime::SignatureHandlerGenerator::temp() == NOT_LP64(t) LP64_ONLY(rscratch1),
          "adjust this code");
 
-  // The generated handlers do not touch RBX (the method oop).
+  // The generated handlers do not touch RBX (the method).
   // However, large signatures cannot be cached and are generated
   // each time here.  The slow-path generator can do a GC on return,
   // so we must reload it after the call.

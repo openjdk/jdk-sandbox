@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,9 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "memory/resourceArea.hpp"
+#include "nativeInst_s390.hpp"
 #include "oops/compiledICHolder.hpp"
+#include "oops/klass.inline.hpp"
 #include "registerSaver_s390.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -883,16 +885,16 @@ static void verify_oop_args(MacroAssembler *masm,
   if (!VerifyOops) { return; }
 
   for (int i = 0; i < total_args_passed; i++) {
-    if (sig_bt[i] == T_OBJECT || sig_bt[i] == T_ARRAY) {
+    if (is_reference_type(sig_bt[i])) {
       VMReg r = regs[i].first();
       assert(r->is_valid(), "bad oop arg");
 
       if (r->is_stack()) {
         __ z_lg(Z_R0_scratch,
                 Address(Z_SP, r->reg2stack() * VMRegImpl::stack_slot_size + wordSize));
-        __ verify_oop(Z_R0_scratch);
+        __ verify_oop(Z_R0_scratch, FILE_AND_LINE);
       } else {
-        __ verify_oop(r->as_Register());
+        __ verify_oop(r->as_Register(), FILE_AND_LINE);
       }
     }
   }
@@ -1520,7 +1522,6 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 VMRegPair *in_regs,
                                                 BasicType ret_type,
                                                 address critical_entry) {
-#ifdef COMPILER2
   int total_in_args = method->size_of_parameters();
   if (method->is_method_handle_intrinsic()) {
     vmIntrinsics::ID iid = method->intrinsic_id();
@@ -1625,27 +1626,15 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
     for (int i = 0; i < total_in_args; i++, o++) {
       if (in_sig_bt[i] == T_ARRAY) {
         // Arrays are passed as tuples (int, elem*).
-        Symbol* atype = ss.as_symbol();
-        const char* at = atype->as_C_string();
-        if (strlen(at) == 2) {
-          assert(at[0] == '[', "must be");
-          switch (at[1]) {
-            case 'B': in_elem_bt[o]  = T_BYTE; break;
-            case 'C': in_elem_bt[o]  = T_CHAR; break;
-            case 'D': in_elem_bt[o]  = T_DOUBLE; break;
-            case 'F': in_elem_bt[o]  = T_FLOAT; break;
-            case 'I': in_elem_bt[o]  = T_INT; break;
-            case 'J': in_elem_bt[o]  = T_LONG; break;
-            case 'S': in_elem_bt[o]  = T_SHORT; break;
-            case 'Z': in_elem_bt[o]  = T_BOOLEAN; break;
-            default: ShouldNotReachHere();
-          }
-        }
+        ss.skip_array_prefix(1);  // skip one '['
+        assert(ss.is_primitive(), "primitive type expected");
+        in_elem_bt[o] = ss.type();
       } else {
         in_elem_bt[o] = T_VOID;
       }
       if (in_sig_bt[i] != T_VOID) {
-        assert(in_sig_bt[i] == ss.type(), "must match");
+        assert(in_sig_bt[i] == ss.type() ||
+               in_sig_bt[i] == T_ARRAY, "must match");
         ss.next();
       }
     }
@@ -2318,7 +2307,7 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
   __ reset_last_Java_frame();
 
   // Unpack oop result, e.g. JNIHandles::resolve result.
-  if (ret_type == T_OBJECT || ret_type == T_ARRAY) {
+  if (is_reference_type(ret_type)) {
     __ resolve_jobject(Z_RET, /* tmp1 */ Z_R13, /* tmp2 */ Z_R7);
   }
 
@@ -2400,10 +2389,6 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
   }
 
   return nm;
-#else
-  ShouldNotReachHere();
-  return NULL;
-#endif // COMPILER2
 }
 
 static address gen_c2i_adapter(MacroAssembler  *masm,
@@ -2621,7 +2606,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
       } else {
         if (!r_2->is_valid()) {
           // Not sure we need to do this but it shouldn't hurt.
-          if (sig_bt[i] == T_OBJECT || sig_bt[i] == T_ADDRESS || sig_bt[i] == T_ARRAY) {
+          if (is_reference_type(sig_bt[i]) || sig_bt[i] == T_ADDRESS) {
             __ z_lg(r_1->as_Register(), ld_offset, ld_ptr);
           } else {
             __ z_l(r_1->as_Register(), ld_offset, ld_ptr);
@@ -2640,10 +2625,10 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   }
 
   // Jump to the compiled code just as if compiled code was doing it.
-  // load target address from method oop:
+  // load target address from method:
   __ z_lg(Z_R1_scratch, Address(Z_method, Method::from_compiled_offset()));
 
-  // Store method oop into thread->callee_target.
+  // Store method into thread->callee_target.
   // 6243940: We might end up in handle_wrong_method if
   // the callee is deoptimized as we race thru here. If that
   // happens we don't want to take a safepoint because the
@@ -2689,7 +2674,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
       __ z_ltgr(Z_ARG1, Z_ARG1);
       __ z_bre(ic_miss);
     }
-    __ verify_oop(Z_ARG1);
+    __ verify_oop(Z_ARG1, FILE_AND_LINE);
 
     // Check ic: object class <-> cached class
     // Compress cached class for comparison. That's more efficient.
@@ -2879,7 +2864,7 @@ void SharedRuntime::generate_deopt_blob() {
   // to Deoptimization::fetch_unroll_info below.
   // The (int) cast is necessary, because -((unsigned int)14)
   // is an unsigned int.
-  __ add2reg(Z_R14, -(int)HandlerImpl::size_deopt_handler());
+  __ add2reg(Z_R14, -(int)NativeCall::max_instruction_size());
 
   const Register   exec_mode_reg = Z_tmp_1;
 
@@ -2958,7 +2943,7 @@ void SharedRuntime::generate_deopt_blob() {
 #ifdef ASSERT
   // verify that there is really an exception oop in JavaThread
   __ z_lg(Z_ARG1, Address(Z_thread, JavaThread::exception_oop_offset()));
-  __ verify_oop(Z_ARG1);
+  __ MacroAssembler::verify_oop(Z_ARG1, FILE_AND_LINE);
 
   // verify that there is no pending exception
   __ asm_assert_mem8_is_zero(in_bytes(Thread::pending_exception_offset()), Z_thread,
@@ -3232,7 +3217,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   // Save registers, fpu state, and flags
   map = RegisterSaver::save_live_registers(masm, RegisterSaver::all_registers);
 
-  if (SafepointMechanism::uses_thread_local_poll() && !cause_return) {
+  if (!cause_return) {
     // Keep a copy of the return pc to detect if it gets modified.
     __ z_lgr(Z_R6, Z_R14);
   }
@@ -3272,7 +3257,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   // No exception case
   __ bind(noException);
 
-  if (SafepointMechanism::uses_thread_local_poll() && !cause_return) {
+  if (!cause_return) {
     Label no_adjust;
      // If our stashed return pc was modified by the runtime we avoid touching it
     const int offset_of_return_pc = _z_abi16(return_pc) + RegisterSaver::live_reg_frame_size(RegisterSaver::all_registers);

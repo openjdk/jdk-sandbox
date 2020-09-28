@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,7 @@ import sun.hotspot.WhiteBox;
 public class ArchiveConsistency extends DynamicArchiveTestBase {
     public static WhiteBox wb;
     public static int int_size;        // size of int
-    public static String[] shared_region_name = {"MiscCode", "ReadWrite", "ReadOnly", "MiscData"};
+    public static String[] shared_region_name = {"MiscCode", "ReadWrite", "ReadOnly", "BitMap"};
     public static int num_regions = shared_region_name.length;
 
     public static void main(String[] args) throws Exception {
@@ -60,7 +60,7 @@ public class ArchiveConsistency extends DynamicArchiveTestBase {
     static void testCustomBase() throws Exception {
         String topArchiveName = getNewArchiveName("top2");
         String baseArchiveName = getNewArchiveName("base");
-        dumpBaseArchive(baseArchiveName);
+        TestCommon.dumpBaseArchive(baseArchiveName);
         doTest(baseArchiveName, topArchiveName);
     }
 
@@ -114,7 +114,7 @@ public class ArchiveConsistency extends DynamicArchiveTestBase {
             bbuf.put((byte)0);
         }
 
-        int baseArchiveCRCOffset = wb.getOffsetForName("DynamicArchiveHeader::_base_archive_crc");
+        int baseArchiveCRCOffset = wb.getOffsetForName("DynamicArchiveHeader::_base_region_crc");
         int crc = 0;
         System.out.printf("%-12s%-12s\n", "Space name", "CRC");
         for (int i = 0; i < 4; i++) {

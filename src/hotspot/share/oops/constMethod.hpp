@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -121,7 +121,6 @@ class MethodParametersElement {
   u2 flags;
 };
 
-class KlassSizeStats;
 class AdapterHandlerEntry;
 
 // Class to collect the sizes of ConstMethod inline tables
@@ -292,14 +291,7 @@ public:
            "shared methods in archive have fixed adapter_trampoline");
     _adapter = adapter;
   }
-  void set_adapter_trampoline(AdapterHandlerEntry** trampoline) {
-    assert(DumpSharedSpaces || DynamicDumpSharedSpaces, "must be");
-    if (DumpSharedSpaces) {
-      assert(*trampoline == NULL,
-             "must be NULL during dump time, to be initialized at run time");
-    }
-    _adapter_trampoline = trampoline;
-  }
+  void set_adapter_trampoline(AdapterHandlerEntry** trampoline);
   void update_adapter_trampoline(AdapterHandlerEntry* adapter) {
     assert(is_shared(), "must be");
     *_adapter_trampoline = adapter;
@@ -377,10 +369,6 @@ public:
 
   // ConstMethods should be stored in the read-only region of CDS archive.
   static bool is_read_only_by_default() { return true; }
-
-#if INCLUDE_SERVICES
-  void collect_statistics(KlassSizeStats *sz) const;
-#endif
 
   // code size
   int code_size() const                          { return _code_size; }
@@ -530,6 +518,10 @@ public:
   // size of parameters
   int  size_of_parameters() const                { return _size_of_parameters; }
   void set_size_of_parameters(int size)          { _size_of_parameters = size; }
+
+  // result type (basic type of return value)
+  BasicType result_type() const                  { assert(_result_type >= T_BOOLEAN, "Must be set");
+                                                   return (BasicType)_result_type; }
 
   void set_result_type(BasicType rt)             { assert(rt < 16, "result type too large");
                                                    _result_type = (u1)rt; }

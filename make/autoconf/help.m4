@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -101,6 +101,8 @@ apt_help() {
       PKGHANDLER_COMMAND="sudo apt-get install libfontconfig1-dev" ;;
     freetype)
       PKGHANDLER_COMMAND="sudo apt-get install libfreetype6-dev" ;;
+    harfbuzz)
+      PKGHANDLER_COMMAND="sudo apt-get install libharfbuzz-dev" ;;
     ffi)
       PKGHANDLER_COMMAND="sudo apt-get install libffi-dev" ;;
     x11)
@@ -124,6 +126,8 @@ zypper_help() {
       PKGHANDLER_COMMAND="sudo zypper install fontconfig-devel" ;;
     freetype)
       PKGHANDLER_COMMAND="sudo zypper install freetype-devel" ;;
+    harfbuzz)
+      PKGHANDLER_COMMAND="sudo zypper install harfbuzz-devel" ;;
     x11)
       PKGHANDLER_COMMAND="sudo zypper install libX11-devel libXext-devel libXrender-devel libXrandr-devel libXtst-devel libXt-devel libXi-devel" ;;
     ccache)
@@ -143,6 +147,8 @@ yum_help() {
       PKGHANDLER_COMMAND="sudo yum install fontconfig-devel" ;;
     freetype)
       PKGHANDLER_COMMAND="sudo yum install freetype-devel" ;;
+    harfbuzz)
+      PKGHANDLER_COMMAND="sudo yum install harfbuzz-devel" ;;
     x11)
       PKGHANDLER_COMMAND="sudo yum install libXtst-devel libXt-devel libXrender-devel libXrandr-devel libXi-devel" ;;
     ccache)
@@ -180,21 +186,25 @@ AC_DEFUN_ONCE([HELP_PRINT_ADDITIONAL_HELP_AND_EXIT],
   if test "x$CONFIGURE_PRINT_ADDITIONAL_HELP" != x; then
 
     # Print available toolchains
-    $PRINTF "The following toolchains are available as arguments to --with-toolchain-type.\n"
-    $PRINTF "Which are valid to use depends on the build platform.\n"
+    $PRINTF "The following toolchains are valid as arguments to --with-toolchain-type.\n"
+    $PRINTF "Which are available to use depends on the build platform.\n"
     for toolchain in $VALID_TOOLCHAINS_all; do
       # Use indirect variable referencing
       toolchain_var_name=TOOLCHAIN_DESCRIPTION_$toolchain
       TOOLCHAIN_DESCRIPTION=${!toolchain_var_name}
-      $PRINTF "  %-10s  %s\n" $toolchain "$TOOLCHAIN_DESCRIPTION"
+      $PRINTF "  %-22s  %s\n" $toolchain "$TOOLCHAIN_DESCRIPTION"
     done
     $PRINTF "\n"
 
-    # Print available jvm features
-    $PRINTF "The following JVM features are available as arguments to --with-jvm-features.\n"
-    $PRINTF "Which are valid to use depends on the target platform.\n  "
-    $PRINTF "%s " $VALID_JVM_FEATURES
-    $PRINTF "\n"
+    # Print available JVM features
+    $PRINTF "The following JVM features are valid as arguments to --with-jvm-features.\n"
+    $PRINTF "Which are available to use depends on the environment and JVM variant.\n"
+    m4_foreach(FEATURE, m4_split(jvm_features_valid), [
+      # Create an m4 variable containing the description for FEATURE.
+      m4_define(FEATURE_DESCRIPTION, [jvm_feature_desc_]m4_translit(FEATURE, -, _))
+      $PRINTF "  %-22s  %s\n" FEATURE "FEATURE_DESCRIPTION"
+      m4_undefine([FEATURE_DESCRIPTION])
+    ])
 
     # And now exit directly
     exit 0
@@ -246,7 +256,11 @@ AC_DEFUN_ONCE([HELP_PRINT_SUMMARY_AND_WARNINGS],
   printf "\n"
   printf "Tools summary:\n"
   if test "x$OPENJDK_BUILD_OS" = "xwindows"; then
-    printf "* Environment:    $WINDOWS_ENV_VENDOR version $WINDOWS_ENV_VERSION (root at $WINDOWS_ENV_ROOT_PATH)\n"
+    printf "* Environment:    $WINDOWS_ENV_VENDOR version $WINDOWS_ENV_VERSION. Windows version $WINDOWS_VERSION"
+    if test "x$WINDOWS_ENV_ROOT_PATH" != "x"; then
+      printf ". Root at $WINDOWS_ENV_ROOT_PATH"
+    fi
+    printf "\n"
   fi
   printf "* Boot JDK:       $BOOT_JDK_VERSION (at $BOOT_JDK)\n"
   printf "* Toolchain:      $TOOLCHAIN_TYPE ($TOOLCHAIN_DESCRIPTION)\n"

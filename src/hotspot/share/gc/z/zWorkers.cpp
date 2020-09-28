@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,48 +22,14 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/gcLogPrecious.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zTask.hpp"
 #include "gc/z/zThread.hpp"
 #include "gc/z/zWorkers.inline.hpp"
-#include "runtime/os.hpp"
+#include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/safepoint.hpp"
-
-static uint calculate_nworkers_based_on_ncpus(double cpu_share_in_percent) {
-  return ceil(os::initial_active_processor_count() * cpu_share_in_percent / 100.0);
-}
-
-static uint calculate_nworkers_based_on_heap_size(double reserve_share_in_percent) {
-  const int nworkers = ((MaxHeapSize * (reserve_share_in_percent / 100.0)) - ZPageSizeMedium) / ZPageSizeSmall;
-  return MAX2(nworkers, 1);
-}
-
-static uint calculate_nworkers(double cpu_share_in_percent) {
-  // Cap number of workers so that we never use more than 10% of the max heap
-  // for the reserve. This is useful when using small heaps on large machines.
-  return MIN2(calculate_nworkers_based_on_ncpus(cpu_share_in_percent),
-              calculate_nworkers_based_on_heap_size(10.0));
-}
-
-uint ZWorkers::calculate_nparallel() {
-  // Use 60% of the CPUs, rounded up. We would like to use as many threads as
-  // possible to increase parallelism. However, using a thread count that is
-  // close to the number of processors tends to lead to over-provisioning and
-  // scheduling latency issues. Using 60% of the active processors appears to
-  // be a fairly good balance.
-  return calculate_nworkers(60.0);
-}
-
-uint ZWorkers::calculate_nconcurrent() {
-  // Use 12.5% of the CPUs, rounded up. The number of concurrent threads we
-  // would like to use heavily depends on the type of workload we are running.
-  // Using too many threads will have a negative impact on the application
-  // throughput, while using too few threads will prolong the GC-cycle and
-  // we then risk being out-run by the application. Using 12.5% of the active
-  // processors appears to be a fairly good balance.
-  return calculate_nworkers(12.5);
-}
 
 class ZWorkersInitializeTask : public ZTask {
 private:
@@ -105,7 +71,7 @@ ZWorkers::ZWorkers() :
              true /* are_GC_task_threads */,
              true /* are_ConcurrentGC_threads */) {
 
-  log_info(gc, init)("Workers: %u parallel, %u concurrent", nparallel(), nconcurrent());
+  log_info_p(gc, init)("Workers: %u parallel, %u concurrent", nparallel(), nconcurrent());
 
   // Initialize worker threads
   _workers.initialize_workers();
@@ -136,7 +102,6 @@ void ZWorkers::run(ZTask* task, uint nworkers) {
 }
 
 void ZWorkers::run_parallel(ZTask* task) {
-  assert(SafepointSynchronize::is_at_safepoint(), "Should be at a safepoint");
   run(task, nparallel());
 }
 
@@ -146,8 +111,4 @@ void ZWorkers::run_concurrent(ZTask* task) {
 
 void ZWorkers::threads_do(ThreadClosure* tc) const {
   _workers.threads_do(tc);
-}
-
-void ZWorkers::print_threads_on(outputStream* st) const {
-  _workers.print_worker_threads_on(st);
 }

@@ -27,6 +27,7 @@ package sun.net.www.http;
 import java.io.*;
 import java.util.concurrent.locks.ReentrantLock;
 import sun.net.www.*;
+import sun.nio.cs.US_ASCII;
 
 /**
  * A <code>ChunkedInputStream</code> provides a stream for reading a body of
@@ -307,7 +308,8 @@ public class ChunkedInputStream extends InputStream implements Hurryable {
                     /*
                      * Extract the chunk size from the header (ignoring extensions).
                      */
-                    String header = new String(rawData, rawPos, pos-rawPos+1, "US-ASCII");
+                    String header = new String(rawData, rawPos, pos-rawPos+1,
+                            US_ASCII.INSTANCE);
                     for (i=0; i < header.length(); i++) {
                         if (Character.digit(header.charAt(i), 16) == -1)
                             break;
@@ -461,7 +463,8 @@ public class ChunkedInputStream extends InputStream implements Hurryable {
                      * Extract any tailers and append them to the message
                      * headers.
                      */
-                    String trailer = new String(rawData, rawPos, pos-rawPos, "US-ASCII");
+                    String trailer = new String(rawData, rawPos, pos-rawPos,
+                            US_ASCII.INSTANCE);
                     i = trailer.indexOf(':');
                     if (i == -1) {
                         throw new IOException("Malformed tailer - format should be key:value");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,15 +33,10 @@ package com.sun.source.tree;
  *   yield <em>expression</em> ;
  * </pre>
  *
- * @jls section TODO
+ * @jls 14.21 The yield Statement
  *
  * @since 13
- *
- * @deprecated This class is modeling yield from switch expressions,
- * which are part of a preview feature and may be removed if
- * the preview feature is removed.
  */
-@Deprecated(forRemoval=true, since="13")
 public interface YieldTree extends StatementTree {
 
     /**

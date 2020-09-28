@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,7 +87,7 @@ inline void ZPhantomKeepAliveOopClosure::do_oop(narrowOop* p) {
 inline void ZPhantomCleanOopClosure::do_oop(oop* p) {
   // Read the oop once, to make sure the liveness check
   // and the later clearing uses the same value.
-  const oop obj = *(volatile oop*)p;
+  const oop obj = Atomic::load(p);
   if (ZBarrier::is_alive_barrier_on_phantom_oop(obj)) {
     ZBarrier::keep_alive_barrier_on_phantom_oop_field(p);
   } else {
@@ -96,7 +96,7 @@ inline void ZPhantomCleanOopClosure::do_oop(oop* p) {
     // oop here again (the object would be strongly live and we would
     // not consider clearing such oops), so therefore we don't have an
     // ABA problem here.
-    Atomic::cmpxchg(oop(NULL), p, obj);
+    Atomic::cmpxchg(p, obj, oop(NULL));
   }
 }
 

@@ -48,14 +48,6 @@ void ZDirector::sample_allocation_rate() const {
                        ZStatAllocRate::avg_sd() / M);
 }
 
-bool ZDirector::is_first() const {
-  return ZStatCycle::ncycles() == 0;
-}
-
-bool ZDirector::is_warm() const {
-  return ZStatCycle::ncycles() >= 3;
-}
-
 bool ZDirector::rule_timer() const {
   if (ZCollectionInterval == 0) {
     // Rule disabled
@@ -73,7 +65,7 @@ bool ZDirector::rule_timer() const {
 }
 
 bool ZDirector::rule_warmup() const {
-  if (is_warm()) {
+  if (ZStatCycle::is_warm()) {
     // Rule disabled
     return false;
   }
@@ -81,10 +73,10 @@ bool ZDirector::rule_warmup() const {
   // Perform GC if heap usage passes 10/20/30% and no other GC has been
   // performed yet. This allows us to get some early samples of the GC
   // duration, which is needed by the other rules.
-  const size_t max_capacity = ZHeap::heap()->soft_max_capacity();
+  const size_t soft_max_capacity = ZHeap::heap()->soft_max_capacity();
   const size_t used = ZHeap::heap()->used();
-  const double used_threshold_percent = (ZStatCycle::ncycles() + 1) * 0.1;
-  const size_t used_threshold = max_capacity * used_threshold_percent;
+  const double used_threshold_percent = (ZStatCycle::nwarmup_cycles() + 1) * 0.1;
+  const size_t used_threshold = soft_max_capacity * used_threshold_percent;
 
   log_debug(gc, director)("Rule: Warmup %.0f%%, Used: " SIZE_FORMAT "MB, UsedThreshold: " SIZE_FORMAT "MB",
                           used_threshold_percent * 100, used / M, used_threshold / M);
@@ -93,7 +85,7 @@ bool ZDirector::rule_warmup() const {
 }
 
 bool ZDirector::rule_allocation_rate() const {
-  if (is_first()) {
+  if (!ZStatCycle::is_normalized_duration_trustable()) {
     // Rule disabled
     return false;
   }
@@ -107,10 +99,10 @@ bool ZDirector::rule_allocation_rate() const {
   // Calculate amount of free memory available to Java threads. Note that
   // the heap reserve is not available to Java threads and is therefore not
   // considered part of the free memory.
-  const size_t max_capacity = ZHeap::heap()->soft_max_capacity();
+  const size_t soft_max_capacity = ZHeap::heap()->soft_max_capacity();
   const size_t max_reserve = ZHeap::heap()->max_reserve();
   const size_t used = ZHeap::heap()->used();
-  const size_t free_with_reserve = max_capacity - MIN2(max_capacity, used);
+  const size_t free_with_reserve = soft_max_capacity - MIN2(soft_max_capacity, used);
   const size_t free = free_with_reserve - MIN2(free_with_reserve, max_reserve);
 
   // Calculate time until OOM given the max allocation rate and the amount
@@ -140,7 +132,7 @@ bool ZDirector::rule_allocation_rate() const {
 }
 
 bool ZDirector::rule_proactive() const {
-  if (!ZProactive || !is_warm()) {
+  if (!ZProactive || !ZStatCycle::is_warm()) {
     // Rule disabled
     return false;
   }
@@ -191,12 +183,12 @@ bool ZDirector::rule_high_usage() const {
   // Calculate amount of free memory available to Java threads. Note that
   // the heap reserve is not available to Java threads and is therefore not
   // considered part of the free memory.
-  const size_t max_capacity = ZHeap::heap()->soft_max_capacity();
+  const size_t soft_max_capacity = ZHeap::heap()->soft_max_capacity();
   const size_t max_reserve = ZHeap::heap()->max_reserve();
   const size_t used = ZHeap::heap()->used();
-  const size_t free_with_reserve = max_capacity - used;
+  const size_t free_with_reserve = soft_max_capacity - MIN2(soft_max_capacity, used);
   const size_t free = free_with_reserve - MIN2(free_with_reserve, max_reserve);
-  const double free_percent = percent_of(free, max_capacity);
+  const double free_percent = percent_of(free, soft_max_capacity);
 
   log_debug(gc, director)("Rule: High Usage, Free: " SIZE_FORMAT "MB(%.1f%%)",
                           free / M, free_percent);

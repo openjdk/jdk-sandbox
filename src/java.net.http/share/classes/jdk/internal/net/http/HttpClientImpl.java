@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -267,7 +267,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
             try {
                 sslContext = SSLContext.getDefault();
             } catch (NoSuchAlgorithmException ex) {
-                throw new InternalError(ex);
+                throw new UncheckedIOException(new IOException(ex));
             }
         } else {
             sslContext = builder.sslContext;
@@ -310,7 +310,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
             selmgr = new SelectorManager(this);
         } catch (IOException e) {
             // unlikely
-            throw new InternalError(e);
+            throw new UncheckedIOException(e);
         }
         selmgr.setDaemon(true);
         filters = new FilterFactory();
@@ -334,19 +334,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
     }
 
     private static SSLParameters getDefaultParams(SSLContext ctx) {
-        SSLParameters params = ctx.getSupportedSSLParameters();
-        String[] protocols = params.getProtocols();
-        boolean found13 = false;
-        for (String proto : protocols) {
-            if (proto.equals("TLSv1.3")) {
-                found13 = true;
-                break;
-            }
-        }
-        if (found13)
-            params.setProtocols(new String[] {"TLSv1.3", "TLSv1.2"});
-        else
-            params.setProtocols(new String[] {"TLSv1.2"});
+        SSLParameters params = ctx.getDefaultSSLParameters();
         return params;
     }
 
@@ -538,6 +526,10 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         throws IOException, InterruptedException
     {
         CompletableFuture<HttpResponse<T>> cf = null;
+
+        // if the thread is already interrupted no need to go further.
+        // cf.get() would throw anyway.
+        if (Thread.interrupted()) throw new InterruptedException();
         try {
             cf = sendAsync(req, responseHandler, null, null);
             return cf.get();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,8 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/oopStorage.hpp"
+#include "gc/shared/oopStorageSet.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "jfr/leakprofiler/sampling/objectSample.hpp"
 #include "jfr/leakprofiler/sampling/objectSampler.hpp"
@@ -32,6 +34,7 @@
 #include "jfr/recorder/checkpoint/jfrCheckpointManager.hpp"
 #include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
 #include "jfr/support/jfrThreadLocal.hpp"
+#include "jfr/utilities/jfrTime.hpp"
 #include "jfr/utilities/jfrTryLock.hpp"
 #include "logging/log.hpp"
 #include "memory/universe.hpp"
@@ -41,6 +44,41 @@
 #include "runtime/safepoint.hpp"
 #include "runtime/thread.hpp"
 
+// Timestamp of when the gc last processed the set of sampled objects.
+// Atomic access to prevent word tearing on 32-bit platforms.
+static volatile int64_t _last_sweep;
+
+// Condition variable to communicate that some sampled objects have been cleared by the gc
+// and can therefore be removed from the sample priority queue.
+static bool volatile _dead_samples = false;
+
+// The OopStorage instance is used to hold weak references to sampled objects.
+// It is constructed and registered during VM initialization. This is a singleton
+// that persist independent of the state of the ObjectSampler.
+static OopStorage* _oop_storage = NULL;
+
+OopStorage* ObjectSampler::oop_storage() { return _oop_storage; }
+
+// Callback invoked by the GC after an iteration over the oop storage
+// that may have cleared dead referents. num_dead is the number of entries
+// already NULL or cleared by the iteration.
+void ObjectSampler::oop_storage_gc_notification(size_t num_dead) {
+  if (num_dead != 0) {
+    // The ObjectSampler instance may have already been cleaned or a new
+    // instance was created concurrently.  This allows for a small race where cleaning
+    // could be done again.
+    Atomic::store(&_dead_samples, true);
+    Atomic::store(&_last_sweep, (int64_t)JfrTicks::now().value());
+  }
+}
+
+bool ObjectSampler::create_oop_storage() {
+  _oop_storage = OopStorageSet::create_weak("Weak JFR Old Object Samples");
+  assert(_oop_storage != NULL, "invariant");
+  _oop_storage->register_num_dead_callback(&oop_storage_gc_notification);
+  return true;
+}
+
 static ObjectSampler* _instance = NULL;
 
 static ObjectSampler& instance() {
@@ -49,13 +87,14 @@ static ObjectSampler& instance() {
 }
 
 ObjectSampler::ObjectSampler(size_t size) :
-  _priority_queue(new SamplePriorityQueue(size)),
-  _list(new SampleList(size)),
-  _last_sweep(JfrTicks::now()),
-  _total_allocated(0),
-  _threshold(0),
-  _size(size),
-  _dead_samples(false) {}
+        _priority_queue(new SamplePriorityQueue(size)),
+        _list(new SampleList(size)),
+        _total_allocated(0),
+        _threshold(0),
+        _size(size) {
+  Atomic::store(&_dead_samples, false);
+  Atomic::store(&_last_sweep, (int64_t)JfrTicks::now().value());
+}
 
 ObjectSampler::~ObjectSampler() {
   delete _priority_queue;
@@ -66,6 +105,7 @@ ObjectSampler::~ObjectSampler() {
 
 bool ObjectSampler::create(size_t size) {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
+  assert(_oop_storage != NULL, "should be already created");
   assert(_instance == NULL, "invariant");
   _instance = new ObjectSampler(size);
   return _instance != NULL;
@@ -92,13 +132,11 @@ void ObjectSampler::destroy() {
 static volatile int _lock = 0;
 
 ObjectSampler* ObjectSampler::acquire() {
-  assert(is_created(), "invariant");
-  while (Atomic::cmpxchg(1, &_lock, 0) == 1) {}
+  while (Atomic::cmpxchg(&_lock, 0, 1) == 1) {}
   return _instance;
 }
 
 void ObjectSampler::release() {
-  assert(is_created(), "invariant");
   OrderAccess::fence();
   _lock = 0;
 }
@@ -110,67 +148,51 @@ static traceid get_thread_id(JavaThread* thread) {
   }
   const JfrThreadLocal* const tl = thread->jfr_thread_local();
   assert(tl != NULL, "invariant");
-  if (!tl->has_thread_checkpoint()) {
-    JfrCheckpointManager::create_thread_checkpoint(thread);
+  if (tl->is_excluded()) {
+    return 0;
   }
-  assert(tl->has_thread_checkpoint(), "invariant");
+  if (!tl->has_thread_blob()) {
+    JfrCheckpointManager::create_thread_blob(thread);
+  }
+  assert(tl->has_thread_blob(), "invariant");
   return tl->thread_id();
 }
 
-// Populates the thread local stack frames, but does not add them
-// to the stacktrace repository (...yet, see stacktrace_id() below)
-//
-void ObjectSampler::fill_stacktrace(JfrStackTrace* stacktrace, JavaThread* thread) {
-  assert(stacktrace != NULL, "invariant");
+static void record_stacktrace(JavaThread* thread) {
   assert(thread != NULL, "invariant");
   if (JfrEventSetting::has_stacktrace(EventOldObjectSample::eventId)) {
-    JfrStackTraceRepository::fill_stacktrace_for(thread, stacktrace, 0);
+    JfrStackTraceRepository::record_and_cache(thread);
   }
-}
-
-// We were successful in acquiring the try lock and have been selected for adding a sample.
-// Go ahead with installing our previously taken stacktrace into the stacktrace repository.
-//
-traceid ObjectSampler::stacktrace_id(const JfrStackTrace* stacktrace, JavaThread* thread) {
-  assert(stacktrace != NULL, "invariant");
-  assert(stacktrace->hash() != 0, "invariant");
-  const traceid stacktrace_id = JfrStackTraceRepository::add(stacktrace, thread);
-  thread->jfr_thread_local()->set_cached_stack_trace_id(stacktrace_id, stacktrace->hash());
-  return stacktrace_id;
 }
 
 void ObjectSampler::sample(HeapWord* obj, size_t allocated, JavaThread* thread) {
   assert(thread != NULL, "invariant");
   assert(is_created(), "invariant");
-
   const traceid thread_id = get_thread_id(thread);
   if (thread_id == 0) {
     return;
   }
-
-  const JfrThreadLocal* const tl = thread->jfr_thread_local();
-  JfrStackTrace stacktrace(tl->stackframes(), tl->stackdepth());
-  fill_stacktrace(&stacktrace, thread);
-
+  record_stacktrace(thread);
   // try enter critical section
   JfrTryLock tryLock(&_lock);
   if (!tryLock.has_lock()) {
     log_trace(jfr, oldobject, sampling)("Skipping old object sample due to lock contention");
     return;
   }
-
-  instance().add(obj, allocated, thread_id, &stacktrace, thread);
+  instance().add(obj, allocated, thread_id, thread);
 }
 
-void ObjectSampler::add(HeapWord* obj, size_t allocated, traceid thread_id, JfrStackTrace* stacktrace, JavaThread* thread) {
-  assert(stacktrace != NULL, "invariant");
+void ObjectSampler::add(HeapWord* obj, size_t allocated, traceid thread_id, JavaThread* thread) {
+  assert(obj != NULL, "invariant");
   assert(thread_id != 0, "invariant");
   assert(thread != NULL, "invariant");
-  assert(thread->jfr_thread_local()->has_thread_checkpoint(), "invariant");
+  assert(thread->jfr_thread_local()->has_thread_blob(), "invariant");
 
-  if (_dead_samples) {
+  if (Atomic::load(&_dead_samples)) {
+    // There's a small race where a GC scan might reset this to true, potentially
+    // causing a back-to-back scavenge.
+    Atomic::store(&_dead_samples, false);
     scavenge();
-    assert(!_dead_samples, "invariant");
   }
 
   _total_allocated += allocated;
@@ -190,11 +212,13 @@ void ObjectSampler::add(HeapWord* obj, size_t allocated, traceid thread_id, JfrS
 
   assert(sample != NULL, "invariant");
   sample->set_thread_id(thread_id);
-  sample->set_thread_checkpoint(thread->jfr_thread_local()->thread_checkpoint());
 
-  const unsigned int stacktrace_hash = stacktrace->hash();
+  const JfrThreadLocal* const tl = thread->jfr_thread_local();
+  sample->set_thread(tl->thread_blob());
+
+  const unsigned int stacktrace_hash = tl->cached_stack_trace_hash();
   if (stacktrace_hash != 0) {
-    sample->set_stack_trace_id(stacktrace_id(stacktrace, thread));
+    sample->set_stack_trace_id(tl->cached_stack_trace_id());
     sample->set_stack_trace_hash(stacktrace_hash);
   }
 
@@ -202,7 +226,7 @@ void ObjectSampler::add(HeapWord* obj, size_t allocated, traceid thread_id, JfrS
   sample->set_object((oop)obj);
   sample->set_allocated(allocated);
   sample->set_allocation_time(JfrTicks::now());
-  sample->set_heap_used_at_last_gc(Universe::get_heap_used_at_last_gc());
+  sample->set_heap_used_at_last_gc(Universe::heap()->used_at_last_gc());
   _priority_queue->push(sample);
 }
 
@@ -215,14 +239,15 @@ void ObjectSampler::scavenge() {
     }
     current = next;
   }
-  _dead_samples = false;
 }
 
 void ObjectSampler::remove_dead(ObjectSample* sample) {
   assert(sample != NULL, "invariant");
   assert(sample->is_dead(), "invariant");
+  sample->release();
+
   ObjectSample* const previous = sample->prev();
-  // push span on to previous
+  // push span onto previous
   if (previous != NULL) {
     _priority_queue->remove(previous);
     previous->add_span(sample->span());
@@ -232,28 +257,7 @@ void ObjectSampler::remove_dead(ObjectSample* sample) {
   _list->release(sample);
 }
 
-void ObjectSampler::oops_do(BoolObjectClosure* is_alive, OopClosure* f) {
-  assert(is_created(), "invariant");
-  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
-  ObjectSampler& sampler = instance();
-  ObjectSample* current = sampler._list->last();
-  while (current != NULL) {
-    ObjectSample* next = current->next();
-    if (!current->is_dead()) {
-      if (is_alive->do_object_b(current->object())) {
-        // The weakly referenced object is alive, update pointer
-        f->do_oop(const_cast<oop*>(current->object_addr()));
-      } else {
-        current->set_dead();
-        sampler._dead_samples = true;
-      }
-    }
-    current = next;
-  }
-  sampler._last_sweep = JfrTicks::now();
-}
-
-const ObjectSample* ObjectSampler::last() const {
+ObjectSample* ObjectSampler::last() const {
   return _list->last();
 }
 
@@ -283,6 +287,6 @@ ObjectSample* ObjectSampler::item_at(int index) {
                                   );
 }
 
-const JfrTicks& ObjectSampler::last_sweep() const {
-  return _last_sweep;
+int64_t ObjectSampler::last_sweep() {
+  return Atomic::load(&_last_sweep);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -89,59 +89,7 @@ enum {
 #define CMAP_ALLOC_DEFAULT      200     /* default number of colors in cmap */
 #define CMAP_ALLOC_MAX          245     /* maximum number of colors in cmap */
 
-#ifdef __solaris__
-#include <sys/utsname.h>
-
-struct {
-    char *machine;
-    int  cubesize;
-} machinemap[] = {
-    { "i86pc", LOOKUPSIZE / 4 }, /* BugTraq ID 4102599 */
-    { "sun4c", LOOKUPSIZE / 4 },
-    { "sun4m", LOOKUPSIZE / 2 },
-    { "sun4d", LOOKUPSIZE / 2 },
-    { "sun4u", LOOKUPSIZE / 1 },
-};
-
-#define MACHMAPSIZE     (sizeof(machinemap) / sizeof(machinemap[0]))
-
-int getVirtCubeSize() {
-    struct utsname name;
-    int i, ret;
-
-    ret = uname(&name);
-    if (ret < 0) {
-#ifdef DEBUG
-#include <errno.h>
-        jio_fprintf(stderr, "uname errno = %d, using default cubesize %d\n",
-                    errno, LOOKUPSIZE);
-#endif
-        return LOOKUPSIZE;
-    }
-
-    for (i = 0; i < MACHMAPSIZE; i++) {
-        if (strcmp(name.machine, machinemap[i].machine) == 0) {
-#ifdef DEBUG
-            if (debug_colormap) {
-                jio_fprintf(stderr, "'%s'.cubesize = '%d'\n",
-                            machinemap[i].machine, machinemap[i].cubesize);
-            }
-#endif
-            return machinemap[i].cubesize;
-        }
-    }
-
-#ifdef DEBUG
-    if (debug_colormap) {
-        jio_fprintf(stderr, "unknown machine '%s' using cubesize %d\n",
-                    name.machine, LOOKUPSIZE);
-    }
-#endif
-    return LOOKUPSIZE;
-}
-#else /* __solaris__ */
 #define getVirtCubeSize()       (LOOKUPSIZE)
-#endif /* __solaris__ */
 
 unsigned char img_bwgamma[256];
 uns_ordered_dither_array img_oda_alpha;
@@ -336,19 +284,6 @@ alloc_col(Display *dpy, Colormap cm, int r, int g, int b, int pixel,
 
     return awt_color_match(r, g, b, awt_data);
 }
-
-void
-awt_allocate_systemcolors(XColor *colorsPtr, int num_pixels, AwtGraphicsConfigDataPtr awtData) {
-    int i;
-    int r, g, b, pixel;
-
-    for (i=0; i < num_pixels; i++) {
-        r = colorsPtr[i].red   >> 8;
-        g = colorsPtr[i].green >> 8;
-        b = colorsPtr[i].blue  >> 8;
-        pixel = alloc_col(awt_display, awtData->awt_cmap, r, g, b, -1, awtData);
-    }
-}
 #endif /* !HEADLESS */
 
 void
@@ -402,6 +337,9 @@ awt_allocate_colors(AwtGraphicsConfigDataPtr awt_data)
     pVI = &awt_data->awt_visInfo;
     awt_data->awt_num_colors = awt_data->awt_visInfo.colormap_size;
     awt_data->awtImage = (awtImageData *) calloc (1, sizeof (awtImageData));
+    if (awt_data->awtImage == NULL) {
+        return 0;
+    }
 
     pPFV = XListPixmapFormats(dpy, &numpfv);
     if (pPFV) {
@@ -572,12 +510,17 @@ awt_allocate_colors(AwtGraphicsConfigDataPtr awt_data)
     }
 
     if (awt_data->awt_num_colors > paletteSize) {
-        free (awt_data->awtImage);
+        free(awt_data->awtImage);
         return 0;
     }
 
     /* Allocate ColorData structure */
     awt_data->color_data = ZALLOC (_ColorData);
+    if (awt_data->color_data == NULL) {
+        free(awt_data->awtImage);
+        return 0;
+    }
+
     awt_data->color_data->screendata = 1; /* This ColorData struct corresponds
                                              to some AWT screen/visual, so when
                                              any IndexColorModel using this
@@ -594,6 +537,11 @@ awt_allocate_colors(AwtGraphicsConfigDataPtr awt_data)
 
     awt_data->color_data->awt_Colors =
         (ColorEntry *)calloc(paletteSize, sizeof (ColorEntry));
+    if (awt_data->color_data->awt_Colors == NULL) {
+        free(awt_data->awtImage);
+        free(awt_data->color_data);
+        return 0;
+    }
 
     XQueryColors(dpy, cm, cols, awt_data->awt_num_colors);
     for (i = 0; i < awt_data->awt_num_colors; i++) {
@@ -667,6 +615,11 @@ awt_allocate_colors(AwtGraphicsConfigDataPtr awt_data)
 
         awt_data->color_data->img_grays =
             (unsigned char *)calloc(256, sizeof(unsigned char));
+        if ( awt_data->color_data->img_grays == NULL) {
+            free(awt_data->awtImage);
+            free(awt_data->color_data);
+            return 0;
+        }
         for (g = 0; g < 256; g++) {
             int mindist, besti;
             int d;
@@ -810,6 +763,11 @@ awt_allocate_colors(AwtGraphicsConfigDataPtr awt_data)
     awt_data->color_data->img_clr_tbl =
         (unsigned char *)calloc(LOOKUPSIZE * LOOKUPSIZE * LOOKUPSIZE,
                                 sizeof(unsigned char));
+    if (awt_data->color_data->img_clr_tbl == NULL) {
+        free(awt_data->awtImage);
+        free(awt_data->color_data);
+        return 0;
+    }
     img_makePalette(cmapsize, k, LOOKUPSIZE, 50, 250,
                     allocatedColorsNum, TRUE, reds, greens, blues,
                     awt_data->color_data->img_clr_tbl);
@@ -858,6 +816,12 @@ awt_allocate_colors(AwtGraphicsConfigDataPtr awt_data)
     awt_data->color_data->awt_icmLUT2Colors =
         (unsigned char *)calloc(paletteSize, sizeof (unsigned char));
     awt_data->color_data->awt_icmLUT = (int *)calloc(paletteSize, sizeof(int));
+    if (awt_data->color_data->awt_icmLUT2Colors == NULL || awt_data->color_data->awt_icmLUT == NULL) {
+        free(awt_data->awtImage);
+        free(awt_data->color_data);
+        return 0;
+    }
+
     for (i=0; i < paletteSize; i++) {
         /* Keep the mapping between this lut and the actual cmap */
         awt_data->color_data->awt_icmLUT2Colors
@@ -1247,49 +1211,6 @@ jobject awtJNI_GetColorModel(JNIEnv *env, AwtGraphicsConfigDataPtr aData)
 extern jfieldID colorValueID;
 
 #ifndef HEADLESS
-int awtJNI_GetColor(JNIEnv *env,jobject this)
-{
-    /* REMIND: should not be defaultConfig. */
-    return awtJNI_GetColorForVis (env, this, getDefaultConfig(DefaultScreen(awt_display)));
-}
-
-int awtJNI_GetColorForVis (JNIEnv *env,jobject this, AwtGraphicsConfigDataPtr awt_data)
-{
-    int col;
-    jclass SYSCLR_class;
-
-    if (!JNU_IsNull(env,this))
-    {
-        SYSCLR_class = (*env)->FindClass(env, "java/awt/SystemColor");
-        CHECK_NULL_RETURN(SYSCLR_class, 0);
-
-        if ((*env)->IsInstanceOf(env, this, SYSCLR_class)) {
-                /* SECURITY: This is safe, because there is no way
-                 *           for client code to insert an object
-                 *           that is a subclass of SystemColor
-                 */
-                col = (int) JNU_CallMethodByName(env
-                                          ,NULL
-                                          ,this
-                                          ,"getRGB"
-                                          ,"()I").i;
-                JNU_CHECK_EXCEPTION_RETURN(env, 0);
-        } else {
-                col = (int)(*env)->GetIntField(env,this,colorValueID);
-        }
-
-        if (awt_data->awt_cmap == (Colormap) NULL) {
-            awtJNI_CreateColorData (env, awt_data, 1);
-        }
-
-        col = awt_data->AwtColorMatch(red(col), green(col), blue(col),
-                                      awt_data);
-        return col;
-    }
-
-    return 0;
-}
-
 void
 awt_allocate_systemrgbcolors (jint *rgbColors, int num_colors,
                               AwtGraphicsConfigDataPtr awtData) {

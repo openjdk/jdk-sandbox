@@ -91,7 +91,7 @@ public:
     return _table[table_index];
   }
 
-  void   remove_useless_nodes(VectorSet &useful); // replace with sentinel
+  void   remove_useless_nodes(VectorSet& useful); // replace with sentinel
   void   replace_with(NodeHash* nh);
   void   check_no_speculative_types(); // Check no speculative part for type nodes in table
 
@@ -436,9 +436,6 @@ public:
   // Helper to call Node::Ideal() and BarrierSetC2::ideal_node().
   Node* apply_ideal(Node* i, bool can_reshape);
 
-  // Helper to call Node::Identity() and BarrierSetC2::identity_node().
-  Node* apply_identity(Node* n);
-
   // Check for a simple dead loop when a data node references itself.
   DEBUG_ONLY(void dead_loop_check(Node *n);)
 };
@@ -461,8 +458,8 @@ private:
 
 protected:
 
-  // Warm up hash table, type table and initial worklist
-  void init_worklist( Node *a_root );
+  // Shuffle worklist, for stress testing
+  void shuffle_worklist();
 
   virtual const Type* saturate(const Type* new_type, const Type* old_type,
                                const Type* limit_type) const;
@@ -555,13 +552,6 @@ public:
   void set_delay_transform(bool delay) {
     _delay_transform = delay;
   }
-
-  // Clone loop predicates. Defined in loopTransform.cpp.
-  Node* clone_loop_predicates(Node* old_entry, Node* new_entry, bool clone_limit_check);
-  // Create a new if below new_entry for the predicate to be cloned
-  ProjNode* create_new_if_for_predicate(ProjNode* cont_proj, Node* new_entry,
-                                        Deoptimization::DeoptReason reason,
-                                        int opcode);
 
   void remove_speculative_types();
   void check_no_speculative_types() {

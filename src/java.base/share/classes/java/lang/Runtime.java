@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +36,7 @@ import java.util.Optional;
 import java.util.StringTokenizer;
 
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.loader.NativeLibrary;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 
@@ -732,16 +734,17 @@ public class Runtime {
         load0(Reflection.getCallerClass(), filename);
     }
 
-    synchronized void load0(Class<?> fromClass, String filename) {
+    void load0(Class<?> fromClass, String filename) {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkLink(filename);
         }
-        if (!(new File(filename).isAbsolute())) {
+        File file = new File(filename);
+        if (!file.isAbsolute()) {
             throw new UnsatisfiedLinkError(
                 "Expecting an absolute path of the library: " + filename);
         }
-        ClassLoader.loadLibrary(fromClass, filename, true);
+        ClassLoader.loadLibrary(fromClass, file);
     }
 
     /**
@@ -754,8 +757,8 @@ public class Runtime {
      * for more details.
      *
      * Otherwise, the libname argument is loaded from a system library
-     * location and mapped to a native library image in an implementation-
-     * dependent manner.
+     * location and mapped to a native library image in an
+     * implementation-dependent manner.
      * <p>
      * First, if there is a security manager, its {@code checkLink}
      * method is called with the {@code libname} as its argument.
@@ -794,16 +797,16 @@ public class Runtime {
         loadLibrary0(Reflection.getCallerClass(), libname);
     }
 
-    synchronized void loadLibrary0(Class<?> fromClass, String libname) {
+    void loadLibrary0(Class<?> fromClass, String libname) {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkLink(libname);
         }
         if (libname.indexOf((int)File.separatorChar) != -1) {
             throw new UnsatisfiedLinkError(
-    "Directory separator should not appear in library name: " + libname);
+                "Directory separator should not appear in library name: " + libname);
         }
-        ClassLoader.loadLibrary(fromClass, libname, false);
+        ClassLoader.loadLibrary(fromClass, libname);
     }
 
     /**
@@ -895,7 +898,7 @@ public class Runtime {
      * <blockquote><pre>
      *     $VNUM(-$PRE)?\+$BUILD(-$OPT)?
      *     $VNUM-$PRE(-$OPT)?
-     *     $VNUM(+-$OPT)?
+     *     $VNUM(\+-$OPT)?
      * </pre></blockquote>
      *
      * <p> where: </p>
@@ -957,7 +960,7 @@ public class Runtime {
 
         /*
          * List of version number components passed to this constructor MUST
-         * be at least unmodifiable (ideally immutable). In the case on an
+         * be at least unmodifiable (ideally immutable). In the case of an
          * unmodifiable list, the caller MUST hand the list over to this
          * constructor and never change the underlying list.
          */
@@ -1043,7 +1046,7 @@ public class Runtime {
                 } else {
                     if (optional.isPresent() && !pre.isPresent()) {
                         throw new IllegalArgumentException("optional component"
-                            + " must be preceeded by a pre-release component"
+                            + " must be preceded by a pre-release component"
                             + " or '+': '" + s + "'");
                     }
                 }

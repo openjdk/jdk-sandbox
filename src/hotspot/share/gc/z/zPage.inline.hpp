@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,14 +39,11 @@
 #include "utilities/debug.hpp"
 
 inline uint8_t ZPage::type_from_size(size_t size) const {
-  switch (size) {
-  case ZPageSizeSmall:
+  if (size == ZPageSizeSmall) {
     return ZPageTypeSmall;
-
-  case ZPageSizeMedium:
+  } else if (size == ZPageSizeMedium) {
     return ZPageTypeMedium;
-
-  default:
+  } else {
     return ZPageTypeLarge;
   }
 }
@@ -129,17 +126,21 @@ inline size_t ZPage::remaining() const {
   return end() - top();
 }
 
-inline const ZPhysicalMemory& ZPage::physical_memory() const {
-  return _physical;
-}
-
 inline const ZVirtualMemory& ZPage::virtual_memory() const {
   return _virtual;
 }
 
+inline const ZPhysicalMemory& ZPage::physical_memory() const {
+  return _physical;
+}
+
+inline ZPhysicalMemory& ZPage::physical_memory() {
+  return _physical;
+}
+
 inline uint8_t ZPage::numa_id() {
   if (_numa_id == (uint8_t)-1) {
-    _numa_id = (uint8_t)ZNUMA::memory_id(ZAddress::good(start()));
+    _numa_id = ZNUMA::memory_id(ZAddress::good(start()));
   }
 
   return _numa_id;
@@ -153,23 +154,12 @@ inline bool ZPage::is_relocatable() const {
   return _seqnum < ZGlobalSeqNum;
 }
 
-inline bool ZPage::is_mapped() const {
-  return _seqnum > 0;
-}
-
-inline void ZPage::set_pre_mapped() {
-  // The _seqnum variable is also used to signal that the virtual and physical
-  // memory has been mapped. So, we need to set it to non-zero when the memory
-  // has been pre-mapped.
-  _seqnum = 1;
-}
-
 inline uint64_t ZPage::last_used() const {
   return _last_used;
 }
 
 inline void ZPage::set_last_used() {
-  _last_used = os::elapsedTime();
+  _last_used = ceil(os::elapsedTime());
 }
 
 inline bool ZPage::is_in(uintptr_t addr) const {
@@ -207,11 +197,11 @@ inline bool ZPage::mark_object(uintptr_t addr, bool finalizable, bool& inc_live)
 
   // Set mark bit
   const size_t index = ((ZAddress::offset(addr) - start()) >> object_alignment_shift()) * 2;
-  return _livemap.set_atomic(index, finalizable, inc_live);
+  return _livemap.set(index, finalizable, inc_live);
 }
 
-inline void ZPage::inc_live_atomic(uint32_t objects, size_t bytes) {
-  _livemap.inc_live_atomic(objects, bytes);
+inline void ZPage::inc_live(uint32_t objects, size_t bytes) {
+  _livemap.inc_live(objects, bytes);
 }
 
 inline uint32_t ZPage::live_objects() const {
@@ -258,7 +248,7 @@ inline uintptr_t ZPage::alloc_object_atomic(size_t size) {
       return 0;
     }
 
-    const uintptr_t prev_top = Atomic::cmpxchg(new_top, &_top, addr);
+    const uintptr_t prev_top = Atomic::cmpxchg(&_top, addr, new_top);
     if (prev_top == addr) {
       // Success
       return ZAddress::good(addr);
@@ -302,7 +292,7 @@ inline bool ZPage::undo_alloc_object_atomic(uintptr_t addr, size_t size) {
       return false;
     }
 
-    const uintptr_t prev_top = Atomic::cmpxchg(new_top, &_top, old_top);
+    const uintptr_t prev_top = Atomic::cmpxchg(&_top, old_top, new_top);
     if (prev_top == old_top) {
       // Success
       return true;

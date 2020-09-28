@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -440,6 +440,7 @@ public final class Math {
      *          floating-point value that is greater than or equal to
      *          the argument and is equal to a mathematical integer.
      */
+    @HotSpotIntrinsicCandidate
     public static double ceil(double a) {
         return StrictMath.ceil(a); // default impl. delegates to StrictMath
     }
@@ -459,6 +460,7 @@ public final class Math {
      *          floating-point value that less than or equal to the argument
      *          and is equal to a mathematical integer.
      */
+    @HotSpotIntrinsicCandidate
     public static double floor(double a) {
         return StrictMath.floor(a); // default impl. delegates to StrictMath
     }
@@ -478,6 +480,7 @@ public final class Math {
      * @return  the closest floating-point value to {@code a} that is
      *          equal to a mathematical integer.
      */
+    @HotSpotIntrinsicCandidate
     public static double rint(double a) {
         return StrictMath.rint(a); // default impl. delegates to StrictMath
     }
@@ -1256,16 +1259,17 @@ public final class Math {
      * Examples:
      * <ul>
      *   <li>If the signs of the arguments are the same, the results
-     *       of {@code floorMod} and the {@code %} operator are the same.  <br>
+     *       of {@code floorMod} and the {@code %} operator are the same.<br>
      *       <ul>
-     *       <li>{@code floorMod(4, 3) == 1}; &nbsp; and {@code (4 % 3) == 1}</li>
+     *       <li>{@code floorMod(+4, +3) == +1}; &nbsp; and {@code (+4 % +3) == +1}</li>
+     *       <li>{@code floorMod(-4, -3) == -1}; &nbsp; and {@code (-4 % -3) == -1}</li>
      *       </ul>
-     *   <li>If the signs of the arguments are different, the results differ from the {@code %} operator.<br>
-     *      <ul>
-     *      <li>{@code floorMod(+4, -3) == -2}; &nbsp; and {@code (+4 % -3) == +1} </li>
-     *      <li>{@code floorMod(-4, +3) == +2}; &nbsp; and {@code (-4 % +3) == -1} </li>
-     *      <li>{@code floorMod(-4, -3) == -1}; &nbsp; and {@code (-4 % -3) == -1 } </li>
-     *      </ul>
+     *   <li>If the signs of the arguments are different, the results
+     *       differ from the {@code %} operator.<br>
+     *       <ul>
+     *       <li>{@code floorMod(+4, -3) == -2}; &nbsp; and {@code (+4 % -3) == +1}</li>
+     *       <li>{@code floorMod(-4, +3) == +2}; &nbsp; and {@code (-4 % +3) == -1}</li>
+     *       </ul>
      *   </li>
      * </ul>
      * <p>
@@ -1351,13 +1355,15 @@ public final class Math {
      * If the argument is not negative, the argument is returned.
      * If the argument is negative, the negation of the argument is returned.
      *
-     * <p>Note that if the argument is equal to the value of
-     * {@link Integer#MIN_VALUE}, the most negative representable
-     * {@code int} value, the result is that same value, which is
-     * negative.
+     * <p>Note that if the argument is equal to the value of {@link
+     * Integer#MIN_VALUE}, the most negative representable {@code int}
+     * value, the result is that same value, which is negative. In
+     * contrast, the {@link Math#absExact(int)} method throws an
+     * {@code ArithmeticException} for this value.
      *
      * @param   a   the argument whose absolute value is to be determined
      * @return  the absolute value of the argument.
+     * @see Math#absExact(int)
      */
     @HotSpotIntrinsicCandidate
     public static int abs(int a) {
@@ -1365,21 +1371,75 @@ public final class Math {
     }
 
     /**
+     * Returns the mathematical absolute value of an {@code int} value
+     * if it is exactly representable as an {@code int}, throwing
+     * {@code ArithmeticException} if the result overflows the
+     * positive {@code int} range.
+     *
+     * <p>Since the range of two's complement integers is asymmetric
+     * with one additional negative value (JLS {@jls 4.2.1}), the
+     * mathematical absolute value of {@link Integer#MIN_VALUE}
+     * overflows the positive {@code int} range, so an exception is
+     * thrown for that argument.
+     *
+     * @param  a  the argument whose absolute value is to be determined
+     * @return the absolute value of the argument, unless overflow occurs
+     * @throws ArithmeticException if the argument is {@link Integer#MIN_VALUE}
+     * @see Math#abs(int)
+     * @since 15
+     */
+    public static int absExact(int a) {
+        if (a == Integer.MIN_VALUE)
+            throw new ArithmeticException(
+                "Overflow to represent absolute value of Integer.MIN_VALUE");
+        else
+            return abs(a);
+    }
+
+    /**
      * Returns the absolute value of a {@code long} value.
      * If the argument is not negative, the argument is returned.
      * If the argument is negative, the negation of the argument is returned.
      *
-     * <p>Note that if the argument is equal to the value of
-     * {@link Long#MIN_VALUE}, the most negative representable
-     * {@code long} value, the result is that same value, which
-     * is negative.
+     * <p>Note that if the argument is equal to the value of {@link
+     * Long#MIN_VALUE}, the most negative representable {@code long}
+     * value, the result is that same value, which is negative. In
+     * contrast, the {@link Math#absExact(long)} method throws an
+     * {@code ArithmeticException} for this value.
      *
      * @param   a   the argument whose absolute value is to be determined
      * @return  the absolute value of the argument.
+     * @see Math#absExact(long)
      */
     @HotSpotIntrinsicCandidate
     public static long abs(long a) {
         return (a < 0) ? -a : a;
+    }
+
+    /**
+     * Returns the mathematical absolute value of an {@code long} value
+     * if it is exactly representable as an {@code long}, throwing
+     * {@code ArithmeticException} if the result overflows the
+     * positive {@code long} range.
+     *
+     * <p>Since the range of two's complement integers is asymmetric
+     * with one additional negative value (JLS {@jls 4.2.1}), the
+     * mathematical absolute value of {@link Long#MIN_VALUE} overflows
+     * the positive {@code long} range, so an exception is thrown for
+     * that argument.
+     *
+     * @param  a  the argument whose absolute value is to be determined
+     * @return the absolute value of the argument, unless overflow occurs
+     * @throws ArithmeticException if the argument is {@link Long#MIN_VALUE}
+     * @see Math#abs(long)
+     * @since 15
+     */
+    public static long absExact(long a) {
+        if (a == Long.MIN_VALUE)
+            throw new ArithmeticException(
+                "Overflow to represent absolute value of Long.MIN_VALUE");
+        else
+            return abs(a);
     }
 
     /**
@@ -1917,6 +1977,7 @@ public final class Math {
      * @author Joseph D. Darcy
      * @since 1.5
      */
+    @HotSpotIntrinsicCandidate
     public static double signum(double d) {
         return (d == 0.0 || Double.isNaN(d))?d:copySign(1.0, d);
     }
@@ -1938,6 +1999,7 @@ public final class Math {
      * @author Joseph D. Darcy
      * @since 1.5
      */
+    @HotSpotIntrinsicCandidate
     public static float signum(float f) {
         return (f == 0.0f || Float.isNaN(f))?f:copySign(1.0f, f);
     }
@@ -2158,6 +2220,7 @@ public final class Math {
      * and the sign of {@code sign}.
      * @since 1.6
      */
+    @HotSpotIntrinsicCandidate
     public static double copySign(double magnitude, double sign) {
         return Double.longBitsToDouble((Double.doubleToRawLongBits(sign) &
                                         (DoubleConsts.SIGN_BIT_MASK)) |
@@ -2181,6 +2244,7 @@ public final class Math {
      * and the sign of {@code sign}.
      * @since 1.6
      */
+    @HotSpotIntrinsicCandidate
     public static float copySign(float magnitude, float sign) {
         return Float.intBitsToFloat((Float.floatToRawIntBits(sign) &
                                      (FloatConsts.SIGN_BIT_MASK)) |
@@ -2599,7 +2663,7 @@ public final class Math {
          * round it away to zero.  This is done by first multiplying
          * by 2 ^ (scaleFactor % n) and then multiplying several
          * times by 2^n as needed where n is the exponent of number
-         * that is a covenient power of two.  In this way, at most one
+         * that is a convenient power of two.  In this way, at most one
          * real rounding error occurs.  If the double value set is
          * being used exclusively, the rounding will occur on a
          * multiply.  If the double-extended-exponent value set is

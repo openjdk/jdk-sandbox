@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,20 @@ import jdk.jfr.consumer.RecordedEvent;
 import jdk.test.lib.jfr.EventVerifier;
 import jdk.test.lib.jfr.GCHelper;
 import sun.hotspot.WhiteBox;
+
+/*
+ * @test TestGCHeapConfigurationEventWith32BitOops
+ * @key jfr
+ * @requires vm.hasJFR
+ * @requires vm.gc == "Parallel" | vm.gc == null
+ * @requires os.family == "linux" | os.family == "windows"
+ * @requires sun.arch.data.model == "64"
+ * @library /test/lib /test/jdk
+ * @build sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:-UseFastUnorderedTimeStamps -XX:+UseParallelGC -XX:+UseCompressedOops -Xmx100m -Xms100m -XX:InitialHeapSize=100m -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI jdk.jfr.event.gc.configuration.TestGCHeapConfigurationEventWith32BitOops
+ */
+
 
 /* See the shell script wrapper for the flags used when invoking the JVM */
 public class TestGCHeapConfigurationEventWith32BitOops extends GCHeapConfigurationEventTester {

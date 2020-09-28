@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.misc.CDS;
 import jdk.internal.misc.VM;
 
 import static java.lang.String.COMPACT_STRINGS;
@@ -598,7 +599,7 @@ public final class Integer extends Number
      * @param      radix   the radix to be used while parsing {@code s}.
      * @return     the integer represented by the string argument in the
      *             specified radix.
-     * @exception  NumberFormatException if the {@code String}
+     * @throws     NumberFormatException if the {@code String}
      *             does not contain a parsable {@code int}.
      */
     public static int parseInt(String s, int radix)
@@ -763,7 +764,7 @@ public final class Integer extends Number
      * @param s    a {@code String} containing the {@code int}
      *             representation to be parsed
      * @return     the integer value represented by the argument in decimal.
-     * @exception  NumberFormatException  if the string does not contain a
+     * @throws     NumberFormatException  if the string does not contain a
      *               parsable integer.
      */
     public static int parseInt(String s) throws NumberFormatException {
@@ -950,7 +951,7 @@ public final class Integer extends Number
      * @return     an {@code Integer} object holding the value
      *             represented by the string argument in the specified
      *             radix.
-     * @exception NumberFormatException if the {@code String}
+     * @throws    NumberFormatException if the {@code String}
      *            does not contain a parsable {@code int}.
      */
     public static Integer valueOf(String s, int radix) throws NumberFormatException {
@@ -976,7 +977,7 @@ public final class Integer extends Number
      * @param      s   the string to be parsed.
      * @return     an {@code Integer} object holding the value
      *             represented by the string argument.
-     * @exception  NumberFormatException  if the string cannot be parsed
+     * @throws     NumberFormatException  if the string cannot be parsed
      *             as an integer.
      */
     public static Integer valueOf(String s) throws NumberFormatException {
@@ -1023,7 +1024,7 @@ public final class Integer extends Number
             high = h;
 
             // Load IntegerCache.archivedCache from archive, if possible
-            VM.initializeFromArchive(IntegerCache.class);
+            CDS.initializeFromArchive(IntegerCache.class);
             int size = (high - low) + 1;
 
             // Use the archived cache if it exists and is large enough
@@ -1376,8 +1377,8 @@ public final class Integer extends Number
      * </blockquote>
      *
      * <i>DecimalNumeral</i>, <i>HexDigits</i>, and <i>OctalDigits</i>
-     * are as defined in section 3.10.1 of
-     * <cite>The Java&trade; Language Specification</cite>,
+     * are as defined in section {@jls 3.10.1} of
+     * <cite>The Java Language Specification</cite>,
      * except that underscores are not accepted between digits.
      *
      * <p>The sequence of characters following an optional
@@ -1393,7 +1394,7 @@ public final class Integer extends Number
      * @param     nm the {@code String} to decode.
      * @return    an {@code Integer} object holding the {@code int}
      *             value represented by {@code nm}
-     * @exception NumberFormatException  if the {@code String} does not
+     * @throws    NumberFormatException  if the {@code String} does not
      *            contain a parsable integer.
      * @see java.lang.Integer#parseInt(java.lang.String, int)
      */

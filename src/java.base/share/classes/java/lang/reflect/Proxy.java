@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -298,16 +298,10 @@ public class Proxy implements java.io.Serializable {
         new ClassLoaderValue<>();
 
     /**
-     * System property to revert to generation of proxy class files for version 1.5 (V49).
-     * Set to "true" to generate v49 class file format.
-     */
-    private static final boolean PROXY_GENERATOR_V49 =
-            GetBooleanAction.privilegedGetProperty("jdk.proxy.ProxyGenerator.v49");
-
-    /**
      * the invocation handler for this proxy instance.
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected InvocationHandler h;
 
     /**
@@ -540,9 +534,7 @@ public class Proxy implements java.io.Serializable {
             /*
              * Generate the specified proxy class.
              */
-            byte[] proxyClassFile = PROXY_GENERATOR_V49
-                    ? ProxyGenerator_v49.generateProxyClass(proxyName, interfaces, accessFlags)
-                    : ProxyGenerator.generateProxyClass(loader, proxyName, interfaces, accessFlags);
+            byte[] proxyClassFile = ProxyGenerator.generateProxyClass(loader, proxyName, interfaces, accessFlags);
             try {
                 Class<?> pc = JLA.defineClass(loader, proxyName, proxyClassFile,
                                               null, "__dynamic_proxy__");
@@ -683,18 +675,22 @@ public class Proxy implements java.io.Serializable {
             Map<Class<?>, Boolean> interfaceSet = new IdentityHashMap<>(interfaces.size());
             for (Class<?> intf : interfaces) {
                 /*
-                 * Verify that the class loader resolves the name of this
-                 * interface to the same Class object.
-                 */
-                ensureVisible(loader, intf);
-
-                /*
                  * Verify that the Class object actually represents an
                  * interface.
                  */
                 if (!intf.isInterface()) {
                     throw new IllegalArgumentException(intf.getName() + " is not an interface");
                 }
+
+                if (intf.isHidden()) {
+                    throw new IllegalArgumentException(intf.getName() + " is a hidden interface");
+                }
+
+                /*
+                 * Verify that the class loader resolves the name of this
+                 * interface to the same Class object.
+                 */
+                ensureVisible(loader, intf);
 
                 /*
                  * Verify that this interface is not a duplicate.
@@ -913,7 +909,8 @@ public class Proxy implements java.io.Serializable {
      * if any of the following restrictions is violated:</a>
      * <ul>
      * <li>All of {@code Class} objects in the given {@code interfaces} array
-     * must represent interfaces, not classes or primitive types.
+     * must represent {@linkplain Class#isHidden() non-hidden} interfaces,
+     * not classes or primitive types.
      *
      * <li>No two elements in the {@code interfaces} array may
      * refer to identical {@code Class} objects.

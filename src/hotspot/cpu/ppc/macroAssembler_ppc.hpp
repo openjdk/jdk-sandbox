@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2019, SAP SE. All rights reserved.
+ * Copyright (c) 2012, 2019 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -673,12 +673,6 @@ class MacroAssembler: public Assembler {
            is_tdi(x, traptoGreaterThanUnsigned, -1/*any reg*/, 0);
   }
 
-  inline void trap_zombie_not_entrant();
-  static bool is_trap_zombie_not_entrant(int x) { return is_tdi(x, traptoUnconditional, 0/*reg 0*/, 1); }
-
-  inline void trap_should_not_reach_here();
-  static bool is_trap_should_not_reach_here(int x) { return is_tdi(x, traptoUnconditional, 0/*reg 0*/, 2); }
-
   inline void trap_ic_miss_check(Register a, Register b);
   static bool is_trap_ic_miss_check(int x) {
     return is_td(x, traptoGreaterThanUnsigned | traptoLessThanUnsigned, -1/*any reg*/, -1/*any reg*/);
@@ -760,39 +754,6 @@ class MacroAssembler: public Assembler {
   void clear_memory_unrolled(Register base_ptr, int cnt_dwords, Register tmp = R0, int offset = 0);
   void clear_memory_constlen(Register base_ptr, int cnt_dwords, Register tmp = R0);
   void clear_memory_doubleword(Register base_ptr, Register cnt_dwords, Register tmp = R0, long const_cnt = -1);
-
-#ifdef COMPILER2
-  // Intrinsics for CompactStrings
-  // Compress char[] to byte[] by compressing 16 bytes at once.
-  void string_compress_16(Register src, Register dst, Register cnt,
-                          Register tmp1, Register tmp2, Register tmp3, Register tmp4, Register tmp5,
-                          Label& Lfailure);
-
-  // Compress char[] to byte[]. cnt must be positive int.
-  void string_compress(Register src, Register dst, Register cnt, Register tmp, Label& Lfailure);
-
-  // Inflate byte[] to char[] by inflating 16 bytes at once.
-  void string_inflate_16(Register src, Register dst, Register cnt,
-                         Register tmp1, Register tmp2, Register tmp3, Register tmp4, Register tmp5);
-
-  // Inflate byte[] to char[]. cnt must be positive int.
-  void string_inflate(Register src, Register dst, Register cnt, Register tmp);
-
-  void string_compare(Register str1, Register str2, Register cnt1, Register cnt2,
-                      Register tmp1, Register result, int ae);
-
-  void array_equals(bool is_array_equ, Register ary1, Register ary2,
-                    Register limit, Register tmp1, Register result, bool is_byte);
-
-  void string_indexof(Register result, Register haystack, Register haycnt,
-                      Register needle, ciTypeArray* needle_values, Register needlecnt, int needlecntval,
-                      Register tmp1, Register tmp2, Register tmp3, Register tmp4, int ae);
-
-  void string_indexof_char(Register result, Register haystack, Register haycnt,
-                           Register needle, jchar needleChar, Register tmp1, Register tmp2, bool is_byte);
-
-  void has_negatives(Register src, Register cnt, Register result, Register tmp1, Register tmp2);
-#endif
 
   // Emitters for BigInteger.multiplyToLen intrinsic.
   inline void multiply64(Register dest_hi, Register dest_lo,
@@ -888,32 +849,37 @@ class MacroAssembler: public Assembler {
   void sha256(bool multi_block);
   void sha512(bool multi_block);
 
+  void cache_wb(Address line);
+  void cache_wbsync(bool is_presync);
 
   //
   // Debugging
   //
 
   // assert on cr0
-  void asm_assert(bool check_equal, const char* msg, int id);
-  void asm_assert_eq(const char* msg, int id) { asm_assert(true, msg, id); }
-  void asm_assert_ne(const char* msg, int id) { asm_assert(false, msg, id); }
+  void asm_assert(bool check_equal, const char* msg);
+  void asm_assert_eq(const char* msg) { asm_assert(true, msg); }
+  void asm_assert_ne(const char* msg) { asm_assert(false, msg); }
 
  private:
   void asm_assert_mems_zero(bool check_equal, int size, int mem_offset, Register mem_base,
-                            const char* msg, int id);
+                            const char* msg);
 
  public:
 
-  void asm_assert_mem8_is_zero(int mem_offset, Register mem_base, const char* msg, int id) {
-    asm_assert_mems_zero(true,  8, mem_offset, mem_base, msg, id);
+  void asm_assert_mem8_is_zero(int mem_offset, Register mem_base, const char* msg) {
+    asm_assert_mems_zero(true,  8, mem_offset, mem_base, msg);
   }
-  void asm_assert_mem8_isnot_zero(int mem_offset, Register mem_base, const char* msg, int id) {
-    asm_assert_mems_zero(false, 8, mem_offset, mem_base, msg, id);
+  void asm_assert_mem8_isnot_zero(int mem_offset, Register mem_base, const char* msg) {
+    asm_assert_mems_zero(false, 8, mem_offset, mem_base, msg);
   }
 
   // Verify R16_thread contents.
   void verify_thread();
 
+  // Calls verify_oop. If UseCompressedOops is on, decodes the oop.
+  // Preserves reg.
+  void verify_coop(Register reg, const char*);
   // Emit code to verify that reg contains a valid oop if +VerifyOops is set.
   void verify_oop(Register reg, const char* s = "broken oop");
   void verify_oop_addr(RegisterOrConstant offs, Register base, const char* s = "contains broken oop");
@@ -931,22 +897,22 @@ class MacroAssembler: public Assembler {
 #define verify_klass_ptr(reg) _verify_klass_ptr(reg, "broken klass " #reg, __FILE__, __LINE__)
 
  private:
-
-  enum {
-    stop_stop                = 0,
-    stop_untested            = 1,
-    stop_unimplemented       = 2,
-    stop_shouldnotreachhere  = 3,
-    stop_end                 = 4
-  };
-  void stop(int type, const char* msg, int id);
+  void stop(int type, const char* msg);
 
  public:
+  enum {
+    stop_stop               = 0,
+    stop_untested           = 1,
+    stop_unimplemented      = 2,
+    stop_shouldnotreachhere = 3,
+    stop_msg_present        = -0x8000
+  };
+
   // Prints msg, dumps registers and stops execution.
-  void stop         (const char* msg = "", int id = 0) { stop(stop_stop,               msg, id); }
-  void untested     (const char* msg = "", int id = 0) { stop(stop_untested,           msg, id); }
-  void unimplemented(const char* msg = "", int id = 0) { stop(stop_unimplemented,      msg, id); }
-  void should_not_reach_here()                         { stop(stop_shouldnotreachhere,  "", -1); }
+  void stop                 (const char* msg = NULL) { stop(stop_stop,               msg); }
+  void untested             (const char* msg = NULL) { stop(stop_untested,           msg); }
+  void unimplemented        (const char* msg = NULL) { stop(stop_unimplemented,      msg); }
+  void should_not_reach_here(const char* msg = NULL) { stop(stop_shouldnotreachhere, msg); }
 
   void zap_from_to(Register low, int before, Register high, int after, Register val, Register addr) PRODUCT_RETURN;
 };

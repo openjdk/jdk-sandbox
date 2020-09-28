@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -220,6 +220,8 @@ class StubRoutines: AllStatic {
   static address _ghash_processBlocks;
   static address _base64_encodeBlock;
 
+  static address _md5_implCompress;
+  static address _md5_implCompressMB;
   static address _sha1_implCompress;
   static address _sha1_implCompressMB;
   static address _sha256_implCompress;
@@ -239,6 +241,8 @@ class StubRoutines: AllStatic {
   static address _mulAdd;
   static address _montgomeryMultiply;
   static address _montgomerySquare;
+  static address _bigIntegerRightShiftWorker;
+  static address _bigIntegerLeftShiftWorker;
 
   static address _vectorizedMismatch;
 
@@ -395,6 +399,8 @@ class StubRoutines: AllStatic {
   static address counterMode_AESCrypt()  { return _counterMode_AESCrypt; }
   static address ghash_processBlocks()   { return _ghash_processBlocks; }
   static address base64_encodeBlock()    { return _base64_encodeBlock; }
+  static address md5_implCompress()      { return _md5_implCompress; }
+  static address md5_implCompressMB()    { return _md5_implCompressMB; }
   static address sha1_implCompress()     { return _sha1_implCompress; }
   static address sha1_implCompressMB()   { return _sha1_implCompressMB; }
   static address sha256_implCompress()   { return _sha256_implCompress; }
@@ -414,6 +420,8 @@ class StubRoutines: AllStatic {
   static address mulAdd()              { return _mulAdd; }
   static address montgomeryMultiply()  { return _montgomeryMultiply; }
   static address montgomerySquare()    { return _montgomerySquare; }
+  static address bigIntegerRightShift() { return _bigIntegerRightShiftWorker; }
+  static address bigIntegerLeftShift()  { return _bigIntegerLeftShiftWorker; }
 
   static address vectorizedMismatch()  { return _vectorizedMismatch; }
 

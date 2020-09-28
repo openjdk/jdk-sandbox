@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,7 @@
 
 #include "jvm.h"
 #include "jvmtifiles/jvmti.h"
-#include "metaprogramming/isRegisteredEnum.hpp"
 #include "metaprogramming/integralConstant.hpp"
-#include "runtime/extendedPC.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/macros.hpp"
@@ -46,8 +44,6 @@ class frame;
 // os defines the interface to operating system; this includes traditional
 // OS services (time, I/O) as well as other functionality with system-
 // dependent code.
-
-typedef void (*dll_func)(...);
 
 class Thread;
 class JavaThread;
@@ -117,12 +113,11 @@ class os: AllStatic {
     _page_sizes[1] = 0; // sentinel
   }
 
-  static char*  pd_reserve_memory(size_t bytes, char* addr = 0,
-                                  size_t alignment_hint = 0);
-  static char*  pd_attempt_reserve_memory_at(size_t bytes, char* addr);
-  static char*  pd_attempt_reserve_memory_at(size_t bytes, char* addr, int file_desc);
-  static void   pd_split_reserved_memory(char *base, size_t size,
-                                      size_t split, bool realloc);
+  static char*  pd_reserve_memory(size_t bytes, size_t alignment_hint);
+
+  static char*  pd_attempt_reserve_memory_at(char* addr, size_t bytes);
+  static char*  pd_attempt_reserve_memory_at(char* addr, size_t bytes, int file_desc);
+
   static bool   pd_commit_memory(char* addr, size_t bytes, bool executable);
   static bool   pd_commit_memory(char* addr, size_t size, size_t alignment_hint,
                                  bool executable);
@@ -146,6 +141,10 @@ class os: AllStatic {
   static void   pd_free_memory(char *addr, size_t bytes, size_t alignment_hint);
   static void   pd_realign_memory(char *addr, size_t bytes, size_t alignment_hint);
 
+  static char*  pd_reserve_memory_special(size_t size, size_t alignment,
+                                          char* addr, bool executable);
+  static bool   pd_release_memory_special(char* addr, size_t bytes);
+
   static size_t page_size_for_region(size_t region_size, size_t min_pages, bool must_be_aligned);
 
   // Get summary strings for system information in buffer provided
@@ -167,9 +166,6 @@ class os: AllStatic {
                                                // before VM ergonomics processing.
   static jint init_2(void);                    // Called after command line parsing
                                                // and VM ergonomics processing
-  static void init_globals(void) {             // Called from init_globals() in init.cpp
-    init_globals_ext();
-  }
 
   // unset environment variable
   static bool unsetenv(const char* name);
@@ -198,14 +194,9 @@ class os: AllStatic {
 
   // The "virtual time" of a thread is the amount of time a thread has
   // actually run.  The first function indicates whether the OS supports
-  // this functionality for the current thread, and if so:
-  //   * the second enables vtime tracking (if that is required).
-  //   * the third tells whether vtime is enabled.
-  //   * the fourth returns the elapsed virtual time for the current
-  //     thread.
+  // this functionality for the current thread, and if so the second
+  // returns the elapsed virtual time for the current thread.
   static bool supports_vtime();
-  static bool enable_vtime();
-  static bool vtime_enabled();
   static double elapsedVTime();
 
   // Return current local time in a string (YYYY-MM-DD HH:MM:SS).
@@ -257,14 +248,6 @@ class os: AllStatic {
     return _initial_active_processor_count;
   }
 
-  // Bind processes to processors.
-  //     This is a two step procedure:
-  //     first you generate a distribution of processes to processors,
-  //     then you bind processes according to that distribution.
-  // Compute a distribution for number of processes to processors.
-  //    Stores the processor id's into the distribution array argument.
-  //    Returns true if it worked, false if it didn't.
-  static bool distribute_processes(uint length, uint* distribution);
   // Binds the current process to a processor.
   //    Returns true if it worked, false if it didn't.
   static bool bind_to_processor(uint processor_id);
@@ -328,14 +311,32 @@ class os: AllStatic {
                                                   const size_t size);
 
   static int    vm_allocation_granularity();
-  static char*  reserve_memory(size_t bytes, char* addr = 0,
-                               size_t alignment_hint = 0, int file_desc = -1);
-  static char*  reserve_memory(size_t bytes, char* addr,
-                               size_t alignment_hint, MEMFLAGS flags);
+
+  // Reserves virtual memory.
+  // alignment_hint - currently only used by AIX
+  static char*  reserve_memory(size_t bytes, size_t alignment_hint = 0, MEMFLAGS flags = mtOther);
+
+  // Reserves virtual memory.
+  // if file_desc != -1, also attaches the memory to the file.
+  static char*  reserve_memory_with_fd(size_t bytes, size_t alignment_hint, int file_desc);
+
+  // Reserves virtual memory that starts at an address that is aligned to 'alignment'.
   static char*  reserve_memory_aligned(size_t size, size_t alignment, int file_desc = -1);
-  static char*  attempt_reserve_memory_at(size_t bytes, char* addr, int file_desc = -1);
-  static void   split_reserved_memory(char *base, size_t size,
-                                      size_t split, bool realloc);
+
+  // Attempts to reserve the virtual memory at [addr, addr + bytes).
+  // Does not overwrite existing mappings.
+  static char*  attempt_reserve_memory_at(char* addr, size_t bytes, int file_desc = -1);
+
+  // Split a reserved memory region [base, base+size) into two regions [base, base+split) and
+  //  [base+split, base+size).
+  //  This may remove the original mapping, so its content may be lost.
+  // Both base and split point must be aligned to allocation granularity; split point shall
+  //  be >0 and <size.
+  // Splitting guarantees that the resulting two memory regions can be released independently
+  //  from each other using os::release_memory(). It also means NMT will track these regions
+  //  individually, allowing different tags to be set.
+  static void   split_reserved_memory(char *base, size_t size, size_t split);
+
   static bool   commit_memory(char* addr, size_t bytes, bool executable);
   static bool   commit_memory(char* addr, size_t size, size_t alignment_hint,
                               bool executable);
@@ -375,7 +376,7 @@ class os: AllStatic {
 
   static char*  map_memory(int fd, const char* file_name, size_t file_offset,
                            char *addr, size_t bytes, bool read_only = false,
-                           bool allow_exec = false);
+                           bool allow_exec = false, MEMFLAGS flags = mtNone);
   static char*  remap_memory(int fd, const char* file_name, size_t file_offset,
                              char *addr, size_t bytes, bool read_only,
                              bool allow_exec);
@@ -392,6 +393,7 @@ class os: AllStatic {
   static size_t numa_get_leaf_groups(int *ids, size_t size);
   static bool   numa_topology_changed();
   static int    numa_get_group_id();
+  static int    numa_get_group_id_for_address(const void* address);
 
   // Page manipulation
   struct page_info {
@@ -410,13 +412,6 @@ class os: AllStatic {
   static size_t large_page_size();
   static bool   can_commit_large_page_memory();
   static bool   can_execute_large_page_memory();
-
-  // OS interface to polling page
-  static address get_polling_page()             { return _polling_page; }
-  static void    set_polling_page(address page) { _polling_page = page; }
-  static bool    is_poll_address(address addr)  { return addr >= _polling_page && addr < (_polling_page + os::vm_page_size()); }
-  static void    make_polling_page_unreadable();
-  static void    make_polling_page_readable();
 
   // Check if pointer points to readable memory (by 4-byte read access)
   static bool    is_readable_pointer(const void* p);
@@ -464,28 +459,29 @@ class os: AllStatic {
 
   static void free_thread(OSThread* osthread);
 
-  // thread id on Linux/64bit is 64bit, on Windows and Solaris, it's 32bit
+  // thread id on Linux/64bit is 64bit, on Windows it's 32bit
   static intx current_thread_id();
   static int current_process_id();
-  static int sleep(Thread* thread, jlong ms, bool interruptable);
-  // Short standalone OS sleep suitable for slow path spin loop.
-  // Ignores Thread.interrupt() (so keep it short).
-  // ms = 0, will sleep for the least amount of time allowed by the OS.
+
+  // Short standalone OS sleep routines suitable for slow path spin loop.
+  // Ignores safepoints/suspension/Thread.interrupt() (so keep it short).
+  // ms/ns = 0, will sleep for the least amount of time allowed by the OS.
+  // Maximum sleep time is just under 1 second.
   static void naked_short_sleep(jlong ms);
   static void naked_short_nanosleep(jlong ns);
-  static void infinite_sleep(); // never returns, use with CAUTION
+  // Longer standalone OS sleep routine - a convenience wrapper around
+  // multiple calls to naked_short_sleep. Only for use by non-JavaThreads.
+  static void naked_sleep(jlong millis);
+  // Never returns, use with CAUTION
+  static void infinite_sleep();
   static void naked_yield () ;
   static OSReturn set_priority(Thread* thread, ThreadPriority priority);
   static OSReturn get_priority(const Thread* const thread, ThreadPriority& priority);
 
-  static void interrupt(Thread* thread);
-  static bool is_interrupted(Thread* thread, bool clear_interrupted);
-
   static int pd_self_suspend_thread(Thread* thread);
 
-  static ExtendedPC fetch_frame_from_context(const void* ucVoid, intptr_t** sp, intptr_t** fp);
+  static address    fetch_frame_from_context(const void* ucVoid, intptr_t** sp, intptr_t** fp);
   static frame      fetch_frame_from_context(const void* ucVoid);
-  static frame      fetch_frame_from_ucontext(Thread* thread, void* ucVoid);
 
   static void breakpoint();
   static bool start_debugging(char *buf, int buflen);
@@ -497,7 +493,6 @@ class os: AllStatic {
   static void verify_stack_alignment() PRODUCT_RETURN;
 
   static bool message_box(const char* title, const char* message);
-  static char* do_you_want_to_debug(const char* message);
 
   // run cmd in a separate process and return its exit code; or -1 on failures
   static int fork_and_exec(char *cmd, bool use_vfork_if_available = false);
@@ -521,7 +516,6 @@ class os: AllStatic {
   static void die();
 
   // File i/o operations
-  static const int default_file_open_flags();
   static int open(const char *path, int oflag, int mode);
   static FILE* open(int fd, const char* mode);
   static FILE* fopen(const char* path, const char* mode);
@@ -649,6 +643,9 @@ class os: AllStatic {
   static void print_date_and_time(outputStream* st, char* buf, size_t buflen);
   static void print_instructions(outputStream* st, address pc, int unitsize);
 
+  // helper for output of seconds in days , hours and months
+  static void print_dhm(outputStream* st, const char* startStr, long sec);
+
   static void print_location(outputStream* st, intptr_t x, bool verbose = false);
   static size_t lasterror(char *buf, size_t len);
   static int get_last_error();
@@ -668,9 +665,6 @@ class os: AllStatic {
   // Will always return a valid string which is a static constant.
   // Will not change the value of errno.
   static const char* errno_name(int e);
-
-  // Determines whether the calling process is being debugged by a user-mode debugger.
-  static bool is_debugger_attached();
 
   // wait for a key press if PauseAtExit is set
   static void wait_for_keypress_at_exit(void);
@@ -737,6 +731,7 @@ class os: AllStatic {
   static void* realloc (void *memblock, size_t size, MEMFLAGS flag, const NativeCallStack& stack);
   static void* realloc (void *memblock, size_t size, MEMFLAGS flag);
 
+  // handles NULL pointers
   static void  free    (void *memblock);
   static char* strdup(const char *, MEMFLAGS flags = mtInternal);  // Like strdup
   // Like strdup, but exit VM when strdup() returns NULL
@@ -770,6 +765,7 @@ class os: AllStatic {
 
   // random number generation
   static int random();                     // return 32bit pseudorandom number
+  static int next_random(unsigned int rand_seed); // pure version of random()
   static void init_random(unsigned int initval);    // initialize random sequence
 
   // Structured OS Exception support
@@ -790,10 +786,8 @@ class os: AllStatic {
   // JVMTI & JVM monitoring and management support
   // The thread_cpu_time() and current_thread_cpu_time() are only
   // supported if is_thread_cpu_time_supported() returns true.
-  // They are not supported on Solaris T1.
 
   // Thread CPU Time - return the fast estimate on a platform
-  // On Solaris - call gethrvtime (fast) - user time only
   // On Linux   - fast clock_gettime where available - user+sys
   //            - otherwise: very slow /proc fs - user+sys
   // On Windows - GetThreadTimes - user+sys
@@ -825,9 +819,6 @@ class os: AllStatic {
 
   // support for mapping non-volatile memory using MAP_SYNC
   static bool supports_map_sync();
-
-  // Extensions
-#include "runtime/os_ext.hpp"
 
  public:
   class CrashProtectionCallback : public StackObj {
@@ -969,10 +960,6 @@ class os: AllStatic {
       return _state == SR_RUNNING;
     }
 
-    bool is_suspend_request() const {
-      return _state == SR_SUSPEND_REQUEST;
-    }
-
     bool is_suspended() const {
       return _state == SR_SUSPENDED;
     }
@@ -993,10 +980,6 @@ class os: AllStatic {
   static bool set_boot_path(char fileSep, char pathSep);
 
 };
-
-#ifndef _WINDOWS
-template<> struct IsRegisteredEnum<os::SuspendResume::State> : public TrueType {};
-#endif // !_WINDOWS
 
 // Note that "PAUSE" is almost always used with synchronization
 // so arguably we should provide Atomic::SpinPause() instead

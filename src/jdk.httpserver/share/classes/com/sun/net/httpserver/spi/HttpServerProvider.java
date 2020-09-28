@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,16 @@
 
 package com.sun.net.httpserver.spi;
 
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpsServer;
+
 import java.io.IOException;
-import java.net.*;
+import java.net.InetSocketAddress;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Iterator;
-import java.util.ServiceLoader;
 import java.util.ServiceConfigurationError;
-import com.sun.net.httpserver.*;
+import java.util.ServiceLoader;
 
 /**
  * Service provider class for HttpServer.
@@ -50,6 +52,8 @@ public abstract class HttpServerProvider {
      *
      * @param  backlog
      *         the socket backlog. A value of {@code zero} means the systems default
+     * @throws IOException if an I/O error occurs
+     * @return An instance of HttpServer
      */
     public abstract HttpServer createHttpServer(InetSocketAddress addr,
                                                 int backlog)
@@ -63,6 +67,8 @@ public abstract class HttpServerProvider {
      *
      * @param  backlog
      *         the socket backlog. A value of {@code zero} means the systems default
+     * @throws IOException if an I/O error occurs
+     * @return An instance of HttpServer
      */
     public abstract HttpsServer createHttpsServer(InetSocketAddress addr,
                                                   int backlog)
@@ -133,8 +139,9 @@ public abstract class HttpServerProvider {
      * <ol>
      *
      *   <li><p> If the system property
-     *   {@code com.sun.net.httpserver.HttpServerProvider} is defined then it
-     *   is taken to be the fully-qualified name of a concrete provider class.
+     *   {@systemProperty com.sun.net.httpserver.HttpServerProvider}
+     *   is defined then it is taken to be the fully-qualified name
+     *   of a concrete provider class.
      *   The class is loaded and instantiated; if this process fails then an
      *   unspecified unchecked error or exception is thrown.  </p></li>
      *

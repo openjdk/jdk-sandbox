@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,13 +40,14 @@ public class ProxyBench {
     /**
      * On Dell T7610:
      *
-     * Benchmark w/ -Djdk.proxy.ProxyGenerator.v49=true
+     * Benchmark w/ the old ProxyGenerator
      * Benchmark                      Mode  Cnt   Score   Error  Units
      * ProxyBench.getProxyClass1i     avgt   10  20.472 +/- 0.209  ns/op
      * ProxyBench.getProxyClass4i     avgt   10  57.353 +/- 0.461  ns/op
      * ProxyBench.newProxyInstance1i  avgt   10  31.459 +/- 0.516  ns/op
      * ProxyBench.newProxyInstance4i  avgt   10  66.580 +/- 0.983  ns/op
      *
+     * Benchmark w/ the new ProxyGenerator using ASM
      * Benchmark                      Mode  Cnt   Score   Error  Units
      * ProxyBench.getProxyClass1i     avgt   10  21.291 +/- 0.475  ns/op
      * ProxyBench.getProxyClass4i     avgt   10  61.481 +/- 4.709  ns/op
@@ -72,11 +73,13 @@ public class ProxyBench {
                                            PkgPrivate1.class, PkgPrivate2.class};
 
     @Benchmark
+    @SuppressWarnings("deprecation")
     public Class<?> getProxyClass1i() {
         return Proxy.getProxyClass(loader1, interfaces1);
     }
 
     @Benchmark
+    @SuppressWarnings("deprecation")
     public Class<?> getProxyClass4i() {
         return Proxy.getProxyClass(loader4, interfaces4);
     }

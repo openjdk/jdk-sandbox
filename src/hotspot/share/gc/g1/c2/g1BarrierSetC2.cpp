@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/javaClasses.hpp"
 #include "gc/g1/c2/g1BarrierSetC2.hpp"
 #include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1BarrierSetRuntime.hpp"
@@ -298,11 +299,7 @@ void G1BarrierSetC2::pre_barrier(GraphKit* kit,
  *
  * In the case of slow allocation the allocation code must handle the barrier
  * as part of the allocation in the case the allocated object is not located
- * in the nursery, this would happen for humongous objects. This is similar to
- * how CMS is required to handle this case, see the comments for the method
- * CollectedHeap::new_deferred_store_barrier and OptoRuntime::new_deferred_store_barrier.
- * A deferred card mark is required for these objects and handled in the above
- * mentioned methods.
+ * in the nursery; this would happen for humongous objects.
  *
  * Returns true if the post barrier can be removed
  */
@@ -514,7 +511,7 @@ void G1BarrierSetC2::insert_pre_barrier(GraphKit* kit, Node* base_oop, Node* off
   // If offset is a constant, is it java_lang_ref_Reference::_reference_offset?
   const TypeX* otype = offset->find_intptr_t_type();
   if (otype != NULL && otype->is_con() &&
-      otype->get_con() != java_lang_ref_Reference::referent_offset) {
+      otype->get_con() != java_lang_ref_Reference::referent_offset()) {
     // Constant offset but not the reference_offset so just return
     return;
   }
@@ -554,7 +551,7 @@ void G1BarrierSetC2::insert_pre_barrier(GraphKit* kit, Node* base_oop, Node* off
 
   IdealKit ideal(kit);
 
-  Node* referent_off = __ ConX(java_lang_ref_Reference::referent_offset);
+  Node* referent_off = __ ConX(java_lang_ref_Reference::referent_offset());
 
   __ if_then(offset, BoolTest::eq, referent_off, unlikely); {
       // Update graphKit memory and control from IdealKit.
@@ -601,12 +598,15 @@ Node* G1BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) c
   Node* adr = access.addr().node();
   Node* obj = access.base();
 
+  bool anonymous = (decorators & C2_UNSAFE_ACCESS) != 0;
   bool mismatched = (decorators & C2_MISMATCHED) != 0;
   bool unknown = (decorators & ON_UNKNOWN_OOP_REF) != 0;
   bool in_heap = (decorators & IN_HEAP) != 0;
+  bool in_native = (decorators & IN_NATIVE) != 0;
   bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
   bool is_unordered = (decorators & MO_UNORDERED) != 0;
-  bool need_cpu_mem_bar = !is_unordered || mismatched || !in_heap;
+  bool is_mixed = !in_heap && !in_native;
+  bool need_cpu_mem_bar = !is_unordered || mismatched || is_mixed;
 
   Node* top = Compile::current()->top();
   Node* offset = adr->is_AddP() ? adr->in(AddPNode::Offset) : top;
@@ -786,9 +786,8 @@ void G1BarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase phase) co
   // Verify G1 pre-barriers
   const int marking_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
 
-  ResourceArea *area = Thread::current()->resource_area();
-  Unique_Node_List visited(area);
-  Node_List worklist(area);
+  Unique_Node_List visited;
+  Node_List worklist;
   // We're going to walk control flow backwards starting from the Root
   worklist.push(compile->root());
   while (worklist.size() > 0) {

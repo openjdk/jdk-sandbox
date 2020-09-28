@@ -38,15 +38,22 @@ public:
 private:
   T*          _data;
   uint        _length;
-  const char* _title;
+  const char* _short_name; // Short name for JFR
+  const char* _title; // Title for logging.
+
+  bool _is_serial;
 
   WorkerDataArray<size_t>* _thread_work_items[MaxThreadWorkItems];
 
  public:
-  WorkerDataArray(uint length, const char* title);
+  WorkerDataArray(const char* short_name, const char* title, uint length, bool is_serial = false);
   ~WorkerDataArray();
 
-  void link_thread_work_items(WorkerDataArray<size_t>* thread_work_items, uint index = 0);
+  // Create an integer sub-item at the given index to this WorkerDataArray. If length_override
+  // is zero, use the same number of elements as this array, otherwise use the given
+  // number.
+  void create_thread_work_items(const char* title, uint index = 0, uint length_override = 0);
+
   void set_thread_work_item(uint worker_i, size_t value, uint index = 0);
   void add_thread_work_item(uint worker_i, size_t value, uint index = 0);
   void set_or_add_thread_work_item(uint worker_i, size_t value, uint index = 0);
@@ -72,6 +79,10 @@ private:
     return _title;
   }
 
+  const char* short_name() const {
+    return _short_name;
+  }
+
   void reset();
   void set_all(T value);
 
@@ -79,7 +90,9 @@ private:
  private:
   class WDAPrinter {
   public:
+    static void summary(outputStream* out, double time);
     static void summary(outputStream* out, double min, double avg, double max, double diff, double sum, bool print_sum);
+    static void summary(outputStream* out, size_t value);
     static void summary(outputStream* out, size_t min, double avg, size_t max, size_t diff, size_t sum, bool print_sum);
 
     static void details(const WorkerDataArray<double>* phase, outputStream* out);

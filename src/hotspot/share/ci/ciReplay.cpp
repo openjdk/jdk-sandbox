@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,9 @@
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
+#include "runtime/globals_extension.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/java.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/utf8.hpp"
@@ -597,7 +599,7 @@ class CompileReplay : public StackObj {
       nm->make_not_entrant();
     }
     replay_state = this;
-    CompileBroker::compile_method(method, entry_bci, comp_level,
+    CompileBroker::compile_method(methodHandle(THREAD, method), entry_bci, comp_level,
                                   methodHandle(), 0, CompileTask::Reason_Replay, THREAD);
     replay_state = NULL;
     reset();
@@ -627,14 +629,14 @@ class CompileReplay : public StackObj {
     // method to be rewritten (number of arguments at a call for
     // instance)
     method->method_holder()->link_class(CHECK);
-    // methodOopDesc::build_interpreter_method_data(method, CHECK);
+    // Method::build_interpreter_method_data(method, CHECK);
     {
       // Grab a lock here to prevent multiple
       // MethodData*s from being created.
-      MutexLocker ml(MethodData_lock, THREAD);
+      MutexLocker ml(THREAD, MethodData_lock);
       if (method->method_data() == NULL) {
         ClassLoaderData* loader_data = method->method_holder()->class_loader_data();
-        MethodData* method_data = MethodData::allocate(loader_data, method, CHECK);
+        MethodData* method_data = MethodData::allocate(loader_data, methodHandle(THREAD, method), CHECK);
         method->set_method_data(method_data);
       }
     }
@@ -814,18 +816,18 @@ class CompileReplay : public StackObj {
     }
 
     oop java_mirror = k->java_mirror();
-    if (field_signature[0] == '[') {
+    if (field_signature[0] == JVM_SIGNATURE_ARRAY) {
       int length = parse_int("array length");
       oop value = NULL;
 
-      if (field_signature[1] == '[') {
+      if (field_signature[1] == JVM_SIGNATURE_ARRAY) {
         // multi dimensional array
         ArrayKlass* kelem = (ArrayKlass *)parse_klass(CHECK);
         if (kelem == NULL) {
           return;
         }
         int rank = 0;
-        while (field_signature[rank] == '[') {
+        while (field_signature[rank] == JVM_SIGNATURE_ARRAY) {
           rank++;
         }
         jint* dims = NEW_RESOURCE_ARRAY(jint, rank);
@@ -851,7 +853,8 @@ class CompileReplay : public StackObj {
           value = oopFactory::new_intArray(length, CHECK);
         } else if (strcmp(field_signature, "[J") == 0) {
           value = oopFactory::new_longArray(length, CHECK);
-        } else if (field_signature[0] == '[' && field_signature[1] == 'L') {
+        } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
+                   field_signature[1] == JVM_SIGNATURE_CLASS) {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK);
           value = oopFactory::new_objArray(kelem, length, CHECK);
         } else {
@@ -892,7 +895,7 @@ class CompileReplay : public StackObj {
       } else if (strcmp(field_signature, "Ljava/lang/String;") == 0) {
         Handle value = java_lang_String::create_from_str(string_value, CHECK);
         java_mirror->obj_field_put(fd.offset(), value());
-      } else if (field_signature[0] == 'L') {
+      } else if (field_signature[0] == JVM_SIGNATURE_CLASS) {
         Klass* k = resolve_klass(string_value, CHECK);
         oop value = InstanceKlass::cast(k)->allocate_instance(CHECK);
         java_mirror->obj_field_put(fd.offset(), value);
@@ -1107,8 +1110,8 @@ void* ciReplay::load_inline_data(ciMethod* method, int entry_bci, int comp_level
 }
 
 int ciReplay::replay_impl(TRAPS) {
-  HandleMark hm;
-  ResourceMark rm;
+  HandleMark hm(THREAD);
+  ResourceMark rm(THREAD);
 
   if (ReplaySuppressInitializers > 2) {
     // ReplaySuppressInitializers > 2 means that we want to allow

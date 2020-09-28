@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,17 +26,14 @@ import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.connect.AttachingConnector;
 import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
+import jdk.test.lib.Utils;
 import lib.jdb.Debuggee;
 
 import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.util.Enumeration;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -51,15 +48,22 @@ import java.util.Map;
  */
 public class JdwpListenTest {
 
+    // Set to true to allow testing of attach from wrong address (expected to fail).
+    // It's off by default as it causes test time increase and test interference (see JDK-8231915).
+    private static boolean allowNegativeTesting = false;
+
     public static void main(String[] args) throws Exception {
-        List<InetAddress> addresses = getAddresses();
+        List<InetAddress> addresses = Utils.getAddressesWithSymbolicAndNumericScopes();
 
         boolean ipv4EnclosedTested = false;
         boolean ipv6EnclosedTested = false;
+
         for (InetAddress listen: addresses) {
             for (InetAddress attach: addresses) {
                 // can connect only from the same address
                 // IPv6 cannot connect to IPv4 (::1 to 127.0.0.1) and vice versa.
+                // Note: for IPv6 addresses equals() does not compare scopes
+                // (so addresses with symbolic and numeric scopes are equals).
                 listenTest(listen.getHostAddress(), attach.getHostAddress(), attach.equals(listen));
             }
             // test that addresses enclosed in square brackets are supported.
@@ -80,10 +84,17 @@ public class JdwpListenTest {
 
     private static void listenTest(String listenAddress, String connectAddress, boolean expectedResult)
             throws IOException {
+        log("\nTest: listen at " + listenAddress + ", attaching to " + connectAddress
+                + ", expected: " + (expectedResult ? "SUCCESS" : "FAILURE"));
+        if (!expectedResult && !allowNegativeTesting) {
+            log("SKIPPED: negative testing is disabled");
+            return;
+        }
+
         log("Starting listening debuggee at " + listenAddress);
         try (Debuggee debuggee = Debuggee.launcher("HelloWorld").setAddress(listenAddress + ":0").launch()) {
             log("Debuggee is listening on " + listenAddress + ":" + debuggee.getAddress());
-            log("Connecting from " + connectAddress + ", expected: " + (expectedResult ? "SUCCESS" : "FAILURE"));
+            log("Connecting to " + connectAddress + ", expected: " + (expectedResult ? "SUCCESS" : "FAILURE"));
             try {
                 VirtualMachine vm = attach(connectAddress, debuggee.getAddress());
                 vm.dispose();
@@ -96,40 +107,7 @@ public class JdwpListenTest {
                 }
             }
         }
-    }
-
-    private static List<InetAddress> getAddresses() {
-        List<InetAddress> result = new LinkedList<>();
-        try {
-            Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
-            while (networkInterfaces.hasMoreElements()) {
-                NetworkInterface iface = networkInterfaces.nextElement();
-                try {
-                    if (iface.isUp()) {
-                        Enumeration<InetAddress> addresses = iface.getInetAddresses();
-                        while (addresses.hasMoreElements()) {
-                            InetAddress addr = addresses.nextElement();
-                            // Java reports link local addresses with named scope,
-                            // but Windows sockets routines support only numeric scope id.
-                            // skip such addresses.
-                            if (addr instanceof Inet6Address) {
-                                Inet6Address addr6 = (Inet6Address)addr;
-                                if (addr6.getScopedInterface() != null) {
-                                    continue;
-                                }
-                            }
-                            log(" - (" + addr.getClass().getSimpleName() + ") " + addr.getHostAddress());
-                            result.add(addr);
-                        }
-                    }
-                } catch (SocketException e) {
-                    log("Interface " + iface.getDisplayName() + ": failed to get addresses");
-                }
-            }
-        } catch (SocketException e) {
-            log("Interface enumeration error: " + e);
-        }
-        return result;
+        log("PASSED");
     }
 
     private static String ATTACH_CONNECTOR = "com.sun.jdi.SocketAttach";

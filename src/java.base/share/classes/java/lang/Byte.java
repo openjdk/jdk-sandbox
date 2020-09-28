@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,16 @@
 package java.lang;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
-import jdk.internal.misc.VM;
+import jdk.internal.misc.CDS;
+
+import java.lang.constant.Constable;
+import java.lang.constant.DynamicConstantDesc;
+import java.util.Optional;
+
+import static java.lang.constant.ConstantDescs.BSM_EXPLICIT_CAST;
+import static java.lang.constant.ConstantDescs.CD_byte;
+import static java.lang.constant.ConstantDescs.CD_int;
+import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
 
 /**
  *
@@ -44,7 +53,7 @@ import jdk.internal.misc.VM;
  * @see     java.lang.Number
  * @since   1.1
  */
-public final class Byte extends Number implements Comparable<Byte> {
+public final class Byte extends Number implements Comparable<Byte>, Constable {
 
     /**
      * A constant holding the minimum value a {@code byte} can
@@ -77,6 +86,18 @@ public final class Byte extends Number implements Comparable<Byte> {
         return Integer.toString((int)b, 10);
     }
 
+    /**
+     * Returns an {@link Optional} containing the nominal descriptor for this
+     * instance.
+     *
+     * @return an {@link Optional} describing the {@linkplain Byte} instance
+     * @since 15
+     */
+    @Override
+    public Optional<DynamicConstantDesc<Byte>> describeConstable() {
+        return Optional.of(DynamicConstantDesc.ofNamed(BSM_EXPLICIT_CAST, DEFAULT_NAME, CD_byte, intValue()));
+    }
+
     private static class ByteCache {
         private ByteCache() {}
 
@@ -87,7 +108,7 @@ public final class Byte extends Number implements Comparable<Byte> {
             final int size = -(-128) + 127 + 1;
 
             // Load and use the archived cache if it exists
-            VM.initializeFromArchive(ByteCache.class);
+            CDS.initializeFromArchive(ByteCache.class);
             if (archivedCache == null || archivedCache.length != size) {
                 Byte[] c = new Byte[size];
                 byte value = (byte)-128;
@@ -268,8 +289,8 @@ public final class Byte extends Number implements Comparable<Byte> {
      * </blockquote>
      *
      * <i>DecimalNumeral</i>, <i>HexDigits</i>, and <i>OctalDigits</i>
-     * are as defined in section 3.10.1 of
-     * <cite>The Java&trade; Language Specification</cite>,
+     * are as defined in section {@jls 3.10.1} of
+     * <cite>The Java Language Specification</cite>,
      * except that underscores are not accepted between digits.
      *
      * <p>The sequence of characters following an optional

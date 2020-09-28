@@ -30,6 +30,7 @@
 #include "memory/resourceArea.hpp"
 #include "oops/compiledICHolder.hpp"
 #include "oops/instanceKlass.hpp"
+#include "oops/klass.inline.hpp"
 #include "oops/klassVtable.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "vmreg_ppc.inline.hpp"
@@ -112,7 +113,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
     Label L;
     __ cmpdi(CCR0, R19_method, 0);
     __ bne(CCR0, L);
-    __ stop("Vtable entry is ZERO", 102);
+    __ stop("Vtable entry is ZERO");
     __ bind(L);
   }
 #endif
@@ -198,7 +199,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
     Label ok;
     __ cmpd(CCR0, R19_method, 0);
     __ bne(CCR0, ok);
-    __ stop("method is null", 103);
+    __ stop("method is null");
     __ bind(ok);
   }
 #endif

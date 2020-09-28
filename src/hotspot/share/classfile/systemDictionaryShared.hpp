@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 #define SHARE_CLASSFILE_SYSTEMDICTIONARYSHARED_HPP
 
 #include "oops/klass.hpp"
-#include "classfile/dictionary.hpp"
 #include "classfile/packageEntry.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "memory/filemap.hpp"
@@ -103,8 +102,10 @@
 #define UNREGISTERED_INDEX -9999
 
 class ClassFileStream;
+class Dictionary;
 class DumpTimeSharedClassInfo;
 class DumpTimeSharedClassTable;
+class LambdaProxyClassDictionary;
 class RunTimeSharedClassInfo;
 class RunTimeSharedDictionary;
 
@@ -122,15 +123,17 @@ private:
   // java.security.ProtectionDomain objects associated with each shared class.
   //
   // See SystemDictionaryShared::init_security_info for more info.
-  static objArrayOop _shared_protection_domains;
-  static objArrayOop _shared_jar_urls;
-  static objArrayOop _shared_jar_manifests;
+  static OopHandle _shared_protection_domains;
+  static OopHandle _shared_jar_urls;
+  static OopHandle _shared_jar_manifests;
 
   static InstanceKlass* load_shared_class_for_builtin_loader(
                                                Symbol* class_name,
                                                Handle class_loader,
                                                TRAPS);
   static Handle get_package_name(Symbol*  class_name, TRAPS);
+
+  static PackageEntry* get_package_entry_from_class_name(Handle class_loader, Symbol* class_name);
 
 
   // Package handling:
@@ -165,10 +168,6 @@ private:
                                     Handle manifest,
                                     Handle url,
                                     TRAPS);
-  static void define_shared_package(Symbol* class_name,
-                                    Handle class_loader,
-                                    ModuleEntry* mod_entry,
-                                    TRAPS);
 
   static Handle get_shared_jar_manifest(int shared_path_index, TRAPS);
   static Handle get_shared_jar_url(int shared_path_index, TRAPS);
@@ -180,14 +179,13 @@ private:
                                              TRAPS);
   static Handle get_shared_protection_domain(Handle class_loader,
                                              ModuleEntry* mod, TRAPS);
-  static Handle init_security_info(Handle class_loader, InstanceKlass* ik, TRAPS);
 
-  static void atomic_set_array_index(objArrayOop array, int index, oop o) {
+  static void atomic_set_array_index(OopHandle array, int index, oop o) {
     // Benign race condition:  array.obj_at(index) may already be filled in.
     // The important thing here is that all threads pick up the same result.
     // It doesn't matter which racing thread wins, as long as only one
     // result is used by all threads, and all future queries.
-    array->atomic_compare_exchange_oop(index, o, NULL);
+    ((objArrayOop)array.resolve())->atomic_compare_exchange_oop(index, o, NULL);
   }
 
   static oop shared_protection_domain(int index);
@@ -213,17 +211,24 @@ private:
                                  TRAPS);
   static DumpTimeSharedClassInfo* find_or_allocate_info_for(InstanceKlass* k);
   static void write_dictionary(RunTimeSharedDictionary* dictionary,
-                               bool is_builtin,
-                               bool is_static_archive = true);
+                               bool is_builtin);
+  static void write_lambda_proxy_class_dictionary(LambdaProxyClassDictionary* dictionary);
   static bool is_jfr_event_class(InstanceKlass *k);
+  static bool is_registered_lambda_proxy_class(InstanceKlass* ik);
   static void warn_excluded(InstanceKlass* k, const char* reason);
   static bool should_be_excluded(InstanceKlass* k);
 
+  static bool _dump_in_progress;
   DEBUG_ONLY(static bool _no_class_loading_should_happen;)
+
 public:
+  static bool is_hidden_lambda_proxy(InstanceKlass* ik);
+  static Handle init_security_info(Handle class_loader, InstanceKlass* ik, PackageEntry* pkg_entry, TRAPS);
   static InstanceKlass* find_builtin_class(Symbol* class_name);
 
-  static const RunTimeSharedClassInfo* find_record(RunTimeSharedDictionary* dict, Symbol* name);
+  static const RunTimeSharedClassInfo* find_record(RunTimeSharedDictionary* static_dict,
+                                                   RunTimeSharedDictionary* dynamic_dict,
+                                                   Symbol* name);
 
   static bool has_platform_or_app_classes();
 
@@ -234,25 +239,9 @@ public:
 
 
   static void allocate_shared_data_arrays(int size, TRAPS);
-  static void oops_do(OopClosure* f);
 
   // Check if sharing is supported for the class loader.
   static bool is_sharing_possible(ClassLoaderData* loader_data);
-  static bool is_shared_class_visible_for_classloader(InstanceKlass* ik,
-                                                      Handle class_loader,
-                                                      const char* pkg_string,
-                                                      Symbol* pkg_name,
-                                                      PackageEntry* pkg_entry,
-                                                      ModuleEntry* mod_entry,
-                                                      TRAPS);
-  static PackageEntry* get_package_entry(Symbol* pkg,
-                                         ClassLoaderData *loader_data) {
-    if (loader_data != NULL) {
-      PackageEntryTable* pkgEntryTable = loader_data->packages();
-      return pkgEntryTable->lookup_only(pkg);
-    }
-    return NULL;
-  }
 
   static bool add_unregistered_class(InstanceKlass* k, TRAPS);
   static InstanceKlass* dump_time_resolve_super_or_fail(Symbol* child_name,
@@ -291,6 +280,28 @@ public:
                   bool from_is_array, bool from_is_object) NOT_CDS_RETURN_(false);
   static void check_verification_constraints(InstanceKlass* klass,
                                              TRAPS) NOT_CDS_RETURN;
+  static void set_class_has_failed_verification(InstanceKlass* ik) NOT_CDS_RETURN;
+  static bool has_class_failed_verification(InstanceKlass* ik) NOT_CDS_RETURN_(false);
+  static void add_lambda_proxy_class(InstanceKlass* caller_ik,
+                                     InstanceKlass* lambda_ik,
+                                     Symbol* invoked_name,
+                                     Symbol* invoked_type,
+                                     Symbol* method_type,
+                                     Method* member_method,
+                                     Symbol* instantiated_method_type) NOT_CDS_RETURN;
+  static InstanceKlass* get_shared_lambda_proxy_class(InstanceKlass* caller_ik,
+                                                      Symbol* invoked_name,
+                                                      Symbol* invoked_type,
+                                                      Symbol* method_type,
+                                                      Method* member_method,
+                                                      Symbol* instantiated_method_type) NOT_CDS_RETURN_(NULL);
+  static InstanceKlass* get_shared_nest_host(InstanceKlass* lambda_ik) NOT_CDS_RETURN_(NULL);
+  static InstanceKlass* prepare_shared_lambda_proxy_class(InstanceKlass* lambda_ik,
+                                                          InstanceKlass* caller_ik,
+                                                          bool initialize, TRAPS) NOT_CDS_RETURN_(NULL);
+  static bool check_linking_constraints(InstanceKlass* klass, TRAPS) NOT_CDS_RETURN_(false);
+  static void record_linking_constraint(Symbol* name, InstanceKlass* klass,
+                                     Handle loader1, Handle loader2, TRAPS) NOT_CDS_RETURN;
   static bool is_builtin(InstanceKlass* k) {
     return (k->shared_classpath_index() != UNREGISTERED_INDEX);
   }
@@ -300,12 +311,16 @@ public:
   static void dumptime_classes_do(class MetaspaceClosure* it);
   static size_t estimate_size_for_archive();
   static void write_to_archive(bool is_static_archive = true);
+  static void adjust_lambda_proxy_class_dictionary();
   static void serialize_dictionary_headers(class SerializeClosure* soc,
                                            bool is_static_archive = true);
+  static void serialize_well_known_klasses(class SerializeClosure* soc);
   static void print() { return print_on(tty); }
   static void print_on(outputStream* st) NOT_CDS_RETURN;
   static void print_table_statistics(outputStream* st) NOT_CDS_RETURN;
   static bool empty_dumptime_table() NOT_CDS_RETURN_(true);
+  static void start_dumping() NOT_CDS_RETURN;
+  static Handle create_jar_manifest(const char* man, size_t size, TRAPS) NOT_CDS_RETURN_(Handle());
 
   DEBUG_ONLY(static bool no_class_loading_should_happen() {return _no_class_loading_should_happen;})
 
@@ -322,6 +337,19 @@ public:
   };
 #endif
 
+  template <typename T>
+  static unsigned int hash_for_shared_dictionary(T* ptr) {
+    assert(ptr > (T*)SharedBaseAddress, "must be");
+    address p = address(ptr) - SharedBaseAddress;
+    return primitive_hash<address>(p);
+  }
+
+#if INCLUDE_CDS_JAVA_HEAP
+private:
+  static void update_archived_mirror_native_pointers_for(RunTimeSharedDictionary* dict);
+public:
+  static void update_archived_mirror_native_pointers() NOT_CDS_RETURN;
+#endif
 };
 
 #endif // SHARE_CLASSFILE_SYSTEMDICTIONARYSHARED_HPP

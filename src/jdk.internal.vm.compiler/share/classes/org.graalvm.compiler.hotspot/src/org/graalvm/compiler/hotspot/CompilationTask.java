@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,8 +32,6 @@ import static org.graalvm.compiler.core.phases.HighTier.Options.Inline;
 import static org.graalvm.compiler.java.BytecodeParserOptions.InlineDuringParsing;
 
 import java.io.PrintStream;
-import java.util.Collections;
-import java.util.List;
 
 import jdk.internal.vm.compiler.collections.EconomicMap;
 import org.graalvm.compiler.api.replacements.SnippetReflectionProvider;
@@ -44,10 +42,12 @@ import org.graalvm.compiler.core.common.CompilationIdentifier;
 import org.graalvm.compiler.debug.CounterKey;
 import org.graalvm.compiler.debug.DebugCloseable;
 import org.graalvm.compiler.debug.DebugContext;
+import org.graalvm.compiler.debug.DebugContext.Builder;
 import org.graalvm.compiler.debug.DebugContext.Description;
 import org.graalvm.compiler.debug.DebugDumpScope;
 import org.graalvm.compiler.debug.DebugHandlersFactory;
 import org.graalvm.compiler.debug.TimerKey;
+import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.options.OptionKey;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.printer.GraalDebugHandlersFactory;
@@ -92,8 +92,8 @@ public class CompilationTask {
         protected DebugContext createRetryDebugContext(DebugContext initialDebug, OptionValues retryOptions, PrintStream logStream) {
             SnippetReflectionProvider snippetReflection = compiler.getGraalRuntime().getHostProviders().getSnippetReflection();
             Description description = initialDebug.getDescription();
-            List<DebugHandlersFactory> factories = Collections.singletonList(new GraalDebugHandlersFactory(snippetReflection));
-            return DebugContext.create(retryOptions, description, initialDebug.getGlobalMetrics(), logStream, factories);
+            DebugHandlersFactory factory = new GraalDebugHandlersFactory(snippetReflection);
+            return new Builder(retryOptions, factory).globalMetrics(initialDebug.getGlobalMetrics()).description(description).logStream(logStream).build();
         }
 
         @Override
@@ -166,15 +166,17 @@ public class CompilationTask {
 
             final CompilationPrinter printer = CompilationPrinter.begin(debug.getOptions(), compilationId, method, entryBCI);
 
+            StructuredGraph graph;
             try (DebugContext.Scope s = debug.scope("Compiling", new DebugDumpScope(getIdString(), true))) {
-                result = compiler.compile(method, entryBCI, useProfilingInfo, shouldRetainLocalVariables, compilationId, debug);
+                graph = compiler.createGraph(method, entryBCI, useProfilingInfo, compilationId, debug.getOptions(), debug);
+                result = compiler.compile(graph, method, entryBCI, useProfilingInfo, shouldRetainLocalVariables, compilationId, debug);
             } catch (Throwable e) {
                 throw debug.handle(e);
             }
 
             if (result != null) {
                 try (DebugCloseable b = CodeInstallationTime.start(debug)) {
-                    installMethod(debug, result);
+                    installMethod(debug, graph, result);
                 }
                 // Installation is included in compilation time and memory usage reported by printer
                 printer.finish(result);
@@ -278,7 +280,7 @@ public class CompilationTask {
     /**
      * Time spent in compilation.
      */
-    private static final TimerKey CompilationTime = DebugContext.timer("CompilationTime").doc("Time spent in compilation and code installation.");
+    public static final TimerKey CompilationTime = DebugContext.timer("CompilationTime").doc("Time spent in compilation and code installation.");
 
     /**
      * Counts the number of compiled {@linkplain CompilationResult#getBytecodeSize() bytecodes}.
@@ -289,7 +291,7 @@ public class CompilationTask {
      * Counts the number of compiled {@linkplain CompilationResult#getBytecodeSize() bytecodes} for
      * which {@linkplain CompilationResult#getTargetCode()} code was installed.
      */
-    private static final CounterKey CompiledAndInstalledBytecodes = DebugContext.counter("CompiledAndInstalledBytecodes");
+    public static final CounterKey CompiledAndInstalledBytecodes = DebugContext.counter("CompiledAndInstalledBytecodes");
 
     /**
      * Counts the number of installed {@linkplain CompilationResult#getTargetCodeSize()} bytes.
@@ -303,8 +305,8 @@ public class CompilationTask {
 
     public HotSpotCompilationRequestResult runCompilation(OptionValues initialOptions) {
         OptionValues options = filterOptions(initialOptions);
-        SnippetReflectionProvider snippetReflection = compiler.getGraalRuntime().getHostProviders().getSnippetReflection();
-        try (DebugContext debug = DebugContext.create(options, new GraalDebugHandlersFactory(snippetReflection))) {
+        HotSpotGraalRuntimeProvider graalRuntime = compiler.getGraalRuntime();
+        try (DebugContext debug = graalRuntime.openDebugContext(options, compilationId, getMethod(), compiler.getDebugHandlersFactories(), DebugContext.getDefaultLogStream())) {
             return runCompilation(debug);
         }
     }
@@ -353,12 +355,12 @@ public class CompilationTask {
     }
 
     @SuppressWarnings("try")
-    private void installMethod(DebugContext debug, final CompilationResult compResult) {
+    private void installMethod(DebugContext debug, StructuredGraph graph, final CompilationResult compResult) {
         final CodeCacheProvider codeCache = jvmciRuntime.getHostJVMCIBackend().getCodeCache();
         HotSpotBackend backend = compiler.getGraalRuntime().getHostBackend();
         installedCode = null;
         Object[] context = {new DebugDumpScope(getIdString(), true), codeCache, getMethod(), compResult};
-        try (DebugContext.Scope s = debug.scope("CodeInstall", context)) {
+        try (DebugContext.Scope s = debug.scope("CodeInstall", context, graph)) {
             HotSpotCompilationRequest request = getRequest();
             installedCode = (HotSpotInstalledCode) backend.createInstalledCode(debug,
                             request.getMethod(),

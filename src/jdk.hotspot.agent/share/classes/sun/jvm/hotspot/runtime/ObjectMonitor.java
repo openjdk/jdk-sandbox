@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@ import java.util.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class ObjectMonitor extends VMObject {
   static {
@@ -90,7 +92,11 @@ public class ObjectMonitor extends VMObject {
   public long recursions() { return recursionsField.getValue(addr); }
 
   public OopHandle object() {
-    return addr.getOopHandleAt(objectFieldOffset);
+    Address objAddr = addr.getAddressAt(objectFieldOffset);
+    if (objAddr == null) {
+      return null;
+    }
+    return objAddr.getOopHandleAt(0);
   }
 
   public int contentions() {
@@ -98,8 +104,8 @@ public class ObjectMonitor extends VMObject {
   }
 
   // FIXME
-  //  void*     object_addr();
-  //  void      set_object(void* obj);
+  //  oop*      object_addr();
+  //  void      set_object(oop obj);
 
   // The following four either aren't expressed as typed fields in
   // vmStructs.cpp because they aren't strongly typed in the VM, or

@@ -27,8 +27,8 @@
  * @summary Run /serviceability/jvmti/RedefineClasses/RedefineRunningMethods in AppCDS mode to
  *          make sure class redefinition works with CDS.
  * @requires vm.cds
+ * @requires vm.jvmti
  * @library /test/lib /test/hotspot/jtreg/serviceability/jvmti/RedefineClasses /test/hotspot/jtreg/runtime/cds/appcds
- * @modules jdk.jartool/sun.tools.jar
  * @run driver RedefineClassHelper
  * @build sun.hotspot.WhiteBox RedefineBasic
  * @run driver RedefineBasicTest

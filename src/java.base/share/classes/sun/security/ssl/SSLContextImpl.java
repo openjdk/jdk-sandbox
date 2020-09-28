@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 package sun.security.ssl;
 
-import java.io.*;
+import java.io.FileInputStream;
 import java.net.Socket;
 import java.security.*;
 import java.security.cert.*;
@@ -71,7 +71,8 @@ public abstract class SSLContextImpl extends SSLContextSpi {
     private volatile StatusResponseManager statusResponseManager;
 
     private final ReentrantLock contextLock = new ReentrantLock();
-    final HashMap<Integer, SessionTicketExtension.StatelessKey> keyHashMap = new HashMap<>();
+    final HashMap<Integer,
+            SessionTicketExtension.StatelessKey> keyHashMap = new HashMap<>();
 
 
     SSLContextImpl() {
@@ -372,7 +373,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
     private static List<CipherSuite> getApplicableCipherSuites(
             Collection<CipherSuite> allowedCipherSuites,
             List<ProtocolVersion> protocols) {
-        TreeSet<CipherSuite> suites = new TreeSet<>();
+        LinkedHashSet<CipherSuite> suites = new LinkedHashSet<>();
         if (protocols != null && (!protocols.isEmpty())) {
             for (CipherSuite suite : allowedCipherSuites) {
                 if (!suite.isAvailable()) {
@@ -549,9 +550,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
                 ProtocolVersion.TLS13,
                 ProtocolVersion.TLS12,
                 ProtocolVersion.TLS11,
-                ProtocolVersion.TLS10,
-                ProtocolVersion.SSL30,
-                ProtocolVersion.SSL20Hello
+                ProtocolVersion.TLS10
             });
 
             supportedCipherSuites = getApplicableSupportedCipherSuites(
@@ -594,17 +593,6 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         boolean isDTLS() {
             return false;
         }
-
-        static ProtocolVersion[] getSupportedProtocols() {
-            return new ProtocolVersion[]{
-                    ProtocolVersion.TLS13,
-                    ProtocolVersion.TLS12,
-                    ProtocolVersion.TLS11,
-                    ProtocolVersion.TLS10,
-                    ProtocolVersion.SSL30,
-                    ProtocolVersion.SSL20Hello
-            };
-        }
     }
 
     /*
@@ -619,8 +607,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         static {
             clientDefaultProtocols = getAvailableProtocols(
                     new ProtocolVersion[] {
-                ProtocolVersion.TLS10,
-                ProtocolVersion.SSL30
+                ProtocolVersion.TLS10
             });
 
             clientDefaultCipherSuites = getApplicableEnabledCipherSuites(
@@ -651,8 +638,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
             clientDefaultProtocols = getAvailableProtocols(
                     new ProtocolVersion[] {
                 ProtocolVersion.TLS11,
-                ProtocolVersion.TLS10,
-                ProtocolVersion.SSL30
+                ProtocolVersion.TLS10
             });
 
             clientDefaultCipherSuites = getApplicableEnabledCipherSuites(
@@ -685,8 +671,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
                     new ProtocolVersion[] {
                 ProtocolVersion.TLS12,
                 ProtocolVersion.TLS11,
-                ProtocolVersion.TLS10,
-                ProtocolVersion.SSL30
+                ProtocolVersion.TLS10
             });
 
             clientDefaultCipherSuites = getApplicableEnabledCipherSuites(
@@ -719,8 +704,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
                 ProtocolVersion.TLS13,
                 ProtocolVersion.TLS12,
                 ProtocolVersion.TLS11,
-                ProtocolVersion.TLS10,
-                ProtocolVersion.SSL30
+                ProtocolVersion.TLS10
             });
 
             clientDefaultCipherSuites = getApplicableEnabledCipherSuites(
@@ -857,11 +841,13 @@ public abstract class SSLContextImpl extends SSLContextSpi {
             // Use the default enabled protocols if no customization
             ProtocolVersion[] candidates;
             if (refactored.isEmpty()) {
-                if (client) {
-                    candidates = getProtocols();
-                } else {
-                    candidates = getSupportedProtocols();
-                }
+                // Client and server use the same default protocols.
+                candidates = new ProtocolVersion[] {
+                        ProtocolVersion.TLS13,
+                        ProtocolVersion.TLS12,
+                        ProtocolVersion.TLS11,
+                        ProtocolVersion.TLS10
+                    };
             } else {
                 // Use the customized TLS protocols.
                 candidates =
@@ -869,16 +855,6 @@ public abstract class SSLContextImpl extends SSLContextSpi {
             }
 
             return getAvailableProtocols(candidates);
-        }
-
-        static ProtocolVersion[] getProtocols() {
-            return new ProtocolVersion[]{
-                    ProtocolVersion.TLS13,
-                    ProtocolVersion.TLS12,
-                    ProtocolVersion.TLS11,
-                    ProtocolVersion.TLS10,
-                    ProtocolVersion.SSL30
-            };
         }
 
         protected CustomizedTLSContext() {
@@ -906,8 +882,6 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         List<CipherSuite> getServerDefaultCipherSuites() {
             return serverDefaultCipherSuites;
         }
-
-
     }
 
     /*
@@ -1183,7 +1157,6 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         private static final List<CipherSuite> serverDefaultCipherSuites;
 
         static {
-            // Both DTLSv1.0 and DTLSv1.2 can be used in FIPS mode.
             supportedProtocols = Arrays.asList(
                 ProtocolVersion.DTLS12,
                 ProtocolVersion.DTLS10
@@ -1205,6 +1178,10 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         @Override
         protected SSLParameters engineGetDefaultSSLParameters() {
             SSLEngine engine = createSSLEngineImpl();
+            // Note: The TLSContext defaults to client side SSLParameters.
+            // We can do the same here. Please don't change the behavior
+            // for compatibility.
+            engine.setUseClientMode(true);
             return engine.getSSLParameters();
         }
 

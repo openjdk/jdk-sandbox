@@ -23,13 +23,15 @@
 
 /*
  * @test
- * @bug 8036979 8072384 8044773 8225214
+ * @bug 8036979 8072384 8044773 8225214 8233296 8234083
  * @library /test/lib
  * @requires !vm.graal.enabled
  * @run main/othervm -Xcheck:jni OptionsTest
  * @run main/othervm -Djdk.net.usePlainSocketImpl OptionsTest
+ * @run main/othervm -Djdk.net.usePlainDatagramSocketImpl OptionsTest
  * @run main/othervm -Xcheck:jni -Djava.net.preferIPv4Stack=true OptionsTest
  * @run main/othervm --limit-modules=java.base OptionsTest
+ * @run main/othervm/policy=options.policy OptionsTest
  */
 
 import java.lang.reflect.Method;
@@ -84,12 +86,16 @@ public class OptionsTest {
         Test.create(StandardSocketOptions.SO_RCVBUF, Integer.valueOf(8 * 100)),
         Test.create(StandardSocketOptions.SO_REUSEADDR, Boolean.FALSE),
         Test.create(StandardSocketOptions.SO_REUSEPORT, Boolean.FALSE),
+        Test.create(StandardSocketOptions.SO_BROADCAST, Boolean.FALSE),
+        Test.create(StandardSocketOptions.SO_BROADCAST, Boolean.TRUE),
         Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(0)),  // lower-bound
         Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100)),
         Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(255))  //upper-bound
     };
 
     static Test<?>[] multicastSocketTests = new Test<?>[] {
+        Test.create(StandardSocketOptions.SO_BROADCAST, Boolean.FALSE),
+        Test.create(StandardSocketOptions.SO_BROADCAST, Boolean.TRUE),
         Test.create(StandardSocketOptions.IP_MULTICAST_IF, getNetworkInterface()),
         Test.create(StandardSocketOptions.IP_MULTICAST_TTL, Integer.valueOf(0)),   // lower-bound
         Test.create(StandardSocketOptions.IP_MULTICAST_TTL, Integer.valueOf(10)),
@@ -285,6 +291,8 @@ public class OptionsTest {
                 return Integer.valueOf(socket.getReceiveBufferSize());
             } else if (option.equals(StandardSocketOptions.SO_REUSEADDR)) {
                 return Boolean.valueOf(socket.getReuseAddress());
+            } else if (option.equals(StandardSocketOptions.SO_BROADCAST)) {
+                return Boolean.valueOf(socket.getBroadcast());
             } else if (option.equals(StandardSocketOptions.SO_REUSEPORT) && reuseport) {
                 return Boolean.valueOf(socket.getOption(StandardSocketOptions.SO_REUSEPORT));
             } else if (option.equals(StandardSocketOptions.IP_TOS)) {
@@ -304,6 +312,8 @@ public class OptionsTest {
                 return Integer.valueOf(socket.getReceiveBufferSize());
             } else if (option.equals(StandardSocketOptions.SO_REUSEADDR)) {
                 return Boolean.valueOf(socket.getReuseAddress());
+            } else if (option.equals(StandardSocketOptions.SO_BROADCAST)) {
+                return Boolean.valueOf(socket.getBroadcast());
             } else if (option.equals(StandardSocketOptions.SO_REUSEPORT) && reuseport) {
                 return Boolean.valueOf(socket.getOption(StandardSocketOptions.SO_REUSEPORT));
             } else if (option.equals(StandardSocketOptions.IP_TOS)) {
@@ -313,7 +323,7 @@ public class OptionsTest {
             } else if (option.equals(StandardSocketOptions.IP_MULTICAST_TTL)) {
                 return Integer.valueOf(socket.getTimeToLive());
             } else if (option.equals(StandardSocketOptions.IP_MULTICAST_LOOP)) {
-                return Boolean.valueOf(socket.getLoopbackMode());
+                return !Boolean.valueOf(socket.getLoopbackMode());
             } else {
                 throw new RuntimeException("unexpected socket option");
             }
@@ -334,7 +344,7 @@ public class OptionsTest {
     static Object getServerSocketTrafficClass(ServerSocket ss) throws Exception {
         try {
             Class<?> c = Class.forName("jdk.net.Sockets");
-            Method m = c.getDeclaredMethod("getOption", ServerSocket.class, SocketOption.class);
+            Method m = c.getMethod("getOption", ServerSocket.class, SocketOption.class);
             return m.invoke(null, ss, StandardSocketOptions.IP_TOS);
         } catch (ClassNotFoundException e) {
             // Ok, jdk.net module not present, just fall back

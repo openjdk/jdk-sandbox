@@ -22,11 +22,11 @@
  */
 package jdk.vm.ci.code;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
 
+import jdk.vm.ci.common.JVMCIError;
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.JavaValue;
 import jdk.vm.ci.meta.ResolvedJavaField;
@@ -74,8 +74,8 @@ public final class VirtualObject implements JavaValue {
      * @param id a unique id that identifies the object within the debug information for one
      *            position in the compiled code.
      * @param isAutoBox a flag that tells the runtime that the object may be a boxed primitive and
-     *            that it possibly needs to be obtained for the box cache instead of creating
-     *            a new instance.
+     *            that it possibly needs to be obtained for the box cache instead of creating a new
+     *            instance.
      * @return a new {@link VirtualObject} instance.
      */
     public static VirtualObject get(ResolvedJavaType type, int id, boolean isAutoBox) {
@@ -108,13 +108,31 @@ public final class VirtualObject implements JavaValue {
                         }
                     } else {
                         ResolvedJavaField[] fields = vo.type.getInstanceFields(true);
-                        assert fields.length == vo.values.length : vo.type + ", fields=" + Arrays.toString(fields) + ", values=" + Arrays.toString(vo.values);
-                        for (int i = 0; i < vo.values.length; i++) {
+                        int fieldIndex = 0;
+                        for (int i = 0; i < vo.values.length; i++, fieldIndex++) {
                             if (i != 0) {
                                 buf.append(',');
                             }
-                            buf.append(fields[i].getName()).append('=');
+                            if (fieldIndex >= fields.length) {
+                                buf.append("<missing field>");
+                            } else {
+                                ResolvedJavaField field = fields[fieldIndex];
+                                buf.append(field.getName());
+                                if (vo.slotKinds[i].getSlotCount() == 2 && field.getType().getJavaKind().getSlotCount() == 1) {
+                                    if (fieldIndex + 1 >= fields.length) {
+                                        buf.append("/<missing field>");
+                                    } else {
+                                        ResolvedJavaField field2 = fields[++fieldIndex];
+                                        buf.append('/').append(field2.getName());
+                                    }
+                                }
+                            }
+                            buf.append('=');
                             appendValue(buf, vo.values[i], visited);
+                        }
+                        // Extra fields
+                        for (; fieldIndex < fields.length; fieldIndex++) {
+                            buf.append(fields[fieldIndex].getName()).append("=<missing value>");
                         }
                     }
                 }
@@ -124,6 +142,78 @@ public final class VirtualObject implements JavaValue {
             buf.append(value);
         }
         return buf;
+    }
+
+    public interface LayoutVerifier {
+        int getOffset(ResolvedJavaField field);
+
+        default JavaKind getStorageKind(ResolvedJavaField field) {
+            return field.getType().getJavaKind();
+        }
+    }
+
+    public void verifyLayout(LayoutVerifier verifier) {
+        if (!type.isArray()) {
+            ResolvedJavaField[] fields = type.getInstanceFields(true);
+            int fieldIndex = 0;
+            for (int i = 0; i < values.length; i++, fieldIndex++) {
+                JavaKind slotKind = slotKinds[i];
+                if (fieldIndex >= fields.length) {
+                    throw new JVMCIError("Not enough fields for the values provided for %s", toString());
+                } else {
+                    ResolvedJavaField field = fields[fieldIndex];
+                    JavaKind fieldKind = verifier.getStorageKind(field);
+                    if (slotKind.getSlotCount() == 2 && fieldKind == JavaKind.Int) {
+                        int offset = verifier.getOffset(field);
+                        if (offset % 8 != 0) {
+                            throw new JVMCIError("Double word value stored across two ints must be aligned %s", toString());
+                        }
+
+                        if (fieldIndex + 1 >= fields.length) {
+                            throw new JVMCIError("Missing second field for double word value stored in two ints %s", toString());
+                        }
+                        ResolvedJavaField field2 = fields[fieldIndex + 1];
+                        if (field2.getType().getJavaKind() != JavaKind.Int) {
+                            throw new JVMCIError("Second field for double word value stored in two ints must be int but got %s in %s", field2.getType().getJavaKind(), toString());
+                        }
+                        int offset2 = verifier.getOffset(field2);
+                        if (offset + 4 != offset2) {
+                            throw new JVMCIError("Double word value stored across two ints must be sequential %s", toString());
+                        }
+                        fieldIndex++;
+                    } else if (fieldKind.getStackKind() != slotKind.getStackKind()) {
+                        throw new JVMCIError("Expected value of kind %s but got %s for field %s in %s", fieldKind, slotKind, field, toString());
+                    }
+                }
+            }
+            // Extra fields
+            if (fieldIndex < fields.length) {
+                throw new JVMCIError("Not enough values provided for fields in %s", this);
+            }
+        } else if (type.getComponentType().getJavaKind() == JavaKind.Byte) {
+            for (int i = 0; i < values.length;) {
+                JavaKind slotkind = slotKinds[i];
+                if (slotkind != JavaKind.Byte) {
+                    if (!slotkind.isPrimitive()) {
+                        throw new JVMCIError("Storing a non-primitive in a byte array: %s %s", slotkind, toString());
+                    }
+                    int byteCount = 1;
+                    while (++i < values.length && slotKinds[i] == JavaKind.Illegal) {
+                        byteCount++;
+                    }
+                    /*
+                     * Checks: a) The byte count is a valid count (ie: power of two), b) if the kind
+                     * was not erased to int (happens for regular byte array accesses), check that
+                     * the count is correct, c) No writes spanning more than a long.
+                     */
+                    if (!CodeUtil.isPowerOf2(byteCount) || (slotkind.getStackKind() != JavaKind.Int && byteCount != slotkind.getByteCount()) || byteCount > JavaKind.Long.getByteCount()) {
+                        throw new JVMCIError("Invalid number of illegals to reconstruct a byte array: %s in %s", byteCount, toString());
+                    }
+                    continue;
+                }
+                i++;
+            }
+        }
     }
 
     @Override
@@ -170,16 +260,7 @@ public final class VirtualObject implements JavaValue {
      * the box is in the cache range and try to return a cached object.
      */
     public boolean isAutoBox() {
-      return isAutoBox;
-    }
-
-    /**
-     * Sets the value of the box flag.
-     * @param isAutoBox a flag that tells the runtime that the object may be a boxed primitive and that
-     *            it possibly needs to be obtained for the box cache instead of creating a new instance.
-     */
-    public void setIsAutoBox(boolean isAutoBox) {
-      this.isAutoBox = isAutoBox;
+        return isAutoBox;
     }
 
     /**

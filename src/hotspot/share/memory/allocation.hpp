@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #ifndef SHARE_MEMORY_ALLOCATION_HPP
 #define SHARE_MEMORY_ALLOCATION_HPP
 
+#include "memory/allStatic.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
@@ -80,16 +81,21 @@ typedef AllocFailStrategy::AllocFailEnum AllocFailType;
 // stored in the array then must pay attention to calling destructors
 // at needed.
 //
-//   NEW_RESOURCE_ARRAY(type, size)
-//   NEW_RESOURCE_OBJ(type)
-//   NEW_C_HEAP_ARRAY(type, size)
-//   NEW_C_HEAP_OBJ(type, memflags)
-//   FREE_C_HEAP_ARRAY(type, old)
-//   FREE_C_HEAP_OBJ(objname, type, memflags)
-//   char* AllocateHeap(size_t size, const char* name);
-//   void  FreeHeap(void* p);
+// NEW_RESOURCE_ARRAY*
+// REALLOC_RESOURCE_ARRAY*
+// FREE_RESOURCE_ARRAY*
+// NEW_RESOURCE_OBJ*
+// NEW_C_HEAP_ARRAY*
+// REALLOC_C_HEAP_ARRAY*
+// FREE_C_HEAP_ARRAY*
+// NEW_C_HEAP_OBJ*
+// FREE_C_HEAP_OBJ
 //
-
+// char* AllocateHeap(size_t size, MEMFLAGS flags, const NativeCallStack& stack, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+// char* AllocateHeap(size_t size, MEMFLAGS flags, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+// char* ReallocateHeap(char *old, size_t size, MEMFLAGS flag, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+// void FreeHeap(void* p);
+//
 // In non product mode we introduce a super class for all allocation classes
 // that supports printing.
 // We avoid the superclass in product mode to save space.
@@ -109,33 +115,34 @@ class AllocatedObj {
 };
 #endif
 
-#define MEMORY_TYPES_DO(f) \
-  /* Memory type by sub systems. It occupies lower byte. */  \
-  f(mtJavaHeap,      "Java Heap")   /* Java heap                                 */ \
-  f(mtClass,         "Class")       /* Java classes                              */ \
-  f(mtThread,        "Thread")      /* thread objects                            */ \
-  f(mtThreadStack,   "Thread Stack")                                                \
-  f(mtCode,          "Code")        /* generated code                            */ \
-  f(mtGC,            "GC")                                                          \
-  f(mtCompiler,      "Compiler")                                                    \
-  f(mtJVMCI,         "JVMCI")                                                       \
-  f(mtInternal,      "Internal")    /* memory used by VM, but does not belong to */ \
-                                    /* any of above categories, and not used by  */ \
-                                    /* NMT                                       */ \
-  f(mtOther,         "Other")       /* memory not used by VM                     */ \
-  f(mtSymbol,        "Symbol")                                                      \
-  f(mtNMT,           "Native Memory Tracking")  /* memory used by NMT            */ \
-  f(mtClassShared,   "Shared class space")      /* class data sharing            */ \
-  f(mtChunk,         "Arena Chunk") /* chunk that holds content of arenas        */ \
-  f(mtTest,          "Test")        /* Test type for verifying NMT               */ \
-  f(mtTracing,       "Tracing")                                                     \
-  f(mtLogging,       "Logging")                                                     \
-  f(mtStatistics,    "Statistics")                                                  \
-  f(mtArguments,     "Arguments")                                                   \
-  f(mtModule,        "Module")                                                      \
-  f(mtSafepoint,     "Safepoint")                                                   \
-  f(mtSynchronizer,  "Synchronization")                                             \
-  f(mtNone,          "Unknown")                                                     \
+#define MEMORY_TYPES_DO(f)                                                           \
+  /* Memory type by sub systems. It occupies lower byte. */                          \
+  f(mtJavaHeap,       "Java Heap")   /* Java heap                                 */ \
+  f(mtClass,          "Class")       /* Java classes                              */ \
+  f(mtThread,         "Thread")      /* thread objects                            */ \
+  f(mtThreadStack,    "Thread Stack")                                                \
+  f(mtCode,           "Code")        /* generated code                            */ \
+  f(mtGC,             "GC")                                                          \
+  f(mtCompiler,       "Compiler")                                                    \
+  f(mtJVMCI,          "JVMCI")                                                       \
+  f(mtInternal,       "Internal")    /* memory used by VM, but does not belong to */ \
+                                     /* any of above categories, and not used by  */ \
+                                     /* NMT                                       */ \
+  f(mtOther,          "Other")       /* memory not used by VM                     */ \
+  f(mtSymbol,         "Symbol")                                                      \
+  f(mtNMT,            "Native Memory Tracking")  /* memory used by NMT            */ \
+  f(mtClassShared,    "Shared class space")      /* class data sharing            */ \
+  f(mtChunk,          "Arena Chunk") /* chunk that holds content of arenas        */ \
+  f(mtTest,           "Test")        /* Test type for verifying NMT               */ \
+  f(mtTracing,        "Tracing")                                                     \
+  f(mtLogging,        "Logging")                                                     \
+  f(mtStatistics,     "Statistics")                                                  \
+  f(mtArguments,      "Arguments")                                                   \
+  f(mtModule,         "Module")                                                      \
+  f(mtSafepoint,      "Safepoint")                                                   \
+  f(mtSynchronizer,   "Synchronization")                                             \
+  f(mtServiceability, "Serviceability")                                              \
+  f(mtNone,           "Unknown")                                                     \
   //end
 
 #define MEMORY_TYPE_DECLARE_ENUM(type, human_readable) \
@@ -179,6 +186,7 @@ char* ReallocateHeap(char *old,
                      MEMFLAGS flag,
                      AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
 
+// handles NULL pointers
 void FreeHeap(void* p);
 
 template <MEMFLAGS F> class CHeapObj ALLOCATION_SUPER_CLASS_SPEC {
@@ -230,9 +238,6 @@ class StackObj ALLOCATION_SUPER_CLASS_SPEC {
  private:
   void* operator new(size_t size) throw();
   void* operator new [](size_t size) throw();
-#ifdef __IBMCPP__
- public:
-#endif
   void  operator delete(void* p);
   void  operator delete [](void* p);
 };
@@ -280,11 +285,6 @@ class MetaspaceObj {
     _shared_metaspace_top = top;
   }
 
-  static void expand_shared_metaspace_range(void* top) {
-    assert(top >= _shared_metaspace_top, "must be");
-    _shared_metaspace_top = top;
-  }
-
   static void* shared_metaspace_base() { return _shared_metaspace_base; }
   static void* shared_metaspace_top()  { return _shared_metaspace_top;  }
 
@@ -302,7 +302,8 @@ class MetaspaceObj {
   f(ConstantPool) \
   f(ConstantPoolCache) \
   f(Annotations) \
-  f(MethodCounters)
+  f(MethodCounters) \
+  f(RecordComponent)
 
 #define METASPACE_OBJ_TYPE_DECLARE(name) name ## Type,
 #define METASPACE_OBJ_TYPE_NAME_CASE(name) case name ## Type: return #name;
@@ -348,13 +349,6 @@ class MetaspaceObj {
 // Base class for classes that constitute name spaces.
 
 class Arena;
-
-class AllStatic {
- public:
-  AllStatic()  { ShouldNotCallThis(); }
-  ~AllStatic() { ShouldNotCallThis(); }
-};
-
 
 extern char* resource_allocate_bytes(size_t size,
     AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
@@ -485,7 +479,7 @@ protected:
   NEW_C_HEAP_ARRAY3(type, (size), memflags, pc, AllocFailStrategy::RETURN_NULL)
 
 #define NEW_C_HEAP_ARRAY_RETURN_NULL(type, size, memflags)\
-  NEW_C_HEAP_ARRAY3(type, (size), memflags, CURRENT_PC, AllocFailStrategy::RETURN_NULL)
+  NEW_C_HEAP_ARRAY2(type, (size), memflags, AllocFailStrategy::RETURN_NULL)
 
 #define REALLOC_C_HEAP_ARRAY(type, old, size, memflags)\
   (type*) (ReallocateHeap((char*)(old), (size) * sizeof(type), memflags))

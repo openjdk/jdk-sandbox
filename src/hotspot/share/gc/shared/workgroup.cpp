@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "gc/shared/workerManager.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
+#include "memory/iterator.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
 #include "runtime/semaphore.hpp"
@@ -40,10 +41,6 @@
 void  AbstractWorkGang::initialize_workers() {
   log_develop_trace(gc, workgang)("Constructing work gang %s with %u threads", name(), total_workers());
   _workers = NEW_C_HEAP_ARRAY(AbstractGangWorker*, total_workers(), mtInternal);
-  if (_workers == NULL) {
-    vm_exit_out_of_memory(0, OOM_MALLOC_ERROR, "Cannot create GangWorker array.");
-  }
-
   add_workers(true);
 }
 
@@ -89,14 +86,6 @@ AbstractGangWorker* AbstractWorkGang::worker(uint i) const {
   return result;
 }
 
-void AbstractWorkGang::print_worker_threads_on(outputStream* st) const {
-  uint workers = created_workers();
-  for (uint i = 0; i < workers; i++) {
-    worker(i)->print_on(st);
-    st->cr();
-  }
-}
-
 void AbstractWorkGang::threads_do(ThreadClosure* tc) const {
   assert(tc != NULL, "Null ThreadClosure");
   uint workers = created_workers();
@@ -105,11 +94,22 @@ void AbstractWorkGang::threads_do(ThreadClosure* tc) const {
   }
 }
 
+static void run_foreground_task_if_needed(AbstractGangTask* task, uint num_workers,
+                                          bool add_foreground_work) {
+  if (add_foreground_work) {
+    log_develop_trace(gc, workgang)("Running work gang: %s task: %s worker: foreground",
+      Thread::current()->name(), task->name());
+    task->work(num_workers);
+    log_develop_trace(gc, workgang)("Finished work gang: %s task: %s worker: foreground "
+      "thread: " PTR_FORMAT, Thread::current()->name(), task->name(), p2i(Thread::current()));
+  }
+}
+
 // WorkGang dispatcher implemented with semaphores.
 //
 // Semaphores don't require the worker threads to re-claim the lock when they wake up.
 // This helps lowering the latency when starting and stopping the worker threads.
-class SemaphoreGangTaskDispatcher : public GangTaskDispatcher {
+class GangTaskDispatcher : public CHeapObj<mtGC> {
   // The task currently being dispatched to the GangWorkers.
   AbstractGangTask* _task;
 
@@ -122,7 +122,7 @@ class SemaphoreGangTaskDispatcher : public GangTaskDispatcher {
   Semaphore* _end_semaphore;
 
 public:
-  SemaphoreGangTaskDispatcher() :
+  GangTaskDispatcher() :
       _task(NULL),
       _started(0),
       _not_finished(0),
@@ -130,18 +130,24 @@ public:
       _end_semaphore(new Semaphore())
 { }
 
-  ~SemaphoreGangTaskDispatcher() {
+  ~GangTaskDispatcher() {
     delete _start_semaphore;
     delete _end_semaphore;
   }
 
-  void coordinator_execute_on_workers(AbstractGangTask* task, uint num_workers) {
+  // Coordinator API.
+
+  // Distributes the task out to num_workers workers.
+  // Returns when the task has been completed by all workers.
+  void coordinator_execute_on_workers(AbstractGangTask* task, uint num_workers, bool add_foreground_work) {
     // No workers are allowed to read the state variables until they have been signaled.
     _task         = task;
     _not_finished = num_workers;
 
     // Dispatch 'num_workers' number of tasks.
     _start_semaphore->signal(num_workers);
+
+    run_foreground_task_if_needed(task, num_workers, add_foreground_work);
 
     // Wait for the last worker to signal the coordinator.
     _end_semaphore->wait();
@@ -153,11 +159,15 @@ public:
 
   }
 
+  // Worker API.
+
+  // Waits for a task to become available to the worker.
+  // Returns when the worker has been assigned a task.
   WorkData worker_wait_for_task() {
     // Wait for the coordinator to dispatch a task.
     _start_semaphore->wait();
 
-    uint num_started = Atomic::add(1u, &_started);
+    uint num_started = Atomic::add(&_started, 1u);
 
     // Subtract one to get a zero-indexed worker id.
     uint worker_id = num_started - 1;
@@ -165,10 +175,11 @@ public:
     return WorkData(_task, worker_id);
   }
 
+  // Signal to the coordinator that the worker is done with the assigned task.
   void worker_done_with_task() {
     // Mark that the worker is done with the task.
     // The worker is not allowed to read the state variables after this line.
-    uint not_finished = Atomic::sub(1u, &_not_finished);
+    uint not_finished = Atomic::sub(&_not_finished, 1u);
 
     // The last worker signals to the coordinator that all work is completed.
     if (not_finished == 0) {
@@ -177,89 +188,12 @@ public:
   }
 };
 
-class MutexGangTaskDispatcher : public GangTaskDispatcher {
-  AbstractGangTask* _task;
-
-  volatile uint _started;
-  volatile uint _finished;
-  volatile uint _num_workers;
-
-  Monitor* _monitor;
-
- public:
-  MutexGangTaskDispatcher() :
-    _task(NULL),
-    _started(0),
-    _finished(0),
-    _num_workers(0),
-    _monitor(new Monitor(Monitor::leaf, "WorkGang dispatcher lock", false, Monitor::_safepoint_check_never)) {
-  }
-
-  ~MutexGangTaskDispatcher() {
-    delete _monitor;
-  }
-
-  void coordinator_execute_on_workers(AbstractGangTask* task, uint num_workers) {
-    MonitorLocker ml(_monitor, Mutex::_no_safepoint_check_flag);
-
-    _task        = task;
-    _num_workers = num_workers;
-
-    // Tell the workers to get to work.
-    _monitor->notify_all();
-
-    // Wait for them to finish.
-    while (_finished < _num_workers) {
-      ml.wait();
-    }
-
-    _task        = NULL;
-    _num_workers = 0;
-    _started     = 0;
-    _finished    = 0;
-  }
-
-  WorkData worker_wait_for_task() {
-    MonitorLocker ml(_monitor, Mutex::_no_safepoint_check_flag);
-
-    while (_num_workers == 0 || _started == _num_workers) {
-      _monitor->wait();
-    }
-
-    _started++;
-
-    // Subtract one to get a zero-indexed worker id.
-    uint worker_id = _started - 1;
-
-    return WorkData(_task, worker_id);
-  }
-
-  void worker_done_with_task() {
-    MonitorLocker ml(_monitor, Mutex::_no_safepoint_check_flag);
-
-    _finished++;
-
-    if (_finished == _num_workers) {
-      // This will wake up all workers and not only the coordinator.
-      _monitor->notify_all();
-    }
-  }
-};
-
-static GangTaskDispatcher* create_dispatcher() {
-  if (UseSemaphoreGCThreadsSynchronization) {
-    return new SemaphoreGangTaskDispatcher();
-  }
-
-  return new MutexGangTaskDispatcher();
-}
-
 WorkGang::WorkGang(const char* name,
                    uint  workers,
                    bool  are_GC_task_threads,
                    bool  are_ConcurrentGC_threads) :
     AbstractWorkGang(name, workers, are_GC_task_threads, are_ConcurrentGC_threads),
-    _dispatcher(create_dispatcher())
+    _dispatcher(new GangTaskDispatcher())
 { }
 
 WorkGang::~WorkGang() {
@@ -274,14 +208,14 @@ void WorkGang::run_task(AbstractGangTask* task) {
   run_task(task, active_workers());
 }
 
-void WorkGang::run_task(AbstractGangTask* task, uint num_workers) {
+void WorkGang::run_task(AbstractGangTask* task, uint num_workers, bool add_foreground_work) {
   guarantee(num_workers <= total_workers(),
             "Trying to execute task %s with %u workers which is more than the amount of total workers %u.",
             task->name(), num_workers, total_workers());
   guarantee(num_workers > 0, "Trying to execute task %s with zero workers", task->name());
   uint old_num_workers = _active_workers;
   update_active_workers(num_workers);
-  _dispatcher->coordinator_execute_on_workers(task, num_workers);
+  _dispatcher->coordinator_execute_on_workers(task, num_workers, add_foreground_work);
   update_active_workers(old_num_workers);
 }
 
@@ -409,7 +343,6 @@ void WorkGangBarrierSync::abort() {
 SubTasksDone::SubTasksDone(uint n) :
   _tasks(NULL), _n_tasks(n), _threads_completed(0) {
   _tasks = NEW_C_HEAP_ARRAY(uint, n, mtInternal);
-  guarantee(_tasks != NULL, "alloc failure");
   clear();
 }
 
@@ -431,7 +364,7 @@ bool SubTasksDone::try_claim_task(uint t) {
   assert(t < _n_tasks, "bad task id.");
   uint old = _tasks[t];
   if (old == 0) {
-    old = Atomic::cmpxchg(1u, &_tasks[t], 0u);
+    old = Atomic::cmpxchg(&_tasks[t], 0u, 1u);
   }
   bool res = old == 0;
 #ifdef ASSERT
@@ -448,7 +381,7 @@ void SubTasksDone::all_tasks_completed(uint n_threads) {
   uint old;
   do {
     old = observed;
-    observed = Atomic::cmpxchg(old+1, &_threads_completed, old);
+    observed = Atomic::cmpxchg(&_threads_completed, old, old+1);
   } while (observed != old);
   // If this was the last thread checking in, clear the tasks.
   uint adjusted_thread_count = (n_threads == 0 ? 1 : n_threads);
@@ -459,7 +392,7 @@ void SubTasksDone::all_tasks_completed(uint n_threads) {
 
 
 SubTasksDone::~SubTasksDone() {
-  if (_tasks != NULL) FREE_C_HEAP_ARRAY(uint, _tasks);
+  FREE_C_HEAP_ARRAY(uint, _tasks);
 }
 
 // *** SequentialSubTasksDone
@@ -476,7 +409,7 @@ bool SequentialSubTasksDone::valid() {
 bool SequentialSubTasksDone::try_claim_task(uint& t) {
   t = _n_claimed;
   while (t < _n_tasks) {
-    uint res = Atomic::cmpxchg(t+1, &_n_claimed, t);
+    uint res = Atomic::cmpxchg(&_n_claimed, t, t+1);
     if (res == t) {
       return true;
     }
@@ -488,7 +421,7 @@ bool SequentialSubTasksDone::try_claim_task(uint& t) {
 bool SequentialSubTasksDone::all_tasks_completed() {
   uint complete = _n_completed;
   while (true) {
-    uint res = Atomic::cmpxchg(complete+1, &_n_completed, complete);
+    uint res = Atomic::cmpxchg(&_n_completed, complete, complete+1);
     if (res == complete) {
       break;
     }

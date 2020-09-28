@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@
 #include "interpreter/interp_masm.hpp"
 #include "interpreter/templateTable.hpp"
 #include "memory/universe.hpp"
+#include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
@@ -39,6 +40,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 #ifdef PRODUCT
 #define __ _masm->
@@ -464,6 +466,7 @@ void TemplateTable::fast_aldc(bool wide) {
 
   // Convert null sentinel to NULL.
   __ load_const_optimized(Z_R1_scratch, (intptr_t)Universe::the_null_sentinel_addr());
+  __ resolve_oop_handle(Z_R1_scratch);
   __ z_cg(Z_tos, Address(Z_R1_scratch));
   __ z_brne(L_resolved);
   __ clear_reg(Z_tos);
@@ -2378,7 +2381,7 @@ void TemplateTable::_return(TosState state) {
     __ bind(skip_register_finalizer);
   }
 
-  if (SafepointMechanism::uses_thread_local_poll() && _desc->bytecode() != Bytecodes::_return_register_finalizer) {
+  if (_desc->bytecode() != Bytecodes::_return_register_finalizer) {
     Label no_safepoint;
     const Address poll_byte_addr(Z_thread, in_bytes(Thread::polling_page_offset()) + 7 /* Big Endian */);
     __ z_tm(poll_byte_addr, SafepointMechanism::poll_bit());

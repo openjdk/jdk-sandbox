@@ -26,7 +26,6 @@
  * @bug 4645058 4747738 4855054 8024756 8141492 8196202 8205593 8215599
  * @summary  Javascript IE load error when linked by -linkoffline
  *           Window title shouldn't change when loading left frames (javascript)
- * @author dkramer
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build javadoc.tester.*
@@ -55,10 +54,12 @@ public class JavascriptWinTitle extends JavadocTester {
         checkExit(Exit.OK);
         checkOutput("index.html", true,
                 "<script type=\"text/javascript\">",
-                "<body class=\"package-index\">");
+                """
+                    <body class="package-index-page">""");
 
         // Test that "onload" is not present in BODY tag:
-        checkOutput("p1/package-summary.html", true, "<body class=\"package-declaration\">");
+        checkOutput("p1/package-summary.html", true, """
+            <body class="package-declaration-page">""");
 
         checkOutput("p1/C.html", true, "<title>C (Window Title)</title>");
     }

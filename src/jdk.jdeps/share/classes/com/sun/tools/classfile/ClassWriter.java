@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -642,6 +642,20 @@ public class ClassWriter {
         }
 
         @Override
+        public Void visitRecord(Record_attribute attr, ClassOutputStream out) {
+            out.writeShort(attr.component_count);
+            for (Record_attribute.ComponentInfo info: attr.component_info_arr) {
+                out.writeShort(info.name_index);
+                out.writeShort(info.descriptor.index);
+                int size = info.attributes.size();
+                out.writeShort(size);
+                for (Attribute componentAttr: info.attributes)
+                    write(componentAttr, out);
+            }
+            return null;
+        }
+
+        @Override
         public Void visitRuntimeInvisibleAnnotations(RuntimeInvisibleAnnotations_attribute attr, ClassOutputStream out) {
             annotationWriter.write(attr.annotations, out);
             return null;
@@ -678,6 +692,16 @@ public class ClassWriter {
         @Override
         public Void visitRuntimeVisibleTypeAnnotations(RuntimeVisibleTypeAnnotations_attribute attr, ClassOutputStream out) {
             annotationWriter.write(attr.annotations, out);
+            return null;
+        }
+
+        @Override
+        public Void visitPermittedSubclasses(PermittedSubclasses_attribute attr, ClassOutputStream out) {
+            int n = attr.subtypes.length;
+            out.writeShort(n);
+            for (int i = 0 ; i < n ; i++) {
+                out.writeShort(attr.subtypes[i]);
+            }
             return null;
         }
 

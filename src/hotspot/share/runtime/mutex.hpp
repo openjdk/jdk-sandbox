@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,7 +64,7 @@ class Mutex : public CHeapObj<mtSynchronizer> {
        event,
        access         = event          +   1,
        tty            = access         +   2,
-       special        = tty            +   1,
+       special        = tty            +   3,
        suspend_resume = special        +   1,
        oopstorage     = suspend_resume +   2,
        leaf           = oopstorage     +   2,
@@ -82,20 +82,21 @@ class Mutex : public CHeapObj<mtSynchronizer> {
 
   // Debugging fields for naming, deadlock detection, etc. (some only used in debug mode)
 #ifndef PRODUCT
-  bool      _allow_vm_block;
-  DEBUG_ONLY(int _rank;)                 // rank (to avoid/detect potential deadlocks)
-  DEBUG_ONLY(Mutex* _next;)              // Used by a Thread to link up owned locks
-  DEBUG_ONLY(Thread* _last_owner;)       // the last thread to own the lock
-  DEBUG_ONLY(static bool contains(Mutex* locks, Mutex* lock);)
-  DEBUG_ONLY(static Mutex* get_least_ranked_lock(Mutex* locks);)
-  DEBUG_ONLY(Mutex* get_least_ranked_lock_besides_this(Mutex* locks);)
-#endif
+  bool    _allow_vm_block;
+  int     _rank;                 // rank (to avoid/detect potential deadlocks)
+  Mutex*  _next;                 // Used by a Thread to link up owned locks
+  Thread* _last_owner;           // the last thread to own the lock
+  static bool contains(Mutex* locks, Mutex* lock);
+  static Mutex* get_least_ranked_lock(Mutex* locks);
+  Mutex* get_least_ranked_lock_besides_this(Mutex* locks);
+#endif  // ASSERT
 
-  void set_owner_implementation(Thread* owner)                        PRODUCT_RETURN;
-  void check_prelock_state     (Thread* thread, bool safepoint_check) PRODUCT_RETURN;
-  void check_block_state       (Thread* thread)                       PRODUCT_RETURN;
-  void check_safepoint_state   (Thread* thread, bool safepoint_check) NOT_DEBUG_RETURN;
+  void set_owner_implementation(Thread* owner)                        NOT_DEBUG({ _owner = owner;});
+  void check_block_state       (Thread* thread)                       NOT_DEBUG_RETURN;
+  void check_safepoint_state   (Thread* thread)                       NOT_DEBUG_RETURN;
+  void check_no_safepoint_state(Thread* thread)                       NOT_DEBUG_RETURN;
   void assert_owner            (Thread* expected)                     NOT_DEBUG_RETURN;
+  void no_safepoint_verifier   (Thread* thread, bool enable)          NOT_DEBUG_RETURN;
 
  public:
   enum {
@@ -151,6 +152,9 @@ class Mutex : public CHeapObj<mtSynchronizer> {
   bool is_locked() const                     { return _owner != NULL; }
 
   bool try_lock(); // Like lock(), but unblocking. It returns false instead
+ private:
+  void lock_contended(Thread *thread); // contended slow-path
+ public:
 
   void release_for_safepoint();
 
@@ -171,21 +175,16 @@ class Mutex : public CHeapObj<mtSynchronizer> {
   #ifndef PRODUCT
     void print_on(outputStream* st) const;
     void print() const                      { print_on(::tty); }
-    DEBUG_ONLY(int    rank() const          { return _rank; })
-    bool   allow_vm_block()                 { return _allow_vm_block; }
-
-    DEBUG_ONLY(Mutex *next()  const         { return _next; })
-    DEBUG_ONLY(void   set_next(Mutex *next) { _next = next; })
   #endif
+  #ifdef ASSERT
+    int    rank() const          { return _rank; }
+    bool   allow_vm_block()      { return _allow_vm_block; }
 
-  void set_owner(Thread* owner) {
-  #ifndef PRODUCT
-    set_owner_implementation(owner);
-    DEBUG_ONLY(void verify_mutex(Thread* thr);)
-  #else
-    _owner = owner;
-  #endif
-  }
+    Mutex *next()  const         { return _next; }
+    void   set_next(Mutex *next) { _next = next; }
+  #endif // ASSERT
+
+  void set_owner(Thread* owner)             { set_owner_implementation(owner); }
 };
 
 class Monitor : public Mutex {
@@ -199,9 +198,9 @@ class Monitor : public Mutex {
   // Defaults are to make safepoint checks, wait time is forever (i.e.,
   // zero), and not a suspend-equivalent condition. Returns true if wait
   // times out; otherwise returns false.
-  bool wait(long timeout = 0,
+  bool wait(int64_t timeout = 0,
             bool as_suspend_equivalent = !_as_suspend_equivalent_flag);
-  bool wait_without_safepoint_check(long timeout = 0);
+  bool wait_without_safepoint_check(int64_t timeout = 0);
   void notify();
   void notify_all();
 };

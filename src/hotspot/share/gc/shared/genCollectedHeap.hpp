@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/generation.hpp"
 #include "gc/shared/oopStorageParState.hpp"
+#include "gc/shared/preGCValues.hpp"
 #include "gc/shared/softRefGenPolicy.hpp"
 
 class AdaptiveSizePolicy;
@@ -44,8 +45,6 @@ class GenCollectedHeap : public CollectedHeap {
   friend class Generation;
   friend class DefNewGeneration;
   friend class TenuredGeneration;
-  friend class ConcurrentMarkSweepGeneration;
-  friend class CMSCollector;
   friend class GenMarkSweep;
   friend class VM_GenCollectForAllocation;
   friend class VM_GenCollectFull;
@@ -95,23 +94,19 @@ private:
                           bool restore_marks_for_biased_locking);
 
   // Reserve aligned space for the heap as needed by the contained generations.
-  char* allocate(size_t alignment, ReservedSpace* heap_rs);
+  ReservedHeapSpace allocate(size_t alignment);
 
   // Initialize ("weak") refs processing support
   void ref_processing_init();
+
+  PreGenGCValues get_pre_gc_values() const;
 
 protected:
 
   // The set of potentially parallel tasks in root scanning.
   enum GCH_strong_roots_tasks {
-    GCH_PS_Universe_oops_do,
-    GCH_PS_JNIHandles_oops_do,
-    GCH_PS_ObjectSynchronizer_oops_do,
-    GCH_PS_FlatProfiler_oops_do,
-    GCH_PS_Management_oops_do,
-    GCH_PS_SystemDictionary_oops_do,
+    GCH_PS_OopStorageSet_oops_do,
     GCH_PS_ClassLoaderDataGraph_oops_do,
-    GCH_PS_jvmti_oops_do,
     GCH_PS_CodeCache_oops_do,
     AOT_ONLY(GCH_PS_aot_oops_do COMMA)
     GCH_PS_younger_gens,
@@ -176,6 +171,9 @@ public:
 
   bool is_young_gen(const Generation* gen) const { return gen == _young_gen; }
   bool is_old_gen(const Generation* gen) const { return gen == _old_gen; }
+
+  MemRegion reserved_region() const { return _reserved; }
+  bool is_in_reserved(const void* addr) const { return _reserved.contains(addr); }
 
   GenerationSpec* young_gen_spec() const;
   GenerationSpec* old_gen_spec() const;
@@ -244,7 +242,6 @@ public:
   // Iteration functions.
   void oop_iterate(OopIterateClosure* cl);
   void object_iterate(ObjectClosure* cl);
-  void safe_object_iterate(ObjectClosure* cl);
   Space* space_containing(const void* addr) const;
 
   // A CollectedHeap is divided into a dense sequence of "blocks"; that is,
@@ -269,7 +266,6 @@ public:
   bool block_is_obj(const HeapWord* addr) const;
 
   // Section on TLAB's.
-  virtual bool supports_tlab_allocation() const;
   virtual size_t tlab_capacity(Thread* thr) const;
   virtual size_t tlab_used(Thread* thr) const;
   virtual size_t unsafe_max_tlab_alloc(Thread* thr) const;
@@ -291,10 +287,6 @@ public:
   // Ensure parsability: override
   virtual void ensure_parsability(bool retire_tlabs);
 
-  // Time in ms since the longest time a collector ran in
-  // in any generation.
-  virtual jlong millis_since_last_gc();
-
   // Total number of full collections completed.
   unsigned int total_full_collections_completed() {
     assert(_full_collections_completed <= _total_full_collections,
@@ -306,12 +298,6 @@ public:
   unsigned int update_full_collections_completed();
   // Update above counter, as appropriate, at the end of a concurrent GC cycle
   unsigned int update_full_collections_completed(unsigned int count);
-
-  // Update "time of last gc" for all generations to "now".
-  void update_time_of_last_gc(jlong now) {
-    _young_gen->update_time_of_last_gc(now);
-    _old_gen->update_time_of_last_gc(now);
-  }
 
   // Update the gc statistics for each generation.
   void update_gc_stats(Generation* current_generation, bool full) {
@@ -328,14 +314,13 @@ public:
 
   // Override.
   virtual void print_on(outputStream* st) const;
-  virtual void print_gc_threads_on(outputStream* st) const;
   virtual void gc_threads_do(ThreadClosure* tc) const;
   virtual void print_tracing_info() const;
 
   // Used to print information about locations in the hs_err file.
   virtual bool print_location(outputStream* st, void* addr) const;
 
-  void print_heap_change(size_t young_prev_used, size_t old_prev_used) const;
+  void print_heap_change(const PreGenGCValues& pre_gc_values) const;
 
   // The functions below are helper functions that a subclass of
   // "CollectedHeap" can use in the implementation of its virtual
@@ -380,25 +365,15 @@ public:
                      CLDClosure* weak_cld_closure,
                      CodeBlobToOopClosure* code_roots);
 
-  // Accessor for memory state verification support
-  NOT_PRODUCT(
-    virtual size_t skip_header_HeapWords() { return 0; }
-  )
-
   virtual void gc_prologue(bool full);
   virtual void gc_epilogue(bool full);
 
  public:
-  void young_process_roots(StrongRootsScope* scope,
-                           OopsInGenClosure* root_closure,
-                           OopsInGenClosure* old_gen_closure,
-                           CLDClosure* cld_closure);
-
   void full_process_roots(StrongRootsScope* scope,
                           bool is_adjust_phase,
                           ScanningOption so,
                           bool only_strong_roots,
-                          OopsInGenClosure* root_closure,
+                          OopClosure* root_closure,
                           CLDClosure* cld_closure);
 
   // Apply "root_closure" to all the weak roots of the system.
@@ -458,10 +433,6 @@ private:
   HeapWord* mem_allocate_work(size_t size,
                               bool is_tlab,
                               bool* gc_overhead_limit_was_exceeded);
-
-  // Override
-  void check_for_non_bad_heap_word_value(HeapWord* addr,
-    size_t size) PRODUCT_RETURN;
 
 #if INCLUDE_SERIALGC
   // For use by mark-sweep.  As implemented, mark-sweep-compact is global

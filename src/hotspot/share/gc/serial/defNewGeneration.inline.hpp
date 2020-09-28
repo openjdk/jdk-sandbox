@@ -83,18 +83,17 @@ inline void DefNewGeneration::FastKeepAliveClosure::do_oop_work(T* p) {
   // we set a younger_gen card if we have an older->youngest
   // generation pointer.
   oop obj = RawAccess<IS_NOT_NULL>::oop_load(p);
-  if (((HeapWord*)obj < _boundary) && GenCollectedHeap::heap()->is_in_reserved(p)) {
+  if ((cast_from_oop<HeapWord*>(obj) < _boundary) && GenCollectedHeap::heap()->is_in_reserved(p)) {
     _rs->inline_write_ref_field_gc(p, obj);
   }
 }
 
 template <typename OopClosureType>
 void DefNewGeneration::oop_since_save_marks_iterate(OopClosureType* cl) {
-  cl->set_generation(this);
   eden()->oop_since_save_marks_iterate(cl);
   to()->oop_since_save_marks_iterate(cl);
   from()->oop_since_save_marks_iterate(cl);
-  cl->reset_generation();
+
   save_marks();
 }
 

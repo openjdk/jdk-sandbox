@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -231,8 +231,7 @@ JavaCallWrapper* frame::entry_frame_call_wrapper_if_safe(JavaThread* thread) con
 bool frame::is_entry_frame_valid(JavaThread* thread) const {
   // Validate the JavaCallWrapper an entry frame must have
   address jcw = (address)entry_frame_call_wrapper();
-  bool jcw_safe = (jcw < thread->stack_base()) && (jcw > (address)fp()); // less than stack base
-  if (!jcw_safe) {
+  if (!thread->is_in_stack_range_excl(jcw, (address)fp())) {
     return false;
   }
 
@@ -673,13 +672,13 @@ void frame::print_on_error(outputStream* st, char* buf, int buflen, bool verbose
 */
 class InterpreterFrameClosure : public OffsetClosure {
  private:
-  frame* _fr;
-  OopClosure* _f;
-  int    _max_locals;
-  int    _max_stack;
+  const frame* _fr;
+  OopClosure*  _f;
+  int          _max_locals;
+  int          _max_stack;
 
  public:
-  InterpreterFrameClosure(frame* fr, int max_locals, int max_stack,
+  InterpreterFrameClosure(const frame* fr, int max_locals, int max_stack,
                           OopClosure* f) {
     _fr         = fr;
     _max_locals = max_locals;
@@ -710,21 +709,21 @@ class InterpreterFrameClosure : public OffsetClosure {
   }
 
   int max_locals()  { return _max_locals; }
-  frame* fr()       { return _fr; }
 };
 
 
-class InterpretedArgumentOopFinder: public SignatureInfo {
+class InterpretedArgumentOopFinder: public SignatureIterator {
  private:
-  OopClosure* _f;        // Closure to invoke
-  int    _offset;        // TOS-relative offset, decremented with each argument
-  bool   _has_receiver;  // true if the callee has a receiver
-  frame* _fr;
+  OopClosure*  _f;             // Closure to invoke
+  int          _offset;        // TOS-relative offset, decremented with each argument
+  bool         _has_receiver;  // true if the callee has a receiver
+  const frame* _fr;
 
-  void set(int size, BasicType type) {
-    _offset -= size;
-    if (type == T_OBJECT || type == T_ARRAY) oop_offset_do();
-  }
+  friend class SignatureIterator;  // so do_parameters_on can call do_type
+  void do_type(BasicType type) {
+    _offset -= parameter_type_word_count(type);
+    if (is_reference_type(type)) oop_offset_do();
+   }
 
   void oop_offset_do() {
     oop* addr;
@@ -733,7 +732,7 @@ class InterpretedArgumentOopFinder: public SignatureInfo {
   }
 
  public:
-  InterpretedArgumentOopFinder(Symbol* signature, bool has_receiver, frame* fr, OopClosure* f) : SignatureInfo(signature), _has_receiver(has_receiver) {
+  InterpretedArgumentOopFinder(Symbol* signature, bool has_receiver, const frame* fr, OopClosure* f) : SignatureIterator(signature), _has_receiver(has_receiver) {
     // compute size of arguments
     int args_size = ArgumentSizeComputer(signature).size() + (has_receiver ? 1 : 0);
     assert(!fr->is_interpreted_frame() ||
@@ -750,7 +749,7 @@ class InterpretedArgumentOopFinder: public SignatureInfo {
       --_offset;
       oop_offset_do();
     }
-    iterate_parameters();
+    do_parameters_on(this);
   }
 };
 
@@ -767,18 +766,20 @@ class InterpretedArgumentOopFinder: public SignatureInfo {
 
 
 // visits and GC's all the arguments in entry frame
-class EntryFrameOopFinder: public SignatureInfo {
+class EntryFrameOopFinder: public SignatureIterator {
  private:
-  bool   _is_static;
-  int    _offset;
-  frame* _fr;
-  OopClosure* _f;
+  bool         _is_static;
+  int          _offset;
+  const frame* _fr;
+  OopClosure*  _f;
 
-  void set(int size, BasicType type) {
+  friend class SignatureIterator;  // so do_parameters_on can call do_type
+  void do_type(BasicType type) {
+    // decrement offset before processing the type
+    _offset -= parameter_type_word_count(type);
     assert (_offset >= 0, "illegal offset");
-    if (type == T_OBJECT || type == T_ARRAY) oop_at_offset_do(_offset);
-    _offset -= size;
-  }
+    if (is_reference_type(type))  oop_at_offset_do(_offset);
+ }
 
   void oop_at_offset_do(int offset) {
     assert (offset >= 0, "illegal offset");
@@ -787,17 +788,17 @@ class EntryFrameOopFinder: public SignatureInfo {
   }
 
  public:
-   EntryFrameOopFinder(frame* frame, Symbol* signature, bool is_static) : SignatureInfo(signature) {
-     _f = NULL; // will be set later
-     _fr = frame;
-     _is_static = is_static;
-     _offset = ArgumentSizeComputer(signature).size() - 1; // last parameter is at index 0
-   }
+  EntryFrameOopFinder(const frame* frame, Symbol* signature, bool is_static) : SignatureIterator(signature) {
+    _f = NULL; // will be set later
+    _fr = frame;
+    _is_static = is_static;
+    _offset = ArgumentSizeComputer(signature).size();  // pre-decremented down to zero
+  }
 
   void arguments_do(OopClosure* f) {
     _f = f;
-    if (!_is_static) oop_at_offset_do(_offset+1); // do the receiver
-    iterate_parameters();
+    if (!_is_static)  oop_at_offset_do(_offset); // do the receiver
+    do_parameters_on(this);
   }
 
 };
@@ -809,7 +810,7 @@ oop* frame::interpreter_callee_receiver_addr(Symbol* signature) {
 }
 
 
-void frame::oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool query_oop_map_cache) {
+void frame::oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool query_oop_map_cache) const {
   assert(is_interpreted_frame(), "Not an interpreted frame");
   assert(map != NULL, "map must be set");
   Thread *thread = Thread::current();
@@ -890,12 +891,12 @@ void frame::oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool quer
 }
 
 
-void frame::oops_interpreted_arguments_do(Symbol* signature, bool has_receiver, OopClosure* f) {
+void frame::oops_interpreted_arguments_do(Symbol* signature, bool has_receiver, OopClosure* f) const {
   InterpretedArgumentOopFinder finder(signature, has_receiver, this, f);
   finder.oops_do();
 }
 
-void frame::oops_code_blob_do(OopClosure* f, CodeBlobClosure* cf, const RegisterMap* reg_map) {
+void frame::oops_code_blob_do(OopClosure* f, CodeBlobClosure* cf, const RegisterMap* reg_map) const {
   assert(_cb != NULL, "sanity check");
   if (_cb->oop_maps() != NULL) {
     OopMapSet::oops_do(this, reg_map, f);
@@ -915,7 +916,7 @@ void frame::oops_code_blob_do(OopClosure* f, CodeBlobClosure* cf, const Register
     cf->do_code_blob(_cb);
 }
 
-class CompiledArgumentOopFinder: public SignatureInfo {
+class CompiledArgumentOopFinder: public SignatureIterator {
  protected:
   OopClosure*     _f;
   int             _offset;        // the current offset, incremented with each argument
@@ -926,9 +927,10 @@ class CompiledArgumentOopFinder: public SignatureInfo {
   int             _arg_size;
   VMRegPair*      _regs;        // VMReg list of arguments
 
-  void set(int size, BasicType type) {
-    if (type == T_OBJECT || type == T_ARRAY) handle_oop_offset();
-    _offset += size;
+  friend class SignatureIterator;  // so do_parameters_on can call do_type
+  void do_type(BasicType type) {
+    if (is_reference_type(type))  handle_oop_offset();
+    _offset += parameter_type_word_count(type);
   }
 
   virtual void handle_oop_offset() {
@@ -940,8 +942,8 @@ class CompiledArgumentOopFinder: public SignatureInfo {
   }
 
  public:
-  CompiledArgumentOopFinder(Symbol* signature, bool has_receiver, bool has_appendix, OopClosure* f, frame fr,  const RegisterMap* reg_map)
-    : SignatureInfo(signature) {
+  CompiledArgumentOopFinder(Symbol* signature, bool has_receiver, bool has_appendix, OopClosure* f, frame fr, const RegisterMap* reg_map)
+    : SignatureIterator(signature) {
 
     // initialize CompiledArgumentOopFinder
     _f         = f;
@@ -962,7 +964,7 @@ class CompiledArgumentOopFinder: public SignatureInfo {
       handle_oop_offset();
       _offset++;
     }
-    iterate_parameters();
+    do_parameters_on(this);
     if (_has_appendix) {
       handle_oop_offset();
       _offset++;
@@ -971,7 +973,7 @@ class CompiledArgumentOopFinder: public SignatureInfo {
 };
 
 void frame::oops_compiled_arguments_do(Symbol* signature, bool has_receiver, bool has_appendix,
-                                       const RegisterMap* reg_map, OopClosure* f) {
+                                       const RegisterMap* reg_map, OopClosure* f) const {
   ResourceMark rm;
   CompiledArgumentOopFinder finder(signature, has_receiver, has_appendix, f, *this, reg_map);
   finder.oops_do();
@@ -1020,7 +1022,7 @@ oop frame::get_native_receiver() {
   return owner;
 }
 
-void frame::oops_entry_do(OopClosure* f, const RegisterMap* map) {
+void frame::oops_entry_do(OopClosure* f, const RegisterMap* map) const {
   assert(map != NULL, "map must be set");
   if (map->include_argument_oops()) {
     // must collect argument oops, as nobody else is doing it
@@ -1034,11 +1036,8 @@ void frame::oops_entry_do(OopClosure* f, const RegisterMap* map) {
 }
 
 
-void frame::oops_do_internal(OopClosure* f, CodeBlobClosure* cf, RegisterMap* map, bool use_interpreter_oop_map_cache) {
+void frame::oops_do_internal(OopClosure* f, CodeBlobClosure* cf, const RegisterMap* map, bool use_interpreter_oop_map_cache) const {
 #ifndef PRODUCT
-#if defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x5140
-#pragma error_messages(off, SEC_NULL_PTR_DEREF)
-#endif
   // simulate GC crash here to dump java thread in error report
   if (CrashGCForDumpingJavaThread) {
     char *t = NULL;
@@ -1056,7 +1055,7 @@ void frame::oops_do_internal(OopClosure* f, CodeBlobClosure* cf, RegisterMap* ma
   }
 }
 
-void frame::nmethods_do(CodeBlobClosure* cf) {
+void frame::nmethods_do(CodeBlobClosure* cf) const {
   if (_cb != NULL && _cb->is_nmethod()) {
     cf->do_code_blob(_cb);
   }
@@ -1064,7 +1063,7 @@ void frame::nmethods_do(CodeBlobClosure* cf) {
 
 
 // Call f closure on the interpreted Method*s in the stack.
-void frame::metadata_do(MetadataClosure* f) {
+void frame::metadata_do(MetadataClosure* f) const {
   ResourceMark rm;
   if (is_interpreted_frame()) {
     Method* m = this->interpreter_frame_method();
@@ -1073,7 +1072,7 @@ void frame::metadata_do(MetadataClosure* f) {
   }
 }
 
-void frame::verify(const RegisterMap* map) {
+void frame::verify(const RegisterMap* map) const {
   // for now make sure receiver type is correct
   if (is_interpreted_frame()) {
     Method* method = interpreter_frame_method();
@@ -1087,7 +1086,7 @@ void frame::verify(const RegisterMap* map) {
 #if COMPILER2_OR_JVMCI
   assert(DerivedPointerTable::is_empty(), "must be empty before verify");
 #endif
-  oops_do_internal(&VerifyOopClosure::verify_oop, NULL, (RegisterMap*)map, false);
+  oops_do_internal(&VerifyOopClosure::verify_oop, NULL, map, false);
 }
 
 
@@ -1164,7 +1163,7 @@ void frame::describe(FrameValues& values, int frame_no) {
 
     // Compute the actual expression stack size
     InterpreterOopMap mask;
-    OopMapCache::compute_one_oop_map(m, bci, &mask);
+    OopMapCache::compute_one_oop_map(methodHandle(Thread::current(), m), bci, &mask);
     intptr_t* tos = NULL;
     // Report each stack element and mark as owned by this frame
     for (int e = 0; e < mask.expression_stack_size(); e++) {
@@ -1280,17 +1279,17 @@ void FrameValues::print(JavaThread* thread) {
   intptr_t* v1 = _values.at(max_index).location;
 
   if (thread == Thread::current()) {
-    while (!thread->is_in_stack((address)v0)) {
+    while (!thread->is_in_live_stack((address)v0)) {
       v0 = _values.at(++min_index).location;
     }
-    while (!thread->is_in_stack((address)v1)) {
+    while (!thread->is_in_live_stack((address)v1)) {
       v1 = _values.at(--max_index).location;
     }
   } else {
-    while (!thread->on_local_stack((address)v0)) {
+    while (!thread->is_in_full_stack((address)v0)) {
       v0 = _values.at(++min_index).location;
     }
-    while (!thread->on_local_stack((address)v1)) {
+    while (!thread->is_in_full_stack((address)v1)) {
       v1 = _values.at(--max_index).location;
     }
   }

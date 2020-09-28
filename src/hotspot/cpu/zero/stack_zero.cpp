@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -24,8 +24,8 @@
  */
 
 #include "precompiled.hpp"
-#include "interpreter/bytecodeInterpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
+#include "interpreter/zero/bytecodeInterpreter.hpp"
 #include "runtime/thread.inline.hpp"
 #include "stack_zero.hpp"
 #include "stack_zero.inline.hpp"
@@ -46,7 +46,7 @@ int ZeroStack::suggest_size(Thread *thread) const {
 }
 
 void ZeroStack::handle_overflow(TRAPS) {
-  JavaThread *thread = (JavaThread *) THREAD;
+  JavaThread *thread = THREAD->as_Java_thread();
 
   // Set up the frame anchor if it isn't already
   bool has_last_Java_frame = thread->has_last_Java_frame();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,24 +31,19 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
-
 import java.lang.invoke.CallSite;
 import java.lang.invoke.ConstantCallSite;
 import java.lang.invoke.MethodHandle;
-import java.lang.module.ModuleDescriptor.Requires;
 import java.lang.ref.WeakReference;
-
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Formatter;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.function.Predicate;
-
-import jdk.internal.misc.Unsafe;
 
 import jdk.vm.ci.code.Architecture;
 import jdk.vm.ci.code.CompilationRequestResult;
@@ -187,9 +182,15 @@ public final class HotSpotJVMCIRuntime implements JVMCIRuntime {
                     // initialized.
                     JVMCI.getRuntime();
                 }
-                // Make sure all the primitive box caches are populated (required to properly materialize boxed primitives
+                // Make sure all the primitive box caches are populated (required to properly
+                // materialize boxed primitives
                 // during deoptimization).
-                Object[] boxCaches = { Boolean.valueOf(false), Byte.valueOf((byte)0), Short.valueOf((short) 0), Character.valueOf((char) 0), Integer.valueOf(0), Long.valueOf(0) };
+                Boolean.valueOf(false);
+                Byte.valueOf((byte) 0);
+                Short.valueOf((short) 0);
+                Character.valueOf((char) 0);
+                Integer.valueOf(0);
+                Long.valueOf(0);
             }
         }
         return result;
@@ -211,6 +212,15 @@ public final class HotSpotJVMCIRuntime implements JVMCIRuntime {
     }
 
     /**
+     * Set of recognized {@code "jvmci.*"} system properties. Entries not associated with an
+     * {@link Option} have this object as their value.
+     */
+    static final Map<String, Object> options = new HashMap<>();
+    static {
+        options.put("jvmci.class.path.append", options);
+    }
+
+    /**
      * A list of all supported JVMCI options.
      */
     public enum Option {
@@ -228,7 +238,7 @@ public final class HotSpotJVMCIRuntime implements JVMCIRuntime {
         TraceMethodDataFilter(String.class, null,
                 "Enables tracing of profiling info when read by JVMCI.",
                 "Empty value: trace all methods",
-                "Non-empty value: trace methods whose fully qualified name contains the value."),
+                        "Non-empty value: trace methods whose fully qualified name contains the value."),
         UseProfilingInformation(Boolean.class, true, "");
         // @formatter:on
 
@@ -245,7 +255,7 @@ public final class HotSpotJVMCIRuntime implements JVMCIRuntime {
         private final Class<?> type;
         @NativeImageReinitialize private Object value;
         private final Object defaultValue;
-        private boolean isDefault;
+        private boolean isDefault = true;
         private final String[] helpLines;
 
         Option(Class<?> type, Object defaultValue, String... helpLines) {
@@ -253,27 +263,37 @@ public final class HotSpotJVMCIRuntime implements JVMCIRuntime {
             this.type = type;
             this.defaultValue = defaultValue;
             this.helpLines = helpLines;
+            Object existing = options.put(getPropertyName(), this);
+            assert existing == null : getPropertyName();
+        }
+
+        @SuppressFBWarnings(value = "ES_COMPARING_STRINGS_WITH_EQ", justification = "sentinel must be String since it's a static final in an enum")
+        private void init(String propertyValue) {
+            assert value == null : "cannot re-initialize " + name();
+            if (propertyValue == null) {
+                this.value = defaultValue == null ? NULL_VALUE : defaultValue;
+                this.isDefault = true;
+            } else {
+                if (type == Boolean.class) {
+                    this.value = Boolean.parseBoolean(propertyValue);
+                } else if (type == String.class) {
+                    this.value = propertyValue;
+                } else {
+                    throw new JVMCIError("Unexpected option type " + type);
+                }
+                this.isDefault = false;
+            }
         }
 
         @SuppressFBWarnings(value = "ES_COMPARING_STRINGS_WITH_EQ", justification = "sentinel must be String since it's a static final in an enum")
         private Object getValue() {
-            if (value == null) {
-                String propertyValue = Services.getSavedProperty(getPropertyName());
-                if (propertyValue == null) {
-                    this.value = defaultValue == null ? NULL_VALUE : defaultValue;
-                    this.isDefault = true;
-                } else {
-                    if (type == Boolean.class) {
-                        this.value = Boolean.parseBoolean(propertyValue);
-                    } else if (type == String.class) {
-                        this.value = propertyValue;
-                    } else {
-                        throw new JVMCIError("Unexpected option type " + type);
-                    }
-                    this.isDefault = false;
-                }
+            if (value == NULL_VALUE) {
+                return null;
             }
-            return value == NULL_VALUE ? null : value;
+            if (value == null) {
+                return defaultValue;
+            }
+            return value;
         }
 
         /**
@@ -334,11 +354,66 @@ public final class HotSpotJVMCIRuntime implements JVMCIRuntime {
                 }
             }
         }
+
+        /**
+         * Compute string similarity based on Dice's coefficient.
+         *
+         * Ported from str_similar() in globals.cpp.
+         */
+        static float stringSimiliarity(String str1, String str2) {
+            int hit = 0;
+            for (int i = 0; i < str1.length() - 1; ++i) {
+                for (int j = 0; j < str2.length() - 1; ++j) {
+                    if ((str1.charAt(i) == str2.charAt(j)) && (str1.charAt(i + 1) == str2.charAt(j + 1))) {
+                        ++hit;
+                        break;
+                    }
+                }
+            }
+            return 2.0f * hit / (str1.length() + str2.length());
+        }
+
+        private static final float FUZZY_MATCH_THRESHOLD = 0.7F;
+
+        /**
+         * Parses all system properties starting with {@value #JVMCI_OPTION_PROPERTY_PREFIX} and
+         * initializes the options based on their values.
+         */
+        static void parse() {
+            Map<String, String> savedProps = jdk.vm.ci.services.Services.getSavedProperties();
+            for (Map.Entry<String, String> e : savedProps.entrySet()) {
+                String name = e.getKey();
+                if (name.startsWith(Option.JVMCI_OPTION_PROPERTY_PREFIX)) {
+                    Object value = options.get(name);
+                    if (value == null) {
+                        List<String> matches = new ArrayList<>();
+                        for (String pn : options.keySet()) {
+                            float score = stringSimiliarity(pn, name);
+                            if (score >= FUZZY_MATCH_THRESHOLD) {
+                                matches.add(pn);
+                            }
+                        }
+                        Formatter msg = new Formatter();
+                        msg.format("Could not find option %s", name);
+                        if (!matches.isEmpty()) {
+                            msg.format("%nDid you mean one of the following?");
+                            for (String match : matches) {
+                                msg.format("%n    %s=<value>", match);
+                            }
+                        }
+                        throw new IllegalArgumentException(msg.toString());
+                    } else if (value instanceof Option) {
+                        Option option = (Option) value;
+                        option.init(e.getValue());
+                    }
+                }
+            }
+        }
     }
 
     private static HotSpotJVMCIBackendFactory findFactory(String architecture) {
         Iterable<HotSpotJVMCIBackendFactory> factories = getHotSpotJVMCIBackendFactories();
-assert factories != null : "sanity";
+        assert factories != null : "sanity";
         for (HotSpotJVMCIBackendFactory factory : factories) {
             if (factory.getArchitecture().equalsIgnoreCase(architecture)) {
                 return factory;
@@ -391,32 +466,34 @@ assert factories != null : "sanity";
     @NativeImageReinitialize private volatile ClassValue<WeakReferenceHolder<HotSpotResolvedJavaType>> resolvedJavaType;
 
     /**
-     * To avoid calling ClassValue.remove to refresh the weak reference, which
-     * under certain circumstances can lead to an infinite loop, we use a
-     * permanent holder with a mutable field that we refresh.
+     * To avoid calling ClassValue.remove to refresh the weak reference, which under certain
+     * circumstances can lead to an infinite loop, we use a permanent holder with a mutable field
+     * that we refresh.
      */
     private static class WeakReferenceHolder<T> {
         private volatile WeakReference<T> ref;
+
         WeakReferenceHolder(T value) {
             set(value);
         }
+
         void set(T value) {
-            ref = new WeakReference<T>(value);
+            ref = new WeakReference<>(value);
         }
+
         T get() {
             return ref.get();
         }
-    };
+    }
 
     @NativeImageReinitialize private HashMap<Long, WeakReference<ResolvedJavaType>> resolvedJavaTypes;
 
     /**
-     * Stores the value set by {@link #excludeFromJVMCICompilation(Module...)} so that it can
-     * be read from the VM.
+     * Stores the value set by {@link #excludeFromJVMCICompilation(Module...)} so that it can be
+     * read from the VM.
      */
     @SuppressWarnings("unused")//
     @NativeImageReinitialize private Module[] excludeFromJVMCICompilation;
-
 
     private final Map<Class<? extends Architecture>, JVMCIBackend> backends = new HashMap<>();
 
@@ -451,6 +528,9 @@ assert factories != null : "sanity";
             System.setOut(vmLogStream);
             System.setErr(vmLogStream);
         }
+
+        // Initialize the Option values.
+        Option.parse();
 
         String hostArchitecture = config.getHostArchitectureName();
 
@@ -508,7 +588,7 @@ assert factories != null : "sanity";
         if (resolvedJavaType == null) {
             synchronized (this) {
                 if (resolvedJavaType == null) {
-                    resolvedJavaType = new ClassValue<WeakReferenceHolder<HotSpotResolvedJavaType>>() {
+                    resolvedJavaType = new ClassValue<>() {
                         @Override
                         protected WeakReferenceHolder<HotSpotResolvedJavaType> computeValue(Class<?> type) {
                             return new WeakReferenceHolder<>(createClass(type));
@@ -522,8 +602,7 @@ assert factories != null : "sanity";
         HotSpotResolvedJavaType javaType = ref.get();
         if (javaType == null) {
             /*
-             * If the referent has become null, create a new value and
-             * update cached weak reference.
+             * If the referent has become null, create a new value and update cached weak reference.
              */
             javaType = createClass(javaClass);
             ref.set(javaType);
@@ -591,7 +670,7 @@ assert factories != null : "sanity";
      *            compiler.
      */
     public Predicate<ResolvedJavaType> getIntrinsificationTrustPredicate(Class<?>... compilerLeafClasses) {
-        return new Predicate<ResolvedJavaType>() {
+        return new Predicate<>() {
             @Override
             public boolean test(ResolvedJavaType type) {
                 if (type instanceof HotSpotResolvedObjectTypeImpl) {
@@ -712,16 +791,24 @@ assert factories != null : "sanity";
     }
 
     /**
+     * Guard to ensure shut down actions are performed at most once.
+     */
+    private boolean isShutdown;
+
+    /**
      * Shuts down the runtime.
      */
     @VMEntryPoint
-    private void shutdown() throws Exception {
-        // Cleaners are normally only processed when a new Cleaner is
-        // instantiated so process all remaining cleaners now.
-        Cleaner.clean();
+    private synchronized void shutdown() throws Exception {
+        if (!isShutdown) {
+            isShutdown = true;
+            // Cleaners are normally only processed when a new Cleaner is
+            // instantiated so process all remaining cleaners now.
+            Cleaner.clean();
 
-        for (HotSpotVMEventListener vmEventListener : getVmEventListeners()) {
-            vmEventListener.notifyShutdown();
+            for (HotSpotVMEventListener vmEventListener : getVmEventListeners()) {
+                vmEventListener.notifyShutdown();
+            }
         }
     }
 
@@ -914,8 +1001,8 @@ assert factories != null : "sanity";
      * </pre>
      *
      * The implementation of the native {@code JCompile.compile0} method would be in the JVMCI
-     * shared library that contains the bulk of the JVMCI compiler. The {@code JCompile.compile0}
-     * implementation will be exported as the following JNI-compatible symbol:
+     * shared library that contains the JVMCI compiler. The {@code JCompile.compile0} implementation
+     * must be exported as the following JNI-compatible symbol:
      *
      * <pre>
      * Java_com_jcompile_JCompile_compile0
@@ -926,9 +1013,18 @@ assert factories != null : "sanity";
      * @see "https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/invocation.html#invocation_api_functions"
      *
      *
-     * @return an array of 4 longs where the first value is the {@code JavaVM*} value representing
-     *         the Java VM in the JVMCI shared library, and the remaining values are the first 3
-     *         pointers in the Invocation API function table (i.e., {@code JNIInvokeInterface})
+     * @return info about the Java VM in the JVMCI shared library {@code JavaVM*}. The info is
+     *         encoded in a long array as follows:
+     *
+     *         <pre>
+     *     long[] info = {
+     *         javaVM, // the {@code JavaVM*} value
+     *         javaVM->functions->reserved0,
+     *         javaVM->functions->reserved1,
+     *         javaVM->functions->reserved2
+     *     }
+     *         </pre>
+     *
      * @throws NullPointerException if {@code clazz == null}
      * @throws UnsupportedOperationException if the JVMCI shared library is not enabled (i.e.
      *             {@code -XX:-UseJVMCINativeLibrary})
@@ -1000,6 +1096,14 @@ assert factories != null : "sanity";
     }
 
     /**
+     * Gets the address of the HotSpot {@code JavaThread} C++ object for the current thread. This
+     * will return {@code 0} if called from an unattached JVMCI shared library thread.
+     */
+    public long getCurrentJavaThread() {
+        return compilerToVm.getCurrentJavaThread();
+    }
+
+    /**
      * Ensures the current thread is attached to the peer runtime.
      *
      * @param asDaemon if the thread is not yet attached, should it be attached as a daemon
@@ -1009,6 +1113,8 @@ assert factories != null : "sanity";
      *             {@code -XX:-UseJVMCINativeLibrary})
      * @throws IllegalStateException if the peer runtime has not been initialized or there is an
      *             error while trying to attach the thread
+     * @throws ArrayIndexOutOfBoundsException if {@code javaVMInfo} is non-null and is shorter than
+     *             the length of the array returned by {@link #registerNativeMethods}
      */
     public boolean attachCurrentThread(boolean asDaemon) {
         return compilerToVm.attachCurrentThread(asDaemon);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -102,6 +102,9 @@ static int numOptions, maxOptions;
 /*
  * Prototypes for functions internal to launcher.
  */
+static const char* GetFullVersion();
+static jboolean IsJavaArgs();
+static void SetJavaLauncherProp();
 static void SetClassPath(const char *s);
 static void SetMainModule(const char *s);
 static void SelectVersion(int argc, char **argv, char **main_class);
@@ -238,7 +241,7 @@ JLI_Launch(int argc, char ** argv,              /* main argc, argv */
     char *main_class = NULL;
     int ret;
     InvocationFunctions ifn;
-    jlong start, end;
+    jlong start = 0, end = 0;
     char jvmpath[MAXPATHLEN];
     char jrepath[MAXPATHLEN];
     char jvmcfg[MAXPATHLEN];
@@ -289,7 +292,7 @@ JLI_Launch(int argc, char ** argv,              /* main argc, argv */
     ifn.GetDefaultJavaVMInitArgs = 0;
 
     if (JLI_IsTraceLauncher()) {
-        start = CounterGet();
+        start = CurrentTimeMicros();
     }
 
     if (!LoadJavaVM(jvmpath, &ifn)) {
@@ -297,11 +300,10 @@ JLI_Launch(int argc, char ** argv,              /* main argc, argv */
     }
 
     if (JLI_IsTraceLauncher()) {
-        end   = CounterGet();
+        end   = CurrentTimeMicros();
     }
 
-    JLI_TraceLauncher("%ld micro seconds to LoadJavaVM\n",
-             (long)(jint)Counter2Micros(end-start));
+    JLI_TraceLauncher("%ld micro seconds to LoadJavaVM\n", (long)(end-start));
 
     ++argv;
     --argc;
@@ -337,9 +339,6 @@ JLI_Launch(int argc, char ** argv,              /* main argc, argv */
 
     /* Set the -Dsun.java.launcher pseudo property */
     SetJavaLauncherProp();
-
-    /* set the -Dsun.java.launcher.* platform properties */
-    SetJavaLauncherPlatformProps();
 
     return JVMInit(&ifn, threadStackSize, argc, argv, mode, what, ret);
 }
@@ -408,12 +407,12 @@ JavaMain(void* _args)
     jmethodID mainID;
     jobjectArray mainArgs;
     int ret = 0;
-    jlong start, end;
+    jlong start = 0, end = 0;
 
     RegisterThread();
 
     /* Initialize the virtual machine */
-    start = CounterGet();
+    start = CurrentTimeMicros();
     if (!InitializeJVM(&vm, &env, &ifn)) {
         JLI_ReportErrorMessage(JVM_ERROR1);
         exit(1);
@@ -467,9 +466,8 @@ JavaMain(void* _args)
     FreeKnownVMs(); /* after last possible PrintUsage */
 
     if (JLI_IsTraceLauncher()) {
-        end = CounterGet();
-        JLI_TraceLauncher("%ld micro seconds to InitializeJVM\n",
-               (long)(jint)Counter2Micros(end-start));
+        end = CurrentTimeMicros();
+        JLI_TraceLauncher("%ld micro seconds to InitializeJVM\n", (long)(end-start));
     }
 
     /* At this stage, argc/argv have the application's arguments */
@@ -646,8 +644,7 @@ checkMode(int mode, int newMode, const char *arg) {
 /*
  * Test if an arg identifies a source file.
  */
-jboolean
-IsSourceFile(const char *arg) {
+static jboolean IsSourceFile(const char *arg) {
     struct stat st;
     return (JLI_HasSuffix(arg, ".java") && stat(arg, &st) == 0);
 }
@@ -1619,11 +1616,11 @@ LoadMainClass(JNIEnv *env, int mode, char *name)
     jmethodID mid;
     jstring str;
     jobject result;
-    jlong start, end;
+    jlong start = 0, end = 0;
     jclass cls = GetLauncherHelperClass(env);
     NULL_CHECK0(cls);
     if (JLI_IsTraceLauncher()) {
-        start = CounterGet();
+        start = CurrentTimeMicros();
     }
     NULL_CHECK0(mid = (*env)->GetStaticMethodID(env, cls,
                 "checkAndLoadMain",
@@ -1634,9 +1631,8 @@ LoadMainClass(JNIEnv *env, int mode, char *name)
                                                         USE_STDERR, mode, str));
 
     if (JLI_IsTraceLauncher()) {
-        end   = CounterGet();
-        printf("%ld micro seconds to load main class\n",
-               (long)(jint)Counter2Micros(end-start));
+        end = CurrentTimeMicros();
+        printf("%ld micro seconds to load main class\n", (long)(end-start));
         printf("----%s----\n", JLDEBUG_ENV_ENTRY);
     }
 
@@ -1874,8 +1870,7 @@ SetJavaCommandLineProp(char *what, int argc, char **argv)
  * JVM would like to know if it's created by a standard Sun launcher, or by
  * user native application, the following property indicates the former.
  */
-void
-SetJavaLauncherProp() {
+static void SetJavaLauncherProp() {
   AddOption("-Dsun.java.launcher=SUN_STANDARD", NULL);
 }
 
@@ -1960,7 +1955,7 @@ DescribeModule(JNIEnv *env, char *optString)
     NULL_CHECK(cls);
     NULL_CHECK(describeModuleID = (*env)->GetStaticMethodID(env, cls,
             "describeModule", "(Ljava/lang/String;)V"));
-    NULL_CHECK(joptString = (*env)->NewStringUTF(env, optString));
+    NULL_CHECK(joptString = NewPlatformString(env, optString));
     (*env)->CallStaticVoidMethod(env, cls, describeModuleID, joptString);
 }
 
@@ -2082,14 +2077,14 @@ ReadKnownVMs(const char *jvmCfgName, jboolean speculative)
     char line[MAXPATHLEN+20];
     int cnt = 0;
     int lineno = 0;
-    jlong start, end;
+    jlong start = 0, end = 0;
     int vmType;
     char *tmpPtr;
     char *altVMName = NULL;
     char *serverClassVMName = NULL;
     static char *whiteSpace = " \t";
     if (JLI_IsTraceLauncher()) {
-        start = CounterGet();
+        start = CurrentTimeMicros();
     }
 
     jvmCfg = fopen(jvmCfgName, "r");
@@ -2174,9 +2169,8 @@ ReadKnownVMs(const char *jvmCfgName, jboolean speculative)
     knownVMsCount = cnt;
 
     if (JLI_IsTraceLauncher()) {
-        end   = CounterGet();
-        printf("%ld micro seconds to parse jvm.cfg\n",
-               (long)(jint)Counter2Micros(end-start));
+        end = CurrentTimeMicros();
+        printf("%ld micro seconds to parse jvm.cfg\n", (long)(end-start));
     }
 
     return cnt;
@@ -2303,26 +2297,22 @@ ShowSplashScreen()
 
 }
 
-const char*
-GetFullVersion()
+static const char* GetFullVersion()
 {
     return _fVersion;
 }
 
-const char*
-GetProgramName()
+static const char* GetProgramName()
 {
     return _program_name;
 }
 
-const char*
-GetLauncherName()
+static const char* GetLauncherName()
 {
     return _launcher_name;
 }
 
-jboolean
-IsJavaArgs()
+static jboolean IsJavaArgs()
 {
     return _is_java_args;
 }

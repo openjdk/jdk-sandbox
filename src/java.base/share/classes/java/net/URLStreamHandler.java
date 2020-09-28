@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,6 +52,11 @@ import sun.net.www.ParseUtil;
  */
 public abstract class URLStreamHandler {
     /**
+     * Constructor for subclasses to call.
+     */
+    public URLStreamHandler() {}
+
+    /**
      * Opens a connection to the object referenced by the
      * {@code URL} argument.
      * This method should be overridden by a subclass.
@@ -66,7 +71,7 @@ public abstract class URLStreamHandler {
      *
      * @param      u   the URL that this connects to.
      * @return     a {@code URLConnection} object for the {@code URL}.
-     * @exception  IOException  if an I/O error occurs while opening the
+     * @throws     IOException  if an I/O error occurs while opening the
      *               connection.
      */
     protected abstract URLConnection openConnection(URL u) throws IOException;
@@ -91,11 +96,11 @@ public abstract class URLStreamHandler {
      *                 If direct connection is desired, Proxy.NO_PROXY
      *                 should be specified.
      * @return     a {@code URLConnection} object for the {@code URL}.
-     * @exception  IOException  if an I/O error occurs while opening the
+     * @throws     IOException  if an I/O error occurs while opening the
      *               connection.
-     * @exception  IllegalArgumentException if either u or p is null,
+     * @throws     IllegalArgumentException if either u or p is null,
      *               or p has the wrong type.
-     * @exception  UnsupportedOperationException if the subclass that
+     * @throws     UnsupportedOperationException if the subclass that
      *               implements the protocol doesn't support this method.
      * @since      1.5
      */
@@ -266,8 +271,8 @@ public abstract class URLStreamHandler {
                          spec.substring(start, limit);
 
             } else {
-                String separator = (authority != null) ? "/" : "";
-                path = separator + spec.substring(start, limit);
+                path = spec.substring(start, limit);
+                path = (authority != null) ? "/" + path : path;
             }
         } else if (queryOnly && path != null) {
             int ind = path.lastIndexOf('/');
@@ -510,7 +515,7 @@ public abstract class URLStreamHandler {
      * @param   path      the path component of the URL.
      * @param   query     the query part for the URL.
      * @param   ref       the reference.
-     * @exception       SecurityException       if the protocol handler of the URL is
+     * @throws          SecurityException       if the protocol handler of the URL is
      *                                  different from this one
      * @since 1.3
      */
@@ -539,7 +544,7 @@ public abstract class URLStreamHandler {
      * @param   port      the port on the remote machine.
      * @param   file      the file.
      * @param   ref       the reference.
-     * @exception       SecurityException       if the protocol handler of the URL is
+     * @throws          SecurityException       if the protocol handler of the URL is
      *                                  different from this one
      * @deprecated Use setURL(URL, String, String, int, String, String, String,
      *             String);

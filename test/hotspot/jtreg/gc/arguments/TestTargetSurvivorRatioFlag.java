@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,8 @@
 
 package gc.arguments;
 
-import static java.lang.ref.Reference.reachabilityFence;
-
 /*
  * @test TestTargetSurvivorRatioFlag
- * @key gc
  * @summary Verify that option TargetSurvivorRatio affects survivor space occupancy after minor GC.
  * @requires vm.opt.ExplicitGCInvokesConcurrent != true
  * @requires vm.opt.UseJVMCICompiler != true
@@ -50,9 +47,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import jdk.internal.misc.Unsafe;
 import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.Utils;
 import sun.hotspot.WhiteBox;
+import static gc.testlibrary.Allocation.blackHole;
 
 /* In order to test that TargetSurvivorRatio affects survivor space occupancy
  * we setup fixed MaxTenuringThreshold and then verifying that if size of allocated
@@ -119,7 +116,7 @@ public class TestTargetSurvivorRatioFlag {
         vmOptions.add("-XX:TargetSurvivorRatio=" + ratio);
         vmOptions.add("-version");
 
-        ProcessBuilder procBuilder = GCArguments.createJavaProcessBuilder(vmOptions.toArray(new String[vmOptions.size()]));
+        ProcessBuilder procBuilder = GCArguments.createJavaProcessBuilder(vmOptions);
         OutputAnalyzer analyzer = new OutputAnalyzer(procBuilder.start());
 
         analyzer.shouldHaveExitValue(1);
@@ -154,7 +151,7 @@ public class TestTargetSurvivorRatioFlag {
                 Integer.toString(ratio)
         );
 
-        ProcessBuilder procBuilder = GCArguments.createJavaProcessBuilder(vmOptions.toArray(new String[vmOptions.size()]));
+        ProcessBuilder procBuilder = GCArguments.createJavaProcessBuilder(vmOptions);
         OutputAnalyzer analyzer = new OutputAnalyzer(procBuilder.start());
 
         analyzer.shouldHaveExitValue(0);
@@ -299,7 +296,7 @@ public class TestTargetSurvivorRatioFlag {
 
             // force minor GC
             while (youngGCBean.getCollectionCount() <= initialGcId + MAX_TENURING_THRESHOLD * 2) {
-                reachabilityFence(new byte[ARRAY_LENGTH]);
+                blackHole(new byte[ARRAY_LENGTH]);
             }
 
             allocator.release();

@@ -29,6 +29,7 @@
 #include "opto/cfgnode.hpp"
 #include "opto/connode.hpp"
 #include "opto/machnode.hpp"
+#include "opto/movenode.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/subnode.hpp"
@@ -90,9 +91,9 @@ static bool commute(Node *add, bool con_left, bool con_right) {
 
   PhiNode *phi;
   // Check for tight loop increments: Loop-phi of Add of loop-phi
-  if( in1->is_Phi() && (phi = in1->as_Phi()) && !phi->is_copy() && phi->region()->is_Loop() && phi->in(2)==add)
+  if (in1->is_Phi() && (phi = in1->as_Phi()) && phi->region()->is_Loop() && phi->in(2) == add)
     return false;
-  if( in2->is_Phi() && (phi = in2->as_Phi()) && !phi->is_copy() && phi->region()->is_Loop() && phi->in(2)==add){
+  if (in2->is_Phi() && (phi = in2->as_Phi()) && phi->region()->is_Loop() && phi->in(2) == add) {
     add->swap_edges(1, 2);
     return true;
   }
@@ -742,6 +743,52 @@ Node* OrINode::Identity(PhaseGVN* phase) {
   return AddNode::Identity(phase);
 }
 
+// Find shift value for Integer or Long OR.
+Node* rotate_shift(PhaseGVN* phase, Node* lshift, Node* rshift, int mask) {
+  // val << norm_con_shift | val >> ({32|64} - norm_con_shift) => rotate_left val, norm_con_shift
+  const TypeInt* lshift_t = phase->type(lshift)->isa_int();
+  const TypeInt* rshift_t = phase->type(rshift)->isa_int();
+  if (lshift_t != NULL && lshift_t->is_con() &&
+      rshift_t != NULL && rshift_t->is_con() &&
+      ((lshift_t->get_con() & mask) == ((mask + 1) - (rshift_t->get_con() & mask)))) {
+    return phase->intcon(lshift_t->get_con() & mask);
+  }
+  // val << var_shift | val >> ({0|32|64} - var_shift) => rotate_left val, var_shift
+  if (rshift->Opcode() == Op_SubI && rshift->in(2) == lshift && rshift->in(1)->is_Con()){
+    const TypeInt* shift_t = phase->type(rshift->in(1))->isa_int();
+    if (shift_t != NULL && shift_t->is_con() &&
+        (shift_t->get_con() == 0 || shift_t->get_con() == (mask + 1))) {
+      return lshift;
+    }
+  }
+  return NULL;
+}
+
+Node* OrINode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  int lopcode = in(1)->Opcode();
+  int ropcode = in(2)->Opcode();
+  if (Matcher::match_rule_supported(Op_RotateLeft) &&
+      lopcode == Op_LShiftI && ropcode == Op_URShiftI && in(1)->in(1) == in(2)->in(1)) {
+     Node* lshift = in(1)->in(2);
+     Node* rshift = in(2)->in(2);
+     Node* shift = rotate_shift(phase, lshift, rshift, 0x1F);
+     if (shift != NULL) {
+       return new RotateLeftNode(in(1)->in(1), shift, TypeInt::INT);
+     }
+     return NULL;
+  }
+  if (Matcher::match_rule_supported(Op_RotateRight) &&
+      lopcode == Op_URShiftI && ropcode == Op_LShiftI && in(1)->in(1) == in(2)->in(1)) {
+     Node *rshift = in(1)->in(2);
+     Node *lshift = in(2)->in(2);
+     Node* shift = rotate_shift(phase, rshift, lshift, 0x1F);
+     if (shift != NULL) {
+       return new RotateRightNode(in(1)->in(1), shift, TypeInt::INT);
+     }
+  }
+  return NULL;
+}
+
 //------------------------------add_ring---------------------------------------
 // Supplied function returns the sum of the inputs IN THE CURRENT RING.  For
 // the logical operations the ring's ADD is really a logical OR function.
@@ -781,6 +828,31 @@ Node* OrLNode::Identity(PhaseGVN* phase) {
   }
 
   return AddNode::Identity(phase);
+}
+
+Node* OrLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  int lopcode = in(1)->Opcode();
+  int ropcode = in(2)->Opcode();
+  if (Matcher::match_rule_supported(Op_RotateLeft) &&
+      lopcode == Op_LShiftL && ropcode == Op_URShiftL && in(1)->in(1) == in(2)->in(1)) {
+    Node* lshift = in(1)->in(2);
+    Node* rshift = in(2)->in(2);
+    Node* shift = rotate_shift(phase, lshift, rshift, 0x3F);
+    if (shift != NULL) {
+      return new RotateLeftNode(in(1)->in(1), shift, TypeLong::LONG);
+    }
+    return NULL;
+  }
+  if (Matcher::match_rule_supported(Op_RotateRight) &&
+      lopcode == Op_URShiftL && ropcode == Op_LShiftL && in(1)->in(1) == in(2)->in(1)) {
+    Node* rshift = in(1)->in(2);
+    Node* lshift = in(2)->in(2);
+    Node* shift = rotate_shift(phase, rshift, lshift, 0x3F);
+    if (shift != NULL) {
+      return new RotateRightNode(in(1)->in(1), shift, TypeLong::LONG);
+    }
+  }
+  return NULL;
 }
 
 //------------------------------add_ring---------------------------------------
@@ -830,6 +902,95 @@ const Type *XorLNode::add_ring( const Type *t0, const Type *t1 ) const {
 
   // Otherwise just OR them bits.
   return TypeLong::make( r0->get_con() ^ r1->get_con() );
+}
+
+
+Node* MaxNode::build_min_max(Node* a, Node* b, bool is_max, bool is_unsigned, const Type* t, PhaseGVN& gvn) {
+  bool is_int = gvn.type(a)->isa_int();
+  assert(is_int || gvn.type(a)->isa_long(), "int or long inputs");
+  assert(is_int == (gvn.type(b)->isa_int() != NULL), "inconsistent inputs");
+  if (!is_unsigned) {
+    if (is_max) {
+      if (is_int) {
+        Node* res =  gvn.transform(new MaxINode(a, b));
+        assert(gvn.type(res)->is_int()->_lo >= t->is_int()->_lo && gvn.type(res)->is_int()->_hi <= t->is_int()->_hi, "type doesn't match");
+        return res;
+      } else {
+        Node* cmp = gvn.transform(new CmpLNode(a, b));
+        Node* bol = gvn.transform(new BoolNode(cmp, BoolTest::lt));
+        return gvn.transform(new CMoveLNode(bol, a, b, t->is_long()));
+      }
+    } else {
+      if (is_int) {
+        Node* res =  gvn.transform(new MinINode(a, b));
+        assert(gvn.type(res)->is_int()->_lo >= t->is_int()->_lo && gvn.type(res)->is_int()->_hi <= t->is_int()->_hi, "type doesn't match");
+        return res;
+      } else {
+        Node* cmp = gvn.transform(new CmpLNode(b, a));
+        Node* bol = gvn.transform(new BoolNode(cmp, BoolTest::lt));
+        return gvn.transform(new CMoveLNode(bol, a, b, t->is_long()));
+      }
+    }
+  } else {
+    if (is_max) {
+      if (is_int) {
+        Node* cmp = gvn.transform(new CmpUNode(a, b));
+        Node* bol = gvn.transform(new BoolNode(cmp, BoolTest::lt));
+        return gvn.transform(new CMoveINode(bol, a, b, t->is_int()));
+      } else {
+        Node* cmp = gvn.transform(new CmpULNode(a, b));
+        Node* bol = gvn.transform(new BoolNode(cmp, BoolTest::lt));
+        return gvn.transform(new CMoveLNode(bol, a, b, t->is_long()));
+      }
+    } else {
+      if (is_int) {
+        Node* cmp = gvn.transform(new CmpUNode(b, a));
+        Node* bol = gvn.transform(new BoolNode(cmp, BoolTest::lt));
+        return gvn.transform(new CMoveINode(bol, a, b, t->is_int()));
+      } else {
+        Node* cmp = gvn.transform(new CmpULNode(b, a));
+        Node* bol = gvn.transform(new BoolNode(cmp, BoolTest::lt));
+        return gvn.transform(new CMoveLNode(bol, a, b, t->is_long()));
+      }
+    }
+  }
+}
+
+Node* MaxNode::build_min_max_diff_with_zero(Node* a, Node* b, bool is_max, const Type* t, PhaseGVN& gvn) {
+  bool is_int = gvn.type(a)->isa_int();
+  assert(is_int || gvn.type(a)->isa_long(), "int or long inputs");
+  assert(is_int == (gvn.type(b)->isa_int() != NULL), "inconsistent inputs");
+  Node* zero = NULL;
+  if (is_int) {
+    zero = gvn.intcon(0);
+  } else {
+    zero = gvn.longcon(0);
+  }
+  if (is_max) {
+    if (is_int) {
+      Node* cmp = gvn.transform(new CmpINode(a, b));
+      Node* sub = gvn.transform(new SubINode(a, b));
+      Node* bol = gvn.transform(new BoolNode(cmp, BoolTest::lt));
+      return gvn.transform(new CMoveINode(bol, sub, zero, t->is_int()));
+    } else {
+      Node* cmp = gvn.transform(new CmpLNode(a, b));
+      Node* sub = gvn.transform(new SubLNode(a, b));
+      Node* bol = gvn.transform(new BoolNode(cmp, BoolTest::lt));
+      return gvn.transform(new CMoveLNode(bol, sub, zero, t->is_long()));
+    }
+  } else {
+    if (is_int) {
+      Node* cmp = gvn.transform(new CmpINode(b, a));
+      Node* sub = gvn.transform(new SubINode(a, b));
+      Node* bol = gvn.transform(new BoolNode(cmp, BoolTest::lt));
+      return gvn.transform(new CMoveINode(bol, sub, zero, t->is_int()));
+    } else {
+      Node* cmp = gvn.transform(new CmpLNode(b, a));
+      Node* sub = gvn.transform(new SubLNode(a, b));
+      Node* bol = gvn.transform(new BoolNode(cmp, BoolTest::lt));
+      return gvn.transform(new CMoveLNode(bol, sub, zero, t->is_long()));
+    }
+  }
 }
 
 //=============================================================================

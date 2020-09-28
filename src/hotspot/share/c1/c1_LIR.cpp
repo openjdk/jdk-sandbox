@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,21 +70,6 @@ LIR_Opr LIR_OprFact::value_type(ValueType* type) {
   default: ShouldNotReachHere(); return LIR_OprFact::intConst(-1);
   }
 }
-
-
-LIR_Opr LIR_OprFact::dummy_value_type(ValueType* type) {
-  switch (type->tag()) {
-    case objectTag: return LIR_OprFact::oopConst(NULL);
-    case addressTag:return LIR_OprFact::addressConst(0);
-    case intTag:    return LIR_OprFact::intConst(0);
-    case floatTag:  return LIR_OprFact::floatConst(0.0);
-    case longTag:   return LIR_OprFact::longConst(0);
-    case doubleTag: return LIR_OprFact::doubleConst(0.0);
-    default:        ShouldNotReachHere(); return LIR_OprFact::intConst(-1);
-  }
-  return illegalOpr;
-}
-
 
 
 //---------------------------------------------------
@@ -251,30 +236,27 @@ void LIR_Op2::verify() const {
 }
 
 
-LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BasicType type, BlockBegin* block)
+LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BlockBegin* block)
   : LIR_Op(lir_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
   , _cond(cond)
-  , _type(type)
   , _label(block->label())
   , _block(block)
   , _ublock(NULL)
   , _stub(NULL) {
 }
 
-LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BasicType type, CodeStub* stub) :
+LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, CodeStub* stub) :
   LIR_Op(lir_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
   , _cond(cond)
-  , _type(type)
   , _label(stub->entry())
   , _block(NULL)
   , _ublock(NULL)
   , _stub(stub) {
 }
 
-LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BasicType type, BlockBegin* block, BlockBegin* ublock)
+LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BlockBegin* block, BlockBegin* ublock)
   : LIR_Op(lir_cond_float_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
   , _cond(cond)
-  , _type(type)
   , _label(block->label())
   , _block(block)
   , _ublock(ublock)
@@ -420,12 +402,8 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
   switch (op->code()) {
 
 // LIR_Op0
-    case lir_word_align:               // result and info always invalid
     case lir_backwardbranch_target:    // result and info always invalid
-    case lir_build_frame:              // result and info always invalid
     case lir_fpop_raw:                 // result and info always invalid
-    case lir_24bit_FPU:                // result and info always invalid
-    case lir_reset_FPU:                // result and info always invalid
     case lir_breakpoint:               // result and info always invalid
     case lir_membar:                   // result and info always invalid
     case lir_membar_acquire:           // result and info always invalid
@@ -467,7 +445,6 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
 // LIR_Op1
     case lir_fxch:           // input always valid, result and info always invalid
     case lir_fld:            // input always valid, result and info always invalid
-    case lir_ffree:          // input always valid, result and info always invalid
     case lir_push:           // input always valid, result and info always invalid
     case lir_pop:            // input always valid, result and info always invalid
     case lir_return:         // input always valid, result and info always invalid
@@ -475,8 +452,6 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     case lir_monaddr:        // input and result always valid, info always invalid
     case lir_null_check:     // input and info always valid, result always invalid
     case lir_move:           // input and result always valid, may have info
-    case lir_pack64:         // input and result always valid
-    case lir_unpack64:       // input and result always valid
     {
       assert(op->as_Op1() != NULL, "must be");
       LIR_Op1* op1 = (LIR_Op1*)op;
@@ -1425,7 +1400,7 @@ void LIR_List::null_check(LIR_Opr opr, CodeEmitInfo* info, bool deoptimize_on_nu
     // Emit an explicit null check and deoptimize if opr is null
     CodeStub* deopt = new DeoptimizeStub(info, Deoptimization::Reason_null_check, Deoptimization::Action_none);
     cmp(lir_cond_equal, opr, LIR_OprFact::oopConst(NULL));
-    branch(lir_cond_equal, T_OBJECT, deopt);
+    branch(lir_cond_equal, deopt);
   } else {
     // Emit an implicit null check
     append(new LIR_Op1(lir_null_check, opr, info));
@@ -1640,23 +1615,18 @@ const char * LIR_Op::name() const {
      case lir_membar_storestore:     s = "membar_storestore"; break;
      case lir_membar_loadstore:      s = "membar_loadstore";  break;
      case lir_membar_storeload:      s = "membar_storeload";  break;
-     case lir_word_align:            s = "word_align";    break;
      case lir_label:                 s = "label";         break;
      case lir_nop:                   s = "nop";           break;
      case lir_on_spin_wait:          s = "on_spin_wait";  break;
      case lir_backwardbranch_target: s = "backbranch";    break;
      case lir_std_entry:             s = "std_entry";     break;
      case lir_osr_entry:             s = "osr_entry";     break;
-     case lir_build_frame:           s = "build_frm";     break;
      case lir_fpop_raw:              s = "fpop_raw";      break;
-     case lir_24bit_FPU:             s = "24bit_FPU";     break;
-     case lir_reset_FPU:             s = "reset_FPU";     break;
      case lir_breakpoint:            s = "breakpoint";    break;
      case lir_get_thread:            s = "get_thread";    break;
      // LIR_Op1
      case lir_fxch:                  s = "fxch";          break;
      case lir_fld:                   s = "fld";           break;
-     case lir_ffree:                 s = "ffree";         break;
      case lir_push:                  s = "push";          break;
      case lir_pop:                   s = "pop";           break;
      case lir_null_check:            s = "null_check";    break;
@@ -1673,8 +1643,6 @@ const char * LIR_Op::name() const {
      case lir_convert:               s = "convert";       break;
      case lir_alloc_object:          s = "alloc_obj";     break;
      case lir_monaddr:               s = "mon_addr";      break;
-     case lir_pack64:                s = "pack64";        break;
-     case lir_unpack64:              s = "unpack64";      break;
      // LIR_Op2
      case lir_cmp:                   s = "cmp";           break;
      case lir_cmp_l2i:               s = "cmp_l2i";       break;

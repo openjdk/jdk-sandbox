@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,6 @@
  * questions.
  */
 
-// XMLReaderFactory.java - factory for creating a new reader.
-// http://www.saxproject.org
-// Written by David Megginson
-// and by David Brownell
-// NO WARRANTY!  This class is in the Public Domain.
-// $Id: XMLReaderFactory.java,v 1.2.2.1 2005/07/31 22:48:08 jeffsuttor Exp $
-
 package org.xml.sax.helpers;
 
 import java.io.BufferedReader;
@@ -49,13 +42,6 @@ import org.xml.sax.XMLReader;
 
 /**
  * Factory for creating an XML reader.
- *
- * <blockquote>
- * <em>This module, both source code and documentation, is in the
- * Public Domain, and comes with <strong>NO WARRANTY</strong>.</em>
- * See <a href='http://www.saxproject.org'>http://www.saxproject.org</a>
- * for further information.
- * </blockquote>
  *
  * <p>This class contains static methods for creating an XML reader
  * from an explicit class name, or based on runtime defaults:
@@ -131,7 +117,7 @@ final public class XMLReaderFactory
      * removal in a future release.
      *
      * @return a new XMLReader.
-     * @exception org.xml.sax.SAXException If no default XMLReader class
+     * @throws org.xml.sax.SAXException If no default XMLReader class
      *            can be identified and instantiated.
      * @see #createXMLReader(java.lang.String)
      */
@@ -180,8 +166,9 @@ final public class XMLReaderFactory
      * the caller (perhaps an applet) is not permitted to load classes
      * dynamically.
      *
+     * @param className a class name
      * @return A new XML reader.
-     * @exception org.xml.sax.SAXException If the class cannot be
+     * @throws org.xml.sax.SAXException If the class cannot be
      *            loaded, instantiated, and cast to XMLReader.
      * @see #createXMLReader()
      */

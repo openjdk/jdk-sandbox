@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "gc/z/zBarrierSet.hpp"
 #include "gc/z/zCPU.hpp"
 #include "gc/z/zGlobals.hpp"
+#include "gc/z/zHeuristics.hpp"
 #include "gc/z/zInitialize.hpp"
 #include "gc/z/zLargePages.hpp"
 #include "gc/z/zNUMA.hpp"
@@ -50,4 +51,6 @@ ZInitialize::ZInitialize(ZBarrierSet* barrier_set) {
   ZTracer::initialize();
   ZLargePages::initialize();
   ZBarrierSet::set_barrier_set(barrier_set);
+
+  pd_initialize();
 }

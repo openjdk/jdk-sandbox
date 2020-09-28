@@ -74,7 +74,7 @@ class outputStream;
 
 class OopStorage : public CHeapObj<mtGC> {
 public:
-  OopStorage(const char* name, Mutex* allocation_mutex, Mutex* active_mutex);
+  explicit OopStorage(const char* name);
   ~OopStorage();
 
   // These count and usage accessors are racy unless at a safepoint.
@@ -151,6 +151,24 @@ public:
   // Other clients must use serial iteration.
   template<bool concurrent, bool is_const> class ParState;
 
+  // Support GC callbacks reporting dead entries.  This lets clients respond
+  // to entries being cleared.
+
+  typedef void (*NumDeadCallback)(size_t num_dead);
+
+  // Used by a client to register a callback function with the GC.
+  // precondition: No more than one registration per storage object.
+  void register_num_dead_callback(NumDeadCallback f);
+
+  // Called by the GC after an iteration that may clear dead referents.
+  // This calls the registered callback function, if any.  num_dead is the
+  // number of entries which were either already NULL or were cleared by the
+  // iteration.
+  void report_num_dead(size_t num_dead) const;
+
+  // Used by the GC to test whether a callback function has been registered.
+  bool should_report_num_dead() const;
+
   // Service thread cleanup support.
 
   // Called by the service thread to process any pending cleanups for this
@@ -167,7 +185,7 @@ public:
   // cleanups to process.
   static void trigger_cleanup_if_needed();
 
-  // Called by the service thread (while holding Service_lock) to to test
+  // Called by the service thread (while holding Service_lock) to test
   // for pending cleanup requests, and resets the request state to allow
   // recognition of new requests.  Returns true if there was a pending
   // request.
@@ -183,10 +201,7 @@ public:
   // private types by providing public typedefs for them.
   class TestAccess;
 
-  // xlC on AIX can't compile test_oopStorage.cpp with following private
-  // classes. C++03 introduced access for nested classes with DR45, but xlC
-  // version 12 rejects it.
-NOT_AIX( private: )
+private:
   class Block;                  // Fixed-size array of oops, plus bookkeeping.
   class ActiveArray;            // Array of Blocks, plus bookkeeping.
   class AllocationListEntry;    // Provides AllocationList links in a Block.
@@ -196,9 +211,7 @@ NOT_AIX( private: )
     const Block* _head;
     const Block* _tail;
 
-    // Noncopyable.
-    AllocationList(const AllocationList&);
-    AllocationList& operator=(const AllocationList&);
+    NONCOPYABLE(AllocationList);
 
   public:
     AllocationList();
@@ -224,12 +237,10 @@ private:
   const char* _name;
   ActiveArray* _active_array;
   AllocationList _allocation_list;
-AIX_ONLY(public:)               // xlC 12 on AIX doesn't implement C++ DR45.
   Block* volatile _deferred_updates;
-AIX_ONLY(private:)
-
   Mutex* _allocation_mutex;
   Mutex* _active_mutex;
+  NumDeadCallback _num_dead_callback;
 
   // Volatile for racy unlocked accesses.
   volatile size_t _allocation_count;
@@ -248,9 +259,7 @@ AIX_ONLY(private:)
   Block* find_block_or_null(const oop* ptr) const;
   void delete_empty_block(const Block& block);
   bool reduce_deferred_updates();
-AIX_ONLY(public:)               // xlC 12 on AIX doesn't implement C++ DR45.
   void record_needs_cleanup();
-AIX_ONLY(private:)
 
   // Managing _active_array.
   bool expand_active_array();

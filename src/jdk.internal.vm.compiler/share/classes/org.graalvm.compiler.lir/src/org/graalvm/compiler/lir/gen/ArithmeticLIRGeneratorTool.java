@@ -100,7 +100,11 @@ public interface ArithmeticLIRGeneratorTool {
 
     Variable emitLoad(LIRKind kind, Value address, LIRFrameState state);
 
+    Variable emitVolatileLoad(LIRKind kind, Value address, LIRFrameState state);
+
     void emitStore(ValueKind<?> kind, Value address, Value input, LIRFrameState state);
+
+    void emitVolatileStore(ValueKind<?> kind, Value address, Value input, LIRFrameState state);
 
     @SuppressWarnings("unused")
     default Value emitFusedMultiplyAdd(Value a, Value b, Value c) {
@@ -137,8 +141,4 @@ public interface ArithmeticLIRGeneratorTool {
         throw GraalError.unimplemented("No specialized implementation available");
     }
 
-    @SuppressWarnings("unused")
-    default void emitZeroMemory(Value address, Value length) {
-        throw GraalError.unimplemented("Bulk zeroing is not supported on this platform");
-    }
 }

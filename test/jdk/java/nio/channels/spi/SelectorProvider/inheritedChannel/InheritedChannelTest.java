@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @test
  * @bug 4673940 4930794 8211842
  * @summary Unit tests for inetd feature
- * @requires (os.family == "linux" | os.family == "solaris")
+ * @requires (os.family == "linux" | os.family == "mac")
  * @library /test/lib
  * @build jdk.test.lib.Utils
  *        jdk.test.lib.Asserts
@@ -33,7 +33,8 @@
  *        jdk.test.lib.JDKToolLauncher
  *        jdk.test.lib.Platform
  *        jdk.test.lib.process.*
- *        UnixSocketTest StateTest StateTestService EchoTest EchoService CloseTest Launcher Util
+ *        UnixSocketTest StateTest StateTestService EchoTest EchoService
+ *        UnixDomainChannelTest CloseTest Launcher Util
  * @run testng/othervm/native InheritedChannelTest
  * @key intermittent
  */
@@ -62,8 +63,7 @@ public class InheritedChannelTest {
     private static final Path POLICY_PASS = Paths.get(TEST_SRC, "java.policy.pass");
     private static final Path POLICY_FAIL = Paths.get(TEST_SRC, "java.policy.fail");
 
-    private static final String OS = System.getProperty("os.name").toLowerCase();
-    private static final String OS_NAME = OS.startsWith("sunos") ? "solaris" : OS;
+    private static final String OS_NAME = System.getProperty("os.name").toLowerCase();
 
     private static final String ARCH = System.getProperty("os.arch");
     private static final String OS_ARCH = ARCH.equals("i386") ? "i586" : ARCH;
@@ -73,7 +73,8 @@ public class InheritedChannelTest {
 
     @DataProvider
     public Object[][] testCases() {
-        return new Object[][]{
+        return new Object[][] {
+            { "UnixDomainChannelTest", List.of(UnixDomainChannelTest.class.getName())},
             { "UnixSocketTest", List.of(UnixSocketTest.class.getName())},
             { "StateTest", List.of(StateTest.class.getName()) },
             { "EchoTest",  List.of(EchoTest.class.getName())  },
@@ -83,6 +84,7 @@ public class InheritedChannelTest {
             // Note that the system properties are arguments to StateTest and not options.
             // These system properties are passed to the launched service as options:
             // java [-options] class [args...]
+
             { "StateTest run with " + POLICY_PASS, List.of(StateTest.class.getName(),
                                                            "-Djava.security.manager",
                                                            "-Djava.security.policy="
@@ -97,7 +99,7 @@ public class InheritedChannelTest {
         };
     }
 
-    @Test(dataProvider = "testCases")
+    @Test(dataProvider = "testCases", timeOut=30000)
     public void test(String desc, List<String> opts) throws Throwable {
         String pathVar = Platform.sharedLibraryPathVariableName();
         System.out.println(pathVar + "=" + libraryPath);

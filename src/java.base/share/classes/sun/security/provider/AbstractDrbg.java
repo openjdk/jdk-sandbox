@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,7 +71,7 @@ public abstract class AbstractDrbg {
 
     // Common working status
 
-    private boolean instantiated = false;
+    private boolean instantiated;
 
     /**
      * Reseed counter of a DRBG instance. A mechanism should increment it
@@ -80,7 +80,7 @@ public abstract class AbstractDrbg {
      *
      * Volatile, will be used in a double checked locking.
      */
-    protected volatile int reseedCounter = 0;
+    protected volatile int reseedCounter;
 
     // Mech features. If not same as below, must be redefined in constructor.
 
@@ -490,7 +490,7 @@ public abstract class AbstractDrbg {
         // (not using derivation function) is so confusing
         // (does it need only strength or seedlen of entropy?)
         // that it's safer to assume minLength. In all other
-        // cases minLength equals to minEntropy.
+        // cases minLength is equal to minEntropy.
         return getEntropyInput(minLength, minLength, maxLength, isPr);
     }
 

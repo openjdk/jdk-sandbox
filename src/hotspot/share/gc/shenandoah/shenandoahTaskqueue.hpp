@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2016, 2019, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2016, 2020, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -23,9 +24,12 @@
 
 #ifndef SHARE_GC_SHENANDOAH_SHENANDOAHTASKQUEUE_HPP
 #define SHARE_GC_SHENANDOAH_SHENANDOAHTASKQUEUE_HPP
-#include "gc/shared/owstTaskTerminator.hpp"
+
+#include "gc/shared/taskTerminator.hpp"
 #include "gc/shared/taskqueue.hpp"
+#include "gc/shenandoah/shenandoahPadding.hpp"
 #include "memory/allocation.hpp"
+#include "runtime/atomic.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/thread.hpp"
 
@@ -141,26 +145,17 @@ public:
 
 public:
   ObjArrayChunkedTask(oop o = NULL) {
-    assert(oopDesc::equals_raw(decode_oop(encode_oop(o)), o), "oop can be encoded: " PTR_FORMAT, p2i(o));
+    assert(decode_oop(encode_oop(o)) ==  o, "oop can be encoded: " PTR_FORMAT, p2i(o));
     _obj = encode_oop(o);
   }
   ObjArrayChunkedTask(oop o, int chunk, int pow) {
-    assert(oopDesc::equals_raw(decode_oop(encode_oop(o)), o), "oop can be encoded: " PTR_FORMAT, p2i(o));
+    assert(decode_oop(encode_oop(o)) == o, "oop can be encoded: " PTR_FORMAT, p2i(o));
     assert(decode_chunk(encode_chunk(chunk)) == chunk, "chunk can be encoded: %d", chunk);
     assert(decode_pow(encode_pow(pow)) == pow, "pow can be encoded: %d", pow);
     _obj = encode_oop(o) | encode_chunk(chunk) | encode_pow(pow);
   }
-  ObjArrayChunkedTask(const ObjArrayChunkedTask& t): _obj(t._obj) { }
 
-  ObjArrayChunkedTask& operator =(const ObjArrayChunkedTask& t) {
-    _obj = t._obj;
-    return *this;
-  }
-  volatile ObjArrayChunkedTask&
-  operator =(const volatile ObjArrayChunkedTask& t) volatile {
-    (void)const_cast<uintptr_t&>(_obj = t._obj);
-    return *this;
-  }
+  // Trivially copyable.
 
   inline oop decode_oop(uintptr_t val) const {
     return (oop) reinterpret_cast<void*>((val >> oop_shift) & right_n_bits(oop_bits));
@@ -219,21 +214,8 @@ public:
     _chunk = chunk;
     _pow = pow;
   }
-  ObjArrayChunkedTask(const ObjArrayChunkedTask& t): _obj(t._obj), _chunk(t._chunk), _pow(t._pow) { }
 
-  ObjArrayChunkedTask& operator =(const ObjArrayChunkedTask& t) {
-    _obj = t._obj;
-    _chunk = t._chunk;
-    _pow = t._pow;
-    return *this;
-  }
-  volatile ObjArrayChunkedTask&
-  operator =(const volatile ObjArrayChunkedTask& t) volatile {
-    (void)const_cast<oop&>(_obj = t._obj);
-    _chunk = t._chunk;
-    _pow = t._pow;
-    return *this;
-  }
+  // Trivially copyable.
 
   inline oop obj()   const { return _obj; }
   inline int chunk() const { return _chunk; }
@@ -269,9 +251,9 @@ typedef Padded<ShenandoahBufferedOverflowTaskQueue> ShenandoahObjToScanQueue;
 template <class T, MEMFLAGS F>
 class ParallelClaimableQueueSet: public GenericTaskQueueSet<T, F> {
 private:
-  DEFINE_PAD_MINUS_SIZE(0, DEFAULT_CACHE_LINE_SIZE, sizeof(volatile jint));
+  shenandoah_padding(0);
   volatile jint     _claimed_index;
-  DEFINE_PAD_MINUS_SIZE(1, DEFAULT_CACHE_LINE_SIZE, 0);
+  shenandoah_padding(1);
 
   debug_only(uint   _reserved;  )
 
@@ -304,7 +286,7 @@ T* ParallelClaimableQueueSet<T, F>::claim_next() {
     return NULL;
   }
 
-  jint index = Atomic::add(1, &_claimed_index);
+  jint index = Atomic::add(&_claimed_index, 1);
 
   if (index <= size) {
     return GenericTaskQueueSet<T, F>::queue((uint)index - 1);
@@ -332,23 +314,7 @@ private:
   ShenandoahHeap* _heap;
 public:
   ShenandoahTerminatorTerminator(ShenandoahHeap* const heap) : _heap(heap) { }
-  // return true, terminates immediately, even if there's remaining work left
-  virtual bool should_exit_termination() { return _heap->cancelled_gc(); }
-};
-
-class ShenandoahTaskTerminator : public StackObj {
-private:
-  OWSTTaskTerminator* const   _terminator;
-public:
-  ShenandoahTaskTerminator(uint n_threads, TaskQueueSetSuper* queue_set);
-  ~ShenandoahTaskTerminator();
-
-  bool offer_termination(ShenandoahTerminatorTerminator* terminator) {
-    return _terminator->offer_termination(terminator);
-  }
-
-  void reset_for_reuse() { _terminator->reset_for_reuse(); }
-  bool offer_termination() { return offer_termination((ShenandoahTerminatorTerminator*)NULL); }
+  virtual bool should_exit_termination();
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHTASKQUEUE_HPP

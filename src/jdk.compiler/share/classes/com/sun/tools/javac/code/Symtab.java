@@ -54,6 +54,7 @@ import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.UnknownType;
 import com.sun.tools.javac.code.Types.UniqueType;
 import com.sun.tools.javac.comp.Modules;
+import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Convert;
@@ -161,6 +162,7 @@ public class Symtab {
     /** Predefined types.
      */
     public final Type objectType;
+    public final Type objectMethodsType;
     public final Type objectsType;
     public final Type classType;
     public final Type classLoaderType;
@@ -214,6 +216,10 @@ public class Symtab {
     public final Type documentedType;
     public final Type elementTypeType;
     public final Type functionalInterfaceType;
+    public final Type previewFeatureType;
+    public final Type previewFeatureInternalType;
+    public final Type typeDescriptorType;
+    public final Type recordType;
 
     /** The symbol representing the length field of an array.
      */
@@ -385,7 +391,10 @@ public class Symtab {
 
         MissingInfoHandler missingInfoHandler = MissingInfoHandler.instance(context);
 
-        rootPackage = new RootPackageSymbol(names.empty, null, missingInfoHandler);
+        Target target = Target.instance(context);
+        rootPackage = new RootPackageSymbol(names.empty, null,
+                                            missingInfoHandler,
+                                            target.runtimeUseNestAccess());
 
         // create the basic builtin symbols
         unnamedModule = new ModuleSymbol(names.empty, null) {
@@ -508,6 +517,7 @@ public class Symtab {
 
         // Enter predefined classes. All are assumed to be in the java.base module.
         objectType = enterClass("java.lang.Object");
+        objectMethodsType = enterClass("java.lang.runtime.ObjectMethods");
         objectsType = enterClass("java.util.Objects");
         classType = enterClass("java.lang.Class");
         stringType = enterClass("java.lang.String");
@@ -570,6 +580,10 @@ public class Symtab {
         lambdaMetafactory = enterClass("java.lang.invoke.LambdaMetafactory");
         stringConcatFactory = enterClass("java.lang.invoke.StringConcatFactory");
         functionalInterfaceType = enterClass("java.lang.FunctionalInterface");
+        previewFeatureType = enterClass("jdk.internal.PreviewFeature");
+        previewFeatureInternalType = enterSyntheticAnnotation("jdk.internal.PreviewFeature+Annotation");
+        typeDescriptorType = enterClass("java.lang.invoke.TypeDescriptor");
+        recordType = enterClass("java.lang.Record");
 
         synthesizeEmptyInterfaceIfMissing(autoCloseableType);
         synthesizeEmptyInterfaceIfMissing(cloneableType);
@@ -783,6 +797,7 @@ public class Symtab {
         unnamedPackage.modle = module;
         //we cannot use a method reference below, as initialCompleter might be null now
         unnamedPackage.completer = s -> initialCompleter.complete(s);
+        unnamedPackage.flags_field |= EXISTS;
         module.unnamedPackage = unnamedPackage;
     }
 

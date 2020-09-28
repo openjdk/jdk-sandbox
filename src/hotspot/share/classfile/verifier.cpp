@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,12 +45,12 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/fieldDescriptor.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jniHandles.inline.hpp"
-#include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/thread.hpp"
@@ -63,29 +63,39 @@
 #define STATIC_METHOD_IN_INTERFACE_MAJOR_VERSION       52
 #define MAX_ARRAY_DIMENSIONS 255
 
-// Access to external entry for VerifyClassCodes - old byte code verifier
+// Access to external entry for VerifyClassForMajorVersion - old byte code verifier
 
 extern "C" {
-  typedef jboolean (*verify_byte_codes_fn_t)(JNIEnv *, jclass, char *, jint);
-  typedef jboolean (*verify_byte_codes_fn_new_t)(JNIEnv *, jclass, char *, jint, jint);
+  typedef jboolean (*verify_byte_codes_fn_t)(JNIEnv *, jclass, char *, jint, jint);
 }
 
-static void* volatile _verify_byte_codes_fn = NULL;
+static verify_byte_codes_fn_t volatile _verify_byte_codes_fn = NULL;
 
-static volatile jint _is_new_verify_byte_codes_fn = (jint) true;
+static verify_byte_codes_fn_t verify_byte_codes_fn() {
 
-static void* verify_byte_codes_fn() {
-  if (OrderAccess::load_acquire(&_verify_byte_codes_fn) == NULL) {
-    void *lib_handle = os::native_java_library();
-    void *func = os::dll_lookup(lib_handle, "VerifyClassCodesForMajorVersion");
-    OrderAccess::release_store(&_verify_byte_codes_fn, func);
-    if (func == NULL) {
-      _is_new_verify_byte_codes_fn = false;
-      func = os::dll_lookup(lib_handle, "VerifyClassCodes");
-      OrderAccess::release_store(&_verify_byte_codes_fn, func);
-    }
-  }
-  return (void*)_verify_byte_codes_fn;
+  if (_verify_byte_codes_fn != NULL)
+    return _verify_byte_codes_fn;
+
+  MutexLocker locker(Verify_lock);
+
+  if (_verify_byte_codes_fn != NULL)
+    return _verify_byte_codes_fn;
+
+  // Load verify dll
+  char buffer[JVM_MAXPATHLEN];
+  char ebuf[1024];
+  if (!os::dll_locate_lib(buffer, sizeof(buffer), Arguments::get_dll_dir(), "verify"))
+    return NULL; // Caller will throw VerifyError
+
+  void *lib_handle = os::dll_load(buffer, ebuf, sizeof(ebuf));
+  if (lib_handle == NULL)
+    return NULL; // Caller will throw VerifyError
+
+  void *fn = os::dll_lookup(lib_handle, "VerifyClassForMajorVersion");
+  if (fn == NULL)
+    return NULL; // Caller will throw VerifyError
+
+  return _verify_byte_codes_fn = CAST_TO_FN_PTR(verify_byte_codes_fn_t, fn);
 }
 
 
@@ -125,8 +135,15 @@ void Verifier::trace_class_resolution(Klass* resolve_class, InstanceKlass* verif
 void Verifier::log_end_verification(outputStream* st, const char* klassName, Symbol* exception_name, TRAPS) {
   if (HAS_PENDING_EXCEPTION) {
     st->print("Verification for %s has", klassName);
-    st->print_cr(" exception pending %s ",
+    oop message = java_lang_Throwable::message(PENDING_EXCEPTION);
+    if (message != NULL) {
+      char* ex_msg = java_lang_String::as_utf8_string(message);
+      st->print_cr(" exception pending '%s %s'",
+                 PENDING_EXCEPTION->klass()->external_name(), ex_msg);
+    } else {
+      st->print_cr(" exception pending %s ",
                  PENDING_EXCEPTION->klass()->external_name());
+    }
   } else if (exception_name != NULL) {
     st->print_cr("Verification for %s failed", klassName);
   }
@@ -156,7 +173,7 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
 
   // Timer includes any side effects of class verification (resolution,
   // etc), but not recursive calls to Verifier::verify().
-  JavaThread* jt = (JavaThread*)THREAD;
+  JavaThread* jt = THREAD->as_Java_thread();
   PerfClassTraceTime timer(ClassLoader::perf_class_verify_time(),
                            ClassLoader::perf_class_verify_selftime(),
                            ClassLoader::perf_classes_verified(),
@@ -279,20 +296,19 @@ bool Verifier::is_eligible_for_verification(InstanceKlass* klass, bool should_ve
 
 Symbol* Verifier::inference_verify(
     InstanceKlass* klass, char* message, size_t message_len, TRAPS) {
-  JavaThread* thread = (JavaThread*)THREAD;
-  JNIEnv *env = thread->jni_environment();
+  JavaThread* thread = THREAD->as_Java_thread();
 
-  void* verify_func = verify_byte_codes_fn();
+  verify_byte_codes_fn_t verify_func = verify_byte_codes_fn();
 
   if (verify_func == NULL) {
     jio_snprintf(message, message_len, "Could not link verifier");
     return vmSymbols::java_lang_VerifyError();
   }
 
-  ResourceMark rm(THREAD);
+  ResourceMark rm(thread);
   log_info(verification)("Verifying class %s with old format", klass->external_name());
 
-  jclass cls = (jclass) JNIHandles::make_local(env, klass->java_mirror());
+  jclass cls = (jclass) JNIHandles::make_local(thread, klass->java_mirror());
   jint result;
 
   {
@@ -300,17 +316,8 @@ Symbol* Verifier::inference_verify(
     ThreadToNativeFromVM ttn(thread);
     // ThreadToNativeFromVM takes care of changing thread_state, so safepoint
     // code knows that we have left the VM
-
-    if (_is_new_verify_byte_codes_fn) {
-      verify_byte_codes_fn_new_t func =
-        CAST_TO_FN_PTR(verify_byte_codes_fn_new_t, verify_func);
-      result = (*func)(env, cls, message, (int)message_len,
-          klass->major_version());
-    } else {
-      verify_byte_codes_fn_t func =
-        CAST_TO_FN_PTR(verify_byte_codes_fn_t, verify_func);
-      result = (*func)(env, cls, message, (int)message_len);
-    }
+    JNIEnv *env = thread->jni_environment();
+    result = (*verify_func)(env, cls, message, (int)message_len, klass->major_version());
   }
 
   JNIHandles::destroy_local(cls);
@@ -739,7 +746,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
   StackMapTable stackmap_table(&reader, &current_frame, max_locals, max_stack,
                                code_data, code_length, CHECK_VERIFY(this));
 
-  LogTarget(Info, verification) lt;
+  LogTarget(Debug, verification) lt;
   if (lt.is_enabled()) {
     ResourceMark rm(THREAD);
     LogStream ls(lt);
@@ -783,7 +790,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
       VerificationType type, type2;
       VerificationType atype;
 
-      LogTarget(Info, verification) lt;
+      LogTarget(Debug, verification) lt;
       if (lt.is_enabled()) {
         ResourceMark rm(THREAD);
         LogStream ls(lt);
@@ -2081,6 +2088,8 @@ Klass* ClassVerifier::load_class(Symbol* name, TRAPS) {
   oop loader = current_class()->class_loader();
   oop protection_domain = current_class()->protection_domain();
 
+  assert(name_in_supers(name, current_class()), "name should be a super class");
+
   Klass* kls = SystemDictionary::resolve_or_fail(
     name, Handle(THREAD, loader), Handle(THREAD, protection_domain),
     true, THREAD);
@@ -2108,7 +2117,7 @@ bool ClassVerifier::is_protected_access(InstanceKlass* this_class,
   InstanceKlass* target_instance = InstanceKlass::cast(target_class);
   fieldDescriptor fd;
   if (is_method) {
-    Method* m = target_instance->uncached_lookup_method(field_name, field_sig, Klass::find_overpass);
+    Method* m = target_instance->uncached_lookup_method(field_name, field_sig, Klass::OverpassLookupMode::find);
     if (m != NULL && m->is_protected()) {
       if (!this_class->is_same_class_package(m->method_holder())) {
         return true;
@@ -2648,9 +2657,9 @@ void ClassVerifier::verify_invoke_init(
             verify_error(ErrorContext::bad_code(bci),
               "Bad <init> method call from after the start of a try block");
             return;
-          } else if (log_is_enabled(Info, verification)) {
+          } else if (log_is_enabled(Debug, verification)) {
             ResourceMark rm(THREAD);
-            log_info(verification)("Survived call to ends_in_athrow(): %s",
+            log_debug(verification)("Survived call to ends_in_athrow(): %s",
                                           current_class()->name()->as_C_string());
           }
         }
@@ -2701,7 +2710,7 @@ void ClassVerifier::verify_invoke_init(
       Method* m = InstanceKlass::cast(ref_klass)->uncached_lookup_method(
         vmSymbols::object_initializer_name(),
         cp->signature_ref_at(bcs->get_index_u2()),
-        Klass::find_overpass);
+        Klass::OverpassLookupMode::find);
       // Do nothing if method is not found.  Let resolution detect the error.
       if (m != NULL) {
         InstanceKlass* mh = m->method_holder();
@@ -2851,7 +2860,7 @@ void ClassVerifier::verify_invoke_instructions(
     }
   }
 
-  if (method_name->char_at(0) == '<') {
+  if (method_name->char_at(0) == JVM_SIGNATURE_SPECIAL) {
     // Make sure <init> can only be invoked by invokespecial
     if (opcode != Bytecodes::_invokespecial ||
         method_name != vmSymbols::object_initializer_name()) {
@@ -3027,21 +3036,23 @@ void ClassVerifier::verify_anewarray(
     // Check for more than MAX_ARRAY_DIMENSIONS
     length = (int)strlen(component_name);
     if (length > MAX_ARRAY_DIMENSIONS &&
-        component_name[MAX_ARRAY_DIMENSIONS - 1] == '[') {
+        component_name[MAX_ARRAY_DIMENSIONS - 1] == JVM_SIGNATURE_ARRAY) {
       verify_error(ErrorContext::bad_code(bci),
         "Illegal anewarray instruction, array has more than 255 dimensions");
     }
     // add one dimension to component
     length++;
     arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length + 1);
-    int n = os::snprintf(arr_sig_str, length + 1, "[%s", component_name);
+    int n = os::snprintf(arr_sig_str, length + 1, "%c%s",
+                         JVM_SIGNATURE_ARRAY, component_name);
     assert(n == length, "Unexpected number of characters in string");
   } else {         // it's an object or interface
     const char* component_name = component_type.name()->as_utf8();
     // add one dimension to component with 'L' prepended and ';' postpended.
     length = (int)strlen(component_name) + 3;
     arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length + 1);
-    int n = os::snprintf(arr_sig_str, length + 1, "[L%s;", component_name);
+    int n = os::snprintf(arr_sig_str, length + 1, "%c%c%s;",
+                         JVM_SIGNATURE_ARRAY, JVM_SIGNATURE_CLASS, component_name);
     assert(n == length, "Unexpected number of characters in string");
   }
   Symbol* arr_sig = create_temporary_symbol(arr_sig_str, length);
@@ -3151,13 +3162,6 @@ void ClassVerifier::verify_return_value(
 // The verifier creates symbols which are substrings of Symbols.
 // These are stored in the verifier until the end of verification so that
 // they can be reference counted.
-Symbol* ClassVerifier::create_temporary_symbol(const Symbol *s, int begin,
-                                               int end) {
-  const char* name = (const char*)s->base() + begin;
-  int length = end - begin;
-  return create_temporary_symbol(name, length);
-}
-
 Symbol* ClassVerifier::create_temporary_symbol(const char *name, int length) {
   // Quick deduplication check
   if (_previous_symbol != NULL && _previous_symbol->equals(name, length)) {

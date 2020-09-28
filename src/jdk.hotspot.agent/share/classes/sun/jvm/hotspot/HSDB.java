@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,8 @@ import sun.jvm.hotspot.ui.*;
 import sun.jvm.hotspot.ui.tree.*;
 import sun.jvm.hotspot.ui.classbrowser.*;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /** The top-level HotSpot Debugger. FIXME: make this an embeddable
     component! (Among other things, figure out what to do with the
@@ -66,10 +68,8 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
   private boolean      attached;
   private boolean      argError;
   private JFrame frame;
-  /** List <JMenuItem> */
-  private java.util.List attachMenuItems;
-  /** List <JMenuItem> */
-  private java.util.List detachMenuItems;
+  private java.util.List<JMenuItem> attachMenuItems;
+  private java.util.List<JMenuItem> detachMenuItems;
   private JMenu toolsMenu;
   private JMenuItem showDbgConsoleMenuItem;
   private JMenuItem computeRevPtrsMenuItem;
@@ -155,8 +155,8 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
 
     agent = new HotSpotAgent();
     workerThread = new WorkerThread();
-    attachMenuItems = new java.util.ArrayList();
-    detachMenuItems = new java.util.ArrayList();
+    attachMenuItems = new java.util.ArrayList<>();
+    detachMenuItems = new java.util.ArrayList<>();
 
 
     JMenuBar menuBar = new JMenuBar();
@@ -274,15 +274,6 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
                               }
                             });
     item.setMnemonic(KeyEvent.VK_D);
-    toolsMenu.add(item);
-
-    item = createMenuItem("Find Object by Query",
-                          new ActionListener() {
-                              public void actionPerformed(ActionEvent e) {
-                                showFindByQueryPanel();
-                              }
-                            });
-    item.setMnemonic(KeyEvent.VK_Q);
     toolsMenu.add(item);
 
 
@@ -481,7 +472,7 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
     panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
     JTextArea ta = new JTextArea(
                                  "Enter the process ID of a currently-running HotSpot process. On " +
-                                 "Solaris and most Unix operating systems, this can be determined by " +
+                                 "most Unix operating systems, this can be determined by " +
                                  "typing \"ps -u <your username> | grep java\"; the process ID is the " +
                                  "first number which appears on the resulting line. On Windows, the " +
                                  "process ID is present in the Task Manager, which can be brought up " +
@@ -875,7 +866,7 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
           // frames in a table and one which finds Java frames and if they
           // are in the table indicates that they were interrupted by a signal.
 
-          Map interruptedFrameMap = new HashMap();
+          Map<sun.jvm.hotspot.runtime.Frame, SignalInfo> interruptedFrameMap = new HashMap<>();
           {
             sun.jvm.hotspot.runtime.Frame tmpFrame = thread.getCurrentFrameGuess();
             RegisterMap tmpMap = thread.newRegisterMap(false);
@@ -1531,10 +1522,6 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
       showPanel("Command Line", new CommandProcessorPanel(new CommandProcessor(di, null, null, null)));
   }
 
-  private void showFindByQueryPanel() {
-    showPanel("Find Object by Query", new FindByQueryPanel());
-  }
-
   private void showFindPanel() {
     showPanel("Find Pointer", new FindPanel());
   }
@@ -1845,9 +1832,9 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
     return buf.toString();
   }
 
-  private void setMenuItemsEnabled(java.util.List items, boolean enabled) {
-    for (Iterator iter = items.iterator(); iter.hasNext(); ) {
-      ((JMenuItem) iter.next()).setEnabled(enabled);
+  private void setMenuItemsEnabled(java.util.List<JMenuItem> items, boolean enabled) {
+    for (Iterator<JMenuItem> iter = items.iterator(); iter.hasNext(); ) {
+      iter.next().setEnabled(enabled);
     }
   }
 }

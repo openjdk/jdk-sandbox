@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
  * @summary Tests that jvmtiEnv::GetPotentialCapabilities reports
  *          can_generate_all_class_hook_events capability with CDS (-Xshare:on)
  *          at ONLOAD and LIVE phases
+ * @requires vm.jvmti
  * @requires vm.cds
  * @library /test/lib
  * @compile CanGenerateAllClassHook.java

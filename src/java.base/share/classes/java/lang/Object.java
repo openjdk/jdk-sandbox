@@ -38,11 +38,6 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  */
 public class Object {
 
-    private static native void registerNatives();
-    static {
-        registerNatives();
-    }
-
     /**
      * Constructs a new object.
      */
@@ -467,7 +462,7 @@ public class Object {
      * system resources or to perform other cleanup.
      * <p>
      * The general contract of {@code finalize} is that it is invoked
-     * if and when the Java&trade; virtual
+     * if and when the Java virtual
      * machine has determined that there is no longer any
      * means by which this object can be accessed by any thread that has
      * not yet died, except as a result of an action taken by the

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,11 +46,6 @@ public class LinkInfoImpl extends LinkInfo {
 
     public enum Kind {
         DEFAULT,
-
-        /**
-         * Indicate that the link appears in a class list.
-         */
-        ALL_CLASSES_FRAME,
 
         /**
          * Indicate that the link appears in a class documentation.
@@ -168,6 +163,11 @@ public class LinkInfoImpl extends LinkInfo {
         CLASS_SIGNATURE_PARENT_NAME,
 
         /**
+         * Permitted subclasses of a sealed type.
+         */
+        PERMITTED_SUBCLASSES,
+
+        /**
          * The header for method documentation copied from parent.
          */
         EXECUTABLE_ELEMENT_COPY,
@@ -186,11 +186,6 @@ public class LinkInfoImpl extends LinkInfo {
          * Annotation link.
          */
         ANNOTATION,
-
-        /**
-         * The header for field documentation copied from parent.
-         */
-        VARIABLE_ELEMENT_COPY,
 
         /**
          * The parent nodes in the class tree.
@@ -215,7 +210,12 @@ public class LinkInfoImpl extends LinkInfo {
         /**
          * A receiver type
          */
-        RECEIVER_TYPE
+        RECEIVER_TYPE,
+
+        /**
+         * A record component within a class signature
+         */
+        RECORD_COMPONENT
     }
 
     public final HtmlConfiguration configuration;
@@ -249,9 +249,6 @@ public class LinkInfoImpl extends LinkInfo {
         setContext(context);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected Content newContent() {
         return new ContentBuilder();
@@ -335,16 +332,11 @@ public class LinkInfoImpl extends LinkInfo {
         return this;
      }
 
-    /**
-     * {@inheritDoc}
-     */
     public Kind getContext() {
         return context;
     }
 
     /**
-     * {@inheritDoc}
-     *
      * This method sets the link attributes to the appropriate values
      * based on the context.
      *
@@ -353,12 +345,10 @@ public class LinkInfoImpl extends LinkInfo {
     public final void setContext(Kind c) {
         //NOTE:  Put context specific link code here.
         switch (c) {
-            case ALL_CLASSES_FRAME:
             case PACKAGE_FRAME:
             case IMPLEMENTED_CLASSES:
             case SUBCLASSES:
             case EXECUTABLE_ELEMENT_COPY:
-            case VARIABLE_ELEMENT_COPY:
             case PROPERTY_COPY:
             case CLASS_USE_HEADER:
                 includeTypeInClassLinkLabel = false;
@@ -375,6 +365,7 @@ public class LinkInfoImpl extends LinkInfo {
             case CLASS_TREE_PARENT:
             case TREE:
             case CLASS_SIGNATURE_PARENT_NAME:
+            case PERMITTED_SUBCLASSES:
                 excludeTypeParameterLinks = true;
                 excludeTypeBounds = true;
                 includeTypeInClassLinkLabel = false;

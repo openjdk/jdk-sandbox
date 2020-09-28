@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -33,7 +34,7 @@
 ShenandoahClassUnloadingTask::ShenandoahClassUnloadingTask(BoolObjectClosure* is_alive,
                                                            uint num_workers,
                                                            bool unloading_occurred) :
-  AbstractGangTask("Parallel Class Unloading Task"),
+  AbstractGangTask("Shenandoah Class Unloading"),
   _unloading_occurred(unloading_occurred),
   _code_cache_task(num_workers, is_alive, unloading_occurred),
   _klass_cleaning_task() {
@@ -41,7 +42,6 @@ ShenandoahClassUnloadingTask::ShenandoahClassUnloadingTask(BoolObjectClosure* is
 }
 
 void ShenandoahClassUnloadingTask::work(uint worker_id) {
-  ShenandoahEvacOOMScope scope;
   _code_cache_task.work(worker_id);
   // Clean all klasses that were not unloaded.
   // The weak metadata in klass doesn't need to be

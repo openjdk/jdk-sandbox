@@ -25,6 +25,7 @@
 
 package sun.management;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.management.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -39,8 +40,8 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
-import jdk.internal.access.JavaNioAccess;
-import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.VM;
+import jdk.internal.misc.VM.BufferPool;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +53,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * ManagementFactoryHelper provides static factory methods to create
@@ -61,7 +63,9 @@ public class ManagementFactoryHelper {
     static {
         // make sure that the management lib is loaded within
         // java.lang.management.ManagementFactory
-        jdk.internal.misc.Unsafe.getUnsafe().ensureClassInitialized(ManagementFactory.class);
+        try {
+            MethodHandles.lookup().ensureInitialized(ManagementFactory.class);
+        } catch (IllegalAccessException e) {}
     }
 
     private static final VMManagement jvm = new VMManagementImpl();
@@ -337,16 +341,16 @@ public class ManagementFactoryHelper {
         static final PlatformLoggingMXBean MBEAN = getInstance();
     }
 
-    private static List<BufferPoolMXBean> bufferPools = null;
-    public static synchronized List<BufferPoolMXBean> getBufferPoolMXBeans() {
+    private static volatile List<BufferPoolMXBean> bufferPools;
+    public static List<BufferPoolMXBean> getBufferPoolMXBeans() {
         if (bufferPools == null) {
-            bufferPools = new ArrayList<>(2);
-            bufferPools.add(createBufferPoolMXBean(SharedSecrets.getJavaNioAccess()
-                .getDirectBufferPool()));
-            bufferPools.add(createBufferPoolMXBean(sun.nio.ch.FileChannelImpl
-                .getMappedBufferPool()));
-            bufferPools.add(createBufferPoolMXBean(sun.nio.ch.FileChannelImpl
-                .getSyncMappedBufferPool()));
+            synchronized (ManagementFactoryHelper.class) {
+                if (bufferPools == null) {
+                    bufferPools = VM.getBufferPools().stream()
+                                    .map(ManagementFactoryHelper::createBufferPoolMXBean)
+                                    .collect(Collectors.toList());
+                }
+            }
         }
         return bufferPools;
     }
@@ -357,7 +361,7 @@ public class ManagementFactoryHelper {
      * Creates management interface for the given buffer pool.
      */
     private static BufferPoolMXBean
-        createBufferPoolMXBean(final JavaNioAccess.BufferPool pool)
+        createBufferPoolMXBean(final BufferPool pool)
     {
         return new BufferPoolMXBean() {
             private volatile ObjectName objname;  // created lazily

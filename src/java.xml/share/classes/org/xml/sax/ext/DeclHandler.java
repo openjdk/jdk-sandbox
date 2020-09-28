@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,6 @@
  * questions.
  */
 
-// DeclHandler.java - Optional handler for DTD declaration events.
-// http://www.saxproject.org
-// Public Domain: no warranty.
-// $Id: DeclHandler.java,v 1.2 2004/11/03 22:49:08 jsuttor Exp $
-
 package org.xml.sax.ext;
 
 import org.xml.sax.SAXException;
@@ -35,13 +30,6 @@ import org.xml.sax.SAXException;
 
 /**
  * SAX2 extension handler for DTD declaration events.
- *
- * <blockquote>
- * <em>This module, both source code and documentation, is in the
- * Public Domain, and comes with <strong>NO WARRANTY</strong>.</em>
- * See <a href='http://www.saxproject.org'>http://www.saxproject.org</a>
- * for further information.
- * </blockquote>
  *
  * <p>This is an optional extension handler for SAX2 to provide more
  * complete information about DTD declarations in an XML document.
@@ -86,7 +74,7 @@ public interface DeclHandler
      *
      * @param name The element type name.
      * @param model The content model as a normalized string.
-     * @exception SAXException The application may raise an exception.
+     * @throws SAXException The application may raise an exception.
      */
     public abstract void elementDecl (String name, String model)
         throws SAXException;
@@ -115,7 +103,7 @@ public interface DeclHandler
      *        none of these applies.
      * @param value A string representing the attribute's default value,
      *        or null if there is none.
-     * @exception SAXException The application may raise an exception.
+     * @throws SAXException The application may raise an exception.
      */
     public abstract void attributeDecl (String eName,
                                         String aName,
@@ -135,7 +123,7 @@ public interface DeclHandler
      * @param name The name of the entity.  If it is a parameter
      *        entity, the name will begin with '%'.
      * @param value The replacement text of the entity.
-     * @exception SAXException The application may raise an exception.
+     * @throws SAXException The application may raise an exception.
      * @see #externalEntityDecl
      * @see org.xml.sax.DTDHandler#unparsedEntityDecl
      */
@@ -157,7 +145,7 @@ public interface DeclHandler
      * @param publicId The entity's public identifier, or null if none
      *        was given.
      * @param systemId The entity's system identifier.
-     * @exception SAXException The application may raise an exception.
+     * @throws SAXException The application may raise an exception.
      * @see #internalEntityDecl
      * @see org.xml.sax.DTDHandler#unparsedEntityDecl
      */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,11 @@ package gc.g1;
  * @test TestLargePageUseForHeap.java
  * @summary Test that Java heap is allocated using large pages of the appropriate size if available.
  * @bug 8221517
- * @key gc
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
  * @requires vm.gc.G1
- * @requires os.family != "solaris"
  * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
         -XX:+IgnoreUnrecognizedVMOptions -XX:+UseLargePages gc.g1.TestLargePageUseForHeap
  */
@@ -67,7 +65,9 @@ public class TestLargePageUseForHeap {
         String errorStr = "Reserve regular memory without large pages";
         String heapPattern = ".*Heap: ";
         // If errorStr is printed just before heap page log, reservation for Java Heap is failed.
-        String result = output.firstMatch(errorStr + "\n" + heapPattern);
+        String result = output.firstMatch(errorStr + "\n" +
+                                          "(?:.*Heap address: .*\n)?" // Heap address: 0x00000000f8000000, size: 128 MB, Compressed Oops mode: 32-bit
+                                          + heapPattern);
         if (result != null) {
             return false;
         }
@@ -149,4 +149,3 @@ public class TestLargePageUseForHeap {
         return longValue * multiplier;
     }
 }
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -266,7 +266,6 @@ class SharedRuntime: AllStatic {
 
   // To be used as the entry point for unresolved native methods.
   static address native_method_throw_unsatisfied_link_error_entry();
-  static address native_method_throw_unsupported_operation_exception_entry();
 
   static oop retrieve_receiver(Symbol* sig, frame caller);
 
@@ -341,6 +340,9 @@ class SharedRuntime: AllStatic {
   // Find the method that called us.
   static methodHandle find_callee_method(JavaThread* thread, TRAPS);
 
+  static void monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThread* thread);
+
+  static void monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThread* thread);
 
  private:
   static Handle find_callee_info(JavaThread* thread,
@@ -351,11 +353,7 @@ class SharedRuntime: AllStatic {
                                         Bytecodes::Code& bc,
                                         CallInfo& callinfo, TRAPS);
 
-  static methodHandle extract_attached_method(vframeStream& vfst);
-
-  static address clean_virtual_call_entry();
-  static address clean_opt_virtual_call_entry();
-  static address clean_static_call_entry();
+  static Method* extract_attached_method(vframeStream& vfst);
 
 #if defined(X86) && defined(COMPILER1)
   // For Object.hashCode, System.identityHashCode try to pull hashCode from object header if available.

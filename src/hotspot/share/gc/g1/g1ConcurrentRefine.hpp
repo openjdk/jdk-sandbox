@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,10 @@
 #ifndef SHARE_GC_G1_G1CONCURRENTREFINE_HPP
 #define SHARE_GC_G1_G1CONCURRENTREFINE_HPP
 
+#include "gc/g1/g1ConcurrentRefineStats.hpp"
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/ticks.hpp"
 
 // Forward decl
 class G1ConcurrentRefine;
@@ -55,7 +57,6 @@ public:
   // activate it.
   void maybe_activate_next(uint cur_worker_id);
 
-  void print_on(outputStream* st) const;
   void worker_threads_do(ThreadClosure* tc);
   void stop();
 };
@@ -118,19 +119,24 @@ public:
   // Adjust refinement thresholds based on work done during the pause and the goal time.
   void adjust(double logged_cards_scan_time, size_t processed_logged_cards, double goal_ms);
 
+  // Return total of concurrent refinement stats for the
+  // ConcurrentRefineThreads.  Also reset the stats for the threads.
+  G1ConcurrentRefineStats get_and_reset_refinement_stats();
+
   // Cards in the dirty card queue set.
   size_t activation_threshold(uint worker_id) const;
   size_t deactivation_threshold(uint worker_id) const;
-  // Perform a single refinement step. Called by the refinement threads when woken up.
-  bool do_refinement_step(uint worker_id);
+
+  // Perform a single refinement step; called by the refinement
+  // threads.  Returns true if there was refinement work available.
+  // Updates stats.
+  bool do_refinement_step(uint worker_id, G1ConcurrentRefineStats* stats);
 
   // Iterate over all concurrent refinement threads applying the given closure.
   void threads_do(ThreadClosure *tc);
 
   // Maximum number of refinement threads.
   static uint max_num_threads();
-
-  void print_threads_on(outputStream* st) const;
 
   // Cards in the dirty card queue set.
   size_t green_zone() const      { return _green_zone;  }

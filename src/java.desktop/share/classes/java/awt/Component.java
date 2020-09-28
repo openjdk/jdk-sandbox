@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -469,6 +469,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
      * @see #getFocusTraversalKeys
      * @since 1.4
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     Set<AWTKeyStroke>[] focusTraversalKeys;
 
     private static final String[] focusTraversalKeyPropertyNames = {
@@ -2971,8 +2972,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
             if (!wasValid && peer != null) {
                 Font newfont = getFont();
                 Font oldfont = peerFont;
-                if (newfont != oldfont && (oldfont == null
-                                           || !oldfont.equals(newfont))) {
+                if (newfont != null && !Objects.equals(oldfont, newfont)) {
                     peer.setFont(newfont);
                     peerFont = newfont;
                 }
@@ -3633,10 +3633,6 @@ public abstract class Component implements ImageObserver, MenuContainer,
      * @since     1.0
      */
     public Image createImage(ImageProducer producer) {
-        ComponentPeer peer = this.peer;
-        if ((peer != null) && ! (peer instanceof LightweightPeer)) {
-            return peer.createImage(producer);
-        }
         return getToolkit().createImage(producer);
     }
 
@@ -3752,16 +3748,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
      */
     public boolean prepareImage(Image image, int width, int height,
                                 ImageObserver observer) {
-        ComponentPeer peer = this.peer;
-        if (peer instanceof LightweightPeer) {
-            return (parent != null)
-                ? parent.prepareImage(image, width, height, observer)
-                : getToolkit().prepareImage(image, width, height, observer);
-        } else {
-            return (peer != null)
-                ? peer.prepareImage(image, width, height, observer)
-                : getToolkit().prepareImage(image, width, height, observer);
-        }
+        return getToolkit().prepareImage(image, width, height, observer);
     }
 
     /**
@@ -3824,16 +3811,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
      */
     public int checkImage(Image image, int width, int height,
                           ImageObserver observer) {
-        ComponentPeer peer = this.peer;
-        if (peer instanceof LightweightPeer) {
-            return (parent != null)
-                ? parent.checkImage(image, width, height, observer)
-                : getToolkit().checkImage(image, width, height, observer);
-        } else {
-            return (peer != null)
-                ? peer.checkImage(image, width, height, observer)
-                : getToolkit().checkImage(image, width, height, observer);
-        }
+        return getToolkit().checkImage(image, width, height, observer);
     }
 
     /**
@@ -9293,6 +9271,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
     /**
      * The {@code AccessibleContext} associated with this {@code Component}.
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected AccessibleContext accessibleContext = null;
 
     /**
@@ -9344,12 +9323,14 @@ public abstract class Component implements ImageObserver, MenuContainer,
          * A component listener to track show/hide/resize events
          * and convert them to PropertyChange events.
          */
+        @SuppressWarnings("serial") // Not statically typed as Serializable
         protected ComponentListener accessibleAWTComponentHandler = null;
 
         /**
          * A listener to track focus events
          * and convert them to PropertyChange events.
          */
+        @SuppressWarnings("serial") // Not statically typed as Serializable
         protected FocusListener accessibleAWTFocusHandler = null;
 
         /**
@@ -9359,6 +9340,11 @@ public abstract class Component implements ImageObserver, MenuContainer,
          */
         protected class AccessibleAWTComponentHandler implements ComponentListener, Serializable {
             private static final long serialVersionUID = -1009684107426231869L;
+
+            /**
+             * Constructs an {@code AccessibleAWTComponentHandler}.
+             */
+            protected AccessibleAWTComponentHandler() {}
 
             public void componentHidden(ComponentEvent e)  {
                 if (accessibleContext != null) {
@@ -9391,6 +9377,11 @@ public abstract class Component implements ImageObserver, MenuContainer,
          */
         protected class AccessibleAWTFocusHandler implements FocusListener, Serializable {
             private static final long serialVersionUID = 3150908257351582233L;
+
+            /**
+             * Constructs an {@code AccessibleAWTFocusHandler}.
+             */
+            protected AccessibleAWTFocusHandler() {}
 
             public void focusGained(FocusEvent event) {
                 if (accessibleContext != null) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,8 @@
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/orderAccess.hpp"
 #include "runtime/vm_version.hpp"
+#include "services/memTracker.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/nativeCallStack.hpp"
@@ -40,9 +40,9 @@ static jlong atomic_add_jlong(jlong value, jlong volatile* const dest) {
   jlong compare_value;
   jlong exchange_value;
   do {
-    compare_value = OrderAccess::load_acquire(dest);
+    compare_value = *dest;
     exchange_value = compare_value + value;
-  } while (Atomic::cmpxchg(exchange_value, dest, compare_value) != compare_value);
+  } while (Atomic::cmpxchg(dest, compare_value, exchange_value) != compare_value);
   return exchange_value;
 }
 

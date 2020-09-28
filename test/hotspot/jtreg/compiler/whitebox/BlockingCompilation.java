@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@
  * @library /test/lib /
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm
  *        -Xbootclasspath/a:.
  *        -Xmixed
@@ -50,7 +49,7 @@ import java.util.Random;
 
 public class BlockingCompilation {
     private static final WhiteBox WB = WhiteBox.getWhiteBox();
-    private static final Random RANDOM = new Random();
+    private static final Random RANDOM = new Random(42);
 
     public static int foo() {
         return RANDOM.nextInt();
