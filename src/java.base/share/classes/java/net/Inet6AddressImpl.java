@@ -25,11 +25,11 @@
 package java.net;
 
 import java.io.IOException;
-import java.net.spi.InetLookupPolicy;
+import java.net.spi.InetNameServiceProvider.LookupPolicy;
 
 import static java.net.InetAddress.PLATFORM_LOOKUP_POLICY;
-import static java.net.spi.InetLookupPolicy.AddressesOrder.IPV6_FIRST;
-import static java.net.spi.InetLookupPolicy.AddressesOrder.SYSTEM;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressesOrder.IPV6_FIRST;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressesOrder.SYSTEM;
 
 
 /*
@@ -50,7 +50,7 @@ class Inet6AddressImpl implements InetAddressImpl {
 
     public native String getLocalHostName() throws UnknownHostException;
 
-    public InetAddress[] lookupAllHostAddr(String hostname, InetLookupPolicy lookupPolicy) throws UnknownHostException {
+    public InetAddress[] lookupAllHostAddr(String hostname, LookupPolicy lookupPolicy) throws UnknownHostException {
         return lookupAllHostAddr(hostname, policyToNativeDescriptor(lookupPolicy));
     }
 

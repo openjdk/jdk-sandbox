@@ -50,22 +50,22 @@ public abstract class InetNameServiceProvider {
          * resolution is likely to fail and {@link UnknownHostException} may be thrown.
          * <p>
          * The address family type is specified by the {@code "lookupPolicy"} parameter and
-         * could be acquired with {@link InetLookupPolicy#getAddressesFamily()}. If it's
-         * value is {@link InetLookupPolicy.AddressFamily#ANY ANY} this method returns addresses
-         * of both {@link InetLookupPolicy.AddressFamily#IPV4 IPV4} and
-         * {@link InetLookupPolicy.AddressFamily#IPV6 IPV6} families.
+         * could be acquired with {@link LookupPolicy#getAddressesFamily()}. If it's
+         * value is {@link LookupPolicy.AddressFamily#ANY ANY} this method returns addresses
+         * of both {@link LookupPolicy.AddressFamily#IPV4 IPV4} and
+         * {@link LookupPolicy.AddressFamily#IPV6 IPV6} families.
          * <p>
          * The order of returned addresses is specified by the {@code "lookupPolicy"}
-         * parameter and could be acquired with {@link InetLookupPolicy#getAddressesOrder()}.
+         * parameter and could be acquired with {@link LookupPolicy#getAddressesOrder()}.
          *
-         * @param host the specified hostname
+         * @param host         the specified hostname
          * @param lookupPolicy the address lookup policy
          * @return a stream of IP addresses for the requested host
          * @throws NullPointerException if {@code host} is {@code null}
          * @throws UnknownHostException if no IP address for the {@code host} could be found
-         * @see InetLookupPolicy
+         * @see LookupPolicy
          */
-        Stream<InetAddress> lookupByName(String host, InetLookupPolicy lookupPolicy) throws UnknownHostException;
+        Stream<InetAddress> lookupByName(String host, LookupPolicy lookupPolicy) throws UnknownHostException;
 
         /**
          * Lookup the host name corresponding to the raw IP address provided.
@@ -145,5 +145,112 @@ public abstract class InetNameServiceProvider {
             sm.checkPermission(NAMESERVICE_PERMISSION);
         }
         return null;
+    }
+
+    /**
+     * An addresses lookup policy object is used to specify a type and order of addresses
+     * supplied to {@link NameService#lookupByName(String, LookupPolicy)}
+     * for performing a host name resolution requests.
+     * <p>
+     * The platform-wide lookup policy is constructed by consulting a
+     * <a href="doc-files/net-properties.html#Ipv4IPv6">System Properties</a> which affects how IPv4 and IPv6
+     * addresses are returned.
+     */
+    public static final class LookupPolicy {
+        // Placeholder for address family value
+        private final AddressFamily family;
+
+        // Placeholder for addresses order value
+        private final AddressesOrder addressesOrder;
+
+        // Private constructor
+        private LookupPolicy(AddressFamily family, AddressesOrder addressesOrder) {
+            this.family = family;
+            this.addressesOrder = addressesOrder;
+        }
+
+        /**
+         * This factory method creates {@link LookupPolicy LookupPolicy} instance from the provided
+         * {@link AddressFamily AddressFamily} and {@link AddressesOrder AddressesOrder} values.
+         *
+         * @param family         an address family
+         * @param addressesOrder an addresses order
+         * @return instance of {@code InetNameServiceProvider.LookupPolicy}
+         */
+        public static LookupPolicy of(AddressFamily family, AddressesOrder addressesOrder) {
+            return new LookupPolicy(family, addressesOrder);
+        }
+
+        /**
+         * Returns a type of address family that is used to designate a type of addresses
+         * queried during resolution of host IP addresses.
+         *
+         * @return an address family type
+         * @see NameService#lookupByName(String, LookupPolicy)
+         */
+        public final AddressFamily getAddressesFamily() {
+            return family;
+        }
+
+        /**
+         * Returns an order in which IP addresses are returned by
+         * {@link NameService InetNameServiceProvider.NameService} during a host name
+         * resolution requests.
+         *
+         * @return an addresses order
+         * @see NameService#lookupByName(String, LookupPolicy)
+         */
+        public AddressesOrder getAddressesOrder() {
+            return addressesOrder;
+        }
+
+        /**
+         * Specifies type that is used to designate a family of network addresses queried during
+         * resolution of host IP addresses.
+         *
+         * @see AddressesOrder
+         * @see NameService
+         */
+        public enum AddressFamily {
+            /**
+             * Unspecified address family. Instructs {@link NameService InetNameServiceProvider.NameService}
+             * to return network addresses for {@code IPv4} and {@code IPv6} address families.
+             */
+            ANY,
+
+            /**
+             * Query IPv4 addresses only
+             */
+            IPV4,
+
+            /**
+             * Query IPv6 addresses only
+             */
+            IPV6
+        }
+
+        /**
+         * Specifies an order in which IP addresses are returned by
+         * {@link NameService InetNameServiceProvider.NameService}
+         * implementations.
+         *
+         * @see NameService
+         */
+        public enum AddressesOrder {
+            /**
+             * The addresses are ordered in the same way as returned by the name service provider.
+             */
+            SYSTEM,
+
+            /**
+             * IPv4 addresses are preferred over IPv6 addresses and returned first.
+             */
+            IPV4_FIRST,
+
+            /**
+             * IPv6 addresses are preferred over IPv4 addresses and returned first.
+             */
+            IPV6_FIRST
+        }
     }
 }

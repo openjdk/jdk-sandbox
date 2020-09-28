@@ -25,10 +25,10 @@
 
 package java.net;
 
-import java.net.spi.InetLookupPolicy;
-import java.net.spi.InetLookupPolicy.AddressFamily;
-import java.net.spi.InetLookupPolicy.AddressesOrder;
 import java.net.spi.InetNameServiceProvider;
+import java.net.spi.InetNameServiceProvider.LookupPolicy;
+import java.net.spi.InetNameServiceProvider.LookupPolicy.AddressFamily;
+import java.net.spi.InetNameServiceProvider.LookupPolicy.AddressesOrder;
 import java.net.spi.InetNameServiceProvider.NameService;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -65,12 +65,12 @@ import sun.net.InetAddressCachePolicy;
 import sun.net.util.IPAddressUtil;
 import sun.nio.cs.UTF_8;
 
-import static java.net.spi.InetLookupPolicy.AddressFamily.ANY;
-import static java.net.spi.InetLookupPolicy.AddressFamily.IPV4;
-import static java.net.spi.InetLookupPolicy.AddressFamily.IPV6;
-import static java.net.spi.InetLookupPolicy.AddressesOrder.IPV4_FIRST;
-import static java.net.spi.InetLookupPolicy.AddressesOrder.IPV6_FIRST;
-import static java.net.spi.InetLookupPolicy.AddressesOrder.SYSTEM;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressFamily.ANY;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressFamily.IPV4;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressFamily.IPV6;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressesOrder.IPV4_FIRST;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressesOrder.IPV6_FIRST;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressesOrder.SYSTEM;
 
 /**
  * This class represents an Internet Protocol (IP) address.
@@ -220,11 +220,11 @@ import static java.net.spi.InetLookupPolicy.AddressesOrder.SYSTEM;
  * <li>The ServiceLoader mechanism is used to locate
  *     {@link InetNameServiceProvider InetNameServiceProvider}
  *     implementations using the system class loader. The order the providers are
- *     located is implementation specific. The first found provider will be used
- *     to instantiate the {@link NameService NameService} by invoking
- *     {@link InetNameServiceProvider#get(NameService)}
- *     method. The instantiated {@code NameService} will be used as platform name
- *     service.
+ *     located is implementation specific. The first provider found will be used
+ *     to instantiate the {@link NameService InetNameServiceProvider.NameService} by
+ *     invoking {@link InetNameServiceProvider#get(NameService)}
+ *     method. The instantiated {@code InetNameServiceProvider.NameService} will be
+ *     used as platform name service.
  * <li>If the previous step fails to find a name service provider
  *     the platform default name service will be used.
  * </ol>
@@ -378,16 +378,16 @@ public class InetAddress implements java.io.Serializable {
     }
 
     /**
-     *  Platform-wide {@code InetLookupPolicy} initialized from {@code "java.net.preferIPv4Stack"},
+     *  Platform-wide {@code LookupPolicy} initialized from {@code "java.net.preferIPv4Stack"},
      * {@code "java.net.preferIPv6Addresses"} system properties.
      */
-    static final InetLookupPolicy PLATFORM_LOOKUP_POLICY = initializePlatformLookupPolicy();
+    static final LookupPolicy PLATFORM_LOOKUP_POLICY = initializePlatformLookupPolicy();
 
     /**
      * Creates an address lookup policy from {@code "java.net.preferIPv4Stack"},
      * {@code "java.net.preferIPv6Addresses"} system property values, and O/S configuration.
      */
-    private static final InetLookupPolicy initializePlatformLookupPolicy() {
+    private static final LookupPolicy initializePlatformLookupPolicy() {
         AddressFamily addressFamily = ANY;
         AddressesOrder addressesOrder = IPV4_FIRST;
 
@@ -415,7 +415,7 @@ public class InetAddress implements java.io.Serializable {
                 addressesOrder = SYSTEM;
             }
         }
-        return InetLookupPolicy.of(addressFamily, addressesOrder);
+        return LookupPolicy.of(addressFamily, addressesOrder);
     }
 
     // Native method to check if IPv4 is available
@@ -423,8 +423,8 @@ public class InetAddress implements java.io.Serializable {
 
     /**
      * The {@code RuntimePermission("nameServiceProvider")} is
-     * necessary to subclass and instantiate the {@code NameServiceProvider} class,
-     * as well as to obtain name service from an instance of that class,
+     * necessary to subclass and instantiate the {@code InetNameServiceProvider.NameService}
+     * class, as well as to obtain name service from an instance of that class,
      * and it is also required to obtain the operating system name resolution configurations.
      */
     private static final RuntimePermission NAMESERVICE_PERMISSION =
@@ -1024,7 +1024,7 @@ public class InetAddress implements java.io.Serializable {
      */
     private static final class PlatformNameService implements NameService {
 
-        public Stream<InetAddress> lookupByName(String host, InetLookupPolicy policy)
+        public Stream<InetAddress> lookupByName(String host, LookupPolicy policy)
                 throws UnknownHostException {
             Objects.requireNonNull(host);
             return Arrays.stream(impl.lookupAllHostAddr(host, policy));
@@ -1133,7 +1133,7 @@ public class InetAddress implements java.io.Serializable {
          * @throws UnknownHostException
          *             if no IP address for the {@code host} could be found
          */
-        public Stream<InetAddress> lookupByName(String host, InetLookupPolicy lookupPolicy)
+        public Stream<InetAddress> lookupByName(String host, LookupPolicy lookupPolicy)
                 throws UnknownHostException {
             String hostEntry;
             String addrStr;

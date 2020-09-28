@@ -26,7 +26,7 @@
 package java.net;
 
 import java.io.IOException;
-import java.net.spi.InetLookupPolicy;
+import java.net.spi.InetNameServiceProvider.LookupPolicy;
 
 /*
  * Package private interface to "implementation" used by
@@ -41,7 +41,7 @@ interface InetAddressImpl {
 
     String getLocalHostName() throws UnknownHostException;
     InetAddress[]
-        lookupAllHostAddr(String hostname, InetLookupPolicy lookupPolicy) throws UnknownHostException;
+        lookupAllHostAddr(String hostname, LookupPolicy lookupPolicy) throws UnknownHostException;
     String getHostByAddr(byte[] addr) throws UnknownHostException;
 
     InetAddress anyLocalAddress();
@@ -54,7 +54,7 @@ interface InetAddressImpl {
      * @param lookupPolicy addresses lookup policy
      * @return integer value that contains the encoded lookup policy
      */
-    default int policyToNativeDescriptor(InetLookupPolicy lookupPolicy) {
+    default int policyToNativeDescriptor(LookupPolicy lookupPolicy) {
         int value = 0;
         value |= switch (lookupPolicy.getAddressesFamily()) {
             case IPV4 -> IPV4_ADDRESS_FAMILY_VALUE;
