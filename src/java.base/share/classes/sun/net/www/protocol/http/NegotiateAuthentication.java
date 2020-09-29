@@ -105,7 +105,7 @@ class NegotiateAuthentication extends AuthenticationInfo {
      *
      * @return true if supported
      */
-    public static boolean isSupportedImpl(HttpCallerInfo hci) {
+    public static boolean isSupported(HttpCallerInfo hci) {
         negotiateLock.lock();
         try {
             if (supported == null) {
