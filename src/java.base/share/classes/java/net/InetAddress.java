@@ -422,13 +422,13 @@ public class InetAddress implements java.io.Serializable {
     static native boolean isIPv4Available();
 
     /**
-     * The {@code RuntimePermission("nameServiceProvider")} is
+     * The {@code RuntimePermission("inetNameServiceProvider")} is
      * necessary to subclass and instantiate the {@code InetNameServiceProvider.NameService}
      * class, as well as to obtain name service from an instance of that class,
      * and it is also required to obtain the operating system name resolution configurations.
      */
-    private static final RuntimePermission NAMESERVICE_PERMISSION =
-            new RuntimePermission("nameServiceProvider");
+    private static final RuntimePermission INET_NAMESERVICE_PERMISSION =
+            new RuntimePermission("inetNameServiceProvider");
 
     private static final ReentrantLock NAMESERVICE_LOCK = new ReentrantLock();
 
@@ -451,7 +451,7 @@ public class InetAddress implements java.io.Serializable {
                 } else if (System.getSecurityManager() != null) {
                     PrivilegedAction<NameService> pa = InetAddress::loadNameService;
                     cns = AccessController.doPrivileged(
-                            pa, null, NAMESERVICE_PERMISSION);
+                            pa, null, INET_NAMESERVICE_PERMISSION);
                 } else {
                     cns = loadNameService();
                 }
