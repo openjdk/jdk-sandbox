@@ -1470,19 +1470,19 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
             // we only want to capture the user defined Cookies once, as
             // they cannot be changed by user code after we are connected,
             // only internally.
-        if (setUserCookies) {
-            // we should only reach here when called from
-            // writeRequest, which in turn is only called by
-            // getInputStream0
-            assert connectionLock.isHeldByCurrentThread();
-            int k = requests.getKey("Cookie");
-            if (k != -1)
-                userCookies = requests.getValue(k);
-            k = requests.getKey("Cookie2");
-            if (k != -1)
-                userCookies2 = requests.getValue(k);
-            setUserCookies = false;
-        }
+            if (setUserCookies) {
+                // we should only reach here when called from
+                // writeRequest, which in turn is only called by
+                // getInputStream0
+                assert connectionLock.isHeldByCurrentThread();
+                int k = requests.getKey("Cookie");
+                if (k != -1)
+                    userCookies = requests.getValue(k);
+                k = requests.getKey("Cookie2");
+                if (k != -1)
+                    userCookies2 = requests.getValue(k);
+                setUserCookies = false;
+            }
 
             // remove old Cookie header before setting new one.
             requests.remove("Cookie");
@@ -2113,6 +2113,8 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
         AuthenticationInfo proxyAuthentication = null;
         String proxyHost = null;
         int proxyPort = -1;
+
+        assert connectionLock.isHeldByCurrentThread();
 
         // save current requests so that they can be restored after tunnel is setup.
         MessageHeader savedRequests = requests;
@@ -2762,6 +2764,8 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
     private boolean followRedirect0(String loc, int stat, URL locUrl)
         throws IOException
     {
+        assert connectionLock.isHeldByCurrentThread();
+
         disconnectInternal();
         if (streaming()) {
             throw new HttpRetryException (RETRY_MSG3, stat, loc);

@@ -127,7 +127,7 @@ public abstract class AuthenticationInfo extends AuthCacheValue implements Clone
      * at the same time, then all but the first will block until
      * the first completes its authentication.
      */
-    private static HashMap<String,Thread> requests = new HashMap<>();
+    private static final HashMap<String,Thread> requests = new HashMap<>();
     private static final ReentrantLock requestLock = new ReentrantLock();
     private static final Condition requestFinished = requestLock.newCondition();
     /*
