@@ -34,7 +34,7 @@ import sun.nio.cs.US_ASCII;
  * OutputStream that sends the output to the underlying stream using chunked
  * encoding as specified in RFC 2068.
  */
-public class ChunkedOutputStream extends PrintStream {
+public class ChunkedOutputStream extends OutputStream {
 
     /* Default chunk size (including chunk header) if not specified */
     static final int DEFAULT_CHUNK_SIZE = 4096;
@@ -89,7 +89,6 @@ public class ChunkedOutputStream extends PrintStream {
     }
 
     public ChunkedOutputStream(PrintStream o, int size) {
-        super(o);
         out = o;
 
         if (size <= 0) {
@@ -148,7 +147,7 @@ public class ChunkedOutputStream extends PrintStream {
             reset();
         } else if (flushAll){
             /* complete the last chunk and flush it to underlying stream */
-            if (size > 0){
+            if (size > 0) {
                 /* adjust a header start index in case the header of the last
                  * chunk is shorter then preferedHeaderSize */
 
@@ -172,18 +171,18 @@ public class ChunkedOutputStream extends PrintStream {
 
             out.flush();
             reset();
-         }
+        }
     }
 
-    @Override
     public boolean checkError() {
-        return out.checkError();
+        var out = this.out;
+        return out == null || out.checkError();
     }
 
     /* Check that the output stream is still open */
-    private void ensureOpen() {
+    private void ensureOpen() throws IOException {
         if (out == null)
-            setError();
+            throw new IOException("closed");
     }
 
    /*
@@ -198,7 +197,7 @@ public class ChunkedOutputStream extends PrintStream {
     * The size of the data is of course smaller than preferredChunkSize.
     */
     @Override
-    public void write(byte b[], int off, int len) {
+    public void write(byte b[], int off, int len) throws IOException {
         writeLock.lock();
         try {
             ensureOpen();
@@ -265,7 +264,7 @@ public class ChunkedOutputStream extends PrintStream {
     }
 
     @Override
-    public void write(int _b) {
+    public void write(int _b) throws IOException {
         writeLock.lock();
         try {
             byte b[] = {(byte) _b};
@@ -294,7 +293,7 @@ public class ChunkedOutputStream extends PrintStream {
     public void close() {
         writeLock.lock();
         try {
-            ensureOpen();
+           if (out == null) return;
 
             /* if we have buffer a chunked send it */
             if (size > 0) {
@@ -312,7 +311,7 @@ public class ChunkedOutputStream extends PrintStream {
     }
 
     @Override
-    public void flush() {
+    public void flush() throws IOException {
         writeLock.lock();
         try {
             ensureOpen();

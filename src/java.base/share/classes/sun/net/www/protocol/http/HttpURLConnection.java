@@ -3543,6 +3543,8 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
          * @see     java.io.FilterInputStream#reset()
          */
         // safe to use synchronized here: super method is synchronized too
+        // and involves no blocking operation; only mark & reset are
+        // synchronized in the super class hierarchy.
         @Override
         public synchronized void mark(int readlimit) {
             super.mark(readlimit);
@@ -3574,6 +3576,8 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
          * @see        java.io.FilterInputStream#mark(int)
          */
         // safe to use synchronized here: super method is synchronized too
+        // and involves no blocking operation; only mark & reset are
+        // synchronized in the super class hierarchy.
         @Override
         public synchronized void reset() throws IOException {
             super.reset();
@@ -3754,8 +3758,14 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
             if (error) {
                 throw errorExcp;
             }
-            if (((PrintStream)out).checkError()) {
-                throw new IOException("Error writing request body to server");
+            if (out instanceof PrintStream) {
+                if (((PrintStream) out).checkError()) {
+                    throw new IOException("Error writing request body to server");
+                }
+            } else if (out instanceof ChunkedOutputStream) {
+                if (((ChunkedOutputStream) out).checkError()) {
+                    throw new IOException("Error writing request body to server");
+                }
             }
         }
 
