@@ -388,7 +388,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
     protected ProgressSource pi;
 
     /* Lock */
-    final ReentrantLock connectionLock = new ReentrantLock();
+    private final ReentrantLock connectionLock = new ReentrantLock();
 
     /* all the response headers we get back */
     private MessageHeader responses;
@@ -1565,10 +1565,14 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
         }
     }
 
+    public final boolean isLockedByCurrentThread() {
+        return connectionLock.isHeldByCurrentThread();
+    }
+
     @SuppressWarnings("empty-statement")
     private InputStream getInputStream0() throws IOException {
 
-        assert connectionLock.isHeldByCurrentThread();
+        assert isLockedByCurrentThread();
         if (!doInput) {
             throw new ProtocolException("Cannot read from URLConnection"
                    + " if doInput=false (call setDoInput(true))");
@@ -2114,7 +2118,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
         String proxyHost = null;
         int proxyPort = -1;
 
-        assert connectionLock.isHeldByCurrentThread();
+        assert isLockedByCurrentThread();
 
         // save current requests so that they can be restored after tunnel is setup.
         MessageHeader savedRequests = requests;

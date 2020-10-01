@@ -123,7 +123,7 @@ public class ChunkedInputStream extends InputStream implements Hurryable {
      */
     private boolean closed;
 
-    final ReentrantLock readLock = new ReentrantLock();
+    private final ReentrantLock readLock = new ReentrantLock();
 
     /*
      * Maximum chunk header size of 2KB + 2 bytes for CRLF

@@ -188,8 +188,7 @@ public class KeepAliveCache
 
                 for (KeepAliveKey key : keySet()) {
                     ClientVector v = get(key);
-                    final Lock lock = v.lock;
-                    lock.lock();
+                    v.lock();
                     try {
                         KeepAliveEntry e = v.peek();
                         while (e != null) {
@@ -206,7 +205,7 @@ public class KeepAliveCache
                             keysToRemove.add(key);
                         }
                     } finally {
-                        lock.unlock();
+                        v.unlock();
                     }
                 }
 
@@ -241,7 +240,7 @@ public class KeepAliveCache
 class ClientVector extends ArrayDeque<KeepAliveEntry> {
     @java.io.Serial
     private static final long serialVersionUID = -8680532108106489459L;
-    final ReentrantLock lock = new ReentrantLock();
+    private final ReentrantLock lock = new ReentrantLock();
 
     // sleep time in milliseconds, before cache clear
     int nap;
@@ -251,7 +250,7 @@ class ClientVector extends ArrayDeque<KeepAliveEntry> {
     }
 
     HttpClient get() {
-        lock.lock();
+        lock();
         try {
             if (isEmpty()) {
                 return null;
@@ -270,13 +269,13 @@ class ClientVector extends ArrayDeque<KeepAliveEntry> {
             } while ((hc == null) && (!isEmpty()));
             return hc;
         } finally {
-            lock.unlock();
+            unlock();
         }
     }
 
     /* return a still valid, unused HttpClient */
     void put(HttpClient h) {
-        lock.lock();
+        lock();
         try {
             if (size() >= KeepAliveCache.getMaxConnections()) {
                 h.closeServer(); // otherwise the connection remains in limbo
@@ -284,13 +283,13 @@ class ClientVector extends ArrayDeque<KeepAliveEntry> {
                 push(new KeepAliveEntry(h, System.currentTimeMillis()));
             }
         } finally {
-            lock.unlock();
+            unlock();
         }
     }
 
     /* remove an HttpClient */
     boolean remove(HttpClient h) {
-        lock.lock();
+        lock();
         try {
             for (KeepAliveEntry curr : this) {
                 if (curr.hc == h) {
@@ -299,8 +298,16 @@ class ClientVector extends ArrayDeque<KeepAliveEntry> {
             }
             return false;
         } finally {
-            lock.unlock();
+            unlock();
         }
+    }
+
+    final void lock() {
+        lock.lock();
+    }
+
+    final void unlock() {
+        lock.unlock();
     }
 
     /*

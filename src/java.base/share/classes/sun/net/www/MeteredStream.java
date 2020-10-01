@@ -43,7 +43,7 @@ public class MeteredStream extends FilterInputStream {
     protected long markedCount = 0;
     protected int markLimit = -1;
     protected ProgressSource pi;
-    protected final ReentrantLock readLock = new ReentrantLock();
+    private final ReentrantLock readLock = new ReentrantLock();
 
     public MeteredStream(InputStream is, ProgressSource pi, long expected)
     {
@@ -58,7 +58,7 @@ public class MeteredStream extends FilterInputStream {
     }
 
     private final  void justRead(long n) throws IOException   {
-        assert readLock.isHeldByCurrentThread();
+        assert isLockedByCurrentThread();
 
         if (n == -1) {
 
@@ -101,7 +101,7 @@ public class MeteredStream extends FilterInputStream {
      * Returns true if the mark is valid, false otherwise
      */
     private boolean isMarked() {
-        assert readLock.isHeldByCurrentThread();
+        assert isLockedByCurrentThread();
 
         if (markLimit < 0) {
             return false;
@@ -118,7 +118,7 @@ public class MeteredStream extends FilterInputStream {
 
     public int read() throws java.io.IOException {
         if (closed) return -1;
-        readLock.lock();
+        lock();
         try {
             if (closed) return -1;
             int c = in.read();
@@ -129,14 +129,14 @@ public class MeteredStream extends FilterInputStream {
             }
             return c;
         } finally {
-            readLock.unlock();
+            unlock();
         }
     }
 
     public int read(byte b[], int off, int len)
                 throws java.io.IOException {
         if (closed) return -1;
-        readLock.lock();
+        lock();
         try {
             if (closed) return -1;
 
@@ -144,14 +144,14 @@ public class MeteredStream extends FilterInputStream {
             justRead(n);
             return n;
         } finally {
-            readLock.unlock();
+            unlock();
         }
     }
 
     public long skip(long n) throws IOException {
 
         if (closed) return 0;
-        readLock.lock();
+        lock();
         try {
             // REMIND: what does skip do on EOF????
             if (closed) return 0;
@@ -166,13 +166,13 @@ public class MeteredStream extends FilterInputStream {
             justRead(n);
             return n;
         } finally {
-            readLock.unlock();
+            unlock();
         }
     }
 
     public void close() throws IOException {
         if (closed) return;
-        readLock.lock();
+        lock();
         try {
             if (closed) return;
             if (pi != null)
@@ -181,23 +181,23 @@ public class MeteredStream extends FilterInputStream {
             closed = true;
             in.close();
         } finally {
-            readLock.unlock();
+            unlock();
         }
     }
 
     public int available() throws IOException {
         if (closed) return 0;
-        readLock.lock();
+        lock();
         try {
             return closed ? 0 : in.available();
         } finally {
-            readLock.unlock();
+            unlock();
         }
     }
 
     public void mark(int readLimit) {
         if (closed) return;
-        readLock.lock();
+        lock();
         try {
             if (closed) return;
             super.mark(readLimit);
@@ -208,14 +208,14 @@ public class MeteredStream extends FilterInputStream {
             markedCount = count;
             markLimit = readLimit;
         } finally {
-            readLock.unlock();
+            unlock();
         }
     }
 
     public void reset() throws IOException {
         if (closed) return;
 
-        readLock.lock();
+        lock();
         try {
             if (closed) return;
             if (!isMarked()) {
@@ -225,19 +225,31 @@ public class MeteredStream extends FilterInputStream {
             count = markedCount;
             super.reset();
         } finally {
-            readLock.unlock();
+            unlock();
         }
     }
 
     public boolean markSupported() {
         if (closed) return false;
-        readLock.lock();
+        lock();
         try {
             if (closed) return false;
             return super.markSupported();
         } finally {
-            readLock.unlock();
+            unlock();
         }
+    }
+
+    public final void lock() {
+        readLock.lock();
+    }
+
+    public final void unlock() {
+        readLock.unlock();
+    }
+
+    protected final boolean isLockedByCurrentThread() {
+        return readLock.isHeldByCurrentThread();
     }
 
     @SuppressWarnings("deprecation")

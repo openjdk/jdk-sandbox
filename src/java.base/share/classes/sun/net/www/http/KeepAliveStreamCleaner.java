@@ -80,8 +80,20 @@ class KeepAliveStreamCleaner
 
     }
 
-    final ReentrantLock queueLock = new ReentrantLock();
-    final Condition waiter = queueLock.newCondition();
+    private final ReentrantLock queueLock = new ReentrantLock();
+    private final Condition waiter = queueLock.newCondition();
+
+    final void signalAll() {
+        waiter.signalAll();
+    }
+
+    final void lock() {
+        queueLock.lock();
+    }
+
+    final void unlock() {
+        queueLock.unlock();
+    }
 
     @Override
     public boolean offer(KeepAliveCleanerEntry e) {
@@ -98,7 +110,7 @@ class KeepAliveStreamCleaner
 
         do {
             try {
-                queueLock.lock();
+                lock();
                 try {
                     long before = System.currentTimeMillis();
                     long timeout = TIMEOUT;
@@ -116,7 +128,7 @@ class KeepAliveStreamCleaner
                         timeout -= elapsed;
                     }
                 } finally {
-                    queueLock.unlock();
+                    unlock();
                 }
 
                 if(kace == null)
@@ -125,8 +137,7 @@ class KeepAliveStreamCleaner
                 KeepAliveStream kas = kace.getKeepAliveStream();
 
                 if (kas != null) {
-                    final ReentrantLock readLock = kas.readLock();
-                    readLock.lock();
+                    kas.lock();
                     try {
                         HttpClient hc = kace.getHttpClient();
                         try {
@@ -157,7 +168,7 @@ class KeepAliveStreamCleaner
                             kas.setClosed();
                         }
                     } finally {
-                        readLock.unlock();
+                        kas.unlock();
                     }
                 }
             } catch (InterruptedException ie) { }

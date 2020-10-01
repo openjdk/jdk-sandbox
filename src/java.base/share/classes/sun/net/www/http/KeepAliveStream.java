@@ -60,10 +60,6 @@ class KeepAliveStream extends MeteredStream implements Hurryable {
         this.hc = hc;
     }
 
-    final ReentrantLock readLock() {
-        return readLock;
-    }
-
     /**
      * Attempt to cache this connection
      */
@@ -81,7 +77,7 @@ class KeepAliveStream extends MeteredStream implements Hurryable {
         // NOTE: Don't close super class
         // For consistency, access to `expected` and `count` should be
         // protected by readLock
-        readLock.lock();
+        lock();
         try {
             if (closed || queuedForCleanup) return;
             try {
@@ -115,7 +111,7 @@ class KeepAliveStream extends MeteredStream implements Hurryable {
                 }
             }
         } finally {
-            readLock.unlock();
+            unlock();
         }
     }
 
@@ -132,7 +128,7 @@ class KeepAliveStream extends MeteredStream implements Hurryable {
     }
 
     public boolean hurry() {
-        readLock.lock();
+        lock();
         try {
             /* CASE 0: we're actually already done */
             if (closed || count >= expected) {
@@ -156,12 +152,12 @@ class KeepAliveStream extends MeteredStream implements Hurryable {
             // e.printStackTrace();
             return false;
         } finally {
-            readLock.unlock();
+            unlock();
         }
     }
 
     private static void queueForCleanup(KeepAliveCleanerEntry kace) {
-        queue.queueLock.lock();
+        queue.lock();
         try {
             if(!kace.getQueuedForCleanup()) {
                 if (!queue.offer(kace)) {
@@ -170,7 +166,7 @@ class KeepAliveStream extends MeteredStream implements Hurryable {
                 }
 
                 kace.setQueuedForCleanup();
-                queue.waiter.signalAll();
+                queue.signalAll();
             }
 
             boolean startCleanupThread = (cleanerThread == null);
@@ -193,17 +189,17 @@ class KeepAliveStream extends MeteredStream implements Hurryable {
                 });
             }
         } finally {
-            queue.queueLock.unlock();
+            queue.unlock();
         }
     }
 
     protected long remainingToRead() {
-        assert readLock.isHeldByCurrentThread();
+        assert isLockedByCurrentThread();
         return expected - count;
     }
 
     protected void setClosed() {
-        assert readLock.isHeldByCurrentThread();
+        assert isLockedByCurrentThread();
         in = null;
         hc = null;
         closed = true;

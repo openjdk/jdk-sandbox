@@ -50,7 +50,7 @@ import sun.security.action.GetPropertyAction;
  * @author Dave Brown
  */
 public class HttpClient extends NetworkClient {
-    protected final ReentrantLock clientLock = new ReentrantLock();
+    private final ReentrantLock clientLock = new ReentrantLock();
 
     // whether this httpclient comes from the cache
     protected boolean cachedHttpClient = false;
@@ -320,9 +320,8 @@ public class HttpClient extends NetworkClient {
                      : httpuc.getAuthenticatorKey();
                 boolean compatible = Objects.equals(ret.proxy, p)
                      && Objects.equals(ret.getAuthenticatorKey(), ak);
-                final Lock lock = ret.clientLock;
                 if (compatible) {
-                    lock.lock();
+                    ret.lock();
                     try {
                         ret.cachedHttpClient = true;
                         assert ret.inCache;
@@ -331,19 +330,19 @@ public class HttpClient extends NetworkClient {
                             httpuc.setTunnelState(TUNNELING);
                         logFinest("KeepAlive stream retrieved from the cache, " + ret);
                     } finally {
-                        lock.unlock();
+                        ret.unlock();
                     }
                 } else {
                     // We cannot return this connection to the cache as it's
                     // KeepAliveTimeout will get reset. We simply close the connection.
                     // This should be fine as it is very rare that a connection
                     // to the same host will not use the same proxy.
-                    lock.lock();
+                    ret.lock();
                     try  {
                         ret.inCache = false;
                         ret.closeServer();
                     } finally {
-                        lock.unlock();
+                        ret.unlock();
                     }
                     ret = null;
                 }
@@ -425,7 +424,7 @@ public class HttpClient extends NetworkClient {
         boolean available = true;
         int old = -1;
 
-        clientLock.lock();
+        lock();
         try {
             try {
                 old = serverSocket.getSoTimeout();
@@ -450,13 +449,13 @@ public class HttpClient extends NetworkClient {
                         "SocketException: not available");
             available = false;
         } finally {
-            clientLock.unlock();
+            unlock();
         }
         return available;
     }
 
     protected void putInKeepAliveCache() {
-        clientLock.lock();
+        lock();
         try {
             if (inCache) {
                 assert false : "Duplicate put to keep alive cache";
@@ -465,16 +464,16 @@ public class HttpClient extends NetworkClient {
             inCache = true;
             kac.put(url, null, this);
         } finally {
-            clientLock.unlock();
+            unlock();
         }
     }
 
     protected boolean isInKeepAliveCache() {
-        clientLock.lock();
+        lock();
         try {
             return inCache;
         } finally {
-            clientLock.unlock();
+            unlock();
         }
     }
 
@@ -523,11 +522,11 @@ public class HttpClient extends NetworkClient {
      * Returns true if this httpclient is from cache
      */
     public boolean isCachedConnection() {
-        clientLock.lock();
+        lock();
         try {
             return cachedHttpClient;
         } finally {
-            clientLock.unlock();
+            unlock();
         }
     }
 
@@ -579,7 +578,7 @@ public class HttpClient extends NetworkClient {
 
         SecurityManager security = System.getSecurityManager();
 
-        clientLock.lock();
+        lock();
         try {
             if (security != null) {
                 security.checkConnect(host, port);
@@ -621,7 +620,7 @@ public class HttpClient extends NetworkClient {
                 }
             }
         } finally {
-            clientLock.unlock();
+            unlock();
         }
     }
 
@@ -1047,11 +1046,11 @@ public class HttpClient extends NetworkClient {
     }
 
     public InputStream getInputStream() {
-        clientLock.lock();
+        lock();
         try {
             return serverInput;
         } finally {
-            clientLock.unlock();
+            unlock();
         }
     }
 
@@ -1124,5 +1123,13 @@ public class HttpClient extends NetworkClient {
         if (usingProxy)
             return ((InetSocketAddress)proxy.address()).getPort();
         return -1;
+    }
+
+    public final void lock() {
+        clientLock.lock();
+    }
+
+    public final void unlock() {
+        clientLock.unlock();
     }
 }

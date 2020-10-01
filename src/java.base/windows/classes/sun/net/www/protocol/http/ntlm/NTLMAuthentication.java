@@ -244,7 +244,11 @@ public class NTLMAuthentication extends AuthenticationInfo {
      * @return true if all goes well, false if no headers were set.
      */
     @Override
-    public synchronized boolean setHeaders(HttpURLConnection conn, HeaderParser p, String raw) {
+    public boolean setHeaders(HttpURLConnection conn, HeaderParser p, String raw) {
+
+        // no need to synchronize here:
+        //   already locked by s.n.w.p.h.HttpURLConnection
+        assert conn.isLockedByCurrentThread();
 
         try {
             NTLMAuthSequence seq = (NTLMAuthSequence)conn.authObj();
