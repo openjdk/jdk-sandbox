@@ -228,7 +228,7 @@ public class NTLMAuthentication extends AuthenticationInfo {
     public boolean setHeaders(HttpURLConnection conn, HeaderParser p, String raw) {
         // no need to synchronize here:
         //   already locked by s.n.w.p.h.HttpURLConnection
-        assert conn.isLockedByCurrentThread();
+        assert conn.isLockHeldByCurrentThread();
 
         try {
             String response;

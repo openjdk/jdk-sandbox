@@ -58,7 +58,7 @@ public class MeteredStream extends FilterInputStream {
     }
 
     private final  void justRead(long n) throws IOException   {
-        assert isLockedByCurrentThread();
+        assert isLockHeldByCurrentThread();
 
         if (n == -1) {
 
@@ -101,7 +101,7 @@ public class MeteredStream extends FilterInputStream {
      * Returns true if the mark is valid, false otherwise
      */
     private boolean isMarked() {
-        assert isLockedByCurrentThread();
+        assert isLockHeldByCurrentThread();
 
         if (markLimit < 0) {
             return false;
@@ -248,7 +248,7 @@ public class MeteredStream extends FilterInputStream {
         readLock.unlock();
     }
 
-    protected final boolean isLockedByCurrentThread() {
+    public final boolean isLockHeldByCurrentThread() {
         return readLock.isHeldByCurrentThread();
     }
 

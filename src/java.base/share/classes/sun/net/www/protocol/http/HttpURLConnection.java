@@ -355,7 +355,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
      *     - getOutputStream()
      *     - getInputStream())
      *     - connect()
-     * Access synchronized on connectionLock.
+     * Access is protected by connectionLock.
      */
     private boolean connecting = false;
 
@@ -386,9 +386,6 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
 
     /* Progress source */
     protected ProgressSource pi;
-
-    /* Lock */
-    private final ReentrantLock connectionLock = new ReentrantLock();
 
     /* all the response headers we get back */
     private MessageHeader responses;
@@ -436,6 +433,22 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
     /* Logging support */
     private static final PlatformLogger logger =
             PlatformLogger.getLogger("sun.net.www.protocol.http.HttpURLConnection");
+
+    /* Lock */
+    private final ReentrantLock connectionLock = new ReentrantLock();
+
+    private final void lock() {
+        connectionLock.lock();
+    }
+
+    private final void unlock() {
+        connectionLock.unlock();
+    }
+
+    public final boolean isLockHeldByCurrentThread() {
+        return connectionLock.isHeldByCurrentThread();
+    }
+
 
     /*
      * privileged request password authentication
@@ -520,7 +533,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
 
     @Override
     public void setAuthenticator(Authenticator auth) {
-        connectionLock.lock();
+        lock();
         try {
             if (connecting || connected) {
                 throw new IllegalStateException(
@@ -529,7 +542,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
             authenticator = Objects.requireNonNull(auth);
             authenticatorKey = AuthenticatorKeys.getKey(authenticator);
         } finally {
-            connectionLock.unlock();
+            unlock();
         }
     }
 
@@ -575,14 +588,14 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
 
     public void setRequestMethod(String method)
                         throws ProtocolException {
-        connectionLock.lock();
+        lock();
         try {
             if (connecting) {
                 throw new IllegalStateException("connect in progress");
             }
             super.setRequestMethod(method);
         } finally {
-            connectionLock.unlock();
+            unlock();
         }
     }
 
@@ -1027,11 +1040,11 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
     // overridden in HTTPS subclass
 
     public void connect() throws IOException {
-        connectionLock.lock();
+        lock();
         try {
             connecting = true;
         } finally {
-            connectionLock.unlock();
+            unlock();
         }
         plainConnect();
     }
@@ -1078,13 +1091,13 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
     }
 
     protected void plainConnect()  throws IOException {
-        connectionLock.lock();
+        lock();
         try {
             if (connected) {
                 return;
             }
         } finally {
-            connectionLock.unlock();
+            unlock();
         }
         SocketPermission p = URLtoSocketPermission(this.url);
         if (p != null) {
@@ -1354,7 +1367,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
 
     @Override
     public OutputStream getOutputStream() throws IOException {
-        connectionLock.lock();
+        lock();
         try {
             connecting = true;
             SocketPermission p = URLtoSocketPermission(this.url);
@@ -1375,12 +1388,12 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                 return getOutputStream0();
             }
         } finally {
-            connectionLock.unlock();
+            unlock();
         }
     }
 
     private OutputStream getOutputStream0() throws IOException {
-        assert isLockedByCurrentThread();
+        assert isLockHeldByCurrentThread();
         try {
             if (!doOutput) {
                 throw new ProtocolException("cannot write to a URLConnection"
@@ -1474,7 +1487,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                 // we should only reach here when called from
                 // writeRequest, which in turn is only called by
                 // getInputStream0
-                assert isLockedByCurrentThread();
+                assert isLockHeldByCurrentThread();
                 int k = requests.getKey("Cookie");
                 if (k != -1)
                     userCookies = requests.getValue(k);
@@ -1540,7 +1553,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
 
     @Override
     public InputStream getInputStream() throws IOException {
-        connectionLock.lock();
+        lock();
         try {
             connecting = true;
             SocketPermission p = URLtoSocketPermission(this.url);
@@ -1561,18 +1574,14 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                 return getInputStream0();
             }
         } finally {
-            connectionLock.unlock();
+            unlock();
         }
-    }
-
-    public final boolean isLockedByCurrentThread() {
-        return connectionLock.isHeldByCurrentThread();
     }
 
     @SuppressWarnings("empty-statement")
     private InputStream getInputStream0() throws IOException {
 
-        assert isLockedByCurrentThread();
+        assert isLockHeldByCurrentThread();
         if (!doInput) {
             throw new ProtocolException("Cannot read from URLConnection"
                    + " if doInput=false (call setDoInput(true))");
@@ -2102,11 +2111,11 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
      * establish a tunnel through proxy server
      */
     public void doTunneling() throws IOException {
-        connectionLock.lock();
+        lock();
         try {
             doTunneling0();
         } finally{
-            connectionLock.unlock();
+            unlock();
         }
     }
 
@@ -2118,7 +2127,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
         String proxyHost = null;
         int proxyPort = -1;
 
-        assert isLockedByCurrentThread();
+        assert isLockHeldByCurrentThread();
 
         // save current requests so that they can be restored after tunnel is setup.
         MessageHeader savedRequests = requests;
@@ -2768,7 +2777,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
     private boolean followRedirect0(String loc, int stat, URL locUrl)
         throws IOException
     {
-        assert isLockedByCurrentThread();
+        assert isLockHeldByCurrentThread();
 
         disconnectInternal();
         if (streaming()) {
@@ -3250,7 +3259,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
      */
     @Override
     public void setRequestProperty(String key, String value) {
-        connectionLock.lock();
+        lock();
         try {
             if (connected || connecting)
                 throw new IllegalStateException("Already connected");
@@ -3264,7 +3273,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                 }
             }
         } finally {
-            connectionLock.unlock();
+            unlock();
         }
     }
 
@@ -3285,7 +3294,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
      */
     @Override
     public void addRequestProperty(String key, String value) {
-        connectionLock.lock();
+        lock();
         try {
             if (connected || connecting)
                 throw new IllegalStateException("Already connected");
@@ -3299,7 +3308,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                 }
             }
         } finally {
-            connectionLock.unlock();
+            unlock();
         }
     }
 
@@ -3310,18 +3319,18 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
     public void setAuthenticationProperty(String key, String value) {
         // use lock here to avoid the need for external synchronization
         // in AuthenticationInfo subclasses
-        connectionLock.lock();
+        lock();
         try {
             checkMessageHeader(key, value);
             requests.set(key, value);
         } finally {
-            connectionLock.unlock();
+            unlock();
         }
     }
 
     @Override
     public String getRequestProperty (String key) {
-        connectionLock.lock();
+        lock();
         try {
             if (key == null) {
                 return null;
@@ -3343,7 +3352,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
             }
             return requests.findValue(key);
         } finally {
-            connectionLock.unlock();
+            unlock();
         }
     }
 
@@ -3361,7 +3370,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
      */
     @Override
     public Map<String, List<String>> getRequestProperties() {
-        connectionLock.lock();
+        lock();
         try {
             if (connected)
                 throw new IllegalStateException("Already connected");
@@ -3386,7 +3395,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
             }
             return requests.filterAndAddHeaders(EXCLUDE_HEADERS2, userCookiesMap);
         } finally {
-            connectionLock.unlock();
+            unlock();
         }
     }
 

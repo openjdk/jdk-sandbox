@@ -26,7 +26,7 @@
 package sun.net.www.http;
 
 import java.io.*;
-import java.util.concurrent.locks.ReentrantLock;
+
 import sun.net.ProgressSource;
 import sun.net.www.MeteredStream;
 import jdk.internal.misc.InnocuousThread;
@@ -194,12 +194,12 @@ class KeepAliveStream extends MeteredStream implements Hurryable {
     }
 
     protected long remainingToRead() {
-        assert isLockedByCurrentThread();
+        assert isLockHeldByCurrentThread();
         return expected - count;
     }
 
     protected void setClosed() {
-        assert isLockedByCurrentThread();
+        assert isLockHeldByCurrentThread();
         in = null;
         hc = null;
         closed = true;
