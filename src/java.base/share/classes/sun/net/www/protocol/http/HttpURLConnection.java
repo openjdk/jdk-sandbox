@@ -1380,7 +1380,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
     }
 
     private OutputStream getOutputStream0() throws IOException {
-        assert connectionLock.isHeldByCurrentThread();
+        assert isLockedByCurrentThread();
         try {
             if (!doOutput) {
                 throw new ProtocolException("cannot write to a URLConnection"
@@ -1474,7 +1474,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
                 // we should only reach here when called from
                 // writeRequest, which in turn is only called by
                 // getInputStream0
-                assert connectionLock.isHeldByCurrentThread();
+                assert isLockedByCurrentThread();
                 int k = requests.getKey("Cookie");
                 if (k != -1)
                     userCookies = requests.getValue(k);
@@ -2768,7 +2768,7 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
     private boolean followRedirect0(String loc, int stat, URL locUrl)
         throws IOException
     {
-        assert connectionLock.isHeldByCurrentThread();
+        assert isLockedByCurrentThread();
 
         disconnectInternal();
         if (streaming()) {
