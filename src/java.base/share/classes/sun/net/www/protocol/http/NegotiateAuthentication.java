@@ -188,6 +188,8 @@ class NegotiateAuthentication extends AuthenticationInfo {
     @Override
     public boolean setHeaders(HttpURLConnection conn, HeaderParser p, String raw) {
 
+        assert conn.isLockHeldByCurrentThread();
+
         try {
             String response;
             byte[] incoming = null;
