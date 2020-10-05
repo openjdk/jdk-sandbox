@@ -248,7 +248,7 @@ public class NTLMAuthentication extends AuthenticationInfo {
 
         // no need to synchronize here:
         //   already locked by s.n.w.p.h.HttpURLConnection
-        assert conn.isLockedByCurrentThread();
+        assert conn.isLockHeldByCurrentThread();
 
         try {
             NTLMAuthSequence seq = (NTLMAuthSequence)conn.authObj();
