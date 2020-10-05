@@ -28,7 +28,6 @@
  * @build jdk.test.lib.net.SimpleSSLContext
  * @run main/othervm Test1
  * @run main/othervm -Djava.net.preferIPv6Addresses=true Test1
- * @run main/othervm -Djdk.net.usePlainSocketImpl Test1
  * @run main/othervm -Dsun.net.httpserver.maxReqTime=10 Test1
  * @run main/othervm -Dsun.net.httpserver.nodelay=true Test1
  * @summary  Light weight HTTP server

@@ -25,7 +25,7 @@
  * @test
  * @author Gary Ellison
  * @bug 4106600
- * @summary java.net.PlainSocketImpl backlog value bug avoidance
+ * @summary java.net.SocketImpl backlog value bug avoidance
  */
 
 import java.io.*;

@@ -35,7 +35,6 @@ import static java.util.concurrent.CompletableFuture.*;
  *          cause any thread blocked on the socket to throw a SocketException.
  * @run main AsyncClose
  * @run main/othervm -Djava.net.preferIPv4Stack=true AsyncClose
- * @run main/othervm -Djdk.net.usePlainSocketImpl AsyncClose
  */
 
 public class AsyncClose {

@@ -289,7 +289,7 @@ abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
          switch (optID) {
             /* check type safety b4 going native.  These should never
              * fail, since only java.Socket* has access to
-             * PlainSocketImpl.setOption().
+             * SocketImpl.setOption().
              */
          case SO_TIMEOUT:
              if (o == null || !(o instanceof Integer)) {

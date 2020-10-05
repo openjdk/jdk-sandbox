@@ -47,41 +47,18 @@ import sun.nio.ch.NioSocketImpl;
  * {@code SocketServer} public constructors create a system-default
  * {@code SocketImpl}. The JDK historically used a {@code SocketImpl}
  * implementation type named "PlainSocketImpl" that has since been replaced by a
- * newer implementation. The JDK continues to ship with the older implementation
- * to allow code to run that depends on unspecified behavior that differs between
- * the old and new implementations. The old implementation will be used if the
- * Java virtual machine is started with the system property {@systemProperty
- * jdk.net.usePlainSocketImpl} set to use the old implementation. It may also be
- * set in the JDK's network configuration file, located in {@code
- * ${java.home}/conf/net.properties}. The value of the property is the string
- * representation of a boolean. If set without a value then it defaults to {@code
- * true}, hence running with {@code -Djdk.net.usePlainSocketImpl} or {@code
- * -Djdk.net.usePlainSocketImpl=true} will configure the Java virtual machine
- * to use the old implementation. The property and old implementation will be
- * removed in a future version.
+ * newer implementation.
  *
  * @author  unascribed
  * @since   1.0
  */
 public abstract class SocketImpl implements SocketOptions {
-    private static final boolean USE_PLAINSOCKETIMPL = usePlainSocketImpl();
-
-    private static boolean usePlainSocketImpl() {
-        PrivilegedAction<String> pa = () -> NetProperties.get("jdk.net.usePlainSocketImpl");
-        String s = AccessController.doPrivileged(pa);
-        return (s != null) && !s.equalsIgnoreCase("false");
-    }
-
     /**
      * Creates an instance of platform's SocketImpl
      */
     @SuppressWarnings("unchecked")
-    static <S extends SocketImpl & PlatformSocketImpl> S createPlatformSocketImpl(boolean server) {
-        if (USE_PLAINSOCKETIMPL) {
-            return (S) new PlainSocketImpl(server);
-        } else {
+    static <S extends SocketImpl> S createPlatformSocketImpl(boolean server) {
             return (S) new NioSocketImpl(server);
-        }
     }
 
     /**

@@ -252,7 +252,7 @@ public abstract class SocketFactory
 // out through firewalls (e.g. SOCKS V4 or V5) or in through them
 // (e.g. using SSL), or that some ports are reserved for use with SSL.
 //
-// Note that at least JDK 1.1 has a low level "plainSocketImpl" that
+// Note that at least JDK 1.1 has a low level "SocketImpl" that
 // knows about SOCKS V4 tunneling, so this isn't a totally bogus default.
 //
 // ALSO:  we may want to expose this class somewhere so other folk

@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8024952
- * @summary ClassCastException in PlainSocketImpl.accept() when using custom socketImpl
+ * @summary ClassCastException in SocketImpl.accept() when using custom socketImpl
  * @run main/othervm CustomSocketImplFactory
  */
 

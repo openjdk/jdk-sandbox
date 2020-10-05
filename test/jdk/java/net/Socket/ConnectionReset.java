@@ -24,7 +24,6 @@
 /**
  * @test
  * @run testng ConnectionReset
- * @run testng/othervm -Djdk.net.usePlainSocketImpl ConnectionReset
  * @summary Test behavior of read and available when a connection is reset
  */
 

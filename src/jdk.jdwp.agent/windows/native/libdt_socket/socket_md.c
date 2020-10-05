@@ -266,9 +266,9 @@ dbgsysNetworkToHostLong(uint32_t netlong) {
 }
 
 /*
- * Below Adapted from PlainSocketImpl.c, win32 version 1.18. Changed exception
- * throws to returns of SYS_ERR; we should improve the error codes
- * eventually. Changed java objects to values the debugger back end can
+ * Below Adapted from PlainSocketImpl.c (removed in JDK16), win32 version 1.18.
+ * Changed exception throws to returns of SYS_ERR; we should improve the error
+ * codes eventually. Changed java objects to values the debugger back end can
  * more easily deal with.
  */
 

@@ -45,7 +45,7 @@
  *
  * The naming convention for field IDs is
  *      <class abbrv>_<fieldName>ID
- * i.e. psi_timeoutID is PlainSocketImpl's timeout field's ID.
+ * i.e. psi_timeoutID is SocketImpl's timeout field's ID.
  */
 extern jclass ia_class;
 extern jfieldID iac_addressID;
@@ -84,7 +84,7 @@ extern jfieldID ni_addrsID;
 extern jfieldID ni_descID;
 extern jmethodID ni_ctrID;
 
-/* PlainSocketImpl fields */
+/* SocketImpl fields */
 extern jfieldID psi_timeoutID;
 extern jfieldID psi_fdID;
 extern jfieldID psi_addressID;

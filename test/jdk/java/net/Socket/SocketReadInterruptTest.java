@@ -24,12 +24,10 @@
 /**
  * @test
  * @bug 8237858
- * @summary PlainSocketImpl.socketAccept() handles EINTR incorrectly
+ * @summary SocketImpl.socketAccept() handles EINTR incorrectly
  * @requires (os.family != "windows")
  * @compile NativeThread.java
- * @run main/othervm/native -Djdk.net.usePlainSocketImpl=true SocketReadInterruptTest 2000 3000
  * @run main/othervm/native SocketReadInterruptTest 2000 3000
- * @run main/othervm/native -Djdk.net.usePlainSocketImpl=true SocketReadInterruptTest 2000 0
  * @run main/othervm/native SocketReadInterruptTest 2000 0
  */
 import java.io.IOException;

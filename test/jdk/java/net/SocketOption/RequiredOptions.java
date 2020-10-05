@@ -43,7 +43,6 @@ import static java.net.StandardSocketOptions.*;
  * @bug 8235141
  * @summary verifies that our implementation supports the set
  *          of SocketOptions that are required by the API documentation.
- * @run testng/othervm -Djdk.net.usePlainSocketImpl RequiredOptions
  * @run testng/othervm RequiredOptions
  */
 public class RequiredOptions {

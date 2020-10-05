@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 4165948
- * @summary java.net.PlainSocketImpl {set,get}Option throws SocketException
+ * @summary java.net.SocketImpl {set,get}Option throws SocketException
  *          when socket is closed.
  */
 

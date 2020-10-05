@@ -256,7 +256,7 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
         switch (opt) {
             /* check type safety b4 going native.  These should never
              * fail, since only java.Socket* has access to
-             * PlainSocketImpl.setOption().
+             * SocketImpl.setOption().
              */
         case SO_LINGER:
             if (val == null || (!(val instanceof Integer) && !(val instanceof Boolean)))
