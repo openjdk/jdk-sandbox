@@ -1,4 +1,6 @@
-# Welcome to the JDK!
+# Welcome to the JDK sandbox!
+
+Experimental sandbox branch based on `JDK-8244202-nspi-stream-branch` sandbox branch.
 
 For build instructions please see the
 [online documentation](https://openjdk.java.net/groups/build/doc/building.html),
