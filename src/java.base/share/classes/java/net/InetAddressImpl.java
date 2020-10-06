@@ -56,16 +56,16 @@ interface InetAddressImpl {
      */
     default int policyToNativeDescriptor(LookupPolicy lookupPolicy) {
         int value = 0;
-        value |= switch (lookupPolicy.getAddressesFamily()) {
-            case IPV4 -> IPV4_ADDRESS_FAMILY_VALUE;
-            case IPV6 -> IPV6_ADDRESS_FAMILY_VALUE;
-            case ANY -> ANY_ADDRESS_FAMILY_VALUE;
+        value |= switch (lookupPolicy.searchStrategy()) {
+            case IPV4_ONLY -> IPV4_ADDRESS_FAMILY_VALUE;
+            case IPV6_ONLY -> IPV6_ADDRESS_FAMILY_VALUE;
+            default -> ANY_ADDRESS_FAMILY_VALUE;
         };
 
-        value |= switch (lookupPolicy.getAddressesOrder()) {
-            case SYSTEM -> SYSTEM_ADDRESSES_ORDER_VALUE;
+        value |= switch (lookupPolicy.searchStrategy()) {
             case IPV4_FIRST -> IPV4_FIRST_ADDRESSES_ORDER_VALUE;
             case IPV6_FIRST -> IPV6_FIRST_ADDRESSES_ORDER_VALUE;
+            default -> SYSTEM_ADDRESSES_ORDER_VALUE;
         };
 
         return value & (ADDRESS_FAMILY_MASK | ADDRESSES_ORDER_MASK);

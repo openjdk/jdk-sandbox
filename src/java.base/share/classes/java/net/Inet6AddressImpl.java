@@ -28,8 +28,9 @@ import java.io.IOException;
 import java.net.spi.InetNameServiceProvider.LookupPolicy;
 
 import static java.net.InetAddress.PLATFORM_LOOKUP_POLICY;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressesOrder.IPV6_FIRST;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressesOrder.SYSTEM;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV6_FIRST;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV6_ONLY;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.SYSTEM;
 
 
 /*
@@ -102,8 +103,9 @@ class Inet6AddressImpl implements InetAddressImpl {
 
     public synchronized InetAddress anyLocalAddress() {
         if (anyLocalAddress == null) {
-            if (PLATFORM_LOOKUP_POLICY.getAddressesOrder() == IPV6_FIRST ||
-                PLATFORM_LOOKUP_POLICY.getAddressesOrder() == SYSTEM) {
+            if (PLATFORM_LOOKUP_POLICY.searchStrategy() == IPV6_FIRST ||
+                PLATFORM_LOOKUP_POLICY.searchStrategy() == IPV6_ONLY ||
+                PLATFORM_LOOKUP_POLICY.searchStrategy() == SYSTEM) {
                 anyLocalAddress = new Inet6Address();
                 anyLocalAddress.holder().hostName = "::";
             } else {
@@ -116,8 +118,9 @@ class Inet6AddressImpl implements InetAddressImpl {
     public synchronized InetAddress loopbackAddress() {
         if (loopbackAddress == null) {
             boolean preferIPv6Address =
-                    PLATFORM_LOOKUP_POLICY.getAddressesOrder() == IPV6_FIRST ||
-                    PLATFORM_LOOKUP_POLICY.getAddressesOrder() == SYSTEM;
+                    PLATFORM_LOOKUP_POLICY.searchStrategy() == IPV6_FIRST ||
+                    PLATFORM_LOOKUP_POLICY.searchStrategy() == IPV6_ONLY ||
+                    PLATFORM_LOOKUP_POLICY.searchStrategy() == SYSTEM;
 
             for (int i = 0; i < 2; i++) {
                 InetAddress address;

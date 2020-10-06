@@ -27,8 +27,7 @@ package java.net;
 
 import java.net.spi.InetNameServiceProvider;
 import java.net.spi.InetNameServiceProvider.LookupPolicy;
-import java.net.spi.InetNameServiceProvider.LookupPolicy.AddressFamily;
-import java.net.spi.InetNameServiceProvider.LookupPolicy.AddressesOrder;
+import java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy;
 import java.net.spi.InetNameServiceProvider.NameService;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -65,12 +64,11 @@ import sun.net.InetAddressCachePolicy;
 import sun.net.util.IPAddressUtil;
 import sun.nio.cs.UTF_8;
 
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressFamily.ANY;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressFamily.IPV4;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressFamily.IPV6;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressesOrder.IPV4_FIRST;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressesOrder.IPV6_FIRST;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.AddressesOrder.SYSTEM;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.SYSTEM;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV4_ONLY;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV6_ONLY;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV4_FIRST;
+import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV6_FIRST;
 
 /**
  * This class represents an Internet Protocol (IP) address.
@@ -388,34 +386,33 @@ public class InetAddress implements java.io.Serializable {
      * {@code "java.net.preferIPv6Addresses"} system property values, and O/S configuration.
      */
     private static final LookupPolicy initializePlatformLookupPolicy() {
-        AddressFamily addressFamily = ANY;
-        AddressesOrder addressesOrder = IPV4_FIRST;
-
         // Calculate AddressFamily value first
         boolean ipv4Available = isIPv4Available();
         if ("true".equals(PREFER_IPV4_STACK_VALUE) && ipv4Available) {
-            addressFamily = IPV4;
-        } else if (InetAddress.impl instanceof Inet4AddressImpl) {
-            // Check if IPv6 is not supported
-            addressFamily = IPV4;
-        } else if (!ipv4Available) {
-            // Check if system supports IPv4, if not use IPv6
-            addressFamily = IPV6;
+            return LookupPolicy.of(IPV4_ONLY);
         }
-
-        // Calculate AddressesOrder value
-        if (addressFamily == ANY) {
-            if (PREFER_IPV6_ADDRESSES_VALUE == null) {
-                addressesOrder = IPV4_FIRST;
-            } else if (PREFER_IPV6_ADDRESSES_VALUE.equalsIgnoreCase("true")) {
-                addressesOrder = IPV6_FIRST;
-            } else if (PREFER_IPV6_ADDRESSES_VALUE.equalsIgnoreCase("false")) {
-                addressesOrder = IPV4_FIRST;
-            } else if (PREFER_IPV6_ADDRESSES_VALUE.equalsIgnoreCase("system")) {
-                addressesOrder = SYSTEM;
+        // Check if IPv6 is not supported
+        if (InetAddress.impl instanceof Inet4AddressImpl) {
+            return LookupPolicy.of(IPV4_ONLY);
+        }
+        // Check if system supports IPv4, if not use IPv6
+        if (!ipv4Available) {
+            return LookupPolicy.of(IPV6_ONLY);
+        }
+        // If both address families are needed - check preferIPv6Addresses value
+        if (PREFER_IPV6_ADDRESSES_VALUE != null) {
+            if (PREFER_IPV6_ADDRESSES_VALUE.equalsIgnoreCase("true")) {
+                return LookupPolicy.of(IPV6_FIRST);
+            }
+            if (PREFER_IPV6_ADDRESSES_VALUE.equalsIgnoreCase("false")) {
+                return LookupPolicy.of(IPV4_FIRST);
+            }
+            if (PREFER_IPV6_ADDRESSES_VALUE.equalsIgnoreCase("system")) {
+                return LookupPolicy.of(SYSTEM);
             }
         }
-        return LookupPolicy.of(addressFamily, addressesOrder);
+        // Default value with both address families needed - IPv4 addresses come first
+        return LookupPolicy.of(IPV4_FIRST);
     }
 
     // Native method to check if IPv4 is available
@@ -1141,15 +1138,15 @@ public class InetAddress implements java.io.Serializable {
             List<InetAddress> inetAddresses = new ArrayList<>();
             List<InetAddress> inet4Addresses = new ArrayList<>();
             List<InetAddress> inet6Addresses = new ArrayList<>();
-            AddressFamily af = lookupPolicy.getAddressesFamily();
-            boolean needIPv4 = af == IPV4 || af == ANY;
-            boolean needIPv6 = af == IPV6 || af == ANY;
+            SearchStrategy mode = lookupPolicy.searchStrategy();
+            boolean needIPv4 = mode != SearchStrategy.IPV6_ONLY;
+            boolean needIPv6 = mode != SearchStrategy.IPV4_ONLY;
 
             Objects.requireNonNull(host);
 
             // lookup the file and create a list InetAddress for the specified host
             try (Scanner hostsFileScanner = new Scanner(new File(hostsFile),
-                                                        UTF_8.INSTANCE)) {
+                    UTF_8.INSTANCE)) {
                 while (hostsFileScanner.hasNextLine()) {
                     hostEntry = hostsFileScanner.nextLine();
                     if (!hostEntry.startsWith("#")) {
@@ -1178,26 +1175,20 @@ public class InetAddress implements java.io.Serializable {
             }
             // Check number of found addresses:
             // If none found - throw an exception
-            boolean noAddressFound = switch (af) {
-                case ANY ->  inetAddresses.isEmpty();
-                case IPV6 -> inet6Addresses.isEmpty();
-                case IPV4 -> inet4Addresses.isEmpty();
+            boolean noAddressFound = switch (mode) {
+                case IPV6_ONLY -> inet6Addresses.isEmpty();
+                case IPV4_ONLY -> inet4Addresses.isEmpty();
+                default -> inetAddresses.isEmpty();
             };
             if (noAddressFound) {
                 throw new UnknownHostException("Unable to resolve host " + host
                         + " in hosts file " + hostsFile);
             }
 
-            // Return only stream of IPv4 addresses if preferIPv4Stack
-            // system property is set to true
-            if (af == IPV4) {
-                return inet4Addresses.stream();
-            } else if (af == IPV6) {
-                return inet6Addresses.stream();
-            }
-
-            // Generate stream with addresses ordered according to the specified look policy
-            return switch (lookupPolicy.getAddressesOrder()) {
+            // Generate stream with addresses ordered according to the specified strategy
+            return switch (mode) {
+                case IPV4_ONLY -> inet4Addresses.stream();
+                case IPV6_ONLY -> inet6Addresses.stream();
                 case IPV4_FIRST -> Stream.concat(inet4Addresses.stream(), inet6Addresses.stream());
                 case IPV6_FIRST -> Stream.concat(inet6Addresses.stream(), inet4Addresses.stream());
                 case SYSTEM -> inetAddresses.stream();
