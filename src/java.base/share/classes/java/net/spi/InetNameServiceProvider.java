@@ -82,15 +82,6 @@ public abstract class InetNameServiceProvider {
          */
         String lookupAddress(byte[] addr) throws UnknownHostException;
 
-        /**
-         * Returns a name of the local host.
-         * This name is used to resolve the local host name into {@code InetAddress}.
-         *
-         * @return the local host name
-         * @throws UnknownHostException if the local host name could not be retrieved by the name service
-         * @see InetAddress#getLocalHost()
-         */
-        String getLocalHostName() throws UnknownHostException;
     }
 
     /**

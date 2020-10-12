@@ -1034,11 +1034,6 @@ public class InetAddress implements java.io.Serializable {
             }
             return impl.getHostByAddr(addr);
         }
-
-        @Override
-        public String getLocalHostName() throws UnknownHostException {
-            return impl.getLocalHostName();
-        }
     }
 
     /**
@@ -1109,11 +1104,6 @@ public class InetAddress implements java.io.Serializable {
                         + hostsFile);
             }
             return host;
-        }
-
-        @Override
-        public String getLocalHostName() throws UnknownHostException {
-            return impl.getLocalHostName();
         }
 
         /**
@@ -1621,11 +1611,20 @@ public class InetAddress implements java.io.Serializable {
         try {
             addresses = nameService().lookupByName(host, PLATFORM_LOOKUP_POLICY);
         } catch (UnknownHostException uhe) {
-                if (host.equalsIgnoreCase("localhost")) {
-                    addresses = Stream.of(impl.loopbackAddress());
-                } else {
-                    ex = uhe;
+            if (host.equalsIgnoreCase("localhost")) {
+                addresses = Stream.of(impl.loopbackAddress());
+            } else {
+                ex = uhe;
+                // If installed name service can't resolve host name then check if
+                // host name matches the local host name and then try to use platform
+                // default name service to resolve local host name.
+                if (impl.getLocalHostName().equals(host)) {
+                    try {
+                        addresses = DEFAULT_INET_NAME_SERVICE.lookupByName(host, PLATFORM_LOOKUP_POLICY);
+                    } catch (UnknownHostException ue) {
+                    }
                 }
+            }
         }
 
         if (addresses == null) {
@@ -1727,7 +1726,7 @@ public class InetAddress implements java.io.Serializable {
                 return clh.addr;
             }
 
-            String local = nameService().getLocalHostName();
+            String local = impl.getLocalHostName();
 
             if (security != null) {
                 security.checkConnect(local, -1);
