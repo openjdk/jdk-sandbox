@@ -28,9 +28,9 @@ import java.io.IOException;
 import java.net.spi.InetNameServiceProvider.LookupPolicy;
 
 import static java.net.InetAddress.PLATFORM_LOOKUP_POLICY;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV6_FIRST;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV6_ONLY;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.SYSTEM;
+import static java.net.spi.InetNameServiceProvider.SearchStrategy.IPV6_FIRST;
+import static java.net.spi.InetNameServiceProvider.SearchStrategy.IPV6_ONLY;
+import static java.net.spi.InetNameServiceProvider.SearchStrategy.SYSTEM;
 
 
 /*

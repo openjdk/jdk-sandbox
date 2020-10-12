@@ -26,7 +26,7 @@ package java.net;
 import java.io.IOException;
 import java.net.spi.InetNameServiceProvider.LookupPolicy;
 
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV6_ONLY;
+import static java.net.spi.InetNameServiceProvider.SearchStrategy.IPV6_ONLY;
 
 /*
  * Package private implementation of InetAddressImpl for IPv4.

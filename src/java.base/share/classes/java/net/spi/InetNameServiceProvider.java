@@ -51,9 +51,9 @@ public abstract class InetNameServiceProvider {
          * <p>
          * The address family type and addresses order are specified by the {@code "lookupPolicy"}
          * parameter and could be acquired with {@link LookupPolicy#searchStrategy()}. If it's
-         * value is {@link LookupPolicy.SearchStrategy#SYSTEM SYSTEM},
-         * {@link LookupPolicy.SearchStrategy#IPV4_FIRST IPV4_FIRST},
-         * or {@link LookupPolicy.SearchStrategy#IPV6_FIRST IPV6_FIRST} this method returns addresses
+         * value is {@link SearchStrategy#SYSTEM SYSTEM},
+         * {@link SearchStrategy#IPV4_FIRST IPV4_FIRST},
+         * or {@link SearchStrategy#IPV6_FIRST IPV6_FIRST} this method returns addresses
          * of both IPV4 and IPV6 families.
          *
          * @param host         the specified hostname
@@ -154,7 +154,7 @@ public abstract class InetNameServiceProvider {
      * <a href="doc-files/net-properties.html#Ipv4IPv6">System Properties</a> which affects how IPv4 and IPv6
      * addresses are returned.
      */
-    public static final class LookupPolicy {
+    public static class LookupPolicy {
         // Placeholder for a search strategy
         private final SearchStrategy searchStrategy;
 
@@ -184,46 +184,51 @@ public abstract class InetNameServiceProvider {
         public final SearchStrategy searchStrategy() {
             return searchStrategy;
         }
+    }
+
+    /**
+     * Specifies a type that is used to designate a family and an order of network addresses
+     * queried during resolution of host IP addresses.
+     *
+     * @see NameService
+     */
+    public enum SearchStrategy {
+        /**
+         * Instructs {@link NameService InetNameServiceProvider.NameService}
+         * to return network addresses of {@link java.net.Inet4Address Inet4Address} and
+         * {@link java.net.Inet6Address Inet6Address} types.
+         * The addresses are ordered in the same way as returned by the name service provider.
+         */
+        SYSTEM,
 
         /**
-         * Specifies a type that is used to designate a family and an order of network addresses
-         * queried during resolution of host IP addresses.
-         *
-         * @see NameService
+         * Instructs {@link NameService InetNameServiceProvider.NameService}
+         * to return network addresses of {@link java.net.Inet4Address Inet4Address} type only.
          */
-        public enum SearchStrategy {
-            /**
-             * Instructs {@link NameService InetNameServiceProvider.NameService}
-             * to return network addresses for {@code IPv4} and {@code IPv6} address families.
-             * The addresses are ordered in the same way as returned by the name service provider.
-             */
-            SYSTEM,
+        IPV4_ONLY,
 
-            /**
-             * Instructs {@link NameService InetNameServiceProvider.NameService}
-             * to return network addresses for {@code IPv4} address family only.
-             */
-            IPV4_ONLY,
+        /**
+         * Instructs {@link NameService InetNameServiceProvider.NameService}
+         * to return network addresses of {@link java.net.Inet6Address Inet6Address} type only.
+         */
+        IPV6_ONLY,
 
-            /**
-             * Instructs {@link NameService InetNameServiceProvider.NameService}
-             * to return network addresses for {@code IPv6} address family only.
-             */
-            IPV6_ONLY,
+        /**
+         * Instructs {@link NameService InetNameServiceProvider.NameService}
+         * to return network addresses of {@link java.net.Inet4Address Inet4Address} and
+         * {@link java.net.Inet6Address Inet6Address} types.
+         * {@code Inet4Address} addresses are preferred over {@code Inet6Address} addresses
+         * and returned first.
+         */
+        IPV4_FIRST,
 
-            /**
-             * Instructs {@link NameService InetNameServiceProvider.NameService}
-             * to return network addresses for {@code IPv4} and {@code IPv6} address families.
-             * IPv4 addresses are preferred over IPv6 addresses and returned first.
-             */
-            IPV4_FIRST,
-
-            /**
-             * Instructs {@link NameService InetNameServiceProvider.NameService}
-             * to return network addresses for {@code IPv4} and {@code IPv6} address families.
-             * IPv6 addresses are preferred over IPv4 addresses and returned first.
-             */
-            IPV6_FIRST;
-        }
+        /**
+         * Instructs {@link NameService InetNameServiceProvider.NameService}
+         * to return network addresses of {@link java.net.Inet4Address Inet4Address} and
+         * {@link java.net.Inet6Address Inet6Address} types.
+         * {@code Inet6Address} addresses are preferred over {@code Inet4Address} addresses
+         * and returned first.
+         */
+        IPV6_FIRST
     }
 }

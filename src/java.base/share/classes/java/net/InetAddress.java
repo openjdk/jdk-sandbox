@@ -27,8 +27,8 @@ package java.net;
 
 import java.net.spi.InetNameServiceProvider;
 import java.net.spi.InetNameServiceProvider.LookupPolicy;
-import java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy;
 import java.net.spi.InetNameServiceProvider.NameService;
+import java.net.spi.InetNameServiceProvider.SearchStrategy;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.List;
@@ -64,11 +64,11 @@ import sun.net.InetAddressCachePolicy;
 import sun.net.util.IPAddressUtil;
 import sun.nio.cs.UTF_8;
 
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.SYSTEM;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV4_ONLY;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV6_ONLY;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV4_FIRST;
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV6_FIRST;
+import static java.net.spi.InetNameServiceProvider.SearchStrategy.SYSTEM;
+import static java.net.spi.InetNameServiceProvider.SearchStrategy.IPV4_ONLY;
+import static java.net.spi.InetNameServiceProvider.SearchStrategy.IPV6_ONLY;
+import static java.net.spi.InetNameServiceProvider.SearchStrategy.IPV4_FIRST;
+import static java.net.spi.InetNameServiceProvider.SearchStrategy.IPV6_FIRST;
 
 /**
  * This class represents an Internet Protocol (IP) address.
@@ -1138,9 +1138,9 @@ public class InetAddress implements java.io.Serializable {
             List<InetAddress> inetAddresses = new ArrayList<>();
             List<InetAddress> inet4Addresses = new ArrayList<>();
             List<InetAddress> inet6Addresses = new ArrayList<>();
-            SearchStrategy mode = lookupPolicy.searchStrategy();
-            boolean needIPv4 = mode != SearchStrategy.IPV6_ONLY;
-            boolean needIPv6 = mode != SearchStrategy.IPV4_ONLY;
+            SearchStrategy searchStrategy = lookupPolicy.searchStrategy();
+            boolean needIPv4 = searchStrategy != IPV6_ONLY;
+            boolean needIPv6 = searchStrategy != IPV4_ONLY;
 
             Objects.requireNonNull(host);
 
@@ -1175,7 +1175,7 @@ public class InetAddress implements java.io.Serializable {
             }
             // Check number of found addresses:
             // If none found - throw an exception
-            boolean noAddressFound = switch (mode) {
+            boolean noAddressFound = switch (searchStrategy) {
                 case IPV6_ONLY -> inet6Addresses.isEmpty();
                 case IPV4_ONLY -> inet4Addresses.isEmpty();
                 default -> inetAddresses.isEmpty();
@@ -1186,7 +1186,7 @@ public class InetAddress implements java.io.Serializable {
             }
 
             // Generate stream with addresses ordered according to the specified strategy
-            return switch (mode) {
+            return switch (searchStrategy) {
                 case IPV4_ONLY -> inet4Addresses.stream();
                 case IPV6_ONLY -> inet6Addresses.stream();
                 case IPV4_FIRST -> Stream.concat(inet4Addresses.stream(), inet6Addresses.stream());
