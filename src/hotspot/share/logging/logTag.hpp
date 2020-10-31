@@ -51,6 +51,7 @@
   LOG_TAG(classhisto) \
   LOG_TAG(cleanup) \
   LOG_TAG(codecache) \
+  NOT_PRODUCT(LOG_TAG(codestrings)) \
   LOG_TAG(compaction) \
   LOG_TAG(compilation) \
   LOG_TAG(condy) \
@@ -76,9 +77,11 @@
   LOG_TAG(free) \
   LOG_TAG(freelist) \
   LOG_TAG(gc) \
+  NOT_PRODUCT(LOG_TAG(generate)) \
   LOG_TAG(handshake) \
   LOG_TAG(hashtables) \
   LOG_TAG(heap) \
+  NOT_PRODUCT(LOG_TAG(heapsampling)) \
   LOG_TAG(humongous) \
   LOG_TAG(ihop) \
   LOG_TAG(iklass) \
@@ -98,6 +101,7 @@
   LOG_TAG(loader) \
   LOG_TAG(logging) \
   LOG_TAG(malloc) \
+  LOG_TAG(map) \
   LOG_TAG(mark) \
   LOG_TAG(marking) \
   LOG_TAG(membername) \
@@ -153,6 +157,7 @@
   LOG_TAG(sealed) \
   LOG_TAG(setting) \
   LOG_TAG(smr) \
+  LOG_TAG(stackbarrier) \
   LOG_TAG(stackmap) \
   LOG_TAG(stacktrace) \
   LOG_TAG(stackwalk) \

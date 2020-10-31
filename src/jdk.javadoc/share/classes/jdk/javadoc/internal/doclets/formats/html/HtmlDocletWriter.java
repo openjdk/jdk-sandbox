@@ -57,6 +57,7 @@ import javax.lang.model.util.SimpleTypeVisitor9;
 import com.sun.source.doctree.AttributeTree;
 import com.sun.source.doctree.AttributeTree.ValueKind;
 import com.sun.source.doctree.CommentTree;
+import com.sun.source.doctree.DeprecatedTree;
 import com.sun.source.doctree.DocRootTree;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.DocTree.Kind;
@@ -155,8 +156,6 @@ public class HtmlDocletWriter {
      */
     public final HtmlConfiguration configuration;
 
-    protected final SearchIndexItems searchItems;
-
     protected final HtmlOptions options;
 
     protected final Utils utils;
@@ -216,12 +215,11 @@ public class HtmlDocletWriter {
      */
     public HtmlDocletWriter(HtmlConfiguration configuration, DocPath path) {
         this.configuration = configuration;
-        this.searchItems = configuration.searchItems;
         this.options = configuration.getOptions();
         this.contents = configuration.contents;
         this.messages = configuration.messages;
         this.resources = configuration.docResources;
-        this.links = new Links(path);
+        this.links = new Links(path, configuration.utils);
         this.utils = configuration.utils;
         this.comparators = utils.comparators;
         this.path = path;
@@ -955,7 +953,7 @@ public class HtmlDocletWriter {
             ExecutableElement ee = (ExecutableElement)element;
             return getLink(new LinkInfoImpl(configuration, context, typeElement)
                 .label(label)
-                .where(links.getName(getAnchor(ee, isProperty)))
+                .where(links.getAnchor(ee, isProperty))
                 .strong(strong));
         }
 
@@ -988,33 +986,12 @@ public class HtmlDocletWriter {
             ExecutableElement emd = (ExecutableElement) element;
             return getLink(new LinkInfoImpl(configuration, context, typeElement)
                 .label(label)
-                .where(links.getName(getAnchor(emd))));
+                .where(links.getAnchor(emd)));
         } else if (utils.isVariableElement(element) || utils.isTypeElement(element)) {
             return getLink(new LinkInfoImpl(configuration, context, typeElement)
                 .label(label).where(links.getName(element.getSimpleName().toString())));
         } else {
             return label;
-        }
-    }
-
-    public String getAnchor(ExecutableElement executableElement) {
-        return getAnchor(executableElement, false);
-    }
-
-    public String getAnchor(ExecutableElement executableElement, boolean isProperty) {
-        if (isProperty) {
-            return executableElement.getSimpleName().toString();
-        }
-        String member = anchorName(executableElement);
-        String erasedSignature = utils.makeSignature(executableElement, null, true, true);
-        return member + erasedSignature;
-    }
-
-    public String anchorName(Element member) {
-        if (member.getKind() == ElementKind.CONSTRUCTOR) {
-            return "<init>";
-        } else {
-            return utils.getSimpleName(member);
         }
     }
 
@@ -1191,7 +1168,7 @@ public class HtmlDocletWriter {
      * @param tag the inline tag to be added
      * @param htmltree the content tree to which the comment will be added
      */
-    public void addInlineDeprecatedComment(Element e, DocTree tag, Content htmltree) {
+    public void addInlineDeprecatedComment(Element e, DeprecatedTree tag, Content htmltree) {
         CommentHelper ch = utils.getCommentHelper(e);
         addCommentTags(e, ch.getBody(tag), true, false, false, htmltree);
     }
@@ -1217,7 +1194,7 @@ public class HtmlDocletWriter {
         addCommentTags(element, firstSentenceTags, false, true, true, htmltree);
     }
 
-    public void addSummaryDeprecatedComment(Element element, DocTree tag, Content htmltree) {
+    public void addSummaryDeprecatedComment(Element element, DeprecatedTree tag, Content htmltree) {
         CommentHelper ch = utils.getCommentHelper(element);
         List<? extends DocTree> body = ch.getBody(tag);
         addCommentTags(element, ch.getFirstSentenceTrees(body), true, true, true, htmltree);
