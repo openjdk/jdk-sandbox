@@ -26,6 +26,7 @@
 #include "net_util.h"
 
 #include "java_net_InetAddress.h"
+#include "java_net_spi_InetNameService_LookupPolicy.h"
 
 int IPv4_supported();
 int IPv6_supported();
@@ -315,22 +316,16 @@ in_cksum(unsigned short *addr, int len) {
     return (answer);
 }
 
-int lookupPolicyToAddressFamily(int lookupPolicy) {
-    if (lookupPolicy & IPV4_ADDRESS_FAMILY_VALUE) {
+int lookupCharacteristicsToAddressFamily(int characteristics) {
+    int ipv4 = characteristics & java_net_spi_InetNameService_LookupPolicy_IPV4;
+    int ipv6 = characteristics & java_net_spi_InetNameService_LookupPolicy_IPV6;
+
+    if (ipv4 != 0 && ipv6 == 0) {
         return AF_INET;
     }
-    if (lookupPolicy & IPV6_ADDRESS_FAMILY_VALUE) {
+
+    if (ipv4 == 0 && ipv6 != 0) {
         return AF_INET6;
     }
     return AF_UNSPEC;
-}
-
-int lookupPolicyToAddressesOrder(int lookupPolicy) {
-    if (lookupPolicy & IPV4_FIRST_ADDRESSES_ORDER_VALUE) {
-        return IPV4_FIRST_ADDRESSES_ORDER_VALUE;
-    }
-    if (lookupPolicy & IPV6_FIRST_ADDRESSES_ORDER_VALUE) {
-        return IPV6_FIRST_ADDRESSES_ORDER_VALUE;
-    }
-    return SYSTEM_ADDRESSES_ORDER_VALUE;
 }

@@ -26,9 +26,8 @@
 package java.net;
 
 import java.net.spi.InetNameServiceProvider;
-import java.net.spi.InetNameServiceProvider.LookupPolicy;
-import java.net.spi.InetNameServiceProvider.NameService;
-import java.net.spi.InetNameServiceProvider.SearchStrategy;
+import java.net.spi.InetNameService.LookupPolicy;
+import java.net.spi.InetNameService;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.List;
@@ -64,11 +63,10 @@ import sun.net.InetAddressCachePolicy;
 import sun.net.util.IPAddressUtil;
 import sun.nio.cs.UTF_8;
 
-import static java.net.spi.InetNameServiceProvider.SearchStrategy.SYSTEM;
-import static java.net.spi.InetNameServiceProvider.SearchStrategy.IPV4_ONLY;
-import static java.net.spi.InetNameServiceProvider.SearchStrategy.IPV6_ONLY;
-import static java.net.spi.InetNameServiceProvider.SearchStrategy.IPV4_FIRST;
-import static java.net.spi.InetNameServiceProvider.SearchStrategy.IPV6_FIRST;
+import static java.net.spi.InetNameService.LookupPolicy.IPV4;
+import static java.net.spi.InetNameService.LookupPolicy.IPV4_FIRST;
+import static java.net.spi.InetNameService.LookupPolicy.IPV6;
+import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
 
 /**
  * This class represents an Internet Protocol (IP) address.
@@ -219,9 +217,9 @@ import static java.net.spi.InetNameServiceProvider.SearchStrategy.IPV6_FIRST;
  *     {@link InetNameServiceProvider InetNameServiceProvider}
  *     implementations using the system class loader. The order the providers are
  *     located is implementation specific. The first provider found will be used
- *     to instantiate the {@link NameService InetNameServiceProvider.NameService} by
- *     invoking {@link InetNameServiceProvider#get(NameService)}
- *     method. The instantiated {@code InetNameServiceProvider.NameService} will be
+ *     to instantiate the {@link InetNameService InetNameService} by
+ *     invoking {@link InetNameServiceProvider#get(InetNameServiceProvider.Context)}
+ *     method. The instantiated {@code InetNameService} will be
  *     used as platform name service.
  * <li>If the previous step fails to find a name service provider
  *     the platform default name service will be used.
@@ -321,9 +319,9 @@ public class InetAddress implements java.io.Serializable {
     }
 
     /* Used to store the name service provider */
-    private static volatile NameService nameService;
+    private static volatile InetNameService nameService;
 
-    private static final NameService DEFAULT_INET_NAME_SERVICE;
+    private static final InetNameService DEFAULT_INET_NAME_SERVICE;
 
     /**
      * Used to store the best available hostname.
@@ -389,30 +387,30 @@ public class InetAddress implements java.io.Serializable {
         // Calculate AddressFamily value first
         boolean ipv4Available = isIPv4Available();
         if ("true".equals(PREFER_IPV4_STACK_VALUE) && ipv4Available) {
-            return LookupPolicy.of(IPV4_ONLY);
+            return LookupPolicy.of(IPV4);
         }
         // Check if IPv6 is not supported
         if (InetAddress.impl instanceof Inet4AddressImpl) {
-            return LookupPolicy.of(IPV4_ONLY);
+            return LookupPolicy.of(IPV4);
         }
         // Check if system supports IPv4, if not use IPv6
         if (!ipv4Available) {
-            return LookupPolicy.of(IPV6_ONLY);
+            return LookupPolicy.of(IPV6);
         }
         // If both address families are needed - check preferIPv6Addresses value
         if (PREFER_IPV6_ADDRESSES_VALUE != null) {
             if (PREFER_IPV6_ADDRESSES_VALUE.equalsIgnoreCase("true")) {
-                return LookupPolicy.of(IPV6_FIRST);
+                return LookupPolicy.of(IPV4 | IPV6 | IPV6_FIRST);
             }
             if (PREFER_IPV6_ADDRESSES_VALUE.equalsIgnoreCase("false")) {
-                return LookupPolicy.of(IPV4_FIRST);
+                return LookupPolicy.of(IPV4 | IPV6 | IPV4_FIRST);
             }
             if (PREFER_IPV6_ADDRESSES_VALUE.equalsIgnoreCase("system")) {
-                return LookupPolicy.of(SYSTEM);
+                return LookupPolicy.of(IPV4 | IPV6);
             }
         }
         // Default value with both address families needed - IPv4 addresses come first
-        return LookupPolicy.of(IPV4_FIRST);
+        return LookupPolicy.of(IPV4 | IPV6 | IPV4_FIRST);
     }
 
     // Native method to check if IPv4 is available
@@ -429,8 +427,8 @@ public class InetAddress implements java.io.Serializable {
 
     private static final ReentrantLock NAMESERVICE_LOCK = new ReentrantLock();
 
-    private static NameService nameService() {
-        NameService cns = nameService;
+    private static InetNameService nameService() {
+        InetNameService cns = nameService;
         if (cns != null) {
             return cns;
         }
@@ -446,7 +444,7 @@ public class InetAddress implements java.io.Serializable {
                     // The default name service is already host file name service
                     cns = DEFAULT_INET_NAME_SERVICE;
                 } else if (System.getSecurityManager() != null) {
-                    PrivilegedAction<NameService> pa = InetAddress::loadNameService;
+                    PrivilegedAction<InetNameService> pa = InetAddress::loadNameService;
                     cns = AccessController.doPrivileged(
                             pa, null, INET_NAMESERVICE_PERMISSION);
                 } else {
@@ -463,11 +461,29 @@ public class InetAddress implements java.io.Serializable {
         }
     }
 
-    private static NameService loadNameService() {
+    private static InetNameService loadNameService() {
         return ServiceLoader.load(InetNameServiceProvider.class)
                 .findFirst()
-                .map(nsp -> nsp.get(DEFAULT_INET_NAME_SERVICE))
+                .map(nsp -> nsp.get(InetAddress.builtInContext()))
                 .orElse(DEFAULT_INET_NAME_SERVICE);
+    }
+
+    private static InetNameServiceProvider.Context builtInContext() {
+        return new InetNameServiceProvider.Context() {
+            @Override
+            public InetNameService builtInNameService() {
+                return DEFAULT_INET_NAME_SERVICE;
+            }
+
+            @Override
+            public String localHostName() {
+                try {
+                    return impl.getLocalHostName();
+                } catch (UnknownHostException unknownHostException) {
+                    return "localhost";
+                }
+            }
+        };
     }
 
     /**
@@ -1019,7 +1035,7 @@ public class InetAddress implements java.io.Serializable {
      *
      * @since 9
      */
-    private static final class PlatformNameService implements NameService {
+    private static final class PlatformNameService implements InetNameService {
 
         public Stream<InetAddress> lookupByName(String host, LookupPolicy policy)
                 throws UnknownHostException {
@@ -1049,7 +1065,7 @@ public class InetAddress implements java.io.Serializable {
      *
      * @since 9
      */
-    private static final class HostsFileNameService implements NameService {
+    private static final class HostsFileNameService implements InetNameService {
 
         private final String hostsFile;
 
@@ -1128,9 +1144,9 @@ public class InetAddress implements java.io.Serializable {
             List<InetAddress> inetAddresses = new ArrayList<>();
             List<InetAddress> inet4Addresses = new ArrayList<>();
             List<InetAddress> inet6Addresses = new ArrayList<>();
-            SearchStrategy searchStrategy = lookupPolicy.searchStrategy();
-            boolean needIPv4 = searchStrategy != IPV6_ONLY;
-            boolean needIPv6 = searchStrategy != IPV4_ONLY;
+            int chrs = lookupPolicy.characteristics();
+            boolean needIPv4 = (chrs & IPv4) != 0;
+            boolean needIPv6 = (chrs & IPv6) != 0;
 
             Objects.requireNonNull(host);
 
@@ -1165,24 +1181,36 @@ public class InetAddress implements java.io.Serializable {
             }
             // Check number of found addresses:
             // If none found - throw an exception
-            boolean noAddressFound = switch (searchStrategy) {
-                case IPV6_ONLY -> inet6Addresses.isEmpty();
-                case IPV4_ONLY -> inet4Addresses.isEmpty();
-                default -> inetAddresses.isEmpty();
-            };
+            boolean noAddressFound = inetAddresses.isEmpty();
+            // needIPv4 == false and needIPv6 is not a valid combination. See LookupPolicy.of.
+            if (needIPv4 != needIPv6) {
+                if (needIPv4) {
+                    noAddressFound = inet4Addresses.isEmpty();
+                } else {
+                    noAddressFound = inet6Addresses.isEmpty();
+                }
+            }
             if (noAddressFound) {
                 throw new UnknownHostException("Unable to resolve host " + host
                         + " in hosts file " + hostsFile);
             }
 
-            // Generate stream with addresses ordered according to the specified strategy
-            return switch (searchStrategy) {
-                case IPV4_ONLY -> inet4Addresses.stream();
-                case IPV6_ONLY -> inet6Addresses.stream();
-                case IPV4_FIRST -> Stream.concat(inet4Addresses.stream(), inet6Addresses.stream());
-                case IPV6_FIRST -> Stream.concat(inet6Addresses.stream(), inet4Addresses.stream());
-                case SYSTEM -> inetAddresses.stream();
-            };
+            // If both address types are requested
+            if (needIPv4 == needIPv6) {
+                if ((chrs & (IPV4_FIRST | IPV6_FIRST)) == 0) {
+                    return inetAddresses.stream();
+                } else if ((chrs & IPV6_FIRST) != 0) {
+                    return Stream.concat(inet6Addresses.stream(), inet4Addresses.stream());
+                } else if ((chrs & IPV4_FIRST) != 0) {
+                    return Stream.concat(inet4Addresses.stream(), inet6Addresses.stream());
+                }
+            }
+            // Only IPv4 addresses are requested
+            if (needIPv4) {
+                return inet4Addresses.stream();
+            }
+            // Only IPv6 addresses are requested
+            return inet6Addresses.stream();
         }
 
         private String removeComments(String hostsEntry) {
@@ -1247,11 +1275,11 @@ public class InetAddress implements java.io.Serializable {
      *
      * @return a NameService
      */
-    private static NameService createDefaultInetNameService() {
+    private static InetNameService createDefaultInetNameService() {
 
         String hostsFileName =
                 GetPropertyAction.privilegedGetProperty("jdk.net.hosts.file");
-        NameService theNameService;
+        InetNameService theNameService;
         if (hostsFileName != null) {
             theNameService = new HostsFileNameService(hostsFileName);
         } else {

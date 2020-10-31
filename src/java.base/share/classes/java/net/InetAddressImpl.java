@@ -26,7 +26,7 @@
 package java.net;
 
 import java.io.IOException;
-import java.net.spi.InetNameServiceProvider.LookupPolicy;
+import java.net.spi.InetNameService.LookupPolicy;
 
 /*
  * Package private interface to "implementation" used by
@@ -48,36 +48,4 @@ interface InetAddressImpl {
     InetAddress loopbackAddress();
     boolean isReachable(InetAddress addr, int timeout, NetworkInterface netif,
                         int ttl) throws IOException;
-
-    /**
-     * Encodes the lookup policy to an integer descriptor.
-     * @param lookupPolicy addresses lookup policy
-     * @return integer value that contains the encoded lookup policy
-     */
-    default int policyToNativeDescriptor(LookupPolicy lookupPolicy) {
-        int value = 0;
-        value |= switch (lookupPolicy.searchStrategy()) {
-            case IPV4_ONLY -> IPV4_ADDRESS_FAMILY_VALUE;
-            case IPV6_ONLY -> IPV6_ADDRESS_FAMILY_VALUE;
-            default -> ANY_ADDRESS_FAMILY_VALUE;
-        };
-
-        value |= switch (lookupPolicy.searchStrategy()) {
-            case IPV4_FIRST -> IPV4_FIRST_ADDRESSES_ORDER_VALUE;
-            case IPV6_FIRST -> IPV6_FIRST_ADDRESSES_ORDER_VALUE;
-            default -> SYSTEM_ADDRESSES_ORDER_VALUE;
-        };
-
-        return value & (ADDRESS_FAMILY_MASK | ADDRESSES_ORDER_MASK);
-    }
-
-    int ANY_ADDRESS_FAMILY_VALUE = 0x01;
-    int IPV4_ADDRESS_FAMILY_VALUE = 0x02;
-    int IPV6_ADDRESS_FAMILY_VALUE = 0x04;
-    int ADDRESS_FAMILY_MASK = 0x0f;
-
-    int SYSTEM_ADDRESSES_ORDER_VALUE = 0x10;
-    int IPV4_FIRST_ADDRESSES_ORDER_VALUE = 0x20;
-    int IPV6_FIRST_ADDRESSES_ORDER_VALUE = 0x40;
-    int ADDRESSES_ORDER_MASK = 0xf0;
 }
