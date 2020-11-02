@@ -66,12 +66,12 @@ inline const ZRelocationSetSelectorGroupStats& ZRelocationSetSelectorStats::larg
   return _large;
 }
 
-inline ZPage* const* ZRelocationSetSelectorGroup::selected() const {
-  return _sorted_pages;
+inline const ZArray<ZPage*>* ZRelocationSetSelectorGroup::selected() const {
+  return &_registered_pages;
 }
 
-inline size_t ZRelocationSetSelectorGroup::nselected() const {
-  return _nselected;
+inline size_t ZRelocationSetSelectorGroup::forwarding_entries() const {
+  return _forwarding_entries;
 }
 
 inline const ZRelocationSetSelectorGroupStats& ZRelocationSetSelectorGroup::stats() const {
@@ -92,6 +92,18 @@ inline size_t ZRelocationSetSelector::compacting_from() const {
 
 inline size_t ZRelocationSetSelector::compacting_to() const {
   return _small.stats().compacting_to() + _medium.stats().compacting_to() + _large.stats().compacting_to();
+}
+
+inline const ZArray<ZPage*>* ZRelocationSetSelector::small() const {
+  return _small.selected();
+}
+
+inline const ZArray<ZPage*>* ZRelocationSetSelector::medium() const {
+  return _medium.selected();
+}
+
+inline size_t ZRelocationSetSelector::forwarding_entries() const {
+  return _small.forwarding_entries() + _medium.forwarding_entries();
 }
 
 #endif // SHARE_GC_Z_ZRELOCATIONSETSELECTOR_INLINE_HPP

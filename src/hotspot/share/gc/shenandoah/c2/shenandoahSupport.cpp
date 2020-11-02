@@ -59,11 +59,6 @@ bool ShenandoahBarrierC2Support::expand(Compile* C, PhaseIterGVN& igvn) {
         return false;
       }
       C->clear_major_progress();
-      if (C->range_check_cast_count() > 0) {
-        // No more loop optimizations. Remove all range check dependent CastIINodes.
-        C->remove_range_check_casts(igvn);
-        igvn.optimize();
-      }
     }
   }
   return true;
@@ -961,7 +956,7 @@ void ShenandoahBarrierC2Support::test_in_cset(Node*& ctrl, Node*& not_cset_ctrl,
   phase->register_new_node(cset_bool,      old_ctrl);
 }
 
-void ShenandoahBarrierC2Support::call_lrb_stub(Node*& ctrl, Node*& val, Node* load_addr, Node*& result_mem, Node* raw_mem, bool is_native, PhaseIdealLoop* phase) {
+void ShenandoahBarrierC2Support::call_lrb_stub(Node*& ctrl, Node*& val, Node* load_addr, Node*& result_mem, Node* raw_mem, bool is_weak, PhaseIdealLoop* phase) {
   IdealLoopTree*loop = phase->get_loop(ctrl);
   const TypePtr* obj_type = phase->igvn().type(val)->is_oopptr();
 
@@ -976,9 +971,9 @@ void ShenandoahBarrierC2Support::call_lrb_stub(Node*& ctrl, Node*& val, Node* lo
           CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_narrow) :
           CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier);
 
-  address calladdr = is_native ? CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_native)
-                               : target;
-  const char* name = is_native ? "load_reference_barrier_native" : "load_reference_barrier";
+  address calladdr = is_weak ? CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak)
+                             : target;
+  const char* name = is_weak ? "load_reference_barrier_native" : "load_reference_barrier";
   Node* call = new CallLeafNode(ShenandoahBarrierSetC2::shenandoah_load_reference_barrier_Type(), calladdr, name, TypeRawPtr::BOTTOM);
 
   call->init_req(TypeFunc::Control, ctrl);
@@ -1325,7 +1320,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
     assert(val->bottom_type()->make_oopptr(), "need oop");
     assert(val->bottom_type()->make_oopptr()->const_oop() == NULL, "expect non-constant");
 
-    enum { _heap_stable = 1, _not_cset, _evac_path, PATH_LIMIT };
+    enum { _heap_stable = 1, _evac_path, _not_cset, PATH_LIMIT };
     Node* region = new RegionNode(PATH_LIMIT);
     Node* val_phi = new PhiNode(region, val->bottom_type()->is_oopptr());
     Node* raw_mem_phi = PhiNode::make(region, raw_mem, Type::MEMORY, TypeRawPtr::BOTTOM);
@@ -1339,14 +1334,21 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
     val_phi->init_req(_heap_stable, val);
     raw_mem_phi->init_req(_heap_stable, raw_mem);
 
-    // Test for in-cset.
+    // Test for in-cset, unless it's a native-LRB. Native LRBs need to return NULL
+    // even for non-cset objects to prevent ressurrection of such objects.
     // Wires !in_cset(obj) to slot 2 of region and phis
     Node* not_cset_ctrl = NULL;
-    test_in_cset(ctrl, not_cset_ctrl, val, raw_mem, phase);
+    if (!lrb->is_weak()) {
+      test_in_cset(ctrl, not_cset_ctrl, val, raw_mem, phase);
+    }
     if (not_cset_ctrl != NULL) {
       region->init_req(_not_cset, not_cset_ctrl);
       val_phi->init_req(_not_cset, val);
       raw_mem_phi->init_req(_not_cset, raw_mem);
+    } else {
+      region->del_req(_not_cset);
+      val_phi->del_req(_not_cset);
+      raw_mem_phi->del_req(_not_cset);
     }
 
     // Resolve object when orig-value is in cset.
@@ -1387,7 +1389,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
         }
       }
     }
-    call_lrb_stub(ctrl, val, addr, result_mem, raw_mem, lrb->is_native(), phase);
+    call_lrb_stub(ctrl, val, addr, result_mem, raw_mem, lrb->is_weak(), phase);
     region->init_req(_evac_path, ctrl);
     val_phi->init_req(_evac_path, val);
     raw_mem_phi->init_req(_evac_path, result_mem);
@@ -2877,13 +2879,13 @@ void MemoryGraphFixer::fix_memory_uses(Node* mem, Node* replacement, Node* rep_p
   }
 }
 
-ShenandoahLoadReferenceBarrierNode::ShenandoahLoadReferenceBarrierNode(Node* ctrl, Node* obj, bool native)
-: Node(ctrl, obj), _native(native) {
+ShenandoahLoadReferenceBarrierNode::ShenandoahLoadReferenceBarrierNode(Node* ctrl, Node* obj, bool weak)
+: Node(ctrl, obj), _weak(weak) {
   ShenandoahBarrierSetC2::bsc2()->state()->add_load_reference_barrier(this);
 }
 
-bool ShenandoahLoadReferenceBarrierNode::is_native() const {
-  return _native;
+bool ShenandoahLoadReferenceBarrierNode::is_weak() const {
+  return _weak;
 }
 
 uint ShenandoahLoadReferenceBarrierNode::size_of() const {
@@ -2891,12 +2893,12 @@ uint ShenandoahLoadReferenceBarrierNode::size_of() const {
 }
 
 uint ShenandoahLoadReferenceBarrierNode::hash() const {
-  return Node::hash() + (_native ? 1 : 0);
+  return Node::hash() + (_weak ? 1 : 0);
 }
 
 bool ShenandoahLoadReferenceBarrierNode::cmp( const Node &n ) const {
   return Node::cmp(n) && n.Opcode() == Op_ShenandoahLoadReferenceBarrier &&
-         _native == ((const ShenandoahLoadReferenceBarrierNode&)n)._native;
+         _weak == ((const ShenandoahLoadReferenceBarrierNode&)n)._weak;
 }
 
 const Type* ShenandoahLoadReferenceBarrierNode::bottom_type() const {

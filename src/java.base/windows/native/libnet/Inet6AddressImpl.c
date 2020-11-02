@@ -29,6 +29,7 @@
 #include "java_net_InetAddress.h"
 #include "java_net_Inet4AddressImpl.h"
 #include "java_net_Inet6AddressImpl.h"
+#include "java_net_spi_InetNameService_LookupPolicy.h"
 
 /*
  * Inet6AddressImpl
@@ -56,13 +57,12 @@ Java_java_net_Inet6AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
  */
 JNIEXPORT jobjectArray JNICALL
 Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
-                                                 jstring host, jint lookupDescriptor) {
+                                                 jstring host, jint characteristics) {
     jobjectArray ret = NULL;
     const char *hostname;
     int error = 0;
     struct addrinfo hints, *res = NULL, *resNew = NULL, *last = NULL,
         *iterator;
-    int addressesOrder = lookupPolicyToAddressesOrder(lookupDescriptor);
 
     initInetAddressIDs(env);
     JNU_CHECK_EXCEPTION_RETURN(env, NULL);
@@ -77,7 +77,7 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
     // try once, with our static buffer
     memset(&hints, 0, sizeof(hints));
     hints.ai_flags = AI_CANONNAME;
-    hints.ai_family = lookupPolicyToAddressFamily(lookupDescriptor);
+    hints.ai_family = lookupCharacteristicsToAddressFamily(characteristics);
 
     error = getaddrinfo(hostname, NULL, &hints, &res);
 
@@ -167,13 +167,13 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
             goto cleanupAndReturn;
         }
 
-        if (addressesOrder == IPV6_FIRST_ADDRESSES_ORDER_VALUE) {
+        if ((characteristics & java_net_spi_InetNameService_LookupPolicy_IPV6_FIRST) != 0) {
             inetIndex = inet6Count;
             inet6Index = 0;
-        } else if (addressesOrder == IPV4_FIRST_ADDRESSES_ORDER_VALUE) {
+        } else if ((characteristics & java_net_spi_InetNameService_LookupPolicy_IPV4_FIRST) != 0) {
             inetIndex = 0;
             inet6Index = inetCount;
-        } else if (addressesOrder == SYSTEM_ADDRESSES_ORDER_VALUE) {
+        } else {
             inetIndex = inet6Index = originalIndex = 0;
         }
 
@@ -216,7 +216,9 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
                 (*env)->SetObjectArrayElement(env, ret, (inet6Index | originalIndex), iaObj);
                 inet6Index++;
             }
-            if (addressesOrder == SYSTEM_ADDRESSES_ORDER_VALUE) {
+            // If both IPV4_FIRST and IPV6_FIRST bits are not set - SYSTEM order
+            if ((characteristics &
+                  (java_net_spi_InetNameService_LookupPolicy_IPV4_FIRST | java_net_spi_InetNameService_LookupPolicy_IPV6_FIRST)) == 0) {
                 originalIndex++;
                 inetIndex = inet6Index = 0;
             }

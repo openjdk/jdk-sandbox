@@ -24,9 +24,9 @@
  */
 package java.net;
 import java.io.IOException;
-import java.net.spi.InetNameServiceProvider.LookupPolicy;
+import java.net.spi.InetNameService.LookupPolicy;
 
-import static java.net.spi.InetNameServiceProvider.LookupPolicy.SearchStrategy.IPV6_ONLY;
+import static java.net.spi.InetNameService.LookupPolicy.IPV4;
 
 /*
  * Package private implementation of InetAddressImpl for IPv4.
@@ -37,7 +37,7 @@ class Inet4AddressImpl implements InetAddressImpl {
     public native String getLocalHostName() throws UnknownHostException;
     public InetAddress[] lookupAllHostAddr(String hostname, LookupPolicy lookupPolicy)
             throws UnknownHostException {
-        if (lookupPolicy.searchStrategy() == IPV6_ONLY) {
+        if ((lookupPolicy.characteristics() & IPV4) == 0) {
             throw new UnknownHostException(hostname);
         }
         return lookupAllHostAddr(hostname);

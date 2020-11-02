@@ -26,8 +26,6 @@
 package java.net.spi;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.stream.Stream;
 
 /**
  * An {@code InetNameServiceProvider} can be used to provide a system-wide alternative name
@@ -36,72 +34,16 @@ import java.util.stream.Stream;
 public abstract class InetNameServiceProvider {
 
     /**
-     * NameService provides host and address lookup service
-     */
-    public interface NameService {
-
-        /**
-         * Given the name of a host, returns a stream of IP addresses of the requested
-         * address family associated with a provided hostname.
-         * <p>
-         * {@code host} should be a machine name, such as "{@code www.example.com}",
-         * not a textual representation of its IP address. No validation is performed on
-         * the given {@code host} name: if a textual representation is supplied, the name
-         * resolution is likely to fail and {@link UnknownHostException} may be thrown.
-         * <p>
-         * The address family type and addresses order are specified by the {@code "lookupPolicy"}
-         * parameter and could be acquired with {@link LookupPolicy#searchStrategy()}. If it's
-         * value is {@link LookupPolicy.SearchStrategy#SYSTEM SYSTEM},
-         * {@link LookupPolicy.SearchStrategy#IPV4_FIRST IPV4_FIRST},
-         * or {@link LookupPolicy.SearchStrategy#IPV6_FIRST IPV6_FIRST} this method returns addresses
-         * of both IPV4 and IPV6 families.
-         *
-         * @param host         the specified hostname
-         * @param lookupPolicy the address lookup policy
-         * @return a stream of IP addresses for the requested host
-         * @throws NullPointerException if {@code host} is {@code null}
-         * @throws UnknownHostException if no IP address for the {@code host} could be found
-         * @see LookupPolicy
-         */
-        Stream<InetAddress> lookupByName(String host, LookupPolicy lookupPolicy) throws UnknownHostException;
-
-        /**
-         * Lookup the host name corresponding to the raw IP address provided.
-         * This method performs reverse name service lookup.
-         *
-         * <p>{@code addr} argument is in network byte order: the highest order byte of the address
-         * is in {@code addr[0]}.
-         *
-         * <p> IPv4 address byte array must be 4 bytes long and IPv6 byte array
-         * must be 16 bytes long.
-         *
-         * @param addr byte array representing a raw IP address
-         * @return {@code String} representing the host name mapping
-         * @throws UnknownHostException if no host found for the specified IP address
-         * @throws IllegalArgumentException if IP address is of illegal length
-         */
-        String lookupAddress(byte[] addr) throws UnknownHostException;
-
-        /**
-         * Returns a name of the local host.
-         * This name is used to resolve the local host name into {@code InetAddress}.
-         *
-         * @return the local host name
-         * @throws UnknownHostException if the local host name could not be retrieved by the name service
-         * @see InetAddress#getLocalHost()
-         */
-        String getLocalHostName() throws UnknownHostException;
-    }
-
-    /**
-     * Initialise and return the {@link NameService} provided by
+     * Initialise and return the {@link InetNameService} provided by
      * this provider.
      *
-     * @param defaultNameService The platform default name service which can
-     *                           be used to bootstrap this provider.
+     * @param context a context containing platform address resolution
+     *               configuration which could be used to bootstrap a
+     *               provider.
+     *
      * @return the name service provided by this provider
      */
-    public abstract NameService get(NameService defaultNameService);
+    public abstract InetNameService get(Context context);
 
     /**
      * Returns the name of this provider
@@ -146,84 +88,23 @@ public abstract class InetNameServiceProvider {
     }
 
     /**
-     * An addresses lookup policy object is used to specify a type and order of addresses
-     * supplied to {@link NameService#lookupByName(String, LookupPolicy)}
-     * for performing a host name resolution requests.
-     * <p>
-     * The platform-wide lookup policy is constructed by consulting a
-     * <a href="doc-files/net-properties.html#Ipv4IPv6">System Properties</a> which affects how IPv4 and IPv6
-     * addresses are returned.
+     * A {@code Context} is used to pass host name and IP address resolution related
+     * configuration to the custom {@code NameService}.
      */
-    public static final class LookupPolicy {
-        // Placeholder for a search strategy
-        private final SearchStrategy searchStrategy;
-
-        // Private constructor
-        private LookupPolicy(SearchStrategy searchStrategy) {
-            this.searchStrategy = searchStrategy;
-        }
+    public interface Context {
+        /**
+         * Returns platform default {@link InetNameService NameService} which could be
+         * used to to bootstrap custom providers.
+         *
+         * @return the platform default provider.
+         */
+        InetNameService builtInNameService();
 
         /**
-         * This factory method creates {@link LookupPolicy LookupPolicy} instance from the provided
-         * {@link SearchStrategy SearchStrategy} value.
+         * Returns the localhost name which could be used to to bootstrap custom {@code NameService} providers.
          *
-         * @param searchStrategy search mode that specifies required addresses type and order
-         * @return instance of {@code InetNameServiceProvider.LookupPolicy}
+         * @return the localhost name.
          */
-        public static LookupPolicy of(SearchStrategy searchStrategy) {
-            return new LookupPolicy(searchStrategy);
-        }
-
-        /**
-         * Returns a {@link SearchStrategy SearchStrategy} instance which designates type and order of
-         * address families queried during resolution of host IP addresses.
-         *
-         * @return a {@code SearchStrategy} instance
-         * @see NameService#lookupByName(String, LookupPolicy)
-         */
-        public final SearchStrategy searchStrategy() {
-            return searchStrategy;
-        }
-
-        /**
-         * Specifies a type that is used to designate a family and an order of network addresses
-         * queried during resolution of host IP addresses.
-         *
-         * @see NameService
-         */
-        public enum SearchStrategy {
-            /**
-             * Instructs {@link NameService InetNameServiceProvider.NameService}
-             * to return network addresses for {@code IPv4} and {@code IPv6} address families.
-             * The addresses are ordered in the same way as returned by the name service provider.
-             */
-            SYSTEM,
-
-            /**
-             * Instructs {@link NameService InetNameServiceProvider.NameService}
-             * to return network addresses for {@code IPv4} address family only.
-             */
-            IPV4_ONLY,
-
-            /**
-             * Instructs {@link NameService InetNameServiceProvider.NameService}
-             * to return network addresses for {@code IPv6} address family only.
-             */
-            IPV6_ONLY,
-
-            /**
-             * Instructs {@link NameService InetNameServiceProvider.NameService}
-             * to return network addresses for {@code IPv4} and {@code IPv6} address families.
-             * IPv4 addresses are preferred over IPv6 addresses and returned first.
-             */
-            IPV4_FIRST,
-
-            /**
-             * Instructs {@link NameService InetNameServiceProvider.NameService}
-             * to return network addresses for {@code IPv4} and {@code IPv6} address families.
-             * IPv6 addresses are preferred over IPv4 addresses and returned first.
-             */
-            IPV6_FIRST;
-        }
+        String localHostName();
     }
 }
