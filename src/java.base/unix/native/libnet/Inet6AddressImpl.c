@@ -153,7 +153,7 @@ lookupIfLocalhost(JNIEnv *env, const char *hostname, jboolean includeV6, int cha
     result = (*env)->NewObjectArray(env, arraySize, ia_class, NULL);
     if (!result) goto done;
 
-    if (characteristics & java_net_spi_InetNameService_LookupPolicy_IPV6_FIRST != 0) {
+    if ((characteristics & java_net_spi_InetNameService_LookupPolicy_IPV6_FIRST) != 0) {
         i = includeLoopback ? addrs6 : (addrs6 - numV6Loopbacks);
         j = 0;
     } else {
