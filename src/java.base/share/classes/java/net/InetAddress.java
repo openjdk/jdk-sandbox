@@ -321,7 +321,7 @@ public class InetAddress implements java.io.Serializable {
     /* Used to store the name service provider */
     private static volatile InetNameService nameService;
 
-    private static final InetNameService DEFAULT_INET_NAME_SERVICE;
+    private static final InetNameService BUILTIN_INET_NAME_SERVICE;
 
     /**
      * Used to store the best available hostname.
@@ -352,13 +352,6 @@ public class InetAddress implements java.io.Serializable {
                 new JavaNetInetAddressAccess() {
                     public String getOriginalHostName(InetAddress ia) {
                         return ia.holder.getOriginalHostName();
-                    }
-
-                    public InetAddress getByName(String hostName,
-                                                 InetAddress hostAddress)
-                        throws UnknownHostException
-                    {
-                        return InetAddress.getByName(hostName, hostAddress);
                     }
 
                     public int addressValue(Inet4Address inet4Address) {
@@ -442,7 +435,7 @@ public class InetAddress implements java.io.Serializable {
                 String hostsFileProperty = GetPropertyAction.privilegedGetProperty("jdk.net.hosts.file");
                 if (hostsFileProperty != null) {
                     // The default name service is already host file name service
-                    cns = DEFAULT_INET_NAME_SERVICE;
+                    cns = BUILTIN_INET_NAME_SERVICE;
                 } else if (System.getSecurityManager() != null) {
                     PrivilegedAction<InetNameService> pa = InetAddress::loadNameService;
                     cns = AccessController.doPrivileged(
@@ -457,7 +450,7 @@ public class InetAddress implements java.io.Serializable {
                 NAMESERVICE_LOCK.unlock();
             }
         } else {
-            return DEFAULT_INET_NAME_SERVICE;
+            return BUILTIN_INET_NAME_SERVICE;
         }
     }
 
@@ -465,14 +458,14 @@ public class InetAddress implements java.io.Serializable {
         return ServiceLoader.load(InetNameServiceProvider.class)
                 .findFirst()
                 .map(nsp -> nsp.get(InetAddress.builtInContext()))
-                .orElse(DEFAULT_INET_NAME_SERVICE);
+                .orElse(BUILTIN_INET_NAME_SERVICE);
     }
 
     private static InetNameServiceProvider.Context builtInContext() {
         return new InetNameServiceProvider.Context() {
             @Override
             public InetNameService builtInNameService() {
-                return DEFAULT_INET_NAME_SERVICE;
+                return BUILTIN_INET_NAME_SERVICE;
             }
 
             @Override
@@ -962,11 +955,9 @@ public class InetAddress implements java.io.Serializable {
     // in cache when the result is obtained
     private static final class NameServiceAddresses implements Addresses {
         private final String host;
-        private final InetAddress reqAddr;
 
-        NameServiceAddresses(String host, InetAddress reqAddr) {
+        NameServiceAddresses(String host) {
             this.host = host;
-            this.reqAddr = reqAddr;
         }
 
         @Override
@@ -990,7 +981,7 @@ public class InetAddress implements java.io.Serializable {
                     UnknownHostException ex;
                     int cachePolicy;
                     try {
-                        inetAddresses = getAddressesFromNameService(host, reqAddr);
+                        inetAddresses = getAddressesFromNameService(host);
                         ex = null;
                         cachePolicy = InetAddressCachePolicy.get();
                     } catch (UnknownHostException uhe) {
@@ -1257,7 +1248,7 @@ public class InetAddress implements java.io.Serializable {
         impl = InetAddressImplFactory.create();
 
         // create name service
-        DEFAULT_INET_NAME_SERVICE = createDefaultInetNameService();
+        BUILTIN_INET_NAME_SERVICE = createDefaultInetNameService();
     }
 
     /**
@@ -1373,12 +1364,6 @@ public class InetAddress implements java.io.Serializable {
         return InetAddress.getAllByName(host)[0];
     }
 
-    // called from deployment cache manager
-    private static InetAddress getByName(String host, InetAddress reqAddr)
-        throws UnknownHostException {
-        return InetAddress.getAllByName(host, reqAddr)[0];
-    }
-
     /**
      * Given the name of a host, returns an array of its IP addresses,
      * based on the configured name service on the system.
@@ -1419,11 +1404,6 @@ public class InetAddress implements java.io.Serializable {
      * @see SecurityManager#checkConnect
      */
     public static InetAddress[] getAllByName(String host)
-        throws UnknownHostException {
-        return getAllByName(host, null);
-    }
-
-    private static InetAddress[] getAllByName(String host, InetAddress reqAddr)
         throws UnknownHostException {
 
         if (host == null || host.isEmpty()) {
@@ -1486,7 +1466,7 @@ public class InetAddress implements java.io.Serializable {
             // We were expecting an IPv6 Literal, but got something else
             throw new UnknownHostException("["+host+"]");
         }
-        return getAllByName0(host, reqAddr, true, true);
+        return getAllByName0(host, true, true);
     }
 
     /**
@@ -1547,14 +1527,13 @@ public class InetAddress implements java.io.Serializable {
      */
     static InetAddress[] getAllByName0 (String host, boolean check)
         throws UnknownHostException  {
-        return getAllByName0 (host, null, check, true);
+        return getAllByName0(host, check, true);
     }
 
     /**
      * Designated lookup method.
      *
      * @param host host name to look up
-     * @param reqAddr requested address to be the 1st in returned array
      * @param check perform security check
      * @param useCache use cached value if not expired else always
      *                 perform name service lookup (and cache the result)
@@ -1562,7 +1541,6 @@ public class InetAddress implements java.io.Serializable {
      * @throws UnknownHostException if host name is not found
      */
     private static InetAddress[] getAllByName0(String host,
-                                               InetAddress reqAddr,
                                                boolean check,
                                                boolean useCache)
         throws UnknownHostException  {
@@ -1619,7 +1597,7 @@ public class InetAddress implements java.io.Serializable {
             // the name service and install it within cache...
             Addresses oldAddrs = cache.putIfAbsent(
                 host,
-                addrs = new NameServiceAddresses(host, reqAddr)
+                    addrs = new NameServiceAddresses(host)
             );
             if (oldAddrs != null) { // lost putIfAbsent race
                 addrs = oldAddrs;
@@ -1630,9 +1608,8 @@ public class InetAddress implements java.io.Serializable {
         return addrs.get().clone();
     }
 
-    static InetAddress[] getAddressesFromNameService(String host, InetAddress reqAddr)
-        throws UnknownHostException
-    {
+    static InetAddress[] getAddressesFromNameService(String host)
+            throws UnknownHostException {
         Stream<InetAddress> addresses = null;
         UnknownHostException ex = null;
 
@@ -1649,30 +1626,7 @@ public class InetAddress implements java.io.Serializable {
         if (addresses == null) {
             throw ex == null ? new UnknownHostException(host) : ex;
         }
-
-        // More to do?
-        InetAddress[] addrs = addresses.toArray(InetAddress[]::new);
-        if (reqAddr != null && addrs.length > 1 && !addrs[0].equals(reqAddr)) {
-            // Find it?
-            int i = 1;
-            for (; i < addrs.length; i++) {
-                if (addrs[i].equals(reqAddr)) {
-                    break;
-                }
-            }
-            // Rotate
-            if (i < addrs.length) {
-                InetAddress tmp, tmp2 = reqAddr;
-                for (int j = 0; j < i; j++) {
-                    tmp = addrs[j];
-                    addrs[j] = tmp2;
-                    tmp2 = tmp;
-                }
-                addrs[i] = tmp2;
-            }
-        }
-
-        return addrs;
+        return addresses.toArray(InetAddress[]::new);
     }
 
     /**
@@ -1759,7 +1713,7 @@ public class InetAddress implements java.io.Serializable {
                 // call getAllByName0 without security checks and
                 // without using cached data
                 try {
-                    localAddr = getAllByName0(local, null, false, false)[0];
+                    localAddr = getAllByName0(local, false, false)[0];
                 } catch (UnknownHostException uhe) {
                     // Rethrow with a more informative error message.
                     UnknownHostException uhe2 =
