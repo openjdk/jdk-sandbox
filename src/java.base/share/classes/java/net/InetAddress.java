@@ -1470,6 +1470,61 @@ public class InetAddress implements java.io.Serializable {
     }
 
     /**
+     * Lookup host name address directly from {@link InetNameService}. No caching is performed at the moment.
+     *
+     * @param hostName the name of the host
+     * @param type     type class which specifies type of INET addresses to lookup
+     * @return {@code Stream} of typed InetAddresses
+     * @throws UnknownHostException if no IP address for the {@code hostName} could be found
+     */
+    public static Stream<InetAddress> lookup(String hostName, Class<? extends InetAddress> type) throws UnknownHostException {
+        Stream<InetAddress> result;
+        if (type == Inet4Address.class) {
+            result = nameService().lookupByName(hostName, LookupPolicy.of(IPV4));
+        } else if (type == Inet6Address.class) {
+            result = nameService().lookupByName(hostName, LookupPolicy.of(IPV6));
+        } else if (type == InetAddress.class) {
+            result = nameService().lookupByName(hostName, LookupPolicy.of(IPV4 | IPV6));
+        } else {
+            // Not possible
+            result = Stream.empty();
+        }
+        return result;
+    }
+
+    /**
+     * Returns ordered {@code Stream} of {@code InetAddress}. The order is specified by the type of address
+     * which is returned first.
+     *
+     * @param hostName the name of the host
+     * @param first    type of addresses to return first
+     * @return {@code Stream} of {@code InetAddress} ordered according to the {@code type} value
+     * @throws UnknownHostException if no IP address for the {@code hostName} could be found
+     */
+    public static Stream<InetAddress> priorityLookup(String hostName, Class<? extends InetAddress> first) throws UnknownHostException {
+        Stream<InetAddress> result;
+        if (first == Inet4Address.class) {
+            result = nameService().lookupByName(hostName, LookupPolicy.of(IPV4 | IPV6 | IPV4_FIRST));
+        } else if (first == Inet6Address.class) {
+            result = nameService().lookupByName(hostName, LookupPolicy.of(IPV4 | IPV6 | IPV6_FIRST));
+        } else {
+            result = nameService().lookupByName(hostName, PLATFORM_LOOKUP_POLICY);
+        }
+        return result;
+    }
+
+    /**
+     * Lookup IPv4 and/or IPv6 addresses of the host. Addresses are ordered in platform defined ordered.
+     *
+     * @param hostName host name
+     * @return stream of IPv4/IPv6 addresses
+     * @throws UnknownHostException host address could not be resolved
+     */
+    public static Stream<InetAddress> lookup(String hostName) throws UnknownHostException {
+        return nameService().lookupByName(hostName, PLATFORM_LOOKUP_POLICY);
+    }
+
+    /**
      * Returns the loopback address.
      * <p>
      * The InetAddress returned will represent the IPv4
