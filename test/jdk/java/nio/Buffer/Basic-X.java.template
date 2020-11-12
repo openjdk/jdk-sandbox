@@ -1084,6 +1084,14 @@ public class Basic$Type$
         catchIndexOutOfBounds(b, () -> $Type$Buffer.wrap(s, s.length() + 1, s.length()));
         catchIndexOutOfBounds(b, () -> $Type$Buffer.wrap(s, 1, 0));
         catchIndexOutOfBounds(b, () -> $Type$Buffer.wrap(s, 0, s.length() + 1));
+
+        // Ensure all factories and views are read-only
+        var buffers = java.util.List.of(
+                b.duplicate(), b.slice(), b.slice(0, 1), b.subSequence(0, 1));
+        for (var cb : buffers) {
+            ck(cb, cb.isReadOnly());
+            catchReadOnlyBuffer(cb, () -> cb.put('x'));
+        }
     }
 
 #end[char]

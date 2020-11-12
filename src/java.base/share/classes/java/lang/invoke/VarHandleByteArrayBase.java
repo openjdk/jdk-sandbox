@@ -46,9 +46,9 @@ abstract class VarHandleByteArrayBase {
     static final long BYTE_BUFFER_HB
             = UNSAFE.objectFieldOffset(ByteBuffer.class, "hb");
 
-    // ByteBuffer.isReadOnly
+    // Buffer.readOnly
     static final long BYTE_BUFFER_IS_READ_ONLY
-            = UNSAFE.objectFieldOffset(ByteBuffer.class, "isReadOnly");
+            = UNSAFE.objectFieldOffset(Buffer.class, "readOnly");
 
     static final boolean BE = UNSAFE.isBigEndian();
 

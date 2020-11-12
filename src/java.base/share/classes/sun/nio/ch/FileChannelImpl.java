@@ -1010,19 +1010,23 @@ public class FileChannelImpl
             // a valid file descriptor is not required
             FileDescriptor dummy = new FileDescriptor();
             if ((!writable) || (prot == MAP_RO))
-                return Util.newMappedByteBufferR(0, 0, dummy, null, isSync);
+                return Util.newMappedByteBuffer(0, 0, dummy, null, isSync, true /*readOnly*/);
             else
-                return Util.newMappedByteBuffer(0, 0, dummy, null, isSync);
+                return Util.newMappedByteBuffer(0, 0, dummy, null, isSync, false /*readOnly*/);
         } else if ((!writable) || (prot == MAP_RO)) {
-            return Util.newMappedByteBufferR((int)unmapper.cap,
+            return Util.newMappedByteBuffer((int)unmapper.cap,
                     unmapper.address + unmapper.pagePosition,
                     unmapper.fd,
-                    unmapper, isSync);
+                    unmapper,
+                    isSync,
+                    true /*readOnly*/);
         } else {
             return Util.newMappedByteBuffer((int)unmapper.cap,
                     unmapper.address + unmapper.pagePosition,
                     unmapper.fd,
-                    unmapper, isSync);
+                    unmapper,
+                    isSync,
+                    false /*readOnly*/);
         }
     }
 

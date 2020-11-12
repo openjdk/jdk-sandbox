@@ -93,21 +93,26 @@ public abstract class MappedByteBuffer
     // This should only be invoked by the DirectByteBuffer constructors
     //
     MappedByteBuffer(int mark, int pos, int lim, int cap, // package-private
-                     FileDescriptor fd, boolean isSync, MemorySegmentProxy segment) {
-        super(mark, pos, lim, cap, segment);
+                     FileDescriptor fd, boolean isSync,
+                     boolean readOnly,
+                     MemorySegmentProxy segment) {
+        super(mark, pos, lim, cap, readOnly, segment);
         this.fd = fd;
         this.isSync = isSync;
     }
 
     MappedByteBuffer(int mark, int pos, int lim, int cap, // package-private
-                     boolean isSync, MemorySegmentProxy segment) {
-        super(mark, pos, lim, cap, segment);
+                     boolean isSync,
+                     boolean readOnly, MemorySegmentProxy segment) {
+        super(mark, pos, lim, cap, readOnly, segment);
         this.fd = null;
         this.isSync = isSync;
     }
 
-    MappedByteBuffer(int mark, int pos, int lim, int cap, MemorySegmentProxy segment) { // package-private
-        super(mark, pos, lim, cap, segment);
+    MappedByteBuffer(int mark, int pos, int lim, int cap,
+                     boolean readOnly,
+                     MemorySegmentProxy segment) { // package-private
+        super(mark, pos, lim, cap, readOnly, segment);
         this.fd = null;
         this.isSync = false;
     }

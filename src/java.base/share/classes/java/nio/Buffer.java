@@ -208,6 +208,7 @@ public abstract class Buffer {
     private int position = 0;
     private int limit;
     private int capacity;
+    final boolean readOnly;
 
     // Used by heap byte buffers or direct buffers with Unsafe access
     // For heap byte buffers this field will be the address relative to the
@@ -227,20 +228,23 @@ public abstract class Buffer {
 
     // Creates a new buffer with given address and capacity.
     //
-    Buffer(long addr, int cap, MemorySegmentProxy segment) {
+    Buffer(long addr, int cap, boolean readOnly, MemorySegmentProxy segment) {
         this.address = addr;
         this.capacity = cap;
+        this.readOnly = readOnly;
         this.segment = segment;
     }
 
     // Creates a new buffer with the given mark, position, limit, and capacity,
     // after checking invariants.
     //
-    Buffer(int mark, int pos, int lim, int cap, MemorySegmentProxy segment) {       // package-private
+    Buffer(int mark, int pos, int lim, int cap,
+           boolean readOnly, MemorySegmentProxy segment) {       // package-private
         if (cap < 0)
             throw createCapacityException(cap);
         this.capacity = cap;
         this.segment = segment;
+        this.readOnly = readOnly;
         limit(lim);
         position(pos);
         if (mark >= 0) {
@@ -522,7 +526,9 @@ public abstract class Buffer {
      *
      * @return  {@code true} if, and only if, this buffer is read-only
      */
-    public abstract boolean isReadOnly();
+    public final boolean isReadOnly() {
+        return readOnly;
+    }
 
     /**
      * Tells whether or not this buffer is backed by an accessible
@@ -783,17 +789,17 @@ public abstract class Buffer {
 
                 @Override
                 public ByteBuffer newDirectByteBuffer(long addr, int cap, Object obj, MemorySegmentProxy segment) {
-                    return new DirectByteBuffer(addr, cap, obj, segment);
+                    return new DirectByteBuffer(addr, cap, obj, false, segment);
                 }
 
                 @Override
                 public ByteBuffer newMappedByteBuffer(UnmapperProxy unmapperProxy, long address, int cap, Object obj, MemorySegmentProxy segment) {
-                    return new DirectByteBuffer(address, cap, obj, unmapperProxy.fileDescriptor(), unmapperProxy.isSync(), segment);
+                    return new DirectByteBuffer(address, cap, obj, unmapperProxy.fileDescriptor(), unmapperProxy.isSync(), false, segment);
                 }
 
                 @Override
                 public ByteBuffer newHeapByteBuffer(byte[] hb, int offset, int capacity, MemorySegmentProxy segment) {
-                    return new HeapByteBuffer(hb, offset, capacity, segment);
+                    return new HeapByteBuffer(hb, offset, capacity, false, segment);
                 }
 
                 @Override

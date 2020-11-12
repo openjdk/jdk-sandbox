@@ -35,11 +35,10 @@ class StringCharBuffer                                  // package-private
     CharSequence str;
 
     StringCharBuffer(CharSequence s, int start, int end) { // package-private
-        super(-1, start, end, s.length(), null);
+        super(-1, start, end, s.length(), true, null);   // TODO: check test with false
         int n = s.length();
         Objects.checkFromToIndex(start, end, n);
         str = s;
-        this.isReadOnly = true;
     }
 
     public CharBuffer slice() {
@@ -71,10 +70,8 @@ class StringCharBuffer                                  // package-private
                              int limit,
                              int cap,
                              int offset) {
-        super(mark, pos, limit, cap, null, offset, null);
-        str = s;
-        this.isReadOnly = true;
-    }
+        super(mark, pos, limit, cap, null, offset, true, null);
+        str = s; }
 
     public CharBuffer duplicate() {
         return new StringCharBuffer(str, markValue(),
@@ -109,10 +106,6 @@ class StringCharBuffer                                  // package-private
 
     public final CharBuffer compact() {
         throw new ReadOnlyBufferException();
-    }
-
-    public final boolean isReadOnly() {
-        return true;
     }
 
     final String toString(int start, int end) {

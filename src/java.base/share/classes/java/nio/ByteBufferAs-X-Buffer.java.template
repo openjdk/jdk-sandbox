@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,21 +31,20 @@ import java.util.Objects;
 import jdk.internal.access.foreign.MemorySegmentProxy;
 import jdk.internal.misc.Unsafe;
 
-class ByteBufferAs$Type$Buffer$RW$$BO$                  // package-private
-    extends {#if[ro]?ByteBufferAs}$Type$Buffer{#if[ro]?$BO$}
+class ByteBufferAs$Type$Buffer$BO$                  // package-private
+    extends $Type$Buffer
 {
-
-#if[rw]
 
     protected final ByteBuffer bb;
 
-#end[rw]
-
-    ByteBufferAs$Type$Buffer$RW$$BO$(ByteBuffer bb, MemorySegmentProxy segment) {   // package-private
-#if[rw]
+    ByteBufferAs$Type$Buffer$BO$(ByteBuffer bb,
+                                 boolean readOnly,
+                                 MemorySegmentProxy segment) {   // package-private
         super(-1, 0,
               bb.remaining() >> $LG_BYTES_PER_VALUE$,
-              bb.remaining() >> $LG_BYTES_PER_VALUE$, segment);
+              bb.remaining() >> $LG_BYTES_PER_VALUE$,
+              readOnly,
+              segment);
         this.bb = bb;
         // enforce limit == capacity
         int cap = this.capacity();
@@ -53,23 +52,18 @@ class ByteBufferAs$Type$Buffer$RW$$BO$                  // package-private
         int pos = this.position();
         assert (pos <= cap);
         address = bb.address;
-#else[rw]
-        super(bb, segment);
-#end[rw]
     }
 
-    ByteBufferAs$Type$Buffer$RW$$BO$(ByteBuffer bb,
-                                     int mark, int pos, int lim, int cap,
-                                     long addr, MemorySegmentProxy segment)
+    ByteBufferAs$Type$Buffer$BO$(ByteBuffer bb,
+                                 int mark, int pos, int lim, int cap,
+                                 long addr,
+                                 boolean readOnly,
+                                 MemorySegmentProxy segment)
     {
-#if[rw]
-        super(mark, pos, lim, cap, segment);
+        super(mark, pos, lim, cap, readOnly, segment);
         this.bb = bb;
         address = addr;
         assert address >= bb.address;
-#else[rw]
-        super(bb, mark, pos, lim, cap, addr, segment);
-#end[rw]
     }
 
     @Override
@@ -82,43 +76,43 @@ class ByteBufferAs$Type$Buffer$RW$$BO$                  // package-private
         int lim = this.limit();
         int rem = (pos <= lim ? lim - pos : 0);
         long addr = byteOffset(pos);
-        return new ByteBufferAs$Type$Buffer$RW$$BO$(bb, -1, 0, rem, rem, addr, segment);
+        return new ByteBufferAs$Type$Buffer$BO$(bb, -1, 0, rem, rem, addr, readOnly, segment);
     }
 
     @Override
     public $Type$Buffer slice(int index, int length) {
         Objects.checkFromIndexSize(index, length, limit());
-        return new ByteBufferAs$Type$Buffer$RW$$BO$(bb,
-                                                    -1,
-                                                    0,
-                                                    length,
-                                                    length,
-                                                    byteOffset(index), segment);
+        return new ByteBufferAs$Type$Buffer$BO$(bb,
+                                                -1,
+                                                0,
+                                                length,
+                                                length,
+                                                byteOffset(index),
+                                                readOnly,
+                                                segment);
     }
 
     public $Type$Buffer duplicate() {
-        return new ByteBufferAs$Type$Buffer$RW$$BO$(bb,
-                                                    this.markValue(),
-                                                    this.position(),
-                                                    this.limit(),
-                                                    this.capacity(),
-                                                    address, segment);
+        return new ByteBufferAs$Type$Buffer$BO$(bb,
+                                                this.markValue(),
+                                                this.position(),
+                                                this.limit(),
+                                                this.capacity(),
+                                                address,
+                                                readOnly,
+                                                segment);
     }
 
     public $Type$Buffer asReadOnlyBuffer() {
-#if[rw]
-        return new ByteBufferAs$Type$BufferR$BO$(bb,
-                                                 this.markValue(),
-                                                 this.position(),
-                                                 this.limit(),
-                                                 this.capacity(),
-                                                 address, segment);
-#else[rw]
-        return duplicate();
-#end[rw]
+        return new ByteBufferAs$Type$Buffer$BO$(bb,
+                                                this.markValue(),
+                                                this.position(),
+                                                this.limit(),
+                                                this.capacity(),
+                                                address,
+                                                true,
+                                                segment);
     }
-
-#if[rw]
 
     private int ix(int i) {
         int off = (int) (address - bb.address);
@@ -149,32 +143,27 @@ class ByteBufferAs$Type$Buffer$RW$$BO$                  // package-private
     }
 #end[streamableType]
 
-#end[rw]
-
     public $Type$Buffer put($type$ x) {
-#if[rw]
+        if (readOnly)
+            throw new ReadOnlyBufferException();
         $memtype$ y = $toBits$(x);
         SCOPED_MEMORY_ACCESS.put$Memtype$Unaligned(scope(), bb.hb, byteOffset(nextPutIndex()), y,
             {#if[boB]?true:false});
         return this;
-#else[rw]
-        throw new ReadOnlyBufferException();
-#end[rw]
     }
 
     public $Type$Buffer put(int i, $type$ x) {
-#if[rw]
+        if (readOnly)
+            throw new ReadOnlyBufferException();
         $memtype$ y = $toBits$(x);
         SCOPED_MEMORY_ACCESS.put$Memtype$Unaligned(scope(), bb.hb, byteOffset(checkIndex(i)), y,
             {#if[boB]?true:false});
         return this;
-#else[rw]
-        throw new ReadOnlyBufferException();
-#end[rw]
     }
 
     public $Type$Buffer compact() {
-#if[rw]
+        if (readOnly)
+            throw new ReadOnlyBufferException();
         int pos = position();
         int lim = limit();
         assert (pos <= lim);
@@ -190,17 +179,10 @@ class ByteBufferAs$Type$Buffer$RW$$BO$                  // package-private
         limit(capacity());
         discardMark();
         return this;
-#else[rw]
-        throw new ReadOnlyBufferException();
-#end[rw]
     }
 
     public boolean isDirect() {
         return bb.isDirect();
-    }
-
-    public boolean isReadOnly() {
-        return {#if[rw]?false:true};
     }
 
 #if[char]
@@ -232,12 +214,14 @@ class ByteBufferAs$Type$Buffer$RW$$BO$                  // package-private
         int len = lim - pos;
 
         Objects.checkFromToIndex(start, end, len);
-        return new ByteBufferAsCharBuffer$RW$$BO$(bb,
-                                                  -1,
-                                                  pos + start,
-                                                  pos + end,
-                                                  capacity(),
-                                                  address, segment);
+        return new ByteBufferAsCharBuffer$BO$(bb,
+                                              -1,
+                                              pos + start,
+                                              pos + end,
+                                              capacity(),
+                                              address,
+                                              readOnly,
+                                              segment);
     }
 
 #end[char]

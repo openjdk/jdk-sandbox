@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1007,6 +1007,14 @@ public class BasicChar
         catchIndexOutOfBounds(b, () -> CharBuffer.wrap(s, s.length() + 1, s.length()));
         catchIndexOutOfBounds(b, () -> CharBuffer.wrap(s, 1, 0));
         catchIndexOutOfBounds(b, () -> CharBuffer.wrap(s, 0, s.length() + 1));
+
+        // Ensure all factories and views are read-only
+        var buffers = java.util.List.of(
+                b.duplicate(), b.slice(), b.slice(0, 1), b.subSequence(0, 1));
+        for (var cb : buffers) {
+            ck(cb, cb.isReadOnly());
+            catchReadOnlyBuffer(cb, () -> cb.put('x'));
+        }
     }
 
 

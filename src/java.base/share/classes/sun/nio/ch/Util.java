@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -417,7 +417,9 @@ public class Util {
                                              long.class,
                                              FileDescriptor.class,
                                              Runnable.class,
-                                             boolean.class, MemorySegmentProxy.class});
+                                             boolean.class,  // sync
+                                             boolean.class,  // read-only
+                                             MemorySegmentProxy.class});
                         ctor.setAccessible(true);
                         directByteBufferConstructor = ctor;
                     } catch (ClassNotFoundException   |
@@ -433,7 +435,8 @@ public class Util {
     static MappedByteBuffer newMappedByteBuffer(int size, long addr,
                                                 FileDescriptor fd,
                                                 Runnable unmapper,
-                                                boolean isSync)
+                                                boolean isSync,
+                                                boolean readOnly)
     {
         MappedByteBuffer dbb;
         if (directByteBufferConstructor == null)
@@ -444,7 +447,9 @@ public class Util {
                              addr,
                              fd,
                              unmapper,
-                             isSync, null});
+                             isSync,
+                             readOnly,
+                             null});
         } catch (InstantiationException |
                  IllegalAccessException |
                  InvocationTargetException e) {
@@ -453,53 +458,6 @@ public class Util {
         return dbb;
     }
 
-    private static volatile Constructor<?> directByteBufferRConstructor;
-
-    private static void initDBBRConstructor() {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
-                public Void run() {
-                    try {
-                        Class<?> cl = Class.forName("java.nio.DirectByteBufferR");
-                        Constructor<?> ctor = cl.getDeclaredConstructor(
-                            new Class<?>[] { int.class,
-                                             long.class,
-                                             FileDescriptor.class,
-                                             Runnable.class,
-                                             boolean.class, MemorySegmentProxy.class });
-                        ctor.setAccessible(true);
-                        directByteBufferRConstructor = ctor;
-                    } catch (ClassNotFoundException |
-                             NoSuchMethodException |
-                             IllegalArgumentException |
-                             ClassCastException x) {
-                        throw new InternalError(x);
-                    }
-                    return null;
-                }});
-    }
-
-    static MappedByteBuffer newMappedByteBufferR(int size, long addr,
-                                                 FileDescriptor fd,
-                                                 Runnable unmapper,
-                                                 boolean isSync)
-    {
-        MappedByteBuffer dbb;
-        if (directByteBufferRConstructor == null)
-            initDBBRConstructor();
-        try {
-            dbb = (MappedByteBuffer)directByteBufferRConstructor.newInstance(
-              new Object[] { size,
-                             addr,
-                             fd,
-                             unmapper,
-                             isSync, null});
-        } catch (InstantiationException |
-                 IllegalAccessException |
-                 InvocationTargetException e) {
-            throw new InternalError(e);
-        }
-        return dbb;
-    }
 
     static void checkBufferPositionAligned(ByteBuffer bb,
                                                      int pos, int alignment)
