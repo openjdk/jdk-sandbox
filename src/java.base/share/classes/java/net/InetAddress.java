@@ -411,7 +411,7 @@ public class InetAddress implements java.io.Serializable {
 
     /**
      * The {@code RuntimePermission("inetNameServiceProvider")} is
-     * necessary to subclass and instantiate the {@code InetNameServiceProvider.NameService}
+     * necessary to subclass and instantiate the {@code InetNameServiceProvider}
      * class, as well as to obtain name service from an instance of that class,
      * and it is also required to obtain the operating system name resolution configurations.
      */
@@ -1021,7 +1021,7 @@ public class InetAddress implements java.io.Serializable {
     }
 
     /**
-     * The default NameService implementation, which delegates to the underlying
+     * The default InetNameService implementation, which delegates to the underlying
      * OS network libraries to resolve host address mappings.
      *
      * @since 9
@@ -1051,7 +1051,7 @@ public class InetAddress implements java.io.Serializable {
      * <p>The file format is that which corresponds with the /etc/hosts file
      * IP Address host alias list.
      *
-     * <p>When the file lookup is enabled it replaces the default NameService
+     * <p>When the file lookup is enabled it replaces the default InetNameService
      * implementation
      *
      * @since 9
@@ -1252,10 +1252,10 @@ public class InetAddress implements java.io.Serializable {
     }
 
     /**
-     * Create an instance of the NameService interface based on
+     * Create an instance of the InetNameService interface based on
      * the setting of the {@code jdk.net.hosts.file} system property.
      *
-     * <p>The default NameService is the PlatformNameService, which typically
+     * <p>The default InetNameService is the PlatformNameService, which typically
      * delegates name and address resolution calls to the underlying
      * OS network libraries.
      *
@@ -1264,7 +1264,7 @@ public class InetAddress implements java.io.Serializable {
      * address lookup will result in an UnknownHostException. Thus, non existent
      * hosts file is handled as if the file is empty.
      *
-     * @return a NameService
+     * @return an InetNameService
      */
     private static InetNameService createDefaultInetNameService() {
 

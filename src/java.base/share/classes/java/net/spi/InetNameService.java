@@ -6,7 +6,7 @@ import java.net.UnknownHostException;
 import java.util.stream.Stream;
 
 /**
- * NameService provides host and address lookup service
+ * InetNameService provides host and address lookup service
  */
 public interface InetNameService {
 

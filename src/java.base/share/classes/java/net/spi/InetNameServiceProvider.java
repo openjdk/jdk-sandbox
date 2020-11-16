@@ -89,19 +89,20 @@ public abstract class InetNameServiceProvider {
 
     /**
      * A {@code Context} is used to pass host name and IP address resolution related
-     * configuration to the custom {@code NameService}.
+     * configurations to a {@code InetNameServiceProvider} implementation.
      */
     public interface Context {
         /**
-         * Returns platform default {@link InetNameService NameService} which could be
-         * used to to bootstrap custom providers.
+         * Returns platform default {@link InetNameService InetNameService} which is
+         * used to bootstrap a custom provider.
          *
          * @return the platform default provider.
          */
         InetNameService builtInNameService();
 
         /**
-         * Returns the localhost name which could be used to to bootstrap custom {@code NameService} providers.
+         * Returns the localhost name which is used to bootstrap a custom
+         *  {@code InetNameService} provider.
          *
          * @return the localhost name.
          */
