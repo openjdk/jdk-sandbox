@@ -45,6 +45,7 @@ import java.io.ObjectInputStream.GetField;
 import java.io.ObjectOutputStream;
 import java.io.ObjectOutputStream.PutField;
 import java.lang.annotation.Native;
+import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -205,25 +206,35 @@ import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
  *
  * <h3> Name Service Providers </h3>
  *
- * <p> Resolution mechanisms of host names and IP addresses can be customized
- * by supplying a name service provider that implements the
- * {@link InetNameServiceProvider InetNameServiceProvider}
- * service interface.
- *
- * <p> Until the VM is fully initialized the platform-default implementation is used.
- * After that, the system-wide implementation is initialized as follows:
+ * <p> Resolution of host names and IP addresses is performed by classes
+ * implementing {@link InetNameService} interface.
+ * {@link InetNameService} implementation is supplied, and installed as system wide
+ * name service via the {@link InetNameServiceProvider} service provider interface.
+ * To bootstrap a custom name service provider the platform name resolution
+ * {@linkplain InetNameServiceProvider.Configuration configuration} is supplied
+ * to the provider during
+ * {@link InetNameServiceProvider#get(InetNameServiceProvider.Configuration)}
+ * method invocation.
+ * <p> When calling any of methods to resolve addresses or hostnames for the
+ * first time after full initialization of the VM and no {@link InetNameService}
+ * has yet been set up, then the {@linkplain ServiceLoader} mechanism is used to
+ * locate {@linkplain InetNameServiceProvider}, and initialize the system-wide
+ * {@linkplain InetNameService} implementation as follows:
  * <ol>
- * <li>The ServiceLoader mechanism is used to locate
- *     {@link InetNameServiceProvider InetNameServiceProvider}
- *     implementations using the system class loader. The order the providers are
- *     located is implementation specific. The first provider found will be used
- *     to instantiate the {@link InetNameService InetNameService} by
- *     invoking {@link InetNameServiceProvider#get(InetNameServiceProvider.Context)}
- *     method. The instantiated {@code InetNameService} will be
- *     used as platform name service.
- * <li>If the previous step fails to find a name service provider
- *     the platform default name service will be used.
+ *  <li>The ServiceLoader mechanism is used to locate
+ *      {@link InetNameServiceProvider InetNameServiceProvider}
+ *      implementations using the system class loader. The ordering that installed providers
+ *      are located is implementation specific. The first provider found will be used
+ *      to instantiate the {@link InetNameService InetNameService} by
+ *      invoking {@link InetNameServiceProvider#get(InetNameServiceProvider.Configuration)}
+ *      method. The instantiated {@code InetNameService} will be
+ *      used as a platform name service.
+ *  <li>If the previous step fails to find a name service provider
+ *      the platform default name service will be used.
  * </ol>
+ * <p>If discovered provider fails to instantiate a name service with an {@code Error} or
+ * {@code RuntimeException} thrown - the default system provider will not be installed and
+ * the exception will be propagated to the calling thread.
  *
  * @author  Chris Warth
  * @see     java.net.InetAddress#getByAddress(byte[])
@@ -461,15 +472,15 @@ public class InetAddress implements java.io.Serializable {
                 .orElse(BUILTIN_INET_NAME_SERVICE);
     }
 
-    private static InetNameServiceProvider.Context builtInContext() {
-        return new InetNameServiceProvider.Context() {
+    private static InetNameServiceProvider.Configuration builtInContext() {
+        return new InetNameServiceProvider.Configuration() {
             @Override
-            public InetNameService builtInNameService() {
+            public InetNameService builtinNameService() {
                 return BUILTIN_INET_NAME_SERVICE;
             }
 
             @Override
-            public String localHostName() {
+            public String lookupLocalHostName() {
                 try {
                     return impl.getLocalHostName();
                 } catch (UnknownHostException unknownHostException) {
@@ -795,7 +806,7 @@ public class InetAddress implements java.io.Serializable {
         String host;
             try {
                 // first lookup the hostname
-                host = nameService().lookupAddress(addr.getAddress());
+                host = nameService().lookupHostName(addr.getAddress());
 
                 /* check to see if calling code is allowed to know
                  * the hostname for this IP address, ie, connect to the host
@@ -1028,13 +1039,13 @@ public class InetAddress implements java.io.Serializable {
      */
     private static final class PlatformNameService implements InetNameService {
 
-        public Stream<InetAddress> lookupByName(String host, LookupPolicy policy)
+        public Stream<InetAddress> lookupAddresses(String host, LookupPolicy policy)
                 throws UnknownHostException {
             Objects.requireNonNull(host);
             return Arrays.stream(impl.lookupAllHostAddr(host, policy));
         }
 
-        public String lookupAddress(byte[] addr)
+        public String lookupHostName(byte[] addr)
                 throws UnknownHostException {
             if (addr.length != Inet4Address.INADDRSZ && addr.length != Inet6Address.INADDRSZ) {
                 throw new IllegalArgumentException("Invalid address length");
@@ -1075,7 +1086,7 @@ public class InetAddress implements java.io.Serializable {
          * @throws IllegalArgumentException if IP address is of illegal length
          */
         @Override
-        public String lookupAddress(byte[] addr) throws UnknownHostException, IllegalArgumentException {
+        public String lookupHostName(byte[] addr) throws UnknownHostException {
             String hostEntry;
             String host = null;
 
@@ -1127,7 +1138,7 @@ public class InetAddress implements java.io.Serializable {
          * @throws UnknownHostException
          *             if no IP address for the {@code host} could be found
          */
-        public Stream<InetAddress> lookupByName(String host, LookupPolicy lookupPolicy)
+        public Stream<InetAddress> lookupAddresses(String host, LookupPolicy lookupPolicy)
                 throws UnknownHostException {
             String hostEntry;
             String addrStr;
@@ -1614,7 +1625,7 @@ public class InetAddress implements java.io.Serializable {
         UnknownHostException ex = null;
 
         try {
-            addresses = nameService().lookupByName(host, PLATFORM_LOOKUP_POLICY);
+            addresses = nameService().lookupAddresses(host, PLATFORM_LOOKUP_POLICY);
         } catch (UnknownHostException uhe) {
             if (host.equalsIgnoreCase("localhost")) {
                 addresses = Stream.of(impl.loopbackAddress());

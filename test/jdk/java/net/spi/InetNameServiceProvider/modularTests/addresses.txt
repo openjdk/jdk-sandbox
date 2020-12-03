@@ -1,0 +1,8 @@
+# Test data file for tests in modularTests directory
+# Format: <IP address> <Host Name>
+# If multiple IP addresses are required for host:
+#    multiple lines could be added
+
+2.3.9.1    javaTest.org
+[ca:fe:ba:be::1] javaTest.org
+::3    testHost6.org

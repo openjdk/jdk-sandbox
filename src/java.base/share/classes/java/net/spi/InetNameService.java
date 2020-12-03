@@ -31,7 +31,7 @@ public interface InetNameService {
      * @throws UnknownHostException if no IP address for the {@code host} could be found
      * @see LookupPolicy
      */
-    Stream<InetAddress> lookupByName(String host, LookupPolicy lookupPolicy) throws UnknownHostException;
+    Stream<InetAddress> lookupAddresses(String host, LookupPolicy lookupPolicy) throws UnknownHostException;
 
     /**
      * Lookup the host name corresponding to the raw IP address provided.
@@ -48,11 +48,11 @@ public interface InetNameService {
      * @throws UnknownHostException     if no host found for the specified IP address
      * @throws IllegalArgumentException if IP address is of illegal length
      */
-    String lookupAddress(byte[] addr) throws UnknownHostException;
+    String lookupHostName(byte[] addr) throws UnknownHostException; // lookupByAddress, reverseLookup
 
     /**
      * An addresses lookup policy object is used to specify a type and order of addresses
-     * supplied to {@link InetNameService#lookupByName(String, LookupPolicy)}
+     * supplied to {@link InetNameService#lookupAddresses(String, LookupPolicy)}
      * for performing a host name resolution requests.
      * <p>
      * The platform-wide lookup policy is constructed by consulting a
@@ -99,7 +99,7 @@ public interface InetNameService {
          * @return instance of {@code InetNameServiceProvider.LookupPolicy}
          * @throws IllegalArgumentException if incompatible characteristics are provided
          */
-        public static final LookupPolicy of(int characteristics) throws IllegalArgumentException {
+        public static final LookupPolicy of(int characteristics) {
             // At least one type of addresses should be requested
             if ((characteristics & IPV4) == 0 && (characteristics & IPV6) == 0) {
                 throw new IllegalArgumentException();
@@ -127,7 +127,7 @@ public interface InetNameService {
          * Type and order of address families queried during resolution of host IP addresses.
          *
          * @return a characteristics value
-         * @see InetNameService#lookupByName(String, LookupPolicy)
+         * @see InetNameService#lookupAddresses(String, LookupPolicy)
          */
         public final int characteristics() {
             return characteristics;

@@ -28,22 +28,25 @@ package java.net.spi;
 import java.net.InetAddress;
 
 /**
- * An {@code InetNameServiceProvider} can be used to provide a system-wide alternative name
- * service resolution mechanism used for {@link InetAddress} host name and IP address resolution.
+ * An INET name service provider is used to provide a system-wide alternative name
+ * service resolution mechanism used for {@linkplain InetAddress} host name and IP address resolution.
+ *
+ * An INET name service provider is a concrete subclass of this class that has a zero-argument constructor.
+ *
  */
 public abstract class InetNameServiceProvider {
 
     /**
      * Initialise and return the {@link InetNameService} provided by
      * this provider.
-     *
-     * @param context a context containing platform address resolution
-     *               configuration which could be used to bootstrap a
-     *               provider.
-     *
+     * Any unchecked exception thrown by this method is considered as
+     * a failure of {@code InetNameService} instantiation and will be propagated to
+     * the calling thread.
+     * @param configuration a {@link Configuration} instance containing platform address resolution
+     *               configuration which could be used to bootstrap a provider.
      * @return the name service provided by this provider
      */
-    public abstract InetNameService get(Context context);
+    public abstract InetNameService get(Configuration configuration);
 
     /**
      * Returns the name of this provider
@@ -88,17 +91,17 @@ public abstract class InetNameServiceProvider {
     }
 
     /**
-     * A {@code Context} is used to pass host name and IP address resolution related
-     * configurations to a {@code InetNameServiceProvider} implementation.
+     * A {@code Configuration} is used to pass host name and IP address resolution related
+     * configuration to a {@code InetNameServiceProvider} implementation.
      */
-    public interface Context {
+    public interface Configuration {
         /**
          * Returns platform default {@link InetNameService InetNameService} which is
          * used to bootstrap a custom provider.
          *
          * @return the platform default provider.
          */
-        InetNameService builtInNameService();
+        InetNameService builtinNameService();
 
         /**
          * Returns the localhost name which is used to bootstrap a custom
@@ -106,6 +109,6 @@ public abstract class InetNameServiceProvider {
          *
          * @return the localhost name.
          */
-        String localHostName();
+        String lookupLocalHostName();
     }
 }
