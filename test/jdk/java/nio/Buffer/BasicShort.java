@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,18 @@
 
 // -- This file was mechanically generated: Do not edit! -- //
 
+
+
+
+
 import java.nio.*;
+import java.util.List;
+
+
+
+
+
+
 
 
 public class BasicShort
@@ -498,6 +509,73 @@ public class BasicShort
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     private static void fail(String problem,
                              ShortBuffer xb, ShortBuffer yb,
                              short x, short y) {
@@ -513,7 +591,7 @@ public class BasicShort
     }
 
     private static void catchReadOnlyBuffer(Buffer b, Runnable thunk) {
-        tryCatch(b, ReadOnlyBufferException.class, thunk);
+        tryCatchExact(b, ReadOnlyBufferException.class, thunk);
     }
 
     private static void catchIndexOutOfBounds(Buffer b, Runnable thunk) {
@@ -524,22 +602,36 @@ public class BasicShort
         tryCatch(t, IndexOutOfBoundsException.class, thunk);
     }
 
+    private static void catchUnsupportedOperationException(Buffer b, Runnable thunk) {
+        tryCatchExact(b, UnsupportedOperationException.class, thunk);
+    }
+
     private static void tryCatch(Buffer b, Class<?> ex, Runnable thunk) {
-        boolean caught = false;
+        tryCatchImpl(b, ex, thunk, false);
+    }
+
+    private static void tryCatchExact(Buffer b, Class<?> ex, Runnable thunk) {
+        tryCatchImpl(b, ex, thunk, true);
+    }
+
+    private static void tryCatchImpl(Buffer b, Class<?> ex, Runnable thunk, boolean exact) {
         try {
             thunk.run();
-        } catch (Throwable x) {
-            if (ex.isAssignableFrom(x.getClass())) {
-                caught = true;
-            } else {
-                String s = x.getMessage();
-                if (s == null)
-                    s = x.getClass().getName();
-                fail(s + " not expected");
-            }
-        }
-        if (!caught) {
             fail(ex.getName() + " not thrown", b);
+        } catch (Throwable x) {
+            if (exact) {
+                if (ex == x.getClass())
+                    return;  // ok, caught expected exact exception
+                fail("Expected: " + ex.getName() + ", got: " + x);
+            }
+            if (ex.isAssignableFrom(x.getClass())) {
+                return;  // ok, caught expected assignable exception
+            }
+            // we're going to fail
+            String s = x.getMessage();
+            if (s == null)
+                s = x.getClass().getName();
+            fail(s + " not expected");
         }
     }
 
@@ -957,12 +1049,17 @@ public class BasicShort
 
 
 
-        if (rb.getClass().getName().startsWith("java.nio.Heap")) {
+        // Non-view Heap buffers only
+        if (!rb.isDirect() && rb.getClass().getName().endsWith("Buffer")) {
             catchReadOnlyBuffer(b, () -> rb.array());
             catchReadOnlyBuffer(b, () -> rb.arrayOffset());
             if (rb.hasArray()) {
                 fail("Read-only heap buffer's backing array is accessible", rb);
             }
+        } else { // other buffers should have an inaccessible backing array
+            ck(b, !rb.hasArray());
+            catchUnsupportedOperationException(b, () -> rb.array());
+            catchUnsupportedOperationException(b, () -> rb.arrayOffset());
         }
 
         // Bulk puts from read-only buffers
@@ -989,6 +1086,28 @@ public class BasicShort
 
 
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

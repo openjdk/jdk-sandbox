@@ -79,45 +79,27 @@ public abstract class MappedByteBuffer
 
     // For mapped buffers, a FileDescriptor that may be used for mapping
     // operations if valid; null if the buffer is not mapped.
-    private final FileDescriptor fd;
+    final FileDescriptor fd;
 
     // A flag true if this buffer is mapped against non-volatile
     // memory using one of the extended FileChannel.MapMode modes,
     // MapMode.READ_ONLY_SYNC or MapMode.READ_WRITE_SYNC and false if
     // it is mapped using any of the other modes. This flag only
     // determines the behavior of force operations.
-    private final boolean isSync;
+    final boolean isSync;
 
     static final ScopedMemoryAccess SCOPED_MEMORY_ACCESS = ScopedMemoryAccess.getScopedMemoryAccess();
 
     // This should only be invoked by the DirectByteBuffer constructors
     //
-    MappedByteBuffer(int mark, int pos, int lim, int cap, // package-private
+    MappedByteBuffer(long address,
+                     int mark, int pos, int lim, int cap, // package-private
                      FileDescriptor fd, boolean isSync,
                      boolean readOnly, boolean bigEndian,
-                     MemorySegmentProxy segment) {
-        super(mark, pos, lim, cap, readOnly, bigEndian, segment);
+                     Object attachment, MemorySegmentProxy segment) {
+        super(address, null, mark, pos, lim, cap, readOnly, bigEndian, attachment, segment);
         this.fd = fd;
         this.isSync = isSync;
-    }
-
-    MappedByteBuffer(int mark, int pos, int lim, int cap, // package-private
-                     boolean isSync,
-                     boolean readOnly,
-                     boolean bigEndian,
-                     MemorySegmentProxy segment) {
-        super(mark, pos, lim, cap, readOnly, bigEndian, segment);
-        this.fd = null;
-        this.isSync = isSync;
-    }
-
-    MappedByteBuffer(int mark, int pos, int lim, int cap,
-                     boolean readOnly,
-                     boolean bigEndian,
-                     MemorySegmentProxy segment) { // package-private
-        super(mark, pos, lim, cap, readOnly, bigEndian, segment);
-        this.fd = null;
-        this.isSync = false;
     }
 
     UnmapperProxy unmapper() {

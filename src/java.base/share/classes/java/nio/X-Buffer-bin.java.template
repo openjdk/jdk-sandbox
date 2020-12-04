@@ -42,7 +42,9 @@ class XXX {
      *          If there are fewer than $nbytes$ bytes
      *          remaining in this buffer
      */
-    public abstract $type$ get$Type$();
+    public $type$ get$Type$() {
+        return super.get$Type$Impl(nextGetIndex($BYTES_PER_VALUE$));
+    }
 
     /**
      * Relative <i>put</i> method for writing $a$ $type$
@@ -64,7 +66,10 @@ class XXX {
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
-    public abstract ByteBuffer put$Type$($type$ value);
+    public ByteBuffer put$Type$($type$ value) {
+        super.put$Type$Impl(nextPutIndex($BYTES_PER_VALUE$), value);
+        return this;
+    }
 
     /**
      * Absolute <i>get</i> method for reading $a$ $type$ value.
@@ -82,7 +87,9 @@ class XXX {
      *          or not smaller than the buffer's limit,
      *          minus $nbytesButOne$
      */
-    public abstract $type$ get$Type$(int index);
+    public $type$ get$Type$(int index) {
+        return super.get$Type$Impl(checkGetIndex(index, $BYTES_PER_VALUE$));
+    }
 
     /**
      * Absolute <i>put</i> method for writing $a$ $type$
@@ -107,7 +114,10 @@ class XXX {
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
-    public abstract ByteBuffer put$Type$(int index, $type$ value);
+    public ByteBuffer put$Type$(int index, $type$ value) {
+        super.put$Type$Impl(checkPutIndex(index, $BYTES_PER_VALUE$), value);
+        return this;
+    }
 
     /**
      * Creates a view of this byte buffer as $a$ $type$ buffer.
@@ -126,7 +136,26 @@ class XXX {
      *
      * @return  A new $type$ buffer
      */
-    public abstract $Type$Buffer as$Type$Buffer();
+    public $Type$Buffer as$Type$Buffer() {
+        final int pos = this.position();
+        final int lim = this.limit();
+        assert (pos <= lim);
+        final int rem = (pos <= lim ? lim - pos : 0);
+        final int size = rem >> $LG_BYTES_PER_VALUE$;
+        return isDirect() ?
+                new $Type$Buffer.DirectView(address + pos,
+                                            -1, 0, size, size,
+                                            readOnly,
+                                            bigEndian,
+                                            this,
+                                            segment) :
+                new $Type$Buffer.HeapView(address + pos,
+                                          hb,
+                                          -1, 0, size, size,
+                                          readOnly,
+                                          bigEndian,
+                                          segment);
+    }
 
 #end
 

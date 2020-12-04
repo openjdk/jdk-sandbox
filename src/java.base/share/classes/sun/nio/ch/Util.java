@@ -416,7 +416,7 @@ public class Util {
                             new Class<?>[] { int.class,
                                              long.class,
                                              FileDescriptor.class,
-                                             Runnable.class,
+                                             Runnable.class, // unmapper
                                              boolean.class,  // sync
                                              boolean.class,  // read-only
                                              boolean.class,  // is-big-endian

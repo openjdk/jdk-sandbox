@@ -287,44 +287,6 @@ $(eval $(call SetupGenBuffer,LongBuffer,  $(X_BUF), type:=long))
 $(eval $(call SetupGenBuffer,FloatBuffer, $(X_BUF), type:=float))
 $(eval $(call SetupGenBuffer,DoubleBuffer,$(X_BUF), type:=double))
 
-# Buffers whose contents are heap-allocated
-#
-HEAP_X_BUF := Heap-X-Buffer
-
-$(eval $(call SetupGenBuffer,HeapByteBuffer,   $(HEAP_X_BUF), type:=byte))
-$(eval $(call SetupGenBuffer,HeapCharBuffer,   $(HEAP_X_BUF), type:=char))
-$(eval $(call SetupGenBuffer,HeapShortBuffer,  $(HEAP_X_BUF), type:=short))
-$(eval $(call SetupGenBuffer,HeapIntBuffer,    $(HEAP_X_BUF), type:=int))
-$(eval $(call SetupGenBuffer,HeapLongBuffer,   $(HEAP_X_BUF), type:=long))
-$(eval $(call SetupGenBuffer,HeapFloatBuffer,  $(HEAP_X_BUF), type:=float))
-$(eval $(call SetupGenBuffer,HeapDoubleBuffer, $(HEAP_X_BUF), type:=double))
-
-# Direct byte buffer
-#
-DIRECT_X_BUF := Direct-X-Buffer
-
-$(eval $(call SetupGenBuffer,DirectByteBuffer, $(DIRECT_X_BUF), type:=byte, BIN:=1))
-
-# Views of direct byte buffers
-#
-$(eval $(call SetupGenBuffer,DirectCharBuffer,   $(DIRECT_X_BUF), type:=char))
-$(eval $(call SetupGenBuffer,DirectShortBuffer,  $(DIRECT_X_BUF), type:=short))
-$(eval $(call SetupGenBuffer,DirectIntBuffer,    $(DIRECT_X_BUF), type:=int))
-$(eval $(call SetupGenBuffer,DirectLongBuffer,   $(DIRECT_X_BUF), type:=long))
-$(eval $(call SetupGenBuffer,DirectFloatBuffer,  $(DIRECT_X_BUF), type:=float))
-$(eval $(call SetupGenBuffer,DirectDoubleBuffer, $(DIRECT_X_BUF), type:=double))
-
-# Views of byte buffers
-#
-BYTE_X_BUF := ByteBufferAs-X-Buffer
-
-$(eval $(call SetupGenBuffer,ByteBufferAsCharBuffer,   $(BYTE_X_BUF), type:=char))
-$(eval $(call SetupGenBuffer,ByteBufferAsShortBuffer,  $(BYTE_X_BUF), type:=short))
-$(eval $(call SetupGenBuffer,ByteBufferAsIntBuffer,    $(BYTE_X_BUF), type:=int))
-$(eval $(call SetupGenBuffer,ByteBufferAsLongBuffer,   $(BYTE_X_BUF), type:=long))
-$(eval $(call SetupGenBuffer,ByteBufferAsFloatBuffer,  $(BYTE_X_BUF), type:=float))
-$(eval $(call SetupGenBuffer,ByteBufferAsDoubleBuffer, $(BYTE_X_BUF), type:=double))
-
 ###
 
 $(GENSRC_BUFFER): $(BUILD_TOOLS_JDK)

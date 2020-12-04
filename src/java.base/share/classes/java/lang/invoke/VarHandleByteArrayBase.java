@@ -44,7 +44,7 @@ abstract class VarHandleByteArrayBase {
 
     // ByteBuffer.hb
     static final long BYTE_BUFFER_HB
-            = UNSAFE.objectFieldOffset(ByteBuffer.class, "hb");
+            = UNSAFE.objectFieldOffset(Buffer.class, "hb");
 
     // Buffer.readOnly
     static final long BYTE_BUFFER_IS_READ_ONLY

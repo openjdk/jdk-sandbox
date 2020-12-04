@@ -191,12 +191,8 @@ public class TestBufferVectorization {
     }
 
     static void verify_vectors(Test t, String testName) {
-        if (testName.equals("bufferDirect")) {
-            return; // bufferDirect uses Unsafe memory accesses which are not vectorized currently
-        }
-
-        if (testName.equals("bufferHeap") && (arch.equals("x86") || arch.equals("i386"))) {
-            return; // bufferHeap uses Long type for memory accesses which are not vectorized in 32-bit VM
+        if (testName.startsWith("buffer")) {
+            return; // buffers uses Unsafe memory accesses which are not vectorized currently
         }
 
         ProcessBuilder pb;

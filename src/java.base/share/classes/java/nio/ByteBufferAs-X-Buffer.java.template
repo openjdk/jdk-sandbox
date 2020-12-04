@@ -38,25 +38,6 @@ class ByteBufferAs$Type$Buffer                  // package-private
     protected final ByteBuffer bb;
 
     ByteBufferAs$Type$Buffer(ByteBuffer bb,
-                             boolean readOnly,
-                             boolean bigEndian,
-                             MemorySegmentProxy segment) {   // package-private
-        super(-1, 0,
-              bb.remaining() >> $LG_BYTES_PER_VALUE$,
-              bb.remaining() >> $LG_BYTES_PER_VALUE$,
-              readOnly,
-              bigEndian,
-              segment);
-        this.bb = bb;
-        // enforce limit == capacity
-        int cap = this.capacity();
-        this.limit(cap);
-        int pos = this.position();
-        assert (pos <= cap);
-        address = bb.address;
-    }
-
-    ByteBufferAs$Type$Buffer(ByteBuffer bb,
                              int mark, int pos, int lim, int cap,
                              long addr,
                              boolean readOnly,

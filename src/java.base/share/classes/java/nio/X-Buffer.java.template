@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,9 @@ import java.util.stream.$Streamtype$Stream;
 
 import java.util.Objects;
 import jdk.internal.access.foreign.MemorySegmentProxy;
+import jdk.internal.ref.Cleaner;
 import jdk.internal.util.ArraysSupport;
+import sun.nio.ch.DirectBuffer;
 
 /**
  * $A$ $type$ buffer.
@@ -264,60 +266,65 @@ import jdk.internal.util.ArraysSupport;
  * @since 1.4
  */
 
-public abstract class $Type$Buffer
-    extends Buffer
+public class $Type$Buffer
+    extends AbstractBufferImpl<$Type$Buffer, $type$[]>
     implements Comparable<$Type$Buffer>{#if[char]?, Appendable, CharSequence, Readable}
 {
+    private static final long ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset($type$[].class);
 
-    // These fields are declared here rather than in Heap-X-Buffer in order to
-    // reduce the number of virtual method invocations needed to access these
-    // values, which is especially costly when coding small buffers.
+    // Creates a new buffer with the given address and optional backing array.
     //
-    final $type$[] hb;                  // Non-null only for heap buffers
-    final int offset;
-
-    // Creates a new buffer with the given mark, position, limit, capacity,
-    // backing array, and array offset
+    // For off-heap buffers the array, hb, will be null, and the address will be
+    // the actual memory address. For heap buffers, hb will be non-null and the
+    // address will be the array base offset + any additional array offset.
     //
-    $Type$Buffer(int mark, int pos, int lim, int cap,   // package-private
-                 $type$[] hb, int offset,
-                 boolean readOnly, boolean bigEndian,
-                 MemorySegmentProxy segment)
-    {
-        super(mark, pos, lim, cap, readOnly, segment);
-        this.hb = hb;
-        this.offset = offset;
-        this.bigEndian = bigEndian;
-    }
-
-    // Creates a new buffer with the given mark, position, limit, and capacity
-    //
-    $Type$Buffer(int mark, int pos, int lim, int cap,
-                 boolean readOnly, boolean bigEndian,
-                 MemorySegmentProxy segment) { // package-private
-        this(mark, pos, lim, cap, null, 0, readOnly, bigEndian, segment);
-    }
-
-    // Creates a new buffer with given base, address and capacity
-    //
-    $Type$Buffer($type$[] hb, long addr, int cap,
-                 boolean readOnly, boolean bigEndian,
-                 MemorySegmentProxy segment) { // package-private
-        super(addr, cap, readOnly, segment);
-        this.hb = hb;
-        this.offset = 0;
+    // The buffers mark, position, limit, capacity, are that of the given values.
+    // The buffer is read-only if readOnly is true. The buffer is big-endian if
+    // bigEndian is true, otherwise little-endian if false. An optional, possibly
+    // null attachment and segment may be given.
+    $Type$Buffer(long address, Object hb,
+                 int mark, int pos, int lim, int cap,
+                 boolean readOnly,
+                 boolean bigEndian,
+                 Object attachment,
+                 MemorySegmentProxy segment) {
+        super(address, hb, mark, pos, lim, cap, readOnly, attachment, segment);
         this.bigEndian = bigEndian;
     }
 
     @Override
+    final int scaleFactor() {
+        return $LG_BYTES_PER_VALUE$;
+    }
+
+    @Override
     Object base() {
-        return hb;
+        return ($type$[])hb;
+    }
+
+    @Override
+    final Class<$type$[]> carrier() {
+        return $type$[].class;
+    }
+
+    @Override
+    final boolean bigEndian() {
+        return bigEndian;
+    }
+
+    @Override
+    $Type$Buffer dup(int offset, int mark, int pos, int lim, int cap, boolean readOnly) {
+#if[byte]
+        return new $Type$Buffer(address + offset, hb, mark, pos, lim, cap, readOnly, true, null, segment);
+#else[byte]
+        return new $Type$Buffer(address + offset, hb, mark, pos, lim, cap, readOnly, bigEndian, null, segment);
+#end[byte]
     }
 
 #if[byte]
 
     /**
-     * Allocates a new direct $type$ buffer.
+     * Allocates a new direct byte buffer.
      *
      * <p> The new buffer's position will be zero, its limit will be its
      * capacity, its mark will be undefined, each of its elements will be
@@ -328,15 +335,13 @@ public abstract class $Type$Buffer
      * @param  capacity
      *         The new buffer's capacity, in $type$s
      *
-     * @return  The new $type$ buffer
+     * @return  The new byte buffer
      *
      * @throws  IllegalArgumentException
      *          If the {@code capacity} is a negative integer
      */
-    public static $Type$Buffer allocateDirect(int capacity) {
-        return new Direct$Type$Buffer(capacity,
-                                      false, /* read-only  */
-                                      true   /* big-endian */ );
+    public static ByteBuffer allocateDirect(int capacity) {
+        return DirectByteBuffer.createDirectBuffer(capacity);
     }
 
 #end[byte]
@@ -367,15 +372,17 @@ public abstract class $Type$Buffer
     public static $Type$Buffer allocate(int capacity) {
         if (capacity < 0)
             throw createCapacityException(capacity);
-        return new Heap$Type$Buffer(capacity,
-                                    capacity,
-                                    false, /* read-only */
+         return new $Type$Buffer(ARRAY_BASE_OFFSET,
+                                 new $type$[capacity],
+                                 -1, 0, capacity, capacity,
+                                 false,       /* read-only */
 #if[byte]
-                                    true, /* big-endian */
+                                 true,        /* big-endian */
 #else[byte]
-                                    NORD_IS_BIG, /* true if big-endian */
+                                 NORD_IS_BIG, /* true if native order is big-endian */
 #end[byte]
-                                    null);
+                                 null,        /* attachment */
+                                 null);       /* segment */
     }
 
     /**
@@ -420,16 +427,17 @@ public abstract class $Type$Buffer
                                     int offset, int length)
     {
         try {
-            return new Heap$Type$Buffer(array,
-            offset,
-            length,
-            false, /* read-only */
+            return new $Type$Buffer(ARRAY_BASE_OFFSET,
+                                    array,
+                                    -1, offset, offset + length, array.length,
+                                    false,  /* read-only */
 #if[byte]
-            true, /* big-endian */
+                                    true, /* big-endian */
 #else[byte]
-            NORD_IS_BIG, /* true if big-endian */
+                                    NORD_IS_BIG, /* true if native order is big-endian */
 #end[byte]
-            null);
+                                    null,   /* attachment */
+                                    null);  /* segment    */
         } catch (IllegalArgumentException x) {
             throw new IndexOutOfBoundsException();
         }
@@ -580,7 +588,9 @@ public abstract class $Type$Buffer
 #end[byte]
      */
     @Override
-    public abstract $Type$Buffer slice();
+    public $Type$Buffer slice() {
+        return super.slice();
+    }
 
     /**
      * Creates a new $type$ buffer whose content is a shared subsequence of
@@ -620,7 +630,9 @@ public abstract class $Type$Buffer
      * @since 13
      */
     @Override
-    public abstract $Type$Buffer slice(int index, int length);
+    public $Type$Buffer slice(int index, int length) {
+        return super.slice(index, length);
+    }
 
     /**
      * Creates a new $type$ buffer that shares this buffer's content.
@@ -643,7 +655,9 @@ public abstract class $Type$Buffer
      * @return  The new $type$ buffer
      */
     @Override
-    public abstract $Type$Buffer duplicate();
+    public $Type$Buffer duplicate() {
+        return super.duplicate();
+    }
 
     /**
      * Creates a new, read-only $type$ buffer that shares this buffer's
@@ -668,7 +682,9 @@ public abstract class $Type$Buffer
      *
      * @return  The new, read-only $type$ buffer
      */
-    public abstract $Type$Buffer asReadOnlyBuffer();
+    public $Type$Buffer asReadOnlyBuffer() {
+        return super.asReadOnlyBuffer();
+    }
 
 
     // -- Singleton get/put methods --
@@ -682,7 +698,9 @@ public abstract class $Type$Buffer
      * @throws  BufferUnderflowException
      *          If the buffer's current position is not smaller than its limit
      */
-    public abstract $type$ get();
+    public $type$ get() {
+        return super.get$Type$Impl(nextGetIndex());
+    }
 
     /**
      * Relative <i>put</i> method&nbsp;&nbsp;<i>(optional operation)</i>.
@@ -701,7 +719,10 @@ public abstract class $Type$Buffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
-    public abstract $Type$Buffer put($type$ $x$);
+    public $Type$Buffer put($type$ $x$) {
+        super.put$Type$Impl(nextPutIndex(), $x$);
+        return this;
+    }
 
     /**
      * Absolute <i>get</i> method.  Reads the $type$ at the given
@@ -716,7 +737,9 @@ public abstract class $Type$Buffer
      *          If {@code index} is negative
      *          or not smaller than the buffer's limit
      */
-    public abstract $type$ get(int index);
+    public $type$ get(int index) {
+        return super.get$Type$Impl(checkGetIndex(index));
+    }
 
 #if[streamableType]
     /**
@@ -728,7 +751,9 @@ public abstract class $Type$Buffer
      *
      * @return  The $type$ at the given index
      */
-    abstract $type$ getUnchecked(int index);   // package-private
+    $type$ getUnchecked(int index) {  // package-private
+        return super.get$Type$Impl(index);
+    }
 #end[streamableType]
 
     /**
@@ -752,7 +777,10 @@ public abstract class $Type$Buffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
-    public abstract $Type$Buffer put(int index, $type$ $x$);
+    public $Type$Buffer put(int index, $type$ $x$) {
+        super.put$Type$Impl(checkPutIndex(index), $x$);
+        return this;
+    }
 
 
     // -- Bulk get operations --
@@ -808,12 +836,7 @@ public abstract class $Type$Buffer
      *          parameters do not hold
      */
     public $Type$Buffer get($type$[] dst, int offset, int length) {
-        Objects.checkFromIndexSize(offset, length, dst.length);
-        if (length > remaining())
-            throw new BufferUnderflowException();
-        int end = offset + length;
-        for (int i = offset; i < end; i++)
-            dst[i] = get();
+        super.getBulkImpl(dst, offset, length);
         return this;
     }
 
@@ -885,11 +908,7 @@ public abstract class $Type$Buffer
      * @since 13
      */
     public $Type$Buffer get(int index, $type$[] dst, int offset, int length) {
-        Objects.checkFromIndexSize(index, length, limit());
-        Objects.checkFromIndexSize(offset, length, dst.length);
-        int end = offset + length;
-        for (int i = offset, j = index; i < end; i++, j++)
-            dst[i] = get(j);
+        super.getBulkImpl(index, dst, offset, length);
         return this;
     }
 
@@ -971,22 +990,29 @@ public abstract class $Type$Buffer
      *          If this buffer is read-only
      */
     public $Type$Buffer put($Type$Buffer src) {
-        if (src == this)
-            throw createSameBufferException();
-        if (readOnly)
-            throw new ReadOnlyBufferException();
-
-        int srcPos = src.position();
-        int n = src.limit() - srcPos;
-        int pos = position();
-        if (n > limit() - pos)
-            throw new BufferOverflowException();
-
-        putBuffer(pos, src, srcPos, n);
-
-        position(pos + n);
-        src.position(srcPos + n);
-
+#if[!char]
+        super.putBulkImpl(src);
+#else[!char]
+        if (src.isAddressable()) {
+            super.putBulkImpl(src);
+        } else {
+            if (src == this)
+                throw createSameBufferException();
+            if (readOnly)
+                throw new ReadOnlyBufferException();
+            final int srcPos = src.position();
+            final int srcLim= src.limit();
+            final int dstPos = position();
+            final int dstLim = limit();
+            final int srcLength    = (srcPos <= srcLim ? srcLim - srcPos : 0);
+            final int dstRemaining = (dstPos <= dstLim ? dstLim - dstPos : 0);
+            if (srcLength > dstRemaining)
+                throw new BufferOverflowException();
+            putInternal(dstPos, src, srcPos, srcLength);
+            position(dstPos + srcLength);
+            src.position(srcPos + srcLength);
+        }
+#end[!char]
         return this;
     }
 
@@ -1041,64 +1067,30 @@ public abstract class $Type$Buffer
      * @since 16
      */
     public $Type$Buffer put(int index, $Type$Buffer src, int offset, int length) {
-        Objects.checkFromIndexSize(index, length, limit());
-        Objects.checkFromIndexSize(offset, length, src.limit());
-        if (readOnly)
-            throw new ReadOnlyBufferException();
-
-        putBuffer(index, src, offset, length);
-
+#if[!char]
+        super.putBulkImpl(index, src, offset, length);
+#else[!char]
+        if (src.isAddressable()) {
+            super.putBulkImpl(index, src, offset, length);
+        } else {
+            Objects.checkFromIndexSize(index, length, limit());
+            Objects.checkFromIndexSize(offset, length, src.limit());
+            if (readOnly)
+                throw new ReadOnlyBufferException();
+            putInternal(index, src, offset, length);
+        }
+#end[!char]
         return this;
     }
 
-    void putBuffer(int pos, $Type$Buffer src, int srcPos, int n) {
-        Object srcBase = src.base();
-
 #if[char]
-        if (src.isAddressable()) {
-#else[char]
-        assert srcBase != null || src.isDirect();
-#end[char]
-
-            Object base = base();
-            assert base != null || isDirect();
-
-            long srcAddr = src.address + ((long)srcPos << $LG_BYTES_PER_VALUE$);
-            long addr = address + ((long)pos << $LG_BYTES_PER_VALUE$);
-            long len = (long)n << $LG_BYTES_PER_VALUE$;
-
-#if[!byte]
-            if (this.order() == src.order()) {
-#end[!byte]
-                try {
-                    SCOPED_MEMORY_ACCESS.copyMemory(
-                            scope(), src.scope(), srcBase,
-                            srcAddr, base, addr, len);
-                } finally {
-                    Reference.reachabilityFence(src);
-                    Reference.reachabilityFence(this);
-                }
-#if[!byte]
-            } else {
-                try {
-                    SCOPED_MEMORY_ACCESS.copySwapMemory(
-                            scope(), src.scope(), srcBase,
-                            srcAddr, base, addr, len, (long)1 << $LG_BYTES_PER_VALUE$);
-                } finally {
-                    Reference.reachabilityFence(src);
-                    Reference.reachabilityFence(this);
-                }
-            }
-#end[!byte]
-#if[char]
-        } else { // src.isAddressable() == false
-            assert StringCharBuffer.class.isInstance(src);
-            int posMax = pos + n;
-            for (int i = pos, j = srcPos; i < posMax; i++, j++)
-                put(i, src.get(j));
-        }
-#end[char]
+    private final void putInternal(int index, CharBuffer src, int srcPos, int length) {
+        assert StringCharBuffer.class.isInstance(src);
+        int posMax = index + length;
+        for (int i = index, j = srcPos; i < posMax; i++, j++)
+            put(i, src.get(j));
     }
+#end[char]
 
     /**
      * Relative bulk <i>put</i> method&nbsp;&nbsp;<i>(optional operation)</i>.
@@ -1152,12 +1144,7 @@ public abstract class $Type$Buffer
      *          If this buffer is read-only
      */
     public $Type$Buffer put($type$[] src, int offset, int length) {
-        Objects.checkFromIndexSize(offset, length, src.length);
-        if (length > remaining())
-            throw new BufferOverflowException();
-        int end = offset + length;
-        for (int i = offset; i < end; i++)
-            this.put(src[i]);
+        super.putBulkImpl(src, offset, length);
         return this;
     }
 
@@ -1233,13 +1220,7 @@ public abstract class $Type$Buffer
      * @since 13
      */
     public $Type$Buffer put(int index, $type$[] src, int offset, int length) {
-        if (readOnly)
-            throw new ReadOnlyBufferException();
-        Objects.checkFromIndexSize(index, length, limit());
-        Objects.checkFromIndexSize(offset, length, src.length);
-        int end = offset + length;
-        for (int i = offset, j = index; i < end; i++, j++)
-            this.put(j, src[i]);
+        super.putBulkImpl(index, src, offset, length);
         return this;
     }
 
@@ -1383,8 +1364,8 @@ public abstract class $Type$Buffer
      * @return  {@code true} if, and only if, this buffer
      *          is backed by an array and is not read-only
      */
-    public final boolean hasArray() {
-        return (hb != null) && !readOnly;
+    public boolean hasArray() {
+        return super.hasArray();
     }
 
     /**
@@ -1406,12 +1387,8 @@ public abstract class $Type$Buffer
      * @throws  UnsupportedOperationException
      *          If this buffer is not backed by an accessible array
      */
-    public final $type$[] array() {
-        if (hb == null)
-            throw new UnsupportedOperationException();
-        if (readOnly)
-            throw new ReadOnlyBufferException();
-        return hb;
+    public $type$[] array() {
+        return super.array();
     }
 
     /**
@@ -1434,12 +1411,8 @@ public abstract class $Type$Buffer
      * @throws  UnsupportedOperationException
      *          If this buffer is not backed by an accessible array
      */
-    public final int arrayOffset() {
-        if (hb == null)
-            throw new UnsupportedOperationException();
-        if (readOnly)
-            throw new ReadOnlyBufferException();
-        return offset;
+    public int arrayOffset() {
+        return super.arrayOffset();
     }
 
     // -- Covariant return type overrides
@@ -1575,26 +1548,30 @@ public abstract class $Type$Buffer
      * @throws  ReadOnlyBufferException
      *          If this buffer is read-only
      */
-    public abstract $Type$Buffer compact();
+    public $Type$Buffer compact() {
+        super.compact();
+        return this;
+    }
 
     /**
      * Tells whether or not this $type$ buffer is direct.
      *
      * @return  {@code true} if, and only if, this buffer is direct
      */
-    public abstract boolean isDirect();
+    public boolean isDirect() {
+        return false;
+    }
 
 #if[char]
     /**
      * Tells whether this buffer has addressable memory, e.g., a Java array or
      * a native address.  This method returns {@code true}.  Subclasses such as
-     * {@code StringCharBuffer}, which wraps a {@code CharSequence}, should
-     * override this method to return {@code false}.
+     * {@code StringCharBuffer}, which wraps a {@code CharSequence}, have neither.
      *
      * @return {@code true} if, and only, this buffer has addressable memory
      */
-    boolean isAddressable() {
-        return true;
+    final boolean isAddressable() {
+        return !(address == 0L && hb == null);
     }
 #end[char]
 
@@ -1606,16 +1583,7 @@ public abstract class $Type$Buffer
      * @return  A summary string
      */
     public String toString() {
-        StringBuffer sb = new StringBuffer();
-        sb.append(getClass().getName());
-        sb.append("[pos=");
-        sb.append(position());
-        sb.append(" lim=");
-        sb.append(limit());
-        sb.append(" cap=");
-        sb.append(capacity());
-        sb.append("]");
-        return sb.toString();
+        return super.toString();
     }
 
 #end[!char]
@@ -1801,10 +1769,25 @@ public abstract class $Type$Buffer
      * @return  The specified string
      */
     public String toString() {
-        return toString(position(), limit());
+        final int pos = position();
+        final int lim = limit();
+        final int len = lim - pos;
+        try {
+            if (hasArray()) {  // heap
+                return new String(array(), pos + arrayOffset(), len);
+            } else {  // direct or read-only
+                char[] ca = new char[len];
+                CharBuffer cb = CharBuffer.wrap(ca);
+                CharBuffer db = this.duplicate();
+                db.position(pos);
+                db.limit(lim);
+                cb.put(db);
+                return new String(ca);
+            }
+        } catch (StringIndexOutOfBoundsException x) {
+            throw new IndexOutOfBoundsException();
+        }
     }
-
-    abstract String toString(int start, int end);       // package-private
 
 
     // --- Methods to support CharSequence ---
@@ -1850,7 +1833,7 @@ public abstract class $Type$Buffer
      *          If the preconditions on {@code index} do not hold
      */
     public final char charAt(int index) {
-        return get(position() + checkIndex(index, 1));
+        return get(position() + checkGetIndex(index, 1));
     }
 
     /**
@@ -1883,7 +1866,11 @@ public abstract class $Type$Buffer
      *          If the preconditions on {@code start} and {@code end}
      *          do not hold
      */
-    public abstract CharBuffer subSequence(int start, int end);
+    public CharBuffer subSequence(int start, int end) {
+        int pos = position();
+        Objects.checkFromToIndex(start, end, limit() - pos);
+        return dup(0, -1, pos + start, pos + end, capacity(), readOnly);
+    }
 
 
     // --- Methods to support Appendable ---
@@ -2020,15 +2007,14 @@ public abstract class $Type$Buffer
 #if[char]
     // The order or null if the buffer does not cover a memory region,
     // such as StringCharBuffer
-    abstract ByteOrder charRegionOrder();
+    ByteOrder charRegionOrder() {
+        return order();
+    }
 #end[char]
 
 #if[byte]
 
-    boolean bigEndian                                   // package-private
-        = true;
-    boolean nativeByteOrder                             // package-private
-        = (ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN);
+    boolean bigEndian;                                  // package-private
 
     /**
      * Retrieves this buffer's byte order.
@@ -2056,8 +2042,6 @@ public abstract class $Type$Buffer
      */
     public final $Type$Buffer order(ByteOrder bo) {
         bigEndian = (bo == ByteOrder.BIG_ENDIAN);
-        nativeByteOrder =
-            (bigEndian == (ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN));
         return this;
     }
 
@@ -2228,4 +2212,68 @@ public abstract class $Type$Buffer
 
 #end[streamableType]
 
+#if[!byte]
+    // -- views
+
+    static final class HeapView extends $Type$Buffer {
+        HeapView(long address, Object hb,
+                 int mark, int pos, int lim, int cap,
+                 boolean readOnly,
+                 boolean bigEndian,
+                 MemorySegmentProxy segment) {
+            super(address, hb, mark, pos, lim, cap, readOnly, bigEndian, null, segment);
+        }
+
+        @Override
+        Object base() {
+            return (byte[])hb;
+        }
+
+        @Override
+        $Type$Buffer dup(int offset, int mark, int pos, int lim, int cap, boolean readOnly) {
+            return new HeapView(address + offset, hb, mark, pos, lim, cap, readOnly, bigEndian, segment);
+        }
+    }
+
+    static final class DirectView extends $Type$Buffer implements DirectBuffer {
+        DirectView(long address,
+                   int mark, int pos, int lim, int cap,
+                   boolean readOnly,
+                   boolean bigEndian,
+                   Object attachment,
+                   MemorySegmentProxy segment) {
+            super(address, null, mark, pos, lim, cap, readOnly, bigEndian, attachment, segment);
+        }
+
+        @Override
+        Object base() {
+            return null;
+        }
+
+        @Override
+        public boolean isDirect() {
+            return true;
+        }
+
+        @Override
+        $Type$Buffer dup(int offset, int mark, int pos, int lim, int cap, boolean readOnly) {
+            return new DirectView(address + offset, mark, pos, lim, cap, readOnly, bigEndian, attachmentValueOrThis(), segment);
+        }
+
+        @Override
+        public long address() {
+            return address;
+        }
+
+        @Override
+        public Cleaner cleaner() {
+            return null;
+        }
+
+        @Override
+        public Object attachment() {
+            return attachment;
+        }
+    }
+#end[byte]
 }

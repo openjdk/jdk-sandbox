@@ -25,6 +25,7 @@
 
 package java.util.zip;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.file.attribute.FileTime;
 import java.time.DateTimeException;
@@ -291,14 +292,14 @@ class ZipUtils {
 
     private static final Unsafe unsafe = Unsafe.getUnsafe();
 
-    private static final long byteBufferArrayOffset = unsafe.objectFieldOffset(ByteBuffer.class, "hb");
-    private static final long byteBufferOffsetOffset = unsafe.objectFieldOffset(ByteBuffer.class, "offset");
+    private static final long byteBufferArrayOffset = unsafe.objectFieldOffset(Buffer.class, "hb");
+    private static final long byteBufferOffsetOffset = unsafe.objectFieldOffset(Buffer.class, "address");
 
     static byte[] getBufferArray(ByteBuffer byteBuffer) {
         return (byte[]) unsafe.getReference(byteBuffer, byteBufferArrayOffset);
     }
 
     static int getBufferOffset(ByteBuffer byteBuffer) {
-        return unsafe.getInt(byteBuffer, byteBufferOffsetOffset);
+        return unsafe.getInt(byteBuffer, byteBufferOffsetOffset) - Unsafe.ARRAY_BYTE_BASE_OFFSET;
     }
 }

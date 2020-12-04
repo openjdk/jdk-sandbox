@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,18 @@
 
 // -- This file was mechanically generated: Do not edit! -- //
 
+
+
+
+
 import java.nio.*;
+import java.util.List;
+
+
+
+
+
+
 
 
 public class BasicChar
@@ -498,6 +509,73 @@ public class BasicChar
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     private static void fail(String problem,
                              CharBuffer xb, CharBuffer yb,
                              char x, char y) {
@@ -513,7 +591,7 @@ public class BasicChar
     }
 
     private static void catchReadOnlyBuffer(Buffer b, Runnable thunk) {
-        tryCatch(b, ReadOnlyBufferException.class, thunk);
+        tryCatchExact(b, ReadOnlyBufferException.class, thunk);
     }
 
     private static void catchIndexOutOfBounds(Buffer b, Runnable thunk) {
@@ -524,22 +602,36 @@ public class BasicChar
         tryCatch(t, IndexOutOfBoundsException.class, thunk);
     }
 
+    private static void catchUnsupportedOperationException(Buffer b, Runnable thunk) {
+        tryCatchExact(b, UnsupportedOperationException.class, thunk);
+    }
+
     private static void tryCatch(Buffer b, Class<?> ex, Runnable thunk) {
-        boolean caught = false;
+        tryCatchImpl(b, ex, thunk, false);
+    }
+
+    private static void tryCatchExact(Buffer b, Class<?> ex, Runnable thunk) {
+        tryCatchImpl(b, ex, thunk, true);
+    }
+
+    private static void tryCatchImpl(Buffer b, Class<?> ex, Runnable thunk, boolean exact) {
         try {
             thunk.run();
-        } catch (Throwable x) {
-            if (ex.isAssignableFrom(x.getClass())) {
-                caught = true;
-            } else {
-                String s = x.getMessage();
-                if (s == null)
-                    s = x.getClass().getName();
-                fail(s + " not expected");
-            }
-        }
-        if (!caught) {
             fail(ex.getName() + " not thrown", b);
+        } catch (Throwable x) {
+            if (exact) {
+                if (ex == x.getClass())
+                    return;  // ok, caught expected exact exception
+                fail("Expected: " + ex.getName() + ", got: " + x);
+            }
+            if (ex.isAssignableFrom(x.getClass())) {
+                return;  // ok, caught expected assignable exception
+            }
+            // we're going to fail
+            String s = x.getMessage();
+            if (s == null)
+                s = x.getClass().getName();
+            fail(s + " not expected");
         }
     }
 
@@ -957,12 +1049,17 @@ public class BasicChar
 
 
 
-        if (rb.getClass().getName().startsWith("java.nio.Heap")) {
+        // Non-view Heap buffers only
+        if (!rb.isDirect() && rb.getClass().getName().endsWith("Buffer")) {
             catchReadOnlyBuffer(b, () -> rb.array());
             catchReadOnlyBuffer(b, () -> rb.arrayOffset());
             if (rb.hasArray()) {
                 fail("Read-only heap buffer's backing array is accessible", rb);
             }
+        } else { // other buffers should have an inaccessible backing array
+            ck(b, !rb.hasArray());
+            catchUnsupportedOperationException(b, () -> rb.array());
+            catchUnsupportedOperationException(b, () -> rb.arrayOffset());
         }
 
         // Bulk puts from read-only buffers
@@ -992,6 +1089,25 @@ public class BasicChar
 
 
 
+    private static void checkStrBufProperties(CharBuffer cb) {
+        ck(cb, !cb.isDirect());
+        ck(cb, !cb.hasArray());
+        ck(cb, cb.isReadOnly());
+        catchReadOnlyBuffer(cb, () -> cb.compact());
+        catchReadOnlyBuffer(cb, () -> cb.put('x'));
+        catchReadOnlyBuffer(cb, () -> cb.put(new char[] {'x'}));
+        catchReadOnlyBuffer(cb, () -> cb.put(new char[] {'x'}, 0, 1));
+        catchReadOnlyBuffer(cb, () -> cb.put(CharBuffer.wrap("xyz")));
+        catchReadOnlyBuffer(cb, () -> cb.put("rst"));
+        catchReadOnlyBuffer(cb, () -> cb.put("tsr", 0, 1));
+        catchReadOnlyBuffer(cb, () -> cb.put(0, 'x'));
+        catchReadOnlyBuffer(cb, () -> cb.put(0, new char[] {'x'}));
+        catchReadOnlyBuffer(cb, () -> cb.put(0, new char[] {'x'}, 0, 1));
+        catchReadOnlyBuffer(cb, () -> cb.put(0, CharBuffer.wrap("zyx"), 0, 1));
+        catchUnsupportedOperationException(cb, () -> cb.array());
+        catchUnsupportedOperationException(cb, () -> cb.arrayOffset());
+    }
+
     private static void testStr() {
         final String s = "abcdefghijklm";
         int start = 3;
@@ -1000,10 +1116,7 @@ public class BasicChar
         show(0, b);
         ck(b, b.toString().equals(s.substring(start, end)));
         ck(b, b.toString().equals("defghi"));
-        ck(b, !b.isDirect());
-        ck(b, b.isReadOnly());
-        catchReadOnlyBuffer(b, () -> b.compact());
-        catchReadOnlyBuffer(b, () -> b.put('x'));
+        checkStrBufProperties(b);
         ck(b, start, b.position());
         ck(b, end, b.limit());
         ck(b, s.length(), b.capacity());
@@ -1039,13 +1152,9 @@ public class BasicChar
         catchIndexOutOfBounds(b, () -> CharBuffer.wrap(s, 1, 0));
         catchIndexOutOfBounds(b, () -> CharBuffer.wrap(s, 0, s.length() + 1));
 
-        // Ensure all factories and views are read-only
-        var buffers = java.util.List.of(
-                b.duplicate(), b.slice(), b.slice(0, 1), b.subSequence(0, 1));
-        for (var cb : buffers) {
-            ck(cb, cb.isReadOnly());
-            catchReadOnlyBuffer(cb, () -> cb.put('x'));
-        }
+        // Ensure all factories and views are read-only, etc
+        List.of(b.duplicate(), b.slice(), b.slice(0, 1), b.subSequence(0, 1))
+            .forEach(BasicChar::checkStrBufProperties);
     }
 
 
