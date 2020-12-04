@@ -94,7 +94,9 @@
   LOG_TAG(jfr) \
   LOG_TAG(jit) \
   LOG_TAG(jni) \
+  LOG_TAG(jvmci) \
   LOG_TAG(jvmti) \
+  LOG_TAG(lambda) \
   LOG_TAG(library) \
   LOG_TAG(liveness) \
   LOG_TAG(load) /* Trace all classes loaded */ \
@@ -117,6 +119,7 @@
   LOG_TAG(monitormismatch) \
   LOG_TAG(nestmates) \
   LOG_TAG(nmethod) \
+  LOG_TAG(nmt) \
   LOG_TAG(normalize) \
   LOG_TAG(numa) \
   LOG_TAG(objecttagging) \

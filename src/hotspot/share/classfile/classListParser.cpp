@@ -32,6 +32,7 @@
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "interpreter/bytecode.hpp"
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/linkResolver.hpp"
@@ -461,7 +462,6 @@ bool ClassListParser::is_matching_cp_entry(constantPoolHandle &pool, int cp_inde
 }
 
 void ClassListParser::resolve_indy(Symbol* class_name_symbol, TRAPS) {
-
   Handle class_loader(THREAD, SystemDictionary::java_system_loader());
   Handle protection_domain;
   Klass* klass = SystemDictionary::resolve_or_fail(class_name_symbol, class_loader, protection_domain, true, THREAD); // FIXME should really be just a lookup
@@ -482,8 +482,8 @@ void ClassListParser::resolve_indy(Symbol* class_name_symbol, TRAPS) {
         BootstrapInfo bootstrap_specifier(pool, pool_index, indy_index);
         Handle bsm = bootstrap_specifier.resolve_bsm(THREAD);
         if (!SystemDictionaryShared::is_supported_invokedynamic(&bootstrap_specifier)) {
-           tty->print_cr("is_supported_invokedynamic check failed for cp_index %d", pool_index);
-           continue;
+          log_debug(cds, lambda)("is_supported_invokedynamic check failed for cp_index %d", pool_index);
+          continue;
         }
         if (is_matching_cp_entry(pool, pool_index, THREAD)) {
           found = true;

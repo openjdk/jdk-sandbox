@@ -160,8 +160,6 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
     private final Map<TypeElement, Content> providesTrees
             = new TreeMap<>(comparators.makeAllClassesComparator());
 
-    private final Navigation navBar;
-
     private final BodyContents bodyContents = new BodyContents();
 
     /**
@@ -174,7 +172,6 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         super(configuration, configuration.docPaths.moduleSummary(mdle));
         this.mdle = mdle;
         this.moduleMode = configuration.docEnv.getModuleMode();
-        this.navBar = new Navigation(mdle, configuration, PageMode.MODULE, path);
         computeModulesData();
     }
 
@@ -186,20 +183,8 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
     @Override
     public Content getModuleHeader(String heading) {
         HtmlTree bodyTree = getBody(getWindowTitle(mdle.getQualifiedName().toString()));
-        Content headerContent = new ContentBuilder();
-        addTop(headerContent);
-        navBar.setDisplaySummaryModuleDescLink(!utils.getFullBody(mdle).isEmpty() && !options.noComment());
-        navBar.setDisplaySummaryModulesLink(display(requires) || display(indirectModules));
-        navBar.setDisplaySummaryPackagesLink(display(packages) || display(indirectPackages)
-                || display(indirectOpenPackages));
-        navBar.setDisplaySummaryServicesLink(displayServices(uses, usesTrees) || displayServices(provides.keySet(), providesTrees));
-        navBar.setUserHeader(getUserHeaderFooter(true));
-        headerContent.add(navBar.getContent(Navigation.Position.TOP));
         HtmlTree div = new HtmlTree(TagName.DIV);
         div.setStyle(HtmlStyle.header);
-        Content annotationContent = new HtmlTree(TagName.P);
-        addAnnotationInfo(mdle, annotationContent);
-        div.add(annotationContent);
         Content label = mdle.isOpen() && (configuration.docEnv.getModuleMode() == ModuleMode.ALL)
                 ? contents.openModuleLabel : contents.moduleLabel;
         Content tHeading = HtmlTree.HEADING_TITLE(Headings.PAGE_TITLE_HEADING,
@@ -208,9 +193,19 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         Content moduleHead = new RawHtml(heading);
         tHeading.add(moduleHead);
         div.add(tHeading);
-        bodyContents.setHeader(headerContent)
+        bodyContents.setHeader(getHeader(PageMode.MODULE, mdle))
                 .addMainContent(div);
         return bodyTree;
+    }
+
+    @Override
+    protected Navigation getNavBar(PageMode pageMode, Element element) {
+        return super.getNavBar(pageMode, element)
+                .setDisplaySummaryModuleDescLink(!utils.getFullBody(mdle).isEmpty() && !options.noComment())
+                .setDisplaySummaryModulesLink(display(requires) || display(indirectModules))
+                .setDisplaySummaryPackagesLink(display(packages) || display(indirectPackages)
+                        || display(indirectOpenPackages))
+                .setDisplaySummaryServicesLink(displayServices(uses, usesTrees) || displayServices(provides.keySet(), providesTrees));
     }
 
     /**
@@ -834,17 +829,19 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
     }
 
     @Override
+    public void addModuleSignature(Content moduleContentTree) {
+        moduleContentTree.add(new HtmlTree(TagName.HR));
+        moduleContentTree.add(Signatures.getModuleSignature(mdle, this));
+    }
+
+    @Override
     public void addModuleContent(Content moduleContentTree) {
         bodyContents.addMainContent(moduleContentTree);
     }
 
     @Override
     public void addModuleFooter() {
-        Content htmlTree = HtmlTree.FOOTER();
-        navBar.setUserFooter(getUserHeaderFooter(false));
-        htmlTree.add(navBar.getContent(Navigation.Position.BOTTOM));
-        addBottom(htmlTree);
-        bodyContents.setFooter(htmlTree);
+        bodyContents.setFooter(getFooter());
     }
 
     @Override
