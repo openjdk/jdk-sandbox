@@ -28,11 +28,15 @@ package java.net.spi;
 import java.net.InetAddress;
 
 /**
- * An INET name service provider is used to provide a system-wide alternative name
- * service resolution mechanism used for {@linkplain InetAddress} host name and IP address resolution.
- *
- * An INET name service provider is a concrete subclass of this class that has a zero-argument constructor.
- *
+ * An INET name service provider class to provide a system-wide alternative name
+ * service resolution mechanism used for {@linkplain InetAddress} host names and IP addresses
+ * resolution.
+ * <p>
+ * An INET name service provider is a concrete subclass of this class that has a zero-argument
+ * constructor and implements the abstract methods specified below.
+ * <p>
+ * INET name service providers are located using the ServiceLoader facility, as specified by
+ * {@linkplain InetAddress}.
  */
 public abstract class InetNameServiceProvider {
 
@@ -91,8 +95,8 @@ public abstract class InetNameServiceProvider {
     }
 
     /**
-     * A {@code Configuration} is used to pass host name and IP address resolution related
-     * configuration to a {@code InetNameServiceProvider} implementation.
+     * A {@code Configuration} is supplied to {@link InetNameServiceProvider#get(Configuration)} method to
+     * bootstrap a provider by supplying a configuration parameters related to an IP address resolution.
      */
     public interface Configuration {
         /**

@@ -6,7 +6,8 @@ import java.net.UnknownHostException;
 import java.util.stream.Stream;
 
 /**
- * InetNameService provides host and address lookup service
+ * Provides and interface to an INET names service for mapping host names to IP addresses,
+ * and IP addresses to host names.
  */
 public interface InetNameService {
 
@@ -56,8 +57,8 @@ public interface InetNameService {
      * for performing a host name resolution requests.
      * <p>
      * The platform-wide lookup policy is constructed by consulting a
-     * <a href="doc-files/net-properties.html#Ipv4IPv6">System Properties</a> which affects how IPv4 and IPv6
-     * addresses are returned.
+     * <a href="doc-files/net-properties.html#Ipv4IPv6">System Properties</a> which affects
+     * how IPv4 and IPv6 addresses are returned.
      */
     final class LookupPolicy {
 
@@ -92,8 +93,8 @@ public interface InetNameService {
         }
 
         /**
-         * This factory method creates {@link LookupPolicy LookupPolicy} with the specified
-         * characteristics.
+         * This factory method creates {@link LookupPolicy LookupPolicy} with the provided
+         * characteristics value.
          *
          * @param characteristics value which represents the set of lookup characteristics
          * @return instance of {@code InetNameServiceProvider.LookupPolicy}
@@ -102,22 +103,22 @@ public interface InetNameService {
         public static final LookupPolicy of(int characteristics) {
             // At least one type of addresses should be requested
             if ((characteristics & IPV4) == 0 && (characteristics & IPV6) == 0) {
-                throw new IllegalArgumentException();
+                throw new IllegalArgumentException("No address type specified");
             }
 
             // Requested order of addresses couldn't be determined
             if ((characteristics & IPV4_FIRST) != 0 && (characteristics & IPV6_FIRST) != 0) {
-                throw new IllegalArgumentException();
+                throw new IllegalArgumentException("Addresses order cannot be determined");
             }
 
             // If IPv4 addresses requested to be returned first then they should be requested too
             if ((characteristics & IPV4_FIRST) != 0 && (characteristics & IPV4) == 0) {
-                throw new IllegalArgumentException();
+                throw new IllegalArgumentException("Addresses order and type do not match");
             }
 
             // If IPv6 addresses requested to be returned first then they should be requested too
             if ((characteristics & IPV6_FIRST) != 0 && (characteristics & IPV6) == 0) {
-                throw new IllegalArgumentException();
+                throw new IllegalArgumentException("Addresses order and type do not match");
             }
             return new LookupPolicy(characteristics);
         }
