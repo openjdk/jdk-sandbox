@@ -1,3 +1,28 @@
+/*
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+
 package java.net.spi;
 
 import java.lang.annotation.Native;
@@ -6,8 +31,7 @@ import java.net.UnknownHostException;
 import java.util.stream.Stream;
 
 /**
- * Provides and interface to an INET names service for mapping host names to IP addresses,
- * and IP addresses to host names.
+ * An interface to provide host name and IP address lookup operations.
  */
 public interface InetNameService {
 
@@ -36,7 +60,6 @@ public interface InetNameService {
 
     /**
      * Lookup the host name corresponding to the raw IP address provided.
-     * This method performs reverse name service lookup.
      *
      * <p>{@code addr} argument is in network byte order: the highest order byte of the address
      * is in {@code addr[0]}.
@@ -52,9 +75,9 @@ public interface InetNameService {
     String lookupHostName(byte[] addr) throws UnknownHostException; // lookupByAddress, reverseLookup
 
     /**
-     * An addresses lookup policy object is used to specify a type and order of addresses
+     * An addresses lookup policy object to specify a type and an order of addresses
      * supplied to {@link InetNameService#lookupAddresses(String, LookupPolicy)}
-     * for performing a host name resolution requests.
+     * for filtering and ordering a host name resolution results.
      * <p>
      * The platform-wide lookup policy is constructed by consulting a
      * <a href="doc-files/net-properties.html#Ipv4IPv6">System Properties</a> which affects

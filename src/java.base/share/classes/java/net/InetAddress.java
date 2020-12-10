@@ -45,7 +45,6 @@ import java.io.ObjectInputStream.GetField;
 import java.io.ObjectOutputStream;
 import java.io.ObjectOutputStream.PutField;
 import java.lang.annotation.Native;
-import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -205,35 +204,31 @@ import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
  * </dl>
  *
  * <h3> Name Service Providers </h3>
- *
- * <p> Resolution of host names and IP addresses is performed by classes
- * implementing {@link InetNameService} interface.
- * {@link InetNameService} implementation is supplied, and installed as system wide
- * name service via the {@link InetNameServiceProvider} service provider interface.
- * To bootstrap a custom name service provider the platform name resolution
- * {@linkplain InetNameServiceProvider.Configuration configuration} is supplied
- * to the provider during
- * {@link InetNameServiceProvider#get(InetNameServiceProvider.Configuration)}
- * method invocation.
- * <p> When calling any of methods to resolve addresses or hostnames for the
- * first time after full initialization of the VM and no {@link InetNameService}
- * has yet been set up, then the {@linkplain ServiceLoader} mechanism is used to
+ * <p>Host name and IP addresses lookup operations are performed by a system-wide
+ * {@linkplain InetNameService name service}.
+ *  A system-wide name service is set once lazily at earlier stages of VM initialization. It can be customized
+ *  by deploying a custom implementation of a {@linkplain InetNameServiceProvider name service provider}
+ *  which will be used to instantiate a custom name service. If no custom name service provider
+ *  implementation supplied the built-in name service implementation shipped with JDK will be used as a
+ *  system-wide name service.
+ * <p> When invoking any of lookup methods for the first time after full initialization of the VM and system-wide
+ * {@link InetNameService name service} has not been set up yet, then the {@linkplain ServiceLoader} mechanism is used to
  * locate {@linkplain InetNameServiceProvider}, and initialize the system-wide
  * {@linkplain InetNameService} implementation as follows:
  * <ol>
- *  <li>The ServiceLoader mechanism is used to locate
+ *  <li>The ServiceLoader mechanism is used to locate custom
  *      {@link InetNameServiceProvider InetNameServiceProvider}
  *      implementations using the system class loader. The ordering that installed providers
  *      are located is implementation specific. The first provider found will be used
  *      to instantiate the {@link InetNameService InetNameService} by
  *      invoking {@link InetNameServiceProvider#get(InetNameServiceProvider.Configuration)}
- *      method. The instantiated {@code InetNameService} will be
- *      used as a platform name service.
- *  <li>If the previous step fails to find a name service provider
- *      the platform default name service will be used.
+ *      method. The instantiated {@code InetNameService} will be used as a system-wide
+ *      name service.
+ *  <li>If the previous step fails to find any custom name service provider
+ *      the built-in name service will be installed as a system-wide name service.
  * </ol>
- * <p>If discovered provider fails to instantiate a name service with an {@code Error} or
- * {@code RuntimeException} thrown - the default system provider will not be installed and
+ * <p>If discovered custom provider fails to instantiate a name service with an {@code Error} or
+ * {@code RuntimeException} thrown - a system-wide name service will not be installed and
  * the exception will be propagated to the calling thread.
  *
  * @author  Chris Warth
