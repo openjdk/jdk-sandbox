@@ -31,7 +31,16 @@ import java.net.UnknownHostException;
 import java.util.stream.Stream;
 
 /**
- * An interface to provide host name and IP address lookup operations.
+ * This interface defines operations for looking-up host names and IP addresses.
+ * An instance of {@code InetNameService} is
+ * <a href="{@docRoot}/java.base/java/net/InetAddress.html#nameServiceProviders">installed</a>
+ * as a <i>system-wide name service</i>.
+ * {@link InetAddress} delegates all lookup requests to the installed <i>system-wide name service</i>
+ * instance.
+ * <p>
+ * The <i>system-wide name service</i> can be customized by
+ * <a href="{@docRoot}/java.base/java/net/InetAddress.html#nameServiceProviders">deploying an implementation</a>
+ * of {@link InetNameServiceProvider}.
  */
 public interface InetNameService {
 
@@ -72,15 +81,15 @@ public interface InetNameService {
      * @throws UnknownHostException     if no host found for the specified IP address
      * @throws IllegalArgumentException if IP address is of illegal length
      */
-    String lookupHostName(byte[] addr) throws UnknownHostException; // lookupByAddress, reverseLookup
+    String lookupHostName(byte[] addr) throws UnknownHostException;
 
     /**
-     * An addresses lookup policy object to specify a type and an order of addresses
-     * supplied to {@link InetNameService#lookupAddresses(String, LookupPolicy)}
-     * for filtering and ordering a host name resolution results.
+     * A {@code LookupPolicy} object describes characteristics that can be applied to a lookup operation.
+     * In particular, it is used to specify which ordering and filtering should be performed when
+     * {@linkplain InetNameService#lookupAddresses(String, LookupPolicy) looking up a host addresses}.
      * <p>
-     * The platform-wide lookup policy is constructed by consulting a
-     * <a href="doc-files/net-properties.html#Ipv4IPv6">System Properties</a> which affects
+     * The default platform-wide lookup policy is constructed by consulting
+     * <a href="doc-files/net-properties.html#Ipv4IPv6">System Properties</a> which affect
      * how IPv4 and IPv6 addresses are returned.
      */
     final class LookupPolicy {

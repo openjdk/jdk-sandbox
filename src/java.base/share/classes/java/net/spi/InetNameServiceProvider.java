@@ -26,34 +26,40 @@
 package java.net.spi;
 
 import java.net.InetAddress;
+import java.util.ServiceLoader;
 
 /**
- * A name service provider class to provide a custom system-wide name
- * service implementation with implementation for host name and IP address
- * lookup operations.
+ * A name service provider class is a factory for custom implementations of {@linkplain InetNameService name
+ * services} which define operations for looking-up host names and IP addresses.
+ * Name service providers are
+ * <a href="{@docRoot}/java.base/java/net/InetAddress.html#nameServiceProviders">discovered</a>
+ * by {@link InetAddress} to instantiate and install a <i>system-wide name service</i>.
  * <p>
  * A name service provider is a concrete subclass of this class that has a zero-argument
  * constructor and implements the abstract methods specified below.
  * <p>
- * Name service providers are located using the ServiceLoader facility, as specified by
- * {@linkplain InetAddress}.
+ * Name service providers are located using the {@link ServiceLoader} facility, as specified by
+ * {@link InetAddress}.
  */
 public abstract class InetNameServiceProvider {
 
     /**
      * Initialise and return the {@link InetNameService} provided by
-     * this provider.
-     * Any unchecked exception thrown by this method is considered as
+     * this provider. This method is called by {@link InetAddress} when
+     * <a href="{@docRoot}/java.base/java/net/InetAddress.html#nameServiceProviders">installing</a>
+     * the system-wide name service implementation.
+     * <p>
+     * Any error or exception thrown by this method is considered as
      * a failure of {@code InetNameService} instantiation and will be propagated to
      * the calling thread.
-     * @param configuration a {@link Configuration} instance containing platform address resolution
-     *               configuration which could be used to bootstrap a provider.
+     * @param configuration a {@link Configuration} instance containing platform built-in address
+     *                     resolution configuration.
      * @return the name service provided by this provider
      */
     public abstract InetNameService get(Configuration configuration);
 
     /**
-     * Returns the name of this provider
+     * Returns the name of this provider.
      *
      * @return the name service provider name
      */
@@ -95,21 +101,21 @@ public abstract class InetNameServiceProvider {
     }
 
     /**
-     * A {@code Configuration} is supplied to {@link InetNameServiceProvider#get(Configuration)} method to
-     * bootstrap a provider by supplying a configuration parameters related to an IP address resolution.
+     * A {@code Configuration} interface is supplied to the {@link InetNameServiceProvider#get(Configuration)} method
+     * when installing a system-wide custom name service implementation.
+     * The custom name service implementation can then delegate to the built-in name service provided by this interface
+     * if it needs to.
      */
     public interface Configuration {
         /**
-         * Returns platform built-in {@link InetNameService name service} which is
-         * used to bootstrap a custom name service provider.
+         * Returns platform built-in {@linkplain InetNameService name service}.
          *
          * @return the JDK built-in name service.
          */
         InetNameService builtinNameService();
 
         /**
-         * Returns the localhost name which is used to bootstrap a custom
-         *  {@code InetNameService} provider.
+         * Reads the localhost name from the system configuration.
          *
          * @return the localhost name.
          */

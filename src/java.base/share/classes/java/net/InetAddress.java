@@ -203,33 +203,41 @@ import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
  * </dd>
  * </dl>
  *
- * <h3> Name Service Providers </h3>
- * <p>Host name and IP addresses lookup operations are performed by a system-wide
- * {@linkplain InetNameService name service}.
- *  A system-wide name service is set once lazily after the VM is initialized. It can be customized
- *  by deploying a custom implementation of a {@linkplain InetNameServiceProvider name service provider}
- *  which will be used to instantiate a custom name service. If no custom name service provider
- *  implementation supplied the built-in name service implementation shipped with JDK will be used as a
- *  system-wide name service.
- * <p> When invoking any method that requires a lookup operation for the first time after full
- * initialization of the VM, if the system-wide name service has not been set up yet,
- * then the {@linkplain ServiceLoader} mechanism is used to locate {@linkplain InetNameServiceProvider},
- * and initialize the system-wide {@linkplain InetNameService} implementation as follows:
+ * <h3 id="nameServiceProviders"> Name Service Providers </h3>
+ *
+ * <p> Host name and IP address lookup operations are performed by a
+ * {@linkplain InetNameService name service}. Lookup operations performed by
+ * this class use the <i>system-wide name service</i>. The system-wide name
+ * service is set once, lazily, after the VM is fully initialized and when
+ * an invocation of a method in this class triggers the first lookup operation.
+ *
+ * <p> A <i>custom name service</i> can be installed as the system-wide name service
+ * by deploying a {@linkplain InetNameServiceProvider name service provider}.
+ * A name service provider is essentially a factory for name services, so can
+ * be used to instantiate a custom name service. If no name service provider
+ * is found, then the <i>built-in name service</i> will be set as the
+ * system-wide name service.
+ *
+ * <p> A custom name service is found and installed as the system-wide name service
+ * as follows:
  * <ol>
- *  <li>The ServiceLoader mechanism is used to locate custom
- *      {@link InetNameServiceProvider InetNameServiceProvider}
- *      implementations using the system class loader. The order in which installed providers are located is
+ *  <li>The ServiceLoader mechanism is used to find a
+ *      {@linkplain InetNameServiceProvider InetNameServiceProvider} using the
+ *      system class loader. The order in which providers are located is
  *      {@linkplain ServiceLoader#load(java.lang.Class,java.lang.ClassLoader) implementation specific}.
  *      The first provider found will be used to instantiate the {@link InetNameService InetNameService} by
- *      invoking {@link InetNameServiceProvider#get(InetNameServiceProvider.Configuration)}
- *      method. The instantiated {@code InetNameService} will be used as a system-wide
+ *      invoking the {@link InetNameServiceProvider#get(InetNameServiceProvider.Configuration)}
+ *      method. The instantiated {@code InetNameService} will be installed as the system-wide
  *      name service.
- *  <li>If the previous step fails to find any custom name service provider
- *      the built-in name service will be installed as a system-wide name service.
+ *  <li>If the previous step fails to find any name service provider the
+ *      built-in name service will be set as the system-wide name service.
  * </ol>
- * <p>If instantiating a name service from the custom provider discovered in step 1 fails and throws any error
- * or exception, a system-wide name service will not be installed and the error or exception will be propagated
- * to the calling thread.
+ *
+ * <p> If instantiating a custom name service from a provider discovered in
+ * step 1 throws an error or exception, the system-wide name service will not be
+ * installed and the error or exception will be propagated to the calling thread.
+ * Otherwise, any lookup operation will be performed through the installed
+ * <i>system-wide name service</i>.
  *
  * @author  Chris Warth
  * @see     java.net.InetAddress#getByAddress(byte[])
