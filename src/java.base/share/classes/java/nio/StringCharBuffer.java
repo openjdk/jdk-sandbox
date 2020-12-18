@@ -35,7 +35,10 @@ class StringCharBuffer                                  // package-private
     CharSequence str;
 
     StringCharBuffer(CharSequence s, int start, int end) { // package-private
-        super(-1, start, end, s.length(), true, null);   // TODO: check test with false
+        super(-1, start, end, s.length(),
+              true,        /* read-only */
+              NORD_IS_BIG, /* true if big-endian */
+              null         /* segment */);
         int n = s.length();
         Objects.checkFromToIndex(start, end, n);
         str = s;
@@ -70,7 +73,10 @@ class StringCharBuffer                                  // package-private
                              int limit,
                              int cap,
                              int offset) {
-        super(mark, pos, limit, cap, null, offset, true, null);
+        super(mark, pos, limit, cap, null, offset,
+              true,        /* read-only */
+              NORD_IS_BIG, /* true if big-endian */
+              null         /* segment */);
         str = s; }
 
     public CharBuffer duplicate() {
@@ -128,10 +134,6 @@ class StringCharBuffer                                  // package-private
 
     public boolean isDirect() {
         return false;
-    }
-
-    public ByteOrder order() {
-        return ByteOrder.nativeOrder();
     }
 
     ByteOrder charRegionOrder() {

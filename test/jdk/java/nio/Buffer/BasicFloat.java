@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -99,6 +99,18 @@ public class BasicFloat
         }
     }
 
+    private static void absBulkGetNoOffset(FloatBuffer b) {
+        int n = b.capacity();
+        int len = n - 7*2;
+        float[] a = new float[len];
+        b.position(43);
+        b.get(7, a);
+        ck(b, b.position() == 43);
+        for (int i = 0; i < len; i++) {
+            ck(b, (long)a[i], (long)((float)ic(i)));
+        }
+    }
+
     private static void relPut(FloatBuffer b) {
         int n = b.capacity();
         b.clear();
@@ -160,6 +172,20 @@ public class BasicFloat
         b.position(42);
         b.put(7, a, 7, len);
         ck(b, b.position() == 42);
+    }
+
+    private static void absBulkPutArrayNoOffset(FloatBuffer b) {
+        int n = b.capacity();
+        b.clear();
+        int lim = n - 7;
+        int len = lim - 7;
+        b.limit(lim);
+        float[] a = new float[len];
+        for (int i = 0; i < len; i++)
+            a[i] = (float)ic(i);
+        b.position(41);
+        b.put(7, a);
+        ck(b, b.position() == 41);
     }
 
     //6231529
@@ -548,6 +574,9 @@ public class BasicFloat
 
         absBulkPutArray(b);
         absBulkGet(b);
+
+        absBulkPutArrayNoOffset(b);
+        absBulkGetNoOffset(b);
 
 
 

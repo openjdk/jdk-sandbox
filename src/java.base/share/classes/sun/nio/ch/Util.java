@@ -419,6 +419,7 @@ public class Util {
                                              Runnable.class,
                                              boolean.class,  // sync
                                              boolean.class,  // read-only
+                                             boolean.class,  // is-big-endian
                                              MemorySegmentProxy.class});
                         ctor.setAccessible(true);
                         directByteBufferConstructor = ctor;
@@ -449,6 +450,7 @@ public class Util {
                              unmapper,
                              isSync,
                              readOnly,
+                             true, // big-endian
                              null});
         } catch (InstantiationException |
                  IllegalAccessException |

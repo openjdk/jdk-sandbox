@@ -52,8 +52,9 @@ class Heap$Type$Buffer
 
     Heap$Type$Buffer(int cap, int lim,
                          boolean readOnly,
+                         boolean bigEndian,
                          MemorySegmentProxy segment) {            // package-private
-        super(-1, 0, lim, cap, new $type$[cap], 0, readOnly, segment);
+        super(-1, 0, lim, cap, new $type$[cap], 0, readOnly, bigEndian, segment);
         /*
         hb = new $type$[cap];
         offset = 0;
@@ -63,8 +64,9 @@ class Heap$Type$Buffer
 
     Heap$Type$Buffer($type$[] buf, int off, int len,
                          boolean readOnly,
+                         boolean bigEndian,
                          MemorySegmentProxy segment) { // package-private
-        super(-1, off, off + len, buf.length, buf, 0, readOnly, segment);
+        super(-1, off, off + len, buf.length, buf, 0, readOnly, bigEndian, segment);
         /*
         hb = buf;
         offset = 0;
@@ -75,9 +77,10 @@ class Heap$Type$Buffer
     protected Heap$Type$Buffer($type$[] buf,
                                    int mark, int pos, int lim, int cap, int off,
                                    boolean readOnly,
+                                   boolean bigEndian,
                                    MemorySegmentProxy segment)
     {
-        super(mark, pos, lim, cap, buf, off, readOnly, segment);
+        super(mark, pos, lim, cap, buf, off, readOnly, bigEndian, segment);
         /*
         hb = buf;
         offset = off;
@@ -90,13 +93,18 @@ class Heap$Type$Buffer
         int lim = this.limit();
         int rem = (pos <= lim ? lim - pos : 0);
         return new Heap$Type$Buffer(hb,
-                                        -1,
-                                        0,
-                                        rem,
-                                        rem,
-                                        pos + offset,
-                                        readOnly,
-                                        segment);
+                                    -1,
+                                    0,
+                                    rem,
+                                    rem,
+                                    pos + offset,
+                                    readOnly,
+#if[byte]
+                                    true, /* big-endian */
+#else[byte]
+                                    bigEndian, /* true if big-endian */
+#end[byte]
+                                    segment);
     }
 
     @Override
@@ -109,6 +117,11 @@ class Heap$Type$Buffer
                                     length,
                                     index + offset,
                                     readOnly,
+#if[byte]
+                                    true, /* big-endian */
+#else[byte]
+                                    bigEndian, /* true if big-endian */
+#end[byte]
                                     segment);
     }
 
@@ -120,6 +133,11 @@ class Heap$Type$Buffer
                                     this.capacity(),
                                     offset,
                                     readOnly,
+#if[byte]
+                                    true, /* big-endian */
+#else[byte]
+                                    bigEndian, /* true if big-endian */
+#end[byte]
                                     segment);
     }
 
@@ -130,7 +148,12 @@ class Heap$Type$Buffer
                                     this.limit(),
                                     this.capacity(),
                                     offset,
-                                    true,
+                                    true, /* read-only */
+#if[byte]
+                                    true, /* big-endian */
+#else[byte]
+                                    bigEndian, /* true if big-endian */
+#end[byte]
                                     segment);
     }
 
@@ -296,7 +319,6 @@ class Heap$Type$Buffer
     public $Type$Buffer putChar(int i, char x) {
         if (readOnly)
             throw new ReadOnlyBufferException();
-        checkSegment();
         SCOPED_MEMORY_ACCESS.putCharUnaligned(scope(), hb, byteOffset(checkIndex(i, 2)), x, bigEndian);
         return this;
     }
@@ -305,23 +327,15 @@ class Heap$Type$Buffer
         int pos = position();
         int size = (limit() - pos) >> 1;
         long addr = address + pos;
-        return (bigEndian
-                ? (CharBuffer)(new ByteBufferAsCharBufferB(this,
-                                                           -1,
-                                                           0,
-                                                           size,
-                                                           size,
-                                                           addr,
-                                                           readOnly,
-                                                           segment))
-                : (CharBuffer)(new ByteBufferAsCharBufferL(this,
-                                                           -1,
-                                                           0,
-                                                           size,
-                                                           size,
-                                                           addr,
-                                                           readOnly,
-                                                           segment)));
+        return (CharBuffer)(new ByteBufferAsCharBuffer(this,
+                                                       -1,
+                                                       0,
+                                                       size,
+                                                       size,
+                                                       addr,
+                                                       readOnly,
+                                                       bigEndian,
+                                                       segment));
     }
 
 
@@ -353,23 +367,15 @@ class Heap$Type$Buffer
         int pos = position();
         int size = (limit() - pos) >> 1;
         long addr = address + pos;
-        return (bigEndian
-                ? (ShortBuffer)(new ByteBufferAsShortBufferB(this,
-                                                             -1,
-                                                             0,
-                                                             size,
-                                                             size,
-                                                             addr,
-                                                             readOnly,
-                                                             segment))
-                : (ShortBuffer)(new ByteBufferAsShortBufferL(this,
-                                                             -1,
-                                                             0,
-                                                             size,
-                                                             size,
-                                                             addr,
-                                                             readOnly,
-                                                             segment)));
+        return (ShortBuffer)(new ByteBufferAsShortBuffer(this,
+                                                         -1,
+                                                         0,
+                                                         size,
+                                                         size,
+                                                         addr,
+                                                         readOnly,
+                                                         bigEndian,
+                                                         segment));
     }
 
 
@@ -401,23 +407,15 @@ class Heap$Type$Buffer
         int pos = position();
         int size = (limit() - pos) >> 2;
         long addr = address + pos;
-        return (bigEndian
-                ? (IntBuffer)(new ByteBufferAsIntBufferB(this,
-                                                         -1,
-                                                         0,
-                                                         size,
-                                                         size,
-                                                         addr,
-                                                         readOnly,
-                                                         segment))
-                : (IntBuffer)(new ByteBufferAsIntBufferL(this,
-                                                         -1,
-                                                         0,
-                                                         size,
-                                                         size,
-                                                         addr,
-                                                         readOnly,
-                                                         segment)));
+        return (IntBuffer)(new ByteBufferAsIntBuffer(this,
+                                                     -1,
+                                                     0,
+                                                     size,
+                                                     size,
+                                                     addr,
+                                                     readOnly,
+                                                     bigEndian,
+                                                     segment));
     }
 
 
@@ -449,23 +447,15 @@ class Heap$Type$Buffer
         int pos = position();
         int size = (limit() - pos) >> 3;
         long addr = address + pos;
-        return (bigEndian
-                ? (LongBuffer)(new ByteBufferAsLongBufferB(this,
-                                                           -1,
-                                                           0,
-                                                           size,
-                                                           size,
-                                                           addr,
-                                                           readOnly,
-                                                           segment))
-                : (LongBuffer)(new ByteBufferAsLongBufferL(this,
-                                                           -1,
-                                                           0,
-                                                           size,
-                                                           size,
-                                                           addr,
-                                                           readOnly,
-                                                           segment)));
+        return (LongBuffer)(new ByteBufferAsLongBuffer(this,
+                                                       -1,
+                                                       0,
+                                                       size,
+                                                       size,
+                                                       addr,
+                                                       readOnly,
+                                                       bigEndian,
+                                                       segment));
     }
 
 
@@ -501,23 +491,15 @@ class Heap$Type$Buffer
         int pos = position();
         int size = (limit() - pos) >> 2;
         long addr = address + pos;
-        return (bigEndian
-                ? (FloatBuffer)(new ByteBufferAsFloatBufferB(this,
-                                                             -1,
-                                                             0,
-                                                             size,
-                                                             size,
-                                                             addr,
-                                                             readOnly,
-                                                             segment))
-                : (FloatBuffer)(new ByteBufferAsFloatBufferL(this,
-                                                             -1,
-                                                             0,
-                                                             size,
-                                                             size,
-                                                             addr,
-                                                             readOnly,
-                                                             segment)));
+        return (FloatBuffer)(new ByteBufferAsFloatBuffer(this,
+                                                         -1,
+                                                         0,
+                                                         size,
+                                                         size,
+                                                         addr,
+                                                         readOnly,
+                                                         bigEndian,
+                                                         segment));
     }
 
 
@@ -553,23 +535,15 @@ class Heap$Type$Buffer
         int pos = position();
         int size = (limit() - pos) >> 3;
         long addr = address + pos;
-        return (bigEndian
-                ? (DoubleBuffer)(new ByteBufferAsDoubleBufferB(this,
-                                                               -1,
-                                                               0,
-                                                               size,
-                                                               size,
-                                                               addr,
-                                                               readOnly,
-                                                               segment))
-                : (DoubleBuffer)(new ByteBufferAsDoubleBufferL(this,
-                                                               -1,
-                                                               0,
-                                                               size,
-                                                               size,
-                                                               addr,
-                                                               readOnly,
-                                                               segment)));
+        return (DoubleBuffer)(new ByteBufferAsDoubleBuffer(this,
+                                                           -1,
+                                                           0,
+                                                           size,
+                                                           size,
+                                                           addr,
+                                                           readOnly,
+                                                           bigEndian,
+                                                           segment));
     }
 
 
@@ -599,19 +573,9 @@ class Heap$Type$Buffer
                                   capacity(),
                                   offset,
                                   readOnly,
+                                  bigEndian,
                                   segment);
     }
-
-#end[char]
-
-
-#if[!byte]
-
-    public ByteOrder order() {
-        return ByteOrder.nativeOrder();
-    }
-#end[!byte]
-#if[char]
 
     ByteOrder charRegionOrder() {
         return order();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,6 +55,8 @@ public class Order {
         ck(bb.asReadOnlyBuffer().order(), be);
         ck(bb.duplicate().order(), be);
         ck(bb.slice().order(), be);
+        ck(bb.slice(bb.position(), bb.limit()).order(), be);
+        ck(bb.slice(bb.position(), bb.position()).order(), be);
     }
 
     private static void ckByteBuffer(ByteBuffer bb) {

@@ -31,19 +31,21 @@ import java.util.Objects;
 import jdk.internal.access.foreign.MemorySegmentProxy;
 import jdk.internal.misc.Unsafe;
 
-class ByteBufferAs$Type$Buffer$BO$                  // package-private
+class ByteBufferAs$Type$Buffer                  // package-private
     extends $Type$Buffer
 {
 
     protected final ByteBuffer bb;
 
-    ByteBufferAs$Type$Buffer$BO$(ByteBuffer bb,
-                                 boolean readOnly,
-                                 MemorySegmentProxy segment) {   // package-private
+    ByteBufferAs$Type$Buffer(ByteBuffer bb,
+                             boolean readOnly,
+                             boolean bigEndian,
+                             MemorySegmentProxy segment) {   // package-private
         super(-1, 0,
               bb.remaining() >> $LG_BYTES_PER_VALUE$,
               bb.remaining() >> $LG_BYTES_PER_VALUE$,
               readOnly,
+              bigEndian,
               segment);
         this.bb = bb;
         // enforce limit == capacity
@@ -54,13 +56,14 @@ class ByteBufferAs$Type$Buffer$BO$                  // package-private
         address = bb.address;
     }
 
-    ByteBufferAs$Type$Buffer$BO$(ByteBuffer bb,
-                                 int mark, int pos, int lim, int cap,
-                                 long addr,
-                                 boolean readOnly,
-                                 MemorySegmentProxy segment)
+    ByteBufferAs$Type$Buffer(ByteBuffer bb,
+                             int mark, int pos, int lim, int cap,
+                             long addr,
+                             boolean readOnly,
+                             boolean bigEndian,
+                             MemorySegmentProxy segment)
     {
-        super(mark, pos, lim, cap, readOnly, segment);
+        super(mark, pos, lim, cap, readOnly, bigEndian, segment);
         this.bb = bb;
         address = addr;
         assert address >= bb.address;
@@ -76,42 +79,45 @@ class ByteBufferAs$Type$Buffer$BO$                  // package-private
         int lim = this.limit();
         int rem = (pos <= lim ? lim - pos : 0);
         long addr = byteOffset(pos);
-        return new ByteBufferAs$Type$Buffer$BO$(bb, -1, 0, rem, rem, addr, readOnly, segment);
+        return new ByteBufferAs$Type$Buffer(bb, -1, 0, rem, rem, addr, readOnly, bigEndian, segment);
     }
 
     @Override
     public $Type$Buffer slice(int index, int length) {
         Objects.checkFromIndexSize(index, length, limit());
-        return new ByteBufferAs$Type$Buffer$BO$(bb,
-                                                -1,
-                                                0,
-                                                length,
-                                                length,
-                                                byteOffset(index),
-                                                readOnly,
-                                                segment);
+        return new ByteBufferAs$Type$Buffer(bb,
+                                            -1,
+                                            0,
+                                            length,
+                                            length,
+                                            byteOffset(index),
+                                            readOnly,
+                                            bigEndian,
+                                            segment);
     }
 
     public $Type$Buffer duplicate() {
-        return new ByteBufferAs$Type$Buffer$BO$(bb,
-                                                this.markValue(),
-                                                this.position(),
-                                                this.limit(),
-                                                this.capacity(),
-                                                address,
-                                                readOnly,
-                                                segment);
+        return new ByteBufferAs$Type$Buffer(bb,
+                                            this.markValue(),
+                                            this.position(),
+                                            this.limit(),
+                                            this.capacity(),
+                                            address,
+                                            readOnly,
+                                            bigEndian,
+                                            segment);
     }
 
     public $Type$Buffer asReadOnlyBuffer() {
-        return new ByteBufferAs$Type$Buffer$BO$(bb,
-                                                this.markValue(),
-                                                this.position(),
-                                                this.limit(),
-                                                this.capacity(),
-                                                address,
-                                                true,
-                                                segment);
+        return new ByteBufferAs$Type$Buffer(bb,
+                                            this.markValue(),
+                                            this.position(),
+                                            this.limit(),
+                                            this.capacity(),
+                                            address,
+                                            true, /* read-only */
+                                            bigEndian,
+                                            segment);
     }
 
     private int ix(int i) {
@@ -125,20 +131,20 @@ class ByteBufferAs$Type$Buffer$BO$                  // package-private
 
     public $type$ get() {
         $memtype$ x = SCOPED_MEMORY_ACCESS.get$Memtype$Unaligned(scope(), bb.hb, byteOffset(nextGetIndex()),
-            {#if[boB]?true:false});
+            bigEndian);
         return $fromBits$(x);
     }
 
     public $type$ get(int i) {
         $memtype$ x = SCOPED_MEMORY_ACCESS.get$Memtype$Unaligned(scope(), bb.hb, byteOffset(checkIndex(i)),
-            {#if[boB]?true:false});
+            bigEndian);
         return $fromBits$(x);
     }
 
 #if[streamableType]
    $type$ getUnchecked(int i) {
         $memtype$ x = SCOPED_MEMORY_ACCESS.get$Memtype$Unaligned(null, bb.hb, byteOffset(i),
-            {#if[boB]?true:false});
+            bigEndian);
         return $fromBits$(x);
     }
 #end[streamableType]
@@ -148,7 +154,7 @@ class ByteBufferAs$Type$Buffer$BO$                  // package-private
             throw new ReadOnlyBufferException();
         $memtype$ y = $toBits$(x);
         SCOPED_MEMORY_ACCESS.put$Memtype$Unaligned(scope(), bb.hb, byteOffset(nextPutIndex()), y,
-            {#if[boB]?true:false});
+            bigEndian);
         return this;
     }
 
@@ -157,7 +163,7 @@ class ByteBufferAs$Type$Buffer$BO$                  // package-private
             throw new ReadOnlyBufferException();
         $memtype$ y = $toBits$(x);
         SCOPED_MEMORY_ACCESS.put$Memtype$Unaligned(scope(), bb.hb, byteOffset(checkIndex(i)), y,
-            {#if[boB]?true:false});
+            bigEndian);
         return this;
     }
 
@@ -214,31 +220,21 @@ class ByteBufferAs$Type$Buffer$BO$                  // package-private
         int len = lim - pos;
 
         Objects.checkFromToIndex(start, end, len);
-        return new ByteBufferAsCharBuffer$BO$(bb,
-                                              -1,
-                                              pos + start,
-                                              pos + end,
-                                              capacity(),
-                                              address,
-                                              readOnly,
-                                              segment);
+        return new ByteBufferAsCharBuffer(bb,
+                                          -1,
+                                          pos + start,
+                                          pos + end,
+                                          capacity(),
+                                          address,
+                                          readOnly,
+                                          bigEndian,
+                                          segment);
     }
 
-#end[char]
-
-
-    public ByteOrder order() {
-#if[boB]
-        return ByteOrder.BIG_ENDIAN;
-#end[boB]
-#if[boL]
-        return ByteOrder.LITTLE_ENDIAN;
-#end[boL]
-    }
-
-#if[char]
     ByteOrder charRegionOrder() {
         return order();
     }
+
 #end[char]
+
 }

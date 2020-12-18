@@ -281,30 +281,32 @@ public abstract class $Type$Buffer
     //
     $Type$Buffer(int mark, int pos, int lim, int cap,   // package-private
                  $type$[] hb, int offset,
-                 boolean readOnly,
+                 boolean readOnly, boolean bigEndian,
                  MemorySegmentProxy segment)
     {
         super(mark, pos, lim, cap, readOnly, segment);
         this.hb = hb;
         this.offset = offset;
+        this.bigEndian = bigEndian;
     }
 
     // Creates a new buffer with the given mark, position, limit, and capacity
     //
     $Type$Buffer(int mark, int pos, int lim, int cap,
-                 boolean readOnly,
+                 boolean readOnly, boolean bigEndian,
                  MemorySegmentProxy segment) { // package-private
-        this(mark, pos, lim, cap, null, 0, readOnly, segment);
+        this(mark, pos, lim, cap, null, 0, readOnly, bigEndian, segment);
     }
 
     // Creates a new buffer with given base, address and capacity
     //
     $Type$Buffer($type$[] hb, long addr, int cap,
-                 boolean readOnly,
+                 boolean readOnly, boolean bigEndian,
                  MemorySegmentProxy segment) { // package-private
         super(addr, cap, readOnly, segment);
         this.hb = hb;
         this.offset = 0;
+        this.bigEndian = bigEndian;
     }
 
     @Override
@@ -332,7 +334,9 @@ public abstract class $Type$Buffer
      *          If the {@code capacity} is a negative integer
      */
     public static $Type$Buffer allocateDirect(int capacity) {
-        return new Direct$Type$Buffer(capacity, false);
+        return new Direct$Type$Buffer(capacity,
+                                      false, /* read-only  */
+                                      true   /* big-endian */ );
     }
 
 #end[byte]
@@ -363,7 +367,15 @@ public abstract class $Type$Buffer
     public static $Type$Buffer allocate(int capacity) {
         if (capacity < 0)
             throw createCapacityException(capacity);
-        return new Heap$Type$Buffer(capacity, capacity, false, null);
+        return new Heap$Type$Buffer(capacity,
+                                    capacity,
+                                    false, /* read-only */
+#if[byte]
+                                    true, /* big-endian */
+#else[byte]
+                                    NORD_IS_BIG, /* true if big-endian */
+#end[byte]
+                                    null);
     }
 
     /**
@@ -408,7 +420,16 @@ public abstract class $Type$Buffer
                                     int offset, int length)
     {
         try {
-            return new Heap$Type$Buffer(array, offset, length, false, null);
+            return new Heap$Type$Buffer(array,
+            offset,
+            length,
+            false, /* read-only */
+#if[byte]
+            true, /* big-endian */
+#else[byte]
+            NORD_IS_BIG, /* true if big-endian */
+#end[byte]
+            null);
         } catch (IllegalArgumentException x) {
             throw new IndexOutOfBoundsException();
         }
@@ -1976,6 +1997,8 @@ public abstract class $Type$Buffer
 
 #if[!byte]
 
+    final boolean bigEndian;                                  // package-private
+
     /**
      * Retrieves this buffer's byte order.
      *
@@ -1988,7 +2011,9 @@ public abstract class $Type$Buffer
      *
      * @return  This buffer's byte order
      */
-    public abstract ByteOrder order();
+    public final ByteOrder order() {
+        return bigEndian ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
+    }
 
 #end[!byte]
 

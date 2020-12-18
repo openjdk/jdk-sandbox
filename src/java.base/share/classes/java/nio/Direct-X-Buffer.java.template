@@ -104,8 +104,10 @@ class Direct$Type$Buffer$BO$
 
     // Primary constructor
     //
-    Direct$Type$Buffer(int cap, boolean readOnly) {                   // package-private
-        super(-1, 0, cap, cap, readOnly, null);
+    Direct$Type$Buffer(int cap,                          // package-private
+                       boolean readOnly,
+                       boolean bigEndian) {
+        super(-1, 0, cap, cap, readOnly, bigEndian, null);
         boolean pa = VM.isDirectMemoryPageAligned();
         int ps = Bits.pageSize();
         long size = Math.max(1L, (long)cap + (pa ? ps : 0));
@@ -134,8 +136,9 @@ class Direct$Type$Buffer$BO$
     //
     Direct$Type$Buffer(long addr, int cap, Object ob,
                        boolean readOnly,
+                       boolean bigEndian,
                        MemorySegmentProxy segment) {
-        super(-1, 0, cap, cap, readOnly, segment);
+        super(-1, 0, cap, cap, readOnly, bigEndian, segment);
         address = addr;
         cleaner = null;
         att = ob;
@@ -144,10 +147,12 @@ class Direct$Type$Buffer$BO$
     // Invoked to construct a direct ByteBuffer referring to the block of
     // memory. A given arbitrary object may also be attached to the buffer.
     //
-    Direct$Type$Buffer(long addr, int cap, Object ob, FileDescriptor fd, boolean isSync,
+    Direct$Type$Buffer(long addr, int cap, Object ob, FileDescriptor fd,
+                       boolean isSync,
                        boolean readOnly,
+                       boolean bigEndian,
                        MemorySegmentProxy segment) {
-        super(-1, 0, cap, cap, fd, isSync, readOnly, segment);
+        super(-1, 0, cap, cap, fd, isSync, readOnly, bigEndian, segment);
         address = addr;
         cleaner = null;
         att = ob;
@@ -156,7 +161,11 @@ class Direct$Type$Buffer$BO$
     // Invoked only by JNI: NewDirectByteBuffer(void*, long)
     //
     private Direct$Type$Buffer(long addr, int cap) {
-        super(-1, 0, cap, cap, false, null);
+        super(-1, 0, cap, cap,
+              false,  /* read-only */
+              true,   /* bigEndian */
+              null    /* segment */
+              );
         address = addr;
         cleaner = null;
         att = null;
@@ -169,9 +178,10 @@ class Direct$Type$Buffer$BO$
                                  Runnable unmapper,
                                  boolean isSync,
                                  boolean readOnly,
+                                 boolean bigEndian,
                                  MemorySegmentProxy segment)
     {
-        super(-1, 0, cap, cap, fd, isSync, readOnly, segment);
+        super(-1, 0, cap, cap, fd, isSync, readOnly, bigEndian, segment);
         address = addr;
         cleaner = Cleaner.create(this, unmapper);
         att = null;
@@ -181,13 +191,14 @@ class Direct$Type$Buffer$BO$
 
     // For duplicates and slices
     //
-    Direct$Type$Buffer$BO$(DirectBuffer db,         // package-private
-                           int mark, int pos, int lim, int cap,
-                           int off,
-                           boolean readOnly,
-                           MemorySegmentProxy segment)
+    Direct$Type$Buffer(DirectBuffer db,         // package-private
+                       int mark, int pos, int lim, int cap,
+                       int off,
+                       boolean readOnly,
+                       boolean bigEndian,
+                       MemorySegmentProxy segment)
     {
-        super(mark, pos, lim, cap, readOnly, segment);
+        super(mark, pos, lim, cap, readOnly, bigEndian, segment);
         address = db.address() + off;
 #if[byte]
         cleaner = null;
@@ -207,42 +218,69 @@ class Direct$Type$Buffer$BO$
         int rem = (pos <= lim ? lim - pos : 0);
         int off = (pos << $LG_BYTES_PER_VALUE$);
         assert (off >= 0);
-        return new Direct$Type$Buffer$BO$(this, -1, 0, rem, rem, off, readOnly, segment);
+        return new Direct$Type$Buffer(this,
+                                      -1,
+                                      0,
+                                      rem,
+                                      rem,
+                                      off,
+                                      readOnly,
+#if[byte]
+                                      true, /* big-endian */
+#else[byte]
+                                      bigEndian, /* true if big-endian */
+#end[byte]
+                                      segment);
     }
 
     @Override
     public $Type$Buffer slice(int index, int length) {
         Objects.checkFromIndexSize(index, length, limit());
-        return new Direct$Type$Buffer$BO$(this,
-                                          -1,
-                                          0,
-                                          length,
-                                          length,
-                                          index,
-                                          readOnly,
-                                          segment);
+        return new Direct$Type$Buffer(this,
+                                      -1,
+                                      0,
+                                      length,
+                                      length,
+                                      index,
+                                      readOnly,
+#if[byte]
+                                      true, /* big-endian */
+#else[byte]
+                                      bigEndian, /* true if big-endian */
+#end[byte]
+                                      segment);
     }
 
     public $Type$Buffer duplicate() {
-        return new Direct$Type$Buffer$BO$(this,
-                                          this.markValue(),
-                                          this.position(),
-                                          this.limit(),
-                                          this.capacity(),
-                                          0,
-                                          readOnly,
-                                          segment);
+        return new Direct$Type$Buffer(this,
+                                      this.markValue(),
+                                      this.position(),
+                                      this.limit(),
+                                      this.capacity(),
+                                      0,
+                                      readOnly,
+#if[byte]
+                                      true, /* big-endian */
+#else[byte]
+                                      bigEndian, /* true if big-endian */
+#end[byte]
+                                      segment);
     }
 
     public $Type$Buffer asReadOnlyBuffer() {
-        return new Direct$Type$Buffer$BO$(this,
-                                          this.markValue(),
-                                          this.position(),
-                                          this.limit(),
-                                          this.capacity(),
-                                          0,
-                                          true,
-                                          segment);
+        return new Direct$Type$Buffer(this,
+                                      this.markValue(),
+                                      this.position(),
+                                      this.limit(),
+                                      this.capacity(),
+                                      0,
+                                      true, /* read-only */
+#if[byte]
+                                      true, /* big-endian */
+#else[byte]
+                                      bigEndian, /* true if big-endian */
+#end[byte]
+                                      segment);
     }
 
     public long address() {
@@ -266,7 +304,12 @@ class Direct$Type$Buffer$BO$
 
     public $type$ get() {
         try {
-            return $fromBits$($swap$(SCOPED_MEMORY_ACCESS.get$Swaptype$(scope(), null, ix(nextGetIndex()))));
+#if[byte]
+            $memtype$ x = SCOPED_MEMORY_ACCESS.getByte(scope(),null, ix(nextGetIndex()));
+#else[byte]
+            $memtype$ x = SCOPED_MEMORY_ACCESS.get$Memtype$Unaligned(scope(), null, ix(nextGetIndex()), bigEndian);
+#end[byte]
+            return $fromBits$(x);
         } finally {
             Reference.reachabilityFence(this);
         }
@@ -274,7 +317,12 @@ class Direct$Type$Buffer$BO$
 
     public $type$ get(int i) {
         try {
-            return $fromBits$($swap$(SCOPED_MEMORY_ACCESS.get$Swaptype$(scope(), null, ix(checkIndex(i)))));
+#if[byte]
+            $memtype$ x = SCOPED_MEMORY_ACCESS.getByte(scope(), null, ix(checkIndex(i)));
+#else[byte]
+            $memtype$ x = SCOPED_MEMORY_ACCESS.get$Memtype$Unaligned(scope(), null, ix(checkIndex(i)), bigEndian);
+#end[byte]
+            return $fromBits$(x);
         } finally {
             Reference.reachabilityFence(this);
         }
@@ -283,7 +331,8 @@ class Direct$Type$Buffer$BO$
 #if[streamableType]
     $type$ getUnchecked(int i) {
         try {
-            return $fromBits$($swap$(SCOPED_MEMORY_ACCESS.get$Swaptype$(null, null, ix(i))));
+            $memtype$ x = SCOPED_MEMORY_ACCESS.get$Memtype$Unaligned(null, null, ix(i), bigEndian);
+            return $fromBits$(x);
         } finally {
             Reference.reachabilityFence(this);
         }
@@ -362,7 +411,12 @@ class Direct$Type$Buffer$BO$
         if (readOnly)
             throw new ReadOnlyBufferException();
         try {
-            SCOPED_MEMORY_ACCESS.put$Swaptype$(scope(), null, ix(nextPutIndex()), $swap$($toBits$(x)));
+#if[byte]
+            SCOPED_MEMORY_ACCESS.putByte(scope(), null, ix(nextPutIndex()), x);
+#else[byte]
+            $memtype$ y = $toBits$(x);
+            SCOPED_MEMORY_ACCESS.put$Memtype$Unaligned(scope(), null, ix(nextPutIndex()), y, bigEndian);
+#end[byte]
         } finally {
             Reference.reachabilityFence(this);
         }
@@ -373,7 +427,12 @@ class Direct$Type$Buffer$BO$
         if (readOnly)
             throw new ReadOnlyBufferException();
         try {
-            SCOPED_MEMORY_ACCESS.put$Swaptype$(scope(), null, ix(checkIndex(i)), $swap$($toBits$(x)));
+#if[byte]
+            SCOPED_MEMORY_ACCESS.putByte(scope(), null, ix(checkIndex(i)), x);
+#else[byte]
+            $memtype$ y = $toBits$(x);
+            SCOPED_MEMORY_ACCESS.put$Memtype$Unaligned(scope(), null, ix(checkIndex(i)), y, bigEndian);
+#end[byte]
         } finally {
             Reference.reachabilityFence(this);
         }
@@ -519,41 +578,21 @@ class Direct$Type$Buffer$BO$
         int len = lim - pos;
 
         Objects.checkFromToIndex(start, end, len);
-        return new DirectCharBuffer$BO$(this,
-                                        -1,
-                                        pos + start,
-                                        pos + end,
-                                        capacity(),
-                                        offset,
-                                        readOnly,
-                                        segment);
+        return new DirectCharBuffer(this,
+                                    -1,
+                                    pos + start,
+                                    pos + end,
+                                    capacity(),
+                                    offset,
+                                    readOnly,
+                                    bigEndian,
+                                    segment);
     }
 
-#end[char]
-
-
-
-#if[!byte]
-
-    public ByteOrder order() {
-#if[boS]
-        return ((ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN)
-                ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN);
-#end[boS]
-#if[boU]
-        return ((ByteOrder.nativeOrder() != ByteOrder.BIG_ENDIAN)
-                ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN);
-#end[boU]
-    }
-
-#end[!byte]
-
-#if[char]
     ByteOrder charRegionOrder() {
         return order();
     }
 #end[char]
-
 
 #if[byte]
     // #BIN

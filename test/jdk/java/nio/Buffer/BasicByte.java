@@ -109,6 +109,18 @@ public class BasicByte
         }
     }
 
+    private static void absBulkGetNoOffset(ByteBuffer b) {
+        int n = b.capacity();
+        int len = n - 7*2;
+        byte[] a = new byte[len];
+        b.position(43);
+        b.get(7, a);
+        ck(b, b.position() == 43);
+        for (int i = 0; i < len; i++) {
+            ck(b, (long)a[i], (long)((byte)ic(i)));
+        }
+    }
+
     private static void relPut(ByteBuffer b) {
         int n = b.capacity();
         b.clear();
@@ -170,6 +182,20 @@ public class BasicByte
         b.position(42);
         b.put(7, a, 7, len);
         ck(b, b.position() == 42);
+    }
+
+    private static void absBulkPutArrayNoOffset(ByteBuffer b) {
+        int n = b.capacity();
+        b.clear();
+        int lim = n - 7;
+        int len = lim - 7;
+        b.limit(lim);
+        byte[] a = new byte[len];
+        for (int i = 0; i < len; i++)
+            a[i] = (byte)ic(i);
+        b.position(41);
+        b.put(7, a);
+        ck(b, b.position() == 41);
     }
 
     //6231529
@@ -625,6 +651,9 @@ public class BasicByte
 
         absBulkPutArray(b);
         absBulkGet(b);
+
+        absBulkPutArrayNoOffset(b);
+        absBulkGetNoOffset(b);
 
 
 

@@ -87,43 +87,15 @@ class XXX {
         int rem = (off <= lim ? lim - off : 0);
 
         int size = rem >> $LG_BYTES_PER_VALUE$;
-        if (!UNALIGNED && ((address + off) % $BYTES_PER_VALUE$ != 0)) {
-            return (bigEndian
-                    ? ($Type$Buffer)(new ByteBufferAs$Type$BufferB(this,
-                                                                   -1,
-                                                                   0,
-                                                                   size,
-                                                                   size,
-                                                                   address + off,
-                                                                   readOnly,
-                                                                   segment))
-                    : ($Type$Buffer)(new ByteBufferAs$Type$BufferL(this,
-                                                                   -1,
-                                                                   0,
-                                                                   size,
-                                                                   size,
-                                                                   address + off,
-                                                                   readOnly,
-                                                                   segment)));
-        } else {
-            return (nativeByteOrder
-                    ? ($Type$Buffer)(new Direct$Type$BufferU(this,
-                                                             -1,
-                                                             0,
-                                                             size,
-                                                             size,
-                                                             off,
-                                                             readOnly,
-                                                             segment))
-                    : ($Type$Buffer)(new Direct$Type$BufferS(this,
-                                                             -1,
-                                                             0,
-                                                             size,
-                                                             size,
-                                                             off,
-                                                             readOnly,
-                                                             segment)));
-        }
+        return ($Type$Buffer)(new Direct$Type$Buffer(this,
+                                                     -1,
+                                                     0,
+                                                     size,
+                                                     size,
+                                                     off,
+                                                     readOnly,
+                                                     bigEndian,
+                                                     segment));
     }
 
 #end

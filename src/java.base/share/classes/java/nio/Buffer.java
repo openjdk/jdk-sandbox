@@ -193,6 +193,8 @@ import java.util.Spliterator;
 public abstract class Buffer {
     // Cached unsafe-access object
     static final Unsafe UNSAFE = Unsafe.getUnsafe();
+    // True is the native order is big-endian
+    static final boolean NORD_IS_BIG = UNSAFE.isBigEndian();
 
     static final ScopedMemoryAccess SCOPED_MEMORY_ACCESS = ScopedMemoryAccess.getScopedMemoryAccess();
 
@@ -789,17 +791,34 @@ public abstract class Buffer {
 
                 @Override
                 public ByteBuffer newDirectByteBuffer(long addr, int cap, Object obj, MemorySegmentProxy segment) {
-                    return new DirectByteBuffer(addr, cap, obj, false, segment);
+                    return new DirectByteBuffer(addr,
+                                                cap,
+                                                obj,
+                                                false, /* read-only */
+                                                true,  /* bigEndian */
+                                                segment);
                 }
 
                 @Override
                 public ByteBuffer newMappedByteBuffer(UnmapperProxy unmapperProxy, long address, int cap, Object obj, MemorySegmentProxy segment) {
-                    return new DirectByteBuffer(address, cap, obj, unmapperProxy.fileDescriptor(), unmapperProxy.isSync(), false, segment);
+                    return new DirectByteBuffer(address,
+                                                cap,
+                                                obj,
+                                                unmapperProxy.fileDescriptor(),
+                                                unmapperProxy.isSync(),
+                                                false, /* read-only */
+                                                true,  /* bigEndian */
+                                                segment);
                 }
 
                 @Override
                 public ByteBuffer newHeapByteBuffer(byte[] hb, int offset, int capacity, MemorySegmentProxy segment) {
-                    return new HeapByteBuffer(hb, offset, capacity, false, segment);
+                    return new HeapByteBuffer(hb,
+                                              offset,
+                                              capacity,
+                                              false, /* read-only */
+                                              true,  /* bigEndian */
+                                              segment);
                 }
 
                 @Override

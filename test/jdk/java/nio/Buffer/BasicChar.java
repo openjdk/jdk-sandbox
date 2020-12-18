@@ -99,6 +99,18 @@ public class BasicChar
         }
     }
 
+    private static void absBulkGetNoOffset(CharBuffer b) {
+        int n = b.capacity();
+        int len = n - 7*2;
+        char[] a = new char[len];
+        b.position(43);
+        b.get(7, a);
+        ck(b, b.position() == 43);
+        for (int i = 0; i < len; i++) {
+            ck(b, (long)a[i], (long)((char)ic(i)));
+        }
+    }
+
     private static void relPut(CharBuffer b) {
         int n = b.capacity();
         b.clear();
@@ -160,6 +172,20 @@ public class BasicChar
         b.position(42);
         b.put(7, a, 7, len);
         ck(b, b.position() == 42);
+    }
+
+    private static void absBulkPutArrayNoOffset(CharBuffer b) {
+        int n = b.capacity();
+        b.clear();
+        int lim = n - 7;
+        int len = lim - 7;
+        b.limit(lim);
+        char[] a = new char[len];
+        for (int i = 0; i < len; i++)
+            a[i] = (char)ic(i);
+        b.position(41);
+        b.put(7, a);
+        ck(b, b.position() == 41);
     }
 
     //6231529
@@ -548,6 +574,9 @@ public class BasicChar
 
         absBulkPutArray(b);
         absBulkGet(b);
+
+        absBulkPutArrayNoOffset(b);
+        absBulkGetNoOffset(b);
 
 
 
@@ -971,7 +1000,9 @@ public class BasicChar
         show(0, b);
         ck(b, b.toString().equals(s.substring(start, end)));
         ck(b, b.toString().equals("defghi"));
+        ck(b, !b.isDirect());
         ck(b, b.isReadOnly());
+        catchReadOnlyBuffer(b, () -> b.compact());
         catchReadOnlyBuffer(b, () -> b.put('x'));
         ck(b, start, b.position());
         ck(b, end, b.limit());

@@ -94,25 +94,28 @@ public abstract class MappedByteBuffer
     //
     MappedByteBuffer(int mark, int pos, int lim, int cap, // package-private
                      FileDescriptor fd, boolean isSync,
-                     boolean readOnly,
+                     boolean readOnly, boolean bigEndian,
                      MemorySegmentProxy segment) {
-        super(mark, pos, lim, cap, readOnly, segment);
+        super(mark, pos, lim, cap, readOnly, bigEndian, segment);
         this.fd = fd;
         this.isSync = isSync;
     }
 
     MappedByteBuffer(int mark, int pos, int lim, int cap, // package-private
                      boolean isSync,
-                     boolean readOnly, MemorySegmentProxy segment) {
-        super(mark, pos, lim, cap, readOnly, segment);
+                     boolean readOnly,
+                     boolean bigEndian,
+                     MemorySegmentProxy segment) {
+        super(mark, pos, lim, cap, readOnly, bigEndian, segment);
         this.fd = null;
         this.isSync = isSync;
     }
 
     MappedByteBuffer(int mark, int pos, int lim, int cap,
                      boolean readOnly,
+                     boolean bigEndian,
                      MemorySegmentProxy segment) { // package-private
-        super(mark, pos, lim, cap, readOnly, segment);
+        super(mark, pos, lim, cap, readOnly, bigEndian, segment);
         this.fd = null;
         this.isSync = false;
     }
