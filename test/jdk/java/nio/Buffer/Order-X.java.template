@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,27 +58,27 @@ public class Order$Type$ extends Order {
         buf = $Type$Buffer.allocate(LENGTH);
         ck(buf.order(), nord);
         ck$Type$Buffer(buf, nord);
-
 #if[char]
-        buf = CharBuffer.wrap("abcdefghij");
+        buf = $Type$Buffer.wrap("abcdefghijk");
         ck(buf.order(), nord);
-        ckCharBuffer(buf, nord);
+        ck$Type$Buffer(buf, nord);
 
-        buf = CharBuffer.wrap("abcdefghij", 0, 10);
+        buf = $Type$Buffer.wrap("abcdefghijk", 0, 5);
         ck(buf.order(), nord);
-        ckCharBuffer(buf, nord);
+        ck$Type$Buffer(buf, nord);
 
-        buf = CharBuffer.wrap(array).subSequence(0, LENGTH);
+        buf = $Type$Buffer.wrap(array).subSequence(0, LENGTH);
         ck(buf.order(), nord);
-        ckCharBuffer(buf, nord);
+        ck$Type$Buffer(buf, nord);
 
-        buf = ByteBuffer.wrap(new byte[LENGTH]).asCharBuffer();
+        buf = ByteBuffer.wrap(new byte[LENGTH]).as$Type$Buffer();
         ck(buf.order(), be);
-        ckCharBuffer(buf, be);
+        ck$Type$Buffer(buf, be);
 
-        buf = ByteBuffer.wrap(new byte[LENGTH]).order(le).asCharBuffer();
+        buf = ByteBuffer.wrap(new byte[LENGTH]).order(le).as$Type$Buffer();
         ck(buf.order(), le);
-        ckCharBuffer(buf, le);
+        ck$Type$Buffer(buf, le);
 #end[char]
     }
 }
+

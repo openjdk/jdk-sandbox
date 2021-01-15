@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,12 +59,11 @@ public class OrderChar extends Order {
         ck(buf.order(), nord);
         ckCharBuffer(buf, nord);
 
-
-        buf = CharBuffer.wrap("abcdefghij");
+        buf = CharBuffer.wrap("abcdefghijk");
         ck(buf.order(), nord);
         ckCharBuffer(buf, nord);
 
-        buf = CharBuffer.wrap("abcdefghij", 0, 10);
+        buf = CharBuffer.wrap("abcdefghijk", 0, 5);
         ck(buf.order(), nord);
         ckCharBuffer(buf, nord);
 
@@ -82,3 +81,4 @@ public class OrderChar extends Order {
 
     }
 }
+
