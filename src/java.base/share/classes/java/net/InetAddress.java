@@ -222,9 +222,9 @@ import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
  * as follows:
  * <ol>
  *  <li>The ServiceLoader mechanism is used to find a
- *      {@linkplain InetNameServiceProvider InetNameServiceProvider} using the
+ *      {@link InetNameServiceProvider InetNameServiceProvider} using the
  *      system class loader. The order in which providers are located is
- *      {@linkplain ServiceLoader#load(java.lang.Class,java.lang.ClassLoader) implementation specific}.
+ *      {@linkplain ServiceLoader#load(java.lang.Class, java.lang.ClassLoader) implementation specific}.
  *      The first provider found will be used to instantiate the {@link InetNameService InetNameService} by
  *      invoking the {@link InetNameServiceProvider#get(InetNameServiceProvider.Configuration)}
  *      method. The instantiated {@code InetNameService} will be installed as the system-wide
@@ -238,6 +238,9 @@ import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
  * installed and the error or exception will be propagated to the calling thread.
  * Otherwise, any lookup operation will be performed through the installed
  * <i>system-wide name service</i>.
+ * @implNote
+ * For any lookup operation that might occur before the VM is fully booted the <i>built-in
+ * name service</i> will be used.
  *
  * @author  Chris Warth
  * @see     java.net.InetAddress#getByAddress(byte[])
@@ -1149,9 +1152,9 @@ public class InetAddress implements java.io.Serializable {
             List<InetAddress> inetAddresses = new ArrayList<>();
             List<InetAddress> inet4Addresses = new ArrayList<>();
             List<InetAddress> inet6Addresses = new ArrayList<>();
-            int chrs = lookupPolicy.characteristics();
-            boolean needIPv4 = (chrs & IPv4) != 0;
-            boolean needIPv6 = (chrs & IPv6) != 0;
+            int flags = lookupPolicy.characteristics();
+            boolean needIPv4 = (flags & IPv4) != 0;
+            boolean needIPv6 = (flags & IPv6) != 0;
 
             Objects.requireNonNull(host);
 
@@ -1202,11 +1205,11 @@ public class InetAddress implements java.io.Serializable {
 
             // If both address types are requested
             if (needIPv4 == needIPv6) {
-                if ((chrs & (IPV4_FIRST | IPV6_FIRST)) == 0) {
+                if ((flags & (IPV4_FIRST | IPV6_FIRST)) == 0) {
                     return inetAddresses.stream();
-                } else if ((chrs & IPV6_FIRST) != 0) {
+                } else if ((flags & IPV6_FIRST) != 0) {
                     return Stream.concat(inet6Addresses.stream(), inet4Addresses.stream());
-                } else if ((chrs & IPV4_FIRST) != 0) {
+                } else if ((flags & IPV4_FIRST) != 0) {
                     return Stream.concat(inet4Addresses.stream(), inet6Addresses.stream());
                 }
             }
@@ -1528,12 +1531,6 @@ public class InetAddress implements java.io.Serializable {
             zone = (zone * 10) + digit;
         }
         return zone;
-    }
-
-    private static InetAddress[] getAllByName0 (String host)
-        throws UnknownHostException
-    {
-        return getAllByName0(host, true);
     }
 
     /**

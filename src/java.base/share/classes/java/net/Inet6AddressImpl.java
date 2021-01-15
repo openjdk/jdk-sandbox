@@ -102,10 +102,10 @@ class Inet6AddressImpl implements InetAddressImpl {
 
     public synchronized InetAddress anyLocalAddress() {
         if (anyLocalAddress == null) {
-            int chars = PLATFORM_LOOKUP_POLICY.characteristics();
-            if (((chars & IPV6_FIRST) != 0) || // IPv6 first
-                    ((chars & IPV4) == 0) || // IPV6 only
-                    ((chars & (IPV4_FIRST | IPV6_FIRST)) == 0)) {
+            int flags = PLATFORM_LOOKUP_POLICY.characteristics();
+            if (((flags & IPV6_FIRST) != 0) || // IPv6 first
+                    ((flags & IPV4) == 0) || // IPV6 only
+                    ((flags & (IPV4_FIRST | IPV6_FIRST)) == 0)) {
                 anyLocalAddress = new Inet6Address();
                 anyLocalAddress.holder().hostName = "::";
             } else {
@@ -117,10 +117,10 @@ class Inet6AddressImpl implements InetAddressImpl {
 
     public synchronized InetAddress loopbackAddress() {
         if (loopbackAddress == null) {
-            int chars = PLATFORM_LOOKUP_POLICY.characteristics();
-            boolean preferIPv6Address = (chars & IPV6_FIRST) != 0 || // IPv6 first
-                    (chars & IPV4) == 0 || // IPV6 only
-                    (chars & (IPV4_FIRST | IPV6_FIRST)) == 0; // system
+            int flags = PLATFORM_LOOKUP_POLICY.characteristics();
+            boolean preferIPv6Address = (flags & IPV6_FIRST) != 0 || // IPv6 first
+                    (flags & IPV4) == 0 || // IPV6 only
+                    (flags & (IPV4_FIRST | IPV6_FIRST)) == 0; // system
 
             for (int i = 0; i < 2; i++) {
                 InetAddress address;
