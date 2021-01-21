@@ -47,6 +47,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -839,162 +840,156 @@ public class TestSnippetTag extends JavadocTester {
     public void testRegion(Path base) throws Exception {
 
         // Maps an input to an expected output
-        final Map<Map<String, String>, String> testCases = Map.ofEntries(
-                entry(
-                        Map.of("body",
-                               """
-                                       // snippet-region-start : here
-                                       Hello
-                                       ,
-                                        Snippet!
-                                       // snippet-region-stop : here
-                                       """,
-                               "region", "here"),
-                        """
-                                Hello
-                                ,
-                                 Snippet!
-                                """
+        final Map<Snippet, String> testCases = Map.ofEntries(
+                entry(newSnippetBuilder()
+                              .body("""
+                                            // snippet-region-start : here
+                                            Hello
+                                            ,
+                                             Snippet!
+                                            // snippet-region-stop : here
+                                            """)
+                              .region("here")
+                              .build(),
+                      """
+                              Hello
+                              ,
+                               Snippet!
+                              """
                 )
                 ,
-                entry(
-                        Map.of("body",
-                               """
-                                           // snippet-region-start : here
-                                           Hello
-                                           ,
-                                            Snippet!
-                                       // snippet-region-stop : here
-                                           """,
-                               "region", "here"
-                        ),
-                        """
-                                    Hello
-                                    ,
-                                     Snippet!
-                                """),
-                entry(
-                        Map.of("body",
-                               """
-                                           // snippet-region-start : here
-                                           Hello
-                                           ,
-                                            Snippet!// snippet-region-stop : here
-                                       """,
-                               "region", "here"
-                        ),
-                        """
-                                Hello
-                                ,
-                                 Snippet!\
-                                """
+                entry(newSnippetBuilder()
+                              .body("""
+                                                // snippet-region-start : here
+                                                Hello
+                                                ,
+                                                 Snippet!
+                                            // snippet-region-stop : here
+                                                """)
+                              .region("here")
+                              .build(),
+                      """
+                                  Hello
+                                  ,
+                                   Snippet!
+                              """)
+                ,
+                entry(newSnippetBuilder()
+                              .body("""
+                                                // snippet-region-start : here
+                                                Hello
+                                                ,
+                                                 Snippet!// snippet-region-stop : here
+                                            """)
+                              .region("here")
+                              .build(),
+                      """
+                              Hello
+                              ,
+                               Snippet!\
+                              """
                 )
                 ,
-                entry(
-                        Map.of("body",
-                               """
-                                       // snippet-region-start : there
-                                       // snippet-region-stop : there
+                entry(newSnippetBuilder()
+                              .body("""
+                                            // snippet-region-start : there
+                                            // snippet-region-stop : there
 
-                                           // snippet-region-start : here
-                                           Hello
-                                           ,
-                                            Snippet!
-                                           // snippet-region-stop : here
-                                              """,
-                               "region", "here"
-                        ),
-                        """
-                                Hello
-                                ,
-                                 Snippet!
-                                """
+                                                // snippet-region-start : here
+                                                Hello
+                                                ,
+                                                 Snippet!
+                                                // snippet-region-stop : here
+                                                   """)
+                              .region("here")
+                              .build(),
+                      """
+                              Hello
+                              ,
+                               Snippet!
+                              """
                 )
                 ,
-                entry(
-                        Map.of("body",
-                               """
-                                       // snippet-region-start : here
-                                           Hello
-                                       // snippet-region-stop : here
+                entry(newSnippetBuilder()
+                              .body("""
+                                            // snippet-region-start : here
+                                                Hello
+                                            // snippet-region-stop : here
 
-                                            , Snippet!
-                                       // snippet-region-stop : here
-                                           """,
-                               "region", "here"
-                        ),
-                        """
-                                    Hello
-                                """
+                                                 , Snippet!
+                                            // snippet-region-stop : here
+                                                """)
+                              .region("here")
+                              .build()
+                        ,
+                      """
+                                  Hello
+                              """
                 )
                 ,
-                entry(
-                        Map.of("body",
-                               """
-                                       // snippet-region-start : here
-                                           This is the only line you should see.
-                                       // snippet-region-stop : here
-                                       // snippet-region-start : hereafter
-                                           You should NOT see this.
-                                       // snippet-region-stop : hereafter
-                                           """,
-                               "region", "here"
-                        ),
-                        """
-                                    This is the only line you should see.
-                                """
+                entry(newSnippetBuilder()
+                              .body("""
+                                            // snippet-region-start : here
+                                                This is the only line you should see.
+                                            // snippet-region-stop : here
+                                            // snippet-region-start : hereafter
+                                                You should NOT see this.
+                                            // snippet-region-stop : hereafter
+                                                """)
+                              .region("here")
+                              .build(),
+                      """
+                                  This is the only line you should see.
+                              """
                 )
                 ,
-                entry(
-                        Map.of("body",
-                               """
-                                       // snippet-region-start : here
-                                           You should NOT see this.
-                                       // snippet-region-stop : here
-                                       // snippet-region-start : hereafter
-                                           This is the only line you should see.
-                                       // snippet-region-stop : hereafter
-                                           """,
-                               "region", "hereafter"
-                        ),
-                        """
-                                    This is the only line you should see.
-                                """
+                entry(newSnippetBuilder()
+                              .body("""
+                                            // snippet-region-start : here
+                                                You should NOT see this.
+                                            // snippet-region-stop : here
+                                            // snippet-region-start : hereafter
+                                                This is the only line you should see.
+                                            // snippet-region-stop : hereafter
+                                                """)
+                              .region("hereafter")
+                              .build(),
+                      """
+                                  This is the only line you should see.
+                              """
                 )
                 ,
-                entry(
-                        Map.of("body",
-                               """
-                                       // snippet-region-start : beforehand
-                                           You should NOT see this.
-                                       // snippet-region-stop : beforehand
-                                       // snippet-region-start : before
-                                           This is the only line you should see.
-                                       // snippet-region-stop : before
-                                           """,
-                               "region", "before"
-                        ),
-                        """
-                                    This is the only line you should see.
-                                """
-                ),
-                entry(
-                        Map.of("body",
-                               """
-                                       // snippet-region-start : beforehand
-                                           This is the only line you should see.
-                                       // snippet-region-stop : beforehand
-                                       // snippet-region-start : before
-                                           You should NOT see this.
-                                       // snippet-region-stop : before
-                                           """,
-                               "region", "beforehand"
-                        ),
-                        """
-                                    This is the only line you should see.
-                                """
+                entry(newSnippetBuilder()
+                              .body("""
+                                            // snippet-region-start : beforehand
+                                                You should NOT see this.
+                                            // snippet-region-stop : beforehand
+                                            // snippet-region-start : before
+                                                This is the only line you should see.
+                                            // snippet-region-stop : before
+                                                """)
+                              .region("before")
+                              .build(),
+                      """
+                                  This is the only line you should see.
+                              """
                 )
-
+                ,
+                entry(newSnippetBuilder()
+                              .body("""
+                                            // snippet-region-start : beforehand
+                                                This is the only line you should see.
+                                            // snippet-region-stop : beforehand
+                                            // snippet-region-start : before
+                                                You should NOT see this.
+                                            // snippet-region-stop : before
+                                                """)
+                              .region("beforehand")
+                              .build(),
+                      """
+                                  This is the only line you should see.
+                              """
+                )
         );
 
         Path srcDir = base.resolve("src");
@@ -1004,7 +999,7 @@ public class TestSnippetTag extends JavadocTester {
                 .setModifiers("public", "class");
 
         // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
-        Map<Integer, Map<String, String>> inputs = new LinkedHashMap<>();
+        Map<Integer, Snippet> inputs = new LinkedHashMap<>();
 
         // I would use a single-threaded counter if we had one.
         // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
@@ -1020,7 +1015,7 @@ public class TestSnippetTag extends JavadocTester {
                                                          {@snippet region="%s" :
                                                          %s
                                                          }
-                                                         """.formatted(input.get("region"), input.get("body"))));
+                                                         """.formatted(input.region(), input.body())));
             inputs.put(id, input);
         });
 
@@ -1042,5 +1037,70 @@ public class TestSnippetTag extends JavadocTester {
                                %s</pre>
                                </div>""".formatted(index, expectedOutput));
         });
+    }
+
+    private static Snippet.Builder newSnippetBuilder() {
+        return new Snippet.Builder();
+    }
+
+    private static class Snippet { // TODO: use a language record when it becomes available
+
+        private final String regionName;
+        private final String body;
+
+        private Snippet(String regionName, String body) {
+            this.regionName = Objects.requireNonNull(regionName);
+            this.body = Objects.requireNonNull(body);
+        }
+
+        public String region() {
+            return regionName;
+        }
+
+        public String body() {
+            return body;
+        }
+
+        static class Builder {
+
+            private String regionName;
+            private String body;
+
+            Builder region(String name) {
+                this.regionName = name;
+                return this;
+            }
+
+            Builder body(String content) {
+                this.body = content;
+                return this;
+            }
+
+            Snippet build() {
+                return new Snippet(regionName, body);
+            }
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Snippet snippet = (Snippet) o;
+            return regionName.equals(snippet.regionName) &&
+                    body.equals(snippet.body);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(regionName, body);
+        }
+
+        @Override
+        public String toString() {
+            return "Snippet{" +
+                    "region='" + regionName + '\'' +
+                    ", body='" + body + '\'' +
+                    '}';
+        }
     }
 }
