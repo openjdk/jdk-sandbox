@@ -27,11 +27,13 @@ package jdk.javadoc.internal.doclets.toolkit.taglets;
 
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.SnippetTree;
+import com.sun.source.doctree.TagAttributeTree;
 import jdk.javadoc.doclet.Taglet;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 
 import javax.lang.model.element.Element;
 import java.util.EnumSet;
+import java.util.stream.Collectors;
 
 public class SnippetTaglet extends BaseTaglet {
 
@@ -39,15 +41,54 @@ public class SnippetTaglet extends BaseTaglet {
         super(DocTree.Kind.SNIPPET, true, EnumSet.allOf(Taglet.Location.class));
     }
 
+    /*
+     * A snippet is either inline or external.
+     * An inline snippet has body.
+     * An external snippet has either the "class" or "file" attribute.
+     */
     @Override
     public Content getInlineTagOutput(Element holder, DocTree tag, TagletWriter writer) {
         String content;
         SnippetTree snippetTag = (SnippetTree) tag;
+
+        boolean valid = true;
+
+        final var externalRefs = snippetTag.getAttributes()
+                .stream()
+                .filter(a -> a.getName().contentEquals("class") || a.getName().contentEquals("file"))
+                .limit(2) // one duplicate is enough
+                .collect(Collectors.toUnmodifiableList());
+
+        if (externalRefs.size() > 1) {
+            valid = false;
+            error("doclet.snippet.contents.ambiguity.external", holder, tag, writer);
+        }
+
+        if (!externalRefs.isEmpty() && snippetTag.getBody() != null) {
+            valid = false;
+            error("doclet.snippet.contents.ambiguity.mixed", holder, tag, writer);
+        } else if (externalRefs.isEmpty() && snippetTag.getBody() == null) {
+            valid = false;
+            error("doclet.snippet.contents.none", holder, tag, writer);
+        }
+
+        if (!valid) {
+            // FIXME: what's the implied contract here for a method that has errored?
+            return null;
+        }
+
         if (snippetTag.getBody() != null) {
             content = snippetTag.getBody().getBody().stripIndent();
         } else {
+            TagAttributeTree tagAttributeTree = externalRefs.get(0);
             content = "";
         }
         return writer.snippetTagOutput(holder, snippetTag, content);
+    }
+
+    // FIXME: figure out how to do that correctly
+    private void error(String key, Element holder, DocTree tag, TagletWriter writer) {
+        writer.configuration().getMessages().error(
+                writer.configuration().utils.getCommentHelper(holder).getDocTreePath(tag), key);
     }
 }

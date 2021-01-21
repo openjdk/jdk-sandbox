@@ -319,4 +319,273 @@ public class TestSnippetTag extends JavadocTester {
                            </pre>
                            </div>""");
     }
+
+    @Test
+    public void testConflict10(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        new ClassBuilder(tb, "pkg.A")
+                .setComments("""
+                                     {@snippet}
+                                     """)
+                .setModifiers("public", "class")
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT,
+                    true,
+                    """
+                            A.java:3: error - @snippet does not specify contents""");
+    }
+
+    @Test
+    public void testConflict20(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        new ClassBuilder(tb, "pkg.A")
+                .setComments("""
+                                     {@snippet file="" class="" :
+                                         Hello, Snippet!
+                                     }
+                                     """)
+                .setModifiers("public", "class")
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        // FIXME: In this and all similar tests check that there are no other errors, let alone errors related to {@snippet}
+        //        To achieve that, we might need to change JavadocTester (i.e. add "consume output", "check that the output is empty", etc.)
+
+        checkOutput(Output.OUT,
+                    true,
+                    """
+                            A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
+    }
+
+    @Test
+    public void testConflict30(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        new ClassBuilder(tb, "pkg.A")
+                .setComments("""
+                                     {@snippet class="" file="" :
+                                         Hello, Snippet!
+                                     }
+                                     """)
+                .setModifiers("public", "class")
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT,
+                    true,
+                    """
+                            A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""",
+                    """
+                            A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+    }
+
+
+    @Test
+    public void testConflict40(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        new ClassBuilder(tb, "pkg.A")
+                .setComments("""
+                                     {@snippet class="" :
+                                         Hello, Snippet!
+                                     }
+                                     """)
+                .setModifiers("public", "class")
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT,
+                    true,
+                    """
+                            A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+    }
+
+    @Test
+    public void testConflict50(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        new ClassBuilder(tb, "pkg.A")
+                .setComments("""
+                                     {@snippet file="" :
+                                         Hello, Snippet!
+                                     }
+                                     """)
+                .setModifiers("public", "class")
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT,
+                    true,
+                    """
+                            A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+    }
+
+    @Test
+    public void testConflict60(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        new ClassBuilder(tb, "pkg.A")
+                .setComments("""
+                                     {@snippet file="" file=""}
+                                     """)
+                .setModifiers("public", "class")
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT,
+                    true,
+                    """
+                            A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
+    }
+
+    @Test
+    public void testConflict70(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        new ClassBuilder(tb, "pkg.A")
+                .setComments("""
+                                     {@snippet class="" class="" }
+                                     """)
+                .setModifiers("public", "class")
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT,
+                    true,
+                    """
+                            A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
+    }
+
+    @Test
+    public void testConflict80(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        new ClassBuilder(tb, "pkg.A")
+                .setComments("""
+                                     {@snippet class="" class="" :
+                                         Hello, Snippet!
+                                     }
+                                     """)
+                .setModifiers("public", "class")
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT,
+                    true,
+                    """
+                            A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""",
+                    """
+                            A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+    }
+
+    @Test
+    public void testConflict90(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        new ClassBuilder(tb, "pkg.A")
+                .setComments("""
+                                     {@snippet file="" file="" :
+                                         Hello, Snippet!
+                                     }
+                                     """)
+                .setModifiers("public", "class")
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                    """
+                            A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""",
+                    """
+                            A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+    }
+
+    // Those are excerpts from the diagnostic messages for two different tags that sit on the same line:
+    //
+    //     A.java:3: error - @snippet does not specify contents
+    //     A.java:3: error - @snippet does not specify contents
+    //
+    // FIXME: fix and uncomment this test if and when that problem with diagnostic output has been resolved
+    //
+    //@Test
+    public void testErrorPositionResolution(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        new ClassBuilder(tb, "pkg.A")
+                .setComments("""
+                                     {@snippet} {@snippet}
+                                     """)
+                .setModifiers("public", "class")
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                    """
+                            A.java:3: error - @snippet does not specify contents""",
+                    """
+                            A.java:3: error - @snippet does not specify contents""");
+    }
 }
