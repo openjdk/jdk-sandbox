@@ -406,6 +406,19 @@ public class SimpleDocTreeVisitor<R,P> implements DocTreeVisitor<R, P> {
      * @param node {@inheritDoc}
      * @param p {@inheritDoc}
      * @return  the result of {@code defaultAction}
+     * @since
+     */
+    @Override
+    public R visitSnippet(SnippetTree node, P p) {
+        return defaultAction(node, p);
+    }
+
+    /**
+     * {@inheritDoc} This implementation calls {@code defaultAction}.
+     *
+     * @param node {@inheritDoc}
+     * @param p {@inheritDoc}
+     * @return  the result of {@code defaultAction}
      */
     @Override
     public R visitStartElement(StartElementTree node, P p) {
@@ -435,6 +448,19 @@ public class SimpleDocTreeVisitor<R,P> implements DocTreeVisitor<R, P> {
      */
     @Override
     public R visitSystemProperty(SystemPropertyTree node, P p) {
+        return defaultAction(node, p);
+    }
+
+    /**
+     * {@inheritDoc} This implementation calls {@code defaultAction}.
+     *
+     * @param node {@inheritDoc}
+     * @param p {@inheritDoc}
+     * @return  the result of {@code defaultAction}
+     * @since
+     */
+    @Override
+    public R visitTagAttribute(TagAttributeTree node, P p) {
         return defaultAction(node, p);
     }
 

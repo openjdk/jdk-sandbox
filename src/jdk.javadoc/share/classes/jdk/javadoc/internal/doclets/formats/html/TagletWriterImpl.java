@@ -44,6 +44,7 @@ import com.sun.source.doctree.LiteralTree;
 import com.sun.source.doctree.ParamTree;
 import com.sun.source.doctree.ReturnTree;
 import com.sun.source.doctree.SeeTree;
+import com.sun.source.doctree.SnippetTree;
 import com.sun.source.doctree.SystemPropertyTree;
 import com.sun.source.doctree.ThrowsTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
@@ -52,6 +53,7 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.RawHtml;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
+import jdk.javadoc.internal.doclets.formats.html.markup.TagName;
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocletElement;
@@ -298,6 +300,12 @@ public class TagletWriterImpl extends TagletWriter {
         return new ContentBuilder(
                 HtmlTree.DT(new RawHtml(header)),
                 HtmlTree.DD(body));
+    }
+
+    @Override
+    protected Content snippetTagOutput(Element element, SnippetTree tag, String content) {
+        CharSequence text = utils.normalizeNewlines('\n' + content);
+        return new HtmlTree(TagName.PRE).add(text);
     }
 
     @Override

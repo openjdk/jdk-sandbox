@@ -491,6 +491,27 @@ public class DocPretty implements DocTreeVisitor<Void,Void> {
     }
 
     @Override @DefinedBy(Api.COMPILER_TREE)
+    public Void visitSnippet(SnippetTree node, Void p) {
+        try {
+            print("{");
+            printTagName(node);
+            List<? extends TagAttributeTree> attrs = node.getAttributes();
+            if (!attrs.isEmpty()) {
+                print(" ");
+                print(attrs, " ");
+            }
+            if (node.getBody() != null) {
+                print(" :\n");
+                print(node.getBody());
+            }
+            print("}");
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return null;
+    }
+
+    @Override @DefinedBy(Api.COMPILER_TREE)
     public Void visitStartElement(StartElementTree node, Void p) {
         try {
             print("<");
@@ -537,6 +558,31 @@ public class DocPretty implements DocTreeVisitor<Void,Void> {
             print(" ");
             print(node.getPropertyName());
             print("}");
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return null;
+    }
+
+    @Override @DefinedBy(Api.COMPILER_TREE)
+    public Void visitTagAttribute(TagAttributeTree node, Void unused) {
+        try {
+            print(node.getName());
+            String quote;
+            switch (node.getValueKind()) {
+                case SINGLE:
+                    quote = "'";
+                    break;
+                case DOUBLE:
+                    quote = "\"";
+                    break;
+                default:
+                    quote = node.getValueKind().toString();
+                    break;
+            }
+            print("=" + quote);
+            print(node.getValue());
+            print(quote);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

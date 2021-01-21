@@ -645,6 +645,7 @@ public class TagletManager {
         addStandardTaglet(new ValueTaglet());
         addStandardTaglet(new LiteralTaglet());
         addStandardTaglet(new CodeTaglet());
+        addStandardTaglet(new SnippetTaglet());
         addStandardTaglet(new IndexTaglet());
         addStandardTaglet(new SummaryTaglet());
         addStandardTaglet(new SystemPropertyTaglet());

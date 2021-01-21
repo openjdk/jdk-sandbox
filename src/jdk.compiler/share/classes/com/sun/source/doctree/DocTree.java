@@ -205,6 +205,12 @@ public interface DocTree {
         SINCE("since"),
 
         /**
+         * Used for instances of {@link SnippetTree}
+         * representing an {@code @snippet} tag.
+         */
+        SNIPPET("snippet"),
+
+        /**
          * Used for instances of {@link EndElementTree}
          * representing the start of an HTML element.
          */
@@ -221,6 +227,12 @@ public interface DocTree {
          * representing an {@code @summary} tag.
          */
         SUMMARY("summary"),
+
+        /**
+         * Used for instances of {@link TagAttributeTree}
+         * representing an attribute in an inline tag.
+         */
+        TAG_ATTRIBUTE,
 
         /**
          * Used for instances of {@link TextTree}

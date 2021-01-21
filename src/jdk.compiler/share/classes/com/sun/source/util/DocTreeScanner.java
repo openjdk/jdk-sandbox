@@ -447,6 +447,21 @@ public class DocTreeScanner<R,P> implements DocTreeVisitor<R,P> {
      * @param node  {@inheritDoc}
      * @param p  {@inheritDoc}
      * @return the result of scanning
+     * @since
+     */
+    @Override
+    public R visitSnippet(SnippetTree node, P p) {
+        R r = scan(node.getAttributes(), p);
+        r = scanAndReduce(node.getBody(), p, r);
+        return r;
+    }
+
+    /**
+     * {@inheritDoc} This implementation scans the children in left to right order.
+     *
+     * @param node  {@inheritDoc}
+     * @param p  {@inheritDoc}
+     * @return the result of scanning
      */
     @Override
     public R visitStartElement(StartElementTree node, P p) {
@@ -477,6 +492,19 @@ public class DocTreeScanner<R,P> implements DocTreeVisitor<R,P> {
     @Override
     public R visitSystemProperty(SystemPropertyTree node, P p) {
         return null;
+    }
+
+    /**
+     * {@inheritDoc} This implementation scans the children in left to right order.
+     *
+     * @param node  {@inheritDoc}
+     * @param p  {@inheritDoc}
+     * @return the result of scanning
+     * @since
+     */
+    @Override
+    public R visitTagAttribute(TagAttributeTree node, P p) {
+        return scan(node.getValue(), p);
     }
 
     /**

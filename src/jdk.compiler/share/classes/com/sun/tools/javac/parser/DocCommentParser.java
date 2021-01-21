@@ -30,6 +30,7 @@ import java.util.Map;
 
 import com.sun.source.doctree.AttributeTree.ValueKind;
 import com.sun.source.doctree.ErroneousTree;
+import com.sun.source.doctree.TagAttributeTree;
 import com.sun.source.doctree.UnknownBlockTagTree;
 import com.sun.source.doctree.UnknownInlineTagTree;
 import com.sun.tools.javac.parser.Tokens.Comment;
@@ -40,6 +41,7 @@ import com.sun.tools.javac.tree.DCTree.DCEndPosTree;
 import com.sun.tools.javac.tree.DCTree.DCErroneous;
 import com.sun.tools.javac.tree.DCTree.DCIdentifier;
 import com.sun.tools.javac.tree.DCTree.DCReference;
+import com.sun.tools.javac.tree.DCTree.DCTagAttribute;
 import com.sun.tools.javac.tree.DCTree.DCText;
 import com.sun.tools.javac.tree.DocTreeMaker;
 import com.sun.tools.javac.util.DiagnosticSource;
@@ -897,6 +899,51 @@ public class DocCommentParser {
     }
 
     /**
+     * Read a series of inline tag attributes, terminated by {@code ":"}
+     * or the first unmatched <code>"}"</code>, whichever comes first.
+     *
+     * Each attribute is of the form {@literal identifier=value}.
+     * "value" may be single-quoted or double-quoted.
+     *
+     * @return the list of attributes
+     */
+    protected List<DCTagAttribute> tagAttrs() throws ParseException {
+        ListBuffer<DCTagAttribute> attrs = new ListBuffer<>();
+
+        while (bp < buflen && isIdentifierStart(ch)) {
+            int namePos = bp;
+            Name name = readTagAttributeName();
+            skipWhitespace();
+            ListBuffer<DCTree> v = new ListBuffer<>();
+
+            if (ch != '=')
+                throw new ParseException("dc.unexpected.content");
+
+            nextChar();
+            skipWhitespace();
+
+            if (ch != '"' && ch != '\'')
+                throw new ParseException("dc.unexpected.content");
+
+            TagAttributeTree.ValueKind vkind = (ch == '\'') ?
+                    TagAttributeTree.ValueKind.SINGLE : TagAttributeTree.ValueKind.DOUBLE;
+            char quote = ch; // remember the type of the quote used
+            nextChar();
+            textStart = bp;
+            while (bp < buflen && ch != quote) {
+                nextChar();
+            }
+            addPendingText(v, bp - 1);
+            nextChar();
+            skipWhitespace();
+            DCTagAttribute attr = m.at(namePos).newTagAttributeTree(name, vkind, v.toList());
+            attrs.add(attr);
+        }
+
+        return attrs.toList();
+    }
+
+    /**
      * Read a series of HTML attributes, terminated by {@literal > }.
      * Each attribute is of the form {@literal identifier[=value] }.
      * "value" may be unquoted, single-quoted, or double-quoted.
@@ -1009,6 +1056,14 @@ public class DocCommentParser {
     }
 
     protected Name readAttributeName() {
+        return readGeneralAttributeName();
+    }
+
+    protected Name readTagAttributeName() {
+        return readGeneralAttributeName();
+    }
+
+    protected Name readGeneralAttributeName() {
         int start = bp;
         nextChar();
         while (bp < buflen && (Character.isUnicodeIdentifierPart(ch) || ch == '-'))
@@ -1071,6 +1126,19 @@ public class DocCommentParser {
 
     protected boolean isWhitespace(char ch) {
         return Character.isWhitespace(ch);
+    }
+
+    protected boolean isHorizontalWhitespace(char ch) {
+        // Should `\f` (FORM FEED) break a line? Relevant specifications have
+        // different opinions on this:
+        //
+        //      No: https://docs.oracle.com/javase/specs/jls/se14/html/jls-3.html#jls-3.4
+        //     Yes: https://www.unicode.org/versions/Unicode13.0.0/ch05.pdf, "5.8 Newline Guidelines"
+        //      No: https://html.spec.whatwg.org/multipage/syntax.html#newlines
+        //
+        // This parser treats `\f` as a line break (see `nextChar`). To be
+        // consistent with that behaviour, this method does the same.
+        return ch == ' ' || ch == '\t' /* || ch == '\f'*/;
     }
 
     protected void skipWhitespace() {
@@ -1405,6 +1473,41 @@ public class DocCommentParser {
                 public DCTree parse(int pos) {
                     List<DCTree> description = blockContent();
                     return m.at(pos).newSinceTree(description);
+                }
+            },
+
+            // {@snippet attributes :
+            //  body}
+            new TagParser(TagParser.Kind.INLINE, DCTree.Kind.SNIPPET) {
+                @Override
+                DCTree parse(int pos) throws ParseException {
+                    skipWhitespace();
+                    List<DCTagAttribute> attributes = tagAttrs();
+                    // expect "}" or ":"
+                    if (ch == '}') {
+                        nextChar();
+                        return m.at(pos).newSnippetTree(attributes);
+                    } else if (ch == ':') {
+                        newline = false;
+                        // consume ':'
+                        nextChar();
+                        // better still reuse JavaTokenizer here
+                        // expect optional whitespace followed by a mandatory newline
+                        while (bp < buflen && isHorizontalWhitespace(ch)) {
+                            nextChar();
+                        }
+                        // check that we are looking at a line break
+                        if (!newline) {
+                            throw new ParseException("dc.unexpected.content");
+                        }
+                        // consume that line break
+                        nextChar();
+                        DCText text = inlineText(WhitespaceRetentionPolicy.RETAIN_ALL);
+                        nextChar();
+                        return m.at(pos).newSnippetTree(attributes, text);
+                    } else {
+                        throw new ParseException("dc.unexpected.content");
+                    }
                 }
             },
 

@@ -841,6 +841,36 @@ public abstract class DCTree implements DocTree {
         }
     }
 
+    public static class DCSnippet extends DCInlineTag implements SnippetTree {
+        public final List<DCTagAttribute> attributes;
+        public final DCText body;
+
+        public DCSnippet(List<DCTagAttribute> attributes, DCText body) {
+            this.body = body;
+            this.attributes = attributes;
+        }
+
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public Kind getKind() {
+            return Kind.SNIPPET;
+        }
+
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public <R, D> R accept(DocTreeVisitor<R, D> v, D d) {
+            return v.visitSnippet(this, d);
+        }
+
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public List<? extends TagAttributeTree> getAttributes() {
+            return attributes;
+        }
+
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public TextTree getBody() {
+            return body;
+        }
+    }
+
     public static class DCStartElement extends DCEndPosTree<DCStartElement> implements StartElementTree {
         public final Name name;
         public final List<DCTree> attrs;
@@ -921,6 +951,43 @@ public abstract class DCTree implements DocTree {
         @Override @DefinedBy(Api.COMPILER_TREE)
         public Name getPropertyName() {
             return propertyName;
+        }
+    }
+
+    public static class DCTagAttribute extends DCTree implements TagAttributeTree {
+        public final Name name;
+        public final TagAttributeTree.ValueKind vkind;
+        public final List<DCTree> value;
+
+        DCTagAttribute(Name name, TagAttributeTree.ValueKind vkind, List<DCTree> value) {
+            this.name = name;
+            this.vkind = vkind;
+            this.value = value;
+        }
+
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public Kind getKind() {
+            return Kind.TAG_ATTRIBUTE;
+        }
+
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public <R, D> R accept(DocTreeVisitor<R, D> v, D d) {
+            return v.visitTagAttribute(this, d);
+        }
+
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public Name getName() {
+            return name;
+        }
+
+        @Override
+        public ValueKind getValueKind() {
+            return vkind;
+        }
+
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public List<? extends DocTree> getValue() {
+            return value;
         }
     }
 

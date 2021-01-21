@@ -45,6 +45,7 @@ import com.sun.source.doctree.EndElementTree;
 import com.sun.source.doctree.IdentifierTree;
 import com.sun.source.doctree.ReferenceTree;
 import com.sun.source.doctree.StartElementTree;
+import com.sun.source.doctree.TagAttributeTree;
 import com.sun.source.doctree.TextTree;
 import com.sun.source.util.DocTreeFactory;
 import com.sun.tools.javac.api.JavacTrees;
@@ -76,9 +77,11 @@ import com.sun.tools.javac.tree.DCTree.DCSerial;
 import com.sun.tools.javac.tree.DCTree.DCSerialData;
 import com.sun.tools.javac.tree.DCTree.DCSerialField;
 import com.sun.tools.javac.tree.DCTree.DCSince;
+import com.sun.tools.javac.tree.DCTree.DCSnippet;
 import com.sun.tools.javac.tree.DCTree.DCStartElement;
 import com.sun.tools.javac.tree.DCTree.DCSummary;
 import com.sun.tools.javac.tree.DCTree.DCSystemProperty;
+import com.sun.tools.javac.tree.DCTree.DCTagAttribute;
 import com.sun.tools.javac.tree.DCTree.DCText;
 import com.sun.tools.javac.tree.DCTree.DCThrows;
 import com.sun.tools.javac.tree.DCTree.DCUnknownBlockTag;
@@ -431,6 +434,22 @@ public class DocTreeMaker implements DocTreeFactory {
         return tree;
     }
 
+    @Override
+    public DCSnippet newSnippetTree(List<? extends TagAttributeTree> attributes) {
+        @SuppressWarnings("unchecked")
+        DCSnippet tree = new DCSnippet((List<DCTagAttribute>) attributes, null);
+        tree.pos = pos;
+        return tree;
+    }
+
+    @Override @DefinedBy(Api.COMPILER_TREE)
+    public DCSnippet newSnippetTree(List<? extends TagAttributeTree> attributes, TextTree text) {
+        @SuppressWarnings("unchecked")
+        DCSnippet tree = new DCSnippet((List<DCTagAttribute>) attributes, (DCText) text);
+        tree.pos = pos;
+        return tree;
+    }
+
     @Override @DefinedBy(Api.COMPILER_TREE)
     public DCStartElement newStartElementTree(Name name, List<? extends DocTree> attrs, boolean selfClosing) {
         DCStartElement tree = new DCStartElement(name, cast(attrs), selfClosing);
@@ -448,6 +467,13 @@ public class DocTreeMaker implements DocTreeFactory {
     @Override @DefinedBy(Api.COMPILER_TREE)
     public DCSystemProperty newSystemPropertyTree(Name propertyName) {
         DCSystemProperty tree = new DCSystemProperty(propertyName);
+        tree.pos = pos;
+        return tree;
+    }
+
+    @Override
+    public DCTagAttribute newTagAttributeTree(Name name, TagAttributeTree.ValueKind vkind, List<? extends DocTree> value) {
+        DCTagAttribute tree = new DCTagAttribute(name, vkind, cast(value));
         tree.pos = pos;
         return tree;
     }
