@@ -49,18 +49,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+// FIXME
+//   0. Add tests for snippets in all types of elements: e.g., fields
+//      and constructors (i.e. not only methods.)
+//   1. Add tests for snippets in doc-files/*.html
+//     a. Make sure that both inline and external snippets work as expected
+//        and that inline snippets allow "*/" sequence
+//   2. Add tests for bad tag syntax
 public class TestSnippetTag extends JavadocTester {
 
-    final ToolBox tb;
+    private final ToolBox tb = new ToolBox();
 
     public static void main(String... args) throws Exception {
-        JavadocTester tester = new TestSnippetTag();
-        tester.runTests(m -> new Object[]{Paths.get(m.getName())});
+        new TestSnippetTag().runTests(m -> new Object[]{Paths.get(m.getName())});
     }
 
-    TestSnippetTag() {
-        tb = new ToolBox();
-    }
+    private TestSnippetTag() { }
 
     @Test
     public void testInline(Path base) throws Exception {
@@ -331,8 +335,6 @@ public class TestSnippetTag extends JavadocTester {
                            </div>""");
     }
 
-    // FIXME: add examples of bad grammar
-
     @Test
     public void testExternalFile(Path base) throws Exception {
 
@@ -439,6 +441,9 @@ public class TestSnippetTag extends JavadocTester {
         });
     }
 
+    // FIXME
+    //   Explore the toolbox.ToolBox.writeFile and toolbox.ToolBox.writeJavaFiles methods:
+    //   see if any of them could be used instead of this one
     private void addSnippetFile(Path srcDir, String packageName, String fileName, String content) throws UncheckedIOException {
         String[] components = packageName.split("\\.");
         Path snippetFiles = Path.of(components[0], Arrays.copyOfRange(components, 1, components.length)).resolve("snippet-files");
@@ -521,8 +526,9 @@ public class TestSnippetTag extends JavadocTester {
 
         checkExit(Exit.ERROR);
 
-        // FIXME: In this and all similar tests check that there are no other errors, let alone errors related to {@snippet}
-        //        To achieve that, we might need to change JavadocTester (i.e. add "consume output", "check that the output is empty", etc.)
+        // FIXME
+        //   In this and all similar tests check that there are no other errors, let alone errors related to {@snippet}
+        //   To achieve that, we might need to change JavadocTester (i.e. add "consume output", "check that the output is empty", etc.)
 
         checkOutput(Output.OUT, true,
                     """
@@ -642,7 +648,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:3: error - repeated attribute "file\"""");
+                            A.java:3: error - repeated attribute: "file\"""");
     }
 
     @Test
@@ -665,7 +671,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:3: error - repeated attribute "class\"""");
+                            A.java:3: error - repeated attribute: "class\"""");
     }
 
     @Test
@@ -690,7 +696,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutputEither(Output.OUT,
                           """
-                                  A.java:3: error - repeated attribute "class\"""",
+                                  A.java:3: error - repeated attribute: "class\"""",
                           """
                                   A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
     }
@@ -717,7 +723,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutputEither(Output.OUT,
                           """
-                                  A.java:3: error - repeated attribute "file\"""",
+                                  A.java:3: error - repeated attribute: "file\"""",
                           """
                                   A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
     }
