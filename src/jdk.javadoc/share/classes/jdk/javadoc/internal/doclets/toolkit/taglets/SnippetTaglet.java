@@ -33,8 +33,10 @@ import jdk.javadoc.doclet.Taglet;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
 import javax.tools.FileObject;
+import javax.tools.JavaFileManager;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import java.io.IOException;
@@ -132,7 +134,22 @@ public class SnippetTaglet extends BaseTaglet {
                     throw new UnsupportedOperationException("Not yet implemented");
                 } else {
                     // assert refType.equals("file") : refType;
-                    fileObject = fileManager.getFileForInput(StandardLocation.SOURCE_PATH, packageName(holder, writer), "snippet-files/" + v);
+                    String relativeName = "snippet-files/" + v;
+                    System.out.println("relativeName = " + relativeName); // FIXME: remove console output
+                    String packageName = packageName(holder, writer);
+                    fileObject = fileManager.getFileForInput(StandardLocation.SOURCE_PATH,
+                                                             packageName,
+                                                             relativeName);
+                    if (fileObject == null) {
+                        ModuleElement moduleElement = writer.configuration().utils.containingModule(holder);
+                        if (moduleElement != null) {
+                            JavaFileManager.Location loc = fileManager.getLocationForModule(
+                                    StandardLocation.MODULE_SOURCE_PATH, moduleElement.getQualifiedName().toString());
+                            if (loc != null) {
+                                fileObject = fileManager.getFileForInput(loc, packageName, relativeName);
+                            }
+                        }
+                    }
                 }
             } catch (IOException e) {
                 // FIXME: provide more context (the snippet, its attribute, and its attributes' value)
@@ -147,7 +164,7 @@ public class SnippetTaglet extends BaseTaglet {
 
             Path path = fileManager.asPath(fileObject);
             try {
-                content = Files.readString(path);
+                content = Files.readString(path); // FIXME don't read file every single time; cache it
             } catch (IOException e) {
                 // FIXME: provide more context (the snippet, its attribute, and its attributes' value)
                 error(writer, holder, tag, "doclet.exception.read.file", path, e.getCause());
@@ -191,7 +208,7 @@ public class SnippetTaglet extends BaseTaglet {
 
             var regex = template
                     .replace(" ", "\\h*")
-                    .formatted("\\Q" + START + "\\E",
+                    .formatted("\\Q" + START + "\\E", // FIXME: Use Pattern.quote
                                "\\Q" + r + "\\E",
                                "\\Q" + STOP + "\\E");
 

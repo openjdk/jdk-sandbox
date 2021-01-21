@@ -25,14 +25,17 @@
  * @test
  * @bug 8201533
  * @library /tools/lib ../../lib
- * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build javadoc.tester.* toolbox.ToolBox builder.ClassBuilder
+ * @modules jdk.compiler/com.sun.tools.javac.api
+ *          jdk.compiler/com.sun.tools.javac.main
+ *          jdk.javadoc/jdk.javadoc.internal.tool
+ * @build javadoc.tester.* toolbox.ToolBox toolbox.ModuleBuilder builder.ClassBuilder
  * @run main TestSnippetTag
  */
 
 import builder.ClassBuilder;
 import builder.ClassBuilder.MethodBuilder;
 import javadoc.tester.JavadocTester;
+import toolbox.ModuleBuilder;
 import toolbox.ToolBox;
 
 import java.io.IOException;
@@ -56,6 +59,8 @@ import java.util.stream.Stream;
 //     a. Make sure that both inline and external snippets work as expected
 //        and that inline snippets allow "*/" sequence
 //   2. Add tests for bad tag syntax
+//   3. Add tests for good tag syntax (e.g. attributes separated by newlines)
+//   4. Add tests for nested structure under "snippet-files/"
 public class TestSnippetTag extends JavadocTester {
 
     private final ToolBox tb = new ToolBox();
@@ -475,6 +480,74 @@ public class TestSnippetTag extends JavadocTester {
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                    """
+                            A.java:4: error - File not found: %s""".formatted(fileName));
+    }
+
+    @Test // FIXME perhaps this could be unified with testExternalFile
+    public void testExternalFileModuleSourcePath(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        var fileName = "snippet.txt";
+
+        String MODULE_NAME = "mdl1";
+        String PACKAGE_NAME = "pkg1.pkg2";
+
+        Path moduleDir = new ModuleBuilder(tb, MODULE_NAME)
+                .exports(PACKAGE_NAME)
+                .write(srcDir);
+
+        new ClassBuilder(tb, String.join(".", PACKAGE_NAME, "A"))
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void test() { }")
+                                .setComments(""" 
+                                                     {@snippet file="%s"}
+                                                     """.formatted(fileName)))
+                .write(moduleDir);
+
+        addSnippetFile(moduleDir, PACKAGE_NAME, fileName, "content");
+
+        javadoc("-d", outDir.toString(),
+                "--module-source-path", srcDir.toString(),
+                "--module", MODULE_NAME);
+
+        checkExit(Exit.OK);
+    }
+
+    @Test // FIXME perhaps this could be unified with testExternalFileNotFound
+    public void testExternalFileNotFoundModuleSourcePath(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        var fileName = "text.txt";
+
+        var MODULE_NAME = "mdl1";
+        var PACKAGE_NAME = "pkg1.pkg2";
+
+        Path moduleDir = new ModuleBuilder(tb, MODULE_NAME)
+                .exports(PACKAGE_NAME)
+                .write(srcDir);
+
+        new ClassBuilder(tb, String.join(".", PACKAGE_NAME, "A"))
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void test() { }")
+                                .setComments(""" 
+                                                     {@snippet file="%s"}
+                                                     """.formatted(fileName)))
+                .write(moduleDir);
+
+        javadoc("-d", outDir.toString(),
+                "--module-source-path", srcDir.toString(),
+                "--module", MODULE_NAME);
 
         checkExit(Exit.ERROR);
 
