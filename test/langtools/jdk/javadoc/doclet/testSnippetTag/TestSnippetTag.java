@@ -52,6 +52,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static java.util.Map.entry;
+
 // FIXME
 //   0. Add tests for snippets in all types of elements: e.g., fields
 //      and constructors (i.e. not only methods.)
@@ -831,5 +833,214 @@ public class TestSnippetTag extends JavadocTester {
                             A.java:3: error - @snippet does not specify contents""",
                     """
                             A.java:3: error - @snippet does not specify contents""");
+    }
+
+    @Test
+    public void testRegion(Path base) throws Exception {
+
+        // Maps an input to an expected output
+        final Map<Map<String, String>, String> testCases = Map.ofEntries(
+                entry(
+                        Map.of("body",
+                               """
+                                       // snippet-region-start : here
+                                       Hello
+                                       ,
+                                        Snippet!
+                                       // snippet-region-stop : here
+                                       """,
+                               "region", "here"),
+                        """
+                                Hello
+                                ,
+                                 Snippet!
+                                """
+                )
+                ,
+                entry(
+                        Map.of("body",
+                               """
+                                           // snippet-region-start : here
+                                           Hello
+                                           ,
+                                            Snippet!
+                                       // snippet-region-stop : here
+                                           """,
+                               "region", "here"
+                        ),
+                        """
+                                    Hello
+                                    ,
+                                     Snippet!
+                                """),
+                entry(
+                        Map.of("body",
+                               """
+                                           // snippet-region-start : here
+                                           Hello
+                                           ,
+                                            Snippet!// snippet-region-stop : here
+                                       """,
+                               "region", "here"
+                        ),
+                        """
+                                Hello
+                                ,
+                                 Snippet!\
+                                """
+                )
+                ,
+                entry(
+                        Map.of("body",
+                               """
+                                       // snippet-region-start : there
+                                       // snippet-region-stop : there
+
+                                           // snippet-region-start : here
+                                           Hello
+                                           ,
+                                            Snippet!
+                                           // snippet-region-stop : here
+                                              """,
+                               "region", "here"
+                        ),
+                        """
+                                Hello
+                                ,
+                                 Snippet!
+                                """
+                )
+                ,
+                entry(
+                        Map.of("body",
+                               """
+                                       // snippet-region-start : here
+                                           Hello
+                                       // snippet-region-stop : here
+
+                                            , Snippet!
+                                       // snippet-region-stop : here
+                                           """,
+                               "region", "here"
+                        ),
+                        """
+                                    Hello
+                                """
+                )
+                ,
+                entry(
+                        Map.of("body",
+                               """
+                                       // snippet-region-start : here
+                                           This is the only line you should see.
+                                       // snippet-region-stop : here
+                                       // snippet-region-start : hereafter
+                                           You should NOT see this.
+                                       // snippet-region-stop : hereafter
+                                           """,
+                               "region", "here"
+                        ),
+                        """
+                                    This is the only line you should see.
+                                """
+                )
+                ,
+                entry(
+                        Map.of("body",
+                               """
+                                       // snippet-region-start : here
+                                           You should NOT see this.
+                                       // snippet-region-stop : here
+                                       // snippet-region-start : hereafter
+                                           This is the only line you should see.
+                                       // snippet-region-stop : hereafter
+                                           """,
+                               "region", "hereafter"
+                        ),
+                        """
+                                    This is the only line you should see.
+                                """
+                )
+                ,
+                entry(
+                        Map.of("body",
+                               """
+                                       // snippet-region-start : beforehand
+                                           You should NOT see this.
+                                       // snippet-region-stop : beforehand
+                                       // snippet-region-start : before
+                                           This is the only line you should see.
+                                       // snippet-region-stop : before
+                                           """,
+                               "region", "before"
+                        ),
+                        """
+                                    This is the only line you should see.
+                                """
+                ),
+                entry(
+                        Map.of("body",
+                               """
+                                       // snippet-region-start : beforehand
+                                           This is the only line you should see.
+                                       // snippet-region-stop : beforehand
+                                       // snippet-region-start : before
+                                           You should NOT see this.
+                                       // snippet-region-stop : before
+                                           """,
+                               "region", "beforehand"
+                        ),
+                        """
+                                    This is the only line you should see.
+                                """
+                )
+
+        );
+
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class");
+
+        // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
+        Map<Integer, Map<String, String>> inputs = new LinkedHashMap<>();
+
+        // I would use a single-threaded counter if we had one.
+        // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
+        AtomicInteger counter = new AtomicInteger();
+
+        testCases.keySet().forEach(input -> {
+            int id = counter.incrementAndGet();
+            classBuilder
+                    .addMembers(
+                            MethodBuilder
+                                    .parse("public void case%s() { }".formatted(id))
+                                    .setComments("""
+                                                         {@snippet region="%s" :
+                                                         %s
+                                                         }
+                                                         """.formatted(input.get("region"), input.get("body"))));
+            inputs.put(id, input);
+        });
+
+        classBuilder.write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.OK);
+
+        inputs.forEach((index, input) -> {
+            String expectedOutput = testCases.get(input);
+            checkOrder("pkg/A.html",
+                       """
+                               <span class="element-name">case%s</span>()</div>
+                               <div class="block">
+                               <pre class="snippet">
+                               %s</pre>
+                               </div>""".formatted(index, expectedOutput));
+        });
     }
 }

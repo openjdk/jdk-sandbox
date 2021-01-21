@@ -203,8 +203,8 @@ public class SnippetTaglet extends BaseTaglet {
                     // Using a "non-vertical whitespace character" because "."
                     // will match a line-break too
                     //   ~~~~~~~~~~~v
-                    "// %s : (%s) \\V*\\R" +
-                            "(?<region>.*)// %s : \\1";
+                    "// %s : (%s)(\\h+\\V*)?\\R" +
+                            "(?<region>.*?)// %s : \\1\\b";
 
             var regex = template
                     .replace(" ", "\\h*")
