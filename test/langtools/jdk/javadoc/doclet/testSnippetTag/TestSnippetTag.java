@@ -44,8 +44,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 public class TestSnippetTag extends JavadocTester {
 
@@ -471,8 +473,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkExit(Exit.ERROR);
 
-        checkOutput(Output.OUT,
-                    true,
+        checkOutput(Output.OUT, true,
                     """
                             A.java:4: error - File not found: %s""".formatted(fileName));
     }
@@ -495,8 +496,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkExit(Exit.ERROR);
 
-        checkOutput(Output.OUT,
-                    true,
+        checkOutput(Output.OUT, true,
                     """
                             A.java:3: error - @snippet does not specify contents""");
     }
@@ -524,8 +524,7 @@ public class TestSnippetTag extends JavadocTester {
         // FIXME: In this and all similar tests check that there are no other errors, let alone errors related to {@snippet}
         //        To achieve that, we might need to change JavadocTester (i.e. add "consume output", "check that the output is empty", etc.)
 
-        checkOutput(Output.OUT,
-                    true,
+        checkOutput(Output.OUT, true,
                     """
                             A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
     }
@@ -550,14 +549,28 @@ public class TestSnippetTag extends JavadocTester {
 
         checkExit(Exit.ERROR);
 
-        checkOutput(Output.OUT,
-                    true,
-                    """
-                            A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""",
-                    """
-                            A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+
+        checkOutputEither(Output.OUT,
+                          """
+                                  A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""",
+                          """
+                                  A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
     }
 
+    // FIXME: perhaps this method could be added to JavadocTester
+    private void checkOutputEither(Output out, String first, String... other) {
+        checking("checkOutputEither");
+        String output = getOutput(out);
+
+        Stream<String> strings = Stream.concat(Stream.of(first), Stream.of(other));
+        Optional<String> any = strings.filter(output::contains).findAny();
+
+        if (any.isPresent()) {
+            passed(": following text is found:\n" + any.get());
+        } else {
+            failed(": nothing found");
+        }
+    }
 
     @Test
     public void testConflict40(Path base) throws Exception {
@@ -579,8 +592,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkExit(Exit.ERROR);
 
-        checkOutput(Output.OUT,
-                    true,
+        checkOutput(Output.OUT, true,
                     """
                             A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
     }
@@ -605,8 +617,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkExit(Exit.ERROR);
 
-        checkOutput(Output.OUT,
-                    true,
+        checkOutput(Output.OUT, true,
                     """
                             A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
     }
@@ -629,10 +640,9 @@ public class TestSnippetTag extends JavadocTester {
 
         checkExit(Exit.ERROR);
 
-        checkOutput(Output.OUT,
-                    true,
+        checkOutput(Output.OUT, true,
                     """
-                            A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
+                            A.java:3: error - repeated attribute "file\"""");
     }
 
     @Test
@@ -653,10 +663,9 @@ public class TestSnippetTag extends JavadocTester {
 
         checkExit(Exit.ERROR);
 
-        checkOutput(Output.OUT,
-                    true,
+        checkOutput(Output.OUT, true,
                     """
-                            A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
+                            A.java:3: error - repeated attribute "class\"""");
     }
 
     @Test
@@ -679,12 +688,11 @@ public class TestSnippetTag extends JavadocTester {
 
         checkExit(Exit.ERROR);
 
-        checkOutput(Output.OUT,
-                    true,
-                    """
-                            A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""",
-                    """
-                            A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+        checkOutputEither(Output.OUT,
+                          """
+                                  A.java:3: error - repeated attribute "class\"""",
+                          """
+                                  A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
     }
 
     @Test
@@ -707,11 +715,11 @@ public class TestSnippetTag extends JavadocTester {
 
         checkExit(Exit.ERROR);
 
-        checkOutput(Output.OUT, true,
-                    """
-                            A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""",
-                    """
-                            A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+        checkOutputEither(Output.OUT,
+                          """
+                                  A.java:3: error - repeated attribute "file\"""",
+                          """
+                                  A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
     }
 
     // Those are excerpts from the diagnostic messages for two different tags that sit on the same line:

@@ -40,8 +40,11 @@ import javax.tools.StandardLocation;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class SnippetTaglet extends BaseTaglet {
@@ -56,40 +59,49 @@ public class SnippetTaglet extends BaseTaglet {
      * An external snippet has either the "class" or "file" attribute.
      */
     @Override
+    // FIXME
+    //   On the one hand, returning null from this method is shady.
+    //   On the other hand, throwing a checked exception from this method is impossible.
+    //   This method MUST be revisited.
     public Content getInlineTagOutput(Element holder, DocTree tag, TagletWriter writer) {
-        String content;
         SnippetTree snippetTag = (SnippetTree) tag;
 
-        boolean valid = true;
+        Map<String, TagAttributeTree> attributes = new HashMap<>();
 
-        final var externalRefs = snippetTag.getAttributes()
-                .stream()
-                .filter(a -> a.getName().contentEquals("class") || a.getName().contentEquals("file"))
-                .limit(2) // one duplicate is enough
-                .collect(Collectors.toUnmodifiableList());
-
-        if (externalRefs.size() > 1) {
-            valid = false;
-            error(writer, holder, tag, "doclet.snippet.contents.ambiguity.external");
-        }
-
-        if (!externalRefs.isEmpty() && snippetTag.getBody() != null) {
-            valid = false;
-            error(writer, holder, tag, "doclet.snippet.contents.ambiguity.mixed");
-        } else if (externalRefs.isEmpty() && snippetTag.getBody() == null) {
-            valid = false;
-            error(writer, holder, tag, "doclet.snippet.contents.none");
-        }
-
-        if (!valid) {
-            // FIXME: what's the implied contract here for a method that has errored?
+        // Organize attributes in a map performing basic checks along the way
+        for (TagAttributeTree a : snippetTag.getAttributes()) {
+            TagAttributeTree prev = attributes.putIfAbsent(a.getName().toString(), a);
+            if (prev == null) {
+                continue;
+            }
+            // A like-named attributes found: `prev` and `a`
+            error(writer, holder, a, "doclet.tag.attribute.repeated", a.getName().toString());
             return null;
         }
 
+        if (attributes.containsKey("class") && attributes.containsKey("file")) {
+            error(writer, holder, tag, "doclet.snippet.contents.ambiguity.external");
+            return null;
+        } else if (attributes.containsKey("class") || attributes.containsKey("file")) {
+            if (snippetTag.getBody() != null) {
+                error(writer, holder, tag, "doclet.snippet.contents.ambiguity.mixed");
+                return null;
+            }
+        } else if (snippetTag.getBody() == null) {
+            error(writer, holder, tag, "doclet.snippet.contents.none");
+            return null;
+        }
+
+        // FIXME: remove as compiler people do not like assertions
+        assert attributes.containsKey("class") ^ attributes.containsKey("file") ^ snippetTag.getBody() != null :
+                Arrays.toString(new boolean[]{attributes.containsKey("class"), attributes.containsKey("file"), snippetTag.getBody() != null});
+
+        String content;
         if (snippetTag.getBody() != null) {
             content = snippetTag.getBody().getBody().stripIndent();
         } else {
-            TagAttributeTree ref = externalRefs.get(0);
+            TagAttributeTree file = attributes.get("file");
+            TagAttributeTree ref = file != null ? file : attributes.get("class");
             List<? extends DocTree> value = ref.getValue();
             String v = stringOf(value);
             String refType = ref.getName().toString();
@@ -109,8 +121,7 @@ public class SnippetTaglet extends BaseTaglet {
             } catch (IOException e) {
                 // FIXME: provide more context (the snippet, its attribute, and its attributes' value)
                 error(writer, holder, tag, "doclet.exception.read.file", v, e.getCause());
-                // FIXME: what's the implied contract here for a method that has errored?
-                return null; // replace with UncheckedDocletException
+                return null;
             }
 
             if (fileObject == null) { /* i.e. the file does not exist */
