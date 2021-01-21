@@ -64,6 +64,8 @@ import static java.util.Map.entry;
 //   2. Add tests for bad tag syntax
 //   3. Add tests for good tag syntax (e.g. attributes separated by newlines)
 //   4. Add tests for nested structure under "snippet-files/"
+//   5. Add tests for external snippets and default package: "snippet-files/Example.java"
+//   6. Add negative tests for region
 public class TestSnippetTag extends JavadocTester {
 
     private final ToolBox tb = new ToolBox();
@@ -631,12 +633,9 @@ public class TestSnippetTag extends JavadocTester {
 
         checkExit(Exit.ERROR);
 
-
         checkOutputEither(Output.OUT,
                           """
-                                  A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""",
-                          """
-                                  A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+                                  A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
     }
 
     // FIXME: perhaps this method could be added to JavadocTester
@@ -652,56 +651,6 @@ public class TestSnippetTag extends JavadocTester {
         } else {
             failed(": nothing found");
         }
-    }
-
-    @Test
-    public void testConflict40(Path base) throws Exception {
-        Path srcDir = base.resolve("src");
-        Path outDir = base.resolve("out");
-
-        new ClassBuilder(tb, "pkg.A")
-                .setComments("""
-                                     {@snippet class="" :
-                                         Hello, Snippet!
-                                     }
-                                     """)
-                .setModifiers("public", "class")
-                .write(srcDir);
-
-        javadoc("-d", outDir.toString(),
-                "-sourcepath", srcDir.toString(),
-                "pkg");
-
-        checkExit(Exit.ERROR);
-
-        checkOutput(Output.OUT, true,
-                    """
-                            A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
-    }
-
-    @Test
-    public void testConflict50(Path base) throws Exception {
-        Path srcDir = base.resolve("src");
-        Path outDir = base.resolve("out");
-
-        new ClassBuilder(tb, "pkg.A")
-                .setComments("""
-                                     {@snippet file="" :
-                                         Hello, Snippet!
-                                     }
-                                     """)
-                .setModifiers("public", "class")
-                .write(srcDir);
-
-        javadoc("-d", outDir.toString(),
-                "-sourcepath", srcDir.toString(),
-                "pkg");
-
-        checkExit(Exit.ERROR);
-
-        checkOutput(Output.OUT, true,
-                    """
-                            A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
     }
 
     @Test
@@ -1134,6 +1083,381 @@ public class TestSnippetTag extends JavadocTester {
         });
     }
 
+    @Test
+    public void testRedundantFileNotFound(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        var fileName = "text.txt";
+
+        new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void test() { }")
+                                .setComments("""
+                                                     {@snippet file="%s":
+                                                         Hello, Snippet!}
+                                                     """.formatted(fileName)))
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                    """
+                            A.java:4: error - File not found: %s""".formatted(fileName));
+    }
+
+    @Test
+    public void testRedundantRegionNotFound(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        var fileName = "text.txt";
+        var region = "here";
+        var content =
+                """
+                        Hello, Snippet!""";
+
+        new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void test() { }")
+                                .setComments("""
+                                                     {@snippet region="%s" file="%s":
+                                                     %s}
+                                                     """.formatted(region, fileName, content)))
+                .write(srcDir);
+
+        addSnippetFile(srcDir, "pkg", fileName, content);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                    """
+                            A.java:4: error - region not found: "%s\"""".formatted(region));
+    }
+
+    @Test
+    public void testRedundantMismatch(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        var fileName = "text.txt";
+        var content =
+                """
+                        Hello, Snippet!""";
+
+        new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void test() { }")
+                                .setComments("""
+                                                     {@snippet file="%s":
+                                                     %s}
+                                                     """.formatted(fileName, content)))
+                .write(srcDir);
+
+        addSnippetFile(srcDir, "pkg", fileName, content + "...more");
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                    """
+                            A.java:4: error - contents mismatch""");
+    }
+
+    @Test
+    public void testRedundantRegionRegionMismatch(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        var fileName = "text.txt";
+        var region = "here";
+        var content =
+                """
+                        Hello, Snippet!""";
+
+        new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void test() { }")
+                                .setComments("""
+                                                     {@snippet region="%s" file="%s":
+                                                     Above the region.
+                                                     // snippet-region-start : %s
+                                                     %s ...more
+                                                     // snippet-region-stop : %s
+                                                     Below the region}
+                                                     """.formatted(region, fileName, region, content, region)))
+                .write(srcDir);
+
+        addSnippetFile(srcDir, "pkg", fileName,
+                       """
+                               This line is above the region.
+                               // snippet-region-start : %s
+                               %s
+                               // snippet-region-stop : %s
+                               This line is below the region.""".formatted(region, content, region));
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                    """
+                            A.java:4: error - contents mismatch""");
+    }
+
+    @Test
+    public void testRedundantRegion1Mismatch(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        var fileName = "text.txt";
+        var region = "here";
+        var content =
+                """
+                        Hello, Snippet!""";
+
+        new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void test() { }")
+                                .setComments("""
+                                                     {@snippet region="%s" file="%s":
+                                                     Above the region.
+                                                     // snippet-region-start : %s
+                                                     %s ...more
+                                                     // snippet-region-stop : %s
+                                                     Below the region}
+                                                     """.formatted(region, fileName, region, content, region)))
+                .write(srcDir);
+
+        addSnippetFile(srcDir, "pkg", fileName, content);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                    """
+                            A.java:4: error - contents mismatch""");
+    }
+
+    @Test
+    public void testRedundantRegion2Mismatch(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        var fileName = "text.txt";
+        var region = "here";
+        var content =
+                """
+                        Hello, Snippet!""";
+
+        new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void test() { }")
+                                .setComments("""
+                                                     {@snippet region="%s" file="%s":
+                                                     %s}
+                                                     """.formatted(region, fileName, content)))
+                .write(srcDir);
+
+        addSnippetFile(srcDir, "pkg", fileName,
+                       """
+                               Above the region.
+                               // snippet-region-start : %s
+                               %s ...more
+                               // snippet-region-stop : %s
+                               Below the region
+                               """.formatted(region, content, region));
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                    """
+                            A.java:4: error - contents mismatch""");
+    }
+
+    @Test
+    public void testRedundant(Path base) throws Exception {
+        final Map<Snippet, String> testCases = Map.ofEntries(
+                entry(newSnippetBuilder()
+                              .body("""
+                                            Hello
+                                            ,
+                                             Snippet!""")
+                              .fileContent(
+                                      """
+                                              Hello
+                                              ,
+                                               Snippet!""")
+                              .build(),
+                      """
+                              Hello
+                              ,
+                               Snippet!"""
+                )
+                ,
+                entry(newSnippetBuilder()
+                              .body("""
+                                              Hello
+                                              ,
+                                               Snippet!
+                                            """)
+                              .region("here")
+                              .fileContent(
+                                      """
+                                              Above the region.
+                                              // snippet-region-start : here
+                                                Hello
+                                                ,
+                                                 Snippet!
+                                              // snippet-region-stop : here
+                                              Below the region.
+                                              """)
+                              .build(),
+                      """
+                                Hello
+                                ,
+                                 Snippet!
+                              """
+                )
+                ,
+                entry(newSnippetBuilder()
+                              .body("""
+                                            Above the region.
+                                            // snippet-region-start : here
+                                              Hello
+                                              ,
+                                               Snippet!
+                                            // snippet-region-stop : here
+                                            Below the region.
+                                            """)
+                              .region("here")
+                              .fileContent(
+                                      """
+                                                Hello
+                                                ,
+                                                 Snippet!
+                                              """)
+                              .build(),
+                      """
+                                Hello
+                                ,
+                                 Snippet!
+                              """
+                )
+                ,
+                entry(newSnippetBuilder()
+                              .body("""
+                                            Above the region.
+                                            // snippet-region-start : here
+                                              Hello
+                                              ,
+                                               Snippet!
+                                            // snippet-region-stop : here
+                                            Below the region.
+                                            """)
+                              .region("here")
+                              .fileContent(
+                                      """
+                                              Above the region.
+                                              // snippet-region-start : here
+                                                Hello
+                                                ,
+                                                 Snippet!
+                                              // snippet-region-stop : here
+                                              Below the region.
+                                              """)
+                              .build(),
+                      """
+                                Hello
+                                ,
+                                 Snippet!
+                              """
+                )
+        );
+
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class");
+
+        // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
+        Map<Integer, Snippet> inputs = new LinkedHashMap<>();
+
+        // Using an object rather than a primitive variable (e.g. `int id`)
+        // allows to change it from within a lambda and therefore utilize forEach
+        // I would use a single-threaded counter if we had one.
+        AtomicInteger counter = new AtomicInteger();
+
+        testCases.keySet().forEach(input -> {
+            int id = counter.incrementAndGet();
+            final String r = input.region() == null ? "" : "region=\"" + input.region() + "\"";
+            final String f = input.fileContent() == null ? "" : "file=\"%s.txt\"".formatted(id);
+            classBuilder
+                    .addMembers(
+                            MethodBuilder
+                                    .parse("public void case%s() { }".formatted(id))
+                                    .setComments("""
+                                                         {@snippet %s %s:
+                                                         %s}
+                                                         """.formatted(r, f, input.body())));
+            addSnippetFile(srcDir, "pkg", "%s.txt".formatted(id), input.fileContent());
+            inputs.put(id, input);
+        });
+
+        classBuilder.write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.OK);
+
+        inputs.forEach((index, input) -> {
+            String expectedOutput = testCases.get(input);
+            checkOrder("pkg/A.html",
+                       """
+                               <span class="element-name">case%s</span>()</div>
+                               <div class="block">
+                               <pre class="snippet">
+                               %s</pre>
+                               </div>""".formatted(index, expectedOutput));
+        });
+
+    }
+
     private static Snippet.Builder newSnippetBuilder() {
         return new Snippet.Builder();
     }
@@ -1142,10 +1466,12 @@ public class TestSnippetTag extends JavadocTester {
 
         private final String regionName;
         private final String body;
+        private final String fileContent;
 
-        private Snippet(String regionName, String body) {
+        private Snippet(String regionName, String body, String fileContent) {
             this.regionName = regionName;
             this.body = body;
+            this.fileContent = fileContent;
         }
 
         public String region() {
@@ -1156,10 +1482,15 @@ public class TestSnippetTag extends JavadocTester {
             return body;
         }
 
+        public String fileContent() {
+            return fileContent;
+        }
+
         static class Builder {
 
             private String regionName;
             private String body;
+            private String fileContent;
 
             Builder region(String name) {
                 this.regionName = name;
@@ -1171,8 +1502,13 @@ public class TestSnippetTag extends JavadocTester {
                 return this;
             }
 
+            Builder fileContent(String fileContent) {
+                this.fileContent = fileContent;
+                return this;
+            }
+
             Snippet build() {
-                return new Snippet(regionName, body);
+                return new Snippet(regionName, body, fileContent);
             }
         }
 
@@ -1182,19 +1518,21 @@ public class TestSnippetTag extends JavadocTester {
             if (o == null || getClass() != o.getClass()) return false;
             Snippet snippet = (Snippet) o;
             return Objects.equals(regionName, snippet.regionName) &&
-                    Objects.equals(body, snippet.body);
+                    Objects.equals(body, snippet.body) &&
+                    Objects.equals(fileContent, snippet.fileContent);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(regionName, body);
+            return Objects.hash(regionName, body, fileContent);
         }
 
         @Override
         public String toString() {
             return "Snippet{" +
-                    "region='" + regionName + '\'' +
+                    "regionName='" + regionName + '\'' +
                     ", body='" + body + '\'' +
+                    ", fileContent='" + fileContent + '\'' +
                     '}';
         }
     }

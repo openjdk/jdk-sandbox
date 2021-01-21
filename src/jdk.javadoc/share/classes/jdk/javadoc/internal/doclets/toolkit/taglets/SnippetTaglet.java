@@ -47,6 +47,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -82,27 +83,26 @@ public class SnippetTaglet extends BaseTaglet {
             if (prev == null) {
                 continue;
             }
-            // A like-named attributes found: `prev` and `a`
+            // Like-named attributes found: `prev` and `a`
             error(writer, holder, a, "doclet.tag.attribute.repeated", a.getName().toString());
             return null;
         }
 
-        if (attributes.containsKey("class") && attributes.containsKey("file")) {
+        final boolean containsClass = attributes.containsKey("class");
+        final boolean containsFile = attributes.containsKey("file");
+        final boolean containsBody = snippetTag.getBody() != null;
+
+        if (containsClass && containsFile) {
             error(writer, holder, tag, "doclet.snippet.contents.ambiguity.external");
             return null;
-        } else if (attributes.containsKey("class") || attributes.containsKey("file")) {
-            if (snippetTag.getBody() != null) {
-                error(writer, holder, tag, "doclet.snippet.contents.ambiguity.mixed");
-                return null;
-            }
-        } else if (snippetTag.getBody() == null) {
+        } else if (!containsClass && !containsFile && !containsBody) {
             error(writer, holder, tag, "doclet.snippet.contents.none");
             return null;
         }
 
         // FIXME: remove as compiler people do not like assertions
-        assert attributes.containsKey("class") ^ attributes.containsKey("file") ^ snippetTag.getBody() != null :
-                Arrays.toString(new boolean[]{attributes.containsKey("class"), attributes.containsKey("file"), snippetTag.getBody() != null});
+        assert (containsClass || containsFile || containsBody) && !(containsClass && containsFile) :
+                Arrays.toString(new boolean[]{containsClass, containsFile, containsBody});
 
         String r = null;
         TagAttributeTree region = attributes.get("region");
@@ -114,10 +114,13 @@ public class SnippetTaglet extends BaseTaglet {
             }
         }
 
-        String content;
-        if (snippetTag.getBody() != null) {
-            content = snippetTag.getBody().getBody().stripIndent();
-        } else {
+        String content1 = null, content2 = null;
+
+        if (containsBody) {
+            content1 = snippetTag.getBody().getBody().stripIndent();
+        }
+
+        if (containsFile || containsClass) {
             TagAttributeTree file = attributes.get("file");
             TagAttributeTree ref = file != null ? file : attributes.get("class");
             List<? extends DocTree> value = ref.getValue();
@@ -163,7 +166,7 @@ public class SnippetTaglet extends BaseTaglet {
 
             Path path = fileManager.asPath(fileObject);
             try {
-                content = Files.readString(path); // FIXME don't read file every single time; cache it
+                content2 = Files.readString(path); // FIXME don't read file every single time; cache it
             } catch (IOException e) {
                 // FIXME: provide more context (the snippet, its attribute, and its attributes' value)
                 error(writer, holder, tag, "doclet.exception.read.file", path, e.getCause());
@@ -171,69 +174,40 @@ public class SnippetTaglet extends BaseTaglet {
             }
         }
 
+
+        // The region must be matched at least in one content: it can be matched
+        // in both, but never in none
+
         if (r != null) {
-            // FIXME
-            //   Although this might be considered as an experiment for deciding
-            //   whether or not to give snippet users a regex to specify the
-            //   region, as the default implementation this is needlessly
-            //   complex (just like this sentence) and needs to be revisited
-            /*
-             * The regex that finds a content region is created from a template.
-             * This is done in hope that the template would be more readable
-             * than the regex.
-             *
-             * 1. The template is created by concatenating two lines to mimic
-             *    the multi-line nature of a region matched by the regex
-             * 2. Literal whitespace characters " " are replaced by optional
-             *    regex whitespace "\\h*"
-             * 3. START and STOP markers are inserted
-             * 4. Finally, a pattern is compiled from the resulting regex
-             *    using the DOTALL constant. (The flag expression "(?s)" is not
-             *    embedded into the regex for readability.)
-             *
-             * Steps 2 and 3 have to be done in that exact order. This is
-             * because markers can contain literal whitespace.
-             */
-            final String START = "snippet-region-start";
-            final String STOP = "snippet-region-stop";
-
-            String template =
-
-                    // Using a "non-vertical whitespace character" because "."
-                    // will match a line-break too
-                    //   ~~~~~~~~~~~v
-                    "// %s : (%s)(\\h+\\V*)?\\R" +
-                            "(?<region>.*?)// %s : \\1\\b";
-
-            var regex = template
-                    .replace(" ", "\\h*")
-                    .formatted("\\Q" + START + "\\E", // FIXME: Use Pattern.quote
-                               "\\Q" + r + "\\E",
-                               "\\Q" + STOP + "\\E");
-
-            var matcher = Pattern.compile(regex, Pattern.DOTALL).matcher(content);
-
-            if (!matcher.find()) {
+            String r1 = null, r2 = null;
+            if (content1 != null) {
+                r1 = cutRegion(r, content1);
+                if (r1 != null) {
+                    content1 = r1;
+                }
+            }
+            if (content2 != null) {
+                r2 = cutRegion(r, content2);
+                if (r2 != null) {
+                    content2 = r2;
+                }
+            }
+            if (r1 == null && r2 == null) {
                 error(writer, holder, tag, "doclet.snippet.region.not_found", r);
                 return null;
             }
-
-            String group = matcher.group("region");
-            assert group != null; // The regex is created in such a way that the null-group is impossible
-
-            // Strip marker comments:
-            String markerTemplate = "// (%s|%s) :.++";
-            // Note the greedy match ~~~~~~~~~~~~~~^
-
-            String markerRegex = markerTemplate
-                    .replace(" ", "\\h*")
-                    .formatted("\\Q" + START + "\\E", "\\Q" + STOP + "\\E");
-
-            // The order of operations is important: stripIndent happens after the markers have been removed
-            content = group
-                    .replaceAll(markerRegex, "")
-                    .stripIndent();
         }
+
+        if (content1 != null && content2 != null) {
+            if (!Objects.equals(content1, content2)) {
+                error(writer, holder, tag, "doclet.snippet.contents.mismatch");
+                return null;
+            }
+        }
+
+        assert content1 != null || content2 != null;
+
+        String content = content1 != null ? content1 : content2;
 
         content = content.replaceAll("//\\h*snippet-comment\\h*:( )?(?<content>.+\\R?)", "${content}");
         // This can be the last line, hence newline is optional ~~~~~~~~~~~~~~~~~~~~^
@@ -244,6 +218,68 @@ public class SnippetTaglet extends BaseTaglet {
         //       // snippet-comment : // snippet-region-start : here
 
         return writer.snippetTagOutput(holder, snippetTag, content);
+    }
+
+    private String cutRegion(String r, String content) {
+        // FIXME
+        //   Although this might be considered as an experiment for deciding
+        //   whether or not to give snippet users a regex to specify the
+        //   region, as the default implementation this is needlessly
+        //   complex (just like this sentence) and needs to be revisited
+        /*
+         * The regex that finds a content region is created from a template.
+         * This is done in hope that the template would be more readable
+         * than the regex.
+         *
+         * 1. The template is created by concatenating two lines to mimic
+         *    the multi-line nature of a region matched by the regex
+         * 2. Literal whitespace characters " " are replaced by optional
+         *    regex whitespace "\\h*"
+         * 3. START and STOP markers are inserted
+         * 4. Finally, a pattern is compiled from the resulting regex
+         *    using the DOTALL constant. (The flag expression "(?s)" is not
+         *    embedded into the regex for readability.)
+         *
+         * Steps 2 and 3 have to be done in that exact order. This is
+         * because markers can contain literal whitespace.
+         */
+        final String START = "snippet-region-start";
+        final String STOP = "snippet-region-stop";
+
+        String template =
+
+                // Using a "non-vertical whitespace character" because "."
+                // will match a line-break too
+                //   ~~~~~~~~~~~v
+                "// %s : (%s)(\\h+\\V*)?\\R" +
+                        "(?<region>.*?)// %s : \\1\\b";
+
+        var regex = template
+                .replace(" ", "\\h*")
+                .formatted("\\Q" + START + "\\E", // FIXME: Use Pattern.quote
+                           "\\Q" + r + "\\E",
+                           "\\Q" + STOP + "\\E");
+
+        var matcher = Pattern.compile(regex, Pattern.DOTALL).matcher(content);
+
+        if (!matcher.find())
+            return null;
+
+        String group = matcher.group("region");
+        assert group != null; // The regex is created in such a way that the null-group is impossible
+
+        // Strip marker comments:
+        String markerTemplate = "// (%s|%s) :.++";
+        // Note the greedy match ~~~~~~~~~~~~~~^
+
+        String markerRegex = markerTemplate
+                .replace(" ", "\\h*")
+                .formatted("\\Q" + START + "\\E", "\\Q" + STOP + "\\E");
+
+        // The order of operations is important: stripIndent happens after the markers have been removed
+        return group
+                .replaceAll(markerRegex, "")
+                .stripIndent();
     }
 
     private static String stringOf(List<? extends DocTree> value) {
