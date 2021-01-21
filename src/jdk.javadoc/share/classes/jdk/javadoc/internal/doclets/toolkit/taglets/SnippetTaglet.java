@@ -28,11 +28,20 @@ package jdk.javadoc.internal.doclets.toolkit.taglets;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.SnippetTree;
 import com.sun.source.doctree.TagAttributeTree;
+import com.sun.source.doctree.TextTree;
 import jdk.javadoc.doclet.Taglet;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.PackageElement;
+import javax.tools.FileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.StandardLocation;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class SnippetTaglet extends BaseTaglet {
@@ -61,15 +70,15 @@ public class SnippetTaglet extends BaseTaglet {
 
         if (externalRefs.size() > 1) {
             valid = false;
-            error("doclet.snippet.contents.ambiguity.external", holder, tag, writer);
+            error(writer, holder, tag, "doclet.snippet.contents.ambiguity.external");
         }
 
         if (!externalRefs.isEmpty() && snippetTag.getBody() != null) {
             valid = false;
-            error("doclet.snippet.contents.ambiguity.mixed", holder, tag, writer);
+            error(writer, holder, tag, "doclet.snippet.contents.ambiguity.mixed");
         } else if (externalRefs.isEmpty() && snippetTag.getBody() == null) {
             valid = false;
-            error("doclet.snippet.contents.none", holder, tag, writer);
+            error(writer, holder, tag, "doclet.snippet.contents.none");
         }
 
         if (!valid) {
@@ -80,15 +89,61 @@ public class SnippetTaglet extends BaseTaglet {
         if (snippetTag.getBody() != null) {
             content = snippetTag.getBody().getBody().stripIndent();
         } else {
-            TagAttributeTree tagAttributeTree = externalRefs.get(0);
-            content = "";
+            TagAttributeTree ref = externalRefs.get(0);
+            List<? extends DocTree> value = ref.getValue();
+            String v = stringOf(value);
+            String refType = ref.getName().toString();
+
+            // We didn't create JavaFileManager, so we won't close it; even if an error occurs
+            var fileManager = (StandardJavaFileManager) writer.configuration().getFileManager();
+
+            FileObject fileObject;
+            try {
+                if (refType.equals("class")) {
+                    // fileObject = fileManager.getJavaFileForInput(StandardLocation.SOURCE_PATH, v, JavaFileObject.Kind.SOURCE);
+                    throw new UnsupportedOperationException("Not yet implemented");
+                } else {
+                    // assert refType.equals("file") : refType;
+                    fileObject = fileManager.getFileForInput(StandardLocation.SOURCE_PATH, packageName(holder, writer), "snippet-files/" + v);
+                }
+            } catch (IOException e) {
+                // FIXME: provide more context (the snippet, its attribute, and its attributes' value)
+                error(writer, holder, tag, "doclet.exception.read.file", v, e.getCause());
+                // FIXME: what's the implied contract here for a method that has errored?
+                return null; // replace with UncheckedDocletException
+            }
+
+            if (fileObject == null) { /* i.e. the file does not exist */
+                error(writer, holder, tag, "doclet.File_not_found", v);
+                return null;
+            }
+
+            Path path = fileManager.asPath(fileObject);
+            try {
+                content = Files.readString(path);
+            } catch (IOException e) {
+                // FIXME: provide more context (the snippet, its attribute, and its attributes' value)
+                error(writer, holder, tag, "doclet.exception.read.file", path, e.getCause());
+                return null;
+            }
         }
         return writer.snippetTagOutput(holder, snippetTag, content);
     }
 
+    private static String stringOf(List<? extends DocTree> value) {
+        return value.stream()
+                .map(t -> ((TextTree) t).getBody()) // value consists of TextTree nodes
+                .collect(Collectors.joining());
+    }
+
     // FIXME: figure out how to do that correctly
-    private void error(String key, Element holder, DocTree tag, TagletWriter writer) {
+    private void error(TagletWriter writer, Element holder, DocTree tag, String key, Object... args) {
         writer.configuration().getMessages().error(
-                writer.configuration().utils.getCommentHelper(holder).getDocTreePath(tag), key);
+                writer.configuration().utils.getCommentHelper(holder).getDocTreePath(tag), key, args);
+    }
+
+    private String packageName(Element e, TagletWriter writer) {
+        PackageElement pkg = writer.configuration().utils.containingPackage(e);
+        return writer.configuration().utils.getPackageName(pkg);
     }
 }

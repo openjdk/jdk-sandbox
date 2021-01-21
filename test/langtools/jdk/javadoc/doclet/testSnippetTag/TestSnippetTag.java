@@ -35,8 +35,17 @@ import builder.ClassBuilder.MethodBuilder;
 import javadoc.tester.JavadocTester;
 import toolbox.ToolBox;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 public class TestSnippetTag extends JavadocTester {
 
@@ -318,6 +327,154 @@ public class TestSnippetTag extends JavadocTester {
                                &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
                            </pre>
                            </div>""");
+    }
+
+    // FIXME: add examples of bad grammar
+
+    @Test
+    public void testExternalFile(Path base) throws Exception {
+
+        // Maps an input to a function that yields an expected output
+        final Map<String, Function<String, String>> testCases = Map.of(
+                """
+                        Hello, Snippet!
+                        """, Function.identity(),
+                """
+                            Hello, Snippet!
+                        """, Function.identity(),
+                """
+                            Hello
+                            ,
+                             Snippet!
+                        """, Function.identity(),
+                """
+                                            
+                            Hello
+                            ,
+                             Snippet!
+                        """, Function.identity(),
+                """
+                            Hello
+                            ,
+                             Snippet!
+
+                        """, Function.identity(),
+                """
+                            Hello
+                            ,        \s
+                             Snippet!
+                        """, Function.identity(),
+                """
+                        Hello
+                        ,
+                         Snippet!""", Function.identity(),
+                """
+                            \\b\\t\\n\\f\\r\\"\\'\\\
+                            Hello\\
+                            ,\\s
+                             Snippet!
+                        """, Function.identity(),
+                """
+                            </pre>
+                                <!-- comment -->
+                            <b>&trade;</b> &#8230; " '
+                        """, s ->
+                        """
+                                    &lt;/pre&gt;
+                                        &lt;!-- comment --&gt;
+                                    &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
+                                """,
+                """
+                            &lt;/pre&gt;
+                                &lt;!-- comment --&gt;
+                            &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
+                        """, s -> s.replaceAll("&", "&amp;")
+        );
+
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class");
+
+        // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
+        Map<Integer, String> inputs = new LinkedHashMap<>();
+
+        // I would use a single-threaded counter if we had one.
+        // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
+        AtomicInteger counter = new AtomicInteger();
+
+        testCases.keySet().forEach(input -> {
+            int id = counter.incrementAndGet();
+            classBuilder
+                    .addMembers(
+                            MethodBuilder
+                                    .parse("public void case%s() { }".formatted(id))
+                                    .setComments("""
+                                                         {@snippet file="%s.txt"}
+                                                         """.formatted(id)));
+            addSnippetFile(srcDir, "pkg", "%s.txt".formatted(id), input);
+            inputs.put(id, input);
+        });
+
+        classBuilder.write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.OK);
+
+        inputs.forEach((index, input) -> {
+            String expectedOutput = testCases.get(input).apply(input);
+            checkOrder("pkg/A.html",
+                       """
+                               <span class="element-name">case%s</span>()</div>
+                               <div class="block">
+                               <pre class="snippet">
+                               %s</pre>
+                               </div>""".formatted(index, expectedOutput));
+        });
+    }
+
+    private void addSnippetFile(Path srcDir, String packageName, String fileName, String content) throws UncheckedIOException {
+        String[] components = packageName.split("\\.");
+        Path snippetFiles = Path.of(components[0], Arrays.copyOfRange(components, 1, components.length)).resolve("snippet-files");
+        try {
+            Path p = Files.createDirectories(srcDir.resolve(snippetFiles));
+            Files.writeString(p.resolve(fileName), content, StandardOpenOption.CREATE_NEW);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    @Test
+    public void testExternalFileNotFound(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        var fileName = "text.txt";
+
+        new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void test() { }")
+                                .setComments("""
+                                                     {@snippet file="%s"}
+                                                     """.formatted(fileName)))
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT,
+                    true,
+                    """
+                            A.java:4: error - File not found: %s""".formatted(fileName));
     }
 
     @Test
