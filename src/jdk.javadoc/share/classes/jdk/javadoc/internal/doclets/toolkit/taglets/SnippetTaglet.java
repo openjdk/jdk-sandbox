@@ -135,7 +135,6 @@ public class SnippetTaglet extends BaseTaglet {
                 } else {
                     // assert refType.equals("file") : refType;
                     String relativeName = "snippet-files/" + v;
-                    System.out.println("relativeName = " + relativeName); // FIXME: remove console output
                     String packageName = packageName(holder, writer);
                     fileObject = fileManager.getFileForInput(StandardLocation.SOURCE_PATH,
                                                              packageName,
@@ -235,6 +234,14 @@ public class SnippetTaglet extends BaseTaglet {
                     .replaceAll(markerRegex, "")
                     .stripIndent();
         }
+
+        content = content.replaceAll("//\\h*snippet-comment\\h*:( )?(?<content>.+\\R?)", "${content}");
+        // This can be the last line, hence newline is optional ~~~~~~~~~~~~~~~~~~~~^
+
+        // FIXME
+        //   Overall, this regex-based mechanics won't fly; we need a proper parser.
+        //   For example, this "shielding" won't work:
+        //       // snippet-comment : // snippet-region-start : here
 
         return writer.snippetTagOutput(holder, snippetTag, content);
     }

@@ -1013,9 +1013,104 @@ public class TestSnippetTag extends JavadocTester {
                                     .parse("public void case%s() { }".formatted(id))
                                     .setComments("""
                                                          {@snippet region="%s" :
-                                                         %s
-                                                         }
+                                                         %s}
                                                          """.formatted(input.region(), input.body())));
+            inputs.put(id, input);
+        });
+
+        classBuilder.write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.OK);
+
+        inputs.forEach((index, input) -> {
+            String expectedOutput = testCases.get(input);
+            checkOrder("pkg/A.html",
+                       """
+                               <span class="element-name">case%s</span>()</div>
+                               <div class="block">
+                               <pre class="snippet">
+                               %s</pre>
+                               </div>""".formatted(index, expectedOutput));
+        });
+    }
+
+    @Test
+    public void testComment(Path base) throws Exception {
+
+        // Maps an input to an expected output
+        final Map<Snippet, String> testCases = Map.ofEntries(
+                entry(newSnippetBuilder()
+                              .body("""
+                                            // snippet-comment : Hello
+                                            ,
+                                             Snippet!""")
+                              .build(),
+                      """
+                              Hello
+                              ,
+                               Snippet!"""
+                )
+                ,
+                entry(newSnippetBuilder()
+                              .body("""
+                                            // snippet-comment :Hello
+                                            ,
+                                             Snippet!""")
+                              .build(),
+                      """
+                              Hello
+                              ,
+                               Snippet!"""
+                )
+                ,
+                entry(newSnippetBuilder()
+                              .body("""
+                                            // snippet-comment :  Hello
+                                            ,
+                                             Snippet!""")
+                              .build(),
+                      """
+                               Hello
+                              ,
+                               Snippet!"""
+                )
+                ,
+                entry(newSnippetBuilder()
+                              .body("""
+                                            // snippet-comment : // snippet-comment : my comment""")
+                              .build(),
+                      """
+                              // snippet-comment : my comment"""
+                )
+        );
+
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class");
+
+        // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
+        Map<Integer, Snippet> inputs = new LinkedHashMap<>();
+
+        // I would use a single-threaded counter if we had one.
+        // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
+        AtomicInteger counter = new AtomicInteger();
+
+        testCases.keySet().forEach(input -> {
+            int id = counter.incrementAndGet();
+            classBuilder
+                    .addMembers(
+                            MethodBuilder
+                                    .parse("public void case%s() { }".formatted(id))
+                                    .setComments("""
+                                                         {@snippet :
+                                                         %s}
+                                                         """.formatted(input.body())));
             inputs.put(id, input);
         });
 
@@ -1049,8 +1144,8 @@ public class TestSnippetTag extends JavadocTester {
         private final String body;
 
         private Snippet(String regionName, String body) {
-            this.regionName = Objects.requireNonNull(regionName);
-            this.body = Objects.requireNonNull(body);
+            this.regionName = regionName;
+            this.body = body;
         }
 
         public String region() {
@@ -1086,8 +1181,8 @@ public class TestSnippetTag extends JavadocTester {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             Snippet snippet = (Snippet) o;
-            return regionName.equals(snippet.regionName) &&
-                    body.equals(snippet.body);
+            return Objects.equals(regionName, snippet.regionName) &&
+                    Objects.equals(body, snippet.body);
         }
 
         @Override
