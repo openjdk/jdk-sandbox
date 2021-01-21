@@ -836,3 +836,11 @@ table.striped > tbody > tr > th {
         padding-right: 12px;
     }
 }
+
+pre.snippet {
+    background-color: #e6e2d3;
+    padding: 12px;
+    margin: 12px 0;
+    overflow: auto;
+    white-space: pre;
+}

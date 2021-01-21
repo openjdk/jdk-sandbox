@@ -305,7 +305,7 @@ public class TagletWriterImpl extends TagletWriter {
     @Override
     protected Content snippetTagOutput(Element element, SnippetTree tag, String content) {
         CharSequence text = utils.normalizeNewlines('\n' + content);
-        return new HtmlTree(TagName.PRE).add(text);
+        return new HtmlTree(TagName.PRE).setStyle(HtmlStyle.snippet).add(text);
     }
 
     @Override

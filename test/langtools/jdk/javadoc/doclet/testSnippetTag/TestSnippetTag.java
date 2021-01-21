@@ -198,7 +198,7 @@ public class TestSnippetTag extends JavadocTester {
                    """
                            <span class="element-name">case10</span>()</div>
                            <div class="block">
-                           <pre>
+                           <pre class="snippet">
                                Hello, Snippet!
                            </pre>
                            </div>""");
@@ -207,7 +207,7 @@ public class TestSnippetTag extends JavadocTester {
                    """
                            <span class="element-name">case20</span>()</div>
                            <div class="block">
-                           <pre>
+                           <pre class="snippet">
                                Hello, Snippet!
                            </pre>
                            </div>""");
@@ -216,7 +216,7 @@ public class TestSnippetTag extends JavadocTester {
                    """
                            <span class="element-name">case30</span>()</div>
                            <div class="block">
-                           <pre>
+                           <pre class="snippet">
                                Hello, Snippet!
                            </pre>
                            </div>""");
@@ -225,7 +225,7 @@ public class TestSnippetTag extends JavadocTester {
                    """
                            <span class="element-name">case31</span>()</div>
                            <div class="block">
-                           <pre>
+                           <pre class="snippet">
                                Hello, Snippet!
                            </pre>
                            </div>""");
@@ -234,7 +234,7 @@ public class TestSnippetTag extends JavadocTester {
                    """
                            <span class="element-name">case40</span>()</div>
                            <div class="block">
-                           <pre>
+                           <pre class="snippet">
                                Hello
                                ,
                                 Snippet!
@@ -245,7 +245,7 @@ public class TestSnippetTag extends JavadocTester {
                    """
                            <span class="element-name">case50</span>()</div>
                            <div class="block">
-                           <pre>
+                           <pre class="snippet">
 
                                Hello
                                ,
@@ -257,7 +257,7 @@ public class TestSnippetTag extends JavadocTester {
                    """
                            <span class="element-name">case60</span>()</div>
                            <div class="block">
-                           <pre>
+                           <pre class="snippet">
                                Hello
                                ,
                                 Snippet!
@@ -269,7 +269,7 @@ public class TestSnippetTag extends JavadocTester {
                    """
                            <span class="element-name">case70</span>()</div>
                            <div class="block">
-                           <pre>
+                           <pre class="snippet">
                            Hello
                            ,
                             Snippet!
@@ -280,7 +280,7 @@ public class TestSnippetTag extends JavadocTester {
                    """
                            <span class="element-name">case80</span>()</div>
                            <div class="block">
-                           <pre>
+                           <pre class="snippet">
                            Hello
                            ,
                             Snippet!</pre>
@@ -290,7 +290,7 @@ public class TestSnippetTag extends JavadocTester {
 //                   """
 //                           <span class="element-name">case90</span>()</div>
 //                           <div class="block">
-//                           <pre>
+//                           <pre class="snippet">
 //                               Hello
 //                               ,
 //                                Snippet!
@@ -301,7 +301,7 @@ public class TestSnippetTag extends JavadocTester {
                    """
                            <span class="element-name">case100</span>()</div>
                            <div class="block">
-                           <pre>
+                           <pre class="snippet">
                                \\b\\t\\n\\f\\r\\"\\'\\    Hello\\
                                ,\\s
                                 Snippet!
@@ -312,7 +312,7 @@ public class TestSnippetTag extends JavadocTester {
                    """
                            <span class="element-name">case110</span>()</div>
                            <div class="block">
-                           <pre>
+                           <pre class="snippet">
                                &lt;/pre&gt;
                                    &lt;!-- comment --&gt;
                                &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '

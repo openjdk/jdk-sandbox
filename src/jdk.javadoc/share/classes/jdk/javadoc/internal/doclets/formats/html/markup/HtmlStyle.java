@@ -716,7 +716,12 @@ public enum HtmlStyle {
     /**
      * The class of the {@code body} element for the page for the class hierarchy.
      */
-    treePage;
+    treePage,
+
+    /**
+     * The class of the {@code pre} element presenting a snippet.
+     */
+    snippet;
     //</editor-fold>
 
     private final String cssName;
