@@ -327,16 +327,7 @@ public interface DocTreeFactory {
     /**
      * Creates a new {@code SnippetTree} object, to represent a {@code {@snippet }} tag.
      * @param attributes the attributes of the tag
-     * @return a {@code SnippetTree} object
-     * @since
-     */
-    // FIXME: (API consistency) should attributes be List<? extends DocTree>?
-    SnippetTree newSnippetTree(List<? extends TagAttributeTree> attributes);
-
-    /**
-     * Creates a new {@code SnippetTree} object, to represent a {@code {@snippet }} tag.
-     * @param attributes the attributes of the tag
-     * @param text the content of the tag
+     * @param text the body of the tag, or {@code null} if the tag has no body (not to be confused with an empty body)
      * @return a {@code SnippetTree} object
      * @since
      */

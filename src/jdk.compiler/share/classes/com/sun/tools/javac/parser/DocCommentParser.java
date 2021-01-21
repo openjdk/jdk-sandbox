@@ -1486,7 +1486,7 @@ public class DocCommentParser {
                     // expect "}" or ":"
                     if (ch == '}') {
                         nextChar();
-                        return m.at(pos).newSnippetTree(attributes);
+                        return m.at(pos).newSnippetTree(attributes, null);
                     } else if (ch == ':') {
                         newline = false;
                         // consume ':'

@@ -434,14 +434,6 @@ public class DocTreeMaker implements DocTreeFactory {
         return tree;
     }
 
-    @Override
-    public DCSnippet newSnippetTree(List<? extends TagAttributeTree> attributes) {
-        @SuppressWarnings("unchecked")
-        DCSnippet tree = new DCSnippet((List<DCTagAttribute>) attributes, null);
-        tree.pos = pos;
-        return tree;
-    }
-
     @Override @DefinedBy(Api.COMPILER_TREE)
     public DCSnippet newSnippetTree(List<? extends TagAttributeTree> attributes, TextTree text) {
         @SuppressWarnings("unchecked")
