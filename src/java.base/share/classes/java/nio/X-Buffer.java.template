@@ -41,6 +41,7 @@ import java.util.Objects;
 import jdk.internal.access.foreign.MemorySegmentProxy;
 import jdk.internal.ref.Cleaner;
 import jdk.internal.util.ArraysSupport;
+import jdk.internal.vm.annotation.ForceInline;
 import sun.nio.ch.DirectBuffer;
 
 /**
@@ -293,21 +294,31 @@ public class $Type$Buffer
     }
 
     @Override
+    @ForceInline
     final int scaleFactor() {
         return $LG_BYTES_PER_VALUE$;
     }
 
     @Override
+    @ForceInline
     Object base() {
         return ($type$[])hb;
     }
 
     @Override
+    @ForceInline
     final Class<$type$[]> carrier() {
         return $type$[].class;
     }
 
     @Override
+    @ForceInline
+    final long arrayBaseOffset() {
+        return ARRAY_BASE_OFFSET;
+    }
+
+    @Override
+    @ForceInline
     final boolean bigEndian() {
         return bigEndian;
     }
@@ -2234,6 +2245,7 @@ public class $Type$Buffer
         }
 
         @Override
+        @ForceInline
         Object base() {
             return (byte[])hb;
         }
@@ -2255,11 +2267,13 @@ public class $Type$Buffer
         }
 
         @Override
+        @ForceInline
         Object base() {
             return null;
         }
 
         @Override
+        @ForceInline
         public boolean isDirect() {
             return true;
         }
@@ -2270,6 +2284,7 @@ public class $Type$Buffer
         }
 
         @Override
+        @ForceInline
         public long address() {
             return address;
         }

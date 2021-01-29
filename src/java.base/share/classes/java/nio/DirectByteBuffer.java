@@ -30,6 +30,7 @@ import jdk.internal.access.foreign.MemorySegmentProxy;
 import jdk.internal.misc.ScopedMemoryAccess;
 import jdk.internal.misc.VM;
 import jdk.internal.ref.Cleaner;
+import jdk.internal.vm.annotation.ForceInline;
 import sun.nio.ch.DirectBuffer;
 
 final class DirectByteBuffer extends MappedByteBuffer implements DirectBuffer {
@@ -80,6 +81,7 @@ final class DirectByteBuffer extends MappedByteBuffer implements DirectBuffer {
     }
 
     @Override
+    @ForceInline
     Object base() {
         return null;
     }
@@ -90,6 +92,7 @@ final class DirectByteBuffer extends MappedByteBuffer implements DirectBuffer {
     }
 
     @Override
+    @ForceInline
     public long address() {
         ScopedMemoryAccess.Scope scope = scope();
         if (scope != null) {
@@ -130,7 +133,7 @@ final class DirectByteBuffer extends MappedByteBuffer implements DirectBuffer {
     private static class Deallocator implements Runnable {
         private final long size;
         private final int capacity;
-        private long address;   // TODO: this should be final, remove paranoia?
+        private long address;   //  paranoia?
 
         private Deallocator(long address, long size, int capacity) {
             assert (address != 0);

@@ -29,6 +29,7 @@ import java.lang.ref.Reference;
 import java.lang.reflect.Array;
 import java.util.Objects;
 import jdk.internal.access.foreign.MemorySegmentProxy;
+import jdk.internal.vm.annotation.ForceInline;
 
 abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends Buffer {
 
@@ -75,6 +76,12 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
     abstract Class<A> carrier();
 
     /**
+     * The offset of the first element in the storage allocation of the carrier
+     * type.
+     */
+    abstract long arrayBaseOffset();
+
+    /**
      * Creates a new buffer of the same type as this buffer, with the given
      * properties. This method is used to implement various methods featuring
      * covariant override.
@@ -113,14 +120,16 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         return address + ((long)pos << scaleFactor());
     }
 
+    @ForceInline
     final byte getByteImpl(int pos) {
         try {
-            return SCOPED_MEMORY_ACCESS.getByte(scope(), hb, ix(pos));
+            return SCOPED_MEMORY_ACCESS.getByte(scope(), base(), ix(pos));
         } finally {
             Reference.reachabilityFence(this);
         }
     }
 
+    @ForceInline
     final void putByteImpl(int pos, byte value) {
         try {
             SCOPED_MEMORY_ACCESS.putByte(scope(), base(), ix(pos), value);
@@ -129,101 +138,113 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         }
     }
 
+    @ForceInline
     final char getCharImpl(int pos) {
         try {
-            return SCOPED_MEMORY_ACCESS.getCharUnaligned(scope(), hb, ix(pos), bigEndian());
+            return SCOPED_MEMORY_ACCESS.getCharUnaligned(scope(), base(), ix(pos), bigEndian());
         } finally {
             Reference.reachabilityFence(this);
         }
     }
 
+    @ForceInline
     final void putCharImpl(int pos, char value) {
         try {
-            SCOPED_MEMORY_ACCESS.putCharUnaligned(scope(), hb, ix(pos), value, bigEndian());
+            SCOPED_MEMORY_ACCESS.putCharUnaligned(scope(), base(), ix(pos), value, bigEndian());
         } finally {
             Reference.reachabilityFence(this);
         }
     }
 
+    @ForceInline
     final short getShortImpl(int pos) {
         try {
-            return SCOPED_MEMORY_ACCESS.getShortUnaligned(scope(), hb, ix(pos), bigEndian());
+            return SCOPED_MEMORY_ACCESS.getShortUnaligned(scope(), base(), ix(pos), bigEndian());
         } finally {
             Reference.reachabilityFence(this);
         }
     }
 
+    @ForceInline
     final void putShortImpl(int pos, short value) {
         try {
-            SCOPED_MEMORY_ACCESS.putShortUnaligned(scope(), hb, ix(pos), value, bigEndian());
+            SCOPED_MEMORY_ACCESS.putShortUnaligned(scope(), base(), ix(pos), value, bigEndian());
         } finally {
             Reference.reachabilityFence(this);
         }
     }
 
+    @ForceInline
     final int getIntImpl(int pos) {
         try {
-            return SCOPED_MEMORY_ACCESS.getIntUnaligned(scope(), hb, ix(pos), bigEndian());
+            return SCOPED_MEMORY_ACCESS.getIntUnaligned(scope(), base(), ix(pos), bigEndian());
         } finally {
             Reference.reachabilityFence(this);
         }
     }
 
+    @ForceInline
     final void putIntImpl(int pos, int value) {
         try {
-            SCOPED_MEMORY_ACCESS.putIntUnaligned(scope(), hb, ix(pos), value, bigEndian());
+            SCOPED_MEMORY_ACCESS.putIntUnaligned(scope(), base(), ix(pos), value, bigEndian());
         } finally {
             Reference.reachabilityFence(this);
         }
     }
 
+    @ForceInline
     final long getLongImpl(int pos) {
         try {
-            return SCOPED_MEMORY_ACCESS.getLongUnaligned(scope(), hb, ix(pos), bigEndian());
+            return SCOPED_MEMORY_ACCESS.getLongUnaligned(scope(), base(), ix(pos), bigEndian());
         } finally {
             Reference.reachabilityFence(this);
         }
     }
 
+    @ForceInline
     final void putLongImpl(int pos, long value) {
         try {
-            SCOPED_MEMORY_ACCESS.putLongUnaligned(scope(), hb, ix(pos), value, bigEndian());
+            SCOPED_MEMORY_ACCESS.putLongUnaligned(scope(), base(), ix(pos), value, bigEndian());
         } finally {
             Reference.reachabilityFence(this);
         }
     }
 
+    @ForceInline
     final float getFloatImpl(int pos) {
         try {
-            int x = SCOPED_MEMORY_ACCESS.getIntUnaligned(scope(), hb, ix(pos), bigEndian());
+            int x = SCOPED_MEMORY_ACCESS.getIntUnaligned(scope(), base(), ix(pos), bigEndian());
             return Float.intBitsToFloat(x);
         } finally {
             Reference.reachabilityFence(this);
         }
     }
 
+    @ForceInline
     final void putFloatImpl(int pos, float value) {
         try {
             int x = Float.floatToRawIntBits(value);
-            SCOPED_MEMORY_ACCESS.putIntUnaligned(scope(), hb, ix(pos), x, bigEndian());
+            SCOPED_MEMORY_ACCESS.putIntUnaligned(scope(), base(), ix(pos), x, bigEndian());
         } finally {
             Reference.reachabilityFence(this);
         }
     }
 
+    @ForceInline
     final double getDoubleImpl(int pos) {
         try {
-            long x = SCOPED_MEMORY_ACCESS.getLongUnaligned(scope(), hb, ix(pos), bigEndian());
+            long x = SCOPED_MEMORY_ACCESS.getLongUnaligned(scope(), base(), ix(pos), bigEndian());
             return Double.longBitsToDouble(x);
         } finally {
             Reference.reachabilityFence(this);
         }
     }
 
+    @ForceInline
     final void putDoubleImpl(int pos, double value) {
         try {
             long x = Double.doubleToRawLongBits(value);
-            SCOPED_MEMORY_ACCESS.putLongUnaligned(scope(), hb, ix(pos), x, bigEndian());
+            SCOPED_MEMORY_ACCESS.putLongUnaligned(scope(), base(), ix(pos), x, bigEndian());
         } finally {
             Reference.reachabilityFence(this);
         }
@@ -231,11 +252,12 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
 
     // bulk access primitives
 
+    @ForceInline
     final void getBulkImpl(A dst, int offset, int length) {
         Objects.checkFromIndexSize(offset, length, Array.getLength(dst));
         final int pos = position();
         final int lim = limit();
-        assert (pos <= lim);  // TODO: remove
+        assert (pos <= lim);
         final int rem = (pos <= lim ? lim - pos : 0);
         if (length > rem)
             throw new BufferUnderflowException();
@@ -243,15 +265,16 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         position(pos + length);
     }
 
+    @ForceInline
     final void getBulkImpl(int index, A dst, int offset, int length) {
         Objects.checkFromIndexSize(index, length, limit());
         Objects.checkFromIndexSize(offset, length, Array.getLength(dst));
         getBulkInternal(index, dst, offset, length);
     }
 
+    @ForceInline
     private final void getBulkInternal(int index, A dst, int offset, int length) {
-        long dstOffset = UNSAFE.arrayBaseOffset(carrier()) +
-                ((long)offset << scaleFactor());
+        long dstOffset = arrayBaseOffset() + ((long)offset << scaleFactor());
         try {
             if (scaleFactor() > 0 && bigEndian() != NORD_IS_BIG)
                 SCOPED_MEMORY_ACCESS.copySwapMemory(scope(), null,
@@ -269,6 +292,7 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         }
     }
 
+    @ForceInline
     final void putBulkImpl(A src, int offset, int length) {
         Objects.checkFromIndexSize(offset, length, Array.getLength(src));
         if (readOnly)
@@ -283,6 +307,7 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         position(pos + length);
     }
 
+    @ForceInline
     final void putBulkImpl(int index, A src, int offset, int length) {
         Objects.checkFromIndexSize(index, length, limit());
         Objects.checkFromIndexSize(offset, length, Array.getLength(src));
@@ -291,9 +316,9 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         putBulkInternal(index, src, offset, length);
     }
 
+    @ForceInline
     private final void putBulkInternal(int index, A src, int offset, int length) {
-        long srcOffset = UNSAFE.arrayBaseOffset(carrier()) +
-                ((long)offset << scaleFactor());
+        long srcOffset = arrayBaseOffset() + ((long)offset << scaleFactor());
         try {
             if (scaleFactor() > 0 && bigEndian() != NORD_IS_BIG)
                 SCOPED_MEMORY_ACCESS.copySwapMemory(null, scope(),
@@ -311,6 +336,7 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         }
     }
 
+    @ForceInline
     final void putBulkImpl(B src) {
         if (src == this)
             throw createSameBufferException();
@@ -329,6 +355,7 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         src.position(srcPos + srcLength);
     }
 
+    @ForceInline
     final void putBulkImpl(int index, B src, int offset, int length) {
         Objects.checkFromIndexSize(index, length, limit());
         Objects.checkFromIndexSize(offset, length, src.limit());
@@ -337,6 +364,7 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         putBulkInternal(index, src, offset, length);
     }
 
+    @ForceInline
     private final void putBulkInternal(int index, B src, int srcPos, int length) {
         try {
             if (scaleFactor() > 0 && bigEndian() != src.bigEndian())

@@ -694,6 +694,7 @@ public abstract class Buffer {
      *
      * @return  The current position value, before it is incremented
      */
+    @ForceInline
     final int nextGetIndex() {                          // package-private
         int p = position;
         if (p >= limit)
@@ -702,6 +703,7 @@ public abstract class Buffer {
         return p;
     }
 
+    @ForceInline
     final int nextGetIndex(int nb) {                    // package-private
         int p = position;
         if (limit - p < nb)
@@ -717,6 +719,7 @@ public abstract class Buffer {
      *
      * @return  The current position value, before it is incremented
      */
+    @ForceInline
     final int nextPutIndex() {                          // package-private
         if (readOnly)
             throw new ReadOnlyBufferException();
@@ -727,6 +730,7 @@ public abstract class Buffer {
         return p;
     }
 
+    @ForceInline
     final int nextPutIndex(int nb) {                    // package-private
         if (readOnly)
             throw new ReadOnlyBufferException();
@@ -753,12 +757,14 @@ public abstract class Buffer {
         return checkIndex(i);
     }
 
+    @ForceInline
     final int checkGetIndex(int i, int nb) {            // package-private
         if ((i < 0) || (nb > limit - i))
             throw new IndexOutOfBoundsException();
         return i;
     }
 
+    @ForceInline
     final int checkPutIndex(int i) {                    // package-private
         if (readOnly) {
             throw new ReadOnlyBufferException();
@@ -766,6 +772,7 @@ public abstract class Buffer {
         return checkIndex(i);
     }
 
+    @ForceInline
     final int checkPutIndex(int i, int nb) {            // package-private
         if (readOnly) {
             throw new ReadOnlyBufferException();
@@ -792,6 +799,7 @@ public abstract class Buffer {
         }
     }
 
+    @ForceInline
     final void checkScope() {
         ScopedMemoryAccess.Scope scope = scope();
         if (scope != null) {
