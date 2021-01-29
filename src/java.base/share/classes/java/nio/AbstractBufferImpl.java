@@ -31,6 +31,18 @@ import java.util.Objects;
 import jdk.internal.access.foreign.MemorySegmentProxy;
 import jdk.internal.vm.annotation.ForceInline;
 
+/**
+ * An abstract Buffer implementation.
+ *
+ * <p> This class contains most of the logic associated with the various buffer
+ * subclasses. The methods in this class access the buffer's memory in an
+ * abstract fashion, using the ScopedMemoryAccess API. Subclasses should
+ * implement the abstract methods in this class so that memory access can occur
+ * correctly and in the most efficient fashion.
+ *
+ * @param <B> the buffer class type, e.g. IntBuffer
+ * @param <A> the primitive array type associated with the buffer, e.g. int[]
+ */
 abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends Buffer {
 
     final Object attachment;
@@ -116,6 +128,7 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
     // access primitives
 
     /** Returns the address/offset for the given buffer position. */
+    @ForceInline
     final long ix(int pos) {
         return address + ((long)pos << scaleFactor());
     }
@@ -386,10 +399,12 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
 
     // ---
 
+    @ForceInline
     public boolean hasArray() {
         return hb != null && hb.getClass() == carrier() && !readOnly;
     }
 
+    @ForceInline
     public A array() {
         if (hb == null || hb.getClass() != carrier())
             throw new UnsupportedOperationException();
@@ -399,6 +414,7 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         return a;
     }
 
+    @ForceInline
     public int arrayOffset() {
         if (hb == null || hb.getClass() != carrier())
             throw new UnsupportedOperationException();
@@ -408,6 +424,7 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         return ((int)address - UNSAFE.arrayBaseOffset(carrier())) >> scaleFactor();
     }
 
+    @ForceInline
     public B compact() {
         if (readOnly)
             throw new ReadOnlyBufferException();
@@ -440,8 +457,85 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         return sb.toString();
     }
 
-    // TODO equals / hashCode ??
+    /**
+     * A functional interface that features a method to be used to compute the
+     * hash of a buffer element at a given position.
+     */
+    interface BufferHashOp<B extends AbstractBufferImpl<B, A>, A> {
+        int hash(B b, int position);
+    }
 
+    @SuppressWarnings("unchecked")
+    final int hashCodeImpl(BufferHashOp<B, A> bufferHashOp) {
+        int h = 1;
+        int p = position();
+        for (int i = limit() - 1; i >= p; i--)
+            h = 31 * h + bufferHashOp.hash((B)this, i);
+        return h;
+    }
+
+    /**
+     * A functional interface that features a method to be used to compute the
+     * mismatch between two buffer regions, starting at given positions and
+     * with given length.
+     */
+    interface BufferMismatchOp<B extends AbstractBufferImpl<B, A>, A> {
+        int mismatch(B aBuf, int aPos, B bBuf, int bPos, int length);
+    }
+
+    @SuppressWarnings("unchecked")
+    final boolean equalsImpl(Object ob, BufferMismatchOp<B, A> abBufferMismatchOp) {
+        if (this == ob)
+            return true;
+        if (!(ob instanceof AbstractBufferImpl that) || that.carrier() != carrier())
+            return false;
+        int thisPos = this.position();
+        int thisRem = this.limit() - thisPos;
+        int thatPos = that.position();
+        int thatRem = that.limit() - thatPos;
+        if (thisRem < 0 || thisRem != thatRem)
+            return false;
+        return abBufferMismatchOp.mismatch((B)this, thisPos, (B)that, thatPos, thisRem) < 0;
+    }
+
+    @SuppressWarnings("unchecked")
+    final int mismatchImpl(B that, BufferMismatchOp<B, A> abBufferMismatchOp) {
+        int thisPos = this.position();
+        int thisRem = this.limit() - thisPos;
+        int thatPos = that.position();
+        int thatRem = that.limit() - thatPos;
+        int length = Math.min(thisRem, thatRem);
+        if (length < 0)
+            return -1;
+        int r = abBufferMismatchOp.mismatch((B)this, thisPos, that, thatPos, length);
+        return (r == -1 && thisRem != thatRem) ? length : r;
+    }
+
+    /**
+     * A functional interface that features a method to be used to compare two
+     * buffer elements at given positions.
+     */
+    interface BufferComparatorOp<B extends AbstractBufferImpl<B, A>, A> {
+        int compare(B aBuf, int aPos, B bBuf, int bPos);
+    }
+
+    @SuppressWarnings("unchecked")
+    final int compareToImpl(B that,
+                            BufferMismatchOp<B, A> abBufferMismatchOp,
+                            BufferComparatorOp<B, A> abBufferCompareOp) {
+        int thisPos = this.position();
+        int thisRem = this.limit() - thisPos;
+        int thatPos = that.position();
+        int thatRem = that.limit() - thatPos;
+        int length = Math.min(thisRem, thatRem);
+        if (length < 0)
+            return -1;
+        int i = abBufferMismatchOp.mismatch((B)this, thisPos, that, thatPos, length);
+        if (i >= 0) {
+            return abBufferCompareOp.compare((B)this, thisPos + i, that, thatPos + i);
+        }
+        return thisRem - thatRem;
+    }
 
     // direct buffer utils
 

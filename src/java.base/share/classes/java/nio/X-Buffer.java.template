@@ -1624,15 +1624,11 @@ public class $Type$Buffer
      * @return  The current hash code of this buffer
      */
     public int hashCode() {
-        int h = 1;
-        int p = position();
-        for (int i = limit() - 1; i >= p; i--)
 #if[int]
-            h = 31 * h + get(i);
+        return super.hashCodeImpl($Type$Buffer::get);
 #else[int]
-            h = 31 * h + (int)get(i);
+        return super.hashCodeImpl((buffer, i) -> (int)buffer.get(i));
 #end[int]
-        return h;
     }
 
     /**
@@ -1668,20 +1664,7 @@ public class $Type$Buffer
      *           given object
      */
     public boolean equals(Object ob) {
-        if (this == ob)
-            return true;
-        if (!(ob instanceof $Type$Buffer))
-            return false;
-        $Type$Buffer that = ($Type$Buffer)ob;
-        int thisPos = this.position();
-        int thisRem = this.limit() - thisPos;
-        int thatPos = that.position();
-        int thatRem = that.limit() - thatPos;
-        if (thisRem < 0 || thisRem != thatRem)
-            return false;
-        return BufferMismatch.mismatch(this, thisPos,
-                                       that, thatPos,
-                                       thisRem) < 0;
+        return super.equalsImpl(ob, BufferMismatch::mismatch);
     }
 
     /**
@@ -1708,31 +1691,20 @@ public class $Type$Buffer
      *          is less than, equal to, or greater than the given buffer
      */
     public int compareTo($Type$Buffer that) {
-        int thisPos = this.position();
-        int thisRem = this.limit() - thisPos;
-        int thatPos = that.position();
-        int thatRem = that.limit() - thatPos;
-        int length = Math.min(thisRem, thatRem);
-        if (length < 0)
-            return -1;
-        int i = BufferMismatch.mismatch(this, thisPos,
-                                        that, thatPos,
-                                        length);
-        if (i >= 0) {
-            return compare(this.get(thisPos + i), that.get(thatPos + i));
-        }
-        return thisRem - thatRem;
+        return super.compareToImpl(that, BufferMismatch::mismatch, $Type$Buffer::compare);
     }
 
-    private static int compare($type$ x, $type$ y) {
-#if[floatingPointType]
+    private static int compare($Type$Buffer aBuf, int aPos, $Type$Buffer bBuf, int bPos) {
+#if[!floatingPointType]
+        return $Fulltype$.compare(aBuf.get(aPos), bBuf.get(bPos));
+#else[!floatingPointType]
+        $type$ x = aBuf.get(aPos);
+        $type$ y = bBuf.get(bPos);
         return ((x < y)  ? -1 :
                 (x > y)  ? +1 :
                 (x == y) ?  0 :
                 $Fulltype$.isNaN(x) ? ($Fulltype$.isNaN(y) ? 0 : +1) : -1);
-#else[floatingPointType]
-        return $Fulltype$.compare(x, y);
-#end[floatingPointType]
+#end[!floatingPointType]
     }
 
     /**
@@ -1760,17 +1732,7 @@ public class $Type$Buffer
      * @since 11
      */
     public int mismatch($Type$Buffer that) {
-        int thisPos = this.position();
-        int thisRem = this.limit() - thisPos;
-        int thatPos = that.position();
-        int thatRem = that.limit() - thatPos;
-        int length = Math.min(thisRem, thatRem);
-        if (length < 0)
-            return -1;
-        int r = BufferMismatch.mismatch(this, thisPos,
-                                        that, thatPos,
-                                        length);
-        return (r == -1 && thisRem != thatRem) ? length : r;
+        return super.mismatchImpl(that, BufferMismatch::mismatch);
     }
 
     // -- Other char stuff --
