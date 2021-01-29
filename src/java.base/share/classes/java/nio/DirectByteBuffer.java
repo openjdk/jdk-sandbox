@@ -37,7 +37,7 @@ final class DirectByteBuffer extends MappedByteBuffer implements DirectBuffer {
 
     private final Cleaner cleaner;
 
-    private DirectByteBuffer(Deallocator deallocator,
+    private DirectByteBuffer(Runnable deallocator,
                              long addr,
                              int mark, int pos, int lim, int cap,
                              FileDescriptor fd,
@@ -65,12 +65,12 @@ final class DirectByteBuffer extends MappedByteBuffer implements DirectBuffer {
     DirectByteBuffer(int cap,
                      long addr,
                      FileDescriptor fd,
-                     Runnable unmapper,  // TODO: why this?
+                     Runnable unmapper,
                      boolean isSync,
                      boolean readOnly,
                      boolean bigEndian,
                      MemorySegmentProxy segment) {
-        this(null, addr, -1, 0, cap, cap, fd, isSync, readOnly, bigEndian, null, segment);
+        this(unmapper, addr, -1, 0, cap, cap, fd, isSync, readOnly, bigEndian, null, segment);
     }
 
     // Invoked to construct a direct ByteBuffer referring to the block of
