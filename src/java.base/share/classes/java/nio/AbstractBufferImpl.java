@@ -287,19 +287,20 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
 
     @ForceInline
     private final void getBulkInternal(int index, A dst, int offset, int length) {
-        long dstOffset = arrayBaseOffset() + ((long)offset << scaleFactor());
+        int scaleFactor = scaleFactor();
+        long dstOffset = arrayBaseOffset() + ((long)offset << scaleFactor);
         try {
-            if (scaleFactor() > 0 && bigEndian() != NORD_IS_BIG)
+            if (scaleFactor > 0 && bigEndian() != NORD_IS_BIG)
                 SCOPED_MEMORY_ACCESS.copySwapMemory(scope(), null,
                         base(), ix(index),
                         dst, dstOffset,
-                        (long)length << scaleFactor(),
-                        (long)1 << scaleFactor());
+                        (long)length << scaleFactor,
+                        (long)1 << scaleFactor);
             else
                 SCOPED_MEMORY_ACCESS.copyMemory(scope(), null,
                         base(), ix(index),
                         dst, dstOffset,
-                        (long)length << scaleFactor());
+                        (long)length << scaleFactor);
         } finally {
             Reference.reachabilityFence(this);
         }
@@ -331,19 +332,20 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
 
     @ForceInline
     private final void putBulkInternal(int index, A src, int offset, int length) {
-        long srcOffset = arrayBaseOffset() + ((long)offset << scaleFactor());
+        int scaleFactor = scaleFactor();
+        long srcOffset = arrayBaseOffset() + ((long)offset << scaleFactor);
         try {
-            if (scaleFactor() > 0 && bigEndian() != NORD_IS_BIG)
+            if (scaleFactor > 0 && bigEndian() != NORD_IS_BIG)
                 SCOPED_MEMORY_ACCESS.copySwapMemory(null, scope(),
                         src, srcOffset,
                         base(), ix(index),
-                        (long)length << scaleFactor(),
-                        (long)1 << scaleFactor());
+                        (long)length << scaleFactor,
+                        (long)1 << scaleFactor);
             else
                 SCOPED_MEMORY_ACCESS.copyMemory(null, scope(),
                         src, srcOffset,
                         base(), ix(index),
-                        (long)length << scaleFactor());
+                        (long)length << scaleFactor);
         } finally {
             Reference.reachabilityFence(this);
         }
@@ -379,18 +381,19 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
 
     @ForceInline
     private final void putBulkInternal(int index, B src, int srcPos, int length) {
+        int scaleFactor = scaleFactor();
         try {
-            if (scaleFactor() > 0 && bigEndian() != src.bigEndian())
+            if (scaleFactor > 0 && bigEndian() != src.bigEndian())
                 SCOPED_MEMORY_ACCESS.copySwapMemory(src.scope(), scope(),
                         src.base(), src.ix(srcPos),
                         base(), ix(index),
-                        (long) length << scaleFactor(),
-                        (long) 1 << scaleFactor());
+                        (long) length << scaleFactor,
+                        (long) 1 << scaleFactor);
             else
                 SCOPED_MEMORY_ACCESS.copyMemory(src.scope(), scope(),
                         src.base(), src.ix(srcPos),
                         base(), ix(index),
-                        (long) length << scaleFactor());
+                        (long) length << scaleFactor);
         } finally {
             Reference.reachabilityFence(src);
             Reference.reachabilityFence(this);
