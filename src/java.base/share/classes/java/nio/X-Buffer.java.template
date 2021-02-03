@@ -271,7 +271,7 @@ public class $Type$Buffer
     extends AbstractBufferImpl<$Type$Buffer, $type$[]>
     implements Comparable<$Type$Buffer>{#if[char]?, Appendable, CharSequence, Readable}
 {
-    private static final long ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset($type$[].class);
+    private static final int ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset($type$[].class);
 
     // Creates a new buffer with the given address and optional backing array.
     //
@@ -313,7 +313,7 @@ public class $Type$Buffer
 
     @Override
     @ForceInline
-    final long arrayBaseOffset() {
+    final int arrayBaseOffset() {
         return ARRAY_BASE_OFFSET;
     }
 

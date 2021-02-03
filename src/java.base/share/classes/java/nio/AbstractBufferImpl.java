@@ -91,7 +91,7 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
      * The offset of the first element in the storage allocation of the carrier
      * type.
      */
-    abstract long arrayBaseOffset();
+    abstract int arrayBaseOffset();
 
     /**
      * Creates a new buffer of the same type as this buffer, with the given
@@ -387,13 +387,13 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
                 SCOPED_MEMORY_ACCESS.copySwapMemory(src.scope(), scope(),
                         src.base(), src.ix(srcPos),
                         base(), ix(index),
-                        (long) length << scaleFactor,
-                        (long) 1 << scaleFactor);
+                        (long)length << scaleFactor,
+                        (long)1 << scaleFactor);
             else
                 SCOPED_MEMORY_ACCESS.copyMemory(src.scope(), scope(),
                         src.base(), src.ix(srcPos),
                         base(), ix(index),
-                        (long) length << scaleFactor);
+                        (long)length << scaleFactor);
         } finally {
             Reference.reachabilityFence(src);
             Reference.reachabilityFence(this);
@@ -424,7 +424,7 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
         if (readOnly)
             throw new ReadOnlyBufferException();
         assert (address & 0xFFFFFFFF00000000L) == 0;
-        return ((int)address - UNSAFE.arrayBaseOffset(carrier())) >> scaleFactor();
+        return ((int)address - arrayBaseOffset()) >> scaleFactor();
     }
 
     @ForceInline
