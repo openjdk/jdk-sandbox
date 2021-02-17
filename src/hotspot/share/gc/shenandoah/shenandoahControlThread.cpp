@@ -29,10 +29,10 @@
 #include "gc/shenandoah/shenandoahControlThread.hpp"
 #include "gc/shenandoah/shenandoahDegeneratedGC.hpp"
 #include "gc/shenandoah/shenandoahFreeSet.hpp"
+#include "gc/shenandoah/shenandoahFullGC.hpp"
 #include "gc/shenandoah/shenandoahPhaseTimings.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahMark.inline.hpp"
-#include "gc/shenandoah/shenandoahMarkCompact.hpp"
 #include "gc/shenandoah/shenandoahMonitoringSupport.hpp"
 #include "gc/shenandoah/shenandoahOopClosures.inline.hpp"
 #include "gc/shenandoah/shenandoahRootProcessor.inline.hpp"
@@ -56,7 +56,6 @@ ShenandoahControlThread::ShenandoahControlThread() :
   reset_gc_id();
   create_and_start();
   _periodic_task.enroll();
-  _periodic_satb_flush_task.enroll();
   if (ShenandoahPacing) {
     _periodic_pacer_notify_task.enroll();
   }
@@ -69,10 +68,6 @@ ShenandoahControlThread::~ShenandoahControlThread() {
 void ShenandoahPeriodicTask::task() {
   _thread->handle_force_counters_update();
   _thread->handle_counters_update();
-}
-
-void ShenandoahPeriodicSATBFlushTask::task() {
-  ShenandoahHeap::heap()->force_satb_flush_all_threads();
 }
 
 void ShenandoahPeriodicPacerNotify::task() {
@@ -105,7 +100,7 @@ void ShenandoahControlThread::run_service() {
     bool implicit_gc_requested = _gc_requested.is_set() && !is_explicit_gc(_requested_gc_cause);
 
     // This control loop iteration have seen this much allocations.
-    size_t allocs_seen = Atomic::xchg(&_allocs_seen, (size_t)0);
+    size_t allocs_seen = Atomic::xchg(&_allocs_seen, (size_t)0, memory_order_relaxed);
 
     // Check if we have seen a new target for soft max heap size.
     bool soft_max_changed = check_soft_max_changed();
@@ -427,7 +422,7 @@ void ShenandoahControlThread::service_stw_full_cycle(GCCause::Cause cause) {
   GCIdMark gc_id_mark;
   ShenandoahGCSession session(cause);
 
-  ShenandoahMarkCompact gc;
+  ShenandoahFullGC gc;
   gc.collect(cause);
 
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
@@ -600,7 +595,7 @@ void ShenandoahControlThread::notify_heap_changed() {
 
 void ShenandoahControlThread::pacing_notify_alloc(size_t words) {
   assert(ShenandoahPacing, "should only call when pacing is enabled");
-  Atomic::add(&_allocs_seen, words);
+  Atomic::add(&_allocs_seen, words, memory_order_relaxed);
 }
 
 void ShenandoahControlThread::set_forced_counters_update(bool value) {

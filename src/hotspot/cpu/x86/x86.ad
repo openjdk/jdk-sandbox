@@ -1526,7 +1526,7 @@ const bool Matcher::match_rule_supported(int opcode) {
     case Op_VectorMaskGen:
     case Op_LoadVectorMasked:
     case Op_StoreVectorMasked:
-      if (UseAVX < 3) {
+      if (UseAVX < 3 || !VM_Version::supports_bmi2()) {
         return false;
       }
       break;
@@ -6011,7 +6011,6 @@ instruct vshiftI_imm(vec dst, vec src, immI8 shift) %{
   match(Set dst (LShiftVI src (LShiftCntV shift)));
   match(Set dst (RShiftVI src (RShiftCntV shift)));
   match(Set dst (URShiftVI src (RShiftCntV shift)));
-  effect(TEMP dst, USE src);
   format %{ "vshiftd_imm  $dst,$src,$shift\t! shift packedI" %}
   ins_encode %{
     int opcode = this->ideal_Opcode();
@@ -6058,7 +6057,6 @@ instruct vshiftL(vec dst, vec src, vec shift) %{
 instruct vshiftL_imm(vec dst, vec src, immI8 shift) %{
   match(Set dst (LShiftVL src (LShiftCntV shift)));
   match(Set dst (URShiftVL src (RShiftCntV shift)));
-  effect(TEMP dst, USE src, USE shift);
   format %{ "vshiftq_imm  $dst,$src,$shift\t! shift packedL" %}
   ins_encode %{
     int opcode = this->ideal_Opcode();
