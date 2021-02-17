@@ -28,6 +28,8 @@ package testlib;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.net.spi.InetNameService;
+import java.net.spi.InetNameService.LookupPolicy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -137,6 +139,8 @@ public class ResolutionRegistry {
         if (!registry.containsKey(host)) {
             throw new UnknownHostException(host);
         }
+        // Possibly create predicate to use in filtering IPV4 (possibly only), IPV6 etc.
+        // Byte array lengths
         return registry.get(host)
                 .stream()
                 .map(ba -> constructInetAddress(host, ba))

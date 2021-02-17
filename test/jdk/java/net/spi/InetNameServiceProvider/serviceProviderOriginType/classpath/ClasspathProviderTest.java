@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +22,28 @@
  */
 
 import java.net.InetAddress;
-import insp.SimpleNameServiceProviderImpl;
-import org.testng.Assert;
 import org.testng.annotations.Test;
+//import ClasspathNameServiceProviderImpl;
+
+import static org.testng.Assert.assertThrows;
 
 /*
  * @test
- * @summary Test that InetNameServiceProvider can be installed in module path.
- * @library ../lib
- * @build nspi.testlib/testlib.ResolutionRegistry simple.insp/insp.SimpleNameServiceProviderImpl
- *        ModularProviderTest
- * @run testng/othervm ModularProviderTest
+ * @summary Test that InetNameServiceProvider can be installed in class path.
+ * @library ../../lib
+ * @build nspi.testlib/testlib.ResolutionRegistry ClasspathNameServiceProviderImpl
+ * @run testng/othervm ClasspathProviderTest
  */
 
 
-public class ModularProviderTest {
+public class ClasspathProviderTest {
 
     @Test
     public void testResolution() throws Exception {
-        InetAddress inetAddress = InetAddress.getByName("javaTest.org");
+        InetAddress inetAddress = InetAddress.getByName("classpath-provider-test.org");
         System.err.println("Resolved address:" + inetAddress);
 
-        if (!SimpleNameServiceProviderImpl.registry.containsAddressMapping(inetAddress)) {
+        if (!ClasspathNameServiceProviderImpl.registry.containsAddressMapping(inetAddress)) {
             throw new RuntimeException("Test NSPI was not properly set");
         }
     }

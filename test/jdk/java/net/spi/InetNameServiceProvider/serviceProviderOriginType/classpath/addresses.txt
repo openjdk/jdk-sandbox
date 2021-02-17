@@ -3,6 +3,6 @@
 # If multiple IP addresses are required for host:
 #    multiple lines could be added
 
-2.3.9.1    javaTest.org
-[ca:fe:ba:be::1] javaTest.org
-::3    javaTest6.org
+2.3.9.1    classpath-provider-test.org
+[ca:fe:ba:be::1] classpath-provider-test.org
+::3    classpath-provider-test6.org
