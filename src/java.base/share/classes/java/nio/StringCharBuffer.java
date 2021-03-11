@@ -195,9 +195,8 @@ final class StringCharBuffer                                  // package-private
     public boolean equals(Object ob) {
         if (this == ob)
             return true;
-        if (!(ob instanceof CharBuffer))
+        if (!(ob instanceof CharBuffer that))
             return false;
-        CharBuffer that = (CharBuffer)ob;
         int thisPos = this.position();
         int thisRem = this.limit() - thisPos;
         int thatPos = that.position();
