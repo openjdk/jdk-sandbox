@@ -48,7 +48,7 @@ public class ClasspathNameServiceProviderImpl extends InetNameServiceProvider {
                 LOGGER.info("Looking-up addresses for '" + host + "'. Lookup characteristics:" +
                         Integer.toString(lookupPolicy.characteristics(), 2));
                 LOOKUP_HISTORY.add(lookupPolicy);
-                return registry.lookupHost(host);
+                return registry.lookupHost(host, lookupPolicy);
             }
 
             @Override

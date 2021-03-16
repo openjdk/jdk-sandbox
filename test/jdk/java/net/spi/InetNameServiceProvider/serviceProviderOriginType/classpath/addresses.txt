@@ -5,4 +5,6 @@
 
 2.3.9.1    classpath-provider-test.org
 [ca:fe:ba:be::1] classpath-provider-test.org
+5.4.2.56    classpath-provider-test.org
+[c6:ff:aa:b2::1] classpath-provider-test.org
 ::3    classpath-provider-test6.org

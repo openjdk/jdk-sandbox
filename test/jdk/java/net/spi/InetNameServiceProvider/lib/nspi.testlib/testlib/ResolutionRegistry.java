@@ -25,6 +25,7 @@
 
 package testlib;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -45,11 +46,16 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.Comparator;
+
+import static java.net.spi.InetNameService.LookupPolicy.*;
 
 public class ResolutionRegistry {
 
     // Map to store hostName -> InetAddress mappings
     private final Map<String, List<byte[]>> registry;
+    private static final int IPV4_RAW_LEN = 4;
+    private static final int IPV6_RAW_LEN = 16;
 
     private static final Logger LOGGER = Logger.getLogger(ResolutionRegistry.class.getName());
 
@@ -134,17 +140,38 @@ public class ResolutionRegistry {
         return address.getAddress();
     }
 
-    public Stream<InetAddress> lookupHost(String host) throws UnknownHostException {
+    public Stream<InetAddress> lookupHost(String host, LookupPolicy lookupPolicy)
+            throws UnknownHostException {
         LOGGER.info("Looking-up '" + host + "' address");
         if (!registry.containsKey(host)) {
             throw new UnknownHostException(host);
         }
-        // Possibly create predicate to use in filtering IPV4 (possibly only), IPV6 etc.
-        // Byte array lengths
+
+        int characteristics = lookupPolicy.characteristics();
+        // Filter IPV4 or IPV6 as needed. Then sort with
+        // comparator for IPV4_FIRST or IPV6_FIRST.
         return registry.get(host)
                 .stream()
+                .filter(ba -> filterAddressByLookupPolicy(ba, characteristics))
+                .sorted(new AddressOrderPref(characteristics))
                 .map(ba -> constructInetAddress(host, ba))
                 .filter(Objects::nonNull);
+    }
+
+    private static boolean filterAddressByLookupPolicy(byte[] ba, int ch) {
+        // If 0011, return both. If 0001, IPv4. If 0010, IPv6
+        boolean ipv4Flag = (ch & IPV4) == IPV4;
+        boolean ipv6Flag = (ch & IPV6) == IPV6;
+
+        if (ipv4Flag && ipv6Flag)
+            return true; // Return regardless of length
+        else if (ipv4Flag)
+            return (ba.length == IPV4_RAW_LEN);
+        else if (ipv6Flag)
+            return (ba.length == IPV6_RAW_LEN);
+
+        throw new RuntimeException("Lookup policy characteristics were improperly set. " +
+                "Characteristics: " + Integer.toString(ch, 2));
     }
 
     private static InetAddress constructInetAddress(String host, byte[] address) {
@@ -190,6 +217,22 @@ public class ResolutionRegistry {
             return InetAddress.getByAddress(bytes).toString();
         } catch (UnknownHostException unknownHostException) {
             return Arrays.toString(bytes);
+        }
+    }
+
+    private class AddressOrderPref implements Comparator<byte[]> {
+
+        private final int ch;
+
+        AddressOrderPref (int ch) { this.ch = ch; }
+
+        @Override
+        public int compare(byte[] o1, byte[] o2) {
+            // Compares based on address length, 4 bytes for IPv4,
+            // 16 bytes for IPv6.
+            return ((ch & IPV4_FIRST) == IPV4_FIRST) ?
+                    Integer.compare(o1.length, o2.length) :
+                    Integer.compare(o2.length, o1.length);
         }
     }
 }

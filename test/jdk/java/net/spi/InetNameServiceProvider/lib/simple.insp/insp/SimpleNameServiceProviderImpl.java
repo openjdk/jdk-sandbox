@@ -50,8 +50,7 @@ public class SimpleNameServiceProviderImpl extends InetNameServiceProvider {
                 LOGGER.info("Looking-up addresses for '" + host + "'. Lookup characteristics:" +
                         Integer.toString(lookupPolicy.characteristics(), 2));
                 LOOKUP_HISTORY.add(lookupPolicy);
-                // TODO: LookupPolicy is ignored by Registry class for now
-                return registry.lookupHost(host);
+                return registry.lookupHost(host, lookupPolicy);
             }
 
             @Override
