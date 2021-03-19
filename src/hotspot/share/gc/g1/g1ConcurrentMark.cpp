@@ -58,6 +58,7 @@
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
+#include "memory/metaspaceUtils.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
@@ -2839,7 +2840,7 @@ G1CMTask::G1CMTask(uint worker_id,
   _cm(cm),
   _next_mark_bitmap(NULL),
   _task_queue(task_queue),
-  _mark_stats_cache(mark_stats, RegionMarkStatsCacheSize),
+  _mark_stats_cache(mark_stats, G1RegionMarkStatsCache::RegionMarkStatsCacheSize),
   _calls(0),
   _time_target_ms(0.0),
   _start_time_ms(0.0),
