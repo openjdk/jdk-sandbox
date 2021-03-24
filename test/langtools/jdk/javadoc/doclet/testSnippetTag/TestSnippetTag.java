@@ -91,93 +91,93 @@ public class TestSnippetTag extends JavadocTester {
                         MethodBuilder
                                 .parse("public void case10() { }")
                                 .setComments("""
-                                                     {@snippet :
-                                                         Hello, Snippet!
-                                                     }
-                                                     """))
+                                             {@snippet :
+                                                 Hello, Snippet!
+                                             }
+                                             """))
                 // Leading whitespace before `:`
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case20() { }")
                                 .setComments("""
-                                                     {@snippet       :
-                                                         Hello, Snippet!
-                                                     }
-                                                     """))
+                                             {@snippet       :
+                                                 Hello, Snippet!
+                                             }
+                                             """))
                 // Trailing whitespace after `:`
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case30() { }")
                                 .setComments("""
-                                                     {@snippet :      \s
-                                                         Hello, Snippet!
-                                                     }
-                                                     """))
+                                             {@snippet :      \s
+                                                 Hello, Snippet!
+                                             }
+                                             """))
                 // Attributes do not interfere with body
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case31() { }")
                                 .setComments("""
-                                                     {@snippet  attr1="val1"    :
-                                                         Hello, Snippet!
-                                                     }
-                                                     """))
+                                             {@snippet  attr1="val1"    :
+                                                 Hello, Snippet!
+                                             }
+                                             """))
                 // Multi-line
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case40() { }")
                                 .setComments("""
-                                                     {@snippet :
-                                                         Hello
-                                                         ,
-                                                          Snippet!
-                                                     }
-                                                     """))
+                                             {@snippet :
+                                                 Hello
+                                                 ,
+                                                  Snippet!
+                                             }
+                                             """))
                 // Leading empty line
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case50() { }")
                                 .setComments("""
-                                                     {@snippet :
+                                             {@snippet :
 
-                                                         Hello
-                                                         ,
-                                                          Snippet!
-                                                     }
-                                                     """))
+                                                 Hello
+                                                 ,
+                                                  Snippet!
+                                             }
+                                             """))
                 // Trailing empty line
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case60() { }")
                                 .setComments("""
-                                                     {@snippet :
-                                                         Hello
-                                                         ,
-                                                          Snippet!
+                                             {@snippet :
+                                                 Hello
+                                                 ,
+                                                  Snippet!
 
-                                                     }
-                                                     """))
+                                             }
+                                             """))
                 // Controlling indent with `}`
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case70() { }")
                                 .setComments("""
-                                                     {@snippet :
-                                                         Hello
-                                                         ,
-                                                          Snippet!
-                                                         }
-                                                     """))
+                                             {@snippet :
+                                                 Hello
+                                                 ,
+                                                  Snippet!
+                                                 }
+                                             """))
                 // No trailing newline before `}`
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case80() { }")
                                 .setComments("""
-                                                     {@snippet :
-                                                         Hello
-                                                         ,
-                                                          Snippet!}
-                                                     """))
+                                             {@snippet :
+                                                 Hello
+                                                 ,
+                                                  Snippet!}
+                                             """))
 // FIXME: stripIndent used in implementation removes trailing whitespace too
 //
 //                // Trailing space is preserved
@@ -185,35 +185,35 @@ public class TestSnippetTag extends JavadocTester {
 //                        MethodBuilder
 //                                .parse("public void case90() { }")
 //                                .setComments("""
-//                                                     {@snippet :
-//                                                         Hello
-//                                                         ,    \s
-//                                                          Snippet!
-//                                                     }
-//                                                     """))
+//                                             {@snippet :
+//                                                 Hello
+//                                                 ,    \s
+//                                                  Snippet!
+//                                             }
+//                                             """))
                 // Escape sequences of Text Blocks and string literals are not interpreted:
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case100() { }")
                                 .setComments("""
-                                                     {@snippet :
-                                                         \\b\\t\\n\\f\\r\\"\\'\\\
-                                                         Hello\\
-                                                         ,\\s
-                                                          Snippet!
-                                                     }
-                                                     """))
+                                             {@snippet :
+                                                 \\b\\t\\n\\f\\r\\"\\'\\\
+                                                 Hello\\
+                                                 ,\\s
+                                                  Snippet!
+                                             }
+                                             """))
                 // HTML is not interpreted
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case110() { }")
                                 .setComments("""
-                                                     {@snippet :
-                                                         </pre>
-                                                             <!-- comment -->
-                                                         <b>&trade;</b> &#8230; " '
-                                                     }
-                                                     """))
+                                             {@snippet :
+                                                 </pre>
+                                                     <!-- comment -->
+                                                 <b>&trade;</b> &#8230; " '
+                                             }
+                                             """))
                 .write(srcDir);
 
         javadoc("-d", outDir.toString(),
@@ -224,128 +224,128 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOrder("pkg/A.html",
                    """
-                           <span class="element-name">case10</span>()</div>
-                           <div class="block">
-                           <pre class="snippet">
-                               Hello, Snippet!
-                           </pre>
-                           </div>""");
+                   <span class="element-name">case10</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                       Hello, Snippet!
+                   </pre>
+                   </div>""");
 
         checkOrder("pkg/A.html",
                    """
-                           <span class="element-name">case20</span>()</div>
-                           <div class="block">
-                           <pre class="snippet">
-                               Hello, Snippet!
-                           </pre>
-                           </div>""");
+                   <span class="element-name">case20</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                       Hello, Snippet!
+                   </pre>
+                   </div>""");
 
         checkOrder("pkg/A.html",
                    """
-                           <span class="element-name">case30</span>()</div>
-                           <div class="block">
-                           <pre class="snippet">
-                               Hello, Snippet!
-                           </pre>
-                           </div>""");
+                   <span class="element-name">case30</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                       Hello, Snippet!
+                   </pre>
+                   </div>""");
 
         checkOrder("pkg/A.html",
                    """
-                           <span class="element-name">case31</span>()</div>
-                           <div class="block">
-                           <pre class="snippet">
-                               Hello, Snippet!
-                           </pre>
-                           </div>""");
+                   <span class="element-name">case31</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                       Hello, Snippet!
+                   </pre>
+                   </div>""");
 
         checkOrder("pkg/A.html",
                    """
-                           <span class="element-name">case40</span>()</div>
-                           <div class="block">
-                           <pre class="snippet">
-                               Hello
-                               ,
-                                Snippet!
-                           </pre>
-                           </div>""");
+                   <span class="element-name">case40</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                       Hello
+                       ,
+                        Snippet!
+                   </pre>
+                   </div>""");
 
         checkOrder("pkg/A.html",
                    """
-                           <span class="element-name">case50</span>()</div>
-                           <div class="block">
-                           <pre class="snippet">
+                   <span class="element-name">case50</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
 
-                               Hello
-                               ,
-                                Snippet!
-                           </pre>
-                           </div>""");
-
-        checkOrder("pkg/A.html",
-                   """
-                           <span class="element-name">case60</span>()</div>
-                           <div class="block">
-                           <pre class="snippet">
-                               Hello
-                               ,
-                                Snippet!
-
-                           </pre>
-                           </div>""");
+                       Hello
+                       ,
+                        Snippet!
+                   </pre>
+                   </div>""");
 
         checkOrder("pkg/A.html",
                    """
-                           <span class="element-name">case70</span>()</div>
-                           <div class="block">
-                           <pre class="snippet">
-                           Hello
-                           ,
-                            Snippet!
-                           </pre>
-                           </div>""");
+                   <span class="element-name">case60</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                       Hello
+                       ,
+                        Snippet!
+
+                   </pre>
+                   </div>""");
 
         checkOrder("pkg/A.html",
                    """
-                           <span class="element-name">case80</span>()</div>
-                           <div class="block">
-                           <pre class="snippet">
-                           Hello
-                           ,
-                            Snippet!</pre>
-                           </div>""");
+                   <span class="element-name">case70</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                   Hello
+                   ,
+                    Snippet!
+                   </pre>
+                   </div>""");
+
+        checkOrder("pkg/A.html",
+                   """
+                   <span class="element-name">case80</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                   Hello
+                   ,
+                    Snippet!</pre>
+                   </div>""");
 
 //        checkOrder("pkg/A.html",
 //                   """
-//                           <span class="element-name">case90</span>()</div>
-//                           <div class="block">
-//                           <pre class="snippet">
-//                               Hello
-//                               ,
-//                                Snippet!
-//                           </pre>
-//                           </div>""");
+//                   <span class="element-name">case90</span>()</div>
+//                   <div class="block">
+//                   <pre class="snippet">
+//                       Hello
+//                       ,
+//                        Snippet!
+//                   </pre>
+//                   </div>""");
 
         checkOrder("pkg/A.html",
                    """
-                           <span class="element-name">case100</span>()</div>
-                           <div class="block">
-                           <pre class="snippet">
-                               \\b\\t\\n\\f\\r\\"\\'\\    Hello\\
-                               ,\\s
-                                Snippet!
-                           </pre>
-                           </div>""");
+                   <span class="element-name">case100</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                       \\b\\t\\n\\f\\r\\"\\'\\    Hello\\
+                       ,\\s
+                        Snippet!
+                   </pre>
+                   </div>""");
 
         checkOrder("pkg/A.html",
                    """
-                           <span class="element-name">case110</span>()</div>
-                           <div class="block">
-                           <pre class="snippet">
-                               &lt;/pre&gt;
-                                   &lt;!-- comment --&gt;
-                               &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
-                           </pre>
-                           </div>""");
+                   <span class="element-name">case110</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                       &lt;/pre&gt;
+                           &lt;!-- comment --&gt;
+                       &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
+                   </pre>
+                   </div>""");
     }
 
     @Test
@@ -354,58 +354,58 @@ public class TestSnippetTag extends JavadocTester {
         // Maps an input to a function that yields an expected output
         final Map<String, Function<String, String>> testCases = Map.of(
                 """
-                        Hello, Snippet!
-                        """, Function.identity(),
+                Hello, Snippet!
+                """, Function.identity(),
                 """
-                            Hello, Snippet!
-                        """, Function.identity(),
+                    Hello, Snippet!
+                """, Function.identity(),
                 """
-                            Hello
-                            ,
-                             Snippet!
-                        """, Function.identity(),
+                    Hello
+                    ,
+                     Snippet!
+                """, Function.identity(),
                 """
-                                            
-                            Hello
-                            ,
-                             Snippet!
-                        """, Function.identity(),
+                                    
+                    Hello
+                    ,
+                     Snippet!
+                """, Function.identity(),
                 """
-                            Hello
-                            ,
-                             Snippet!
+                    Hello
+                    ,
+                     Snippet!
 
-                        """, Function.identity(),
+                """, Function.identity(),
                 """
-                            Hello
-                            ,        \s
-                             Snippet!
-                        """, Function.identity(),
+                    Hello
+                    ,        \s
+                     Snippet!
+                """, Function.identity(),
                 """
-                        Hello
-                        ,
-                         Snippet!""", Function.identity(),
+                Hello
+                ,
+                 Snippet!""", Function.identity(),
                 """
-                            \\b\\t\\n\\f\\r\\"\\'\\\
-                            Hello\\
-                            ,\\s
-                             Snippet!
-                        """, Function.identity(),
+                    \\b\\t\\n\\f\\r\\"\\'\\\
+                    Hello\\
+                    ,\\s
+                     Snippet!
+                """, Function.identity(),
                 """
-                            </pre>
-                                <!-- comment -->
-                            <b>&trade;</b> &#8230; " '
-                        """, s ->
+                    </pre>
+                        <!-- comment -->
+                    <b>&trade;</b> &#8230; " '
+                """, s ->
                         """
-                                    &lt;/pre&gt;
-                                        &lt;!-- comment --&gt;
-                                    &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
-                                """,
-                """
                             &lt;/pre&gt;
                                 &lt;!-- comment --&gt;
                             &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
-                        """, s -> s.replaceAll("&", "&amp;")
+                        """,
+                """
+                    &lt;/pre&gt;
+                        &lt;!-- comment --&gt;
+                    &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
+                """, s -> s.replaceAll("&", "&amp;")
         );
 
         Path srcDir = base.resolve("src");
@@ -428,8 +428,8 @@ public class TestSnippetTag extends JavadocTester {
                             MethodBuilder
                                     .parse("public void case%s() { }".formatted(id))
                                     .setComments("""
-                                                         {@snippet file="%s.txt"}
-                                                         """.formatted(id)));
+                                                 {@snippet file="%s.txt"}
+                                                 """.formatted(id)));
             addSnippetFile(srcDir, "pkg", "%s.txt".formatted(id), input);
             inputs.put(id, input);
         });
@@ -446,11 +446,11 @@ public class TestSnippetTag extends JavadocTester {
             String expectedOutput = testCases.get(input).apply(input);
             checkOrder("pkg/A.html",
                        """
-                               <span class="element-name">case%s</span>()</div>
-                               <div class="block">
-                               <pre class="snippet">
-                               %s</pre>
-                               </div>""".formatted(index, expectedOutput));
+                       <span class="element-name">case%s</span>()</div>
+                       <div class="block">
+                       <pre class="snippet">
+                       %s</pre>
+                       </div>""".formatted(index, expectedOutput));
         });
     }
 
@@ -481,8 +481,8 @@ public class TestSnippetTag extends JavadocTester {
                         MethodBuilder
                                 .parse("public void test() { }")
                                 .setComments("""
-                                                     {@snippet file="%s"}
-                                                     """.formatted(fileName)))
+                                             {@snippet file="%s"}
+                                             """.formatted(fileName)))
                 .write(srcDir);
 
         javadoc("-d", outDir.toString(),
@@ -493,7 +493,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:4: error - File not found: %s""".formatted(fileName));
+                    A.java:4: error - File not found: %s""".formatted(fileName));
     }
 
     @Test // FIXME perhaps this could be unified with testExternalFile
@@ -516,8 +516,8 @@ public class TestSnippetTag extends JavadocTester {
                         MethodBuilder
                                 .parse("public void test() { }")
                                 .setComments(""" 
-                                                     {@snippet file="%s"}
-                                                     """.formatted(fileName)))
+                                             {@snippet file="%s"}
+                                             """.formatted(fileName)))
                 .write(moduleDir);
 
         addSnippetFile(moduleDir, PACKAGE_NAME, fileName, "content");
@@ -549,8 +549,8 @@ public class TestSnippetTag extends JavadocTester {
                         MethodBuilder
                                 .parse("public void test() { }")
                                 .setComments(""" 
-                                                     {@snippet file="%s"}
-                                                     """.formatted(fileName)))
+                                             {@snippet file="%s"}
+                                             """.formatted(fileName)))
                 .write(moduleDir);
 
         javadoc("-d", outDir.toString(),
@@ -561,7 +561,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:4: error - File not found: %s""".formatted(fileName));
+                    A.java:4: error - File not found: %s""".formatted(fileName));
     }
 
     @Test
@@ -571,8 +571,8 @@ public class TestSnippetTag extends JavadocTester {
 
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
-                                     {@snippet}
-                                     """)
+                             {@snippet}
+                             """)
                 .setModifiers("public", "class")
                 .write(srcDir);
 
@@ -584,7 +584,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:3: error - @snippet does not specify contents""");
+                    A.java:3: error - @snippet does not specify contents""");
     }
 
     @Test
@@ -594,10 +594,10 @@ public class TestSnippetTag extends JavadocTester {
 
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
-                                     {@snippet file="" class="" :
-                                         Hello, Snippet!
-                                     }
-                                     """)
+                             {@snippet file="" class="" :
+                                 Hello, Snippet!
+                             }
+                             """)
                 .setModifiers("public", "class")
                 .write(srcDir);
 
@@ -613,7 +613,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
+                    A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
     }
 
     @Test
@@ -623,10 +623,10 @@ public class TestSnippetTag extends JavadocTester {
 
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
-                                     {@snippet class="" file="" :
-                                         Hello, Snippet!
-                                     }
-                                     """)
+                             {@snippet class="" file="" :
+                                 Hello, Snippet!
+                             }
+                             """)
                 .setModifiers("public", "class")
                 .write(srcDir);
 
@@ -638,7 +638,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutputEither(Output.OUT,
                           """
-                                  A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
+                          A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
     }
 
     // FIXME: perhaps this method could be added to JavadocTester
@@ -663,8 +663,8 @@ public class TestSnippetTag extends JavadocTester {
 
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
-                                     {@snippet file="" file=""}
-                                     """)
+                             {@snippet file="" file=""}
+                             """)
                 .setModifiers("public", "class")
                 .write(srcDir);
 
@@ -676,7 +676,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:3: error - repeated attribute: "file\"""");
+                    A.java:3: error - repeated attribute: "file\"""");
     }
 
     @Test
@@ -686,8 +686,8 @@ public class TestSnippetTag extends JavadocTester {
 
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
-                                     {@snippet class="" class="" }
-                                     """)
+                             {@snippet class="" class="" }
+                             """)
                 .setModifiers("public", "class")
                 .write(srcDir);
 
@@ -699,7 +699,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:3: error - repeated attribute: "class\"""");
+                    A.java:3: error - repeated attribute: "class\"""");
     }
 
     @Test
@@ -709,10 +709,10 @@ public class TestSnippetTag extends JavadocTester {
 
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
-                                     {@snippet class="" class="" :
-                                         Hello, Snippet!
-                                     }
-                                     """)
+                             {@snippet class="" class="" :
+                                 Hello, Snippet!
+                             }
+                             """)
                 .setModifiers("public", "class")
                 .write(srcDir);
 
@@ -724,9 +724,9 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutputEither(Output.OUT,
                           """
-                                  A.java:3: error - repeated attribute: "class\"""",
+                          A.java:3: error - repeated attribute: "class\"""",
                           """
-                                  A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+                          A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
     }
 
     @Test
@@ -736,10 +736,10 @@ public class TestSnippetTag extends JavadocTester {
 
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
-                                     {@snippet file="" file="" :
-                                         Hello, Snippet!
-                                     }
-                                     """)
+                             {@snippet file="" file="" :
+                                 Hello, Snippet!
+                             }
+                             """)
                 .setModifiers("public", "class")
                 .write(srcDir);
 
@@ -751,9 +751,9 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutputEither(Output.OUT,
                           """
-                                  A.java:3: error - repeated attribute: "file\"""",
+                          A.java:3: error - repeated attribute: "file\"""",
                           """
-                                  A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+                          A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
     }
 
     // Those are excerpts from the diagnostic messages for two different tags that sit on the same line:
@@ -770,8 +770,8 @@ public class TestSnippetTag extends JavadocTester {
 
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
-                                     {@snippet} {@snippet}
-                                     """)
+                             {@snippet} {@snippet}
+                             """)
                 .setModifiers("public", "class")
                 .write(srcDir);
 
@@ -783,9 +783,9 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:3: error - @snippet does not specify contents""",
+                    A.java:3: error - @snippet does not specify contents""",
                     """
-                            A.java:3: error - @snippet does not specify contents""");
+                    A.java:3: error - @snippet does not specify contents""");
     }
 
     @Test
@@ -795,152 +795,152 @@ public class TestSnippetTag extends JavadocTester {
         final Map<Snippet, String> testCases = Map.ofEntries(
                 entry(newSnippetBuilder()
                               .body("""
-                                            // snippet-region-start : here
-                                            Hello
-                                            ,
-                                             Snippet!
-                                            // snippet-region-stop : here
-                                            """)
+                                    // snippet-region-start : here
+                                    Hello
+                                    ,
+                                     Snippet!
+                                    // snippet-region-stop : here
+                                    """)
                               .region("here")
                               .build(),
                       """
-                              Hello
-                              ,
-                               Snippet!
-                              """
+                      Hello
+                      ,
+                       Snippet!
+                      """
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                                // snippet-region-start : here
-                                                Hello
-                                                ,
-                                                 Snippet!
-                                            // snippet-region-stop : here
-                                                """)
+                                        // snippet-region-start : here
+                                        Hello
+                                        ,
+                                         Snippet!
+                                    // snippet-region-stop : here
+                                        """)
                               .region("here")
                               .build(),
                       """
-                                  Hello
-                                  ,
-                                   Snippet!
-                              """)
+                          Hello
+                          ,
+                           Snippet!
+                      """)
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                                // snippet-region-start : here
-                                                Hello
-                                                ,
-                                                 Snippet!// snippet-region-stop : here
-                                            """)
+                                        // snippet-region-start : here
+                                        Hello
+                                        ,
+                                         Snippet!// snippet-region-stop : here
+                                    """)
                               .region("here")
                               .build(),
                       """
-                              Hello
-                              ,
-                               Snippet!\
-                              """
+                      Hello
+                      ,
+                       Snippet!\
+                      """
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                            // snippet-region-start : there
-                                            // snippet-region-stop : there
+                                    // snippet-region-start : there
+                                    // snippet-region-stop : there
 
-                                                // snippet-region-start : here
-                                                Hello
-                                                ,
-                                                 Snippet!
-                                                // snippet-region-stop : here
-                                                   """)
+                                        // snippet-region-start : here
+                                        Hello
+                                        ,
+                                         Snippet!
+                                        // snippet-region-stop : here
+                                           """)
                               .region("here")
                               .build(),
                       """
-                              Hello
-                              ,
-                               Snippet!
-                              """
+                      Hello
+                      ,
+                       Snippet!
+                      """
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                            // snippet-region-start : here
-                                                Hello
-                                            // snippet-region-stop : here
+                                    // snippet-region-start : here
+                                        Hello
+                                    // snippet-region-stop : here
 
-                                                 , Snippet!
-                                            // snippet-region-stop : here
-                                                """)
+                                         , Snippet!
+                                    // snippet-region-stop : here
+                                        """)
                               .region("here")
                               .build()
                         ,
                       """
-                                  Hello
-                              """
+                          Hello
+                      """
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                            // snippet-region-start : here
-                                                This is the only line you should see.
-                                            // snippet-region-stop : here
-                                            // snippet-region-start : hereafter
-                                                You should NOT see this.
-                                            // snippet-region-stop : hereafter
-                                                """)
+                                    // snippet-region-start : here
+                                        This is the only line you should see.
+                                    // snippet-region-stop : here
+                                    // snippet-region-start : hereafter
+                                        You should NOT see this.
+                                    // snippet-region-stop : hereafter
+                                        """)
                               .region("here")
                               .build(),
                       """
-                                  This is the only line you should see.
-                              """
+                          This is the only line you should see.
+                      """
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                            // snippet-region-start : here
-                                                You should NOT see this.
-                                            // snippet-region-stop : here
-                                            // snippet-region-start : hereafter
-                                                This is the only line you should see.
-                                            // snippet-region-stop : hereafter
-                                                """)
+                                    // snippet-region-start : here
+                                        You should NOT see this.
+                                    // snippet-region-stop : here
+                                    // snippet-region-start : hereafter
+                                        This is the only line you should see.
+                                    // snippet-region-stop : hereafter
+                                        """)
                               .region("hereafter")
                               .build(),
                       """
-                                  This is the only line you should see.
-                              """
+                          This is the only line you should see.
+                      """
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                            // snippet-region-start : beforehand
-                                                You should NOT see this.
-                                            // snippet-region-stop : beforehand
-                                            // snippet-region-start : before
-                                                This is the only line you should see.
-                                            // snippet-region-stop : before
-                                                """)
+                                    // snippet-region-start : beforehand
+                                        You should NOT see this.
+                                    // snippet-region-stop : beforehand
+                                    // snippet-region-start : before
+                                        This is the only line you should see.
+                                    // snippet-region-stop : before
+                                        """)
                               .region("before")
                               .build(),
                       """
-                                  This is the only line you should see.
-                              """
+                          This is the only line you should see.
+                      """
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                            // snippet-region-start : beforehand
-                                                This is the only line you should see.
-                                            // snippet-region-stop : beforehand
-                                            // snippet-region-start : before
-                                                You should NOT see this.
-                                            // snippet-region-stop : before
-                                                """)
+                                    // snippet-region-start : beforehand
+                                        This is the only line you should see.
+                                    // snippet-region-stop : beforehand
+                                    // snippet-region-start : before
+                                        You should NOT see this.
+                                    // snippet-region-stop : before
+                                        """)
                               .region("beforehand")
                               .build(),
                       """
-                                  This is the only line you should see.
-                              """
+                          This is the only line you should see.
+                      """
                 )
         );
 
@@ -964,9 +964,9 @@ public class TestSnippetTag extends JavadocTester {
                             MethodBuilder
                                     .parse("public void case%s() { }".formatted(id))
                                     .setComments("""
-                                                         {@snippet region="%s" :
-                                                         %s}
-                                                         """.formatted(input.region(), input.body())));
+                                                 {@snippet region="%s" :
+                                                 %s}
+                                                 """.formatted(input.regionName(), input.body())));
             inputs.put(id, input);
         });
 
@@ -982,11 +982,11 @@ public class TestSnippetTag extends JavadocTester {
             String expectedOutput = testCases.get(input);
             checkOrder("pkg/A.html",
                        """
-                               <span class="element-name">case%s</span>()</div>
-                               <div class="block">
-                               <pre class="snippet">
-                               %s</pre>
-                               </div>""".formatted(index, expectedOutput));
+                       <span class="element-name">case%s</span>()</div>
+                       <div class="block">
+                       <pre class="snippet">
+                       %s</pre>
+                       </div>""".formatted(index, expectedOutput));
         });
     }
 
@@ -997,46 +997,46 @@ public class TestSnippetTag extends JavadocTester {
         final Map<Snippet, String> testCases = Map.ofEntries(
                 entry(newSnippetBuilder()
                               .body("""
-                                            // snippet-comment : Hello
-                                            ,
-                                             Snippet!""")
+                                    // snippet-comment : Hello
+                                    ,
+                                     Snippet!""")
                               .build(),
                       """
-                              Hello
-                              ,
-                               Snippet!"""
+                      Hello
+                      ,
+                       Snippet!"""
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                            // snippet-comment :Hello
-                                            ,
-                                             Snippet!""")
+                                    // snippet-comment :Hello
+                                    ,
+                                     Snippet!""")
                               .build(),
                       """
-                              Hello
-                              ,
-                               Snippet!"""
+                      Hello
+                      ,
+                       Snippet!"""
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                            // snippet-comment :  Hello
-                                            ,
-                                             Snippet!""")
+                                    // snippet-comment :  Hello
+                                    ,
+                                     Snippet!""")
                               .build(),
                       """
-                               Hello
-                              ,
-                               Snippet!"""
+                       Hello
+                      ,
+                       Snippet!"""
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                            // snippet-comment : // snippet-comment : my comment""")
+                                    // snippet-comment : // snippet-comment : my comment""")
                               .build(),
                       """
-                              // snippet-comment : my comment"""
+                      // snippet-comment : my comment"""
                 )
         );
 
@@ -1060,9 +1060,9 @@ public class TestSnippetTag extends JavadocTester {
                             MethodBuilder
                                     .parse("public void case%s() { }".formatted(id))
                                     .setComments("""
-                                                         {@snippet :
-                                                         %s}
-                                                         """.formatted(input.body())));
+                                                 {@snippet :
+                                                 %s}
+                                                 """.formatted(input.body())));
             inputs.put(id, input);
         });
 
@@ -1078,11 +1078,11 @@ public class TestSnippetTag extends JavadocTester {
             String expectedOutput = testCases.get(input);
             checkOrder("pkg/A.html",
                        """
-                               <span class="element-name">case%s</span>()</div>
-                               <div class="block">
-                               <pre class="snippet">
-                               %s</pre>
-                               </div>""".formatted(index, expectedOutput));
+                       <span class="element-name">case%s</span>()</div>
+                       <div class="block">
+                       <pre class="snippet">
+                       %s</pre>
+                       </div>""".formatted(index, expectedOutput));
         });
     }
 
@@ -1099,9 +1099,9 @@ public class TestSnippetTag extends JavadocTester {
                         MethodBuilder
                                 .parse("public void test() { }")
                                 .setComments("""
-                                                     {@snippet file="%s":
-                                                         Hello, Snippet!}
-                                                     """.formatted(fileName)))
+                                             {@snippet file="%s":
+                                                 Hello, Snippet!}
+                                             """.formatted(fileName)))
                 .write(srcDir);
 
         javadoc("-d", outDir.toString(),
@@ -1112,7 +1112,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:4: error - File not found: %s""".formatted(fileName));
+                    A.java:4: error - File not found: %s""".formatted(fileName));
     }
 
     @Test
@@ -1124,7 +1124,7 @@ public class TestSnippetTag extends JavadocTester {
         var region = "here";
         var content =
                 """
-                        Hello, Snippet!""";
+                Hello, Snippet!""";
 
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
@@ -1132,9 +1132,9 @@ public class TestSnippetTag extends JavadocTester {
                         MethodBuilder
                                 .parse("public void test() { }")
                                 .setComments("""
-                                                     {@snippet region="%s" file="%s":
-                                                     %s}
-                                                     """.formatted(region, fileName, content)))
+                                             {@snippet region="%s" file="%s":
+                                             %s}
+                                             """.formatted(region, fileName, content)))
                 .write(srcDir);
 
         addSnippetFile(srcDir, "pkg", fileName, content);
@@ -1147,7 +1147,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:4: error - region not found: "%s\"""".formatted(region));
+                    A.java:4: error - region not found: "%s\"""".formatted(region));
     }
 
     @Test
@@ -1158,7 +1158,7 @@ public class TestSnippetTag extends JavadocTester {
         var fileName = "text.txt";
         var content =
                 """
-                        Hello, Snippet!""";
+                Hello, Snippet!""";
 
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
@@ -1166,9 +1166,9 @@ public class TestSnippetTag extends JavadocTester {
                         MethodBuilder
                                 .parse("public void test() { }")
                                 .setComments("""
-                                                     {@snippet file="%s":
-                                                     %s}
-                                                     """.formatted(fileName, content)))
+                                             {@snippet file="%s":
+                                             %s}
+                                             """.formatted(fileName, content)))
                 .write(srcDir);
 
         addSnippetFile(srcDir, "pkg", fileName, content + "...more");
@@ -1181,7 +1181,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:4: error - contents mismatch""");
+                    A.java:4: error - contents mismatch""");
     }
 
     @Test
@@ -1193,7 +1193,7 @@ public class TestSnippetTag extends JavadocTester {
         var region = "here";
         var content =
                 """
-                        Hello, Snippet!""";
+                Hello, Snippet!""";
 
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
@@ -1201,22 +1201,22 @@ public class TestSnippetTag extends JavadocTester {
                         MethodBuilder
                                 .parse("public void test() { }")
                                 .setComments("""
-                                                     {@snippet region="%s" file="%s":
-                                                     Above the region.
-                                                     // snippet-region-start : %s
-                                                     %s ...more
-                                                     // snippet-region-stop : %s
-                                                     Below the region}
-                                                     """.formatted(region, fileName, region, content, region)))
+                                             {@snippet region="%s" file="%s":
+                                             Above the region.
+                                             // snippet-region-start : %s
+                                             %s ...more
+                                             // snippet-region-stop : %s
+                                             Below the region}
+                                             """.formatted(region, fileName, region, content, region)))
                 .write(srcDir);
 
         addSnippetFile(srcDir, "pkg", fileName,
                        """
-                               This line is above the region.
-                               // snippet-region-start : %s
-                               %s
-                               // snippet-region-stop : %s
-                               This line is below the region.""".formatted(region, content, region));
+                       This line is above the region.
+                       // snippet-region-start : %s
+                       %s
+                       // snippet-region-stop : %s
+                       This line is below the region.""".formatted(region, content, region));
 
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
@@ -1226,7 +1226,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:4: error - contents mismatch""");
+                    A.java:4: error - contents mismatch""");
     }
 
     @Test
@@ -1238,7 +1238,7 @@ public class TestSnippetTag extends JavadocTester {
         var region = "here";
         var content =
                 """
-                        Hello, Snippet!""";
+                Hello, Snippet!""";
 
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
@@ -1246,13 +1246,13 @@ public class TestSnippetTag extends JavadocTester {
                         MethodBuilder
                                 .parse("public void test() { }")
                                 .setComments("""
-                                                     {@snippet region="%s" file="%s":
-                                                     Above the region.
-                                                     // snippet-region-start : %s
-                                                     %s ...more
-                                                     // snippet-region-stop : %s
-                                                     Below the region}
-                                                     """.formatted(region, fileName, region, content, region)))
+                                             {@snippet region="%s" file="%s":
+                                             Above the region.
+                                             // snippet-region-start : %s
+                                             %s ...more
+                                             // snippet-region-stop : %s
+                                             Below the region}
+                                             """.formatted(region, fileName, region, content, region)))
                 .write(srcDir);
 
         addSnippetFile(srcDir, "pkg", fileName, content);
@@ -1265,7 +1265,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:4: error - contents mismatch""");
+                    A.java:4: error - contents mismatch""");
     }
 
     @Test
@@ -1277,7 +1277,7 @@ public class TestSnippetTag extends JavadocTester {
         var region = "here";
         var content =
                 """
-                        Hello, Snippet!""";
+                Hello, Snippet!""";
 
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
@@ -1285,19 +1285,19 @@ public class TestSnippetTag extends JavadocTester {
                         MethodBuilder
                                 .parse("public void test() { }")
                                 .setComments("""
-                                                     {@snippet region="%s" file="%s":
-                                                     %s}
-                                                     """.formatted(region, fileName, content)))
+                                             {@snippet region="%s" file="%s":
+                                             %s}
+                                             """.formatted(region, fileName, content)))
                 .write(srcDir);
 
         addSnippetFile(srcDir, "pkg", fileName,
                        """
-                               Above the region.
-                               // snippet-region-start : %s
-                               %s ...more
-                               // snippet-region-stop : %s
-                               Below the region
-                               """.formatted(region, content, region));
+                       Above the region.
+                       // snippet-region-start : %s
+                       %s ...more
+                       // snippet-region-stop : %s
+                       Below the region
+                       """.formatted(region, content, region));
 
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
@@ -1307,7 +1307,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                            A.java:4: error - contents mismatch""");
+                    A.java:4: error - contents mismatch""");
     }
 
     @Test
@@ -1315,98 +1315,98 @@ public class TestSnippetTag extends JavadocTester {
         final Map<Snippet, String> testCases = Map.ofEntries(
                 entry(newSnippetBuilder()
                               .body("""
-                                            Hello
-                                            ,
-                                             Snippet!""")
+                                    Hello
+                                    ,
+                                     Snippet!""")
                               .fileContent(
                                       """
-                                              Hello
-                                              ,
-                                               Snippet!""")
+                                      Hello
+                                      ,
+                                       Snippet!""")
                               .build(),
                       """
-                              Hello
-                              ,
-                               Snippet!"""
+                      Hello
+                      ,
+                       Snippet!"""
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                              Hello
-                                              ,
-                                               Snippet!
-                                            """)
+                                      Hello
+                                      ,
+                                       Snippet!
+                                    """)
                               .region("here")
                               .fileContent(
                                       """
-                                              Above the region.
-                                              // snippet-region-start : here
-                                                Hello
-                                                ,
-                                                 Snippet!
-                                              // snippet-region-stop : here
-                                              Below the region.
-                                              """)
+                                      Above the region.
+                                      // snippet-region-start : here
+                                        Hello
+                                        ,
+                                         Snippet!
+                                      // snippet-region-stop : here
+                                      Below the region.
+                                      """)
                               .build(),
                       """
-                                Hello
-                                ,
-                                 Snippet!
-                              """
+                        Hello
+                        ,
+                         Snippet!
+                      """
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                            Above the region.
-                                            // snippet-region-start : here
-                                              Hello
-                                              ,
-                                               Snippet!
-                                            // snippet-region-stop : here
-                                            Below the region.
-                                            """)
+                                    Above the region.
+                                    // snippet-region-start : here
+                                      Hello
+                                      ,
+                                       Snippet!
+                                    // snippet-region-stop : here
+                                    Below the region.
+                                    """)
                               .region("here")
                               .fileContent(
                                       """
-                                                Hello
-                                                ,
-                                                 Snippet!
-                                              """)
+                                        Hello
+                                        ,
+                                         Snippet!
+                                      """)
                               .build(),
                       """
-                                Hello
-                                ,
-                                 Snippet!
-                              """
+                        Hello
+                        ,
+                         Snippet!
+                      """
                 )
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                            Above the region.
-                                            // snippet-region-start : here
-                                              Hello
-                                              ,
-                                               Snippet!
-                                            // snippet-region-stop : here
-                                            Below the region.
-                                            """)
+                                    Above the region.
+                                    // snippet-region-start : here
+                                      Hello
+                                      ,
+                                       Snippet!
+                                    // snippet-region-stop : here
+                                    Below the region.
+                                    """)
                               .region("here")
                               .fileContent(
                                       """
-                                              Above the region.
-                                              // snippet-region-start : here
-                                                Hello
-                                                ,
-                                                 Snippet!
-                                              // snippet-region-stop : here
-                                              Below the region.
-                                              """)
+                                      Above the region.
+                                      // snippet-region-start : here
+                                        Hello
+                                        ,
+                                         Snippet!
+                                      // snippet-region-stop : here
+                                      Below the region.
+                                      """)
                               .build(),
                       """
-                                Hello
-                                ,
-                                 Snippet!
-                              """
+                        Hello
+                        ,
+                         Snippet!
+                      """
                 )
         );
 
@@ -1426,16 +1426,16 @@ public class TestSnippetTag extends JavadocTester {
 
         testCases.keySet().forEach(input -> {
             int id = counter.incrementAndGet();
-            final String r = input.region() == null ? "" : "region=\"" + input.region() + "\"";
+            final String r = input.regionName() == null ? "" : "region=\"" + input.regionName() + "\"";
             final String f = input.fileContent() == null ? "" : "file=\"%s.txt\"".formatted(id);
             classBuilder
                     .addMembers(
                             MethodBuilder
                                     .parse("public void case%s() { }".formatted(id))
                                     .setComments("""
-                                                         {@snippet %s %s:
-                                                         %s}
-                                                         """.formatted(r, f, input.body())));
+                                                 {@snippet %s %s:
+                                                 %s}
+                                                 """.formatted(r, f, input.body())));
             addSnippetFile(srcDir, "pkg", "%s.txt".formatted(id), input.fileContent());
             inputs.put(id, input);
         });
@@ -1452,11 +1452,11 @@ public class TestSnippetTag extends JavadocTester {
             String expectedOutput = testCases.get(input);
             checkOrder("pkg/A.html",
                        """
-                               <span class="element-name">case%s</span>()</div>
-                               <div class="block">
-                               <pre class="snippet">
-                               %s</pre>
-                               </div>""".formatted(index, expectedOutput));
+                       <span class="element-name">case%s</span>()</div>
+                       <div class="block">
+                       <pre class="snippet">
+                       %s</pre>
+                       </div>""".formatted(index, expectedOutput));
         });
 
     }
@@ -1465,29 +1465,7 @@ public class TestSnippetTag extends JavadocTester {
         return new Snippet.Builder();
     }
 
-    private static class Snippet { // TODO: use a language record when it becomes available
-
-        private final String regionName;
-        private final String body;
-        private final String fileContent;
-
-        private Snippet(String regionName, String body, String fileContent) {
-            this.regionName = regionName;
-            this.body = body;
-            this.fileContent = fileContent;
-        }
-
-        public String region() {
-            return regionName;
-        }
-
-        public String body() {
-            return body;
-        }
-
-        public String fileContent() {
-            return fileContent;
-        }
+    private record Snippet(String regionName, String body, String fileContent) {
 
         static class Builder {
 
@@ -1513,30 +1491,6 @@ public class TestSnippetTag extends JavadocTester {
             Snippet build() {
                 return new Snippet(regionName, body, fileContent);
             }
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Snippet snippet = (Snippet) o;
-            return Objects.equals(regionName, snippet.regionName) &&
-                    Objects.equals(body, snippet.body) &&
-                    Objects.equals(fileContent, snippet.fileContent);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(regionName, body, fileContent);
-        }
-
-        @Override
-        public String toString() {
-            return "Snippet{" +
-                    "regionName='" + regionName + '\'' +
-                    ", body='" + body + '\'' +
-                    ", fileContent='" + fileContent + '\'' +
-                    '}';
         }
     }
 }
