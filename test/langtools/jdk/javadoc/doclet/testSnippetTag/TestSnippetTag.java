@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,7 +62,10 @@ import static java.util.Map.entry;
 //     a. Make sure that both inline and external snippets work as expected
 //        and that inline snippets allow "*/" sequence
 //   2. Add tests for bad tag syntax
-//   3. Add tests for good tag syntax (e.g. attributes separated by newlines)
+//     a. Attribute unexpectedly ends ="<EOF>
+//   3. Add tests for good tag syntax
+//     a. Attributes separated by newlines
+//     b. : on the next line
 //   4. Add tests for nested structure under "snippet-files/"
 //   5. Add tests for external snippets and default package: "snippet-files/Example.java"
 //   6. Add negative tests for region
