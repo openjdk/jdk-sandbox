@@ -490,7 +490,7 @@ abstract class AbstractBufferImpl<B extends AbstractBufferImpl<B,A>, A> extends 
     final boolean equalsImpl(Object ob, BufferMismatchOp<B, A> abBufferMismatchOp) {
         if (this == ob)
             return true;
-        if (!(ob instanceof AbstractBufferImpl that) || that.carrier() != carrier())
+        if (!(ob instanceof AbstractBufferImpl<?,?> that) || that.carrier() != carrier())
             return false;
         int thisPos = this.position();
         int thisRem = this.limit() - thisPos;
