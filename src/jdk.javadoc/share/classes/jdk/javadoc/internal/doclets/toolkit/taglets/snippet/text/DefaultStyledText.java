@@ -27,7 +27,9 @@ package jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -39,6 +41,8 @@ import static java.lang.Math.min;
  * infrequently as the text goes.
  */
 public class DefaultStyledText implements StyledText {
+
+    private final Map<String, StyledText> bookmarks = new HashMap<>();
 
     private final StringBuilder chars = new StringBuilder();
     private final EqualElementsRegions<Style> styles = new EqualElementsRegions<>();
@@ -117,6 +121,16 @@ public class DefaultStyledText implements StyledText {
     }
 
     @Override
+    public StyledText getBookmark(String name) {
+        return bookmarks.get(Objects.requireNonNull(name));
+    }
+
+    @Override
+    public void setBookmark(String name, int start, int end) {
+        bookmarks.put(Objects.requireNonNull(name), subText(start, end));
+    }
+
+    @Override
     public CharSequence asCharSequence() {
         return chars;
     }
@@ -186,6 +200,16 @@ public class DefaultStyledText implements StyledText {
         public StyledText subText(int start, int end) {
             Objects.checkFromToIndex(start, end, length());
             return DefaultStyledText.this.subText(this.start + start, this.start + end);
+        }
+
+        @Override
+        public StyledText getBookmark(String name) {
+            return DefaultStyledText.this.getBookmark(name);
+        }
+
+        @Override
+        public void setBookmark(String name, int start, int end) {
+            DefaultStyledText.this.setBookmark(name, this.start + start, this.start + end);
         }
 
         @Override

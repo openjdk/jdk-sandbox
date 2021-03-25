@@ -59,6 +59,10 @@ public interface StyledText {
     // "Subtext" has bad connotation.
     StyledText subText(int start, int end);
 
+    StyledText getBookmark(String name);
+
+    void setBookmark(String name, int start, int end);
+
     CharSequence asCharSequence();
 
     // Selects a text portion to keep track of it; it will be consistently updated.

@@ -28,6 +28,7 @@ package jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Action;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Replace;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Restyle;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Start;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.DefaultStyledText;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Style;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
@@ -238,7 +239,7 @@ public final class Parser {
                     if (!i.attributes().isEmpty()) {
                         throw new ParseException("Unexpected attributes: " + String.join(", ", i.attributes.keySet()));
                     }
-                    // ignore this instruction for now
+                    actions.add(new Start(i.regionIdentifier(), text.select(i.start(), i.end())));
                 }
             }
         }
