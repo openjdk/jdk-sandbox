@@ -302,7 +302,7 @@ public class $Type$Buffer
     @Override
     @ForceInline
     Object base() {
-        return ($type$[])hb;
+        return $type$[].class.cast(hb);
     }
 
     @Override
