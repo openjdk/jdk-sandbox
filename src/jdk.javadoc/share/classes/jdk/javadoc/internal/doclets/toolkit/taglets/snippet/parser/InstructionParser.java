@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,33 +77,39 @@ public final class InstructionParser {
         String name = readIdentifier();
         skipWhitespace();
 
-        // look ahead to disambiguate between a region identifier and an attribute name
-
-        int x = bp;
-        char c = ch;
-
-        while (x < buflen && (Character.isUnicodeIdentifierPart(c) || c == '-')) {
-            c = buf[x < buflen ? ++x : buflen];
-        }
-
-        while (x < buflen && Character.isWhitespace(c)) {
-            c = buf[x < buflen ? ++x : buflen];
-        }
-
-        String id = "";
-        if (c != '=' && c != ':') {
-            id = readIdentifier();
-            nextChar();
-        }
-
-        Map<String, String> attributes = tagAttrs();
-
         boolean appliesToNextLine = false;
+        String id = "";
+        Map<String, String> attributes = Map.of();
 
-        skipWhitespace();
         if (ch == ':') {
             appliesToNextLine = true;
             nextChar();
+        } else {
+            // look ahead to disambiguate between a region identifier
+            // and an attribute's name
+            int x = bp;
+            char c = ch;
+
+            while (x < buflen && (Character.isUnicodeIdentifierPart(c) || c == '-')) {
+                c = buf[x < buflen ? ++x : buflen];
+            }
+
+            while (x < buflen && Character.isWhitespace(c)) {
+                c = buf[x < buflen ? ++x : buflen];
+            }
+
+            if (c != '=') {
+                id = readIdentifier();
+                nextChar();
+            }
+
+            attributes = tagAttrs();
+
+            skipWhitespace();
+            if (ch == ':') {
+                appliesToNextLine = true;
+                nextChar();
+            }
         }
 
         Parser.Instruction i = new Parser.Instruction();

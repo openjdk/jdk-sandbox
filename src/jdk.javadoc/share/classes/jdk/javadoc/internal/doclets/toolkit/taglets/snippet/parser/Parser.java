@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -125,7 +125,7 @@ public final class Parser {
             }
             this.eolMarker = eolMarker;
             // capture the rightmost "//"
-            this.markedUpLine = Pattern.compile("^(.*)(\\Q%s\\E(.+?))$".formatted(eolMarker))
+            this.markedUpLine = Pattern.compile("^(.*)(\\Q%s\\E(\\s*@\\s*\\w+.+?))$".formatted(eolMarker))
                     .matcher(""); // TODO: quote properly with Pattern.quote
         }
 
@@ -166,7 +166,7 @@ public final class Parser {
                 line = rawLine + (addLineTerminator ? "\n" : "");
             }
 
-            thisLineInstructions.addAll(previousLineInstructions);
+            thisLineInstructions.addAll(0, previousLineInstructions); // prepend!
             previousLineInstructions.clear();
             for (Instruction i : thisLineInstructions) {
                 i.start = lineStart;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ import static java.lang.Math.min;
  */
 public class DefaultStyledText implements StyledText {
 
-    private final Map<String, StyledText> bookmarks = new HashMap<>();
+    private final Map<String, Scope> bookmarks = new HashMap<>();
 
     private final StringBuilder chars = new StringBuilder();
     private final EqualElementsRegions<Style> styles = new EqualElementsRegions<>();
@@ -122,12 +122,15 @@ public class DefaultStyledText implements StyledText {
 
     @Override
     public StyledText getBookmark(String name) {
-        return bookmarks.get(Objects.requireNonNull(name));
+        Scope scope = bookmarks.get(Objects.requireNonNull(name));
+        if (scope == null)
+            return null;
+        return subText(scope.start, scope.end);
     }
 
     @Override
     public void setBookmark(String name, int start, int end) {
-        bookmarks.put(Objects.requireNonNull(name), subText(start, end));
+        bookmarks.put(Objects.requireNonNull(name), select(start, end));
     }
 
     @Override
@@ -145,10 +148,29 @@ public class DefaultStyledText implements StyledText {
 
     @Override
     public void consumeBy(StyledTextConsumer consumer) {
-        // FIXME: clean this evil violation of encapsulation up
+        consumeBy(consumer, 0, length());
+    }
+
+    private void consumeBy(StyledTextConsumer consumer, int start, int end) {
+        Objects.checkFromToIndex(start, end, length());
+
         CharSequence sequence = asCharSequence();
-        for (int i = 1; i < styles.runs.size() - 1; i++) {
-            consumer.consume(sequence, styles.runs.get(i).start, styles.runs.get(i + 1).start, styles.runs.get(i).e);
+        // FIXME: clean this evil violation of encapsulation up
+        int startRegion = styles.regionIndexOf(start);
+        int endRegion = styles.regionIndexOf(end);
+
+        if (startRegion == endRegion) { // exactly 1 call
+            consumer.consume(sequence, start, end, styles.runs.get(startRegion).e);
+        } else {                        // 1 or more calls
+            assert startRegion < endRegion;
+            consumer.consume(sequence, start, styles.runs.get(startRegion + 1).start, styles.runs.get(startRegion).e); // 1st call
+            for (int i = startRegion + 1; i < endRegion; i++) { // optional intermediate calls, if stopRegion - startRegion > 1
+                consumer.consume(sequence, styles.runs.get(i).start, styles.runs.get(i + 1).start, styles.runs.get(i).e);
+            }
+            EqualElementsRegions<Style>.Run last = styles.runs.get(endRegion);
+            if (last.start < end) {
+                consumer.consume(sequence, last.start, end, last.e); // optional last call
+            }
         }
     }
 
@@ -200,6 +222,13 @@ public class DefaultStyledText implements StyledText {
         public StyledText subText(int start, int end) {
             Objects.checkFromToIndex(start, end, length());
             return DefaultStyledText.this.subText(this.start + start, this.start + end);
+        }
+
+        @Override
+        public void consumeBy(StyledTextConsumer consumer) {
+            // I don't think passing a complete char sequence to consume a part
+            // of it is a security concern in this particular situation
+            DefaultStyledText.this.consumeBy(consumer, this.start, this.end);
         }
 
         @Override
