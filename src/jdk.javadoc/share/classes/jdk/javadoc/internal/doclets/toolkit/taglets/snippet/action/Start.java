@@ -26,19 +26,24 @@
 package jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action;
 
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Scope;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Style;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 // Populates bookmarks in StyledText
 public class Start implements Action {
 
     private final String name;
     private final Scope scope;
+    private final int pos;
 
-    public Start(String name, Scope s) {
+    public Start(String name, Scope s, int pos) {
         this.name = name;
         this.scope = s;
+        this.pos = pos;
     }
 
     @Override
@@ -49,6 +54,56 @@ public class Start implements Action {
         }
         StyledText text = texts.next();
         assert !texts.hasNext();
+        stripLeadingIncidentalWhitespace(text);
         text.setBookmark(name, 0, text.length()); // TODO: revisit this logic
+    }
+
+    // Unfortunately, the region cannot be simply replaced with result of
+    // String.stripIndent as styles corresponding to the characters will be lost
+    private void stripLeadingIncidentalWhitespace(StyledText text) {
+        List<Replacement> replacements = findIncidentalSpace(text.asCharSequence());
+        for (int i = replacements.size() - 1; i >= 0; i--) {
+            Replacement r = replacements.get(i);
+            // TODO we can use a different style, e.g. that of at (r.start - 1)
+            text.replace(r.start, r.end, Style.none(), r.value);
+        }
+    }
+
+    // I do not want to re-implement error-prone stripIndent
+    private List<Replacement> findIncidentalSpace(CharSequence s) {
+        List<Replacement> replacements = new ArrayList<>();
+        String str = s.toString();
+        if (str.endsWith("\r\n")) {
+            str = str.substring(0, str.length() - 2);
+        } else if (str.endsWith("\n") || str.endsWith("\r")) {
+            str = str.substring(0, str.length() - 1);
+        }
+        str = str + " ".repeat(Math.max(0, pos));
+        String before = str;
+        String after = str.stripIndent();
+        int diff = leadingWhitespaceLength(before) - leadingWhitespaceLength(after);
+        if (diff == 0) {
+            return List.of();
+        }
+        int i = 0;
+        while (i < s.length()) {
+            final int start = i;
+            while (i < s.length()) {
+                char c = s.charAt(i++); // note unconditional increment
+                if (c == '\n')  // assert newlines are only '\n'
+                    break;
+            }
+            if (i - start >= diff) // remove leading whitespace only if it is there
+                replacements.add(new Replacement(start, start + diff, ""));
+        }
+        return replacements;
+    }
+
+    private static int leadingWhitespaceLength(String s) {
+        int i = 0;
+        while (i < s.length() && Character.isWhitespace(s.charAt(i))) {
+            i++;
+        }
+        return i;
     }
 }

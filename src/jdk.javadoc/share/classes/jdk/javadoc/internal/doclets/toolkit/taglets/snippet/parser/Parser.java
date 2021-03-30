@@ -72,6 +72,7 @@ import java.util.stream.Collectors;
  * 5. A convenience `end` ends all the things started so far.
  */
 // FIXME: How to treat Form Feed? (i.e. is it vertical or horizontal whitespace?)
+// FIXME: what to do with lines not covered by any markup? (i.e. in between markup)
 public final class Parser {
 
     //                  v next line
@@ -148,7 +149,7 @@ public final class Parser {
             markedUpLine.reset(rawLine);
             if (markedUpLine.matches()) {
                 String maybeMarkup = markedUpLine.group(3);
-                line = markedUpLine.group(1).stripTrailing() + (addLineTerminator ? "\n" : "");
+                line = markedUpLine.group(1).stripTrailing() + (addLineTerminator ? "\n" : ""); // remove any whitespace
                 List<Instruction> parsedInstructions = markupParser.parse(maybeMarkup);
                 thisLineInstructions.addAll(parsedInstructions);
                 for (var instructionIterator = thisLineInstructions.iterator(); instructionIterator.hasNext(); ) {
@@ -157,6 +158,8 @@ public final class Parser {
                         instructionIterator.remove();
                         i.appliesToNextLine = false; // clear the flag
                         tempList.add(i);
+                    } else {
+                        i.position = markedUpLine.start(2); // e.g. @end that relates to the same line
                     }
                 }
                 if (parsedInstructions.isEmpty()) { // not a valid markup comment
@@ -170,7 +173,7 @@ public final class Parser {
             previousLineInstructions.clear();
             for (Instruction i : thisLineInstructions) {
                 i.start = lineStart;
-                i.end = lineStart + line.length();
+                i.end = lineStart + line.length(); // this includes line terminator, if any
                 processInstruction(i);
             }
             previousLineInstructions.addAll(tempList);
@@ -239,7 +242,7 @@ public final class Parser {
                     if (!i.attributes().isEmpty()) {
                         throw new ParseException("Unexpected attributes: " + String.join(", ", i.attributes.keySet()));
                     }
-                    actions.add(new Start(i.regionIdentifier(), text.select(i.start(), i.end())));
+                    actions.add(new Start(i.regionIdentifier(), text.select(i.start(), i.end()), i.position));
                 }
             }
         }
@@ -284,6 +287,7 @@ public final class Parser {
     static final class Instruction {
 
         String name;
+        int position; // the position of markup, not the instruction; this position is, for example, used by @end
         int start;
         int end;
         String regionIdentifier;
@@ -325,6 +329,7 @@ public final class Parser {
     private void completeInstruction(Instruction start, Instruction end) {
         assert !start.name().equals("end") : start;
         assert end.name().equals("end") : end;
+        start.position = end.position; // smuggle the position of the corresponding end
         start.end = end.end();
     }
 

@@ -92,7 +92,6 @@ public class DefaultStyledText implements StyledText {
     }
 
     private void update(final int start, final int end, final int newLength, final Scope scope) {
-        // TODO: split update into insert and delete to make the algorithm more clear
         assert start <= end;
         assert scope.start <= scope.end;
         assert newLength >= 0;
@@ -100,17 +99,21 @@ public class DefaultStyledText implements StyledText {
             final int diff = newLength - (end - start);
             scope.start += diff;
             scope.end += diff;
-        } else if (scope.end <= start ) {
+        } else if (scope.end <= start) {
             // no-op
         } else { // intersection
             final int intersection_len = min(end, scope.end) - max(start, scope.start);
             int len = scope.end - scope.start;
-            if (start <= scope.start) {
-                scope.start = start + newLength;
-            } else if (end < scope.end) {
-                len += newLength;
+            if (scope.start <= start && end <= scope.end) {
+                scope.end += newLength - (end - start);
+            } else {
+                if (start <= scope.start) {
+                    scope.start = start + newLength;
+                } else if (end < scope.end) {
+                    len += newLength;
+                }
+                scope.end = scope.start + len - intersection_len;
             }
-            scope.end = scope.start + len - intersection_len;
         }
     }
 
@@ -180,9 +183,13 @@ public class DefaultStyledText implements StyledText {
                 formatted(chars.length(), styles.nRegions(), styles.nElements(), super.toString());
     }
 
+    // This works similarly to List.subList in the sense that updates made to
+    // different subtext are not visible to all of them. The point of this class
+    // is to combine a text with a region of interest for API simplicity.
+    // To track regions, use scopes.
     private final class SubText implements StyledText {
 
-        final int start, end;
+        int start, end;
 
         SubText(int start, int end) {
             this.start = start;
@@ -216,6 +223,33 @@ public class DefaultStyledText implements StyledText {
         public void replace(int start, int end, Style s, String plaintext) {
             Objects.checkFromToIndex(start, end, length());
             DefaultStyledText.this.replace(this.start + start, this.start + end, s, plaintext);
+            update(this.start + start, this.start + end, plaintext.length(), SubText.this);
+        }
+
+        private void update(final int start, final int end, final int newLength, final SubText scope) {
+            assert start <= end;
+            assert scope.start <= scope.end;
+            assert newLength >= 0;
+            if (end <= scope.start) {
+                final int diff = newLength - (end - start);
+                scope.start += diff;
+                scope.end += diff;
+            } else if (scope.end <= start) {
+                // no-op
+            } else { // intersection
+                final int intersection_len = min(end, scope.end) - max(start, scope.start);
+                int len = scope.end - scope.start;
+                if (scope.start <= start && end <= scope.end) {
+                    scope.end += newLength - (end - start);
+                } else {
+                    if (start <= scope.start) {
+                        scope.start = start + newLength;
+                    } else if (end < scope.end) {
+                        len += newLength;
+                    }
+                    scope.end = scope.start + len - intersection_len;
+                }
+            }
         }
 
         @Override

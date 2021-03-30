@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -90,17 +90,6 @@ public class Replace implements Action {
             Replacement r = replacements.get(i);
             // TODO we can use a different style, e.g. that of at (r.start - 1)
             text.replace(r.start, r.end, Style.none(), r.value);
-        }
-    }
-
-    private static final class Replacement {
-        final int start, end;
-        final String value;
-
-        Replacement(int start, int end, String value) {
-            this.start = start;
-            this.end = end;
-            this.value = value;
         }
     }
 }
