@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,10 @@ import com.sun.source.doctree.TagAttributeTree;
 import com.sun.source.doctree.TextTree;
 import jdk.javadoc.doclet.Taglet;
 import jdk.javadoc.internal.doclets.toolkit.Content;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Action;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser.ParseException;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser.Parser;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ModuleElement;
@@ -48,7 +52,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class SnippetTaglet extends BaseTaglet {
@@ -60,9 +63,9 @@ public class SnippetTaglet extends BaseTaglet {
     /*
      * A snippet can specify content by value or by reference.
      *
-     * To specify content by value, a snippet uses its body. The body of a snippet is the content.
-     * To specify content by reference, a snippet uses either the "class" or "file" attribute.
-     * The value of that attribute refers to the content.
+     * To specify content by value, a snippet uses its body; the body of a snippet is the content.
+     * To specify content by reference, a snippet uses either the "class" or "file" attribute;
+     * the value of that attribute refers to the content.
      *
      * A snippet can specify the "region" attribute. That attribute refines
      * The value of that attribute must match one of the named regions in the snippets content.
@@ -114,10 +117,10 @@ public class SnippetTaglet extends BaseTaglet {
             }
         }
 
-        String content1 = null, content2 = null;
+        String inlineContent = null, externalContent = null;
 
         if (containsBody) {
-            content1 = snippetTag.getBody().getBody().stripIndent();
+            inlineContent = snippetTag.getBody().getBody().stripIndent();
         }
 
         if (containsFile || containsClass) {
@@ -166,7 +169,7 @@ public class SnippetTaglet extends BaseTaglet {
 
             Path path = fileManager.asPath(fileObject);
             try {
-                content2 = Files.readString(path); // FIXME don't read file every single time; cache it
+                externalContent = Files.readString(path); // FIXME don't read file every single time; cache it
             } catch (IOException e) {
                 // FIXME: provide more context (the snippet, its attribute, and its attributes' value)
                 error(writer, holder, tag, "doclet.exception.read.file", path, e.getCause());
@@ -175,111 +178,60 @@ public class SnippetTaglet extends BaseTaglet {
         }
 
 
-        // The region must be matched at least in one content: it can be matched
-        // in both, but never in none
+        StyledText inlineSnippet = null;
+        StyledText externalSnippet = null;
 
-        if (r != null) {
-            String r1 = null, r2 = null;
-            if (content1 != null) {
-                r1 = cutRegion(r, content1);
-                if (r1 != null) {
-                    content1 = r1;
+        try {
+            if (inlineContent != null) {
+                inlineSnippet = parse(inlineContent);
+            }
+            if (externalContent != null) {
+                externalSnippet = parse(externalContent);
+            }
+            // The region must be matched at least in one content: it can be matched
+            // in both, but never in none
+            if (r != null) {
+                if (inlineSnippet != null) {
+                    inlineSnippet = zoomIntoRegion(r, inlineSnippet);
+                }
+                if (externalSnippet != null) {
+                    externalSnippet = zoomIntoRegion(r, externalSnippet);
+                }
+                if (inlineSnippet == null && externalSnippet == null) {
+                    error(writer, holder, tag, "doclet.snippet.region.not_found", r);
+                    return null;
                 }
             }
-            if (content2 != null) {
-                r2 = cutRegion(r, content2);
-                if (r2 != null) {
-                    content2 = r2;
-                }
-            }
-            if (r1 == null && r2 == null) {
-                error(writer, holder, tag, "doclet.snippet.region.not_found", r);
-                return null;
-            }
+        } catch (ParseException e) {
+            error(writer, holder, region, "doclet.snippet.markup", e.getMessage());
+            return null;
         }
 
-        if (content1 != null && content2 != null) {
-            if (!Objects.equals(content1, content2)) {
+        if (inlineSnippet != null && externalSnippet != null) {
+            if (!Objects.equals(inlineSnippet.asCharSequence().toString(),
+                                externalSnippet.asCharSequence().toString())) {
                 error(writer, holder, tag, "doclet.snippet.contents.mismatch");
                 return null;
             }
         }
 
-        assert content1 != null || content2 != null;
+        assert inlineSnippet != null || externalSnippet != null;
+        StyledText text = inlineSnippet != null ? inlineSnippet : externalSnippet;
 
-        String content = content1 != null ? content1 : content2;
-
-        content = content.replaceAll("//\\h*snippet-comment\\h*:( )?(?<content>.+\\R?)", "${content}");
-        // This can be the last line, hence newline is optional ~~~~~~~~~~~~~~~~~~~~^
-
-        // FIXME
-        //   Overall, this regex-based mechanics won't fly; we need a proper parser.
-        //   For example, this "shielding" won't work:
-        //       // snippet-comment : // snippet-region-start : here
-
-        return writer.snippetTagOutput(holder, snippetTag, content);
+        return writer.snippetTagOutput(holder, snippetTag, text);
     }
 
-    private String cutRegion(String r, String content) {
-        // FIXME
-        //   Although this might be considered as an experiment for deciding
-        //   whether or not to give snippet users a regex to specify the
-        //   region, as the default implementation this is needlessly
-        //   complex (just like this sentence) and needs to be revisited
-        /*
-         * The regex that finds a content region is created from a template.
-         * This is done in hope that the template would be more readable
-         * than the regex.
-         *
-         * 1. The template is created by concatenating two lines to mimic
-         *    the multi-line nature of a region matched by the regex
-         * 2. Literal whitespace characters " " are replaced by optional
-         *    regex whitespace "\\h*"
-         * 3. START and STOP markers are inserted
-         * 4. Finally, a pattern is compiled from the resulting regex
-         *    using the DOTALL constant. (The flag expression "(?s)" is not
-         *    embedded into the regex for readability.)
-         *
-         * Steps 2 and 3 have to be done in that exact order. This is
-         * because markers can contain literal whitespace.
-         */
-        final String START = "snippet-region-start";
-        final String STOP = "snippet-region-stop";
+    private StyledText zoomIntoRegion(String r, StyledText t) {
+        var z = t.getBookmark(r);
+        return z != null ? z : t;
+    }
 
-        String template =
-
-                // Using a "non-vertical whitespace character" because "."
-                // will match a line-break too
-                //   ~~~~~~~~~~~v
-                "// %s : (%s)(\\h+\\V*)?\\R" +
-                        "(?<region>.*?)// %s : \\1\\b";
-
-        var regex = template
-                .replace(" ", "\\h*")
-                .formatted("\\Q" + START + "\\E", // FIXME: Use Pattern.quote
-                           "\\Q" + r + "\\E",
-                           "\\Q" + STOP + "\\E");
-
-        var matcher = Pattern.compile(regex, Pattern.DOTALL).matcher(content);
-
-        if (!matcher.find())
-            return null;
-
-        String group = matcher.group("region");
-        assert group != null; // The regex is created in such a way that the null-group is impossible
-
-        // Strip marker comments:
-        String markerTemplate = "// (%s|%s) :.++";
-        // Note the greedy match ~~~~~~~~~~~~~~^
-
-        String markerRegex = markerTemplate
-                .replace(" ", "\\h*")
-                .formatted("\\Q" + START + "\\E", "\\Q" + STOP + "\\E");
-
-        // The order of operations is important: stripIndent happens after the markers have been removed
-        return group
-                .replaceAll(markerRegex, "")
-                .stripIndent();
+    private StyledText parse(String content) throws ParseException {
+        // TODO: need to be able to process more fine-grained, i.e. around a particular region...
+        // or, which is even better, cache the styled text
+        Parser.Result result = new Parser().parse(content);
+        result.actions().forEach(Action::perform);
+        return result.text();
     }
 
     private static String stringOf(List<? extends DocTree> value) {
@@ -289,6 +241,7 @@ public class SnippetTaglet extends BaseTaglet {
     }
 
     // FIXME: figure out how to do that correctly
+    // FIXME: consider returning null from this method so it can be used as oneliner
     private void error(TagletWriter writer, Element holder, DocTree tag, String key, Object... args) {
         writer.configuration().getMessages().error(
                 writer.configuration().utils.getCommentHelper(holder).getDocTreePath(tag), key, args);

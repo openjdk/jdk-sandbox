@@ -844,3 +844,16 @@ pre.snippet {
     overflow: auto;
     white-space: pre;
 }
+
+.italic {
+    font-style: italic;
+}
+
+.bold {
+    font-weight: bold;
+}
+
+.highlighted {
+    background-color: sandybrown;
+    border-radius: 10%;
+}

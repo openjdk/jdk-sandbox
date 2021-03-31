@@ -26,6 +26,7 @@
 package jdk.javadoc.internal.doclets.formats.html;
 
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -63,6 +64,8 @@ import jdk.javadoc.internal.doclets.toolkit.Resources;
 import jdk.javadoc.internal.doclets.toolkit.builders.SerializedFormBuilder;
 import jdk.javadoc.internal.doclets.toolkit.taglets.ParamTaglet;
 import jdk.javadoc.internal.doclets.toolkit.taglets.TagletWriter;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Style;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
 import jdk.javadoc.internal.doclets.toolkit.util.CommentHelper;
 import jdk.javadoc.internal.doclets.toolkit.util.DocLink;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
@@ -375,9 +378,29 @@ public class TagletWriterImpl extends TagletWriter {
     }
 
     @Override
-    protected Content snippetTagOutput(Element element, SnippetTree tag, String content) {
-        CharSequence text = utils.normalizeNewlines('\n' + content);
-        return new HtmlTree(TagName.PRE).setStyle(HtmlStyle.snippet).add(text);
+    protected Content snippetTagOutput(Element element, SnippetTree tag, StyledText content) {
+        HtmlTree result = new HtmlTree(TagName.PRE).setStyle(HtmlStyle.snippet);
+        content.consumeBy((sequence, start, end, style) -> {
+            if (style == Style.none()) {
+                result.add(sequence.subSequence(start, end));
+            } else {
+                Set<String> classes = new HashSet<>();
+                for (Style s : style.getStyles()) {
+                    if (s instanceof Style.Name) {
+                        classes.add(((Style.Name) s).getName());
+                    } else if (s instanceof Style.Link) {
+                        throw new UnsupportedOperationException("Not yet!");
+                    } else {
+                        // TODO wait for sealed types for exhaustiveness
+                        throw new AssertionError(style);
+                    }
+                }
+                // TODO: HtmlStyle is a enum and thus a set of fixed values; figure out how to do this right
+                String styles = String.join(" ", classes);
+                result.add(new RawHtml("<span class=\"%s\">%s</span>".formatted(styles, sequence.subSequence(start, end))));
+            }
+        });
+        return result;
     }
 
     @Override

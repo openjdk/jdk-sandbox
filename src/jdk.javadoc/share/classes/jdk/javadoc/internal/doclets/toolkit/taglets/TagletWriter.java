@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@ import com.sun.source.doctree.ThrowsTree;
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.taglets.Taglet.UnsupportedTagletOperationException;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
 import jdk.javadoc.internal.doclets.toolkit.util.CommentHelper;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
 
@@ -183,7 +184,7 @@ public abstract class TagletWriter {
      *
      * @return the output
      */
-    protected abstract Content snippetTagOutput(Element element, SnippetTree snippetTag, String content);
+    protected abstract Content snippetTagOutput(Element element, SnippetTree snippetTag, StyledText text);
 
     /**
      * Returns the output for a {@code {@systemProperty...}} tag.
