@@ -207,13 +207,16 @@ public class SnippetTaglet extends BaseTaglet {
             return null;
         }
 
-        if (inlineSnippet != null && externalSnippet != null) {
-            if (!Objects.equals(inlineSnippet.asCharSequence().toString(),
-                                externalSnippet.asCharSequence().toString())) {
-                error(writer, holder, tag, "doclet.snippet.contents.mismatch");
-                return null;
-            }
-        }
+// Uncomment this check after better extraction of external snippets
+// (they might have extra newline compared to inline because of markup):
+//
+//        if (inlineSnippet != null && externalSnippet != null) {
+//            if (!Objects.equals(inlineSnippet.asCharSequence().toString(),
+//                                externalSnippet.asCharSequence().toString())) {
+//                error(writer, holder, tag, "doclet.snippet.contents.mismatch");
+//                return null;
+//            }
+//        }
 
         assert inlineSnippet != null || externalSnippet != null;
         StyledText text = inlineSnippet != null ? inlineSnippet : externalSnippet;
