@@ -43,6 +43,7 @@ import javax.lang.model.util.SimpleElementVisitor14;
 import com.sun.source.doctree.DeprecatedTree;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.IndexTree;
+import com.sun.source.doctree.LinkTree;
 import com.sun.source.doctree.LiteralTree;
 import com.sun.source.doctree.ParamTree;
 import com.sun.source.doctree.ReturnTree;
@@ -386,20 +387,32 @@ public class TagletWriterImpl extends TagletWriter {
             if (style == Style.none()) {
                 result.add(text);
             } else {
+                LinkTree link = null;
+                boolean linkEncountered = false;
                 Set<String> classes = new HashSet<>();
                 for (Style s : style.getStyles()) {
                     if (s instanceof Style.Name) {
                         classes.add(((Style.Name) s).getName());
                     } else if (s instanceof Style.Link) {
-                        throw new UnsupportedOperationException("Not yet!");
+                        assert !linkEncountered; // one link is enough
+                        linkEncountered = true;
+                        String target = ((Style.Link) s).getTarget();
+                        // fabrication of a LinkTree node
+                        link = configuration.cmtUtils.makeLinkTree(target, sequence.subSequence(start, end).toString());
                     } else {
                         // TODO wait for sealed types for exhaustiveness
                         throw new AssertionError(style);
                     }
                 }
-                // TODO: HtmlStyle is a enum and thus a set of fixed values; figure out how to do this right
-                String styles = String.join(" ", classes);
-                result.add(new RawHtml("<span class=\"%s\">%s</span>".formatted(styles, text)));
+                Content c;
+                if (linkEncountered) {
+                    assert link != null;
+                    c = htmlWriter.seeTagToContent(element, link, new Context(false, false));
+                } else {
+                    c = HtmlTree.SPAN(Text.of(sequence.subSequence(start, end)));
+                }
+                result.add(c);
+                classes.forEach(((HtmlTree) c)::addStyle);
             }
         });
         return result;

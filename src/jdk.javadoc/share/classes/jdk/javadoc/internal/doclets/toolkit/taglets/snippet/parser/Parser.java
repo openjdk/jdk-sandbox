@@ -73,6 +73,7 @@ import java.util.stream.Collectors;
  */
 // FIXME: How to treat Form Feed? (i.e. is it vertical or horizontal whitespace?)
 // FIXME: what to do with lines not covered by any markup? (i.e. in between markup)
+// FIXME: all parsing errors must be localized.
 public final class Parser {
 
     //                  v next line
@@ -217,7 +218,20 @@ public final class Parser {
             }
 
             switch (i.name()) {
-//                case "link" -> actions.add(new Restyle());
+                case "link" -> {
+                    String target = i.attributes().get("target");
+                    if (target == null) {
+                        throw new ParseException("target is absent");
+                    }
+                    String type = i.attributes().getOrDefault("type", "link");
+                    if (!type.equals("link") && !type.equals("linkplain")) {
+                        throw new ParseException("Unknown link type: '%s'".formatted(type));
+                    }
+                    Restyle a = new Restyle(s -> s.and(Style.link(target)),
+                                            Pattern.compile(regex),
+                                            text.select(i.start(), i.end()));
+                    actions.add(a);
+                }
                 case "replace" -> {
                     String replacement = i.attributes().get("replacement");
                     if (replacement == null) {
