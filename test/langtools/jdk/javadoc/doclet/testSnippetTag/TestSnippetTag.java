@@ -795,11 +795,11 @@ public class TestSnippetTag extends JavadocTester {
         final Map<Snippet, String> testCases = Map.ofEntries(
                 entry(newSnippetBuilder()
                               .body("""
-                                    // snippet-region-start : here
+                                    // @start here :
                                     Hello
                                     ,
                                      Snippet!
-                                    // snippet-region-stop : here
+                                    // @end here
                                     """)
                               .region("here")
                               .build(),
@@ -812,11 +812,11 @@ public class TestSnippetTag extends JavadocTester {
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                        // snippet-region-start : here
+                                        // @start here :
                                         Hello
                                         ,
                                          Snippet!
-                                    // snippet-region-stop : here
+                                    // @end here
                                         """)
                               .region("here")
                               .build(),
@@ -828,10 +828,10 @@ public class TestSnippetTag extends JavadocTester {
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                        // snippet-region-start : here
+                                        // @start here :
                                         Hello
                                         ,
-                                         Snippet!// snippet-region-stop : here
+                                         Snippet!// @end here
                                     """)
                               .region("here")
                               .build(),
@@ -844,14 +844,14 @@ public class TestSnippetTag extends JavadocTester {
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                    // snippet-region-start : there
-                                    // snippet-region-stop : there
+                                    // @start there :
+                                    // @end there
 
-                                        // snippet-region-start : here
+                                        // @start here :
                                         Hello
                                         ,
                                          Snippet!
-                                        // snippet-region-stop : here
+                                        // @end here
                                            """)
                               .region("here")
                               .build(),
@@ -862,31 +862,31 @@ public class TestSnippetTag extends JavadocTester {
                       """
                 )
                 ,
+//                entry(newSnippetBuilder()
+//                              .body("""
+//                                    // @start here :
+//                                        Hello
+//                                    // @end here
+//
+//                                         , Snippet!
+//                                    // @end
+//                                        """)
+//                              .region("here")
+//                              .build()
+//                        ,
+//                      """
+//                          Hello
+//                      """
+//                )
+//                ,
                 entry(newSnippetBuilder()
                               .body("""
-                                    // snippet-region-start : here
-                                        Hello
-                                    // snippet-region-stop : here
-
-                                         , Snippet!
-                                    // snippet-region-stop : here
-                                        """)
-                              .region("here")
-                              .build()
-                        ,
-                      """
-                          Hello
-                      """
-                )
-                ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                    // snippet-region-start : here
+                                    // @start here :
                                         This is the only line you should see.
-                                    // snippet-region-stop : here
-                                    // snippet-region-start : hereafter
+                                    // @end here
+                                    // @start hereafter :
                                         You should NOT see this.
-                                    // snippet-region-stop : hereafter
+                                    // @end hereafter
                                         """)
                               .region("here")
                               .build(),
@@ -897,12 +897,12 @@ public class TestSnippetTag extends JavadocTester {
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                    // snippet-region-start : here
+                                    // @start here :
                                         You should NOT see this.
-                                    // snippet-region-stop : here
-                                    // snippet-region-start : hereafter
+                                    // @end here
+                                    // @start hereafter :
                                         This is the only line you should see.
-                                    // snippet-region-stop : hereafter
+                                    // @end hereafter
                                         """)
                               .region("hereafter")
                               .build(),
@@ -913,12 +913,12 @@ public class TestSnippetTag extends JavadocTester {
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                    // snippet-region-start : beforehand
+                                    // @start beforehand :
                                         You should NOT see this.
-                                    // snippet-region-stop : beforehand
-                                    // snippet-region-start : before
+                                    // @end beforehand
+                                    // @start before :
                                         This is the only line you should see.
-                                    // snippet-region-stop : before
+                                    // @end before
                                         """)
                               .region("before")
                               .build(),
@@ -929,12 +929,12 @@ public class TestSnippetTag extends JavadocTester {
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                    // snippet-region-start : beforehand
+                                    // @start beforehand :
                                         This is the only line you should see.
-                                    // snippet-region-stop : beforehand
-                                    // snippet-region-start : before
+                                    // @end beforehand
+                                    // @start before :
                                         You should NOT see this.
-                                    // snippet-region-stop : before
+                                    // @end before
                                         """)
                               .region("beforehand")
                               .build(),
@@ -997,7 +997,7 @@ public class TestSnippetTag extends JavadocTester {
         final Map<Snippet, String> testCases = Map.ofEntries(
                 entry(newSnippetBuilder()
                               .body("""
-                                    // snippet-comment : Hello
+                                    // // @replace substring="//" replacement="Hello"
                                     ,
                                      Snippet!""")
                               .build(),
@@ -1009,7 +1009,7 @@ public class TestSnippetTag extends JavadocTester {
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                    // snippet-comment :Hello
+                                    //             // @replace substring="//" replacement="Hello"
                                     ,
                                      Snippet!""")
                               .build(),
@@ -1021,7 +1021,7 @@ public class TestSnippetTag extends JavadocTester {
                 ,
                 entry(newSnippetBuilder()
                               .body("""
-                                    // snippet-comment :  Hello
+                                    // // @replace substring="//" replacement=" Hello"
                                     ,
                                      Snippet!""")
                               .build(),
@@ -1030,14 +1030,17 @@ public class TestSnippetTag extends JavadocTester {
                       ,
                        Snippet!"""
                 )
-                ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                    // snippet-comment : // snippet-comment : my comment""")
-                              .build(),
-                      """
-                      // snippet-comment : my comment"""
-                )
+// Uncomment when parser has improved (this would allow to write meta snippets,
+// i.e. snippets showing how to write snippets.
+//
+//                ,
+//                entry(newSnippetBuilder()
+//                              .body("""
+//                                    // snippet-comment : // snippet-comment : my comment""")
+//                              .build(),
+//                      """
+//                      // snippet-comment : my comment"""
+//                )
         );
 
         Path srcDir = base.resolve("src");
@@ -1203,9 +1206,9 @@ public class TestSnippetTag extends JavadocTester {
                                 .setComments("""
                                              {@snippet region="%s" file="%s":
                                              Above the region.
-                                             // snippet-region-start : %s
+                                             // @start %s :
                                              %s ...more
-                                             // snippet-region-stop : %s
+                                             // @end %s
                                              Below the region}
                                              """.formatted(region, fileName, region, content, region)))
                 .write(srcDir);
@@ -1213,9 +1216,9 @@ public class TestSnippetTag extends JavadocTester {
         addSnippetFile(srcDir, "pkg", fileName,
                        """
                        This line is above the region.
-                       // snippet-region-start : %s
+                       // @start %s :
                        %s
-                       // snippet-region-stop : %s
+                       // @end %s
                        This line is below the region.""".formatted(region, content, region));
 
         javadoc("-d", outDir.toString(),
@@ -1248,9 +1251,9 @@ public class TestSnippetTag extends JavadocTester {
                                 .setComments("""
                                              {@snippet region="%s" file="%s":
                                              Above the region.
-                                             // snippet-region-start : %s
+                                             // @start %s :
                                              %s ...more
-                                             // snippet-region-stop : %s
+                                             // @end %s
                                              Below the region}
                                              """.formatted(region, fileName, region, content, region)))
                 .write(srcDir);
@@ -1293,9 +1296,9 @@ public class TestSnippetTag extends JavadocTester {
         addSnippetFile(srcDir, "pkg", fileName,
                        """
                        Above the region.
-                       // snippet-region-start : %s
+                       // @start %s :
                        %s ...more
-                       // snippet-region-stop : %s
+                       // @end %s
                        Below the region
                        """.formatted(region, content, region));
 
@@ -1340,11 +1343,11 @@ public class TestSnippetTag extends JavadocTester {
                               .fileContent(
                                       """
                                       Above the region.
-                                      // snippet-region-start : here
+                                      // @start here :
                                         Hello
                                         ,
                                          Snippet!
-                                      // snippet-region-stop : here
+                                      // @end here
                                       Below the region.
                                       """)
                               .build(),
@@ -1358,11 +1361,11 @@ public class TestSnippetTag extends JavadocTester {
                 entry(newSnippetBuilder()
                               .body("""
                                     Above the region.
-                                    // snippet-region-start : here
+                                    // @start here :
                                       Hello
                                       ,
                                        Snippet!
-                                    // snippet-region-stop : here
+                                    // @end here
                                     Below the region.
                                     """)
                               .region("here")
@@ -1383,22 +1386,22 @@ public class TestSnippetTag extends JavadocTester {
                 entry(newSnippetBuilder()
                               .body("""
                                     Above the region.
-                                    // snippet-region-start : here
+                                    // @start here :
                                       Hello
                                       ,
                                        Snippet!
-                                    // snippet-region-stop : here
+                                    // @end here
                                     Below the region.
                                     """)
                               .region("here")
                               .fileContent(
                                       """
                                       Above the region.
-                                      // snippet-region-start : here
+                                      // @start here :
                                         Hello
                                         ,
                                          Snippet!
-                                      // snippet-region-stop : here
+                                      // @end here
                                       Below the region.
                                       """)
                               .build(),

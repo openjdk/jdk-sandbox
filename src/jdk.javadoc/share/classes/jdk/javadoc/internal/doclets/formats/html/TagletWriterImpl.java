@@ -380,9 +380,11 @@ public class TagletWriterImpl extends TagletWriter {
     @Override
     protected Content snippetTagOutput(Element element, SnippetTree tag, StyledText content) {
         HtmlTree result = new HtmlTree(TagName.PRE).setStyle(HtmlStyle.snippet);
+        result.add(Text.of("\n"));
         content.consumeBy((sequence, start, end, style) -> {
+            CharSequence text = utils.normalizeNewlines(sequence.subSequence(start, end));
             if (style == Style.none()) {
-                result.add(sequence.subSequence(start, end));
+                result.add(text);
             } else {
                 Set<String> classes = new HashSet<>();
                 for (Style s : style.getStyles()) {
@@ -397,7 +399,7 @@ public class TagletWriterImpl extends TagletWriter {
                 }
                 // TODO: HtmlStyle is a enum and thus a set of fixed values; figure out how to do this right
                 String styles = String.join(" ", classes);
-                result.add(new RawHtml("<span class=\"%s\">%s</span>".formatted(styles, sequence.subSequence(start, end))));
+                result.add(new RawHtml("<span class=\"%s\">%s</span>".formatted(styles, text)));
             }
         });
         return result;

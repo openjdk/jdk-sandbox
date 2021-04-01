@@ -191,13 +191,21 @@ public class SnippetTaglet extends BaseTaglet {
             // The region must be matched at least in one content: it can be matched
             // in both, but never in none
             if (r != null) {
+                StyledText r1 = null;
+                StyledText r2 = null;
                 if (inlineSnippet != null) {
-                    inlineSnippet = zoomIntoRegion(r, inlineSnippet);
+                    r1 = inlineSnippet.getBookmark(r);
+                    if (r1 != null) {
+                        inlineSnippet = r1;
+                    }
                 }
                 if (externalSnippet != null) {
-                    externalSnippet = zoomIntoRegion(r, externalSnippet);
+                    r2 = externalSnippet.getBookmark(r);
+                    if (r2 != null) {
+                        externalSnippet = r2;
+                    }
                 }
-                if (inlineSnippet == null && externalSnippet == null) {
+                if (r1 == null && r2 == null) {
                     error(writer, holder, tag, "doclet.snippet.region.not_found", r);
                     return null;
                 }
@@ -207,26 +215,18 @@ public class SnippetTaglet extends BaseTaglet {
             return null;
         }
 
-// Uncomment this check after better extraction of external snippets
-// (they might have extra newline compared to inline because of markup):
-//
-//        if (inlineSnippet != null && externalSnippet != null) {
-//            if (!Objects.equals(inlineSnippet.asCharSequence().toString(),
-//                                externalSnippet.asCharSequence().toString())) {
-//                error(writer, holder, tag, "doclet.snippet.contents.mismatch");
-//                return null;
-//            }
-//        }
+        if (inlineSnippet != null && externalSnippet != null) {
+            if (!Objects.equals(inlineSnippet.asCharSequence().toString(),
+                                externalSnippet.asCharSequence().toString())) {
+                error(writer, holder, tag, "doclet.snippet.contents.mismatch");
+                return null;
+            }
+        }
 
         assert inlineSnippet != null || externalSnippet != null;
         StyledText text = inlineSnippet != null ? inlineSnippet : externalSnippet;
 
         return writer.snippetTagOutput(holder, snippetTag, text);
-    }
-
-    private StyledText zoomIntoRegion(String r, StyledText t) {
-        var z = t.getBookmark(r);
-        return z != null ? z : t;
     }
 
     private StyledText parse(String content) throws ParseException {

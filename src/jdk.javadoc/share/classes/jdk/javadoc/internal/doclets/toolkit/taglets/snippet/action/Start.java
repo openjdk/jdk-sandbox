@@ -55,7 +55,14 @@ public class Start implements Action {
         StyledText text = texts.next();
         assert !texts.hasNext();
         stripLeadingIncidentalWhitespace(text);
-        text.setBookmark(name, 0, text.length()); // TODO: revisit this logic
+        int len = text.length();
+        String str = text.asCharSequence().toString();
+        if (str.endsWith("\r\n")) {
+            len -= 2;
+        } else if (str.endsWith("\n") || str.endsWith("\r")) {
+            len -= 1;
+        }
+        text.setBookmark(name, 0, len);
     }
 
     // Unfortunately, the region cannot be simply replaced with result of
