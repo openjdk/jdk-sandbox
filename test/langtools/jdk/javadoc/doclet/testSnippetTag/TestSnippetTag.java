@@ -86,6 +86,14 @@ public class TestSnippetTag extends JavadocTester {
 
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
+                // Empty
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void case00() { }")
+                                .setComments("""
+                                             {@snippet :
+                                             }
+                                             """))
                 // Basic
                 .addMembers(
                         MethodBuilder

@@ -163,7 +163,8 @@ public class DefaultStyledText implements StyledText {
         int endRegion = styles.regionIndexOf(end);
 
         if (startRegion == endRegion) { // exactly 1 call
-            consumer.consume(sequence, start, end, styles.runs.get(startRegion).e);
+            Style style = length() == 0 ? Style.none() : styles.runs.get(startRegion).e;
+            consumer.consume(sequence, start, end, style);
         } else {                        // 1 or more calls
             assert startRegion < endRegion;
             consumer.consume(sequence, start, styles.runs.get(startRegion + 1).start, styles.runs.get(startRegion).e); // 1st call

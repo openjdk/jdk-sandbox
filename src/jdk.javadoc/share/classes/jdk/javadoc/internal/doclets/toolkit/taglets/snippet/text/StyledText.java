@@ -65,12 +65,18 @@ public interface StyledText {
 
     CharSequence asCharSequence();
 
-    // Selects a text portion to keep track of it; it will be consistently updated.
+    /*
+     * Selects a text portion to keep track of it; it will be consistently updated.
+     * Once not needed, the scope is disposed automatically.
+     */
     Scope select(int start, int end);
 
     // Aims to efficiently provide text (in bulk) for consumption; there's NO
     // guarantee as to a CharSequence is the longest possible for this style;
     // consumers should concatenate as required.
+    /*
+     * The text always calls consumer at least once; even if the text is empty.
+     */
     default void consumeBy(StyledTextConsumer consumer) {
         CharSequence seq = asCharSequence();
         for (int i = 0; i < length(); i++) {
