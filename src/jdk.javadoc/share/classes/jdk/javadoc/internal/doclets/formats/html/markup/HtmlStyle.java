@@ -87,6 +87,16 @@ public enum HtmlStyle {
     typeNameLink,
     verticalSeparator,
 
+    //<editor-fold desc="not-yet-categorized">
+    //
+    // The following constants are to be categorized.
+
+    /**
+     * The class of the {@code pre} element presenting a snippet.
+     */
+    snippet,
+    //</editor-fold>
+
     //<editor-fold desc="navigation bar">
     //
     // The following constants are used for the main navigation bar that appears in the
@@ -720,10 +730,6 @@ public enum HtmlStyle {
      */
     treePage,
 
-    /**
-     * The class of the {@code pre} element presenting a snippet.
-     */
-    snippet,
     //</editor-fold>
 
     //<editor-fold desc="page styles for <body> elements">
