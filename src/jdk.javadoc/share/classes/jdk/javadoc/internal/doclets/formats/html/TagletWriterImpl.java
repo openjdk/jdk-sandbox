@@ -391,12 +391,12 @@ public class TagletWriterImpl extends TagletWriter {
                 boolean linkEncountered = false;
                 Set<String> classes = new HashSet<>();
                 for (Style s : style.getStyles()) {
-                    if (s instanceof Style.Name) {
-                        classes.add(((Style.Name) s).getName());
-                    } else if (s instanceof Style.Link) {
+                    if (s instanceof Style.Name n) {
+                        classes.add(n.getName());
+                    } else if (s instanceof Style.Link l) {
                         assert !linkEncountered; // one link is enough
                         linkEncountered = true;
-                        String target = ((Style.Link) s).getTarget();
+                        String target = l.getTarget();
                         // fabrication of a LinkTree node
                         link = configuration.cmtUtils.makeLinkTree(target, sequence.subSequence(start, end).toString());
                     } else {
