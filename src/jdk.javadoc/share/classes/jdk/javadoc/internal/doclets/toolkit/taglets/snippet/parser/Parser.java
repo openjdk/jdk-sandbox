@@ -34,16 +34,15 @@ import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Style;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /*
  * Semantics of a EOL comment; plus
@@ -105,7 +104,7 @@ public final class Parser {
     private final InstructionParser markupParser = new InstructionParser();
 
     // Incomplete actions waiting for their complementary @end
-    private final Map<String, Instruction> unpaired = new HashMap<>();
+    private final Regions regions = new Regions();
     // List of instructions; consumed from top to bottom
     private final Queue<Instruction> instructions = new LinkedList<>();
 
@@ -132,7 +131,7 @@ public final class Parser {
         }
 
         instructions.clear();
-        unpaired.clear();
+        regions.clear();
 
         Queue<Action> actions = new LinkedList<>();
 
@@ -191,72 +190,74 @@ public final class Parser {
         }
 
         // also report on unpaired with corresponding `end` or unknown instructions
-        if (!unpaired.isEmpty()) {
-            throw new ParseException("Unpaired regions: " +
-                                             unpaired.values()
-                                                     .stream()
-                                                     .map(i -> i.regionIdentifier)
-                                                     .collect(Collectors.joining(", ")));
+        if (!regions.isEmpty()) {
+            throw new ParseException("Unpaired region(s)");
         }
 
         for (var i : instructions) {
 
-            assert nonNullValues(i.attributes()) : i.attributes();
+            // Translate a list of attributes into a more convenient form
+            Attributes attributes = new Attributes(i.attributes());
 
-            if (!i.name().equals("start")
-                    && i.attributes().containsKey("substring")
-                    && i.attributes.containsKey("regex")) {
+            final var substring = attributes.get("substring", Attribute.Valued.class);
+            final var regex = attributes.get("regex", Attribute.Valued.class);
+
+            if (!i.name().equals("start") && substring.isPresent() && regex.isPresent()) {
                 throw new ParseException("'substring' and 'regex' cannot be used simultaneously");
             }
 
-            String substring = i.attributes().get("substring");
-            String regex;
-            if (substring != null) {
-                regex = Pattern.quote(substring);
-            } else if ((regex = i.attributes().get("regex")) == null) {
-                regex = "(?s).+";
+            String regexValue;
+            if (substring.isPresent()) {
+                regexValue = Pattern.quote(substring.get().value());
+            } else if (regex.isPresent()) {
+                regexValue = regex.get().value();
+            } else {
+                regexValue = "(?s).+";
             }
 
             switch (i.name()) {
                 case "link" -> {
-                    String target = i.attributes().get("target");
-                    if (target == null) {
-                        throw new ParseException("target is absent");
+                    var target = attributes.get("target", Attribute.Valued.class)
+                            .orElseThrow(() -> new ParseException("target is absent"));
+                    var type = attributes.get("type", Attribute.Valued.class);
+                    String typeValue = type.isPresent() ? type.get().value() : "link";
+                    if (!typeValue.equals("link") && !typeValue.equals("linkplain")) {
+                        throw new ParseException("Unknown link type: '%s'".formatted(typeValue));
                     }
-                    String type = i.attributes().getOrDefault("type", "link");
-                    if (!type.equals("link") && !type.equals("linkplain")) {
-                        throw new ParseException("Unknown link type: '%s'".formatted(type));
-                    }
-                    Restyle a = new Restyle(s -> s.and(Style.link(target)),
-                                            Pattern.compile(regex),
+                    Restyle a = new Restyle(s -> s.and(Style.link(target.value())),
+                                            Pattern.compile(regexValue),
                                             text.select(i.start(), i.end()));
                     actions.add(a);
                 }
                 case "replace" -> {
-                    String replacement = i.attributes().get("replacement");
-                    if (replacement == null) {
-                        throw new ParseException("replacement is absent");
-                    }
-                    Replace a = new Replace(replacement,
-                                            Pattern.compile(regex),
+                    var replacement = attributes.get("replacement", Attribute.Valued.class)
+                            .orElseThrow(() -> new ParseException("replacement is absent"));
+                    Replace a = new Replace(replacement.value(),
+                                            Pattern.compile(regexValue),
                                             text.select(i.start(), i.end()));
                     actions.add(a);
                 }
                 case "highlight" -> {
-                    String type = i.attributes().getOrDefault("type", "bold");
-                    Restyle a = new Restyle(s -> s.and(Style.name(type)),
-                                            Pattern.compile(regex),
+                    var type = attributes.get("type", Attribute.Valued.class);
+
+                    String typeValue = type.isPresent() ? type.get().value() : "bold";
+
+                    Restyle a = new Restyle(s -> s.and(Style.name(typeValue)),
+                                            Pattern.compile(regexValue),
                                             text.select(i.start(), i.end()));
                     actions.add(a);
                 }
                 case "start" -> {
-                    if (i.regionIdentifier.isEmpty()) {
-                        throw new ParseException("Unnamed start");
+                    var region = attributes.get("region", Attribute.Valued.class)
+                            .orElseThrow(() -> new ParseException("Unnamed start"));
+                    String regionValue = region.value();
+                    if (regionValue.isBlank()) {
+                        throw new ParseException("Blank region name");
                     }
-                    if (!i.attributes().isEmpty()) {
-                        throw new ParseException("Unexpected attributes: " + String.join(", ", i.attributes.keySet()));
+                    if (i.attributes().size() != 1) {
+                        throw new ParseException("Unexpected attributes");
                     }
-                    actions.add(new Start(i.regionIdentifier(), text.select(i.start(), i.end()), i.position));
+                    actions.add(new Start(region.value(), text.select(i.start(), i.end()), i.position));
                 }
             }
         }
@@ -264,36 +265,40 @@ public final class Parser {
         return new Result(text, actions);
     }
 
-    // A map that passes this test has the following property:
-    //     a.containsKey(x) == (a.get(x) == null)
-    private static boolean nonNullValues(Map<String, String> attributes) {
-        for (String v : attributes.values()) {
-            if (v == null) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private void processInstruction(Instruction i) throws ParseException {
+
+        Attributes attributes = new Attributes(i.attributes()); // FIXME: we create them twice
+        Optional<Attribute> region = attributes.get("region", Attribute.class);
+
         if (!i.name().equals("end")) {
             instructions.add(i);
-            if (!i.regionIdentifier().isEmpty() && unpaired.putIfAbsent(i.regionIdentifier(), i) != null) {
-                throw new ParseException("Duplicated region " + i.regionIdentifier());
+            if (region.isPresent()) {
+                if (region.get() instanceof Attribute.Valued v) {
+                    String name = v.value();
+                    if (!regions.addNamed(name, i)) {
+                        throw new ParseException("Duplicated region: " + name);
+                    }
+                } else {
+                    // TODO: change to exhaustive switch after "Pattern Matching for switch" is implemented
+                    assert region.get() instanceof Attribute.Valueless;
+                    regions.addAnonymous(i);
+                }
             }
         } else {
-            if (i.regionIdentifier().isEmpty()) {
-                if (unpaired.isEmpty()) {
+            if (region.isEmpty() || region.get() instanceof Attribute.Valueless) {
+                Optional<Instruction> instruction = regions.removeLast();
+                if (instruction.isEmpty()) {
                     throw new ParseException("No started regions to end");
                 }
-                unpaired.forEach((ignored, j) -> completeInstruction(j, i));
-                unpaired.clear();
+                completeInstruction(instruction.get(), i);
             } else {
-                Instruction j = unpaired.remove(i.regionIdentifier());
-                if (j == null) {
-                    throw new ParseException("Ending a non-started region %s".formatted(i.regionIdentifier()));
+                assert region.get() instanceof Attribute.Valued;
+                String name = ((Attribute.Valued) region.get()).value();
+                Optional<Instruction> instruction = regions.removeNamed(name);
+                if (instruction.isEmpty()) {
+                    throw new ParseException("Ending a non-started region %s".formatted(name));
                 }
-                completeInstruction(j, i);
+                completeInstruction(instruction.get(), i);
             }
         }
     }
@@ -304,19 +309,14 @@ public final class Parser {
         int position; // the position of markup, not the instruction; this position is, for example, used by @end
         int start;
         int end;
-        String regionIdentifier;
-        Map<String, String> attributes;
+        List<Attribute> attributes;
         boolean appliesToNextLine;
 
         String name() {
             return name;
         }
 
-        String regionIdentifier() {
-            return regionIdentifier;
-        }
-
-        Map<String, String> attributes() {
+        List<Attribute> attributes() {
             return attributes;
         }
 
@@ -334,7 +334,6 @@ public final class Parser {
                     "name='" + name + '\'' +
                     ", start=" + start +
                     ", end=" + end +
-                    ", regionIdentifier='" + regionIdentifier + '\'' +
                     ", attributes=" + attributes +
                     '}';
         }
@@ -366,6 +365,64 @@ public final class Parser {
 
         public Queue<Action> actions() {
             return actions;
+        }
+    }
+
+    /*
+     * Encapsulates the data structure used to manage regions.
+     *
+     * boolean-returning commands return true if succeed and false if fail.
+     */
+    public static final class Regions {
+
+        /*
+         * LinkedHashMap does not fit here because of both the need for unique
+         * keys for anonymous regions and inability to easily access the most
+         * recently put entry.
+         *
+         * Since we expect only a few regions, a list will do.
+         */
+        private final ArrayList<Map.Entry<Optional<String>, Instruction>> instructions = new ArrayList<>();
+
+        void addAnonymous(Instruction i) {
+            instructions.add(Map.entry(Optional.empty(), i));
+        }
+
+        boolean addNamed(String name, Instruction i) {
+            boolean matches = instructions.stream()
+                    .anyMatch(entry -> entry.getKey().isPresent() && entry.getKey().get().equals(name));
+            if (matches) {
+                return false; // won't add a duplicate
+            }
+            instructions.add(Map.entry(Optional.of(name), i));
+            return true;
+        }
+
+        Optional<Instruction> removeNamed(String name) {
+            for (var iterator = instructions.iterator(); iterator.hasNext(); ) {
+                var entry = iterator.next();
+                if (entry.getKey().isPresent() && entry.getKey().get().equals(name)) {
+                    iterator.remove();
+                    return Optional.of(entry.getValue());
+                }
+            }
+            return Optional.empty();
+        }
+
+        Optional<Instruction> removeLast() {
+            if (instructions.isEmpty()) {
+                return Optional.empty();
+            }
+            Map.Entry<Optional<String>, Instruction> e = instructions.remove(instructions.size() - 1);
+            return Optional.of(e.getValue());
+        }
+
+        void clear() {
+            instructions.clear();
+        }
+
+        boolean isEmpty() {
+            return instructions.isEmpty();
         }
     }
 }

@@ -26,9 +26,7 @@
 package jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 //
 //        markup-line = { markup-instruction }
@@ -46,6 +44,10 @@ public final class InstructionParser {
     private char ch;
 
     public List<Parser.Instruction> parse(String input) throws ParseException {
+
+        // No vertical whitespace
+        assert input.codePoints().noneMatch(c -> c == '\n' || c == '\r');
+
         buf = new char[input.length() + 1];
         input.getChars(0, input.length(), buf, 0);
         buf[buf.length - 1] = EOI;
@@ -78,33 +80,13 @@ public final class InstructionParser {
         skipWhitespace();
 
         boolean appliesToNextLine = false;
-        String id = "";
-        Map<String, String> attributes = Map.of();
+        List<Attribute> attributes = List.of();
 
         if (ch == ':') {
             appliesToNextLine = true;
             nextChar();
         } else {
-            // look ahead to disambiguate between a region identifier
-            // and an attribute's name
-            int x = bp;
-            char c = ch;
-
-            while (x < buflen && (Character.isUnicodeIdentifierPart(c) || c == '-')) {
-                c = buf[x < buflen ? ++x : buflen];
-            }
-
-            while (x < buflen && Character.isWhitespace(c)) {
-                c = buf[x < buflen ? ++x : buflen];
-            }
-
-            if (c != '=') {
-                id = readIdentifier();
-                nextChar();
-            }
-
-            attributes = tagAttrs();
-
+            attributes = attrs();
             skipWhitespace();
             if (ch == ':') {
                 appliesToNextLine = true;
@@ -114,7 +96,6 @@ public final class InstructionParser {
 
         Parser.Instruction i = new Parser.Instruction();
         i.name = name;
-        i.regionIdentifier = id;
         i.attributes = attributes;
         i.appliesToNextLine = appliesToNextLine;
 
@@ -140,37 +121,100 @@ public final class InstructionParser {
         ch = buf[bp < buflen ? ++bp : buflen];
     }
 
-    protected Map<String, String> tagAttrs() throws ParseException {
-        Map<String, String> attrs = new HashMap<>();
+    // Parsing machinery is adapted from com.sun.tools.javac.parser.DocCommentParser:
 
-        while (bp < buflen && Character.isUnicodeIdentifierStart(ch)) {
-            String name = readIdentifier();
+    private enum ValueKind {
+        EMPTY,
+        UNQUOTED,
+        SINGLE_QUOTED,
+        DOUBLE_QUOTED;
+    }
+
+    // FIXME: rename instruction(s) to tag(s) as per JEP terminology
+
+    protected List<Attribute> attrs() throws ParseException {
+        List<Attribute> attrs = new ArrayList<>();
+        skipWhitespace();
+
+        while (bp < buflen && isIdentifierStart(ch)) {
+            String name = readAttributeName();
             skipWhitespace();
-
-            if (ch != '=')
-                throw new ParseException("Expected =");
-
-            nextChar();
-            skipWhitespace();
-
-            if (ch != '"' && ch != '\'')
-                throw new ParseException("Expected ' or \"");
-
-            char quote = ch; // remember the type of the quote used
-            nextChar();
-            int valuePos = bp;
-            int count = 0;
-            while (bp < buflen && ch != quote) {
+            StringBuilder value = new StringBuilder();
+            var vkind = ValueKind.EMPTY;
+            int valueStartPos;
+            if (ch == '=') {
                 nextChar();
-                count++;
+                skipWhitespace();
+                if (ch == '\'' || ch == '"') {
+                    vkind = (ch == '\'') ? ValueKind.SINGLE_QUOTED : ValueKind.DOUBLE_QUOTED;
+                    char quote = ch;
+                    nextChar();
+                    valueStartPos = bp;
+                    while (bp < buflen && ch != quote) {
+                        nextChar();
+                    }
+                    if (bp >= buflen) { // TODO: unexpected EOL; check for a similar issue in parsing the @snippet tag
+                        throw new ParseException("dc.unterminated.string");
+                    }
+                    addPendingText(value, valueStartPos, bp - 1);
+                    nextChar();
+                } else {
+                    vkind = ValueKind.UNQUOTED;
+                    valueStartPos = bp;
+                    while (bp < buflen && !isUnquotedAttrValueTerminator(ch)) {
+                        nextChar();
+                    }
+                    // Unlike the case with a quoted value, there's no need to
+                    // check for unexpected EOL here; an EOL would simply mean
+                    // "end of unquoted value".
+                    addPendingText(value, valueStartPos, bp - 1);
+                }
+                skipWhitespace();
             }
-            if (bp >= buflen) { // TODO: unexpected EOL; fix a similar issue in parsing the @snippet tag
-                throw new ParseException("Unexpected EOI");
-            }
-            nextChar();
-            skipWhitespace();
-            attrs.put(name, new String(buf, valuePos, count));
+
+            var attribute = vkind == ValueKind.EMPTY ?
+                    new Attribute.Valueless(name) :
+                    new Attribute.Valued(name, value.toString());
+
+            attrs.add(attribute);
         }
         return attrs;
+    }
+
+    protected boolean isIdentifierStart(char ch) {
+        return Character.isUnicodeIdentifierStart(ch);
+    }
+
+    protected String readAttributeName() {
+        int start = bp;
+        nextChar();
+        while (bp < buflen && (Character.isUnicodeIdentifierPart(ch) || ch == '-'))
+            nextChar();
+        return new String(buf, start, bp - start);
+    }
+
+    // Similar to https://html.spec.whatwg.org/multipage/syntax.html#unquoted
+    protected boolean isUnquotedAttrValueTerminator(char ch) {
+        switch (ch) {
+            case ' ':
+            case '\t':
+            case '"':
+            case '\'':
+            case '`':
+            case '=':
+            case '<':
+            case '>':
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    protected void addPendingText(StringBuilder b, int textStart, int textEnd) {
+        if (textStart != -1) {
+            if (textStart <= textEnd) {
+                b.append(buf, textStart, (textEnd - textStart) + 1);
+            }
+        }
     }
 }
