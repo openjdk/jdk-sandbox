@@ -40,7 +40,7 @@ final class MapSnippets {
     private static <K, V> void forEach(
             Map<K, V> map,
             BiConsumer<? super K, ? super V> action) {
-        // @start forEach :
+        // @start region=forEach :
         for (Map.Entry<K, V> entry : map.entrySet())
             action.accept(entry.getKey(), entry.getValue());
         // @end
@@ -49,14 +49,14 @@ final class MapSnippets {
     private static <K, V> void replaceAll(
             Map<K, V> map,
             BiFunction<? super K, ? super V, ? extends V> function) {
-        // @start replaceAll :
+        // @start region=replaceAll :
         for (Map.Entry<K, V> entry : map.entrySet())
             entry.setValue(function.apply(entry.getKey(), entry.getValue()));
         // @end replaceAll
     }
 
     private static <K, V> V putIfAbsent(Map<K, V> map, K key, V value) {
-        // @start putIfAbsent :
+        // @start region=putIfAbsent :
         V v = map.get(key);
         if (v == null)
             v = map.put(key, value);
@@ -66,7 +66,7 @@ final class MapSnippets {
     }
 
     private static <K, V> boolean remove(Map<K, V> map, K key, V value) {
-        // @start remove :
+        // @start region=remove :
         if (map.containsKey(key) && Objects.equals(map.get(key), value)) {
             map.remove(key);
             return true;
@@ -79,7 +79,7 @@ final class MapSnippets {
                                              K key,
                                              V oldValue,
                                              V newValue) {
-        // @start replaceKVV :
+        // @start region=replaceKVV :
         if (map.containsKey(key) && Objects.equals(map.get(key), oldValue)) {
             map.put(key, newValue);
             return true;
@@ -89,7 +89,7 @@ final class MapSnippets {
     }
 
     private static <K, V> V replaceKV(Map<K, V> map, K key, V value) {
-        // @start replaceKV :
+        // @start region=replaceKV :
         if (map.containsKey(key)) {
             return map.put(key, value);
         } else
@@ -101,7 +101,7 @@ final class MapSnippets {
             Map<K, V> map,
             K key,
             Function<? super K, ? extends V> mappingFunction) {
-        // @start computeIfAbsent :
+        // @start region=computeIfAbsent :
         if (map.get(key) == null) {
             V newValue = mappingFunction.apply(key);
             if (newValue != null)
@@ -115,7 +115,7 @@ final class MapSnippets {
             Map<K, V> map,
             K key,
             BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
-        // @start computeIfPresent :
+        // @start region=computeIfPresent :
         if (map.get(key) != null) {
             V oldValue = map.get(key);
             V newValue = remappingFunction.apply(key, oldValue);
@@ -132,7 +132,7 @@ final class MapSnippets {
             Map<K, V> map,
             K key,
             BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
-        // @start compute :
+        // @start region=compute :
         V oldValue = map.get(key);
         V newValue = remappingFunction.apply(key, oldValue);
         if (newValue != null) {
@@ -149,7 +149,7 @@ final class MapSnippets {
             K key,
             V value,
             BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
-        // @start merge :
+        // @start region=merge :
         V oldValue = map.get(key);
         V newValue = (oldValue == null) ? value :
                 remappingFunction.apply(oldValue, value);
@@ -162,7 +162,7 @@ final class MapSnippets {
     }
 
     // This is (almost) a JShell script
-    private static void ofEntries() {// @start ofEntries :
+    private static void ofEntries() {// @start region=ofEntries :
         // // @replace substring="//" replacement="import static java.util.Map.entry;"
 
         Map<Integer, String> map = Map.ofEntries(
@@ -174,7 +174,7 @@ final class MapSnippets {
     }
 
     private static boolean equals(Map.Entry<?, ?> e1, Map.Entry<?, ?> e2) {
-        return // @start equals :
+        return // @start region=equals :
                    (e1.getKey()==null ?
                     e2.getKey()==null : e1.getKey().equals(e2.getKey()))  &&
                    (e1.getValue()==null ?
@@ -184,7 +184,7 @@ final class MapSnippets {
     }
 
     private static int hashCode(Map.Entry<?, ?> e) {
-        return // @start hashCode :
+        return // @start region=hashCode :
                    (e.getKey()==null   ? 0 : e.getKey().hashCode()) ^
                    (e.getValue()==null ? 0 : e.getValue().hashCode())
                // @end
