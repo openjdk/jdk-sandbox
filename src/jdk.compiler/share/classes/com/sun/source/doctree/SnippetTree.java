@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@ package com.sun.source.doctree;
 import java.util.List;
 
 /**
- * A tree node for an {@code @snippet} inline tag.
+ * A tree node for an {@code @snippet} inline tag, as specified by the JEP 413.
  *
  * <pre>
  *    {&#064;snippet :
@@ -51,6 +51,7 @@ public interface SnippetTree extends InlineTagTree {
      * @return the list of the attributes
      */
     // FIXME: (API consistency) should we be consistent with com.sun.source.doctree.StartElementTree.getAttributes and return List<? extends DocTree>?
+    // FIXME: this is because ErrorTrees
     List<? extends TagAttributeTree> getAttributes();
 
     /**
