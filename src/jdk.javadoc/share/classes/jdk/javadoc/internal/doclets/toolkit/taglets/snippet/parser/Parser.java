@@ -80,7 +80,7 @@ public final class Parser {
     //         ^
     // this line
     //
-    // next-line instruction behaves as if it were specified on the next line
+    // next-line tag behaves as if it were specified on the next line
 
     // Regions
     //  * a line
@@ -101,12 +101,12 @@ public final class Parser {
 
     private String eolMarker;
     private Matcher markedUpLine;
-    private final InstructionParser markupParser = new InstructionParser();
+    private final MarkupParser markupParser = new MarkupParser();
 
     // Incomplete actions waiting for their complementary @end
     private final Regions regions = new Regions();
-    // List of instructions; consumed from top to bottom
-    private final Queue<Instruction> instructions = new LinkedList<>();
+    // List of tags; consumed from top to bottom
+    private final Queue<Tag> tags = new LinkedList<>();
 
     public Result parse(String source) throws ParseException {
         return parse("//", source);
@@ -130,7 +130,7 @@ public final class Parser {
                     .matcher(""); // TODO: quote properly with Pattern.quote
         }
 
-        instructions.clear();
+        tags.clear();
         regions.clear();
 
         Queue<Action> actions = new LinkedList<>();
@@ -139,9 +139,9 @@ public final class Parser {
         Iterator<String> iterator = source.lines().iterator();
         boolean trailingNewline = source.endsWith("\r") || source.endsWith("\n");
         int lineStart = 0;
-        List<Instruction> previousLineInstructions = new ArrayList<>();
-        List<Instruction> thisLineInstructions = new ArrayList<>();
-        List<Instruction> tempList = new ArrayList<>();
+        List<Tag> previousLineTags = new ArrayList<>();
+        List<Tag> thisLineTags = new ArrayList<>();
+        List<Tag> tempList = new ArrayList<>();
         while (iterator.hasNext()) {
             String rawLine = iterator.next();
             boolean addLineTerminator = iterator.hasNext() || trailingNewline;
@@ -150,51 +150,51 @@ public final class Parser {
             if (markedUpLine.matches()) {
                 String maybeMarkup = markedUpLine.group(3);
                 line = markedUpLine.group(1).stripTrailing() + (addLineTerminator ? "\n" : ""); // remove any whitespace
-                List<Instruction> parsedInstructions = markupParser.parse(maybeMarkup);
-                thisLineInstructions.addAll(parsedInstructions);
-                for (var instructionIterator = thisLineInstructions.iterator(); instructionIterator.hasNext(); ) {
-                    Instruction i = instructionIterator.next();
+                List<Tag> parsedTags = markupParser.parse(maybeMarkup);
+                thisLineTags.addAll(parsedTags);
+                for (var tagIterator = thisLineTags.iterator(); tagIterator.hasNext(); ) {
+                    Tag i = tagIterator.next();
                     if (i.appliesToNextLine) {
-                        instructionIterator.remove();
+                        tagIterator.remove();
                         i.appliesToNextLine = false; // clear the flag
                         tempList.add(i);
                     } else {
                         i.position = markedUpLine.start(2); // e.g. @end that relates to the same line
                     }
                 }
-                if (parsedInstructions.isEmpty()) { // not a valid markup comment
+                if (parsedTags.isEmpty()) { // not a valid markup comment
                     line = rawLine + (addLineTerminator ? "\n" : "");
                 }
             } else {
                 line = rawLine + (addLineTerminator ? "\n" : "");
             }
 
-            thisLineInstructions.addAll(0, previousLineInstructions); // prepend!
-            previousLineInstructions.clear();
-            for (Instruction i : thisLineInstructions) {
+            thisLineTags.addAll(0, previousLineTags); // prepend!
+            previousLineTags.clear();
+            for (Tag i : thisLineTags) {
                 i.start = lineStart;
                 i.end = lineStart + line.length(); // this includes line terminator, if any
-                processInstruction(i);
+                processTag(i);
             }
-            previousLineInstructions.addAll(tempList);
+            previousLineTags.addAll(tempList);
             tempList.clear();
 
-            thisLineInstructions.clear();
+            thisLineTags.clear();
 
             append(text, line);
             lineStart += line.length();
         }
 
-        if (!previousLineInstructions.isEmpty()) {
-            throw new ParseException("Instructions refer to non-existent lines");
+        if (!previousLineTags.isEmpty()) {
+            throw new ParseException("Tags refer to non-existent lines");
         }
 
-        // also report on unpaired with corresponding `end` or unknown instructions
+        // also report on unpaired with corresponding `end` or unknown tags
         if (!regions.isEmpty()) {
             throw new ParseException("Unpaired region(s)");
         }
 
-        for (var i : instructions) {
+        for (var i : tags) {
 
             // Translate a list of attributes into a more convenient form
             Attributes attributes = new Attributes(i.attributes());
@@ -265,13 +265,13 @@ public final class Parser {
         return new Result(text, actions);
     }
 
-    private void processInstruction(Instruction i) throws ParseException {
+    private void processTag(Tag i) throws ParseException {
 
         Attributes attributes = new Attributes(i.attributes()); // FIXME: we create them twice
         Optional<Attribute> region = attributes.get("region", Attribute.class);
 
         if (!i.name().equals("end")) {
-            instructions.add(i);
+            tags.add(i);
             if (region.isPresent()) {
                 if (region.get() instanceof Attribute.Valued v) {
                     String name = v.value();
@@ -286,27 +286,27 @@ public final class Parser {
             }
         } else {
             if (region.isEmpty() || region.get() instanceof Attribute.Valueless) {
-                Optional<Instruction> instruction = regions.removeLast();
-                if (instruction.isEmpty()) {
+                Optional<Tag> tag = regions.removeLast();
+                if (tag.isEmpty()) {
                     throw new ParseException("No started regions to end");
                 }
-                completeInstruction(instruction.get(), i);
+                completeTag(tag.get(), i);
             } else {
                 assert region.get() instanceof Attribute.Valued;
                 String name = ((Attribute.Valued) region.get()).value();
-                Optional<Instruction> instruction = regions.removeNamed(name);
-                if (instruction.isEmpty()) {
+                Optional<Tag> tag = regions.removeNamed(name);
+                if (tag.isEmpty()) {
                     throw new ParseException("Ending a non-started region %s".formatted(name));
                 }
-                completeInstruction(instruction.get(), i);
+                completeTag(tag.get(), i);
             }
         }
     }
 
-    static final class Instruction {
+    static final class Tag {
 
         String name;
-        int position; // the position of markup, not the instruction; this position is, for example, used by @end
+        int position; // the position of markup, not the tag; this position is, for example, used by @end
         int start;
         int end;
         List<Attribute> attributes;
@@ -330,7 +330,7 @@ public final class Parser {
 
         @Override
         public String toString() {
-            return "Instruction{" +
+            return "Tag{" +
                     "name='" + name + '\'' +
                     ", start=" + start +
                     ", end=" + end +
@@ -339,7 +339,7 @@ public final class Parser {
         }
     }
 
-    private void completeInstruction(Instruction start, Instruction end) {
+    private void completeTag(Tag start, Tag end) {
         assert !start.name().equals("end") : start;
         assert end.name().equals("end") : end;
         start.position = end.position; // smuggle the position of the corresponding end
@@ -382,24 +382,24 @@ public final class Parser {
          *
          * Since we expect only a few regions, a list will do.
          */
-        private final ArrayList<Map.Entry<Optional<String>, Instruction>> instructions = new ArrayList<>();
+        private final ArrayList<Map.Entry<Optional<String>, Tag>> tags = new ArrayList<>();
 
-        void addAnonymous(Instruction i) {
-            instructions.add(Map.entry(Optional.empty(), i));
+        void addAnonymous(Tag i) {
+            tags.add(Map.entry(Optional.empty(), i));
         }
 
-        boolean addNamed(String name, Instruction i) {
-            boolean matches = instructions.stream()
+        boolean addNamed(String name, Tag i) {
+            boolean matches = tags.stream()
                     .anyMatch(entry -> entry.getKey().isPresent() && entry.getKey().get().equals(name));
             if (matches) {
                 return false; // won't add a duplicate
             }
-            instructions.add(Map.entry(Optional.of(name), i));
+            tags.add(Map.entry(Optional.of(name), i));
             return true;
         }
 
-        Optional<Instruction> removeNamed(String name) {
-            for (var iterator = instructions.iterator(); iterator.hasNext(); ) {
+        Optional<Tag> removeNamed(String name) {
+            for (var iterator = tags.iterator(); iterator.hasNext(); ) {
                 var entry = iterator.next();
                 if (entry.getKey().isPresent() && entry.getKey().get().equals(name)) {
                     iterator.remove();
@@ -409,20 +409,20 @@ public final class Parser {
             return Optional.empty();
         }
 
-        Optional<Instruction> removeLast() {
-            if (instructions.isEmpty()) {
+        Optional<Tag> removeLast() {
+            if (tags.isEmpty()) {
                 return Optional.empty();
             }
-            Map.Entry<Optional<String>, Instruction> e = instructions.remove(instructions.size() - 1);
+            Map.Entry<Optional<String>, Tag> e = tags.remove(tags.size() - 1);
             return Optional.of(e.getValue());
         }
 
         void clear() {
-            instructions.clear();
+            tags.clear();
         }
 
         boolean isEmpty() {
-            return instructions.isEmpty();
+            return tags.isEmpty();
         }
     }
 }

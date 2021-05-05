@@ -29,13 +29,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 //
-//        markup-line = { markup-instruction }
-// markup-instruction = "@" , instruction-name , [region-identifier] , {attribute} [":"] ;
+// markup-comment = { markup-tag } ;
+//     markup-tag = "@" , tag-name , {attribute} [":"] ;
 //
-// If optional trailing ":" is present, the instructions refer to the next line
+// If optional trailing ":" is present, the tag refers to the next line
 // rather than to this line.
 //
-public final class InstructionParser {
+public final class MarkupParser {
 
     private final static int EOI = 0x1A;
     private char[] buf;
@@ -43,7 +43,7 @@ public final class InstructionParser {
     private int buflen;
     private char ch;
 
-    public List<Parser.Instruction> parse(String input) throws ParseException {
+    public List<Parser.Tag> parse(String input) throws ParseException {
 
         // No vertical whitespace
         assert input.codePoints().noneMatch(c -> c == '\n' || c == '\r');
@@ -58,20 +58,20 @@ public final class InstructionParser {
         return parse();
     }
 
-    protected List<Parser.Instruction> parse() throws ParseException {
-        List<Parser.Instruction> instructions = new ArrayList<>();
+    protected List<Parser.Tag> parse() throws ParseException {
+        List<Parser.Tag> tags = new ArrayList<>();
         // TODO: what to do with leading and trailing unrecognized markup?
         while (bp < buflen) {
             switch (ch) {
-                case '@' -> instructions.add(readInstruction());
+                case '@' -> tags.add(readTag());
                 default -> nextChar();
             }
         }
 
-        return instructions;
+        return tags;
     }
 
-    protected Parser.Instruction readInstruction() throws ParseException {
+    protected Parser.Tag readTag() throws ParseException {
         nextChar();
         if (!Character.isUnicodeIdentifierStart(ch)) {
             throw new ParseException("Bad character: '%s' (0x%s)".formatted(ch, Integer.toString(ch, 16)));
@@ -94,7 +94,7 @@ public final class InstructionParser {
             }
         }
 
-        Parser.Instruction i = new Parser.Instruction();
+        Parser.Tag i = new Parser.Tag();
         i.name = name;
         i.attributes = attributes;
         i.appliesToNextLine = appliesToNextLine;
@@ -129,8 +129,6 @@ public final class InstructionParser {
         SINGLE_QUOTED,
         DOUBLE_QUOTED;
     }
-
-    // FIXME: rename instruction(s) to tag(s) as per JEP terminology
 
     protected List<Attribute> attrs() throws ParseException {
         List<Attribute> attrs = new ArrayList<>();
@@ -196,14 +194,9 @@ public final class InstructionParser {
     // Similar to https://html.spec.whatwg.org/multipage/syntax.html#unquoted
     protected boolean isUnquotedAttrValueTerminator(char ch) {
         switch (ch) {
-            case ' ':
-            case '\t':
-            case '"':
-            case '\'':
-            case '`':
-            case '=':
-            case '<':
-            case '>':
+            case ' ': case '\t':
+            case '"': case '\'': case '`':
+            case '=': case '<': case '>':
                 return true;
             default:
                 return false;
