@@ -25,6 +25,21 @@
 
 package jdk.javadoc.internal.doclets.toolkit.taglets;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.PackageElement;
+import javax.tools.DocumentationTool;
+import javax.tools.DocumentationTool.Location;
+import javax.tools.FileObject;
+import javax.tools.JavaFileManager;
+
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.SnippetTree;
 import com.sun.source.doctree.TagAttributeTree;
@@ -35,24 +50,7 @@ import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Action;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser.ParseException;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser.Parser;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
-
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ModuleElement;
-import javax.lang.model.element.PackageElement;
-import javax.tools.FileObject;
-import javax.tools.JavaFileManager;
-import javax.tools.StandardJavaFileManager;
-import javax.tools.StandardLocation;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import jdk.javadoc.internal.doclets.toolkit.util.Utils;
 
 public class SnippetTaglet extends BaseTaglet {
 
@@ -88,7 +86,7 @@ public class SnippetTaglet extends BaseTaglet {
             }
             // Like-named attributes found: `prev` and `a`
             error(writer, holder, a, "doclet.tag.attribute.repeated", a.getName().toString());
-            return null;
+            return badSnippet(writer);
         }
 
         final boolean containsClass = attributes.containsKey("class");
@@ -97,10 +95,10 @@ public class SnippetTaglet extends BaseTaglet {
 
         if (containsClass && containsFile) {
             error(writer, holder, tag, "doclet.snippet.contents.ambiguity.external");
-            return null;
+            return badSnippet(writer);
         } else if (!containsClass && !containsFile && !containsBody) {
             error(writer, holder, tag, "doclet.snippet.contents.none");
-            return null;
+            return badSnippet(writer);
         }
 
         // FIXME: remove as compiler people do not like assertions
@@ -113,7 +111,7 @@ public class SnippetTaglet extends BaseTaglet {
             r = stringOf(region.getValue());
             if (r.isBlank()) {
                 error(writer, holder, region, "doclet.tag.attribute.value.illegal", "region", region);
-                return null;
+                return badSnippet(writer);
             }
         }
 
@@ -126,54 +124,47 @@ public class SnippetTaglet extends BaseTaglet {
         if (containsFile || containsClass) {
             TagAttributeTree file = attributes.get("file");
             TagAttributeTree ref = file != null ? file : attributes.get("class");
-            List<? extends DocTree> value = ref.getValue();
-            String v = stringOf(value);
-            String refType = ref.getName().toString();
+            String refName = ref.getName().toString();
+            String refValue = stringOf(ref.getValue());
+            String v = switch (refName) {
+                case "class" -> refValue.replace(".", "/") + ".java";
+                case "file" -> refValue;
+                default -> throw new IllegalStateException(refName);
+            };
 
             // We didn't create JavaFileManager, so we won't close it; even if an error occurs
-            var fileManager = (StandardJavaFileManager) writer.configuration().getFileManager();
+            var fileManager = writer.configuration().getFileManager();
 
             FileObject fileObject;
             try {
-                if (refType.equals("class")) {
-                    // fileObject = fileManager.getJavaFileForInput(StandardLocation.SOURCE_PATH, v, JavaFileObject.Kind.SOURCE);
-                    throw new UnsupportedOperationException("Not yet implemented");
-                } else {
-                    // assert refType.equals("file") : refType;
-                    String relativeName = "snippet-files/" + v;
-                    String packageName = packageName(holder, writer);
-                    fileObject = fileManager.getFileForInput(StandardLocation.SOURCE_PATH,
-                                                             packageName,
-                                                             relativeName);
-                    if (fileObject == null) {
-                        ModuleElement moduleElement = writer.configuration().utils.containingModule(holder);
-                        if (moduleElement != null) {
-                            JavaFileManager.Location loc = fileManager.getLocationForModule(
-                                    StandardLocation.MODULE_SOURCE_PATH, moduleElement.getQualifiedName().toString());
-                            if (loc != null) {
-                                fileObject = fileManager.getFileForInput(loc, packageName, relativeName);
-                            }
-                        }
-                    }
+                // first, look in local snippet-files subdirectory
+                Utils utils = writer.configuration().utils;
+                JavaFileManager.Location l = utils.getLocationForPackage(utils.elementUtils.getPackageOf(holder));
+                String relativeName = "snippet-files/" + v;
+                String packageName = packageName(holder, writer);
+                fileObject = fileManager.getFileForInput(l, packageName, relativeName);
+
+                // if not found in local snippet-files directory, look on snippet path
+                if (fileObject == null && fileManager.hasLocation(Location.SNIPPET_PATH)) {
+                    fileObject = fileManager.getFileForInput(Location.SNIPPET_PATH,"", v);
                 }
             } catch (IOException e) {
                 // FIXME: provide more context (the snippet, its attribute, and its attributes' value)
                 error(writer, holder, tag, "doclet.exception.read.file", v, e.getCause());
-                return null;
+                return badSnippet(writer);
             }
 
             if (fileObject == null) { /* i.e. the file does not exist */
                 error(writer, holder, tag, "doclet.File_not_found", v);
-                return null;
+                return badSnippet(writer);
             }
 
-            Path path = fileManager.asPath(fileObject);
             try {
-                externalContent = Files.readString(path); // FIXME don't read file every single time; cache it
+                externalContent = fileObject.getCharContent(true).toString();
             } catch (IOException e) {
                 // FIXME: provide more context (the snippet, its attribute, and its attributes' value)
-                error(writer, holder, tag, "doclet.exception.read.file", path, e.getCause());
-                return null;
+                error(writer, holder, tag, "doclet.exception.read.file", fileObject.getName(), e.getCause());
+                return badSnippet(writer);
             }
         }
 
@@ -207,19 +198,19 @@ public class SnippetTaglet extends BaseTaglet {
                 }
                 if (r1 == null && r2 == null) {
                     error(writer, holder, tag, "doclet.snippet.region.not_found", r);
-                    return null;
+                    return badSnippet(writer);
                 }
             }
         } catch (ParseException e) {
             error(writer, holder, region, "doclet.snippet.markup", e.getMessage());
-            return null;
+            return badSnippet(writer);
         }
 
         if (inlineSnippet != null && externalSnippet != null) {
             if (!Objects.equals(inlineSnippet.asCharSequence().toString(),
                                 externalSnippet.asCharSequence().toString())) {
                 error(writer, holder, tag, "doclet.snippet.contents.mismatch");
-                return null;
+                return badSnippet(writer);
             }
         }
 
@@ -248,6 +239,10 @@ public class SnippetTaglet extends BaseTaglet {
     private void error(TagletWriter writer, Element holder, DocTree tag, String key, Object... args) {
         writer.configuration().getMessages().error(
                 writer.configuration().utils.getCommentHelper(holder).getDocTreePath(tag), key, args);
+    }
+
+    private Content badSnippet(TagletWriter writer) {
+        return writer.getOutputInstance().add("bad snippet");
     }
 
     private String packageName(Element e, TagletWriter writer) {
