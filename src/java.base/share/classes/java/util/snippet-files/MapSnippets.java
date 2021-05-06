@@ -22,7 +22,6 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package java.util;
 
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;

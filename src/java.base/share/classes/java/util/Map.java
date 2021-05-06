@@ -455,7 +455,7 @@ public interface Map<K, V> {
          * Returns {@code true} if the given object is also a map entry and
          * the two entries represent the same mapping.  More formally, two
          * entries {@code e1} and {@code e2} represent the same mapping
-         * if {@snippet file="java/util/MapSnippets.java" region="equals" :
+         * if {@snippet file="MapSnippets.java" region="equals" :
          *     (e1.getKey()==null ?
          *      e2.getKey()==null : e1.getKey().equals(e2.getKey()))  &&
          *     (e1.getValue()==null ?
@@ -473,7 +473,7 @@ public interface Map<K, V> {
         /**
          * Returns the hash code value for this map entry.  The hash code
          * of a map entry {@code e} is defined to be:
-         * {@snippet file="java/util/MapSnippets.java" region="hashCode" :
+         * {@snippet file="MapSnippets.java" region="hashCode" :
          *     (e.getKey()==null   ? 0 : e.getKey().hashCode()) ^
          *     (e.getValue()==null ? 0 : e.getValue().hashCode())
          * }
@@ -633,7 +633,7 @@ public interface Map<K, V> {
      *
      * @implSpec
      * The default implementation is equivalent to, for this {@code map}:
-     * {@snippet file="java/util/MapSnippets.java" region="forEach"}
+     * {@snippet file="MapSnippets.java" region="forEach"}
      *
      * The default implementation makes no guarantees about synchronization
      * or atomicity properties of this method. Any implementation providing
@@ -670,7 +670,7 @@ public interface Map<K, V> {
      *
      * @implSpec
      * <p>The default implementation is equivalent to, for this {@code map}:
-     * {@snippet file="java/util/MapSnippets.java" region="replaceAll"}
+     * {@snippet file="MapSnippets.java" region="replaceAll"}
      *
      * <p>The default implementation makes no guarantees about synchronization
      * or atomicity properties of this method. Any implementation providing
@@ -730,7 +730,7 @@ public interface Map<K, V> {
      *
      * @implSpec
      * The default implementation is equivalent to, for this {@code map}:
-     * {@snippet file="java/util/MapSnippets.java" region="putIfAbsent"}
+     * {@snippet file="MapSnippets.java" region="putIfAbsent"}
      *
      * <p>The default implementation makes no guarantees about synchronization
      * or atomicity properties of this method. Any implementation providing
@@ -773,7 +773,7 @@ public interface Map<K, V> {
      *
      * @implSpec
      * The default implementation is equivalent to, for this {@code map}:
-     * {@snippet file="java/util/MapSnippets.java" region="remove"}
+     * {@snippet file="MapSnippets.java" region="remove"}
      *
      * <p>The default implementation makes no guarantees about synchronization
      * or atomicity properties of this method. Any implementation providing
@@ -810,7 +810,7 @@ public interface Map<K, V> {
      *
      * @implSpec
      * The default implementation is equivalent to, for this {@code map}:
-     * {@snippet file="java/util/MapSnippets.java" region="replaceKVV"}
+     * {@snippet file="MapSnippets.java" region="replaceKVV"}
      *
      * The default implementation does not throw NullPointerException
      * for maps that do not support null values if oldValue is null unless
@@ -855,7 +855,7 @@ public interface Map<K, V> {
      *
      * @implSpec
      * The default implementation is equivalent to, for this {@code map}:
-     * {@snippet file="java/util/MapSnippets.java" region="replaceKV"}
+     * {@snippet file="MapSnippets.java" region="replaceKV"}
      *
      * <p>The default implementation makes no guarantees about synchronization
      * or atomicity properties of this method. Any implementation providing
@@ -915,7 +915,7 @@ public interface Map<K, V> {
      * The default implementation is equivalent to the following steps for this
      * {@code map}, then returning the current value or {@code null} if now
      * absent:
-     * {@snippet file="java/util/MapSnippets.java" region="computeIfAbsent"}
+     * {@snippet file="MapSnippets.java" region="computeIfAbsent"}
      *
      * <p>The default implementation makes no guarantees about detecting if the
      * mapping function modifies this map during computation and, if
@@ -983,7 +983,7 @@ public interface Map<K, V> {
      * The default implementation is equivalent to performing the following
      * steps for this {@code map}, then returning the current value or
      * {@code null} if now absent:
-     * {@snippet file="java/util/MapSnippets.java" region="computeIfPresent"}
+     * {@snippet file="MapSnippets.java" region="computeIfPresent"}
      *
      * <p>The default implementation makes no guarantees about detecting if the
      * remapping function modifies this map during computation and, if
@@ -1060,7 +1060,7 @@ public interface Map<K, V> {
      * @implSpec
      * The default implementation is equivalent to performing the following
      * steps for this {@code map}:
-     * {@snippet file="java/util/MapSnippets.java" region="compute"}
+     * {@snippet file="MapSnippets.java" region="compute"}
      *
      * <p>The default implementation makes no guarantees about detecting if the
      * remapping function modifies this map during computation and, if
@@ -1143,7 +1143,7 @@ public interface Map<K, V> {
      * The default implementation is equivalent to performing the following
      * steps for this {@code map}, then returning the current value or
      * {@code null} if absent:
-     * {@snippet file="java/util/MapSnippets.java" region="merge"}
+     * {@snippet file="MapSnippets.java" region="merge"}
      *
      * <p>The default implementation makes no guarantees about detecting if the
      * remapping function modifies this map during computation and, if
@@ -1502,7 +1502,7 @@ public interface Map<K, V> {
      *
      * @apiNote
      * It is convenient to create the map entries using the {@link Map#entry Map.entry()} method.
-     * For example, {@snippet file="java/util/MapSnippets.java" region="ofEntries"}
+     * For example, {@snippet file="MapSnippets.java" region="ofEntries"}
      *
      * @param <K> the {@code Map}'s key type
      * @param <V> the {@code Map}'s value type
