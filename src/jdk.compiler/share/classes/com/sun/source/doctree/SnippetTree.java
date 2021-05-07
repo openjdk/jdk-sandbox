@@ -28,7 +28,8 @@ package com.sun.source.doctree;
 import java.util.List;
 
 /**
- * A tree node for an {@code @snippet} inline tag, as specified by the JEP 413.
+ * A tree node for an {@code @snippet} inline tag, as specified by
+ * <a href="http://openjdk.java.net/jeps/413">JEP 413</a>.
  *
  * <pre>
  *    {&#064;snippet :
@@ -42,28 +43,28 @@ import java.util.List;
  *    }
  * </pre>
  *
- * @since
+ * @since 17
  */
 public interface SnippetTree extends InlineTagTree {
 
     /**
      * Returns the list of the attributes of the {@code @snippet} tag.
+     *
      * @return the list of the attributes
      */
-    // FIXME: (API consistency) should we be consistent with com.sun.source.doctree.StartElementTree.getAttributes and return List<? extends DocTree>?
-    // FIXME: this is because ErrorTrees
-    List<? extends TagAttributeTree> getAttributes();
+    List<? extends AttributeTree> getAttributes();
 
     /**
-     * Returns the body of the {@code @snippet} tag.
+     * Returns the body of the {@code @snippet} tag, or {@code null} if there is no body.
      *
-     * <p> An instance of {@code SnippetTree} with an empty body differs from an
-     * instance of {@code SnippetTree} with an absent body. If a tag has an
+     * @apiNote
+     * An instance of {@code SnippetTree} with an empty body differs from an
+     * instance of {@code SnippetTree} with no body. If a tag has an
      * empty body then calling {@link TextTree#getBody()} on the object returned
      * from this method will return an empty string, whereas calling that same
-     * method on a tag that has an absent body will return {@code null}.
+     * method on a tag that has no body will return {@code null}.
      *
-     * @return the body of the tag, or {@code null} if the body is absent
+     * @return the body of the tag, or {@code null} if there is no body
      */
     TextTree getBody();
 }

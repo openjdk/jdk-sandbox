@@ -290,13 +290,13 @@ public interface DocTreeVisitor<R,P> {
     /**
      * Visits a SnippetTree node.
      *
-     * @implSpec Visits the provided {@code SnippetTree} node
-     * by calling {@code visitOther(node, p)}.
-     *
      * @param node the node being visited
-     * @param p a parameter value
+     * @param p    a parameter value
+     *
      * @return a result value
-     * @since
+     * @implSpec Visits the provided {@code SnippetTree} node
+     *           by calling {@code visitOther(node, p)}.
+     * @since 17
      */
     default R visitSnippet(SnippetTree node, P p) {
         return visitOther(node, p);
@@ -337,21 +337,6 @@ public interface DocTreeVisitor<R,P> {
      * @since 12
      */
     default R visitSystemProperty(SystemPropertyTree node, P p) {
-        return visitOther(node, p);
-    }
-
-    /**
-     * Visits a TagAttributeTree node.
-     *
-     * @implSpec Visits the provided {@code TagAttributeTree} node
-     * by calling {@code visitOther(node, p)}.
-     *
-     * @param node the node being visited
-     * @param p a parameter value
-     * @return a result value
-     * @since
-     */
-    default R visitTagAttribute(TagAttributeTree node, P p) {
         return visitOther(node, p);
     }
 

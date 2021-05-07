@@ -633,19 +633,6 @@ public class DocCommentTester {
                 return null;
             }
 
-            @Override
-            public Void visitTagAttribute(TagAttributeTree node, Void p) {
-                header(node);
-                indent(+1);
-                print("name", node.getName().toString());
-                print("vkind", node.getValueKind().toString());
-                print("value", node.getValue());
-                indent(-1);
-                indent();
-                out.println("]");
-                return null;
-            }
-
             public Void visitText(TextTree node, Void p) {
                 header(node, compress(node.getBody()));
                 return null;

@@ -35,14 +35,13 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.PackageElement;
-import javax.tools.DocumentationTool;
 import javax.tools.DocumentationTool.Location;
 import javax.tools.FileObject;
 import javax.tools.JavaFileManager;
 
+import com.sun.source.doctree.AttributeTree;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.SnippetTree;
-import com.sun.source.doctree.TagAttributeTree;
 import com.sun.source.doctree.TextTree;
 import jdk.javadoc.doclet.Taglet;
 import jdk.javadoc.internal.doclets.toolkit.Content;
@@ -76,11 +75,11 @@ public class SnippetTaglet extends BaseTaglet {
     public Content getInlineTagOutput(Element holder, DocTree tag, TagletWriter writer) {
         SnippetTree snippetTag = (SnippetTree) tag;
 
-        Map<String, TagAttributeTree> attributes = new HashMap<>();
+        Map<String, AttributeTree> attributes = new HashMap<>();
 
         // Organize attributes in a map performing basic checks along the way
-        for (TagAttributeTree a : snippetTag.getAttributes()) {
-            TagAttributeTree prev = attributes.putIfAbsent(a.getName().toString(), a);
+        for (AttributeTree a : snippetTag.getAttributes()) {
+            AttributeTree prev = attributes.putIfAbsent(a.getName().toString(), a);
             if (prev == null) {
                 continue;
             }
@@ -106,7 +105,7 @@ public class SnippetTaglet extends BaseTaglet {
                 Arrays.toString(new boolean[]{containsClass, containsFile, containsBody});
 
         String r = null;
-        TagAttributeTree region = attributes.get("region");
+        AttributeTree region = attributes.get("region");
         if (region != null) {
             r = stringOf(region.getValue());
             if (r.isBlank()) {
@@ -122,8 +121,8 @@ public class SnippetTaglet extends BaseTaglet {
         }
 
         if (containsFile || containsClass) {
-            TagAttributeTree file = attributes.get("file");
-            TagAttributeTree ref = file != null ? file : attributes.get("class");
+            AttributeTree file = attributes.get("file");
+            AttributeTree ref = file != null ? file : attributes.get("class");
             String refName = ref.getName().toString();
             String refValue = stringOf(ref.getValue());
             String v = switch (refName) {

@@ -44,7 +44,7 @@ DocComment[DOC_COMMENT, pos:1
   firstSentence: 1
     Snippet[SNIPPET, pos:1
       attributes: 1
-        TagAttribute[TAG_ATTRIBUTE, pos:11
+        Attribute[ATTRIBUTE, pos:11
           name: attr1
           vkind: DOUBLE
           value: 1

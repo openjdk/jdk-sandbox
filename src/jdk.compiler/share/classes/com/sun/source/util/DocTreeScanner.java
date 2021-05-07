@@ -447,7 +447,7 @@ public class DocTreeScanner<R,P> implements DocTreeVisitor<R,P> {
      * @param node  {@inheritDoc}
      * @param p  {@inheritDoc}
      * @return the result of scanning
-     * @since
+     * @since 17
      */
     @Override
     public R visitSnippet(SnippetTree node, P p) {
@@ -492,19 +492,6 @@ public class DocTreeScanner<R,P> implements DocTreeVisitor<R,P> {
     @Override
     public R visitSystemProperty(SystemPropertyTree node, P p) {
         return null;
-    }
-
-    /**
-     * {@inheritDoc} This implementation scans the children in left to right order.
-     *
-     * @param node  {@inheritDoc}
-     * @param p  {@inheritDoc}
-     * @return the result of scanning
-     * @since
-     */
-    @Override
-    public R visitTagAttribute(TagAttributeTree node, P p) {
-        return scan(node.getValue(), p);
     }
 
     /**

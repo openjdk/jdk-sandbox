@@ -28,9 +28,9 @@ package com.sun.tools.javac.parser;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.sun.source.doctree.AttributeTree;
 import com.sun.source.doctree.AttributeTree.ValueKind;
 import com.sun.source.doctree.ErroneousTree;
-import com.sun.source.doctree.TagAttributeTree;
 import com.sun.source.doctree.UnknownBlockTagTree;
 import com.sun.source.doctree.UnknownInlineTagTree;
 import com.sun.tools.javac.parser.Tokens.Comment;
@@ -41,7 +41,6 @@ import com.sun.tools.javac.tree.DCTree.DCEndPosTree;
 import com.sun.tools.javac.tree.DCTree.DCErroneous;
 import com.sun.tools.javac.tree.DCTree.DCIdentifier;
 import com.sun.tools.javac.tree.DCTree.DCReference;
-import com.sun.tools.javac.tree.DCTree.DCTagAttribute;
 import com.sun.tools.javac.tree.DCTree.DCText;
 import com.sun.tools.javac.tree.DocTreeMaker;
 import com.sun.tools.javac.util.DiagnosticSource;
@@ -895,8 +894,8 @@ public class DocCommentParser {
      *
      * @return the list of attributes
      */
-    protected List<DCTagAttribute> tagAttrs() throws ParseException {
-        ListBuffer<DCTagAttribute> attrs = new ListBuffer<>();
+    protected List<DCAttribute> tagAttrs() throws ParseException {
+        ListBuffer<DCAttribute> attrs = new ListBuffer<>();
 
         while (bp < buflen && isIdentifierStart(ch)) {
             int namePos = bp;
@@ -913,8 +912,8 @@ public class DocCommentParser {
             if (ch != '"' && ch != '\'')
                 throw new ParseException("dc.unexpected.content");
 
-            TagAttributeTree.ValueKind vkind = (ch == '\'') ?
-                    TagAttributeTree.ValueKind.SINGLE : TagAttributeTree.ValueKind.DOUBLE;
+            AttributeTree.ValueKind vkind = (ch == '\'') ?
+                    AttributeTree.ValueKind.SINGLE : AttributeTree.ValueKind.DOUBLE;
             char quote = ch; // remember the type of the quote used
             nextChar();
             textStart = bp;
@@ -924,7 +923,7 @@ public class DocCommentParser {
             addPendingText(v, bp - 1);
             nextChar();
             skipWhitespace();
-            DCTagAttribute attr = m.at(namePos).newTagAttributeTree(name, vkind, v.toList());
+            DCAttribute attr = m.at(namePos).newAttributeTree(name, vkind, v.toList());
             attrs.add(attr);
         }
 
@@ -1470,7 +1469,7 @@ public class DocCommentParser {
                 @Override
                 DCTree parse(int pos) throws ParseException {
                     skipWhitespace();
-                    List<DCTagAttribute> attributes = tagAttrs();
+                    List<DCAttribute> attributes = tagAttrs();
                     // expect "}" or ":"
                     if (ch == '}') {
                         nextChar();

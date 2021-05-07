@@ -29,7 +29,7 @@ import java.util.List;
 import javax.lang.model.element.Name;
 
 /**
- * A tree node for an attribute in an HTML element.
+ * A tree node for an attribute in an HTML element or tag.
  *
  * @since 1.8
  */

@@ -229,12 +229,6 @@ public interface DocTree {
         SUMMARY("summary"),
 
         /**
-         * Used for instances of {@link TagAttributeTree}
-         * representing an attribute in an inline tag.
-         */
-        TAG_ATTRIBUTE,
-
-        /**
          * Used for instances of {@link TextTree}
          * representing some documentation text.
          */

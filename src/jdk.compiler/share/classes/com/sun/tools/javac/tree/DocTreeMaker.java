@@ -38,6 +38,7 @@ import javax.lang.model.element.Name;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 
+import com.sun.source.doctree.AttributeTree;
 import com.sun.source.doctree.AttributeTree.ValueKind;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.DocTree.Kind;
@@ -45,7 +46,6 @@ import com.sun.source.doctree.EndElementTree;
 import com.sun.source.doctree.IdentifierTree;
 import com.sun.source.doctree.ReferenceTree;
 import com.sun.source.doctree.StartElementTree;
-import com.sun.source.doctree.TagAttributeTree;
 import com.sun.source.doctree.TextTree;
 import com.sun.source.util.DocTreeFactory;
 import com.sun.tools.javac.api.JavacTrees;
@@ -81,7 +81,6 @@ import com.sun.tools.javac.tree.DCTree.DCSnippet;
 import com.sun.tools.javac.tree.DCTree.DCStartElement;
 import com.sun.tools.javac.tree.DCTree.DCSummary;
 import com.sun.tools.javac.tree.DCTree.DCSystemProperty;
-import com.sun.tools.javac.tree.DCTree.DCTagAttribute;
 import com.sun.tools.javac.tree.DCTree.DCText;
 import com.sun.tools.javac.tree.DCTree.DCThrows;
 import com.sun.tools.javac.tree.DCTree.DCUnknownBlockTag;
@@ -435,9 +434,9 @@ public class DocTreeMaker implements DocTreeFactory {
     }
 
     @Override @DefinedBy(Api.COMPILER_TREE)
-    public DCSnippet newSnippetTree(List<? extends TagAttributeTree> attributes, TextTree text) {
+    public DCSnippet newSnippetTree(List<? extends AttributeTree> attributes, TextTree text) {
         @SuppressWarnings("unchecked")
-        DCSnippet tree = new DCSnippet((List<DCTagAttribute>) attributes, (DCText) text);
+        DCSnippet tree = new DCSnippet((List<DCAttribute>) attributes, (DCText) text);
         tree.pos = pos;
         return tree;
     }
@@ -459,13 +458,6 @@ public class DocTreeMaker implements DocTreeFactory {
     @Override @DefinedBy(Api.COMPILER_TREE)
     public DCSystemProperty newSystemPropertyTree(Name propertyName) {
         DCSystemProperty tree = new DCSystemProperty(propertyName);
-        tree.pos = pos;
-        return tree;
-    }
-
-    @Override
-    public DCTagAttribute newTagAttributeTree(Name name, TagAttributeTree.ValueKind vkind, List<? extends DocTree> value) {
-        DCTagAttribute tree = new DCTagAttribute(name, vkind, cast(value));
         tree.pos = pos;
         return tree;
     }

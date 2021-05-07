@@ -62,7 +62,6 @@ import com.sun.source.doctree.SnippetTree;
 import com.sun.source.doctree.StartElementTree;
 import com.sun.source.doctree.SummaryTree;
 import com.sun.source.doctree.SystemPropertyTree;
-import com.sun.source.doctree.TagAttributeTree;
 import com.sun.source.doctree.TextTree;
 import com.sun.source.doctree.ThrowsTree;
 import com.sun.source.doctree.UnknownBlockTagTree;
@@ -335,8 +334,7 @@ public interface DocTreeFactory {
      * @return a {@code SnippetTree} object
      * @since
      */
-    // FIXME: (API consistency) should attributes be List<? extends DocTree>?
-    SnippetTree newSnippetTree(List<? extends TagAttributeTree> attributes, TextTree text);
+    SnippetTree newSnippetTree(List<? extends AttributeTree> attributes, TextTree text);
 
     /**
      * Creates a new {@code StartElementTree} object, to represent the start of an HTML element.
@@ -368,16 +366,6 @@ public interface DocTreeFactory {
      * @since 12
      */
     SystemPropertyTree newSystemPropertyTree(Name propertyName);
-
-    /**
-     * Creates a new {@code TagAttributeTree} object, to represent an attribute in an inline tag.
-     * @param name the name of the attribute
-     * @param vkind the kind of the attribute value
-     * @param value the value of the attribute
-     * @return a {@code TagAttributeTree} object
-     * @since
-     */
-    TagAttributeTree newTagAttributeTree(Name name, TagAttributeTree.ValueKind vkind, List<? extends DocTree> value);
 
     /**
      * Creates a new {@code TextTree} object, to represent some plain text.
