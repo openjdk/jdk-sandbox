@@ -52,17 +52,17 @@ public interface SnippetTree extends InlineTagTree {
      *
      * @return the list of the attributes
      */
-    List<? extends AttributeTree> getAttributes();
+    List<? extends DocTree> getAttributes();
 
     /**
      * Returns the body of the {@code @snippet} tag, or {@code null} if there is no body.
      *
      * @apiNote
      * An instance of {@code SnippetTree} with an empty body differs from an
-     * instance of {@code SnippetTree} with no body. If a tag has an
-     * empty body then calling {@link TextTree#getBody()} on the object returned
-     * from this method will return an empty string, whereas calling that same
-     * method on a tag that has no body will return {@code null}.
+     * instance of {@code SnippetTree} with no body.
+     * If a tag has no body, then calling this method returns {@code null}.
+     * If a tag has an empty body, then this method returns a {@code TextTree}
+     * whose {@link TextTree#getBody()} returns an empty string.
      *
      * @return the body of the tag, or {@code null} if there is no body
      */

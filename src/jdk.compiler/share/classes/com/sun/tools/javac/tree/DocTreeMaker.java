@@ -434,7 +434,7 @@ public class DocTreeMaker implements DocTreeFactory {
     }
 
     @Override @DefinedBy(Api.COMPILER_TREE)
-    public DCSnippet newSnippetTree(List<? extends AttributeTree> attributes, TextTree text) {
+    public DCSnippet newSnippetTree(List<? extends DocTree> attributes, TextTree text) {
         @SuppressWarnings("unchecked")
         DCSnippet tree = new DCSnippet((List<DCAttribute>) attributes, (DCText) text);
         tree.pos = pos;

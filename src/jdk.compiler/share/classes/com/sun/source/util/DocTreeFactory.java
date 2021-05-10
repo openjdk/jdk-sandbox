@@ -334,7 +334,7 @@ public interface DocTreeFactory {
      * @return a {@code SnippetTree} object
      * @since
      */
-    SnippetTree newSnippetTree(List<? extends AttributeTree> attributes, TextTree text);
+    SnippetTree newSnippetTree(List<? extends DocTree> attributes, TextTree text);
 
     /**
      * Creates a new {@code StartElementTree} object, to represent the start of an HTML element.
