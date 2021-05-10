@@ -79,7 +79,11 @@ public class SnippetTaglet extends BaseTaglet {
         Map<String, AttributeTree> attributes = new HashMap<>();
 
         // Organize attributes in a map performing basic checks along the way
-        for (AttributeTree a : snippetTag.getAttributes()) {
+        for (DocTree t : snippetTag.getAttributes()) {
+            if (!(t instanceof AttributeTree)) {
+                continue;
+            }
+            AttributeTree a = (AttributeTree) t;
             AttributeTree prev = attributes.putIfAbsent(a.getName().toString(), a);
             if (prev == null) {
                 continue;

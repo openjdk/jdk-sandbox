@@ -842,7 +842,7 @@ public abstract class DCTree implements DocTree {
     }
 
     public static class DCSnippet extends DCInlineTag implements SnippetTree {
-        public final List<DCAttribute> attributes;
+        public final List<? extends DocTree> attributes;
         public final DCText body;
 
         public DCSnippet(List<DCAttribute> attributes, DCText body) {
@@ -861,7 +861,7 @@ public abstract class DCTree implements DocTree {
         }
 
         @Override @DefinedBy(Api.COMPILER_TREE)
-        public List<? extends AttributeTree> getAttributes() {
+        public List<? extends DocTree> getAttributes() {
             return attributes;
         }
 
