@@ -47,7 +47,6 @@ import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -58,17 +57,13 @@ import static java.util.Map.entry;
 // FIXME
 //   0. Add tests for snippets in all types of elements: e.g., fields
 //      and constructors (i.e. not only methods.)
-//   1. Add tests for snippets in doc-files/*.html
-//     a. Make sure that both inline and external snippets work as expected
-//        and that inline snippets allow "*/" sequence
-//   2. Add tests for bad tag syntax
+//   1. Add tests for bad tag syntax
 //     a. Attribute unexpectedly ends ="<EOF>
-//   3. Add tests for good tag syntax
+//   2. Add tests for good tag syntax
 //     a. Attributes separated by newlines
 //     b. : on the next line
-//   4. Add tests for nested structure under "snippet-files/"
-//   5. Add tests for external snippets and default package: "snippet-files/Example.java"
-//   6. Add negative tests for region
+//   3. Add tests for nested structure under "snippet-files/"
+//   4. Add negative tests for region
 public class TestSnippetTag extends JavadocTester {
 
     private final ToolBox tb = new ToolBox();
@@ -460,6 +455,107 @@ public class TestSnippetTag extends JavadocTester {
                        %s</pre>
                        </div>""".formatted(index, expectedOutput));
         });
+    }
+
+    @Test
+    public void testInlineSnippetInDocFiles(Path base) throws IOException {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        // If there is no *.java files, javadoc will not create an output
+        // directory; so this class is created solely to trigger output.
+
+        new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void m() { }")
+                                // a (convenience) user entry point to the html file (not used by test)
+                                .setComments("<a href=\"doc-files/file.html\">A document</a>"))
+                .write(srcDir);
+
+
+        var content = """
+                              Unlike Java files, HTML files don't mind hosting
+                              the */ sequence in a @snippet tag
+                      """;
+
+        String html = """
+                      <!DOCTYPE html>
+                      <html lang="en">
+                        <head>
+                          <meta charset="utf-8">
+                          <title>title</title>
+                        </head>
+                        <body>
+                          <!-- yet another user entry point to the html file (not used by test): through an index page -->
+                          {@index this A document}
+                          {@snippet :
+                              %s}
+                        </body>
+                      </html>
+                      """.formatted(content);
+
+        Path p = Files.createDirectories(srcDir.resolve("pkg").resolve("doc-files"));
+        Files.writeString(p.resolve("file.html"), html, StandardOpenOption.CREATE_NEW);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.OK);
+
+        checkOutput("pkg/doc-files/file.html", true, content);
+    }
+
+    @Test
+    public void testExternalSnippetInDocFiles(Path base) throws IOException {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        // If there is no *.java files, javadoc will not create an output
+        // directory; so this class is created solely to trigger output.
+
+        new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void m() { }")
+                                // a (convenience) user entry point to the html file (not used by test)
+                                .setComments("<a href=\"doc-files/file.html\">A document</a>"))
+                .write(srcDir);
+
+        String html = """
+                      <!DOCTYPE html>
+                      <html lang="en">
+                        <head>
+                          <meta charset="utf-8">
+                          <title>title</title>
+                        </head>
+                        <body>
+                          <!-- yet another user entry point to the html file (not used by test): through an index page -->
+                          {@index this A document}
+                          {@snippet file="file.txt"}
+                        </body>
+                      </html>
+                      """;
+
+        Path p = Files.createDirectories(srcDir.resolve("pkg").resolve("doc-files"));
+        Files.writeString(p.resolve("file.html"), html, StandardOpenOption.CREATE_NEW);
+
+        String content = """
+                            Unlike Java files, text files don't mind hosting
+                            the */ sequence in a @snippet tag
+                         """;
+        addSnippetFile(srcDir, "pkg", "file.txt", content);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.OK);
+
+        checkOutput("pkg/doc-files/file.html", true, content);
     }
 
     // FIXME

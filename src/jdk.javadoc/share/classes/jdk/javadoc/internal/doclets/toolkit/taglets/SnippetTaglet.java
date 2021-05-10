@@ -45,6 +45,7 @@ import com.sun.source.doctree.SnippetTree;
 import com.sun.source.doctree.TextTree;
 import jdk.javadoc.doclet.Taglet;
 import jdk.javadoc.internal.doclets.toolkit.Content;
+import jdk.javadoc.internal.doclets.toolkit.DocletElement;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Action;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser.ParseException;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser.Parser;
@@ -138,9 +139,10 @@ public class SnippetTaglet extends BaseTaglet {
             try {
                 // first, look in local snippet-files subdirectory
                 Utils utils = writer.configuration().utils;
-                JavaFileManager.Location l = utils.getLocationForPackage(utils.elementUtils.getPackageOf(holder));
+                PackageElement pkg = getPackageElement(holder, utils);
+                JavaFileManager.Location l = utils.getLocationForPackage(pkg);
                 String relativeName = "snippet-files/" + v;
-                String packageName = packageName(holder, writer);
+                String packageName = packageName(pkg, utils);
                 fileObject = fileManager.getFileForInput(l, packageName, relativeName);
 
                 // if not found in local snippet-files directory, look on snippet path
@@ -244,8 +246,15 @@ public class SnippetTaglet extends BaseTaglet {
         return writer.getOutputInstance().add("bad snippet");
     }
 
-    private String packageName(Element e, TagletWriter writer) {
-        PackageElement pkg = writer.configuration().utils.containingPackage(e);
-        return writer.configuration().utils.getPackageName(pkg);
+    private String packageName(PackageElement pkg, Utils utils) {
+        return utils.getPackageName(pkg);
+    }
+
+    private static PackageElement getPackageElement(Element e, Utils utils) {
+        if (e instanceof DocletElement de) {
+            return de.getPackageElement();
+        } else {
+            return utils.elementUtils.getPackageOf(e);
+        }
     }
 }
