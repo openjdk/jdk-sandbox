@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -332,7 +332,7 @@ public interface DocTreeFactory {
      * @param attributes the attributes of the tag
      * @param text the body of the tag, or {@code null} if the tag has no body (not to be confused with an empty body)
      * @return a {@code SnippetTree} object
-     * @since
+     * @since 17
      */
     SnippetTree newSnippetTree(List<? extends DocTree> attributes, TextTree text);
 
