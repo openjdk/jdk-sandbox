@@ -122,7 +122,7 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU],
       ;;
     riscv64)
       VAR_CPU=riscv64
-      VAR_CPU_ARCH=riscv
+      VAR_CPU_ARCH=riscv64
       VAR_CPU_BITS=64
       VAR_CPU_ENDIAN=little
       ;;
@@ -522,6 +522,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS_HELPER],
     HOTSPOT_$1_CPU_DEFINE=SPARC
   elif test "x$OPENJDK_$1_CPU" = xppc; then
     HOTSPOT_$1_CPU_DEFINE=PPC32
+  elif test "x$OPENJDK_$1_CPU" = xriscv64; then
+    HOTSPOT_$1_CPU_DEFINE=RISCV64
   elif test "x$OPENJDK_$1_CPU" = xs390; then
     HOTSPOT_$1_CPU_DEFINE=S390
   elif test "x$OPENJDK_$1_CPU" = xs390x; then

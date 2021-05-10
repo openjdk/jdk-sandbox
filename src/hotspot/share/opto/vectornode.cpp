@@ -1072,7 +1072,9 @@ Node* ReductionNode::make_reduction_input(PhaseGVN& gvn, int opc, BasicType bt) 
     case Op_MinReductionV:
       switch (bt) {
         case T_BYTE:
+          return gvn.makecon(TypeInt::BYTE_MAX);
         case T_SHORT:
+          return gvn.makecon(TypeInt::SHORT_MAX);
         case T_INT:
           return gvn.makecon(TypeInt::MAX);
         case T_LONG:
@@ -1087,7 +1089,9 @@ Node* ReductionNode::make_reduction_input(PhaseGVN& gvn, int opc, BasicType bt) 
     case Op_MaxReductionV:
       switch (bt) {
         case T_BYTE:
+          return gvn.makecon(TypeInt::BYTE_MIN);
         case T_SHORT:
+          return gvn.makecon(TypeInt::SHORT_MIN);
         case T_INT:
           return gvn.makecon(TypeInt::MIN);
         case T_LONG:

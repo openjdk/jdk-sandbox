@@ -140,7 +140,11 @@ public:
   virtual Node* Identity(PhaseGVN* phase);
   const Type *add_id() const { return TypeInt::ZERO; }
   const Type *bottom_type() const { return TypeInt::CC; }
+#ifdef RISCV64
+  virtual uint ideal_reg() const { return Op_RegI; }
+#else
   virtual uint ideal_reg() const { return Op_RegFlags; }
+#endif
 
   static CmpNode *make(Node *in1, Node *in2, BasicType bt, bool unsigned_comp = false);
 

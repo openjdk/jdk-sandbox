@@ -25,7 +25,7 @@
  * @test
  * @bug 8074981
  * @summary Add C2 x86 Superword support for scalar product reduction optimizations : int test
- * @requires os.arch=="x86" | os.arch=="i386" | os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
+ * @requires os.arch=="x86" | os.arch=="i386" | os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
  *
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions
  *      -XX:LoopUnrollLimit=250 -XX:CompileThresholdScaling=0.1

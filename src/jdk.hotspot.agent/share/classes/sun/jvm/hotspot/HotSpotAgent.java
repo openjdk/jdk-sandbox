@@ -35,6 +35,7 @@ import sun.jvm.hotspot.debugger.MachineDescription;
 import sun.jvm.hotspot.debugger.MachineDescriptionAMD64;
 import sun.jvm.hotspot.debugger.MachineDescriptionPPC64;
 import sun.jvm.hotspot.debugger.MachineDescriptionAArch64;
+import sun.jvm.hotspot.debugger.MachineDescriptionRiscv64;
 import sun.jvm.hotspot.debugger.MachineDescriptionIntelX86;
 import sun.jvm.hotspot.debugger.NoSuchSymbolException;
 import sun.jvm.hotspot.debugger.bsd.BsdDebuggerLocal;
@@ -532,6 +533,8 @@ public class HotSpotAgent {
             machDesc = new MachineDescriptionAMD64();
         } else if (cpu.equals("aarch64")) {
             machDesc = new MachineDescriptionAArch64();
+        } else if (cpu.equals("riscv64")) {
+             machDesc = new MachineDescriptionRiscv64();
         } else {
             throw new DebuggerException("Win32 supported under x86, amd64 and aarch64 only");
         }

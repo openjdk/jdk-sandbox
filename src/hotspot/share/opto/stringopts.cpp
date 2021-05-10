@@ -1486,6 +1486,7 @@ void PhaseStringOpts::copy_latin1_string(GraphKit& kit, IdealKit& ideal, Node* s
     } else {
       // No intrinsic available, use slow method
       kit.inflate_string_slow(src_array, dst_array, start, __ value(count));
+      C->set_has_loops(true);
     }
     ideal.sync_kit(&kit);
     // Multiply count by two since we now need two bytes per char

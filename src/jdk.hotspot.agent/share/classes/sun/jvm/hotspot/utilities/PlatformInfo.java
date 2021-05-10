@@ -50,7 +50,7 @@ public class PlatformInfo {
 
   public static boolean knownCPU(String cpu) {
     final String[] KNOWN =
-        new String[] {"i386", "x86", "x86_64", "amd64", "ppc64", "ppc64le", "aarch64"};
+        new String[] {"i386", "x86", "x86_64", "amd64", "ppc64", "ppc64le", "aarch64", "riscv64"};
 
     for(String s : KNOWN) {
       if(s.equals(cpu))

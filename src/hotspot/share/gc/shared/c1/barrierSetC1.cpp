@@ -194,7 +194,12 @@ void BarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
   if (mask_boolean) {
     LabelObj* equalZeroLabel = new LabelObj();
     __ cmp(lir_cond_equal, result, 0);
-    __ branch(lir_cond_equal, equalZeroLabel->label());
+    __ branch(lir_cond_equal,
+#ifdef RISCV64
+              result,
+              LIR_OprFact::intConst(0),
+#endif
+              equalZeroLabel->label());
     __ move(LIR_OprFact::intConst(1), result);
     __ branch_destination(equalZeroLabel->label());
   }
@@ -322,13 +327,22 @@ void BarrierSetC1::generate_referent_check(LIRAccess& access, LabelObj* cont) {
         __ move(LIR_OprFact::longConst(java_lang_ref_Reference::referent_offset()), referent_off);
       }
       __ cmp(lir_cond_notEqual, offset, referent_off);
-      __ branch(lir_cond_notEqual, cont->label());
+      __ branch(lir_cond_notEqual,
+#ifdef RISCV64
+                offset, referent_off,
+#endif
+                cont->label());
     }
     if (gen_source_check) {
       // offset is a const and equals referent offset
       // if (source == null) -> continue
       __ cmp(lir_cond_equal, base_reg, LIR_OprFact::oopConst(NULL));
-      __ branch(lir_cond_equal, cont->label());
+      __ branch(lir_cond_equal,
+#ifdef RISCV64
+                base_reg,
+                LIR_OprFact::oopConst(NULL),
+#endif
+                cont->label());
     }
     LIR_Opr src_klass = gen->new_register(T_METADATA);
     if (gen_type_check) {
@@ -339,7 +353,12 @@ void BarrierSetC1::generate_referent_check(LIRAccess& access, LabelObj* cont) {
       LIR_Opr reference_type = gen->new_register(T_INT);
       __ move(reference_type_addr, reference_type);
       __ cmp(lir_cond_equal, reference_type, LIR_OprFact::intConst(REF_NONE));
-      __ branch(lir_cond_equal, cont->label());
+      __ branch(lir_cond_equal,
+#ifdef RISCV64
+                reference_type,
+                LIR_OprFact::intConst(REF_NONE),
+#endif
+                cont->label());
     }
   }
 }

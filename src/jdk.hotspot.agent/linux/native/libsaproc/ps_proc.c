@@ -130,12 +130,16 @@ static bool process_get_lwp_regs(struct ps_prochandle* ph, pid_t pid, struct use
 // pointer from 3rd argument and ignores 4th argument
 #define ptrace_getregs(request, pid, addr, data) ptrace(request, pid, data, addr)
 
+// riscv kernel didn't implement compat_arch_ptrace function that will handle PT_GETREGS case
+// like other platforms, so call ptrace with PTRACE_GETREGSET here.
+#ifndef riscv64
 #if defined(_LP64) && defined(PTRACE_GETREGS64)
 #define PTRACE_GETREGS_REQ PTRACE_GETREGS64
 #elif defined(PTRACE_GETREGS)
 #define PTRACE_GETREGS_REQ PTRACE_GETREGS
 #elif defined(PT_GETREGS)
 #define PTRACE_GETREGS_REQ PT_GETREGS
+#endif
 #endif
 
 #ifdef PTRACE_GETREGS_REQ

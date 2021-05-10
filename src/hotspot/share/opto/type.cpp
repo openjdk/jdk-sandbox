@@ -467,9 +467,13 @@ void Type::Initialize_shared(Compile* current) {
   TypeInt::CC_LE   = TypeInt::make(-1, 0, WidenMin);
   TypeInt::CC_GE   = TypeInt::make( 0, 1, WidenMin);  // == TypeInt::BOOL
   TypeInt::BYTE    = TypeInt::make(-128,127,     WidenMin); // Bytes
+  TypeInt::BYTE_MAX = TypeInt::make(max_jbyte);       // 127
+  TypeInt::BYTE_MIN = TypeInt::make(min_jbyte);       // -128
   TypeInt::UBYTE   = TypeInt::make(0, 255,       WidenMin); // Unsigned Bytes
   TypeInt::CHAR    = TypeInt::make(0,65535,      WidenMin); // Java chars
   TypeInt::SHORT   = TypeInt::make(-32768,32767, WidenMin); // Java shorts
+  TypeInt::SHORT_MAX = TypeInt::make(max_jshort);     // 32767
+  TypeInt::SHORT_MIN = TypeInt::make(min_jshort);     // -32768
   TypeInt::POS     = TypeInt::make(0,max_jint,   WidenMin); // Non-neg values
   TypeInt::POS1    = TypeInt::make(1,max_jint,   WidenMin); // Positive values
   TypeInt::INT     = TypeInt::make(min_jint,max_jint, WidenMax); // 32-bit integers
@@ -1453,9 +1457,13 @@ const TypeInt *TypeInt::CC_EQ;  // [0]   == ZERO
 const TypeInt *TypeInt::CC_LE;  // [-1,0]
 const TypeInt *TypeInt::CC_GE;  // [0,1] == BOOL (!)
 const TypeInt *TypeInt::BYTE;   // Bytes, -128 to 127
+const TypeInt *TypeInt::BYTE_MAX; // 127
+const TypeInt *TypeInt::BYTE_MIN; // -128
 const TypeInt *TypeInt::UBYTE;  // Unsigned Bytes, 0 to 255
 const TypeInt *TypeInt::CHAR;   // Java chars, 0-65535
 const TypeInt *TypeInt::SHORT;  // Java shorts, -32768-32767
+const TypeInt *TypeInt::SHORT_MAX; // 32767
+const TypeInt *TypeInt::SHORT_MIN; // -32768
 const TypeInt *TypeInt::POS;    // Positive 32-bit integers or zero
 const TypeInt *TypeInt::POS1;   // Positive 32-bit integers
 const TypeInt *TypeInt::INT;    // 32-bit integers

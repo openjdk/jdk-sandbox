@@ -182,12 +182,50 @@ bool LIR_OprDesc::is_oop() const {
   }
 }
 
+#ifdef RISCV64
+bool LIR_OprDesc::has_common_register(LIR_Opr opr) const {
 
+  if (!(is_register() && opr->is_register())) {
+    return false;
+  }
+
+  if (is_single_cpu()) {
+    Register dst = as_register();
+    if (opr->is_single_cpu()) {
+      return dst == opr->as_register();
+    } else if (opr->is_double_cpu()) {
+      return dst == opr->as_register_lo();
+    }
+  } else if (is_double_cpu()) {
+    Register dst_lo = as_register_lo();
+    if (opr->is_single_cpu()) {
+      return dst_lo == opr->as_register();
+    } else if (opr->is_double_cpu()) {
+      return dst_lo == opr->as_register_lo();
+    }
+  } else if (is_single_fpu()) {
+    if (opr->is_single_fpu()) {
+      return as_float_reg() == opr->as_float_reg();
+    } else if (opr->is_double_fpu()) {
+      return as_float_reg() == opr->as_double_reg();
+    }
+  } else if (is_double_fpu()) {
+    if (opr->is_single_fpu()) {
+      return as_double_reg() == opr->as_float_reg();
+    }else if (opr->is_double_fpu()) {
+      return as_double_reg() == opr->as_double_reg();
+    }
+  }
+  return false;
+}
+#endif // RISCV64
 
 void LIR_Op2::verify() const {
 #ifdef ASSERT
   switch (code()) {
+#ifndef RISCV64
     case lir_cmove:
+#endif
     case lir_xchg:
       break;
 
@@ -238,28 +276,55 @@ void LIR_Op2::verify() const {
 #endif
 }
 
-
-LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BlockBegin* block)
+LIR_OpBranch::LIR_OpBranch(LIR_Condition cond,
+#ifdef RISCV64
+                           LIR_Opr left,
+                           LIR_Opr right,
+#endif
+                           BlockBegin* block)
+#ifdef RISCV64
+  : LIR_Op2(lir_branch, cond, left, right, (CodeEmitInfo*)NULL)
+#else
   : LIR_Op(lir_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
   , _cond(cond)
+#endif
   , _label(block->label())
   , _block(block)
   , _ublock(NULL)
   , _stub(NULL) {
 }
 
-LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, CodeStub* stub) :
-  LIR_Op(lir_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
+LIR_OpBranch::LIR_OpBranch(LIR_Condition cond,
+#ifdef RISCV64
+                           LIR_Opr left,
+                           LIR_Opr right,
+#endif
+                           CodeStub* stub)
+#ifdef RISCV64
+  : LIR_Op2(lir_branch, cond, left, right, (CodeEmitInfo*)NULL)
+#else
+  : LIR_Op(lir_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
   , _cond(cond)
+#endif
   , _label(stub->entry())
   , _block(NULL)
   , _ublock(NULL)
   , _stub(stub) {
 }
 
-LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BlockBegin* block, BlockBegin* ublock)
+LIR_OpBranch::LIR_OpBranch(LIR_Condition cond,
+#ifdef RISCV64
+                           LIR_Opr left,
+                           LIR_Opr right,
+#endif
+                           BlockBegin* block,
+                           BlockBegin* ublock)
+#ifdef RISCV64
+  : LIR_Op2(lir_branch, cond, left, right, (CodeEmitInfo*)NULL)
+#else
   : LIR_Op(lir_cond_float_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
   , _cond(cond)
+#endif
   , _label(block->label())
   , _block(block)
   , _ublock(ublock)
@@ -281,13 +346,13 @@ void LIR_OpBranch::change_ublock(BlockBegin* b) {
 }
 
 void LIR_OpBranch::negate_cond() {
-  switch (_cond) {
-    case lir_cond_equal:        _cond = lir_cond_notEqual;     break;
-    case lir_cond_notEqual:     _cond = lir_cond_equal;        break;
-    case lir_cond_less:         _cond = lir_cond_greaterEqual; break;
-    case lir_cond_lessEqual:    _cond = lir_cond_greater;      break;
-    case lir_cond_greaterEqual: _cond = lir_cond_less;         break;
-    case lir_cond_greater:      _cond = lir_cond_lessEqual;    break;
+  switch (cond()) {
+    case lir_cond_equal:        set_cond(lir_cond_notEqual);     break;
+    case lir_cond_notEqual:     set_cond(lir_cond_equal);        break;
+    case lir_cond_less:         set_cond(lir_cond_greaterEqual); break;
+    case lir_cond_lessEqual:    set_cond(lir_cond_greater);      break;
+    case lir_cond_greaterEqual: set_cond(lir_cond_less);         break;
+    case lir_cond_greater:      set_cond(lir_cond_lessEqual);    break;
     default: ShouldNotReachHere();
   }
 }
@@ -515,6 +580,17 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       assert(op->as_OpBranch() != NULL, "must be");
       LIR_OpBranch* opBranch = (LIR_OpBranch*)op;
 
+#ifdef RISCV64
+      // lir_branch and lir_cond_float_branch should be LIR_Op2 if arch has no flag register
+      if (opBranch->_opr1->is_valid()) do_input(opBranch->_opr1);
+      if (opBranch->_opr2->is_valid()) do_input(opBranch->_opr2);
+      if (opBranch->_tmp1->is_valid()) do_temp(opBranch->_tmp1);
+      if (opBranch->_tmp2->is_valid()) do_temp(opBranch->_tmp2);
+      if (opBranch->_tmp3->is_valid()) do_temp(opBranch->_tmp3);
+      if (opBranch->_tmp4->is_valid()) do_temp(opBranch->_tmp4);
+      if (opBranch->_tmp5->is_valid()) do_temp(opBranch->_tmp5);
+#endif
+
       if (opBranch->_info != NULL)     do_info(opBranch->_info);
       assert(opBranch->_result->is_illegal(), "not used");
       if (opBranch->_stub != NULL)     opBranch->stub()->visit(this);
@@ -558,7 +634,9 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
 
 
 // LIR_Op2
+#ifndef RISCV64
     case lir_cmp:
+#endif
     case lir_cmp_l2i:
     case lir_ucmp_fd2i:
     case lir_cmp_fd2i:
@@ -605,6 +683,26 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     // to the result operand, otherwise the backend fails
     case lir_cmove:
     {
+#ifdef RISCV64
+      // lir_cmove should be LIR_Op4 on riscv64
+      assert(op->as_Op4() != NULL, "must be");
+      LIR_Op4* op4 = (LIR_Op4*)op;
+
+      assert(op4->_info == NULL, "must be");
+      assert(op4->_opr1->is_valid() && op4->_opr2->is_valid() && op4->_opr3->is_valid() &&
+             op4->_opr4->is_valid() && op4->_result->is_valid(), "used");
+
+      do_input(op4->_opr1);
+      do_input(op4->_opr2);
+      do_input(op4->_opr3);
+      do_input(op4->_opr4);
+      if (op4->_tmp1->is_valid())  do_temp(op4->_tmp1);
+      if (op4->_tmp2->is_valid())  do_temp(op4->_tmp2);
+      if (op4->_tmp3->is_valid())  do_temp(op4->_tmp3);
+      if (op4->_tmp4->is_valid())  do_temp(op4->_tmp4);
+      if (op4->_tmp5->is_valid())  do_temp(op4->_tmp5);
+      do_output(op4->_result);
+#else
       assert(op->as_Op2() != NULL, "must be");
       LIR_Op2* op2 = (LIR_Op2*)op;
 
@@ -616,6 +714,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       do_input(op2->_opr2);
       do_temp(op2->_opr2);
       do_output(op2->_result);
+#endif // RISCV64
 
       break;
     }
@@ -1047,6 +1146,12 @@ void LIR_Op3::emit_code(LIR_Assembler* masm) {
   masm->emit_op3(this);
 }
 
+#ifdef RISCV64
+void LIR_Op4::emit_code(LIR_Assembler* masm) {
+  masm->emit_op4(this);
+}
+#endif
+
 void LIR_OpLock::emit_code(LIR_Assembler* masm) {
   masm->emit_lock(this);
   if (stub()) {
@@ -1271,6 +1376,7 @@ void LIR_List::irem(LIR_Opr left, int right, LIR_Opr res, LIR_Opr tmp, CodeEmitI
 }
 
 
+#ifndef RISCV64
 void LIR_List::cmp_mem_int(LIR_Condition condition, LIR_Opr base, int disp, int c, CodeEmitInfo* info) {
   append(new LIR_Op2(
                     lir_cmp,
@@ -1289,6 +1395,7 @@ void LIR_List::cmp_reg_mem(LIR_Condition condition, LIR_Opr reg, LIR_Address* ad
                     LIR_OprFact::address(addr),
                     info));
 }
+#endif
 
 void LIR_List::allocate_object(LIR_Opr dst, LIR_Opr t1, LIR_Opr t2, LIR_Opr t3, LIR_Opr t4,
                                int header_size, int object_size, LIR_Opr klass, bool init_check, CodeStub* stub) {
@@ -1424,7 +1531,12 @@ void LIR_List::null_check(LIR_Opr opr, CodeEmitInfo* info, bool deoptimize_on_nu
     // Emit an explicit null check and deoptimize if opr is null
     CodeStub* deopt = new DeoptimizeStub(info, Deoptimization::Reason_null_check, Deoptimization::Action_none);
     cmp(lir_cond_equal, opr, LIR_OprFact::oopConst(NULL));
-    branch(lir_cond_equal, deopt);
+    branch(lir_cond_equal,
+#ifdef RISCV64
+           opr,
+           LIR_OprFact::oopConst(NULL),
+#endif
+           deopt);
   } else {
     // Emit an implicit null check
     append(new LIR_Op1(lir_null_check, opr, info));
@@ -1668,10 +1780,13 @@ const char * LIR_Op::name() const {
      case lir_alloc_object:          s = "alloc_obj";     break;
      case lir_monaddr:               s = "mon_addr";      break;
      // LIR_Op2
+#ifndef RISCV64
      case lir_cmp:                   s = "cmp";           break;
+#endif
      case lir_cmp_l2i:               s = "cmp_l2i";       break;
      case lir_ucmp_fd2i:             s = "ucomp_fd2i";    break;
      case lir_cmp_fd2i:              s = "comp_fd2i";     break;
+     // lir_cmove is LIR_Op4 on riscv64
      case lir_cmove:                 s = "cmove";         break;
      case lir_add:                   s = "add";           break;
      case lir_sub:                   s = "sub";           break;
@@ -1833,6 +1948,10 @@ void LIR_Op1::print_patch_code(outputStream* out, LIR_PatchCode code) {
 // LIR_OpBranch
 void LIR_OpBranch::print_instr(outputStream* out) const {
   print_condition(out, cond());             out->print(" ");
+#ifdef RISCV64
+  in_opr1()->print(out); out->print(" ");
+  in_opr2()->print(out); out->print(" ");
+#endif
   if (block() != NULL) {
     out->print("[B%d] ", block()->block_id());
   } else if (stub() != NULL) {
@@ -1919,7 +2038,11 @@ void LIR_OpRoundFP::print_instr(outputStream* out) const {
 
 // LIR_Op2
 void LIR_Op2::print_instr(outputStream* out) const {
+#ifdef RISCV64
+  if (code() == lir_branch || code() == lir_cond_float_branch) {
+#else
   if (code() == lir_cmove || code() == lir_cmp) {
+#endif
     print_condition(out, condition());         out->print(" ");
   }
   in_opr1()->print(out);    out->print(" ");
@@ -1970,6 +2093,17 @@ void LIR_Op3::print_instr(outputStream* out) const {
   result_opr()->print(out);
 }
 
+#ifdef RISCV64
+// LIR_Op4
+void LIR_Op4::print_instr(outputStream* out) const {
+  print_condition(out, cond()); out->print(" ");
+  in_opr1()->print(out);        out->print(" ");
+  in_opr2()->print(out);        out->print(" ");
+  in_opr3()->print(out);        out->print(" ");
+  in_opr4()->print(out);        out->print(" ");
+  result_opr()->print(out);
+}
+#endif // RISCV64
 
 void LIR_OpLock::print_instr(outputStream* out) const {
   hdr_opr()->print(out);   out->print(" ");

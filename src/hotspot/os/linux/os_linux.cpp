@@ -2543,6 +2543,8 @@ void os::get_summary_cpu_info(char* cpuinfo, size_t length) {
   strncpy(cpuinfo, "IA64", length);
 #elif defined(PPC)
   strncpy(cpuinfo, "PPC64", length);
+#elif defined(RISCV)
+  strncpy(cpuinfo, "RISCV", length);
 #elif defined(S390)
   strncpy(cpuinfo, "S390", length);
 #elif defined(SPARC)
@@ -3664,7 +3666,8 @@ size_t os::Linux::find_default_large_page_size() {
     IA32_ONLY(4 * M)
     IA64_ONLY(256 * M)
     PPC_ONLY(4 * M)
-    S390_ONLY(1 * M);
+    S390_ONLY(1 * M)
+    RISCV64_ONLY(2 * M);
 #endif // ZERO
 
   FILE *fp = fopen("/proc/meminfo", "r");

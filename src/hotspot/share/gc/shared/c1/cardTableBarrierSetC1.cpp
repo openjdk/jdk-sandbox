@@ -87,7 +87,11 @@ void CardTableBarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, L
 
     LabelObj* L_already_dirty = new LabelObj();
     __ cmp(lir_cond_equal, cur_value, dirty);
-    __ branch(lir_cond_equal, L_already_dirty->label());
+    __ branch(lir_cond_equal,
+#ifdef RISCV64
+              cur_value, dirty,
+#endif
+              L_already_dirty->label());
     __ move(dirty, card_addr);
     __ branch_destination(L_already_dirty->label());
   } else {

@@ -90,22 +90,45 @@ void ZLoadBarrierStubC1::print_name(outputStream* out) const {
 
 class LIR_OpZLoadBarrierTest : public LIR_Op {
 private:
+#ifdef RISCV64
+  LIR_Opr _mask;
+#endif
   LIR_Opr _opr;
 
 public:
-  LIR_OpZLoadBarrierTest(LIR_Opr opr) :
+  LIR_OpZLoadBarrierTest(
+#ifdef RISCV64
+                         LIR_Opr mask,
+#endif
+                         LIR_Opr opr) :
       LIR_Op(),
+#ifdef RISCV64
+      _mask(mask),
+#endif
       _opr(opr) {}
 
   virtual void visit(LIR_OpVisitState* state) {
+#ifdef RISCV64
+    state->do_output(_opr);
+    state->do_output(_mask);
+#else
     state->do_input(_opr);
+#endif
   }
 
   virtual void emit_code(LIR_Assembler* ce) {
-    ZBarrierSet::assembler()->generate_c1_load_barrier_test(ce, _opr);
+    ZBarrierSet::assembler()->generate_c1_load_barrier_test(ce,
+#ifdef RISCV64
+                                                            _mask,
+#endif
+                                                            _opr);
   }
 
   virtual void print_instr(outputStream* out) const {
+#ifdef RISCV64
+    _mask->print(out);
+    out->print(" ");
+#endif
     _opr->print(out);
     out->print(" ");
   }
@@ -144,12 +167,24 @@ address ZBarrierSetC1::load_barrier_on_oop_field_preloaded_runtime_stub(Decorato
 
 void ZBarrierSetC1::load_barrier(LIRAccess& access, LIR_Opr result) const {
   // Fast path
-  __ append(new LIR_OpZLoadBarrierTest(result));
+#ifdef RISCV64
+  LIR_Opr mask = access.gen()->new_pointer_register();
+#endif
+  __ append(new LIR_OpZLoadBarrierTest(
+#ifdef RISCV64
+                                       mask,
+#endif
+                                       result));
 
   // Slow path
   const address runtime_stub = load_barrier_on_oop_field_preloaded_runtime_stub(access.decorators());
   CodeStub* const stub = new ZLoadBarrierStubC1(access, result, runtime_stub);
-  __ branch(lir_cond_notEqual, stub);
+  __ branch(lir_cond_notEqual,
+#ifdef RISCV64
+            mask,
+            LIR_OprFact::longConst(0),
+#endif
+            stub);
   __ branch_destination(stub->continuation());
 }
 

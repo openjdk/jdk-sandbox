@@ -101,7 +101,9 @@ ZLoadBarrierStubC2::ZLoadBarrierStubC2(const MachNode* node, Address ref_addr, R
     _entry(),
     _continuation() {
   assert_different_registers(ref, ref_addr.base());
+#ifndef RISCV64
   assert_different_registers(ref, ref_addr.index());
+#endif
 }
 
 Address ZLoadBarrierStubC2::ref_addr() const {

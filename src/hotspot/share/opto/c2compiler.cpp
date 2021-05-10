@@ -179,11 +179,11 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method, bool is_virt
   switch (id) {
   case vmIntrinsics::_compressStringC:
   case vmIntrinsics::_compressStringB:
-    if (!Matcher::has_match_rule(Op_StrCompressedCopy)) return false;
+    if (!Matcher::match_rule_supported(Op_StrCompressedCopy)) return false;
     break;
   case vmIntrinsics::_inflateStringC:
   case vmIntrinsics::_inflateStringB:
-    if (!Matcher::has_match_rule(Op_StrInflatedCopy)) return false;
+    if (!Matcher::match_rule_supported(Op_StrInflatedCopy)) return false;
     break;
   case vmIntrinsics::_compareToL:
   case vmIntrinsics::_compareToU:
@@ -471,6 +471,10 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method, bool is_virt
   case vmIntrinsics::_fsignum:
     if (!Matcher::match_rule_supported(Op_SignumF)) return false;
     break;
+  case vmIntrinsics::_indexOfU_char:
+  case vmIntrinsics::_indexOfL_char:
+    if (!Matcher::match_rule_supported(Op_StrIndexOfChar)) return false;
+    break;
   case vmIntrinsics::_hashCode:
   case vmIntrinsics::_identityHashCode:
   case vmIntrinsics::_getClass:
@@ -496,8 +500,6 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method, bool is_virt
   case vmIntrinsics::_indexOfIL:
   case vmIntrinsics::_indexOfIU:
   case vmIntrinsics::_indexOfIUL:
-  case vmIntrinsics::_indexOfU_char:
-  case vmIntrinsics::_indexOfL_char:
   case vmIntrinsics::_toBytesStringU:
   case vmIntrinsics::_getCharsStringU:
   case vmIntrinsics::_getCharStringU:

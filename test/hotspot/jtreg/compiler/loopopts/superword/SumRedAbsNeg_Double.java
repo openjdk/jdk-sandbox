@@ -25,7 +25,7 @@
  * @test
  * @bug 8138583
  * @summary Add C2 AArch64 Superword support for scalar sum reduction optimizations : double abs & neg test
- * @requires os.arch=="aarch64"
+ * @requires os.arch=="aarch64" | os.arch=="riscv64"
  *
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:LoopUnrollLimit=250
  *      -XX:CompileThresholdScaling=0.1

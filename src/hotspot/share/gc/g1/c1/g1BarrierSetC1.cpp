@@ -103,7 +103,12 @@ void G1BarrierSetC1::pre_barrier(LIRAccess& access, LIR_Opr addr_opr,
     slow = new G1PreBarrierStub(pre_val);
   }
 
-  __ branch(lir_cond_notEqual, slow);
+  __ branch(lir_cond_notEqual,
+#ifdef RISCV64
+            flag_val,
+            LIR_OprFact::intConst(0),
+#endif
+            slow);
   __ branch_destination(slow->continuation());
 }
 
@@ -171,7 +176,12 @@ void G1BarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, LIR_OprD
   __ cmp(lir_cond_notEqual, xor_shift_res, LIR_OprFact::intptrConst(NULL_WORD));
 
   CodeStub* slow = new G1PostBarrierStub(addr, new_val);
-  __ branch(lir_cond_notEqual, slow);
+  __ branch(lir_cond_notEqual,
+#ifdef RISCV64
+            xor_shift_res,
+            LIR_OprFact::intptrConst(NULL_WORD),
+#endif
+            slow);
   __ branch_destination(slow->continuation());
 }
 

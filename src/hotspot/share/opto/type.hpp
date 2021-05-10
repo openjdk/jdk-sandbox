@@ -606,9 +606,13 @@ public:
   static const TypeInt *CC_LE;  // [-1,0]
   static const TypeInt *CC_GE;  // [0,1] == BOOL (!)
   static const TypeInt *BYTE;
+  static const TypeInt *BYTE_MAX;
+  static const TypeInt *BYTE_MIN;
   static const TypeInt *UBYTE;
   static const TypeInt *CHAR;
   static const TypeInt *SHORT;
+  static const TypeInt *SHORT_MAX;
+  static const TypeInt *SHORT_MIN;
   static const TypeInt *POS;
   static const TypeInt *POS1;
   static const TypeInt *INT;

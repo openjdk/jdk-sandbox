@@ -1250,6 +1250,7 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
   st->print_cr(INTPTR_FORMAT " is an unknown value", p2i(addr));
 }
 
+#if !defined(RISCV64) || defined(ZERO)
 // Looks like all platforms can use the same function to check if C
 // stack is walkable beyond current frame.
 bool os::is_first_C_frame(frame* fr) {
@@ -1288,7 +1289,7 @@ bool os::is_first_C_frame(frame* fr) {
 
   return false;
 }
-
+#endif // !RISCV64 || ZERO
 
 // Set up the boot classpath.
 

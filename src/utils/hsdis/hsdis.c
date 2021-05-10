@@ -53,12 +53,13 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <string.h>
-
 #include <libiberty.h>
 #include <bfd.h>
 #include <bfdver.h>
 #include <dis-asm.h>
-
+#include <inttypes.h>
+#include <string.h>
+#include <errno.h>
 #include "hsdis.h"
 
 #ifndef bool
@@ -338,10 +339,8 @@ static void setup_app_data(struct hsdis_app_data* app_data,
 
   /* Finish linking together the various callback blocks. */
   app_data->dinfo.application_data = (void*) app_data;
-  app_data->dfn = disassembler(bfd_get_arch(native_bfd),
-                               bfd_big_endian(native_bfd),
-                               bfd_get_mach(native_bfd),
-                               native_bfd);
+  /* For binutils >= 2.29 */
+  app_data->dfn = disassembler(bfd_get_arch(native_bfd), bfd_big_endian(native_bfd), bfd_get_mach(native_bfd), native_bfd);
   app_data->dinfo.print_address_func = hsdis_print_address_func;
   app_data->dinfo.read_memory_func = hsdis_read_memory_func;
 
@@ -495,6 +494,9 @@ static const char* native_arch_name() {
 #endif
 #ifdef LIBARCH_s390x
   res = "s390:64-bit";
+#endif
+#ifdef LIBARCH_riscv64
+  res = "riscv:rv64";
 #endif
   if (res == NULL)
     res = "architecture not set in Makefile!";
