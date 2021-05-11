@@ -80,7 +80,7 @@ import com.sun.source.doctree.VersionTree;
  */
 public interface DocTreeFactory {
     /**
-     * Creates a new {@code AttributeTree} object, to represent an HTML attribute in an HTML tag.
+     * Creates a new {@code AttributeTree} object, to represent an attribute in an HTML element or tag.
      * @param name  the name of the attribute
      * @param vkind the kind of the attribute value
      * @param value the value, if any, of the attribute
