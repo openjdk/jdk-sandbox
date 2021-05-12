@@ -25,9 +25,6 @@
 
 package java.net;
 
-import jdk.internal.event.SocketConnectEvent;
-import sun.security.util.SecurityConstants;
-
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.IOException;
@@ -37,6 +34,8 @@ import java.nio.channels.SocketChannel;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Collections;
+import jdk.internal.event.SocketConnectEvent;
+import sun.security.util.SecurityConstants;
 
 /**
  * This class implements client sockets (also called just
@@ -629,14 +628,31 @@ public class Socket implements java.io.Closeable {
         if (!created)
             createImpl(true);
 
-        var sce = new SocketConnectEvent();
-        impl.connect(epoint, timeout);
-        if (sce.shouldCommit()) {
-            sce.host = addr.getHostName();
-            sce.addr = addr.getHostAddress();
-            sce.port = port;
-            sce.timeout = timeout;
-            sce.commit();
+        if (SocketConnectEvent.isTurnedOFF()) {
+            impl.connect(epoint, timeout);
+        } else {
+            var sce = new SocketConnectEvent();
+            boolean completed = false;
+            String exceptionMessage = null;
+            try {
+                sce.begin();
+                impl.connect(epoint, timeout);
+                completed = true;
+            } catch (IOException ioe) {
+                exceptionMessage = ioe.getMessage();
+                throw ioe;
+            } finally {
+                sce.end();
+                if (sce.shouldCommit()) {
+                    sce.host = addr.getHostName();
+                    sce.address = addr.getHostAddress();
+                    sce.port = port;
+                    sce.timeout = timeout;
+                    sce.completed = completed;
+                    sce.exceptionMessage = exceptionMessage;
+                    sce.commit();
+                }
+            }
         }
 
         connected = true;

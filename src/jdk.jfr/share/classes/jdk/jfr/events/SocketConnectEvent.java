@@ -44,7 +44,7 @@ public class SocketConnectEvent extends AbstractJDKEvent {
     public String host;
 
     @Label("Remote Address")
-    public String addr;
+    public String address;
 
     @Label("Remote port")
     public int port;
@@ -52,4 +52,10 @@ public class SocketConnectEvent extends AbstractJDKEvent {
     @Label("Timeout Value")
     @Timespan(Timespan.MILLISECONDS)
     public int timeout;
+
+    @Label("Connect completed")
+    public boolean completed;
+
+    @Label("Exception Message")
+    public String exceptionMessage;
 }

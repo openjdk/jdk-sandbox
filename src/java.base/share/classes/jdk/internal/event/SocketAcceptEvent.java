@@ -26,8 +26,22 @@
 package jdk.internal.event;
 
 public class SocketAcceptEvent extends Event {
+
+    private final static SocketConnectEvent EVENT = new SocketConnectEvent();
+
+    /** Returns {@code true} if event is enabled, {@code false} otherwise. */
+    public static boolean isTurnedOn() {
+        return EVENT.isEnabled();
+    }
+
+    public static boolean isTurnedOFF() {
+        return !isTurnedOn();
+    }
+
     public String host;
-    public String addr;
+    public String address;
     public int port;
     public int timeout;
+    public boolean completed;
+    public String exceptionMessage;
 }

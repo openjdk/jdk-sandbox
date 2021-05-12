@@ -21,11 +21,7 @@
  * questions.
  */
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintStream;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -49,16 +45,26 @@ class SocketEventsTest {
     }
 
     static void enableStreamingAndRun(ThrowingRunnable task) throws Exception {
-        CountDownLatch latch = new CountDownLatch(2);
+        CountDownLatch latch = new CountDownLatch(4);
         try (var rs = new RecordingStream()) {
-            rs.enable("jdk.SocketAccept");
+            rs.enable("jdk.SocketAccept").withThreshold(Duration.ofMillis(0));
             rs.enable("jdk.SocketConnect").withThreshold(Duration.ofMillis(0));
+            rs.enable("jdk.SocketRead").withThreshold(Duration.ofMillis(0));
+            rs.enable("jdk.SocketWrite").withThreshold(Duration.ofMillis(0));
             rs.onEvent("jdk.SocketAccept", event -> {
-                System.out.println(eventToString(event));
+                System.out.println("---\nRECEIVED: " + eventToString(event));
                 latch.countDown();
             });
             rs.onEvent("jdk.SocketConnect", event -> {
-                System.out.println(eventToString(event));
+                System.out.println("---\nRECEIVED: " + eventToString(event));
+                latch.countDown();
+            });
+            rs.onEvent("jdk.SocketRead", event -> {
+                System.out.println("---\nRECEIVED: " + eventToString(event));
+                latch.countDown();
+            });
+            rs.onEvent("jdk.SocketWrite", event -> {
+                System.out.println("---\nRECEIVED: " + eventToString(event));
                 latch.countDown();
             });
             rs.startAsync();
@@ -70,7 +76,7 @@ class SocketEventsTest {
 
     static void runTest() throws Exception {
         try (Server s = new Server();
-             SocketWriter cw = new SocketWriter(s.ia, s.port)) {
+             SocketWriter cw = new SocketWriter(InetAddress.getLocalHost(), s.port)) {
             CompletableFuture<?> s_fut = CompletableFuture.runAsync(s);
             CompletableFuture<?> cw_fut = CompletableFuture.runAsync(cw);
             CompletableFuture.allOf(s_fut, cw_fut).join();
