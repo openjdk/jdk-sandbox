@@ -25,6 +25,7 @@
 
 package java.net;
 
+import jdk.internal.event.SocketConnectEvent;
 import sun.security.util.SecurityConstants;
 
 import java.io.InputStream;
@@ -634,6 +635,18 @@ public class Socket implements java.io.Closeable {
          * the kernel will have picked an ephemeral port & a local address
          */
         bound = true;
+
+        // Only create a connect event down here as this is unreachable upon failure
+        var sce = new SocketConnectEvent();
+        if (sce.shouldCommit()) {
+            System.out.println("In SCE branch");
+            sce.host = addr.getHostName();
+            sce.addr = addr.getHostAddress();
+            sce.port = port;
+            sce.timeout = timeout;
+            sce.socketImpl = impl.getClass();
+            sce.commit();
+        }
     }
 
     /**

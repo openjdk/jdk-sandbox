@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.Collections;
 
+import jdk.internal.event.SocketAcceptEvent;
 import sun.security.util.SecurityConstants;
 import sun.net.PlatformSocketImpl;
 
@@ -527,6 +528,16 @@ public class ServerSocket implements java.io.Closeable {
             throw new SocketException("Socket is not bound yet");
         Socket s = new Socket((SocketImpl) null);
         implAccept(s);
+        var sae = new SocketAcceptEvent();
+        if (sae.shouldCommit()) {
+            var addr = s.getInetAddress();
+            sae.host = addr.getHostName();
+            sae.addr = addr.getHostAddress();
+            sae.port = s.getPort();
+            sae.timeout = s.getSoTimeout();
+            sae.socketImpl = s.getImpl().getClass();
+            sae.commit();
+        }
         return s;
     }
 
@@ -566,6 +577,7 @@ public class ServerSocket implements java.io.Closeable {
     protected final void implAccept(Socket s) throws IOException {
         SocketImpl si = s.impl;
 
+        //The block below makes it difficult to place an event here, do it in calling method
         // Socket has no SocketImpl
         if (si == null) {
             si = implAccept();
