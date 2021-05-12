@@ -628,18 +628,10 @@ public class Socket implements java.io.Closeable {
         }
         if (!created)
             createImpl(true);
-        impl.connect(epoint, timeout);
-        connected = true;
-        /*
-         * If the socket was not bound before the connect, it is now because
-         * the kernel will have picked an ephemeral port & a local address
-         */
-        bound = true;
 
-        // Only create a connect event down here as this is unreachable upon failure
         var sce = new SocketConnectEvent();
+        impl.connect(epoint, timeout);
         if (sce.shouldCommit()) {
-            System.out.println("In SCE branch");
             sce.host = addr.getHostName();
             sce.addr = addr.getHostAddress();
             sce.port = port;
@@ -647,6 +639,13 @@ public class Socket implements java.io.Closeable {
             sce.socketImpl = impl.getClass();
             sce.commit();
         }
+
+        connected = true;
+        /*
+         * If the socket was not bound before the connect, it is now because
+         * the kernel will have picked an ephemeral port & a local address
+         */
+        bound = true;
     }
 
     /**

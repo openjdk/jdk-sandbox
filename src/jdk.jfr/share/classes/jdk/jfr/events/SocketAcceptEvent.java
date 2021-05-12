@@ -25,16 +25,18 @@
 
 package jdk.jfr.events;
 
-import jdk.jfr.*;
+import jdk.jfr.Category;
+import jdk.jfr.Description;
+import jdk.jfr.Label;
+import jdk.jfr.Name;
+import jdk.jfr.Timespan;
 import jdk.jfr.internal.MirrorEvent;
+import jdk.jfr.internal.Type;
 
-import java.net.InetAddress;
-import java.net.SocketImpl;
-
+@Name(Type.EVENT_NAME_PREFIX + "SocketAccept")
+@Label("Socket accept")
 @Category({"Java Development Kit", "Socket"})
-@Label("SocketAccept")
-@Name("jdk.SocketAccept")
-@Description("Resulting state of successful accept")
+@Description("Accepting a new socket")
 @MirrorEvent(className = "jdk.internal.event.SocketAcceptEvent")
 public class SocketAcceptEvent extends AbstractJDKEvent {
 

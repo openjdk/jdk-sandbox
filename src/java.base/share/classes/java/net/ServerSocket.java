@@ -527,8 +527,8 @@ public class ServerSocket implements java.io.Closeable {
         if (!isBound())
             throw new SocketException("Socket is not bound yet");
         Socket s = new Socket((SocketImpl) null);
-        implAccept(s);
         var sae = new SocketAcceptEvent();
+        implAccept(s);
         if (sae.shouldCommit()) {
             var addr = s.getInetAddress();
             sae.host = addr.getHostName();

@@ -25,16 +25,18 @@
 
 package jdk.jfr.events;
 
-import jdk.jfr.*;
+import jdk.jfr.Category;
+import jdk.jfr.Description;
+import jdk.jfr.Label;
+import jdk.jfr.Name;
+import jdk.jfr.Timespan;
 import jdk.jfr.internal.MirrorEvent;
+import jdk.jfr.internal.Type;
 
-import java.net.InetAddress;
-import java.net.SocketImpl;
-
+@Name(Type.EVENT_NAME_PREFIX + "SocketConnect")
+@Label("Socket connect")
 @Category({"Java Development Kit", "Socket"})
-@Label("SocketConnect")
-@Name("jdk.SocketConnect")
-@Description("State of a socket after a successful connect")
+@Description("Connecting a socket")
 @MirrorEvent(className = "jdk.internal.event.SocketConnectEvent")
 public class SocketConnectEvent extends AbstractJDKEvent {
 
