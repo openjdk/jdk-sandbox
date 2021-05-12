@@ -52,7 +52,4 @@ public class SocketConnectEvent extends AbstractJDKEvent {
     @Label("Timeout Value")
     @Timespan(Timespan.MILLISECONDS)
     public int timeout;
-
-    @Label("Socket Implementation")
-    public Class<?> socketImpl;
 }

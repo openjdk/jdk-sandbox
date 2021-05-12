@@ -535,7 +535,6 @@ public class ServerSocket implements java.io.Closeable {
             sae.addr = addr.getHostAddress();
             sae.port = s.getPort();
             sae.timeout = s.getSoTimeout();
-            sae.socketImpl = s.getImpl().getClass();
             sae.commit();
         }
         return s;

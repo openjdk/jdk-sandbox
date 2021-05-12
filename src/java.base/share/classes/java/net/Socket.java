@@ -636,7 +636,6 @@ public class Socket implements java.io.Closeable {
             sce.addr = addr.getHostAddress();
             sce.port = port;
             sce.timeout = timeout;
-            sce.socketImpl = impl.getClass();
             sce.commit();
         }
 
