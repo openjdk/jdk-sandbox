@@ -530,27 +530,27 @@ public class ServerSocket implements java.io.Closeable {
         if (SocketAcceptEvent.isTurnedOFF()) {
             implAccept(s);
         } else {
-            var sae = new SocketAcceptEvent();
+            var event = new SocketAcceptEvent();
             boolean completed = false;
             String exceptionMessage = null;
             try {
-                sae.begin();
+                event.begin();
                 implAccept(s);
                 completed = true;
             } catch (IOException ioe) {
                 exceptionMessage = ioe.getMessage();
                 throw ioe;
             } finally {
-                sae.end();
-                if (sae.shouldCommit()) {
+                event.end();
+                if (event.shouldCommit()) {
                     var addr = s.getInetAddress();
-                    sae.host = addr.getHostName();
-                    sae.address = addr.getHostAddress();
-                    sae.port = s.getPort();
-                    sae.timeout = s.getSoTimeout();
-                    sae.completed = completed;
-                    sae.exceptionMessage = exceptionMessage;
-                    sae.commit();
+                    event.host = addr.getHostName();
+                    event.address = addr.getHostAddress();
+                    event.port = s.getPort();
+                    event.timeout = s.getSoTimeout();
+                    event.completed = completed;
+                    event.exceptionMessage = exceptionMessage;
+                    event.commit();
                 }
             }
         }

@@ -631,26 +631,26 @@ public class Socket implements java.io.Closeable {
         if (SocketConnectEvent.isTurnedOFF()) {
             impl.connect(epoint, timeout);
         } else {
-            var sce = new SocketConnectEvent();
+            var event = new SocketConnectEvent();
             boolean completed = false;
             String exceptionMessage = null;
             try {
-                sce.begin();
+                event.begin();
                 impl.connect(epoint, timeout);
                 completed = true;
             } catch (IOException ioe) {
                 exceptionMessage = ioe.getMessage();
                 throw ioe;
             } finally {
-                sce.end();
-                if (sce.shouldCommit()) {
-                    sce.host = addr.getHostName();
-                    sce.address = addr.getHostAddress();
-                    sce.port = port;
-                    sce.timeout = timeout;
-                    sce.completed = completed;
-                    sce.exceptionMessage = exceptionMessage;
-                    sce.commit();
+                event.end();
+                if (event.shouldCommit()) {
+                    event.host = addr.getHostName();
+                    event.address = addr.getHostAddress();
+                    event.port = port;
+                    event.timeout = timeout;
+                    event.completed = completed;
+                    event.exceptionMessage = exceptionMessage;
+                    event.commit();
                 }
             }
         }

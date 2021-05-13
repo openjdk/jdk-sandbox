@@ -841,29 +841,29 @@ class SocketChannelImpl
     /** A (JRF) monitored task. Execution of the task is decorated with
      * pre and post event mechanics. */
     private boolean monitoredConnect(ThrowingRunnable<Boolean> connectTask) throws IOException {
-        var sce = new SocketConnectEvent();
+        var event = new SocketConnectEvent();
         boolean connected = false;
         String exceptionMessage = null;
         try {
-            sce.begin();
+            event.begin();
             connected = connectTask.run();
         } catch (IOException ioe) {
             exceptionMessage = ioe.getMessage();
             throw ioe;
         } finally {
-            sce.end();
-            if (sce.shouldCommit()) {
+            event.end();
+            if (event.shouldCommit()) {
                 if (remoteAddress instanceof InetSocketAddress isa) {
                     String hostString = isa.getAddress().toString();
                     int delimiterIndex = hostString.lastIndexOf('/');
 
-                    sce.host = hostString.substring(0, delimiterIndex);
-                    sce.address = hostString.substring(delimiterIndex + 1);
-                    sce.port = isa.getPort();
+                    event.host = hostString.substring(0, delimiterIndex);
+                    event.address = hostString.substring(delimiterIndex + 1);
+                    event.port = isa.getPort();
                 }
-                sce.completed = connected;
-                sce.exceptionMessage = exceptionMessage;
-                sce.commit();
+                event.completed = connected;
+                event.exceptionMessage = exceptionMessage;
+                event.commit();
             }
         }
         return connected;
