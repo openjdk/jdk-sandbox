@@ -25,19 +25,14 @@
 
 package jdk.internal.event;
 
-public final class SocketConnectEvent extends AbstractSocketEvent {
+public abstract class AbstractSocketEvent extends Event {
 
-    private final static SocketConnectEvent EVENT = new SocketConnectEvent();
+    protected AbstractSocketEvent() { }
 
-    /** Returns {@code true} if event is enabled, {@code false} otherwise. */
-    public static boolean isTurnedOn() {
-        return EVENT.isEnabled();
-    }
-
-    public static boolean isTurnedOFF() {
-        return !isTurnedOn();
-    }
-
-    public boolean completed;
-    public String exceptionMessage;
+    public int fd;
+    public String host;
+    public String address;
+    public int port;
+    //public String localAddress;
+    //public int localPort;
 }

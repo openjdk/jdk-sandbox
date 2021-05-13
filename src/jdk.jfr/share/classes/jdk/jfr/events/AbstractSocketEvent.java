@@ -23,21 +23,29 @@
  * questions.
  */
 
-package jdk.internal.event;
+package jdk.jfr.events;
 
-public final class SocketConnectEvent extends AbstractSocketEvent {
+import jdk.jfr.Label;
 
-    private final static SocketConnectEvent EVENT = new SocketConnectEvent();
+public abstract class AbstractSocketEvent extends AbstractJDKEvent {
 
-    /** Returns {@code true} if event is enabled, {@code false} otherwise. */
-    public static boolean isTurnedOn() {
-        return EVENT.isEnabled();
-    }
+    protected AbstractSocketEvent() { }
 
-    public static boolean isTurnedOFF() {
-        return !isTurnedOn();
-    }
+    @Label("file descriptor")
+    public int fd;
 
-    public boolean completed;
-    public String exceptionMessage;
+    @Label("Remote Host")
+    public String host;
+
+    @Label("Remote Address")
+    public String address;
+
+    @Label("Remote Port")
+    public int port;
+
+//    @Label("Local Address")
+//    public String localAddress;
+//
+//    @Label("Local Port")
+//    public int localPort;
 }

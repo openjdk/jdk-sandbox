@@ -31,7 +31,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Collections;
-import jdk.internal.event.SocketAcceptEvent;
 import sun.security.util.SecurityConstants;
 import sun.net.PlatformSocketImpl;
 
@@ -526,34 +525,7 @@ public class ServerSocket implements java.io.Closeable {
         if (!isBound())
             throw new SocketException("Socket is not bound yet");
         Socket s = new Socket((SocketImpl) null);
-
-        if (SocketAcceptEvent.isTurnedOFF()) {
-            implAccept(s);
-        } else {
-            var event = new SocketAcceptEvent();
-            boolean completed = false;
-            String exceptionMessage = null;
-            try {
-                event.begin();
-                implAccept(s);
-                completed = true;
-            } catch (IOException ioe) {
-                exceptionMessage = ioe.getMessage();
-                throw ioe;
-            } finally {
-                event.end();
-                if (event.shouldCommit()) {
-                    var addr = s.getInetAddress();
-                    event.host = addr.getHostName();
-                    event.address = addr.getHostAddress();
-                    event.port = s.getPort();
-                    event.timeout = s.getSoTimeout();
-                    event.completed = completed;
-                    event.exceptionMessage = exceptionMessage;
-                    event.commit();
-                }
-            }
-        }
+        implAccept(s);
         return s;
     }
 

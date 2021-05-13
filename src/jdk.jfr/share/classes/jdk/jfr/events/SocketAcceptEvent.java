@@ -29,7 +29,6 @@ import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
-import jdk.jfr.Timespan;
 import jdk.jfr.internal.MirrorEvent;
 import jdk.jfr.internal.Type;
 
@@ -38,20 +37,7 @@ import jdk.jfr.internal.Type;
 @Category({"Java Development Kit", "Socket"})
 @Description("Accepting a new socket")
 @MirrorEvent(className = "jdk.internal.event.SocketAcceptEvent")
-public class SocketAcceptEvent extends AbstractJDKEvent {
-
-    @Label("Remote Host")
-    public String host;
-
-    @Label("Remote Address")
-    public String address;
-
-    @Label("Remote port")
-    public int port;
-
-    @Label("Timeout Value")
-    @Timespan(Timespan.MILLISECONDS)
-    public int timeout;
+public class SocketAcceptEvent extends AbstractSocketEvent {
 
     @Label("Accept completed")
     public boolean completed;

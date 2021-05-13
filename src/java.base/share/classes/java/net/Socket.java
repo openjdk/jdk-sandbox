@@ -34,7 +34,6 @@ import java.nio.channels.SocketChannel;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Collections;
-import jdk.internal.event.SocketConnectEvent;
 import sun.security.util.SecurityConstants;
 
 /**
@@ -627,33 +626,7 @@ public class Socket implements java.io.Closeable {
         }
         if (!created)
             createImpl(true);
-
-        if (SocketConnectEvent.isTurnedOFF()) {
-            impl.connect(epoint, timeout);
-        } else {
-            var event = new SocketConnectEvent();
-            boolean completed = false;
-            String exceptionMessage = null;
-            try {
-                event.begin();
-                impl.connect(epoint, timeout);
-                completed = true;
-            } catch (IOException ioe) {
-                exceptionMessage = ioe.getMessage();
-                throw ioe;
-            } finally {
-                event.end();
-                if (event.shouldCommit()) {
-                    event.host = addr.getHostName();
-                    event.address = addr.getHostAddress();
-                    event.port = port;
-                    event.timeout = timeout;
-                    event.completed = completed;
-                    event.exceptionMessage = exceptionMessage;
-                    event.commit();
-                }
-            }
-        }
+        impl.connect(epoint, timeout);
 
         connected = true;
         /*
