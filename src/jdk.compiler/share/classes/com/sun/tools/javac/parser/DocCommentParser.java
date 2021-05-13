@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ package com.sun.tools.javac.parser;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.sun.source.doctree.AttributeTree;
 import com.sun.source.doctree.AttributeTree.ValueKind;
 import com.sun.source.doctree.ErroneousTree;
 import com.sun.source.doctree.UnknownBlockTagTree;
@@ -889,41 +888,93 @@ public class DocCommentParser {
      * Read a series of inline tag attributes, terminated by {@code ":"}
      * or the first unmatched <code>"}"</code>, whichever comes first.
      *
-     * Each attribute is of the form {@literal identifier=value}.
-     * "value" may be single-quoted or double-quoted.
-     *
+     * Each attribute is of the form {@literal identifier[=value]}.
+     * "value" may be unquoted, single-quoted, or double-quoted.
      * @return the list of attributes
      */
-    protected List<DCAttribute> tagAttrs() throws ParseException {
-        ListBuffer<DCAttribute> attrs = new ListBuffer<>();
+    protected List<DCTree> tagAttrs() throws ParseException {
 
+        /*
+         * Unquoted values are a risky business: omitting quotes may result in
+         * unexpected parsings. Users should prefer quoted values.
+         *
+         * If you decide to modify this code and the related spec(s), consider
+         * the following.
+         *
+         * 1. It is unclear which characters should be included in an unquoted
+         * value. On the one hand, the only precedent we have is the rules of
+         * HTML (linked content as seen on 2021-MAY-12):
+         *
+         *     i. https://html.spec.whatwg.org/multipage/syntax.html#unquoted
+         *    ii. https://www.w3.org/TR/html52/syntax.html#attribute-value-unquoted-state
+         *
+         * On the other hand, those rules are tailored to HTML. For example,
+         * while it makes sense to terminate an unquoted HTML attribute value
+         * with characters such as < or fail attribute parsing when encounter >,
+         * it makes less sense to do any of those for an unquoted attribute
+         * value of a standard doclet tag.
+         *
+         * 2. An HTML attribute value is parsed recursively because it can use
+         * character references (e.g. &commat;, &#064;, etc.) and, in our case,
+         * standard doclet tags (see attrValueChar()). While this should
+         * probably be considered on a case-by-case basis, for an attribute
+         * value of the {@snippet} tag we do not recurse.
+         */
+        ListBuffer<DCTree> attrs = new ListBuffer<>();
+        skipWhitespace();
+
+        loop:
         while (bp < buflen && isIdentifierStart(ch)) {
             int namePos = bp;
-            Name name = readTagAttributeName();
+            Name name = readAttributeName();
             skipWhitespace();
-            ListBuffer<DCTree> v = new ListBuffer<>();
-
-            if (ch != '=')
-                throw new ParseException("dc.unexpected.content");
-
-            nextChar();
-            skipWhitespace();
-
-            if (ch != '"' && ch != '\'')
-                throw new ParseException("dc.unexpected.content");
-
-            AttributeTree.ValueKind vkind = (ch == '\'') ?
-                    AttributeTree.ValueKind.SINGLE : AttributeTree.ValueKind.DOUBLE;
-            char quote = ch; // remember the type of the quote used
-            nextChar();
-            textStart = bp;
-            while (bp < buflen && ch != quote) {
+            List<DCTree> value = null;
+            ValueKind vkind = ValueKind.EMPTY;
+            if (ch == '=') {
+                ListBuffer<DCTree> v = new ListBuffer<>();
                 nextChar();
+                /*
+                 * The below skipWhitespace() handles optional whitespace.
+                 * It was copied from HTML attribute value parsing, where it was
+                 * introduced according to the HTML spec, perhaps for formatting
+                 * purposes:
+                 *
+                 *   name=value vs name = value
+                 *
+                 * However, it might yield a problematic parsing. Consider two
+                 * attributes, one unquoted and the other is boolean:
+                 *
+                 *   name1= name2
+                 *
+                 * The above is parsed effectively as if it were:
+                 *
+                 *   name1="name2"
+                 */
+                skipWhitespace();
+                if (ch == '\'' || ch == '"') {
+                    newline = false;
+                    vkind = (ch == '\'') ? ValueKind.SINGLE : ValueKind.DOUBLE;
+                    char quote = ch;
+                    nextChar();
+                    textStart = bp;
+                    while (bp < buflen && ch != quote) {
+                        nextChar();
+                    }
+                    addPendingText(v, bp - 1);
+                    nextChar();
+                } else {
+                    vkind = ValueKind.UNQUOTED;
+                    textStart = bp;
+                    // Note: we stop on '}' for it to be re-consumed by the tag
+                    while (bp < buflen && (ch != '}' && !isUnquotedAttrValueTerminator(ch))) {
+                        nextChar();
+                    }
+                    addPendingText(v, bp - 1);
+                }
+                skipWhitespace();
+                value = v.toList();
             }
-            addPendingText(v, bp - 1);
-            nextChar();
-            skipWhitespace();
-            DCAttribute attr = m.at(namePos).newAttributeTree(name, vkind, v.toList());
+            DCAttribute attr = m.at(namePos).newAttributeTree(name, vkind, value);
             attrs.add(attr);
         }
 
@@ -1469,7 +1520,7 @@ public class DocCommentParser {
                 @Override
                 DCTree parse(int pos) throws ParseException {
                     skipWhitespace();
-                    List<DCAttribute> attributes = tagAttrs();
+                    List<DCTree> attributes = tagAttrs();
                     // expect "}" or ":"
                     if (ch == '}') {
                         nextChar();

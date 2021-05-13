@@ -114,7 +114,7 @@ public class SnippetTaglet extends BaseTaglet {
         if (region != null) {
             r = stringOf(region.getValue());
             if (r.isBlank()) {
-                error(writer, holder, region, "doclet.tag.attribute.value.illegal", "region", region);
+                error(writer, holder, region, "doclet.tag.attribute.value.illegal", "region", region.getValue());
                 return badSnippet(writer);
             }
         }
@@ -207,7 +207,7 @@ public class SnippetTaglet extends BaseTaglet {
                 }
             }
         } catch (ParseException e) {
-            error(writer, holder, region, "doclet.snippet.markup", e.getMessage());
+            error(writer, holder, region, "doclet.snippet.markup", e.getMessage()); // FIXME: e.getMessage() is non-internationalized and sometimes is just a resource key
             return badSnippet(writer);
         }
 

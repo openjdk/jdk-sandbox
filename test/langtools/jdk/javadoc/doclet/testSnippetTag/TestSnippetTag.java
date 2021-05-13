@@ -46,10 +46,12 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static java.util.Map.entry;
@@ -57,13 +59,9 @@ import static java.util.Map.entry;
 // FIXME
 //   0. Add tests for snippets in all types of elements: e.g., fields
 //      and constructors (i.e. not only methods.)
-//   1. Add tests for bad tag syntax
-//     a. Attribute unexpectedly ends ="<EOF>
-//   2. Add tests for good tag syntax
-//     a. Attributes separated by newlines
-//     b. : on the next line
-//   3. Add tests for nested structure under "snippet-files/"
-//   4. Add negative tests for region
+//   1. Add tests for nested structure under "snippet-files/"
+//   2. Add negative tests for region
+//   3. Add tests for hybrid snippets
 public class TestSnippetTag extends JavadocTester {
 
     private final ToolBox tb = new ToolBox();
@@ -73,6 +71,102 @@ public class TestSnippetTag extends JavadocTester {
     }
 
     private TestSnippetTag() { }
+
+    @Test
+    public void testBadTagSyntax(Path base) throws IOException {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        List<String> badSnippets = List.of(
+                """
+                {@snippet:}
+                """,
+                """
+                {@snippet :}
+                """,
+                """
+                {@snippet : }
+                """,
+                """
+                {@snippet
+                : }
+                """,
+                """
+                {@snippet
+                 : }
+                """,
+                """
+                {@snippet file="}
+                """,
+                """
+                {@snippet file="
+                }
+                """,
+                """
+                {@snippet file='}
+                """,
+                """
+                {@snippet file='
+                }
+                """,
+                """
+                {@snippet file='
+                    }
+                """,
+                """
+                {@snippet
+                file='
+                    }
+                """,
+                """
+                {@snippet
+                file='}
+                """
+
+// The below commented out cases are worth testing if only to fixate the result.
+// It's not that we can do a lot about them anyway.
+//                ,
+//                // FIXME forgot ":"
+//                """
+//                {@snippet
+//                  Hello  there
+//                }
+//                """
+//                // FIXME forgot ":"
+//                """
+//                {@snippet
+//                    List<String> strings = List.of();
+//                }
+//                """
+        );
+
+        ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class");
+
+        int i = 0;
+        for (String s : badSnippets) {
+            classBuilder.addMembers(
+                    MethodBuilder.parse("public void case%s() { }".formatted(i++)).setComments(s));
+        }
+        classBuilder.write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        // Not very specific, but good enough
+        long actual = Pattern.compile("error: ").matcher(getOutput(Output.OUT)).results().count();
+
+        checking("Number of errors");
+        int expected = badSnippets.size();
+        if (actual == expected) {
+            passed("");
+        } else {
+            failed(actual + " vs " + expected);
+        }
+    }
 
     @Test
     public void testInline(Path base) throws Exception {
@@ -87,6 +181,24 @@ public class TestSnippetTag extends JavadocTester {
                                 .parse("public void case00() { }")
                                 .setComments("""
                                              {@snippet :
+                                             }
+                                             """))
+                // Empty with a newline before : as a whitespace
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void case01() { }")
+                                .setComments("""
+                                             {@snippet
+                                                      :
+                                             }
+                                             """))
+                // Empty with a newline and whitespace before :
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void case02() { }")
+                                .setComments("""
+                                             {@snippet
+                                                       :
                                              }
                                              """))
                 // Basic
@@ -1092,6 +1204,219 @@ public class TestSnippetTag extends JavadocTester {
                        %s</pre>
                        </div>""".formatted(index, expectedOutput));
         });
+    }
+
+    @Test
+    public void testAttributeValueSyntaxUnquotedCurly(Path base) throws Exception {
+
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        /*
+         * The snippet region attribute's value is empty because the tag is
+         * terminated by the first }
+         *
+         *    v                v
+         *    {@snippet region=} :
+         *        // @start region="}" @end
+         *    }
+         */
+
+        ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void case0() { }")
+                                .setComments("""
+                                             {@snippet region=} :
+                                                 // @start region="}" @end
+                                             }
+                                             """));
+        classBuilder.write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                    """
+                    /A.java:4: error - @snippet does not specify contents""");
+    }
+
+    @Test
+    public void testAttributeValueSyntaxCurly(Path base) throws Exception {
+
+        /*
+         * The snippet has to be external, otherwise its content would
+         * interfere with the test: that internal closing curly would
+         * terminate the @snippet tag:
+         *
+         *     v
+         *     {@snippet region="}" :
+         *         // @start region="}" @end
+         *                           ^
+         *     }
+         */
+
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+
+        addSnippetFile(srcDir, "pkg", "file.txt", """
+                                                  // @start region="}" @end
+                                                  """
+        );
+
+        ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class")
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void case0() { }")
+                                .setComments("""
+                                             {@snippet region="}" file="file.txt"}
+                                             """))
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void case1() { }")
+                                .setComments("""
+                                             {@snippet region='}' file="file.txt"}
+                                             """));
+        classBuilder.write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.OK);
+
+        checkOrder("pkg/A.html",
+                   """
+                   <span class="element-name">case0</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                   </pre>
+                   </div>""");
+
+        checkOrder("pkg/A.html",
+                   """
+                   <span class="element-name">case1</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                   </pre>
+                   </div>""");
+    }
+
+    @Test
+    public void testAttributeValueSyntax(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        // Test most expected use cases for external snippet
+
+        List<String> snippets = List.of(
+            """
+            {@snippet file=file region=region}
+            """,
+            """
+            {@snippet file=file region= region}
+            """,
+            """
+            {@snippet file=file region="region"}
+            """,
+            """
+            {@snippet file=file region='region'}
+            """,
+            """
+            {@snippet file= file region=region}
+            """,
+            """
+            {@snippet file= file region= region}
+            """,
+            """
+            {@snippet file= file region="region"}
+            """,
+            """
+            {@snippet file= file region='region'}
+            """,
+            """
+            {@snippet file="file" region=region}
+            """,
+            """
+            {@snippet file="file" region= region}
+            """,
+            """
+            {@snippet file="file" region="region"}
+            """,
+            """
+            {@snippet file="file" region='region'}
+            """,
+            """
+            {@snippet file='file' region=region}
+            """,
+            """
+            {@snippet file='file' region= region}
+            """,
+            """
+            {@snippet file='file' region="region"}
+            """,
+            """
+            {@snippet file='file' region='region'}
+            """,
+            // ---------------------------------------------------------------
+            """
+            {@snippet region=region file=file}
+            """,
+            """
+            {@snippet region=region file="file"}
+            """,
+            """
+            {@snippet region="region" file="file"}
+            """,
+            """
+            {@snippet file="file"
+                      region="region"}
+            """,
+            """
+            {@snippet file="file"
+                      region=region}
+            """
+        );
+
+        addSnippetFile(srcDir, "pkg", "file", """
+                                              1 // @start region=bar @end
+                                              2 // @start region=region @end
+                                              3 // @start region=foo @end
+                                              """);
+
+        ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class");
+
+        int i = 0;
+        for (String s : snippets) {
+            classBuilder.addMembers(
+                    MethodBuilder.parse("public void case%s() { }".formatted(i++)).setComments(s));
+        }
+        classBuilder.write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.OK);
+
+        String[] s = new String[snippets.toArray().length];
+        for (int j = 0; j < snippets.size(); j++) {
+            s[j] = """
+                   <span class="element-name">case%s</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                   2</pre>
+                   </div>
+                   """.formatted(j);
+        }
+        checkOrder("pkg/A.html", s);
     }
 
     @Test
