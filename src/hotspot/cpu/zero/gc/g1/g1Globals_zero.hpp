@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,18 +21,9 @@
  * questions.
  */
 
-package vm.runtime.defmeth.shared.annotation;
+#ifndef CPU_ZERO_GC_G1_G1GLOBALS_ZERO_HPP
+#define CPU_ZERO_GC_G1_G1GLOBALS_ZERO_HPP
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+const size_t G1MergeHeapRootsPrefetchCacheSize = 8;
 
-/**
- * Mark a test that it may crash VM.
- * Allows to exclude all such tests when crashes are undesirable
- * (e.g. same VM execution mode).
- */
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface Crash {}
+#endif // CPU_ZERO_GC_G1_G1GLOBALS_ZERO_HPP
