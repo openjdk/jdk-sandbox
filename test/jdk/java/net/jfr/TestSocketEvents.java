@@ -21,31 +21,29 @@
  * questions.
  */
 
-import java.io.*;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import jdk.jfr.ValueDescriptor;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingStream;
 
-class SocketEventsTest {
-
-    static final String DATA_STRING = "data string";
+class TestSocketEvents {
 
     interface ThrowingRunnable {
         void run() throws Exception;
     }
 
     public static void main(String[] args) throws Exception {
-        enableStreamingAndRun(SocketEventsTest::runTest);
+        enableStreamingAndRun(TestSocketEvents::runTest);
     }
 
     static void enableStreamingAndRun(ThrowingRunnable task) throws Exception {
-        CountDownLatch latch = new CountDownLatch(4);
+        CountDownLatch latch = new CountDownLatch(6);
         try (var rs = new RecordingStream()) {
             rs.enable("jdk.SocketAccept").withThreshold(Duration.ofMillis(0));
             rs.enable("jdk.SocketConnect").withThreshold(Duration.ofMillis(0));
@@ -75,31 +73,33 @@ class SocketEventsTest {
     }
 
     static void runTest() throws Exception {
-        try (Server s = new Server();
-             SocketWriter cw = new SocketWriter(InetAddress.getLocalHost(), s.port)) {
-            CompletableFuture<?> s_fut = CompletableFuture.runAsync(s);
-            CompletableFuture<?> cw_fut = CompletableFuture.runAsync(cw);
-            CompletableFuture.allOf(s_fut, cw_fut).join();
+        try (var server = new Server();
+             var client = new Client(InetAddress.getLocalHost(), server.port)) {
+            Thread t1 = new Thread(server, "Server-Thread");
+            Thread t2 = new Thread(client, "Client-Thread");
+            t1.start();
+            t2.start();
+            t1.join();
+            t2.join();
         }
     }
 
-    public static class SocketWriter implements Runnable, AutoCloseable {
-        Socket s;
-        OutputStream os;
+    public static class Client implements Runnable, AutoCloseable {
+        private final Socket s;
 
-        SocketWriter(InetAddress remote, int port) throws IOException {
+        Client(InetAddress remote, int port) throws IOException {
             s = new Socket(remote, port);
         }
 
         @Override
         public void run() {
-            try {
-                os = s.getOutputStream();
+            try (var is = s.getInputStream();
+                 var os = s.getOutputStream()) {
+                os.write((byte)0xFF);
+                is.read();
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new UncheckedIOException(e);
             }
-            PrintStream out = new PrintStream(os);
-            out.println("Client: " + DATA_STRING);
         }
 
         @Override
@@ -110,12 +110,9 @@ class SocketEventsTest {
 
     public static class Server implements Runnable, AutoCloseable {
 
-        ServerSocket ss;
-        Socket cs;
-        BufferedReader is;
-        PrintStream os;
-        InetAddress ia;
-        int port;
+        private final ServerSocket ss;
+        private final InetAddress ia;
+        private final int port;
 
         Server() throws Exception {
             ss = new ServerSocket(0);
@@ -125,15 +122,12 @@ class SocketEventsTest {
 
         @Override
         public void run() {
-            try {
-                cs = ss.accept();
-                is = new BufferedReader(new InputStreamReader(cs.getInputStream()));
-                os = new PrintStream(cs.getOutputStream());
-
-                is.read();
-                os.println("Server: " + DATA_STRING);
+            try (var s = ss.accept();
+                 var is = s.getInputStream();
+                 var os = s.getOutputStream()) {
+                os.write(is.read());  // read one and echo
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new UncheckedIOException(e);
             }
         }
 
@@ -149,7 +143,7 @@ class SocketEventsTest {
         for (ValueDescriptor vd : fields) {
             var name = vd.getName();
             var value = event.getValue(vd.getName());
-            sb.append(name).append("=").append(value);
+            sb.append(name).append("=").append(value).append("\n");
         }
         return sb.append("]").toString();
     }

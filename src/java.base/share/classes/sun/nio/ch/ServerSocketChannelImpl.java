@@ -55,6 +55,8 @@ import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
 import static java.net.StandardProtocolFamily.UNIX;
 
+import jdk.internal.event.SocketAcceptEvent;
+import jdk.internal.event.SocketConnectEvent;
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
 
@@ -376,6 +378,46 @@ class ServerSocketChannelImpl
         }
     }
 
+    /** A functional interface whose run method returns a value and may throw. */
+    private interface ThrowingRunnable<V> {
+        V run(SocketAddress[] ssa) throws IOException;
+    }
+
+    /** A (JRF) monitored task. Execution of the task is decorated with
+     * pre and post event mechanics. */
+    private int monitoredAccept(ThrowingRunnable<Integer> task, SocketAddress[] saa)
+        throws IOException
+    {
+        var event = new SocketAcceptEvent();
+        int n = 0;
+        boolean completed = false;
+        String exceptionMessage = null;
+        try {
+            event.begin();
+            n = task.run(saa);
+            completed = true;
+        } catch (IOException ioe) {
+            exceptionMessage = ioe.getMessage();
+            throw ioe;
+        } finally {
+            event.end();
+            if (event.shouldCommit()) {
+                if (saa[0] instanceof InetSocketAddress isa) {
+                    String hostString = isa.getAddress().toString();
+                    int delimiterIndex = hostString.lastIndexOf('/');
+
+                    event.host = hostString.substring(0, delimiterIndex);
+                    event.address = hostString.substring(delimiterIndex + 1);
+                    event.port = isa.getPort();
+                }
+                event.completed = completed && n > 0;
+                event.exceptionMessage = exceptionMessage;
+                event.commit();
+            }
+        }
+        return n;
+    }
+
     @Override
     public SocketChannel accept() throws IOException {
         int n = 0;
@@ -387,12 +429,20 @@ class ServerSocketChannelImpl
             boolean blocking = isBlocking();
             try {
                 begin(blocking);
-                n = implAccept(this.fd, newfd, saa);
-                if (blocking) {
-                    while (IOStatus.okayToRetry(n) && isOpen()) {
-                        park(Net.POLLIN);
-                        n = implAccept(this.fd, newfd, saa);
-                    }
+                ThrowingRunnable<Integer> acceptTask = arg -> {
+                        int r = implAccept(this.fd, newfd, arg);
+                        if (blocking) {
+                            while (IOStatus.okayToRetry(r) && isOpen()) {
+                                park(Net.POLLIN);
+                                r = implAccept(this.fd, newfd, arg);
+                            }
+                        }
+                        return r;
+                    };
+                if (SocketAcceptEvent.isTurnedOFF()) {
+                    n = acceptTask.run(saa);
+                } else {
+                    n = monitoredAccept(acceptTask, saa);
                 }
             } finally {
                 end(blocking, n > 0);

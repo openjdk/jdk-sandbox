@@ -59,6 +59,7 @@ import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
 import static java.net.StandardProtocolFamily.UNIX;
 
+import jdk.internal.event.SocketConnectEvent;
 import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
@@ -832,6 +833,64 @@ class SocketChannelImpl
         }
     }
 
+    /** A functional interface whose run method returns a value and may throw. */
+    private interface ThrowingRunnable<V> {
+        V run() throws IOException;
+    }
+
+    /** A (JRF) monitored task. Execution of the task is decorated with
+     * pre and post event mechanics. */
+    private boolean monitoredConnect(ThrowingRunnable<Boolean> connectTask) throws IOException {
+        var sce = new SocketConnectEvent();
+        boolean connected = false;
+        String exceptionMessage = null;
+        try {
+            sce.begin();
+            connected = connectTask.run();
+        } catch (IOException ioe) {
+            exceptionMessage = ioe.getMessage();
+            throw ioe;
+        } finally {
+            sce.end();
+            if (sce.shouldCommit()) {
+                if (remoteAddress instanceof InetSocketAddress isa) {
+                    String hostString = isa.getAddress().toString();
+                    int delimiterIndex = hostString.lastIndexOf('/');
+
+                    sce.host = hostString.substring(0, delimiterIndex);
+                    sce.address = hostString.substring(delimiterIndex + 1);
+                    sce.port = isa.getPort();
+                }
+                sce.completed = connected;
+                sce.exceptionMessage = exceptionMessage;
+                sce.commit();
+            }
+        }
+        return connected;
+    }
+
+    // Returns true if connected, otherwise false
+    private final boolean implConnect(SocketAddress sa, boolean blocking) throws IOException {
+        int n;
+        if (isUnixSocket()) {
+            n = UnixDomainSockets.connect(fd, sa);
+        } else {
+            n = Net.connect(family, fd, sa);
+        }
+        if (n > 0) {
+            return true;
+        } else if (blocking) {
+            assert IOStatus.okayToRetry(n);
+            boolean polled = false;
+            while (!polled && isOpen()) {
+                park(Net.POLLOUT);
+                polled = Net.pollConnectNow(fd);
+            }
+            return polled && isOpen();
+        }
+        return false;
+    }
+
     @Override
     public boolean connect(SocketAddress remote) throws IOException {
         SocketAddress sa = checkRemote(remote);
@@ -844,22 +903,11 @@ class SocketChannelImpl
                     boolean connected = false;
                     try {
                         beginConnect(blocking, sa);
-                        int n;
-                        if (isUnixSocket()) {
-                            n = UnixDomainSockets.connect(fd, sa);
+                        ThrowingRunnable<Boolean> connectTask = () -> implConnect(sa, blocking);
+                        if (SocketConnectEvent.isTurnedOFF()) {
+                            connected = connectTask.run();
                         } else {
-                            n = Net.connect(family, fd, sa);
-                        }
-                        if (n > 0) {
-                            connected = true;
-                        } else if (blocking) {
-                            assert IOStatus.okayToRetry(n);
-                            boolean polled = false;
-                            while (!polled && isOpen()) {
-                                park(Net.POLLOUT);
-                                polled = Net.pollConnectNow(fd);
-                            }
-                            connected = polled && isOpen();
+                            connected = monitoredConnect(connectTask);
                         }
                     } finally {
                         endConnect(blocking, connected);
@@ -926,6 +974,18 @@ class SocketChannelImpl
         }
     }
 
+    // Returns true if connected, otherwise false
+    private final boolean implFinishConnect(boolean blocking) throws IOException {
+        boolean polled = Net.pollConnectNow(fd);
+        if (blocking) {
+            while (!polled && isOpen()) {
+                park(Net.POLLOUT);
+                polled = Net.pollConnectNow(fd);
+            }
+        }
+        return polled && isOpen();
+    }
+
     @Override
     public boolean finishConnect() throws IOException {
         try {
@@ -941,14 +1001,12 @@ class SocketChannelImpl
                     boolean connected = false;
                     try {
                         beginFinishConnect(blocking);
-                        boolean polled = Net.pollConnectNow(fd);
-                        if (blocking) {
-                            while (!polled && isOpen()) {
-                                park(Net.POLLOUT);
-                                polled = Net.pollConnectNow(fd);
-                            }
+                        ThrowingRunnable<Boolean> task = () -> implFinishConnect(blocking);
+                        if (SocketConnectEvent.isTurnedOFF()) {
+                            connected = task.run();
+                        } else {
+                            connected = monitoredConnect(task);
                         }
-                        connected = polled && isOpen();
                     } finally {
                         endFinishConnect(blocking, connected);
                     }
