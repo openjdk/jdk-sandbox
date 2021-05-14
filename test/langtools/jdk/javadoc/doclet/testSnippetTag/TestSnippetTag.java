@@ -1242,7 +1242,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    /A.java:4: error - @snippet does not specify contents""");
+                    A.java:4: error - @snippet does not specify contents""");
     }
 
     @Test
