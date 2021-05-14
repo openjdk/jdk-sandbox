@@ -49,7 +49,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-import jdk.internal.access.JavaIOFileDescriptorAccess;
 import jdk.internal.event.SocketAcceptEvent;
 import jdk.internal.event.SocketConnectEvent;
 import jdk.internal.ref.CleanerFactory;
@@ -631,9 +630,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                             exceptionMessage = ioe.getMessage();
                             throw ioe;
                         } finally {
-                            if (event.shouldCommit()) {
-                                EventSupport.writeConnectEvent(event, fd, address, port, completed, exceptionMessage);
-                            }
+                            EventSupport.writeConnectEvent(event, fd, address, port, completed, exceptionMessage);
                         }
                     }
                     // restore socket to blocking mode
@@ -786,8 +783,9 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             remainingNanos = tryLock(acceptLock, timeout, MILLISECONDS);
             if (remainingNanos <= 0) {
                 assert !acceptLock.isHeldByCurrentThread();
-                // TODO: maybe fire event here ?
-                throw new SocketTimeoutException("Accept timed out");
+                var ex = new SocketTimeoutException("Accept timed out");
+                EventSupport.writeAcceptEvent(new SocketAcceptEvent(), fd, address, port, false, ex.getMessage());
+                throw ex;
             }
         } else {
             acceptLock.lock();
@@ -812,9 +810,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                         exceptionMessage = ioe.getMessage();
                         throw ioe;
                     } finally {
-                        if (event.shouldCommit()) {
-                            EventSupport.writeAcceptEvent(event, fd, address, port, completed, exceptionMessage);
-                        }
+                        EventSupport.writeAcceptEvent(event, fd, address, port, completed, exceptionMessage);
                     }
                 }
             } finally {

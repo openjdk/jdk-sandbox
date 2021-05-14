@@ -833,44 +833,10 @@ class SocketChannelImpl
         }
     }
 
-    /** A functional interface whose run method returns a value and may throw. */
-    private interface ThrowingRunnable<V> {
-        V run() throws IOException;
-    }
-
-    /** A (JRF) monitored task. Execution of the task is decorated with
-     * pre and post event mechanics. */
-    private boolean monitoredConnect(ThrowingRunnable<Boolean> connectTask) throws IOException {
-        var event = new SocketConnectEvent();
-        boolean connected = false;
-        String exceptionMessage = null;
-        try {
-            event.begin();
-            connected = connectTask.run();
-        } catch (IOException ioe) {
-            exceptionMessage = ioe.getMessage();
-            throw ioe;
-        } finally {
-            event.end();
-            if (event.shouldCommit()) {
-                if (remoteAddress instanceof InetSocketAddress isa) {
-                    String hostString = isa.getAddress().toString();
-                    int delimiterIndex = hostString.lastIndexOf('/');
-
-                    event.host = hostString.substring(0, delimiterIndex);
-                    event.address = hostString.substring(delimiterIndex + 1);
-                    event.port = isa.getPort();
-                }
-                event.completed = connected;
-                event.exceptionMessage = exceptionMessage;
-                event.commit();
-            }
-        }
-        return connected;
-    }
-
     // Returns true if connected, otherwise false
-    private final boolean implConnect(SocketAddress sa, boolean blocking) throws IOException {
+    private final boolean implConnect(SocketAddress sa, boolean blocking)
+        throws IOException
+    {
         int n;
         if (isUnixSocket()) {
             n = UnixDomainSockets.connect(fd, sa);
@@ -903,11 +869,20 @@ class SocketChannelImpl
                     boolean connected = false;
                     try {
                         beginConnect(blocking, sa);
-                        ThrowingRunnable<Boolean> connectTask = () -> implConnect(sa, blocking);
                         if (SocketConnectEvent.isTurnedOFF()) {
-                            connected = connectTask.run();
+                            connected = implConnect(sa, blocking);
                         } else {
-                            connected = monitoredConnect(connectTask);
+                            var event = new SocketConnectEvent();
+                            String exceptionMessage = null;
+                            try {
+                                event.begin();
+                                connected = implConnect(sa, blocking);
+                            } catch (IOException ioe) {
+                                exceptionMessage = ioe.getMessage();
+                                throw ioe;
+                            } finally {
+                                EventSupport.writeConnectEvent(event, fd, remoteAddress, connected, exceptionMessage);
+                            }
                         }
                     } finally {
                         endConnect(blocking, connected);
@@ -1001,11 +976,20 @@ class SocketChannelImpl
                     boolean connected = false;
                     try {
                         beginFinishConnect(blocking);
-                        ThrowingRunnable<Boolean> task = () -> implFinishConnect(blocking);
                         if (SocketConnectEvent.isTurnedOFF()) {
-                            connected = task.run();
+                            connected =implFinishConnect(blocking);
                         } else {
-                            connected = monitoredConnect(task);
+                            var event = new SocketConnectEvent();
+                            String exceptionMessage = null;
+                            try {
+                                event.begin();
+                                connected = implFinishConnect(blocking);
+                            } catch (IOException ioe) {
+                                exceptionMessage = ioe.getMessage();
+                                throw ioe;
+                            } finally {
+                                EventSupport.writeConnectEvent(event, fd, remoteAddress, connected, exceptionMessage);
+                            }
                         }
                     } finally {
                         endFinishConnect(blocking, connected);

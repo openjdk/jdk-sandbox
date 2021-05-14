@@ -378,46 +378,6 @@ class ServerSocketChannelImpl
         }
     }
 
-    /** A functional interface whose run method returns a value and may throw. */
-    private interface ThrowingRunnable<V> {
-        V run(SocketAddress[] ssa) throws IOException;
-    }
-
-    /** A (JRF) monitored task. Execution of the task is decorated with
-     * pre and post event mechanics. */
-    private int monitoredAccept(ThrowingRunnable<Integer> task, SocketAddress[] saa)
-        throws IOException
-    {
-        var event = new SocketAcceptEvent();
-        int n = 0;
-        boolean completed = false;
-        String exceptionMessage = null;
-        try {
-            event.begin();
-            n = task.run(saa);
-            completed = true;
-        } catch (IOException ioe) {
-            exceptionMessage = ioe.getMessage();
-            throw ioe;
-        } finally {
-            event.end();
-            if (event.shouldCommit()) {
-                if (saa[0] instanceof InetSocketAddress isa) {
-                    String hostString = isa.getAddress().toString();
-                    int delimiterIndex = hostString.lastIndexOf('/');
-
-                    event.host = hostString.substring(0, delimiterIndex);
-                    event.address = hostString.substring(delimiterIndex + 1);
-                    event.port = isa.getPort();
-                }
-                event.completed = completed && n > 0;
-                event.exceptionMessage = exceptionMessage;
-                event.commit();
-            }
-        }
-        return n;
-    }
-
     @Override
     public SocketChannel accept() throws IOException {
         int n = 0;
@@ -429,20 +389,20 @@ class ServerSocketChannelImpl
             boolean blocking = isBlocking();
             try {
                 begin(blocking);
-                ThrowingRunnable<Integer> acceptTask = arg -> {
-                        int r = implAccept(this.fd, newfd, arg);
-                        if (blocking) {
-                            while (IOStatus.okayToRetry(r) && isOpen()) {
-                                park(Net.POLLIN);
-                                r = implAccept(this.fd, newfd, arg);
-                            }
-                        }
-                        return r;
-                    };
                 if (SocketAcceptEvent.isTurnedOFF()) {
-                    n = acceptTask.run(saa);
+                    n = implAccept(this.fd, newfd, saa, blocking);
                 } else {
-                    n = monitoredAccept(acceptTask, saa);
+                    var event = new SocketAcceptEvent();
+                    String exceptionMessage = null;
+                    try {
+                        event.begin();
+                        n = implAccept(this.fd, newfd, saa, blocking);
+                    } catch (IOException ioe) {
+                        exceptionMessage = ioe.getMessage();
+                        throw ioe;
+                    } finally {
+                        EventSupport.writeAcceptEvent(event, fd, saa[0], n > 0, exceptionMessage);
+                    }
                 }
             } finally {
                 end(blocking, n > 0);
@@ -459,7 +419,21 @@ class ServerSocketChannelImpl
         }
     }
 
-    private int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] saa)
+    private int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] saa,
+                           boolean blocking)
+        throws IOException
+    {
+        int n = implAccept0(fd, newfd, saa);
+        if (blocking) {
+            while (IOStatus.okayToRetry(n) && isOpen()) {
+                park(Net.POLLIN);
+                n = implAccept0(fd, newfd, saa);
+            }
+        }
+        return n;
+    }
+
+    private int implAccept0(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] saa)
         throws IOException
     {
         if (isUnixSocket()) {
@@ -476,6 +450,22 @@ class ServerSocketChannelImpl
                 saa[0] = issa[0];
             return n;
         }
+    }
+
+    private int implBlockingAccept(FileDescriptor newfd, SocketAddress[] saa, long nanos)
+        throws IOException
+    {
+        long startNanos = System.nanoTime();
+        int n = implAccept0(fd, newfd, saa);
+        while (n == IOStatus.UNAVAILABLE && isOpen()) {
+            long remainingNanos = nanos - (System.nanoTime() - startNanos);
+            if (remainingNanos <= 0) {
+                throw new SocketTimeoutException("Accept timed out");
+            }
+            park(Net.POLLIN, remainingNanos);
+            n = implAccept0(fd, newfd, saa);
+        }
+        return n;
     }
 
     /**
@@ -504,15 +494,20 @@ class ServerSocketChannelImpl
                 // change socket to non-blocking
                 lockedConfigureBlocking(false);
                 try {
-                    long startNanos = System.nanoTime();
-                    n = implAccept(fd, newfd, saa);
-                    while (n == IOStatus.UNAVAILABLE && isOpen()) {
-                        long remainingNanos = nanos - (System.nanoTime() - startNanos);
-                        if (remainingNanos <= 0) {
-                            throw new SocketTimeoutException("Accept timed out");
+                    if (SocketAcceptEvent.isTurnedOFF()) {
+                        n = implBlockingAccept(newfd, saa, nanos);
+                    } else {
+                        var event = new SocketAcceptEvent();
+                        String exceptionMessage = null;
+                        try {
+                            event.begin();
+                            n = implBlockingAccept(newfd, saa, nanos);
+                        } catch (IOException ioe) {
+                            exceptionMessage = ioe.getMessage();
+                            throw ioe;
+                        } finally {
+                            EventSupport.writeAcceptEvent(event, fd, saa[0], n > 0, exceptionMessage);
                         }
-                        park(Net.POLLIN, remainingNanos);
-                        n = implAccept(fd, newfd, saa);
                     }
                 } finally {
                     // restore socket to blocking mode (if channel is open)
