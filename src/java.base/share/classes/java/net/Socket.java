@@ -25,6 +25,8 @@
 
 package java.net;
 
+import sun.security.util.SecurityConstants;
+
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.IOException;
@@ -34,7 +36,6 @@ import java.nio.channels.SocketChannel;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Collections;
-import sun.security.util.SecurityConstants;
 
 /**
  * This class implements client sockets (also called just
@@ -627,7 +628,6 @@ public class Socket implements java.io.Closeable {
         if (!created)
             createImpl(true);
         impl.connect(epoint, timeout);
-
         connected = true;
         /*
          * If the socket was not bound before the connect, it is now because
@@ -958,6 +958,8 @@ public class Socket implements java.io.Closeable {
         }
         @Override
         public int read(byte b[], int off, int len) throws IOException {
+            Exception e = new RuntimeException("HEGO - hello from SIS read");
+            e.printStackTrace(System.out);
             return in.read(b, off, len);
         }
         @Override

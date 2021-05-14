@@ -31,6 +31,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Collections;
+
 import sun.security.util.SecurityConstants;
 import sun.net.PlatformSocketImpl;
 
@@ -565,7 +566,6 @@ public class ServerSocket implements java.io.Closeable {
     protected final void implAccept(Socket s) throws IOException {
         SocketImpl si = s.impl;
 
-        //The block below makes it difficult to place an event here, do it in calling method
         // Socket has no SocketImpl
         if (si == null) {
             si = implAccept();
