@@ -73,6 +73,89 @@ public class TestSnippetTag extends JavadocTester {
     private TestSnippetTag() { }
 
     @Test
+    public void testIdAndLangAttributes(Path base) throws IOException {
+
+        /*
+         * While the "id" and "lang" attributes are advertised in JEP 413, they
+         * are currently unused by the implementation. So the goal of this test
+         * is to make sure that specifying these attributes causes no errors and
+         * exhibits no unexpected behaviour.
+         */
+
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        List<String> snippets = List.of(
+                """
+                {@snippet id="foo" :
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet id="" :
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet lang="java" :
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet lang="properties" :
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet lang="text" :
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet lang="" :
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet lang="foo" id="bar" :
+                    Hello, Snippet!
+                }
+                """
+        );
+
+        ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class");
+
+        int i = 0;
+        for (String s : snippets) {
+            classBuilder.addMembers(
+                    MethodBuilder.parse("public void case%s() { }".formatted(i++))
+                            .setComments(s));
+        }
+
+        classBuilder.write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.OK);
+
+        String[] s = new String[snippets.toArray().length];
+        for (int j = 0; j < snippets.size(); j++) {
+            s[j] = """
+                   <span class="element-name">case%s</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                       Hello, Snippet!
+                   </pre>
+                   </div>
+                   """.formatted(j);
+        }
+        checkOrder("pkg/A.html", s);
+    }
+
+    @Test
     public void testBadTagSyntax(Path base) throws IOException {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
