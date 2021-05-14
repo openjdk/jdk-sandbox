@@ -958,8 +958,6 @@ public class Socket implements java.io.Closeable {
         }
         @Override
         public int read(byte b[], int off, int len) throws IOException {
-            Exception e = new RuntimeException("HEGO - hello from SIS read");
-            e.printStackTrace(System.out);
             return in.read(b, off, len);
         }
         @Override
