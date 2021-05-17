@@ -25,23 +25,17 @@
 
 package jdk.jfr.events;
 
-import jdk.jfr.Category;
-import jdk.jfr.Description;
 import jdk.jfr.Label;
-import jdk.jfr.Name;
-import jdk.jfr.internal.MirrorEvent;
-import jdk.jfr.internal.Type;
+import jdk.jfr.Relational;
 
-@Name(Type.EVENT_NAME_PREFIX + "SocketAccept")
-@Label("Socket accept")
-@Category("Java Application")
-@Description("Accepting a new socket")
-@MirrorEvent(className = "jdk.internal.event.SocketAcceptEvent")
-public class SocketAcceptEvent extends AbstractSocketEvent {
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-    @Label("Accept Socket Id")
-    public int acceptedId;
-
-    @Label("Exception Message")
-    public String exceptionMessage;
+@Label("Socket Id")
+@Relational
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface SocketId {
 }

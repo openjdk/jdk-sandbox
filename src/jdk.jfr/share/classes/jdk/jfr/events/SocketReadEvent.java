@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,11 @@ import jdk.jfr.internal.Type;
 public final class SocketReadEvent extends AbstractJDKEvent {
 
     // The order of these fields must be the same as the parameters in
-    // EventHandler::write(..., String, String, int, long, long, boolean)
+    // EventHandler::write(..., int, String, String, int, long, long, boolean, String)
+
+    @SocketId
+    @Label("id")
+    public int id;  // usually the file descriptor, but not required to be
 
     @Label("Remote Host")
     public String host;
@@ -63,4 +67,7 @@ public final class SocketReadEvent extends AbstractJDKEvent {
     @Label("End of Stream")
     @Description("If end of stream was reached")
     public boolean endOfStream;
+
+    @Label("Exception Message")
+    public String exceptionMessage;
 }

@@ -29,7 +29,7 @@ public abstract class AbstractSocketEvent extends Event {
 
     protected AbstractSocketEvent() { }
 
-    public int fd;
+    public int id;
     public String host;
     public String address;
     public int port;

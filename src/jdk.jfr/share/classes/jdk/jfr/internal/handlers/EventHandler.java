@@ -115,11 +115,11 @@ public abstract class EventHandler {
        return platformEventType.setRegistered(registered);
     }
 
-    public void write(long start, long duration, String host, String address, int port, long timeout, long bytesRead, boolean endOfSTream) {
+    public void write(long start, long duration, int id, String host, String address, int port, long timeout, long bytesRead, boolean endOfStream, String exceptionMessage) {
         throwError("SocketReadEvent");
     }
 
-    public void write(long start, long duration, String host, String address, int port, long bytesWritten) {
+    public void write(long start, long duration, int id, String host, String address, int port, long bytesWritten, String exceptionMessage) {
         throwError("SocketWriteEvent");
     }
 

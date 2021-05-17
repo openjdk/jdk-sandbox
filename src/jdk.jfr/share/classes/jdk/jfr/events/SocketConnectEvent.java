@@ -34,13 +34,13 @@ import jdk.jfr.internal.Type;
 
 @Name(Type.EVENT_NAME_PREFIX + "SocketConnect")
 @Label("Socket connect")
-@Category({"Java Development Kit", "Socket"})
+@Category("Java Application")
 @Description("Connecting a socket")
 @MirrorEvent(className = "jdk.internal.event.SocketConnectEvent")
 public class SocketConnectEvent extends AbstractSocketEvent {
 
-    @Label("Connect completed")
-    public boolean completed;
+    @Label("Connected")
+    public boolean connected;
 
     @Label("Exception Message")
     public String exceptionMessage;

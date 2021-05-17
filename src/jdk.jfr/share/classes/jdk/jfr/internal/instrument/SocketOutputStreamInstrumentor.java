@@ -51,25 +51,34 @@ final class SocketOutputStreamInstrumentor {
         }
         int bytesWritten = 0;
         long start = 0;
+        Exception ex = null;
         try {
             start = EventHandler.timestamp();
             write(b, off, len);
             bytesWritten = len;
+        } catch (Exception e) {
+            ex = e;
+            throw e;
         } finally {
             long duration = EventHandler.timestamp() - start;
+            //String exMsg = EventSupport.stringifyOrNull(ex);
+            String exMsg = ex == null ? null : ex.getMessage() == null ? ex.toString() : ex.getMessage();
             if (handler.shouldCommit(duration)) {
                 InetAddress remote = parent.getInetAddress();
                 handler.write(
                         start,
                         duration,
+                        fd,
                         remote.getHostName(),
                         remote.getHostAddress(),
                         parent.getPort(),
-                        bytesWritten);
+                        bytesWritten,
+                        exMsg);
             }
         }
     }
 
     // private field in java.net.Socket$SocketOutputStream
     private Socket parent;
+    private int fd;
 }

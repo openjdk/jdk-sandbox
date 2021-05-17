@@ -621,16 +621,16 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                     } else {
                         var event = new SocketConnectEvent();
                         boolean completed = false;
-                        String exceptionMessage = null;
+                        Exception ex = null;
                         try {
                             event.begin();
                             connected = implConnect(fd, address, port, millis);
                             completed = true;
                         } catch (IOException ioe) {
-                            exceptionMessage = ioe.getMessage();
+                            ex = ioe;
                             throw ioe;
                         } finally {
-                            EventSupport.writeConnectEvent(event, fd, address, port, completed, exceptionMessage);
+                            EventSupport.writeConnectEvent(event, fd, address, port, ex);  // TODO: come back, push this up
                         }
                     }
                     // restore socket to blocking mode
@@ -784,7 +784,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             if (remainingNanos <= 0) {
                 assert !acceptLock.isHeldByCurrentThread();
                 var ex = new SocketTimeoutException("Accept timed out");
-                EventSupport.writeAcceptEvent(new SocketAcceptEvent(), fd, address, port, false, ex.getMessage());
+                EventSupport.writeAcceptEvent(new SocketAcceptEvent(), fd, address, port, null, ex);
                 throw ex;
             }
         } else {
@@ -800,17 +800,15 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                     n = implAccept(newfd, isaa, remainingNanos);
                 } else {
                     var event = new SocketAcceptEvent();
-                    boolean completed = false;
-                    String exceptionMessage = null;
+                    Exception ex = null;
                     try {
                         event.begin();
                         n = implAccept(newfd, isaa, remainingNanos);
-                        completed = true;
-                    } catch (IOException ioe) {
-                        exceptionMessage = ioe.getMessage();
+                    } catch (Exception ioe) {
+                        ex = ioe;
                         throw ioe;
                     } finally {
-                        EventSupport.writeAcceptEvent(event, fd, address, port, completed, exceptionMessage);
+                        EventSupport.writeAcceptEvent(event, fd, address, port, newfd, ex);
                     }
                 }
             } finally {

@@ -31,8 +31,9 @@ public abstract class AbstractSocketEvent extends AbstractJDKEvent {
 
     protected AbstractSocketEvent() { }
 
-    @Label("file descriptor")
-    public int fd;
+    @SocketId
+    @Label("id")
+    public int id;  // usually the file descriptor, but not required to be
 
     @Label("Remote Host")
     public String host;

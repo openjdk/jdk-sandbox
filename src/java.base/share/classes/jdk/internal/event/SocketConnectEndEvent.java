@@ -23,25 +23,20 @@
  * questions.
  */
 
-package jdk.jfr.events;
+package jdk.internal.event;
 
-import jdk.jfr.Category;
-import jdk.jfr.Description;
-import jdk.jfr.Label;
-import jdk.jfr.Name;
-import jdk.jfr.internal.MirrorEvent;
-import jdk.jfr.internal.Type;
+public final class SocketConnectEndEvent extends AbstractSocketEvent {
 
-@Name(Type.EVENT_NAME_PREFIX + "SocketAccept")
-@Label("Socket accept")
-@Category("Java Application")
-@Description("Accepting a new socket")
-@MirrorEvent(className = "jdk.internal.event.SocketAcceptEvent")
-public class SocketAcceptEvent extends AbstractSocketEvent {
+    private final static SocketConnectEndEvent EVENT = new SocketConnectEndEvent();
 
-    @Label("Accept Socket Id")
-    public int acceptedId;
+    /** Returns {@code true} if event is enabled, {@code false} otherwise. */
+    public static boolean isTurnedOn() {
+        return EVENT.isEnabled();
+    }
 
-    @Label("Exception Message")
+    public static boolean isTurnedOFF() {
+        return !isTurnedOn();
+    }
+
     public String exceptionMessage;
 }

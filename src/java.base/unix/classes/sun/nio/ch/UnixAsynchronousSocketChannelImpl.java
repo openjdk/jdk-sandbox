@@ -31,7 +31,7 @@ import java.net.*;
 import java.util.concurrent.*;
 import java.io.IOException;
 import java.io.FileDescriptor;
-
+import jdk.internal.event.SocketConnectEndEvent;
 import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
 import sun.net.util.SocketExceptions;
@@ -250,29 +250,35 @@ class UnixAsynchronousSocketChannelImpl
     private void finishConnect(boolean mayInvokeDirect) {
         Throwable e = null;
         try {
-            begin();
-            checkConnect(fdVal);
-            setConnected();
-        } catch (Throwable x) {
-            if (x instanceof ClosedChannelException)
-                x = new AsynchronousCloseException();
-            e = x;
-        } finally {
-            end();
-        }
-        if (e != null) {
-            if (e instanceof IOException) {
-                var isa = (InetSocketAddress)pendingRemote;
-                e = SocketExceptions.of((IOException)e, isa);
-            }
-            // close channel if connection cannot be established
             try {
-                close();
-            } catch (Throwable suppressed) {
-                e.addSuppressed(suppressed);
+                begin();
+                checkConnect(fdVal);
+                setConnected();
+            } catch (Throwable x) {
+                if (x instanceof ClosedChannelException)
+                    x = new AsynchronousCloseException();
+                e = x;
+            } finally {
+                end();
+            }
+
+            if (e != null) {
+                if (e instanceof IOException) {
+                    var isa = (InetSocketAddress) pendingRemote;
+                    e = SocketExceptions.of((IOException) e, isa);
+                }
+                // close channel if connection cannot be established
+                try {
+                    close();
+                } catch (Throwable suppressed) {
+                    e.addSuppressed(suppressed);
+                }
+            }
+        } finally {
+            if (SocketConnectEndEvent.isTurnedOn()) {
+                EventSupport.writeConnectEndEvent(fd, remoteAddress, e);
             }
         }
-
         // invoke handler and set result
         CompletionHandler<Void,Object> handler = connectHandler;
         connectHandler = null;
