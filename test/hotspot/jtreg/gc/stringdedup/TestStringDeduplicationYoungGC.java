@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,23 +19,25 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef SHARE_GC_SHARED_STRINGDEDUP_STRINGDEDUP_INLINE_HPP
-#define SHARE_GC_SHARED_STRINGDEDUP_STRINGDEDUP_INLINE_HPP
+package gc.stringdedup;
 
-#include "gc/shared/stringdedup/stringDedup.hpp"
-#include "gc/shared/stringdedup/stringDedupThread.inline.hpp"
+/*
+ * @test TestStringDeduplicationYoungGC
+ * @summary Test string deduplication during young GC
+ * @bug 8029075
+ * @requires vm.gc == "null" | vm.gc == "G1" | vm.gc == "Shenandoah"
+ * @library /test/lib
+ * @library /
+ * @modules java.base/jdk.internal.misc:open
+ * @modules java.base/java.lang:open
+ *          java.management
+ * @run driver gc.stringdedup.TestStringDeduplicationYoungGC
+ */
 
-template <typename Q, typename S>
-void StringDedup::initialize_impl() {
-  if (UseStringDeduplication) {
-    _enabled = true;
-    StringDedupQueue::create<Q>();
-    StringDedupTable::create();
-    StringDedupThreadImpl<S>::create();
-  }
+public class TestStringDeduplicationYoungGC {
+    public static void main(String[] args) throws Exception {
+        TestStringDeduplicationTools.testYoungGC();
+    }
 }
-
-#endif // SHARE_GC_SHARED_STRINGDEDUP_STRINGDEDUP_INLINE_HPP
