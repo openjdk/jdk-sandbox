@@ -32,16 +32,11 @@ import jdk.jfr.Name;
 import jdk.jfr.internal.MirrorEvent;
 import jdk.jfr.internal.Type;
 
-@Name(Type.EVENT_NAME_PREFIX + "SocketAccept")
-@Label("Socket accept")
+@Name(Type.EVENT_NAME_PREFIX + "SocketConnectStart")
+@Label("Socket connect start")
 @Category("Java Application")
-@Description("Accepting a new socket")
-@MirrorEvent(className = "jdk.internal.event.SocketAcceptEvent")
-public class SocketAcceptEvent extends AbstractSocketEvent {
-
-    @Label("Accept Socket Id")
-    public int acceptedId;
-
-    @Label("Exception Message")
-    public String exceptionMessage;
+@Description("Start connecting a socket")
+@MirrorEvent(className = "jdk.internal.event.SocketConnectStartEvent")
+public class SocketConnectStartEvent extends AbstractSocketEvent {
+    // no additional fields
 }

@@ -38,6 +38,6 @@ public final class SocketConnectEvent extends AbstractSocketEvent {
         return !isTurnedOn();
     }
 
-    public boolean completed;
+    public boolean connected;
     public String exceptionMessage;
 }

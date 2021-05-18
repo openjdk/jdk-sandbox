@@ -25,9 +25,9 @@
 
 package jdk.internal.event;
 
-public class SocketAcceptEvent extends AbstractSocketEvent {
+public final class SocketAcceptEvent extends AbstractSocketEvent {
 
-    private final static SocketConnectEvent EVENT = new SocketConnectEvent();
+    private final static SocketAcceptEvent EVENT = new SocketAcceptEvent();
 
     /** Returns {@code true} if event is enabled, {@code false} otherwise. */
     public static boolean isTurnedOn() {
@@ -38,6 +38,6 @@ public class SocketAcceptEvent extends AbstractSocketEvent {
         return !isTurnedOn();
     }
 
-    public boolean completed;
+    public int acceptedId;
     public String exceptionMessage;
 }

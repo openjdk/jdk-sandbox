@@ -38,6 +38,9 @@ import java.util.HashSet;
 import java.util.Collections;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.*;
+
+import jdk.internal.event.SocketAcceptEvent;
+import jdk.internal.event.SocketConnectStartEvent;
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
 
@@ -194,9 +197,17 @@ abstract class AsynchronousSocketChannelImpl
                                           A attachment,
                                           CompletionHandler<Void,? super A> handler);
 
+    private final <A> Future<Void> implConnect0(SocketAddress remote,
+                                                A attachment,
+                                                CompletionHandler<Void,? super A> handler) {
+        if (SocketConnectStartEvent.isTurnedOn())
+            EventSupport.writeConnectStartEvent(fd, remote);
+        return implConnect(remote, attachment, handler);
+    }
+
     @Override
     public final Future<Void> connect(SocketAddress remote) {
-        return implConnect(remote, null, null);
+        return implConnect0(remote, null, null);
     }
 
     @Override
@@ -206,7 +217,7 @@ abstract class AsynchronousSocketChannelImpl
     {
         if (handler == null)
             throw new NullPointerException("'handler' is null");
-        implConnect(remote, attachment, handler);
+        implConnect0(remote, attachment, handler);
     }
 
     /**

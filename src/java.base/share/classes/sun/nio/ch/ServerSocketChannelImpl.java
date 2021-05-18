@@ -51,14 +51,12 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
+import jdk.internal.event.SocketAcceptEvent;
+import sun.net.NetHooks;
+import sun.net.ext.ExtendedSocketOptions;
 import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
 import static java.net.StandardProtocolFamily.UNIX;
-
-import jdk.internal.event.SocketAcceptEvent;
-import jdk.internal.event.SocketConnectEvent;
-import sun.net.NetHooks;
-import sun.net.ext.ExtendedSocketOptions;
 
 /**
  * An implementation of ServerSocketChannels
@@ -380,6 +378,25 @@ class ServerSocketChannelImpl
 
     @Override
     public SocketChannel accept() throws IOException {
+        if (SocketAcceptEvent.isTurnedOFF()) {
+            return implAccept();
+        } else {
+            var event = new SocketAcceptEvent();
+            SocketChannelImpl sc = null;
+            Exception ex = null;
+            try {
+                sc = implAccept();
+            } catch (Exception ioe) {
+                ex = ioe;
+                throw ioe;
+            } finally {
+                EventSupport.writeAcceptEvent(event, fd, sc.getRemoteAddress(), sc.getFD(), ex);
+            }
+            return sc;
+        }
+    }
+
+    private final SocketChannelImpl implAccept() throws IOException {
         int n = 0;
         FileDescriptor newfd = new FileDescriptor();
         SocketAddress[] saa = new SocketAddress[1];
@@ -389,19 +406,11 @@ class ServerSocketChannelImpl
             boolean blocking = isBlocking();
             try {
                 begin(blocking);
-                if (SocketAcceptEvent.isTurnedOFF()) {
-                    n = implAccept(this.fd, newfd, saa, blocking);
-                } else {
-                    var event = new SocketAcceptEvent();
-                    String exceptionMessage = null;
-                    try {
-                        event.begin();
-                        n = implAccept(this.fd, newfd, saa, blocking);
-                    } catch (IOException ioe) {
-                        exceptionMessage = ioe.getMessage();
-                        throw ioe;
-                    } finally {
-                        EventSupport.writeAcceptEvent(event, fd, saa[0], n > 0, exceptionMessage);
+                n = justAccept(this.fd, newfd, saa);
+                if (blocking) {
+                    while (IOStatus.okayToRetry(n) && isOpen()) {
+                        park(Net.POLLIN);
+                        n = justAccept(this.fd, newfd, saa);
                     }
                 }
             } finally {
@@ -419,21 +428,7 @@ class ServerSocketChannelImpl
         }
     }
 
-    private int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] saa,
-                           boolean blocking)
-        throws IOException
-    {
-        int n = implAccept0(fd, newfd, saa);
-        if (blocking) {
-            while (IOStatus.okayToRetry(n) && isOpen()) {
-                park(Net.POLLIN);
-                n = implAccept0(fd, newfd, saa);
-            }
-        }
-        return n;
-    }
-
-    private int implAccept0(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] saa)
+    private int justAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] saa)
         throws IOException
     {
         if (isUnixSocket()) {
@@ -456,14 +451,14 @@ class ServerSocketChannelImpl
         throws IOException
     {
         long startNanos = System.nanoTime();
-        int n = implAccept0(fd, newfd, saa);
+        int n = justAccept(fd, newfd, saa);
         while (n == IOStatus.UNAVAILABLE && isOpen()) {
             long remainingNanos = nanos - (System.nanoTime() - startNanos);
             if (remainingNanos <= 0) {
                 throw new SocketTimeoutException("Accept timed out");
             }
             park(Net.POLLIN, remainingNanos);
-            n = implAccept0(fd, newfd, saa);
+            n = justAccept(fd, newfd, saa);
         }
         return n;
     }
@@ -506,7 +501,7 @@ class ServerSocketChannelImpl
                             exceptionMessage = ioe.getMessage();
                             throw ioe;
                         } finally {
-                            EventSupport.writeAcceptEvent(event, fd, saa[0], n > 0, exceptionMessage);
+                            //EventSupport.writeAcceptEvent(event, fd, saa[0], n > 0, exceptionMessage); << FIX
                         }
                     }
                 } finally {
@@ -524,7 +519,7 @@ class ServerSocketChannelImpl
         return finishAccept(newfd, saa[0]);
     }
 
-    private SocketChannel finishAccept(FileDescriptor newfd, SocketAddress sa)
+    private SocketChannelImpl finishAccept(FileDescriptor newfd, SocketAddress sa)
         throws IOException
     {
         try {

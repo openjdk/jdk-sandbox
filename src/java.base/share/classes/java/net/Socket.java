@@ -26,7 +26,6 @@
 package java.net;
 
 import sun.security.util.SecurityConstants;
-
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.IOException;
@@ -36,6 +35,8 @@ import java.nio.channels.SocketChannel;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Collections;
+import jdk.internal.access.JavaIOFileDescriptorAccess;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * This class implements client sockets (also called just
@@ -873,6 +874,8 @@ public class Socket implements java.io.Closeable {
         return null;
     }
 
+    private static final JavaIOFileDescriptorAccess FD_ACCESS = SharedSecrets.getJavaIOFileDescriptorAccess();
+
     /**
      * Returns an input stream for this socket.
      *
@@ -927,7 +930,7 @@ public class Socket implements java.io.Closeable {
         InputStream in = this.in;
         if (in == null) {
             // wrap the input stream so that the close method closes this socket
-            in = new SocketInputStream(this, impl.getInputStream());
+            in = new SocketInputStream(this, impl.getInputStream(), FD_ACCESS.get(impl.getFileDescriptor()));
             if (!IN.compareAndSet(this, null, in)) {
                 in = this.in;
             }
@@ -945,10 +948,12 @@ public class Socket implements java.io.Closeable {
     private static class SocketInputStream extends InputStream {
         private final Socket parent;
         private final InputStream in;
+        private final int fd;
 
-        SocketInputStream(Socket parent, InputStream in) {
+        SocketInputStream(Socket parent, InputStream in, int fd) {
             this.parent = parent;
             this.in = in;
+            this.fd = fd;
         }
         @Override
         public int read() throws IOException {
@@ -998,7 +1003,7 @@ public class Socket implements java.io.Closeable {
         OutputStream out = this.out;
         if (out == null) {
             // wrap the output stream so that the close method closes this socket
-            out = new SocketOutputStream(this, impl.getOutputStream());
+            out = new SocketOutputStream(this, impl.getOutputStream(), FD_ACCESS.get(impl.getFileDescriptor()));
             if (!OUT.compareAndSet(this, null, out)) {
                 out = this.out;
             }
@@ -1016,9 +1021,11 @@ public class Socket implements java.io.Closeable {
     private static class SocketOutputStream extends OutputStream {
         private final Socket parent;
         private final OutputStream out;
-        SocketOutputStream(Socket parent, OutputStream out) {
+        private final int fd;
+        SocketOutputStream(Socket parent, OutputStream out, int fd) {
             this.parent = parent;
             this.out = out;
+            this.fd = fd;
         }
         @Override
         public void write(int b) throws IOException {

@@ -39,7 +39,11 @@ import jdk.jfr.internal.Type;
 public final class SocketWriteEvent extends AbstractJDKEvent {
 
     // The order of these fields must be the same as the parameters in
-    // EventHandler::write(..., String, String, int, long)
+    // EventHandler::write(..., int, String, String, int, long, String)
+
+    @SocketId
+    @Label("id")
+    public int id;  // usually the file descriptor, but not required to be
 
     @Label("Remote Host")
     public String host;
@@ -54,4 +58,7 @@ public final class SocketWriteEvent extends AbstractJDKEvent {
     @Description("Number of bytes written to the socket")
     @DataAmount
     public long bytesWritten;
+
+    @Label("Exception Message")
+    public String exceptionMessage;
 }

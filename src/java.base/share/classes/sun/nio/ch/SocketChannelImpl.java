@@ -59,7 +59,9 @@ import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
 import static java.net.StandardProtocolFamily.UNIX;
 
+import jdk.internal.event.SocketConnectEndEvent;
 import jdk.internal.event.SocketConnectEvent;
+import jdk.internal.vm.annotation.ForceInline;
 import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
@@ -833,33 +835,35 @@ class SocketChannelImpl
         }
     }
 
-    // Returns true if connected, otherwise false
-    private final boolean implConnect(SocketAddress sa, boolean blocking)
-        throws IOException
-    {
-        int n;
-        if (isUnixSocket()) {
-            n = UnixDomainSockets.connect(fd, sa);
-        } else {
-            n = Net.connect(family, fd, sa);
-        }
-        if (n > 0) {
-            return true;
-        } else if (blocking) {
-            assert IOStatus.okayToRetry(n);
-            boolean polled = false;
-            while (!polled && isOpen()) {
-                park(Net.POLLOUT);
-                polled = Net.pollConnectNow(fd);
-            }
-            return polled && isOpen();
-        }
-        return false;
-    }
-
     @Override
     public boolean connect(SocketAddress remote) throws IOException {
         SocketAddress sa = checkRemote(remote);
+        if (SocketConnectEvent.isTurnedOFF()) {
+            return implConnect(sa);
+        } else {
+            var event = new SocketConnectEvent();
+            boolean connected = false;
+            Exception ex = null;
+            try {
+                event.begin();
+                connected = implConnect(sa);
+            } catch (Exception e) {
+                ex = e;
+                throw e;
+            } finally {
+                if (connected || ex != null) {
+                    EventSupport.writeConnectEvent(event, fd, remote, ex);
+                } else {
+                    // ####: we're dropping SocketConnectEvent here. Could be
+                    // better to defer creation and only get timestamp
+                    EventSupport.writeConnectStartEvent(fd, remote);
+                }
+            }
+            return connected;
+        }
+    }
+
+    public final boolean implConnect(SocketAddress sa) throws IOException {
         try {
             readLock.lock();
             try {
@@ -869,20 +873,22 @@ class SocketChannelImpl
                     boolean connected = false;
                     try {
                         beginConnect(blocking, sa);
-                        if (SocketConnectEvent.isTurnedOFF()) {
-                            connected = implConnect(sa, blocking);
+                        int n;
+                        if (isUnixSocket()) {
+                            n = UnixDomainSockets.connect(fd, sa);
                         } else {
-                            var event = new SocketConnectEvent();
-                            String exceptionMessage = null;
-                            try {
-                                event.begin();
-                                connected = implConnect(sa, blocking);
-                            } catch (IOException ioe) {
-                                exceptionMessage = ioe.getMessage();
-                                throw ioe;
-                            } finally {
-                                EventSupport.writeConnectEvent(event, fd, remoteAddress, connected, exceptionMessage);
+                            n = Net.connect(family, fd, sa);
+                        }
+                        if (n > 0) {
+                            connected = true;
+                        } else if (blocking) {
+                            assert IOStatus.okayToRetry(n);
+                            boolean polled = false;
+                            while (!polled && isOpen()) {
+                                park(Net.POLLOUT);
+                                polled = Net.pollConnectNow(fd);
                             }
+                            connected = polled && isOpen();
                         }
                     } finally {
                         endConnect(blocking, connected);
@@ -949,20 +955,28 @@ class SocketChannelImpl
         }
     }
 
-    // Returns true if connected, otherwise false
-    private final boolean implFinishConnect(boolean blocking) throws IOException {
-        boolean polled = Net.pollConnectNow(fd);
-        if (blocking) {
-            while (!polled && isOpen()) {
-                park(Net.POLLOUT);
-                polled = Net.pollConnectNow(fd);
-            }
-        }
-        return polled && isOpen();
-    }
-
     @Override
     public boolean finishConnect() throws IOException {
+        if (SocketConnectEndEvent.isTurnedOFF()) {
+            return implFinishConnect();
+        } else {
+            boolean connected = false;
+            Exception ex = null;
+            try {
+                connected = implFinishConnect();
+            } catch (Exception e) {
+                ex = e;
+                throw e;
+            } finally {
+                if (SocketConnectEndEvent.isTurnedOn() && (connected || ex != null)) {
+                    EventSupport.writeConnectEndEvent(fd, remoteAddress, ex);
+                }
+            }
+            return connected;
+        }
+    }
+
+    private final boolean implFinishConnect() throws IOException {
         try {
             readLock.lock();
             try {
@@ -976,21 +990,14 @@ class SocketChannelImpl
                     boolean connected = false;
                     try {
                         beginFinishConnect(blocking);
-                        if (SocketConnectEvent.isTurnedOFF()) {
-                            connected =implFinishConnect(blocking);
-                        } else {
-                            var event = new SocketConnectEvent();
-                            String exceptionMessage = null;
-                            try {
-                                event.begin();
-                                connected = implFinishConnect(blocking);
-                            } catch (IOException ioe) {
-                                exceptionMessage = ioe.getMessage();
-                                throw ioe;
-                            } finally {
-                                EventSupport.writeConnectEvent(event, fd, remoteAddress, connected, exceptionMessage);
+                        boolean polled = Net.pollConnectNow(fd);
+                        if (blocking) {
+                            while (!polled && isOpen()) {
+                                park(Net.POLLOUT);
+                                polled = Net.pollConnectNow(fd);
                             }
                         }
+                        connected = polled && isOpen();
                     } finally {
                         endFinishConnect(blocking, connected);
                     }

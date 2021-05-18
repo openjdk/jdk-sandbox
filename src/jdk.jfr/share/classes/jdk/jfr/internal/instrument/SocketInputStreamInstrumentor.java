@@ -25,6 +25,7 @@
 
 package jdk.jfr.internal.instrument;
 
+import java.io.FileDescriptor;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -50,9 +51,13 @@ final class SocketInputStreamInstrumentor {
         }
         int bytesRead = 0;
         long start = 0;
+        Exception ex = null;
         try {
             start = EventHandler.timestamp();
             bytesRead = read(b, off, length);
+        } catch (Exception e) {
+            ex = e;
+            throw e;
         } finally {
             long duration = EventHandler.timestamp() - start;
             if (handler.shouldCommit(duration)) {
@@ -61,10 +66,12 @@ final class SocketInputStreamInstrumentor {
                 String address = remote.getHostAddress();
                 int port = parent.getPort();
                 int timeout = parent.getSoTimeout();
+                //String exMsg = EventSupport.stringifyOrNull(ex);
+                String exMsg = ex == null ? null : ex.getMessage() == null ? ex.toString() : ex.getMessage();
                 if (bytesRead < 0) {
-                    handler.write(start, duration, host, address, port, timeout, 0L, true);
+                    handler.write(start, duration, fd, host, address, port, timeout, 0L, true, exMsg);
                 } else {
-                    handler.write(start, duration, host, address, port, timeout, bytesRead, false);
+                    handler.write(start, duration, fd, host, address, port, timeout, bytesRead, false, exMsg);
                 }
             }
         }
@@ -73,4 +80,5 @@ final class SocketInputStreamInstrumentor {
 
     // private field in java.net.Socket$SocketInputStream
     private Socket parent;
+    private int fd;
 }
