@@ -33,6 +33,7 @@ import java.net.UnixDomainSocketAddress;
 import jdk.internal.access.JavaIOFileDescriptorAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.event.AbstractSocketEvent;
+import jdk.internal.event.DatagramReceiveEvent;
 import jdk.internal.event.SocketAcceptEvent;
 import jdk.internal.event.SocketAcceptEndEvent;
 import jdk.internal.event.SocketAcceptStartEvent;
@@ -121,6 +122,19 @@ class EventSupport {
             setAddress(event, addr);
             event.exceptionMessage = stringifyOrNull(t);
             event.commit();
+        }
+    }
+
+    static void writeDatagramReceiveEvent(FileDescriptor fd,
+                                          SocketAddress addr,
+                                          boolean connected,
+                                          boolean blocking) {
+        var event = new DatagramReceiveEvent();
+        if (event.shouldCommit()) {
+            event.id = fdOrZero(fd);
+            setAddress(event, addr);
+            event.connected = connected;
+            event.blocking = blocking;
         }
     }
 

@@ -69,6 +69,7 @@ import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
+import jdk.internal.event.DatagramReceiveEvent;
 import jdk.internal.ref.CleanerFactory;
 import sun.net.ResourceManager;
 import sun.net.ext.ExtendedSocketOptions;
@@ -536,8 +537,7 @@ class DatagramChannelImpl
             try {
                 SocketAddress remote = beginRead(blocking, false);
                 boolean connected = (remote != null);
-                SecurityManager sm = System.getSecurityManager();
-                if (connected || (sm == null)) {
+                if (connected) {
                     // connected or no security manager
                     int n = receive(dst, connected);
                     if (blocking) {
@@ -557,6 +557,8 @@ class DatagramChannelImpl
                 return sender;
             } finally {
                 endRead(blocking, (sender != null));
+                // Create using fd,
+                EventSupport.writeDatagramReceiveEvent(fd, sender, isConnected(), blocking);
             }
         } finally {
             readLock.unlock();

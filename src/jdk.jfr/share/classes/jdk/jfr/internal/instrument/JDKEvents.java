@@ -31,6 +31,8 @@ import java.util.List;
 import jdk.jfr.Event;
 import jdk.jfr.events.ActiveRecordingEvent;
 import jdk.jfr.events.ActiveSettingEvent;
+import jdk.jfr.events.DatagramReceiveEvent;
+import jdk.jfr.events.DatagramSendEvent;
 import jdk.jfr.events.DirectBufferStatisticsEvent;
 import jdk.jfr.events.ErrorThrownEvent;
 import jdk.jfr.events.ExceptionStatisticsEvent;
@@ -58,6 +60,8 @@ import jdk.jfr.internal.SecuritySupport;
 public final class JDKEvents {
 
     private static final Class<?>[] mirrorEventClasses = {
+        DatagramReceiveEvent.class,
+        DatagramSendEvent.class,
         DeserializationEvent.class,
         ProcessStartEvent.class,
         SecurityPropertyModificationEvent.class,
@@ -79,6 +83,8 @@ public final class JDKEvents {
         ErrorThrownEvent.class,
         ActiveSettingEvent.class,
         ActiveRecordingEvent.class,
+        jdk.internal.event.DatagramReceiveEvent.class,
+        jdk.internal.event.DatagramSendEvent.class,
         jdk.internal.event.DeserializationEvent.class,
         jdk.internal.event.ProcessStartEvent.class,
         jdk.internal.event.SecurityPropertyModificationEvent.class,
