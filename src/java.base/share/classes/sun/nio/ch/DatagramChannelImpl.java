@@ -532,6 +532,7 @@ class DatagramChannelImpl
             throw new IllegalArgumentException("Read-only buffer");
         readLock.lock();
         try {
+            Exception ex = null;
             boolean blocking = isBlocking();
             SocketAddress sender = null;
             try {
@@ -555,10 +556,12 @@ class DatagramChannelImpl
                     sender = untrustedReceive(dst);
                 }
                 return sender;
+            } catch (Exception e) {
+                ex = e;
+                throw e;
             } finally {
                 endRead(blocking, (sender != null));
-                // Create using fd,
-                EventSupport.writeDatagramReceiveEvent(fd, sender, isConnected(), blocking);
+                EventSupport.writeDatagramReceiveEvent(fd, sender, isConnected(), blocking, ex);
             }
         } finally {
             readLock.unlock();
@@ -786,6 +789,7 @@ class DatagramChannelImpl
             boolean blocking = isBlocking();
             int n;
             boolean completed = false;
+            Exception ex = null;
             try {
                 SocketAddress remote = beginWrite(blocking, false);
                 if (remote != null) {
@@ -803,15 +807,7 @@ class DatagramChannelImpl
                     completed = (n > 0);
                 } else {
                     // not connected
-                    SecurityManager sm = System.getSecurityManager();
                     InetAddress ia = isa.getAddress();
-                    if (sm != null) {
-                        if (ia.isMulticastAddress()) {
-                            sm.checkMulticast(ia);
-                        } else {
-                            sm.checkConnect(ia.getHostAddress(), isa.getPort());
-                        }
-                    }
                     if (ia.isLinkLocalAddress())
                         isa = IPAddressUtil.toScopedAddress(isa);
                     if (isa.getPort() == 0)
@@ -825,8 +821,14 @@ class DatagramChannelImpl
                     }
                     completed = (n >= 0);
                 }
+            } catch (Exception e) {
+                ex = e;
+                throw e;
             } finally {
                 endWrite(blocking, completed);
+                // Can all be done in one go without timing, Datagram is a discrete unit of transmission
+                // that either sends or does not send.
+                EventSupport.writeDatagramSendEvent(fd, getRemoteAddress(), completed, blocking, ex);
             }
             assert n >= 0 || n == IOStatus.UNAVAILABLE;
             return IOStatus.normalize(n);

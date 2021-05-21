@@ -34,6 +34,7 @@ import jdk.internal.access.JavaIOFileDescriptorAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.event.AbstractSocketEvent;
 import jdk.internal.event.DatagramReceiveEvent;
+import jdk.internal.event.DatagramSendEvent;
 import jdk.internal.event.SocketAcceptEvent;
 import jdk.internal.event.SocketAcceptEndEvent;
 import jdk.internal.event.SocketAcceptStartEvent;
@@ -128,13 +129,32 @@ class EventSupport {
     static void writeDatagramReceiveEvent(FileDescriptor fd,
                                           SocketAddress addr,
                                           boolean connected,
-                                          boolean blocking) {
+                                          boolean blocking,
+                                          Exception ex) {
         var event = new DatagramReceiveEvent();
         if (event.shouldCommit()) {
             event.id = fdOrZero(fd);
             setAddress(event, addr);
             event.connected = connected;
             event.blocking = blocking;
+            event.exceptionMessage = stringifyOrNull(ex);
+            event.commit();
+        }
+    }
+
+    static void writeDatagramSendEvent(FileDescriptor fd,
+                                       SocketAddress addr,
+                                       boolean completed,
+                                       boolean blocking,
+                                       Exception ex) {
+        var event = new DatagramSendEvent();
+        if (event.shouldCommit()) {
+            event.id = fdOrZero(fd);
+            setAddress(event, addr);
+            event.completed = completed;
+            event.blocking = blocking;
+            event.exceptionMessage = stringifyOrNull(ex);
+            event.commit();
         }
     }
 
