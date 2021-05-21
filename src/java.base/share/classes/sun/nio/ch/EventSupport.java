@@ -147,14 +147,23 @@ class EventSupport {
                                        boolean completed,
                                        boolean blocking,
                                        Exception ex) {
-        var event = new DatagramSendEvent();
-        if (event.shouldCommit()) {
-            event.id = fdOrZero(fd);
-            setAddress(event, addr);
-            event.completed = completed;
-            event.blocking = blocking;
-            event.exceptionMessage = stringifyOrNull(ex);
-            event.commit();
+        if (ex == null) {
+            var event = new DatagramSendEvent();
+            if (event.shouldCommit()) {
+                event.id = fdOrZero(fd);
+                setAddress(event, addr);
+                event.completed = completed;
+                event.blocking = blocking;
+                event.exceptionMessage = stringifyOrNull(ex);
+                event.commit();
+            }
+        } else {
+//            var event = new DatagramExceptionEvent(); //Way too specific but illustrates it
+//            if (event.shouldCommit) {
+//                event.id = fdOrZero(fd);
+//                event.exceptionMessage = exceptionMessage;
+//                event.commit();
+//            }
         }
     }
 
