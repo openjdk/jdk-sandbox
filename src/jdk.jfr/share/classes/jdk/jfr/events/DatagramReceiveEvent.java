@@ -13,9 +13,12 @@ import jdk.jfr.internal.Type;
 @Description("Receiving a Datagram")
 @MirrorEvent(className = "jdk.internal.event.DatagramReceiveEvent")
 public class DatagramReceiveEvent extends AbstractSocketEvent {
+    @Label("Socket Connected")
+    public boolean connected;
+
     @Label("Blocking Operations")
     public boolean blocking;
 
-    @Label("Socket Connected")
-    public boolean connected;
+    @Label("Exception Message")
+    public String exceptionMessage;
 }
