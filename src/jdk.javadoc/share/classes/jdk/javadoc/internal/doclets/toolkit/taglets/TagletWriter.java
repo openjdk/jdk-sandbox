@@ -275,8 +275,7 @@ public abstract class TagletWriter {
                 continue;
             }
 
-            if (element.getKind() == ElementKind.MODULE && taglet instanceof BaseTaglet) {
-                BaseTaglet t = (BaseTaglet) taglet;
+            if (element.getKind() == ElementKind.MODULE && taglet instanceof BaseTaglet t) {
                 switch (t.getTagKind()) {
                     // @uses and @provides are handled separately, so skip here.
                     // See ModuleWriterImpl.computeModulesData
@@ -292,7 +291,7 @@ public abstract class TagletWriter {
                 continue;
             }
 
-            if (taglet instanceof SimpleTaglet && !((SimpleTaglet) taglet).enabled) {
+            if (taglet instanceof SimpleTaglet st && !st.enabled) {
                 // taglet has been disabled
                 continue;
             }

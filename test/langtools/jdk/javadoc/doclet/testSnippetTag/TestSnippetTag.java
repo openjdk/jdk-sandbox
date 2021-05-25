@@ -792,7 +792,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:4: error - File not found: %s""".formatted(fileName));
+                    A.java:4: error: File not found: %s""".formatted(fileName));
     }
 
     @Test // FIXME perhaps this could be unified with testExternalFile
@@ -860,7 +860,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:4: error - File not found: %s""".formatted(fileName));
+                    A.java:4: error: File not found: %s""".formatted(fileName));
     }
 
     @Test
@@ -883,7 +883,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:3: error - @snippet does not specify contents""");
+                    A.java:3: error: @snippet does not specify contents""");
     }
 
     @Test
@@ -912,7 +912,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
+                    A.java:3: error: @snippet specifies multiple external contents, which is ambiguous""");
     }
 
     @Test
@@ -937,7 +937,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutputEither(Output.OUT,
                           """
-                          A.java:3: error - @snippet specifies multiple external contents, which is ambiguous""");
+                          A.java:3: error: @snippet specifies multiple external contents, which is ambiguous""");
     }
 
     // FIXME: perhaps this method could be added to JavadocTester
@@ -975,7 +975,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:3: error - repeated attribute: "file\"""");
+                    A.java:3: error: repeated attribute: "file\"""");
     }
 
     @Test
@@ -998,7 +998,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:3: error - repeated attribute: "class\"""");
+                    A.java:3: error: repeated attribute: "class\"""");
     }
 
     @Test
@@ -1023,9 +1023,9 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutputEither(Output.OUT,
                           """
-                          A.java:3: error - repeated attribute: "class\"""",
+                          A.java:3: error: repeated attribute: "class\"""",
                           """
-                          A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+                          A.java:3: error: @snippet specifies external and inline contents, which is ambiguous""");
     }
 
     @Test
@@ -1050,15 +1050,15 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutputEither(Output.OUT,
                           """
-                          A.java:3: error - repeated attribute: "file\"""",
+                          A.java:3: error: repeated attribute: "file\"""",
                           """
-                          A.java:3: error - @snippet specifies external and inline contents, which is ambiguous""");
+                          A.java:3: error: @snippet specifies external and inline contents, which is ambiguous""");
     }
 
     // Those are excerpts from the diagnostic messages for two different tags that sit on the same line:
     //
-    //     A.java:3: error - @snippet does not specify contents
-    //     A.java:3: error - @snippet does not specify contents
+    //     A.java:3: error: @snippet does not specify contents
+    //     A.java:3: error: @snippet does not specify contents
     //
     // FIXME: fix and uncomment this test if and when that problem with diagnostic output has been resolved
     //
@@ -1082,9 +1082,9 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:3: error - @snippet does not specify contents""",
+                    A.java:3: error: @snippet does not specify contents""",
                     """
-                    A.java:3: error - @snippet does not specify contents""");
+                    A.java:3: error: @snippet does not specify contents""");
     }
 
     @Test
@@ -1325,7 +1325,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:4: error - @snippet does not specify contents""");
+                    A.java:4: error: @snippet does not specify contents""");
     }
 
     @Test
@@ -1627,7 +1627,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:4: error - File not found: %s""".formatted(fileName));
+                    A.java:4: error: File not found: %s""".formatted(fileName));
     }
 
     @Test
@@ -1662,7 +1662,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:4: error - region not found: "%s\"""".formatted(region));
+                    A.java:4: error: region not found: "%s\"""".formatted(region));
     }
 
     @Test
@@ -1696,7 +1696,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:4: error - contents mismatch""");
+                    A.java:4: error: contents mismatch""");
     }
 
     @Test
@@ -1741,7 +1741,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:4: error - contents mismatch""");
+                    A.java:4: error: contents mismatch""");
     }
 
     @Test
@@ -1780,7 +1780,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:4: error - contents mismatch""");
+                    A.java:4: error: contents mismatch""");
     }
 
     @Test
@@ -1822,7 +1822,7 @@ public class TestSnippetTag extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                     """
-                    A.java:4: error - contents mismatch""");
+                    A.java:4: error: contents mismatch""");
     }
 
     @Test
