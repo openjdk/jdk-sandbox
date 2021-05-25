@@ -466,6 +466,19 @@ public final class SecuritySupport {
         });
     }
 
+    static Class<?> defineHiddenClass(Class<?> lookupClass, byte[] bytes) {
+        return AccessController.doPrivileged(new PrivilegedAction<Class<?>>() {
+            @Override
+            public Class<?> run() {
+                try {
+                    return MethodHandles.privateLookupIn(lookupClass, LOOKUP).defineHiddenClass(bytes, true).lookupClass();
+                } catch (IllegalAccessException e) {
+                    throw new InternalError(e);
+                }
+            }
+        });
+    }
+
     public static Thread createThreadWitNoPermissions(String threadName, Runnable runnable) {
         return doPrivilegedWithReturn(() -> new Thread(runnable, threadName), new Permission[0]);
     }

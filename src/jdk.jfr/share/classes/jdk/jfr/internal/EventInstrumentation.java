@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,10 @@
 
 package jdk.jfr.internal;
 
+import java.lang.invoke.CallSite;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
@@ -36,6 +40,7 @@ import java.util.function.Consumer;
 
 import jdk.internal.org.objectweb.asm.ClassReader;
 import jdk.internal.org.objectweb.asm.ClassWriter;
+import jdk.internal.org.objectweb.asm.Handle;
 import jdk.internal.org.objectweb.asm.Label;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.internal.org.objectweb.asm.Opcodes;
@@ -51,6 +56,7 @@ import jdk.jfr.Name;
 import jdk.jfr.Registered;
 import jdk.jfr.SettingControl;
 import jdk.jfr.SettingDefinition;
+import jdk.jfr.events.EventBootstraps;
 import jdk.jfr.internal.handlers.EventHandler;
 
 /**
@@ -116,11 +122,15 @@ public final class EventInstrumentation {
     private static final Method METHOD_EVENT_HANDLER_SHOULD_COMMIT = new Method("shouldCommit", Type.BOOLEAN_TYPE, new Type[] { Type.LONG_TYPE });
     private static final Method METHOD_DURATION = new Method("duration", Type.LONG_TYPE, new Type[] { Type.LONG_TYPE });
 
+    private static final Type TYPE_EVENT_BOOTSTRAPS = Type.getType(EventBootstraps.class);
+    private static final String WRITE_BOOTSTRAP_NAME = "writeBootstrap";
+    private static final String SETTINGS_BOOTSTRAP_NAME = "settingsBootstrap";
+
     private final ClassNode classNode;
     private final List<SettingInfo> settingInfos;
     private final List<FieldInfo> fieldInfos;;
     private final Method writeMethod;
-    private final String eventHandlerXInternalName;
+    private final String eventHandlerXInternalName;  // ### REMOVE, no longer used
     private final String eventName;
     private final boolean untypedEventHandler;
     private boolean guardHandlerReference;
@@ -420,13 +430,22 @@ public final class EventInstrumentation {
             methodVisitor.visitJumpInsn(Opcodes.IFEQ, end);
             getEventHandler(methodVisitor);
 
-            methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, eventHandlerXInternalName);
             for (FieldInfo fi : fieldInfos) {
                 methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
                 methodVisitor.visitFieldInsn(Opcodes.GETFIELD, fi.internalClassName, fi.fieldName, fi.fieldDescriptor);
             }
 
-            methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, eventHandlerXInternalName, writeMethod.getName(), writeMethod.getDescriptor(), false);
+            // Use indy to setup and link the invocation of eventHandler::write
+            MethodType mt = MethodType.methodType(CallSite.class, Lookup.class, String.class, MethodType.class,
+                    Class.class, String.class, MethodHandle.class);
+            Handle bootstrap = new Handle(Opcodes.H_INVOKESTATIC, TYPE_EVENT_BOOTSTRAPS.getInternalName(),
+                    WRITE_BOOTSTRAP_NAME, mt.toMethodDescriptorString(), false);
+            String descriptor = withReceiver(writeMethod, TYPE_EVENT_HANDLER).getDescriptor();
+            Handle fieldHandle = new Handle(Opcodes.H_GETSTATIC, getInternalClassType().getInternalName(),
+                    FIELD_EVENT_HANDLER, TYPE_EVENT_HANDLER.getDescriptor(), false);
+            methodVisitor.visitInvokeDynamicInsn(writeMethod.getName(), descriptor, bootstrap,
+                    new Object[] { getInternalClassType(), writeMethod.getDescriptor(), fieldHandle });
+
             methodVisitor.visitLabel(end);
             methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
             methodVisitor.visitInsn(Opcodes.RETURN);
@@ -454,8 +473,16 @@ public final class EventInstrumentation {
                 } else {
                     methodVisitor.visitFieldInsn(Opcodes.GETSTATIC, getInternalClassName(), FIELD_EVENT_HANDLER, Type.getDescriptor(EventHandler.class));
                 }
-                methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, eventHandlerXInternalName);
-                methodVisitor.visitFieldInsn(Opcodes.GETFIELD, eventHandlerXInternalName, si.fieldName, TYPE_SETTING_CONTROL.getDescriptor());
+                // Use indy to setup and link the invocation of eventHandler::write
+                MethodType mt = MethodType.methodType(CallSite.class, Lookup.class, String.class, MethodType.class,
+                        Class.class, MethodHandle.class);
+                Handle bootstrap = new Handle(Opcodes.H_INVOKESTATIC, TYPE_EVENT_BOOTSTRAPS.getInternalName(),
+                        SETTINGS_BOOTSTRAP_NAME, mt.toMethodDescriptorString(), false);
+                String descriptor = "("+ TYPE_EVENT_HANDLER.getDescriptor() +")" + TYPE_SETTING_CONTROL.getDescriptor() ;
+                Handle eventHandlerField = new Handle(Opcodes.H_GETSTATIC, getInternalClassType().getInternalName(),
+                        FIELD_EVENT_HANDLER, TYPE_EVENT_HANDLER.getDescriptor(), false);
+                methodVisitor.visitInvokeDynamicInsn(si.fieldName, descriptor, bootstrap,
+                        new Object[] { getInternalClassType(), eventHandlerField });
                 methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, si.internalSettingName);
                 methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, getInternalClassName(), si.methodName, "(" + si.settingDescriptor + ")Z", false);
                 methodVisitor.visitJumpInsn(Opcodes.IFEQ, fail);
@@ -535,6 +562,15 @@ public final class EventInstrumentation {
 
     private String getInternalClassName() {
         return classNode.name;
+    }
+
+    private Type getInternalClassType() {
+        return Type.getType("L" + getInternalClassName() + ";");
+    }
+
+    /** Returns a new Method with the given type inserted as the receiver. */
+    private static Method withReceiver(Method method, Type type) {
+        return new Method(method.getName(), "(" + type + method.getDescriptor().substring(1));
     }
 
     public List<SettingInfo> getSettingInfos() {
