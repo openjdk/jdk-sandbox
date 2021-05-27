@@ -136,11 +136,12 @@ public final class MarkupParser {
         skipWhitespace();
 
         while (bp < buflen && isIdentifierStart(ch)) {
+            int nameStartPos = bp;
             String name = readAttributeName();
             skipWhitespace();
             StringBuilder value = new StringBuilder();
             var vkind = ValueKind.EMPTY;
-            int valueStartPos;
+            int valueStartPos = -1;
             if (ch == '=') {
                 nextChar();
                 skipWhitespace();
@@ -152,7 +153,7 @@ public final class MarkupParser {
                     while (bp < buflen && ch != quote) {
                         nextChar();
                     }
-                    if (bp >= buflen) {
+                    if (bp >= buflen) { // TODO: unexpected EOL; check for a similar issue in parsing the @snippet tag
                         throw new ParseException("dc.unterminated.string");
                     }
                     addPendingText(value, valueStartPos, bp - 1);
@@ -171,9 +172,13 @@ public final class MarkupParser {
                 skipWhitespace();
             }
 
+            // material implication:
+            //     if vkind != EMPTY then it must be the case that valueStartPos >=0
+            assert !(vkind != ValueKind.EMPTY && valueStartPos < 0);
+
             var attribute = vkind == ValueKind.EMPTY ?
-                    new Attribute.Valueless(name) :
-                    new Attribute.Valued(name, value.toString());
+                    new Attribute.Valueless(name, nameStartPos) :
+                    new Attribute.Valued(name, value.toString(), nameStartPos, valueStartPos);
 
             attrs.add(attribute);
         }

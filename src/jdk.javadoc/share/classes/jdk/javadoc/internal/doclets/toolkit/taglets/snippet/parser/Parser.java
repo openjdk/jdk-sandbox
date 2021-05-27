@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /*
  * Semantics of a EOL comment; plus
@@ -126,8 +127,9 @@ public final class Parser {
             }
             this.eolMarker = eolMarker;
             // capture the rightmost "//"
-            this.markedUpLine = Pattern.compile("^(.*)(\\Q%s\\E(\\s*@\\s*\\w+.+?))$".formatted(eolMarker))
-                    .matcher(""); // TODO: quote properly with Pattern.quote
+            // The bellow Pattern.compile should never throw PatternSyntaxException
+            Pattern pattern = Pattern.compile("^(.*)(" + Pattern.quote(eolMarker) + "(\\s*@\\s*\\w+.+?))$");
+            this.markedUpLine = pattern.matcher(""); // reusable matcher
         }
 
         tags.clear();
@@ -151,6 +153,11 @@ public final class Parser {
                 String maybeMarkup = markedUpLine.group(3);
                 line = markedUpLine.group(1).stripTrailing() + (addLineTerminator ? "\n" : ""); // remove any whitespace
                 List<Tag> parsedTags = markupParser.parse(maybeMarkup);
+
+                for (Tag t : parsedTags) {
+                    t.markupPosition = markedUpLine.start(3);
+                }
+
                 thisLineTags.addAll(parsedTags);
                 for (var tagIterator = thisLineTags.iterator(); tagIterator.hasNext(); ) {
                     Tag i = tagIterator.next();
@@ -159,7 +166,7 @@ public final class Parser {
                         i.appliesToNextLine = false; // clear the flag
                         tempList.add(i);
                     } else {
-                        i.position = markedUpLine.start(2); // e.g. @end that relates to the same line
+                        i.markupCommentPosition = markedUpLine.start(2); // e.g. @end that relates to the same line
                     }
                 }
                 if (parsedTags.isEmpty()) { // not a valid markup comment
@@ -171,10 +178,10 @@ public final class Parser {
 
             thisLineTags.addAll(0, previousLineTags); // prepend!
             previousLineTags.clear();
-            for (Tag i : thisLineTags) {
-                i.start = lineStart;
-                i.end = lineStart + line.length(); // this includes line terminator, if any
-                processTag(i);
+            for (Tag t : thisLineTags) {
+                t.start = lineStart;
+                t.end = lineStart + line.length(); // this includes line terminator, if any
+                processTag(t);
             }
             previousLineTags.addAll(tempList);
             tempList.clear();
@@ -194,28 +201,19 @@ public final class Parser {
             throw new ParseException("Unpaired region(s)");
         }
 
-        for (var i : tags) {
+        for (var t : tags) {
 
             // Translate a list of attributes into a more convenient form
-            Attributes attributes = new Attributes(i.attributes());
+            Attributes attributes = new Attributes(t.attributes());
 
             final var substring = attributes.get("substring", Attribute.Valued.class);
             final var regex = attributes.get("regex", Attribute.Valued.class);
 
-            if (!i.name().equals("start") && substring.isPresent() && regex.isPresent()) {
+            if (!t.name().equals("start") && substring.isPresent() && regex.isPresent()) {
                 throw new ParseException("'substring' and 'regex' cannot be used simultaneously");
             }
 
-            String regexValue;
-            if (substring.isPresent()) {
-                regexValue = Pattern.quote(substring.get().value());
-            } else if (regex.isPresent()) {
-                regexValue = regex.get().value();
-            } else {
-                regexValue = "(?s).+";
-            }
-
-            switch (i.name()) {
+            switch (t.name()) {
                 case "link" -> {
                     var target = attributes.get("target", Attribute.Valued.class)
                             .orElseThrow(() -> new ParseException("target is absent"));
@@ -225,16 +223,16 @@ public final class Parser {
                         throw new ParseException("Unknown link type: '%s'".formatted(typeValue));
                     }
                     Restyle a = new Restyle(s -> s.and(Style.link(target.value())),
-                                            Pattern.compile(regexValue),
-                                            text.select(i.start(), i.end()));
+                                            createRegexPattern(substring, regex, t.markupPosition),
+                                            text.select(t.start(), t.end()));
                     actions.add(a);
                 }
                 case "replace" -> {
                     var replacement = attributes.get("replacement", Attribute.Valued.class)
                             .orElseThrow(() -> new ParseException("replacement is absent"));
                     Replace a = new Replace(replacement.value(),
-                                            Pattern.compile(regexValue),
-                                            text.select(i.start(), i.end()));
+                                            createRegexPattern(substring, regex, t.markupPosition),
+                                            text.select(t.start(), t.end()));
                     actions.add(a);
                 }
                 case "highlight" -> {
@@ -243,8 +241,8 @@ public final class Parser {
                     String typeValue = type.isPresent() ? type.get().value() : "bold";
 
                     Restyle a = new Restyle(s -> s.and(Style.name(typeValue)),
-                                            Pattern.compile(regexValue),
-                                            text.select(i.start(), i.end()));
+                                            createRegexPattern(substring, regex, t.markupPosition),
+                                            text.select(t.start(), t.end()));
                     actions.add(a);
                 }
                 case "start" -> {
@@ -254,15 +252,38 @@ public final class Parser {
                     if (regionValue.isBlank()) {
                         throw new ParseException("Blank region name");
                     }
-                    if (i.attributes().size() != 1) {
+                    if (t.attributes().size() != 1) {
                         throw new ParseException("Unexpected attributes");
                     }
-                    actions.add(new Start(region.value(), text.select(i.start(), i.end()), i.position));
+                    actions.add(new Start(region.value(), text.select(t.start(), t.end()), t.markupCommentPosition));
                 }
             }
         }
 
         return new Result(text, actions);
+    }
+
+    private Pattern createRegexPattern(Optional<Attribute.Valued> substring,
+                                       Optional<Attribute.Valued> regex,
+                                       int offset) throws ParseException {
+        Pattern pattern;
+        if (substring.isPresent()) {
+            pattern = Pattern.compile(Pattern.quote(substring.get().value())); // cannot throw an exception
+        } else if (regex.isEmpty()) {
+            pattern = Pattern.compile("(?s).+"); // cannot throw an exception
+        } else {
+            // Unlike string literals in Java source, attribute values in markup
+            // do not use escapes. So indices of characters in the regex pattern
+            // directly map to their corresponding positions in snippet source.
+            try {
+                pattern = Pattern.compile(regex.get().value());
+            } catch (PatternSyntaxException e) {
+                int index = e.getIndex();
+                final int pos = index == -1 ? -1 : offset + regex.get().valueStartPosition() + index;
+                throw new ParseException(e.getDescription(), pos);
+            }
+        }
+        return pattern;
     }
 
     private void processTag(Tag i) throws ParseException {
@@ -306,7 +327,8 @@ public final class Parser {
     static final class Tag {
 
         String name;
-        int position; // the position of markup, not the tag; this position is, for example, used by @end
+        int markupCommentPosition; // the position of markup, not the tag; this position is, for example, used by @end
+        int markupPosition; // the position from which the markup tags are read
         int start;
         int end;
         List<Attribute> attributes;
@@ -342,7 +364,7 @@ public final class Parser {
     private void completeTag(Tag start, Tag end) {
         assert !start.name().equals("end") : start;
         assert end.name().equals("end") : end;
-        start.position = end.position; // smuggle the position of the corresponding end
+        start.markupCommentPosition = end.markupCommentPosition; // smuggle the position of the corresponding end
         start.end = end.end();
     }
 

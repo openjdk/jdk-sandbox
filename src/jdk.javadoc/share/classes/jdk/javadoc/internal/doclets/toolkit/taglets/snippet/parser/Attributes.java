@@ -53,12 +53,18 @@ public final class Attributes {
         this.attributes = attributes
                 .stream()
                 .collect(Collectors.groupingBy(Attribute::name,
-                                               Collectors.toUnmodifiableList()));
+                                               Collectors.toList()));
     }
 
     /*
-     * If there are multiple attributes with the same name and type, it is
-     * unknown which one of them will be returned.
+     * 1. If there are multiple attributes with the same name and type, it is
+     * unknown which one of these attributes will be returned.
+     *
+     * 2. If there are no attributes with this name and type, an empty optional
+     * will be returned.
+     *
+     * 3. If a non-specific (any/or/union/etc.) result is required, query for
+     * the Attribute.class type.
      */
     public <T extends Attribute> Optional<T> get(String name, Class<T> type) {
         return attributes.getOrDefault(name, List.of())

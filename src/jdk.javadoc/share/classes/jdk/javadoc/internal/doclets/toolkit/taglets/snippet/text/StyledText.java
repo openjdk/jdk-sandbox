@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,8 @@ import java.util.function.Function;
  * Operations that take both start and end indices work as follows. Start is
  * inclusive and end is exclusive; which means the affected index i satisfies this:
  * start <= i && i < end.
+ *
+ * //FIXME WHY newlines are also included and there's no such thing as a line or a paragraph?
  */
 public interface StyledText {
 
