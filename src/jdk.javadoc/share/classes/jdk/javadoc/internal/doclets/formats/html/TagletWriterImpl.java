@@ -52,6 +52,7 @@ import com.sun.source.doctree.SeeTree;
 import com.sun.source.doctree.SnippetTree;
 import com.sun.source.doctree.SystemPropertyTree;
 import com.sun.source.doctree.ThrowsTree;
+import com.sun.source.util.DocTreePath;
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlId;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
@@ -389,7 +390,8 @@ public class TagletWriterImpl extends TagletWriter {
             if (style == Style.none()) {
                 result.add(text);
             } else {
-                LinkTree link = null;
+                Element e = null;
+                String t = null;
                 boolean linkEncountered = false;
                 Set<String> classes = new HashSet<>();
                 for (Style s : style.getStyles()) {
@@ -398,9 +400,11 @@ public class TagletWriterImpl extends TagletWriter {
                     } else if (s instanceof Style.Link l) {
                         assert !linkEncountered; // one link is enough
                         linkEncountered = true;
-                        String target = l.getTarget();
-                        // fabrication of a LinkTree node
-                        link = configuration.cmtUtils.makeLinkTree(target, sequence.subSequence(start, end).toString());
+                        t = l.getTarget();
+                        e = getLinkedElement(element, t);
+                        if (e == null) {
+                            // diagnostic output
+                        }
                     } else {
                         // TODO wait for sealed types for exhaustiveness
                         throw new AssertionError(style);
@@ -408,16 +412,44 @@ public class TagletWriterImpl extends TagletWriter {
                 }
                 Content c;
                 if (linkEncountered) {
-                    assert link != null;
-                    c = htmlWriter.seeTagToContent(element, link, new Context(false, false));
+                    assert e != null;
+                    String line = sequence.subSequence(start, end).toString();
+                    String strippedLine = line.strip();
+                    int idx = line.indexOf(strippedLine);
+                    assert idx >= 0; // because the stripped line is a substring of the line being stripped
+                    Text whitespace = Text.of(line.substring(0, idx));
+                    // If the leading whitespace is not excluded from the link,
+                    // browsers might exhibit unwanted behavior. For example, a
+                    // browser might display hand-click cursor while user hovers
+                    // over that whitespace portion of the line; or use
+                    // underline decoration.
+                    c = new ContentBuilder(whitespace, htmlWriter.linkToContent(element, e, t, strippedLine));
+                    // We don't care about trailing whitespace.
                 } else {
                     c = HtmlTree.SPAN(Text.of(sequence.subSequence(start, end)));
+                    classes.forEach(((HtmlTree) c)::addStyle);
                 }
                 result.add(c);
-                classes.forEach(((HtmlTree) c)::addStyle);
             }
         });
         return result;
+    }
+
+    /*
+     * Returns the element that is linked from the context of the referrer using
+     * the provided signature; returns null if such element could not be found.
+     *
+     * This method is to be used when it's the target of the link that is
+     * important, not the container of the link (e.g. was it an @see,
+     * @link/@linkplain or @snippet tags, etc.)
+     */
+    public Element getLinkedElement(Element referer, String signature) {
+        var factory = utils.docTrees.getDocTreeFactory();
+        var docCommentTree = utils.getDocCommentTree(referer);
+        var rootPath = new DocTreePath(utils.getTreePath(referer), docCommentTree);
+        var reference = factory.newReferenceTree(signature);
+        var fabricatedPath = new DocTreePath(rootPath, reference);
+        return utils.docTrees.getElement(fabricatedPath);
     }
 
     @Override

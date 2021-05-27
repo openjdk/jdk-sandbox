@@ -223,7 +223,7 @@ public final class Parser {
                         throw new ParseException("Unknown link type: '%s'".formatted(typeValue));
                     }
                     Restyle a = new Restyle(s -> s.and(Style.link(target.value())),
-                                            createRegexPattern(substring, regex, t.markupPosition),
+                                            createRegexPattern(substring, regex, ".+", t.markupPosition), // different regex not to include newline
                                             text.select(t.start(), t.end()));
                     actions.add(a);
                 }
@@ -266,11 +266,18 @@ public final class Parser {
     private Pattern createRegexPattern(Optional<Attribute.Valued> substring,
                                        Optional<Attribute.Valued> regex,
                                        int offset) throws ParseException {
+        return createRegexPattern(substring, regex, "(?s).+", offset);
+    }
+
+    private Pattern createRegexPattern(Optional<Attribute.Valued> substring,
+                                       Optional<Attribute.Valued> regex,
+                                       String defaultRegex,
+                                       int offset) throws ParseException {
         Pattern pattern;
         if (substring.isPresent()) {
             pattern = Pattern.compile(Pattern.quote(substring.get().value())); // cannot throw an exception
         } else if (regex.isEmpty()) {
-            pattern = Pattern.compile("(?s).+"); // cannot throw an exception
+            pattern = Pattern.compile(defaultRegex); // should not throw an exception
         } else {
             // Unlike string literals in Java source, attribute values in markup
             // do not use escapes. So indices of characters in the regex pattern
