@@ -207,7 +207,7 @@ public class SnippetTaglet extends BaseTaglet {
                 }
             }
         } catch (ParseException e) {
-            error(writer, holder, region, "doclet.snippet.markup", e.getMessage()); // FIXME: e.getMessage() is non-internationalized and sometimes is just a resource key
+            error(writer, holder, tag, "doclet.snippet.markup", e.getMessage()); // FIXME: e.getMessage() is non-internationalized and sometimes is just a resource key
             return badSnippet(writer);
         }
 

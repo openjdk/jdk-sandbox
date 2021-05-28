@@ -33,17 +33,6 @@ import java.util.stream.Collectors;
 
 /*
  * Provides convenient access to attributes.
- *
- * Although a four-state attribute could be modelled as
- *
- * Optional<Optional<String>> this class models it using a dedicated type for an
- * valueless attribute rather than yet another, inner, optional.
- *
- * This class clearly disambiguates between the following three cases:
- *
- *   1. An absent attribute
- *   2. An attribute with no value
- *   3. An attribute with an empty value
  */
 public final class Attributes {
 
