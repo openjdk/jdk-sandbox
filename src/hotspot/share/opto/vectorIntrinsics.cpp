@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -352,6 +352,9 @@ bool LibraryCallKit::inline_vector_shuffle_iota() {
   if (!arch_supports_vector(Op_AndV, num_elem, elem_bt, VecMaskNotUsed)) {
     return false;
   }
+  if (!arch_supports_vector(Op_VectorLoadConst, num_elem, elem_bt, VecMaskNotUsed)) {
+    return false;
+  }
   if (!arch_supports_vector(Op_VectorBlend, num_elem, elem_bt, VecMaskUseLoad)) {
     return false;
   }
@@ -369,7 +372,8 @@ bool LibraryCallKit::inline_vector_shuffle_iota() {
     res = gvn().transform(VectorNode::make(Op_MulI, res, bcast_step, num_elem, elem_bt));
   } else if (step_val->get_con() > 1) {
     Node* cnt = gvn().makecon(TypeInt::make(log2i_exact(step_val->get_con())));
-    res = gvn().transform(VectorNode::make(Op_LShiftVB, res, cnt, vt));
+    Node* shift_cnt = vector_shift_count(cnt, Op_LShiftI, elem_bt, num_elem);
+    res = gvn().transform(VectorNode::make(Op_LShiftVB, res, shift_cnt, vt));
   }
 
   if (!start_val->is_con() || start_val->get_con() != 0) {
@@ -400,6 +404,60 @@ bool LibraryCallKit::inline_vector_shuffle_iota() {
   // Wrap it up in VectorBox to keep object type information.
   res = box_vector(res, shuffle_box_type, elem_bt, num_elem);
   set_result(res);
+  C->set_max_vector_size(MAX2(C->max_vector_size(), (uint)(num_elem * type2aelembytes(elem_bt))));
+  return true;
+}
+
+// <E, M>
+// int maskReductionCoerced(int oper, Class<? extends M> maskClass, Class<?> elemClass,
+//                          int length, M m, VectorMaskOp<M> defaultImpl)
+bool LibraryCallKit::inline_vector_mask_operation() {
+  const TypeInt*     oper       = gvn().type(argument(0))->isa_int();
+  const TypeInstPtr* mask_klass = gvn().type(argument(1))->isa_instptr();
+  const TypeInstPtr* elem_klass = gvn().type(argument(2))->isa_instptr();
+  const TypeInt*     vlen       = gvn().type(argument(3))->isa_int();
+  Node*              mask       = argument(4);
+
+  if (mask_klass == NULL || elem_klass == NULL || mask->is_top() || vlen == NULL) {
+    return false; // dead code
+  }
+
+  if (!is_klass_initialized(mask_klass)) {
+    if (C->print_intrinsics()) {
+      tty->print_cr("  ** klass argument not initialized");
+    }
+    return false;
+  }
+
+  int num_elem = vlen->get_con();
+  ciType* elem_type = elem_klass->const_oop()->as_instance()->java_mirror_type();
+  BasicType elem_bt = elem_type->basic_type();
+
+  if (!arch_supports_vector(Op_LoadVector, num_elem, T_BOOLEAN, VecMaskNotUsed)) {
+    if (C->print_intrinsics()) {
+      tty->print_cr("  ** not supported: arity=1 op=cast#%d/3 vlen2=%d etype2=%s",
+                    Op_LoadVector, num_elem, type2name(T_BOOLEAN));
+    }
+    return false; // not supported
+  }
+
+  int mopc = VectorSupport::vop2ideal(oper->get_con(), elem_bt);
+  if (!arch_supports_vector(mopc, num_elem, elem_bt, VecMaskNotUsed)) {
+    if (C->print_intrinsics()) {
+      tty->print_cr("  ** not supported: arity=1 op=cast#%d/3 vlen2=%d etype2=%s",
+                    mopc, num_elem, type2name(elem_bt));
+    }
+    return false; // not supported
+  }
+
+  const Type* elem_ty = Type::get_const_basic_type(elem_bt);
+  ciKlass* mbox_klass = mask_klass->const_oop()->as_instance()->java_lang_Class_klass();
+  const TypeInstPtr* mask_box_type = TypeInstPtr::make_exact(TypePtr::NotNull, mbox_klass);
+  Node* mask_vec = unbox_vector(mask, mask_box_type, elem_bt, num_elem, true);
+  Node* store_mask = gvn().transform(VectorStoreMaskNode::make(gvn(), mask_vec, elem_bt, num_elem));
+  Node* maskoper = gvn().transform(VectorMaskOpNode::make(store_mask, TypeInt::INT, mopc));
+  set_result(maskoper);
+
   C->set_max_vector_size(MAX2(C->max_vector_size(), (uint)(num_elem * type2aelembytes(elem_bt))));
   return true;
 }
@@ -547,6 +605,22 @@ bool LibraryCallKit::inline_vector_broadcast_coerced() {
   return true;
 }
 
+static bool elem_consistent_with_arr(BasicType elem_bt, const TypeAryPtr* arr_type) {
+  assert(arr_type != NULL, "unexpected");
+  BasicType arr_elem_bt = arr_type->elem()->array_element_basic_type();
+  if (elem_bt == arr_elem_bt) {
+    return true;
+  } else if (elem_bt == T_SHORT && arr_elem_bt == T_CHAR) {
+    // Load/store of short vector from/to char[] is supported
+    return true;
+  } else if (elem_bt == T_BYTE && arr_elem_bt == T_BOOLEAN) {
+    // Load/store of byte vector from/to boolean[] is supported
+    return true;
+  } else {
+    return false;
+  }
+}
+
 //    <C, V extends Vector<?,?>>
 //    V load(Class<?> vectorClass, Class<?> elementType, int vlen,
 //           Object base, long offset,
@@ -608,13 +682,12 @@ bool LibraryCallKit::inline_vector_mem_operation(bool is_store) {
 
   Node* base = argument(3);
   Node* offset = ConvL2X(argument(4));
-  DecoratorSet decorators = C2_UNSAFE_ACCESS;
 
   // Save state and restore on bailout
   uint old_sp = sp();
   SafePointNode* old_map = clone_map();
 
-  Node* addr = make_unsafe_address(base, offset, decorators, (is_mask ? T_BOOLEAN : elem_bt), true);
+  Node* addr = make_unsafe_address(base, offset, (is_mask ? T_BOOLEAN : elem_bt), true);
   // Can base be NULL? Otherwise, always on-heap access.
   bool can_access_non_heap = TypePtr::NULL_PTR->higher_equal(gvn().type(base));
 
@@ -625,7 +698,12 @@ bool LibraryCallKit::inline_vector_mem_operation(bool is_store) {
   bool using_byte_array = arr_type != NULL && arr_type->elem()->array_element_basic_type() == T_BYTE && elem_bt != T_BYTE;
   // Handle loading masks.
   // If there is no consistency between array and vector element types, it must be special byte array case or loading masks
-  if (arr_type != NULL && !using_byte_array && elem_bt != arr_type->elem()->array_element_basic_type() && !is_mask) {
+  if (arr_type != NULL && !using_byte_array && !is_mask && !elem_consistent_with_arr(elem_bt, arr_type)) {
+    if (C->print_intrinsics()) {
+      tty->print_cr("  ** not supported: arity=%d op=%s vlen=%d etype=%s atype=%s ismask=no",
+                    is_store, is_store ? "store" : "load",
+                    num_elem, type2name(elem_bt), type2name(arr_type->elem()->array_element_basic_type()));
+    }
     set_map(old_map);
     set_sp(old_sp);
     return false;
@@ -802,13 +880,18 @@ bool LibraryCallKit::inline_vector_gather_scatter(bool is_scatter) {
   uint old_sp = sp();
   SafePointNode* old_map = clone_map();
 
-  Node* addr = make_unsafe_address(base, offset, C2_UNSAFE_ACCESS, elem_bt, true);
+  Node* addr = make_unsafe_address(base, offset, elem_bt, true);
 
   const TypePtr *addr_type = gvn().type(addr)->isa_ptr();
   const TypeAryPtr* arr_type = addr_type->isa_aryptr();
 
   // The array must be consistent with vector type
-  if (arr_type == NULL || (arr_type != NULL && elem_bt != arr_type->elem()->array_element_basic_type())) {
+  if (arr_type == NULL || (arr_type != NULL && !elem_consistent_with_arr(elem_bt, arr_type))) {
+    if (C->print_intrinsics()) {
+      tty->print_cr("  ** not supported: arity=%d op=%s vlen=%d etype=%s atype=%s ismask=no",
+                    is_scatter, is_scatter ? "scatter" : "gather",
+                    num_elem, type2name(elem_bt), type2name(arr_type->elem()->array_element_basic_type()));
+    }
     set_map(old_map);
     set_sp(old_sp);
     return false;
@@ -1127,6 +1210,16 @@ bool LibraryCallKit::inline_vector_compare() {
   BasicType elem_bt = elem_type->basic_type();
   BasicType mask_bt = elem_bt;
 
+  if ((cond->get_con() & BoolTest::unsigned_compare) != 0) {
+    if (!Matcher::supports_vector_comparison_unsigned(num_elem, elem_bt)) {
+      if (C->print_intrinsics()) {
+        tty->print_cr("  ** not supported: unsigned comparison op=comp/%d vlen=%d etype=%s ismask=usestore",
+                      cond->get_con() & (BoolTest::unsigned_compare - 1), num_elem, type2name(elem_bt));
+      }
+      return false;
+    }
+  }
+
   if (!arch_supports_vector(Op_VectorMaskCmp, num_elem, elem_bt, VecMaskUseStore)) {
     if (C->print_intrinsics()) {
       tty->print_cr("  ** not supported: arity=2 op=comp/%d vlen=%d etype=%s ismask=usestore",
@@ -1382,9 +1475,10 @@ bool LibraryCallKit::inline_vector_convert() {
     return false; // should be primitive type
   }
   BasicType elem_bt_to = elem_type_to->basic_type();
-  if (is_mask && elem_bt_from != elem_bt_to) {
-    return false; // type mismatch
+  if (is_mask && (type2aelembytes(elem_bt_from) != type2aelembytes(elem_bt_to))) {
+    return false; // elem size mismatch
   }
+
   int num_elem_from = vlen_from->get_con();
   int num_elem_to = vlen_to->get_con();
 

@@ -79,8 +79,6 @@ jint    StubRoutines::_fpu_cntrl_wrd_std                        = 0;
 jint    StubRoutines::_fpu_cntrl_wrd_24                         = 0;
 jint    StubRoutines::_fpu_cntrl_wrd_trunc                      = 0;
 jint    StubRoutines::_mxcsr_std                                = 0;
-jint    StubRoutines::_fpu_subnormal_bias1[3]                   = { 0, 0, 0 };
-jint    StubRoutines::_fpu_subnormal_bias2[3]                   = { 0, 0, 0 };
 
 // Compiled code entry points default values
 // The default functions don't have separate disjoint versions.
@@ -286,6 +284,8 @@ void StubRoutines::initialize2() {
 
 #ifdef ASSERT
 
+  MACOS_AARCH64_ONLY(os::current_thread_enable_wx(WXExec));
+
 #define TEST_ARRAYCOPY(type)                                                    \
   test_arraycopy_func(          type##_arraycopy(),          sizeof(type));     \
   test_arraycopy_func(          type##_disjoint_arraycopy(), sizeof(type));     \
@@ -358,6 +358,8 @@ void StubRoutines::initialize2() {
   // Aligned to BytesPerLong
   test_arraycopy_func(CAST_FROM_FN_PTR(address, Copy::aligned_conjoint_words), sizeof(jlong));
   test_arraycopy_func(CAST_FROM_FN_PTR(address, Copy::aligned_disjoint_words), sizeof(jlong));
+
+  MACOS_AARCH64_ONLY(os::current_thread_enable_wx(WXWrite));
 
 #endif
 }

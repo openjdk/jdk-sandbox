@@ -202,6 +202,7 @@ class InvokerBytecodeGenerator {
     }
 
     // Also used from BoundMethodHandle
+    @SuppressWarnings("removal")
     static void maybeDump(final String className, final byte[] classFile) {
         if (DUMP_CLASS_FILES) {
             java.security.AccessController.doPrivileged(
@@ -302,8 +303,7 @@ class InvokerBytecodeGenerator {
     }
 
     private static String debugString(Object arg) {
-        if (arg instanceof MethodHandle) {
-            MethodHandle mh = (MethodHandle) arg;
+        if (arg instanceof MethodHandle mh) {
             MemberName member = mh.internalMemberName();
             if (member != null)
                 return member.toString();
@@ -627,8 +627,7 @@ class InvokerBytecodeGenerator {
 
     private void emitReferenceCast(Class<?> cls, Object arg) {
         Name writeBack = null;  // local to write back result
-        if (arg instanceof Name) {
-            Name n = (Name) arg;
+        if (arg instanceof Name n) {
             if (lambdaForm.useCount(n) > 1) {
                 // This guy gets used more than once.
                 writeBack = n;
@@ -866,18 +865,17 @@ class InvokerBytecodeGenerator {
                     onStack = emitTryFinally(i);
                     i += 2; // jump to the end of the TF idiom
                     continue;
+                case TABLE_SWITCH:
+                    assert lambdaForm.isTableSwitch(i);
+                    int numCases = (Integer) name.function.intrinsicData();
+                    onStack = emitTableSwitch(i, numCases);
+                    i += 2; // jump to the end of the TS idiom
+                    continue;
                 case LOOP:
                     assert lambdaForm.isLoop(i);
                     onStack = emitLoop(i);
                     i += 2; // jump to the end of the LOOP idiom
                     continue;
-                case NEW_ARRAY:
-                    Class<?> rtype = name.function.methodType().returnType();
-                    if (isStaticallyNameable(rtype)) {
-                        emitNewArray(name);
-                        continue;
-                    }
-                    break;
                 case ARRAY_LOAD:
                     emitArrayLoad(name);
                     continue;
@@ -1021,8 +1019,6 @@ class InvokerBytecodeGenerator {
             return false;  // not on BCP
         if (cls.isHidden())
             return false;
-        if (ReflectUtil.isVMAnonymousClass(cls))   // FIXME: Unsafe::defineAnonymousClass to be removed
-            return false;
         if (!isStaticallyInvocableType(member.getMethodOrFieldType()))
             return false;
         if (!member.isPrivate() && VerifyAccess.isSamePackage(MethodHandle.class, cls))
@@ -1053,8 +1049,6 @@ class InvokerBytecodeGenerator {
         if (cls.isPrimitive())
             return true;  // int[].class, for example
         if (cls.isHidden())
-            return false;
-        if (ReflectUtil.isVMAnonymousClass(cls))   // FIXME: Unsafe::defineAnonymousClass to be removed
             return false;
         // could use VerifyAccess.isClassAccessible but the following is a safe approximation
         if (cls.getClassLoader() != Object.class.getClassLoader())
@@ -1114,43 +1108,6 @@ class InvokerBytecodeGenerator {
         }
     }
 
-    void emitNewArray(Name name) throws InternalError {
-        Class<?> rtype = name.function.methodType().returnType();
-        if (name.arguments.length == 0) {
-            // The array will be a constant.
-            Object emptyArray;
-            try {
-                emptyArray = name.function.resolvedHandle().invoke();
-            } catch (Throwable ex) {
-                throw uncaughtException(ex);
-            }
-            assert(java.lang.reflect.Array.getLength(emptyArray) == 0);
-            assert(emptyArray.getClass() == rtype);  // exact typing
-            mv.visitFieldInsn(Opcodes.GETSTATIC, className, classData(emptyArray), "Ljava/lang/Object;");
-            emitReferenceCast(rtype, emptyArray);
-            return;
-        }
-        Class<?> arrayElementType = rtype.getComponentType();
-        assert(arrayElementType != null);
-        emitIconstInsn(name.arguments.length);
-        int xas = Opcodes.AASTORE;
-        if (!arrayElementType.isPrimitive()) {
-            mv.visitTypeInsn(Opcodes.ANEWARRAY, getInternalName(arrayElementType));
-        } else {
-            byte tc = arrayTypeCode(Wrapper.forPrimitiveType(arrayElementType));
-            xas = arrayInsnOpcode(tc, xas);
-            mv.visitIntInsn(Opcodes.NEWARRAY, tc);
-        }
-        // store arguments
-        for (int i = 0; i < name.arguments.length; i++) {
-            mv.visitInsn(Opcodes.DUP);
-            emitIconstInsn(i);
-            emitPushArgument(name, i);
-            mv.visitInsn(xas);
-        }
-        // the array is left on the stack
-        assertStaticType(rtype, name);
-    }
     int refKindOpcode(byte refKind) {
         switch (refKind) {
         case REF_invokeVirtual:      return Opcodes.INVOKEVIRTUAL;
@@ -1439,6 +1396,58 @@ class InvokerBytecodeGenerator {
         }
     }
 
+    private Name emitTableSwitch(int pos, int numCases) {
+        Name args    = lambdaForm.names[pos];
+        Name invoker = lambdaForm.names[pos + 1];
+        Name result  = lambdaForm.names[pos + 2];
+
+        Class<?> returnType = result.function.resolvedHandle().type().returnType();
+        MethodType caseType = args.function.resolvedHandle().type()
+            .dropParameterTypes(0, 1) // drop collector
+            .changeReturnType(returnType);
+        String caseDescriptor = caseType.basicType().toMethodDescriptorString();
+
+        emitPushArgument(invoker, 2); // push cases
+        mv.visitFieldInsn(Opcodes.GETFIELD, "java/lang/invoke/MethodHandleImpl$CasesHolder", "cases",
+            "[Ljava/lang/invoke/MethodHandle;");
+        int casesLocal = extendLocalsMap(new Class<?>[] { MethodHandle[].class });
+        emitStoreInsn(L_TYPE, casesLocal);
+
+        Label endLabel = new Label();
+        Label defaultLabel = new Label();
+        Label[] caseLabels = new Label[numCases];
+        for (int i = 0; i < caseLabels.length; i++) {
+            caseLabels[i] = new Label();
+        }
+
+        emitPushArgument(invoker, 0); // push switch input
+        mv.visitTableSwitchInsn(0, numCases - 1, defaultLabel, caseLabels);
+
+        mv.visitLabel(defaultLabel);
+        emitPushArgument(invoker, 1); // push default handle
+        emitPushArguments(args, 1); // again, skip collector
+        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, MH, "invokeBasic", caseDescriptor, false);
+        mv.visitJumpInsn(Opcodes.GOTO, endLabel);
+
+        for (int i = 0; i < numCases; i++) {
+            mv.visitLabel(caseLabels[i]);
+            // Load the particular case:
+            emitLoadInsn(L_TYPE, casesLocal);
+            emitIconstInsn(i);
+            mv.visitInsn(Opcodes.AALOAD);
+
+            // invoke it:
+            emitPushArguments(args, 1); // again, skip collector
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, MH, "invokeBasic", caseDescriptor, false);
+
+            mv.visitJumpInsn(Opcodes.GOTO, endLabel);
+        }
+
+        mv.visitLabel(endLabel);
+
+        return result;
+    }
+
     /**
      * Emit bytecode for the loop idiom.
      * <p>
@@ -1679,8 +1688,7 @@ class InvokerBytecodeGenerator {
 
     private void emitPushArgument(Class<?> ptype, Object arg) {
         BasicType bptype = basicType(ptype);
-        if (arg instanceof Name) {
-            Name n = (Name) arg;
+        if (arg instanceof Name n) {
             emitLoadInsn(n.type, n.index());
             emitImplicitConversion(n.type, ptype, n);
         } else if (arg == null && bptype == L_TYPE) {

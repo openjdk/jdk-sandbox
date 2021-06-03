@@ -24,7 +24,7 @@
 
 // no precompiled headers
 #include "jvm.h"
-#include "assembler_arm.inline.hpp"
+#include "asm/assembler.inline.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
@@ -411,10 +411,6 @@ void os::setup_fpu() {
     : /* no output */ : /* no input */ : "r0"
   );
 #endif
-}
-
-bool os::is_allocatable(size_t bytes) {
-  return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
