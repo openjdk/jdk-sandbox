@@ -2,13 +2,9 @@ import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.net.spi.InetNameService;
-import java.net.spi.InetNameServiceProvider;
-import java.util.Arrays;
-import java.util.stream.Stream;
 
 import static org.testng.Assert.*;
 

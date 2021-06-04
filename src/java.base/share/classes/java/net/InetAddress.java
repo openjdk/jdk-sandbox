@@ -437,6 +437,7 @@ public class InetAddress implements java.io.Serializable {
 
     private static final ReentrantLock NAMESERVICE_LOCK = new ReentrantLock();
 
+    @SuppressWarnings("removal")
     private static InetNameService nameService() {
         InetNameService cns = nameService;
         if (cns != null) {

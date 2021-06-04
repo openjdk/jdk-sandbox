@@ -92,6 +92,7 @@ public abstract class InetNameServiceProvider {
     private InetNameServiceProvider(Void unused) {
     }
 
+    @SuppressWarnings("removal")
     private static Void checkPermission() {
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
