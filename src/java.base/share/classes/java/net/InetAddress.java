@@ -436,6 +436,7 @@ public class InetAddress implements java.io.Serializable {
             new RuntimePermission("inetNameServiceProvider");
 
     private static final ReentrantLock NAMESERVICE_LOCK = new ReentrantLock();
+    private static volatile InetNameService bootstrapNameService;
 
     @SuppressWarnings("removal")
     private static InetNameService nameService() {
@@ -449,6 +450,12 @@ public class InetAddress implements java.io.Serializable {
                 cns = nameService;
                 if (cns != null) {
                     return cns;
+                }
+                // Protection against provider calling InetAddress APIs during initialization
+                if (bootstrapNameService != null) {
+                    return bootstrapNameService;
+                } else {
+                    bootstrapNameService = BUILTIN_INET_NAME_SERVICE;
                 }
                 String hostsFileProperty = GetPropertyAction.privilegedGetProperty("jdk.net.hosts.file");
                 if (hostsFileProperty != null) {
@@ -465,6 +472,7 @@ public class InetAddress implements java.io.Serializable {
                 InetAddress.nameService = cns;
                 return cns;
             } finally {
+                bootstrapNameService = null;
                 NAMESERVICE_LOCK.unlock();
             }
         } else {
