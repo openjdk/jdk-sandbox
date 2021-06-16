@@ -1578,6 +1578,7 @@ const bool Matcher::match_rule_supported(int opcode) {
       }
       break;
 
+    case Op_VectorCmpMasked:
     case Op_VectorMaskGen:
     case Op_LoadVectorMasked:
     case Op_StoreVectorMasked:
@@ -1678,6 +1679,7 @@ const bool Matcher::match_rule_supported_vector(int opcode, int vlen, BasicType 
       break;
     case Op_ClearArray:
     case Op_VectorMaskGen:
+    case Op_VectorCmpMasked:
     case Op_LoadVectorMasked:
     case Op_StoreVectorMasked:
       if (!is_LP64 || !VM_Version::supports_avx512bw()) {
@@ -1705,6 +1707,11 @@ const bool Matcher::match_rule_supported_vector(int opcode, int vlen, BasicType 
           if (UseAVX > 2 && (!VM_Version::supports_avx512dq() && size_in_bits == 512)) { // 512 bit Float/Double intrinsics need AVX512DQ
             return false;
           }
+      }
+      break;
+    case Op_CallLeafVector:
+      if (size_in_bits == 512 && !VM_Version::supports_avx512vlbwdq()) {
+        return false;
       }
       break;
     case Op_AddReductionVI:
@@ -1954,6 +1961,10 @@ const int Matcher::min_vector_size(const BasicType bt) {
   int max_size = max_vector_size(bt);
   // Min size which can be loaded into vector is 4 bytes.
   int size = (type2aelembytes(bt) == 1) ? 4 : 2;
+  // Support for calling svml double64 vectors
+  if (bt == T_DOUBLE) {
+    size = 1;
+  }
   return MIN2(size,max_size);
 }
 
@@ -8075,7 +8086,34 @@ instruct vprorate(vec dst, vec src, vec shift) %{
 %}
 
 #ifdef _LP64
-// ---------------------------------- Masked Block Copy ------------------------------------
+// ---------------------------------- Masked Operations ------------------------------------
+
+instruct vmask_cmp_node(rRegI dst, vec src1, vec src2, kReg mask, kReg ktmp1, kReg ktmp2, rFlagsReg cr) %{
+  match(Set dst (VectorCmpMasked src1 (Binary src2 mask)));
+  effect(TEMP_DEF dst, TEMP ktmp1, TEMP ktmp2, KILL cr);
+  format %{ "vector_mask_cmp $src1, $src2, $mask \t! vector mask comparison" %}
+  ins_encode %{
+    assert(vector_length_encoding(this, $src1) == vector_length_encoding(this, $src2), "mismatch");
+    assert(vector_element_basic_type(this, $src1) == vector_element_basic_type(this, $src2), "mismatch");
+
+    Label DONE;
+    int vlen_enc = vector_length_encoding(this, $src1);
+    BasicType elem_bt = vector_element_basic_type(this, $src1);
+
+    __ knotql($ktmp2$$KRegister, $mask$$KRegister);
+    __ mov64($dst$$Register, -1L);
+    __ evpcmp(elem_bt, $ktmp1$$KRegister, $mask$$KRegister, $src1$$XMMRegister, $src2$$XMMRegister, Assembler::eq, vlen_enc);
+    __ kortestql($ktmp2$$KRegister, $ktmp1$$KRegister);
+    __ jccb(Assembler::carrySet, DONE);
+    __ kmovql($dst$$Register, $ktmp1$$KRegister);
+    __ notq($dst$$Register);
+    __ tzcntq($dst$$Register, $dst$$Register);
+    __ bind(DONE);
+  %}
+  ins_pipe( pipe_slow );
+%}
+
+
 instruct vmasked_load64(vec dst, memory mem, kReg mask) %{
   match(Set dst (LoadVectorMasked mem mask));
   format %{ "vector_masked_load $dst, $mem, $mask \t! vector masked copy" %}
