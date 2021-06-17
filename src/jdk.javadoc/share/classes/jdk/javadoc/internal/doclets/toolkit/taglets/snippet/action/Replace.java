@@ -25,47 +25,29 @@
 
 package jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action;
 
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Scope;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Style;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.AnnotatedText;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-// replace [regex; default="/.*/"]
-//         [replacement; required]
-//         [scope; default=this-line]
 
 public class Replace implements Action {
 
     private final Pattern pattern;
     private final String replacement;
-    private final Scope scope;
+    private final AnnotatedText<?> text;
 
-    public Replace(String r, Pattern p, Scope s) {
+    public Replace(String r, Pattern p, AnnotatedText<?> t) {
         this.replacement = r;
         this.pattern = p;
-        this.scope = s;
+        this.text = t;
     }
 
     @Override
     public void perform() {
-
-        // The main assumption here is that finds do not overlap.
-        // If they did overlap, replacements would conflict.
-
         // We cannot seem to iterate backwards (i.e. match from end to start).
-
-        Iterator<StyledText> texts = scope.newTextsIterator();
-        while (texts.hasNext()) {
-            replace(texts.next());
-        }
-    }
-
-    private void replace(StyledText text) {
         String s = text.asCharSequence().toString(); // fixate the sequence
         Matcher matcher = pattern.matcher(s);
         List<Replacement> replacements = new ArrayList<>();
@@ -89,7 +71,7 @@ public class Replace implements Action {
         for (int i = replacements.size() - 1; i >= 0; i--) {
             Replacement r = replacements.get(i);
             // TODO we can use a different style, e.g. that of at (r.start - 1)
-            text.replace(r.start, r.end, Style.none(), r.value);
+            text.subText(r.start, r.end).replace(Set.of(), r.value);
         }
     }
 }

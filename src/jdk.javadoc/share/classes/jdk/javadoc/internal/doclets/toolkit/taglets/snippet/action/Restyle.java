@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,43 +25,33 @@
 
 package jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action;
 
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Scope;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Style;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.AnnotatedText;
 
-import java.util.Iterator;
-import java.util.function.Function;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// highlight [type-of-highlighter; default=bold]
-//           [regex; default=/.*/]
-//           [scope; default=this-line]
+public class Restyle<S> implements Action {
 
-public class Restyle implements Action {
-
-    private final Function<Style, Style> restylingFunction;
+    private final S style;
     private final Pattern pattern;
-    private final Scope scope;
+    private final AnnotatedText<S> text;
 
-    public Restyle(Function<Style, Style> f, Pattern p, Scope s) {
-        this.restylingFunction = f;
+    public Restyle(S st, Pattern p, AnnotatedText<S> t) {
+        this.style = st;
         this.pattern = p;
-        this.scope = s;
+        this.text = t;
     }
 
     @Override
     public void perform() {
-        Iterator<StyledText> texts = scope.newTextsIterator();
-        while (texts.hasNext()) {
-            StyledText text = texts.next();
-            CharSequence s = text.asCharSequence();
-            Matcher matcher = pattern.matcher(s);
-            while (matcher.find()) {
-                int start = matcher.start();
-                int end = matcher.end();
-                text.restyle(start, end, restylingFunction);
-            }
+        Set<S> style = Set.of(this.style);
+        CharSequence s = text.asCharSequence();
+        Matcher matcher = pattern.matcher(s);
+        while (matcher.find()) {
+            int start = matcher.start();
+            int end = matcher.end();
+            text.subText(start, end).annotate(style);
         }
     }
 }

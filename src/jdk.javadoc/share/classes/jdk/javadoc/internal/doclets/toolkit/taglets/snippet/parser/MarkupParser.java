@@ -200,6 +200,7 @@ public final class MarkupParser {
     // Similar to https://html.spec.whatwg.org/multipage/syntax.html#unquoted
     protected boolean isUnquotedAttrValueTerminator(char ch) {
         switch (ch) {
+            case ':': // indicates that the instruction relates to the next line
             case ' ': case '\t':
             case '"': case '\'': case '`':
             case '=': case '<': case '>':

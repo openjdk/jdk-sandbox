@@ -49,7 +49,8 @@ import jdk.javadoc.internal.doclets.toolkit.DocletElement;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Action;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser.ParseException;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser.Parser;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser.Style;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.AnnotatedText;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
 
 public class SnippetTaglet extends BaseTaglet {
@@ -174,8 +175,8 @@ public class SnippetTaglet extends BaseTaglet {
         }
 
 
-        StyledText inlineSnippet = null;
-        StyledText externalSnippet = null;
+        AnnotatedText<Style> inlineSnippet = null;
+        AnnotatedText<Style> externalSnippet = null;
 
         try {
             if (inlineContent != null) {
@@ -187,16 +188,16 @@ public class SnippetTaglet extends BaseTaglet {
             // The region must be matched at least in one content: it can be matched
             // in both, but never in none
             if (r != null) {
-                StyledText r1 = null;
-                StyledText r2 = null;
+                AnnotatedText<Style> r1 = null;
+                AnnotatedText<Style> r2 = null;
                 if (inlineSnippet != null) {
-                    r1 = inlineSnippet.getBookmark(r);
+                    r1 = inlineSnippet.getBookmarkedText(r);
                     if (r1 != null) {
                         inlineSnippet = r1;
                     }
                 }
                 if (externalSnippet != null) {
-                    r2 = externalSnippet.getBookmark(r);
+                    r2 = externalSnippet.getBookmarkedText(r);
                     if (r2 != null) {
                         externalSnippet = r2;
                     }
@@ -220,13 +221,13 @@ public class SnippetTaglet extends BaseTaglet {
         }
 
         assert inlineSnippet != null || externalSnippet != null;
-        StyledText text = inlineSnippet != null ? inlineSnippet : externalSnippet;
+        AnnotatedText<Style> text = inlineSnippet != null ? inlineSnippet : externalSnippet;
 
         return writer.snippetTagOutput(holder, snippetTag, text);
     }
 
-    private StyledText parse(String content) throws ParseException {
-        // TODO: need to be able to process more fine-grained, i.e. around a particular region...
+    private AnnotatedText<Style> parse(String content) throws ParseException {
+        // FIXME: need to be able to process more fine-grained, i.e. around a particular region...
         // or, which is even better, cache the styled text
         Parser.Result result = new Parser().parse(content);
         result.actions().forEach(Action::perform);

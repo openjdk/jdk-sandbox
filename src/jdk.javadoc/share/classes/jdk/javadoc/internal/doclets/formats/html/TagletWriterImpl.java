@@ -44,7 +44,6 @@ import javax.lang.model.util.SimpleElementVisitor14;
 import com.sun.source.doctree.DeprecatedTree;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.IndexTree;
-import com.sun.source.doctree.LinkTree;
 import com.sun.source.doctree.LiteralTree;
 import com.sun.source.doctree.ParamTree;
 import com.sun.source.doctree.ReturnTree;
@@ -60,7 +59,6 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.RawHtml;
 import jdk.javadoc.internal.doclets.formats.html.markup.TagName;
 import jdk.javadoc.internal.doclets.formats.html.markup.Text;
-import jdk.javadoc.internal.doclets.formats.html.markup.TagName;
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocletElement;
@@ -68,8 +66,8 @@ import jdk.javadoc.internal.doclets.toolkit.Resources;
 import jdk.javadoc.internal.doclets.toolkit.builders.SerializedFormBuilder;
 import jdk.javadoc.internal.doclets.toolkit.taglets.ParamTaglet;
 import jdk.javadoc.internal.doclets.toolkit.taglets.TagletWriter;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Style;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser.Style;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.AnnotatedText;
 import jdk.javadoc.internal.doclets.toolkit.util.CommentHelper;
 import jdk.javadoc.internal.doclets.toolkit.util.DocLink;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
@@ -382,38 +380,39 @@ public class TagletWriterImpl extends TagletWriter {
     }
 
     @Override
-    protected Content snippetTagOutput(Element element, SnippetTree tag, StyledText content) {
+    protected Content snippetTagOutput(Element element, SnippetTree tag, AnnotatedText<Style> content) {
         HtmlTree result = new HtmlTree(TagName.PRE).setStyle(HtmlStyle.snippet);
         result.add(Text.of(utils.normalizeNewlines("\n")));
-        content.consumeBy((sequence, start, end, style) -> {
-            CharSequence text = utils.normalizeNewlines(sequence.subSequence(start, end));
-            if (style == Style.none()) {
+        content.consumeBy((sequence, styles) -> {
+            CharSequence text = utils.normalizeNewlines(sequence);
+            if (styles.isEmpty()) {
                 result.add(text);
             } else {
                 Element e = null;
                 String t = null;
                 boolean linkEncountered = false;
                 Set<String> classes = new HashSet<>();
-                for (Style s : style.getStyles()) {
+                for (Style s : styles) {
                     if (s instanceof Style.Name n) {
-                        classes.add(n.getName());
+                        classes.add(n.name());
                     } else if (s instanceof Style.Link l) {
-                        assert !linkEncountered; // one link is enough
+                        assert !linkEncountered; // FIXME: do not assert; pick the first link
                         linkEncountered = true;
-                        t = l.getTarget();
+                        t = l.target();
                         e = getLinkedElement(element, t);
                         if (e == null) {
                             // diagnostic output
                         }
+                    } else if (s instanceof Style.Markup) {
                     } else {
                         // TODO wait for sealed types for exhaustiveness
-                        throw new AssertionError(style);
+                        throw new AssertionError(styles);
                     }
                 }
                 Content c;
                 if (linkEncountered) {
                     assert e != null;
-                    String line = sequence.subSequence(start, end).toString();
+                    String line = sequence.toString();
                     String strippedLine = line.strip();
                     int idx = line.indexOf(strippedLine);
                     assert idx >= 0; // because the stripped line is a substring of the line being stripped
@@ -426,7 +425,7 @@ public class TagletWriterImpl extends TagletWriter {
                     c = new ContentBuilder(whitespace, htmlWriter.linkToContent(element, e, t, strippedLine));
                     // We don't care about trailing whitespace.
                 } else {
-                    c = HtmlTree.SPAN(Text.of(sequence.subSequence(start, end)));
+                    c = HtmlTree.SPAN(Text.of(sequence));
                     classes.forEach(((HtmlTree) c)::addStyle);
                 }
                 result.add(c);

@@ -25,35 +25,27 @@
 
 package jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action;
 
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Scope;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Style;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.AnnotatedText;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
-// Populates bookmarks in StyledText
+// Populates bookmarks in AnnotatedText
 public class Start implements Action {
 
     private final String name;
-    private final Scope scope;
+    private final AnnotatedText<?> text;
     private final int pos;
 
-    public Start(String name, Scope s, int pos) {
+    public Start(String name, AnnotatedText<?> text, int pos) {
         this.name = name;
-        this.scope = s;
+        this.text = text;
         this.pos = pos;
     }
 
     @Override
     public void perform() {
-        Iterator<StyledText> texts = scope.newTextsIterator();
-        if (!texts.hasNext()) {
-            return;
-        }
-        StyledText text = texts.next();
-        assert !texts.hasNext();
         stripLeadingIncidentalWhitespace(text);
         int len = text.length();
         String str = text.asCharSequence().toString();
@@ -62,17 +54,17 @@ public class Start implements Action {
         } else if (str.endsWith("\n") || str.endsWith("\r")) {
             len -= 1;
         }
-        text.setBookmark(name, 0, len);
+        text.subText(0, len).bookmark(name);
     }
 
     // Unfortunately, the region cannot be simply replaced with result of
     // String.stripIndent as styles corresponding to the characters will be lost
-    private void stripLeadingIncidentalWhitespace(StyledText text) {
+    private void stripLeadingIncidentalWhitespace(AnnotatedText<?> text) {
         List<Replacement> replacements = findIncidentalSpace(text.asCharSequence());
         for (int i = replacements.size() - 1; i >= 0; i--) {
             Replacement r = replacements.get(i);
             // TODO we can use a different style, e.g. that of at (r.start - 1)
-            text.replace(r.start, r.end, Style.none(), r.value);
+            text.subText(r.start, r.end).replace(Set.of(), r.value);
         }
     }
 

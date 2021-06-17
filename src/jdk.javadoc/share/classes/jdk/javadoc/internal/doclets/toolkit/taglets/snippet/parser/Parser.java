@@ -29,9 +29,7 @@ import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Action;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Replace;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Restyle;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Start;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.DefaultStyledText;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.Style;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.StyledText;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.AnnotatedText;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -41,6 +39,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -126,7 +125,7 @@ public final class Parser {
                 }
             }
             this.eolMarker = eolMarker;
-            // capture the rightmost "//"
+            // capture the rightmost eolMarker (e.g. "//")
             // The bellow Pattern.compile should never throw PatternSyntaxException
             Pattern pattern = Pattern.compile("^(.*)(" + Pattern.quote(eolMarker) + "(\\s*@\\s*\\w+.+?))$");
             this.markedUpLine = pattern.matcher(""); // reusable matcher
@@ -137,7 +136,7 @@ public final class Parser {
 
         Queue<Action> actions = new LinkedList<>();
 
-        StyledText text = new DefaultStyledText();
+        AnnotatedText<Style> text = new AnnotatedText<>();
         Iterator<String> iterator = source.lines().iterator();
         boolean trailingNewline = source.endsWith("\r") || source.endsWith("\n");
         int lineStart = 0;
@@ -145,35 +144,40 @@ public final class Parser {
         List<Tag> thisLineTags = new ArrayList<>();
         List<Tag> tempList = new ArrayList<>();
         while (iterator.hasNext()) {
+            // There are 3 cases:
+            //   1. The pattern that describes a marked-up line is not matched
+            //   2. While the pattern is matched, the markup is not recognized
+            //   3. Both the pattern is matched and the markup is recognized
             String rawLine = iterator.next();
             boolean addLineTerminator = iterator.hasNext() || trailingNewline;
             String line;
             markedUpLine.reset(rawLine);
-            if (markedUpLine.matches()) {
+            if (!markedUpLine.matches()) { // (1)
+                line = rawLine + (addLineTerminator ? "\n" : "");
+            } else {
                 String maybeMarkup = markedUpLine.group(3);
-                line = markedUpLine.group(1).stripTrailing() + (addLineTerminator ? "\n" : ""); // remove any whitespace
                 List<Tag> parsedTags = markupParser.parse(maybeMarkup);
-
-                for (Tag t : parsedTags) {
+                for (Tag t : parsedTags) { // TODO: remove as it might not be needed
                     t.markupPosition = markedUpLine.start(3);
                 }
-
                 thisLineTags.addAll(parsedTags);
                 for (var tagIterator = thisLineTags.iterator(); tagIterator.hasNext(); ) {
-                    Tag i = tagIterator.next();
-                    if (i.appliesToNextLine) {
+                    Tag t = tagIterator.next();
+                    if (t.appliesToNextLine) {
                         tagIterator.remove();
-                        i.appliesToNextLine = false; // clear the flag
-                        tempList.add(i);
+                        t.appliesToNextLine = false; // clear the flag
+                        tempList.add(t);
                     } else {
-                        i.markupCommentPosition = markedUpLine.start(2); // e.g. @end that relates to the same line
+                        t.markupCommentPosition = markedUpLine.start(2); // e.g. @end that relates to the same line
                     }
                 }
-                if (parsedTags.isEmpty()) { // not a valid markup comment
+                if (parsedTags.isEmpty()) { // (2)
+                    // TODO: log this with NOTICE;
                     line = rawLine + (addLineTerminator ? "\n" : "");
+                } else { // (3)
+                    String payload = markedUpLine.group(1);
+                    line = payload.stripTrailing() + (addLineTerminator ? "\n" : "");
                 }
-            } else {
-                line = rawLine + (addLineTerminator ? "\n" : "");
             }
 
             thisLineTags.addAll(0, previousLineTags); // prepend!
@@ -188,7 +192,8 @@ public final class Parser {
 
             thisLineTags.clear();
 
-            append(text, line);
+            append(text, Set.of(), line);
+            // FIXME: markup trailing whitespace!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             lineStart += line.length();
         }
 
@@ -222,9 +227,9 @@ public final class Parser {
                     if (!typeValue.equals("link") && !typeValue.equals("linkplain")) {
                         throw new ParseException("Unknown link type: '%s'".formatted(typeValue));
                     }
-                    Restyle a = new Restyle(s -> s.and(Style.link(target.value())),
-                                            createRegexPattern(substring, regex, ".+", t.markupPosition), // different regex not to include newline
-                                            text.select(t.start(), t.end()));
+                    Restyle<Style> a = new Restyle<>(new Style.Link(target.value()),
+                                                     createRegexPattern(substring, regex, ".+", t.markupPosition), // different regex not to include newline
+                                                     text.subText(t.start(), t.end()));
                     actions.add(a);
                 }
                 case "replace" -> {
@@ -232,7 +237,7 @@ public final class Parser {
                             .orElseThrow(() -> new ParseException("replacement is absent"));
                     Replace a = new Replace(replacement.value(),
                                             createRegexPattern(substring, regex, t.markupPosition),
-                                            text.select(t.start(), t.end()));
+                                            text.subText(t.start(), t.end()));
                     actions.add(a);
                 }
                 case "highlight" -> {
@@ -240,9 +245,9 @@ public final class Parser {
 
                     String typeValue = type.isPresent() ? type.get().value() : "bold";
 
-                    Restyle a = new Restyle(s -> s.and(Style.name(typeValue)),
-                                            createRegexPattern(substring, regex, t.markupPosition),
-                                            text.select(t.start(), t.end()));
+                    Restyle<Style> a = new Restyle<>(new Style.Name(typeValue),
+                                                     createRegexPattern(substring, regex, t.markupPosition),
+                                                     text.subText(t.start(), t.end()));
                     actions.add(a);
                 }
                 case "start" -> {
@@ -255,7 +260,7 @@ public final class Parser {
                     if (t.attributes().size() != 1) {
                         throw new ParseException("Unexpected attributes");
                     }
-                    actions.add(new Start(region.value(), text.select(t.start(), t.end()), t.markupCommentPosition));
+                    actions.add(new Start(region.value(), text.subText(t.start(), t.end()), t.markupCommentPosition));
                 }
             }
         }
@@ -275,13 +280,14 @@ public final class Parser {
                                        int offset) throws ParseException {
         Pattern pattern;
         if (substring.isPresent()) {
-            pattern = Pattern.compile(Pattern.quote(substring.get().value())); // cannot throw an exception
+            pattern = Pattern.compile(Pattern.quote(substring.get().value())); // Pattern.compile cannot throw an exception
         } else if (regex.isEmpty()) {
-            pattern = Pattern.compile(defaultRegex); // should not throw an exception
+            pattern = Pattern.compile(defaultRegex); // Pattern.compile should not throw an exception
         } else {
             // Unlike string literals in Java source, attribute values in markup
-            // do not use escapes. So indices of characters in the regex pattern
-            // directly map to their corresponding positions in snippet source.
+            // do not use escapes. This is why indices of characters in the
+            // regex pattern directly map to their corresponding positions in
+            // snippet source.
             try {
                 pattern = Pattern.compile(regex.get().value());
             } catch (PatternSyntaxException e) {
@@ -375,26 +381,11 @@ public final class Parser {
         start.end = end.end();
     }
 
-    private void append(StyledText text, CharSequence s) {
-        text.replace(text.length(), text.length(), Style.none(), s.toString());
+    private void append(AnnotatedText<Style> text, Set<Style> style, CharSequence s) {
+        text.subText(text.length(), text.length()).replace(style, s.toString());
     }
 
-    public static final class Result {
-        private final StyledText text;
-        private final Queue<Action> actions;
-
-        public Result(StyledText text, Queue<Action> actions) {
-            this.text = text;
-            this.actions = actions;
-        }
-
-        public StyledText text() {
-            return text;
-        }
-
-        public Queue<Action> actions() {
-            return actions;
-        }
+    public record Result(AnnotatedText<Style> text, Queue<Action> actions) {
     }
 
     /*
