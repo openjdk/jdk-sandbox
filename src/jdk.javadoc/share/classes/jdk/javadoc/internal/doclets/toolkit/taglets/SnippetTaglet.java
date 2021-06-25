@@ -66,14 +66,10 @@ public class SnippetTaglet extends BaseTaglet {
      * To specify content by reference, a snippet uses either the "class" or "file" attribute;
      * the value of that attribute refers to the content.
      *
-     * A snippet can specify the "region" attribute. That attribute refines
+     * A snippet can specify the "region" attribute. That attribute refines ... and?
      * The value of that attribute must match one of the named regions in the snippets content.
      */
     @Override
-    // FIXME
-    //   On the one hand, returning null from this method is shady.
-    //   On the other hand, throwing a checked exception from this method is impossible.
-    //   This method MUST be revisited.
     public Content getInlineTagOutput(Element holder, DocTree tag, TagletWriter writer) {
         SnippetTree snippetTag = (SnippetTree) tag;
 

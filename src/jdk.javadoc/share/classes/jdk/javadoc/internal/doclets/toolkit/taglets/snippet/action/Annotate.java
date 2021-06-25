@@ -37,12 +37,13 @@ public final class Annotate implements Action {
 
     public <S> Annotate(S obj, Pattern pattern, AnnotatedText<S> text) {
         // This *constructor* is generified and the generic parameter is
-        // captured by the Runnable to safely call text.annotate(obj) later. An
-        // alternative would be to generify this *class* so as to capture the
-        // generic parameter in this class' instance fields. However,
-        // generifying the class would force its clients to specify the generic
-        // parameter, whose sole purpose is to ensure that the passed obj is of
-        // the type of objects that the passed text can be annotated with.
+        // captured by the Runnable to type-safely call text.annotate(obj)
+        // later. An alternative would be to generify this *class* so as to
+        // capture the generic parameter in this class' instance fields.
+        // However, generifying the class would unduly force its clients to deal
+        // with the generic parameter, whose *sole* purpose is to ensure that
+        // the passed obj is of the type of objects that the passed text can be
+        // annotated with.
         action = new Runnable() {
             @Override
             public void run() {
