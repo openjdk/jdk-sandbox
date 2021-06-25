@@ -25,19 +25,20 @@
 
 package jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action;
 
-final class Replacement {
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.AnnotatedText;
 
-    final int start, end;
-    final String value;
+public final class Bookmark implements Action {
 
-    Replacement(int start, int end, String value) {
-        this.start = start;
-        this.end = end;
-        this.value = value;
+    private final String name;
+    private final AnnotatedText<?> text;
+
+    public Bookmark(String name, AnnotatedText<?> text) {
+        this.name = name;
+        this.text = text;
     }
 
     @Override
-    public String toString() {
-        return "replace [" + start + ", " + end + ") with '" + value + "'";
+    public void perform() {
+        text.subText(0, text.length()).bookmark(name);
     }
 }

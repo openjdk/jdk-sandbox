@@ -26,9 +26,9 @@
 package jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser;
 
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Action;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Annotate;
+import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Bookmark;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Replace;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Restyle;
-import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.action.Start;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.AnnotatedText;
 
 import java.util.ArrayList;
@@ -112,6 +112,9 @@ public final class Parser {
         return parse("//", source);
     }
 
+    /*
+     * Newline characters in the returned text are of the \n form.
+     */
     public Result parse(String eolMarker, String source) throws ParseException {
         Objects.requireNonNull(eolMarker);
         Objects.requireNonNull(source);
@@ -176,7 +179,7 @@ public final class Parser {
                     line = rawLine + (addLineTerminator ? "\n" : "");
                 } else { // (3)
                     String payload = markedUpLine.group(1);
-                    line = payload.stripTrailing() + (addLineTerminator ? "\n" : "");
+                    line = payload + (addLineTerminator ? "\n" : "");
                 }
             }
 
@@ -193,7 +196,7 @@ public final class Parser {
             thisLineTags.clear();
 
             append(text, Set.of(), line);
-            // FIXME: markup trailing whitespace!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            // FIXME: mark up trailing whitespace!
             lineStart += line.length();
         }
 
@@ -227,9 +230,9 @@ public final class Parser {
                     if (!typeValue.equals("link") && !typeValue.equals("linkplain")) {
                         throw new ParseException("Unknown link type: '%s'".formatted(typeValue));
                     }
-                    Restyle<Style> a = new Restyle<>(new Style.Link(target.value()),
-                                                     createRegexPattern(substring, regex, ".+", t.markupPosition), // different regex not to include newline
-                                                     text.subText(t.start(), t.end()));
+                    Annotate a = new Annotate(new Style.Link(target.value()),
+                                              createRegexPattern(substring, regex, ".+", t.markupPosition), // different regex not to include newline
+                                              text.subText(t.start(), t.end()));
                     actions.add(a);
                 }
                 case "replace" -> {
@@ -245,9 +248,9 @@ public final class Parser {
 
                     String typeValue = type.isPresent() ? type.get().value() : "bold";
 
-                    Restyle<Style> a = new Restyle<>(new Style.Name(typeValue),
-                                                     createRegexPattern(substring, regex, t.markupPosition),
-                                                     text.subText(t.start(), t.end()));
+                    Annotate a = new Annotate(new Style.Name(typeValue),
+                                              createRegexPattern(substring, regex, t.markupPosition),
+                                              text.subText(t.start(), t.end()));
                     actions.add(a);
                 }
                 case "start" -> {
@@ -260,7 +263,7 @@ public final class Parser {
                     if (t.attributes().size() != 1) {
                         throw new ParseException("Unexpected attributes");
                     }
-                    actions.add(new Start(region.value(), text.subText(t.start(), t.end()), t.markupCommentPosition));
+                    actions.add(new Bookmark(region.value(), text.subText(t.start(), t.end() - 1)));
                 }
             }
         }
@@ -385,8 +388,7 @@ public final class Parser {
         text.subText(text.length(), text.length()).replace(style, s.toString());
     }
 
-    public record Result(AnnotatedText<Style> text, Queue<Action> actions) {
-    }
+    public record Result(AnnotatedText<Style> text, Queue<Action> actions) { }
 
     /*
      * Encapsulates the data structure used to manage regions.

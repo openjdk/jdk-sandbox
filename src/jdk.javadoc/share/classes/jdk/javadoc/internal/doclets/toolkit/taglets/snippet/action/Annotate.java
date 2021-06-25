@@ -31,27 +31,34 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Restyle<S> implements Action {
+public final class Annotate implements Action {
 
-    private final S style;
-    private final Pattern pattern;
-    private final AnnotatedText<S> text;
+    private final Runnable action;
 
-    public Restyle(S st, Pattern p, AnnotatedText<S> t) {
-        this.style = st;
-        this.pattern = p;
-        this.text = t;
+    public <S> Annotate(S obj, Pattern pattern, AnnotatedText<S> text) {
+        // This *constructor* is generified and the generic parameter is
+        // captured by the Runnable to safely call text.annotate(obj) later. An
+        // alternative would be to generify this *class* so as to capture the
+        // generic parameter in this class' instance fields. However,
+        // generifying the class would force its clients to specify the generic
+        // parameter, whose sole purpose is to ensure that the passed obj is of
+        // the type of objects that the passed text can be annotated with.
+        action = new Runnable() {
+            @Override
+            public void run() {
+                Set<S> s = Set.of(obj);
+                Matcher matcher = pattern.matcher(text.asCharSequence());
+                while (matcher.find()) {
+                    int start = matcher.start();
+                    int end = matcher.end();
+                    text.subText(start, end).annotate(s);
+                }
+            }
+        };
     }
 
     @Override
     public void perform() {
-        Set<S> style = Set.of(this.style);
-        CharSequence s = text.asCharSequence();
-        Matcher matcher = pattern.matcher(s);
-        while (matcher.find()) {
-            int start = matcher.start();
-            int end = matcher.end();
-            text.subText(start, end).annotate(style);
-        }
+        action.run();
     }
 }

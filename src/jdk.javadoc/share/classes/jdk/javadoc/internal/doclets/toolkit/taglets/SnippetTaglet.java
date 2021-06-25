@@ -212,6 +212,14 @@ public class SnippetTaglet extends BaseTaglet {
             return badSnippet(writer);
         }
 
+        if (inlineSnippet != null) {
+            inlineSnippet = toDisplayForm(inlineSnippet);
+        }
+
+        if (externalSnippet != null) {
+            externalSnippet = toDisplayForm(externalSnippet);
+        }
+
         if (inlineSnippet != null && externalSnippet != null) {
             if (!Objects.equals(inlineSnippet.asCharSequence().toString(),
                                 externalSnippet.asCharSequence().toString())) {
@@ -261,5 +269,51 @@ public class SnippetTaglet extends BaseTaglet {
         } else {
             return utils.elementUtils.getPackageOf(e);
         }
+    }
+
+    /*
+     * Returns a version of annotated text that can be rendered into HTML or
+     * compared to another such version. The latter is used to decide if inline
+     * and external parts of a hybrid snippet match.
+     *
+     * Use this method to obtain a final version of text. After all
+     * transformations on text have been performed, call this method with that
+     * text and then use the returned result as described above.
+     */
+    private static <T> AnnotatedText<T> toDisplayForm(AnnotatedText<T> source) {
+        var sourceString = source.asCharSequence().toString();
+        var result = new AnnotatedText<T>();
+        var originalLines = sourceString.lines().iterator();
+        var unindentedLines = sourceString.stripIndent().lines().iterator();
+        // done; the rest of the method translates the stripIndent
+        // transformation performed on a character sequence to the annotated
+        // text that this sequence originates from, line by line
+        int pos = 0;
+        // overcome a "quirk" of String.lines
+        boolean endsWithLineFeed = !sourceString.isEmpty() && sourceString.charAt(source.length() - 1) == '\n';
+        while (originalLines.hasNext() && unindentedLines.hasNext()) { // [^1]
+            String originalLine = originalLines.next();
+            String unindentedLine = unindentedLines.next();
+            // the search MUST succeed
+            int idx = originalLine.indexOf(unindentedLine);
+            // assume newlines are always of the \n form
+            // append the found fragment
+            result.append(source.subText(pos + idx, pos + idx + unindentedLine.length()));
+            // append the possibly annotated newline, but not if it's the last line
+            int eol = pos + originalLine.length();
+            if (originalLines.hasNext() || endsWithLineFeed) {
+                result.append(source.subText(eol, eol + 1));
+            }
+            pos = eol + 1;
+        }
+        return result;
+        // [^1]: Checking hasNext() on both iterators might look unnecessary.
+        // However, there are strings for which those iterators return different
+        // number of lines. That is, there exists a string s, such that
+        //
+        //     s.lines().count() != s.stripIndent().lines().count()
+        //
+        // The most trivial example of such a string is " ". In fact, any string
+        // with a trailing non-empty blank line would do.
     }
 }

@@ -50,7 +50,8 @@ import java.util.Objects;
  * 3. This attribute abstraction is simpler than that of com.sun.source.doctree.AttributeTree.
  * There's no need to have recursive structure similar to that of allowed by AttributeTree.
  */
-public /* sealed */ abstract class Attribute { // TODO: uncomment /* sealed */ when minimum boot version >= 17
+// FIXME: uncomment /* sealed */ when minimum boot version >= 17
+public /* sealed */ abstract class Attribute {
 
     private final String name;
 

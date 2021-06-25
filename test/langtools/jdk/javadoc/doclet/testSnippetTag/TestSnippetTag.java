@@ -578,7 +578,7 @@ public class TestSnippetTag extends JavadocTester {
                     Hello
                     ,        \s
                      Snippet!
-                """, Function.identity(),
+                """, String::stripIndent,
                 """
                 Hello
                 ,

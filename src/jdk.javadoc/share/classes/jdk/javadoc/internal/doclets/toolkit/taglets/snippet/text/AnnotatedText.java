@@ -81,9 +81,9 @@ public class AnnotatedText<S> {
 
     /*
      * Replaces all characters of this text with the provided sequence of
-     * characters, each of which is associated with the provided objects.
+     * characters, each of which is associated with all the provided objects.
      */
-    public void replace(Set<S> s, CharSequence plaintext) {
+    public void replace(Set<? extends S> s, CharSequence plaintext) {
         replace(0, length(), s, plaintext);
     }
 
@@ -92,11 +92,11 @@ public class AnnotatedText<S> {
      * text. The effect on a text is as if [start, end) were deleted and
      * then plaintext inserted at start.
      */
-    private void replace(int start, int end, Set<S> s, CharSequence plaintext) {
+    private void replace(int start, int end, Set<? extends S> s, CharSequence plaintext) {
         chars.replace(start, end, plaintext.toString());
         metadata.delete(start, end);
         metadata.insert(start, plaintext.length(), s);
-        // The number of scopes is not expected to be big; hence no
+        // The number of subtexts is not expected to be big; hence no
         // optimizations are applied
         var iterator = subtexts.iterator();
         while (iterator.hasNext()) {
@@ -205,9 +205,20 @@ public class AnnotatedText<S> {
         metadata.consumeBy(consumer, chars, start, end);
     }
 
+    public AnnotatedText<S> append(Set<? extends S> style, CharSequence sequence) {
+        subText(length(), length()).replace(style, sequence);
+        return this;
+    }
+
+    public AnnotatedText<S> append(AnnotatedText<? extends S> fragment) {
+        fragment.consumeBy((style, sequence) -> subText(length(), length()).replace(style, sequence));
+        return this;
+    }
+
+    @FunctionalInterface
     public interface Consumer<S> {
 
-        void consume(CharSequence sequence, Set<? extends S> style);
+        void consume(Set<? extends S> style, CharSequence sequence);
     }
 
     /*
@@ -227,7 +238,7 @@ public class AnnotatedText<S> {
             list.subList(fromIndex, toIndex).clear();
         }
 
-        private void insert(int fromIndex, int length, Set<S> s) {
+        private void insert(int fromIndex, int length, Set<? extends S> s) {
             list.addAll(fromIndex, Collections.nCopies(length, Set.copyOf(s)));
         }
 
@@ -253,14 +264,14 @@ public class AnnotatedText<S> {
                 // an empty region doesn't have an associated set; special-cased
                 // for simplicity to avoid more complicated implementation of
                 // this method using a do-while loop
-                consumer.consume("", Set.of());
+                consumer.consume(Set.of(), "");
             } else {
                 for (int i = start, j = i + 1; i < end; i = j) {
                     var ith = list.get(i);
                     while (j < end && ith.equals(list.get(j))) {
                         j++;
                     }
-                    consumer.consume(seq.subSequence(i, j), ith);
+                    consumer.consume(ith, seq.subSequence(i, j));
                 }
             }
         }
@@ -291,7 +302,7 @@ public class AnnotatedText<S> {
         }
 
         @Override
-        public void replace(Set<S> s, CharSequence plaintext) {
+        public void replace(Set<? extends S> s, CharSequence plaintext) {
             // If the "replace" operation affects this text's size, which it
             // can, then that size will be updated along with all other sizes
             // during the bulk "update" operation in tracking text instance.

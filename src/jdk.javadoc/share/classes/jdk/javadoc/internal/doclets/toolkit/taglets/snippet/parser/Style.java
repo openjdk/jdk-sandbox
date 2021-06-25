@@ -25,6 +25,7 @@
 
 package jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser;
 
+// FIXME: uncomment /* sealed */ when minimum boot version >= 17
 public /* sealed */ interface Style {
 
     record Link(String target) implements Style { }
