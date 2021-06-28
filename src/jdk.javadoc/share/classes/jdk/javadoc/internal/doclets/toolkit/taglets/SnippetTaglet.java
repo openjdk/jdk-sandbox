@@ -26,7 +26,6 @@
 package jdk.javadoc.internal.doclets.toolkit.taglets;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -66,7 +65,7 @@ public class SnippetTaglet extends BaseTaglet {
      * To specify content by reference, a snippet uses either the "class" or "file" attribute;
      * the value of that attribute refers to the content.
      *
-     * A snippet can specify the "region" attribute. That attribute refines ... and?
+     * A snippet can specify the "region" attribute. That attribute refines the location of the content.
      * The value of that attribute must match one of the named regions in the snippets content.
      */
     @Override
@@ -75,17 +74,17 @@ public class SnippetTaglet extends BaseTaglet {
 
         Map<String, AttributeTree> attributes = new HashMap<>();
 
-        // Organize attributes in a map performing basic checks along the way
-        for (DocTree t : snippetTag.getAttributes()) {
-            if (!(t instanceof AttributeTree)) {
+        // organize attributes in a map, performing basic checks along the way
+        for (DocTree d : snippetTag.getAttributes()) {
+            if (!(d instanceof AttributeTree a)) {
+                continue; // this might be an ErroneousTree
+            }
+            if (attributes.putIfAbsent(a.getName().toString(), a) == null) {
                 continue;
             }
-            AttributeTree a = (AttributeTree) t;
-            AttributeTree prev = attributes.putIfAbsent(a.getName().toString(), a);
-            if (prev == null) {
-                continue;
-            }
-            // Like-named attributes found: `prev` and `a`
+            // two like-named attributes found; although we report on the most
+            // recently encountered of two, the iteration order might differ
+            // from the source order
             error(writer, holder, a, "doclet.tag.attribute.repeated", a.getName().toString());
             return badSnippet(writer);
         }
@@ -95,16 +94,12 @@ public class SnippetTaglet extends BaseTaglet {
         final boolean containsBody = snippetTag.getBody() != null;
 
         if (containsClass && containsFile) {
-            error(writer, holder, tag, "doclet.snippet.contents.ambiguity.external");
+            error(writer, holder, attributes.get("class"), "doclet.snippet.contents.ambiguity.external");
             return badSnippet(writer);
         } else if (!containsClass && !containsFile && !containsBody) {
             error(writer, holder, tag, "doclet.snippet.contents.none");
             return badSnippet(writer);
         }
-
-        // FIXME: remove as compiler people do not like assertions
-        assert (containsClass || containsFile || containsBody) && !(containsClass && containsFile) :
-                Arrays.toString(new boolean[]{containsClass, containsFile, containsBody});
 
         String r = null;
         AttributeTree region = attributes.get("region");
@@ -119,21 +114,15 @@ public class SnippetTaglet extends BaseTaglet {
         String inlineContent = null, externalContent = null;
 
         if (containsBody) {
-            inlineContent = snippetTag.getBody().getBody().stripIndent();
+            inlineContent = snippetTag.getBody().getBody();
         }
 
         if (containsFile || containsClass) {
-            AttributeTree file = attributes.get("file");
-            AttributeTree ref = file != null ? file : attributes.get("class");
-            String refName = ref.getName().toString();
-            String refValue = stringOf(ref.getValue());
-            String v = switch (refName) {
-                case "class" -> refValue.replace(".", "/") + ".java";
-                case "file" -> refValue;
-                default -> throw new IllegalStateException(refName);
-            };
+            String v = containsFile
+                    ? stringOf(attributes.get("file").getValue())
+                    : stringOf(attributes.get("class").getValue()).replace(".", "/") + ".java";
 
-            // We didn't create JavaFileManager, so we won't close it; even if an error occurs
+            // we didn't create JavaFileManager, so we won't close it; even if an error occurs
             var fileManager = writer.configuration().getFileManager();
 
             FileObject fileObject;
@@ -169,7 +158,6 @@ public class SnippetTaglet extends BaseTaglet {
                 return badSnippet(writer);
             }
         }
-
 
         AnnotatedText<Style> inlineSnippet = null;
         AnnotatedText<Style> externalSnippet = null;
