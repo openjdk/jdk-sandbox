@@ -140,18 +140,25 @@ public final class Parser {
         Queue<Action> actions = new LinkedList<>();
 
         AnnotatedText<Style> text = new AnnotatedText<>();
-        Iterator<String> iterator = source.lines().iterator();
         boolean trailingNewline = source.endsWith("\r") || source.endsWith("\n");
         int lineStart = 0;
         List<Tag> previousLineTags = new ArrayList<>();
         List<Tag> thisLineTags = new ArrayList<>();
         List<Tag> tempList = new ArrayList<>();
+
+        // while lines could be computed lazily, it would yield more complex code
+        record OffsetAndLine(int offset, String line) { }
+        var offsetAndLines = new LinkedList<OffsetAndLine>();
+        forEachLine(source, (off, line) -> offsetAndLines.add(new OffsetAndLine(off, line)));
+        Iterator<OffsetAndLine> iterator = offsetAndLines.iterator();
+
         while (iterator.hasNext()) {
             // There are 3 cases:
             //   1. The pattern that describes a marked-up line is not matched
             //   2. While the pattern is matched, the markup is not recognized
             //   3. Both the pattern is matched and the markup is recognized
-            String rawLine = iterator.next();
+            OffsetAndLine next = iterator.next();
+            String rawLine = next.line();
             boolean addLineTerminator = iterator.hasNext() || trailingNewline;
             String line;
             markedUpLine.reset(rawLine);
@@ -160,8 +167,9 @@ public final class Parser {
             } else {
                 String maybeMarkup = markedUpLine.group(3);
                 List<Tag> parsedTags = markupParser.parse(maybeMarkup);
-                for (Tag t : parsedTags) { // TODO: remove as it might not be needed
-                    t.markupPosition = markedUpLine.start(3);
+                for (Tag t : parsedTags) {
+                    t.lineSourceOffset = next.offset;
+                    t.markupLineOffset = markedUpLine.start(3);
                 }
                 thisLineTags.addAll(parsedTags);
                 for (var tagIterator = thisLineTags.iterator(); tagIterator.hasNext(); ) {
@@ -170,8 +178,6 @@ public final class Parser {
                         tagIterator.remove();
                         t.appliesToNextLine = false; // clear the flag
                         tempList.add(t);
-                    } else {
-                        t.markupCommentPosition = markedUpLine.start(2); // e.g. @end that relates to the same line
                     }
                 }
                 if (parsedTags.isEmpty()) { // (2)
@@ -201,12 +207,15 @@ public final class Parser {
         }
 
         if (!previousLineTags.isEmpty()) {
-            throw new ParseException("Tags refer to non-existent lines");
+            Tag t = previousLineTags.iterator().next();
+            throw new ParseException("Tags refer to non-existent lines", t.markupLineOffset);
         }
 
         // also report on unpaired with corresponding `end` or unknown tags
         if (!regions.isEmpty()) {
-            throw new ParseException("Unpaired region(s)");
+            Optional<Tag> tag = regions.removeLast(); // any of these tags would do
+            Tag t = tag.get();
+            throw new ParseException("Unpaired region(s)", t.lineSourceOffset + t.markupLineOffset + t.nameLineOffset);
         }
 
         for (var t : tags) {
@@ -218,28 +227,28 @@ public final class Parser {
             final var regex = attributes.get("regex", Attribute.Valued.class);
 
             if (!t.name().equals("start") && substring.isPresent() && regex.isPresent()) {
-                throw new ParseException("'substring' and 'regex' cannot be used simultaneously");
+                throw new ParseException("'substring' and 'regex' cannot be used simultaneously", t.lineSourceOffset + t.markupLineOffset + substring.get().nameStartPosition());
             }
 
             switch (t.name()) {
                 case "link" -> {
                     var target = attributes.get("target", Attribute.Valued.class)
-                            .orElseThrow(() -> new ParseException("target is absent"));
+                            .orElseThrow(() -> new ParseException("target is absent", t.lineSourceOffset + t.markupLineOffset + t.nameLineOffset));
                     var type = attributes.get("type", Attribute.Valued.class);
                     String typeValue = type.isPresent() ? type.get().value() : "link";
                     if (!typeValue.equals("link") && !typeValue.equals("linkplain")) {
-                        throw new ParseException("Unknown link type: '%s'".formatted(typeValue));
+                        throw new ParseException("Unknown link type: '%s'".formatted(typeValue), t.lineSourceOffset + t.markupLineOffset + type.get().valueStartPosition());
                     }
                     Annotate a = new Annotate(new Style.Link(target.value()),
-                                              createRegexPattern(substring, regex, ".+", t.markupPosition), // different regex not to include newline
+                                              createRegexPattern(substring, regex, ".+", t.lineSourceOffset + t.markupLineOffset), // different regex not to include newline
                                               text.subText(t.start(), t.end()));
                     actions.add(a);
                 }
                 case "replace" -> {
                     var replacement = attributes.get("replacement", Attribute.Valued.class)
-                            .orElseThrow(() -> new ParseException("replacement is absent"));
+                            .orElseThrow(() -> new ParseException("replacement is absent", t.lineSourceOffset + t.markupLineOffset + t.nameLineOffset));
                     Replace a = new Replace(replacement.value(),
-                                            createRegexPattern(substring, regex, t.markupPosition),
+                                            createRegexPattern(substring, regex, t.lineSourceOffset + t.markupLineOffset),
                                             text.subText(t.start(), t.end()));
                     actions.add(a);
                 }
@@ -249,19 +258,19 @@ public final class Parser {
                     String typeValue = type.isPresent() ? type.get().value() : "bold";
 
                     Annotate a = new Annotate(new Style.Name(typeValue),
-                                              createRegexPattern(substring, regex, t.markupPosition),
+                                              createRegexPattern(substring, regex, t.lineSourceOffset + t.markupLineOffset),
                                               text.subText(t.start(), t.end()));
                     actions.add(a);
                 }
                 case "start" -> {
                     var region = attributes.get("region", Attribute.Valued.class)
-                            .orElseThrow(() -> new ParseException("Unnamed start"));
+                            .orElseThrow(() -> new ParseException("Unnamed start", t.lineSourceOffset + t.markupLineOffset + t.nameLineOffset));
                     String regionValue = region.value();
                     if (regionValue.isBlank()) {
-                        throw new ParseException("Blank region name");
+                        throw new ParseException("Blank region name", t.lineSourceOffset + t.markupLineOffset + region.valueStartPosition());
                     }
                     if (t.attributes().size() != 1) {
-                        throw new ParseException("Unexpected attributes");
+                        throw new ParseException("Unexpected attributes", t.lineSourceOffset + t.markupLineOffset + t.nameLineOffset);
                     }
                     actions.add(new Bookmark(region.value(), text.subText(t.start(), t.end() - 1)));
                 }
@@ -283,59 +292,69 @@ public final class Parser {
                                        int offset) throws ParseException {
         Pattern pattern;
         if (substring.isPresent()) {
-            pattern = Pattern.compile(Pattern.quote(substring.get().value())); // Pattern.compile cannot throw an exception
+            // this Pattern.compile *cannot* throw an exception
+            pattern = Pattern.compile(Pattern.quote(substring.get().value()));
         } else if (regex.isEmpty()) {
-            pattern = Pattern.compile(defaultRegex); // Pattern.compile should not throw an exception
+            // this Pattern.compile *should not* throw an exception
+            pattern = Pattern.compile(defaultRegex);
         } else {
-            // Unlike string literals in Java source, attribute values in markup
-            // do not use escapes. This is why indices of characters in the
-            // regex pattern directly map to their corresponding positions in
-            // snippet source.
+            // Unlike string literals in Java source, attribute values in
+            // snippet markup do not use escapes. This is why indices of
+            // characters in the regex pattern directly map to their
+            // corresponding positions in snippet source.
+            assert regex.get().value().equals( Pattern.compile(regex.get().value()).pattern() ) : regex.get().value();
             try {
                 pattern = Pattern.compile(regex.get().value());
             } catch (PatternSyntaxException e) {
-                int index = e.getIndex();
-                final int pos = index == -1 ? -1 : offset + regex.get().valueStartPosition() + index;
+                int pos = offset + regex.get().valueStartPosition();
+                // Refine position using e.getIndex() only if that index is
+                // relevant to the regex in the attribute value. Index might be
+                // irrelevant because it refers to an internal representation of
+                // regex, e.getPattern(), which might be a normalized or partial
+                // view of the original pattern.
+                if (e.getIndex() > -1 && regex.get().value().equals(e.getPattern())) {
+                    pos += e.getIndex();
+                }
                 throw new ParseException(e.getDescription(), pos);
             }
         }
         return pattern;
     }
 
-    private void processTag(Tag i) throws ParseException {
+    private void processTag(Tag t) throws ParseException {
 
-        Attributes attributes = new Attributes(i.attributes()); // FIXME: we create them twice
+        Attributes attributes = new Attributes(t.attributes()); // FIXME: we create them twice
         Optional<Attribute> region = attributes.get("region", Attribute.class);
 
-        if (!i.name().equals("end")) {
-            tags.add(i);
+        if (!t.name().equals("end")) {
+            tags.add(t);
             if (region.isPresent()) {
                 if (region.get() instanceof Attribute.Valued v) {
                     String name = v.value();
-                    if (!regions.addNamed(name, i)) {
-                        throw new ParseException("Duplicated region: " + name);
+                    if (!regions.addNamed(name, t)) {
+                        throw new ParseException("Duplicated region: " + name, t.lineSourceOffset + t.markupLineOffset + v.valueStartPosition());
                     }
                 } else {
                     // TODO: change to exhaustive switch after "Pattern Matching for switch" is implemented
                     assert region.get() instanceof Attribute.Valueless;
-                    regions.addAnonymous(i);
+                    regions.addAnonymous(t);
                 }
             }
         } else {
             if (region.isEmpty() || region.get() instanceof Attribute.Valueless) {
                 Optional<Tag> tag = regions.removeLast();
                 if (tag.isEmpty()) {
-                    throw new ParseException("No started regions to end");
+                    throw new ParseException("No started regions to end", t.lineSourceOffset + t.markupLineOffset + t.nameLineOffset);
                 }
-                completeTag(tag.get(), i);
+                completeTag(tag.get(), t);
             } else {
                 assert region.get() instanceof Attribute.Valued;
                 String name = ((Attribute.Valued) region.get()).value();
                 Optional<Tag> tag = regions.removeNamed(name);
                 if (tag.isEmpty()) {
-                    throw new ParseException("Ending a non-started region %s".formatted(name));
+                    throw new ParseException("Ending a non-started region %s".formatted(name), t.lineSourceOffset + t.markupLineOffset + region.get().nameStartPosition());
                 }
-                completeTag(tag.get(), i);
+                completeTag(tag.get(), t);
             }
         }
     }
@@ -343,8 +362,9 @@ public final class Parser {
     static final class Tag {
 
         String name;
-        int markupCommentPosition; // the position of markup, not the tag; this position is, for example, used by @end
-        int markupPosition; // the position from which the markup tags are read
+        int lineSourceOffset;
+        int markupLineOffset;
+        int nameLineOffset;
         int start;
         int end;
         List<Attribute> attributes;
@@ -380,7 +400,6 @@ public final class Parser {
     private void completeTag(Tag start, Tag end) {
         assert !start.name().equals("end") : start;
         assert end.name().equals("end") : end;
-        start.markupCommentPosition = end.markupCommentPosition; // smuggle the position of the corresponding end
         start.end = end.end();
     }
 
@@ -446,5 +465,37 @@ public final class Parser {
         boolean isEmpty() {
             return tags.isEmpty();
         }
+    }
+
+    /*
+     * The reason that the lines are split using a custom method as opposed to
+     * String.split(String) or String.lines() is that along with the lines
+     * themselves we also need their offsets in the originating input to supply
+     * to diagnostic exceptions should they arise.
+     *
+     * The reason that "\n|(\r\n)|\r" is used instead of "\\R" is that the
+     * latter is UNICODE-aware, which we must be not.
+     */
+    static void forEachLine(String s, LineConsumer consumer) {
+        // the fact that the regex alternation is *ordered* is used here to try
+        // to match \r\n before \r
+        final Pattern NEWLINE = Pattern.compile("\n|(\r\n)|\r");
+        Matcher matcher = NEWLINE.matcher(s);
+        int pos = 0;
+        while (matcher.find()) {
+            consumer.accept(pos, s.substring(pos, matcher.start()));
+            pos = matcher.end();
+        }
+        if (pos < s.length())
+            consumer.accept(pos, s.substring(pos));
+    }
+
+    /*
+     * This interface is introduced to encapsulate the matching mechanics so
+     * that it wouldn't be obtrusive to the client code.
+     */
+    @FunctionalInterface
+    interface LineConsumer {
+        void accept(int offset, String line);
     }
 }

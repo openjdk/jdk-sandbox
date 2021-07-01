@@ -117,15 +117,17 @@ public class SnippetTaglet extends BaseTaglet {
             inlineContent = snippetTag.getBody().getBody();
         }
 
+        FileObject fileObject = null;
+
         if (containsFile || containsClass) {
+            AttributeTree a;
             String v = containsFile
-                    ? stringOf(attributes.get("file").getValue())
-                    : stringOf(attributes.get("class").getValue()).replace(".", "/") + ".java";
+                    ? stringOf((a = attributes.get("file")).getValue())
+                    : stringOf((a = attributes.get("class")).getValue()).replace(".", "/") + ".java";
 
             // we didn't create JavaFileManager, so we won't close it; even if an error occurs
             var fileManager = writer.configuration().getFileManager();
 
-            FileObject fileObject;
             try {
                 // first, look in local snippet-files subdirectory
                 Utils utils = writer.configuration().utils;
@@ -140,24 +142,24 @@ public class SnippetTaglet extends BaseTaglet {
                     fileObject = fileManager.getFileForInput(Location.SNIPPET_PATH,"", v);
                 }
             } catch (IOException e) {
-                // FIXME: provide more context (the snippet, its attribute, and its attributes' value)
-                error(writer, holder, tag, "doclet.exception.read.file", v, e.getCause());
+                error(writer, holder, a, "doclet.exception.read.file", v, e.getCause());
                 return badSnippet(writer);
             }
 
             if (fileObject == null) { /* i.e. the file does not exist */
-                error(writer, holder, tag, "doclet.File_not_found", v);
+                error(writer, holder, a, "doclet.File_not_found", v);
                 return badSnippet(writer);
             }
 
             try {
                 externalContent = fileObject.getCharContent(true).toString();
             } catch (IOException e) {
-                // FIXME: provide more context (the snippet, its attribute, and its attributes' value)
-                error(writer, holder, tag, "doclet.exception.read.file", fileObject.getName(), e.getCause());
+                error(writer, holder, a, "doclet.exception.read.file", fileObject.getName(), e.getCause());
                 return badSnippet(writer);
             }
         }
+
+        // FIXME cache parsed external snippet (WeakHashMap)
 
         AnnotatedText<Style> inlineSnippet = null;
         AnnotatedText<Style> externalSnippet = null;
@@ -166,34 +168,43 @@ public class SnippetTaglet extends BaseTaglet {
             if (inlineContent != null) {
                 inlineSnippet = parse(inlineContent);
             }
+        } catch (ParseException e) {
+            error(writer, holder, tag, "doclet.snippet.markup", e.getMessage()); // FIXME: wait for reporter's new method
+            return badSnippet(writer);
+        }
+
+        try {
             if (externalContent != null) {
                 externalSnippet = parse(externalContent);
             }
-            // The region must be matched at least in one content: it can be matched
-            // in both, but never in none
-            if (r != null) {
-                AnnotatedText<Style> r1 = null;
-                AnnotatedText<Style> r2 = null;
-                if (inlineSnippet != null) {
-                    r1 = inlineSnippet.getBookmarkedText(r);
-                    if (r1 != null) {
-                        inlineSnippet = r1;
-                    }
-                }
-                if (externalSnippet != null) {
-                    r2 = externalSnippet.getBookmarkedText(r);
-                    if (r2 != null) {
-                        externalSnippet = r2;
-                    }
-                }
-                if (r1 == null && r2 == null) {
-                    error(writer, holder, tag, "doclet.snippet.region.not_found", r);
-                    return badSnippet(writer);
+        } catch (ParseException e) {
+            assert fileObject != null;
+            writer.configuration().getMessages().error(
+                    fileObject, e.getPosition(), e.getPosition(), e.getPosition(), "doclet.snippet.markup", e.getMessage());
+            return badSnippet(writer);
+        }
+
+        // the region must be matched at least in one content: it can be matched
+        // in both, but never in none
+        if (r != null) {
+            AnnotatedText<Style> r1 = null;
+            AnnotatedText<Style> r2 = null;
+            if (inlineSnippet != null) {
+                r1 = inlineSnippet.getBookmarkedText(r);
+                if (r1 != null) {
+                    inlineSnippet = r1;
                 }
             }
-        } catch (ParseException e) {
-            error(writer, holder, tag, "doclet.snippet.markup", e.getMessage()); // FIXME: e.getMessage() is non-internationalized and sometimes is just a resource key
-            return badSnippet(writer);
+            if (externalSnippet != null) {
+                r2 = externalSnippet.getBookmarkedText(r);
+                if (r2 != null) {
+                    externalSnippet = r2;
+                }
+            }
+            if (r1 == null && r2 == null) {
+                error(writer, holder, tag, "doclet.snippet.region.not_found", r);
+                return badSnippet(writer);
+            }
         }
 
         if (inlineSnippet != null) {

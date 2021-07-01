@@ -32,12 +32,11 @@ public class ParseException extends Exception {
 
     private final int index;
 
-    public ParseException(String message) {
-        this(message, -1);
-    }
-
     public ParseException(String message, int position) {
         super(message);
+        if (position < 0) {
+            throw new IllegalArgumentException(String.valueOf(position));
+        }
         this.index = position;
     }
 
