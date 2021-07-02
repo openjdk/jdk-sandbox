@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Alphabet LLC. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,29 +19,41 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef SHARE_RUNTIME_NOTIFICATIONTHREAD_HPP
-#define SHARE_RUNTIME_NOTIFICATIONTHREAD_HPP
+/* @test
+ * @bug 8268592
+ * @summary JDK-8262891 causes an NPE in Lint.augment
+ * @compile T8268592.java
+ */
 
-#include "runtime/thread.hpp"
+import java.util.Collection;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
-// A JavaThread for low memory detection support, GC and
-// diagnostic framework notifications. This thread is not hidden
-// from the external view to allow the debugger to stop at the
-// breakpoints inside registred MXBean notification listeners.
+abstract class T {
 
-class NotificationThread : public JavaThread {
-  friend class VMStructs;
- private:
+    abstract <T> T r(Function<String, Supplier<T>> x);
 
-  static void notification_thread_entry(JavaThread* thread, TRAPS);
-  NotificationThread(ThreadFunction entry_point) : JavaThread(entry_point) {};
+    enum E {
+        ONE
+    }
 
- public:
-  static void initialize();
+    abstract <T> Supplier<T> f(Function<T, Supplier<T>> x);
 
-};
-
-#endif // SHARE_RUNTIME_NOTIFICATIONTHREAD_HPP
+    public void updateAcl(E e, Supplier<Void> v) {
+        r(
+                (String t) -> {
+                    switch (e) {
+                        case ONE:
+                            return f(
+                                    a -> {
+                                        Collection<String> m = null;
+                                        return v;
+                                    });
+                        default:
+                            return v;
+                    }
+                });
+    }
+}

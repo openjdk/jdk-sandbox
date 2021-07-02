@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,29 +19,32 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef SHARE_RUNTIME_NOTIFICATIONTHREAD_HPP
-#define SHARE_RUNTIME_NOTIFICATIONTHREAD_HPP
+/*
+ * @test
+ * @bug 8225559
+ * @summary assertion error at TransTypes.visitApply
+ * @compile ProtectedConstructorTest.java
+ */
 
-#include "runtime/thread.hpp"
+import pkg.Bar;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
-// A JavaThread for low memory detection support, GC and
-// diagnostic framework notifications. This thread is not hidden
-// from the external view to allow the debugger to stop at the
-// breakpoints inside registred MXBean notification listeners.
+class ProtectedConstructorTest {
+    public void foo() {
+        supply(getSupplier(new Bar<>(){}));
+        CompletableFuture<List<String>> completableFuture = getCompletableFuture(getSupplier(new Bar<>(){}));
+        completableFuture = getCompletableFuture(() -> getList(null, new Bar<>() {}));
+    }
 
-class NotificationThread : public JavaThread {
-  friend class VMStructs;
- private:
+    static <U> Supplier<U> getSupplier(Bar<U> t) {
+        return null;
+    }
 
-  static void notification_thread_entry(JavaThread* thread, TRAPS);
-  NotificationThread(ThreadFunction entry_point) : JavaThread(entry_point) {};
-
- public:
-  static void initialize();
-
-};
-
-#endif // SHARE_RUNTIME_NOTIFICATIONTHREAD_HPP
+    static <U> void supply(Supplier<U> supplier) {}
+    static <U> CompletableFuture<U> getCompletableFuture(Supplier<U> supplier) { return null; }
+    <T> List<T> getList(final Supplier<List<T>> supplier, Bar<T> t) { return null; }
+}
