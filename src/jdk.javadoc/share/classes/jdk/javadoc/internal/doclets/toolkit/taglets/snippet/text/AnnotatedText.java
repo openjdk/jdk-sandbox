@@ -40,8 +40,8 @@ import static java.lang.Math.min;
 
 /*
  * Mutable sequence of characters, each of which can be associated with a set of
- * objects. These objects can be used by clients, for example, as character
- * meta-information.
+ * objects. These objects can be used by clients as character metadata, such as
+ * rich text style.
  */
 public class AnnotatedText<S> {
 
@@ -59,6 +59,9 @@ public class AnnotatedText<S> {
      * inherit the interface but not the implementation, which includes
      * unnecessary internal objects. If this is done, then all public methods
      * should be overridden too, otherwise they will not work.
+     *
+     * An alternative design would be to provide an interface for annotated text;
+     * but I ruled that out as unnecessarily heavyweight.
      */
     protected void init() {
         this.bookmarks = new HashMap<>();
