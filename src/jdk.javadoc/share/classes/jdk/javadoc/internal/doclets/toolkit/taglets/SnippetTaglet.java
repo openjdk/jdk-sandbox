@@ -34,6 +34,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.PackageElement;
+import javax.tools.Diagnostic;
 import javax.tools.DocumentationTool.Location;
 import javax.tools.FileObject;
 import javax.tools.JavaFileManager;
@@ -169,7 +170,10 @@ public class SnippetTaglet extends BaseTaglet {
                 inlineSnippet = parse(inlineContent);
             }
         } catch (ParseException e) {
-            error(writer, holder, tag, "doclet.snippet.markup", e.getMessage()); // FIXME: wait for reporter's new method
+            var path = writer.configuration().utils.getCommentHelper(holder).getDocTreePath(snippetTag.getBody());
+            // FIXME: there should be a method in Messages; that method should mirror Reporter's; use that method instead accessing Reporter.
+            String msg = writer.configuration().getDocResources().getText("doclet.snippet.markup", e.getMessage());
+            writer.configuration().getReporter().print(Diagnostic.Kind.ERROR, path, e.getPosition(), e.getPosition(), e.getPosition(), msg);
             return badSnippet(writer);
         }
 
