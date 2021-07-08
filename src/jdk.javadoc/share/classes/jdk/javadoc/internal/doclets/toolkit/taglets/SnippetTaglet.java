@@ -26,6 +26,7 @@
 package jdk.javadoc.internal.doclets.toolkit.taglets;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -220,9 +221,11 @@ public class SnippetTaglet extends BaseTaglet {
         }
 
         if (inlineSnippet != null && externalSnippet != null) {
-            if (!Objects.equals(inlineSnippet.asCharSequence().toString(),
-                                externalSnippet.asCharSequence().toString())) {
-                error(writer, holder, tag, "doclet.snippet.contents.mismatch");
+            String inlineStr = inlineSnippet.asCharSequence().toString();
+            String externalStr = externalSnippet.asCharSequence().toString();
+            if (!Objects.equals(inlineStr, externalStr)) {
+                error(writer, holder, tag, "doclet.snippet.contents.mismatch", diff(inlineStr, externalStr));
+                // output one above the other
                 return badSnippet(writer);
             }
         }
@@ -231,6 +234,25 @@ public class SnippetTaglet extends BaseTaglet {
         AnnotatedText<Style> text = inlineSnippet != null ? inlineSnippet : externalSnippet;
 
         return writer.snippetTagOutput(holder, snippetTag, text);
+    }
+
+    /*
+     * Maybe there's a case for implementing a proper (or at least more helpful)
+     * diff view, but for now simply outputting both sides of a hybrid snippet
+     * would do. Users could then use diff tools to compare those sides.
+     *
+     * There's a separate issue of mapping discrepancies back to their
+     * originating source in the doc comment and the external file. Maybe there
+     * is a value in it, or may be there isn't. In any case, accurate mapping
+     * would be not trivial to code.
+     */
+    private static String diff(String inline, String external) {
+        return """
+               ----------------- inline -------------------
+               %s
+               ----------------- external -----------------
+               %s
+               """.formatted(inline, external);
     }
 
     private AnnotatedText<Style> parse(String content) throws ParseException {
@@ -314,5 +336,11 @@ public class SnippetTaglet extends BaseTaglet {
         //
         // The most trivial example of such a string is " ". In fact, any string
         // with a trailing non-empty blank line would do.
+    }
+
+    void mismatch(String left, String right) {
+        int idx = Arrays.mismatch(left.toCharArray(), right.toCharArray());
+        if (idx < 0)
+            return;
     }
 }
