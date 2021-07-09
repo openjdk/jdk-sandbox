@@ -85,10 +85,8 @@ public class TestSnippetTag extends JavadocTester {
      */
     @Test
     public void testIdAndLangAttributes(Path base) throws IOException {
-
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         List<String> snippets = List.of(
                 """
                 {@snippet id="foo" :
@@ -185,22 +183,17 @@ public class TestSnippetTag extends JavadocTester {
 
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-
         int i = 0;
         for (String s : snippets) {
             classBuilder.addMembers(
                     MethodBuilder.parse("public void case%s() { }".formatted(i++))
                             .setComments(s));
         }
-
         classBuilder.write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.OK);
-
         String[] s = new String[snippets.toArray().length];
         for (int j = 0; j < snippets.size(); j++) {
             s[j] = """
@@ -219,7 +212,6 @@ public class TestSnippetTag extends JavadocTester {
     public void testBadTagSyntax(Path base) throws IOException {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         List<String> badSnippets = List.of(
                 """
                 {@snippet :}
@@ -262,7 +254,6 @@ public class TestSnippetTag extends JavadocTester {
                 {@snippet
                 file='}
                 """
-
 // The below commented out cases are worth testing if only to fixate the result.
 // It's not that we can do a lot about them anyway.
 //                ,
@@ -279,26 +270,20 @@ public class TestSnippetTag extends JavadocTester {
 //                }
 //                """
         );
-
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-
         int i = 0;
         for (String s : badSnippets) {
             classBuilder.addMembers(
                     MethodBuilder.parse("public void case%s() { }".formatted(i++)).setComments(s));
         }
         classBuilder.write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         // Not very specific, but good enough
         long actual = Pattern.compile("error: ").matcher(getOutput(Output.OUT)).results().count();
-
         checking("Number of errors");
         int expected = badSnippets.size();
         if (actual == expected) {
@@ -354,7 +339,6 @@ public class TestSnippetTag extends JavadocTester {
     public void testInline(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
                 // Empty
@@ -513,13 +497,10 @@ public class TestSnippetTag extends JavadocTester {
                                              }
                                              """))
                 .write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.OK);
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case10</span>()</div>
@@ -528,7 +509,6 @@ public class TestSnippetTag extends JavadocTester {
                        Hello, Snippet!
                    </pre>
                    </div>""");
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case20</span>()</div>
@@ -537,7 +517,6 @@ public class TestSnippetTag extends JavadocTester {
                        Hello, Snippet!
                    </pre>
                    </div>""");
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case30</span>()</div>
@@ -546,7 +525,6 @@ public class TestSnippetTag extends JavadocTester {
                        Hello, Snippet!
                    </pre>
                    </div>""");
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case31</span>()</div>
@@ -555,7 +533,6 @@ public class TestSnippetTag extends JavadocTester {
                        Hello, Snippet!
                    </pre>
                    </div>""");
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case40</span>()</div>
@@ -566,7 +543,6 @@ public class TestSnippetTag extends JavadocTester {
                         Snippet!
                    </pre>
                    </div>""");
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case50</span>()</div>
@@ -578,7 +554,6 @@ public class TestSnippetTag extends JavadocTester {
                         Snippet!
                    </pre>
                    </div>""");
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case60</span>()</div>
@@ -590,7 +565,6 @@ public class TestSnippetTag extends JavadocTester {
 
                    </pre>
                    </div>""");
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case70</span>()</div>
@@ -601,7 +575,6 @@ public class TestSnippetTag extends JavadocTester {
                     Snippet!
                    </pre>
                    </div>""");
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case80</span>()</div>
@@ -611,7 +584,6 @@ public class TestSnippetTag extends JavadocTester {
                    ,
                     Snippet!</pre>
                    </div>""");
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case90</span>()</div>
@@ -622,7 +594,6 @@ public class TestSnippetTag extends JavadocTester {
                         Snippet!
                    </pre>
                    </div>""");
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case100</span>()</div>
@@ -633,7 +604,6 @@ public class TestSnippetTag extends JavadocTester {
                         Snippet!
                    </pre>
                    </div>""");
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case110</span>()</div>
@@ -648,7 +618,8 @@ public class TestSnippetTag extends JavadocTester {
 
     @Test
     public void testExternalFile(Path base) throws Exception {
-
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
         // Maps an input to a function that yields an expected output
         final Map<String, Function<String, String>> testCases = Map.of(
                 """
@@ -705,20 +676,13 @@ public class TestSnippetTag extends JavadocTester {
                     &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
                 """, s -> s.replaceAll("&", "&amp;")
         );
-
-        Path srcDir = base.resolve("src");
-        Path outDir = base.resolve("out");
-
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-
         // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
         Map<Integer, String> inputs = new LinkedHashMap<>();
-
         // I would use a single-threaded counter if we had one.
         // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
         AtomicInteger counter = new AtomicInteger();
-
         testCases.keySet().forEach(input -> {
             int id = counter.incrementAndGet();
             classBuilder
@@ -731,15 +695,11 @@ public class TestSnippetTag extends JavadocTester {
             addSnippetFile(srcDir, "pkg", "%s.txt".formatted(id), input);
             inputs.put(id, input);
         });
-
         classBuilder.write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.OK);
-
         inputs.forEach((index, input) -> {
             String expectedOutput = testCases.get(input).apply(input);
             checkOrder("pkg/A.html",
@@ -756,10 +716,8 @@ public class TestSnippetTag extends JavadocTester {
     public void testInlineSnippetInDocFiles(Path base) throws IOException {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         // If there is no *.java files, javadoc will not create an output
         // directory; so this class is created solely to trigger output.
-
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
                 .addMembers(
@@ -768,13 +726,10 @@ public class TestSnippetTag extends JavadocTester {
                                 // a (convenience) user entry point to the html file (not used by test)
                                 .setComments("<a href=\"doc-files/file.html\">A document</a>"))
                 .write(srcDir);
-
-
         var content = """
                               Unlike Java files, HTML files don't mind hosting
                               the */ sequence in a @snippet tag
                       """;
-
         String html = """
                       <!DOCTYPE html>
                       <html lang="en">
@@ -790,16 +745,12 @@ public class TestSnippetTag extends JavadocTester {
                         </body>
                       </html>
                       """.formatted(content);
-
         Path p = Files.createDirectories(srcDir.resolve("pkg").resolve("doc-files"));
         Files.writeString(p.resolve("file.html"), html, StandardOpenOption.CREATE_NEW);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.OK);
-
         checkOutput("pkg/doc-files/file.html", true, content);
     }
 
@@ -807,10 +758,8 @@ public class TestSnippetTag extends JavadocTester {
     public void testExternalSnippetInDocFiles(Path base) throws IOException {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         // If there is no *.java files, javadoc will not create an output
         // directory; so this class is created solely to trigger output.
-
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
                 .addMembers(
@@ -819,7 +768,6 @@ public class TestSnippetTag extends JavadocTester {
                                 // a (convenience) user entry point to the html file (not used by test)
                                 .setComments("<a href=\"doc-files/file.html\">A document</a>"))
                 .write(srcDir);
-
         String html = """
                       <!DOCTYPE html>
                       <html lang="en">
@@ -834,22 +782,17 @@ public class TestSnippetTag extends JavadocTester {
                         </body>
                       </html>
                       """;
-
         Path p = Files.createDirectories(srcDir.resolve("pkg").resolve("doc-files"));
         Files.writeString(p.resolve("file.html"), html, StandardOpenOption.CREATE_NEW);
-
         String content = """
                             Unlike Java files, text files don't mind hosting
                             the */ sequence in a @snippet tag
                          """;
         addSnippetFile(srcDir, "pkg", "file.txt", content);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.OK);
-
         checkOutput("pkg/doc-files/file.html", true, content);
     }
 
@@ -871,9 +814,7 @@ public class TestSnippetTag extends JavadocTester {
     public void testExternalFileNotFound(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         var fileName = "text.txt";
-
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
                 .addMembers(
@@ -883,13 +824,10 @@ public class TestSnippetTag extends JavadocTester {
                                              {@snippet file="%s"}
                                              """.formatted(fileName)))
                 .write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: File not found: %s""".formatted(fileName));
@@ -899,16 +837,12 @@ public class TestSnippetTag extends JavadocTester {
     public void testExternalFileModuleSourcePath(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         var fileName = "snippet.txt";
-
         String MODULE_NAME = "mdl1";
         String PACKAGE_NAME = "pkg1.pkg2";
-
         Path moduleDir = new ModuleBuilder(tb, MODULE_NAME)
                 .exports(PACKAGE_NAME)
                 .write(srcDir);
-
         new ClassBuilder(tb, String.join(".", PACKAGE_NAME, "A"))
                 .setModifiers("public", "class")
                 .addMembers(
@@ -918,13 +852,10 @@ public class TestSnippetTag extends JavadocTester {
                                              {@snippet file="%s"}
                                              """.formatted(fileName)))
                 .write(moduleDir);
-
         addSnippetFile(moduleDir, PACKAGE_NAME, fileName, "content");
-
         javadoc("-d", outDir.toString(),
                 "--module-source-path", srcDir.toString(),
                 "--module", MODULE_NAME);
-
         checkExit(Exit.OK);
     }
 
@@ -932,16 +863,12 @@ public class TestSnippetTag extends JavadocTester {
     public void testExternalFileNotFoundModuleSourcePath(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         var fileName = "text.txt";
-
         var MODULE_NAME = "mdl1";
         var PACKAGE_NAME = "pkg1.pkg2";
-
         Path moduleDir = new ModuleBuilder(tb, MODULE_NAME)
                 .exports(PACKAGE_NAME)
                 .write(srcDir);
-
         new ClassBuilder(tb, String.join(".", PACKAGE_NAME, "A"))
                 .setModifiers("public", "class")
                 .addMembers(
@@ -951,13 +878,10 @@ public class TestSnippetTag extends JavadocTester {
                                              {@snippet file="%s"}
                                              """.formatted(fileName)))
                 .write(moduleDir);
-
         javadoc("-d", outDir.toString(),
                 "--module-source-path", srcDir.toString(),
                 "--module", MODULE_NAME);
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: File not found: %s""".formatted(fileName));
@@ -967,20 +891,16 @@ public class TestSnippetTag extends JavadocTester {
     public void testConflict10(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
                              {@snippet}
                              """)
                 .setModifiers("public", "class")
                 .write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:3: error: @snippet does not specify contents""");
@@ -990,7 +910,6 @@ public class TestSnippetTag extends JavadocTester {
     public void testConflict20(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
                              {@snippet file="" class="" :
@@ -1003,13 +922,10 @@ public class TestSnippetTag extends JavadocTester {
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         // FIXME
         //   In this and all similar tests check that there are no other errors, let alone errors related to {@snippet}
         //   To achieve that, we might need to change JavadocTester (i.e. add "consume output", "check that the output is empty", etc.)
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:3: error: @snippet specifies multiple external contents, which is ambiguous""");
@@ -1019,7 +935,6 @@ public class TestSnippetTag extends JavadocTester {
     public void testConflict30(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
                              {@snippet class="" file="" :
@@ -1028,13 +943,10 @@ public class TestSnippetTag extends JavadocTester {
                              """)
                 .setModifiers("public", "class")
                 .write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutputEither(Output.OUT,
                           """
                           A.java:3: error: @snippet specifies multiple external contents, which is ambiguous""");
@@ -1044,10 +956,8 @@ public class TestSnippetTag extends JavadocTester {
     private void checkOutputEither(Output out, String first, String... other) {
         checking("checkOutputEither");
         String output = getOutput(out);
-
         Stream<String> strings = Stream.concat(Stream.of(first), Stream.of(other));
         Optional<String> any = strings.filter(output::contains).findAny();
-
         if (any.isPresent()) {
             passed(": following text is found:\n" + any.get());
         } else {
@@ -1059,20 +969,16 @@ public class TestSnippetTag extends JavadocTester {
     public void testConflict60(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
                              {@snippet file="" file=""}
                              """)
                 .setModifiers("public", "class")
                 .write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:3: error: repeated attribute: "file\"""");
@@ -1082,20 +988,16 @@ public class TestSnippetTag extends JavadocTester {
     public void testConflict70(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
                              {@snippet class="" class="" }
                              """)
                 .setModifiers("public", "class")
                 .write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:3: error: repeated attribute: "class\"""");
@@ -1105,7 +1007,6 @@ public class TestSnippetTag extends JavadocTester {
     public void testConflict80(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
                              {@snippet class="" class="" :
@@ -1114,13 +1015,10 @@ public class TestSnippetTag extends JavadocTester {
                              """)
                 .setModifiers("public", "class")
                 .write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutputEither(Output.OUT,
                           """
                           A.java:3: error: repeated attribute: "class\"""",
@@ -1132,7 +1030,6 @@ public class TestSnippetTag extends JavadocTester {
     public void testConflict90(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
                              {@snippet file="" file="" :
@@ -1141,13 +1038,10 @@ public class TestSnippetTag extends JavadocTester {
                              """)
                 .setModifiers("public", "class")
                 .write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutputEither(Output.OUT,
                           """
                           A.java:3: error: repeated attribute: "file\"""",
@@ -1166,20 +1060,16 @@ public class TestSnippetTag extends JavadocTester {
     public void testErrorPositionResolution(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         new ClassBuilder(tb, "pkg.A")
                 .setComments("""
                              {@snippet} {@snippet}
                              """)
                 .setModifiers("public", "class")
                 .write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:3: error: @snippet does not specify contents""",
@@ -1189,7 +1079,6 @@ public class TestSnippetTag extends JavadocTester {
 
     @Test
     public void testRegion(Path base) throws Exception {
-
         // Maps an input to an expected output
         final Map<Snippet, String> testCases = Map.ofEntries(
                 entry(newSnippetBuilder()
@@ -1342,20 +1231,15 @@ public class TestSnippetTag extends JavadocTester {
                       """
                 )
         );
-
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-
         // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
         Map<Integer, Snippet> inputs = new LinkedHashMap<>();
-
         // I would use a single-threaded counter if we had one.
         // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
         AtomicInteger counter = new AtomicInteger();
-
         testCases.keySet().forEach(input -> {
             int id = counter.incrementAndGet();
             classBuilder
@@ -1368,15 +1252,11 @@ public class TestSnippetTag extends JavadocTester {
                                                  """.formatted(input.regionName(), input.body())));
             inputs.put(id, input);
         });
-
         classBuilder.write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.OK);
-
         inputs.forEach((index, input) -> {
             String expectedOutput = testCases.get(input);
             checkOrder("pkg/A.html",
@@ -1391,10 +1271,8 @@ public class TestSnippetTag extends JavadocTester {
 
     @Test
     public void testAttributeValueSyntaxUnquotedCurly(Path base) throws Exception {
-
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         /*
          * The snippet region attribute's value is empty because the tag is
          * terminated by the first }
@@ -1404,7 +1282,6 @@ public class TestSnippetTag extends JavadocTester {
          *        // @start region="}" @end
          *    }
          */
-
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
                 .addMembers(
@@ -1416,13 +1293,10 @@ public class TestSnippetTag extends JavadocTester {
                                              }
                                              """));
         classBuilder.write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: @snippet does not specify contents""");
@@ -1430,7 +1304,6 @@ public class TestSnippetTag extends JavadocTester {
 
     @Test
     public void testAttributeValueSyntaxCurly(Path base) throws Exception {
-
         /*
          * The snippet has to be external, otherwise its content would
          * interfere with the test: that internal closing curly would
@@ -1442,16 +1315,12 @@ public class TestSnippetTag extends JavadocTester {
          *                           ^
          *     }
          */
-
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
-
         addSnippetFile(srcDir, "pkg", "file.txt", """
                                                   // @start region="}" @end
                                                   """
         );
-
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
                 .addMembers(
@@ -1467,13 +1336,10 @@ public class TestSnippetTag extends JavadocTester {
                                              {@snippet region='}' file="file.txt"}
                                              """));
         classBuilder.write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.OK);
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case0</span>()</div>
@@ -1481,7 +1347,6 @@ public class TestSnippetTag extends JavadocTester {
                    <pre class="snippet">
                    </pre>
                    </div>""");
-
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case1</span>()</div>
@@ -1495,100 +1360,92 @@ public class TestSnippetTag extends JavadocTester {
     public void testAttributeValueSyntax(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         // Test most expected use cases for external snippet
-
         List<String> snippets = List.of(
-            """
-            {@snippet file=file region=region}
-            """,
-            """
-            {@snippet file=file region= region}
-            """,
-            """
-            {@snippet file=file region="region"}
-            """,
-            """
-            {@snippet file=file region='region'}
-            """,
-            """
-            {@snippet file= file region=region}
-            """,
-            """
-            {@snippet file= file region= region}
-            """,
-            """
-            {@snippet file= file region="region"}
-            """,
-            """
-            {@snippet file= file region='region'}
-            """,
-            """
-            {@snippet file="file" region=region}
-            """,
-            """
-            {@snippet file="file" region= region}
-            """,
-            """
-            {@snippet file="file" region="region"}
-            """,
-            """
-            {@snippet file="file" region='region'}
-            """,
-            """
-            {@snippet file='file' region=region}
-            """,
-            """
-            {@snippet file='file' region= region}
-            """,
-            """
-            {@snippet file='file' region="region"}
-            """,
-            """
-            {@snippet file='file' region='region'}
-            """,
-            // ---------------------------------------------------------------
-            """
-            {@snippet region=region file=file}
-            """,
-            """
-            {@snippet region=region file="file"}
-            """,
-            """
-            {@snippet region="region" file="file"}
-            """,
-            """
-            {@snippet file="file"
-                      region="region"}
-            """,
-            """
-            {@snippet file="file"
-                      region=region}
-            """
+                """
+                {@snippet file=file region=region}
+                """,
+                """
+                {@snippet file=file region= region}
+                """,
+                """
+                {@snippet file=file region="region"}
+                """,
+                """
+                {@snippet file=file region='region'}
+                """,
+                """
+                {@snippet file= file region=region}
+                """,
+                """
+                {@snippet file= file region= region}
+                """,
+                """
+                {@snippet file= file region="region"}
+                """,
+                """
+                {@snippet file= file region='region'}
+                """,
+                """
+                {@snippet file="file" region=region}
+                """,
+                """
+                {@snippet file="file" region= region}
+                """,
+                """
+                {@snippet file="file" region="region"}
+                """,
+                """
+                {@snippet file="file" region='region'}
+                """,
+                """
+                {@snippet file='file' region=region}
+                """,
+                """
+                {@snippet file='file' region= region}
+                """,
+                """
+                {@snippet file='file' region="region"}
+                """,
+                """
+                {@snippet file='file' region='region'}
+                """,
+                // ---------------------------------------------------------------
+                """
+                {@snippet region=region file=file}
+                """,
+                """
+                {@snippet region=region file="file"}
+                """,
+                """
+                {@snippet region="region" file="file"}
+                """,
+                """
+                {@snippet file="file"
+                          region="region"}
+                """,
+                """
+                {@snippet file="file"
+                          region=region}
+                """
         );
-
         addSnippetFile(srcDir, "pkg", "file", """
                                               1 // @start region=bar @end
                                               2 // @start region=region @end
                                               3 // @start region=foo @end
                                               """);
-
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-
         int i = 0;
         for (String s : snippets) {
             classBuilder.addMembers(
                     MethodBuilder.parse("public void case%s() { }".formatted(i++)).setComments(s));
         }
         classBuilder.write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.OK);
-
         String[] s = new String[snippets.toArray().length];
         for (int j = 0; j < snippets.size(); j++) {
             s[j] = """
@@ -1604,7 +1461,6 @@ public class TestSnippetTag extends JavadocTester {
 
     @Test
     public void testComment(Path base) throws Exception {
-
         // Maps an input to an expected output
         final Map<Snippet, String> testCases = Map.ofEntries(
                 entry(newSnippetBuilder()
@@ -1654,20 +1510,15 @@ public class TestSnippetTag extends JavadocTester {
 //                      // snippet-comment : my comment"""
 //                )
         );
-
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-
         // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
         Map<Integer, Snippet> inputs = new LinkedHashMap<>();
-
         // I would use a single-threaded counter if we had one.
         // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
         AtomicInteger counter = new AtomicInteger();
-
         testCases.keySet().forEach(input -> {
             int id = counter.incrementAndGet();
             classBuilder
@@ -1680,15 +1531,11 @@ public class TestSnippetTag extends JavadocTester {
                                                  """.formatted(input.body())));
             inputs.put(id, input);
         });
-
         classBuilder.write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.OK);
-
         inputs.forEach((index, input) -> {
             String expectedOutput = testCases.get(input);
             checkOrder("pkg/A.html",
@@ -1705,9 +1552,7 @@ public class TestSnippetTag extends JavadocTester {
     public void testRedundantFileNotFound(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         var fileName = "text.txt";
-
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
                 .addMembers(
@@ -1718,13 +1563,10 @@ public class TestSnippetTag extends JavadocTester {
                                                  Hello, Snippet!}
                                              """.formatted(fileName)))
                 .write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: File not found: %s""".formatted(fileName));
@@ -1734,7 +1576,6 @@ public class TestSnippetTag extends JavadocTester {
     public void testRedundantRegionNotFound(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         var fileName = "text.txt";
         var region = "here";
         var content =
@@ -1751,15 +1592,11 @@ public class TestSnippetTag extends JavadocTester {
                                              %s}
                                              """.formatted(region, fileName, content)))
                 .write(srcDir);
-
         addSnippetFile(srcDir, "pkg", fileName, content);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: region not found: "%s\"""".formatted(region));
@@ -1769,12 +1606,10 @@ public class TestSnippetTag extends JavadocTester {
     public void testRedundantMismatch(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         var fileName = "text.txt";
         var content =
                 """
                 Hello, Snippet!""";
-
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
                 .addMembers(
@@ -1785,15 +1620,11 @@ public class TestSnippetTag extends JavadocTester {
                                              %s}
                                              """.formatted(fileName, content)))
                 .write(srcDir);
-
         addSnippetFile(srcDir, "pkg", fileName, content + "...more");
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: contents mismatch""");
@@ -1803,13 +1634,11 @@ public class TestSnippetTag extends JavadocTester {
     public void testRedundantRegionRegionMismatch(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         var fileName = "text.txt";
         var region = "here";
         var content =
                 """
                 Hello, Snippet!""";
-
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
                 .addMembers(
@@ -1824,7 +1653,6 @@ public class TestSnippetTag extends JavadocTester {
                                              Below the region}
                                              """.formatted(region, fileName, region, content)))
                 .write(srcDir);
-
         addSnippetFile(srcDir, "pkg", fileName,
                        """
                        This line is above the region.
@@ -1832,13 +1660,10 @@ public class TestSnippetTag extends JavadocTester {
                        %s
                        // @end
                        This line is below the region.""".formatted(region, content));
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: contents mismatch""");
@@ -1848,13 +1673,11 @@ public class TestSnippetTag extends JavadocTester {
     public void testRedundantRegion1Mismatch(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         var fileName = "text.txt";
         var region = "here";
         var content =
                 """
                 Hello, Snippet!""";
-
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
                 .addMembers(
@@ -1869,15 +1692,11 @@ public class TestSnippetTag extends JavadocTester {
                                              Below the region}
                                              """.formatted(region, fileName, region, content)))
                 .write(srcDir);
-
         addSnippetFile(srcDir, "pkg", fileName, content);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: contents mismatch""");
@@ -1887,13 +1706,11 @@ public class TestSnippetTag extends JavadocTester {
     public void testRedundantRegion2Mismatch(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         var fileName = "text.txt";
         var region = "here";
         var content =
                 """
                 Hello, Snippet!""";
-
         new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class")
                 .addMembers(
@@ -1904,7 +1721,6 @@ public class TestSnippetTag extends JavadocTester {
                                              %s}
                                              """.formatted(region, fileName, content)))
                 .write(srcDir);
-
         addSnippetFile(srcDir, "pkg", fileName,
                        """
                        Above the region.
@@ -1913,13 +1729,10 @@ public class TestSnippetTag extends JavadocTester {
                        // @end
                        Below the region
                        """.formatted(region, content));
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.ERROR);
-
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: contents mismatch""");
@@ -2024,21 +1837,16 @@ public class TestSnippetTag extends JavadocTester {
                       """
                 )
         );
-
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-
         // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
         Map<Integer, Snippet> inputs = new LinkedHashMap<>();
-
         // Using an object rather than a primitive variable (e.g. `int id`)
         // allows to change it from within a lambda and therefore utilize forEach
         // I would use a single-threaded counter if we had one.
         AtomicInteger counter = new AtomicInteger();
-
         testCases.keySet().forEach(input -> {
             int id = counter.incrementAndGet();
             final String r = input.regionName() == null ? "" : "region=\"" + input.regionName() + "\"";
@@ -2054,15 +1862,11 @@ public class TestSnippetTag extends JavadocTester {
             addSnippetFile(srcDir, "pkg", "%s.txt".formatted(id), input.fileContent());
             inputs.put(id, input);
         });
-
         classBuilder.write(srcDir);
-
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
-
         checkExit(Exit.OK);
-
         inputs.forEach((index, input) -> {
             String expectedOutput = testCases.get(input);
             checkOrder("pkg/A.html",
@@ -2073,7 +1877,6 @@ public class TestSnippetTag extends JavadocTester {
                        %s</pre>
                        </div>""".formatted(index, expectedOutput));
         });
-
     }
 
     private static Snippet.Builder newSnippetBuilder() {
