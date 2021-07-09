@@ -222,9 +222,6 @@ public class TestSnippetTag extends JavadocTester {
 
         List<String> badSnippets = List.of(
                 """
-                {@snippet:}
-                """,
-                """
                 {@snippet :}
                 """,
                 """
@@ -311,6 +308,48 @@ public class TestSnippetTag extends JavadocTester {
         }
     }
 
+    /*
+     * A colon that is not separated from a tag name by whitespace is considered
+     * a part of that name. This behavior is historical. For more context see,
+     * for example, JDK-4750173.
+     */
+    @Test
+    public void testUnknownTag(Path base) throws IOException {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+        List<String> unknownTags = List.of(
+                """
+                {@snippet:}
+                """,
+                """
+                {@snippet:
+                }
+                """
+        );
+        ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class");
+        int i = 0;
+        for (String s : unknownTags) {
+            classBuilder.addMembers(
+                    MethodBuilder.parse("public void case%s() { }".formatted(i++))
+                            .setComments(s));
+        }
+        classBuilder.write(srcDir);
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+        checkExit(Exit.ERROR);
+        long actual = Pattern.compile("\\Qerror: unknown tag: snippet:\\E")
+                .matcher(getOutput(Output.OUT)).results().count();
+        checking("Number of errors");
+        int expected = unknownTags.size();
+        if (actual == expected) {
+            passed("");
+        } else {
+            failed(actual + " vs " + expected);
+        }
+    }
+
     @Test
     public void testInline(Path base) throws Exception {
         Path srcDir = base.resolve("src");
@@ -329,9 +368,7 @@ public class TestSnippetTag extends JavadocTester {
                 // Empty with a newline before : as a whitespace
                 //
                 // Note that `@snippet` must be separated from `:` with either
-                // newline or whitespace or both. This is because `:` is
-                // considered a part of a tag's name (e.g. search for
-                // "@ejb:bean" in tests)
+                // newline or whitespace or both.
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case01() { }")
