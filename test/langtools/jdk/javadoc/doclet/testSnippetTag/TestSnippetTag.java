@@ -349,16 +349,13 @@ public class TestSnippetTag extends JavadocTester {
                                              {@snippet :
                                              }
                                              """))
-                // Empty with a newline before : as a whitespace
-                //
-                // Note that `@snippet` must be separated from `:` with either
-                // newline or whitespace or both.
+                // Empty with a newline before : as a separator
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case01() { }")
                                 .setComments("""
                                              {@snippet
-                                                      :
+                                             :
                                              }
                                              """))
                 // Empty with a newline and whitespace before :
@@ -888,7 +885,7 @@ public class TestSnippetTag extends JavadocTester {
     }
 
     @Test
-    public void testConflict10(Path base) throws Exception {
+    public void testNoContents(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
         new ClassBuilder(tb, "pkg.A")
