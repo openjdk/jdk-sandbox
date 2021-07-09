@@ -267,6 +267,11 @@ public class TestSnippetTag extends JavadocTester {
                                              }
                                              """))
                 // Empty with a newline before : as a whitespace
+                //
+                // Note that `@snippet` must be separated from `:` with either
+                // newline or whitespace or both. This is because `:` is
+                // considered a part of a tag's name (e.g. search for
+                // "@ejb:bean" in tests)
                 .addMembers(
                         MethodBuilder
                                 .parse("public void case01() { }")
@@ -376,19 +381,17 @@ public class TestSnippetTag extends JavadocTester {
                                                  ,
                                                   Snippet!}
                                              """))
-// FIXME: stripIndent used in implementation removes trailing whitespace too
-//
-//                // Trailing space is preserved
-//                .addMembers(
-//                        MethodBuilder
-//                                .parse("public void case90() { }")
-//                                .setComments("""
-//                                             {@snippet :
-//                                                 Hello
-//                                                 ,    \s
-//                                                  Snippet!
-//                                             }
-//                                             """))
+                // Trailing space is stripped
+                .addMembers(
+                        MethodBuilder
+                                .parse("public void case90() { }")
+                                .setComments("""
+                                             {@snippet :
+                                                 Hello
+                                                 ,    \s
+                                                  Snippet!
+                                             }
+                                             """))
                 // Escape sequences of Text Blocks and string literals are not interpreted:
                 .addMembers(
                         MethodBuilder
@@ -512,16 +515,16 @@ public class TestSnippetTag extends JavadocTester {
                     Snippet!</pre>
                    </div>""");
 
-//        checkOrder("pkg/A.html",
-//                   """
-//                   <span class="element-name">case90</span>()</div>
-//                   <div class="block">
-//                   <pre class="snippet">
-//                       Hello
-//                       ,
-//                        Snippet!
-//                   </pre>
-//                   </div>""");
+        checkOrder("pkg/A.html",
+                   """
+                   <span class="element-name">case90</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                       Hello
+                       ,
+                        Snippet!
+                   </pre>
+                   </div>""");
 
         checkOrder("pkg/A.html",
                    """
