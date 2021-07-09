@@ -62,6 +62,11 @@ import static java.util.Map.entry;
 //   1. Add tests for nested structure under "snippet-files/"
 //   2. Add negative tests for region
 //   3. Add tests for hybrid snippets
+
+/*
+ * Some of the below tests could benefit from using a combinatorics library
+ * as they are otherwise very wordy.
+ */
 public class TestSnippetTag extends JavadocTester {
 
     private final ToolBox tb = new ToolBox();
@@ -72,15 +77,14 @@ public class TestSnippetTag extends JavadocTester {
 
     private TestSnippetTag() { }
 
+    /*
+     * While the "id" and "lang" attributes are advertised in JEP 413, they
+     * are currently unused by the implementation. So the goal of this test
+     * is to make sure that specifying these attributes causes no errors and
+     * exhibits no unexpected behaviour.
+     */
     @Test
     public void testIdAndLangAttributes(Path base) throws IOException {
-
-        /*
-         * While the "id" and "lang" attributes are advertised in JEP 413, they
-         * are currently unused by the implementation. So the goal of this test
-         * is to make sure that specifying these attributes causes no errors and
-         * exhibits no unexpected behaviour.
-         */
 
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
@@ -92,12 +96,68 @@ public class TestSnippetTag extends JavadocTester {
                 }
                 """,
                 """
+                {@snippet id="foo":
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet id='foo' :
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet id='foo':
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet id=foo :
+                    Hello, Snippet!
+                }
+                """,
+//                // (1) Haven't yet decided on this.
+//                // It's a consistency issue. On the one hand `:` is considered
+//                // a part of a javadoc tag's name; on the other hand,
+//                // snippet markup treats `:` (next-line modifier) as a value
+//                // terminator.
+//                """
+//                {@snippet id=foo:
+//                    Hello, Snippet!
+//                }
+//                """,
+                """
                 {@snippet id="" :
                     Hello, Snippet!
                 }
                 """,
                 """
+                {@snippet id="":
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet id='':
+                    Hello, Snippet!
+                }
+                """,
+//                // Similarly to (1), haven't yet decided on this.
+//                """
+//                {@snippet id=:
+//                    Hello, Snippet!
+//                }
+//                """,
+                """
                 {@snippet lang="java" :
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet lang='java' :
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet lang=java :
                     Hello, Snippet!
                 }
                 """,
