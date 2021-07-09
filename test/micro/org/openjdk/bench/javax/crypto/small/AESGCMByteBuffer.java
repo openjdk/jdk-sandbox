@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,20 +19,18 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
+package org.openjdk.bench.javax.crypto.small;
 
-/* @test
- * @summary test single worker threaded Shenandoah
- * @requires vm.gc.Shenandoah
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
- *                   -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=aggressive
- *                   -XX:ParallelGCThreads=1 -XX:ConcGCThreads=1 TestSingleThreaded
- */
+import org.openjdk.jmh.annotations.Param;
 
-public class TestSingleThreaded {
+public class AESGCMByteBuffer extends
+    org.openjdk.bench.javax.crypto.full.AESGCMByteBuffer {
 
-    public static void main(String[] args) {
-        // Bug should crash before we get here.
-    }
+    @Param({"128"})
+    private int keyLength;
+
+    @Param({"1024"})
+    private int dataSize;
+
 }
