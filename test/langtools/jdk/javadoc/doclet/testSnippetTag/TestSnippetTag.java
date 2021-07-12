@@ -78,10 +78,10 @@ public class TestSnippetTag extends JavadocTester {
     private TestSnippetTag() { }
 
     /*
-     * While the "id" and "lang" attributes are advertised in JEP 413, they
-     * are currently unused by the implementation. So the goal of this test
-     * is to make sure that specifying these attributes causes no errors and
-     * exhibits no unexpected behaviour.
+     * While the "id" and "lang" attributes are advertised in JEP 413, they are
+     * currently unused by the implementation. The goal of this test is to make
+     * sure that specifying these attributes causes no errors and exhibits no
+     * unexpected behavior.
      */
     @Test
     public void testIdAndLangAttributes(Path base) throws IOException {
@@ -113,11 +113,9 @@ public class TestSnippetTag extends JavadocTester {
                     Hello, Snippet!
                 }
                 """,
-//                // (1) Haven't yet decided on this.
-//                // It's a consistency issue. On the one hand `:` is considered
-//                // a part of a javadoc tag's name; on the other hand,
-//                // snippet markup treats `:` (next-line modifier) as a value
-//                // terminator.
+// (1) Haven't yet decided on this one. It's a consistency issue. On the one
+// hand, `:` is considered a part of a javadoc tag's name; on the other hand,
+// snippet markup treats `:` (next-line modifier) as a value terminator.
 //                """
 //                {@snippet id=foo:
 //                    Hello, Snippet!
@@ -138,7 +136,7 @@ public class TestSnippetTag extends JavadocTester {
                     Hello, Snippet!
                 }
                 """,
-//                // Similarly to (1), haven't yet decided on this.
+// Similarly to (1), haven't yet decided on this one.
 //                """
 //                {@snippet id=:
 //                    Hello, Snippet!
@@ -150,7 +148,17 @@ public class TestSnippetTag extends JavadocTester {
                 }
                 """,
                 """
+                {@snippet lang="java":
+                    Hello, Snippet!
+                }
+                """,
+                """
                 {@snippet lang='java' :
+                    Hello, Snippet!
+                }
+                """,
+                """
+                {@snippet lang='java':
                     Hello, Snippet!
                 }
                 """,
@@ -213,6 +221,7 @@ public class TestSnippetTag extends JavadocTester {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
         List<String> badSnippets = List.of(
+                // No newline after `:`
                 """
                 {@snippet :}
                 """,
@@ -227,6 +236,7 @@ public class TestSnippetTag extends JavadocTester {
                 {@snippet
                  : }
                 """,
+                // Attribute issues
                 """
                 {@snippet file="}
                 """,
@@ -498,6 +508,27 @@ public class TestSnippetTag extends JavadocTester {
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
+        checkOrder("pkg/A.html",
+                   """
+                   <span class="element-name">case00</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                   </pre>
+                   </div>""");
+        checkOrder("pkg/A.html",
+                   """
+                   <span class="element-name">case01</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                   </pre>
+                   </div>""");
+        checkOrder("pkg/A.html",
+                   """
+                   <span class="element-name">case02</span>()</div>
+                   <div class="block">
+                   <pre class="snippet">
+                   </pre>
+                   </div>""");
         checkOrder("pkg/A.html",
                    """
                    <span class="element-name">case10</span>()</div>
