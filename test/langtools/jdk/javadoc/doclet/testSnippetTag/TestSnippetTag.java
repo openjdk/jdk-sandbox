@@ -202,18 +202,17 @@ public class TestSnippetTag extends JavadocTester {
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        String[] s = new String[snippets.toArray().length];
         for (int j = 0; j < snippets.size(); j++) {
-            s[j] = """
-                   <span class="element-name">case%s</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                       Hello, Snippet!
-                   </pre>
-                   </div>
-                   """.formatted(j);
+            checkOutput("pkg/A.html", true,
+                        """
+                        <span class="element-name">case%s</span>()</div>
+                        <div class="block">
+                        <pre class="snippet">
+                            Hello, Snippet!
+                        </pre>
+                        </div>
+                        """.formatted(j));
         }
-        checkOrder("pkg/A.html", s);
     }
 
     @Test
@@ -508,140 +507,140 @@ public class TestSnippetTag extends JavadocTester {
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case00</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case01</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case02</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case10</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                       Hello, Snippet!
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case20</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                       Hello, Snippet!
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case30</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                       Hello, Snippet!
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case31</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                       Hello, Snippet!
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case40</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                       Hello
-                       ,
-                        Snippet!
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case50</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case00</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case01</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case02</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case10</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                        Hello, Snippet!
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case20</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                        Hello, Snippet!
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case30</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                        Hello, Snippet!
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case31</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                        Hello, Snippet!
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case40</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                        Hello
+                        ,
+                         Snippet!
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case50</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
 
-                       Hello
-                       ,
-                        Snippet!
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case60</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                       Hello
-                       ,
-                        Snippet!
+                        Hello
+                        ,
+                         Snippet!
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case60</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                        Hello
+                        ,
+                         Snippet!
 
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case70</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                   Hello
-                   ,
-                    Snippet!
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case80</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                   Hello
-                   ,
-                    Snippet!</pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case90</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                       Hello
-                       ,
-                        Snippet!
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case100</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                       \\b\\t\\n\\f\\r\\"\\'\\    Hello\\
-                       ,\\s
-                        Snippet!
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case110</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                       &lt;/pre&gt;
-                           &lt;!-- comment --&gt;
-                       &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
-                   </pre>
-                   </div>""");
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case70</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                    Hello
+                    ,
+                     Snippet!
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case80</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                    Hello
+                    ,
+                     Snippet!</pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case90</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                        Hello
+                        ,
+                         Snippet!
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case100</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                        \\b\\t\\n\\f\\r\\"\\'\\    Hello\\
+                        ,\\s
+                         Snippet!
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case110</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                        &lt;/pre&gt;
+                            &lt;!-- comment --&gt;
+                        &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
+                    </pre>
+                    </div>""");
     }
 
     @Test
@@ -730,13 +729,13 @@ public class TestSnippetTag extends JavadocTester {
         checkExit(Exit.OK);
         inputs.forEach((index, input) -> {
             String expectedOutput = testCases.get(input).apply(input);
-            checkOrder("pkg/A.html",
-                       """
-                       <span class="element-name">case%s</span>()</div>
-                       <div class="block">
-                       <pre class="snippet">
-                       %s</pre>
-                       </div>""".formatted(index, expectedOutput));
+            checkOutput("pkg/A.html", true,
+                        """
+                        <span class="element-name">case%s</span>()</div>
+                        <div class="block">
+                        <pre class="snippet">
+                        %s</pre>
+                        </div>""".formatted(index, expectedOutput));
         });
     }
 
@@ -1287,13 +1286,13 @@ public class TestSnippetTag extends JavadocTester {
         checkExit(Exit.OK);
         inputs.forEach((index, input) -> {
             String expectedOutput = testCases.get(input);
-            checkOrder("pkg/A.html",
-                       """
-                       <span class="element-name">case%s</span>()</div>
-                       <div class="block">
-                       <pre class="snippet">
-                       %s</pre>
-                       </div>""".formatted(index, expectedOutput));
+            checkOutput("pkg/A.html", true,
+                        """
+                        <span class="element-name">case%s</span>()</div>
+                        <div class="block">
+                        <pre class="snippet">
+                        %s</pre>
+                        </div>""".formatted(index, expectedOutput));
         });
     }
 
@@ -1368,20 +1367,20 @@ public class TestSnippetTag extends JavadocTester {
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case0</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                   </pre>
-                   </div>""");
-        checkOrder("pkg/A.html",
-                   """
-                   <span class="element-name">case1</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                   </pre>
-                   </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case0</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                    </pre>
+                    </div>""");
+        checkOutput("pkg/A.html", true,
+                    """
+                    <span class="element-name">case1</span>()</div>
+                    <div class="block">
+                    <pre class="snippet">
+                    </pre>
+                    </div>""");
     }
 
     @Test
@@ -1474,17 +1473,16 @@ public class TestSnippetTag extends JavadocTester {
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        String[] s = new String[snippets.toArray().length];
         for (int j = 0; j < snippets.size(); j++) {
-            s[j] = """
-                   <span class="element-name">case%s</span>()</div>
-                   <div class="block">
-                   <pre class="snippet">
-                   2</pre>
-                   </div>
-                   """.formatted(j);
+            checkOutput("pkg/A.html", true,
+                        """
+                        <span class="element-name">case%s</span>()</div>
+                        <div class="block">
+                        <pre class="snippet">
+                        2</pre>
+                        </div>
+                        """.formatted(j));
         }
-        checkOrder("pkg/A.html", s);
     }
 
     @Test
@@ -1566,13 +1564,13 @@ public class TestSnippetTag extends JavadocTester {
         checkExit(Exit.OK);
         inputs.forEach((index, input) -> {
             String expectedOutput = testCases.get(input);
-            checkOrder("pkg/A.html",
-                       """
-                       <span class="element-name">case%s</span>()</div>
-                       <div class="block">
-                       <pre class="snippet">
-                       %s</pre>
-                       </div>""".formatted(index, expectedOutput));
+            checkOutput("pkg/A.html", true,
+                        """
+                        <span class="element-name">case%s</span>()</div>
+                        <div class="block">
+                        <pre class="snippet">
+                        %s</pre>
+                        </div>""".formatted(index, expectedOutput));
         });
     }
 
@@ -1897,13 +1895,13 @@ public class TestSnippetTag extends JavadocTester {
         checkExit(Exit.OK);
         inputs.forEach((index, input) -> {
             String expectedOutput = testCases.get(input);
-            checkOrder("pkg/A.html",
-                       """
-                       <span class="element-name">case%s</span>()</div>
-                       <div class="block">
-                       <pre class="snippet">
-                       %s</pre>
-                       </div>""".formatted(index, expectedOutput));
+            checkOutput("pkg/A.html", true,
+                        """
+                        <span class="element-name">case%s</span>()</div>
+                        <div class="block">
+                        <pre class="snippet">
+                        %s</pre>
+                        </div>""".formatted(index, expectedOutput));
         });
     }
 
