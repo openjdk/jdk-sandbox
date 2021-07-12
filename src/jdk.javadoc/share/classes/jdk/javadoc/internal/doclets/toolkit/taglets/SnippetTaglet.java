@@ -25,21 +25,6 @@
 
 package jdk.javadoc.internal.doclets.toolkit.taglets;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.PackageElement;
-import javax.tools.Diagnostic;
-import javax.tools.DocumentationTool.Location;
-import javax.tools.FileObject;
-import javax.tools.JavaFileManager;
-
 import com.sun.source.doctree.AttributeTree;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.SnippetTree;
@@ -53,6 +38,20 @@ import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser.Parser;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.parser.Style;
 import jdk.javadoc.internal.doclets.toolkit.taglets.snippet.text.AnnotatedText;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
+
+import javax.lang.model.element.Element;
+import javax.lang.model.element.PackageElement;
+import javax.tools.Diagnostic;
+import javax.tools.DocumentationTool.Location;
+import javax.tools.FileObject;
+import javax.tools.JavaFileManager;
+import java.io.IOException;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class SnippetTaglet extends BaseTaglet {
 
@@ -91,12 +90,15 @@ public class SnippetTaglet extends BaseTaglet {
             return badSnippet(writer);
         }
 
-        final boolean containsClass = attributes.containsKey("class");
-        final boolean containsFile = attributes.containsKey("file");
+        final String CLASS = "class";
+        final String FILE = "file";
+
+        final boolean containsClass = attributes.containsKey(CLASS);
+        final boolean containsFile = attributes.containsKey(FILE);
         final boolean containsBody = snippetTag.getBody() != null;
 
         if (containsClass && containsFile) {
-            error(writer, holder, attributes.get("class"), "doclet.snippet.contents.ambiguity.external");
+            error(writer, holder, attributes.get(CLASS), "doclet.snippet.contents.ambiguity.external");
             return badSnippet(writer);
         } else if (!containsClass && !containsFile && !containsBody) {
             error(writer, holder, tag, "doclet.snippet.contents.none");
@@ -124,26 +126,31 @@ public class SnippetTaglet extends BaseTaglet {
         if (containsFile || containsClass) {
             AttributeTree a;
             String v = containsFile
-                    ? stringOf((a = attributes.get("file")).getValue())
-                    : stringOf((a = attributes.get("class")).getValue()).replace(".", "/") + ".java";
+                    ? stringOf((a = attributes.get(FILE)).getValue())
+                    : stringOf((a = attributes.get(CLASS)).getValue()).replace(".", "/") + ".java";
+
+            if (v.isBlank()) {
+                error(writer, holder, a, "doclet.tag.attribute.value.illegal", containsFile ? FILE : CLASS, v);
+            }
 
             // we didn't create JavaFileManager, so we won't close it; even if an error occurs
             var fileManager = writer.configuration().getFileManager();
 
+            // first, look in local snippet-files subdirectory
+            Utils utils = writer.configuration().utils;
+            PackageElement pkg = getPackageElement(holder, utils);
+            JavaFileManager.Location l = utils.getLocationForPackage(pkg);
+            String relativeName = "snippet-files/" + v;
+            String packageName = packageName(pkg, utils);
             try {
-                // first, look in local snippet-files subdirectory
-                Utils utils = writer.configuration().utils;
-                PackageElement pkg = getPackageElement(holder, utils);
-                JavaFileManager.Location l = utils.getLocationForPackage(pkg);
-                String relativeName = "snippet-files/" + v;
-                String packageName = packageName(pkg, utils);
                 fileObject = fileManager.getFileForInput(l, packageName, relativeName);
 
                 // if not found in local snippet-files directory, look on snippet path
                 if (fileObject == null && fileManager.hasLocation(Location.SNIPPET_PATH)) {
-                    fileObject = fileManager.getFileForInput(Location.SNIPPET_PATH,"", v);
+                    fileObject = fileManager.getFileForInput(Location.SNIPPET_PATH, "", v);
                 }
-            } catch (IOException e) {
+            } catch (IOException | IllegalArgumentException e) {
+                // JavaFileManager.getFileForInput can throw IllegalArgumentException in certain cases
                 error(writer, holder, a, "doclet.exception.read.file", v, e.getCause());
                 return badSnippet(writer);
             }
@@ -336,11 +343,5 @@ public class SnippetTaglet extends BaseTaglet {
         //
         // The most trivial example of such a string is " ". In fact, any string
         // with a trailing non-empty blank line would do.
-    }
-
-    void mismatch(String left, String right) {
-        int idx = Arrays.mismatch(left.toCharArray(), right.toCharArray());
-        if (idx < 0)
-            return;
     }
 }

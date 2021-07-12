@@ -51,6 +51,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -262,6 +263,12 @@ public class TestSnippetTag extends JavadocTester {
                 """
                 {@snippet
                 file='}
+                """,
+// This is an interesting case: closing curly terminates the tag, leaving the
+// attribute value empty.
+                """
+                {@snippet
+                file=}
                 """
 // The below commented out cases are worth testing if only to fixate the result.
 // It's not that we can do a lot about them anyway.
@@ -299,6 +306,23 @@ public class TestSnippetTag extends JavadocTester {
             passed("");
         } else {
             failed(actual + " vs " + expected);
+        }
+        checkNoCrashes();
+    }
+
+    /*
+     * When checking for errors, it is important not to confuse one error for
+     * another. This method checks that there are no crashes (which are also
+     * errors) by checking for stack traces. We never expect crashes.
+     */
+    private void checkNoCrashes() {
+        checking("check crashes");
+        Matcher matcher = Pattern.compile("\s*at.*\\(.*\\.java:\\d+\\)")
+                .matcher(getOutput(Output.STDERR));
+        if (!matcher.find()) {
+            passed("");
+        } else {
+            failed("Looks like a stacktrace: " + matcher.group());
         }
     }
 
@@ -342,6 +366,7 @@ public class TestSnippetTag extends JavadocTester {
         } else {
             failed(actual + " vs " + expected);
         }
+        checkNoCrashes();
     }
 
     @Test
@@ -691,12 +716,7 @@ public class TestSnippetTag extends JavadocTester {
                     </pre>
                         <!-- comment -->
                     <b>&trade;</b> &#8230; " '
-                """, s ->
-                        """
-                            &lt;/pre&gt;
-                                &lt;!-- comment --&gt;
-                            &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
-                        """,
+                """, s -> s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"),
                 """
                     &lt;/pre&gt;
                         &lt;!-- comment --&gt;
@@ -858,6 +878,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: File not found: %s""".formatted(fileName));
+        checkNoCrashes();
     }
 
     @Test // FIXME perhaps this could be unified with testExternalFile
@@ -912,6 +933,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: File not found: %s""".formatted(fileName));
+        checkNoCrashes();
     }
 
     @Test
@@ -931,6 +953,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:3: error: @snippet does not specify contents""");
+        checkNoCrashes();
     }
 
     @Test
@@ -956,6 +979,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:3: error: @snippet specifies multiple external contents, which is ambiguous""");
+        checkNoCrashes();
     }
 
     @Test
@@ -977,6 +1001,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutputEither(Output.OUT,
                           """
                           A.java:3: error: @snippet specifies multiple external contents, which is ambiguous""");
+        checkNoCrashes();
     }
 
     // FIXME: perhaps this method could be added to JavadocTester
@@ -1009,6 +1034,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:3: error: repeated attribute: "file\"""");
+        checkNoCrashes();
     }
 
     @Test
@@ -1028,6 +1054,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:3: error: repeated attribute: "class\"""");
+        checkNoCrashes();
     }
 
     @Test
@@ -1051,6 +1078,7 @@ public class TestSnippetTag extends JavadocTester {
                           A.java:3: error: repeated attribute: "class\"""",
                           """
                           A.java:3: error: @snippet specifies external and inline contents, which is ambiguous""");
+        checkNoCrashes();
     }
 
     @Test
@@ -1074,6 +1102,7 @@ public class TestSnippetTag extends JavadocTester {
                           A.java:3: error: repeated attribute: "file\"""",
                           """
                           A.java:3: error: @snippet specifies external and inline contents, which is ambiguous""");
+        checkNoCrashes();
     }
 
     // Those are excerpts from the diagnostic messages for two different tags that sit on the same line:
@@ -1102,6 +1131,7 @@ public class TestSnippetTag extends JavadocTester {
                     A.java:3: error: @snippet does not specify contents""",
                     """
                     A.java:3: error: @snippet does not specify contents""");
+        checkNoCrashes();
     }
 
     @Test
@@ -1327,6 +1357,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: @snippet does not specify contents""");
+        checkNoCrashes();
     }
 
     @Test
@@ -1596,6 +1627,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: File not found: %s""".formatted(fileName));
+        checkNoCrashes();
     }
 
     @Test
@@ -1626,6 +1658,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: region not found: "%s\"""".formatted(region));
+        checkNoCrashes();
     }
 
     @Test
@@ -1654,6 +1687,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: contents mismatch""");
+        checkNoCrashes();
     }
 
     @Test
@@ -1693,6 +1727,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: contents mismatch""");
+        checkNoCrashes();
     }
 
     @Test
@@ -1726,6 +1761,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: contents mismatch""");
+        checkNoCrashes();
     }
 
     @Test
@@ -1762,6 +1798,7 @@ public class TestSnippetTag extends JavadocTester {
         checkOutput(Output.OUT, true,
                     """
                     A.java:4: error: contents mismatch""");
+        checkNoCrashes();
     }
 
     @Test
