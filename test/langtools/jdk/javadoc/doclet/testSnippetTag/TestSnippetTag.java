@@ -49,6 +49,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -373,299 +374,223 @@ public class TestSnippetTag extends JavadocTester {
     public void testInline(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-        new ClassBuilder(tb, "pkg.A")
-                .setModifiers("public", "class")
-                // Empty
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case00() { }")
-                                .setComments("""
-                                             {@snippet :
-                                             }
-                                             """))
-                // Empty with a newline before : as a separator
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case01() { }")
-                                .setComments("""
-                                             {@snippet
-                                             :
-                                             }
-                                             """))
-                // Empty with a newline and whitespace before :
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case02() { }")
-                                .setComments("""
-                                             {@snippet
-                                                       :
-                                             }
-                                             """))
-                // Basic
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case10() { }")
-                                .setComments("""
-                                             {@snippet :
-                                                 Hello, Snippet!
-                                             }
-                                             """))
-                // Leading whitespace before `:`
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case20() { }")
-                                .setComments("""
-                                             {@snippet       :
-                                                 Hello, Snippet!
-                                             }
-                                             """))
-                // Trailing whitespace after `:`
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case30() { }")
-                                .setComments("""
-                                             {@snippet :      \s
-                                                 Hello, Snippet!
-                                             }
-                                             """))
-                // Attributes do not interfere with body
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case31() { }")
-                                .setComments("""
-                                             {@snippet  attr1="val1"    :
-                                                 Hello, Snippet!
-                                             }
-                                             """))
-                // Multi-line
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case40() { }")
-                                .setComments("""
-                                             {@snippet :
-                                                 Hello
-                                                 ,
-                                                  Snippet!
-                                             }
-                                             """))
-                // Leading empty line
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case50() { }")
-                                .setComments("""
-                                             {@snippet :
 
-                                                 Hello
-                                                 ,
-                                                  Snippet!
-                                             }
-                                             """))
-                // Trailing empty line
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case60() { }")
-                                .setComments("""
-                                             {@snippet :
-                                                 Hello
-                                                 ,
-                                                  Snippet!
+        record TestCase(String input, String expectedOutput) {
+        }
 
-                                             }
-                                             """))
-                // Controlling indent with `}`
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case70() { }")
-                                .setComments("""
-                                             {@snippet :
-                                                 Hello
-                                                 ,
-                                                  Snippet!
-                                                 }
-                                             """))
-                // No trailing newline before `}`
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case80() { }")
-                                .setComments("""
-                                             {@snippet :
-                                                 Hello
-                                                 ,
-                                                  Snippet!}
-                                             """))
-                // Trailing space is stripped
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case90() { }")
-                                .setComments("""
-                                             {@snippet :
-                                                 Hello
-                                                 ,    \s
-                                                  Snippet!
-                                             }
-                                             """))
-                // Escape sequences of Text Blocks and string literals are not interpreted:
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case100() { }")
-                                .setComments("""
-                                             {@snippet :
-                                                 \\b\\t\\n\\f\\r\\"\\'\\\
-                                                 Hello\\
-                                                 ,\\s
-                                                  Snippet!
-                                             }
-                                             """))
+        // fix reproducibility by wrapping into linked hash set
+        final Set<TestCase> testCases = Set.of(
+                // minimal empty
+                new TestCase("""
+                             {@snippet :
+                             }
+                             """,
+                             """
+                             """),
+                // empty with a newline before `:` as a separator
+                new TestCase("""
+                             {@snippet
+                             :
+                             }
+                             """,
+                             """
+                             """),
+                // empty with a newline followed by whitespace before `:`
+                new TestCase("""
+                             {@snippet
+                                       :
+                             }
+                             """,
+                             """
+                             """),
+                // empty with whitespace followed by a newline before `:`
+                new TestCase("""
+                             {@snippet    \s
+                             :
+                             }
+                             """,
+                             """
+                             """),
+                // basic
+                new TestCase("""
+                             {@snippet :
+                                 Hello, Snippet!
+                             }
+                             """,
+                             """
+                                 Hello, Snippet!
+                             """),
+                // leading whitespace before `:`
+                new TestCase("""
+                             {@snippet       :
+                                 Hello, Snippet!
+                             }
+                             """,
+                             """
+                                 Hello, Snippet!
+                             """),
+                // trailing whitespace after `:`
+                new TestCase("""
+                             {@snippet :      \s
+                                 Hello, Snippet!
+                             }
+                             """,
+                             """
+                                 Hello, Snippet!
+                             """),
+                // attributes do not interfere with body
+                new TestCase("""
+                             {@snippet  attr1="val1"    :
+                                 Hello, Snippet!
+                             }
+                             """,
+                             """
+                                 Hello, Snippet!
+                             """),
+                // multi-line
+                new TestCase("""
+                             {@snippet :
+                                 Hello
+                                 ,
+                                  Snippet!
+                             }
+                             """,
+                             """
+                                 Hello
+                                 ,
+                                  Snippet!
+                             """),
+                // leading empty line
+                new TestCase("""
+                             {@snippet :
+
+                                 Hello
+                                 ,
+                                  Snippet!
+                             }
+                             """,
+                             """
+
+                                 Hello
+                                 ,
+                                  Snippet!
+                             """),
+                // trailing empty line
+                new TestCase("""
+                             {@snippet :
+                                 Hello
+                                 ,
+                                  Snippet!
+
+                             }
+                             """,
+                             """
+                                 Hello
+                                 ,
+                                  Snippet!
+
+                             """),
+                // controlling indent with `}`
+                new TestCase("""
+                             {@snippet :
+                                 Hello
+                                 ,
+                                  Snippet!
+                                 }
+                             """,
+                             """
+                             Hello
+                             ,
+                              Snippet!
+                             """
+                ),
+                // no trailing newline before `}
+                new TestCase("""
+                             {@snippet :
+                                 Hello
+                                 ,
+                                  Snippet!}
+                             """,
+                             """
+                             Hello
+                             ,
+                              Snippet!"""),
+                // trailing space is stripped
+                new TestCase("""
+                             {@snippet :
+                                 Hello
+                                 ,    \s
+                                  Snippet!
+                             }
+                             """,
+                             """
+                                 Hello
+                                 ,
+                                  Snippet!
+                             """),
+                // escapes of Text Blocks and string literals are not interpreted
+                new TestCase("""
+                             {@snippet :
+                                 \\b\\t\\n\\f\\r\\"\\'\\\
+                                 Hello\\
+                                 ,\\s
+                                  Snippet!
+                             }
+                             """,
+                             """
+                                 \\b\\t\\n\\f\\r\\"\\'\\    Hello\\
+                                 ,\\s
+                                  Snippet!
+                             """),
                 // HTML is not interpreted
-                .addMembers(
-                        MethodBuilder
-                                .parse("public void case110() { }")
-                                .setComments("""
-                                             {@snippet :
-                                                 </pre>
-                                                     <!-- comment -->
-                                                 <b>&trade;</b> &#8230; " '
-                                             }
-                                             """))
-                .write(srcDir);
+                new TestCase("""
+                             {@snippet :
+                                 </pre>
+                                     <!-- comment -->
+                                 <b>&trade;</b> &#8230; " '
+                             }
+                             """,
+                             """
+                                 &lt;/pre&gt;
+                                     &lt;!-- comment --&gt;
+                                 &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
+                             """)
+        );
+        ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class");
+        // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
+        Map<Integer, TestCase> inputs = new LinkedHashMap<>();
+        // I would use a single-threaded counter if we had one.
+        // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
+        AtomicInteger counter = new AtomicInteger();
+        testCases.forEach(t -> {
+            int id = counter.incrementAndGet();
+            inputs.put(id, t);
+            classBuilder
+                    .addMembers(
+                            MethodBuilder
+                                    .parse("public void case%s() { }".formatted(id))
+                                    .setComments(t.input()));
+        });
+        classBuilder.write(srcDir);
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case00</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case01</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case02</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case10</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                        Hello, Snippet!
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case20</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                        Hello, Snippet!
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case30</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                        Hello, Snippet!
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case31</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                        Hello, Snippet!
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case40</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                        Hello
-                        ,
-                         Snippet!
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case50</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
+        inputs.forEach((index, t) -> {
 
-                        Hello
-                        ,
-                         Snippet!
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case60</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                        Hello
-                        ,
-                         Snippet!
+            System.out.println(t.expectedOutput());
 
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case70</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                    Hello
-                    ,
-                     Snippet!
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case80</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                    Hello
-                    ,
-                     Snippet!</pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case90</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                        Hello
-                        ,
-                         Snippet!
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case100</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                        \\b\\t\\n\\f\\r\\"\\'\\    Hello\\
-                        ,\\s
-                         Snippet!
-                    </pre>
-                    </div>""");
-        checkOutput("pkg/A.html", true,
-                    """
-                    <span class="element-name">case110</span>()</div>
-                    <div class="block">
-                    <pre class="snippet">
-                        &lt;/pre&gt;
-                            &lt;!-- comment --&gt;
-                        &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
-                    </pre>
-                    </div>""");
+            String expectedOutput = t.expectedOutput();
+            checkOutput("pkg/A.html", true,
+                        """
+                        <span class="element-name">case%s</span>()</div>
+                        <div class="block">
+                        <pre class="snippet">
+                        %s</pre>
+                        </div>""".formatted(index, expectedOutput));
+        });
+
     }
 
     @Test
