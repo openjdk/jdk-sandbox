@@ -578,19 +578,14 @@ public class TestSnippetTag extends JavadocTester {
                 "pkg");
         checkExit(Exit.OK);
         inputs.forEach((index, t) -> {
-
-            System.out.println(t.expectedOutput());
-
-            String expectedOutput = t.expectedOutput();
             checkOutput("pkg/A.html", true,
                         """
                         <span class="element-name">case%s</span>()</div>
                         <div class="block">
                         <pre class="snippet">
                         %s</pre>
-                        </div>""".formatted(index, expectedOutput));
+                        </div>""".formatted(index, t.expectedOutput()));
         });
-
     }
 
     @Test
