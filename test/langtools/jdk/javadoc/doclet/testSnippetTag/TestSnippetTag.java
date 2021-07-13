@@ -45,11 +45,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -89,7 +88,7 @@ public class TestSnippetTag extends JavadocTester {
     public void testIdAndLangAttributes(Path base) throws IOException {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-        List<String> snippets = List.of(
+        final var snippets = List.of(
                 """
                 {@snippet id="foo" :
                     Hello, Snippet!
@@ -221,7 +220,7 @@ public class TestSnippetTag extends JavadocTester {
     public void testBadTagSyntax(Path base) throws IOException {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-        List<String> badSnippets = List.of(
+        final var badSnippets = List.of(
                 // No newline after `:`
                 """
                 {@snippet :}
@@ -336,7 +335,7 @@ public class TestSnippetTag extends JavadocTester {
     public void testUnknownTag(Path base) throws IOException {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-        List<String> unknownTags = List.of(
+        final var unknownTags = List.of(
                 """
                 {@snippet:}
                 """,
@@ -375,11 +374,9 @@ public class TestSnippetTag extends JavadocTester {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
 
-        record TestCase(String input, String expectedOutput) {
-        }
+        record TestCase(String input, String expectedOutput) { }
 
-        // fix reproducibility by wrapping into linked hash set
-        final Set<TestCase> testCases = Set.of(
+        final var testCases = List.of(
                 // minimal empty
                 new TestCase("""
                              {@snippet :
@@ -558,8 +555,7 @@ public class TestSnippetTag extends JavadocTester {
         );
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
-        Map<Integer, TestCase> inputs = new LinkedHashMap<>();
+        Map<Integer, TestCase> inputs = new HashMap<>();
         // I would use a single-threaded counter if we had one.
         // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
         AtomicInteger counter = new AtomicInteger();
@@ -592,66 +588,76 @@ public class TestSnippetTag extends JavadocTester {
     public void testExternalFile(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
-        // Maps an input to a function that yields an expected output
-        final Map<String, Function<String, String>> testCases = Map.of(
-                """
-                Hello, Snippet!
-                """, Function.identity(),
-                """
-                    Hello, Snippet!
-                """, Function.identity(),
-                """
-                    Hello
-                    ,
-                     Snippet!
-                """, Function.identity(),
-                """
-                                    
-                    Hello
-                    ,
-                     Snippet!
-                """, Function.identity(),
-                """
-                    Hello
-                    ,
-                     Snippet!
 
-                """, Function.identity(),
-                """
-                    Hello
-                    ,        \s
-                     Snippet!
-                """, String::stripIndent,
-                """
-                Hello
-                ,
-                 Snippet!""", Function.identity(),
-                """
-                    \\b\\t\\n\\f\\r\\"\\'\\\
-                    Hello\\
-                    ,\\s
-                     Snippet!
-                """, Function.identity(),
-                """
-                    </pre>
-                        <!-- comment -->
-                    <b>&trade;</b> &#8230; " '
-                """, s -> s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"),
-                """
-                    &lt;/pre&gt;
-                        &lt;!-- comment --&gt;
-                    &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
-                """, s -> s.replaceAll("&", "&amp;")
+        record TestCase(String input, Function<String, String> expectedTransformation) {
+
+            TestCase(String input) {
+                this(input, Function.identity());
+            }
+        }
+
+        final var testCases = List.of(
+                new TestCase("""
+                             Hello, Snippet!
+                             """),
+                new TestCase("""
+                                 Hello, Snippet!
+                             """),
+                new TestCase("""
+                                 Hello
+                                 ,
+                                  Snippet!
+                             """),
+                new TestCase("""
+                                                 
+                                 Hello
+                                 ,
+                                  Snippet!
+                             """),
+                new TestCase("""
+                                 Hello
+                                 ,
+                                  Snippet!
+
+                             """),
+                new TestCase("""
+                                 Hello
+                                 ,        \s
+                                  Snippet!
+                             """,
+                             String::stripIndent),
+                new TestCase("""
+                             Hello
+                             ,
+                              Snippet!"""),
+                new TestCase("""
+                                 \\b\\t\\n\\f\\r\\"\\'\\\
+                                 Hello\\
+                                 ,\\s
+                                  Snippet!
+                             """),
+                new TestCase("""
+                                 </pre>
+                                     <!-- comment -->
+                                 <b>&trade;</b> &#8230; " '
+                             """,
+                             s -> s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")),
+                new TestCase("""
+                                 &lt;/pre&gt;
+                                     &lt;!-- comment --&gt;
+                                 &lt;b&gt;&amp;trade;&lt;/b&gt; &amp;#8230; " '
+                             """,
+                             s -> s.replaceAll("&", "&amp;"))
         );
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
-        Map<Integer, String> inputs = new LinkedHashMap<>();
+        Map<Integer, TestCase> indexedTestCases = new HashMap<>();
         // I would use a single-threaded counter if we had one.
         // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
         AtomicInteger counter = new AtomicInteger();
-        testCases.keySet().forEach(input -> {
+        testCases.forEach(t -> {
             int id = counter.incrementAndGet();
+            indexedTestCases.put(id, t);
             classBuilder
                     .addMembers(
                             MethodBuilder
@@ -659,16 +665,15 @@ public class TestSnippetTag extends JavadocTester {
                                     .setComments("""
                                                  {@snippet file="%s.txt"}
                                                  """.formatted(id)));
-            addSnippetFile(srcDir, "pkg", "%s.txt".formatted(id), input);
-            inputs.put(id, input);
+            addSnippetFile(srcDir, "pkg", "%s.txt".formatted(id), t.input());
         });
         classBuilder.write(srcDir);
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        inputs.forEach((index, input) -> {
-            String expectedOutput = testCases.get(input).apply(input);
+        indexedTestCases.forEach((index, testCase) -> {
+            String expectedOutput = testCase.expectedTransformation().apply(testCase.input());
             checkOutput("pkg/A.html", true,
                         """
                         <span class="element-name">case%s</span>()</div>
@@ -1212,8 +1217,7 @@ public class TestSnippetTag extends JavadocTester {
         Path outDir = base.resolve("out");
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
-        Map<Integer, Snippet> inputs = new LinkedHashMap<>();
+        Map<Integer, Snippet> inputs = new HashMap<>();
         // I would use a single-threaded counter if we had one.
         // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
         AtomicInteger counter = new AtomicInteger();
@@ -1339,7 +1343,7 @@ public class TestSnippetTag extends JavadocTester {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
         // Test most expected use cases for external snippet
-        List<String> snippets = List.of(
+        final var snippets = List.of(
                 """
                 {@snippet file=file region=region}
                 """,
@@ -1491,8 +1495,7 @@ public class TestSnippetTag extends JavadocTester {
         Path outDir = base.resolve("out");
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
-        Map<Integer, Snippet> inputs = new LinkedHashMap<>();
+        Map<Integer, Snippet> inputs = new HashMap<>();
         // I would use a single-threaded counter if we had one.
         // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
         AtomicInteger counter = new AtomicInteger();
@@ -1824,8 +1827,7 @@ public class TestSnippetTag extends JavadocTester {
         Path outDir = base.resolve("out");
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        // Indices are mapped to corresponding inputs not to depend on iteration order of `testCase`
-        Map<Integer, Snippet> inputs = new LinkedHashMap<>();
+        Map<Integer, Snippet> inputs = new HashMap<>();
         // Using an object rather than a primitive variable (e.g. `int id`)
         // allows to change it from within a lambda and therefore utilize forEach
         // I would use a single-threaded counter if we had one.
