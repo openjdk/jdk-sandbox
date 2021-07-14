@@ -68,11 +68,11 @@ public class TestSnippetTag extends JavadocTester {
 
     private final ToolBox tb = new ToolBox();
 
+    private TestSnippetTag() { }
+
     public static void main(String... args) throws Exception {
         new TestSnippetTag().runTests(m -> new Object[]{Paths.get(m.getName())});
     }
-
-    private TestSnippetTag() { }
 
     /*
      * While the "id" and "lang" attributes are advertised in JEP 413, they are
@@ -185,7 +185,6 @@ public class TestSnippetTag extends JavadocTester {
                 }
                 """
         );
-
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
         forEachNumbered(snippets, (s, i) -> {
@@ -208,6 +207,19 @@ public class TestSnippetTag extends JavadocTester {
                         </pre>
                         </div>
                         """.formatted(j));
+        }
+    }
+
+    /*
+     * This is a convenience method to iterate through a list.
+     * Unlike List.forEach, this method provides the consumer not only with an
+     * element but also that element's index.
+     *
+     * See JDK-8184707.
+     */
+    private static <T> void forEachNumbered(List<T> list, ObjIntConsumer<? super T> action) {
+        for (var iterator = list.listIterator(); iterator.hasNext(); ) {
+            action.accept(iterator.next(), iterator.previousIndex());
         }
     }
 
@@ -268,13 +280,13 @@ public class TestSnippetTag extends JavadocTester {
 // The below commented out cases are worth testing if only to fixate the result.
 // It's not that we can do a lot about them anyway.
 //                ,
-//                // FIXME forgot ":"
+// A missing `:`
 //                """
 //                {@snippet
 //                  Hello  there
 //                }
 //                """
-//                // FIXME forgot ":"
+// A missing `:`
 //                """
 //                {@snippet
 //                    List<String> strings = List.of();
@@ -305,7 +317,7 @@ public class TestSnippetTag extends JavadocTester {
     }
 
     /*
-     * When checking for errors, it is important not to confuse one error for
+     * When checking for errors, it is important not to confuse one error with
      * another. This method checks that there are no crashes (which are also
      * errors) by checking for stack traces. We never expect crashes.
      */
@@ -350,7 +362,7 @@ public class TestSnippetTag extends JavadocTester {
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.ERROR);
-        long actual = Pattern.compile("\\Qerror: unknown tag: snippet:\\E")
+        long actual = Pattern.compile("error: unknown tag: snippet:")
                 .matcher(getOutput(Output.OUT)).results().count();
         checking("Number of errors");
         int expected = unknownTags.size();
@@ -665,6 +677,20 @@ public class TestSnippetTag extends JavadocTester {
         });
     }
 
+    // FIXME
+    //   Explore the toolbox.ToolBox.writeFile and toolbox.ToolBox.writeJavaFiles methods:
+    //   see if any of them could be used instead of this one
+    private void addSnippetFile(Path srcDir, String packageName, String fileName, String content) throws UncheckedIOException {
+        String[] components = packageName.split("\\.");
+        Path snippetFiles = Path.of(components[0], Arrays.copyOfRange(components, 1, components.length)).resolve("snippet-files");
+        try {
+            Path p = Files.createDirectories(srcDir.resolve(snippetFiles));
+            Files.writeString(p.resolve(fileName), content, StandardOpenOption.CREATE_NEW);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     @Test
     public void testInlineSnippetInDocFiles(Path base) throws IOException {
         Path srcDir = base.resolve("src");
@@ -747,20 +773,6 @@ public class TestSnippetTag extends JavadocTester {
                 "pkg");
         checkExit(Exit.OK);
         checkOutput("pkg/doc-files/file.html", true, content);
-    }
-
-    // FIXME
-    //   Explore the toolbox.ToolBox.writeFile and toolbox.ToolBox.writeJavaFiles methods:
-    //   see if any of them could be used instead of this one
-    private void addSnippetFile(Path srcDir, String packageName, String fileName, String content) throws UncheckedIOException {
-        String[] components = packageName.split("\\.");
-        Path snippetFiles = Path.of(components[0], Arrays.copyOfRange(components, 1, components.length)).resolve("snippet-files");
-        try {
-            Path p = Files.createDirectories(srcDir.resolve(snippetFiles));
-            Files.writeString(p.resolve(fileName), content, StandardOpenOption.CREATE_NEW);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     @Test
@@ -1223,6 +1235,39 @@ public class TestSnippetTag extends JavadocTester {
                         %s</pre>
                         </div>""".formatted(index, t.expectedOutput()));
         });
+    }
+
+    private static Snippet.Builder newSnippetBuilder() {
+        return new Snippet.Builder();
+    }
+
+    private record Snippet(String regionName, String body, String fileContent) {
+
+        static class Builder {
+
+            private String regionName;
+            private String body;
+            private String fileContent;
+
+            Builder region(String name) {
+                this.regionName = name;
+                return this;
+            }
+
+            Builder body(String content) {
+                this.body = content;
+                return this;
+            }
+
+            Builder fileContent(String fileContent) {
+                this.fileContent = fileContent;
+                return this;
+            }
+
+            Snippet build() {
+                return new Snippet(regionName, body, fileContent);
+            }
+        }
     }
 
     @Test
@@ -1823,51 +1868,5 @@ public class TestSnippetTag extends JavadocTester {
                         %s</pre>
                         </div>""".formatted(index, t.expectedOutput()));
         });
-    }
-
-    private static Snippet.Builder newSnippetBuilder() {
-        return new Snippet.Builder();
-    }
-
-    private record Snippet(String regionName, String body, String fileContent) {
-
-        static class Builder {
-
-            private String regionName;
-            private String body;
-            private String fileContent;
-
-            Builder region(String name) {
-                this.regionName = name;
-                return this;
-            }
-
-            Builder body(String content) {
-                this.body = content;
-                return this;
-            }
-
-            Builder fileContent(String fileContent) {
-                this.fileContent = fileContent;
-                return this;
-            }
-
-            Snippet build() {
-                return new Snippet(regionName, body, fileContent);
-            }
-        }
-    }
-
-    /*
-     * This is a convenience method to iterate through a list.
-     * Unlike List.forEach, this method provides the consumer not only with an
-     * element but also that element's index.
-     *
-     * See JDK-8184707
-     */
-    private static <T> void forEachNumbered(List<T> list, ObjIntConsumer<? super T> action) {
-        for (var iterator = list.listIterator(); iterator.hasNext(); ) {
-            action.accept(iterator.next(), iterator.previousIndex());
-        }
     }
 }
