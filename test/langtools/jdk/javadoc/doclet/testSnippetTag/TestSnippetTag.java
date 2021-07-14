@@ -61,8 +61,15 @@ import java.util.stream.Stream;
 //   3. Add tests for hybrid snippets
 
 /*
- * Some of the below tests could benefit from using a combinatorics library
+ * General notes.
+ *
+ * 1. Some of the below tests could benefit from using a combinatorics library
  * as they are otherwise very wordy.
+ *
+ * 2. One has to be careful when using JavadocTester.checkOutput with duplicating
+ * strings. If JavadocTester.checkOutput(x) is true, then it will also be true
+ * if x is passed to that method additionally N times: JavadocTester.checkOutput(x, x, ..., x).
+ * This is because a single occurrence of x in the output will be matched N times.
  */
 public class TestSnippetTag extends JavadocTester {
 
@@ -1023,14 +1030,7 @@ public class TestSnippetTag extends JavadocTester {
         checkNoCrashes();
     }
 
-    // Those are excerpts from the diagnostic messages for two different tags that sit on the same line:
-    //
-    //     A.java:3: error: @snippet does not specify contents
-    //     A.java:3: error: @snippet does not specify contents
-    //
-    // FIXME: fix and uncomment this test if and when that problem with diagnostic output has been resolved
-    //
-    //@Test
+    @Test
     public void testErrorPositionResolution(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
@@ -1046,9 +1046,15 @@ public class TestSnippetTag extends JavadocTester {
         checkExit(Exit.ERROR);
         checkOutput(Output.OUT, true,
                     """
-                    A.java:3: error: @snippet does not specify contents""",
+                    A.java:3: error: @snippet does not specify contents
+                     * {@snippet} {@snippet}
+                       ^
+                    """,
                     """
-                    A.java:3: error: @snippet does not specify contents""");
+                    A.java:3: error: @snippet does not specify contents
+                     * {@snippet} {@snippet}
+                                  ^
+                    """);
         checkNoCrashes();
     }
 
