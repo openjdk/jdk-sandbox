@@ -53,8 +53,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import static java.util.Map.entry;
-
 // FIXME
 //   0. Add tests for snippets in all types of elements: e.g., fields
 //      and constructors (i.e. not only methods.)
@@ -1047,74 +1045,75 @@ public class TestSnippetTag extends JavadocTester {
 
     @Test
     public void testRegion(Path base) throws Exception {
-        final var testCases = List.of( // FIXME change entry to a record
-                entry(newSnippetBuilder()
-                              .body("""
-                                    // @start region=here :
-                                    Hello
-                                    ,
-                                     Snippet!
-                                    // @end
-                                    """)
-                              .region("here")
-                              .build(),
-                      """
-                      Hello
-                      ,
-                       Snippet!
-                      """
-                )
-                ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                        // @start region=here :
-                                        Hello
-                                        ,
-                                         Snippet!
-                                    // @end
-                                        """)
-                              .region("here")
-                              .build(),
-                      """
-                          Hello
-                          ,
-                           Snippet!
-                      """)
-                ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                        // @start region=here :
-                                        Hello
-                                        ,
-                                         Snippet!// @end
-                                    """)
-                              .region("here")
-                              .build(),
-                      """
-                      Hello
-                      ,
-                       Snippet!\
-                      """
-                )
-                ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                    // @start region=there :
-                                    // @end
-
-                                        // @start region=here :
-                                        Hello
-                                        ,
-                                         Snippet!
-                                        // @end
+        record TestCase(Snippet snippet, String expectedOutput) { }
+        final var testCases = List.of(
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                           // @start region=here :
+                                           Hello
+                                           ,
+                                            Snippet!
+                                           // @end
                                            """)
-                              .region("here")
-                              .build(),
-                      """
-                      Hello
-                      ,
-                       Snippet!
-                      """
+                                     .region("here")
+                                     .build(),
+                             """
+                             Hello
+                             ,
+                              Snippet!
+                             """
+                )
+                ,
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                               // @start region=here :
+                                               Hello
+                                               ,
+                                                Snippet!
+                                           // @end
+                                               """)
+                                     .region("here")
+                                     .build(),
+                             """
+                                 Hello
+                                 ,
+                                  Snippet!
+                             """)
+                ,
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                               // @start region=here :
+                                               Hello
+                                               ,
+                                                Snippet!// @end
+                                           """)
+                                     .region("here")
+                                     .build(),
+                             """
+                             Hello
+                             ,
+                              Snippet!\
+                             """
+                )
+                ,
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                           // @start region=there :
+                                           // @end
+
+                                               // @start region=here :
+                                               Hello
+                                               ,
+                                                Snippet!
+                                               // @end
+                                                  """)
+                                     .region("here")
+                                     .build(),
+                             """
+                             Hello
+                             ,
+                              Snippet!
+                             """
                 )
                 ,
 //                entry(newSnippetBuilder()
@@ -1134,76 +1133,76 @@ public class TestSnippetTag extends JavadocTester {
 //                      """
 //                )
 //                ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                    // @start region=here :
-                                        This is the only line you should see.
-                                    // @end
-                                    // @start region=hereafter :
-                                        You should NOT see this.
-                                    // @end
-                                        """)
-                              .region("here")
-                              .build(),
-                      """
-                          This is the only line you should see.
-                      """
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                           // @start region=here :
+                                               This is the only line you should see.
+                                           // @end
+                                           // @start region=hereafter :
+                                               You should NOT see this.
+                                           // @end
+                                               """)
+                                     .region("here")
+                                     .build(),
+                             """
+                                 This is the only line you should see.
+                             """
                 )
                 ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                    // @start region=here :
-                                        You should NOT see this.
-                                    // @end
-                                    // @start region=hereafter :
-                                        This is the only line you should see.
-                                    // @end
-                                        """)
-                              .region("hereafter")
-                              .build(),
-                      """
-                          This is the only line you should see.
-                      """
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                           // @start region=here :
+                                               You should NOT see this.
+                                           // @end
+                                           // @start region=hereafter :
+                                               This is the only line you should see.
+                                           // @end
+                                               """)
+                                     .region("hereafter")
+                                     .build(),
+                             """
+                                 This is the only line you should see.
+                             """
                 )
                 ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                    // @start region=beforehand :
-                                        You should NOT see this.
-                                    // @end
-                                    // @start region=before :
-                                        This is the only line you should see.
-                                    // @end
-                                        """)
-                              .region("before")
-                              .build(),
-                      """
-                          This is the only line you should see.
-                      """
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                           // @start region=beforehand :
+                                               You should NOT see this.
+                                           // @end
+                                           // @start region=before :
+                                               This is the only line you should see.
+                                           // @end
+                                               """)
+                                     .region("before")
+                                     .build(),
+                             """
+                                 This is the only line you should see.
+                             """
                 )
                 ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                    // @start region=beforehand :
-                                        This is the only line you should see.
-                                    // @end
-                                    // @start region=before :
-                                        You should NOT see this.
-                                    // @end
-                                        """)
-                              .region("beforehand")
-                              .build(),
-                      """
-                          This is the only line you should see.
-                      """
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                           // @start region=beforehand :
+                                               This is the only line you should see.
+                                           // @end
+                                           // @start region=before :
+                                               You should NOT see this.
+                                           // @end
+                                               """)
+                                     .region("beforehand")
+                                     .build(),
+                             """
+                                 This is the only line you should see.
+                             """
                 )
         );
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        forEachNumbered(testCases, (entry, id) -> {
-            var input = entry.getKey();
+        forEachNumbered(testCases, (t, id) -> {
+            var snippet = t.snippet();
             classBuilder
                     .addMembers(
                             MethodBuilder
@@ -1211,21 +1210,21 @@ public class TestSnippetTag extends JavadocTester {
                                     .setComments("""
                                                  {@snippet region="%s" :
                                                  %s}
-                                                 """.formatted(input.regionName(), input.body())));
+                                                 """.formatted(snippet.regionName(), snippet.body())));
         });
         classBuilder.write(srcDir);
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        forEachNumbered(testCases, (input,  index) -> {
+        forEachNumbered(testCases, (t, index) -> {
             checkOutput("pkg/A.html", true,
                         """
                         <span class="element-name">case%s</span>()</div>
                         <div class="block">
                         <pre class="snippet">
                         %s</pre>
-                        </div>""".formatted(index, input.getValue()));
+                        </div>""".formatted(index, t.expectedOutput()));
         });
     }
 
@@ -1421,41 +1420,42 @@ public class TestSnippetTag extends JavadocTester {
 
     @Test
     public void testComment(Path base) throws Exception {
+        record TestCase(Snippet snippet, String expectedOutput) { }
         final var testCases = List.of(
-                entry(newSnippetBuilder()
-                              .body("""
-                                    // // @replace substring="//" replacement="Hello"
-                                    ,
-                                     Snippet!""")
-                              .build(),
-                      """
-                      Hello
-                      ,
-                       Snippet!"""
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                           // // @replace substring="//" replacement="Hello"
+                                           ,
+                                            Snippet!""")
+                                     .build(),
+                             """
+                             Hello
+                             ,
+                              Snippet!"""
                 )
                 ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                    //             // @replace substring="//" replacement="Hello"
-                                    ,
-                                     Snippet!""")
-                              .build(),
-                      """
-                      Hello
-                      ,
-                       Snippet!"""
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                           //             // @replace substring="//" replacement="Hello"
+                                           ,
+                                            Snippet!""")
+                                     .build(),
+                             """
+                             Hello
+                             ,
+                              Snippet!"""
                 )
                 ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                    // // @replace substring="//" replacement=" Hello"
-                                    ,
-                                     Snippet!""")
-                              .build(),
-                      """
-                       Hello
-                      ,
-                       Snippet!"""
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                           // // @replace substring="//" replacement=" Hello"
+                                           ,
+                                            Snippet!""")
+                                     .build(),
+                             """
+                              Hello
+                             ,
+                              Snippet!"""
                 )
 // Uncomment when parser has improved (this would allow to write meta snippets,
 // i.e. snippets showing how to write snippets.
@@ -1473,7 +1473,7 @@ public class TestSnippetTag extends JavadocTester {
         Path outDir = base.resolve("out");
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        forEachNumbered(testCases, (input, id) -> {
+        forEachNumbered(testCases, (t, id) -> {
             classBuilder
                     .addMembers(
                             MethodBuilder
@@ -1481,21 +1481,21 @@ public class TestSnippetTag extends JavadocTester {
                                     .setComments("""
                                                  {@snippet :
                                                  %s}
-                                                 """.formatted(input.getKey().body())));
+                                                 """.formatted(t.snippet().body())));
         });
         classBuilder.write(srcDir);
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        forEachNumbered(testCases, (input, index) -> {
+        forEachNumbered(testCases, (t, index) -> {
             checkOutput("pkg/A.html", true,
                         """
                         <span class="element-name">case%s</span>()</div>
                         <div class="block">
                         <pre class="snippet">
                         %s</pre>
-                        </div>""".formatted(index, input.getValue()));
+                        </div>""".formatted(index, t.expectedOutput()));
         });
     }
 
@@ -1697,111 +1697,112 @@ public class TestSnippetTag extends JavadocTester {
 
     @Test
     public void testRedundant(Path base) throws Exception {
-        final var testCases = List.of( // FIXME change entry to a record
-                entry(newSnippetBuilder()
-                              .body("""
-                                    Hello
-                                    ,
-                                     Snippet!""")
-                              .fileContent(
-                                      """
-                                      Hello
-                                      ,
-                                       Snippet!""")
-                              .build(),
-                      """
-                      Hello
-                      ,
-                       Snippet!"""
+        record TestCase(Snippet snippet, String expectedOutput) { }
+        final var testCases = List.of(
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                           Hello
+                                           ,
+                                            Snippet!""")
+                                     .fileContent(
+                                             """
+                                             Hello
+                                             ,
+                                              Snippet!""")
+                                     .build(),
+                             """
+                             Hello
+                             ,
+                              Snippet!"""
                 )
                 ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                      Hello
-                                      ,
-                                       Snippet!
-                                    """)
-                              .region("here")
-                              .fileContent(
-                                      """
-                                      Above the region.
-                                      // @start region=here :
-                                        Hello
-                                        ,
-                                         Snippet!
-                                      // @end
-                                      Below the region.
-                                      """)
-                              .build(),
-                      """
-                        Hello
-                        ,
-                         Snippet!
-                      """
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                             Hello
+                                             ,
+                                              Snippet!
+                                           """)
+                                     .region("here")
+                                     .fileContent(
+                                             """
+                                             Above the region.
+                                             // @start region=here :
+                                               Hello
+                                               ,
+                                                Snippet!
+                                             // @end
+                                             Below the region.
+                                             """)
+                                     .build(),
+                             """
+                               Hello
+                               ,
+                                Snippet!
+                             """
                 )
                 ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                    Above the region.
-                                    // @start region=here :
-                                      Hello
-                                      ,
-                                       Snippet!
-                                    // @end
-                                    Below the region.
-                                    """)
-                              .region("here")
-                              .fileContent(
-                                      """
-                                        Hello
-                                        ,
-                                         Snippet!
-                                      """)
-                              .build(),
-                      """
-                        Hello
-                        ,
-                         Snippet!
-                      """
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                           Above the region.
+                                           // @start region=here :
+                                             Hello
+                                             ,
+                                              Snippet!
+                                           // @end
+                                           Below the region.
+                                           """)
+                                     .region("here")
+                                     .fileContent(
+                                             """
+                                               Hello
+                                               ,
+                                                Snippet!
+                                             """)
+                                     .build(),
+                             """
+                               Hello
+                               ,
+                                Snippet!
+                             """
                 )
                 ,
-                entry(newSnippetBuilder()
-                              .body("""
-                                    Above the region.
-                                    // @start region=here :
-                                      Hello
-                                      ,
-                                       Snippet!
-                                    // @end
-                                    Below the region.
-                                    """)
-                              .region("here")
-                              .fileContent(
-                                      """
-                                      Above the region.
-                                      // @start region=here :
-                                        Hello
-                                        ,
-                                         Snippet!
-                                      // @end
-                                      Below the region.
-                                      """)
-                              .build(),
-                      """
-                        Hello
-                        ,
-                         Snippet!
-                      """
+                new TestCase(newSnippetBuilder()
+                                     .body("""
+                                           Above the region.
+                                           // @start region=here :
+                                             Hello
+                                             ,
+                                              Snippet!
+                                           // @end
+                                           Below the region.
+                                           """)
+                                     .region("here")
+                                     .fileContent(
+                                             """
+                                             Above the region.
+                                             // @start region=here :
+                                               Hello
+                                               ,
+                                                Snippet!
+                                             // @end
+                                             Below the region.
+                                             """)
+                                     .build(),
+                             """
+                               Hello
+                               ,
+                                Snippet!
+                             """
                 )
         );
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        forEachNumbered(testCases, (entry, id) -> {
-            var input = entry.getKey();
-            final String r = input.regionName() == null ? "" : "region=\"" + input.regionName() + "\"";
-            final String f = input.fileContent() == null ? "" : "file=\"%s.txt\"".formatted(id);
+        forEachNumbered(testCases, (t, id) -> {
+            var snippet = t.snippet();
+            final String r = snippet.regionName() == null ? "" : "region=\"" + snippet.regionName() + "\"";
+            final String f = snippet.fileContent() == null ? "" : "file=\"%s.txt\"".formatted(id);
             classBuilder
                     .addMembers(
                             MethodBuilder
@@ -1809,22 +1810,22 @@ public class TestSnippetTag extends JavadocTester {
                                     .setComments("""
                                                  {@snippet %s %s:
                                                  %s}
-                                                 """.formatted(r, f, input.body())));
-            addSnippetFile(srcDir, "pkg", "%s.txt".formatted(id), input.fileContent());
+                                                 """.formatted(r, f, snippet.body())));
+            addSnippetFile(srcDir, "pkg", "%s.txt".formatted(id), snippet.fileContent());
         });
         classBuilder.write(srcDir);
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        forEachNumbered(testCases, (input, index) -> {
+        forEachNumbered(testCases, (t, index) -> {
             checkOutput("pkg/A.html", true,
                         """
                         <span class="element-name">case%s</span>()</div>
                         <div class="block">
                         <pre class="snippet">
                         %s</pre>
-                        </div>""".formatted(index, input.getValue()));
+                        </div>""".formatted(index, t.expectedOutput()));
         });
     }
 
