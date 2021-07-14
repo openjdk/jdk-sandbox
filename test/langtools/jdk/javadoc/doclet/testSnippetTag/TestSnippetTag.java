@@ -601,7 +601,7 @@ public class TestSnippetTag extends JavadocTester {
                                   Snippet!
                              """),
                 new TestCase("""
-                                                 
+
                                  Hello
                                  ,
                                   Snippet!
@@ -807,7 +807,7 @@ public class TestSnippetTag extends JavadocTester {
                 .addMembers(
                         MethodBuilder
                                 .parse("public void test() { }")
-                                .setComments(""" 
+                                .setComments("""
                                              {@snippet file="%s"}
                                              """.formatted(fileName)))
                 .write(moduleDir);
@@ -833,7 +833,7 @@ public class TestSnippetTag extends JavadocTester {
                 .addMembers(
                         MethodBuilder
                                 .parse("public void test() { }")
-                                .setComments(""" 
+                                .setComments("""
                                              {@snippet file="%s"}
                                              """.formatted(fileName)))
                 .write(moduleDir);
