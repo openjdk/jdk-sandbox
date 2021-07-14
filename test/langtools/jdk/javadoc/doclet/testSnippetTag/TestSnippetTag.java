@@ -188,12 +188,11 @@ public class TestSnippetTag extends JavadocTester {
 
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        int i = 0;
-        for (String s : snippets) {
+        forEachNumbered(snippets, (s, i) -> {
             classBuilder.addMembers(
-                    MethodBuilder.parse("public void case%s() { }".formatted(i++))
+                    MethodBuilder.parse("public void case%s() { }".formatted(i))
                             .setComments(s));
-        }
+        });
         classBuilder.write(srcDir);
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
@@ -284,11 +283,10 @@ public class TestSnippetTag extends JavadocTester {
         );
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        int i = 0;
-        for (String s : badSnippets) {
+        forEachNumbered(badSnippets, (s, i) -> {
             classBuilder.addMembers(
-                    MethodBuilder.parse("public void case%s() { }".formatted(i++)).setComments(s));
-        }
+                    MethodBuilder.parse("public void case%s() { }".formatted(i)).setComments(s));
+        });
         classBuilder.write(srcDir);
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
@@ -342,12 +340,11 @@ public class TestSnippetTag extends JavadocTester {
         );
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        int i = 0;
-        for (String s : unknownTags) {
+        forEachNumbered(unknownTags, (s, i) -> {
             classBuilder.addMembers(
-                    MethodBuilder.parse("public void case%s() { }".formatted(i++))
+                    MethodBuilder.parse("public void case%s() { }".formatted(i))
                             .setComments(s));
-        }
+        });
         classBuilder.write(srcDir);
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
@@ -1396,11 +1393,10 @@ public class TestSnippetTag extends JavadocTester {
                                               """);
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        int i = 0;
-        for (String s : snippets) {
+        forEachNumbered(snippets, (s, i) -> {
             classBuilder.addMembers(
-                    MethodBuilder.parse("public void case%s() { }".formatted(i++)).setComments(s));
-        }
+                    MethodBuilder.parse("public void case%s() { }".formatted(i)).setComments(s));
+        });
         classBuilder.write(srcDir);
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
