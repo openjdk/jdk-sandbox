@@ -677,7 +677,7 @@ public class TestSnippetTag extends JavadocTester {
         });
     }
 
-    // FIXME
+    // TODO:
     //   Explore the toolbox.ToolBox.writeFile and toolbox.ToolBox.writeJavaFiles methods:
     //   see if any of them could be used instead of this one
     private void addSnippetFile(Path srcDir, String packageName, String fileName, String content) throws UncheckedIOException {
@@ -799,7 +799,7 @@ public class TestSnippetTag extends JavadocTester {
         checkNoCrashes();
     }
 
-    @Test // FIXME perhaps this could be unified with testExternalFile
+    @Test // TODO perhaps this could be unified with testExternalFile
     public void testExternalFileModuleSourcePath(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
@@ -825,7 +825,7 @@ public class TestSnippetTag extends JavadocTester {
         checkExit(Exit.OK);
     }
 
-    @Test // FIXME perhaps this could be unified with testExternalFileNotFound
+    @Test // TODO perhaps this could be unified with testExternalFileNotFound
     public void testExternalFileNotFoundModuleSourcePath(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
@@ -891,7 +891,7 @@ public class TestSnippetTag extends JavadocTester {
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.ERROR);
-        // FIXME
+        // TODO
         //   In this and all similar tests check that there are no other errors, let alone errors related to {@snippet}
         //   To achieve that, we might need to change JavadocTester (i.e. add "consume output", "check that the output is empty", etc.)
         checkOutput(Output.OUT, true,
@@ -922,7 +922,7 @@ public class TestSnippetTag extends JavadocTester {
         checkNoCrashes();
     }
 
-    // FIXME: perhaps this method could be added to JavadocTester
+    // TODO: perhaps this method could be added to JavadocTester
     private void checkOutputEither(Output out, String first, String... other) {
         checking("checkOutputEither");
         String output = getOutput(out);
