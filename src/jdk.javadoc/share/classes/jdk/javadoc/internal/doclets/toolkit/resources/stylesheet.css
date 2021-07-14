@@ -865,8 +865,8 @@ table.striped > tbody > tr > th {
 }
 
 pre.snippet {
-    background-color: #e6e2d3;
-    padding: 12px;
+    background-color: #e8e8e8;
+    padding: 10px;
     margin: 12px 0;
     overflow: auto;
     white-space: pre;
