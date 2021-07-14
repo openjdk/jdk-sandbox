@@ -45,12 +45,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.ObjIntConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -555,13 +553,7 @@ public class TestSnippetTag extends JavadocTester {
         );
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        Map<Integer, TestCase> inputs = new HashMap<>();
-        // I would use a single-threaded counter if we had one.
-        // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
-        AtomicInteger counter = new AtomicInteger();
-        testCases.forEach(t -> {
-            int id = counter.incrementAndGet();
-            inputs.put(id, t);
+        forEachNumbered(testCases, (t, id) -> {
             classBuilder
                     .addMembers(
                             MethodBuilder
@@ -573,14 +565,14 @@ public class TestSnippetTag extends JavadocTester {
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        inputs.forEach((index, t) -> {
+        forEachNumbered(testCases, (t, id) -> {
             checkOutput("pkg/A.html", true,
                         """
                         <span class="element-name">case%s</span>()</div>
                         <div class="block">
                         <pre class="snippet">
                         %s</pre>
-                        </div>""".formatted(index, t.expectedOutput()));
+                        </div>""".formatted(id, t.expectedOutput()));
         });
     }
 
@@ -651,13 +643,7 @@ public class TestSnippetTag extends JavadocTester {
         );
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        Map<Integer, TestCase> indexedTestCases = new HashMap<>();
-        // I would use a single-threaded counter if we had one.
-        // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
-        AtomicInteger counter = new AtomicInteger();
-        testCases.forEach(t -> {
-            int id = counter.incrementAndGet();
-            indexedTestCases.put(id, t);
+        forEachNumbered(testCases, (t, id) -> {
             classBuilder
                     .addMembers(
                             MethodBuilder
@@ -672,7 +658,7 @@ public class TestSnippetTag extends JavadocTester {
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        indexedTestCases.forEach((index, testCase) -> {
+        forEachNumbered(testCases, (testCase, index) -> {
             String expectedOutput = testCase.expectedTransformation().apply(testCase.input());
             checkOutput("pkg/A.html", true,
                         """
@@ -1061,8 +1047,7 @@ public class TestSnippetTag extends JavadocTester {
 
     @Test
     public void testRegion(Path base) throws Exception {
-        // Maps an input to an expected output
-        final Map<Snippet, String> testCases = Map.ofEntries(
+        final var testCases = List.of( // FIXME change entry to a record
                 entry(newSnippetBuilder()
                               .body("""
                                     // @start region=here :
@@ -1217,12 +1202,8 @@ public class TestSnippetTag extends JavadocTester {
         Path outDir = base.resolve("out");
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        Map<Integer, Snippet> inputs = new HashMap<>();
-        // I would use a single-threaded counter if we had one.
-        // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
-        AtomicInteger counter = new AtomicInteger();
-        testCases.keySet().forEach(input -> {
-            int id = counter.incrementAndGet();
+        forEachNumbered(testCases, (entry, id) -> {
+            var input = entry.getKey();
             classBuilder
                     .addMembers(
                             MethodBuilder
@@ -1231,22 +1212,20 @@ public class TestSnippetTag extends JavadocTester {
                                                  {@snippet region="%s" :
                                                  %s}
                                                  """.formatted(input.regionName(), input.body())));
-            inputs.put(id, input);
         });
         classBuilder.write(srcDir);
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        inputs.forEach((index, input) -> {
-            String expectedOutput = testCases.get(input);
+        forEachNumbered(testCases, (input,  index) -> {
             checkOutput("pkg/A.html", true,
                         """
                         <span class="element-name">case%s</span>()</div>
                         <div class="block">
                         <pre class="snippet">
                         %s</pre>
-                        </div>""".formatted(index, expectedOutput));
+                        </div>""".formatted(index, input.getValue()));
         });
     }
 
@@ -1442,8 +1421,7 @@ public class TestSnippetTag extends JavadocTester {
 
     @Test
     public void testComment(Path base) throws Exception {
-        // Maps an input to an expected output
-        final Map<Snippet, String> testCases = Map.ofEntries(
+        final var testCases = List.of(
                 entry(newSnippetBuilder()
                               .body("""
                                     // // @replace substring="//" replacement="Hello"
@@ -1495,12 +1473,7 @@ public class TestSnippetTag extends JavadocTester {
         Path outDir = base.resolve("out");
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        Map<Integer, Snippet> inputs = new HashMap<>();
-        // I would use a single-threaded counter if we had one.
-        // Using an object rather than a primitive variable (e.g. `int id`) allows to utilize forEach
-        AtomicInteger counter = new AtomicInteger();
-        testCases.keySet().forEach(input -> {
-            int id = counter.incrementAndGet();
+        forEachNumbered(testCases, (input, id) -> {
             classBuilder
                     .addMembers(
                             MethodBuilder
@@ -1508,23 +1481,21 @@ public class TestSnippetTag extends JavadocTester {
                                     .setComments("""
                                                  {@snippet :
                                                  %s}
-                                                 """.formatted(input.body())));
-            inputs.put(id, input);
+                                                 """.formatted(input.getKey().body())));
         });
         classBuilder.write(srcDir);
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        inputs.forEach((index, input) -> {
-            String expectedOutput = testCases.get(input);
+        forEachNumbered(testCases, (input, index) -> {
             checkOutput("pkg/A.html", true,
                         """
                         <span class="element-name">case%s</span>()</div>
                         <div class="block">
                         <pre class="snippet">
                         %s</pre>
-                        </div>""".formatted(index, expectedOutput));
+                        </div>""".formatted(index, input.getValue()));
         });
     }
 
@@ -1726,7 +1697,7 @@ public class TestSnippetTag extends JavadocTester {
 
     @Test
     public void testRedundant(Path base) throws Exception {
-        final Map<Snippet, String> testCases = Map.ofEntries(
+        final var testCases = List.of( // FIXME change entry to a record
                 entry(newSnippetBuilder()
                               .body("""
                                     Hello
@@ -1827,13 +1798,8 @@ public class TestSnippetTag extends JavadocTester {
         Path outDir = base.resolve("out");
         ClassBuilder classBuilder = new ClassBuilder(tb, "pkg.A")
                 .setModifiers("public", "class");
-        Map<Integer, Snippet> inputs = new HashMap<>();
-        // Using an object rather than a primitive variable (e.g. `int id`)
-        // allows to change it from within a lambda and therefore utilize forEach
-        // I would use a single-threaded counter if we had one.
-        AtomicInteger counter = new AtomicInteger();
-        testCases.keySet().forEach(input -> {
-            int id = counter.incrementAndGet();
+        forEachNumbered(testCases, (entry, id) -> {
+            var input = entry.getKey();
             final String r = input.regionName() == null ? "" : "region=\"" + input.regionName() + "\"";
             final String f = input.fileContent() == null ? "" : "file=\"%s.txt\"".formatted(id);
             classBuilder
@@ -1845,22 +1811,20 @@ public class TestSnippetTag extends JavadocTester {
                                                  %s}
                                                  """.formatted(r, f, input.body())));
             addSnippetFile(srcDir, "pkg", "%s.txt".formatted(id), input.fileContent());
-            inputs.put(id, input);
         });
         classBuilder.write(srcDir);
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg");
         checkExit(Exit.OK);
-        inputs.forEach((index, input) -> {
-            String expectedOutput = testCases.get(input);
+        forEachNumbered(testCases, (input, index) -> {
             checkOutput("pkg/A.html", true,
                         """
                         <span class="element-name">case%s</span>()</div>
                         <div class="block">
                         <pre class="snippet">
                         %s</pre>
-                        </div>""".formatted(index, expectedOutput));
+                        </div>""".formatted(index, input.getValue()));
         });
     }
 
@@ -1894,6 +1858,19 @@ public class TestSnippetTag extends JavadocTester {
             Snippet build() {
                 return new Snippet(regionName, body, fileContent);
             }
+        }
+    }
+
+    /*
+     * This is a convenience method to iterate through a list.
+     * Unlike List.forEach, this method provides the consumer not only with an
+     * element but also that element's index.
+     *
+     * See JDK-8184707
+     */
+    private static <T> void forEachNumbered(List<T> list, ObjIntConsumer<? super T> action) {
+        for (var iterator = list.listIterator(); iterator.hasNext(); ) {
+            action.accept(iterator.next(), iterator.previousIndex());
         }
     }
 }
