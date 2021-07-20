@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "jvm_io.h"
 #include "cds/archiveBuilder.hpp"
+#include "cds/cdsProtectionDomain.hpp"
 #include "cds/classListParser.hpp"
 #include "cds/cppVtables.hpp"
 #include "cds/dumpAllocStats.hpp"
@@ -69,6 +70,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/vmThread.hpp"
 #include "runtime/vmOperations.hpp"
+#include "services/memTracker.hpp"
 #include "utilities/align.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/ostream.hpp"
@@ -246,7 +248,7 @@ void MetaspaceShared::post_initialize(TRAPS) {
   if (UseSharedSpaces) {
     int size = FileMapInfo::get_number_of_shared_paths();
     if (size > 0) {
-      SystemDictionaryShared::allocate_shared_data_arrays(size, CHECK);
+      CDSProtectionDomain::allocate_shared_data_arrays(size, CHECK);
       if (!DynamicDumpSharedSpaces) {
         FileMapInfo* info;
         if (FileMapInfo::dynamic_info() == NULL) {
@@ -390,7 +392,7 @@ static void rewrite_nofast_bytecode(const methodHandle& method) {
 void MetaspaceShared::rewrite_nofast_bytecodes_and_calculate_fingerprints(Thread* thread, InstanceKlass* ik) {
   for (int i = 0; i < ik->methods()->length(); i++) {
     methodHandle m(thread, ik->methods()->at(i));
-    if (ik->can_be_verified_at_dumptime()) {
+    if (ik->can_be_verified_at_dumptime() && ik->is_linked()) {
       rewrite_nofast_bytecode(m);
     }
     Fingerprinter fp(m);
@@ -569,10 +571,26 @@ public:
   ClassLoaderData* cld_at(int index) { return _loaded_cld.at(index); }
 };
 
-bool MetaspaceShared::linking_required(InstanceKlass* ik) {
-  // For static CDS dump, do not link old classes.
-  // For dynamic CDS dump, only link classes loaded by the builtin class loaders.
-  return DumpSharedSpaces ? ik->can_be_verified_at_dumptime() : !ik->is_shared_unregistered_class();
+// Check if we can eagerly link this class at dump time, so we can avoid the
+// runtime linking overhead (especially verification)
+bool MetaspaceShared::may_be_eagerly_linked(InstanceKlass* ik) {
+  if (!ik->can_be_verified_at_dumptime()) {
+    // For old classes, try to leave them in the unlinked state, so
+    // we can still store them in the archive. They must be
+    // linked/verified at runtime.
+    return false;
+  }
+  if (DynamicDumpSharedSpaces && ik->is_shared_unregistered_class()) {
+    // Linking of unregistered classes at this stage may cause more
+    // classes to be resolved, resulting in calls to ClassLoader.loadClass()
+    // that may not be expected by custom class loaders.
+    //
+    // It's OK to do this for the built-in loaders as we know they can
+    // tolerate this. (Note that unregistered classes are loaded by the NULL
+    // loader during DumpSharedSpaces).
+    return false;
+  }
+  return true;
 }
 
 bool MetaspaceShared::link_class_for_cds(InstanceKlass* ik, TRAPS) {
@@ -590,7 +608,7 @@ bool MetaspaceShared::link_class_for_cds(InstanceKlass* ik, TRAPS) {
   return res;
 }
 
-void MetaspaceShared::link_and_cleanup_shared_classes(TRAPS) {
+void MetaspaceShared::link_shared_classes(TRAPS) {
   // Collect all loaded ClassLoaderData.
   ResourceMark rm;
 
@@ -612,7 +630,7 @@ void MetaspaceShared::link_and_cleanup_shared_classes(TRAPS) {
       for (Klass* klass = cld->klasses(); klass != NULL; klass = klass->next_link()) {
         if (klass->is_instance_klass()) {
           InstanceKlass* ik = InstanceKlass::cast(klass);
-          if (linking_required(ik)) {
+          if (may_be_eagerly_linked(ik)) {
             has_linked |= link_class_for_cds(ik, CHECK);
           }
         }
@@ -700,7 +718,7 @@ void MetaspaceShared::preload_classes(TRAPS) {
   // Exercise the manifest processing code to ensure classes used by CDS at runtime
   // are always archived
   const char* dummy = "Manifest-Version: 1.0\n";
-  SystemDictionaryShared::create_jar_manifest(dummy, strlen(dummy), CHECK);
+  CDSProtectionDomain::create_jar_manifest(dummy, strlen(dummy), CHECK);
 
   log_info(cds)("Loading classes to share: done.");
   log_info(cds)("Shared spaces: preloaded %d classes", class_count);
@@ -724,7 +742,7 @@ void MetaspaceShared::preload_and_dump_impl(TRAPS) {
   // were not explicitly specified in the classlist. E.g., if an interface implemented by class K
   // fails verification, all other interfaces that were not specified in the classlist but
   // are implemented by K are not verified.
-  link_and_cleanup_shared_classes(CHECK);
+  link_shared_classes(CHECK);
   log_info(cds)("Rewriting and linking classes: done");
 
 #if INCLUDE_CDS_JAVA_HEAP
