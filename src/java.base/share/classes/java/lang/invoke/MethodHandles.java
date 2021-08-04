@@ -7807,7 +7807,6 @@ public class MethodHandles {
      *  assertEquals("case 0: data", (String) mhSwitch.invokeExact(0, "data"));
      *  assertEquals("case 1: data", (String) mhSwitch.invokeExact(1, "data"));
      *  assertEquals("default: data", (String) mhSwitch.invokeExact(2, "data"));
-     * // @end snippet48
      * }
      *
      * @param fallback the fallback method handle that is called when the selector is not
